@@ -43,13 +43,13 @@ import {
 import { CARTES_MATCH } from '../js/combat.js';
 import {
   DEBLOCAGES, departDuClasseur, lotosDeSaison, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli, rangDuMandat,
-  JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, postesDePatron, exigencesOuvertes,
+  JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, exigencesOuvertes,
   EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, gardesDeLaRun, GARDES_DE_SAISON, ESPACE_DE_DEPART, soutiensDuDepart,
   ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN,
 } from '../js/rogue.js';
 import { EDITIONS } from '../js/rarete.js';
 import { NIVEAUX as NOMS_DE_NIVEAU } from '../js/niveaux.js';
-import { BANQUE, PATRONS_IMPOSES, patronsDeDepart } from '../js/banque.js';
+import { POUVOIRS } from '../js/pouvoirs.js';
 import { VOIES } from '../js/coachs.js';
 import { PACKS_TOUS, PACKS_DE_SERIE } from '../js/packs.js';
 import { jouerRun, acheterDans, metaAuNiveau, coutDuNiveau, classeurSynthetique, ORDRE_DEBLOCAGES, shard, groupe } from './lib/rogue_sim.mjs';
@@ -210,23 +210,12 @@ if (!isMainThread) {
     exiger('un pack acheté puis signé fait UNE dépense et UN numéro d\'achat', achats.filter(d => d.achat).length === 1 && jetonsDe({}, achats.reduce((a, d) => a + ((d.achat || {}).prix || 0), 0), 40, JETONS) === 28, '40 − 12 = 28 🪙');
   }
   /*
-   * V2.3 — LE COACH ET SES PATRONS, AU PRESTIGE : trois coachs au Club de garage, un de plus par rang, les huit à la
-   * Dynastie ; deux postes de patron au départ, plus au prestige ;
-   * deux patrons imposés, neutres (sans couleur de coach), deux rôles, des raretés ouvertes.
+   * V2.3 — LES COACHS, AU PRESTIGE : trois coachs au Club de garage, un de plus par rang, les huit à la Dynastie. V21 : le
+   * coach est le personnage de la run ; le personnel imposé au départ est parti avec le personnel.
    */
   {
-    const n = PRESTIGES.map((_, r) => coachsOuverts(r).length), postes = PRESTIGES.map((_, r) => postesDePatron(r));
-    exiger('les coachs ouverts : trois au départ, un de plus par rang, les huit voies à la Dynastie', n[0] === 3 && n.every((x, i) => i === 0 || x > n[i - 1]) && n[n.length - 1] === VOIES.length && !VOIES.includes('banque'), n.join(' · '));
-    exiger('les postes de patron : deux au départ, jamais moins en montant', postes[0] === 2 && postes.every((x, i) => i === 0 || x >= postes[i - 1]) && postes[postes.length - 1] > 2, postes.join(' · '));
-    const tirages = [];
-    for (let r = 0; r < PRESTIGES.length; r++) for (let k = 0; k < 40; k++) tirages.push([r, patronsDeDepart(`essai:${k}`, PRESTIGES[r].raretes)]);
-    const faux = tirages.filter(([r, ids]) => ids.length !== PATRONS_IMPOSES || new Set(ids.map(id => BANQUE[id].role)).size !== ids.length
-      || ids.some(id => BANQUE[id].coach || !PRESTIGES[r].raretes.includes(BANQUE[id].rarete)));
-    exiger('deux patrons imposés, neutres, de deux rôles, aux raretés que le rang ouvre', !faux.length, faux.length ? faux[0][1].join(' ') : `${tirages.length} tirages`);
-    exiger('le même départ tire les mêmes patrons', patronsDeDepart('essai:7', PRESTIGES[0].raretes).join() === patronsDeDepart('essai:7', PRESTIGES[0].raretes).join());
-    // V20 : une entente du proprio (l'argent) peut être imposée au départ, à côté d'un adjoint neutre.
-    const entente = ids => ids.some(id => BANQUE[id].role === 'entente');
-    exiger('une entente du proprio, un départ peut l\'imposer', tirages.some(([, ids]) => entente(ids)), `${tirages.filter(([, ids]) => entente(ids)).length} tirages sur ${tirages.length}`);
+    const n = PRESTIGES.map((_, r) => coachsOuverts(r).length);
+    exiger('les coachs ouverts : trois au départ, un de plus par rang, les huit voies à la Dynastie', n[0] === 3 && n.every((x, i) => i === 0 || x > n[i - 1]) && n[n.length - 1] === VOIES.length && VOIES.every(k => POUVOIRS[k]), n.join(' · '));
   }
   // V5 : le mandat se lit au classement (un rang qui monte), plus une série gagnée.
   const seuils = MANDATS.map(m => rangDuMandat(m, 32));

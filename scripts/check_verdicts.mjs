@@ -61,10 +61,10 @@ const mom = (famille, cle, choix) => ({ famille, cle, choix });
 const choix = [
   { id: 'dilemme', J: 28, moment: mom('moment', dilemme.cle, dilemme.o.cle), duree: dilemme.o.duree || 8, doit: true },
   { id: 'séquence', J: 40, moment: mom('sequence', sequence.cle, sequence.o.cle), duree: sequence.o.duree || 8, doit: true },
-  { id: 'dossier', J: 47, moment: mom('dossier', 'laRoute', 'compression'), duree: DOSSIERS.laRoute.options.find(o => o.cle === 'compression').duree, doit: true },
+  { id: 'dossier', J: 47, moment: mom('dossier', 'laRoute', 'nolise'), duree: DOSSIERS.laRoute.options.find(o => o.cle === 'nolise').duree || 8, doit: true },
   { id: 'fil (un geste)', J: 61, moment: mom('fil', 'disette', 'reposer'), duree: 8, doit: true },
   { id: 'pari', J: 75, moment: mom('moment', unPari.cle, unPari.o.cle), duree: unPari.o.duree || 8, doit: true },
-  { id: 'dossier (le blanchi)', J: 54, moment: mom('dossier', 'leBlanchi', 'devant'), duree: DOSSIERS.leBlanchi.options.find(o => o.cle === 'devant').duree, doit: true },
+  { id: 'dossier (le mini-camp)', J: 54, moment: mom('dossier', 'laSemaineTranquille', 'camp'), duree: 8, doit: true },
   { id: 'rien ne change', J: 33, moment: mom('moment', 'ecole', 'non'), duree: 8, doit: false },
   { id: 'des jetons seuls', J: 68, moment: mom('dossier', 'laMasse', 'rachat'), duree: 8, doit: false },
   { id: 'trop tard', J: N - 8, moment: mom('moment', dilemme.cle, dilemme.o.cle), duree: 8, doit: false },

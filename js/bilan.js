@@ -1270,7 +1270,7 @@ export function cleDeSommaire(feuille) {
  * la passe dans la saison ou dans les séries, comme au tableau indicateur.
  */
 /**
- * « TON BUILD CE SOIR » : ce qui jouait ta formation ce soir-là (cartes, patrons, événements)
+ * « TON BUILD CE SOIR » : ce qui jouait ta formation ce soir-là (les pouvoirs du coach, les événements, les cartes)
  * et ce que le match a donné, contre ta moyenne d'avant et contre la ligue.
  * Ce que chaque carte a fait se dit juste dessous (`saillantsHtml`).
  */
@@ -1279,8 +1279,8 @@ function buildDuSoirHtml(f, A, B, jour) {
   if (!toi || !Number.isFinite(jour) || !G.ligue) return '';
   const matchs = matchsJoues(G.ligue.calendrier);
   const moi = profilDuClub(matchs, toi, { avant: jour }), lig = profilDeLigue(matchs, toi, { avant: jour });
-  const b = buildDuSoir(toi, G.ligue.decisions, jour, f);
-  const groupes = [['Personnel', b.patrons], ['Événements', b.effets], ['Cartes de match', b.jouees]]
+  const b = buildDuSoir(toi, jour, f);
+  const groupes = [['Pouvoirs du coach', b.pouvoirs], ['Événements', b.effets], ['Cartes de match', b.jouees]]
     .filter(([, xs]) => xs.length).map(([k, xs]) => `<p><b>${k}</b> : ${xs.map(esc).join(' · ')}</p>`).join('');
   const lignes = ecartsDuSoir(f, A.isPlayer ? 'A' : 'B', moi, lig).map(r => ({
     k: r.nom, v: `${dire(r.soir, 0)}${r.moyenne != null ? ` · toi ${dire(r.moyenne)}` : ''}${r.ligue != null ? ` · ligue ${dire(r.ligue)}` : ''}`,

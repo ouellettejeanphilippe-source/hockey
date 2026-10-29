@@ -64,7 +64,7 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
  */
 {
   const { cartesDeLaPartie } = await import('../js/inventaire.js');
-  const { BANQUE, poseesSur, buildDe } = await import('../js/banque.js');
+  const { BANQUE, poseesSur } = await import('../js/banque.js');
   const { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey } = await import('../js/sim.js');
   const { TEMOINS, equipeReelle } = await import('./lib/vestiaires.mjs');
   const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(ps), { season: sa }); };
@@ -83,9 +83,6 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
   const cartes = cartesDeLaPartie({ decisions: vieille, rogue: true });
   exiger('une partie d\'avant la V16 : ses cartes inconnues ne se montrent plus', cartes.every(x => BANQUE[x.id]) && cartes.some(x => x.id === 'consommable:physio'), cartes.map(x => x.id).join(', ') || 'aucune');
   exiger('une modif inconnue ne prend pas de case au verso', poseesSur(vieille, k).length === 0);
-  let build = null;
-  try { build = buildDe(vieille); } catch { build = null; }
-  exiger('la confiance se recompte sur ses décisions', !!build);
   const fiche = decisions => { const t = ligue(); simulateLeague(t, 82, { graine: 'reprise-v16', decisions: decisions.map(d => ({ ...d })) }); return t.map(x => `${x.W}-${x.L}-${x.OTL} ${x.GF}-${x.GA}`).join(' '); };
   const a = fiche(vieille), b = fiche(vieille), sans = fiche([effet]);
   exiger('elle se rejoue au but près, son effet déjà joué compris', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);
@@ -106,55 +103,26 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
 }
 
 /*
- * UNE PARTIE D'AVANT LA V19 (cinq postes, trois échelons, docs/propositions-coachs-cartes-evenements.md) : ses adjoints
- * portent un poste d'alors (`soins`, `gardiens`) et jusqu'à cinq échelons. Elle se relit : le poste d'alors est lu au
- * poste d'aujourd'hui (un seul adjoint par poste), un échelon de trop s'ignore, et la saison se rejoue pareil.
+ * UNE PARTIE D'AVANT LA V21 (docs/refonte-v21.md ; JP : *on s'en fout de briser les saves*) : le méta se convertit
+ * une fois (le personnel et ses doublons partent), et une vieille saison qui porte un adjoint (`patron`) et un coach à
+ * paliers se rejoue sans eux : le moteur ne les lit plus, et elle se rejoue au but près.
  */
 {
-  const { patronsActifs, buildDe } = await import('../js/banque.js');
-  const { patronALEchelon, ECHELON_MAX } = await import('../js/echelons.js');
-  const { autoRoster, registerHiddenRatings, createTeam, simulateLeague } = await import('../js/sim.js');
-  const { TEMOINS, equipeReelle } = await import('./lib/vestiaires.mjs');
-  const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(ps), { season: sa }); };
-  const ancien = { ...patronALEchelon('per_physioDeRoute', { choix: ['force', 'force', 'defaut', 'force'], depuis: 0 }), role: 'soins', echelon: 5 };
-  const gardiens = { ...patronALEchelon('per_gardiensDeRoute', { choix: [], depuis: 0 }), role: 'gardiens' };
-  const neuf = patronALEchelon('per_nutritionniste', { choix: [], depuis: 12 });
-  const vieille = [{ jour: 0, equipe: 0, patron: ancien }, { jour: 0, equipe: 0, patron: gardiens }];
-  const actifs = patronsActifs(vieille, 20);
-  exiger('un adjoint d\'avant garde son poste d\'alors dans la partie, lu au poste d\'aujourd\'hui', actifs.length === 2 && actifs.some(x => x.role === 'physique') && actifs.some(x => x.role === 'defense'), actifs.map(x => x.role).join(', '));
-  const apres = patronsActifs([...vieille, { jour: 12, equipe: 0, patron: neuf }], 20);
-  exiger('un adjoint engagé au même poste remplace celui d\'avant (soins → physique)', apres.length === 2 && apres.find(x => x.role === 'physique').cle === 'per_nutritionniste', apres.map(x => x.cle).join(', '));
-  exiger('un échelon de trop (le 5e) ne casse rien : la confiance se recompte', Number.isFinite(Object.values(buildDe(vieille, Infinity, { joues: () => 0 })).reduce((a, b) => a + b, 0)) && ECHELON_MAX === 3);
-  const fiche = decisions => { const t = TEMOINS.map(club); simulateLeague(t, 82, { graine: 'reprise-v19', decisions: decisions.map(d => ({ ...d })) }); return t.map(x => `${x.W}-${x.L}-${x.OTL} ${x.GF}-${x.GA}`).join(' '); };
-  const a = fiche(vieille), b = fiche(vieille);
-  exiger('elle se rejoue au but près', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);
-}
-
-/*
- * UNE PARTIE D'AVANT LA V20 (docs/refonte-v20.md) : le Comptable en poste, un adjoint de la direction (partie), une
- * entente d'alors au dépistage. Elle se relit : un coach inconnu n'est plus en poste, chaque adjoint garde le poste écrit
- * dans sa décision, et la saison se rejoue au but près.
- */
-{
-  const { patronsActifs, coachsActifs, buildDe } = await import('../js/banque.js');
-  const { patronALEchelon } = await import('../js/echelons.js');
+  const { convertirAuJeuNeuf } = await import('../js/rogue.js');
+  const vieux = { ecussons: 40, personnel: { per_physioDeRoute: 2 }, copiesPerso: { per_physioDeRoute: 1 }, inventaire: { 'consommable:chirurgie': 1 }, cartes: ['x'] };
+  const neuf = convertirAuJeuNeuf(vieux);
+  exiger('un méta d\'avant la V21 se convertit une fois : le personnel part, les médailles restent',
+    neuf && !neuf.personnel && !neuf.copiesPerso && neuf.ecussons === 40 && !Object.keys(neuf.inventaire).length && convertirAuJeuNeuf(neuf) === null);
   const { autoRoster, registerHiddenRatings, createTeam, simulateLeague } = await import('../js/sim.js');
   const { TEMOINS, equipeReelle } = await import('./lib/vestiaires.mjs');
   const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(ps), { season: sa }); };
   const vieille = [
-    { jour: 0, equipe: 0, coach: { cle: 'banque', palier: 1, nom: 'Le Comptable I', ico: '🏦', econ: { rabais: 0.92 } } },
-    { jour: 0, equipe: 0, patron: { ...patronALEchelon('per_ancienArbitre', { choix: [], depuis: 0 }), role: 'direction' } },
-    { jour: 0, equipe: 0, patron: { ...patronALEchelon('per_negociateur', { choix: [], depuis: 0 }), role: 'depistage' } },
+    { jour: 0, equipe: 0, coach: { cle: 'tortue', palier: 2, nom: 'La Tortue II', ico: '🐢' } },
+    { jour: 0, equipe: 0, patron: { cle: 'per_physioDeRoute', role: 'physique', defense: 0.95 } },
   ];
-  const actifs = patronsActifs(vieille, 20);
-  exiger('une partie d\'avant la V20 : le Comptable n\'est plus en poste, ses adjoints gardent leur poste d\'alors',
-    coachsActifs(vieille).length === 0 && actifs.length === 2 && actifs.some(x => x.role === 'direction') && actifs.some(x => x.role === 'depistage'), actifs.map(x => x.role).join(', '));
-  let build = null;
-  try { build = buildDe(vieille); } catch { build = null; }
-  exiger('sa confiance se recompte sans coach', !!build);
-  const fiche = decisions => { const t = TEMOINS.map(club); simulateLeague(t, 82, { graine: 'reprise-v20', decisions: decisions.map(d => ({ ...d })) }); return t.map(x => `${x.W}-${x.L}-${x.OTL} ${x.GF}-${x.GA}`).join(' '); };
-  const a = fiche(vieille), b = fiche(vieille);
-  exiger('elle se rejoue au but près', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);
+  const fiche = decisions => { const t = TEMOINS.map(club); simulateLeague(t, 82, { graine: 'reprise-v21', decisions: decisions.map(d => ({ ...d })) }); return t.map(x => `${x.W}-${x.L}-${x.OTL} ${x.GF}-${x.GA}`).join(' '); };
+  const a = fiche(vieille), b = fiche(vieille), sans = fiche(vieille.slice(0, 1));
+  exiger('une vieille saison se rejoue au but près, sans son adjoint', a === b && b === sans, `${a.split(' ').slice(0, 2).join(' ')} …`);
 }
 
 verdict('Le fichier transférable');

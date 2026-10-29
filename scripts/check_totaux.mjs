@@ -4,7 +4,7 @@
  * JP : *je comprends pas plusieurs mécaniques*. « Préparer le match » et la
  * carte du prochain match disent « Ce soir : Tirs +14 % · Précision −3 % ·
  * Précision adverse −6 % · Punitions +10 % ». Ce script prouve, sur une vraie équipe
- * qui porte cinq effets à la fois (quatre patrons, un effet du soir pris le
+ * qui porte cinq effets à la fois (quatre témoins de saison, un effet du soir pris le
  * matin même) :
  *
  *   1. les effets se MULTIPLIENT : le total brut est le produit des sources ;
@@ -59,11 +59,11 @@ const pres = (a, b) => Math.abs(a - b) < 1e-12;
 
 /* Le profil du match avec les effets (et les décisions du jour posées), puis sans aucun. */
 function rapportDuMoteur(t, enPlus) {
-  const sauve = { cartes: t.cartes, patrons: t.patrons, effets: t.effets };
+  const sauve = { cartes: t.cartes, effets: t.effets };
   const lu = activeLineup(t);
   t.effets = [...(t.effets || []), ...enPlus];
   const avec = profilMatch(t, lu);
-  t.cartes = []; t.patrons = []; t.effets = [];
+  t.cartes = []; t.effets = [];
   const sans = profilMatch(t, lu);
   Object.assign(t, sauve);
   return {
@@ -80,7 +80,7 @@ const JOUR = 5;
 /* Un effet du soir, pris le matin même : la finition et la défense, des blessures et de l'usure (ce que la consigne Haute faisait avant la V18). */
 const SOIR = { finition: 1.05, defense: 0.95, blessure: 1.25, energie: 1.12 };
 const decisions = [
-  // V10 : des patrons témoins, à chiffres connus (scripts/lib/temoins.mjs) ; l'ancien jeu est parti.
+  // V10 : des témoins de saison, à chiffres connus (scripts/lib/temoins.mjs) ; l'ancien jeu est parti.
   { jour: 0, equipe: 0, ...temoin('bloc') },
   { jour: 0, equipe: 0, ...temoin('fougue') },
   { jour: 0, equipe: 0, ...temoin('attaque') },
@@ -99,9 +99,9 @@ const decisions = [
 
   // 1. Le produit des sources.
   const soirs = aVenir.filter(d => d.effet).map(() => ({ debut: JOUR, fin: JOUR + 1, ...SOIR }));
-  const sources = [...(t.patrons || []), ...effetsActifs(t), ...aVenir.map(effetDeMoment).filter(Boolean), ...soirs];
-  const nb = (t.patrons || []).length + aVenir.length;
-  exiger('l\'équipe porte au moins trois effets à la fois', nb >= 3, `${nb} effets : ${(t.patrons || []).map(p => p.cle).join(', ')} · un soir chaud`);
+  const sources = [...effetsActifs(t), ...aVenir.map(effetDeMoment).filter(Boolean), ...soirs];
+  const nb = (t.effets || []).length + aVenir.length;
+  exiger('l\'équipe porte au moins trois effets à la fois', nb >= 3, `${nb} effets : ${(t.effets || []).map(p => p.nom).join(', ')} · un soir chaud`);
   const produit = Object.fromEntries(CANAUX.map(k => [k, sources.reduce((a, s) => a * ((s && s[k]) ?? 1), 1)]));
   exiger('les effets se multiplient : le total brut est le produit des sources',
     CANAUX.every(k => pres(T.brut[k], produit[k])), CANAUX.map(k => `${k} ${produit[k].toFixed(4)}`).join(' · '));
@@ -124,7 +124,7 @@ const decisions = [
   // positions multiples changent les clubs tirés), mais l'effet entre quand même dans le produit.
   exiger('l\'effet pris ce matin entre dans le total du soir', !pres(sansSoir.brut.finition, T.brut.finition) && !pres(sansSoir.brut.defense, T.brut.defense),
     `précision brute ${flechesDe(sansSoir.brut.finition)} → ${flechesDe(T.brut.finition)}`);
-  exiger('lire les totaux ne touche pas à l\'équipe', !(t.effets || []).some(e => e.nom === 'Un soir chaud') && (t.patrons || []).length === 4);
+  exiger('lire les totaux ne touche pas à l\'équipe', !(t.effets || []).some(e => e.nom === 'Un soir chaud') && (t.effets || []).length === 4);
 
   // 3. Une borne qui mord.
   const gros = [{ jour: JOUR, equipe: 0, effet: { volume: 2.2, duree: 3, nom: 'Test' } }];
@@ -156,7 +156,7 @@ const decisions = [
   const aVenir = decisions.filter(d => d.jour === JOUR && (d.equipe || 0) === 0);
   const mots = motsDuSoir(t, null, null, aVenir), cles = new Set(mots.map(m => m.cle));
   exiger('un soir chaud se lit aussi en blessures et en jambes d\'usure', cles.has('blessure') && cles.has('jambes'), mots.map(m => m.txt).join(' · '));
-  const avant = JSON.stringify([t.cartes, (t.patrons || []).map(x => x.cle), t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
+  const avant = JSON.stringify([t.cartes, (t.effets || []).map(x => x.nom), t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
   const al = alignementDuSoir(t, null, null, aVenir);
   exiger('l\'alignement se lit en trois parts : badges, affinité, jambes', al.length === PARTS_DU_SOIR.length && al.every(x => Number.isFinite(x.ecart)), al.map(x => x.txt).join(' · '));
   exiger('ton affinité joue ce soir (un écart de buts mesurable)', Math.abs(al.find(x => x.cle === 'affinite').ecart) >= 0.01, al.find(x => x.cle === 'affinite').txt);
@@ -171,7 +171,7 @@ const decisions = [
   const lourd = alignementDuSoir(t, null, null, aVenir).find(x => x.cle === 'jambes');
   sauve.forEach(([p, avait, v]) => { if (avait) p.energie = v; else delete p.energie; });
   exiger('des jambes à 70 se lisent en buts perdus', lourd.ecart < -0.01, lourd.txt);
-  const apres = JSON.stringify([t.cartes, (t.patrons || []).map(x => x.cle), t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
+  const apres = JSON.stringify([t.cartes, (t.effets || []).map(x => x.nom), t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
   exiger('lire l\'alignement au neutre ne touche pas à l\'équipe', avant === apres);
 }
 {

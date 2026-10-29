@@ -1,40 +1,32 @@
 /*
  * LES DOSSIERS DE LA SEMAINE (V10, tranche 5 — js/dossiers.js). Les événements quittent la banque : ce qui arrive à
  * ton club est un choix d'À faire, dit par une voix. Ce qu'on exige :
- *   1. les événements sont partis (V10, tranche 6) : leur famille n'existe plus, et rien n'en tire (ni pack, ni palier,
- *      ni route de la semaine) ;
+ *   1. les événements sont partis (V10, tranche 6) : leur famille n'existe plus dans la banque ;
  *   2. la forme : une voix d'`EXPEDITEURS`, deux répliques au moins, deux ou trois réponses nommées, chacune un bon
- *      côté, sur des champs que la porte des dilemmes lit déjà (`effetDeMoment`, `appliquerGestes`, `gain`), un moment
- *      que le moteur connaît, hors du duel ;
+ *      côté et une CONSÉQUENCE CONCRÈTE (V21, docs/refonte-v21.md § 3) : des jetons, de l'expérience au coach, un
+ *      adjoint gagné ou perdu, des jambes, une suspension, un soin, l'auxiliaire, la masse salariale, ou ce qui
+ *      arrive au joueur nommé ; jamais plus un pourcentage de l'équipe pour quelques soirs ;
  *   3. pur : la même graine, la même semaine et les mêmes faits rendent le même dossier ; jamais deux fois le même dans
  *      une saison ; la pratique du mardi seulement quand rien d'autre n'est vrai ;
  *   4. chacun s'ouvre : sur des lundis fabriqués, chaque dossier sort au moins une fois ;
- *   5. la porte : une réponse devient un effet qui garde son moment, ses gestes et ses jetons.
- * La valeur de chaque réponse, en paires : `check_places` (sous la borne d'une commune).
+ *   5. la porte : aucune réponse ne devient un effet d'équipe ; ses jetons restent à la décision.
  */
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire } from '../js/dossiers.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
 import { BANQUE, ORDRE_CATEGORIES } from '../js/banque.js';
-import { PACKS_CARTES, tirerCartesPack } from '../js/packs.js';
-import { MOMENTS_SI, effetDeMoment } from '../js/sim.js';
+import { effetDeMoment } from '../js/sim.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 /* ---------- 1. les événements sont partis ---------- */
 {
-  const tires = new Set();
-  for (let n = 0; n < 300; n++) {
-    for (const k of Object.keys(PACKS_CARTES)) tirerCartesPack(k, `ev${n}`, n).forEach(id => tires.add(id));
-    for (const p of [9, 18, 26]) tirerCartesPack('mixte', `ev${n}`, `palier${p}`, { sans: ['match'] }).forEach(id => tires.add(id));
-  }
-  const restes = [...tires, ...Object.keys(BANQUE)].filter(id => id.startsWith('evenement:'));
-  exiger('les événements sont partis : ni famille, ni pack, ni palier, ni route', !ORDRE_CATEGORIES.includes('evenement') && !restes.length, restes.slice(0, 4).join(', ') || `${tires.size} cartes tirées, aucun événement`);
+  const restes = Object.keys(BANQUE).filter(id => id.startsWith('evenement:'));
+  exiger('les événements sont partis de la banque', !ORDRE_CATEGORIES.includes('evenement') && !restes.length, restes.slice(0, 4).join(', ') || 'aucun événement');
 }
 
 /* ---------- 2. la forme ---------- */
-const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
-// V16 (tranche 6) : la masse salariale (`plafond`, lu par `plafondDe`) et le congédiement (`coachNeuf`), deux décisions qui existent.
-const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'si', 'duree', 'action', 'gain', 'rien', 'lui', 'plafond', 'coachNeuf', 'pari', ...CANAUX]);
-const ACTIONS = new Set(['energieTous', 'gardienAux', 'energie']);
+// V21 : les champs d'une conséquence concrète ; `duree` ne sert qu'à ce qui arrive au joueur nommé (`lui`).
+const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'duree', 'action', 'gain', 'xp', 'adjoint', 'perdAdjoint', 'soin', 'rien', 'lui', 'plafond', 'pari']);
+const ACTIONS = new Set(['energieTous', 'gardienAux', 'energie', 'absents']);
 /* Ce qu'un joueur nommé porte (V11, tranche 4) : ses canaux à lui (`CANAUX_MUT`, js/sim.js). */
 const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets']);
 {
@@ -48,25 +40,23 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
       if (!o.cle || !o.nom || !o.bon) fautes.push(`${cle}/${o.cle} : un nom et un bon côté`);
       const inconnus = Object.keys(o).filter(k => !CHAMPS.has(k));
       if (inconnus.length) fautes.push(`${cle}/${o.cle} : ${inconnus.join(', ')}`);
-      if (o.si && (!MOMENTS_SI[o.si] || MOMENTS_SI[o.si].duel || MOMENTS_SI[o.si].choix)) fautes.push(`${cle}/${o.cle} : le moment ${o.si}`);
       if (o.action && Object.keys(o.action).some(k => !ACTIONS.has(k))) fautes.push(`${cle}/${o.cle} : le geste`);
-      const canaux = CANAUX.some(k => k in o);
-      if (canaux && !o.duree) fautes.push(`${cle}/${o.cle} : un effet sans durée`);
-      if (!o.rien && !canaux && !o.action && !o.gain && !o.lui && !o.pari && !o.plafond && o.coachNeuf == null) fautes.push(`${cle}/${o.cle} : ne fait rien`);
+      if (!o.rien && !o.action && !o.gain && !o.xp && !o.adjoint && !o.perdAdjoint && !o.soin && !o.lui && !o.pari && !o.plafond) fautes.push(`${cle}/${o.cle} : ne fait rien de concret`);
+      if (o.duree && !o.lui) fautes.push(`${cle}/${o.cle} : une durée sans joueur`);
       // L'AUDACE (V20) : un dé sur le joueur que le dossier nomme — ses deux issues sur ses canaux à lui, chacune une durée, rien à l'équipe.
       if (o.pari) {
         const issues = [o.pari.gagne, o.pari.perd];
         if (!D.joueur || !(o.pari.chance > 0 && o.pari.chance < 1) || issues.some(e => !e || !e.duree || !e.lui || Object.keys(e).some(k => !['duree', 'lui'].includes(k)) || Object.keys(e.lui).some(k => !CANAUX_LUI.has(k))))
           fautes.push(`${cle}/${o.cle} : l'audace`);
       }
-      // Le gros d'un joueur (V11) : seulement dans un dossier qui le nomme, sur ses canaux à lui, le temps d'une durée.
-      if ((o.lui || (o.action && o.action.energie)) && !D.joueur) fautes.push(`${cle}/${o.cle} : un effet sur un joueur que le dossier ne nomme pas`);
+      // Ce qui va à un joueur : seulement dans un dossier qui le nomme.
+      if ((o.lui || o.soin || (o.action && (o.action.energie || o.action.absents))) && !D.joueur) fautes.push(`${cle}/${o.cle} : un joueur que le dossier ne nomme pas`);
       if (o.lui && (!o.duree || Object.keys(o.lui).some(k => !CANAUX_LUI.has(k)))) fautes.push(`${cle}/${o.cle} : ce qui va au joueur`);
       // Un rachat vise le contrat que le dossier nomme ; de l'espace, lui, va au club.
       if (o.plafond && (Object.keys(o.plafond).some(k => !['espace', 'facteur'].includes(k)) || (o.plafond.facteur && !D.joueur))) fautes.push(`${cle}/${o.cle} : le plafond`);
     }
   }
-  exiger('chaque dossier a sa voix, ses répliques et deux ou trois réponses, sur les champs que le moteur lit déjà', !fautes.length, fautes.slice(0, 4).join(' · ') || `${Object.keys(DOSSIERS).length} dossiers`);
+  exiger('chaque dossier a sa voix, ses répliques et deux ou trois réponses aux conséquences concrètes', !fautes.length, fautes.slice(0, 4).join(' · ') || `${Object.keys(DOSSIERS).length} dossiers`);
 }
 
 /* ---------- 2b. les lundis d'une histoire (V20) : tirés de la graine, une semaine sur deux en moyenne, jamais deux runs pareilles ---------- */
@@ -93,7 +83,7 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
       rival: r() < 0.2 ? 'Rival' : null, bete: r() < 0.08 ? 'Bête' : null, caisse: pige([5, 40, 60, 120]),
       dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32,
       masse: { espace: pige([-500_000, 800_000, 4_000_000, 9_000_000]), libre: '0,8 M$', lourd: { n: 'Lourd', cle: 'l', sal: '9,5 M$' } },
-      defaites: pige([0, 0, 1, 2, 4, 5]), coach: 'La Tortue', coachs: [{ cle: 'a', nom: 'Le Frelon', ico: '🐝' }, { cle: 'b', nom: "L'Aigle", ico: '🦅' }] };
+      defaites: pige([0, 0, 1, 2, 4, 5]), coach: { cle: 'tortue', nom: 'La Tortue', ico: '🐢', niveau: 2, adjoints: 1 } };
   };
   let purs = true, uneFois = true, reserve = true;
   const sortis = new Map();
@@ -124,12 +114,9 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
   const fautes = [];
   for (const [cle, D] of Object.entries(DOSSIERS)) for (const o of D.options) {
     const e = effetDeMoment({ jour: 10, moment: { famille: 'dossier', cle, choix: o.cle } }, null);
-    const canaux = CANAUX.some(k => k in o);
-    if (canaux !== !!e) fautes.push(`${cle}/${o.cle} : l'effet`);
-    if (e && (e.si || null) !== (o.si || null)) fautes.push(`${cle}/${o.cle} : le moment se perd`);
-    if (e && 'gain' in e) fautes.push(`${cle}/${o.cle} : les jetons entrent dans l'effet`);
+    if (e) fautes.push(`${cle}/${o.cle} : un effet d'équipe`);
   }
-  exiger('une réponse devient un effet qui garde son moment, et ses jetons restent à la décision', !fautes.length, fautes.slice(0, 4).join(' · ') || 'toutes');
+  exiger('aucune réponse ne pose un effet d\'équipe (V21 : des conséquences concrètes)', !fautes.length, fautes.slice(0, 4).join(' · ') || 'aucune');
 }
 
 verdict('Les dossiers de la semaine');

@@ -126,7 +126,7 @@ await page.addInitScript(cartes => {
   // « Une caisse de départ » (+20 jetons) : les Harfangs puis le Pack Argent s'achètent quel que soit le tirage de la saison
   // (sans elle, une caisse de 22 ou 36 jetons laissait l'essai en panne de jetons devant le Pack Argent : une loterie).
   // V9 (tranche 8) : une Coupe déjà gagnée ouvre le premier cran des exigences ; l'essai le voit, et part au cran 0.
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], collection: [], cartes: [], runs: 0, coupes: 1, jalons: {}, jeu: 'v10', inventaire: { 'consommable:stage': 1, 'consommable:echangeDoublon': 1 } }));
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], collection: [], cartes: [], runs: 0, coupes: 1, jalons: {}, jeu: 'v21', inventaire: { 'consommable:stage': 1, 'consommable:echangeDoublon': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -145,17 +145,16 @@ console.log(`0. les exigences : ${crans.length} cran(s) offert(s) · ${crans.map
 if (crans.length !== 1 || !/Exigence 1/.test(crans[0]) || !/médailles/.test(crans[0])) erreurs.push(`le départ d'une run offre ${crans.length} cran(s) d'exigence après une Coupe (attendu : 1, avec sa prime de médailles)`);
 await choix('.choix-option[data-choix="go"]');
 /*
- * TON COACH (v2, js/coachs.js) : les coachs que le prestige ouvre (V2.3 : ce méta est un Club de quartier,
- * donc quatre), un à prendre — sa confiance I est allumée dès le premier soir (une décision du jour 0) —, et
- * les deux patrons imposés de la run, nommés sur le même écran.
+ * TON ENTRAÎNEUR (V21, js/coachs-reels.js) : un loto de trois vraies cartes de coach-saison, de trois philosophies que
+ * le prestige ouvre (ce méta est un Club de quartier, donc quatre) ; chacune dit son club et sa saison, et ses trois
+ * pouvoirs avec le niveau qui ouvre chacun.
  */
 const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], jalons: {} })].coachs;
-await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
+await page.waitForFunction(() => /Ton entraîneur/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
 const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
-console.log(`0. ton coach : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 40)).join(' | ')}`);
-if (offerts.length !== COACHS_ATTENDUS || !offerts.every(t => /Confiance I/.test(t))) erreurs.push(`le choix du coach offre ${offerts.length} coach(s) (le prestige en ouvre ${COACHS_ATTENDUS}), ou ne dit pas sa confiance I`);
-if (!/Ton personnel :/.test((await page.textContent('#choixModal .choix-sheet')) || '')) erreurs.push('le choix du coach ne nomme pas le personnel imposé');
+console.log(`0. ton entraîneur : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 60)).join(' | ')}`);
+if (offerts.length !== Math.min(3, COACHS_ATTENDUS) || !offerts.every(t => /niveau 3/.test(t) && /niveau 5/.test(t) && /\d{4}-\d{2}/.test(t))) erreurs.push(`le loto de l'entraîneur offre ${offerts.length} carte(s) (attendu : 3), ou une carte ne dit pas sa saison et ses trois pouvoirs`);
 await choix();
 /*
  * TON JOUEUR DE CONCESSION (JP, 18 oct. : *avoir un gros joueur dès la première run, mais difficile d'en avoir
@@ -249,7 +248,7 @@ const compterFeuilles = async ou => {
 };
 const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et le premier duel, photographiés une fois
 const afaire = { vu: false, lots: [], histoire: '', genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
-const butin = { vus: 0, pris: [], fautes: [] };   // V16 : le butin d'une victoire, un adjoint parmi trois pour ton personnel
+const butin = { vus: 0, pris: [], fautes: [] };   // V21 : le butin d'une victoire, un adjoint parmi trois, un échange
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const intentionsVues = new Set();   // V17 : les intentions lues au duel, leurs puces jugées
 const veilles = [];   // V17 : un gros match ouvert avant son matin
@@ -522,8 +521,8 @@ async function regler() {
       continue;
     }
     /*
-     * LE BUTIN D'UNE VICTOIRE (V5 ; V13-2 ; V16) : un adjoint parmi trois, pour ton personnel — ni « Retirer une
-     * carte ». On prend le premier ; la décision porte `place` et son palier `r:`. Photographié une fois.
+     * LE BUTIN D'UNE VICTOIRE (V5 ; V13-2 ; V21) : un adjoint parmi trois, un échange pour la run — ni
+     * « Retirer une carte ». On prend le premier ; la décision porte `adjoint` et son palier `r:`. Photographié une fois.
      */
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="recompense"] .choix-option:not([disabled])')) {
       const lu = await page.$eval('#choixModal .choix-sheet[data-genre="recompense"]', m => ({
@@ -532,15 +531,16 @@ async function regler() {
       // La récompense d'une série gagnée (un pack de joueurs) a son propre écran : on la laisse au cas général.
       if (/Récompense/.test(lu.titre)) {
         if (!butin.vus++) { await page.waitForTimeout(500); await page.screenshot({ path: `${DOSSIER}/rogue-butin.png` }); }
-        if (lu.cles.length !== 3) butin.fautes.push(`${lu.cles.length} carte(s) offertes au lieu de trois`);
-        if (!/ton personnel/.test(lu.recit)) butin.fautes.push(`le butin ne dit pas « ton personnel » (« ${lu.recit} »)`);
+        if (lu.cles.length !== 3) butin.fautes.push(`${lu.cles.length} adjoint(s) offerts au lieu de trois`);
+        if (!/ce qu'il donne, ce qu'il coûte/.test(lu.recit)) butin.fautes.push(`le butin ne dit pas l'échange d'un adjoint (« ${lu.recit} »)`);
         if (lu.autre) butin.fautes.push('le butin offre encore « Retirer une carte »');
         const n0 = (await decisionsDuCombat()).length;
         await page.click(`#choixModal:not([hidden]) [data-choix="${lu.cles[0]}"]`); await page.waitForTimeout(1200);
         await attendreDecisions(n0);
         const sv = await lireSauvegarde();
         const d = (((sv.partie || {}).decisions) || []).slice(n0).find(x => String(x.palier || '').startsWith('r:'));
-        if (!d || d.place !== lu.cles[0] || d.recompense !== undefined || d.retrait !== undefined) butin.fautes.push(`le butin n'enregistre pas l'adjoint pris (${JSON.stringify(d || null)})`);
+        const pris = d && d.adjoint ? d.adjoint.cle : null;
+        if (!d || pris !== lu.cles[0] || d.recompense !== undefined || d.retrait !== undefined) butin.fautes.push(`le butin n'enregistre pas l'adjoint pris (${JSON.stringify(d || null)})`);
         else butin.pris.push(lu.cles[0]);
         continue;
       }
@@ -687,47 +687,23 @@ console.log(`5v. les sous-onglets : la route ${routeOnglet ? 'chez l\'entraîneu
 if (!routeOnglet) erreurs.push('le sous-onglet de l\'entraîneur ne montre pas les deux semaines qui viennent');
 if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leur sous-onglet');
 {
-  // Ton coach et sa confiance, ton personnel : au sous-onglet de l'entraîneur (V12-2 ; JP : *un screen pour les coachs et assistants coachs*).
+  // TON COACH, UN PERSONNAGE (V21) : au sous-onglet de l'entraîneur (V12-2) — son niveau, son expérience, ses trois pouvoirs,
+  // le premier ouvert, les deux autres au niveau qui les ouvre.
   await versLOnglet('bureau', 'entraineur');
   await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
   const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
-  // V14 : ton personnel (js/echelons.js) — sa carte, son poste, sa force et son défaut, ses échelons.
-  const postes = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] :is(.perso-l, .gens-l)', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim())).catch(() => []);
-  const gens = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .gens-l', e => e.map(x => ({ nom: (x.querySelector('.gens-txt b') || {}).textContent || '', ech: x.querySelectorAll('.gens-ech i').length }))).catch(() => []);
+  const pouvoirs = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv:not(.adj)', e => e.map(x => ({ nom: (x.querySelector('.pv-tete b') || {}).textContent || '', ferme: x.classList.contains('ferme'), etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
+  const jauge = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .ej-jauge');
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
-  console.log(`5c. tes coachs : ${coachs || '(absent)'} · décision du jour 0 : ${d0 ? `${d0.coach.nom} ${JSON.stringify(d0.coachsDeBase)}` : '(aucune)'}`);
-  if (!d0 || d0.coach.palier !== 1) erreurs.push('le coach de la run n\'allume pas sa confiance I au jour 0');
-  const p0 = ((sv0.partie || {}).decisions || []).filter(x => x.jour === 0 && x.patron);
-  console.log(`5d. les patrons imposés : ${p0.map(x => `${x.patron.ico} ${x.patron.nom}`).join(' · ') || '(aucun)'}`);
-  if (p0.length !== 2) erreurs.push(`la run ne part pas avec deux patrons imposés (${p0.length})`);
-  if (rangCoach !== 'I') erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
-  console.log(`5f. ton personnel, chez l'entraîneur : ${postes.join(' | ') || '(aucun poste)'}`);
-  // V20 : une entente du proprio n'est pas au banc ; elle se lit chez le proprio, sous la masse salariale.
-  const assis = p0.filter(x => x.patron.role !== 'entente'), ententes = p0.filter(x => x.patron.role === 'entente');
-  if (postes.length < assis.length) erreurs.push(`le sous-onglet de l'entraîneur montre ${postes.length} poste(s) pour ${assis.length} adjoints engagés`);
-  if (postes.some(t => ententes.some(x => t.includes(x.patron.nom)))) erreurs.push('une entente du proprio s\'assoit au banc de l\'entraîneur');
-  if (ententes.length) {
-    await versLOnglet('bureau', 'proprio');
-    const chezLui = ((await page.textContent('#hubModal .af-onglet[data-maison="proprio"]').catch(() => '')) || '').replace(/\s+/g, ' ');
-    console.log(`5g. l'entente du proprio : ${ententes.map(x => x.patron.nom).join(', ')} · ${ententes.every(x => chezLui.includes(x.patron.nom)) ? 'chez lui' : 'absente'}`);
-    if (!ententes.every(x => chezLui.includes(x.patron.nom))) erreurs.push('l\'entente imposée ne se lit pas chez le proprio');
-    await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
-  }
-  // V19 : chaque adjoint dit son contrat (les matchs qu'il lui reste), et la prolongation, en jetons, quand il y en a une à prendre.
-  // La rangée de chaque adjoint dit son contrat (« ≈ 14 matchs » ou « Saison ») ; sa feuille, quand on la touche, le détaille.
-  const contrats = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .gens-l', e => e.map(x => ({ dit: /≈ \d+ match|Saison/.test(x.querySelector('.gens-ct') ? x.querySelector('.gens-ct').textContent : '') }))).catch(() => []);
-  if (contrats.some(c => !c.dit)) erreurs.push('un adjoint ne dit pas son contrat sur sa rangée');
-  const premiere = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .gens-l');
-  if (premiere) {
-    await premiere.click(); await page.waitForTimeout(300);
-    const feuille = ((await page.textContent('#choixModal').catch(() => '')) || '').replace(/\s+/g, ' ');
-    if (!/Contrat :|Prolonger/.test(feuille)) erreurs.push('la feuille d\'un adjoint ne dit pas son contrat');
-    await page.keyboard.press('Escape'); await page.waitForTimeout(250);
-  }
-  if (gens.length < assis.length || gens.some(g => !g.nom.trim() || g.ech !== 3)) erreurs.push(`ton personnel ne dit pas chaque carte en poste et ses trois échelons (${JSON.stringify(gens)})`);
+  console.log(`5c. ton coach : ${coachs || '(absent)'} · décision du jour 0 : ${d0 ? JSON.stringify(d0.coach) : '(aucune)'}`);
+  if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.talents) || !Array.isArray(d0.coach.adjoints)) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec son expérience, ses talents et son staff');
+  if (((sv0.partie || {}).decisions || []).some(x => x.patron)) erreurs.push('une décision de personnel (`patron`) reste dans la partie');
+  console.log(`5f. ses pouvoirs : ${pouvoirs.map(x => `${x.nom} (${x.etat})`).join(' | ') || '(aucun)'}`);
+  if (!/^Niveau [1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
+  if (pouvoirs.length !== 3 || pouvoirs[0].ferme || !pouvoirs.slice(1).every(x => x.ferme === /Niveau [35]/.test(x.etat))) erreurs.push(`le coach ne montre pas ses trois pouvoirs, le premier ouvert (${JSON.stringify(pouvoirs)})`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
@@ -936,9 +912,9 @@ if (!fiche3.titres.includes('Le joueur d\'une carte') || fiche3.niveaux.length !
 await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour');
 await acheter('j:epoque', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
-// Jalon Q : un pack mixte se déchire une fois sur tout son contenu (joueurs et cartes de jeu, rien à signer).
+// Jalon Q : un pack mixte se déchire une fois sur tout son contenu (ses joueurs, et sa carte rare s'il en tire une ; rien à signer).
 const revele = await page.$$eval('#choixModal .choix-option.tc', e => ({ joueurs: e.filter(x => x.querySelector('.cj-mini-carte')).length, jeu: e.filter(x => !x.querySelector('.cj-mini-carte')).length, signer: e.filter(x => x.querySelector('.tcj-signer')).length }));
-if (!revele.joueurs || !revele.jeu || revele.signer) erreurs.push(`le pack Époque ne se montre pas en entier avant la signature : ${JSON.stringify(revele)}`);
+if (!revele.joueurs || revele.signer) erreurs.push(`le pack Époque ne se montre pas en entier avant la signature : ${JSON.stringify(revele)}`);
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
 // S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
 const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => {
@@ -1058,7 +1034,7 @@ else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n
   await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {});
   await page.waitForTimeout(500);
 }
-// Jalon P2 : des packs mixtes (des joueurs ET des cartes) ; V16, leur carte est un adjoint ou un outil de gérant. V10 : les deux de la première run.
+// Jalon P2 : des packs mixtes (des joueurs, et parfois une carte rare, V21). V10 : les deux de la première run.
 await regler();
 for (const pack of ['j:bronze', 'j:epoque']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
@@ -1156,7 +1132,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
 }
 /*
  * UNE MAISON PAR SUJET (V12-3 ; V16, tranche 6). JP : *that philosophy should be for everything*. La masse salariale est
- * chez le proprio, les soins à l'infirmerie, le personnel et le stage du coach chez l'entraîneur, les cartes de joueur
+ * chez le proprio, les soins à l'infirmerie, les pouvoirs et le stage du coach chez l'entraîneur, les cartes de joueur
  * à l'effectif ; il n'y a plus de « Tes cartes » qui y renvoie.
  */
 {
@@ -1203,35 +1179,12 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     // Trop long : ses blocs, du plus haut au plus bas, pour savoir quoi plier.
     if (ecrans[k] > 1.3) console.log(`    ▸ ${k} : ${await page.$eval(`#hubModal .af-onglet[data-maison="${k}"]`, o => [...o.querySelectorAll(':scope > *, :scope > * > *')].filter(e => e.offsetHeight > 30).map(e => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')} ${e.offsetHeight}`).join(' · ')).catch(() => '?')}`);
   }
-  // V14b : un échelon s'achète dans la fiche de sa carte, chez l'entraîneur (plus dans À faire) ; V20 : quand on veut.
+  // V21 : le personnel est parti ; aucune rangée d'adjoint au banc de l'entraîneur, ses pouvoirs seulement.
   {
     await versLOnglet('bureau', 'entraineur');
-    const ligne = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .gens-l');
-    if (ligne) {
-      await ligne.click(); await page.waitForTimeout(250);
-      const b = await page.$('#choixModal [data-choix^="echelon:"]:not([disabled])');
-      const n0 = (await decisionsDuCombat()).length;
-      if (b) { await b.click(); await page.waitForTimeout(600); await attendreDecisions(n0); }
-      const ech = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ech:'));
-      console.log(`10p. un échelon, chez l'entraîneur : ${b ? `acheté (${ech.length} décision(s) d'échelon)` : 'pas les jetons'}`);
-      if (b && !ech.length) erreurs.push('acheter un échelon dans la fiche n\'écrit aucune décision');
-      // Sans échelon à prendre, la feuille de l'adjoint reste ouverte : on la ferme avant la rangée suivante.
-      if (await page.$('#choixModal:not([hidden])')) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); }
-    } else console.log('10p. un échelon, chez l\'entraîneur : aucun adjoint en poste');
-  }
-  // V20 : le banc ouvert — plus de contrat ; aucune feuille d'adjoint n'offre de prolongation.
-  {
-    await versLOnglet('bureau', 'entraineur');
-    let vues = 0, contrats = 0;
-    for (const r of await page.$$('#hubModal .af-onglet[data-maison="entraineur"] .gens-l')) {
-      await r.click(); await page.waitForTimeout(250);
-      vues++;
-      if (await page.$('#choixModal [data-choix="contrat"]')) contrats++;
-      await page.keyboard.press('Escape'); await page.waitForTimeout(250);
-    }
-    const ct = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ct:'));
-    console.log(`10q. le banc ouvert : ${vues} feuille(s) d'adjoint, ${contrats} prolongation(s) offerte(s), ${ct.length} décision(s) de contrat`);
-    if (contrats || ct.length) erreurs.push('une feuille d\'adjoint offre encore une prolongation de contrat');
+    const restes = await page.$$('#hubModal .af-onglet[data-maison="entraineur"] :is(.gens-l, .perso-l, [data-choix^="echelon:"])');
+    console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pouvoirs du coach seulement'}`);
+    if (restes.length) erreurs.push('le sous-onglet de l\'entraîneur montre encore du personnel ou ses échelons');
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste
@@ -1289,9 +1242,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
 // V16 : une retouche ne se joue plus au Marché (l'onglet « Tes places » est parti) : elle se pose au verso de son joueur (12b).
 let posee = null, nomModif = '';
 /*
- * LE STAGE DU COACH (V16, tranche 6) : une carte rare qui monte le coach en poste d'un cran. Elle se joue chez
- * l'entraîneur ; sa décision porte les points qui manquent (`coachsDeBase`), et la confiance s'allume (`coach`). Le
- * congédiement, lui, est un dossier du proprio (`laTete`) : check_dossiers.
+ * LE STAGE DU COACH (V16, tranche 6 ; V21) : une carte rare qui donne de l'expérience au coach. Elle se joue chez
+ * l'entraîneur ; sa décision porte ses points (`xpCoach`). Le proprio qui doute du coach est une histoire (`laTete`).
  */
 {
   await versLOnglet('bureau', 'entraineur');
@@ -1301,14 +1253,12 @@ let posee = null, nomModif = '';
   if (!jouer) erreurs.push('« Le stage du coach » ne se joue pas depuis le sous-onglet de l\'entraîneur');
   else {
     const n0 = (await decisions()).length;
-    const avant = (await decisions()).filter(x => x.coach && x.coach.palier).map(x => x.coach.palier).pop() || 1;
     await jouer.click();
     await page.waitForTimeout(800);
     await regler();
-    const ds = (await decisions()).slice(n0).find(x => x.coachsDeBase && x.joue);
-    console.log(`10c. le stage du coach : ${ds ? `${JSON.stringify(ds.coachsDeBase)} · confiance ${avant} → ${ds.coach ? ds.coach.palier : avant}` : '(rien)'}`);
-    if (!ds) erreurs.push('« Le stage du coach » n\'écrit pas sa décision');
-    else if (!ds.coach || ds.coach.palier !== avant + 1) erreurs.push(`« Le stage du coach » ne monte pas la confiance d'un cran (${avant} → ${ds.coach ? ds.coach.palier : '—'})`);
+    const ds = (await decisions()).slice(n0).find(x => x.xpCoach && x.joue);
+    console.log(`10c. le stage du coach : ${ds ? `+${ds.xpCoach} d'expérience` : '(rien)'}`);
+    if (!ds) erreurs.push('« Le stage du coach » n\'écrit pas sa décision d\'expérience');
   }
   const versLEffectif = async () => {
     await versLOnglet('joueurs', 'joueurs');
@@ -1619,7 +1569,7 @@ console.log(`20m. les maisons réglées dans la boîte : ${[...afaire.maisons].j
 if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni le choix ni son écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);
 if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a réglé les choix que de ${afaire.maisons.size} maison(s) : ${[...afaire.maisons].join(', ')}`);
 if (afaire.horsBoite.size) erreurs.push(`un sous-onglet porte encore des choix : ${[...afaire.horsBoite].join(', ')}`);
-console.log(`20c. le butin d'une victoire (un adjoint parmi trois, pour ton personnel) : ${butin.vus ? `${butin.vus} offert(s), pris : ${butin.pris.join(', ') || 'aucun'}` : 'aucun butin cette run'}`);
+console.log(`20c. le butin d'une victoire (un adjoint parmi trois, sur un pouvoir du coach) : ${butin.vus ? `${butin.vus} offert(s), pris : ${butin.pris.join(', ') || 'aucun'}` : 'aucun butin cette run'}`);
 if (butin.fautes.length) erreurs.push(`le butin d'une victoire : ${[...new Set(butin.fautes)].slice(0, 3).join(' · ')}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 // LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.
@@ -1645,10 +1595,10 @@ if (duelCourt.longs) erreurs.push(`${duelCourt.longs} entracte(s) du duel font p
 if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
 console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}${mise.scene ? ` | la mise : ${mise.scene}` : ''}`);
 {
-  // V14 : les échelons du personnel — un échelon atteint se tranche dans À faire (`ech:`) ou dans la fiche ; ce qu'on a choisi.
+  // V21 : le coach de la saison — ses talents et ses adjoints pris, et les pouvoirs qui ont joué dans les feuilles.
   const sv = await lireSauvegarde().catch(() => null);
-  const ech = (((sv && sv.partie) || {}).decisions || []).filter(d => String(d.palier || '').startsWith('ech:') && d.patron);
-  console.log(`20p. les échelons du personnel : ${ech.map(d => `${d.patron.nom} → ${d.patron.echelon} (${(d.patron.choix || []).slice(-1)[0]})`).join(' · ') || 'aucun choisi cette saison'}`);
+  const ds = (((sv && sv.partie) || {}).decisions || []);
+  console.log(`20p. le coach : ${ds.filter(d => d.talent).length} talent(s), ${ds.filter(d => d.adjoint).length} adjoint(s) pris, ${ds.filter(d => d.xpCoach).length} gain(s) d'expérience`);
 }
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();

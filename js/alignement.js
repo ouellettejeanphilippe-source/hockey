@@ -7,18 +7,16 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, joueursDesCoachs, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, MOMENTS_SI } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, specialesEnStats, clubLu } from './impact.js';
-import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
-import { buildDe, entreeEnPoste, coachsActifs, patronsActifs, PATRONS, reglesDePalier } from './banque.js';
-import { COMBOS } from './personnel.js';
-import { motsEnChiffres } from './impact.js';
-import { tenusDe, chiffreDit, BLOC, POINTS_PAR_BLOC } from './chiffre.js';
-import { jambesHtml, motDuBadge, ouvrirChoix, puces } from './gerant.js';
+import { badgesDe, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne } from './sim.js';
+import { alignementAuMieux, unitesDuSoir, specialesEnStats } from './impact.js';
+import { COACHS } from './coachs.js';
+import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
+import { ADJOINTS, ADJOINTS_MAX, lignesDeLAdjoint } from './adjoints.js';
+import { jambesHtml, motDuBadge, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
-import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
+import { $, G, TEAMFULL, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 
@@ -586,11 +584,11 @@ function affiniteEl(unit, groupe) {
  * les systèmes qui les faisaient pencher.)
  */
 function alignerAuMieux() {
-  // En Rogue, la lecture joue le moteur du Rogue, ton coach compris.
-  const plan = G.bonus === 'ROGUE', club = clubLu(), coachs = (club && club.team && club.team.coachs) || [];
+  // En Rogue, la lecture joue le moteur du Rogue.
+  const plan = G.bonus === 'ROGUE';
   const tous = SLOTS.map(s => G.roster[s.i]).filter(Boolean);
   const blesse = p => !!(G.banc && G.banc.blesses && G.banc.blesses.has(p));
-  const roster = alignementAuMieux(tous.filter(p => !blesse(p)), { plan, coachs });
+  const roster = alignementAuMieux(tous.filter(p => !blesse(p)), { plan });
   // Les autres (blessés, surplus) vont en réserve, dans les cases ouvertes ; sans place pour tous, rien ne bouge.
   const places = new Set(Object.values(roster));
   const reste = tous.filter(p => !places.has(p)), libres = SLOTS.filter(s => s.scratch && caseOuverte(s) && !roster[s.i]);
@@ -762,34 +760,51 @@ function avecLeBanc(fn) {
   } catch { return null; }
 }
 /*
- * TON COACH ET SA CONFIANCE (V20 : un seul chemin, son chiffre tenu). La jauge, puis son chiffre en une ligne — ta stat du
- * bloc ouvert contre celle de la ligue, le bloc, les blocs tenus et ce qu'il manque pour le cran suivant. `injured` : les
- * blessés du jour, qui ne portent pas sa couleur.
+ * TON COACH, UN PERSONNAGE (V21, docs/refonte-v21.md). Son niveau et sa barre d'expérience, puis ses trois pouvoirs :
+ * ouvert ou verrouillé (le niveau qui l'ouvre), ce qu'il fait, sa force (ses talents), et combien de fois il a joué
+ * cette saison (lu dans tes feuilles). Puis son staff : chaque adjoint, son échange — ce qu'il donne, ce qu'il coûte.
+ * Le personnage est celui que la ligue rejouée porte.
  */
-export function coachHtml(decs, j, injured = new Set()) {
+export function coachHtml() {
   if (G.bonus !== 'ROGUE' || !G.rogue) return '';
-  const [actif] = coachsActifs(decs, j + 1);
-  const k = actif ? actif.cle : G.rogue.coach, C = COACHS[k];
+  const L = G.ligue, you = L && L.you;
+  const perso = (you && you.perso) || (G.rogue.coach ? { cle: G.rogue.coach, xp: 0, talents: [], adjoints: [] } : null);
+  const C = perso && COACHS[perso.cle];
   if (!C) return '';
-  const n = buildDe(decs, j + 1, { tenus: G.ligue ? tenusDe(G.ligue.calendrier, G.ligue.you) : () => 0 })[k] || 0, pal = actif ? actif.palier : palierDe(n), manque = avantProchain(n);
-  const J = joueursDesCoachs({ roster: G.roster, injured })[k] || { joueurs: 0, paliers: 0 };
-  const fin = SEUILS[SEUILS.length - 1];
-  const blocs = x => `${x} bloc${x > 1 ? 's' : ''}`;
-  const chiffre = G.ligue ? chiffreDit(k, G.ligue.calendrier, G.ligue.you, j + 1, entreeEnPoste(decs, k, j + 1)) : null;
+  const xp = (perso.xp || 0) + ((you && you.xpSaison) || 0), niveau = niveauDuPerso({ ...perso, xpSaison: (you && you.xpSaison) || 0 });
+  const manque = xpAvantProchain(xp);
+  const bas = SEUILS_NIVEAU[niveau - 1] || 0, haut = SEUILS_NIVEAU[niveau] ?? bas;
+  const part = manque == null ? 100 : Math.round(((xp - bas) / Math.max(1, haut - bas)) * 100);
+  // Combien de fois chaque pouvoir a joué cette saison, dans tes feuilles déjà jouées (la ligue est rejouée jusqu'à ce jour).
+  const fois = [0, 0, 0];
+  for (const m of (L && L.calendrier ? L.calendrier.flat() : [])) {
+    if (!m.feuille || (m.A !== you && m.B !== you)) continue;
+    const cote = m.A === you ? 'A' : 'B';
+    for (const x of m.feuille.pouvoirs || []) if (x.cote === cote) fois[x.p]++;
+  }
+  const carte = (P, p) => {
+    const ouvert = niveau >= NIVEAU_DES_POUVOIRS[p];
+    const f = forceDuPouvoir(perso, p);
+    return `<div class="pv${ouvert ? '' : ' ferme'}">
+      <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${P.ico}</span><b>${esc(P.nom)}</b>${p === 2 ? '<small>Ultime</small>' : ''}<span class="pv-etat">${ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`}</span></div>
+      <p class="pv-dit">${esc(P.dit)}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}</p>
+    </div>`;
+  };
+  // L'ALIGNEMENT DU STAFF (V21 ; JP : *les coachs et assistants comme l'alignement*) : la case de l'entraîneur, sa vraie
+  // carte de coach-saison, puis ses pouvoirs, puis les places d'adjoint, libres.
+  const chef = perso.chef;
   return `<div class="ej-coach">
-    <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="ej-rang">${ROMAINS[pal]}</span>` : ''}<small>${esc(C.mot)}</small></div>
-    <div class="ej-jauge" role="img" aria-label="Confiance ${ROMAINS[pal] || '0'}"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
-    ${chiffre ? `<div class="ej-coach-l"><span class="ej-k">${esc(chiffre.nom)}</span> ${chiffre.moi ? `<b class="${chiffre.tient ? 'bon' : 'mal'}">${esc(chiffre.moi)}</b> contre ${esc(chiffre.ligue)} pour la ligue · ` : ''}bloc ${chiffre.enCours}/${BLOC} · ${blocs(chiffre.tenus)} tenu${chiffre.tenus > 1 ? 's' : ''}${manque ? ` · ${ROMAINS[pal + 1]} dans ${blocs(Math.ceil(manque / POINTS_PAR_BLOC))}` : ''}</div>
-    <div class="ej-coach-l detail">Un bloc tenu : ${esc(chiffre.but)}, sur dix matchs.</div>` : ''}
-    <div class="ej-coach-l">${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
-    ${(C => {
-      if (!C) return '';
-      const en = new Set(patronsActifs(decs, j + 1).map(p => p.cle));
-      const manque = C.cles.filter(c => !en.has(c)).map(c => PATRONS[c].nom);
-      return `<div class="ej-coach-l"><span class="ej-k">Combo</span> ${C.ico} ${esc(C.nom)} · ${C.si && MOMENTS_SI[C.si] ? `${esc(MOMENTS_SI[C.si].mot)} · ` : ''}${puces(motsEnChiffres(C.effet))} · ${manque.length ? `il manque : ${esc(manque.join(', '))}` : 'en poste'}</div>`;
-    })(COMBOS[k])}
-    ${pal ? `<div class="ej-coach-l"><span class="ej-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
-    ${manque ? `<div class="ej-coach-l suite detail"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
+    <div class="ej-case-l">L'entraîneur</div>
+    <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(chef ? chef.n : C.nom)}</b><span class="ej-rang">Niveau ${niveau}</span><small>${chef ? `${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)} · ${esc(C.nom)}${(perso.maitrise || 1) > 1 ? ` · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}` : esc(C.mot)}</small></div>
+    <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
+    <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
+    ${POUVOIRS[perso.cle].map(carte).join('')}
+    <div class="ej-case-l">Adjoints · ${ADJOINTS_MAX} places</div>
+    ${(perso.adjoints || []).filter(k => ADJOINTS[k]).map(k => `<div class="pv adj">
+      <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${ADJOINTS[k].ico}</span><b>${esc(ADJOINTS[k].nom)}</b></div>
+      <p class="pv-dit">${lignesDeLAdjoint(k).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join(' · ')}</p>
+    </div>`).join('')}
+    ${(perso.adjoints || []).length < ADJOINTS_MAX ? `<div class="pv adj vide"><p class="pv-dit">${ADJOINTS_MAX - (perso.adjoints || []).length} place${ADJOINTS_MAX - (perso.adjoints || []).length > 1 ? 's' : ''} libre${ADJOINTS_MAX - (perso.adjoints || []).length > 1 ? 's' : ''} : un adjoint arrive aux 9e, 18e et 26e matchs et après un gros match gagné.</p></div>` : ''}
   </div>`;
 }
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */

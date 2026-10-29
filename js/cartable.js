@@ -331,7 +331,7 @@ export function rendreCartable(host, ctx) {
         <span class="ct-total"><b>${k.joueurs}</b> carte${k.joueurs > 1 ? 's' : ''} de joueur${k.doublons ? ` · <b>${k.doublons}</b> doublon${k.doublons > 1 ? 's' : ''}` : ''}</span>
         <span class="ct-vars">${VARIANTES.map(([r, nom]) => `<span class="ct-var v-${r}" title="${esc(sensDe(r))}">${esc(nom)} <b>${k.parVariante[r]}</b></span>`).join('')}${k.numerotees ? `<span class="ct-var v-num">№ Numérotées <b>${k.numerotees}</b></span>` : ''}</span>
       </div>
-      <button type="button" class="btn gold ct-mes-cartes" title="Tes cartes de jeu : le personnel et les cartes rares">🎒 Tes cartes</button>
+      <button type="button" class="btn gold ct-mes-cartes" title="Tes cartes de jeu : les cartes rares">🎒 Tes cartes</button>
     </div>
     <div class="ct-vues" role="tablist">
       ${[['equipe', `Ton équipe · ${ctx.equipe.length}`], ['extensions', `Extensions · ${parDecennie.size}`], ['clubs', `Clubs · ${parClub.size}`]]

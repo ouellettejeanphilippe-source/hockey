@@ -36,10 +36,6 @@ import {
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
   POIDS_AN, POIDS_DN, PLANS, MOMENTS,
 } from '../js/sim.js';
-import { PATRONS } from '../js/banque.js';
-import { BLOC, POINTS_PAR_BLOC } from '../js/chiffre.js';
-/* Les blocs tenus qu'il faut, du départ (la I) à un seuil. */
-const blocsDe = p => (p - SEUILS[0]) / POINTS_PAR_BLOC;
 import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
@@ -48,9 +44,10 @@ import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, CO
 import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN } from '../js/rogue.js';
-import { COACHS, SEUILS } from '../js/coachs.js';
-import { POUSSEE, CORRECTION, PRIX_ECHELON } from '../js/echelons.js';
-import { PRIX_EMBAUCHE } from '../js/personnel.js';
+import { COACHS } from '../js/coachs.js';
+import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT } from '../js/pouvoirs.js';
+import { ADJOINTS_MAX } from '../js/adjoints.js';
+import { MAITRISE } from '../js/coachs-reels.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
@@ -191,7 +188,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   borne('la page des règles est courte', mots, 300, 2500, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
-    [/Une case vide ce soir-là : un adjoint parmi trois/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
+    [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
   const encoreTu = taisait.filter(([re]) => !re.test(brut)).map(([, nom]) => nom);
   exiger('la page dit ce qu\'elle taisait (V2.2)', encoreTu.length === 0, encoreTu.join(' · ') || `${taisait.length} sujets dits`);
   // L'IMPACT EN CHIFFRES DE MATCH (js/impact.js) : un effet se lit en tirs et en buts par match ; la page le dit, et ne le dit plus en « Tirs +8 % ».
@@ -259,7 +256,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
     // V9, tranche 5b, puis V16 : tes adjoints et les paliers de la saison.
-    [`aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs, un adjoint parmi trois`, 'les paliers de la saison'],
+    [`Aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs, après un gros match gagné et au verdict du proprio, <strong>un adjoint parmi trois</strong>`, 'les paliers de la saison'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs.`, 'l\'objectif raté'],
     [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],
@@ -275,23 +272,20 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`des clubs de toute l'histoire aux ${NIVEAUX_PLEINS === 2 ? 'deux' : NIVEAUX_PLEINS} premiers rangs`, 'les premières ligues'],
     [`Un cran d'exigence en vaut ${ETAPES_PAR_CRAN}.`, 'la ligue et les exigences'],
     [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
-    // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
-    [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
+    // V21 : le coach, un personnage (js/pouvoirs.js) — son expérience, ses niveaux, ses pouvoirs, ses talents, ses adjoints.
+    [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],
+    [`une victoire ${XP.victoire} point, un gros match gagné ${XP.gros} de plus, une série gagnée ${XP.serie} ; ${SEUILS_NIVEAU.slice(1).map((x, i) => `${i ? '' : 'niveau '}${i + 2} à ${x}`).join(', ').replace(/, ([^,]*)$/, ', $1')} points`, 'l\'expérience du coach'],
+    [`premier ou deuxième de la ligue dans sa lecture, ses pouvoirs jouent ×${nombre(MAITRISE[0][1])} (×${nombre(MAITRISE[1][1])} dans les cinq premiers)`, 'la maîtrise de l\'entraîneur'],
+    [`Ses trois pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.slice(0, -1).join(', ')} et ${NIVEAU_DES_POUVOIRS.at(-1)}`, 'les pouvoirs'],
+    [`fait grandir un pouvoir de ${nombre(TALENT * 100)} %`, 'le talent'],
+    [`${ADJOINTS_MAX === 3 ? 'Trois' : ADJOINTS_MAX} adjoints au plus ; un ${ADJOINTS_MAX === 3 ? 'quatrième' : 'de plus'}, et tu choisis qui part`, 'le staff'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
     [`trois cartes : ${Object.keys(SORTES_DECK).length === 3 ? 'un vrai joueur, un nouveau rôle, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
-    // V20 : la confiance par le seul chiffre tenu (js/chiffre.js).
-    [`chaque bloc de ${BLOC === 10 ? 'dix' : BLOC} matchs où son chiffre est tenu vaut ${POINTS_PAR_BLOC} point${POINTS_PAR_BLOC > 1 ? 's' : ''} : II à ${SEUILS[1]} (${blocsDe(SEUILS[1])} blocs), III à ${SEUILS[2]} (${blocsDe(SEUILS[2])} blocs)`, 'les seuils de la confiance'],
-    // V14 : les échelons du personnel (js/echelons.js) ; V20 : achetés quand on veut, la couleur, l'embauche (js/personnel.js).
-    [`Un échelon s'achète quand tu veux : ${PRIX_ECHELON.slice(2, -1).join(', ')} puis ${PRIX_ECHELON[3]} jetons ; un doublon tiré d'un pack en paie un. À chaque échelon, tu choisis : sa force grandit de ${nombre(POUSSEE * 100)} %, ou son défaut fond de ${nombre((1 - CORRECTION) * 100)} %.`, 'les échelons du personnel'],
-    [`Engager est gratuit au camp, puis coûte ${Object.values(PRIX_EMBAUCHE).slice(0, -1).join(', ')} ou ${Object.values(PRIX_EMBAUCHE).at(-1)} jetons selon sa rareté`, 'le prix d\'embauche'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
     [`${nombre(POIDS_AN[0] * 100)} et ${nombre(POIDS_AN[1] * 100)} % du temps, deux en désavantage à ${nombre(POIDS_DN[0] * 100)} et ${nombre(POIDS_DN[1] * 100)} %`, 'les unités spéciales'],
-    // V3.6 : la lancée, le doute et le feu qui s'entretient (`LANCEE`, js/sim.js ; le vendeur de chandails, js/banque.js).
+    // V3.6 : la lancée et le doute (`LANCEE`, js/sim.js) ; le feu qui s'entretient est parti avec le personnel (V21).
     [`${LANCEE.buts} buts en ${LANCEE.matchs} matchs, et ${nombre(LANCEE.facteur)} fois son vrai rythme, mettent un joueur <strong>sur sa lancée</strong> : précision +${pct(LANCEE.lancee.finition)} %, tirs +${pct(LANCEE.lancee.lancers)} %`, 'la lancée'],
     [`sans but en ${LANCEE.doute.matchs} matchs <strong>doute</strong> : précision −${pct(LANCEE.doute.finition)} %`, 'le doute'],
-    [`l'allume à ${LANCEE.etincelle.buts} buts et la rend vive (précision +${pct(LANCEE.vive.finition)} %, tirs +${pct(LANCEE.vive.lancers)} %)`, 'l\'étincelle'],
-    [`la garde jusqu'à ${LANCEE.braise.fenetre} matchs de plus tant qu'il marque une fois en ${LANCEE.braise.sans}`, 'la braise'],
-    [`paie ${PATRONS.dir_chandails.econ.jetonsLancee} jeton par joueur sur sa lancée, chaque soir`, 'le vendeur de chandails'],
     // Les raretés (oct. 2026) : les gemmes et les noms de la carte (js/cartes.js, js/rarete.js), les cotes d'une brillante par stature.
     [RARES.map(r => `${RARETES[r].gemme} ${RARETES[r].nom.toLowerCase()}`).join(', '), 'les gemmes des cartes de jeu'],
     [`de 1 à ${EDITIONS.length}, qui change la carte entière : ${NOM_VARIANTE.commune} ; ${NOM_VARIANTE.peu}, un cadre de métal`, 'les éditions d\'une carte de joueur'],

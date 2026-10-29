@@ -1,22 +1,21 @@
 /*
  * CHAQUE EFFET SE VOIT (25 oct. 2026 ; JP : *0,4 pt, ça va fuck all faire* ; *recheck tous les effets*). Tout ce qui
- * touche ton club en Rogue — le personnel, les cartes des routes, les réponses des dossiers, les dilemmes et les
+ * touche ton club en Rogue — les réponses des dossiers (ce qui va au joueur nommé, leurs paris), les dilemmes et les
  * séquences, l'avant-match, le point de presse et les courriels, les arcs, les retours des fils — se mesure EN
  * PAIRES (CLAUDE.md), match par match, comme check_places : deux copies d'un même vrai club, les mêmes dés, une fois
  * sans l'effet, une fois avec, son moment posé. Un effet partagé (un paquet de réponses) se mesure une fois.
  *   1. il se voit dans la feuille d'un soir où il joue : ±2 tirs (un bord ou le rythme), ±0,3 but des deux clubs,
  *      ±0,5 punition, ±4 mises en échec, ±3 blessures par saison, ±3 de jambes ; sur un joueur nommé, à sa ligne :
  *      ±0,3 point, ±0,15 but ou ±1 tir (une récompense de toute la saison : quatre points sur sa durée). Les minutes (`F`, `D`) se recomptent ailleurs (check_dilemmes), l'argent aussi ;
- *   2. sa force reste sous la borne de sa rareté sur ses soirs (une commune ±1) ; le style d'un adjoint au premier
- *      échelon (±0,5 V en buts, V14b) se juge dans check_places, à 400 matchs par club.
- * `N` : matchs par club et par effet (200). `FILS` : processus (4). `IDS=q:,a:` quelques familles. Une vingtaine de
- * minutes : à la main, comme check_places.
+ *   2. sa force reste sous la borne de sa rareté sur ses soirs (une commune ±1).
+ * V21 : les pouvoirs du coach, le temps d'une période, se mesurent dans check_pouvoirs ; le personnel est parti.
+ * `N` : matchs par club et par effet (200). `FILS` : processus (4). `IDS=d:,a:` quelques familles. Une vingtaine de
+ * minutes : à la main.
  */
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
-import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, appliquerMutation, joueurDeMutation, activeLineup, effetsDesJoueurs, getPlayerKey, depenserEnergie, MOMENTS, SEQUENCES, AVANT_GROS } from '../js/sim.js';
-import { PERSONNEL, PROTEGES } from '../js/personnel.js';
+import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, activeLineup, effetsDesJoueurs, getPlayerKey, depenserEnergie, MOMENTS, SEQUENCES, AVANT_GROS } from '../js/sim.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { REPONSES_VIE, CHOIX_DES_FILS } from '../js/vie-gm.js';
 import { ARCS } from '../js/arcs.js';
@@ -29,7 +28,6 @@ const CJ = ['finition', 'lancers', 'creation', 'defense', 'blessure', 'arrets'];
 const prend = (o, ks) => Object.fromEntries(ks.filter(k => o && k in o && typeof o[k] !== 'object' || (o && (k === 'F' || k === 'D') && Array.isArray(o[k]))).map(k => [k, o[k]]));
 function items() {
   const out = [];
-  for (const [k, C] of Object.entries(PERSONNEL)) if (C.effet || (PROTEGES[k] && !PROTEGES[k].feu)) out.push({ id: `q:${k}`, nom: C.nom, rarete: C.rarete, si: C.si || null, effet: C.effet || {}, protege: !!PROTEGES[k] && !PROTEGES[k].feu, cle: k });
   for (const [d, D] of Object.entries(DOSSIERS)) for (const O of D.options) for (const [suf, x] of [['', O], ...(O.pari ? [['+', O.pari.gagne], ['-', O.pari.perd]] : [])]) {
     const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `d:${d}.${O.cle}${suf}`, nom: `${D.titre} : ${O.nom}`, rarete: 'commune', si: O.si || null, duree: x.duree, effet: e, joueur: x.lui || null });
   }
@@ -72,11 +70,8 @@ function mesurer(ids, n) {
       const trois = lire => {
         const club = (nom, role) => { grainerHasard(`eff:${lab}:${role}`); return equipe(nom, t, un, s); };
         const sans = club('Sans', 'toi'), avec = club('Avec', 'toi'), adv = club('Eux', 'eux');
-        const pq = id.startsWith('q:');
-        if (!pq) avec.effets = Object.keys(C.effet).length ? [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, si: C.si, ...C.effet }] : [];
-        else avec.patrons = [{ cle: C.cle, role: PERSONNEL[C.cle].role, nom: C.nom, si: C.si, ...C.effet }];
-        if (pq && C.protege) { const p = joueurDeMutation(avec, null, C.cle); appliquerMutation(avec, p, C.cle, 0, 'personnel'); sans._nomme = avec._nomme = getPlayerKey(p); }
-        if (!pq && C.joueur && Object.keys(C.joueur).length) {
+        avec.effets = Object.keys(C.effet).length ? [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, si: C.si, ...C.effet }] : [];
+        if (C.joueur && Object.keys(C.joueur).length) {
           const ferme = (C.joueur.defense ?? 1) < 1 || 'arrets' in C.joueur, lu = activeLineup(avec);
           const sl = 'arrets' in C.joueur ? SLOTS.find(x => x.group === 'G') : SLOTS.find(x => !x.scratch && x.unit === 0 && (ferme ? x.group === 'D' : x.group === 'F' && x.role === 'C'));
           const p = lu[sl.i];
@@ -100,7 +95,7 @@ function mesurer(ids, n) {
   return out;
 }
 if (process.env.PART) { process.stdout.write(JSON.stringify(mesurer(process.env.PART.split(','), Number(process.env.NPART)))); process.exit(0); }
-const sig = x => JSON.stringify([x.effet, x.joueur || null, x.si, x.protege ? x.cle : null]);
+const sig = x => JSON.stringify([x.effet, x.joueur || null, x.si]);
 const vusSig = new Map();
 for (const x of items()) if (!vusSig.has(sig(x))) vusSig.set(sig(x), x.id);
 let toutes = [...vusSig.values()];
@@ -118,23 +113,21 @@ for (const id of toutes) {
   const C = meta[id], m = res[id], x = Object.fromEntries(Object.entries(m).map(([k, v]) => [k, v / m.n]));
   // Les minutes seules, ou rien que le moteur lise ce soir (l'argent) : elles se prouvent ailleurs.
   const canaux = Object.keys(C.effet || {}).filter(k => k !== 'F' && k !== 'D');
-  if (!canaux.length && !(C.joueur && Object.keys(C.joueur).length) && !C.protege) continue;
+  if (!canaux.length && !(C.joueur && Object.keys(C.joueur).length)) continue;
   mesures++;
   // Un arc contre un club ne joue que ses matchs contre lui : trois d'une saison, à peu près.
-  const soirs = C.contre ? 3 : id.startsWith('q:') ? (C.si ? MOMENTS_SI[C.si].parSaison : 82) : (C.duree || 5) * (C.si ? MOMENTS_SI[C.si].parSaison / 82 : 1);
+  const soirs = C.contre ? 3 : (C.duree || 5) * (C.si ? MOMENTS_SI[C.si].parSaison / 82 : 1);
   const R = Math.max(Math.abs(x.tp) / 2, Math.abs(x.tc) / 2, Math.abs(x.tp + x.tc) / 2, (Math.abs(x.gf) + Math.abs(x.ga)) / 0.3, Math.abs(x.pun) / 0.5,
     Math.abs(x.coups) / 4, Math.abs(x.bl * 82) / 3, Math.abs(x.jambes) / 3, Math.abs(x.pj) / 0.3, Math.abs(x.bj) / 0.15, Math.abs(x.tj) / 1,
     // Une récompense de toute une saison (un pari gagné, un fil relevé) se voit sur sa durée : quatre points de plus à sa ligne.
     soirs >= 40 ? (Math.abs(x.pj) * soirs) / 4 : 0);
   const ligne = `${C.nom} : ${soirs.toFixed(1).replace('.', ',')} soirs · par soir : tirs ${f1(x.tp)} / ${f1(x.tc)} · buts ${f2(x.gf)} / ${f2(x.ga)} · punitions ${f2(x.pun)} · mises en échec ${f1(x.coups)} · jambes ${f1(x.jambes)}${x.pj || x.tj ? ` · le joueur ${f2(x.pj)} pt, ${f1(x.tj)} tir` : ''}`;
   if (R < 1) { invisibles.push(C.nom); informer(`✗ ${id}`, ligne); }
-  // Un adjoint : le style, pas la force, se juge dans check_places (400 matchs par club : à 200, le bruit d'un adjoint de
-  // 41 soirs vaut la borne). Ici, sa rareté.
   const v = x.v * soirs, lim = BORNE_V[C.rarete || 'commune'];
   // Une récompense de fil (un défi relevé, un pari gagné) dure la saison : c'est la récompense (CLAUDE.md, la run qui casse le jeu).
   if (Math.abs(v) > lim && !id.startsWith('f:')) tropForts.push(`${C.nom} ${f1(v)} V (borne ${String(lim).replace('.', ',')})`);
 }
 exiger('chaque effet se voit dans la feuille d\'un soir où il joue', !invisibles.length, invisibles.length ? `${invisibles.length} sur ${mesures} : ${invisibles.slice(0, 12).join(' · ')}` : `${mesures} effets`);
-exiger('chaque effet reste sous la borne de sa rareté (le style d\'un adjoint : check_places)', !tropForts.length, tropForts.join(' · ') || 'tous');
+exiger('chaque effet reste sous la borne de sa rareté', !tropForts.length, tropForts.join(' · ') || 'tous');
 if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify({ res, meta }));
 verdict('Chaque effet se voit');

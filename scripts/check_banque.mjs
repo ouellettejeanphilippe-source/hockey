@@ -1,54 +1,32 @@
 /**
- * LA BANQUE DE CARTES ET LES PACKS (S79) — ce que chaque carte promet, le
- * moteur le joue ; la saison se rejoue avec elles ; rien ne casse le jeu.
+ * LA BANQUE DE CARTES ET LES PACKS (S79 ; V21) — ce que chaque carte promet, le moteur le joue ; la saison se rejoue
+ * avec elles.
  *
- *   node scripts/check_banque.mjs            (LIGUES=4 par défaut)
- *   LIGUES=8 node scripts/check_banque.mjs   (une lecture plus fine)
- *   FAMILLES=patrons PART=1/4 node scripts/check_banque.mjs
- *       (l'équilibre d'une seule famille, et le quart de ses cartes : quatre
- *       processus en parallèle la font en un quart du temps ; la moyenne d'une
- *       famille ne se juge alors que sur la liste entière. V10 : seuls les
- *       patrons qui s'engagent sont mesurés ; les événements ne se tirent plus,
- *       ce sont des dossiers d'À faire, mesurés par check_places)
+ *   node scripts/check_banque.mjs
  *
- * Vérifie :
- *   1. le registre : plus de 100 cartes qui se tirent, les familles du jeu neuf (V10), une règle chiffrée
- *      pour chacune, une décision que le moteur (ou le plafond) lit ;
- *   2. les packs : des chances affichées pour chaque pack, des barèmes qui
- *      font 100 %, des tirages purs ; une malédiction ne sort que des packs
- *      qui l'affichent, à la cote affichée ;
- *   2b. LA MASSE SALARIALE (`plafondDe`) : l'espace, la taxe, le DG du
- *      plafond flexible, la retenue, le rachat, le LTIR — chacun au dollar ;
- *   3. le moteur : un patron entre dans \`team.patrons\` (saison ET séries,
- *      \`effetsDeSaison\`), un événement dans \`team.effets\`, un style sur la
- *      carte du joueur, et un SOIN raccourcit
- *      vraiment une blessure ;
- *   4. la saison se rejoue au but près avec des cartes de toutes les familles ;
- *   5. l'équilibre, mesuré EN PAIRES (la même ligue deux fois sous la même
- *      graine, la carte aux équipes paires puis aux impaires — voir
- *      check_cartes.mjs). Une carte seule, à quatre ligues, se lit à ±0,5
- *      victoire près (plus pour un événement, qui rebrasse les dés) : sa borne
- *      attrape un cadeau ou un piège, pas du bruit. La MOYENNE d'une famille,
- *      elle, se lit serrée : les patrons valent de 0 à +1,5 victoire en
- *      moyenne (des reliques), les événements ±0,6 (des échanges).
+ * V21 (docs/refonte-v21.md) : le personnel est parti ; la banque garde les cartes rares qui montent (les retouches, le
+ * stage du coach, les soins, l'échange d'un doublon), une fois sur quatre dans un pack de joueurs. Les pouvoirs du
+ * coach se mesurent dans check_pouvoirs. Vérifie :
+ *   1. le registre : les deux familles qui restent, une règle pour chaque carte, une décision que le moteur lit ;
+ *   2. les packs : des chances affichées pour chaque pack, des barèmes qui font 100 %, une carte rare pure ;
+ *   2b. LA MASSE SALARIALE (`plafondDe`) : le contrat de télé et le rachat du dossier du proprio, au dollar ;
+ *   3. le moteur : le stage monte l'expérience du coach, une histoire aussi, et un SOIN raccourcit vraiment une
+ *      blessure ; une histoire sur un joueur tient sur lui ;
+ *   4. la saison se rejoue au but près avec ces décisions.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey, effetsDeSaison } from '../js/sim.js';
-import { BANQUE, ORDRE_CATEGORIES, PATRONS, compteParCategorie, reglesDe, payloadDe, plafondDe } from '../js/banque.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey } from '../js/sim.js';
+import { BANQUE, ORDRE_CATEGORIES, compteParCategorie, reglesDe, payloadDe, plafondDe } from '../js/banque.js';
 import { DOSSIERS } from '../js/dossiers.js';
-import { PACKS_TOUS, TIERS, chancesDe, tirerCartesPack } from '../js/packs.js';
+import { PACKS_TOUS, TIERS, chancesDe, tirerCartesDuPack, BOUTIQUE } from '../js/packs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
-const LIGUES = Number(process.env.LIGUES ?? 4);
-const FAMILLES = (process.env.FAMILLES || 'patrons').split(',');
-const [PART_K, PART_N] = (process.env.PART || '1/1').split('/').map(Number);
-const maPart = (cles) => cles.filter((_, i) => i % PART_N === PART_K - 1);
 const C = new Map();
 const shard = f => { if (!C.has(f)) C.set(f, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))); return C.get(f); };
 const eq = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
@@ -68,8 +46,6 @@ function ligue(seed, n = 32) {
   }
   return out;
 }
-const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
-const signe = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 const fiche = t => `${t.W}-${t.L}-${t.OTL} ${t.GF}-${t.GA}`;
 
 console.log('\n  La banque de cartes et les packs (S79)\n');
@@ -78,22 +54,17 @@ console.log('\n  La banque de cartes et les packs (S79)\n');
 const compte = compteParCategorie();
 const total = Object.keys(BANQUE).length;
 informer('les cartes', `${total} en tout · ${ORDRE_CATEGORIES.map(c => `${c} ${compte[c]}`).join(' · ')}`);
-// V10 : les cartes de saison se fondent dans le personnel (tranche 4) ; leur famille ne se tire plus. Les événements
-// sont devenus des dossiers d'À faire (tranches 5 et 6, js/dossiers.js) : leur famille n'existe plus.
-const FONDUES = ['saison'];
+// V21 : le personnel est parti ; restent les retouches d'un joueur et les cartes rares qui montent ou soignent.
 const tirables = ORDRE_CATEGORIES.reduce((a, c) => a + compte[c], 0);
-// V16 (tranche 6) : le personnel et dix cartes rares ; la masse salariale et le congédiement sont des dossiers du proprio.
-exiger('plus de 60 cartes qui se tirent, dans les familles du jeu neuf', tirables >= 60 && ORDRE_CATEGORIES.every(c => (FONDUES.includes(c) ? !compte[c] : compte[c] > 0)),
-  `${tirables} qui se tirent (${total} définies)`);
+exiger('deux familles, les retouches et les cartes rares, chacune garnie', ORDRE_CATEGORIES.join() === 'joueur,consommable' && ORDRE_CATEGORIES.every(c => compte[c] > 0) && tirables === total,
+  `${tirables} cartes`);
 const sansRegle = Object.keys(BANQUE).filter(id => !reglesDe(id).length);
 exiger('chaque carte dit sa règle', !sansRegle.length, sansRegle.slice(0, 5).join(', ') || 'toutes');
-// Le stage du coach et la formation (V16, tranche 6) montent d'un cran : ils n'ont pas de chiffre de match à dire.
-const MONTENT = ['consommable:stage', 'consommable:formation'];
-const chiffres = Object.keys(BANQUE).filter(id => ['patron', 'consommable'].includes(BANQUE[id].cat) && !MONTENT.includes(id)).filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
-exiger('le personnel et les soins se lisent en chiffres', !chiffres.length, chiffres.slice(0, 5).join(', ') || 'tous');
-const CHAMPS = ['patron', 'effet', 'gestes', 'surJoueur', 'mutation', 'maitrise', 'gain', 'deck', 'coachsDeBase', 'formation', 'ballottage'];
+const chiffres = Object.keys(BANQUE).filter(id => BANQUE[id].cat === 'consommable').filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
+exiger('les cartes rares se lisent en chiffres', !chiffres.length, chiffres.slice(0, 5).join(', ') || 'toutes');
+const CHAMPS = ['effet', 'gestes', 'surJoueur', 'mutation', 'gain', 'xpCoach', 'ballottage'];
 const sansDecision = Object.keys(BANQUE).filter(id => {
-  const p = payloadDe(id, { joueur: 'x', tactique: 'trappe', coach: 'essaim', points: 1, adjoint: Object.keys(PATRONS)[0], patrons: [], alea: 0.2 });
+  const p = payloadDe(id, { joueur: 'x' });
   return !p || !Object.keys(p).some(k => CHAMPS.includes(k));
 });
 exiger('chaque carte devient une décision que le moteur (ou le méta) lit', !sansDecision.length, sansDecision.slice(0, 5).join(', ') || 'toutes');
@@ -103,13 +74,12 @@ const sansChances = Object.keys(PACKS_TOUS).filter(k => !chancesDe(k).length);
 exiger('chaque pack affiche ses chances', !sansChances.length, `${Object.keys(PACKS_TOUS).length} packs`);
 exiger('les barèmes des tiers font 100 %', Object.values(TIERS).every(T => Math.abs(Object.values(T.cotes).reduce((a, b) => a + b, 0) - 100) < 1e-9), Object.keys(TIERS).join(' · '));
 let impurs = 0;
-const CLES_CARTES = Object.values(PACKS_TOUS).filter(P => P.sorte === 'cartes').map(P => P.cle);
 const TIRS = 1500;
-for (let n = 0; n < TIRS; n++) for (const k of CLES_CARTES) {
-  const a = tirerCartesPack(k, `g${n}`, n);
-  if (JSON.stringify(a) !== JSON.stringify(tirerCartesPack(k, `g${n}`, n))) impurs++;
+for (let n = 0; n < TIRS; n++) for (const k of BOUTIQUE) {
+  const a = tirerCartesDuPack(k, `g${n}`, n);
+  if (JSON.stringify(a) !== JSON.stringify(tirerCartesDuPack(k, `g${n}`, n))) impurs++;
 }
-exiger('un pack de cartes est pur', !impurs, `${impurs} impur(s) sur ${TIRS * CLES_CARTES.length} packs`);
+exiger('la carte rare d\'un pack est pure', !impurs, `${impurs} impur(s) sur ${TIRS * BOUTIQUE.length} packs`);
 const sansMaudite = !Object.values(BANQUE).some(c => c.rarete === 'maudite');
 exiger('aucune malédiction dans la banque (V16, tranche 6 : la taxe de luxe est partie avec la masse salariale)', sansMaudite);
 informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}`).join(' · '));
@@ -120,11 +90,10 @@ informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}
   const O = Object.fromEntries(DOSSIERS.laMasse.options.map(o => [o.cle, o]));
   const pl = plafondDe([
     { jour: 3, plafond: { nom: 'tele', ...O.tele.plafond } }, { jour: 4, plafond: { nom: 'rachat', ...O.rachat.plafond, joueur: 'B' } },
-    { jour: 10, ...payloadDe('patron:dir_flexible', { patrons: [] }) },
     { jour: 50, plafond: { nom: 'tard', espace: 5_000_000 } },
   ], 20, { base });
-  const attendu = base + O.tele.plafond.espace + Math.round(base * 0.05);
-  exiger('le contrat de télé et le DG du plafond flexible font le plafond au dollar', pl.cap === attendu,
+  const attendu = base + O.tele.plafond.espace;
+  exiger('le contrat de télé fait le plafond au dollar', pl.cap === attendu,
     `${(pl.cap / 1e6).toFixed(2)} M$ (attendu ${(attendu / 1e6).toFixed(2)}) · ${pl.lignes.map(l => `${l.nom} ${l.montant > 0 ? '+' : ''}${(l.montant / 1e6).toFixed(1)}`).join(' · ')}`);
   exiger(`le rachat : ${Math.round(O.rachat.plafond.facteur * 100)} % sur son joueur, payé en jetons`, pl.facteurs.get('B') === O.rachat.plafond.facteur && O.rachat.gain < 0,
     [...pl.facteurs].map(([k, v]) => `${k} ${Math.round(v * 100)} %`).join(' · '));
@@ -135,23 +104,18 @@ informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}
 const t0 = ligue(79, 16), moi = t0[0];
 const avant = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => moi.roster[s.i]).find(Boolean);
 const decs = [
-  { jour: 5, equipe: 0, ...payloadDe('patron:per_gardienDuFort', { patrons: [] }) },
-  { jour: 10, equipe: 0, moment: { famille: 'dossier', cle: 'laPratique', choix: 'zone' } },
-  { jour: 12, equipe: 0, ...payloadDe('patron:per_maitreRuban', { joueur: getPlayerKey(avant), patrons: [] }) },
-  { jour: 20, equipe: 0, moment: { famille: 'dossier', cle: 'ilBoude', choix: 'mijoter', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] } },
+  { jour: 0, equipe: 0, coach: { cle: 'tortue', xp: 0, talents: [], adjoints: [] } },
+  { jour: 5, equipe: 0, ...payloadDe('consommable:stage', {}) },
+  { jour: 10, equipe: 0, moment: { famille: 'dossier', cle: 'laPratique', choix: 'systeme' }, xpCoach: 2 },
+  { jour: 20, equipe: 0, moment: { famille: 'dossier', cle: 'ilBoude', choix: 'parler', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] }, gain: -6 },
 ];
 simulateLeague(t0, 82, { graine: 'banque', decisions: decs });
-// V10 : un patron attend son moment ; ses soirs posés, il joue.
-const pat = (moi.patrons || []).find(x => x.cle === 'per_gardienDuFort');
-moi._soir = { apresDefaite: true };
-exiger('un patron engagé joue pour la saison, ses soirs', !!pat && pat.si === 'apresDefaite' && effetsDeSaison(moi).defense < 1, pat ? `buts contre ×${effetsDeSaison(moi).defense.toFixed(3)} après une défaite` : 'absent');
-exiger('un dossier entre dans les effets de l\'équipe', (moi.effets || []).some(e => e.nom === 'La pratique du mardi'), `${(moi.effets || []).length} effet(s)`);
-// V16 : l'équipement et les places sur un joueur sont partis ; un adjoint à protégé change la carte du joueur nommé.
-exiger('un adjoint à protégé change la carte de son joueur', (avant._mutCles || []).includes('per_maitreRuban') && (moi.patrons || []).some(x => x.cle === 'per_maitreRuban'), avant.n);
-// V11 (tranche 4) : un dossier qui nomme un joueur pose le gros de sa réponse sur lui, et le reste sur l'équipe.
+exiger('le stage et une histoire montent l\'expérience du coach', moi.perso && moi.perso.xp === payloadDe('consommable:stage', {}).xpCoach + 2, moi.perso ? `${moi.perso.xp} points d'avant, ${moi.xpSaison} de la saison` : 'pas de coach');
+exiger('une histoire ne pose plus d\'effet sur l\'équipe', !(moi.effets || []).some(e => e.source === 'dossier'), `${(moi.effets || []).length} effet(s)`);
+// V11 (tranche 4) : un dossier qui nomme un joueur pose sa réponse sur lui.
 const boude = (moi.effetsCibles || []).find(e => e.nom === 'Il boude');
-exiger('un dossier sur un joueur tient sur le joueur nommé', !!boude && getPlayerKey(boude.joueur) === getPlayerKey(avant) && boude.finition < 1 && (moi.effets || []).some(e => e.nom === 'Il boude' && e.discipline < 1),
-  boude ? `${boude.joueur.n} : précision ×${boude.finition}, ${boude.fin - boude.debut} jours` : 'absent');
+exiger('une histoire sur un joueur tient sur le joueur nommé', !!boude && getPlayerKey(boude.joueur) === getPlayerKey(avant) && boude.lancers > 1,
+  boude ? `${boude.joueur.n} : tirs ×${boude.lancers}, ${boude.fin - boude.debut} jours` : 'absent');
 
 // UN SOIN RACCOURCIT UNE BLESSURE : une première saison dit qui se blesse et quand ; la même, avec un soin le lendemain, doit le rendre plus tôt.
 let soinOk = null;
@@ -173,42 +137,5 @@ const r1 = ligue(79, 16), r2 = ligue(79, 16);
 simulateLeague(r1, 82, { graine: 'banque', decisions: decs });
 simulateLeague(r2, 82, { graine: 'banque', decisions: decs });
 exiger('la saison se rejoue au but près avec les cartes', fiche(r1[0]) === fiche(r2[0]) && r1.every((t, i) => fiche(t) === fiche(r2[i])), `${fiche(r1[0])} puis ${fiche(r2[0])}`);
-
-/* 5. L'équilibre, en paires. */
-function paires(fabrique) {
-  const dv = [];
-  for (let Lg = 0; Lg < LIGUES; Lg++) {
-    const bras = [];
-    for (const parite of [0, 1]) {
-      const teams = ligue(2000 + Lg);
-      const decisions = teams.map((_, i) => i).filter(i => i % 2 === parite).flatMap(equipe => fabrique(equipe));
-      simulateLeague(teams, 82, { graine: `banque-${Lg}`, decisions });
-      bras.push(teams.map(t => t.W));
-    }
-    for (let i = 0; i < 32; i++) dv.push(bras[i % 2 === 0 ? 0 : 1][i] - bras[i % 2 === 0 ? 1 : 0][i]);
-  }
-  return moy(dv);
-}
-console.log(`\n  ${LIGUES} ligues × 32 équipes, en paires\n`);
-const hors = [];
-const lignes = [];
-const vp = [];
-for (const cle of FAMILLES.includes('patrons') ? maPart(Object.keys(PATRONS)) : []) {
-  if (!PATRONS[cle].effet) continue;   // les patrons de la boutique (dépistage, direction) ne jouent pas sur la glace
-  if (BANQUE[`patron:${cle}`].retire) continue;   // V10 (tranche 4) : le personnel d'avant ne s'engage plus ; on juge celui qu'on rencontre
-  const v = paires(equipe => [{ jour: 0, equipe, ...payloadDe(`patron:${cle}`, { patrons: [] }) }]);
-  lignes.push(`patron ${PATRONS[cle].nom} ${signe(v)} V`);
-  vp.push(v);
-  if (v < -1.5 || v > 3) hors.push(`${PATRONS[cle].nom} ${signe(v)}`);
-}
-const moyP = moy(vp);
-for (const l of lignes) console.log(`  ${l}`);
-const entier = PART_N === 1;
-if (FAMILLES.includes('patrons')) {
-  exiger('aucun patron n\'est un cadeau ni un piège (−1,5 à +3 victoires)', !hors.length, hors.join(' · ') || `${lignes.length} patrons`);
-  if (entier) exiger('en moyenne, un patron vaut de 0 à +1,5 victoire', moyP >= 0 && moyP <= 1.5, `${signe(moyP)} V`);
-  else informer(`moyenne des patrons, part ${PART_K}/${PART_N}`, `${signe(moyP)} V sur ${vp.length}`);
-}
-// V10 (tranche 5) : les événements ne se tirent plus (js/dossiers.js) ; `check_places` mesure les dossiers.
 
 verdict();

@@ -5,23 +5,22 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue, copiesDe, COPIES_MAX } from './rogue.js';
+import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, assortiPour, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
-import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
-import { PROTEGES, prixDEmbauche } from './personnel.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
+import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
-import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
-import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
-import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut, echelonsGratuits, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX } from './echelons.js';
-import { tenusDe, CHIFFRES, BLOC } from './chiffre.js';
-import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
+import { COACHS, VOIES } from './coachs.js';
+import { chargerCoachs, lotoDesCoachs, motDuRang } from './coachs-reels.js';
+import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
+import { motsDeMutationEnChiffres } from './impact.js';
+import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, masseSalarialeHtml, SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
-import { ouvrirChoix, motsSurLeJoueur, pucesEnBref, ouvrirAlignement, sceneHtml } from './gerant.js';
+import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { ETOILE, PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
 import { artJoueur, photoAction, cadrePhoto, epoqueDe, serieDe, SERIES } from './cartes.js';
@@ -31,7 +30,7 @@ import { jouerSon } from './sons.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
 import { galonsDeLaSaison, grosGagnesDe, texteDuGalon, GALONS_MAX, ICO_GALON, GALONS } from './galons.js';
 import { sceneDuMandat, sceneDesGalons } from './scenes.js';
-import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
+import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
@@ -104,28 +103,6 @@ export function decisionsDeLaPartie() {
   const L = G.ligue;
   return [...((L && L.decisions) || []), ...((L && L.decisionsSeries) || [])];
 }
-function victoiresEntre(de, a) {
-  const L = G.ligue;
-  if (!L || !Array.isArray(L.calendrier)) return 0;
-  let n = 0;
-  for (const jour of L.calendrier.slice(de, a)) for (const m of jour) {
-    if (m.A !== L.you && m.B !== L.you) continue;
-    if ((m.A === L.you ? m.gfA : m.gfB) > (m.A === L.you ? m.gfB : m.gfA)) n++;
-  }
-  return n;
-}
-/* Les soirs de lancée de ton club entre deux journées (V3.6, le vendeur de chandails) : un par joueur, chaque soir. */
-function lanceesEntre(de, a) {
-  const L = G.ligue;
-  if (!L || !Array.isArray(L.calendrier)) return 0;
-  let n = 0;
-  for (const jour of L.calendrier.slice(de, a)) for (const m of jour) {
-    const f = m.feuille;
-    if (!f || !f.lancees || (m.A !== L.you && m.B !== L.you)) continue;
-    n += (f.lancees[m.A === L.you ? 'A' : 'B'] || []).length;
-  }
-  return n;
-}
 export function jetonsRogue(j = G.journee || 0) {
   const L = G.ligue;
   const decs = decisionsDeLaPartie();
@@ -133,15 +110,10 @@ export function jetonsRogue(j = G.journee || 0) {
   const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0) + ((d.ballottage || {}).cout || 0), 0);
   // Un doublon signé (1.0, oct.) n'est pas revendu : sa vente, comptée à l'ouverture, se retire (`annuleVente`).
   const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0) - (d.annuleVente || 0), 0);
-  const mods = modificateurs(decs);
-  // Une période close (`jusqua` : l'adjoint remplacé, ou monté d'un échelon) rapporte jusqu'à son dernier jour (js/banque.js `revenusDuPersonnel`).
-  const fin = x => Math.min(j, x.jusqua ?? Infinity);
-  const direction = mods.jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, fin(x)), 0)
-    + mods.jetonsLancee.reduce((a, x) => a + x.n * lanceesEntre(x.depuis, fin(x)), 0);
   const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
   // S80 : le barème de la saison de la run (5 🪙 par victoire sans commanditaire) ; une vieille run garde celui de S79.
   const bareme = G.bonus === 'ROGUE' && G.rogue && G.rogue.bareme ? G.rogue.bareme : JETONS;
-  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart, bareme) + ventes + direction;
+  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart, bareme) + ventes;
 }
 
 /*
@@ -229,7 +201,7 @@ export function ouvrirBoutique(j, decider, page) {
     besoins: G.bonus === 'ROGUE' ? blessesAuJour(j).map(b => `🩹 ${b.p.n} : absent ${b.reste} match${b.reste > 1 ? 's' : ''}`) : [],
     // V7 : le barème des jetons vit où ils se dépensent (il était au bureau).
     bareme: G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.bareme) || JETONS) : null,
-    mods: modsDesPacks(decs, j), achats: () => (G.bonus === 'ROGUE' ? achatsDePacks(decisionsDeLaPartie()) : 0), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
+    mods: modsDesPacks(), achats: () => (G.bonus === 'ROGUE' ? achatsDePacks(decisionsDeLaPartie()) : 0), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
     duJour: packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique()),
     // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
@@ -254,7 +226,7 @@ export function ouvrirBoutique(j, decider, page) {
         toast(`${P.ico} ${P.nom} : scellé, à ouvrir quand tu veux.`);
         return;
       }
-      unTirageALaFois(() => { const n = numeroDAchat(); return P.sorte === 'cartes' ? ouvrirPackCartes(cle, prix, j, n, decider, params) : ouvrirPackJoueurs(cle, prix, params, j, n, decider); });
+      unTirageALaFois(() => { const n = numeroDAchat(); return ouvrirPackJoueurs(cle, prix, params, j, n, decider); });
     },
     // LES PACKS SCELLÉS : payés, à ouvrir quand on veut — le tirage se fait à l'ouverture, au numéro d'achat suivant.
     /* TON CLUB (1.0, oct.) : les noms, les couleurs et les écussons, payés en jetons comme un pack — par une
@@ -273,7 +245,7 @@ export function ouvrirBoutique(j, decider, page) {
       const d = packsScelles(decs).find(x => x.palier === palier);
       if (!d || (PACKS_TOUS[d.achat.pack].sorte === 'joueurs' && apresDateLimite(j))) return;
       const { pack, params } = d.achat;
-      unTirageALaFois(() => { const n = numeroDAchat(); return PACKS_TOUS[pack].sorte === 'cartes' ? ouvrirPackCartes(pack, 0, j, n, decider, params || {}, palier) : ouvrirPackJoueurs(pack, 0, params || {}, j, n, decider, palier); });
+      unTirageALaFois(() => { const n = numeroDAchat(); return ouvrirPackJoueurs(pack, 0, params || {}, j, n, decider, palier); });
     },
   });
 }
@@ -299,13 +271,11 @@ async function tirerPackJoueurs(cle, n, params = {}, mods = {}, garantie = false
   });
 }
 /*
- * CE QUI CHANGE UN PACK DE JOUEURS : les patrons (js/banque.js `modificateurs`)
- * et, en Rogue, la run (v2) — son PRESTIGE, fixé au départ (les Étoiles et les
- * Phénomènes qu'il ouvre), et son COACH (le style qu'il recrute). Une partie
- * d'avant la v2 n'a ni l'un ni l'autre : ses packs ne bougent pas.
+ * CE QUI CHANGE UN PACK DE JOUEURS, en Rogue, la run (v2) — son PRESTIGE, fixé au départ (les Étoiles et les
+ * Phénomènes qu'il ouvre), et son COACH (le style qu'il recrute). V21 : le personnel ne touche plus la boutique.
  */
-function modsDesPacks(decs, j) {
-  const m = modificateurs(decs, j + 1);
+function modsDesPacks() {
+  const m = { rabais: 1, holo: 1, carteExtra: 0, sansBase: false };
   const r = G.bonus === 'ROGUE' && G.rogue ? G.rogue : null;
   if (r && PRESTIGES[r.prestige]) m.prestige = { ...PRESTIGES[r.prestige], rang: r.prestige };
   if (r && COACHS[r.coach]) m.coach = r.coach;
@@ -332,7 +302,7 @@ export function miniAvecVariante(p, rar) {
  */
 async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   const decs = decisionsDeLaPartie();
-  const mods = modsDesPacks(decs, j);
+  const mods = modsDesPacks();
   const pitie = G.bonus === 'ROGUE' && packsSansHolo(decs) >= PITIE;
   const { cartes, reglage } = await tirerPackJoueurs(cle, n, params, mods, pitie);
   // UN DOUBLON, UNE DÉFINITION (V2.1) : un joueur déjà à ton cartable, comme le cartable le compte (repêché, aligné ou tiré).
@@ -342,7 +312,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   cartes.forEach((x, t) => { x.doublon = avant.has(getPlayerKey(x.p)); if (x.doublon) { vendus.push(t); vente += venteJoueur(x); } });
   const meilleure = [...EDITIONS].reverse().find(r => cartes.some(x => x.rar === r)) || 'commune';
   // UN PACK MIXTE (Jalon P2) : ses cartes de la banque se tirent avec les joueurs, au même thème (la couleur du coach).
-  const tc = PACKS_TOUS[cle].cartes ? cartesTirees(cle, n, reglage) : null;
+  const tc = PACKS_TOUS[cle].cartes ? cartesTirees(cle, n) : null;
   // `auCartable` : acheté passé la date limite, rien ne se signe — la boîte ne le réclame pas (Jalon P2).
   const achat = { pack: cle, n, prix, sorte: 'joueurs', params: reglage, meilleure, vente: vente + (tc ? tc.vente : 0), ...(vendus.length ? { vendus } : {}), ...(pitie ? { pitie: true } : {}), ...(de ? { de } : {}), ...(apresDateLimite(j) ? { auCartable: true } : {}),
     ...(tc ? { cartes: tc.ids, ...(tc.vendus.length ? { cartesVendues: tc.vendus } : {}) } : {}) };
@@ -401,7 +371,7 @@ function apresLeCartable(montees, cartes) {
 /* Un achat enregistré sans signature (la page rechargée en plein choix) : le même tirage, à choisir. */
 export async function rouvrirPackJoueurs(achat, j, decider) {
   const decs = decisionsDeLaPartie();
-  const mods = modsDesPacks(decs, j);
+  const mods = modsDesPacks();
   const { cartes, reglage } = await tirerPackJoueurs(achat.pack, achat.n, achat.params || {}, mods, !!achat.pitie);
   cartes.forEach((x, t) => { x.doublon = (achat.vendus || []).includes(t); });
   const tc = Array.isArray(achat.cartes) ? { ids: achat.cartes, vendus: achat.cartesVendues || [] } : null;
@@ -474,7 +444,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
     ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur', suite: true,
-    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Le personnel rejoint ta collection ; une carte rare se joue chez ce qu'elle monte` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
+    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Une carte rare se joue chez ce qu'elle monte` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
     options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true })) : [])],
     onChoix: () => {},
     onFerme: limite ? () => {} : offrir,
@@ -489,7 +459,7 @@ export async function ouvrirPackDeSerie(cle, ronde) {
   const P = PACKS_TOUS[cle];
   if (!P || !G.ligue) return;
   const { cartes } = await tirerJoueursDuPack(cle, {
-    graine: G.ligue.graine, n: -100 - ronde, mods: modsDesPacks(decisionsDeLaPartie(), G.journee || 0), saisons: state.index.seasons, shard: getShard,
+    graine: G.ligue.graine, n: -100 - ronde, mods: modsDesPacks(), saisons: state.index.seasons, shard: getShard,
   });
   ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
   apresLeCartable(ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null }))), cartes);
@@ -521,53 +491,17 @@ export function bloqueParLePlafond(p, q) {
  * à l'autre) — une fois, par achat (`recevoirPermanents`) ; un patron qu'on
  * possède déjà est un doublon, revendu. Une carte rare (V16, § 4d) se joue chez ce qu'elle monte.
  */
-/* Les cartes tirées d'un pack (le Pack Personnel, ou un pack de joueurs) : les rangées, et les patrons doublons revendus. */
-function cartesTirees(cle, n, params) {
-  const ids = tirerCartesDuPack(cle, G.ligue.graine, n, params);
-  const meta = lireMeta();
-  const vendus = [], doublons = [];
-  const copies = {};
-  let vente = 0;
-  ids.forEach((id, t) => {
-    const c = BANQUE[id];
-    if (c.cat !== 'patron' || G.bonus !== 'ROGUE') return;
-    // V20 : une carte du personnel déjà à toi paie un échelon (`COPIES_MAX` copies) ; au-delà, elle se revend.
-    copies[c.cle] = (copies[c.cle] ?? copiesDe(meta, c.cle)) + 1;
-    if (copies[c.cle] === 1) return;
-    if (copies[c.cle] <= COPIES_MAX) doublons.push({ t, gratuits: echelonsGratuits(copies[c.cle]) });
-    else { vendus.push(t); vente += valeurDe(id); }
-  });
-  return { ids, vendus, vente, doublons };
+/* La carte rare tirée d'un pack de joueurs (V21 : plus de personnel) : rien ne se revend à l'ouverture. */
+function cartesTirees(cle, n) {
+  return { ids: tirerCartesDuPack(cle, G.ligue.graine, n), vendus: [] };
 }
-/* Une fois l'achat écrit : le personnel au méta, les cartes à la collection. */
+/* Une fois l'achat écrit : ce qui se garde au méta, les cartes à la collection. */
 function rangerCartes({ ids, vendus }, n) {
   if (G.bonus === 'ROGUE') recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${G.ligue.graine}:k:${n}`);
   ajouterCollection({ cartes: ids });
 }
 /* Les cartes d'un pack en options d'`ouvrirChoix` : ce qui se revend. */
-const optionsDeCartes = ({ ids, vendus, doublons = [] }, pre = '') => [
-  ...ids.map((id, t) => { const d = doublons.find(x => x.t === t);
-    return { ...optionDeBanque(id), cle: `${pre}${t}`, prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : d ? `Doublon : ${d.gratuits > 1 ? `${d.gratuits} échelons payés` : 'un échelon payé'}` : '' }; })];
-function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
-  const P = PACKS_TOUS[cle], Lg = G.ligue;
-  const tc = cartesTirees(cle, n, params);
-  const { ids, vendus, vente } = tc;
-  const rogue = G.bonus === 'ROGUE';
-  const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(P.choix === 'coach' ? { params: { coach: coachDuPack(Lg.graine, n, params) } } : {}), ...(vendus.length ? { vendus, vente } : {}), ...(de ? { de } : {}) };
-  // 1.0 (J1-B) : l'achat est une décision AVANT que le butin n'entre au méta — recharger la page ne donne plus les cartes gratis.
-  decider({ jour: j, palier: `k:${n}`, achat });
-  rangerCartes(tc, n);
-  ouvrirChoix({
-    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Ranger',
-    recit: (rogue
-      ? `Le personnel reste d'une run à l'autre.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
-      : 'Le personnel va à son poste.'),
-    options: optionsDeCartes(tc),
-    onChoix: () => {},
-    onFerme: () => {},
-  });
-}
-
+const optionsDeCartes = ({ ids }, pre = '') => ids.map((id, t) => ({ ...optionDeBanque(id), cle: `${pre}${t}` }));
 /*
  * QUI EST À L'INFIRMERIE À LA JOURNÉE `j` : lu dans le journal des blessures
  * (le match où il s'est blessé, combien il en rate) et le nombre de tes
@@ -626,11 +560,11 @@ export function masseDuLundi(j) {
   const espace = pl.cap - capUsed(pl);
   return { espace, libre: money(Math.max(0, espace)), lourd: lourd ? { n: lourd.n, cle: getPlayerKey(lourd), sal: money(capHit(lourd, pl)), dollars: capHit(lourd, pl) } : null };
 }
-export function coachsDuLundi(j) {
-  const [actif] = coachsActifs(decisionsDeLaPartie(), j + 1);
-  const de = k => ({ cle: k, nom: COACHS[k].nom, ico: COACHS[k].ico });
-  return { actuel: actif && COACHS[actif.cle] ? de(actif.cle) : null,
-    autres: coachsOuverts((G.rogue && G.rogue.prestige) || 0).filter(k => COACHS[k] && (!actif || k !== actif.cle)).map(de) };
+/* Le coach de la run (V21) : son nom, son niveau et son staff, ce que la tête du coach (js/dossiers.js `laTete`) lit. */
+export function coachsDuLundi() {
+  const you = G.ligue && G.ligue.you, perso = you && you.perso;
+  if (!perso || !COACHS[perso.cle]) return null;
+  return { cle: perso.cle, nom: COACHS[perso.cle].nom, ico: COACHS[perso.cle].ico, niveau: niveauDuPerso({ ...perso, xpSaison: you.xpSaison || 0 }), adjoints: (perso.adjoints || []).length };
 }
 /*
  * JOUER UNE CARTE DE L'INVENTAIRE : sa cible (un joueur, un blessé, une
@@ -641,10 +575,8 @@ export function coachsDuLundi(j) {
 function jouerCarte(item, j, decider, page = null, auRetour = null) {
   const c = BANQUE[item.id];
   if (!c || !decider) return;
-  const Lg = G.ligue, decs = decisionsDeLaPartie(), you = Lg.you;
+  const Lg = G.ligue, you = Lg.you;
   const joue = { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) };
-  // v2 : une carte de coach grandit avec les cartes de son coach déjà jouées (js/banque.js `grandi`).
-  const build = buildDe(decs, j + 1), joueurs = joueursDesCoachs(you);
   // « Retour » revient dans la page d'où l'on venait (« Tes cartes ») ; sans elle, l'inventaire flottait par-dessus le Marché.
   const retour = auRetour || (() => ouvrirInventaireJeu(j, decider, page && page.dans && page.dans.isConnected ? page : null));
   const ecrire = payload => {
@@ -661,48 +593,6 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     contexte: mots ? `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(mots)}</div>` : '',
     joueurs: liste, onChoix: choisir, onFerme: retour,
   });
-  if (c.cat === 'patron') {
-    const actifs = patronsActifs(decs, j + 1), postes = postesDePatron((G.rogue && G.rogue.prestige) || 0);
-    // LE BANC OUVERT (V20) : engager est gratuit au camp, avant le premier match de ton club ; ensuite, il coûte `PRIX_EMBAUCHE`.
-    const prix = prixDEmbauche(c.cle, matchsJoues(Lg.calendrier, you, 0, j));
-    if (prix > jetonsRogue(j)) { toast(`Engager ${c.nom} coûte ${prix} 🪙 en saison : pas assez en caisse.`, 'bad'); retour(); return; }
-    const payer = p => (prix ? { ...p, gain: (p.gain || 0) - prix } : p);
-    const motPrix = prix ? ` · −${prix} 🪙` : '';
-    // V20 : une entente du proprio ne prend pas de chaise (une à la fois, elle remplace la précédente).
-    const assis = actifs.filter(x => x.role !== 'entente');
-    if (c.role !== 'entente' && !assis.some(x => x.role === c.role) && assis.length >= postes) {
-      ouvrirChoix({ ico: '👔', titre: `${c.nom} : qui part ?`, compact: true, fermable: true, motFermer: 'Retour',
-        recit: `${postes} postes au plus (le prestige en ouvre d'autres). ${c.nom} prend la place de qui ?${prix ? ` L'engager en saison coûte ${prix} 🪙.` : ''}`,
-        options: assis.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: ROLES[x.role] ? ROLES[x.role].nom : '' })),
-        onChoix: k => { const p = payloadDe(item.id, { patrons: actifs, build, joueurs }); p.patron.remplace = [...(p.patron.remplace || []), k]; ecrire(payer(p)); },
-        onFerme: retour });
-      return;
-    }
-    /*
-     * SON POSTE EST PRIS (oct.) : l'engager renvoie celui qui l'occupe, et ses échelons avec lui — un toucher jetait un
-     * échelon 4 et les jetons payés pour lui. On le demande, et on dit ce qui part.
-     */
-    const occupe = actifs.find(x => x.role === c.role && x.cle !== c.cle);
-    if (occupe) {
-      const ech = occupe.echelon || 1;
-      ouvrirChoix({ ico: '👔', titre: `${c.nom} : à la place de ${occupe.nom} ?`, compact: true, fermable: true, motFermer: 'Retour',
-        recit: `Un seul ${ROLES[c.role] ? ROLES[c.role].nom.toLowerCase() : 'adjoint'} à la fois. ${occupe.nom} part${ech > 1 ? `, et ses ${ech - 1} échelon${ech > 2 ? 's' : ''} pris avec lui` : ''}.`,
-        options: [{ cle: 'oui', ico: c.ico, nom: `Engager ${c.nom}`, sous: `${occupe.nom} part${motPrix}` }],
-        onChoix: () => ecrire(payer(payloadDe(item.id, { patrons: actifs, build, joueurs }))),
-        onFerme: retour });
-      return;
-    }
-    if (prix) {
-      ouvrirChoix({ ico: '👔', titre: `Engager ${c.nom} ?`, compact: true, fermable: true, motFermer: 'Retour',
-        recit: `En saison, engager coûte ${prix} 🪙 ; au camp, c'était gratuit.`,
-        options: [{ cle: 'oui', ico: c.ico, nom: `Engager ${c.nom}`, sous: `${ROLES[c.role] ? ROLES[c.role].nom : 'Adjoint'}${motPrix}` }],
-        onChoix: () => ecrire(payer(payloadDe(item.id, { patrons: actifs, build, joueurs }))),
-        onFerme: retour });
-      return;
-    }
-    ecrire(payloadDe(item.id, { patrons: actifs, build, joueurs }));
-    return;
-  }
   // S80 : une modif de joueur se pose AU VERSO, choisie dans l'alignement.
   if (c.cat === 'joueur') { poserUneModif(item, j, payload => ecrire(payload), retour); return; }
   if (c.cat === 'consommable') {
@@ -744,29 +634,12 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       });
       return;
     }
-    if (C.cible === 'coach') {
-      // LE STAGE DU COACH (V16, tranche 6) : le coach en poste reçoit les points qui lui manquent pour son cran suivant.
-      const [actif] = coachsActifs(decs, j + 1);
-      const n = actif ? buildDe(decs, j + 1, { tenus: tenusDe(Lg.calendrier, Lg.you) })[actif.cle] : 0;
-      const seuil = actif ? SEUILS.find(x => x > n) : null;
-      if (!actif || seuil == null) { toast(actif ? 'Ton coach est déjà à sa confiance III.' : 'Aucun coach en poste.', 'bad'); retour(); return; }
-      ecrire(payloadDe(item.id, { coach: actif.cle, points: seuil - n }));
-      return;
-    }
-    if (C.cible === 'adjoint') {
-      // LA FORMATION (V16, tranche 6) : un adjoint de ta collection, une copie de plus — un échelon de plus payé (V20).
-      const meta = lireMeta();
-      const liste = (meta.personnel || []).filter(k => PATRONS[k] && copiesDe(meta, k) < COPIES_MAX);
-      if (!liste.length) { toast('Tous tes adjoints ont déjà leurs échelons payés.', 'bad'); retour(); return; }
-      ouvrirChoix({ ico: c.ico, titre: `${c.nom} : pour qui ?`, compact: true, fermable: true, motFermer: 'Retour', recit: c.texte,
-        options: liste.map(k => ({ cle: k, ico: PATRONS[k].ico, nom: PATRONS[k].nom, sous: `${ROLES[PATRONS[k].role].nom} · échelons payés ${echelonsGratuits(copiesDe(meta, k))} → ${echelonsGratuits(copiesDe(meta, k) + 1)}` })),
-        onChoix: k => { recevoirPermanents([`patron:${k}`], `formation:${Lg.graine}:${j}:${item.ref || item.id}`); ecrire(payloadDe(item.id, { adjoint: k })); }, onFerme: retour });
-      return;
-    }
-    ecrire(payloadDe(item.id, { alea: hache(Lg.graine, 'billet', item.ref || item.id, j), build, joueurs }));
+    // LE STAGE DU COACH (V21) : de l'expérience au coach de la run, tout de suite.
+    if (C.cible === 'coach') { ecrire(payloadDe(item.id)); return; }
+    ecrire(payloadDe(item.id));
     return;
   }
-  ecrire(payloadDe(item.id, { build, joueurs }));
+  ecrire(payloadDe(item.id));
 }
 /*
  * JOUER UNE MODIF DE JOUEUR (S80 ; Jalon U). JP : *jouer les cartes du menu Cartes, trop d'étapes*. « Jouer » ouvre
@@ -801,128 +674,6 @@ function poserUneModif(item, j, decider, retour) {
   });
 }
 /*
- * TON PERSONNEL (V12-2, puis V14 — js/echelons.js). JP : *le personnel, des cartes qui gagnent des niveaux, avec leurs
- * forces et leurs faiblesses, un look de jeu de gestion* ; *ça peut être des cartes selon leur style*. Chaque poste : sa
- * carte (son style), son poste et son moment, sa force en vert et son défaut en rouge (en vraies stats, à son échelon),
- * ses échelons (V20 : achetés quand on veut, payés par un doublon). Une rangée s'ouvre en feuille : le détail, et le choix
- * de son échelon suivant.
- */
-const etatPersonnel = j => (G.ligue ? etatDuPersonnel(decisionsDeLaPartie(), j + 1, { copies: k => copiesDe(lireMeta(), k) }) : []);
-const CANAUX_PERSONNEL = ['finition', 'volume', 'lancers', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
-/*
- * Sa force et son défaut en mots, à son échelon. UN ADJOINT À PROTÉGÉ (oct.) : ce qu'il donne à son joueur est sa force
- * (`protegeALEchelon`) ; sans elle, le monteur vidéo (la précision ×2 de ta meilleure gâchette) ne lisait que son défaut.
- * UNE SEULE LECTURE (oct., JP : *ça a aucun sens*) : la force et le défaut se lisaient chacun à part dans le moteur, et le
- * défaut (moins de tirs) rendait un « +0,2 pt de précision » vert sous sa ligne rouge, à côté du « +1,5 pt » de la force.
- * Le moteur joue les deux ensemble : une lecture, le vert d'un côté, le rouge de l'autre, le reste (la glace, les
- * punitions) à part. Ses chiffres se disent par soir quand il a un moment, jamais « par match ».
- */
-function motsDeLaPersonne(p) {
-  const canaux = Object.fromEntries(Object.entries(p).filter(([k]) => CANAUX_PERSONNEL.includes(k)));
-  const lui = PROTEGES[p.cle] ? motsSurLeJoueur(protegeALEchelon(p.cle, p.choix || []), 'Son protégé') : [];
-  const lus = Object.keys(canaux).length ? motsEnChiffres(canaux, null, p.si ? { par: 'par soir' } : null) : [];
-  return { force: [...lui.filter(m => m.bon), ...lus.filter(m => m.bon === true), ...motsDeLEcon(p.econ)],
-    faiblesse: [...lui.filter(m => !m.bon), ...lus.filter(m => m.bon === false)], autres: lus.filter(m => m.bon == null) };
-}
-/*
- * Les options de l'échelon suivant : pousser sa force, corriger son défaut (s'il en a un). V14b : chacune coûte le prix
- * de l'échelon (`PRIX_ECHELON`, rien si un doublon le paie), et se grise sans les jetons en caisse.
- */
-function optionsDEchelon(e, caisse, coach = null) {
-  // Un adjoint de la couleur de ton coach promet ce que le moteur jouera (`assortiPour` : un cran de plus).
-  const apres = c => motsDeLaPersonne(assortiPour(coach, patronALEchelon(e.cle, { choix: [...(e.patron.choix || []), c] })));
-  const prix = e.prix ? [{ txt: `−${e.prix} 🪙`, bon: false }] : [];
-  const non = e.prix > caisse ? 'Pas assez de jetons en caisse' : null;
-  return [
-    { cle: 'force', ico: '⬆', nom: 'Pousser sa force', sous: 'Ce qu\'il fait de mieux, en plus fort', mots: [...prix, ...apres('force').force], desactive: non },
-    ...(aUnDefaut(e.cle) ? [{ cle: 'defaut', ico: '🩹', nom: 'Corriger son défaut', sous: 'Sa force reste ; son prix baisse', mots: [...prix, ...apres('defaut').faiblesse], desactive: non }] : []),
-  ];
-}
-/* Ce qui attend un choix d'échelon, dans la fiche de sa carte : ses options, et la décision. */
-const coachEnPoste = j => { const [c] = coachsActifs(decisionsDeLaPartie(), j + 1); return c ? c.cle : null; };
-function echelonsAChoisir(j) {
-  // La saison jouée ne prend plus de décision : l'échelon attend la saison suivante.
-  if (!G.ligue || G.ligue.fini) return [];
-  return etatPersonnel(j).filter(e => e.aChoisir).map(e => ({ cle: e.cle, qui: e.qui, ico: e.patron.ico, style: e.patron.nom, echelon: e.echelon,
-    prix: e.prix, defaut: aUnDefaut(e.cle), options: optionsDEchelon(e, jetonsRogue(j), coachEnPoste(j)),
-    decision: c => ({ palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) }) }));
-}
-/* Ce que lisent la rangée d'un adjoint et sa feuille : le coach en poste, les adjoints, leur état à la journée `j`. */
-function lectureDuPersonnel(j) {
-  const decs = decisionsDeLaPartie();
-  const [coach] = coachsActifs(decs, j + 1);
-  return { coach, pa: patronsActifs(decs, j + 1), etats: new Map(etatPersonnel(j).map(e => [e.cle, e])), aChoisir: new Set(echelonsAChoisir(j).map(e => e.cle)) };
-}
-/* Son moment, et combien de soirs il revient (JP : *c'est useless, c'est juste contre rivaux* — qu'on le sache avant d'engager). */
-const quandJoue = P => (P.si && MOMENTS_SI[P.si] ? `${MOMENTS_SI[P.si].mot} · ≈ ${MOMENTS_SI[P.si].parSaison} soirs par saison` : 'Toute la saison');
-/*
- * LA FEUILLE D'UN ADJOINT (JP, 28 oct. : *j'hais les accordéons*) : toucher sa rangée l'ouvre, au lieu de la déplier sur
- * place. Le détail (son texte, sa force en vert et son défaut en rouge, son protégé) et son échelon suivant comme des
- * options ; la décision passe par `jouerDeLaMaison`, le même chemin qu'avant. V20 : plus de contrat.
- */
-function ouvrirLAdjoint(cle) {
-  const hub = hubActif();
-  if (!hub || !hub.decider || !G.ligue) return;
-  const j = hub.jour ? hub.jour() : (G.journee || 0);
-  const { coach, pa, etats, aChoisir } = lectureDuPersonnel(j);
-  const x = pa.find(q => q.cle === cle), e = etats.get(cle);
-  if (!x || !e) return;
-  const R = ROLES[x.role] || {}, P = PATRONS[cle] || {};
-  const vu = assortiPour(coach && coach.cle, x), couleur = vu !== x;
-  const { force, faiblesse, autres } = motsDeLaPersonne(vu);
-  const suite = aChoisir.has(cle) ? (e.gratuit ? `L'échelon ${e.echelon + 1} est payé : un doublon.` : '') : 'Au sommet de son métier.';
-  const faits = (x.choix || []).map((c, i) => `Échelon ${i + 2} : ${c === 'force' ? 'sa force poussée' : 'son défaut corrigé'}`).join(' · ');
-  // Son protégé, nommé : le joueur que ses chiffres visent (le feu vise des lignes, pas un joueur).
-  const M = PROTEGES[cle];
-  const lui = M && !M.portee ? joueurDeMutation(G.ligue.you, null, cle) : null;
-  const lignes = M && M.portee ? lignesDuFeu(cle, x.choix || []) : 0;
-  const protege = lui ? `Son protégé : ${lui.n}.` : lignes ? (lignes > 1 ? 'Il vise tes deux premières lignes.' : 'Il vise ta première ligne.') : '';
-  const options = [
-    ...(aChoisir.has(cle) ? optionsDEchelon(e, jetonsRogue(j), coach && coach.cle).map(o => ({ ...o, cle: `echelon:${o.cle}` })) : []),
-  ];
-  const decider = d => { const h = hubActif(); if (h && h.decider) h.decider(d); };
-  ouvrirChoix({ ico: x.ico || P.ico || '👔', titre: e.qui, recit: `${R.nom || ''} · ${quandJoue(P)}`, compact: true, fermable: true, motFermer: 'Retour', vide: 'Rien à décider pour lui.',
-    contexte: `<div class="gens-fiche">
-      ${P.texte ? `<p class="perso-libre"><em>${esc(P.texte)}</em></p>` : ''}
-      ${couleur ? `<p class="perso-libre">${COACHS[coach.cle].ico} De la couleur ${esc(COACHS[coach.cle].de)} : il joue un échelon plus haut, ses chiffres le disent.</p>` : ''}
-      ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
-      ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}
-      ${autres.length ? `<div class="choix-puces">${pucesEnBref(autres)}</div>` : ''}
-      ${protege ? `<p class="perso-libre">${esc(protege)}</p>` : ''}
-      ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
-    </div>`,
-    options,
-    onChoix: k => { if (k.startsWith('echelon:')) jouerDeLaMaison({ src: 'echelon', id: `echelon:${cle}:${k.slice(8)}` }, j, decider); } });
-}
-// Une rangée du personnel se touche : sa feuille s'ouvre (le volet de l'entraîneur est réécrit à chaque décision, d'où l'écoute au document).
-if (typeof document !== 'undefined') document.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('.gens-l[data-gens]'); if (b) ouvrirLAdjoint(b.dataset.gens); });
-export function personnelDuJour(j) {
-  const max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
-  // V20 : un adjoint de la couleur de ton coach se lit tel que le moteur le joue (`assortiPour` : un cran de plus).
-  const { coach, pa: tous, etats, aChoisir } = lectureDuPersonnel(j);
-  // V20 : l'entente du proprio n'est pas au banc ; elle vit chez lui (`cartesDeLaMaison('proprio')`).
-  const pa = tous.filter(x => x.role !== 'entente');
-  const libres = Math.max(0, max - pa.length);
-  const echelons = e => `<span class="gens-ech" aria-label="Échelon ${e.echelon} sur ${ECHELON_MAX}">${Array.from({ length: ECHELON_MAX }, (_, i) => `<i class="${i < e.echelon ? 'on' : ''}"></i>`).join('')}</span>`;
-  // UNE RANGÉE PAR ADJOINT, toujours visible : son style, sa force et son défaut, son échelon et le prix du suivant ; la toucher ouvre sa feuille.
-  const ligne = x => {
-    const R = ROLES[x.role] || {}, P = PATRONS[x.cle] || {}, e = etats.get(x.cle);
-    if (!e) return `<div class="perso-l"><span class="perso-ico" aria-hidden="true">${x.ico || P.ico || ''}</span><span class="perso-txt"><small>${esc(R.nom || '')}</small><b>${esc(x.nom || P.nom || '')}</b></span></div>`;
-    const vu = assortiPour(coach && coach.cle, x), couleur = vu !== x;
-    const { force, faiblesse, autres } = motsDeLaPersonne(vu);
-    return `<button type="button" class="gens gens-l${aChoisir.has(e.cle) && e.gratuit ? ' monte' : ''}" data-gens="${esc(e.cle)}">
-        <span class="gens-av" aria-hidden="true">${x.ico || P.ico || ''}<span>${R.ico || ''}</span></span>
-        <span class="gens-txt"><b>${esc(e.qui)}</b><small>${esc(R.nom || '')} · ${esc(quandJoue(P))}</small>
-          <span class="gens-ff">${force[0] ? `<span class="bon">${esc(force[0].txt)}</span>` : autres[0] ? `<span>${esc(autres[0].txt)}</span>` : ''}${faiblesse[0] ? `<span class="mal">${esc(faiblesse[0].txt)}</span>` : ''}</span></span>
-        <span class="gens-niv"><span>Éch. ${e.echelon}${couleur ? ` · ${COACHS[coach.cle].ico} +1` : ''}</span>${echelons(e)}${aChoisir.has(e.cle) ? (e.gratuit ? '<span class="gens-monte">↑ payé</span>' : `<span class="gens-ct">↑ ${e.prix} 🪙</span>`) : ''}</span>
-      </button>`;
-  };
-  return `<section class="perso" aria-label="Ton personnel"><h3 class="perso-t">👔 Ton personnel · ${pa.length}/${max} poste${max > 1 ? 's' : ''}</h3>
-    ${pa.map(ligne).join('')}
-    ${libres ? `<p class="perso-libre">${libres} poste${libres > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''} : les packs Personnel en donnent, et ils s'engagent ici.</p>` : ''}
-  </section>${cartesDeLaMaison('entraineur', j)}`;
-}
-/*
  * UNE MAISON PAR SUJET (V12-2, puis V12-3). JP : *everything coaching should be at same place, including cards for assistant
  * or firing a coach* ; puis *that philosophy should be for everything*. Une carte se joue dans le sous-onglet de ce qu'elle
  * touche : le personnel et le congédiement chez l'entraîneur, ce qui soigne un blessé ou refait des jambes à l'infirmerie,
@@ -930,8 +681,7 @@ export function personnelDuJour(j) {
  * sous le tableau des joueurs. Une retouche se pose au verso de son joueur.
  */
 const MAISONS_DES_CARTES = {
-  entraineur: { titre: 'Tes cartes du personnel' },
-  proprio: { titre: 'Tes ententes' },
+  entraineur: { titre: 'Tes cartes du coach' },
   infirmerie: { titre: 'Tes cartes de soin' },
   joueurs: { titre: 'Tes cartes de joueur' },
 };
@@ -942,30 +692,17 @@ function maisonDeLaCarte(id) {
   if (c.cat === 'joueur') return 'joueurs';
   if (c.cat !== 'consommable') return null;
   const C = CONSOMMABLES[c.cle] || {};
-  return C.cible === 'coach' || C.cible === 'adjoint' ? 'entraineur' : C.cible === 'blesse' || (C.gestes && C.gestes.energie) ? 'infirmerie' : C.cible === 'cartable' ? 'joueurs' : null;
-}
-/* Le personnel de ta collection qu'une maison engage : les adjoints chez l'entraîneur, les ententes chez le proprio (V20). */
-const personnelDeLaMaison = (maison, meta) => (maison === 'entraineur' || maison === 'proprio'
-  ? (meta.personnel || []).filter(k => PATRONS[k] && (PATRONS[k].role === 'entente') === (maison === 'proprio')) : []);
-/* L'ENTENTE DU PROPRIO EN COURS (V20) : une à la fois, ce qu'elle rapporte en mots ; la toucher ouvre sa feuille, comme un adjoint. */
-function ententeHtml(j) {
-  const x = lectureDuPersonnel(j).pa.find(q => q.role === 'entente');
-  if (!x) return '';
-  return `<button type="button" class="gens gens-l" data-gens="${esc(x.cle)}"><span class="gens-av" aria-hidden="true">${x.ico || ''}<span>${ROLES.entente.ico}</span></span>
-    <span class="gens-txt"><b>${esc(x.nom || '')}</b><small>${esc(ROLES.entente.nom)}</small>
-      <span class="gens-ff">${motsDeLEcon(x.econ).slice(0, 2).map(m => `<span class="bon">${esc(m.txt)}</span>`).join('')}</span></span></button>`;
+  return C.cible === 'coach' ? 'entraineur' : C.cible === 'blesse' || (C.gestes && C.gestes.energie) ? 'infirmerie' : C.cible === 'cartable' ? 'joueurs' : null;
 }
 export function cartesDeLaMaison(maison, j) {
   const meta = lireMeta();
-  const engages = new Set(patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle));
-  const perso = personnelDeLaMaison(maison, meta).filter(k => !engages.has(k));
   const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && maisonDeLaCarte(id) === maison);
   const partie = G.ligue ? cartesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison) : [];
-  const n = perso.length + conso.reduce((a, [, k]) => a + k, 0) + partie.length;
-  const masse = maison === 'proprio' ? `${masseSalarialeHtml(plafondPourInventaire(j))}${ententeHtml(j)}` : '';
-  if (!n) return masse;
+  const n = conso.reduce((a, [, k]) => a + k, 0) + partie.length;
+  const masse = maison === 'proprio' ? masseSalarialeHtml(plafondPourInventaire(j)) : '';
+  if (!n || !MAISONS_DES_CARTES[maison]) return masse;
   // Une rangée, une feuille (JP, 28 oct. : *j'hais les accordéons* ; chaque onglet tient en un écran) : les cartes s'ouvrent en feuille.
-  const icones = [...partie.map(x => x.id), ...perso.map(k => `patron:${k}`), ...conso.map(([id]) => id)].map(id => (BANQUE[id] || {}).ico || '').join(' ');
+  const icones = [...partie.map(x => x.id), ...conso.map(([id]) => id)].map(id => (BANQUE[id] || {}).ico || '').join(' ');
   return `${masse}<button type="button" class="hub-rangee cartes-maison" data-cartes-maison="${esc(maison)}"><span>🃏 ${MAISONS_DES_CARTES[maison].titre} · ${n}</span><span class="pli-icones" aria-hidden="true">${icones}</span><span aria-hidden="true">›</span></button>`;
 }
 /* La feuille de tes cartes d'une maison : une option par carte, jouée ou vendue par la même porte que les autres (`jouerDeLaMaison`). */
@@ -974,14 +711,11 @@ function ouvrirLesCartes(maison) {
   if (!hub || !hub.decider || !G.ligue) return;
   const j = hub.jour ? hub.jour() : (G.journee || 0);
   const meta = lireMeta();
-  const engages = new Set(patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle));
-  const perso = personnelDeLaMaison(maison, meta).filter(k => !engages.has(k));
   const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && maisonDeLaCarte(id) === maison);
   const partie = cartesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison);
   const opt = (cle, id, mot, sous) => ({ cle, ico: (BANQUE[id] || {}).ico || '🃏', nom: `${mot} · ${(BANQUE[id] || {}).nom || id}`, sous, mots: reglesDe(id).slice(0, 3) });
   const options = [
     ...partie.flatMap(x => [opt(`partie|${x.id}|${x.ref}`, x.id, 'Jouer', ''), ...(valeurDe(x.id) ? [{ cle: `vendre|${x.id}|${x.ref}`, ico: '🪙', nom: `Vendre · ${(BANQUE[x.id] || {}).nom || x.id}`, sous: `${valeurDe(x.id)} 🪙`, mots: [] }] : [])]),
-    ...perso.map(k => opt(`personnel|patron:${k}|`, `patron:${k}`, 'Engager', '')),
     ...conso.map(([id, k]) => opt(`meta|${id}|`, id, k > 1 ? `Jouer ×${k}` : 'Jouer', '')),
   ];
   const decider = d => { const h = hubActif(); if (h && h.decider) h.decider(d); };
@@ -992,15 +726,6 @@ if (typeof document !== 'undefined') document.addEventListener('click', ev => { 
 /* Jouer une carte depuis sa maison : le même chemin que Tes cartes ; la vendre, la même décision. */
 export function jouerDeLaMaison(item, j, decider) {
   if (item.vendre) { decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }); return; }
-  // V14 : le choix de l'échelon suivant, dans la fiche de la carte (« echelon:<clé>:force|defaut »).
-  if (item.src === 'echelon') {
-    const [, cle, c] = String(item.id).split(':');
-    const e = echelonsAChoisir(j).find(x => x.cle === cle);
-    if (!e || !e.options.some(o => o.cle === c && !o.desactive)) return;
-    toast(`${e.ico} ${e.qui} : échelon ${e.echelon + 1}.`);
-    decider({ jour: j, ...e.decision(c) });
-    return;
-  }
   jouerCarte(item, j, decider, null, () => {});
 }
 /*
@@ -1262,50 +987,31 @@ export async function ouvrirRogue() {
   await sousVoile('On rassemble tes bouche-trous…', () => demarrerRogue(avecVedette, tires, coach, premiere, exigence));
 }
 /*
- * TON COACH (v2, js/coachs.js) — le personnage de Slay the Spire. Les coachs
- * que le prestige du club a ouverts (V2.3 : trois au Club de garage, les huit
- * à la Dynastie, js/rogue.js `coachsOuverts`), un à prendre : sa philosophie
- * part avec trois points au compteur, sa confiance I allumée dès le premier
- * soir. Les autres coachs restent à prendre en jouant. Et les deux patrons
- * imposés de la run, tirés de la même graine (`patronsDeLaRun`).
+ * TON ENTRAÎNEUR (V21, docs/refonte-v21.md ; JP : *des cartes de vrais coachs par saison*). Un loto de trois vraies
+ * cartes de coach-saison (js/coachs-reels.js), de trois philosophies que le prestige du club a ouvertes (trois au Club
+ * de garage, les huit à la Dynastie, js/rogue.js `coachsOuverts`) ; tu en prends une pour toute la run : sa philosophie
+ * fait ses trois pouvoirs, son rang dans la ligue sa maîtrise. Le loto suit la graine du classeur : recharger redonne
+ * les mêmes trois. Rend la carte prise, ou null.
  */
-const patronsDeLaRun = meta => patronsDeDepart(graineDuClasseur(), PRESTIGES[rangDePrestige(meta)].raretes);
-function choisirCoach() {
-  const meta = lireMeta(), rang = rangDePrestige(meta), ouverts = coachsOuverts(rang);
-  const pats = patronsDeLaRun(meta).map(id => BANQUE[id]);
-  const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} coachs sur ${VOIES.length} : le prestige ouvre les autres.` : '';
+const nomDuClubSaison = (tag, saison) => `${TEAMFULL[tag] || tag} ${saison}`;
+async function choisirCoach() {
+  const meta = lireMeta(), ouverts = coachsOuverts(rangDePrestige(meta));
+  const donnees = await sousVoile('On sort les dossiers des coachs…', () => chargerCoachs()).catch(() => null);
+  const loto = lotoDesCoachs(donnees, ouverts, `${graineDuClasseur()}:chef`);
+  if (!loto.length) return null;
+  const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} philosophies sur ${VOIES.length} : le prestige ouvre les autres.` : '';
+  const fiche = c => `${c.fiche.v}-${c.fiche.d}-${c.fiche.n}${c.coupe ? ' · 🏆' : ''}${c.jack ? ' · Jack Adams' : ''}`;
   return new Promise(resolve => ouvrirChoix({
-    ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} points, III à ${SEUILS[2]} : un point par bloc de ${BLOC} matchs où son chiffre est tenu.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
-      : `Sa philosophie joue dès le premier soir ; tiens son chiffre, et l'équipe y croit.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
-    options: optionsDeCoach(ouverts, { cartes: !!meta.runs }),
-    onChoix: k => resolve(k),
+    ico: '📋', titre: 'Ton entraîneur', fermable: true, motFermer: 'Retour',
+    recit: `Un vrai coach, une saison : il fait toute la run. Sa philosophie vient des vraies stats de son club ; il gagne de l'expérience en gagnant, et ses pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.join(', ')}.${plus}`,
+    options: loto.map(c => {
+      const C = COACHS[c.cle];
+      return { cle: c.id, ico: C.ico, nom: c.n, sous: `${nomDuClubSaison(c.tag, c.saison)} · ${fiche(c)}`,
+        mots: [{ txt: `${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise > 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: null },
+          ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${P.dit}`, bon: null }))] };
+    }),
+    onChoix: id => resolve(loto.find(c => c.id === id) || null),
     onFerme: () => resolve(null),
-  }));
-}
-/* Les coachs offerts, en options d'`ouvrirChoix` : sa philosophie, sa confiance I. `garde` : le coach en poste, gardé tel quel. */
-function optionsDeCoach(cles, { cartes = true, garde = null } = {}) {
-  return cles.map(k => {
-    const C = COACHS[k], g = garde && garde.cle === k;
-    return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son chiffre : ${CHIFFRES[k].mot(CHIFFRES[k].seuil)}.`,
-      mots: [{ txt: g ? `On le garde · confiance ${ROMAINS[garde.palier]}` : 'Confiance I', bon: g ? true : null, duree: true },
-        ...reglesDePalier(k, g ? garde.palier : 1)],
-      quand: cartes ? `${idsDuCoach(k).filter(id => id.startsWith('patron:')).length} adjoints de sa couleur` : '' };
-  });
-}
-/*
- * LE COACH D'UNE SAISON NEUVE (V5, JP : *le coach, choisi au début de la saison*) : on garde celui en poste, avec
- * sa confiance, ou on en prend un autre, qui repart à la confiance I. Rend la clé du coach choisi.
- */
-function choisirCoachDeSaison(saison) {
-  const actif = coachsActifs(decisionsDeLaPartie())[0] || null;
-  const ouverts = coachsOuverts((G.rogue && G.rogue.prestige) || 0);
-  const cles = actif ? [actif.cle, ...ouverts.filter(k => k !== actif.cle)] : ouverts;
-  return new Promise(resolve => ouvrirChoix({
-    ico: '📋', titre: `Ton coach · saison ${saison}`,
-    recit: actif ? `Garde ${COACHS[actif.cle].nom}, avec sa confiance ${ROMAINS[actif.palier]}, ou prends-en un autre : il repart à la confiance I.` : 'Sa philosophie joue dès le premier soir.',
-    options: optionsDeCoach(cles, { garde: actif }),
-    onChoix: k => resolve(k),
   }));
 }
 /*
@@ -1407,8 +1113,6 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
   $('game').classList.remove('bilan');
-  // V2.3 : les deux patrons imposés, tirés avant que la run prenne son numéro (la graine du choix du coach).
-  const patrons = patronsDeLaRun(meta);
   // Ta première run : l'équipe de tes packs de départ, telle quelle.
   const V = premiere ? { roster: premiere, quota: null, tires: [] } : await vestiaireDeDepart(meta, [...gardes, ...tires.map(x => x.p)], { exigence });
   G.roster = V.roster;
@@ -1423,9 +1127,10 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     depart: jetonsDeDepart(meta), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta, exigence, { reel: true }),
     // S80 : la run sur plusieurs saisons, ses cases de réserve, et ce que le classeur a donné ; V9 (tranche 8) : son cran d'exigence, fixé.
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigence), exigence,
-    // v2 : le coach choisi au départ (js/coachs.js) — sa confiance I est une décision du jour 0 (js/banc.js) —
-    // et le prestige du club, FIXÉ pour la run (js/rogue.js `PRESTIGES`) : un rang gagné en route sert la suivante.
-    ...(COACHS[coach] ? { coach } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta), patrons,
+    // V21 : le coach de la run, un personnage (js/pouvoirs.js) — son expérience et ses choix passent d'une saison à
+    // l'autre (`perso`, la décision du jour 0, js/banc.js) — et le prestige du club, FIXÉ pour la run (js/rogue.js
+    // `PRESTIGES`) : un rang gagné en route sert la suivante.
+    ...(coach && COACHS[coach.cle] ? { coach: coach.cle, perso: { cle: coach.cle, xp: 0, talents: [], adjoints: [], chef: { id: coach.id, n: coach.n, saison: coach.saison, tag: coach.tag }, maitrise: coach.maitrise } } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta),
     classeur: { cases: D.cases, pris: tires.map(x => x.cle) },
     // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
     cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],
@@ -1547,7 +1252,7 @@ function faitsDeLaSaison() {
   }
   return { pts: t.PTS || 0, rang, premier: rang === 1, series: rang > 0 && rang <= nombreEnSeries((L.teams || []).length), serieMax,
     saisonDeLaRun: numeroDeSaison(), cartes: Object.keys(lireCartable().joueurs).length, joues: cartesJouees(), niveaux: niveauxDeLEquipe(),
-    coachIII: coachsActifs(decisionsDeLaPartie()).some(c => c.palier >= 3) };
+    coachAuSommet: !!(t.perso && niveauDuPerso({ ...t.perso, xpSaison: t.xpSaison || 0 }) >= NIVEAU_MAX) };
 }
 function direJalons(payes) {
   payes.forEach((J, i) => setTimeout(() => toast(`🏁 Jalon : ${J.nom} — ${J.mot}.`, '', { attendre: true }), 1800 + i * 1400));
@@ -1797,7 +1502,7 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
       ${vedettes.length ? `<div class="dp-grille coupe-vedettes">${vedettes.map(p => `<div class="dp-carte">${carteMiniHtml(p)}<span class="dp-qui">${esc(quiEst(p))}</span></div>`).join('')}</div>` : ''}
       <div class="run-bilan">
       ${ligne('Saisons jouées', n)}
-      ${C ? ligne('Ton coach', `${C.ico} ${esc(C.nom)}`) : ''}
+      ${C ? ligne('Ton coach', `${C.ico} ${esc(C.nom)}${G.rogue.perso && G.rogue.perso.chef ? ` · ${esc(G.rogue.perso.chef.n)}, ${esc(nomDuClubSaison(G.rogue.perso.chef.tag, G.rogue.perso.chef.saison))}` : ''}`) : ''}
       ${ligne('Médailles gagnées par la run', `🏅 +${d.ecussons}`)}
       ${ligne('Jalons débloqués', d.jalons.length ? esc(d.jalons.join(' · ')) : 'aucun')}
       ${entrees != null ? ligne('Cartes entrées au cartable', `📒 +${entrees}`) : ''}
@@ -1906,10 +1611,9 @@ async function lotoDuCartable(gardes = [], saison = 2) {
 async function choisirNouvelleEquipe(saison) {
   const gardes = await choisirGardesDeSaison(saison);
   const lotos = await lotoDuCartable(gardes, saison);
-  const coach = await choisirCoachDeSaison(saison);
-  await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes, lotos, coach));
+  await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes, lotos));
 }
-async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
+async function continuerRun(gardes = [], lotos = []) {
   if (G.bonus !== 'ROGUE' || !G.ligue || sortDeLaRun() !== 'continue') return;
   const L = G.ligue, meta = lireMeta();
   const saison = numeroDeSaison() + 1;
@@ -1926,26 +1630,9 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   modsAuCartable();
   const report = reportDesCartes(roster);
   for (const p of gardes) G.variantes.cartes[getPlayerKey(p)] = meilleureVariante(lireCartable().joueurs[getPlayerKey(p)]) || G.variantes.cartes[getPlayerKey(p)];
-  // v2 : les COACHS continuent — le compte de la fin de saison (V20 : ses blocs tenus compris), et la confiance qu'il avait allumée.
   const decsSaison = decisionsDeLaPartie();
-  const compte = buildDe(decsSaison, Infinity, { tenus: tenusDe(L.calendrier, L.you) });
-  report.push({ jour: 0, coachsDeBase: Object.fromEntries(Object.entries(compte).filter(([, n]) => n > 0)), report: true });
-  const [enPoste] = coachsActifs(decsSaison);
-  if (enPoste && (!coachSaison || coachSaison === enPoste.cle)) { const { jour: _j, ...coach } = enPoste; void _j; report.push({ jour: 0, coach, report: true }); }
-  // Un autre coach choisi pour la saison neuve (V5) : il repart à la confiance I.
-  else if (coachSaison && COACHS[coachSaison]) { report.push({ jour: 0, ...coachNeuf(coachSaison), report: true }); G.rogue.coach = coachSaison; }
-  // 1.0 : un patron engagé l'est pour la RUN — il reste en poste à la saison suivante, avec ses chiffres.
-  // V14 : avec son échelon et ses choix (js/echelons.js `reportDuPersonnel`).
-  const gens = new Map(etatPersonnel(Infinity).map(e => [e.cle, e]));
-  // V16 : un adjoint à protégé le garde (le même joueur s'il est encore là, à l'échelon de l'adjoint), sinon le moteur en désigne un.
-  const protegeDe = (cle, choix = []) => {
-    const d = [...decsSaison].reverse().find(x => x && x.mutation && x.mutation.cle === cle), k = d && d.mutation.joueur;
-    return { cle, ...(k && Object.values(roster).some(p => p && getPlayerKey(p) === k) ? { joueur: k } : {}), saison: true, ...(choix.length ? { canaux: protegeALEchelon(cle, choix) } : {}), ...(lignesDuFeu(cle, choix) ? { lignes: lignesDuFeu(cle, choix) } : {}) };
-  };
-  for (const pa of patronsActifs(decsSaison)) {
-    const { jour: _j, remplace: _r, ...patron } = gens.has(pa.cle) ? reportDuPersonnel(gens.get(pa.cle)) : pa; void _j; void _r;
-    report.push({ jour: 0, patron, ...(PROTEGES[pa.cle] ? { mutation: protegeDe(pa.cle, patron.choix || []) } : {}), report: true });
-  }
+  // V21 : le coach de la run continue — son expérience de la saison (séries comprises) rejoint celle d'avant.
+  if (L.you && L.you.perso) G.rogue.perso = { ...L.you.perso, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])], adjoints: [...(L.you.perso.adjoints || [])] };
   // Jalon Q : les cartes de la partie te suivent — celles pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
   const poche = cartesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);
   if (poche.length) report.push({ jour: 0, poche, report: true });

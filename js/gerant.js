@@ -25,8 +25,6 @@ import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN } from './combat.js';
 import { flechesDe, INTENTIONS, PLANS, MOMENTS_SI, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
-import { coachDeCarte } from './banque.js';
-import { COACHS } from './coachs.js';
 import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, glyphe, varsEquipe, nom } from './util.js';
@@ -1183,15 +1181,12 @@ export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN
     return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C, echelle))}</span></span>` : '';
   }).join('')}</div></div>`;
 }
-/* « · 🐝 Le Frelon », ou « · Neutre » : la couleur d'une carte, dite comme dans « Tes cartes ». */
-const couleurDe = k => (COACHS[k] ? ` · ${COACHS[k].ico} ${COACHS[k].nom}` : ' · Neutre');
 /* Une carte de match en option d'`ouvrirChoix` (une récompense, un retrait). */
 export function optionDeCarteMatch(cle) {
   const C = CARTES_MATCH[cle];
   return {
     cle, rarete: C.maudite ? 'commune' : C.rarete, ico: C.ico, nom: C.nom,
-    // La couleur de son coach, sur toute carte, le gros match compris (V6, phase 4).
-    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} élan`}${C.maudite ? '' : couleurDe(coachDeCarte(`match:${cle}`))}`,
+    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} élan`}`,
     texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C), genreCarte: C.genre, dessin: cle,
   };
 }

@@ -51,7 +51,7 @@ function ligue(seed, n = 32) {
 }
 
 const decisions = [
-  // V10 : des patrons témoins (scripts/lib/temoins.mjs) ; l'ancien jeu est parti.
+  // V10 : des témoins de saison (scripts/lib/temoins.mjs) ; l'ancien jeu est parti.
   { jour: 0, equipe: 0, ...temoin('bloc') },
   { jour: 3, equipe: 0, ...temoin('fougue') },
   { jour: 0, equipe: 0, ...temoin('attaque') },
@@ -134,9 +134,9 @@ const sansCoups = cartesDeStyle({ profil: { ...P, coups: null }, ligue: Lg, styl
 exiger('une feuille sans mises en échec ne les affiche pas', !/Mises en échec/.test(sansCoups[1].corps));
 
 // 6. Ton build ce soir.
-const b2 = buildDuSoir(toi, L.decisions, 2), b3 = buildDuSoir(toi, L.decisions, 3);
-exiger('un patron pris au jour 3 n\'était pas actif au jour 2, et l\'est au jour 3', b2.patrons.length === 2 && b3.patrons.length === 3, `${b2.patrons.join(', ')} → ${b3.patrons.join(', ')}`);
-exiger('un soir sans rien de réglé se dit vide', buildVide(buildDuSoir(toi, [], 4)) && !buildVide(b3));
+const b2 = buildDuSoir(toi, 2), b3 = buildDuSoir(toi, 3);
+exiger('un effet pris au jour 3 n\'était pas actif au jour 2, et l\'est au jour 3', b2.effets.length === 2 && b3.effets.length === 3, `${b2.effets.join(', ')} → ${b3.effets.join(', ')}`);
+exiger('un soir sans rien de réglé se dit vide', buildVide(buildDuSoir(null, 4)) && !buildVide(b3));
 const lignes = ecartsDuSoir(toi === miens[0].A ? miens[0].f : miens[0].f, miens[0].A === toi ? 'A' : 'B', P, Lg);
 exiger('l\'écart du soir porte le soir, ta moyenne et la ligue', lignes.length >= 5 && lignes.every(r => Number.isFinite(r.soir) && r.moyenne != null && r.ligue != null), lignes.map(r => `${r.nom} ${r.soir}`).join(' · '));
 exiger('sans moyenne d\'avant, la colonne manque au lieu d\'être inventée', ecartsDuSoir(miens[0].f, 'A', null, null).every(r => r.moyenne === null && r.ligue === null));

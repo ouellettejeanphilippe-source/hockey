@@ -37,7 +37,9 @@ import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDu
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
-import { PALIERS_PACK, SEMAINE, cartesDuPalier, optionDeBanque } from './inventaire.js';
+import { PALIERS_PACK, SEMAINE } from './inventaire.js';
+import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT } from './pouvoirs.js';
+import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts, lignesDeLAdjoint } from './adjoints.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
 import { mainAdverse, energieAdverse } from './combat.js';
@@ -46,7 +48,7 @@ import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
-import { BANQUE, coachNeuf } from './banque.js';
+import { BANQUE } from './banque.js';
 import { DEFIS, avanceDuDefi, motDuDefi } from './arcs.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
@@ -54,7 +56,7 @@ import { animerComptes } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { verdictsDeLaSemaine as verdictsDesChoix } from './verdicts.js';
-import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money, hache } from './util.js';
+import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
 import { panelDe } from './panel-tv.js';
 import { EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, motDuSuiviEnCours, avecNoms, joueurDuFait } from './vie-gm.js';
 
@@ -1958,9 +1960,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // La semaine finie au soir d'un match regardé se plie au bureau, et le sommaire du match s'ouvre quand même.
     if (fini ? ouvrirSommaire(sem, true) || (regarde && ouvrirSommaire(avant, false, true)) : (regarde || grosVu) && ouvrirSommaire(avant, false, regarde)) return;
     retenir = false;
-    // La confiance atteinte en route (les matchs à ton service) s'allume ce matin : une décision, l'écran se rouvre.
-    const confiance = onDecision && ctx.confianceDuMatin ? ctx.confianceDuMatin(jour) : null;
-    if (confiance) { onDecision(confiance, jour); return; }
     dessiner();
   };
   async function avancerSemaine() {
@@ -3081,8 +3080,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * match ne s'ouvre que seule, comme avant : elle a son écran de combat.
    */
   const choixForce = () => specsForces()[0] || null;
-  /* Le coach en poste aujourd'hui : deux des trois adjoints offerts sont de sa couleur (`cartesDuPalier`, js/inventaire.js). */
-  const couleurDuCoach = () => { const c = ctx.rogue && ctx.rogue.coachs ? ctx.rogue.coachs(jour) : null; return c && c.actuel ? c.actuel.cle : null; };
+  /*
+   * LES ADJOINTS D'UN MOMENT FORT (V21, js/adjoints.js ; JP : *les assistants sont des ajustements, des systèmes de
+   * jeu*) : un parmi trois, gratuit, chacun un échange — ce qu'il donne, ce qu'il coûte, en vraies stats. `cle` : le
+   * moment (le palier, le butin, l'objectif, l'histoire).
+   */
+  const persoDuJour = () => (you && you.perso ? { ...you.perso, xpSaison: you.xpSaison || 0 } : null);
+  const optionDAdjoint = k => ({ cle: k, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, mots: lignesDeLAdjoint(k) });
+  const adjointsDuMoment = cle => adjointsOfferts((persoDuJour() || {}).adjoints, graine, cle).map(optionDAdjoint);
+  const decisionDeLAdjoint = cle => ({ adjoint: { cle } });
   function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
     // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.
@@ -3107,15 +3113,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     };
     const plusTard = { fermable: true, motFermer: 'Plus tard', onFerme: () => { boite.remis = boite.remisPour; } };
     if (rc) {
-      // LE BUTIN D'UNE VICTOIRE (S74, V5 ; V13-2 ; V16) : un adjoint parmi trois, qui rejoint ton personnel, ou passer.
+      // LE BUTIN D'UNE VICTOIRE (S74, V5 ; V13-2 ; V21) : un adjoint parmi trois, ou passer.
       const prendre = d => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, ...d }, j); };
       // LA SCÈNE (Jalon M, A6) : l'entraîneur, sur le pointage de la feuille.
       const mR = calendrier[rc.jour][indexMien(rc.jour)], chezR = mR && mR.A === you;
       const scene = mR ? sceneDuButin({ pour: chezR ? mR.gfA : mR.gfB, contre: chezR ? mR.gfB : mR.gfA, adv: ctx.teamShort(rc.adv), graine: `${graine}|${rc.jour}` }) : null;
       specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer', scene,
-        recit: 'Un adjoint parmi trois : il rejoint ton personnel, et s\'engage chez le coach.',
-        options: cartesDuPalier(graine, `r${rc.jour}`, couleurDuCoach()).map(id => optionDeBanque(id)),
-        onChoix: id => prendre({ place: id }),
+        recit: 'Un adjoint parmi trois, pour la run : ce qu\'il donne, ce qu\'il coûte.',
+        options: adjointsDuMoment(`r${rc.jour}`),
+        onChoix: cle => prendre(decisionDeLAdjoint(cle)),
         onFerme: () => prendre({}) });
     }
     if (ro) {
@@ -3143,10 +3149,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         decision: () => ({ palier: `v:${vo.j0}`, leve: true }) });
       else specs.push(vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
-          // V16 : le proprio paie des jetons et un adjoint parmi trois, qui rejoint ton personnel.
-          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Il sort son carnet de chèques : +${(((ctx.rogue && ctx.rogue.mandat && ctx.rogue.mandat()) || {}).bareme || JETONS).objectif} 🪙 et un adjoint parmi trois, pour ton personnel.`,
-          options: cartesDuPalier(graine, `v${vo.j0}`, couleurDuCoach()).map(id => optionDeBanque(id)),
-          decision: id => ({ palier: `v:${vo.j0}`, place: id }) }
+          // V21 : le proprio paie des jetons et un adjoint parmi trois, qui modifie un pouvoir du coach.
+          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Il sort son carnet de chèques : +${(((ctx.rogue && ctx.rogue.mandat && ctx.rogue.mandat()) || {}).bareme || JETONS).objectif} 🪙 et un adjoint parmi trois pour ton coach.`,
+          options: adjointsDuMoment(`v${vo.j0}`),
+          decision: cle => ({ palier: `v:${vo.j0}`, ...decisionDeLAdjoint(cle) }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
           recit: `${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs, pour ${o.cible} promis. Le proprio te convoque dans son bureau, porte fermée.`,
           options: [{ cle: 'encaisser', nom: 'Encaisser', prix: 'Le proprio coupe les vols nolisés : les voyages fatiguent', energie: OBJECTIF_RATE.energie, duree: OBJECTIF_RATE.duree }],
@@ -3191,10 +3197,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
   /* Les mots d'une réponse de dossier, ses noms posés : le joueur qu'il nomme ({nom}), les coachs que le proprio nomme ({coach0}, {coach1}). */
   function motsDuDossier(o, f, lui) {
-    const c = (f.coachs || []).map(x => `${x.ico} ${x.nom}`);
     // Le rachat dit les vrais montants (oct., JP : *c'est moi où y'a rien de cohérent ?*), plus « 17 % de moins ».
     const apres = lui && lui.dollars && o.plafond && o.plafond.facteur ? money(lui.dollars * o.plafond.facteur) : '';
-    const poser = t => String(t).replace('{nom}', lui ? lui.n : '').replace('{sal}', lui && lui.sal ? lui.sal : '').replace('{apres}', apres).replace('{coach0}', c[0] || '').replace('{coach1}', c[1] || '');
+    const poser = t => String(t).replace('{nom}', lui ? lui.n : '').replace('{sal}', lui && lui.sal ? lui.sal : '').replace('{apres}', apres);
     return Object.fromEntries(['nom', 'bon', 'prix'].filter(k => o[k]).map(k => [k, poser(o[k])]));
   }
   /* LES FAITS DU LUNDI : ce qui est déjà joué (les jambes du matin, l'infirmerie, le dernier match, le rang) et la cédule de la semaine, déjà connue. */
@@ -3237,9 +3242,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if ((chez ? m.gfA : m.gfB) < (chez ? m.gfB : m.gfA)) defaites++; else break;
     }
     const masse = ctx.rogue.masse ? ctx.rogue.masse(jour) : null;
-    const lesCoachs = ctx.rogue.coachs ? ctx.rogue.coachs(jour) : null;
-    const coachs = lesCoachs ? lesCoachs.autres.slice().sort((a, b) => hache(graine, 'tete', jour, a.cle) - hache(graine, 'tete', jour, b.cle)).slice(0, 2) : [];
-    return { masse, defaites, coach: lesCoachs && lesCoachs.actuel ? lesCoachs.actuel.nom : null, coachs };
+    const coach = ctx.rogue.coachs ? ctx.rogue.coachs(jour) : null;
+    return { masse, defaites, coach };
   }
   /*
    * LES FAITS D'UN JOUEUR (V11, tranche 4 — js/dossiers.js) : lus dans SES feuilles, ses `FENETRE_JOUEUR` derniers
@@ -3355,8 +3359,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           agir: () => ouvrirMain(pal) } });
     }
     /*
-     * LE PALIER DE LA SAISON (V9, tranche 5b ; V16) : aux matchs 9, 18 et 26, un adjoint parmi trois, pour ton personnel
-     * (`cartesDuPalier`, js/inventaire.js). Il attend le lundi, comme les autres.
+     * LE PALIER DE LA SAISON (V9, tranche 5b ; V21) : aux matchs 9, 18 et 26, un adjoint parmi trois, un échange
+     * (`adjointsOfferts`, js/adjoints.js). Il attend le lundi, comme les autres.
      */
     const pp = ctx.rogue && ctx.inventaire ? PALIERS_PACK.find(x => miens.length >= x && !pris.has(`pp:${x}`)) : undefined;
     if (pp !== undefined) {
@@ -3364,9 +3368,33 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const f = fiche.get(you), run = ctx.rogue.mandat ? ctx.rogue.mandat() : null;
       const scene = sceneDuPalier({ n: miens.length, fiche: { V: f.W, D: f.L, DP: f.OTL }, rang: rangDe(you), equipes: teams.length, mandat: run ? run.mot : '', graine });
       out.push({ id: `pp:${pp}`, genre: 'cartes', bloque: true, de: scene.de, sujet: `Le ${pp}e match : un adjoint parmi trois`,
-        choix: { scene, recit: 'Il rejoint ton personnel, et s\'engage chez le coach.',
-          options: cartesDuPalier(graine, pp, couleurDuCoach()).map(id => optionDeBanque(id)),
-          decision: id => ({ palier: `pp:${pp}`, place: id }) } });
+        choix: { scene, recit: 'Pour la run : ce qu\'il donne, ce qu\'il coûte.',
+          options: adjointsDuMoment(`pp${pp}`),
+          decision: cle => ({ palier: `pp:${pp}`, ...decisionDeLAdjoint(cle) }) } });
+    }
+    /*
+     * LE TALENT DU COACH (V21) : aux niveaux 2 et 4, un de ses pouvoirs ouverts grandit de moitié. Il attend le lundi.
+     */
+    const perso = persoDuJour();
+    /*
+     * QUI PART ? (V21) : un staff de plus de `ADJOINTS_MAX` adjoints attend que tu dises qui laisse sa chaise ; d'ici là,
+     * les derniers entrés jouent. Il bloque : le nouveau vient d'arriver, on tranche tout de suite.
+     */
+    const staff = (perso && perso.adjoints) || [];
+    const idStaff = `qp:${staff.join(',')}`;
+    // Une décision prise ce matin ne joue qu'au match du jour : d'ici là, le choix déjà pris ne revient pas (`pris`).
+    if (staff.length > ADJOINTS_MAX && !pris.has(idStaff)) {
+      const id = idStaff;
+      out.push({ id, genre: 'adjoint', bloque: true, de: DE.coach, sujet: `Ton staff : ${staff.length} adjoints pour ${ADJOINTS_MAX} chaises`,
+        choix: { recit: 'Qui part ?', options: staff.filter(k => ADJOINTS[k]).map(optionDAdjoint), decision: cle => ({ palier: id, perdAdjoint: cle }) } });
+    }
+    const dus = perso ? talentsDus(niveauDuPerso(perso), perso.talents || []) : 0;
+    if (dus > 0 && !pris.has(`ta:${(perso.talents || []).length}`)) {
+      const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), nTal = (perso.talents || []).length;
+      out.push({ id: `ta:${nTal}`, genre: 'talent', bloque: false, de: DE.coach, sujet: `Niveau ${NIVEAUX_TALENT[nTal]} : un talent`,
+        choix: { recit: `Un de ses pouvoirs grandit de ${Math.round(TALENT * 100)} %, pour la run.`,
+          options: ouverts.map(p => { const P = POUVOIRS[perso.cle][p]; return { cle: String(p), ico: P.ico, nom: P.nom, sous: P.dit }; }),
+          decision: cle => ({ palier: `ta:${nTal}`, talent: { p: Number(cle) } }) } });
     }
     /*
      * LE DOSSIER DE LA SEMAINE (V10, tranche 5) : sa voix et le fait (la scène), puis ses réponses. Une décision de
@@ -3378,6 +3406,22 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // V11 (tranche 4) : le joueur qu'il nomme, et ce que chaque réponse lui fait à lui.
       const lui = D.joueur ? D.joueur(dossier.faits) : null;
       const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
+      // LES CONSÉQUENCES CONCRÈTES (V21) : l'adjoint offert est nommé (le premier tiré pour cette histoire), celui qui part
+      // aussi (le dernier entré).
+      const perso = persoDuJour();
+      const offert = perso ? adjointsOfferts(perso.adjoints, graine, `do:${dossier.w}`, 1)[0] || null : null;
+      const partant = perso && (perso.adjoints || []).length ? perso.adjoints[perso.adjoints.length - 1] : null;
+      const nomDAdjoint = k => `${ADJOINTS[k].ico} ${ADJOINTS[k].nom}`;
+      const motsConcrets = o => [
+        ...(o.xp ? [{ txt: `Ton coach : ${o.xp > 0 ? '+' : '−'}${Math.abs(o.xp)} d'expérience`, bon: o.xp > 0 }] : []),
+        ...(o.adjoint && offert ? [{ txt: `Arrive : ${nomDAdjoint(offert)}`, bon: true }, ...lignesDeLAdjoint(offert)] : []),
+        ...(o.perdAdjoint ? [partant ? { txt: `Part : ${nomDAdjoint(partant)}`, bon: false } : { txt: 'Ton staff est vide', bon: null }] : []),
+        ...(o.action && o.action.energieTous ? [{ txt: `Les jambes de tous : ${o.action.energieTous > 0 ? '+' : '−'}${Math.abs(o.action.energieTous)}`, bon: o.action.energieTous > 0 }] : []),
+        ...(o.action && o.action.energie && lui ? [{ txt: `Jambes de ${nomCourt(lui.n)} : ${o.action.energie > 0 ? '+' : '−'}${Math.abs(o.action.energie)}`, bon: o.action.energie > 0 }] : []),
+        ...(o.action && o.action.absents && lui ? [{ txt: `${nomCourt(lui.n)} manque ${o.action.absents} matchs`, bon: false }] : []),
+        ...(o.action && o.action.gardienAux ? [{ txt: `L'auxiliaire garde le filet ${o.action.gardienAux} soir`, bon: null }] : []),
+        ...(o.soin && lui ? [{ txt: `${nomCourt(lui.n)} : −${o.soin} matchs d'infirmerie`, bon: true }] : []),
+      ];
       const options = D.options.map(o => ({ ...o, ...motsDuDossier(o, dossier.faits, lui), duree: o.rien || o.si || o.pari ? null : o.duree || null,
         ...(!o.si && o.duree && !o.rien ? { quand: fenetreDuChoix(miens.length, o.duree) } : {}),
         // UNE RÉPONSE D'UN MOMENT se dit sur ses soirs : « −0,4 pt de précision par soir · Un soir de dos-à-dos : ≈ 15 soirs cette
@@ -3385,12 +3429,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ...(o.si ? { cadre: { part: 1, par: 'par soir' }, quand: `${MOMENTS_SI[o.si].mot} : ≈ ${Math.max(1, Math.round(MOMENTS_SI[o.si].parSaison * Math.min(o.duree || 82, 82 - miens.length) / 82))} soirs${(o.duree || 82) >= 82 ? ' d\'ici la fin de la saison' : ` sur ${o.duree} matchs`}` } : {}),
         // L'AUDACE (V20) : un pari sur le joueur nommé, au dé ; sa fenêtre, celle de ses deux issues.
         ...(o.pari ? { quand: fenetreDuChoix(miens.length, o.pari.gagne.duree) } : {}),
-        mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
-        desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : null }));
+        mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...motsConcrets(o), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
+        desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : o.perdAdjoint && !partant ? 'Ton staff est vide' : null }));
       const decision = cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}),
-        // V16 (tranche 6) : la masse salariale et le congédiement passent par leurs décisions (`plafond`, `coachNeuf`).
+        // V16 (tranche 6) : la masse salariale passe par sa décision (`plafond`) ; V21 : le coach, le soin, par les leurs.
         ...(o.plafond ? { plafond: { cle: `${dossier.cle}.${cle}`, nom: motsDuDossier(o, dossier.faits, lui).nom, ...o.plafond, ...(o.plafond.facteur && lui ? { joueur: lui.cle } : {}) } } : {}),
-        ...(o.coachNeuf != null && dossier.faits.coachs[o.coachNeuf] ? coachNeuf(dossier.faits.coachs[o.coachNeuf].cle) : {}) }; };
+        ...(o.xp ? { xpCoach: o.xp } : {}),
+        ...(o.adjoint && offert ? { adjoint: { cle: offert } } : {}),
+        ...(o.perdAdjoint && partant ? { perdAdjoint: partant } : {}),
+        ...(o.soin && lui ? { gestes: { soin: o.soin, joueurs: [lui.cle] } } : {}) }; };
       const scene = sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`);
       // L'AUDACE SE JOUE AU DÉ (V20 ; js/gerant.js `sceneDuDe`) : le sel se tire au lancer, le dé montre ce que le moteur en fera.
       const deciderIci = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); };
@@ -3494,8 +3541,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (m.genre === 'dossier') return MAISON_DE_VOIX[m.voix] || 'presse';
     if (m.genre === 'fil') return 'vestiaire';
     if (m.genre === 'pack') return 'marche';
-    // L'adjoint d'un palier va à ton personnel : il se choisit sous l'entraîneur.
-    if (['cartes', 'palier'].includes(m.genre)) return 'entraineur';
+    // L'adjoint d'un palier et le talent du coach (V21) : ils se choisissent sous l'entraîneur.
+    if (['cartes', 'palier', 'talent', 'adjoint'].includes(m.genre)) return 'entraineur';
     const sp = m.spec || {};
     if (sp.ouvrir) return 'match';
     if (sp.cartes || sp.etat) return 'entraineur';
@@ -3650,7 +3697,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const PERMANENT = {
     proprio: () => `${etatHtml()}${cartesIci('proprio')}`,
     // V18-5 : les deux semaines qui viennent ; la route de la saison et tes matchs joués sont au Calendrier.
-    entraineur: () => `${ctx.coachHtml ? ctx.coachHtml(jour) : ''}${ctx.personnel ? ctx.personnel.html(jour) : ''}${routeDeuxSemaines()}`,
+    entraineur: () => `${ctx.coachHtml ? ctx.coachHtml() : ''}${cartesIci('entraineur')}${routeDeuxSemaines()}`,
     vestiaire: () => `${suivisHtml()}${miens.length ? recitHtml() : ''}`,
   };
   // V12-3 : les cartes d'un sujet se jouent dans sa maison (js/rogue-jeu.js `cartesDeLaMaison`) ; l'entraîneur a les siennes au personnel.

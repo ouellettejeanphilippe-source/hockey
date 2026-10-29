@@ -8,19 +8,20 @@ import { lanceesDuSoir, getHiddenRatings, compterFeuilles, getPlayerKey, photoAl
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
-import { BANQUE, palierAllume, payloadDe } from './banque.js';
-import { tenusDe } from './chiffre.js';
-import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
+import { BANQUE } from './banque.js';
+import { COACHS } from './coachs.js';
+import { POUVOIRS } from './pouvoirs.js';
+import { ADJOINTS } from './adjoints.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { mandatDe, MANDATS, JETONS, niveauDeLigue, habillerLaLigue, recevoirPermanents, niveauxDeLaRecrue } from './rogue.js';
+import { mandatDe, MANDATS, JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue } from './rogue.js';
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
-import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
+import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 import { niveauDe, REGULIER, PILIER } from './niveaux.js';
@@ -212,14 +213,12 @@ async function deciderMaintenant(ds, depuis) {
     const { liste, d } = ajouterDecision(decisions, d0);
     decisions = liste;
     prises.push(d);
-    // Un coach neuf (la tête du coach, V16) devient celui de la run, comme au départ.
-    if (d && d.coachNeuf && d.coach && G.rogue) G.rogue.coach = d.coach.cle;
   }
   // Un entracte de gros match ne « reprend » pas la saison : la période suivante commence (on vit le match).
   const k = Math.max(-1, ...prises.map(periodeDuDuel));
   await continuerSaison(decisions, depuis, k === 1 ? 'La deuxième période commence…' : k === 2 ? 'La troisième période commence…' : 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
-  if (prises.some(d => d.ballottage || d.plafond || d.patron || d.achat)) renderCap();
+  if (prises.some(d => d.ballottage || d.plafond || d.achat)) renderCap();
   prises.forEach(confirmerDecision);
 }
 /* La période d'une décision de duel (V9) : 0 pour la main du soir, 1 et 2 pour les entractes ; -1 pour le reste. */
@@ -230,8 +229,6 @@ function ajouterDecision(avant, d) {
   if (d.ballottage && d.ballottage.entre) ajouterAuCartable([{ cle: d.ballottage.entre, rar: d.ballottage.rar || 'commune', num: d.ballottage.num || null }], { doublons: false });
   // S80 : celui qui laisse sa place n'est pas perdu — sa carte va au cartable (JP : *envoyer cartes au cartable quand discard*).
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
-  // V16 : un adjoint pris à un palier ou au butin rejoint ton personnel, une fois (la clé du palier le garde d'un doublon).
-  if (G.bonus === 'ROGUE' && G.ligue && d.place && BANQUE[d.place] && BANQUE[d.place].vie === 'permanent') recevoirPermanents([d.place], `${G.ligue.graine}:${d.palier}`);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
     && !(d.plan && x.plan && x.jour === d.jour)
@@ -247,10 +244,6 @@ function ajouterDecision(avant, d) {
   // doivent pas bouger (S74).
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
-  // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
-  // V20 : chaque décision recompte la confiance, les blocs tenus compris — ils montent seuls, match après match.
-  const allume = !d.coach && G.ligue ? palierAllume(avant, d, { tenus: tenusDe(G.ligue.calendrier, G.ligue.you) }) : null;
-  if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   // V9 : ni la carte prise à un palier (`place` : V16, un adjoint, qui rejoint ton personnel), ni « Attendre » le physio (`attend`).
   // V13-2 : ni le butin d'un gros match, pris (`place`) ou passé (`r:<jour>` seul).
@@ -334,8 +327,7 @@ function confirmerDecision(d) {
   // Le pack d'une série gagnée (Jalon P1) : il s'ouvre, et ses joueurs vont au cartable.
   if (d.packSerie) { ouvrirPackDeSerie(d.packSerie, d.ronde); return; }
   // V16 : la récompense d'une victoire est un adjoint, qui rejoint ton personnel.
-  if (typeof d.palier === 'string' && d.palier.startsWith('r:') && d.place && BANQUE[d.place]) mot = `🎁 ${BANQUE[d.place].ico} ${BANQUE[d.place].nom} rejoint ton personnel.`;
-  else if (d.deck === 'recrue' && d.ballottage) mot = `🎟 ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
+  if (d.deck === 'recrue' && d.ballottage) mot = `🎟 ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
   else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans tes cartes : pose-la au verso d'un joueur, quand tu veux.`;
   else if (d.joue && M) mot = `${M.ico} ${M.nom} : posée au verso de ${qui(d.mutation.joueur)}.`;
@@ -343,12 +335,12 @@ function confirmerDecision(d) {
   else if (d.ballottage && d.ballottage.ecole) mot = `📟 ${qui(d.ballottage.entre)} monte du club-école : gratuit, hors plafond.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   else if (d.ballottage && d.ballottage.entre) mot = d.ballottage.sort ? `📒 ${qui(d.ballottage.entre)} prend la place de ${qui(d.ballottage.sort)} : la carte de ${qui(d.ballottage.sort)} va à ton cartable.` : `🪑 ${qui(d.ballottage.entre)} entre dans une case de réserve libre : personne ne sort.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
-  // v2 : la carte qui fait croire le vestiaire à un coach le dit, avec ce que sa confiance joue.
-  if (d.coach && COACHS[d.coach.cle]) {
-    const C = COACHS[d.coach.cle];
-    if (d.coachNeuf) mot = `${C.ico} ${C.nom} prend le banc : confiance ${ROMAINS[d.coach.palier]}. L'ancien coach part avec son bonus.`;
-    else mot = `${mot ? `${mot} ` : ''}${C.ico} L'équipe croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.`;
-  }
+  // V21 : un adjoint qui arrive ou part, un talent ou de l'expérience pour le coach de la run.
+  const perso = G.ligue && G.ligue.you && G.ligue.you.perso, Pv = p => (perso && POUVOIRS[perso.cle] ? POUVOIRS[perso.cle][p] : null);
+  if (d.adjoint && ADJOINTS[d.adjoint.cle]) mot = `${ADJOINTS[d.adjoint.cle].ico} ${ADJOINTS[d.adjoint.cle].nom} entre dans ton staff, pour la run.`;
+  else if (d.perdAdjoint && ADJOINTS[d.perdAdjoint]) mot = `${ADJOINTS[d.perdAdjoint].ico} ${ADJOINTS[d.perdAdjoint].nom} quitte ton staff.`;
+  else if (d.talent && Pv(d.talent.p)) mot = `${Pv(d.talent.p).ico} ${Pv(d.talent.p).nom} grandit, pour la run.`;
+  else if (Number(d.xpCoach) > 0 && perso && COACHS[perso.cle]) mot = `${COACHS[perso.cle].ico} ${COACHS[perso.cle].nom} : +${d.xpCoach} d'expérience.`;
   if (mot) toast(mot);
 }
 
@@ -641,12 +633,9 @@ export async function runSeason(opts = {}) {
     : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' },
       // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées continuent, en décisions du jour 0.
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
-      // LE COACH CHOISI AU DÉPART (v2, js/coachs.js) : trois points au compteur (SEUILS[0]), sa confiance I allumée — à la première saison d'une run.
-      ...(G.bonus === 'ROGUE' && G.rogue && COACHS[G.rogue.coach] && !(G.rogue.saison > 1)
-        ? [{ jour: 0, coachsDeBase: { [G.rogue.coach]: SEUILS[0] }, coach: effetDePalier(G.rogue.coach, 1), rogue: { depart: true } }] : []),
-      // SES DEUX PATRONS IMPOSÉS (V2.3, js/banque.js `patronsDeDepart`) : en poste dès le premier soir, et pour la run (le report les garde).
-      ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.patrons) && !(G.rogue.saison > 1)
-        ? G.rogue.patrons.map(id => payloadDe(id)).filter(Boolean).map(p => ({ jour: 0, ...p, rogue: { depart: true } })) : [])];
+      // LE COACH DE LA RUN (V21, js/pouvoirs.js) : son expérience, ses talents et ses adjoints d'avant, chaque saison.
+      ...(G.bonus === 'ROGUE' && G.rogue && COACHS[(G.rogue.perso || {}).cle || G.rogue.coach]
+        ? [{ jour: 0, coach: G.rogue.perso && G.rogue.perso.cle ? { ...G.rogue.perso } : { cle: G.rogue.coach, xp: 0, talents: [], adjoints: [] }, rogue: { depart: true } }] : [])];
   // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
   poserCartes(decisions);
   /*
@@ -763,16 +752,6 @@ function ouvrirEcranSaison(depuis = 0) {
         rappelEcole,
         // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.
         recrues: candidatsRecrue,
-        /*
-         * LA CONFIANCE DU MATIN (oct.) : les blocs tenus la montent seuls (V20), mais elle ne s'allumait qu'à ta
-         * décision suivante — l'écran de l'entraîneur disait déjà III quand le moteur jouait II. Au matin où elle est
-         * atteinte, elle devient sa décision, comme le lundi du robot (scripts/lib/cartes_robot.mjs).
-         */
-        confianceDuMatin: j => {
-          if (G.bonus !== 'ROGUE' || !G.ligue) return null;
-          const a = palierAllume(G.ligue.decisions || [], { jour: j }, { tenus: tenusDe(G.ligue.calendrier, G.ligue.you) });
-          return a ? { jour: j, ...a } : null;
-        },
         motRecrue: () => MOTS_RECRUE[niveauxRecrue().join()],
         // OÙ IL JOUE (S80) : « 3e paire », dit à côté d'un nom (les dilemmes, le ballottage, un nouveau rôle).
         ouJoue: p => ouJoue(p),
@@ -803,8 +782,7 @@ function ouvrirEcranSaison(depuis = 0) {
         // Le jeu de cartes du Rogue (V16 : le personnel et les cartes rares) : les paliers et le Bureau en lisent la présence.
         inventaire: true,
         // Ton coach et sa confiance, ton personnel : au sous-onglet de l'entraîneur (V12-2).
-        coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
-        personnel: { html: j => personnelDuJour(j) },
+        coachHtml: () => coachHtml(),
         maison: { cartes: (k, j) => cartesDeLaMaison(k, j), jouer: (item, j, decider) => jouerDeLaMaison(item, j, decider) },
         // Une maison hors de l'écran de saison (Joueurs) : la coquille l'ouvre.
         allerA: k => montrerPage(k),
