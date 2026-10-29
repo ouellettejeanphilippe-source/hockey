@@ -58,7 +58,7 @@
  */
 import { hache } from './util.js';
 import { BANQUE, idsDe } from './banque.js';
-import { COACHS, ORDRE_COACHS, VOIES } from './coachs.js';
+import { COACHS, VOIES } from './coachs.js';
 import { getPlayerKey, getPersonKey, coachDuJoueur, badgesDe, famillesDe } from './sim.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { ageAtSeason } from './ratings.js';
@@ -511,8 +511,6 @@ export function sortDUnPack(id) {
   const c = BANQUE[id];
   return !!c && CATS_RARES.includes(c.cat);
 }
-/* Le coach d'un pack du coach : celui choisi à l'achat, sinon un tiré de la graine et du numéro d'achat. */
-export const coachDuPack = (graine, n, params = {}) => (COACHS[params.coach] ? params.coach : ORDRE_COACHS[Math.floor(hache(graine, 'pack-coach', n) * ORDRE_COACHS.length)]);
 /*
  * LA GARANTIE (Rogue) : combien de packs de joueurs d'affilée sans holo ni or
  * — lu dans les décisions d'achat (\`achat.meilleure\`). Au bout de PITIE packs

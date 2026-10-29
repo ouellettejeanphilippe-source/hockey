@@ -21,11 +21,10 @@ export const COACHS = {
   profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.', familles: { paie: ['defense'], coute: 'jeu' } },
   etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.', familles: { paie: ['jeu'], coute: 'defense' } },
 };
-export const ORDRE_COACHS = Object.keys(COACHS);
 /* Les huit voies d'une run, dans l'ordre où le prestige les ouvre (js/rogue.js `coachsOuverts`). */
 export const VOIES = ['tortue', 'essaim', 'rhinos', 'rapaces', 'souffle', 'choeur', 'profondeur', 'etoiles'];
 
-export const ROLE_BON = 55;
+const ROLE_BON = 55;
 export const COACH_DU_ROLE = {
   F: { sniper: 'rapaces', passeur: 'etoiles', deuxsens: 'tortue', power: 'essaim', checker: 'profondeur', energie: 'souffle', bagarreur: 'rhinos' },
   D: { defensif: 'tortue', offensif: 'essaim', manieur: 'choeur', physique: 'rhinos', deuxsens: 'tortue' },

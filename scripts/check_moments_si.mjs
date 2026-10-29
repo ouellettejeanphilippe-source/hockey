@@ -33,7 +33,7 @@ const med = a => { const b = [...a].sort((x, y) => x - y); return b.length ? b[M
 {
   const fautes = [];
   for (const k of CLES) {
-    const T = { effets: [{ debut: 0, fin: 999, si: k, nom: 'essai', finition: 1.2 }], jourCourant: 5, patrons: [{ nom: 'patron', si: k, defense: 0.9 }] };
+    const T = { effets: [{ debut: 0, fin: 999, si: k, nom: 'essai', finition: 1.2 }, { debut: 0, fin: 999, si: k, nom: 'autre', defense: 0.9 }], jourCourant: 5 };
     T._soir = { [k]: true };
     const oui = effetsDeSaison(T);
     T._soir = { [k]: false };
@@ -41,7 +41,7 @@ const med = a => { const b = [...a].sort((x, y) => x - y); return b.length ? b[M
     if (Math.abs(oui.finition - 1.2) > 1e-9 || Math.abs(oui.defense - 0.9) > 1e-9) fautes.push(`${k} : son soir, l'effet ne joue pas (${oui.finition}, ${oui.defense})`);
     if (non.finition !== 1 || non.defense !== 1) fautes.push(`${k} : hors de son soir, l'effet joue (${non.finition}, ${non.defense})`);
   }
-  exiger('un effet d\'un moment ne joue que son soir (effets, patrons, cartes)', fautes.length === 0, fautes.slice(0, 3).join(' · ') || `${CLES.length} moments`);
+  exiger('un effet d\'un moment ne joue que son soir', fautes.length === 0, fautes.slice(0, 3).join(' · ') || `${CLES.length} moments`);
 }
 
 /* La petite ligue fixe de check_empreinte : des saisons nommées. */
@@ -52,8 +52,8 @@ function ligueFixe(effet = null) {
     ps.forEach(registerHiddenRatings);
     return createTeam(`${tag} ${s}`, tag, autoRoster(ps), { season: s, isPlayer: i === 0 });
   });
-  // Un patron d'un moment, engagé au jour 0 (une ligue neuve vide le personnel : il n'arrive que par une décision).
-  const decisions = effet ? [{ jour: 0, patron: { cle: 'essai', role: 'essai', nom: 'essai', ...effet } }] : [];
+  // Un effet d'un moment, de toute la saison, posé au jour 0 (V21 : le personnel est parti ; une décision `effet` le porte).
+  const decisions = effet ? [{ jour: 0, effet: { nom: 'essai', duree: 200, ...effet } }] : [];
   return creerLigue(equipes, 82, { graine: 'moments', decisions });
 }
 const cote = (m, T) => (m.A === T ? 'A' : 'B');

@@ -34,7 +34,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, tirerCartesDuPack, RARE_DU_PACK, sortDUnPack, BOUTIQUE, tierDuPack, prixDe } from '../js/packs.js';
+import { PACKS_TOUS, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesDuPack, RARE_DU_PACK, sortDUnPack, BOUTIQUE, tierDuPack, prixDe } from '../js/packs.js';
 import { PRESTIGES, JALONS, DEBLOCAGES, packsOuverts, monteeDesPacks, peutAcheter } from '../js/rogue.js';
 import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
@@ -319,26 +319,6 @@ for (const k of ['j:etoiles', 'j:legendes', 'j:vedettes']) {
     `par carte, avant : ${pc(parts[PHENOMENE])}`);
 }
 
-/*
- * L'ÉCONOMIE NE FUIT PAS (1.0, J1-A). Acheter un pack de cartes pour tout
- * revendre ne doit jamais rapporter : l'espérance de revente d'un pack vaut
- * au plus 40 % de son prix. Un consommable ne se revend pas (`valeurDe` = 0) ;
- * une malédiction non plus.
- */
-{
-  const lignes = [];
-  let fuit = 0;
-  for (const [k, P] of Object.entries(PACKS_CARTES)) {
-    // Par carte : la rareté tirée (ses cotes), puis la valeur de la carte selon sa famille — la famille la plus chère du pack, pour majorer.
-    const parRarete = r => Math.max(0, ...P.cats.flatMap(idsDe).filter(id => BANQUE[id].rarete === r).map(valeurDe));
-    const esperance = P.n * Object.entries(P.cotes).reduce((a, [r, c]) => a + (c / 100) * parRarete(r), 0);
-    lignes.push(`${P.nom} ${esperance.toFixed(1)}/${P.prix} 🪙 (${Math.round(100 * esperance / P.prix)} %)`);
-    if (esperance > 0.4 * P.prix) fuit++;
-    void k;
-  }
-  informer('revente attendue d\'un pack de cartes (sur son prix)', lignes.join(' · '));
-  exiger('aucun pack de cartes ne se revend plus de 40 % de son prix', fuit === 0, `${fuit} pack(s) qui rapportent · VENTE ${Object.entries(VENTE).map(([r, v]) => `${r} ${v}`).join(', ')}`);
-}
 /* LE PACK DU JOUR N'EST JAMAIS VERROUILLÉ (1.0, J1-H) : soixante dates, des verrous, jamais un cadenas en vitrine. */
 {
   const verrous = { 'j:ere80': 'verrou', 'j:etoiles': 'verrou', 'j:gardien': 'verrou', 'j:defensif': 'verrou', 'j:legendes': 'verrou' };
@@ -350,16 +330,16 @@ for (const k of ['j:etoiles', 'j:legendes', 'j:vedettes']) {
     `${new Set(tires).size} packs différents sur 60 dates · ${cadenas.length} cadenas`);
 }
 /*
- * LES CARTES RARES SONT RARES (V16, tranche 6 — docs/refonte-v16.md § 4d) : un pack de joueurs donne son adjoint, et sa
- * deuxième carte, une carte qui monte, une fois sur `1 / RARE_DU_PACK` — jamais le gros du pack.
+ * LES CARTES RARES SONT RARES (V16, tranche 6 — docs/refonte-v16.md § 4d ; V21 : le pack Personnel et l'adjoint d'un pack
+ * sont partis) : un pack de joueurs donne une carte qui monte une fois sur `1 / RARE_DU_PACK` — jamais le gros du pack.
  */
 {
   let packs = 0, rares = 0, horsFamille = 0;
-  for (const cle of BOUTIQUE.filter(k => PACKS_TOUS[k].cartes > 1 && PACKS_TOUS[k].choix !== 'coach')) for (let n = 0; n < 1000; n++) {
+  for (const cle of BOUTIQUE.filter(k => PACKS_TOUS[k].cartes)) for (let n = 0; n < 1000; n++) {
     const ids = tirerCartesDuPack(cle, `rares-${cle}`, n);
     packs++;
-    if (ids.length > 1) rares++;
-    if (ids.slice(1).some(id => !['joueur', 'consommable'].includes(BANQUE[id].cat))) horsFamille++;
+    if (ids.length) rares++;
+    if (ids.length > 1 || ids.some(id => !['joueur', 'consommable'].includes(BANQUE[id].cat))) horsFamille++;
   }
   exiger('une carte rare sort d\'un pack de joueurs une fois sur quatre, et c\'est une carte qui monte', Math.abs(rares / packs - RARE_DU_PACK) < 0.03 && !horsFamille,
     `${(100 * rares / packs).toFixed(1)} % des packs (cible ${100 * RARE_DU_PACK} %) · ${horsFamille} hors famille`);
@@ -374,7 +354,7 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
  */
 {
   const tirees = new Set();
-  for (const cle of BOUTIQUE) for (let n = 0; n < 1500; n++) for (const id of tirerCartesDuPack(cle, `banque-${cle}`, n, cle === 'j:coach' ? { coach: VOIES[n % VOIES.length] } : {})) tirees.add(id);
+  for (const cle of BOUTIQUE) for (let n = 0; n < 1500; n++) for (const id of tirerCartesDuPack(cle, `banque-${cle}`, n)) tirees.add(id);
   const horsPackTirees = [...tirees].filter(id => !sortDUnPack(id));
   exiger('aucune carte « hors pack » ne sort d\'un pack', horsPackTirees.length === 0, horsPackTirees.slice(0, 5).join(', ') || `${tirees.size} cartes différentes tirées`);
   const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id));
@@ -405,19 +385,14 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   exiger('Pack Club : la franchise choisie', cl.length >= 6 && cl.every(x => x.p.t === 'MTL'), `${cl.length} Canadiens`);
   for (const coach of VOIES) {
     const r = await Promise.all([0, 1, 2].map(n => tirer('j:coach', n, { params: { coach } })));
-    const joueurs = r.flatMap(x => x.cartes), cartes = [0, 1, 2].flatMap(n => tirerCartesDuPack('j:coach', `packs-${n}`, n, { coach })).filter(id => BANQUE[id].rarete !== 'maudite');
-    exiger(`Pack du coach ${COACHS[coach].nom} : ses joueurs et ses cartes de sa couleur`, joueurs.length >= 6 && joueurs.every(x => coachDuJoueur(x.p) === coach) && cartes.length >= 4 && cartes.every(id => BANQUE[id].coach === coach),
-      `${joueurs.length} joueurs, ${cartes.length} cartes`);
+    const joueurs = r.flatMap(x => x.cartes);
+    exiger(`Pack du coach ${COACHS[coach].nom} : ses joueurs de sa couleur`, joueurs.length >= 6 && joueurs.every(x => coachDuJoueur(x.p) === coach), `${joueurs.length} joueurs`);
   }
-  // Aucune carte ne se perd : tout ce que les packs d'avant pouvaient donner sort d'un des sept (6 000 ouvertures chacun, les coachs tous),
-  // sauf les événements (V9, tranche 5b ; V10, tranche 5) : ils ont quitté la banque pour les dossiers d'À faire (js/dossiers.js).
-  const avant = new Set(), apres = new Set();
-  for (const cle of Object.keys(PACKS_CARTES)) for (let n = 0; n < 1500; n++) for (const id of tirerCartesPack(cle, `fusion-${cle}`, n)) avant.add(id);
-  for (const cle of BOUTIQUE) for (let n = 0; n < 6000; n++) for (const id of tirerCartesDuPack(cle, `fusion-${cle}`, n, cle === 'j:coach' ? { coach: VOIES[n % VOIES.length] } : {})) apres.add(id);
-  const perdues = [...avant].filter(id => !apres.has(id) && BANQUE[id].cat !== 'evenement');
-  exiger('aucun pack ne donne un événement', ![...avant, ...apres].some(id => BANQUE[id].cat === 'evenement'), `${apres.size} cartes sorties des packs`);
+  // Les événements ont quitté la banque pour les histoires d'À faire (js/dossiers.js) : aucun pack n'en donne.
+  const apres = new Set();
+  for (const cle of BOUTIQUE) for (let n = 0; n < 6000; n++) for (const id of tirerCartesDuPack(cle, `fusion-${cle}`, n)) apres.add(id);
+  exiger('aucun pack ne donne un événement', ![...apres].some(id => BANQUE[id].cat === 'evenement'), `${apres.size} cartes sorties des packs`);
   const comptees = Object.keys(BANQUE).filter(sortDUnPack);
-  exiger('aucune carte des packs d\'avant ne se perd dans la fusion', !perdues.length, perdues.slice(0, 5).join(', ') || `${avant.size} cartes vues avant, toutes encore là (${apres.size} après)`);
   exiger(`chaque carte que la banque compte sort d'un des ${BOUTIQUE.length} packs`, comptees.every(id => apres.has(id)), `${comptees.filter(id => !apres.has(id)).slice(0, 5).join(', ') || `${comptees.length} sur ${comptees.length}`}`);
   // L'économie ne fuit pas : les cartes d'un pack mixte, revendues, valent au plus 40 % de son prix (majoré, la famille la plus chère).
   const fuites = BOUTIQUE.filter(k => {

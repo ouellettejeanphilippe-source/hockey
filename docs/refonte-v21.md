@@ -20,16 +20,20 @@ Choisi au départ de la run (le prestige en ouvre plus), il la fait au complet, 
 
 | Coach | I (niveau 1) | II (niveau 3) | Ultime (niveau 5) |
 |---|---|---|---|
-| 🐝 Le Frelon | **La ruée** : en 3e, +30 % de tirs | **Le bourdonnement** : après une période gagnée aux tirs, +15 % de tirs | **L'essaim** : derrière au pointage, +35 % de tirs et +5 % de précision |
-| 🦅 L'Aigle | **La riposte** : après une période perdue aux tirs, +25 % de précision | **Le tueur** : quand tu mènes, +20 % de précision | **Le tir parfait** : en 3e, +35 % de précision |
-| 🐢 La Tortue | **Le verrou** : quand tu mènes, −25 % de buts contre | **La tranchée** : en 1re, −20 % de leurs tirs | **La forteresse** : en 3e, −30 % de buts contre et −20 % de leurs tirs |
-| 🦏 Le Rhino | **L'usure** : en 2e et 3e, +1,5 mise en échec par période et leur précision −8 % | **Le choc** : en 1re, leur précision −12 % | **La charge** : derrière, +20 % de tirs et leur précision −10 % |
-| 🫁 Le Doc | **Le second souffle** : en 3e, +15 % de tirs et −10 % de buts contre | **La rotation** : toute la soirée, −40 % de blessures | **La résurrection** : derrière après deux, +30 % de tirs et +10 % de précision |
-| 😇 L'Abbé | **Le sang-froid** : en 1re et 2e, −40 % de punitions | **La provocation** : en 3e, leurs punitions +40 % | **Le miracle** : à égalité en 3e, +20 % de précision et −50 % de punitions |
-| 🪜 Le Contremaître | **Les quatre trios** : en 3e, tes 3e et 4e trios jouent autant que les deux premiers, et −10 % de buts contre | **L'atelier** : un soir de dos-à-dos, +12 % de tirs | **La relève** : derrière, les quatre trios égaux et +20 % de tirs |
-| 🌠 Le Showman | **Le spectacle** : à égalité ou derrière en 3e, le 1er trio joue 40 % plus, +15 % de précision | **Le duo vedette** : en 1re, le 1er trio joue 25 % plus, +10 % de précision | **Le grand soir** : en séries ou en gros match, +20 % de précision toute la soirée |
+| 🐝 Le Frelon | **La ruée** : en 3e, à égalité ou derrière, +40 % de tirs | **Le bourdonnement** : en 3e, avec plus de tirs qu'eux jusque-là, +25 % de tirs | **L'essaim** : derrière au pointage, +35 % de tirs et +5 % de précision |
+| 🦅 L'Aigle | **La riposte** : après une période perdue aux tirs, sans mener, +28 % de précision | **Le tueur** : quand tu mènes, +17 % de précision | **Le tir parfait** : en 3e, à un but d'écart ou moins, +45 % de précision |
+| 🐢 La Tortue | **Le verrou** : quand tu mènes, −25 % de buts contre | **La tranchée** : en 1re, à l'étranger, −25 % de leurs tirs | **La forteresse** : en 3e, en avant ou à égalité, −30 % de buts contre et −20 % de leurs tirs |
+| 🦏 Le Rhino | **L'usure** : en 3e, plus de mises en échec et leur précision −10 % | **Le choc** : en 1re, à domicile, plus de mises en échec et leur précision −10 % | **La charge** : derrière, +25 % de tirs et leur précision −12 % |
+| 🫁 Le Doc | **Le second souffle** : en 3e, un soir de dos-à-dos ou de jambes lourdes, +20 % de tirs et −20 % de buts contre | **La rotation** : toute la soirée, −40 % de blessures | **La résurrection** : derrière en 3e, +40 % de tirs et +25 % de précision |
+| 😇 L'Abbé | **Le sang-froid** : en 2e, −45 % de punitions | **La provocation** : en 3e, leurs punitions +90 % | **Le miracle** : en 3e, à un but d'écart ou moins, +30 % de précision et −50 % de punitions |
+| 🪜 Le Contremaître | **Les quatre trios** : en 3e, à un but d'écart ou moins, les quatre trios jouent autant et −25 % de buts contre | **L'atelier** : un soir de dos-à-dos, +12 % de tirs et −8 % de buts contre | **La relève** : derrière, les quatre trios égaux, +30 % de tirs et +10 % de précision |
+| 🌠 Le Showman | **Le spectacle** : en 3e, à égalité ou derrière d'un but, le 1er trio joue 40 % plus, +32 % de précision | **Le duo vedette** : en 1re, à domicile, le 1er trio joue 30 % plus, +35 % de précision | **Le grand soir** : en séries ou en gros match, +25 % de précision toute la soirée |
 
-Les chiffres sont des points de départ : `check_pouvoirs` les juge (chaque pouvoir se voit dans la feuille d'un soir où il joue, ne joue jamais hors de ses soirs, et rejoue pareil).
+**La calibration** (`check_pouvoirs`, en paires contre un coach muet joué lui aussi en trois périodes). Le premier jet faisait jouer plusieurs pouvoirs tous les soirs (« en 3e », « en 1re ») : un pouvoir qui joue chaque soir ne peut pas être à la fois visible (≈ 0,3 but le soir où il joue) et sous sa borne (≈ 0,3 × 82 / 6 ≈ 4 victoires). Chaque pouvoir joue maintenant à peu près un soir sur deux — une condition de pointage, de lieu ou de soirée — et fort quand il joue ; seuls l'usure du Rhino (des mises en échec), la provocation de l'Abbé (leurs punitions) et la rotation du Doc (les blessures, toute la soirée) jouent tous les soirs, sur des canaux qui se voient sans peser autant.
+
+Deux trous du moteur se sont montrés en mesurant : la précision d'une équipe est plafonnée (`FINITION_MAX`), et un bon club y est déjà — les pouvoirs de l'Aigle n'y faisaient presque rien. La précision d'un pouvoir passe maintenant par-dessus le plafond, comme la chimie, le temps de sa période (`cartes.pouvoir`, js/sim.js). Et les blessures se tirent après le match, quand les effets de période sont retirés : la part de blessure des pouvoirs de la soirée est portée jusqu'au tirage (`_blessureDuSoir`).
+
+Une soirée en trois plages n'a pas le même tirage qu'une soirée d'un bloc (les punitions et les lancers se répartissent au prorata), d'où le coach muet comme témoin ; sur 8 000 matchs, elle donne ≈ +0,9 tir et +0,13 but par match aux deux clubs ensemble, le même biais que le duel depuis la V9.
 
 ## 2. Les adjoints, des bienfaits
 

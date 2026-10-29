@@ -453,7 +453,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
     ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur', suite: true,
-    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Le personnel rejoint ta collection ; une carte rare se joue chez ce qu'elle monte` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
+    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Une carte rare se joue chez ce qu'elle monte` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
     options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true })) : [])],
     onChoix: () => {},
     onFerme: limite ? () => {} : offrir,
@@ -504,7 +504,7 @@ export function bloqueParLePlafond(p, q) {
 function cartesTirees(cle, n) {
   return { ids: tirerCartesDuPack(cle, G.ligue.graine, n), vendus: [] };
 }
-/* Une fois l'achat écrit : le personnel au méta, les cartes à la collection. */
+/* Une fois l'achat écrit : ce qui se garde au méta, les cartes à la collection. */
 function rangerCartes({ ids, vendus }, n) {
   if (G.bonus === 'ROGUE') recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${G.ligue.graine}:k:${n}`);
   ajouterCollection({ cartes: ids });

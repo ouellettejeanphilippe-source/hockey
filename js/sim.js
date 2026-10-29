@@ -932,7 +932,7 @@ export const PART_UNITE = {
   D: lireListe('PART_D', [0.370, 0.318, 0.312]),
 };
 
-/* V10 (tranche 6) : les cartes de saison (un bonus payé par un malus) sont parties ; le personnel en a pris la place (js/personnel.js). */
+/* V10 (tranche 6) : les cartes de saison (un bonus payé par un malus) sont parties ; V21 : le personnel aussi (js/pouvoirs.js). */
 
 
 /* LA COULEUR D'UN JOUEUR (v2, js/coachs.js) : le coach de son meilleur rôle maîtrisé ; elle oriente les packs du coach. */
@@ -957,6 +957,8 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // V5 : les sources NOMMÉES qui touchent la finition ou la défense, pour que « ce qui a fait le match » dise chaque
   // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
   Object.defineProperty(e, 'sources', { value: sources.filter(c => c && c.nom && ((c.finition ?? 1) !== 1 || (c.defense ?? 1) !== 1)).map(c => ({ nom: c.nom, ico: c.ico || '', finition: c.finition ?? 1, defense: c.defense ?? 1 })) });
+  // V21 : la précision des POUVOIRS du coach (le temps d'une période), à part : elle passe par-dessus le plafond du jeu.
+  Object.defineProperty(e, 'pouvoir', { value: sources.reduce((a, c) => (c && c.source === 'pouvoir' ? a * (c.finition ?? 1) : a), 1) });
   for (const c of sources) {
     if (!c) continue;
     e.finition *= c.finition ?? 1;
@@ -982,7 +984,7 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
 export function glaceDesLignes(team, aVenir = []) {
   return avecAVenir(team, aVenir, () => ({ F: partsDuRoulement(PART_UNITE.F, 'F', team), D: partsDuRoulement(PART_UNITE.D, 'D', team) }));
 }
-export function partsDuRoulement(base, group, team) {
+function partsDuRoulement(base, group, team) {
   const mult = base.map(() => 1);
   // Un moment peut déplacer les minutes (doubler le trio en feu, brasser les trios) : ses multiplicateurs
   // s'appliquent, et la renormalisation tient toujours la somme.
@@ -3896,7 +3898,8 @@ export function profilMatch(team, lineup, adv = null) {
     styleVol: cartes.volume / REF_STYLE_VOL,
     styleDef: defStyle * cartes.defense / REF_STYLE_DEF,
     finEquipe, creaEquipe,
-    finitionFacteur: Math.min(FINITION_MAX / finEquipe, cartes.finition),
+    // V21 : un pouvoir du coach ne dure qu'une période ; sa précision passe par-dessus le plafond, comme la chimie.
+    finitionFacteur: Math.min(FINITION_MAX / finEquipe, cartes.finition / cartes.pouvoir) * cartes.pouvoir,
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles) * cartes.defense,
     traitRob: bonusRobustesseEquipe(habilles) + cartes.robustesse + robAgr,
@@ -5089,7 +5092,7 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil 
     const causes = { bagarre: !!p._bagarrePerdue, sonne: !!p._sonne, jambes: energieDe(p) < ENERGIE_BLESSURE, frappe, heavy };
     delete p._sonne; delete p._bagarrePerdue;
     const plein = Math.max(0.25, 1 - 0.25 * Math.max(0, team.injured.size - INFIRMERIE_PLEINE));
-    if (hasard() < injuryChance(p, heavy) * frappe * plein * dissuasion * soiree * effetsDeSaison(team).blessure * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
+    if (hasard() < injuryChance(p, heavy) * frappe * plein * dissuasion * soiree * effetsDeSaison(team).blessure * (team._blessureDuSoir ?? 1) * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
       const tire = injuryLength();
       const genre = genreDeBlessure(p, team, tire, causes);
       // V9 (tranche 6) : la commotion qui se souvient des autres ; l'aggravation d'un joueur qui jouait blessé.
@@ -5104,6 +5107,7 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil 
       if (feuille && cote) (feuille.blessures = feuille.blessures || []).push({ cote, joueur: p, matchs: n, genre, instant: instantDeBlessure(feuille, p, team) });
     }
   }
+  delete team._blessureDuSoir;
 }
 
 /**
@@ -5659,8 +5663,9 @@ function causesDuLancer(x, pBrut, de) {
   if (x.special === 'reussie') ajoute('special', A, SPEC_MULT, uniteDe(x.trioOff, false));
   // La finition du club : ses cartes, ou le plafond du jeu quand c'est lui qui mord (`finitionFacteur` est le plus petit des deux).
   if (x.off.cartes && x.off.finEquipe) {
-    const plafond = FINITION_MAX / x.off.finEquipe, cartesF = x.off.cartes.finition ?? 1;
-    if (cartesF <= plafond) cartesDuClub(A, x.off, 'finition', cartesF); else ajoute('plafond', A, plafond);
+    const plafond = FINITION_MAX / x.off.finEquipe, cartesF = x.off.cartes.finition ?? 1, pf = x.off.cartes.pouvoir ?? 1;
+    if (cartesF / pf <= plafond) cartesDuClub(A, x.off, 'finition', cartesF);
+    else { ajoute('plafond', A, plafond); if (pf !== 1) ajoute('cartesClub', A, pf); }
   } else ajoute('cartesClub', A, x.off.finitionFacteur ?? 1);
   ajoute('elan', A, elanDe(x.off, x.instant));
   ajoute('fantome', A, x.facteurDef / x.defAvantAbri, t);
@@ -7315,7 +7320,7 @@ export const mutationNuit = k => {
   return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
 };
 // V10 (tranche 6) : les retouches de la carte seulement ; les éditions d'avant (le poste, la zone, l'été, le mentor) sont parties avec l'ancien jeu.
-export const MUTATIONS_ATELIER = ['pinceau', 'fenetre', 'dorure', 'lustre'];
+const MUTATIONS_ATELIER = ['pinceau', 'fenetre', 'dorure', 'lustre'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.
@@ -8777,6 +8782,11 @@ function etatDuPouvoir(T, k, cote, moi, lui, journal, series, gros, avant) {
  * LES POUVOIRS D'UNE PÉRIODE pour le club `T` (V21) : ceux qui se déclenchent, posés en effets du soir sur lui (`effet`)
  * et sur l'adversaire (`adv`), et notés à la feuille. Rend { toi, adv, notes }.
  */
+/*
+ * Les blessures se tirent après le match (`applyInjuries`), les effets de période retirés : la part de blessure des
+ * pouvoirs de la soirée (un tiers par période) y est portée par `_blessureDuSoir`.
+ */
+const blessureDesPouvoirs = fx => fx.reduce((a, e) => a * (e.blessure ?? 1), 1);
 function pouvoirsPoses(T, e, cote, journal) {
   const out = { toi: [], adv: [], notes: [] };
   if (!T.perso) return out;
@@ -8797,11 +8807,12 @@ function pouvoirsPoses(T, e, cote, journal) {
  */
 function jouerEnPeriodes(A, B, LA, LB, pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, ronde) {
   const avaitA = '_effetMatch' in A, baseA = A._effetMatch, avaitB = '_effetMatch' in B, baseB = B._effetMatch;
-  let gfA = 0, gfB = 0, der = null;
+  let gfA = 0, gfB = 0, der = null, blA = 0, blB = 0;
   for (let k = 0; k < 3; k++) {
     const xA = pouvoirsPoses(A, etatDuPouvoir(A, k, 'A', gfA, gfB, journal, series, false, der && der.A), 'A', journal);
     const xB = pouvoirsPoses(B, etatDuPouvoir(B, k, 'B', gfB, gfA, journal, series, false, der && der.B), 'B', journal);
     const fxA = [...xA.toi, ...xB.adv], fxB = [...xB.toi, ...xA.adv];
+    blA += blessureDesPouvoirs(fxA) / 3; blB += blessureDesPouvoirs(fxB) / 3;
     let qA = pA, qB = pB;
     if (fxA.length || fxB.length) {
       A._effetMatch = [...(baseA || []), ...fxA]; B._effetMatch = [...(baseB || []), ...fxB];
@@ -8816,6 +8827,8 @@ function jouerEnPeriodes(A, B, LA, LB, pA, pB, gA, gB, chanceA, chanceB, heavy, 
     der = { A: { moi: h.gfA, lui: h.gfB }, B: { moi: h.gfB, lui: h.gfA } };
     gfA += h.gfA; gfB += h.gfB;
   }
+  if (blA !== 1) A._blessureDuSoir = blA;
+  if (blB !== 1) B._blessureDuSoir = blB;
   return { gfA, gfB };
 }
 /*
@@ -8840,6 +8853,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
   // Le plan en force : `undefined`, celui du club ; null, Ton match ; sinon le dernier pris.
   let plan;
   const touches = gros._duelTouches = [];
+  let blDuel = 0;
   for (let k = 0; k < PERIODES_DU_DUEL.length; k++) {
     const [t0, t1] = PERIODES_DU_DUEL[k];
     const dec = (gros.periodes || [])[k] || null;
@@ -8882,6 +8896,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     const avantP = hist.length ? hist[hist.length - 1].pointage : null;
     const xP = pouvoirsPoses(toi, etatDuPouvoir(toi, k, cote, toiA ? gfA : gfB, toiA ? gfB : gfA, journal, series, true, avantP), cote, journal);
     effToi.push(...xP.toi); effAdv.push(...xP.adv);
+    blDuel += blessureDesPouvoirs(xP.toi) / PERIODES_DU_DUEL.length;
     toi._effetMatch = [...base, ...effToi];
     // Sur eux, une carte d'un moment joue TON moment (`siToi`).
     adv._effetMatch = [...baseAdv, ...effAdv].filter(e => !e.siToi || !!soir[e.siToi]);
@@ -8906,6 +8921,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
   gros.snap = snap;
   gros.duelJoue = { periodes: hist.map(({ buts, ...x }) => { void buts; return x; }), snap, toi: cote };
   if (journal) journal.duel = gros.duelJoue;
+  if (blDuel !== 1) toi._blessureDuSoir = blDuel;
   return { gfA, gfB };
 }
 /*
