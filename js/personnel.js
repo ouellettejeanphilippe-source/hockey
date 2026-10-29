@@ -122,7 +122,7 @@ export const PERSONNEL = {
   per_superstitieux: { role: 'chef', nom: 'Le superstitieux', ico: '🍀', rarete: 'commune', effet: { defense: 1, finition: 0.96 },
     protege: { lancers: 1.16, finition: 1.12 }, texte: 'Après une défaite, il choisit qui portera la casquette. Personne ne discute.' },
   // reprend la semaine chargée
-  per_maitreCalendrier: { role: 'physique', nom: 'Le maître du calendrier', ico: '🗒', rarete: 'commune', effet: { energie: 0.81, finition: 1.08, volume: 0.9 },
+  per_maitreCalendrier: { role: 'physique', nom: 'Le maître du calendrier', ico: '🗒', rarete: 'commune', effet: { energie: 0.81, finition: 1.08, volume: 0.95 },
     texte: 'Le calendrier sur le babillard, surligné en jaune. Le deuxième soir, il avait tout prévu.' },
   // reprend la soirée des anciens
   per_ancienCapitaine: { role: 'defense', nom: 'L\'ancien capitaine', ico: '🧥', rarete: 'peu', effet: { volume: 1.06, defense: 0.96, finition: 0.92 },
@@ -141,8 +141,8 @@ export const PERSONNEL = {
 
   // ---- 🦅 l'Aigle ----
   // reprend la vidéo de leur gardien
-  per_monteurVideo: { role: 'depistage', nom: 'Le monteur vidéo', ico: '📹', rarete: 'rare', effet: { volume: 1, finition: 0.84 }, vise: 'franc',
-    protege: { finition: 1.8, lancers: 1.32 }, texte: 'Chaque but que leur gardien a accordé, monté en dix minutes pour ta meilleure gâchette.' },
+  per_monteurVideo: { role: 'depistage', nom: 'Le monteur vidéo', ico: '📹', rarete: 'rare', effet: { volume: 1, finition: 0.82 }, vise: 'franc',
+    protege: { finition: 2, lancers: 1.4 }, texte: 'Chaque but que leur gardien a accordé, monté en dix minutes pour ta meilleure gâchette.' },
   // reprend le coin du haut, peint
   per_peintreDesCoins: { role: 'chef', nom: 'Le géomètre du tir', ico: '📐', rarete: 'commune', effet: { finition: 1.12, volume: 0.93 },
     texte: 'Après une défaite, il trace les angles au ruban sur la bande. On tire moins, on vise mieux.' },
@@ -228,8 +228,8 @@ export const PERSONNEL = {
   per_animateurMicro: { role: 'chef', nom: 'L\'animateur du micro', ico: '📯', rarete: 'peu', effet: { F: [1.4, 1.1, 0.8, 0.65], finition: 1.05, energie: 1.12, volume: 0.89 },
     texte: 'Contre le rival, il branche un micro sur le banc. Les vedettes jouent pour la télé.' },
   // reprend les plumes du paon et les gants lumineux
-  per_costumier: { role: 'physique', nom: 'Le costumier', ico: '👘', rarete: 'rare', effet: { F: [1.1, 1.02, 0.96, 0.9], finition: 0.91 },
-    protege: { creation: 1.83, finition: 1.21, lancers: 1.1 }, texte: 'En séries, il habille son centre en paon. Et ça marche.' },
+  per_costumier: { role: 'physique', nom: 'Le costumier', ico: '👘', rarete: 'rare', effet: { F: [1.1, 1.02, 0.96, 0.9], finition: 0.9 },
+    protege: { creation: 2.16, finition: 1.29, lancers: 1.14 }, texte: 'En séries, il habille son centre en paon. Et ça marche.' },
 
   // ---- 🏦 le Comptable ----
   // reprend les clauses de contrat

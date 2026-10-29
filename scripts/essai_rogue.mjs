@@ -1317,6 +1317,7 @@ let posee = null, nomModif = '';
    */
   await versLEffectif();
   await deplierLesCartes('#pageJoueurs');
+  await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   const clesJoueurs = await cartesDeLaMaison('#pageJoueurs', 'joueurs');
   const echange = clesJoueurs.includes('meta|consommable:echangeDoublon|') ? await page.$('#choixModal [data-choix="meta|consommable:echangeDoublon|"]') : null;
   if (!echange) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif (Effectif › Joueurs)');
