@@ -7,18 +7,20 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne } from './sim.js';
+import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, specialesEnStats } from './impact.js';
 import { COACHS } from './coachs.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
-import { ADJOINTS, ADJOINTS_MAX, lignesDeLAdjoint } from './adjoints.js';
+import { ADJOINTS, ADJOINTS_MAX, BRAS_DROIT, NIVEAU_DES_LOURDS, brasDroitDe, lignesDeLAdjoint } from './adjoints.js';
 import { jambesHtml, motDuBadge, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
 import { $, G, TEAMFULL, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
-import { ajusterCartes, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
+import { ajusterCartes, cartonDe, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort, varsEquipe } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
+import { poseesSur } from './banque.js';
+import { decisionsDeLaPartie } from './rogue-jeu.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
 function ouvrirCarteDe(p) {
@@ -199,29 +201,60 @@ function slotTags(p, zoneEcartTag, penTag) {
  * en a un, et derrière le banc ses JAMBES. Sa production : ses PTS (ou V)
  * au repêchage, sa fiche à ce jour derrière le banc ; le visage et tout le reste sont dans la fiche, à un toucher.
  */
-function celluleJoueur(p, s, { ecart, penTag, blesseTag }) {
+function piecesDuJoueur(p, s, { ecart, penTag, blesseTag }) {
   // LE RÔLE EN MOTS, COMME À LA SIGNATURE (Jalon U, JP : *refaire l'alignement plus comme la page signature*) : la même
   // étiquette que la rangée du vestiaire (`roleTag`) — « Passeur Or », le second badge en icône, les modifs posées.
   const tag = roleTag(p);
-  const role = tag ? `<span class="slot-roles cell-role">${tag}</span>` : '';
-  const zone = zoneTag(p, true);
   const marque = ecart === 'sous' ? `<span class="cell-zone sous" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
     : ecart === 'dessus' ? `<span class="cell-zone dessus" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>`
     : '<span class="cell-zone ok" title="Dans sa zone : il rend à plein ici.">✓</span>';
   // TOUS SES TRAITS (1.0, R3), pas le premier seul : chacun joue dans le moteur (js/traits.js), chacun se voit.
   const traits = getTraits(p).map(x => TRAITS[x.cle]).filter(Boolean);
-  const trophee = traits.length ? `<span class="cell-trait" title="${esc(traits.map(t => t.short || t.nom || '').join(' · '))}">${traits.map(t => t.icon).join('')}</span>` : '';
-  const jambes = G.banc ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100, { gardien: p.p === 'G' }) : '';
   // SA PART DES DÉPARTS (V2.2) : la rotation suit les vrais matchs joués des deux gardiens ; la case le dit.
   const departs = s.group === 'G' && !s.scratch ? (() => {
     const d = partDesDeparts(G.roster), part = s.unit === 0 ? d.partant : d.aux;
     return part > 0 ? `<span class="cell-departs" title="La rotation lui donne cette part des départs : sa vraie saison (${p.gp || 0} matchs) contre celle de l'autre gardien.">${Math.round(part * 82)} départs</span>` : '';
   })() : '';
+  const c = lesCotes(p);
+  const cle = chiffreCle(p);
+  return {
+    role: tag ? `<span class="slot-roles cell-role">${tag}</span>` : '',
+    niveau: pastilleNiveau(p),
+    cotes: c ? `<small class="cell-cote" title="${esc(c.map(x => `${x.mot} ${x.v}`).join(' · '))} (cotes sur 20, dans sa saison : un appui, le niveau et le rôle se lisent d'abord)">${c.filter(x => x.cle !== 'robustesse').map(x => `${x.cle === 'arrets' ? 'Arrêts' : x.mot.slice(0, 1)} ${x.v}`).join(' · ')}</small>` : '',
+    verdicts: `${blesseTag}${marque}${zoneTag(p, true)}${penTag}${traits.length ? `<span class="cell-trait" title="${esc(traits.map(t => t.short || t.nom || '').join(' · '))}">${traits.map(t => t.icon).join('')}</span>` : ''}${departs}`,
+    prod: `<span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${cle.mot}`)}">${G.banc ? esc(ficheDuJour(p)) : `<span class="pcard-big"><b>${esc(cle.v)}</b> <span>${esc(cle.u)}</span></span>`}</span>`,
+    sec: !G.banc && p.p !== 'G' && cle.u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : '',
+    jambes: G.banc ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100, { gardien: p.p === 'G' }) : '',
+  };
+}
+function celluleJoueur(p, s, o) {
+  const x = piecesDuJoueur(p, s, o);
   // Trois rangées : le rôle et son mot ; le niveau et la zone ; le chiffre clé (sa fiche à ce jour derrière le banc).
-  return `<div class="cell-l1">${role}</div>
-        <div class="slot-tags cell-l2">${pastilleNiveau(p)}${(c => (c ? `<small class="cell-cote" title="${esc(c.map(x => `${x.mot} ${x.v}`).join(' · '))} (cotes sur 20, dans sa saison : un appui, le niveau et le rôle se lisent d'abord)">${c.filter(x => x.cle !== 'robustesse').map(x => `${x.cle === 'arrets' ? 'Arrêts' : x.mot.slice(0, 1)} ${x.v}`).join(' · ')}</small>` : ''))(lesCotes(p))}${blesseTag}${marque}${zone}${penTag}${trophee}${departs}</div>
-        <div class="cell-l3"><span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${chiffreCle(p).mot}`)}">${G.banc ? esc(ficheDuJour(p)) : `<span class="pcard-big"><b>${esc(chiffreCle(p).v)}</b> <span>${esc(chiffreCle(p).u)}</span></span>`}</span>${!G.banc && p.p !== 'G' && chiffreCle(p).u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : ''}</div>
-        ${jambes}`;
+  return `<div class="cell-l1">${x.role}</div>
+        <div class="slot-tags cell-l2">${x.niveau}${x.cotes}${x.verdicts}</div>
+        <div class="cell-l3">${x.prod}${x.sec}</div>
+        ${x.jambes}`;
+}
+/* Sous sa carte (le Rogue) : son badge et son niveau ; son chiffre clé ; ses cotes et ses verdicts ; ses jambes. */
+function celluleCarte(p, s, o) {
+  const x = piecesDuJoueur(p, s, o);
+  return `<div class="sc-qui">${x.role}${x.niveau}</div>
+        <div class="sc-cle">${x.prod}${x.sec}</div>
+        <div class="sc-verdicts">${x.cotes}${x.verdicts}</div>
+        ${x.jambes}`;
+}
+
+/*
+ * SA CARTE DANS LA CASE (oct., JP : *intégrer plus les cartes dans l'alignement* ; *c'est pas plus simple d'avoir une
+ * ligne de trois cartes, même sur mobile ?*). En Rogue, la case EST sa carte, debout : le carton de sa série et de son
+ * édition (`cartonDe`), qui dit déjà son nom, son club et sa photo ; à son pied, les cartes posées sur lui (une
+ * retouche, un soin…), que son verso détaille. Un trio se lit en trois cartes de front, une paire en deux. Hors du
+ * Rogue, aucune carte : la rangée et le visage.
+ */
+function carteDeLaCase(p) {
+  const posees = poseesSur(decisionsDeLaPartie(), getPlayerKey(p)).map(x => MUTATIONS[x.cle]).filter(Boolean);
+  const pastilles = posees.length ? `<span class="slot-posees" aria-hidden="true">${posees.map(M => `<i>${M.ico}</i>`).join('')}</span>` : '';
+  return `<button type="button" class="slot-carte slot-fiche" style="${varsEquipe(p)}" title="${esc(['Sa carte', ...posees.map(M => M.nom)].join(' · '))}" aria-label="La carte de ${esc(p.n)}">${cartonDe(p)}${pastilles}</button>`;
 }
 
 function slotEl(s) {
@@ -230,7 +263,9 @@ function slotEl(s) {
   const adapt = p ? penaliteAffichee(p, s) : { pen: 0, base: 0, matchs: 0 };
   const pen = adapt.pen;
 
+  const enCarte = G.bonus === 'ROGUE' && !surTable();
   el.className = 'slot'
+    + (enCarte ? ' en-carte' : '')
     + (p ? '' : ' empty')
     + (G.selectedSlot === s.i ? ' selected' : '')
     + (!p && G.target === s.i ? ' target' : '')
@@ -286,10 +321,10 @@ function slotEl(s) {
      *   4. les verdicts : 🩹 blessé, sa zone (T1-3), ▼ ▲ hors de sa zone, −N
      *      hors position, puis ses icônes.
      * Le visage, la saison et ses positions naturelles sont dans la fiche, à un
-     * toucher. Une case n'est PAS debout comme la carte du vestiaire : trois
-     * cartes debout par trio feraient un alignement trois fois plus haut, qu'on
-     * ne lirait plus d'un coup d'oeil. Elle reste une carte par sa bande aux
-     * couleurs du club et son cadre ; une variante brillante y garde un liseré.
+     * toucher. Hors du Rogue, la case n'est PAS debout comme la carte du
+     * vestiaire : elle reste une rangée, aux couleurs du club. En Rogue (oct.),
+     * elle l'est : trois cartes de front par trio (`carteDeLaCase`), la bande et
+     * les verdicts dessous.
      */
     const rarete = rareteJoueur(p);
     el.classList.add('cj-case', `tc-${rarete}`);
@@ -304,6 +339,7 @@ function slotEl(s) {
       ${relachable ? `<button class="slot-remove slot-relacher" title="Relâcher ${esc(p.n)} : sa carte va à ton cartable" aria-label="Relâcher ${esc(p.n)}">✕</button>`
         : estRenfort(p) || G.banc || G.bonus === 'ROGUE' ? ''
         : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
+      ${enCarte ? carteDeLaCase(p) : ''}
       <div class="slot-band${estRenfort(p) ? ' off' : ''}">
         <span class="sb-role ${positionClass(p)}" title="Ses positions : ${esc(positionLabel(p))} — ce qu'il peut jouer (la case, elle, se lit à sa place dans le trio)">${esc(positionLabel(p).split(' / ').join('/'))}</span>
         ${estRenfort(p)
@@ -311,14 +347,15 @@ function slotEl(s) {
           : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
-        <span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>
-        <span class="slot-qui"><span class="slot-logo" aria-hidden="true">${getTeamLogoHtml(p.t, 20)}</span><button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button></span>
+        ${enCarte ? '' : `<span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>
+        <span class="slot-qui"><span class="slot-logo" aria-hidden="true">${getTeamLogoHtml(p.t, 20)}</span><button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button></span>`}
         ${surTable() ? `<div class="slot-meta slot-faits">${ligneStats}</div>
-        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : celluleJoueur(p, s, { ecart, penTag, blesseTag: blesseTag + lanceeTag })}
+        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : (enCarte ? celluleCarte : celluleJoueur)(p, s, { ecart, penTag, blesseTag: blesseTag + lanceeTag })}
       </div>`;
-    // LE NOM OUVRE SA CARTE (1.0, JP : *dans alignement, peser sur nom ouvre carte*). Le reste de
-    // la case garde son geste : la toucher la choisit pour déplacer ou permuter.
-    el.querySelector('.slot-fiche')?.addEventListener('click', ev => { ev.stopPropagation(); ouvrirCarteDe(p); });
+    // LE NOM OUVRE SA CARTE (1.0, JP : *dans alignement, peser sur nom ouvre carte*) ; en Rogue, la carte elle-même. Le
+    // reste de la case garde son geste : la toucher la choisit pour déplacer ou permuter. Une case déjà choisie, toucher
+    // une carte la déplace là : le geste passe à la case.
+    el.querySelector('.slot-fiche')?.addEventListener('click', ev => { if (enCarte && G.selectedSlot !== null) return; ev.stopPropagation(); ouvrirCarteDe(p); });
     el.querySelector('.slot-relacher')?.addEventListener('click', ev => { ev.stopPropagation(); relacherReserviste(s); });
     el.querySelector('.slot-remove:not(.slot-relacher)')?.addEventListener('click', ev => {
       ev.stopPropagation();
@@ -378,7 +415,7 @@ function slotEl(s) {
       }
     } else if (p) {
       G.selectedSlot = s.i;
-      toast('Touche une autre case pour déplacer ou permuter.');
+      toast(enCarte ? 'Touche une autre carte pour la déplacer ou les permuter.' : 'Touche une autre case pour déplacer ou permuter.');
     } else if (G.bonus === 'ROGUE') {
       // En saison, le Rogue n'a pas de vestiaire où piger (son repêchage vient entre deux saisons) : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
       toast('Case libre : un joueur signé à la boutique pourra y entrer sans que personne sorte. Tu peux aussi y déplacer un joueur.');
@@ -791,7 +828,7 @@ export function coachHtml() {
     </div>`;
   };
   // L'ALIGNEMENT DU STAFF (V21 ; JP : *les coachs et assistants comme l'alignement*) : la case de l'entraîneur, sa vraie
-  // carte de coach-saison, puis ses pouvoirs, puis les places d'adjoint, libres.
+  // carte de coach-saison, puis ses pouvoirs, puis les places d'adjoint, libres, et son bras droit tant qu'il n'y est pas.
   const chef = perso.chef;
   return `<div class="ej-coach">
     <div class="ej-case-l">L'entraîneur</div>
@@ -802,9 +839,10 @@ export function coachHtml() {
     <div class="ej-case-l">Adjoints · ${ADJOINTS_MAX} places</div>
     ${(perso.adjoints || []).filter(k => ADJOINTS[k]).map(k => `<div class="pv adj">
       <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${ADJOINTS[k].ico}</span><b>${esc(ADJOINTS[k].nom)}</b></div>
-      <p class="pv-dit">${lignesDeLAdjoint(k).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join(' · ')}</p>
+      <p class="pv-dit">${lignesDeLAdjoint(k, perso.cle).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join(' · ')}</p>
     </div>`).join('')}
     ${(perso.adjoints || []).length < ADJOINTS_MAX ? `<div class="pv adj vide"><p class="pv-dit">${ADJOINTS_MAX - (perso.adjoints || []).length} place${ADJOINTS_MAX - (perso.adjoints || []).length > 1 ? 's' : ''} libre${ADJOINTS_MAX - (perso.adjoints || []).length > 1 ? 's' : ''} : un adjoint arrive aux 9e, 18e et 26e matchs et après un gros match gagné.</p></div>` : ''}
+    ${(b => (b && !(perso.adjoints || []).includes(b) ? `<div class="pv adj vide"><p class="pv-dit">Son bras droit : ${ADJOINTS[b].ico} ${esc(ADJOINTS[b].nom)} — ses pouvoirs +${Math.round(BRAS_DROIT * 100)} %${niveau >= NIVEAU_DES_LOURDS ? '' : `, dès le niveau ${NIVEAU_DES_LOURDS}`}.</p></div>` : ''))(brasDroitDe(perso.cle))}
   </div>`;
 }
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */
@@ -826,6 +864,7 @@ export function renderRoster() {
   const host = $('rosterBoard');
   if (!host) return;
   host.innerHTML = '';
+  host.classList.toggle('en-cartes', G.bonus === 'ROGUE' && !surTable());
   // Le bouton d'alignement sert partout où l'alignement se règle : au repêchage, et derrière le banc en pleine saison
   // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
   if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());

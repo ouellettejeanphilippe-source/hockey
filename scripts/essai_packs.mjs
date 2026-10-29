@@ -53,12 +53,12 @@ for (let i = 0; i < 12 && !(await page.$('#departModal:not([hidden])')); i++) {
   await page.waitForTimeout(1500);
 }
 // Le classeur, s'il y a une case à tirer ; sinon la run part sans lui.
-await page.waitForFunction(() => !document.getElementById('departModal')?.hidden || document.querySelectorAll('.slot .slot-name').length >= 20, null, { timeout: 60000 }).catch(() => {});
+await page.waitForFunction(() => !document.getElementById('departModal')?.hidden || document.querySelectorAll('.slot .slot-carte').length >= 20, null, { timeout: 60000 }).catch(() => {});
 if (await page.$('#departModal:not([hidden])')) {
   const pr = await page.$('#departModal [data-prendre]:not([disabled])'); if (pr) await pr.click();
   await page.click('#departModal .dp-commencer');
 }
-await page.waitForFunction(() => document.querySelectorAll('.slot .slot-name').length >= 20, null, { timeout: 90000 });
+await page.waitForFunction(() => document.querySelectorAll('.slot .slot-carte').length >= 20, null, { timeout: 90000 });
 await page.waitForTimeout(800);
 await page.click('#mainBtn');
 // V9 : À faire porte tous les choix ; on attend qu'UN des boutons du bureau (avancer, régler) ou une fenêtre soit visible.

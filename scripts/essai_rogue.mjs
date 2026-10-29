@@ -188,14 +188,14 @@ await page.click('#departModal [data-prendre]:not([disabled])');
 await page.waitForTimeout(200);
 await page.screenshot({ path: `${DOSSIER}/rogue-depart-pris.png` });
 await page.click('#departModal .dp-commencer');
-await page.waitForFunction(() => document.querySelectorAll('.slot .slot-name').length >= 20, null, { timeout: 90000 });
+await page.waitForFunction(() => document.querySelectorAll('.slot .slot-carte').length >= 20, null, { timeout: 90000 });
 await page.waitForTimeout(800);
 let sv = await lireSauvegarde();
 const pris = (sv.rogue && sv.rogue.classeur && sv.rogue.classeur.pris) || [];
 const dansAlignement = pris.length > 0 && pris.every(k => clesDe(sv).includes(k));
 console.log(`1. le classeur (${entete}) : tirée ${tiree.join(', ')} · prise ${pris.join(', ') || '(aucune)'} · dans l'alignement : ${dansAlignement} · fiche au toucher : ${ficheClasseur}`);
 if (tiree.length < 1 || tiree.length > 3 || pris.length !== 1 || !dansAlignement) erreurs.push(`le départ du classeur : ${tiree.length} tirée(s) (une case, un loto de trois au plus), ${pris.length} prise(s), dans l'alignement ${dansAlignement}`);
-const equipe = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.trim()).filter(Boolean));
+const equipe = await page.$$eval('.slot .slot-carte', e => e.map(x => x.getAttribute('aria-label').replace(/^La carte de /, '')).filter(Boolean));
 const barre = (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`2. plombiers : ${equipe.length} joueurs (${equipe.slice(0, 4).join(', ')}…) · barre : ${barre} · cases de réserve de plus : ${sv.rogue.reserves}`);
 await page.screenshot({ path: `${DOSSIER}/rogue-plombiers.png` });
@@ -215,7 +215,7 @@ if (ongletG && await ongletG.isVisible()) { await ongletG.click(); await page.wa
 const relache = await page.$('.slot-relacher');
 await relache.scrollIntoViewIfNeeded();
 await page.screenshot({ path: `${DOSSIER}/rogue-reserves.png` });
-const nomRelache = await relache.evaluate(b => b.closest('.slot').querySelector('.slot-name').textContent.trim());
+const nomRelache = await relache.evaluate(b => b.closest('.slot').querySelector('.slot-carte').getAttribute('aria-label').replace(/^La carte de /, ''));
 const avantRoster = clesDe(sv);
 await relache.click();
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 10000 });
@@ -1027,7 +1027,7 @@ else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n
 {
   await page.click('#navbar .navtab[data-section="lignes"]').catch(() => {});
   await page.waitForTimeout(800);
-  const noms = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+  const noms = await page.$$eval('.slot .slot-carte', e => e.map(x => x.getAttribute('aria-label').replace(/^La carte de /, '')));
   const nom = nomSigne.split(' ').slice(-1)[0];
   if (!noms.some(n => n.includes(nom))) erreurs.push(`${nomSigne}, signé d'un pack, n'est pas dans l'alignement`);
   else console.log(`   ${nomSigne} est dans l'alignement dès la signature`);
@@ -1088,13 +1088,18 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     if (autre && !(ecrit && ecrit.plan.cle === autre.cle)) erreurs.push(`toucher le plan « ${autre.cle} » n'écrit pas sa décision`);
     if (autre && !ligne.includes(PLANS[autre.cle].mot)) erreurs.push(`le Bureau ne dit pas le plan en force (« ${PLANS[autre.cle].mot} »)`);
   }
-  // La ligne du match, au Bureau, ouvre tes Lignes.
+  // La ligne du match, au Bureau, ouvre le face-à-face (JP, oct. : *les stats de confrontation, pas les lignes*).
   const ligneMatch = await page.$('#hubModal .bu-prochain');
   if (ligneMatch && await ligneMatch.isVisible()) {
-    await ligneMatch.click(); await page.waitForTimeout(1200);
-    const ou = await page.evaluate(() => document.body.dataset.section);
-    if (ou !== 'lignes') erreurs.push(`la ligne du match, au Bureau, ouvre « ${ou} », pas les Lignes`);
-    await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {});
+    await ligneMatch.click(); await page.waitForTimeout(800);
+    const face = await page.evaluate(() => {
+      const pg = document.querySelector('#hubModal .hub-page[data-genre="face"]');
+      return { section: document.body.dataset.section, page: !!pg, stats: pg ? pg.querySelectorAll('.hub-duel tr').length : 0, clubs: pg ? pg.querySelectorAll('.hub-face').length : 0 };
+    });
+    console.log(`10e. le face-à-face : ${face.page ? `${face.stats} stats côte à côte` : 'absent'} · section ${face.section}`);
+    if (!face.page || face.section !== 'bureau') erreurs.push(`la ligne du match, au Bureau, n'ouvre pas le face-à-face (section ${face.section})`);
+    else if (face.stats < 3 || face.clubs !== 1) erreurs.push(`le face-à-face montre ${face.stats} stat(s) et ${face.clubs} affiche(s)`);
+    await page.click('#hubModal .hub-page[data-genre="face"] .hub-page-retour').catch(() => {});
     await auBureau();
   }
   // LE MARCHÉ (V16, tranche 6) : la boutique et l'album ; « Tes cartes » est parti, chaque carte rare se joue chez ce qu'elle monte.

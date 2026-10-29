@@ -18,8 +18,11 @@
  *           plus), jamais un piège ;
  *   3'. EN PAIRES aussi, chaque adjoint seul, tous les matchs : il se voit dans la feuille, et c'est un échange — ni un
  *      cadeau ni un piège sur un club ordinaire (`ECHANGE_V`), et il ne vaut pas la même chose partout ;
+ *   3''. légers d'abord (oct.) : sous le niveau `NIVEAU_DES_LOURDS`, l'offre n'a que des légers, sans le bras droit ; un
+ *      lourd pèse plus d'un club à l'autre qu'un léger ;
  *   4. le personnage complet (niveau 5, ses deux talents) peut casser le jeu — c'est la récompense d'une run qui a
- *      duré (docs/refonte-v3.md, principe 5) — sans s'emballer ;
+ *      duré (docs/refonte-v3.md, principe 5) — sans s'emballer ; avec son bras droit (la synergie, oct.), plus encore,
+ *      et toujours sans s'emballer ;
  *   5. la saison : l'expérience compte les victoires, la même graine rejoue le même personnage, ses adjoints jouent.
  * `N` : matchs par club et par pouvoir (600, cinq minutes sur quatre processus, `FILS`). `COACHS=a,b` : quelques coachs.
  * `MESURE=0 N=20` (la CI, une demi-minute) : a, b et la saison, sans les chiffres de valeur.
@@ -28,7 +31,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague } from '../js/sim.js';
 import { POUVOIRS, XP, SEUILS_NIVEAU, NIVEAU_MAX, niveauDe, pouvoirsOuverts, talentsDus, forceDuPouvoir } from '../js/pouvoirs.js';
-import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts, avecAdjoint, adjointsQuiJouent, lignesDeLAdjoint } from '../js/adjoints.js';
+import { ADJOINTS, ADJOINTS_MAX, BRAS_DROIT, NIVEAU_DES_LOURDS, adjointsOfferts, avecAdjoint, adjointsQuiJouent, brasDroitDe, lignesDeLAdjoint } from '../js/adjoints.js';
 import { MAITRISE, maitriseDu, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
 import fs from 'node:fs';
 import { COACHS } from '../js/coachs.js';
@@ -84,6 +87,18 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
   const autres = new Set();
   for (let g = 0; g < 40; g++) autres.add(JSON.stringify(adjointsOfferts(staff, `g${g}`, 'pp9')));
   exiger('deux graines n\'offrent pas les mêmes', autres.size > 10, `${autres.size} offres sur 40 graines`);
+  // LÉGERS D'ABORD ; SON BRAS DROIT (oct.) : un par coach, l'adjoint de sa voie ; il n'arrive qu'avec les lourds.
+  const bras = Object.keys(COACHS).map(brasDroitDe);
+  exiger('chaque coach a son bras droit, un adjoint de sa voie, un seul', bras.every(Boolean) && new Set(bras).size === bras.length && Object.values(ADJOINTS).filter(A => A.voie).length === bras.length,
+    Object.keys(COACHS).map(c => `${COACHS[c].ico} ${ADJOINTS[brasDroitDe(c)].ico}`).join(' '));
+  const tot = [];
+  for (const c of Object.keys(COACHS)) for (let g = 0; g < 30; g++) for (const n of [1, 2]) tot.push(...adjointsOfferts([], `g${g}`, `pp${n}`, 3, { cle: c, niveau: n }).filter(k => ADJOINTS[k].lourd || ADJOINTS[k].voie === c).map(k => `${c}/${k}`));
+  const tard = new Set();
+  for (let g = 0; g < 60; g++) for (const k of adjointsOfferts([], `g${g}`, 'pp9', 3, { cle: 'tortue', niveau: NIVEAU_DES_LOURDS })) tard.add(k);
+  exiger(`légers d'abord : sous le niveau ${NIVEAU_DES_LOURDS}, ni lourd ni bras droit ; à ce niveau, tous`, !tot.length && tard.has('mur') && Object.keys(ADJOINTS).every(k => tard.has(k)),
+    tot.slice(0, 3).join(', ') || `${Object.values(ADJOINTS).filter(A => !A.lourd).map(A => A.ico).join('')} d'abord, puis ${Object.values(ADJOINTS).filter(A => A.lourd).map(A => A.ico).join('')}`);
+  exiger(`son bras droit en poste grandit ses pouvoirs de ${Math.round(BRAS_DROIT * 100)} %, un autre adjoint rien`, forceDuPouvoir({ cle: 'essaim', talents: [], adjoints: ['canonnier'] }, 0) === 1 + BRAS_DROIT
+    && forceDuPouvoir({ cle: 'essaim', talents: [], adjoints: ['tireur'] }, 0) === 1 && forceDuPouvoir({ cle: 'rapaces', talents: [], adjoints: ['canonnier', 'tireur'] }, 2) === 1 + BRAS_DROIT);
   const plein = avecAdjoint(['canonnier', 'tireur', 'mur'], 'soigneur');
   exiger(`un staff de plus de ${ADJOINTS_MAX} garde ses derniers entrés, en attendant qui part`, plein.length === 4 && adjointsQuiJouent(plein).join() === 'tireur,mur,soigneur' && avecAdjoint(plein, 'tireur').at(-1) === 'tireur',
     adjointsQuiJouent(plein).join(', '));
@@ -197,8 +212,9 @@ function mesurerAdjoint(cle, n) {
   }
   return m;
 }
-function mesurerComplet(c, n) {
-  const perso = { cle: c, xp: SEUILS_NIVEAU[4], talents: [0, 2], adjoints: [] };
+/* `bras` : avec son bras droit en poste (la synergie, js/adjoints.js), son échange compris. */
+function mesurerComplet(c, n, bras = false) {
+  const perso = { cle: c, xp: SEUILS_NIVEAU[4], talents: [0, 2], adjoints: bras ? [brasDroitDe(c)] : [] };
   let k = 0, d = 0;
   for (let i = 0; i < VESTIAIRES.length; i++) for (let g = 0; g < n; g++) {
     const j = (i + 1 + (g % (VESTIAIRES.length - 1))) % VESTIAIRES.length;
@@ -206,17 +222,17 @@ function mesurerComplet(c, n) {
     const a = match(i, j, graine, o.visiteur, MUET, o), b = match(i, j, graine, o.visiteur, perso, o);
     k++; d += (b.gf - b.ga) - (a.gf - a.ga);
   }
-  return { c, v: (d / k) * 82 / BUTS_PAR_V };
+  return { c, bras, v: (d / k) * 82 / BUTS_PAR_V };
 }
 const MUET = { cle: '__muet', xp: 0, talents: [], adjoints: [] };
 // UN FILS : ses tâches (« p:coach:idx », « c:coach »), rendues en JSON.
 if (process.env.PART) {
-  const out = process.env.PART.split(',').map(t => { const [s, c, idx] = t.split(':'); return s === 'p' ? mesurerPouvoir(c, Number(idx), N) : s === 'a' ? mesurerAdjoint(c, N) : mesurerComplet(c, N); });
+  const out = process.env.PART.split(',').map(t => { const [s, c, idx] = t.split(':'); return s === 'p' ? mesurerPouvoir(c, Number(idx), N) : s === 'a' ? mesurerAdjoint(c, N) : mesurerComplet(c, N, s === 'b'); });
   process.stdout.write(JSON.stringify(out));
   process.exit(0);
 }
 console.log(`\n  Les pouvoirs du coach (V21) · ${N} matchs par club${MESURE ? '' : ' · sans les bornes'}\n`);
-const taches = [...QUELS.flatMap(c => POUVOIRS[c].map((_, idx) => `p:${c}:${idx}`)), ...(MESURE ? [...QUELS.map(c => `c:${c}`), ...Object.keys(ADJOINTS).map(k => `a:${k}`)] : [])];
+const taches = [...QUELS.flatMap(c => POUVOIRS[c].map((_, idx) => `p:${c}:${idx}`)), ...(MESURE ? [...QUELS.flatMap(c => [`c:${c}`, `b:${c}`]), ...Object.keys(ADJOINTS).map(k => `a:${k}`)] : [])];
 const lancer = l => new Promise((ok, ko) => {
   const p = spawn(process.execPath, [ICI], { env: { ...process.env, PART: l.join(',') } });
   let t = '';
@@ -244,10 +260,17 @@ if (MESURE) {
   exiger('d. un pouvoir seul reste sous sa borne (I et II : 2,5 V ; l\'ultime : 4 V)', mesures.every(m => m.vButs <= BORNE_V[m.idx]), mesures.filter(m => m.vButs > BORNE_V[m.idx]).map(m => `${nomDe(m)} +${m.vButs.toFixed(1)}`).join(', ') || 'tous');
   exiger('d. aucun pouvoir n\'est un piège', mesures.every(m => m.vButs >= PIEGE_V), mesures.filter(m => m.vButs < PIEGE_V).map(m => `${nomDe(m)} ${m.vButs.toFixed(1)}`).join(', ') || 'aucun');
   /* ---------- 4. le personnage complet ---------- */
-  const complets = rendus.filter(x => 'v' in x);
-  informer('le personnage complet, en victoires sur une saison', complets.map(x => `${COACHS[x.c].ico} ${x.v >= 0 ? '+' : ''}${x.v.toFixed(1)}`).join(' · '));
+  const complets = rendus.filter(x => 'v' in x && !x.bras), avecBras = rendus.filter(x => 'v' in x && x.bras);
+  const signe = v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}`;
+  informer('le personnage complet, en victoires sur une saison', complets.map(x => `${COACHS[x.c].ico} ${signe(x.v)}`).join(' · '));
+  informer('… avec son bras droit (son échange compris)', avecBras.map(x => `${COACHS[x.c].ico}${ADJOINTS[brasDroitDe(x.c)].ico} ${signe(x.v)}`).join(' · '));
   const trop = complets.filter(x => x.v > COMPLET_MAX_V || x.v < 1);
   exiger(`le personnage complet aide pour de vrai, sans s'emballer (de 1 à ${COMPLET_MAX_V} V)`, !trop.length, trop.map(x => `${COACHS[x.c].nom} ${x.v.toFixed(1)}`).join(', ') || 'tous');
+  // LA SYNERGIE (oct., JP : *un gros impact, tant que c'est lié à une synergie logique*) : son bras droit le grandit pour vrai,
+  // sans que le personnage complet s'emballe.
+  const sans = c => (complets.find(x => x.c === c) || {}).v ?? 0;
+  const mou = avecBras.filter(x => x.v < sans(x.c) + 1 || x.v > COMPLET_MAX_V);
+  exiger(`son bras droit le grandit d'une victoire au moins, sans passer ${COMPLET_MAX_V} V`, !mou.length, mou.map(x => `${COACHS[x.c].nom} ${signe(sans(x.c))} → ${signe(x.v)}`).join(', ') || 'tous');
   /* ---------- 3'. chaque adjoint, un échange ---------- */
   const adj = rendus.filter(x => 'parClub' in x);
   const parSoir = sv => Object.fromEntries(Object.entries(sv).map(([k, v]) => [k, v / (sv.n || 1)]));

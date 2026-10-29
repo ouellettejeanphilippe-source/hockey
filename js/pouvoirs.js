@@ -5,12 +5,15 @@
  *   LE NIVEAU     de 1 à 5, gagné en jouant (`XP`, `SEUILS_NIVEAU`) ; il suit la run d'une saison à l'autre
  *   L'ARBRE       trois pouvoirs par coach, ouverts aux niveaux 1, 3 et 5 (`NIVEAU_DES_POUVOIRS`)
  *   LES TALENTS   aux niveaux 2 et 4, un pouvoir débloqué grandit de moitié (`TALENT`)
- *   LES ADJOINTS  des systèmes de jeu, des échanges, à côté du coach (js/adjoints.js)
+ *   LES ADJOINTS  des systèmes de jeu, des échanges, à côté du coach (js/adjoints.js) ; son bras droit, l'adjoint de
+ *                 sa voie, fait grandir ses trois pouvoirs (`BRAS_DROIT`)
  *
  * UN POUVOIR SE JOUE PÉRIODE PAR PÉRIODE. Avant chaque période, il lit ce qui est déjà joué (`etat` : la période `k`,
  * le pointage, les tirs, la dernière période, le soir) et, s'il se déclenche, frappe la période qui vient sur les
  * canaux que le moteur connaît : `effet` sur ton club, `adv` sur l'adversaire. La feuille le garde.
  */
+
+import { BRAS_DROIT, adjointsQuiJouent, brasDroitDe } from './adjoints.js';
 
 /* ---------- le niveau ---------- */
 export const XP = { victoire: 1, gros: 2, serie: 5 };
@@ -72,7 +75,7 @@ export const POUVOIRS = {
   ],
   choeur: [
     { cle: 'sangfroid', ico: '😇', nom: 'Le sang-froid', dit: 'En 2e période : −45 % de punitions.', quand: e => e.k === 1, effet: { discipline: 0.55 } },
-    { cle: 'provocation', ico: '📢', nom: 'La provocation', dit: 'En 3e période : leurs punitions +90 %.', quand: k3, adv: { discipline: 1.9 } },
+    { cle: 'provocation', ico: '📢', nom: 'La provocation', dit: 'En 3e période : leurs punitions +45 %.', quand: k3, adv: { discipline: 1.45 } },
     { cle: 'miracle', ico: '✨', nom: 'Le miracle', dit: 'En 3e période, à un but d\'écart ou moins : +30 % de précision, −50 % de punitions.', quand: e => k3(e) && serre(e), effet: { finition: 1.3, discipline: 0.5 } },
   ],
   profondeur: [
@@ -95,8 +98,13 @@ export const POUVOIRS = {
 export function niveauDuPerso(perso) {
   return perso ? niveauDe((perso.xp || 0) + (perso.xpSaison || 0)) : 0;
 }
-/* La force d'un pouvoir : 1, plus ses talents, fois la maîtrise de l'entraîneur (sa vraie carte, js/coachs-reels.js). */
-export const forceDuPouvoir = (perso, p) => (1 + TALENT * (perso.talents || []).filter(x => x === p).length) * (perso.maitrise || 1);
+/* Son bras droit (js/adjoints.js) est-il en poste ? */
+const aSonBrasDroit = perso => !!perso && adjointsQuiJouent(perso.adjoints).includes(brasDroitDe(perso.cle));
+/*
+ * La force d'un pouvoir : 1, plus ses talents, fois la maîtrise de l'entraîneur (sa vraie carte, js/coachs-reels.js),
+ * fois son bras droit en poste (oct. : la synergie, pas un chiffre plus gros).
+ */
+export const forceDuPouvoir = (perso, p) => (1 + TALENT * (perso.talents || []).filter(x => x === p).length) * (perso.maitrise || 1) * (aSonBrasDroit(perso) ? 1 + BRAS_DROIT : 1);
 /* Un effet grandi : chaque canal s'écarte de 1 (ou de 0, la robustesse) `f` fois plus. */
 export function grandir(effet, f) {
   if (!effet) return null;
