@@ -705,7 +705,17 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (p0.length !== 2) erreurs.push(`la run ne part pas avec deux patrons imposés (${p0.length})`);
   if (rangCoach !== 'I') erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
   console.log(`5f. ton personnel, chez l'entraîneur : ${postes.join(' | ') || '(aucun poste)'}`);
-  if (postes.length < p0.length) erreurs.push(`le sous-onglet de l'entraîneur montre ${postes.length} poste(s) pour ${p0.length} patrons engagés`);
+  // V20 : une entente du proprio n'est pas au banc ; elle se lit chez le proprio, sous la masse salariale.
+  const assis = p0.filter(x => x.patron.role !== 'entente'), ententes = p0.filter(x => x.patron.role === 'entente');
+  if (postes.length < assis.length) erreurs.push(`le sous-onglet de l'entraîneur montre ${postes.length} poste(s) pour ${assis.length} adjoints engagés`);
+  if (postes.some(t => ententes.some(x => t.includes(x.patron.nom)))) erreurs.push('une entente du proprio s\'assoit au banc de l\'entraîneur');
+  if (ententes.length) {
+    await versLOnglet('bureau', 'proprio');
+    const chezLui = ((await page.textContent('#hubModal .af-onglet[data-maison="proprio"]').catch(() => '')) || '').replace(/\s+/g, ' ');
+    console.log(`5g. l'entente du proprio : ${ententes.map(x => x.patron.nom).join(', ')} · ${ententes.every(x => chezLui.includes(x.patron.nom)) ? 'chez lui' : 'absente'}`);
+    if (!ententes.every(x => chezLui.includes(x.patron.nom))) erreurs.push('l\'entente imposée ne se lit pas chez le proprio');
+    await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
+  }
   // V19 : chaque adjoint dit son contrat (les matchs qu'il lui reste), et la prolongation, en jetons, quand il y en a une à prendre.
   // La rangée de chaque adjoint dit son contrat (« ≈ 14 matchs » ou « Saison ») ; sa feuille, quand on la touche, le détaille.
   const contrats = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .gens-l', e => e.map(x => ({ dit: /≈ \d+ match|Saison/.test(x.querySelector('.gens-ct') ? x.querySelector('.gens-ct').textContent : '') }))).catch(() => []);
@@ -717,7 +727,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
     if (!/Contrat :|Prolonger/.test(feuille)) erreurs.push('la feuille d\'un adjoint ne dit pas son contrat');
     await page.keyboard.press('Escape'); await page.waitForTimeout(250);
   }
-  if (gens.length < p0.length || gens.some(g => !g.nom.trim() || g.ech !== 3)) erreurs.push(`ton personnel ne dit pas chaque carte en poste et ses trois échelons (${JSON.stringify(gens)})`);
+  if (gens.length < assis.length || gens.some(g => !g.nom.trim() || g.ech !== 3)) erreurs.push(`ton personnel ne dit pas chaque carte en poste et ses trois échelons (${JSON.stringify(gens)})`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
@@ -1594,9 +1604,10 @@ console.log(`20d. leurs intentions lues, leurs puces jugées : ${[...intentionsV
 console.log(`20d. périodes de duel jouées (période:plan pris) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
 console.log(`20e. l'histoire de la semaine : ${afaire.histoire || 'jamais offerte'}`);
 console.log(`20s. ce qui court : ${suivi.pas.size} pas de l'objectif dits dans Hier soir (${[...suivi.pas].slice(0, 3).join(' | ') || 'aucun'}) · verdict : ${suivi.verdict.slice(0, 160) || 'aucun'}`);
-// Un objectif qui n'a bougé qu'une fois (un point en vingt matchs) ne peut se dire qu'une fois : on en demande deux, au plus ce qu'il a bougé.
+// L'essai ne visite pas chaque matin (il saute aux gros matchs) : un objectif qui a bougé se dit au moins une fois dans
+// les matins visités ; chaque pas, matin par matin, se recompte dans `check_suivis`.
 const bouge = Number((suivi.verdict.match(/(\d+) [^\d]*? en \d+ matchs/) || [])[1]);
-if (suivi.pas.size < (Number.isFinite(bouge) ? Math.min(2, bouge) : 2)) erreurs.push(`l'objectif du proprio ne se suit pas dans Hier soir (${suivi.pas.size} pas)`);
+if (suivi.pas.size < (Number.isFinite(bouge) ? Math.min(1, bouge) : 1)) erreurs.push(`l'objectif du proprio ne se suit pas dans Hier soir (${suivi.pas.size} pas)`);
 if (!/Objectif (atteint|raté|levé)[^]* en \d+ matchs/.test(suivi.verdict)) erreurs.push(`le verdict du proprio ne dit pas ses vrais chiffres : « ${suivi.verdict.slice(0, 160)} »`);
 console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afaire.genres].join(', ') || 'aucun'} · choix envoyés (genre → décisions) ${afaire.lots.join(' · ') || 'aucun'}`);
 if (!afaire.vu) erreurs.push('À faire n\'a jamais porté de choix');
