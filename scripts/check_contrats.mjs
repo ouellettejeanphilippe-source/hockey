@@ -8,7 +8,7 @@
  *   4. le moteur : l'adjoint part au jour dit (son protégé avec lui), la prolongation le garde, la saison suivante repart de zéro.
  */
 import { CONTRAT_JOURS, PRIX_PROLONGATION, JOURS_DE_SAISON, finDuContrat } from '../js/personnel.js';
-import { patronsActifs, buildDe, palierAllume, BANQUE } from '../js/banque.js';
+import { patronsActifs, buildDe, BANQUE } from '../js/banque.js';
 import { effetDePalier } from '../js/coachs.js';
 import { patronALEchelon, etatDuPersonnel, decisionDeProlongation, reportDuPersonnel, prixDeProlongation } from '../js/echelons.js';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague } from '../js/sim.js';
@@ -40,15 +40,12 @@ exiger('prolongée à chaque fenêtre, elle mène la saison à terme', patronsAc
 const rep = reportDuPersonnel(etatDuPersonnel(prolonge, 60, { joues: () => 40 })[0]);
 exiger('la saison suivante, le contrat repart de zéro', finDuContrat({ ...rep, jour: 0 }) === CONTRAT_JOURS.commune && !rep.prolonge);
 
-/* La confiance du coach suit les contrats : un adjoint de sa couleur compte tant qu'il est en poste, et la décision d'un jour se juge à ce jour-là. */
+/* V20 : la confiance ne suit plus les adjoints (le chiffre seul, js/chiffre.js) — un adjoint de sa couleur, en poste ou parti, ne la change pas. */
 {
   const T = Object.keys(BANQUE).find(id => id.startsWith('patron:') && BANQUE[id].coach === 'tortue' && BANQUE[id].rarete === 'commune');
   const base = [{ jour: 0, coachsDeBase: { tortue: 6 }, coach: effetDePalier('tortue', 1) }];
-  const d = { jour: 10, patron: patronALEchelon(BANQUE[T].cle, {}) }, decs = [...base, d];
-  const fin = finDuContrat({ cle: BANQUE[T].cle, jour: 10 });
-  exiger('un adjoint de sa couleur compte pour la confiance tant que son contrat dure, plus après', buildDe(decs, 30).tortue === buildDe(base, 30).tortue + 1 && buildDe(decs, fin + 1).tortue === buildDe(base, 30).tortue, `${buildDe(decs, 30).tortue} → ${buildDe(decs, fin + 1).tortue} points`);
-  const a = palierAllume(base, { ...d, jour: 10 });
-  exiger('la décision d\'engagement recompte la confiance à son jour, pas au bout de la saison', (a ? a.coach.palier : 1) >= 1 && Number.isFinite(d.jour));
+  const decs = [...base, { jour: 10, patron: patronALEchelon(BANQUE[T].cle, {}) }];
+  exiger('un adjoint de sa couleur ne compte pas pour la confiance', buildDe(decs, 30).tortue === buildDe(base, 30).tortue, `${buildDe(decs, 30).tortue} points`);
 }
 
 /* Le moteur : une saison, l'adjoint part au jour dit ; prolongé, il reste. */

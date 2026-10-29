@@ -253,9 +253,9 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
   const assurance = dernier && dernier !== gagnantFil && dernier.T === W && dernier.but.instant >= 50 && dernier.but.instant < 60 && gf[W] - gf[L] >= 2 ? dernier : null;
 
   /* ----- les phrases de temps ----- */
-  const quandCourt = (instant, cle) => (alea(cle) < 0.5 ? `avec ${tempsRestant(instant)} à jouer` : `à ${tempsRestant(instant)} de la fin`);
+  const quandCourt = (instant, cle) => (alea(cle) < 0.5 ? `avec ${tempsRestant(instant, f.otLongue)} à jouer` : `à ${tempsRestant(instant, f.otLongue)} de la fin`);
   const quandLong = (instant, cle) => {
-    const per = periodeDe(instant), t = tempsRestant(instant), g = alea(cle) < 0.5;
+    const per = periodeDe(instant), t = tempsRestant(instant, f.otLongue), g = alea(cle) < 0.5;
     if (per === 4) return g ? `en prolongation, avec ${t} à jouer` : `en prolongation, à ${t} de la fin`;
     return g ? `avec ${t} à jouer en ${NOM_PERIODE[per]}` : `à ${t} de la fin de la ${NOM_PERIODE[per]}`;
   };
@@ -364,7 +364,7 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       const aide = ps.length ? `passes de ${ps.join(' et ')}` : 'sans aide';
       const sit = but.an ? ', avantage numérique' : but.dn ? ', infériorité numérique' : '';
       const rang = x.nth > 1 ? `, ${x.nth}e but du match` : '';
-      return `${tempsRestant(but.instant)} ${nomDe(but.marqueur)} (${nm[x.T]}${sit}, ${aide}), pointage ${scoreDe(x)}${rang}${x.gagnant ? `, but gagnant${but.instant >= 60 ? ' en prolongation' : ''}` : ''}`;
+      return `${tempsRestant(but.instant, f.otLongue)} ${nomDe(but.marqueur)} (${nm[x.T]}${sit}, ${aide}), pointage ${scoreDe(x)}${rang}${x.gagnant ? `, but gagnant${but.instant >= 60 ? ' en prolongation' : ''}` : ''}`;
     };
     const etat = (A, B) => (A === B ? `Égalité ${A}-${B}` : `${nm[A > B ? 'A' : 'B']} mène ${Math.max(A, B)}-${Math.min(A, B)}`);
 

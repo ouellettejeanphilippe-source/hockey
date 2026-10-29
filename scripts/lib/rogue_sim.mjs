@@ -58,7 +58,7 @@ import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, engagerDuRobot } from './cartes_robot.mjs';
 import { matchsJoues, etatDuPersonnel, reportDuPersonnel, protegeALEchelon, lignesDuFeu } from '../../js/echelons.js';
 import { tenusDe } from '../../js/chiffre.js';
-import { patronsDeDepart, payloadDe, baseDesCoachs, coachsActifs, patronsActifs, buildDe, BANQUE } from '../../js/banque.js';
+import { patronsDeDepart, payloadDe, coachsActifs, patronsActifs, buildDe, BANQUE } from '../../js/banque.js';
 import { PROTEGES } from '../../js/personnel.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
 import { alignementAuMieux, chiffresDuSoir, planEnChiffres } from '../../js/impact.js';
@@ -371,7 +371,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
       if (!voulu) break;
       depense += prixAuAchat(voulu.cle, achats, exigence); achats++;
       // V16 : la carte d'un pack de joueurs est un adjoint ; le robot l'engage selon sa politique (`engagerDuRobot`).
-      for (const d of engagerDuRobot({ ids: tirerCartesDuPack(`j:${voulu.cle}`, `rogue80:${graine}:${saison}`, achats), decisions, politique, clic, jour: L.jour, joues: (de, a) => matchsJoues(L.calendrier, you, de, a) })) decisions.push(d);
+      for (const d of engagerDuRobot({ ids: tirerCartesDuPack(`j:${voulu.cle}`, `rogue80:${graine}:${saison}`, achats), decisions, politique, clic, jour: L.jour })) decisions.push(d);
       const actuel = you.roster;
       // V9 : l'offre n'est plus filtrée sous le plafond ; ne se signe que ce qu'une sortie fait entrer (plus bas).
       const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p)), voulu.role, meta);
@@ -456,7 +456,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
 function pointsDuCoach(r) {
   const [C] = coachsActifs(r.decisions);
   if (!C) return { points: 0, adjoints: 0 };
-  const n = buildDe(r.decisions, Infinity, { joues: (de, a) => matchsJoues(r.L.calendrier, r.you, de, a), tenus: tenusDe(r.L.calendrier, r.you) });
+  const n = buildDe(r.decisions, Infinity, { tenus: tenusDe(r.L.calendrier, r.you) });
   return { points: n[C.cle], adjoints: patronsActifs(r.decisions).filter(p => (BANQUE[`patron:${p.cle}`] || {}).coach === C.cle).length };
 }
 /*
@@ -465,7 +465,7 @@ function pointsDuCoach(r) {
  */
 function reportDeSaison(decisions, L, you) {
   const joues = (de, a) => matchsJoues(L.calendrier, you, de, a);
-  const report = [{ jour: 0, coachsDeBase: Object.fromEntries(Object.entries(baseDesCoachs(decisions)).filter(([, n]) => n > 0)), report: true }];
+  const report = [{ jour: 0, coachsDeBase: Object.fromEntries(Object.entries(buildDe(decisions, Infinity, { tenus: tenusDe(L.calendrier, you) })).filter(([, n]) => n > 0)), report: true }];
   const [enPoste] = coachsActifs(decisions);
   if (enPoste) { const { jour: _j, ...coach } = enPoste; void _j; report.push({ jour: 0, coach, report: true }); }
   const gens = new Map(etatDuPersonnel(decisions, Infinity, { joues, copies: () => 2 }).map(e => [e.cle, e]));

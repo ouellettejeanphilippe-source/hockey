@@ -10,11 +10,10 @@ import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { badgesDe, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, joueursDesCoachs, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, MOMENTS_SI } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, specialesEnStats, clubLu } from './impact.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
-import { buildDe, coachsActifs, patronsActifs, PATRONS, reglesDePalier } from './banque.js';
+import { buildDe, entreeEnPoste, coachsActifs, patronsActifs, PATRONS, reglesDePalier } from './banque.js';
 import { COMBOS } from './personnel.js';
 import { motsEnChiffres } from './impact.js';
-import { matchsJoues } from './echelons.js';
-import { tenusDe, chiffreDit, BLOC, PLAFOND_TENUS } from './chiffre.js';
+import { tenusDe, chiffreDit, BLOC, POINTS_PAR_BLOC } from './chiffre.js';
 import { jambesHtml, motDuBadge, ouvrirChoix, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
@@ -763,22 +762,26 @@ function avecLeBanc(fn) {
   } catch { return null; }
 }
 /*
- * TON COACH ET SA CONFIANCE (V16 : ses points, ses adjoints en poste, leurs échelons et leurs matchs à ton service). `injured` : les
- * blessés du jour, qui ne portent pas sa confiance.
+ * TON COACH ET SA CONFIANCE (V20 : un seul chemin, son chiffre tenu). La jauge, puis son chiffre en une ligne — ta stat du
+ * bloc ouvert contre celle de la ligue, le bloc, les blocs tenus et ce qu'il manque pour le cran suivant. `injured` : les
+ * blessés du jour, qui ne portent pas sa couleur.
  */
 export function coachHtml(decs, j, injured = new Set()) {
   if (G.bonus !== 'ROGUE' || !G.rogue) return '';
   const [actif] = coachsActifs(decs, j + 1);
   const k = actif ? actif.cle : G.rogue.coach, C = COACHS[k];
   if (!C) return '';
-  const n = buildDe(decs, j + 1, { joues: (de, a) => (G.ligue ? matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) : 0), tenus: G.ligue ? tenusDe(G.ligue.calendrier, G.ligue.you) : () => 0 })[k] || 0, pal = actif ? actif.palier : palierDe(n), manque = avantProchain(n);
+  const n = buildDe(decs, j + 1, { tenus: G.ligue ? tenusDe(G.ligue.calendrier, G.ligue.you) : () => 0 })[k] || 0, pal = actif ? actif.palier : palierDe(n), manque = avantProchain(n);
   const J = joueursDesCoachs({ roster: G.roster, injured })[k] || { joueurs: 0, paliers: 0 };
   const fin = SEUILS[SEUILS.length - 1];
+  const blocs = x => `${x} bloc${x > 1 ? 's' : ''}`;
+  const chiffre = G.ligue ? chiffreDit(k, G.ligue.calendrier, G.ligue.you, j + 1, entreeEnPoste(decs, k, j + 1)) : null;
   return `<div class="ej-coach">
     <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="ej-rang">${ROMAINS[pal]}</span>` : ''}<small>${esc(C.mot)}</small></div>
-    <div class="ej-jauge" role="img" aria-label="${n} point${n > 1 ? 's' : ''} de confiance"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
-    <div class="ej-coach-l">${n} point${n > 1 ? 's' : ''} de confiance${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
-    ${(c => (c ? `<div class="ej-coach-l"><span class="ej-k">À tenir</span> ${esc(c.nom)} : ${esc(c.but)}, dix matchs de suite · ${c.enCours}/${BLOC} · ${c.tenus} bloc${c.tenus > 1 ? 's' : ''} tenu${c.tenus > 1 ? 's' : ''} (+1 point chacun, ${PLAFOND_TENUS} au plus)</div>` : ''))(G.ligue ? chiffreDit(k, G.ligue.calendrier, G.ligue.you, j + 1) : null)}
+    <div class="ej-jauge" role="img" aria-label="Confiance ${ROMAINS[pal] || '0'}"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
+    ${chiffre ? `<div class="ej-coach-l"><span class="ej-k">${esc(chiffre.nom)}</span> ${chiffre.moi ? `<b class="${chiffre.tient ? 'bon' : 'mal'}">${esc(chiffre.moi)}</b> contre ${esc(chiffre.ligue)} pour la ligue · ` : ''}bloc ${chiffre.enCours}/${BLOC} · ${blocs(chiffre.tenus)} tenu${chiffre.tenus > 1 ? 's' : ''}${manque ? ` · ${ROMAINS[pal + 1]} dans ${blocs(Math.ceil(manque / POINTS_PAR_BLOC))}` : ''}</div>
+    <div class="ej-coach-l detail">Un bloc tenu : ${esc(chiffre.but)}, sur dix matchs.</div>` : ''}
+    <div class="ej-coach-l">${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
     ${(C => {
       if (!C) return '';
       const en = new Set(patronsActifs(decs, j + 1).map(p => p.cle));

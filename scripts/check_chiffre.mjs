@@ -2,7 +2,10 @@
  * LE CHIFFRE À TENIR DU COACH (js/chiffre.js ; tranche 3). Ce qui se prouve, sur de vraies saisons de 82 matchs :
  *   1. un club ordinaire tient rarement le chiffre d'un coach (le hasard seul ne remplit pas les blocs) ;
  *   2. un club qui joue ce coach à la confiance III le tient bien plus souvent (le chiffre dit la philosophie) ;
- *   3. le plafond tient : au plus PLAFOND_TENUS points ;
+ *   3. un bloc tenu vaut POINTS_PAR_BLOC points, sans plafond (V20 : le seul chemin de la confiance), et ne se compte
+ *      que depuis l'entrée en poste du coach ;
+ *   5. à la confiance I, ses deux adjoints du combo en poste, le club tient son chiffre plus souvent que l'ordinaire :
+ *      la couleur se construit, la confiance monte (docs/refonte-v20.md § 1) ;
  *   4. une feuille sans les champs (partie d'avant) ne donne rien, et ne casse rien.
  *
  *   node scripts/check_chiffre.mjs     (LIGUES=4 pour le nombre de saisons par coach)
@@ -14,7 +17,9 @@ import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua 
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { matchsJoues } from '../js/profil-style.js';
 import { effetDePalier } from '../js/coachs.js';
-import { CHIFFRES, BLOC, PLAFOND_TENUS, blocsTenus, pointsTenus } from '../js/chiffre.js';
+import { CHIFFRES, BLOC, POINTS_PAR_BLOC, blocsTenus, pointsTenus } from '../js/chiffre.js';
+import { COMBOS } from '../js/personnel.js';
+import { patronALEchelon } from '../js/echelons.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -39,10 +44,10 @@ function ligue(seed) {
   }
   return out;
 }
-function jouer(seed, coach) {
+function jouer(seed, coach, palier = 3, adjoints = []) {
   const teams = ligue(seed);
   teams[0].isPlayer = true;
-  const decisions = coach ? [{ jour: 0, coach: effetDePalier(coach, 3) }] : [];
+  const decisions = [...(coach ? [{ jour: 0, coach: effetDePalier(coach, palier) }] : []), ...adjoints.map(cle => ({ jour: 0, patron: patronALEchelon(cle) }))];
   const L = creerLigue(teams, 82, { graine: `chiffre-${seed}`, courbe: true, decisions });
   jouerJusqua(L, 190);
   return { L, matchs: matchsJoues(L.calendrier), teams };
@@ -74,10 +79,25 @@ for (const cle of VOIES) {
   exiger(`${cle} à la confiance III tient son chiffre au moins 1,5 fois plus que le club ordinaire`, blocs >= 2 * LIGUES && taux >= Math.max(0.2, 1.5 * tb), `${(100 * taux).toFixed(0)} % contre ${(100 * tb).toFixed(0)} %`);
 }
 
-/* 3-4. Le plafond, et les feuilles d'avant. */
+/* 5. À la confiance I, ses deux adjoints du combo en poste : la couleur se construit. */
+for (const cle of VOIES) {
+  let blocs = 0, tenus = 0;
+  for (let s = 1; s <= LIGUES; s++) {
+    const { matchs, teams } = jouer(s, cle, 1, COMBOS[cle] ? COMBOS[cle].cles : []);
+    const r = blocsTenus(cle, matchs, teams[0]); blocs += r.blocs; tenus += r.tenus;
+  }
+  const taux = tenus / Math.max(1, blocs), tb = base[cle].tenus / Math.max(1, base[cle].blocs);
+  informer(`${cle} à la confiance I, son combo en poste : blocs tenus`, `${(100 * taux).toFixed(0)} % contre ${(100 * tb).toFixed(0)} % pour un club ordinaire`);
+}
+
+/* 3-4. Les points d'un bloc, l'entrée en poste, et les feuilles d'avant. */
 {
   const { matchs, teams } = jouer(1, 'essaim');
-  exiger('au plus PLAFOND_TENUS points', pointsTenus('essaim', matchs, teams[0]) <= PLAFOND_TENUS, `${pointsTenus('essaim', matchs, teams[0])}`);
+  const r = blocsTenus('essaim', matchs, teams[0]);
+  exiger('un bloc tenu vaut POINTS_PAR_BLOC points, sans plafond', pointsTenus('essaim', matchs, teams[0]) === POINTS_PAR_BLOC * r.tenus, `${r.tenus} blocs tenus, ${pointsTenus('essaim', matchs, teams[0])} points`);
+  const mi = matchs.filter(m => m.A === teams[0] || m.B === teams[0])[41].jour;
+  exiger('un coach entré en poste en cours de saison ne compte que ses blocs à lui', blocsTenus('essaim', matchs, teams[0], Infinity, mi).blocs === Math.floor(matchs.filter(m => (m.A === teams[0] || m.B === teams[0]) && m.jour >= mi).length / BLOC),
+    `${blocsTenus('essaim', matchs, teams[0], Infinity, mi).blocs} blocs depuis le 42e match`);
   exiger('un bloc compte BLOC matchs de ton club', blocsTenus('essaim', matchs, teams[0]).blocs === Math.floor(matchs.filter(m => m.A === teams[0] || m.B === teams[0]).length / BLOC), `${BLOC} matchs`);
   informer('le Comptable n\'a pas de chiffre', `${blocsTenus('banque', matchs, teams[0]).blocs} bloc`);
   exiger('sans feuilles, rien ne compte', pointsTenus('essaim', [], teams[0]) === 0);

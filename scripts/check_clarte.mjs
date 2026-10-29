@@ -36,7 +36,10 @@ import {
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
   POIDS_AN, POIDS_DN, PLANS, MOMENTS,
 } from '../js/sim.js';
-import { PATRONS, MATCHS_CONFIANCE } from '../js/banque.js';
+import { PATRONS } from '../js/banque.js';
+import { BLOC, POINTS_PAR_BLOC } from '../js/chiffre.js';
+/* Les blocs tenus qu'il faut, du départ (la I) à un seuil. */
+const blocsDe = p => (p - SEUILS[0]) / POINTS_PAR_BLOC;
 import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
@@ -275,8 +278,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
     [`trois cartes : ${Object.keys(SORTES_DECK).length === 3 ? 'un vrai joueur, un nouveau rôle, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
-    [`son personnel le monte à II (${SEUILS[1]} points) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
-    [`par ${MATCHS_CONFIANCE} matchs à ton service`, 'les matchs à ton service'],
+    // V20 : la confiance par le seul chiffre tenu (js/chiffre.js).
+    [`chaque bloc de ${BLOC === 10 ? 'dix' : BLOC} matchs où son chiffre est tenu vaut ${POINTS_PAR_BLOC} point${POINTS_PAR_BLOC > 1 ? 's' : ''} : II à ${SEUILS[1]} (${blocsDe(SEUILS[1])} blocs), III à ${SEUILS[2]} (${blocsDe(SEUILS[2])} blocs)`, 'les seuils de la confiance'],
     // V14 : les échelons du personnel (js/echelons.js) — les matchs à ton service, ce que vaut chaque choix.
     [`(le 2e à ${MATCHS_ECHELON[2]} matchs, le 3e à ${MATCHS_ECHELON[3]}), deux fois plus vite à la couleur de ton coach ; monter coûte ${PRIX_ECHELON.slice(2, -1).join(', ')} puis ${PRIX_ECHELON[3]} jetons. À chaque échelon, tu choisis : sa force grandit de ${nombre(POUSSEE * 100)} %, ou son défaut fond de ${nombre((1 - CORRECTION) * 100)} %.`, 'les échelons du personnel'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.

@@ -3656,6 +3656,8 @@ a.spin-club:hover { background: var(--fond-2); }
 /* Ce que le prochain palier jouera (V12-4) : un détail, que « Les chiffres » déplie, comme les chiffres d'un choix. */
 .af-onglet:not(.chiffres) .ej-coach-l.detail { display: none; }
 .ej-coach-l .ej-k { font-size: var(--t-1); color: var(--encre-3); }
+.ej-coach-l .bon { color: var(--bon); }
+.ej-coach-l .mal { color: var(--mauvais); }
 .plan-match { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .pm-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .pm-tete span { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); text-transform: none; letter-spacing: 0; text-align: right; }

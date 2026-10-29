@@ -58,13 +58,13 @@ Trois sujets, une règle chacun, et une seule règle qui les relie.
 
 > **Le coach : un chiffre.** Tu choisis ton coach parmi trois ; il a UN chiffre, une vraie stat de match (les tirs du Frelon, les tirs contre de la Tortue…). Tiens-le, et sa confiance monte. C'est tout.
 >
-> **Le banc : cinq chaises, trois fenêtres.** Cinq adjoints, une ligne verte et une ligne rouge chacun. Le banc se refait à trois dates de la saison — le camp, la mi-saison, la date limite —, d'un seul coup, sur un seul écran. Entre deux fenêtres, le banc ne demande rien.
+> **Le banc : cinq chaises, toujours ouvert.** Cinq adjoints, une ligne verte et une ligne rouge chacun. Plus de contrat : un adjoint reste tant que tu ne le remplaces pas. Engager est gratuit au camp, payant en saison ; le banc ne demande jamais rien de lui-même.
 >
 > **Les histoires : un joueur, deux options, un verdict.** Une seule table. Une histoire sort un soir qu'on ne prévoit pas, si son fait est vrai ; elle nomme un joueur de ton effectif ; tu choisis entre la sûre et l'audacieuse (un dé qu'on voit) ; son verdict arrive à la fin de sa fenêtre, en vrais chiffres de ses feuilles.
 >
 > **Le lien : la couleur de ton coach vaut un cran de plus.** Un adjoint de sa couleur joue un échelon plus haut ; une option d'histoire de sa couleur joue un cran plus fort. Partout la même règle, affichée sur la carte et sur l'option. Et comme ses adjoints et ses options poussent SA stat, ils font monter sa confiance sans compteur de plus.
 
-Une saison demande alors une trentaine de décisions au lieu de 70 à 85 : une douzaine d'histoires, trois fenêtres du banc, deux mandats du proprio, les blessures, les gros matchs.
+Une saison demande alors une trentaine de décisions au lieu de 70 à 85 : une douzaine d'histoires, deux mandats du proprio, les blessures, les gros matchs.
 
 ## 1. Le coach : un chiffre
 
@@ -79,9 +79,9 @@ Une saison demande alors une trentaine de décisions au lieu de 70 à 85 : une d
 
 **Pourquoi c'est plus fun.** La confiance devient un objectif qu'on poursuit match après match, comme la quête d'un personnage : un chiffre, une jauge, un palier qui s'allume. Le build (les joueurs, les adjoints, les options de sa couleur) est la façon de le tenir, pas un compteur parallèle.
 
-**À calibrer, pas à deviner.** `BLOCS_CONFIANCE` se règle pour que la II et la III arrivent au même match qu'aujourd'hui, en médiane, chez le robot attentif (`jouerRun` le note déjà : `confiance[palier]`), puis `check_profondeur` (la première Coupe à la run 3 ou plus tard). Point de départ : `[0, 0, 2, 6]`. Chaque `seuil` de `CHIFFRES` doit être tenable à la I avec deux adjoints de sa couleur, et pas sans eux sur un club neutre (`check_chiffre`, les huit coachs, plus six sur huit).
+**À calibrer, pas à deviner.** `BLOCS_CONFIANCE` se règle pour que la II et la III arrivent au même match qu'aujourd'hui, en médiane, chez le robot attentif (`jouerRun` le note déjà : `confiance[palier]`), puis `check_profondeur` (la première Coupe à la run 3 ou plus tard). Mesuré (tranche 1) : un point par bloc tenu (`POINTS_PAR_BLOC`), `SEUILS` inchangés — la II à 4 blocs, la III à 12 ; chez le robot attentif, la II au 50e match en médiane (37 avant), la III en deuxième saison de run (presque jamais avant), la première Coupe à la run 2 ou 4 comme avant. À deux points par bloc, la III venait dès la première saison et la Coupe dès la première run. Chaque `seuil` de `CHIFFRES` doit être tenable à la I avec deux adjoints de sa couleur, et pas sans eux sur un club neutre (`check_chiffre`, les huit coachs, plus six sur huit).
 
-## 2. Le banc : cinq chaises, trois fenêtres
+## 2. Le banc : cinq chaises, toujours ouvert
 
 **Les cinq chaises** (V19, inchangées) : l'adjoint en chef, l'attaque, la défense et les gardiens, le physique et les soins, le dépistage. La sixième, `direction`, part, et l'argent quitte le banc :
 - les cinq cartes d'argent, où qu'elles soient rangées aujourd'hui (le gestionnaire de la caisse, le négociateur, le fiscaliste, le gérant de la boutique, le chasseur d'aubaines) deviennent **les ententes du proprio** : une à la fois, offerte au verdict du mandat, rangée chez le proprio avec l'argent (la règle d'une maison par sujet, et la décision du 27 oct. : *l'économie du club ne touche jamais le match*) ;
@@ -89,14 +89,13 @@ Une saison demande alors une trentaine de décisions au lieu de 70 à 85 : une d
 
 **Un adjoint, une carte qui se lit d'un coup d'œil** : son nom de style, sa couleur, UNE ligne verte, UNE ligne rouge, en vraies stats (« +3 tirs par match · −1 pt de précision »), son échelon, et, s'il en a un, son protégé nommé. Rien d'autre sur le recto.
 
-**Les trois fenêtres du banc.** Le banc se règle à trois dates, d'un seul écran : **le camp** (jour 0), **la mi-saison** (28e match), **la date limite** (`DATE_LIMITE_MATCH`, 62e match). À chaque fenêtre :
-1. les contrats finissent tous ensemble : garde (en jetons, `PRIX_PROLONGATION` par rareté) ou laisse partir, chaise par chaise ;
-2. trois adjoints sont offerts, dont un de la couleur du coach (`adjointsDeCouleur`, déjà là) — ils remplacent les paliers des 9e, 18e et 26e matchs ;
-3. les échelons s'achètent.
+**Le banc ouvert** (tranché par JP, 29 oct. : *au lieu de trois fenêtres, possibilité en tout temps de remplacer, mais prix pour embauche sauf début de saison*). Plus de contrat, plus de fenêtre : un adjoint reste à sa chaise tant que tu ne le remplaces pas. Tu peux changer ton banc **n'importe quand**, depuis la maison du coach :
+1. **au camp** (avant le premier match de la saison), engager est gratuit — on bâtit son banc pour sa stratégie ;
+2. **en saison**, engager coûte des jetons (`PRIX_EMBAUCHE` par rareté), et l'adjoint remplacé part ; changer de stratégie en cours de route se paie, mais reste possible à tout moment.
 
-Entre deux fenêtres, le banc ne demande rien : un adjoint tiré d'un pack prend une chaise vide tout de suite, ou attend la fenêtre. Partent : `CONTRAT_JOURS` (un contrat dure jusqu'à la prochaine fenêtre ; celui de la date limite couvre les séries), les avis « à six matchs de la fin » d'Hier soir, les dix prolongations éparses.
+Les adjoints arrivent comme aujourd'hui (les packs, les paliers des 9e, 18e et 26e matchs, le butin d'un gros match, le verdict du proprio) et attendent à ta collection ; les engager est un geste du joueur, jamais une interruption. Partent : `CONTRAT_JOURS`, `PRIX_PROLONGATION`, la prolongation, les avis « à six matchs de la fin » d'Hier soir.
 
-**Les échelons : des jetons et un choix, sans attente.** Trois échelons, achetés en jetons (`PRIX_ECHELON`) à une fenêtre ; à chacun, pousser sa force ou corriger son défaut (le choix reste : c'est le seul de l'adjoint, et il est bon). Partent : les matchs à ton service (`MATCHS_ECHELON`), le service doublé à la couleur, les échelons fermés sans doublon. **Un doublon tiré d'un pack** donne un échelon gratuit, tout de suite.
+**Les échelons : des jetons et un choix, sans attente.** Trois échelons, achetés en jetons (`PRIX_ECHELON`) quand tu veux ; à chacun, pousser sa force ou corriger son défaut (le choix reste : c'est le seul de l'adjoint, et il est bon). Partent : les matchs à ton service (`MATCHS_ECHELON`), le service doublé à la couleur, les échelons fermés sans doublon. **Un doublon tiré d'un pack** donne un échelon gratuit, tout de suite.
 
 **La couleur du coach : un cran de plus, jamais un de moins.** Un adjoint de la couleur de ton coach joue un échelon plus haut que le sien (un échelon 3 joue une poussée de plus) ; un adjoint d'une autre couleur joue son échelon, ni plus ni moins. Part : `MAL_ASSORTI`, la pénalité cachée. La carte le dit : « 🐝 Avec le Frelon : échelon 2 ».
 
@@ -104,7 +103,7 @@ Entre deux fenêtres, le banc ne demande rien : un adjoint tiré d'un pack prend
 
 **Ce qui ne bouge pas** : la borne d'un adjoint (le style, pas la force, au premier échelon : `check_places`), son effet chaque match, ses protégés, sa carte au format de hockey.
 
-**Pourquoi c'est plus fun.** Trois rendez-vous où l'on rebâtit son banc, comme la date limite d'un vrai DG : on y arrive avec ses jetons, on lit ce qui marche, on change de stratégie (ce que JP voulait des contrats courts, le 28 oct.), sans recevoir dix avis à dix dates.
+**Pourquoi c'est plus fun.** Le camp, c'est le moment où l'on bâtit son banc pour son coach, gratuitement ; ensuite, chaque changement de stratégie est une vraie décision, qui coûte, mais qu'on prend quand on veut (ce que JP voulait des contrats courts, le 28 oct.), sans recevoir dix avis à dix dates.
 
 ## 3. Les histoires : un joueur, deux options, un verdict
 
@@ -139,9 +138,8 @@ Entre deux fenêtres, le banc ne demande rien : un adjoint tiré d'un pack prend
 | Règle d'aujourd'hui | V20 |
 |---|---|
 | La confiance se compte par quatre chemins (adjoints, échelons, matchs, chiffre) | Un chemin : les blocs où son chiffre est tenu (`BLOCS_CONFIANCE`) |
-| Un échelon devient possible en matchs à ton service, deux fois plus vite à la couleur | Un échelon s'achète à une fenêtre ; la couleur du coach joue un échelon plus haut |
-| Le contrat d'un adjoint : 46, 62, 78 jours, la prolongation en jetons | Un contrat dure jusqu'à la prochaine fenêtre du banc (camp, 28e, 62e) ; on le garde en jetons à la fenêtre |
-| Les paliers des 9e, 18e et 26e matchs offrent un adjoint parmi trois | Les trois fenêtres du banc en offrent trois |
+| Un échelon devient possible en matchs à ton service, deux fois plus vite à la couleur | Un échelon s'achète en jetons, quand on veut ; la couleur du coach joue un échelon plus haut |
+| Le contrat d'un adjoint : 46, 62, 78 jours, la prolongation en jetons | Plus de contrat : un adjoint reste tant qu'on ne le remplace pas ; engager est gratuit au camp, payant en saison (`PRIX_EMBAUCHE`) |
 | Un dilemme / un dossier / une route / un courriel… | Une histoire : un fait vrai, un joueur, deux options (la sûre, l'audacieuse), un verdict |
 | Le personnel est la seule carte bonus ; la direction en est | Le banc est la seule carte de match ; l'argent va aux ententes du proprio |
 
@@ -153,19 +151,21 @@ Chacune se fusionne seule, au vert, et laisse le jeu jouable.
 
 | Tranche | Ce qu'elle fait | Le juge |
 |---|---|---|
-| **1. Le coach, un chiffre** | `BLOCS_CONFIANCE` ; `buildDe` ne compte plus que les blocs tenus ; la jauge d'une ligne au coach et au Bureau ; le Comptable neutre ; `recrute` part | `check_chiffre` (huit sur huit), `check_coachs`, `check_profondeur`, `check_rogue`, `essai_rogue` |
+| **1. Le coach, un chiffre** (faite) | `POINTS_PAR_BLOC` ; `buildDe` ne compte plus que la base et les blocs tenus depuis l'entrée en poste ; le report d'une saison garde ses blocs ; le chiffre en une ligne chez le coach (ta stat du bloc contre la ligue) | `check_chiffre` (huit sur huit), `check_coachs`, `check_profondeur`, `check_rogue`, `essai_rogue` |
 | **2. La couleur, un cran** | `MAL_ASSORTI` part ; un adjoint de la couleur joue un échelon plus haut ; la carte le dit ; le combo « 1 sur 2 » | `check_places`, `check_personnel`, `check_combos`, `check_voies` |
-| **3. Les fenêtres du banc** | camp, 28e, 62e ; contrats jusqu'à la prochaine ; trois offres ; échelons en jetons sans service ; doublon = un échelon ; la direction part (ententes du proprio) | `check_contrats` (récrit), `check_personnel`, `check_packs`, `check_dossiers`, `essai_rogue` |
+| **3. Le banc ouvert** | le Comptable neutre ; `recrute` part ; plus de contrat ; engager gratuit au camp, payant en saison ; échelons en jetons sans service ; doublon = un échelon ; la direction part (ententes du proprio) | `check_contrats` (récrit), `check_personnel`, `check_packs`, `check_dossiers`, `essai_rogue` |
 | **4. Les histoires** | js/histoires.js ; le tirage du soir ; le joueur ; la sûre et l'audacieuse ; le verdict ; les dix sources partent | `check_histoires` (neuf : chaque histoire a un fait vrai, un joueur, deux options ; ses effets dans `CANAUX_MUT` ; une douzaine par saison sur douze graines ; la même graine, les mêmes soirs), `check_effets`, `check_mots`, `check_verdicts`, `check_suivis`, `check_graine` |
-| **5. L'écran et les règles** | À faire : l'histoire en cours, la fenêtre du banc, la blessure, le gros match, le pack ; la page des règles récrite ; CLAUDE.md et `docs/decisions.md` | `essai_rogue`, `check_clarte`, `check_lexique`, `check_mort` |
-| **6. Les anciennes parties** | les clés `do:`, `n:`, `vie:`, `m:`, `fil:` se relisent pour les décisions prises ; rien de neuf n'est tiré pour elles ; un contrat en jours devient « jusqu'à la prochaine fenêtre » | `check_sauvegardes` |
+| **5. L'écran et les règles** | À faire : l'histoire en cours, la blessure, le gros match, le pack ; la page des règles récrite ; CLAUDE.md et `docs/decisions.md` | `essai_rogue`, `check_clarte`, `check_lexique`, `check_mort` |
+| **6. Les anciennes parties** | les clés `do:`, `n:`, `vie:`, `m:`, `fil:` se relisent pour les décisions prises ; rien de neuf n'est tiré pour elles ; un contrat en jours s'ignore : l'adjoint reste | `check_sauvegardes` |
 
 L'ordre compte : 1 et 2 sont petites, rendent le lien visible tout de suite, et ne touchent pas aux sauvegardes ; 3 et 4 sont les grosses ; 5 et 6 ferment.
 
-## À trancher (JP)
+## Tranché (JP, 29 oct.)
 
-1. **Les contrats en jours partent au profit des trois fenêtres ?** Tu les as demandés hier (*matchs max avant de devoir payer pour étendre*) ; les fenêtres gardent l'idée (payer pour garder, changer de stratégie), mais à trois dates communes au lieu d'une date par chaise.
-2. **Les routes de la semaine partent ?** Leurs cartes sont presque toutes en double ailleurs ; c'est treize décisions de moins par saison.
-3. **La confiance ne vient que du chiffre ?** Le plus clair ; le risque, un coach dont le chiffre se tient mal à la I — d'où la règle de calibrage (tenable avec deux adjoints de sa couleur).
-4. **La couleur : un cran de plus au lieu d'une pénalité cachée ?**
-5. **On part par la tranche 1 ?**
+*Oui à tout, mais au lieu de trois fenêtres, possibilité en tout temps de remplacer, mais prix pour embauche sauf début de saison.*
+
+1. Les contrats en jours partent ; **pas de fenêtres** : le banc est ouvert en tout temps, l'embauche est gratuite au camp et payante en saison (§ 2).
+2. Les routes de la semaine partent.
+3. La confiance ne vient que du chiffre tenu.
+4. La couleur du coach vaut un cran de plus ; `MAL_ASSORTI` part.
+5. On part par la tranche 1.

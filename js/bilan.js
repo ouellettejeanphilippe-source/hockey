@@ -1370,7 +1370,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       const r = b.rang || { g: 0, a: [] };
       if (b.type === 'blessure') {
         return `<div class="som-but som-pun som-bless">
-          <span class="som-tps">${tempsRestant(b.instant)}</span>
+          <span class="som-tps">${tempsRestant(b.instant, f.otLongue)}</span>
           <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
           <span class="som-qui">🚑 Blessure${b.joueur ? ` : ${lien(b.joueur)}` : ''}, ${esc(motDeBlessure(b.genre))} · absent ${b.matchs} match${b.matchs > 1 ? 's' : ''}</span>
         </div>`;
@@ -1382,14 +1382,14 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
           : b.type === 'bagarre' ? `Bagarre ${lienJoueur(b.joueur, A, mode, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${lienJoueur(b.cible, B, mode, `<strong>${formatName(b.cible.n)}</strong>`)}${b.gagnant ? ` · ${esc(teamShort(b.gagnant === 'A' ? A : B))} l'emporte` : ' · match nul'} · ${b.minutes} min chacun`
           : `Mêlée ${lienJoueur(b.joueur, A, mode, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${lienJoueur(b.cible, B, mode, `<strong>${formatName(b.cible.n)}</strong>`)} · ${b.minutes} min chacun`;
         return `<div class="som-but som-pun som-${b.type}${b.type === 'bagarre' && b.gagnant ? ` som-gagne-${b.gagnant.toLowerCase()}` : ''}">
-          <span class="som-tps">${tempsRestant(b.instant)}</span>
+          <span class="som-tps">${tempsRestant(b.instant, f.otLongue)}</span>
           <span class="som-eq">${b.type === 'coup' ? getTeamLogoHtml(t.tag, 13) : `${getTeamLogoHtml(A.tag, 13)}${getTeamLogoHtml(B.tag, 13)}`}</span>
           <span class="som-qui">${texte}</span>
         </div>`;
       }
       if (b.type === 'punition') {
         return `<div class="som-but som-pun">
-          <span class="som-tps">${tempsRestant(b.instant)}</span>
+          <span class="som-tps">${tempsRestant(b.instant, f.otLongue)}</span>
           <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
           <span class="som-qui">Punition${b.joueur ? ` à ${lien(b.joueur)}` : ''} · ${b.minutes} min${b.butAN ? ' · écourtée par le but' : ''}</span>
         </div>`;
@@ -1399,7 +1399,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
         : '<span class="som-aides sans">sans aide</span>';
       const situation = b.an ? '<span class="som-sit an">AN</span>' : b.dn ? '<span class="som-sit dn">DN</span>' : '';
       return `<div class="som-but but-eq" style="${varsEquipe(getTeamBand(t.tag))}">
-        <span class="som-tps">${tempsRestant(b.instant)}</span>
+        <span class="som-tps">${tempsRestant(b.instant, f.otLongue)}</span>
         <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
         <span class="som-qui"><span class="rond-visage som-visage" aria-hidden="true">${headshotHtml(b.marqueur)}</span>${situation}${lien(b.marqueur)} <span class="som-xe">(${ord(r.g)})</span> ${aides}</span>
         <span class="som-recit">${esc(recitUnique(b))}</span>
