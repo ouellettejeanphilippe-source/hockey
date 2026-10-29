@@ -130,4 +130,31 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
   exiger('elle se rejoue au but près', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);
 }
 
+/*
+ * UNE PARTIE D'AVANT LA V20 (docs/refonte-v20.md) : le Comptable en poste, un adjoint de la direction (partie), une
+ * entente d'alors au dépistage. Elle se relit : un coach inconnu n'est plus en poste, chaque adjoint garde le poste écrit
+ * dans sa décision, et la saison se rejoue au but près.
+ */
+{
+  const { patronsActifs, coachsActifs, buildDe } = await import('../js/banque.js');
+  const { patronALEchelon } = await import('../js/echelons.js');
+  const { autoRoster, registerHiddenRatings, createTeam, simulateLeague } = await import('../js/sim.js');
+  const { TEMOINS, equipeReelle } = await import('./lib/vestiaires.mjs');
+  const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(ps), { season: sa }); };
+  const vieille = [
+    { jour: 0, equipe: 0, coach: { cle: 'banque', palier: 1, nom: 'Le Comptable I', ico: '🏦', econ: { rabais: 0.92 } } },
+    { jour: 0, equipe: 0, patron: { ...patronALEchelon('per_ancienArbitre', { choix: [], depuis: 0 }), role: 'direction' } },
+    { jour: 0, equipe: 0, patron: { ...patronALEchelon('per_negociateur', { choix: [], depuis: 0 }), role: 'depistage' } },
+  ];
+  const actifs = patronsActifs(vieille, 20);
+  exiger('une partie d\'avant la V20 : le Comptable n\'est plus en poste, ses adjoints gardent leur poste d\'alors',
+    coachsActifs(vieille).length === 0 && actifs.length === 2 && actifs.some(x => x.role === 'direction') && actifs.some(x => x.role === 'depistage'), actifs.map(x => x.role).join(', '));
+  let build = null;
+  try { build = buildDe(vieille); } catch { build = null; }
+  exiger('sa confiance se recompte sans coach', !!build);
+  const fiche = decisions => { const t = TEMOINS.map(club); simulateLeague(t, 82, { graine: 'reprise-v20', decisions: decisions.map(d => ({ ...d })) }); return t.map(x => `${x.W}-${x.L}-${x.OTL} ${x.GF}-${x.GA}`).join(' '); };
+  const a = fiche(vieille), b = fiche(vieille);
+  exiger('elle se rejoue au but près', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);
+}
+
 verdict('Le fichier transférable');
