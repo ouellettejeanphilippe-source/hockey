@@ -27,8 +27,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs, activeLineup, coachDuJoueur, FAMILLES } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
-import { BANQUE, PATRONS, ORDRE_CATEGORIES, buildDe, baseDesCoachs, MATCHS_CONFIANCE, palierAllume, coachsActifs, coachNeuf, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
+import { BANQUE, PATRONS, ORDRE_CATEGORIES, buildDe, baseDesCoachs, palierAllume, coachsActifs, coachNeuf, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
 import { patronALEchelon } from '../js/echelons.js';
+import { POINTS_PAR_BLOC } from '../js/chiffre.js';
 import { cartesDuPalier, PALIERS_PACK, DE_SA_COULEUR } from '../js/inventaire.js';
 import { COACHS, ORDRE_COACHS, VOIES, SEUILS, effetDePalier, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
@@ -93,60 +94,50 @@ exiger('le coach d\'une carte se lit sur ce qu\'elle fait', !faux.length, faux.j
 exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.some(x => x.cat === c && x.coach)), ORDRE_CATEGORIES.join(' · '));
 
 /*
- * 2. LA CONFIANCE PAR TROIS CHEMINS (V16, docs/refonte-v16.md § 4) : la base (le départ, le report, un coach neuf),
- * puis, par adjoint de sa couleur en poste, 1 point et 1 par échelon, et 1 par tranche de `MATCHS_CONFIANCE` matchs à
- * ton service (doublés à la couleur du coach en poste). Les cartes jouées ne comptent plus.
+ * 2. LA CONFIANCE PAR UN SEUL CHEMIN (V20, docs/refonte-v20.md § 1) : la base (le départ, le report, un coach neuf, le
+ * stage), puis `POINTS_PAR_BLOC` par bloc de dix matchs où le chiffre du coach en poste est tenu, depuis son entrée en
+ * poste. Les adjoints en poste, leurs échelons, leurs matchs à ton service et les cartes jouées ne comptent plus.
+ * `tenusTous(n)` : un faux compte de blocs, un bloc tenu tous les dix jours depuis l'entrée en poste.
  */
 const unParPoste = k => { const vus = new Set(); return idsDuCoach(k).filter(id => BANQUE[id].cat === 'patron' && !vus.has(PATRONS[BANQUE[id].cle].role) && vus.add(PATRONS[BANQUE[id].cle].role)); };
-// Prolongé à chaque fenêtre (V19, `CONTRAT_JOURS`) : la confiance se mesure sur une saison, le contrat la couvre.
-const engager = (id, jour) => { const d = payloadDe(id, { patrons: [] }); return { jour, ...d, patron: { ...d.patron, prolonge: 4 } }; };
+const engager = (id, jour) => ({ jour, ...payloadDe(id, { patrons: [] }) });
 const monter = (id, jour, n) => ({ jour, patron: patronALEchelon(BANQUE[id].cle, { choix: Array(n).fill('force'), depuis: 1 }) });
-/* Une journée dans les contrats (V19, `CONTRAT_JOURS`) : les adjoints engagés tôt y sont encore en poste. */
 const J = 60;
-const jusquA = n => (de, a) => Math.max(0, Math.min(a, n) - de);
+const tenusTous = (cle, jusqua, depuis = 0) => POINTS_PAR_BLOC * Math.max(0, Math.floor((Math.min(jusqua, 200) - depuis) / 10));
 {
   const base = [{ jour: 0, coachsDeBase: { tortue: SEUILS[0] }, coach: effetDePalier('tortue', 1) }];
   const T = unParPoste('tortue');
-  exiger('la base : le coach du départ à la confiance I, sans personnel', buildDe(base, J).tortue === SEUILS[0], `${buildDe(base, J).tortue} points`);
-  const un = [...base, engager(T[0], 1)];
-  exiger('un adjoint de sa couleur en poste : 1 point ; à son 3e échelon, 3', buildDe(un, J).tortue === SEUILS[0] + 1 && buildDe([...base, monter(T[0], 1, 2)], J).tortue === SEUILS[0] + 3, PATRONS[BANQUE[T[0]].cle].nom);
-  const demi = MATCHS_CONFIANCE / 2;
-  exiger(`ses matchs à ton service : 1 point par ${MATCHS_CONFIANCE}, doublés à la couleur du coach`, buildDe(un, J, { joues: jusquA(1 + demi) }).tortue === SEUILS[0] + 2
-    && buildDe(un, J, { joues: jusquA(demi) }).tortue === SEUILS[0] + 1, `${demi} matchs joués : +1`);
-  exiger('les cartes jouées ne comptent plus', buildDe([...base, { jour: 1, joue: { src: 'partie', id: 'joueur:pinceau', ref: 'x' } }], J).tortue === SEUILS[0]);
-  exiger('une journée à venir ne compte pas encore', buildDe([...base, engager(T[0], 10)], 5).tortue === SEUILS[0]);
-  // Le personnel de la Tortue, engagé puis monté échelon après échelon : la confiance s'allume à ses seuils, une fois chacun.
-  const pas = [...T.map((id, i) => engager(id, 1 + i)), ...[1, 2, 3, 4].flatMap(n => T.map((id, i) => monter(id, 10 * n + i, n)))];
+  exiger('la base : le coach du départ à la confiance I', buildDe(base, J).tortue === SEUILS[0], `${buildDe(base, J).tortue} points`);
+  const plein = [...base, ...T.map((id, i) => engager(id, 1 + i)), ...T.map((id, i) => monter(id, 10 + i, 2))];
+  exiger('ses adjoints, leurs échelons et les cartes jouées ne comptent plus', buildDe(plein, J).tortue === SEUILS[0]
+    && buildDe([...base, { jour: 1, joue: { src: 'partie', id: 'joueur:pinceau', ref: 'x' } }], J).tortue === SEUILS[0], `${T.length} adjoints de sa couleur`);
+  exiger(`un bloc tenu vaut ${POINTS_PAR_BLOC} points`, buildDe(base, 21, { tenus: tenusTous }).tortue === SEUILS[0] + 2 * POINTS_PAR_BLOC, `${buildDe(base, 21, { tenus: tenusTous }).tortue} points au jour 20`);
+  // Jour après jour, la confiance s'allume à ses seuils, une fois chacune : la II à deux blocs, la III à six.
   const decs = [...base], allumes = [];
-  for (const d of pas) { const a = palierAllume(decs, d); if (a) allumes.push(`${buildDe([...decs, d], d.jour + 1).tortue}:${a.coach.palier}`); decs.push({ ...d, ...(a || {}) }); }
-  exiger(`ses adjoints allument II à ${SEUILS[1]} points et III à ${SEUILS[2]}, une fois chacune`, allumes.join(' ') === `${SEUILS[1]}:2 ${SEUILS[2]}:3`, allumes.join(' ') || 'rien');
+  for (let j = 1; j <= 160; j++) { const a = palierAllume(decs, { jour: j }, { tenus: tenusTous }); if (a) { allumes.push(`${j}:${a.coach.palier}`); decs.push({ jour: j, ...a }); } }
+  const bII = (SEUILS[1] - SEUILS[0]) / POINTS_PAR_BLOC, bIII = (SEUILS[2] - SEUILS[0]) / POINTS_PAR_BLOC;
+  exiger(`la II s'allume au matin du ${bII}e bloc tenu, la III au ${bIII}e, une fois chacune`, allumes.join(' ') === `${10 * bII - 1}:2 ${10 * bIII - 1}:3`, allumes.join(' ') || 'rien');
   exiger('les confiances actives gardent la plus haute', coachsActifs(decs).length === 1 && coachsActifs(decs)[0].palier === 3);
-  // Ses matchs à ton service montent seuls : la décision qui suit, quelle qu'elle soit, allume la confiance atteinte.
-  const manque = SEUILS[1] - buildDe(un, J).tortue, jours = 1 + manque * MATCHS_CONFIANCE / 2;
-  const ii = palierAllume(un, { jour: jours }, { joues: jusquA(jours) });
-  exiger(`les matchs à ton service allument la II, à la décision qui suit`, !palierAllume(un, { jour: jours - 1 }, { joues: jusquA(jours - 1) }) && !!ii && ii.coach.palier === 2, `${jours - 1} matchs à ton service`);
+  exiger('une journée à venir ne compte pas encore', !palierAllume(base, { jour: 10 * bII - 2 }, { tenus: tenusTous }));
 }
 
 /*
- * 2a. UN SEUL COACH EN POSTE (V5, JP : *juste un coach peut être actif à la fois* ; *choisi au début de la saison,
- * ou changé avec une carte qui enlève l'autre bonus*). Les adjoints d'une autre couleur ne montent personne ;
- * le congédiement (V16 : un dossier du proprio, `laTete` — la décision `coachNeuf`) installe un autre coach à la
- * confiance I, sa base repart, et l'ancien quitte le moteur.
+ * 2a. UN SEUL COACH EN POSTE (V5). Les adjoints d'une autre couleur ne montent personne ; le congédiement (un dossier
+ * du proprio, `laTete` — la décision `coachNeuf`) installe un autre coach à la confiance I, sa base repart, et ses
+ * blocs ne se comptent que depuis son entrée en poste.
  */
 {
   const depart = [{ jour: 0, coachsDeBase: { tortue: SEUILS[0] }, coach: effetDePalier('tortue', 1) }];
   const A = unParPoste('rapaces');
   const decs = [];
-  for (const d of [...A.map((id, i) => engager(id, 1 + i)), ...A.map((id, i) => monter(id, 12 + i, 4))]) { const a = palierAllume([...depart, ...decs], d); decs.push({ ...d, ...(a || {}) }); }
+  for (const d of [...A.map((id, i) => engager(id, 1 + i)), ...A.map((id, i) => monter(id, 12 + i, 2))]) { const a = palierAllume([...depart, ...decs], d); decs.push({ ...d, ...(a || {}) }); }
   exiger('les adjoints d\'une autre couleur ne changent pas de coach', !decs.some(d => d.coach) && coachsActifs([...depart, ...decs]).map(c => c.cle).join() === 'tortue', coachsActifs([...depart, ...decs]).map(c => `${c.cle} ${c.palier}`).join());
   const cg = coachNeuf('rapaces');
   const apres = [...depart, ...decs, { jour: 20, palier: 'do:3', moment: { famille: 'dossier', cle: 'laTete', choix: 'premier' }, ...cg }];
   const actifs = coachsActifs(apres);
   exiger('le congédiement installe un autre coach à la confiance I, seul', actifs.length === 1 && actifs[0].cle === 'rapaces' && actifs[0].palier === 1 && cg.coachNeuf === true, actifs.map(c => `${c.cle} ${c.palier}`).join());
-  exiger('sa base repart à la confiance I ; ses adjoints en poste, eux, comptent', baseDesCoachs(apres).rapaces === SEUILS[0] && buildDe(apres, 21).rapaces === SEUILS[0] + 5 * A.length,
-    `base ${baseDesCoachs(apres).rapaces} · ${buildDe(apres, 21).rapaces} points`);
-  const ii = palierAllume(apres, engager(A[0], 21));
-  exiger('sa prochaine décision de personnel le monte à son palier', !!ii && ii.coach.cle === 'rapaces' && ii.coach.palier >= 2, ii ? `${ii.coach.cle} ${ii.coach.palier}` : 'rien');
+  exiger('sa base repart à la confiance I ; ses blocs se comptent depuis son entrée en poste', baseDesCoachs(apres).rapaces === SEUILS[0] && buildDe(apres, 41, { tenus: tenusTous }).rapaces === SEUILS[0] + 2 * POINTS_PAR_BLOC,
+    `base ${baseDesCoachs(apres).rapaces} · ${buildDe(apres, 41, { tenus: tenusTous }).rapaces} points au jour 40`);
   // LE STAGE DU COACH (V16, tranche 6) : la carte rare donne au coach en poste les points qui manquent à son cran suivant.
   const st = payloadDe('consommable:stage', { coach: 'rapaces', points: 3 });
   const avecStage = [...apres, { jour: 22, joue: { src: 'meta', id: 'consommable:stage' }, ...st }];

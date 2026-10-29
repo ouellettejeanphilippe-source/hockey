@@ -8,7 +8,7 @@
 import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, assortiPour, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
-import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, etiquetteBanque, buildDe, baseDesCoachs, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
+import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
 import { PROTEGES } from './personnel.js';
 import { hubActif } from './coquille.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
@@ -732,7 +732,7 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (C.cible === 'coach') {
       // LE STAGE DU COACH (V16, tranche 6) : le coach en poste reçoit les points qui lui manquent pour son cran suivant.
       const [actif] = coachsActifs(decs, j + 1);
-      const n = actif ? buildDe(decs, j + 1, { joues: (de, a) => matchsJoues(Lg.calendrier, Lg.you, de, a), tenus: tenusDe(Lg.calendrier, Lg.you) })[actif.cle] : 0;
+      const n = actif ? buildDe(decs, j + 1, { tenus: tenusDe(Lg.calendrier, Lg.you) })[actif.cle] : 0;
       const seuil = actif ? SEUILS.find(x => x > n) : null;
       if (!actif || seuil == null) { toast(actif ? 'Ton coach est déjà à sa confiance III.' : 'Aucun coach en poste.', 'bad'); retour(); return; }
       ecrire(payloadDe(item.id, { coach: actif.cle, points: seuil - n }));
@@ -1921,9 +1921,9 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   modsAuCartable();
   const report = reportDesCartes(roster);
   for (const p of gardes) G.variantes.cartes[getPlayerKey(p)] = meilleureVariante(lireCartable().joueurs[getPlayerKey(p)]) || G.variantes.cartes[getPlayerKey(p)];
-  // v2 : les COACHS continuent — le compte de la fin de saison, et la confiance qu'il avait allumée.
+  // v2 : les COACHS continuent — le compte de la fin de saison (V20 : ses blocs tenus compris), et la confiance qu'il avait allumée.
   const decsSaison = decisionsDeLaPartie();
-  const compte = baseDesCoachs(decsSaison);
+  const compte = buildDe(decsSaison, Infinity, { tenus: tenusDe(L.calendrier, L.you) });
   report.push({ jour: 0, coachsDeBase: Object.fromEntries(Object.entries(compte).filter(([, n]) => n > 0)), report: true });
   const [enPoste] = coachsActifs(decsSaison);
   if (enPoste && (!coachSaison || coachSaison === enPoste.cle)) { const { jour: _j, ...coach } = enPoste; void _j; report.push({ jour: 0, coach, report: true }); }

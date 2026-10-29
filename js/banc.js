@@ -9,7 +9,6 @@ import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { BANQUE, palierAllume, payloadDe } from './banque.js';
-import { matchsJoues } from './echelons.js';
 import { tenusDe } from './chiffre.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
@@ -249,8 +248,8 @@ function ajouterDecision(avant, d) {
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
   // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
-  // V16 : chaque décision recompte la confiance, matchs à ton service compris — ils montent seuls, entre deux engagements.
-  const allume = !d.coach && G.ligue ? palierAllume(avant, d, { joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a), tenus: tenusDe(G.ligue.calendrier, G.ligue.you) }) : null;
+  // V20 : chaque décision recompte la confiance, les blocs tenus compris — ils montent seuls, match après match.
+  const allume = !d.coach && G.ligue ? palierAllume(avant, d, { tenus: tenusDe(G.ligue.calendrier, G.ligue.you) }) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   // V9 : ni la carte prise à un palier (`place` : V16, un adjoint, qui rejoint ton personnel), ni « Attendre » le physio (`attend`).
@@ -765,13 +764,13 @@ function ouvrirEcranSaison(depuis = 0) {
         // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.
         recrues: candidatsRecrue,
         /*
-         * LA CONFIANCE DU MATIN (oct.) : les matchs à ton service la montent seuls (V16), mais elle ne s'allumait qu'à ta
+         * LA CONFIANCE DU MATIN (oct.) : les blocs tenus la montent seuls (V20), mais elle ne s'allumait qu'à ta
          * décision suivante — l'écran de l'entraîneur disait déjà III quand le moteur jouait II. Au matin où elle est
          * atteinte, elle devient sa décision, comme le lundi du robot (scripts/lib/cartes_robot.mjs).
          */
         confianceDuMatin: j => {
           if (G.bonus !== 'ROGUE' || !G.ligue) return null;
-          const a = palierAllume(G.ligue.decisions || [], { jour: j }, { joues: (de, x) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, x), tenus: tenusDe(G.ligue.calendrier, G.ligue.you) });
+          const a = palierAllume(G.ligue.decisions || [], { jour: j }, { tenus: tenusDe(G.ligue.calendrier, G.ligue.you) });
           return a ? { jour: j, ...a } : null;
         },
         motRecrue: () => MOTS_RECRUE[niveauxRecrue().join()],

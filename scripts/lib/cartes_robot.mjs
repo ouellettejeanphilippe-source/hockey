@@ -115,9 +115,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
       if (!c) continue;
       const d = { jour: j, palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) };
       caisse += d.gain || 0;
-      // V16 : un échelon recompte la confiance de son coach, matchs à ton service compris (js/banque.js `palierAllume`).
-      const a = palierAllume([...decisions, ...out], d, { joues: (de, x) => matchsJoues(L.calendrier, you, de, x), tenus: tenusDe(L.calendrier, you) });
-      out.push({ ...d, ...(a || {}) });
+      out.push(d);
     }
   }
   /*
@@ -137,9 +135,9 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
       out.push(d);
     }
   }
-  // V16 : le lundi recompte aussi la confiance — les matchs à ton service la montent entre deux engagements.
+  // V20 : le lundi recompte la confiance — les blocs tenus la montent, match après match.
   if (lundi && politique !== 'defaut') {
-    const a = palierAllume([...decisions, ...out], { jour: j }, { joues: (de, x) => matchsJoues(L.calendrier, you, de, x), tenus: tenusDe(L.calendrier, you) });
+    const a = palierAllume([...decisions, ...out], { jour: j }, { tenus: tenusDe(L.calendrier, you) });
     if (a) out.push({ jour: j, ...a });
   }
   // L'ADJOINT D'UN PALIER (9e, 18e, 26e matchs, V16) : un parmi trois ; celui qu'il engage, sinon le premier.
@@ -147,7 +145,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
   if (pp !== undefined && pp !== null && f) {
     etat.paliers.add(pp);
     const ids = cartesDuPalier(graine, pp, (coachsActifs(decisions, j + 1)[0] || {}).cle);
-    const eng = engagerDuRobot({ ids, decisions: [...decisions, ...out], politique, clic, jour: j, joues: (de, a) => matchsJoues(L.calendrier, you, de, a) });
+    const eng = engagerDuRobot({ ids, decisions: [...decisions, ...out], politique, clic, jour: j });
     const pris = eng.length ? `patron:${eng[0].patron.cle}` : ids[0];
     if (pris) out.push({ jour: j, palier: `pp:${pp}`, place: pris }, ...eng);
   }
@@ -159,7 +157,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
  * son coach à un poste que sa couleur ne tient pas encore — sa confiance compte ses adjoints en poste ; le distrait, une
  * fois sur deux, n'importe lequel ; le robot d'avant n'engage rien. Rend la décision d'engagement, confiance recomptée.
  */
-export function engagerDuRobot({ ids = [], decisions = [], politique, clic = null, jour, joues = () => 0 }) {
+export function engagerDuRobot({ ids = [], decisions = [], politique, clic = null, jour }) {
   if (politique === 'defaut') return [];
   const adjoints = ids.filter(id => BANQUE[id] && BANQUE[id].cat === 'patron');
   const enPoste = patronsActifs(decisions, jour + 1);
@@ -170,6 +168,5 @@ export function engagerDuRobot({ ids = [], decisions = [], politique, clic = nul
     : adjoints.find(x => coach && BANQUE[x].coach === coach.cle && !(tenu(BANQUE[x].role) && couleur(tenu(BANQUE[x].role).cle) === coach.cle)) || null;
   if (!id || (tenu(BANQUE[id].role) || {}).cle === BANQUE[id].cle) return [];
   const d = { jour, ...payloadDe(id, { patrons: enPoste.map(x => ({ cle: x.cle, role: x.role || PATRONS[x.cle].role })) }) };
-  const a = palierAllume(decisions, d, { joues });
-  return [{ ...d, ...(a || {}) }];
+  return [d];
 }

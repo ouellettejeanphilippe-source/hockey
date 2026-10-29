@@ -24,15 +24,12 @@
  * Une carte neuve n'a rien à déclarer : elle trouve son coach seule (elle
  * peut le nommer, `coach`, quand sa lecture ne suffit pas).
  *
- * LA CONFIANCE DU VESTIAIRE (V16, js/banque.js `buildDe`). Ses points viennent de
- * son personnel : 1 par adjoint de sa couleur en poste, 1 par échelon pris, 1 par
- * tranche de matchs à ton service (`MATCHS_CONFIANCE`) ; à `SEUILS` points, le
- * vestiaire croit au coach (I, II, III) et sa philosophie joue pour le reste de
- * la saison, séries comprises — comme un patron, sans prendre de poste. La
- * confiance III contient la II. Au départ d'une run, on CHOISIT son coach parmi
- * trois (le personnage de Slay the Spire) : il part avec sa confiance I allumée.
- * Une run qui continue garde son coach et son personnel : la saison suivante
- * repart de sa base (`coachsDeBase`, js/rogue-jeu.js).
+ * LA CONFIANCE DU VESTIAIRE (V20, js/banque.js `buildDe`, js/chiffre.js). Un seul chemin : son CHIFFRE, une vraie stat
+ * de match, tenu dix matchs de suite (un bloc). À `SEUILS` points (un par bloc tenu), le vestiaire croit au coach
+ * (I, II, III) et sa philosophie joue pour le reste de la saison, séries comprises. La confiance III contient la II. Au
+ * départ d'une run, on CHOISIT son coach parmi trois (le personnage de Slay the Spire) : il part avec sa confiance I
+ * allumée. Une run qui continue garde son coach et ses blocs : la saison suivante repart de là (`coachsDeBase`,
+ * js/rogue-jeu.js).
  *
  * AUCUNE MÉCANIQUE NEUVE (CLAUDE.md) : une confiance est une décision `coach`
  * faite des canaux que `effetsDeSaison` lit déjà (finition, volume, défense,
@@ -48,7 +45,7 @@
  * c'est un engagement, et il se paie en cartes qu'on n'a pas prises ailleurs.
  */
 
-/* Les seuils de la confiance, en points (V16 : ses adjoints en poste, leurs échelons, leurs matchs à ton service) : 3 (I), 7 (II), 15 (III). */
+/* Les seuils de la confiance, en points (V20 : un par bloc tenu, js/chiffre.js) : 3 (I, le départ), 7 (II, quatre blocs), 15 (III, douze). */
 export const SEUILS = [3, 7, 15];
 export const ROMAINS = ['', 'I', 'II', 'III'];
 

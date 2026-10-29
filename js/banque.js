@@ -463,13 +463,11 @@ export function payloadDe(id, { joueur = null, coach = null, points = 0, adjoint
 export const coachDeCarte = id => { const c = BANQUE[id] || BANQUE[String(id).replace(/\+$/, '')]; return c ? c.coach : null; };
 export const idsDuCoach = coach => Object.values(BANQUE).filter(c => c.coach === coach).map(c => c.id);
 /*
- * LA CONFIANCE PAR TROIS CHEMINS (V16, docs/refonte-v16.md § 4 ; JP a choisi les trois). Les points d'un coach : sa
- * BASE (le coach choisi au départ, le report d'une saison, un coach neuf : `coachsDeBase`, `coachNeuf`), puis, par
- * adjoint de sa couleur en poste, 1 point et 1 par échelon pris, et 1 point par tranche de `MATCHS_CONFIANCE` matchs à
- * ton service de ses adjoints (doublés à la couleur du coach en poste, comme les échelons). Les cartes jouées ne
- * comptent plus : le personnel est la seule carte bonus.
+ * LA CONFIANCE PAR UN SEUL CHEMIN (V20, docs/refonte-v20.md ; JP : *oui à tout*). Les points d'un coach : sa BASE (le
+ * coach choisi au départ, le report d'une saison, un coach neuf, le stage du coach : `coachsDeBase`, `coachNeuf`), puis
+ * les blocs de dix matchs où son chiffre est tenu (js/chiffre.js `POINTS_PAR_BLOC`). Les adjoints en poste, leurs
+ * échelons et leurs matchs à ton service ne comptent plus : ils poussent sa stat, et c'est sa stat qui compte.
  */
-export const MATCHS_CONFIANCE = 90;
 /* La base de chaque coach à une journée (`jusqua` exclue) : ce que le report et le départ lui donnent. Rend { cle: n }. */
 export function baseDesCoachs(decisions = [], jusqua = Infinity) {
   const n = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
@@ -482,22 +480,20 @@ export function baseDesCoachs(decisions = [], jusqua = Infinity) {
   return n;
 }
 /*
- * LE COMPTE DE CHAQUE COACH à une journée, pur : sa base, puis son personnel en poste. `joues(de, a)` : les matchs de
- * ton club joués entre deux journées (js/echelons.js `matchsJoues`) ; sans lui, les matchs à ton service ne comptent pas.
+ * LE COMPTE DE CHAQUE COACH à une journée, pur : sa base, plus, pour le coach en poste, les points de ses blocs tenus
+ * depuis son entrée en poste (`tenus(cle, jusqua, depuis)`, js/chiffre.js `tenusDe`) ; sans `tenus`, la base seule.
  */
-export function buildDe(decisions = [], jusqua = Infinity, { joues = () => 0, tenus = () => 0 } = {}) {
-  const n = baseDesCoachs(decisions, jusqua), service = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
+export function buildDe(decisions = [], jusqua = Infinity, { tenus = () => 0 } = {}) {
+  const n = baseDesCoachs(decisions, jusqua);
   const [C] = coachsActifs(decisions, jusqua);
-  for (const p of patronsActifs(decisions, jusqua)) {
-    const k = (BANQUE[`patron:${p.cle}`] || {}).coach;
-    if (!(k in n)) continue;
-    n[k] += p.echelon || 1;
-    service[k] += (p.avant || 0) + joues(p.depuis ?? p.jour ?? 0, jusqua) * (C && C.cle === k ? 2 : 1);
-  }
-  for (const k of ORDRE_COACHS) n[k] += Math.floor(service[k] / MATCHS_CONFIANCE);
-  // V19 : le chiffre du coach en poste, tenu dix matchs de suite (js/chiffre.js) — un point si un bloc est tenu, un au plus (la Coupe arrivait trop tôt avec trois : docs/chiffre-du-coach.md).
-  if (C && C.cle in n) n[C.cle] += tenus(C.cle, jusqua);
+  if (C && C.cle in n) n[C.cle] += tenus(C.cle, jusqua, entreeEnPoste(decisions, C.cle, jusqua));
   return n;
+}
+/* Le jour où ce coach est entré en poste cette saison : son dernier `coachNeuf` avant `jusqua`, sinon le jour 0. */
+export function entreeEnPoste(decisions, cle, jusqua) {
+  let j = 0;
+  for (const d of decisions) if (d && d.coachNeuf && d.coach && d.coach.cle === cle && (d.jour || 0) < jusqua) j = Math.max(j, d.jour || 0);
+  return j;
 }
 /*
  * LE COACH EN POSTE (V5, JP : *juste un coach peut être actif à la fois* ; *le coach, choisi au début de la saison,
@@ -514,15 +510,14 @@ export function coachsActifs(decisions = [], jusqua = Infinity) {
 /* La décision d'un coach neuf : sa confiance I, et son compte qui repart (`coachNeuf`). */
 export const coachNeuf = cle => ({ coach: effetDePalier(cle, 1), coachNeuf: true });
 /*
- * LA CONFIANCE QU'ALLUME UNE DÉCISION DE PERSONNEL (un adjoint engagé, un échelon pris) : son coach franchit-il un
- * seuil, avec elle et les matchs à ton service jusqu'ici ? Rend `{ coach }` à ajouter à la décision (les chiffres de la
- * confiance atteinte), ou null. Pur : les décisions d'avant, celle-ci, et les matchs joués (`joues`).
+ * LA CONFIANCE QU'ALLUME UNE DÉCISION (le matin d'un bloc tenu, le stage du coach) : son coach franchit-il un seuil, avec
+ * elle et les blocs tenus jusqu'ici ? Rend `{ coach }` à ajouter à la décision (les chiffres de la confiance atteinte),
+ * ou null. Pur : les décisions d'avant, celle-ci, et les blocs tenus (`tenus`).
  */
-export function palierAllume(decisions = [], d, { joues = () => 0, tenus = () => 0 } = {}) {
-  // À la journée de la décision (V19) : un contrat fini n'est plus en poste, et « jusqu'au bout de la saison » ne compterait que ceux qu'on a prolongés.
+export function palierAllume(decisions = [], d, { tenus = () => 0 } = {}) {
   const jusqua = Number.isFinite(d.jour) ? d.jour + 1 : Infinity;
-  const avant = buildDe(decisions, jusqua, { joues, tenus }), apres = buildDe([...decisions, d], jusqua, { joues, tenus });
-  // Seul le coach en poste monte (V5) : un adjoint d'une autre couleur joue son effet, sans changer de coach.
+  const avant = buildDe(decisions, jusqua, { tenus }), apres = buildDe([...decisions, d], jusqua, { tenus });
+  // Seul le coach en poste monte (V5).
   const [actif] = coachsActifs(decisions);
   const e = actif ? (palierDe(apres[actif.cle]) > actif.palier ? actif.cle : null)
     : ORDRE_COACHS.find(k => palierDe(apres[k]) > palierDe(avant[k]));
