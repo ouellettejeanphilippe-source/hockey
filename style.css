@@ -3932,9 +3932,16 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
   .roster > :is(.ej-soir, .plan-match, .unites-speciales) { margin-bottom: 0; }
   .unites-speciales { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .unites-speciales > :is(.pm-tete, .pm-k) { grid-column: 1 / -1; }
-  /* En Rogue, la carte à gauche de sa bande et de ses verdicts : trois cases de front y ont la place. */
-  #rosterBoard.en-cartes .slot { grid-template-columns: 112px minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "carte band" "carte info"; column-gap: var(--esp-2); }
+  /* En Rogue, la carte à gauche de sa bande et de ses verdicts : trois cases de front y ont la place. Elle grandit avec le
+     volet (JP : *ya beaucoup d'espacement weird, grossir les cartes sur gros écrans*), ses verdicts gardent une colonne de
+     lecture, et la paire se centre dans sa case plutôt que de laisser le vide d'un tiers d'écran à droite. */
+  #rosterBoard.en-cartes .slot { --carte: clamp(112px, 11.5cqi, 210px); grid-template-columns: var(--carte) minmax(0, 300px); grid-template-rows: 1fr auto auto 1fr; grid-template-areas: "carte ." "carte band" "carte info" "carte ."; justify-self: center; width: max-content; max-width: 100%; column-gap: var(--esp-3); }
+  /* Une paire et les gardiens : deux colonnes de la largeur de celles d'un trio, au centre. */
+  #rosterBoard.en-cartes .line-slots.pair { grid-template-columns: repeat(2, minmax(0, calc((100% - 2 * var(--esp-2)) / 3))); justify-content: center; }
+  #rosterBoard.en-cartes .slot-carte, #rosterBoard.en-cartes .slot.empty { width: var(--carte); }
   #rosterBoard.en-cartes .slot-band { margin-top: 0; }
+  #rosterBoard.en-cartes .sc-cle > .cell-prod { font-size: var(--t-4); }
+  #rosterBoard.en-cartes .slot-remove { right: auto; left: calc(var(--carte) - 30px); }
   #rosterBoard.en-cartes .lien-place { top: 50%; }
 }
 /* Le résumé de l'onglet Équipe sur une ligne dès qu'il y a la place. */
