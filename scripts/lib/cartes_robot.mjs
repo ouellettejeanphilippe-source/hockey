@@ -1,10 +1,10 @@
 /*
- * CE QUE LES ROBOTS FONT DU COACH-PERSONNAGE (V21, docs/refonte-v21.md). Le coach d'une run a ses pouvoirs ; le robot,
- * comme le gérant, choisit ses talents, ses bienfaits et ses réponses aux histoires. Selon la politique
+ * CE QUE LES ROBOTS FONT DU COACH-PERSONNAGE (V21, docs/refonte-v21.md). Le coach d'une run a ses pouvoirs et son
+ * staff ; le robot, comme le gérant, choisit ses talents, ses adjoints et ses réponses aux histoires. Selon la politique
  * (scripts/lib/rogue_sim.mjs) :
- *   - l'attentif lit : le talent va au pouvoir qui a le plus joué, le bienfait à celui qui joue le plus (« plus fort »
- *     d'abord, « plus tôt » à un pouvoir qui joue peu) ; à une histoire, la réponse qui rend le plus, en conséquences
- *     concrètes (l'expérience, un bienfait, des jetons, des jambes) ;
+ *   - l'attentif lit : le talent va au pouvoir qui a le plus joué ; l'adjoint, dans l'ordre de ce que les échanges
+ *     rendent en moyenne (`PREFERE`, mesuré par check_pouvoirs), et le moins utile part quand le staff déborde ; à une
+ *     histoire, la réponse qui rend le plus, en conséquences concrètes (l'expérience, un adjoint, des jetons, des jambes) ;
  *   - le distrait clique au hasard, sur son propre générateur ;
  *   - le robot d'avant ('defaut') prend la première option de chaque écran : un gérant grossier, qui garde un coach.
  * Le robot ne voit que ce que l'écran montre : les feuilles jouées, la cédule de la semaine, ses jambes, sa caisse.
@@ -14,12 +14,16 @@ import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, FENETRE_JOUEUR } from '
 import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { joueurDuFait } from '../../js/vie-gm.js';
 import { COACHS } from '../../js/coachs.js';
-import { POUVOIRS, XP_SANS_BIENFAIT, bienfaitsOfferts, niveauDuPerso, talentsDus, pouvoirsOuverts } from '../../js/pouvoirs.js';
+import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts } from '../../js/pouvoirs.js';
+import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts } from '../../js/adjoints.js';
 
 const JETON = 0.01;   // une victoire vaut une centaine de jetons, à la louche (le barème : 5 par victoire, les packs à 12 et plus)
-/* Ce que vaut une conséquence, grossièrement, en victoires : un bienfait, un point d'expérience, des jambes, un match d'infirmerie. */
-const VAUT = { bienfait: 1, xp: 0.05, jambes: 0.02, absent: 0.15, soin: 0.1 };
+/* Ce que vaut une conséquence, grossièrement, en victoires : un adjoint, un point d'expérience, des jambes, un match d'infirmerie. */
+const VAUT = { adjoint: 0.5, xp: 0.05, jambes: 0.02, absent: 0.15, soin: 0.1 };
 
+/* L'ordre de l'attentif : les échanges qui paient le plus souvent d'abord (check_pouvoirs, la section des adjoints). */
+const PREFERE = ['numeroUn', 'tireur', 'canonnier', 'mur', 'prof', 'vedettiste', 'soigneur', 'cogneur', 'rouleur', 'mitrailleur', 'trappeur', 'numeroDeux'];
+const rangDe = k => (PREFERE.includes(k) ? PREFERE.indexOf(k) : PREFERE.length);
 const feuillesDe = (L, you) => L.calendrier.slice(0, L.jour).flatMap(j => j.filter(m => (m.A === you || m.B === you) && m.feuille)).map(m => ({ m, f: m.feuille, cote: m.A === you ? 'A' : 'B' }));
 /* Combien de périodes chaque pouvoir a joué cette saison, lu dans les feuilles (`feuille.pouvoirs`). */
 function foisDesPouvoirs(L, you) {
@@ -56,36 +60,28 @@ function faitsDuRobot(L, you, jetons) {
     bete: advs.includes(you.beteNoire) ? 'bête noire' : null,
     caisse: jetons, dernier: der ? { pour: chez ? der.gfA : der.gfB, contre: chez ? der.gfB : der.gfA, adv: 'eux' } : null,
     rang, equipes: L.teams.length, defaites,
-    coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso), bienfaits: (perso.bienfaits || []).length } : null,
+    coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso), adjoints: (perso.adjoints || []).length } : null,
   };
 }
 
-/*
- * LE BIENFAIT D'UN MOMENT FORT (js/saison.js `bienfaitsDuMoment`) : un parmi trois, tirés de la graine. L'attentif
- * pousse le pouvoir qui joue le plus (« plus fort »), avance celui qui joue peu (« plus tôt »), puis la contagion, les
- * séries, les jetons ; rien à offrir : l'expérience. Rend la décision.
- */
-const PREFERE = { fort: 5, tot: 3, contagieux: 2.5, series: 2, payant: 1.5 };
-function bienfaitDuRobot({ L, you, graine, cle, politique, clic }) {
-  const perso = persoDe(you);
-  const offre = bienfaitsOfferts(perso, graine, cle);
-  if (!offre.length) return perso ? { xpCoach: XP_SANS_BIENFAIT } : null;
-  if (clic) return { bienfait: offre[Math.floor(clic() * offre.length)] };
-  if (politique === 'defaut') return { bienfait: offre[0] };
-  const fois = foisDesPouvoirs(L, you), total = fois.reduce((a, b) => a + b, 0) || 1;
-  const score = b => PREFERE[b.b] * (b.b === 'tot' ? 1 - fois[b.p] / total : 0.5 + fois[b.p] / total);
-  return { bienfait: offre.reduce((a, b) => (score(b) > score(a) ? b : a)) };
+/* L'ADJOINT D'UN MOMENT FORT (js/saison.js `adjointsDuMoment`) : un parmi trois, tirés de la graine. Rend la décision. */
+function adjointDuRobot({ you, graine, cle, politique, clic }) {
+  const offre = adjointsOfferts((persoDe(you) || {}).adjoints, graine, cle);
+  if (!offre.length || !persoDe(you)) return null;
+  const k = clic ? offre[Math.floor(clic() * offre.length)] : politique === 'defaut' ? offre[0] : offre.reduce((a, b) => (rangDe(b) < rangDe(a) ? b : a));
+  return { adjoint: { cle: k } };
 }
 /* La valeur d'une réponse d'histoire, en conséquences concrètes, pour l'attentif. */
 function valeurDeReponse(o) {
-  let v = (o.gain || 0) * JETON + (o.xp || 0) * VAUT.xp + (o.bienfait ? VAUT.bienfait : 0) - (o.perdBienfait ? VAUT.bienfait : 0) + (o.soin || 0) * VAUT.soin;
+  let v = (o.gain || 0) * JETON + (o.xp || 0) * VAUT.xp + (o.adjoint ? VAUT.adjoint : 0) - (o.perdAdjoint ? VAUT.adjoint : 0) + (o.soin || 0) * VAUT.soin;
   if (o.action) v += (o.action.energieTous || 0) * VAUT.jambes - (o.action.absents || 0) * VAUT.absent + (o.action.energie || 0) * VAUT.jambes / 4;
   return v;
 }
 
 /*
- * LE LUNDI DU ROBOT : l'histoire de la semaine (un lundi tiré de la graine, V20), le bienfait d'un palier (quand le
- * compte de matchs le franchit), celui d'un gros match gagné, et le talent quand le niveau le donne. Rend les décisions
+ * LE LUNDI DU ROBOT : l'histoire de la semaine (un lundi tiré de la graine, V20), l'adjoint d'un palier (quand le
+ * compte de matchs le franchit), celui d'un gros match gagné, le talent quand le niveau le donne, et qui part quand le
+ * staff déborde. Rend les décisions
  * à pousser au jour de la ligue. `etat` : ce que la saison retient (les dossiers ouverts, les paliers et les butins pris).
  */
 export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) {
@@ -101,29 +97,37 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
     if (cle) {
       etat.dossiers.push(cle);
       const D = DOSSIERS[cle], lui = D.joueur ? D.joueur(f) : null;
-      const perso = persoDe(you), partant = perso && perso.bienfaits.length ? perso.bienfaits[perso.bienfaits.length - 1] : null;
-      const possibles = D.options.filter(o => !(o.gain < 0 && f.caisse < -o.gain) && !(o.perdBienfait && !partant));
+      const perso = persoDe(you), partant = perso && perso.adjoints.length ? perso.adjoints[perso.adjoints.length - 1] : null;
+      const possibles = D.options.filter(o => !(o.gain < 0 && f.caisse < -o.gain) && !(o.perdAdjoint && !partant));
       const o = clic ? auHasard(possibles) : politique === 'defaut' ? possibles[0] : possibles.reduce((b, x) => (valeurDeReponse(x) > valeurDeReponse(b) ? x : b));
-      const offert = o.bienfait && perso ? bienfaitsOfferts(perso, graine, `do:${w}`, 1)[0] || null : null;
+      const offert = o.adjoint && perso ? adjointsOfferts(perso.adjoints, graine, `do:${w}`, 1)[0] || null : null;
       out.push({ jour: j, palier: `do:${w}`, moment: { famille: 'dossier', cle, choix: o.cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) },
         ...(o.gain ? { gain: o.gain } : {}), ...(o.xp ? { xpCoach: o.xp } : {}),
-        ...(o.bienfait ? (offert ? { bienfait: offert } : { xpCoach: XP_SANS_BIENFAIT }) : {}),
-        ...(o.perdBienfait && partant ? { perdBienfait: partant } : {}),
+        ...(offert ? { adjoint: { cle: offert } } : {}),
+        ...(o.perdAdjoint && partant ? { perdAdjoint: partant } : {}),
         ...(o.soin && lui ? { gestes: { soin: o.soin, joueurs: [lui.cle] } } : {}) });
     }
   }
-  // LE PALIER (9e, 18e, 26e matchs) : un bienfait parmi trois.
+  // LE PALIER (9e, 18e, 26e matchs) : un adjoint parmi trois.
   const pp = PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));
   if (pp !== undefined) {
     etat.paliers.add(pp);
-    const d = bienfaitDuRobot({ L, you, graine, cle: `pp${pp}`, politique, clic });
+    const d = adjointDuRobot({ you, graine, cle: `pp${pp}`, politique, clic });
     if (d) out.push({ jour: j, palier: `pp:${pp}`, ...d });
   }
-  // LE BUTIN D'UN GROS MATCH GAGNÉ : un bienfait parmi trois (js/saison.js `recompenseOuverte`).
+  // LE BUTIN D'UN GROS MATCH GAGNÉ : un adjoint parmi trois (js/saison.js `recompenseOuverte`).
   for (const mb of (you.minisBoss || []).filter(x => x.gagne && !etat.butins.has(x.jour))) {
     etat.butins.add(mb.jour);
-    const d = bienfaitDuRobot({ L, you, graine, cle: `r${mb.jour}`, politique, clic });
+    const d = adjointDuRobot({ you, graine, cle: `r${mb.jour}`, politique, clic });
     if (d) out.push({ jour: j, palier: `r:${mb.jour}`, ...d });
+  }
+  // QUI PART ? (js/saison.js) : le staff déborde après chaque arrivée ; l'attentif laisse partir le moins utile, le distrait
+  // n'importe qui, le robot d'avant le premier entré.
+  const staff = [...((persoDe(you) || {}).adjoints || []), ...out.filter(d => d.adjoint).map(d => d.adjoint.cle)];
+  for (let n = staff.length; n > ADJOINTS_MAX; n--) {
+    const reste = staff.filter(k => ADJOINTS[k] && !out.some(d => d.perdAdjoint === k));
+    const k = clic ? reste[Math.floor(clic() * reste.length)] : politique === 'defaut' ? reste[0] : reste.reduce((a, b) => (rangDe(b) > rangDe(a) ? b : a));
+    out.push({ jour: j, palier: `qp:${reste.join(',')}`, perdAdjoint: k });
   }
   // LE TALENT (niveaux 2 et 4) : le pouvoir qui a le plus joué grandit ; le distrait, au hasard ; le robot d'avant, le premier.
   const perso = persoDe(you);

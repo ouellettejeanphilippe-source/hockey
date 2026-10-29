@@ -38,7 +38,8 @@ import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessure
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
 import { PALIERS_PACK, SEMAINE } from './inventaire.js';
-import { bienfaitsOfferts, optionDeBienfait, XP_SANS_BIENFAIT, niveauDuPerso, talentsDus, pouvoirsOuverts, POUVOIRS, BIENFAITS, TALENT } from './pouvoirs.js';
+import { niveauDuPerso, talentsDus, pouvoirsOuverts, POUVOIRS, TALENT } from './pouvoirs.js';
+import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts, lignesDeLAdjoint } from './adjoints.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
 import { mainAdverse, energieAdverse } from './combat.js';
@@ -3080,15 +3081,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const choixForce = () => specsForces()[0] || null;
   /*
-   * LES BIENFAITS D'UN MOMENT FORT (V21, js/pouvoirs.js) : un adjoint parmi trois, gratuit, qui modifie un pouvoir du
-   * coach ; quand il n'y a plus rien à offrir, de l'expérience. `cle` : le moment (le palier, le butin, l'objectif).
+   * LES ADJOINTS D'UN MOMENT FORT (V21, js/adjoints.js ; JP : *les assistants sont des ajustements, des systèmes de
+   * jeu*) : un parmi trois, gratuit, chacun un échange — ce qu'il donne, ce qu'il coûte, en vraies stats. `cle` : le
+   * moment (le palier, le butin, l'objectif, l'histoire).
    */
   const persoDuJour = () => (you && you.perso ? { ...you.perso, xpSaison: you.xpSaison || 0 } : null);
-  const bienfaitsDuMoment = cle => {
-    const perso = persoDuJour(), offre = bienfaitsOfferts(perso, graine, cle);
-    return offre.length ? offre.map(b => optionDeBienfait(perso.cle, b)) : [{ cle: 'xp', ico: '📈', nom: `+${XP_SANS_BIENFAIT} d'expérience`, sous: 'Ton coach apprend' }];
-  };
-  const decisionDuBienfait = cle => (cle === 'xp' ? { xpCoach: XP_SANS_BIENFAIT } : { bienfait: { p: Number(cle.split(':')[0]), b: cle.split(':')[1] } });
+  const optionDAdjoint = k => ({ cle: k, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, mots: lignesDeLAdjoint(k) });
+  const adjointsDuMoment = cle => adjointsOfferts((persoDuJour() || {}).adjoints, graine, cle).map(optionDAdjoint);
+  const decisionDeLAdjoint = cle => ({ adjoint: { cle } });
   function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
     // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.
@@ -3113,15 +3113,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     };
     const plusTard = { fermable: true, motFermer: 'Plus tard', onFerme: () => { boite.remis = boite.remisPour; } };
     if (rc) {
-      // LE BUTIN D'UNE VICTOIRE (S74, V5 ; V13-2 ; V21) : un bienfait parmi trois, ou passer.
+      // LE BUTIN D'UNE VICTOIRE (S74, V5 ; V13-2 ; V21) : un adjoint parmi trois, ou passer.
       const prendre = d => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, ...d }, j); };
       // LA SCÈNE (Jalon M, A6) : l'entraîneur, sur le pointage de la feuille.
       const mR = calendrier[rc.jour][indexMien(rc.jour)], chezR = mR && mR.A === you;
       const scene = mR ? sceneDuButin({ pour: chezR ? mR.gfA : mR.gfB, contre: chezR ? mR.gfB : mR.gfA, adv: ctx.teamShort(rc.adv), graine: `${graine}|${rc.jour}` }) : null;
       specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer', scene,
-        recit: 'Un adjoint parmi trois : il modifie un pouvoir de ton coach.',
-        options: bienfaitsDuMoment(`r${rc.jour}`),
-        onChoix: cle => prendre(decisionDuBienfait(cle)),
+        recit: 'Un adjoint parmi trois, pour la run : ce qu\'il donne, ce qu\'il coûte.',
+        options: adjointsDuMoment(`r${rc.jour}`),
+        onChoix: cle => prendre(decisionDeLAdjoint(cle)),
         onFerme: () => prendre({}) });
     }
     if (ro) {
@@ -3151,8 +3151,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
           // V21 : le proprio paie des jetons et un adjoint parmi trois, qui modifie un pouvoir du coach.
           recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Il sort son carnet de chèques : +${(((ctx.rogue && ctx.rogue.mandat && ctx.rogue.mandat()) || {}).bareme || JETONS).objectif} 🪙 et un adjoint parmi trois pour ton coach.`,
-          options: bienfaitsDuMoment(`v${vo.j0}`),
-          decision: cle => ({ palier: `v:${vo.j0}`, ...decisionDuBienfait(cle) }) }
+          options: adjointsDuMoment(`v${vo.j0}`),
+          decision: cle => ({ palier: `v:${vo.j0}`, ...decisionDeLAdjoint(cle) }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
           recit: `${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs, pour ${o.cible} promis. Le proprio te convoque dans son bureau, porte fermée.`,
           options: [{ cle: 'encaisser', nom: 'Encaisser', prix: 'Le proprio coupe les vols nolisés : les voyages fatiguent', energie: OBJECTIF_RATE.energie, duree: OBJECTIF_RATE.duree }],
@@ -3359,8 +3359,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           agir: () => ouvrirMain(pal) } });
     }
     /*
-     * LE PALIER DE LA SAISON (V9, tranche 5b ; V21) : aux matchs 9, 18 et 26, un adjoint parmi trois, qui modifie un
-     * pouvoir du coach (`bienfaitsOfferts`, js/pouvoirs.js). Il attend le lundi, comme les autres.
+     * LE PALIER DE LA SAISON (V9, tranche 5b ; V21) : aux matchs 9, 18 et 26, un adjoint parmi trois, un échange
+     * (`adjointsOfferts`, js/adjoints.js). Il attend le lundi, comme les autres.
      */
     const pp = ctx.rogue && ctx.inventaire ? PALIERS_PACK.find(x => miens.length >= x && !pris.has(`pp:${x}`)) : undefined;
     if (pp !== undefined) {
@@ -3368,14 +3368,24 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const f = fiche.get(you), run = ctx.rogue.mandat ? ctx.rogue.mandat() : null;
       const scene = sceneDuPalier({ n: miens.length, fiche: { V: f.W, D: f.L, DP: f.OTL }, rang: rangDe(you), equipes: teams.length, mandat: run ? run.mot : '', graine });
       out.push({ id: `pp:${pp}`, genre: 'cartes', bloque: true, de: scene.de, sujet: `Le ${pp}e match : un adjoint parmi trois`,
-        choix: { scene, recit: 'Il modifie un pouvoir de ton coach, pour la run.',
-          options: bienfaitsDuMoment(`pp${pp}`),
-          decision: cle => ({ palier: `pp:${pp}`, ...decisionDuBienfait(cle) }) } });
+        choix: { scene, recit: 'Pour la run : ce qu\'il donne, ce qu\'il coûte.',
+          options: adjointsDuMoment(`pp${pp}`),
+          decision: cle => ({ palier: `pp:${pp}`, ...decisionDeLAdjoint(cle) }) } });
     }
     /*
      * LE TALENT DU COACH (V21) : aux niveaux 2 et 4, un de ses pouvoirs ouverts grandit de moitié. Il attend le lundi.
      */
     const perso = persoDuJour();
+    /*
+     * QUI PART ? (V21) : un staff de plus de `ADJOINTS_MAX` adjoints attend que tu dises qui laisse sa chaise ; d'ici là,
+     * les derniers entrés jouent. Il bloque : le nouveau vient d'arriver, on tranche tout de suite.
+     */
+    const staff = (perso && perso.adjoints) || [];
+    if (staff.length > ADJOINTS_MAX) {
+      const id = `qp:${staff.join(',')}`;
+      out.push({ id, genre: 'adjoint', bloque: true, de: DE.coach, sujet: `Ton staff : ${staff.length} adjoints pour ${ADJOINTS_MAX} chaises`,
+        choix: { recit: 'Qui part ?', options: staff.filter(k => ADJOINTS[k]).map(optionDAdjoint), decision: cle => ({ palier: id, perdAdjoint: cle }) } });
+    }
     const dus = perso ? talentsDus(niveauDuPerso(perso), perso.talents || []) : 0;
     if (dus > 0) {
       const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), nTal = (perso.talents || []).length;
@@ -3394,15 +3404,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // V11 (tranche 4) : le joueur qu'il nomme, et ce que chaque réponse lui fait à lui.
       const lui = D.joueur ? D.joueur(dossier.faits) : null;
       const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
-      // LES CONSÉQUENCES CONCRÈTES (V21) : l'adjoint offert est nommé (le premier des bienfaits du moment), celui qui part
-      // aussi (le dernier engagé) ; sans adjoint à offrir, de l'expérience.
-      const perso = persoDuJour(), Pv = b => (perso && POUVOIRS[perso.cle] ? POUVOIRS[perso.cle][b.p] : null);
-      const offert = perso ? bienfaitsOfferts(perso, graine, `do:${dossier.w}`, 1)[0] || null : null;
-      const partant = perso && (perso.bienfaits || []).length ? perso.bienfaits[perso.bienfaits.length - 1] : null;
+      // LES CONSÉQUENCES CONCRÈTES (V21) : l'adjoint offert est nommé (le premier tiré pour cette histoire), celui qui part
+      // aussi (le dernier entré).
+      const perso = persoDuJour();
+      const offert = perso ? adjointsOfferts(perso.adjoints, graine, `do:${dossier.w}`, 1)[0] || null : null;
+      const partant = perso && (perso.adjoints || []).length ? perso.adjoints[perso.adjoints.length - 1] : null;
+      const nomDAdjoint = k => `${ADJOINTS[k].ico} ${ADJOINTS[k].nom}`;
       const motsConcrets = o => [
         ...(o.xp ? [{ txt: `Ton coach : ${o.xp > 0 ? '+' : '−'}${Math.abs(o.xp)} d'expérience`, bon: o.xp > 0 }] : []),
-        ...(o.bienfait ? [offert ? { txt: `${BIENFAITS[offert.b].ico} ${BIENFAITS[offert.b].nom} · ${Pv(offert).nom}`, bon: true } : { txt: `Ton coach : +${XP_SANS_BIENFAIT} d'expérience`, bon: true }] : []),
-        ...(o.perdBienfait ? [partant ? { txt: `Part : ${BIENFAITS[partant.b].ico} ${BIENFAITS[partant.b].nom} · ${Pv(partant).nom}`, bon: false } : { txt: 'Ton coach n\'a pas d\'adjoint', bon: null }] : []),
+        ...(o.adjoint && offert ? [{ txt: `Arrive : ${nomDAdjoint(offert)}`, bon: true }, ...lignesDeLAdjoint(offert)] : []),
+        ...(o.perdAdjoint ? [partant ? { txt: `Part : ${nomDAdjoint(partant)}`, bon: false } : { txt: 'Ton staff est vide', bon: null }] : []),
         ...(o.action && o.action.energieTous ? [{ txt: `Les jambes de tous : ${o.action.energieTous > 0 ? '+' : '−'}${Math.abs(o.action.energieTous)}`, bon: o.action.energieTous > 0 }] : []),
         ...(o.action && o.action.energie && lui ? [{ txt: `Jambes de ${nomCourt(lui.n)} : ${o.action.energie > 0 ? '+' : '−'}${Math.abs(o.action.energie)}`, bon: o.action.energie > 0 }] : []),
         ...(o.action && o.action.absents && lui ? [{ txt: `${nomCourt(lui.n)} manque ${o.action.absents} matchs`, bon: false }] : []),
@@ -3417,13 +3428,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // L'AUDACE (V20) : un pari sur le joueur nommé, au dé ; sa fenêtre, celle de ses deux issues.
         ...(o.pari ? { quand: fenetreDuChoix(miens.length, o.pari.gagne.duree) } : {}),
         mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...motsConcrets(o), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
-        desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : o.perdBienfait && !partant ? 'Ton coach n\'a pas d\'adjoint' : null }));
+        desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : o.perdAdjoint && !partant ? 'Ton staff est vide' : null }));
       const decision = cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}),
         // V16 (tranche 6) : la masse salariale passe par sa décision (`plafond`) ; V21 : le coach, le soin, par les leurs.
         ...(o.plafond ? { plafond: { cle: `${dossier.cle}.${cle}`, nom: motsDuDossier(o, dossier.faits, lui).nom, ...o.plafond, ...(o.plafond.facteur && lui ? { joueur: lui.cle } : {}) } } : {}),
         ...(o.xp ? { xpCoach: o.xp } : {}),
-        ...(o.bienfait ? (offert ? { bienfait: offert } : { xpCoach: XP_SANS_BIENFAIT }) : {}),
-        ...(o.perdBienfait && partant ? { perdBienfait: partant } : {}),
+        ...(o.adjoint && offert ? { adjoint: { cle: offert } } : {}),
+        ...(o.perdAdjoint && partant ? { perdAdjoint: partant } : {}),
         ...(o.soin && lui ? { gestes: { soin: o.soin, joueurs: [lui.cle] } } : {}) }; };
       const scene = sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`);
       // L'AUDACE SE JOUE AU DÉ (V20 ; js/gerant.js `sceneDuDe`) : le sel se tire au lancer, le dé montre ce que le moteur en fera.
@@ -3529,7 +3540,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (m.genre === 'fil') return 'vestiaire';
     if (m.genre === 'pack') return 'marche';
     // L'adjoint d'un palier et le talent du coach (V21) : ils se choisissent sous l'entraîneur.
-    if (['cartes', 'palier', 'talent'].includes(m.genre)) return 'entraineur';
+    if (['cartes', 'palier', 'talent', 'adjoint'].includes(m.genre)) return 'entraineur';
     const sp = m.spec || {};
     if (sp.ouvrir) return 'match';
     if (sp.cartes || sp.etat) return 'entraineur';

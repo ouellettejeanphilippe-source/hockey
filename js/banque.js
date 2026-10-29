@@ -5,7 +5,7 @@
  * créer de zéro avec la nouvelle philosophie en tête*.
  *
  * UN SEUL REGISTRE pour tout ce qui se joue. Depuis la V21 (docs/refonte-v21.md), le personnel est parti : les
- * adjoints sont des bienfaits du coach (js/pouvoirs.js), offerts aux moments forts, jamais des cartes. Restent ici les
+ * adjoints sont des systèmes de jeu, des échanges (js/adjoints.js), offerts aux moments forts, jamais des cartes. Restent ici les
  * cartes rares (V16, tranche 6, § 4d) : les retouches d'édition de l'atelier, le stage du coach, trois soins et
  * l'échange d'un doublon.
  * La masse salariale et le congédiement sont des dossiers du proprio (js/dossiers.js). Les cartes de match sont parties avec la main du duel (V13-2,

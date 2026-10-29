@@ -142,7 +142,7 @@ export const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 
 export const NOMS_SKILLS = { sniper: '🎯 Tir', passeur: '🪄 Jeu', defensif: '❄ Défense', dur: '🥊 Robustesse', gardien: '🥅 Gardiens', recrue: '🐣 Recrues', veteran: '🧓 Vétérans' };
 
 /* LES CARTES RARES D'UN PACK DE JOUEURS (js/banque.js) : gardées dans ton inventaire. V21 : le Pack Personnel est parti
-   avec le personnel ; les adjoints sont des bienfaits du coach (js/pouvoirs.js). */
+   avec le personnel ; les adjoints sont des systèmes de jeu, offerts aux moments forts (js/adjoints.js). */
 const COTES_CARTES = { commune: 55, peu: 30, rare: 12, legendaire: 3 };
 
 /* Tous les packs, par clé : \`j:\` les joueurs. */

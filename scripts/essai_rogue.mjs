@@ -247,7 +247,7 @@ const compterFeuilles = async ou => {
 };
 const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et le premier duel, photographiés une fois
 const afaire = { vu: false, lots: [], histoire: '', genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
-const butin = { vus: 0, pris: [], fautes: [] };   // V21 : le butin d'une victoire, un adjoint parmi trois qui modifie un pouvoir du coach
+const butin = { vus: 0, pris: [], fautes: [] };   // V21 : le butin d'une victoire, un adjoint parmi trois, un échange
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const intentionsVues = new Set();   // V17 : les intentions lues au duel, leurs puces jugées
 const veilles = [];   // V17 : un gros match ouvert avant son matin
@@ -520,9 +520,8 @@ async function regler() {
       continue;
     }
     /*
-     * LE BUTIN D'UNE VICTOIRE (V5 ; V13-2 ; V21) : un adjoint parmi trois, qui modifie un pouvoir de ton coach — ni
-     * « Retirer une carte ». On prend le premier ; la décision porte `bienfait` (ou l'expérience, s'il n'y a plus rien à
-     * offrir) et son palier `r:`. Photographié une fois.
+     * LE BUTIN D'UNE VICTOIRE (V5 ; V13-2 ; V21) : un adjoint parmi trois, un échange pour la run — ni
+     * « Retirer une carte ». On prend le premier ; la décision porte `adjoint` et son palier `r:`. Photographié une fois.
      */
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="recompense"] .choix-option:not([disabled])')) {
       const lu = await page.$eval('#choixModal .choix-sheet[data-genre="recompense"]', m => ({
@@ -531,15 +530,15 @@ async function regler() {
       // La récompense d'une série gagnée (un pack de joueurs) a son propre écran : on la laisse au cas général.
       if (/Récompense/.test(lu.titre)) {
         if (!butin.vus++) { await page.waitForTimeout(500); await page.screenshot({ path: `${DOSSIER}/rogue-butin.png` }); }
-        if (lu.cles.length !== 3 && lu.cles.join() !== 'xp') butin.fautes.push(`${lu.cles.length} adjoint(s) offerts au lieu de trois`);
-        if (!/pouvoir de ton coach/.test(lu.recit)) butin.fautes.push(`le butin ne dit pas qu'il modifie un pouvoir de ton coach (« ${lu.recit} »)`);
+        if (lu.cles.length !== 3) butin.fautes.push(`${lu.cles.length} adjoint(s) offerts au lieu de trois`);
+        if (!/ce qu'il donne, ce qu'il coûte/.test(lu.recit)) butin.fautes.push(`le butin ne dit pas l'échange d'un adjoint (« ${lu.recit} »)`);
         if (lu.autre) butin.fautes.push('le butin offre encore « Retirer une carte »');
         const n0 = (await decisionsDuCombat()).length;
         await page.click(`#choixModal:not([hidden]) [data-choix="${lu.cles[0]}"]`); await page.waitForTimeout(1200);
         await attendreDecisions(n0);
         const sv = await lireSauvegarde();
         const d = (((sv.partie || {}).decisions) || []).slice(n0).find(x => String(x.palier || '').startsWith('r:'));
-        const pris = d && (d.bienfait ? `${d.bienfait.p}:${d.bienfait.b}` : d.xpCoach ? 'xp' : null);
+        const pris = d && d.adjoint ? d.adjoint.cle : null;
         if (!d || pris !== lu.cles[0] || d.recompense !== undefined || d.retrait !== undefined) butin.fautes.push(`le butin n'enregistre pas l'adjoint pris (${JSON.stringify(d || null)})`);
         else butin.pris.push(lu.cles[0]);
         continue;
@@ -699,7 +698,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
   console.log(`5c. ton coach : ${coachs || '(absent)'} · décision du jour 0 : ${d0 ? JSON.stringify(d0.coach) : '(aucune)'}`);
-  if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.talents) || !Array.isArray(d0.coach.bienfaits)) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec son expérience, ses talents et ses bienfaits');
+  if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.talents) || !Array.isArray(d0.coach.adjoints)) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec son expérience, ses talents et son staff');
   if (((sv0.partie || {}).decisions || []).some(x => x.patron)) erreurs.push('une décision de personnel (`patron`) reste dans la partie');
   console.log(`5f. ses pouvoirs : ${pouvoirs.map(x => `${x.nom} (${x.etat})`).join(' | ') || '(aucun)'}`);
   if (!/^Niveau [1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
@@ -1598,7 +1597,7 @@ console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).joi
   // V21 : le coach de la saison — ses talents et ses adjoints pris, et les pouvoirs qui ont joué dans les feuilles.
   const sv = await lireSauvegarde().catch(() => null);
   const ds = (((sv && sv.partie) || {}).decisions || []);
-  console.log(`20p. le coach : ${ds.filter(d => d.talent).length} talent(s), ${ds.filter(d => d.bienfait).length} adjoint(s) pris, ${ds.filter(d => d.xpCoach).length} gain(s) d'expérience`);
+  console.log(`20p. le coach : ${ds.filter(d => d.talent).length} talent(s), ${ds.filter(d => d.adjoint).length} adjoint(s) pris, ${ds.filter(d => d.xpCoach).length} gain(s) d'expérience`);
 }
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();

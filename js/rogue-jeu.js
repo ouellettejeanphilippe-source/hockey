@@ -11,7 +11,7 @@ import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRos
 import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
 import { COACHS, VOIES } from './coachs.js';
-import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso, jetonsDesPouvoirs } from './pouvoirs.js';
+import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -102,14 +102,6 @@ export function decisionsDeLaPartie() {
   const L = G.ligue;
   return [...((L && L.decisions) || []), ...((L && L.decisionsSeries) || [])];
 }
-/* Les feuilles de ton club jusqu'à la journée `a` (exclue) : { feuille, cote }, pour ce que les pouvoirs payants rapportent. */
-function feuillesDuClub(a) {
-  const L = G.ligue;
-  if (!L || !Array.isArray(L.calendrier)) return [];
-  const out = [];
-  for (const jour of L.calendrier.slice(0, a)) for (const m of jour) if (m.feuille && (m.A === L.you || m.B === L.you)) out.push({ feuille: m.feuille, cote: m.A === L.you ? 'A' : 'B' });
-  return out;
-}
 export function jetonsRogue(j = G.journee || 0) {
   const L = G.ligue;
   const decs = decisionsDeLaPartie();
@@ -117,12 +109,10 @@ export function jetonsRogue(j = G.journee || 0) {
   const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0) + ((d.ballottage || {}).cout || 0), 0);
   // Un doublon signé (1.0, oct.) n'est pas revendu : sa vente, comptée à l'ouverture, se retire (`annuleVente`).
   const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0) - (d.annuleVente || 0), 0);
-  // V21 : les bienfaits payants (js/pouvoirs.js `jetonsDesPouvoirs`), lus dans tes feuilles jouées.
-  const pouvoirs = jetonsDesPouvoirs(feuillesDuClub(j));
   const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
   // S80 : le barème de la saison de la run (5 🪙 par victoire sans commanditaire) ; une vieille run garde celui de S79.
   const bareme = G.bonus === 'ROGUE' && G.rogue && G.rogue.bareme ? G.rogue.bareme : JETONS;
-  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart, bareme) + ventes + pouvoirs;
+  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart, bareme) + ventes;
 }
 
 /*
@@ -569,11 +559,11 @@ export function masseDuLundi(j) {
   const espace = pl.cap - capUsed(pl);
   return { espace, libre: money(Math.max(0, espace)), lourd: lourd ? { n: lourd.n, cle: getPlayerKey(lourd), sal: money(capHit(lourd, pl)), dollars: capHit(lourd, pl) } : null };
 }
-/* Le coach de la run (V21) : son nom, son niveau et ses bienfaits, ce que la tête du coach (js/dossiers.js `laTete`) lit. */
+/* Le coach de la run (V21) : son nom, son niveau et son staff, ce que la tête du coach (js/dossiers.js `laTete`) lit. */
 export function coachsDuLundi() {
   const you = G.ligue && G.ligue.you, perso = you && you.perso;
   if (!perso || !COACHS[perso.cle]) return null;
-  return { cle: perso.cle, nom: COACHS[perso.cle].nom, ico: COACHS[perso.cle].ico, niveau: niveauDuPerso({ ...perso, xpSaison: you.xpSaison || 0 }), bienfaits: (perso.bienfaits || []).length };
+  return { cle: perso.cle, nom: COACHS[perso.cle].nom, ico: COACHS[perso.cle].ico, niveau: niveauDuPerso({ ...perso, xpSaison: you.xpSaison || 0 }), adjoints: (perso.adjoints || []).length };
 }
 /*
  * JOUER UNE CARTE DE L'INVENTAIRE : sa cible (un joueur, un blessé, une
@@ -1131,7 +1121,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     // V21 : le coach de la run, un personnage (js/pouvoirs.js) — son expérience et ses choix passent d'une saison à
     // l'autre (`perso`, la décision du jour 0, js/banc.js) — et le prestige du club, FIXÉ pour la run (js/rogue.js
     // `PRESTIGES`) : un rang gagné en route sert la suivante.
-    ...(COACHS[coach] ? { coach, perso: { cle: coach, xp: 0, talents: [], bienfaits: [] } } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta),
+    ...(COACHS[coach] ? { coach, perso: { cle: coach, xp: 0, talents: [], adjoints: [] } } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta),
     classeur: { cases: D.cases, pris: tires.map(x => x.cle) },
     // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
     cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],
@@ -1633,7 +1623,7 @@ async function continuerRun(gardes = [], lotos = []) {
   for (const p of gardes) G.variantes.cartes[getPlayerKey(p)] = meilleureVariante(lireCartable().joueurs[getPlayerKey(p)]) || G.variantes.cartes[getPlayerKey(p)];
   const decsSaison = decisionsDeLaPartie();
   // V21 : le coach de la run continue — son expérience de la saison (séries comprises) rejoint celle d'avant.
-  if (L.you && L.you.perso) G.rogue.perso = { cle: L.you.perso.cle, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])], bienfaits: [...(L.you.perso.bienfaits || [])] };
+  if (L.you && L.you.perso) G.rogue.perso = { cle: L.you.perso.cle, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])], adjoints: [...(L.you.perso.adjoints || [])] };
   // Jalon Q : les cartes de la partie te suivent — celles pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
   const poche = cartesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);
   if (poche.length) report.push({ jour: 0, poche, report: true });

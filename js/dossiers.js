@@ -16,7 +16,7 @@
  *            proprio, les blessés à l'infirmerie) ; sans elle, au vestiaire
  *   options  deux ou trois réponses aux CONSÉQUENCES CONCRÈTES (V21, docs/refonte-v21.md § 3 ; JP : *le système actuel
  *            marche pas*) : des jetons (`gain`, un prix s'il est négatif), de l'expérience au coach (`xp`, en plus ou en
- *            moins), un adjoint pour le coach (`bienfait`, nommé à l'écran) ou le dernier qui part (`perdBienfait`),
+ *            moins), un adjoint pour le staff (`adjoint`, nommé à l'écran) ou le dernier entré qui part (`perdAdjoint`),
  *            des jambes (`action` : `energie` au joueur nommé, `energieTous` à tous), une suspension (`action.absents`),
  *            un soin (`soin`, au blessé nommé), l'auxiliaire au filet, la masse salariale (`plafond`), ou rien ; et,
  *            quand il nomme un joueur, ce qui lui arrive à LUI (`lui`, ou le dé de l'audace, `pari`). Jamais plus un
@@ -24,7 +24,7 @@
  * Elles passent par la même porte que les dilemmes (`familleDeMoment`, `appliquerGestes`).
  *
  *   faits : { n, jambes, pire: { n, cle, j }, blesses: [{ n, m }], soirs, dos, visiteur, domicile, rival, bete,
- *             caisse, masse: { espace, libre, lourd: { n, cle, sal } }, defaites, coach: { cle, nom, ico, niveau, bienfaits }, dernier: { pour, contre, adv }, rang, equipes,
+ *             caisse, masse: { espace, libre, lourd: { n, cle, sal } }, defaites, coach: { cle, nom, ico, niveau, adjoints }, dernier: { pour, contre, adv }, rang, equipes,
  *             boude: { n, cle, zone, ou, pts, m }, puni: { n, cle, pun, m }, muet: { n, cle, sal, pts, m },
  *             vedette: { n, cle, fait }, gardien: { n, cle, fait } }
  *   (un joueur absent des faits : null)
@@ -178,7 +178,7 @@ export const DOSSIERS = {
     mots: ['Je ne paie pas un coach pour perdre. Quelqu\'un paie, et ce n\'est pas moi.',
       'La patience a des limites. La mienne est atteinte, la tienne, je ne sais pas.'],
     options: [
-      { cle: 'adjoint', nom: 'Congédier un adjoint', bon: 'Le proprio se calme', prix: 'Ton coach perd son dernier adjoint', perdBienfait: true },
+      { cle: 'adjoint', nom: 'Congédier un adjoint', bon: 'Le proprio se calme', prix: 'Ton dernier adjoint part', perdAdjoint: true },
       { cle: 'payer', nom: 'Calmer le proprio', bon: 'Le proprio se calme', prix: 'Un chèque pour les partisans', gain: -20 },
       { cle: 'tenir', nom: 'Tenir tête', bon: 'Personne ne part', prix: 'Ton coach perd la face', xp: -6 },
     ],
@@ -191,7 +191,7 @@ export const DOSSIERS = {
       'L\'argent dort dans le compte. Investis-le, ou garde-le pour la boutique.'],
     options: [
       { cle: 'stage', nom: 'Le stage du coach', bon: 'Ton coach revient avec un cahier neuf', prix: 'Le stage se paie', gain: -25, xp: 8 },
-      { cle: 'adjoint', nom: 'L\'adjoint qu\'il a en vue', bon: 'Un adjoint pour ton coach', prix: 'Son salaire', gain: -35, bienfait: true },
+      { cle: 'adjoint', nom: 'L\'adjoint qu\'il a en vue', bon: 'Un adjoint pour ton staff', prix: 'Son salaire', gain: -35, adjoint: true },
       { cle: 'garder', nom: 'Garder l\'argent', bon: 'La caisse reste pleine', rien: true },
     ],
   },
@@ -229,7 +229,7 @@ export const DOSSIERS = {
     mots: ['Le vestiaire est à plat. Le proprio parle d\'envoyer de l\'aide, et ce n\'est pas gratuit.',
       'On joue comme une équipe qui a déjà fait ses valises. Il faut faire quelque chose.'],
     options: [
-      { cle: 'aide', nom: 'L\'aide du proprio', bon: 'Un adjoint pour ton coach', prix: 'Le proprio se rembourse', gain: -15, bienfait: true },
+      { cle: 'aide', nom: 'L\'aide du proprio', bon: 'Un adjoint pour ton staff', prix: 'Le proprio se rembourse', gain: -15, adjoint: true },
       { cle: 'joueurs', nom: 'La réunion des joueurs', bon: 'Les jambes de tous reviennent : une journée de congé', action: { energieTous: 10 } },
     ],
   },

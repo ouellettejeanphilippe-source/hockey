@@ -18,7 +18,8 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles } from './coachs.js';
-import { POUVOIRS, BIENFAITS, avecBienfait, pouvoirsDeLaPeriode, XP } from './pouvoirs.js';
+import { POUVOIRS, pouvoirsDeLaPeriode, XP } from './pouvoirs.js';
+import { ADJOINTS, avecAdjoint, adjointsQuiJouent } from './adjoints.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil, PUNITIONS_SERMON } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -2582,9 +2583,9 @@ export function effetDeMoment(d, team = null) {
   if (!o) return null;
   const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
   // Un dossier (V10) paie ou coûte des jetons (`gain`) : la caisse les lit sur la décision, pas l'effet ; son plafond
-  // (`plafond`) aussi, et ses conséquences concrètes (V21 : l'expérience du coach, un bienfait gagné ou perdu, un soin).
+  // (`plafond`) aussi, et ses conséquences concrètes (V21 : l'expérience du coach, un adjoint gagné ou perdu, un soin).
   // Ce qui va au joueur nommé (`lui`, V11) n'est pas un effet d'équipe : `appliquerDecision` le pose sur lui.
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, plafond: _pl, xp: _x, bienfait: _b, perdBienfait: _pb, soin: _so, ...canaux } = o;
+  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, plafond: _pl, xp: _x, adjoint: _b, perdAdjoint: _pb, soin: _so, ...canaux } = o;
   void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l; void _pl; void _x; void _b; void _pb; void _so;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
@@ -5172,6 +5173,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   noterTrous(A, LA); noterTrous(B, LB);
   // LE PLAN DE MATCH (V17) : posé avant le profil du match, retiré après ; au duel, chaque période pose le sien.
   const retirerPlans = (A._gros || B._gros || {}).duel ? () => {} : poserLesPlans(A, B, LA, LB);
+  // LES ADJOINTS (V21) : leurs échanges, tous les matchs, le duel compris.
+  const retirerAdjoints = poserLesAdjoints(A, B, LA, LB);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   let gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
   const partantA = gA, partantB = gB;
@@ -5345,7 +5348,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     // La suite (V10, les moments « après une défaite », « après trois victoires ») : +n victoires, −n défaites.
     for (const [T, w] of [[A, winA], [B, !winA]]) T._suite = w ? Math.max(1, (T._suite || 0) + 1) : Math.min(-1, (T._suite || 0) - 1);
   }
-  retirerPlans();
+  retirerPlans(); retirerAdjoints();
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
 
@@ -5848,19 +5851,19 @@ function gagnerXp(T, bonus = 0) {
   if (T && T.perso) T.xpSaison = (T.xpSaison || 0) + XP.victoire + bonus;
 }
 /*
- * LE COACH, UN PERSONNAGE (V21, js/pouvoirs.js). La décision `coach` (le jour 0 de chaque saison) porte son expérience
- * d'avant, ses talents et ses bienfaits ; `talent` et `bienfait` s'y ajoutent au jour dit. L'expérience de la saison,
- * le moteur la compte (`xpSaison`, `gagnerXp`).
+ * LE COACH, UN PERSONNAGE (V21, js/pouvoirs.js), ET SES ADJOINTS (js/adjoints.js). La décision `coach` (le jour 0 de
+ * chaque saison) porte son expérience d'avant, ses talents et ses adjoints ; `talent`, `adjoint` ({ cle }) et
+ * `perdAdjoint` s'y ajoutent au jour dit. L'expérience de la saison, le moteur la compte (`xpSaison`, `gagnerXp`).
  */
 function appliquerPerso(team, d) {
   if (d.coach && d.coach.cle && POUVOIRS[d.coach.cle]) {
-    team.perso = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])], bienfaits: [...(d.coach.bienfaits || [])] };
+    team.perso = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])], adjoints: (d.coach.adjoints || []).filter(k => ADJOINTS[k]) };
   }
   if (!team.perso) return;
   if (d.talent && Number.isInteger(d.talent.p)) team.perso = { ...team.perso, talents: [...team.perso.talents, d.talent.p] };
-  if (d.bienfait && Number.isInteger(d.bienfait.p) && BIENFAITS[d.bienfait.b]) team.perso = { ...team.perso, bienfaits: avecBienfait(team.perso.bienfaits, d.bienfait) };
+  if (d.adjoint && ADJOINTS[d.adjoint.cle]) team.perso = { ...team.perso, adjoints: avecAdjoint(team.perso.adjoints, d.adjoint.cle) };
   if (Number(d.xpCoach)) team.perso = { ...team.perso, xp: Math.max(0, team.perso.xp + Number(d.xpCoach)) };
-  if (d.perdBienfait) team.perso = { ...team.perso, bienfaits: team.perso.bienfaits.filter(x => !(x.p === d.perdBienfait.p && x.b === d.perdBienfait.b)) };
+  if (d.perdAdjoint) team.perso = { ...team.perso, adjoints: team.perso.adjoints.filter(k => k !== d.perdAdjoint) };
 }
 
 function appliquerDecision(team, d, graine = 0) {
@@ -5921,7 +5924,7 @@ function appliquerDecision(team, d, graine = 0) {
     const o = AVANT_GROS[d.avant.cle].options.find(x => x.cle === d.avant.choix);
     if (o) appliquerGestes(team, o, d.jour, d.avant.joueurs, graine, cleDuPari(d), AVANT_GROS[d.avant.cle].titre);
   }
-  // LE COACH, UN PERSONNAGE (V21, js/pouvoirs.js) : son expérience, ses talents et ses bienfaits.
+  // LE COACH, UN PERSONNAGE (V21, js/pouvoirs.js) : son expérience, ses talents et ses adjoints.
   appliquerPerso(team, d);
   /*
    * LES GESTES D'UNE CARTE (S79) : un soin (des matchs d'infirmerie en
@@ -6740,7 +6743,7 @@ export function feuilleVierge() {
     glacePremier: { A: 0, B: 0 },                         // la part de glace du premier trio de chaque club (V19)
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
-    pouvoirs: [],                                         // V21 : { cote, k, p, cle, nom, ico, buts, contre, payant, defense, contagion }
+    pouvoirs: [],                                         // V21 : { cote, k, p, cle, nom, ico, buts, contre }
     prolongation: false,
   };
 }
@@ -8663,6 +8666,31 @@ function poserLesPlans(A, B, LA, LB) {
   }
   return () => { for (const r of retraits.reverse()) r(); };
 }
+/*
+ * LES ADJOINTS (V21, js/adjoints.js) : chacun un échange, posé le temps du match — sur ton club, sur l'adversaire, sur
+ * tes gardiens n° 1 et n° 2 (la première et la deuxième case du filet). Rend la fonction qui les retire.
+ */
+function poserLesAdjoints(A, B, LA, LB) {
+  const retraits = [];
+  const poser = (X, e) => {
+    const avait = '_effetMatch' in X, avant = X._effetMatch;
+    X._effetMatch = [...(avant || []), e];
+    retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
+  };
+  for (const [T, O, LT] of [[A, B, LA], [B, A, LB]]) {
+    for (const k of adjointsQuiJouent(T.perso && T.perso.adjoints)) {
+      const J = ADJOINTS[k];
+      if (!J) continue;
+      if (J.effet) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...J.effet });
+      if (J.adv) poser(O, { source: 'adjoint', nom: J.nom, ico: J.ico, ...J.adv });
+      if (J.gardiens) {
+        const [n1, n2] = SLOTS.filter(sl => sl.group === 'G' && !sl.scratch).map(sl => LT[sl.i]);
+        retraits.push(poserFxDeJoueurs([[n1, { arrets: J.gardiens.partant }], [n2, { arrets: J.gardiens.aux }]].filter(([p]) => p)));
+      }
+    }
+  }
+  return () => { for (const r of retraits.reverse()) r(); };
+}
 /* Poser des canaux de joueur le temps d'un match ou d'une période ; rend la fonction qui les retire. */
 function poserFxDeJoueurs(joueurs) {
   const poses = [];
@@ -8794,8 +8822,7 @@ function pouvoirsPoses(T, e, cote, journal) {
   for (const x of pouvoirsDeLaPeriode(perso, e)) {
     if (x.effet) out.toi.push({ source: 'pouvoir', nom: x.P.nom, ico: x.P.ico, ...x.effet });
     if (x.adv) out.adv.push({ source: 'pouvoir', nom: x.P.nom, ico: x.P.ico, ...x.adv });
-    const payant = !x.contagion && (perso.bienfaits || []).some(b => b.p === x.p && b.b === 'payant');
-    const note = { cote, k: e.k, p: x.p, cle: x.P.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0, payant, defense: !!x.P.defense, contagion: x.contagion };
+    const note = { cote, k: e.k, p: x.p, cle: x.P.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0 };
     out.notes.push(note);
     if (journal) journal.pouvoirs.push(note);
   }

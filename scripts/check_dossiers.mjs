@@ -4,7 +4,7 @@
  *   1. les événements sont partis (V10, tranche 6) : leur famille n'existe plus dans la banque ;
  *   2. la forme : une voix d'`EXPEDITEURS`, deux répliques au moins, deux ou trois réponses nommées, chacune un bon
  *      côté et une CONSÉQUENCE CONCRÈTE (V21, docs/refonte-v21.md § 3) : des jetons, de l'expérience au coach, un
- *      bienfait gagné ou perdu, des jambes, une suspension, un soin, l'auxiliaire, la masse salariale, ou ce qui
+ *      adjoint gagné ou perdu, des jambes, une suspension, un soin, l'auxiliaire, la masse salariale, ou ce qui
  *      arrive au joueur nommé ; jamais plus un pourcentage de l'équipe pour quelques soirs ;
  *   3. pur : la même graine, la même semaine et les mêmes faits rendent le même dossier ; jamais deux fois le même dans
  *      une saison ; la pratique du mardi seulement quand rien d'autre n'est vrai ;
@@ -25,7 +25,7 @@ import { exiger, informer, verdict } from './verdict.mjs';
 
 /* ---------- 2. la forme ---------- */
 // V21 : les champs d'une conséquence concrète ; `duree` ne sert qu'à ce qui arrive au joueur nommé (`lui`).
-const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'duree', 'action', 'gain', 'xp', 'bienfait', 'perdBienfait', 'soin', 'rien', 'lui', 'plafond', 'pari']);
+const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'duree', 'action', 'gain', 'xp', 'adjoint', 'perdAdjoint', 'soin', 'rien', 'lui', 'plafond', 'pari']);
 const ACTIONS = new Set(['energieTous', 'gardienAux', 'energie', 'absents']);
 /* Ce qu'un joueur nommé porte (V11, tranche 4) : ses canaux à lui (`CANAUX_MUT`, js/sim.js). */
 const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets']);
@@ -41,7 +41,7 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
       const inconnus = Object.keys(o).filter(k => !CHAMPS.has(k));
       if (inconnus.length) fautes.push(`${cle}/${o.cle} : ${inconnus.join(', ')}`);
       if (o.action && Object.keys(o.action).some(k => !ACTIONS.has(k))) fautes.push(`${cle}/${o.cle} : le geste`);
-      if (!o.rien && !o.action && !o.gain && !o.xp && !o.bienfait && !o.perdBienfait && !o.soin && !o.lui && !o.pari && !o.plafond) fautes.push(`${cle}/${o.cle} : ne fait rien de concret`);
+      if (!o.rien && !o.action && !o.gain && !o.xp && !o.adjoint && !o.perdAdjoint && !o.soin && !o.lui && !o.pari && !o.plafond) fautes.push(`${cle}/${o.cle} : ne fait rien de concret`);
       if (o.duree && !o.lui) fautes.push(`${cle}/${o.cle} : une durée sans joueur`);
       // L'AUDACE (V20) : un dé sur le joueur que le dossier nomme — ses deux issues sur ses canaux à lui, chacune une durée, rien à l'équipe.
       if (o.pari) {
@@ -83,7 +83,7 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
       rival: r() < 0.2 ? 'Rival' : null, bete: r() < 0.08 ? 'Bête' : null, caisse: pige([5, 40, 60, 120]),
       dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32,
       masse: { espace: pige([-500_000, 800_000, 4_000_000, 9_000_000]), libre: '0,8 M$', lourd: { n: 'Lourd', cle: 'l', sal: '9,5 M$' } },
-      defaites: pige([0, 0, 1, 2, 4, 5]), coach: { cle: 'tortue', nom: 'La Tortue', ico: '🐢', niveau: 2, bienfaits: 1 } };
+      defaites: pige([0, 0, 1, 2, 4, 5]), coach: { cle: 'tortue', nom: 'La Tortue', ico: '🐢', niveau: 2, adjoints: 1 } };
   };
   let purs = true, uneFois = true, reserve = true;
   const sortis = new Map();

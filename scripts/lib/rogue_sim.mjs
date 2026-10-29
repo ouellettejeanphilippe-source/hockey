@@ -304,13 +304,13 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const poser = p => { const k = getPlayerKey(p); p._carte = carteDe(variantes.get(k) || varianteTiree(COTES_VARIANTES, graine, k), p.p === 'G', graine, k); };
   Object.values(etat.roster).forEach(poser);
   // LE COACH, UN PERSONNAGE (V21) : choisi au départ de la run (`coachDuRobot`), il la fait au complet ; d'une saison à
-  // l'autre, son expérience, ses talents et ses bienfaits continuent (`etat.perso`, comme au jeu).
+  // l'autre, son expérience, ses talents et son staff continuent (`etat.perso`, comme au jeu).
   const ouverts = coachsOuverts(rangDePrestige(meta));
   if (!etat.perso) {
     const couleurs = {};
     for (const p of Object.values(etat.roster)) { const c = p && coachDuJoueur(p); if (c) couleurs[c] = (couleurs[c] || 0) + v(p); }
     const couleur = Object.entries(couleurs).sort((a, b) => b[1] - a[1])[0];
-    etat.perso = { cle: coachDuRobot(ouverts, { politique, clic, couleur: couleur && couleur[0] }), xp: 0, talents: [], bienfaits: [] };
+    etat.perso = { cle: coachDuRobot(ouverts, { politique, clic, couleur: couleur && couleur[0] }), xp: 0, talents: [], adjoints: [] };
   }
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
   const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux) : etat.roster;
@@ -321,8 +321,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus, 31, ligue);
-  // Le coach du jour 0 de chaque saison (js/banc.js) : son expérience d'avant, ses talents, ses bienfaits.
-  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], bienfaits: [...etat.perso.bienfaits] } }];
+  // Le coach du jour 0 de chaque saison (js/banc.js) : son expérience d'avant, ses talents, son staff.
+  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], adjoints: [...etat.perso.adjoints] } }];
   // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
   const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, (etat.galons && etat.galons.get(getPlayerKey(p))) || 0)]).filter(([, n]) => n > 0));
   if (Object.keys(galons).length) decisions.push({ jour: 0, galons, report: true });
@@ -513,7 +513,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     e = Math.round(e);
     ecussons += e;
     const mandat = mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32, exigence });
-    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length, valeur, mandat, coach: r.perso.cle, niveau: niveauDuPerso(r.perso), bienfaits: r.perso.bienfaits.length });
+    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length, valeur, mandat, coach: r.perso.cle, niveau: niveauDuPerso(r.perso), adjoints: r.perso.adjoints.length });
     // La Coupe (tranche 8) : elle compte, et le cran d'exigence gagné ouvre le suivant (js/rogue.js `payerEcussons`).
     if (r.coupe) { meta.coupes = (meta.coupes || 0) + 1; meta.exigence = Math.max(meta.exigence || 0, exigence); }
     // LE MANDAT DU PROPRIO (js/rogue.js `MANDATS`) : manqué, la run est finie ; la Coupe la gagne.

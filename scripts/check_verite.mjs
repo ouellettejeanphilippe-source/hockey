@@ -7,7 +7,7 @@
  *      objectifs, ajustements) : une graine en base 36 valait 0 par
  *      `Number(graine)`, et toutes les runs tiraient pareil.
  *   2. LE COACH (V21) : son choix dit ses pouvoirs et les niveaux qui les
- *      ouvrent ; ses bienfaits offerts se tirent de la graine ; « Tes cartes
+ *      ouvrent ; les adjoints offerts se tirent de la graine ; « Tes cartes
  *      jouées » ne se promet plus.
  *   3. LA PITIÉ : « au plus tard au N+1e pack » et le moteur garantit le
  *      N+1e, pas le Ne.
@@ -27,7 +27,8 @@ import { entierDeGraine, matchDuMoment, momentDuJour, objectifsOfferts, ajusteme
   autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, faitsDuClub, jourEvenement } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { COACHS, COACH_DU_ROLE } from '../js/coachs.js';
-import { POUVOIRS, NIVEAU_DES_POUVOIRS, bienfaitsOfferts } from '../js/pouvoirs.js';
+import { POUVOIRS, NIVEAU_DES_POUVOIRS } from '../js/pouvoirs.js';
+import { adjointsOfferts } from '../js/adjoints.js';
 import { PITIE, packsSansHolo } from '../js/packs.js';
 import { PALIERS_PACK } from '../js/inventaire.js';
 
@@ -93,10 +94,9 @@ const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.jou
   exiger('le choix du coach dit ses pouvoirs et les niveaux qui les ouvrent', /POUVOIRS\[k\]\.map/.test(rj) && /NIVEAU_DES_POUVOIRS/.test(rj) && Object.keys(COACHS).every(k => POUVOIRS[k] && POUVOIRS[k].length === NIVEAU_DES_POUVOIRS.length),
     `${Object.keys(COACHS).length} coachs, pouvoirs aux niveaux ${NIVEAU_DES_POUVOIRS.join(', ')}`);
   exiger('« tes cartes jouées » ne se promet plus', !sa.some(s => /cartes jouées viennent ici/.test(s)) && !g.some(s => /cartes de sa couleur/.test(s)));
-  // Les bienfaits offerts se tirent de la graine : deux graines, deux offres ; la même, la même.
-  const perso = { cle: 'essaim', xp: 999, talents: [], bienfaits: [] };
-  const a = bienfaitsOfferts(perso, 'g1', 'pp9'), b = bienfaitsOfferts(perso, 'g2', 'pp9');
-  exiger('deux graines, deux offres de bienfaits ; la même graine, la même offre', JSON.stringify(a) !== JSON.stringify(b) && JSON.stringify(a) === JSON.stringify(bienfaitsOfferts(perso, 'g1', 'pp9')), `${a.map(x => `${x.p}:${x.b}`).join(' ')} / ${b.map(x => `${x.p}:${x.b}`).join(' ')}`);
+  // Les adjoints offerts se tirent de la graine : deux graines, deux offres ; la même, la même.
+  const a = adjointsOfferts([], 'g1', 'pp9'), b = adjointsOfferts([], 'g2', 'pp9');
+  exiger('deux graines, deux offres d\'adjoints ; la même graine, la même offre', JSON.stringify(a) !== JSON.stringify(b) && JSON.stringify(a) === JSON.stringify(adjointsOfferts([], 'g1', 'pp9')), `${a.join(', ')} · ${b.join(', ')}`);
   exiger('les rôles de COACH_DU_ROLE existent', Object.entries(COACH_DU_ROLE).every(([g2, roles]) => Object.keys(roles).every(r => PROFILS[g2][r])));
 }
 

@@ -104,7 +104,7 @@ informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}
 const t0 = ligue(79, 16), moi = t0[0];
 const avant = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => moi.roster[s.i]).find(Boolean);
 const decs = [
-  { jour: 0, equipe: 0, coach: { cle: 'tortue', xp: 0, talents: [], bienfaits: [] } },
+  { jour: 0, equipe: 0, coach: { cle: 'tortue', xp: 0, talents: [], adjoints: [] } },
   { jour: 5, equipe: 0, ...payloadDe('consommable:stage', {}) },
   { jour: 10, equipe: 0, moment: { famille: 'dossier', cle: 'laPratique', choix: 'systeme' }, xpCoach: 2 },
   { jour: 20, equipe: 0, moment: { famille: 'dossier', cle: 'ilBoude', choix: 'parler', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] }, gain: -6 },

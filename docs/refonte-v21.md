@@ -1,6 +1,6 @@
 # V21 — Le coach, un personnage
 
-JP, 29 oct. 2026, sur la V20 : *You didn't really redo the system, c'est le même hiring, même ui, presque mêmes cartes, on s'en fout de briser les saves, le système actuel marche pas.* Puis, au choix de trois directions : **le coach-personnage à la Hades** ; le staff **un parmi trois, gratuit, aux moments forts** ; les événements **à conséquences concrètes**.
+JP, 29 oct. 2026, sur la V20 : *You didn't really redo the system, c'est le même hiring, même ui, presque mêmes cartes, on s'en fout de briser les saves, le système actuel marche pas.* Puis, au choix de trois directions : **le coach-personnage à la Hades** ; le staff **un parmi trois, gratuit, aux moments forts** (puis, précisé : des systèmes de jeu, des échanges) ; les événements **à conséquences concrètes**.
 
 On repart de zéro. Une vieille partie peut casser (JP).
 
@@ -35,17 +35,30 @@ Deux trous du moteur se sont montrés en mesurant : la précision d'une équipe 
 
 Une soirée en trois plages n'a pas le même tirage qu'une soirée d'un bloc (les punitions et les lancers se répartissent au prorata), d'où le coach muet comme témoin ; sur 8 000 matchs, elle donne ≈ +0,9 tir et +0,13 but par match aux deux clubs ensemble, le même biais que le duel depuis la V9.
 
-## 2. Les adjoints, des bienfaits
+## 2. Les adjoints, des systèmes de jeu
 
-Un adjoint ne vient plus seul : il **modifie un pouvoir** de ton coach. Cinq sortes (`BIENFAITS`) :
+JP, sur le premier jet (des bienfaits qui modifiaient un pouvoir, à la Hades) : *les assistants sont des ajustements, des systèmes de jeu* ; *genre deux tirs de plus, mais en alloue deux de plus, ou tu buffs légèrement le gardien numéro un mais un nerf le numéro deux ou l'inverse*.
 
-- ⏪ **Plus tôt** : le pouvoir joue aussi plus tôt (une période avant, ou dès que sa condition se lit) ;
-- 💪 **Plus fort** : l'effet grandit de moitié ;
-- 🪙 **Payant** : chaque but marqué pendant le pouvoir rapporte 2 jetons (un pouvoir de défense : chaque période sans but contre, 3) ;
-- 🏆 **Des séries** : en séries, l'effet double ;
-- 🔁 **Contagieux** : quand ce pouvoir joue, un autre de tes pouvoirs débloqués joue aussi à moitié.
+Un adjoint est donc un **échange** (js/adjoints.js) : ce que ton club gagne et ce qu'il donne, sur les canaux que le moteur connaît, tous les matchs. Il change la forme du match, pas sa force : sur un club ordinaire, le net est près de zéro ; sur le tien, il paie si l'échange lui va. À l'écran, on dit « un ajustement, un échange » (le mot « système » est parti avec les systèmes de ligne, V18).
 
-**Les obtenir : un parmi trois, gratuit, aux moments forts** — les paliers des 9e, 18e et 26e matchs, un gros match gagné, le verdict du proprio. Les trois se tirent de la graine parmi les bienfaits pas encore pris de tes pouvoirs débloqués. Un pouvoir porte au plus deux bienfaits ; quand il n'y a plus rien à offrir, le moment fort paie cinq points d'expérience. Rien ne s'achète, rien ne se paie.
+| Adjoint | Ce qu'il donne | Ce qu'il coûte |
+|---|---|---|
+| 🏹 Le canonnier | tes tirs +8 % | leurs tirs +8 % |
+| 🚧 Le trappeur | leurs tirs −8 % | tes tirs −8 % |
+| 📐 Le tireur d'élite | ta précision +8 % | tes tirs −8 % |
+| 💨 Le mitrailleur | tes tirs +10 % | ta précision −7 % |
+| 🧱 Le bâtisseur de mur | buts contre −8 % | ta précision −8 % |
+| 🧤 L'entraîneur du n° 1 | ton gardien n° 1 : buts accordés −6 % | ton n° 2 : +18 % |
+| 🧊 L'entraîneur du n° 2 | ton gardien n° 2 : buts accordés −12 % | ton n° 1 : +4 % |
+| 🏋 Le préparateur physique | plus de mises en échec | tes punitions +20 % |
+| 🧭 Le prof de discipline | tes punitions −25 % | moins de mises en échec |
+| 🧲 Le rouleur | tes 3e et 4e trios jouent plus, leurs tirs −7 % | ton 1er trio joue moins |
+| 📊 Le vedettiste | ton 1er trio joue plus | le bas joue moins, leurs tirs +6 % |
+| 🧪 Le soigneur | tes blessures −30 % | tes tirs −4 % |
+
+Le n° 1 part environ trois soirs sur quatre : un échange de gardiens s'équilibre à trois contre un.
+
+**Les obtenir : un parmi trois, gratuit, aux moments forts** — les paliers des 9e, 18e et 26e matchs, un gros match gagné, le verdict du proprio, et certaines histoires. Les trois se tirent de la graine parmi ceux qui ne sont pas en poste. Ton staff tient **trois adjoints** ; un quatrième, et tu choisis qui part (À faire, « Qui part ? »). Rien ne s'achète.
 
 ## 3. Les histoires : des conséquences concrètes
 
@@ -53,18 +66,19 @@ Un lundi sur deux environ, une histoire (`DOSSIERS`), qui ne joue plus sur des p
 
 - de l'expérience au coach (« ton coach apprend » : +3 XP) ou en moins ;
 - des jetons, gagnés ou payés ;
-- un bienfait tout de suite (un parmi trois), ou un bienfait perdu ;
+- un adjoint pour ton staff, ou le dernier entré qui part ;
 - un joueur : un dépanneur du ballottage qui arrive, un blessé qui revient plus tôt, un joueur suspendu des matchs.
 
 ## 4. L'écran
 
-Le sous-onglet **Coach** : le portrait du coach, son niveau et la barre d'expérience, puis ses trois pouvoirs en cartes (débloqué ou verrouillé, le niveau qui l'ouvre, ses bienfaits accrochés dessous, combien de fois il a joué cette saison). À faire : un talent à choisir, un bienfait à prendre. Hier soir dit les pouvoirs qui ont joué.
+Le sous-onglet **Coach** : le portrait du coach, son niveau et la barre d'expérience, ses trois pouvoirs en cartes (débloqué ou verrouillé, le niveau qui l'ouvre, combien de fois il a joué cette saison), puis son staff, chaque adjoint et son échange. À faire : un talent à choisir, un adjoint à prendre, qui part. Hier soir dit les pouvoirs qui ont joué.
 
 ## 5. Les tranches
 
 | Tranche | Ce qu'elle fait |
 |---|---|
-| 1 | js/pouvoirs.js ; le moteur joue les pouvoirs période par période (soirée normale et duel), la feuille les garde ; les jetons des bienfaits payants |
-| 2 | l'écran du coach, le talent et le bienfait dans À faire ; le personnel, les échelons, la confiance, le chiffre, les ententes et le pack Personnel partent, avec leurs vérifications |
+| 1 | js/pouvoirs.js ; le moteur joue les pouvoirs période par période (soirée normale et duel), la feuille les garde |
+| 2 | l'écran du coach, le talent et l'adjoint dans À faire ; le personnel, les échelons, la confiance, le chiffre, les ententes et le pack Personnel partent, avec leurs vérifications |
 | 3 | les histoires à conséquences concrètes |
-| 4 | les robots (`rogue_sim`) choisissent talents et bienfaits ; `check_pouvoirs`, `check_profondeur`, `essai_rogue` ; la page des règles et CLAUDE.md |
+| 4b | les adjoints deviennent des systèmes de jeu, des échanges (js/adjoints.js) ; les bienfaits partent |
+| 4 | les robots (`rogue_sim`) choisissent talents et adjoints ; `check_pouvoirs`, `check_profondeur`, `essai_rogue` ; la page des règles et CLAUDE.md |

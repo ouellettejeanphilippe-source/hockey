@@ -30,7 +30,7 @@ const $ = id => document.getElementById(id);
 export const SEMAINE = 7;
 /*
  * LES PALIERS DE LA SAISON (S79 ; V9, tranche 5b) : aux matchs 9, 18 et 26, au verdict du proprio et au butin d'un gros
- * match gagné. V21 : un bienfait parmi trois pour le coach (js/pouvoirs.js `bienfaitsOfferts`, js/saison.js).
+ * match gagné. V21 : un adjoint parmi trois, un échange (js/adjoints.js `adjointsOfferts`, js/saison.js).
  */
 export const PALIERS_PACK = [9, 18, 26];
 

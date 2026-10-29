@@ -3629,8 +3629,8 @@ a.spin-club:hover { background: var(--fond-2); }
 .pv-etat { margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); white-space: nowrap; }
 .pv-dit { margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-2); }
 .pv-dit .bon { color: var(--bon); }
-.pv-bf { display: flex; flex-wrap: wrap; gap: var(--esp-1); margin: 0; }
-.pv-bf span { padding: 2px 6px; border-radius: var(--r-0); background: var(--fond-3); font: 700 var(--t-1)/1.2 var(--display); color: var(--encre); }
+.pv-dit .mal { color: var(--mauvais); }
+.pv.adj { box-shadow: inset 3px 0 0 var(--encre-3); }
 /* LES CARTES D'UNE MAISON (V12-4), toujours visibles : un titre, et une bande de cartons qui se balaie, la suivante au bord, comme la main du duel. */
 .ej-coach-l.suite { opacity: 0.6; }
 /* Ce que le prochain palier jouera (V12-4) : un détail, que « Les chiffres » déplie, comme les chiffres d'un choix. */

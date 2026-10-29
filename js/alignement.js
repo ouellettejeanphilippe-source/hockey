@@ -10,7 +10,8 @@ import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { badgesDe, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, specialesEnStats } from './impact.js';
 import { COACHS } from './coachs.js';
-import { POUVOIRS, BIENFAITS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
+import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
+import { ADJOINTS, ADJOINTS_MAX, lignesDeLAdjoint } from './adjoints.js';
 import { jambesHtml, motDuBadge, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
@@ -760,13 +761,14 @@ function avecLeBanc(fn) {
 }
 /*
  * TON COACH, UN PERSONNAGE (V21, docs/refonte-v21.md). Son niveau et sa barre d'expérience, puis ses trois pouvoirs :
- * ouvert ou verrouillé (le niveau qui l'ouvre), ce qu'il fait, sa force (ses talents), ses bienfaits accrochés, et
- * combien de fois il a joué cette saison (lu dans tes feuilles). Le personnage est celui que la ligue rejouée porte.
+ * ouvert ou verrouillé (le niveau qui l'ouvre), ce qu'il fait, sa force (ses talents), et combien de fois il a joué
+ * cette saison (lu dans tes feuilles). Puis son staff : chaque adjoint, son échange — ce qu'il donne, ce qu'il coûte.
+ * Le personnage est celui que la ligue rejouée porte.
  */
 export function coachHtml() {
   if (G.bonus !== 'ROGUE' || !G.rogue) return '';
   const L = G.ligue, you = L && L.you;
-  const perso = (you && you.perso) || (G.rogue.coach ? { cle: G.rogue.coach, xp: 0, talents: [], bienfaits: [] } : null);
+  const perso = (you && you.perso) || (G.rogue.coach ? { cle: G.rogue.coach, xp: 0, talents: [], adjoints: [] } : null);
   const C = perso && COACHS[perso.cle];
   if (!C) return '';
   const xp = (perso.xp || 0) + ((you && you.xpSaison) || 0), niveau = niveauDuPerso({ ...perso, xpSaison: (you && you.xpSaison) || 0 });
@@ -778,16 +780,14 @@ export function coachHtml() {
   for (const m of (L && L.calendrier ? L.calendrier.flat() : [])) {
     if (!m.feuille || (m.A !== you && m.B !== you)) continue;
     const cote = m.A === you ? 'A' : 'B';
-    for (const x of m.feuille.pouvoirs || []) if (x.cote === cote && !x.contagion) fois[x.p]++;
+    for (const x of m.feuille.pouvoirs || []) if (x.cote === cote) fois[x.p]++;
   }
   const carte = (P, p) => {
     const ouvert = niveau >= NIVEAU_DES_POUVOIRS[p];
-    const bs = (perso.bienfaits || []).filter(b => b.p === p).map(b => BIENFAITS[b.b]).filter(Boolean);
     const f = forceDuPouvoir(perso, p);
     return `<div class="pv${ouvert ? '' : ' ferme'}">
       <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${P.ico}</span><b>${esc(P.nom)}</b>${p === 2 ? '<small>Ultime</small>' : ''}<span class="pv-etat">${ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`}</span></div>
       <p class="pv-dit">${esc(P.dit)}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}</p>
-      ${bs.length ? `<p class="pv-bf">${bs.map(B => `<span>${B.ico} ${esc(B.nom)}</span>`).join('')}</p>` : ''}
     </div>`;
   };
   return `<div class="ej-coach">
@@ -795,6 +795,11 @@ export function coachHtml() {
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
     ${POUVOIRS[perso.cle].map(carte).join('')}
+    <div class="ej-coach-l">Ton staff : ${(perso.adjoints || []).length} adjoint${(perso.adjoints || []).length > 1 ? 's' : ''} sur ${ADJOINTS_MAX}</div>
+    ${(perso.adjoints || []).filter(k => ADJOINTS[k]).map(k => `<div class="pv adj">
+      <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${ADJOINTS[k].ico}</span><b>${esc(ADJOINTS[k].nom)}</b></div>
+      <p class="pv-dit">${lignesDeLAdjoint(k).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join(' · ')}</p>
+    </div>`).join('')}
   </div>`;
 }
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */
