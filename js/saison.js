@@ -1512,7 +1512,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     ].filter(Boolean);
     return lignes.length ? `<div class="hub-decide"><b>Ce qui devrait décider</b><ul>${lignes.map(x => `<li>${ctx.esc(x)}</li>`).join('')}</ul></div>` : '';
   }
-  function forcesHtml(adv) {
+  function forcesHtml(adv, { table = !soirEnVolet } = {}) {
     const axes = axesDuMatch(you, adv, { A: partantDe(you), B: partantDe(adv) });
     const av = axes.map(avantageDe);
     const rang = c => (c ? rangMot(c.rang) : '—');
@@ -1525,9 +1525,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
     // V7 — L'AFFICHE EN VRAIES STATS : les deux clubs côte à côte (`duelHtml`) ; les rangs et la phrase vont au dépistage.
     const phraseHtml = `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>`;
-    // En Rogue, le tableau des rangs n'est pas redit (V18-5).
+    // En Rogue, le tableau des rangs vit au face-à-face (V18-5, oct.).
     return { mot: duelHtml(adv), detail: phraseHtml + `<div class="hub-forces">
-      ${soirEnVolet ? '' : `<table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
+      ${!table ? '' : `<table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
         <thead><tr><th></th>${axes.map(x => `<th scope="col" title="${ctx.esc(x.nom)}">${x.ico}</th>`).join('')}</tr></thead>
         <tbody>
           <tr><th scope="row">${ctx.esc(nomMoi)}</th>${axes.map((x, i) => cell(x, 'moi', i)).join('')}</tr>
@@ -1545,7 +1545,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * CE SOIR EN TROIS CHIFFRES (docs/ecrans-rogue.md, E5) : au Rogue, l'affiche garde les tirs, la précision et le
    * % d'arrêts, en barres face à face ; le tableau complet (`complet`) vit au dépistage.
    */
-  function duelHtml(adv, { complet = !soirEnVolet } = {}) {
+  function duelHtml(adv, { complet = !soirEnVolet, barres = !complet } = {}) {
     const S = saisonDesFeuilles(calendrier.slice(0, jour));
     const a = S.get(you), b = S.get(adv);
     const v1 = x => (x == null ? '—' : String(x.toFixed(1)).replace('.', ','));
@@ -1565,10 +1565,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (!complet) lignes = lignes.filter(([k]) => ['Tirs', 'Précision', '% d\'arrêts'].includes(k));
     // Dans l'ordre de l'affiche : le club à domicile à gauche. La barre dit l'écart entre les deux, grossi (×4) pour se voir.
     const barre = (x, y) => (x != null && y != null && x + y > 0 ? ` style="--part:${Math.max(8, Math.min(92, 50 + 400 * (x / (x + y) - 0.5))).toFixed(0)}%"` : '');
-    const cell = (x, y, f, sens, cote) => `<td class="${cote}${x != null && y != null && Math.abs(x - y) > 1e-9 && (sens > 0 ? x > y : x < y) ? ' mieux' : ''}"${complet ? '' : barre(x, y)}>${f(x)}</td>`;
+    const cell = (x, y, f, sens, cote) => `<td class="${cote}${x != null && y != null && Math.abs(x - y) > 1e-9 && (sens > 0 ? x > y : x < y) ? ' mieux' : ''}"${barres ? barre(x, y) : ''}>${f(x)}</td>`;
     const chezNous = (prochain() || {}).m ? prochain().m.A === you : true;
-    const mP = (prochain() || {}).m, couleurs = mP && !complet ? ` style="--a-duel:${ctx.band(mP.A.tag).duel};--b-duel:${ctx.band(mP.B.tag).duel}"` : '';
-    return `<div class="hub-duel-titre">${titre}</div><table class="hub-duel${complet ? '' : ' barres'}"${couleurs}><tbody>${lignes.map(([k, x, y, f, sens]) => (chezNous
+    const mP = (prochain() || {}).m, couleurs = mP && barres ? ` style="--a-duel:${ctx.band(mP.A.tag).duel};--b-duel:${ctx.band(mP.B.tag).duel}"` : '';
+    return `<div class="hub-duel-titre">${titre}</div><table class="hub-duel${barres ? ' barres' : ''}"${couleurs}><tbody>${lignes.map(([k, x, y, f, sens]) => (chezNous
       ? `<tr>${cell(x, y, f, sens, 'g')}<th scope="row">${k}</th>${cell(y, x, f, sens, 'd')}</tr>`
       : `<tr>${cell(y, x, f, sens, 'g')}<th scope="row">${k}</th>${cell(x, y, f, sens, 'd')}</tr>`)).join('')}</tbody></table>`;
   }
@@ -2866,7 +2866,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
 
   /*
-   * LE PROCHAIN MATCH, EN UNE LIGNE AU BUREAU (V8) : qui, quand, où, s'il est gros ; le toucher ouvre tes Lignes.
+   * LE PROCHAIN MATCH, EN UNE LIGNE AU BUREAU (V8) : qui, quand, où, s'il est gros ; le toucher ouvre le face-à-face
+   * (oct., JP : *cliquer le match à venir devrait montrer les stats de confrontation, pas les lignes. Les lignes, c'est le
+   * bouton Lignes*).
    */
   /* Ton plan d'avant-match, au Bureau (oct.) : une rangée qui dit le plan en force ; la toucher ouvre la feuille des six plans (`ouvrirPlan`). */
   const planDuBureauHtml = p => {
@@ -2879,7 +2881,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <span class="bu-prochain-logo" aria-hidden="true">${ctx.logo(adv.tag, 28)}</span>
       <span class="bu-prochain-txt"><small>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : 'à l\'étranger'}</small>
         <b>${ctx.esc(ctx.teamShort(adv))}</b>${G0 ? `<small class="bu-prochain-gros">${G0.ico} Gros match · ${ctx.esc(G0.nom)}</small>` : ''}</span>
-      <span class="bu-prochain-aller">Tes lignes ›</span>
+      <span class="bu-prochain-aller">Face à face ›</span>
     </button>`;
   }
 
@@ -2991,10 +2993,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const surveiller = vedettes.some(Boolean) ? `<div class="hub-vedettes">${vedettes.map((v, k) => (v
         ? `<div class="hub-vedette ${k ? 'b' : 'a'}"><span class="rond-visage hub-vedette-visage" aria-hidden="true">${ctx.mug(v.p)}</span><span class="hub-vedette-txt"><b>${ctx.esc(v.p.n)}</b><small>${v.c.g} B · ${v.c.a} A</small></span></div>`
         : '<div></div>')).join('')}</div>` : '';
+      const face = `<div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}${formeA || formeB ? `<div class="hub-face-forme"><span>${formeA}</span><span>${formeB}</span></div>` : ''}</div>${surveiller}`;
+      const ereintant = soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : '';
       const affiche = `<div class="hub-match-titre">Match ${miens.length + 1} · ${quand} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
-        <div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}${formeA || formeB ? `<div class="hub-face-forme"><span>${formeA}</span><span>${formeB}</span></div>` : ''}</div>${surveiller}
+        ${face}
         ${forces.mot}
-        ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : ''}`;
+        ${ereintant}`;
       // Le dépistage, calculé à l'ouverture : une page du Club hors du Rogue (l'Avant-match du Rogue est parti, oct.).
       const corpsDuDepistage = () => {
         const d = depistageMatchHtml(p);
@@ -3010,8 +3014,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
          * du match (JP : *dans bureau ?*), plié : ses tuiles et leurs vraies stats se calculent quand il se déplie.
          */
         carte.innerHTML = `${prochainHtml(p, adv, quand, domicile, mb)}${onDecision ? planDuBureauHtml(p) : ''}`;
+        /*
+         * LE FACE-À-FACE (oct., JP : *cliquer le match à venir devrait montrer les stats de confrontation, pas les
+         * lignes*) : les deux clubs (leur fiche, leur rang, leur forme, leur meilleur buteur), leurs vraies stats par
+         * match côte à côte, ce qui devrait décider, et vos matchs de la saison. Les Lignes restent au bouton Lignes.
+         */
         const ligne = carte.querySelector('.bu-prochain');
-        if (ligne && onBanc) ligne.onclick = () => { quitter(); onBanc(jour); };
+        if (ligne) ligne.onclick = () => ui.ouvrirPage({ genre: 'face', ico: ctx.logo(adv.tag, 28), titre: 'Face à face',
+          sousTitre: `Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}`,
+          html: `<div class="hub-match">${face}${duelHtml(adv, { complet: true, barres: true })}${ereintant}</div>${forcesHtml(adv, { table: true }).detail}<div class="hub-match-note">${dernierMot}</div>` });
         const rangeePlan = carte.querySelector('.bu-plan');
         if (rangeePlan) rangeePlan.onclick = () => { if (actif()) ouvrirPlan(p, adv); };
       } else {
@@ -3086,8 +3097,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * moment (le palier, le butin, l'objectif, l'histoire).
    */
   const persoDuJour = () => (you && you.perso ? { ...you.perso, xpSaison: you.xpSaison || 0 } : null);
-  const optionDAdjoint = k => ({ cle: k, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, mots: lignesDeLAdjoint(k) });
-  const adjointsDuMoment = cle => adjointsOfferts((persoDuJour() || {}).adjoints, graine, cle).map(optionDAdjoint);
+  // Le coach du jour lit l'offre (légers d'abord, son bras droit au niveau 3, js/adjoints.js) et dit son bras droit.
+  const coachDuJour = () => { const p = persoDuJour(); return p ? { cle: p.cle, niveau: niveauDuPerso(p) } : null; };
+  const optionDAdjoint = k => ({ cle: k, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, mots: lignesDeLAdjoint(k, (persoDuJour() || {}).cle) });
+  const adjointsDuMoment = cle => adjointsOfferts((persoDuJour() || {}).adjoints, graine, cle, 3, coachDuJour()).map(optionDAdjoint);
   const decisionDeLAdjoint = cle => ({ adjoint: { cle } });
   function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
@@ -3409,12 +3422,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LES CONSÉQUENCES CONCRÈTES (V21) : l'adjoint offert est nommé (le premier tiré pour cette histoire), celui qui part
       // aussi (le dernier entré).
       const perso = persoDuJour();
-      const offert = perso ? adjointsOfferts(perso.adjoints, graine, `do:${dossier.w}`, 1)[0] || null : null;
+      const offert = perso ? adjointsOfferts(perso.adjoints, graine, `do:${dossier.w}`, 1, coachDuJour())[0] || null : null;
       const partant = perso && (perso.adjoints || []).length ? perso.adjoints[perso.adjoints.length - 1] : null;
       const nomDAdjoint = k => `${ADJOINTS[k].ico} ${ADJOINTS[k].nom}`;
       const motsConcrets = o => [
         ...(o.xp ? [{ txt: `Ton coach : ${o.xp > 0 ? '+' : '−'}${Math.abs(o.xp)} d'expérience`, bon: o.xp > 0 }] : []),
-        ...(o.adjoint && offert ? [{ txt: `Arrive : ${nomDAdjoint(offert)}`, bon: true }, ...lignesDeLAdjoint(offert)] : []),
+        ...(o.adjoint && offert ? [{ txt: `Arrive : ${nomDAdjoint(offert)}`, bon: true }, ...lignesDeLAdjoint(offert, perso.cle)] : []),
         ...(o.perdAdjoint ? [partant ? { txt: `Part : ${nomDAdjoint(partant)}`, bon: false } : { txt: 'Ton staff est vide', bon: null }] : []),
         ...(o.action && o.action.energieTous ? [{ txt: `Les jambes de tous : ${o.action.energieTous > 0 ? '+' : '−'}${Math.abs(o.action.energieTous)}`, bon: o.action.energieTous > 0 }] : []),
         ...(o.action && o.action.energie && lui ? [{ txt: `Jambes de ${nomCourt(lui.n)} : ${o.action.energie > 0 ? '+' : '−'}${Math.abs(o.action.energie)}`, bon: o.action.energie > 0 }] : []),

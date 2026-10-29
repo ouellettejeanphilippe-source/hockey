@@ -25,7 +25,7 @@ Choisi au départ de la run (le prestige en ouvre plus), il la fait au complet, 
 | 🐢 La Tortue | **Le verrou** : quand tu mènes, −25 % de buts contre | **La tranchée** : en 1re, à l'étranger, −25 % de leurs tirs | **La forteresse** : en 3e, en avant ou à égalité, −30 % de buts contre et −20 % de leurs tirs |
 | 🦏 Le Rhino | **L'usure** : en 3e, plus de mises en échec et leur précision −10 % | **Le choc** : en 1re, à domicile, plus de mises en échec et leur précision −12 % | **La charge** : derrière, +25 % de tirs et leur précision −12 % |
 | 🫁 Le Doc | **Le second souffle** : en 3e, un soir de dos-à-dos ou de jambes lourdes, +20 % de tirs et −26 % de buts contre | **La rotation** : toute la soirée, −40 % de blessures | **La résurrection** : derrière en 3e, +40 % de tirs et +25 % de précision |
-| 😇 L'Abbé | **Le sang-froid** : en 2e, −45 % de punitions | **La provocation** : en 3e, leurs punitions +90 % | **Le miracle** : en 3e, à un but d'écart ou moins, +30 % de précision et −50 % de punitions |
+| 😇 L'Abbé | **Le sang-froid** : en 2e, −45 % de punitions | **La provocation** : en 3e, leurs punitions +45 % | **Le miracle** : en 3e, à un but d'écart ou moins, +30 % de précision et −50 % de punitions |
 | 🪜 Le Contremaître | **Les quatre trios** : en 3e, à un but d'écart ou moins, les quatre trios jouent autant et −25 % de buts contre | **L'atelier** : un soir de dos-à-dos, +12 % de tirs et −8 % de buts contre | **La relève** : derrière, les quatre trios égaux, +30 % de tirs et +10 % de précision |
 | 🌠 Le Showman | **Le spectacle** : en 3e, à égalité ou derrière d'un but, le 1er trio joue 40 % plus, +32 % de précision | **Le duo vedette** : en 1re, à domicile, le 1er trio joue 30 % plus, +35 % de précision | **Le grand soir** : en séries ou en gros match, +25 % de précision toute la soirée |
 
@@ -72,6 +72,16 @@ Un adjoint est donc un **échange** (js/adjoints.js) : ce que ton club gagne et 
 Le n° 1 part environ trois soirs sur quatre : un échange de gardiens s'équilibre à trois contre un.
 
 **Les obtenir : un parmi trois, gratuit, aux moments forts** — les paliers des 9e, 18e et 26e matchs, un gros match gagné, le verdict du proprio, et certaines histoires. Les trois se tirent de la graine parmi ceux qui ne sont pas en poste. Ton staff tient **trois adjoints** ; un quatrième, et tu choisis qui part (À faire, « Qui part ? »). Rien ne s'achète.
+
+## 2b. Légers d'abord, le bras droit (oct.)
+
+JP, sur la V21 jouée : *tu devrais commencer avec des adjoints avec peu d'impact* ; puis *je suis pas contre que le coach ait un gros impact sur la performance du club, tant que c'est lié à un impact logique de synergie et non car le chiffre est gros, au même titre qu'un champion de LoL avec les bons items est plus fort sans que ça soit débalancé*.
+
+- **Légers d'abord.** Mesurés seuls (`check_pouvoirs`, quatre clubs témoins), six adjoints valent à peu près la même chose partout (entre −2 et +2 victoires d'un club à l'autre : 🚧 📐 💨 🧤 🧊 🧪) ; six autres pèsent bien plus selon le club (de −4 à +7 : 🏹 🧱 🏋 🧭 🧲 📊). Ceux-là sont **lourds** (`lourd`). Sous le niveau 3 du coach (`NIVEAU_DES_LOURDS`), l'offre n'a que des légers ; les lourds arrivent avec son deuxième pouvoir.
+- **Le bras droit.** Chaque coach a un adjoint de sa voie (`voie`, `brasDroitDe`) : 🐝 le canonnier, 🦅 le tireur d'élite, 🐢 le bâtisseur de mur, 🦏 le préparateur physique, 🫁 le soigneur, 😇 le prof de discipline, 🪜 le rouleur, 🌠 le vedettiste. En poste, il fait grandir les trois pouvoirs du coach de moitié (`BRAS_DROIT`, dans `forceDuPouvoir`, avec les talents et la maîtrise), et son échange va dans le sens de ces pouvoirs. Il n'arrive qu'au niveau 3, avec les lourds. Sur un autre coach, il reste un échange comme les autres. L'offre le dit d'abord (« Bras droit du Frelon : ses pouvoirs +50 % »).
+- **Les plafonds.** La mesure a montré pourquoi le Frelon valait si peu (+3,8 V au complet, contre +9 pour l'Aigle) : la pression d'un bon club est déjà près de `PRESSION_MAX`, et « la ruée, +40 % de tirs » se jouait écrêtée. Comme la précision depuis la V21, le volume et la discipline d'un pouvoir passent maintenant les plafonds du jeu, le temps de sa période (`pouvoirVolume`, `pouvoirDiscipline`, js/sim.js) : ce que la carte du pouvoir dit, le moteur le joue. La provocation de l'Abbé, qui jouait ses « +90 % » écrêtés autour de +40 %, est ramenée à +45 % (seule, elle passait à +4,8 V, sa borne est 2,5).
+
+**Mesuré** (`check_pouvoirs`, 600 matchs par club). Chaque pouvoir seul reste sous sa borne et se voit. Le personnage complet (niveau 5, deux talents) : 🐝 +7,9 · 🐢 +5,5 · 🫁 +4,8 · 🪜 +5,3 · 🦅 +9,1 · 🦏 +8,2 · 😇 +8,4 · 🌠 +7,5 victoires sur une saison ; avec son bras droit, son échange compris : 🐝🏹 +14,3 · 🐢🧱 +7,7 · 🫁🧪 +7,4 · 🪜🧲 +8,5 · 🦅📐 +11,6 · 🦏🏋 +11,3 · 😇🧭 +13,9 · 🌠📊 +10,7, sous la borne de 16. Le premier essai donnait au Frelon le mitrailleur : son prix (−9 % de précision) mangeait le gain (+0,6 V) ; le canonnier ouvre le jeu des deux côtés, et c'est le Frelon qui en profite.
 
 ## 3. Les histoires : des conséquences concrètes
 

@@ -960,6 +960,11 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   Object.defineProperty(e, 'sources', { value: sources.filter(c => c && c.nom && ((c.finition ?? 1) !== 1 || (c.defense ?? 1) !== 1)).map(c => ({ nom: c.nom, ico: c.ico || '', finition: c.finition ?? 1, defense: c.defense ?? 1 })) });
   // V21 : la précision des POUVOIRS du coach (le temps d'une période), à part : elle passe par-dessus le plafond du jeu.
   Object.defineProperty(e, 'pouvoir', { value: sources.reduce((a, c) => (c && c.source === 'pouvoir' ? a * (c.finition ?? 1) : a), 1) });
+  // Leurs tirs et leurs punitions aussi (oct.) : « la ruée, +40 % de tirs » se jouait écrêtée sous PRESSION_MAX pour un bon
+  // club, « le sang-froid, −45 % de punitions » sur DISCIPLINE_MIN.
+  const dePouvoir = k => sources.reduce((a, c) => (c && c.source === 'pouvoir' ? a * (c[k] ?? 1) : a), 1);
+  Object.defineProperty(e, 'pouvoirVolume', { value: dePouvoir('volume') });
+  Object.defineProperty(e, 'pouvoirDiscipline', { value: dePouvoir('discipline') });
   for (const c of sources) {
     if (!c) continue;
     e.finition *= c.finition ?? 1;
@@ -3882,7 +3887,7 @@ export function profilMatch(team, lineup, adv = null) {
     // L'indiscipline : combien cet alignement prend de punitions. Le plan de
     // match entre ICI — un échec avant lourd se paie à l'arbitre.
     discipline: patineurs.length
-      ? borne(cartes.discipline * disciplineBase, DISCIPLINE_MIN, DISCIPLINE_MAX)
+      ? borne(cartes.discipline / (cartes.pouvoirDiscipline ?? 1) * disciplineBase, DISCIPLINE_MIN, DISCIPLINE_MAX) * (cartes.pouvoirDiscipline ?? 1)
       : cartes.discipline,
     disciplineBase, cartes,
     annee: anneeDe(habilles),
@@ -3893,7 +3898,8 @@ export function profilMatch(team, lineup, adv = null) {
     // facteurs sur des quantités que le profil porte déjà. `pression` reste
     // sous sa borne, `finitionFacteur` sous la sienne (le plafond du jeu ne
     // se contourne pas avec une carte).
-    pression: borne(pression * cartes.volume, 0.40, REF.pression * PRESSION_MAX),
+    // Le volume d'un pouvoir du coach passe le plafond, le temps de sa période, comme sa précision (oct.).
+    pression: borne(pression * cartes.volume / (cartes.pouvoirVolume ?? 1), 0.40, REF.pression * PRESSION_MAX) * (cartes.pouvoirVolume ?? 1),
     pressionBrute: pression,
     // LE TEMPO (voir attenduDeCote) : le style qui ralentit ou ouvre le jeu — ce que ses cartes font de sa pression, et sa défensive.
     styleVol: cartes.volume / REF_STYLE_VOL,

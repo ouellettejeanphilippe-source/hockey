@@ -3631,7 +3631,8 @@ a.spin-club:hover { background: var(--fond-2); }
 .pv-dit .bon { color: var(--bon); }
 .pv-dit .mal { color: var(--mauvais); }
 .pv.adj { box-shadow: inset 3px 0 0 var(--encre-3); }
-.pv.adj.vide { box-shadow: none; border: 1px dashed var(--filet); background: none; }
+/* `.vide` est aussi l'état vide d'une page (une marge de 9vh, centré) : la place libre du staff n'en garde que le pointillé. */
+.pv.adj.vide { box-shadow: none; border: 1px dashed var(--filet); background: none; max-width: none; margin: 0; text-align: left; }
 .ej-case-l { margin-top: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 /* LES CARTES D'UNE MAISON (V12-4), toujours visibles : un titre, et une bande de cartons qui se balaie, la suivante au bord, comme la main du duel. */
 .ej-coach-l.suite { opacity: 0.6; }
@@ -3881,6 +3882,38 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
 /* En rangée, la place y est : le badge et son palier restent sur une ligne. */
 .slot-inner > .jambes, .slot-inner > .slot-meta, .slot-inner > .slot-tags:not(.cell-l2) { grid-column: 2 / -1; }
 .slot:has(> .slot-remove) .slot-inner { padding-right: 34px; }
+/* ---- EN ROGUE, LA CASE EST SA CARTE (oct., JP : *intégrer plus les cartes dans l'alignement* ; *c'est pas plus simple d'avoir
+   une ligne de trois cartes, même sur mobile ?*). Trois cartes de front par trio, deux par paire, chacune debout
+   (`carteDeLaCase`, js/alignement.js) : la carte dit son nom, son club, sa photo et son édition ; dessous, la bande (ses
+   positions, son salaire) puis les verdicts de la rangée (son badge, son chiffre clé, son niveau, sa zone, ses jambes).
+   Toucher la carte l'ouvre ; toucher les verdicts choisit la case. Hors du Rogue, aucune carte : la rangée reste. ---- */
+#rosterBoard.en-cartes .line-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); padding: var(--esp-2); background: none; }
+#rosterBoard.en-cartes .line-slots.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#rosterBoard.en-cartes .slot { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: "carte" "band" "info"; align-content: start; overflow: visible; background: none; }
+#rosterBoard.en-cartes .slot:active { transform: none; }
+.slot-carte { position: relative; grid-area: carte; justify-self: center; width: min(100%, 128px); padding: 0; border: 0; border-radius: 4.5% / 3.2%; background: none; cursor: pointer; transition: transform var(--t-vite); filter: drop-shadow(0 2px 4px color-mix(in srgb, black 60%, transparent)); }
+.slot-carte:active { transform: scale(0.97); }
+/* La case choisie (à déplacer) : sa carte se lève, cernée. */
+#rosterBoard.en-cartes .slot.selected { outline: 0; transform: none; }
+.slot.selected .slot-carte { transform: translateY(-6px); outline: 2px solid var(--choisi); outline-offset: 2px; }
+/* Les cartes posées sur lui, en pastilles à cheval sur le pied de la carte. */
+.slot-posees { position: absolute; z-index: 1; left: 50%; bottom: -8px; transform: translateX(-50%); display: flex; gap: 2px; }
+.slot-posees i { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--or); border-radius: 50%; background: var(--noir); font: normal var(--t-1)/1 var(--display); }
+#rosterBoard.en-cartes .slot-band { grid-area: band; width: auto; flex-direction: row; justify-content: space-between; gap: var(--esp-1); min-height: 0; margin-top: var(--esp-2); padding: 2px var(--esp-1); background: none; box-shadow: inset 0 -1px 0 var(--filet); }
+#rosterBoard.en-cartes .slot-inner { grid-area: info; display: flex; flex-direction: column; align-items: stretch; gap: 3px; padding: var(--esp-1) var(--esp-1) 0; background: none; }
+.sc-qui { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px var(--esp-1); min-width: 0; }
+.sc-qui > .cell-role { flex: 0 1 auto; }
+.sc-cle { display: flex; flex-wrap: wrap; align-items: baseline; }
+.sc-cle > .cell-prod { margin: 0; font-size: var(--t-3); }
+.sc-cle > .cell-sec { text-align: left; }
+.sc-verdicts { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-1); min-width: 0; }
+/* Le ✕ qui relâche un réserviste : au coin de sa carte. */
+#rosterBoard.en-cartes .slot-remove { top: 2px; right: 2px; transform: none; }
+/* Une case vide : la place d'une carte, en pointillés. */
+#rosterBoard.en-cartes .slot.empty { display: flex; flex-direction: column; justify-content: center; align-items: center; justify-self: center; width: min(100%, 128px); aspect-ratio: 5 / 7; padding: var(--esp-2); border: 1px dashed var(--filet); border-radius: 4.5% / 3.2%; text-align: center; }
+/* Les liens entre deux voisins : sur l'écart des deux cartes ; celui des ailiers, au haut de la carte du centre. */
+#rosterBoard.en-cartes .lien-place { position: absolute; top: 28%; left: calc(100% * var(--k) / var(--n)); margin-top: 0; }
+#rosterBoard.en-cartes .slot > .lien-ailes { left: 50%; top: 0; bottom: auto; transform: translate(-50%, -30%); }
 /* Rien d'écrit au-dessus des trios (1.0, R3) : ni titre, ni résumé — l'en-tête dit la masse et le compte, chaque trio dit s'il est à sa place. */
 .pane-roster .pane-title, .team-summary { display: none; }
 body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: var(--esp-3); }
@@ -3899,6 +3932,10 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
   .roster > :is(.ej-soir, .plan-match, .unites-speciales) { margin-bottom: 0; }
   .unites-speciales { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .unites-speciales > :is(.pm-tete, .pm-k) { grid-column: 1 / -1; }
+  /* En Rogue, la carte à gauche de sa bande et de ses verdicts : trois cases de front y ont la place. */
+  #rosterBoard.en-cartes .slot { grid-template-columns: 112px minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "carte band" "carte info"; column-gap: var(--esp-2); }
+  #rosterBoard.en-cartes .slot-band { margin-top: 0; }
+  #rosterBoard.en-cartes .lien-place { top: 50%; }
 }
 /* Le résumé de l'onglet Équipe sur une ligne dès qu'il y a la place. */
 @container roster (min-width: 600px) { body[data-effectif="E"] .team-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
