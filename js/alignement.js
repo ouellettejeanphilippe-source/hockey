@@ -800,10 +800,11 @@ export function coachHtml() {
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
     ${POUVOIRS[perso.cle].map(carte).join('')}
     <div class="ej-case-l">Adjoints · ${ADJOINTS_MAX} places</div>
-    ${Array.from({ length: ADJOINTS_MAX }, (_, i) => (perso.adjoints || []).filter(k => ADJOINTS[k])[i]).map(k => (k ? `<div class="pv adj">
+    ${(perso.adjoints || []).filter(k => ADJOINTS[k]).map(k => `<div class="pv adj">
       <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${ADJOINTS[k].ico}</span><b>${esc(ADJOINTS[k].nom)}</b></div>
       <p class="pv-dit">${lignesDeLAdjoint(k).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join(' · ')}</p>
-    </div>` : '<div class="pv adj vide"><p class="pv-dit">Place libre : un adjoint arrive aux 9e, 18e et 26e matchs et après un gros match gagné.</p></div>')).join('')}
+    </div>`).join('')}
+    ${(perso.adjoints || []).length < ADJOINTS_MAX ? `<div class="pv adj vide"><p class="pv-dit">${ADJOINTS_MAX - (perso.adjoints || []).length} place${ADJOINTS_MAX - (perso.adjoints || []).length > 1 ? 's' : ''} libre${ADJOINTS_MAX - (perso.adjoints || []).length > 1 ? 's' : ''} : un adjoint arrive aux 9e, 18e et 26e matchs et après un gros match gagné.</p></div>` : ''}
   </div>`;
 }
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */

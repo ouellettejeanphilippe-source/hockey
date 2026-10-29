@@ -1007,8 +1007,8 @@ async function choisirCoach() {
     options: loto.map(c => {
       const C = COACHS[c.cle];
       return { cle: c.id, ico: C.ico, nom: c.n, sous: `${nomDuClubSaison(c.tag, c.saison)} · ${fiche(c)}`,
-        mots: [{ txt: `${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise > 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: true },
-          ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${P.dit}`, bon: p ? null : true }))] };
+        mots: [{ txt: `${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise > 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: null },
+          ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${P.dit}`, bon: null }))] };
     }),
     onChoix: id => resolve(loto.find(c => c.id === id) || null),
     onFerme: () => resolve(null),

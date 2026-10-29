@@ -89,9 +89,9 @@ const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.jou
 /* ---------- 2. le coach ---------- */
 {
   const sa = prose('saison.js'), g = prose('game.js');
-  // V21 : le choix du coach dit ses trois pouvoirs et les niveaux qui les ouvrent, ceux du code.
+  // V21 : le loto de l'entraîneur dit les trois pouvoirs de sa philosophie et les niveaux qui les ouvrent, ceux du code.
   const rj = lire('js/rogue-jeu.js');
-  exiger('le choix du coach dit ses pouvoirs et les niveaux qui les ouvrent', /POUVOIRS\[k\]\.map/.test(rj) && /NIVEAU_DES_POUVOIRS/.test(rj) && Object.keys(COACHS).every(k => POUVOIRS[k] && POUVOIRS[k].length === NIVEAU_DES_POUVOIRS.length),
+  exiger('le choix du coach dit ses pouvoirs et les niveaux qui les ouvrent', /POUVOIRS\[c\.cle\]\.map/.test(rj) && /NIVEAU_DES_POUVOIRS/.test(rj) && Object.keys(COACHS).every(k => POUVOIRS[k] && POUVOIRS[k].length === NIVEAU_DES_POUVOIRS.length),
     `${Object.keys(COACHS).length} coachs, pouvoirs aux niveaux ${NIVEAU_DES_POUVOIRS.join(', ')}`);
   exiger('« tes cartes jouées » ne se promet plus', !sa.some(s => /cartes jouées viennent ici/.test(s)) && !g.some(s => /cartes de sa couleur/.test(s)));
   // Les adjoints offerts se tirent de la graine : deux graines, deux offres ; la même, la même.
