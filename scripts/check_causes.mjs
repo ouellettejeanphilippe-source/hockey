@@ -111,8 +111,8 @@ exiger(`5. le badge monté de ${lui.n} (carte Or) fait entrer des buts, à lui`,
 exiger('5. le bilan de saison le dit', S.pour.some(x => /badge monté/.test(x.texte)), S.pour.slice(0, 3).map(x => x.texte).join(' | '));
 
 /* 6. V5 : UNE CARTE DU CLUB SE NOMME. « L'école de tir a fait entrer 2 buts », pas « les cartes et les décisions du club ». */
-// V10 : un patron témoin de toute la saison (scripts/lib/temoins.mjs) ; les cartes de saison sont parties.
-const ecole = saison(true, false, 'ecole'), ECOLE = temoin('ecole').patron.nom;
+// V10 : un témoin de toute la saison (scripts/lib/temoins.mjs) ; les cartes de saison sont parties.
+const ecole = saison(true, false, 'ecole'), ECOLE = temoin('ecole').effet.nom;
 const nommes = ecole.L.calendrier.flat().filter(m => m.feuille && (m.A === ecole.toi || m.B === ecole.toi))
   .reduce((a, m) => a + m.feuille.lancers.filter(l => l.causes && l.causes.liste.some(c => c.k === 'carteClub' && c.qui && c.qui.nom === ECOLE)).length, 0);
 const SE = causesDeSaison(ecole.L.calendrier, ecole.toi);

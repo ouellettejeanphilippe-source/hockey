@@ -16,7 +16,7 @@
 
 export const LEXIQUE = {
   coach: {
-    sens: 'la philosophie (une des neuf de js/coachs.js), un seul en poste ; la personne derrière le banc est l\'entraîneur ; une carte de personnel est un adjoint, celui du poste chef « l\'adjoint en chef »',
+    sens: 'le personnage de la run (un des huit de js/coachs.js), son niveau et ses pouvoirs ; la personne derrière le banc est l\'entraîneur ; un adjoint est un bienfait qui modifie un pouvoir',
     fautif: /\b(le|un|du|sans le|invite le) coach (des gardiens|de sprint|élève|pète|sort|dans leur|paie|a parlé|laisse|qui promet|concentré)|cris du coach|selon le coach|Ton coach paie|Entraîneur-chef|tête de l'entraîneur|paie pas un entraîneur/i,
     faux: 'Le coach des gardiens', bon: 'Le coach de sa couleur',
   },
@@ -26,7 +26,7 @@ export const LEXIQUE = {
     faux: 'Le stage se joue chez l\'entraîneur', bon: 'L\'entraîneur des gardiens',
   },
   adjoint: {
-    sens: 'une carte de personnel, un poste par rôle ; « ton adjoint » du duel est l\'adjoint en chef',
+    sens: 'un bienfait du coach, qui modifie un de ses pouvoirs (V21) ; « ton adjoint » du duel est celui qui propose les plans',
     fautif: /adjoints? du coach à chaises|les chaises de ton coach/i,
     faux: 'Les adjoints du coach à chaises', bon: 'Un adjoint parmi trois',
   },

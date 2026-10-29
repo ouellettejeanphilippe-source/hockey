@@ -61,7 +61,7 @@ export const POUVOIRS = {
   rhinos: [
     { cle: 'usure', ico: '🦏', nom: 'L\'usure', dit: 'En 2e et 3e période : plus de mises en échec, et leur précision −8 %.', quand: e => e.k >= 1, tot: () => true, effet: { robustesse: 1.5 }, adv: { finition: 0.92 } },
     { cle: 'choc', ico: '💥', nom: 'Le choc', dit: 'En 1re période : leur précision −12 %.', defense: true, quand: e => e.k === 0, tot: e => e.k <= 1, effet: { robustesse: 1 }, adv: { finition: 0.88 } },
-    { cle: 'charge', ico: '🐃', nom: 'La charge', dit: 'Derrière au pointage : +20 % de tirs, leur précision −10 %.', quand: derriere, tot: e => derriere(e) || (e.k > 0 && e.moi === e.lui), effet: { volume: 1.2, robustesse: 1 }, adv: { finition: 0.9 } },
+    { cle: 'charge', ico: '🐂', nom: 'La charge', dit: 'Derrière au pointage : +20 % de tirs, leur précision −10 %.', quand: derriere, tot: e => derriere(e) || (e.k > 0 && e.moi === e.lui), effet: { volume: 1.2, robustesse: 1 }, adv: { finition: 0.9 } },
   ],
   souffle: [
     { cle: 'souffle', ico: '🫁', nom: 'Le second souffle', dit: 'En 3e période : +15 % de tirs, −10 % de buts contre.', quand: k3, tot: e => e.k >= 1, effet: { volume: 1.15, defense: 0.9 } },
@@ -70,7 +70,7 @@ export const POUVOIRS = {
   ],
   choeur: [
     { cle: 'sangfroid', ico: '😇', nom: 'Le sang-froid', dit: 'En 1re et 2e période : −40 % de punitions.', defense: true, quand: e => e.k <= 1, tot: () => true, effet: { discipline: 0.6 } },
-    { cle: 'provocation', ico: '🗯', nom: 'La provocation', dit: 'En 3e période : leurs punitions +40 %.', quand: k3, tot: e => e.k >= 1, adv: { discipline: 1.4 } },
+    { cle: 'provocation', ico: '📢', nom: 'La provocation', dit: 'En 3e période : leurs punitions +40 %.', quand: k3, tot: e => e.k >= 1, adv: { discipline: 1.4 } },
     { cle: 'miracle', ico: '✨', nom: 'Le miracle', dit: 'À égalité en 3e période : +20 % de précision, −50 % de punitions.', quand: e => k3(e) && e.moi === e.lui, tot: e => e.k >= 1 && e.moi === e.lui, effet: { finition: 1.2, discipline: 0.5 } },
   ],
   profondeur: [
@@ -81,7 +81,7 @@ export const POUVOIRS = {
   etoiles: [
     { cle: 'spectacle', ico: '🌠', nom: 'Le spectacle', dit: 'À égalité ou derrière en 3e période : ton 1er trio joue 40 % plus, +15 % de précision.', quand: e => k3(e) && e.moi <= e.lui, tot: e => e.k >= 1 && e.moi <= e.lui, effet: { F: [1.4, 1, 0.85, 0.75], finition: 1.15 } },
     { cle: 'duo', ico: '🎭', nom: 'Le duo vedette', dit: 'En 1re période : ton 1er trio joue 25 % plus, +10 % de précision.', quand: e => e.k === 0, tot: e => e.k <= 1, effet: { F: [1.25, 1, 0.9, 0.85], finition: 1.1 } },
-    { cle: 'grandsoir', ico: '🎆', nom: 'Le grand soir', dit: 'En séries ou en gros match : +20 % de précision toute la soirée.', quand: e => e.series || e.gros, tot: e => e.series || e.gros || !!(e.soir && e.soir.rival), effet: { finition: 1.2 } },
+    { cle: 'grandsoir', ico: '🎬', nom: 'Le grand soir', dit: 'En séries ou en gros match : +20 % de précision toute la soirée.', quand: e => e.series || e.gros, tot: e => e.series || e.gros || !!(e.soir && e.soir.rival), effet: { finition: 1.2 } },
   ],
 };
 
@@ -90,7 +90,7 @@ const BIENFAITS_PAR_POUVOIR = 2;
 export const XP_SANS_BIENFAIT = 5;
 const PAYE = { but: 2, blanchie: 3 };
 export const BIENFAITS = {
-  tot: { ico: '⏪', nom: 'Plus tôt', dit: 'Le pouvoir joue aussi plus tôt.' },
+  tot: { ico: '⏩', nom: 'Plus tôt', dit: 'Le pouvoir joue aussi plus tôt.' },
   fort: { ico: '💪', nom: 'Plus fort', dit: 'L\'effet grandit de moitié.', grandit: 0.5 },
   payant: { ico: '🪙', nom: 'Payant', dit: `Chaque but pendant le pouvoir : +${PAYE.but} 🪙 (un pouvoir qui protège : chaque période sans but contre, +${PAYE.blanchie} 🪙).` },
   series: { ico: '🏆', nom: 'Des séries', dit: 'En séries, l\'effet double.' },

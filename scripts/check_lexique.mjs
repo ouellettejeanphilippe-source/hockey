@@ -32,7 +32,7 @@ import { PROFILS, AGRESSIVITES } from '../js/sim.js';
 import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { COACHS } from '../js/coachs.js';
-import { ROLES } from '../js/banque.js';
+import { POUVOIRS, BIENFAITS } from '../js/pouvoirs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -110,12 +110,14 @@ informer('prose lue', `${prose.length} chaînes et lignes`);
     // Les postes, les voix et les maisons, lus à part : leurs doublons se disent, ils ne jugent pas encore.
     const lus = new Map();
     const lireIco = (ico, quoi) => { const k = ico.replace(/️/g, ''); if (!lus.has(k)) lus.set(k, new Set()); lus.get(k).add(quoi); };
-    for (const R of Object.values(ROLES)) lireIco(R.ico, `poste ${R.nom}`);
+    // V21 : les pouvoirs du coach et les bienfaits de ses adjoints, à la place des postes.
+    for (const Ps of Object.values(POUVOIRS)) for (const P of Ps) lireIco(P.ico, `pouvoir ${P.nom}`);
+    for (const B of Object.values(BIENFAITS)) lireIco(B.ico, `bienfait ${B.nom}`);
     for (const V of Object.values(EXPEDITEURS)) lireIco(V.ico, `voix ${V.nom}`);
     for (const [, , ico, titre] of maisons) lireIco(ico, `maison ${titre}`);
     for (const [ico, m] of sens) if (lus.has(ico)) for (const q of m.keys()) lus.get(ico).add(q);
     const partages = [...lus].filter(([, q]) => q.size > 1).map(([ico, q]) => `${ico} ${[...q].join(' / ')}`);
-    informer('postes, voix et maisons qui partagent une icône (tranches 3-4)', partages.length ? partages.join(' · ') : 'aucun');
+    informer('postes, voix et maisons qui partagent une icône (V21)', partages.length ? partages.join(' · ') : 'aucun');
   });
   const doublons = [...sens].filter(([, m]) => m.size > 1).map(([ico, m]) => `${ico} = ${[...m.keys()].join(' / ')}`);
   informer('icônes lues', `${sens.size} icônes dans ${familles.size} familles`);
@@ -133,9 +135,9 @@ informer('prose lue', `${prose.length} chaînes et lignes`);
 {
   // Les clés que les sauvegardes et la méta portent ; l'affichage se renomme, elles non.
   const cles = [
-    ['js/banque.js', /\bchef: \{/], ['js/banque.js', /patronsActifs/], ['js/coachs.js', /\bessaim: \{/],
+    ['js/coachs.js', /\bessaim: \{/], ['js/pouvoirs.js', /\bperso\b/],
     ['js/rogue.js', /cle: 'vestiaire'/], ['js/rogue.js', /ecussons/], ['js/vie-gm.js', /\bad: \{ ico/], ['js/saison.js', /\bentraineur: \{ ico/],
-    ['js/dossiers.js', /\blaTete: \{/], ['js/personnel.js', /per_coachDeSprint/],
+    ['js/dossiers.js', /\blaTete: \{/],
   ];
   const manquent = cles.filter(([f, re]) => !re.test(lire(f))).map(([f, re]) => `${f} ${re}`);
   exiger('les clés de sauvegarde gardent leur nom', manquent.length === 0, manquent.join(' · ') || `${cles.length} clés en place`);

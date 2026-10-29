@@ -20,8 +20,8 @@
  *      la garder ne change rien au moteur, et posée au verso elle prend une
  *      case (deux, trois pour une Or ou une Holo) ;
  *   8. (V9, tranche 5b ; V16) tes cartes : une carte se joue quand on veut, sans limite
- *      par semaine ; le palier de la saison offre un adjoint parmi trois, le butin
- *      d'un gros match gagné aussi (V13-2), et l'adjoint pris rejoint ton personnel.
+ *      par semaine ; le palier de la saison offre un bienfait du coach parmi trois
+ *      (V21), le butin d'un gros match gagné aussi.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,7 +33,8 @@ import {
 } from '../js/sim.js';
 import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, payloadDe } from '../js/banque.js';
 import { monterLesDoublons, missionsDuCartable, decennieDe } from '../js/cartable.js';
-import { cartesDeLaPartie, cartesDuPalier, PALIERS_PACK } from '../js/inventaire.js';
+import { cartesDeLaPartie, PALIERS_PACK } from '../js/inventaire.js';
+import { bienfaitsOfferts } from '../js/pouvoirs.js';
 import { BANQUE } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -147,8 +148,8 @@ console.log('\n  Le deck (S73)\n');
  * TES CARTES (V9, tranche 5b — docs/refonte-v9.md § 6.4 ; V16). La poche, la main de la semaine et ses deux cartes par
  * semaine sont parties : une carte se joue quand on veut, autant qu'on veut ; les places et la carte de trop aussi
  * (V16). Les cartes reportées au jour 0 d'une saison neuve (`poche`) y entrent. Le palier de la saison (`pp:<match>`)
- * offre un adjoint parmi trois ; pris, il rejoint ton personnel (js/banc.js). Le butin d'un gros match gagné
- * (`r:<jour>`, V13-2) aussi.
+ * offre un bienfait du coach parmi trois (V21) ; pris, il va au coach. Le butin d'un gros match gagné (`r:<jour>`,
+ * V13-2) aussi.
  */
 {
   const ev = idsDe('consommable').filter(id => BANQUE[id].vie !== 'permanent').slice(0, 5);
@@ -161,16 +162,17 @@ console.log('\n  Le deck (S73)\n');
   const poche = cartesDeLaPartie({ decisions: [report], rogue: true });
   const apres = cartesDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], rogue: true });
   exiger('les cartes de la saison d\'avant entrent au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
-  const offres = PALIERS_PACK.map(p => cartesDuPalier('deck', p));
-  const adjoints = offres.flat().every(id => BANQUE[id] && BANQUE[id].cat === 'patron');
-  exiger('chaque palier offre trois adjoints distincts, purs', offres.every(o => o.length === 3 && new Set(o).size === 3) && adjoints
-    && PALIERS_PACK.every(p => cartesDuPalier('deck', p).join() === cartesDuPalier('deck', p).join()), offres.map((o, i) => `${PALIERS_PACK[i]} : ${o.join(', ')}`).join(' · '));
-  const prise = { jour: 21, palier: `pp:${PALIERS_PACK[0]}`, place: offres[0][1] };
+  // V21 : le palier offre un bienfait parmi trois pour le coach (`bienfaitsOfferts`, js/pouvoirs.js) : pris, il va au coach, pas à tes cartes.
+  const perso = { cle: 'tortue', xp: 999, talents: [], bienfaits: [] };
+  const offres = PALIERS_PACK.map(p => bienfaitsOfferts(perso, 'deck', `pp${p}`));
+  exiger('chaque palier offre trois bienfaits distincts, purs', offres.every(o => o.length === 3 && new Set(o.map(x => `${x.p}:${x.b}`)).size === 3)
+    && PALIERS_PACK.every((p, i) => JSON.stringify(bienfaitsOfferts(perso, 'deck', `pp${p}`)) === JSON.stringify(offres[i])), offres.map((o, i) => `${PALIERS_PACK[i]} : ${o.map(x => `${x.p}:${x.b}`).join(', ')}`).join(' · '));
+  const prise = { jour: 21, palier: `pp:${PALIERS_PACK[0]}`, bienfait: offres[0][1] };
   const avec = cartesDeLaPartie({ decisions: [prise], rogue: true });
-  exiger('l\'adjoint pris au palier rejoint ton personnel, pas tes cartes', avec.length === 0, avec.map(x => `${x.ref} ${x.id}`).join(' · ') || 'aucune carte');
-  const butin = { jour: 31, palier: 'r:30', place: offres[1][0] };
+  exiger('le bienfait pris au palier va au coach, pas à tes cartes', avec.length === 0, avec.map(x => `${x.ref} ${x.id}`).join(' · ') || 'aucune carte');
+  const butin = { jour: 31, palier: 'r:30', bienfait: offres[1][0] };
   const apresButin = cartesDeLaPartie({ decisions: [butin], rogue: true });
-  exiger('l\'adjoint du butin d\'un gros match gagné rejoint ton personnel, pas tes cartes', apresButin.length === 0, apresButin.map(x => `${x.ref} ${x.source}`).join(' · ') || 'aucune carte');
+  exiger('le bienfait du butin d\'un gros match gagné va au coach, pas à tes cartes', apresButin.length === 0, apresButin.map(x => `${x.ref} ${x.source}`).join(' · ') || 'aucune carte');
 }
 
 /*

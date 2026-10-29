@@ -125,7 +125,7 @@ dire(f1.equipes[0].roster[ag0] !== a.equipes[0].roster[ag0] || f1.equipes[0].ros
  * journées d'avant identiques, la suite changée, et la même carte rejouée à
  * l'identique. Et elle doit VRAIMENT faire quelque chose — une carte qui ne
  * déplace pas une feuille est une carte morte, et c'est exactement le genre
- * de chose qu'on ne voit pas à l'oeil. V10 : les cartes de saison sont parties ; des patrons témoins, à chiffres
+ * de chose qu'on ne voit pas à l'oeil. V10 : les cartes de saison sont parties ; des témoins, à chiffres
  * connus (scripts/lib/temoins.mjs), jouent leur rôle. Chaque carte du jeu neuf change la feuille dans son moment :
  * `check_places`, `check_cartes`.
  */

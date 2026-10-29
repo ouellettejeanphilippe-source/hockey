@@ -146,7 +146,7 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
 
 /* 3. Une lecture : « La chasse » (tirs de plus, un témoin de toute la saison : scripts/lib/temoins.mjs), lue et mesurée. */
 {
-  const chasse = temoin('chasse').patron;
+  const chasse = temoin('chasse').effet;
   const r = paires(temoin('chasse'));
   // La même carte, lue par l'écran : la moyenne sur les équipes traitées (les vraies équipes de la ligue de base).
   const { teams } = laBase(SEEDS[0]);

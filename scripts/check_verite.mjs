@@ -6,9 +6,8 @@
  *   1. LA GRAINE COMPTE pour les tirages purs (dilemmes, situations,
  *      objectifs, ajustements) : une graine en base 36 valait 0 par
  *      `Number(graine)`, et toutes les runs tiraient pareil.
- *   2. LE COACH : le choix d'un coach compte ses ADJOINTS (plus « N cartes
- *      de sa couleur ») ; l'infobulle d'un joueur de couleur dit le vrai
- *      multiplicateur (`JOUEUR_COACH`, `PALIERS_COACH_MAX`) ; « Tes cartes
+ *   2. LE COACH (V21) : son choix dit ses pouvoirs et les niveaux qui les
+ *      ouvrent ; ses bienfaits offerts se tirent de la graine ; « Tes cartes
  *      jouées » ne se promet plus.
  *   3. LA PITIÉ : « au plus tard au N+1e pack » et le moteur garantit le
  *      N+1e, pas le Ne.
@@ -27,11 +26,10 @@ import { chainesDe } from './lib/chaines.mjs';
 import { entierDeGraine, matchDuMoment, momentDuJour, objectifsOfferts, ajustementsOfferts, situationsDuJour, JOURS_MOMENTS, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
   autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, faitsDuClub, jourEvenement } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { COACHS, COACH_DU_ROLE, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
-import { reglesDePalier } from '../js/banque.js';
-import { poserClubLu } from '../js/impact.js';
+import { COACHS, COACH_DU_ROLE } from '../js/coachs.js';
+import { POUVOIRS, NIVEAU_DES_POUVOIRS, bienfaitsOfferts } from '../js/pouvoirs.js';
 import { PITIE, packsSansHolo } from '../js/packs.js';
-import { PALIERS_PACK, DE_SA_COULEUR } from '../js/inventaire.js';
+import { PALIERS_PACK } from '../js/inventaire.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -89,25 +87,16 @@ const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.jou
 
 /* ---------- 2. le coach ---------- */
 {
-  const rj = prose('rogue-jeu.js'), g = prose('game.js'), sa = prose('saison.js');
-  exiger('le choix d\'un coach compte ses adjoints', rj.some(s => /adjoints de sa couleur/.test(s)) && !rj.some(s => /cartes de sa couleur/.test(s)));
-  const bulle = lire('js/game.js').split('\n').find(l => /porte la confiance de ce coach/.test(l)) || '';
-  exiger('l\'infobulle du joueur de couleur dit le multiplicateur du moteur', /par métal de son badge/.test(bulle) && /\$\{PALIERS_COACH_MAX\}/.test(bulle) && /\$\{Math.round\(JOUEUR_COACH \* 100\)\}/.test(bulle) && !/fait grandir/.test(bulle),
-    `JOUEUR_COACH ${JOUEUR_COACH}, jusqu'à ${PALIERS_COACH_MAX} paliers`);
+  const sa = prose('saison.js'), g = prose('game.js');
+  // V21 : le choix du coach dit ses trois pouvoirs et les niveaux qui les ouvrent, ceux du code.
+  const rj = lire('js/rogue-jeu.js');
+  exiger('le choix du coach dit ses pouvoirs et les niveaux qui les ouvrent', /POUVOIRS\[k\]\.map/.test(rj) && /NIVEAU_DES_POUVOIRS/.test(rj) && Object.keys(COACHS).every(k => POUVOIRS[k] && POUVOIRS[k].length === NIVEAU_DES_POUVOIRS.length),
+    `${Object.keys(COACHS).length} coachs, pouvoirs aux niveaux ${NIVEAU_DES_POUVOIRS.join(', ')}`);
   exiger('« tes cartes jouées » ne se promet plus', !sa.some(s => /cartes jouées viennent ici/.test(s)) && !g.some(s => /cartes de sa couleur/.test(s)));
-  // Une confiance se lit en lignes vraies : « à peine perceptible » une fois au plus, jamais à côté d'un vrai chiffre.
-  // Le bogue ne se voyait qu'avec un club lu (l'écran en lit un ; sans lui, l'impact retombe sur d'autres mots).
-  const doubles = [], [club] = ligue(9, 1);
-  poserClubLu(() => ({ team: club }));
-  for (const k of Object.keys(COACHS)) for (const p of [1, 2, 3]) {
-    const r = reglesDePalier(k, p), rien = r.filter(m => m.cle === 'rien').length;
-    if (rien > 1 || (rien === 1 && r.length > 1)) doubles.push(`${k} ${p} : ${r.map(m => m.txt).join(' / ')}`);
-  }
-  poserClubLu(null);
-  exiger('une confiance ne dit jamais « à peine perceptible » deux fois', doubles.length === 0, doubles.join(' · ') || `${Object.keys(COACHS).length * 3} confiances lues`);
-  // Les règles disent combien d'adjoints d'un palier sont de la couleur du coach : le chiffre du code.
-  const MOTS = { 1: 'un', 2: 'deux', 3: 'trois' };
-  exiger('les règles disent combien d\'adjoints du palier sont de la couleur du coach', lire('index.html').includes(`dont ${MOTS[DE_SA_COULEUR]} de la couleur de ton coach`), `${DE_SA_COULEUR} sur 3`);
+  // Les bienfaits offerts se tirent de la graine : deux graines, deux offres ; la même, la même.
+  const perso = { cle: 'essaim', xp: 999, talents: [], bienfaits: [] };
+  const a = bienfaitsOfferts(perso, 'g1', 'pp9'), b = bienfaitsOfferts(perso, 'g2', 'pp9');
+  exiger('deux graines, deux offres de bienfaits ; la même graine, la même offre', JSON.stringify(a) !== JSON.stringify(b) && JSON.stringify(a) === JSON.stringify(bienfaitsOfferts(perso, 'g1', 'pp9')), `${a.map(x => `${x.p}:${x.b}`).join(' ')} / ${b.map(x => `${x.p}:${x.b}`).join(' ')}`);
   exiger('les rôles de COACH_DU_ROLE existent', Object.entries(COACH_DU_ROLE).every(([g2, roles]) => Object.keys(roles).every(r => PROFILS[g2][r])));
 }
 

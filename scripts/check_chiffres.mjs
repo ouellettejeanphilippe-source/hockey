@@ -32,7 +32,7 @@ import { CARTES_MATCH } from '../js/combat.js';
 import { optionDeCarteMatch, pucesDeFace, FACE_MAX } from '../js/gerant.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { temoin } from './lib/temoins.mjs';
+import { temoin, effetTemoin } from './lib/temoins.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -92,9 +92,9 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
 /* 1. Le niveau du soir contre des milliers de vrais matchs. */
 {
   const clubs = ligue(31337, 12);
-  // V10 : des patrons témoins de toute la saison (scripts/lib/temoins.mjs) ; les cartes de saison sont parties.
+  // V10 : des témoins de toute la saison (scripts/lib/temoins.mjs) ; les cartes de saison sont parties.
   const avecCartes = [['bloc', 'fougue'], ['chasse', 'defense'], ['ecole', 'attaque']];
-  clubs.forEach((t, i) => { if (i >= 3 && i < 6) t.patrons = avecCartes[i - 3].map(k => temoin(k).patron); });
+  clubs.forEach((t, i) => { if (i >= 3 && i < 6) t.effets = avecCartes[i - 3].map(effetTemoin); });
   const ecarts = [];
   for (let i = 0; i < 6; i++) {
     const A = clubs[i], B = clubs[i + 6];
@@ -217,7 +217,7 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
     } catch (e) { fautes.push(`modif ${k} : ${e.message}`); }
   }
   // Une modif touche UN joueur : elle se dit à lui (ses buts, ses tirs) et à ton club sur la saison, pas en dixièmes de but par match.
-  exiger('une modif qui change la précision ou les tirs se dit au joueur : ses buts ou ses tirs sur la saison', ['affute', 'tir_gun', 'lame', 'style_sniper'].every(k => aLui.includes(k)), `${aLui.length} modifs disent leur joueur`);
+  exiger('une modif qui change la précision ou les tirs se dit au joueur : ses buts ou ses tirs sur la saison', ['tir_gun', 'lame'].every(k => aLui.includes(k)), `${aLui.length} modifs disent leur joueur`);
   exiger('une modif de tir, de défense ou d\'arrêts se voit (aucune « à peine perceptible »), celles des gardiens comprises', muettes.length === 0, muettes.join(', ') || 'toutes visibles');
   poserClubLu(null);
   const champs = () => JSON.stringify([Object.values(A.roster).map(p => p && [p._mut, p._amel, p._mutProfils, p._mutCles, p._partout, p._cran, p._enBas, p._ombre, p._abri, p._carte]), A.mutations]);
@@ -238,9 +238,9 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
     const L = creerLigue(teams, 82, { graine: 'chiffres-rejeu', decisions });
     while (!L.fini) {
       if (lire && L.jour % 4 === 0) {
-        const t = teams[0], avant = [t.cartes, t.patrons, t.effets, t._effetMatch, t._planMatch, t.speciales, t.coachs];
+        const t = teams[0], avant = [t.cartes, t.effets, t._effetMatch, t._planMatch, t.speciales, t.perso];
         chiffresDuSoir(t); motsDuSoir(t, null, null, []); effetEnChiffres({ volume: 1.1, defense: 0.9 }, t);
-        rendue = rendue && [t.cartes, t.patrons, t.effets, t._effetMatch, t._planMatch, t.speciales, t.coachs].every((x, i) => x === avant[i]);
+        rendue = rendue && [t.cartes, t.effets, t._effetMatch, t._planMatch, t.speciales, t.perso].every((x, i) => x === avant[i]);
       }
       jouerJournee(L);
     }
