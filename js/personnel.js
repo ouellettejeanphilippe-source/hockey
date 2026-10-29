@@ -122,7 +122,7 @@ export const PERSONNEL = {
   per_superstitieux: { role: 'chef', nom: 'Le superstitieux', ico: '🍀', rarete: 'commune', effet: { defense: 1, finition: 0.96 },
     protege: { lancers: 1.16, finition: 1.12 }, texte: 'Après une défaite, il choisit qui portera la casquette. Personne ne discute.' },
   // reprend la semaine chargée
-  per_maitreCalendrier: { role: 'physique', nom: 'Le maître du calendrier', ico: '🗒', rarete: 'commune', effet: { energie: 0.81, finition: 1.1, volume: 0.91 },
+  per_maitreCalendrier: { role: 'physique', nom: 'Le maître du calendrier', ico: '🗒', rarete: 'commune', effet: { energie: 0.81, finition: 1.08, volume: 0.9 },
     texte: 'Le calendrier sur le babillard, surligné en jaune. Le deuxième soir, il avait tout prévu.' },
   // reprend la soirée des anciens
   per_ancienCapitaine: { role: 'defense', nom: 'L\'ancien capitaine', ico: '🧥', rarete: 'peu', effet: { volume: 1.06, defense: 0.96, finition: 0.92 },

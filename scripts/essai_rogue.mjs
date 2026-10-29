@@ -661,6 +661,16 @@ await regler();
 /* V12-2 (docs/refonte-v12.md) : un sous-onglet de sa section, son contenu permanent rendu ; puis le Bureau rend la boîte. */
 /* Les cartes d'une maison sont toujours visibles (JP, 28 oct. : plus d'accordéon) : une bande qui se balaie, rien à déplier. */
 const deplierLesCartes = async () => { await page.waitForTimeout(250); };
+/* Les cartes d'une maison (V19 : une rangée qui ouvre une feuille, plus de bande) : leurs clés « src|id|ref » et le geste d'en jouer une. */
+const cartesDeLaMaison = async (portee, maison) => {
+  const rangee = await page.$(`${portee} .cartes-maison[data-cartes-maison="${maison}"]`);
+  if (!rangee) return [];
+  await rangee.click(); await page.waitForSelector('#choixModal:not([hidden]) [data-choix]', { timeout: 8000 }).catch(() => {});
+  const cles = await page.$$eval('#choixModal [data-choix]', e => e.map(b => b.dataset.choix)).catch(() => []);
+  return cles;
+};
+const fermerLaFeuille = async () => { await page.click('#choixModal .choix-fermer, #choixModal [data-retour], #choixModal .btn-fermer').catch(() => page.keyboard.press('Escape')); await page.waitForTimeout(250); };
+const idsDesCartes = cles => cles.map(k => k.split('|')[1]).filter(Boolean);
 const versLOnglet = async (sec, pg) => {
   await page.click(`#navbar .navtab[data-section="${sec}"]`).catch(() => {});
   await page.click(`#sousNav .soustab[data-page="${pg}"]`, { timeout: 3000 }).catch(() => {});
@@ -1147,7 +1157,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   for (const k of Object.keys(SEC)) {
     await versLOnglet(SEC[k], k);
     await page.waitForSelector(`#hubModal:not([hidden]) .af-onglet[data-maison="${k}"]`, { timeout: 15000 }).catch(() => erreurs.push(`le sous-onglet « ${k} » ne s'ouvre pas`));
-    ici[k] = await page.$$eval(`#hubModal .af-onglet[data-maison="${k}"] .maison-jouer`, e => e.map(b => b.dataset.id)).catch(() => []);
+    ici[k] = k === 'entraineur' ? idsDesCartes(await cartesDeLaMaison(`#hubModal .af-onglet[data-maison="${k}"]`, k)) : await page.$$eval(`#hubModal .af-onglet[data-maison="${k}"] .maison-jouer`, e => e.map(b => b.dataset.id)).catch(() => []);
+    if (k === 'entraineur') await fermerLaFeuille();
     // Le volet ne garde que le sous-onglet ouvert : la masse salariale se lit chez le proprio, pendant qu'on y est.
     if (k === 'proprio') plafond = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .inv-plafond', { timeout: 3000 }).catch(() => '');
   }
@@ -1157,10 +1168,10 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     await versLOnglet('joueurs', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
     await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
-    ici.joueurs = await page.$$eval('#pageJoueurs .maison-jouer', e => e.map(b => b.dataset.id)).catch(() => []);
+    ici.joueurs = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'joueurs')); await fermerLaFeuille();
     // Les soins, au filtre 🩹 (V18-5).
     await page.click('#pageJoueursCorps .inv-filtre[data-groupe="B"]').catch(() => {}); await page.waitForTimeout(200);
-    ici.infirmerie = await page.$$eval('#pageJoueurs .maison-jouer', e => e.map(b => b.dataset.id)).catch(() => []);
+    ici.infirmerie = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'infirmerie')); await fermerLaFeuille();
     await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   }
   if (!(ici.entraineur || []).includes('consommable:stage')) erreurs.push('« Le stage du coach » ne se joue pas chez l\'entraîneur');
@@ -1281,7 +1292,8 @@ let posee = null, nomModif = '';
 {
   await versLOnglet('bureau', 'entraineur');
   await deplierLesCartes('#hubModal .af-onglet[data-maison="entraineur"]');
-  const jouer = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .maison-jouer[data-id="consommable:stage"]');
+  const clesEntraineur = await cartesDeLaMaison('#hubModal .af-onglet[data-maison="entraineur"]', 'entraineur');
+  const jouer = clesEntraineur.includes('meta|consommable:stage|') ? await page.$('#choixModal [data-choix="meta|consommable:stage|"]') : null;
   if (!jouer) erreurs.push('« Le stage du coach » ne se joue pas depuis le sous-onglet de l\'entraîneur');
   else {
     const n0 = (await decisions()).length;
@@ -1305,7 +1317,8 @@ let posee = null, nomModif = '';
    */
   await versLEffectif();
   await deplierLesCartes('#pageJoueurs');
-  const echange = await page.$('#pageJoueurs .maison-jouer[data-id="consommable:echangeDoublon"]');
+  const clesJoueurs = await cartesDeLaMaison('#pageJoueurs', 'joueurs');
+  const echange = clesJoueurs.includes('meta|consommable:echangeDoublon|') ? await page.$('#choixModal [data-choix="meta|consommable:echangeDoublon|"]') : null;
   if (!echange) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif (Effectif › Joueurs)');
   else {
     const copies = () => page.evaluate(k => ((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs || {})[k] || {}).n || 0, CARTES[1]);
