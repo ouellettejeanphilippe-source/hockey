@@ -23,8 +23,8 @@ Choisi au départ de la run (le prestige en ouvre plus), il la fait au complet, 
 | 🐝 Le Frelon | **La ruée** : en 3e, à égalité ou derrière, +40 % de tirs | **Le bourdonnement** : en 3e, avec plus de tirs qu'eux jusque-là, +25 % de tirs | **L'essaim** : derrière au pointage, +35 % de tirs et +5 % de précision |
 | 🦅 L'Aigle | **La riposte** : après une période perdue aux tirs, sans mener, +28 % de précision | **Le tueur** : quand tu mènes, +17 % de précision | **Le tir parfait** : en 3e, à un but d'écart ou moins, +45 % de précision |
 | 🐢 La Tortue | **Le verrou** : quand tu mènes, −25 % de buts contre | **La tranchée** : en 1re, à l'étranger, −25 % de leurs tirs | **La forteresse** : en 3e, en avant ou à égalité, −30 % de buts contre et −20 % de leurs tirs |
-| 🦏 Le Rhino | **L'usure** : en 3e, plus de mises en échec et leur précision −10 % | **Le choc** : en 1re, à domicile, plus de mises en échec et leur précision −10 % | **La charge** : derrière, +25 % de tirs et leur précision −12 % |
-| 🫁 Le Doc | **Le second souffle** : en 3e, un soir de dos-à-dos ou de jambes lourdes, +20 % de tirs et −20 % de buts contre | **La rotation** : toute la soirée, −40 % de blessures | **La résurrection** : derrière en 3e, +40 % de tirs et +25 % de précision |
+| 🦏 Le Rhino | **L'usure** : en 3e, plus de mises en échec et leur précision −10 % | **Le choc** : en 1re, à domicile, plus de mises en échec et leur précision −12 % | **La charge** : derrière, +25 % de tirs et leur précision −12 % |
+| 🫁 Le Doc | **Le second souffle** : en 3e, un soir de dos-à-dos ou de jambes lourdes, +20 % de tirs et −22 % de buts contre | **La rotation** : toute la soirée, −40 % de blessures | **La résurrection** : derrière en 3e, +40 % de tirs et +25 % de précision |
 | 😇 L'Abbé | **Le sang-froid** : en 2e, −45 % de punitions | **La provocation** : en 3e, leurs punitions +90 % | **Le miracle** : en 3e, à un but d'écart ou moins, +30 % de précision et −50 % de punitions |
 | 🪜 Le Contremaître | **Les quatre trios** : en 3e, à un but d'écart ou moins, les quatre trios jouent autant et −25 % de buts contre | **L'atelier** : un soir de dos-à-dos, +12 % de tirs et −8 % de buts contre | **La relève** : derrière, les quatre trios égaux, +30 % de tirs et +10 % de précision |
 | 🌠 Le Showman | **Le spectacle** : en 3e, à égalité ou derrière d'un but, le 1er trio joue 40 % plus, +32 % de précision | **Le duo vedette** : en 1re, à domicile, le 1er trio joue 30 % plus, +35 % de précision | **Le grand soir** : en séries ou en gros match, +25 % de précision toute la soirée |
@@ -45,15 +45,15 @@ Un adjoint est donc un **échange** (js/adjoints.js) : ce que ton club gagne et 
 |---|---|---|
 | 🏹 Le canonnier | tes tirs +8 % | leurs tirs +10 % |
 | 🚧 Le trappeur | leurs tirs −8 % | tes tirs −8 % |
-| 📐 Le tireur d'élite | ta précision +12 % | tes tirs −11 % |
+| 📐 Le tireur d'élite | ta précision +13 % | tes tirs −10 % |
 | 💨 Le mitrailleur | tes tirs +13 % | ta précision −9 % |
 | 🧱 Le bâtisseur de mur | buts contre −8 % | ta précision −8 % |
 | 🧤 L'entraîneur du n° 1 | ton gardien n° 1 : buts accordés −10 % | ton n° 2 : +30 % |
 | 🧊 L'entraîneur du n° 2 | ton gardien n° 2 : buts accordés −12 % | ton n° 1 : +4 % |
-| 🏋 Le préparateur physique | plus de mises en échec | tes punitions +20 % |
+| 🏋 Le préparateur physique | plus de mises en échec | tes punitions +25 % |
 | 🧭 Le prof de discipline | tes punitions −25 % | moins de mises en échec |
 | 🧲 Le rouleur | tes 3e et 4e trios jouent plus, leurs tirs −10 % | ton 1er trio joue moins |
-| 📊 Le vedettiste | ton 1er trio joue plus | le bas joue moins, leurs tirs +6 % |
+| 📊 Le vedettiste | ton 1er trio joue plus | le bas joue moins, leurs tirs +8 % |
 | 🧪 Le soigneur | tes blessures −30 % | tes tirs −2 % |
 
 Le n° 1 part environ trois soirs sur quatre : un échange de gardiens s'équilibre à trois contre un.

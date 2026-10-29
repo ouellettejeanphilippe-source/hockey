@@ -20,15 +20,15 @@ export const ADJOINTS_MAX = 3;
 export const ADJOINTS = {
   canonnier: { ico: '🏹', nom: 'Le canonnier', effet: { volume: 1.08 }, adv: { volume: 1.1 } },
   trappeur: { ico: '🚧', nom: 'Le trappeur', effet: { volume: 0.92 }, adv: { volume: 0.92 } },
-  tireur: { ico: '📐', nom: 'Le tireur d\'élite', effet: { finition: 1.12, volume: 0.89 } },
+  tireur: { ico: '📐', nom: 'Le tireur d\'élite', effet: { finition: 1.13, volume: 0.9 } },
   mitrailleur: { ico: '💨', nom: 'Le mitrailleur', effet: { volume: 1.13, finition: 0.91 } },
   mur: { ico: '🧱', nom: 'Le bâtisseur de mur', effet: { defense: 0.92, finition: 0.92 } },
   numeroUn: { ico: '🧤', nom: 'L\'entraîneur du n° 1', gardiens: { partant: 0.9, aux: 1.3 } },
   numeroDeux: { ico: '🧊', nom: 'L\'entraîneur du n° 2', gardiens: { partant: 1.04, aux: 0.88 } },
-  cogneur: { ico: '🏋', nom: 'Le préparateur physique', effet: { robustesse: 2, discipline: 1.2 } },
+  cogneur: { ico: '🏋', nom: 'Le préparateur physique', effet: { robustesse: 2, discipline: 1.25 } },
   prof: { ico: '🧭', nom: 'Le prof de discipline', effet: { discipline: 0.75, robustesse: -1 } },
   rouleur: { ico: '🧲', nom: 'Le rouleur', effet: { F: [0.78, 0.9, 1.15, 1.35] }, adv: { volume: 0.9 } },
-  vedettiste: { ico: '📊', nom: 'Le vedettiste', effet: { F: [1.2, 1.05, 0.92, 0.8] }, adv: { volume: 1.06 } },
+  vedettiste: { ico: '📊', nom: 'Le vedettiste', effet: { F: [1.2, 1.05, 0.92, 0.8] }, adv: { volume: 1.08 } },
   soigneur: { ico: '🧪', nom: 'Le soigneur', effet: { blessure: 0.7, volume: 0.98 } },
 };
 

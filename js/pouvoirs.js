@@ -62,11 +62,11 @@ export const POUVOIRS = {
   ],
   rhinos: [
     { cle: 'usure', ico: '🦏', nom: 'L\'usure', dit: 'En 3e période : plus de mises en échec, et leur précision −10 %.', quand: k3, effet: { robustesse: 2.5 }, adv: { finition: 0.9 } },
-    { cle: 'choc', ico: '💥', nom: 'Le choc', dit: 'En 1re période, à domicile : plus de mises en échec, et leur précision −10 %.', quand: e => e.k === 0 && soirDe(e, 'domicile'), effet: { robustesse: 2 }, adv: { finition: 0.9 } },
+    { cle: 'choc', ico: '💥', nom: 'Le choc', dit: 'En 1re période, à domicile : plus de mises en échec, et leur précision −12 %.', quand: e => e.k === 0 && soirDe(e, 'domicile'), effet: { robustesse: 2 }, adv: { finition: 0.88 } },
     { cle: 'charge', ico: '🐂', nom: 'La charge', dit: 'Derrière au pointage : +25 % de tirs, leur précision −12 %.', quand: derriere, effet: { volume: 1.25, robustesse: 1 }, adv: { finition: 0.88 } },
   ],
   souffle: [
-    { cle: 'souffle', ico: '🫁', nom: 'Le second souffle', dit: 'En 3e période, un soir de dos-à-dos ou de jambes lourdes : +20 % de tirs, −20 % de buts contre.', quand: e => k3(e) && soirDe(e, 'dosADos', 'jambesLourdes'), effet: { volume: 1.2, defense: 0.8 } },
+    { cle: 'souffle', ico: '🫁', nom: 'Le second souffle', dit: 'En 3e période, un soir de dos-à-dos ou de jambes lourdes : +20 % de tirs, −22 % de buts contre.', quand: e => k3(e) && soirDe(e, 'dosADos', 'jambesLourdes'), effet: { volume: 1.2, defense: 0.78 } },
     { cle: 'rotation', ico: '🩺', nom: 'La rotation', dit: 'Toute la soirée : −40 % de blessures.', quand: () => true, effet: { blessure: 0.6 } },
     { cle: 'resurrection', ico: '⚡', nom: 'La résurrection', dit: 'Derrière en 3e période : +40 % de tirs, +25 % de précision.', quand: e => k3(e) && derriere(e), effet: { volume: 1.4, finition: 1.25 } },
   ],
