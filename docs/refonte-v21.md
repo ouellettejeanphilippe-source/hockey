@@ -45,6 +45,7 @@ JP : *I want the coaches and assistants to be like the team alignment, mais avec
 - **Sa philosophie** se lit dans les vraies stats de son club cette saison-là, prises des shards : tirs pour (le Frelon), tirs contre (la Tortue), % de tir (l'Aigle), minutes de pénalité (le Rhino) ou leur absence (l'Abbé), santé du vestiaire (le Doc), points hors du top 6 (le Contremaître), poids des deux vedettes (le Showman) ; la lecture la plus marquée par rapport aux autres clubs décide. Scotty Bowman 1976-77 est l'Aigle (1er au % de tir), Paul Maurice 2023-24 le Rhino.
 - **Sa maîtrise** : premier ou deuxième de la ligue dans sa lecture, ses pouvoirs jouent ×1,2 ; dans les cinq premiers, ×1,1 (`MAITRISE`, js/coachs-reels.js).
 - **Le loto** : au départ de la run, trois vraies cartes, de trois philosophies que le prestige ouvre, tirées de la graine ; tu en prends une, qui fait la run. Sa carte dit son club, sa saison, sa fiche, sa Coupe et son Jack Adams.
+- **Le cartable** (JP : *c'est comme les cartes de joueurs*) : l'entraîneur pris entre à ton cartable et y compte ses runs ; l'album a son onglet « Coachs ». Le loto tire d'abord là, comme le classeur : les moins joués d'abord, deux au plus (`DU_CARTABLE`), plus une carte neuve chaque fois — un cartable plein ne ferme jamais la découverte (`coachAuCartable`, js/cartable.js ; `lotoDesCoachs`).
 - Le vocabulaire ne bouge pas : **l'entraîneur** est la personne (la carte), **le coach** sa philosophie ; jamais « entraîneur-chef » (`check_lexique`).
 
 ## 2. Les adjoints, des systèmes de jeu

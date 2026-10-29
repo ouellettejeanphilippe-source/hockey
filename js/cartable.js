@@ -21,6 +21,7 @@
  * (`cap82_rogue.collection`, S77) y entre une fois, en cartes de base.
  */
 import { NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
+import { COACHS } from './coachs.js';
 
 const CLE_CARTABLE = 'cap82_cartable';
 const VIDE = () => ({ v: 1, joueurs: {}, migre: false });
@@ -130,6 +131,20 @@ export function marquerJouees(cles = [], run = 0) {
   }
   ecrire(c);
 }
+/*
+ * LES CARTES DE COACH (V21 ; JP : *c'est comme les cartes de joueurs*). Ton entraîneur, une vraie carte de coach-saison
+ * (js/coachs-reels.js), entre au cartable le jour où sa run commence, et y reste ; `coachs` : son id (« 1976-77_MTL ») → ce
+ * que l'album en dit sans recharger data/coachs.json, `r` ses runs, `der` la dernière. Le loto du départ tire d'abord
+ * dans ton cartable, les moins jouées d'abord (`lotoDesCoachs`).
+ */
+export function coachAuCartable(carte, run = 0) {
+  if (!carte || !carte.id) return;
+  const c = lireCartable(), coachs = c.coachs = c.coachs || {};
+  const x = coachs[carte.id] = coachs[carte.id] || { n: carte.n, cle: carte.cle, rang: carte.rang, fiche: carte.fiche, coupe: !!carte.coupe, jack: !!carte.jack, r: 0 };
+  if (x.der !== run) { x.r = (x.r || 0) + 1; x.der = run; }
+  ecrire(c);
+}
+export const coachsDuCartable = (c = lireCartable()) => c.coachs || {};
 /* Les cartes différentes qui ont joué au moins une run. */
 export const cartesJouees = (c = lireCartable()) => Object.values(c.joueurs).filter(x => (x.r || 0) > 0).length;
 /*
@@ -309,7 +324,7 @@ function pagesDe(cellules, titre, esc) {
  *   esc, equipe [{ p, cle, mini, saison, vraie }], titreSaison ('À la journée 20'…),
  *   ouvrirCartes(), fiche(cle, p), ficheEquipe(p),
  *   charger(saison) → Promise(entrée de shard : { players, byTeam }),
- *   mini(p, rar), cleDe(p), club(tag) → nom, vraie(p) → ligne de sa vraie saison,
+ *   mini(p, rar), cleDe(p), club(tag) → nom, logo(tag, px), band(tag) (tes coachs), vraie(p) → ligne de sa vraie saison,
  *   saisons (celles du jeu : les extensions et leur complétion).
  */
 export function rendreCartable(host, ctx) {
@@ -318,6 +333,8 @@ export function rendreCartable(host, ctx) {
   const c = lireCartable();
   const k = comptesDuCartable(c);
   const { parSaison, parClub } = ensembles(c);
+  const coachs = Object.entries(coachsDuCartable(c)).filter(([, x]) => COACHS[x.cle]), nCoachs = coachs.length;
+  if (etat.vue === 'coachs' && !nCoachs) etat.vue = 'equipe';
   const decennies = [...new Set((ctx.saisons || []).map(decennieDe))];
   const parDecennie = new Map();
   for (const s of parSaison.keys()) { const d = decennieDe(s); parDecennie.set(d, (parDecennie.get(d) || 0) + [...parSaison.get(s).values()].reduce((a, l) => a + l.length, 0)); }
@@ -334,7 +351,7 @@ export function rendreCartable(host, ctx) {
       <button type="button" class="btn gold ct-mes-cartes" title="Tes cartes de jeu : les cartes rares">🎒 Tes cartes</button>
     </div>
     <div class="ct-vues" role="tablist">
-      ${[['equipe', `Ton équipe · ${ctx.equipe.length}`], ['extensions', `Extensions · ${parDecennie.size}`], ['clubs', `Clubs · ${parClub.size}`]]
+      ${[['equipe', `Ton équipe · ${ctx.equipe.length}`], ['extensions', `Extensions · ${parDecennie.size}`], ['clubs', `Clubs · ${parClub.size}`], ...(nCoachs ? [['coachs', `Coachs · ${nCoachs}`]] : [])]
         .map(([v, nom]) => `<button type="button" role="tab" class="ct-vue${etat.vue === v ? ' on' : ''}" data-vue="${v}" aria-selected="${etat.vue === v}">${esc(nom)}</button>`).join('')}
     </div>`;
   let corps = '';
@@ -348,6 +365,14 @@ export function rendreCartable(host, ctx) {
     corps = cartes.length
       ? `<p class="ct-mot">${esc(ctx.titreSaison || 'Tes joueurs, dans le cartable.')} Touche une carte.</p><div class="ct-reliure">${pagesDe(cartes, 'Ton équipe', esc)}</div>${autres ? `<button type="button" class="ct-autres">Les autres débloqués · ${autres}</button>` : ''}`
       : '<p class="ct-vide">Pas encore d\'alignement.</p>';
+  } else if (etat.vue === 'coachs') {
+    // TES ENTRAÎNEURS (V21) : une carte par coach-saison, aux couleurs de son club ; ses runs chez toi dessous.
+    const cartes = coachs.sort((a, b) => (b[1].r || 0) - (a[1].r || 0) || a[1].n.localeCompare(b[1].n, 'fr')).map(([id, x]) => {
+      const [saison, tag] = id.split('_'), C = COACHS[x.cle], b = ctx.band(tag), f = x.fiche || {};
+      return `<div class="ct-carte"><span class="ct-coach" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">${ctx.logo(tag, 40)}<b>${esc(x.n)}</b><span>${esc(ctx.club(tag))}</span><span>${esc(saison)}</span><span class="ct-coach-philo">${C.ico} ${esc(C.nom)}</span></span>
+        <span class="ct-stats"><span class="ct-ligne ct-vraie"><i>Vraie</i>${f.v}-${f.d}-${f.n}${x.coupe ? ' · 🏆' : ''}${x.jack ? ' · Jack Adams' : ''}</span><span class="ct-ligne ct-sim"><i>Chez toi</i>${x.r || 0} run${(x.r || 0) > 1 ? 's' : ''}</span></span></div>`;
+    });
+    corps = `<p class="ct-mot">Tes entraîneurs : le loto du départ tire d'abord ici, les moins joués d'abord.</p><div class="ct-reliure">${pagesDe(cartes, 'Tes coachs', esc)}</div>`;
   } else {
     const nSaisons = d => (ctx.saisons || []).filter(s => decennieDe(s) === d).length;
     const groupes = etat.vue === 'extensions'

@@ -2128,6 +2128,7 @@ function remplirCartable() {
     mini: (p, rar) => miniAvecVariante(p, rar),
     cleDe: getPlayerKey,
     club: t => TEAMFULL[t] || t,
+    logo: getTeamLogoHtml, band: getTeamBand,
     vraie: ligneVraieSaison,
     saisons: state.index.seasons,
   });
