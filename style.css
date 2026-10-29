@@ -3932,10 +3932,28 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
   .roster > :is(.ej-soir, .plan-match, .unites-speciales) { margin-bottom: 0; }
   .unites-speciales { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
   .unites-speciales > :is(.pm-tete, .pm-k) { grid-column: 1 / -1; }
-  /* En Rogue, la carte à gauche de sa bande et de ses verdicts : trois cases de front y ont la place. */
-  #rosterBoard.en-cartes .slot { grid-template-columns: 112px minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "carte band" "carte info"; column-gap: var(--esp-2); }
+  /* En Rogue, la carte à gauche de sa bande et de ses verdicts : trois cases de front y ont la place. Elle grandit avec le
+     volet (JP : *ya beaucoup d'espacement weird, grossir les cartes sur gros écrans*), ses verdicts gardent une colonne de
+     lecture, et la paire se centre dans sa case plutôt que de laisser le vide d'un tiers d'écran à droite. */
+  #rosterBoard.en-cartes .slot { --carte: clamp(112px, 11.5cqi, 210px); grid-template-columns: var(--carte) minmax(0, 300px); grid-template-rows: 1fr auto auto 1fr; grid-template-areas: "carte ." "carte band" "carte info" "carte ."; justify-self: center; width: max-content; max-width: 100%; column-gap: var(--esp-3); }
+  #rosterBoard.en-cartes .slot-carte, #rosterBoard.en-cartes .slot.empty { width: var(--carte); }
   #rosterBoard.en-cartes .slot-band { margin-top: 0; }
+  #rosterBoard.en-cartes .sc-cle > .cell-prod { font-size: var(--t-4); }
+  #rosterBoard.en-cartes .slot-remove { right: auto; left: calc(var(--carte) - 30px); }
   #rosterBoard.en-cartes .lien-place { top: 50%; }
+  /* LA DÉFENSE ET LE FILET EN LARGE (JP : *check les defs, comme c'est laid l'espace vide*) : une paire n'a que deux cartes
+     sur une largeur faite pour trois. Les trois paires vont donc côte à côte, les gardiens à côté de la réserve, chaque
+     carte debout, ses verdicts dessous, comme au téléphone : l'onglet tient en un écran, sans vide. */
+  body[data-effectif="D"] #rosterBoard.en-cartes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body[data-effectif="G"] #rosterBoard.en-cartes { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+  #rosterBoard.en-cartes > :is(.ln-auto, .plan-match) { grid-column: 1 / -1; }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes .slot { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: "carte" "band" "info"; justify-self: stretch; width: auto; }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes :is(.slot-carte, .slot.empty) { width: min(100%, var(--carte)); justify-self: center; }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes .slot-band { margin-top: var(--esp-2); }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes .slot-remove { right: auto; left: calc(50% + min(100%, var(--carte)) / 2 - 30px); }
+  /* La réserve sur une rangée, la case à débloquer comprise. */
+  body[data-effectif="G"] #rosterBoard.en-cartes .line-slots:not(.pair) { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes .lien-place { top: 28%; }
 }
 /* Le résumé de l'onglet Équipe sur une ligne dès qu'il y a la place. */
 @container roster (min-width: 600px) { body[data-effectif="E"] .team-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
