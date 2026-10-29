@@ -473,7 +473,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       // CE QUE LE COMMENTATEUR SAIT DU JEU (S71) : le poste et le style du tireur,
       // l'accord de sa ligne, la situation, ses buts de la saison.
       const style = e.tireur ? STYLE_MICRO[profil(e.tireur)] || null : null;
-      const contexte = { t, g: gg, att, def, nArrets: st.arrets[cGard], r: tempsRestant(e.instant), serre: serre(e.instant),
+      const contexte = { t, g: gg, att, def, nArrets: st.arrets[cGard], r: tempsDeJeu(e.instant), serre: serre(e.instant),
         poste: e.tireur && /^(D|LD|RD)$/.test(e.tireur.p) ? 'D' : 'F', style, acc: e.acc || null, mode: e.mode === 'AN' || e.mode === 'DN' ? e.mode : null,
         butsSaison: e.tireur ? ((compte.get(e.tireur) || {}).g || 0) : 0,
         pousse: (e.cote === 'A' ? gA < gB : gB < gA) && e.instant >= 40,
@@ -507,7 +507,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         but: b, m: nomDeMicro(b.marqueur, ctx.esc), g: b.gardien ? ctx.esc(nomCourt(b.gardien.n)) : 'le gardien',
         eq: ctx.esc(ctx.teamShort(equipe(e.cote))), autre: ctx.esc(ctx.teamShort(equipe(autre(e.cote)))),
         pour: e.cote === 'A' ? gA : gB, contre: e.cote === 'A' ? gB : gA, nMatch: butsCeSoir.get(b.marqueur),
-        r: tempsRestant(b.instant), tard: b.instant >= 56 && b.instant < 60, ot: b.instant >= 60,
+        r: tempsDeJeu(b.instant), tard: b.instant >= 56 && b.instant < 60, ot: b.instant >= 60,
       });
       ligne(`but but-eq ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
         <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} <span class="live-score">${gA}-${gB}</span> <span class="live-micro">${micro}</span>${(c => (c ? ` <span class="live-cause">Décisif : ${ctx.esc(c)}.</span>` : ''))(causeDuBut(b))}</span>`, couleurs(e.cote));

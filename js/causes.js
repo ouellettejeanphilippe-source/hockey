@@ -114,7 +114,7 @@ export function causesDuMatch(f, moi) {
     const mes = l.causes ? l.causes.liste.filter(c => c.c === moi && SUJET[c.k]) : [];
     if (!mes.some(c => c.k !== 'chance')) continue;
     // Tes causes d'un même lancer vont toutes du même bord : le dé est tombé entre la chance avec et sans chacune.
-    const t = { instant: l.instant, quand: `${PERIODE_COURTE[Math.min(4, periodeDe(l.instant)) - 1]} ${tempsRestant(l.instant)}`, attaque: l.cote === moi, but: !!l.but, tireur: nomDe(l.tireur), sujets: [...new Set(mes.map(c => SUJET[c.k](c)))] };
+    const t = { instant: l.instant, quand: `${PERIODE_COURTE[Math.min(4, periodeDe(l.instant)) - 1]} ${tempsRestant(l.instant, f.otLongue)}`, attaque: l.cote === moi, but: !!l.but, tireur: nomDe(l.tireur), sujets: [...new Set(mes.map(c => SUJET[c.k](c)))] };
     t.aide = t.attaque === t.but;
     t.texte = phraseDuTir(t);
     tirs.push(t);

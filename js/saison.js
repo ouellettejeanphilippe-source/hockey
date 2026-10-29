@@ -2178,7 +2178,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const tete = p !== per ? `<div class="live-but-per">${NOM_PERIODE[p]}</div>` : '';
       per = p;
       const aides = b.passeurs.map(p => `${ctx.esc(nom(p))} (${ordF(rang(p, 'a'))} passe)`).join(', ');
-      return `${tete}<div class="live-but-ligne but-eq" style="${varsEquipe(ctx.band(t.tag))}"><span class="live-tps">${tempsRestant(b.instant)}</span>${ctx.logo(t.tag, 13)}<span><b>${ctx.esc(nom(b.marqueur))}</b> <span class="live-xe">(${ord(rang(b.marqueur, 'g'))} but)</span>${aides ? `, ${aides}` : ''}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}${b.gagnant && m.ot ? ' · en prolongation' : ''}</span></div>`;
+      return `${tete}<div class="live-but-ligne but-eq" style="${varsEquipe(ctx.band(t.tag))}"><span class="live-tps">${tempsRestant(b.instant, m.feuille.otLongue)}</span>${ctx.logo(t.tag, 13)}<span><b>${ctx.esc(nom(b.marqueur))}</b> <span class="live-xe">(${ord(rang(b.marqueur, 'g'))} but)</span>${aides ? `, ${aides}` : ''}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}${b.gagnant && m.ot ? ' · en prolongation' : ''}</span></div>`;
     }).join('') : '';
     const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
     return `<div class="live-board hub-board" style="--a-duel:${ctx.band(m.A.tag).duel};--b-duel:${ctx.band(m.B.tag).duel}"${somm}>${cote(m.A, m.gfA, 'a', gagneA)}
