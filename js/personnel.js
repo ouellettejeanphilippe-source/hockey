@@ -190,7 +190,7 @@ export const PERSONNEL = {
   per_infirmiere: { role: 'chef', nom: 'L\'infirmière de garde', ico: '💊', rarete: 'peu', effet: { blessure: 0.72, energie: 0.92, robustesse: 0 },
     texte: 'Quand l\'infirmerie déborde, elle dort à l\'aréna. Personne ne se blesse bêtement.' },
   // reprend les rideaux opaques
-  per_hotelier: { role: 'physique', nom: 'Le réservateur d\'hôtels', ico: '🏨', rarete: 'rare', effet: { energie: 0.81, volume: 1.06, finition: 0.97 },
+  per_hotelier: { role: 'depistage', nom: 'Le réservateur d\'hôtels', ico: '🏨', rarete: 'rare', effet: { energie: 0.81, volume: 1.06, finition: 0.97 },
     texte: 'Les rideaux opaques, le dernier étage, pas de réveil. Les jambes lourdes repartent.' },
 
   // ---- 😇 l'Abbé ----

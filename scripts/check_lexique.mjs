@@ -133,7 +133,7 @@ informer('prose lue', `${prose.length} chaînes et lignes`);
 {
   // Les clés que les sauvegardes et la méta portent ; l'affichage se renomme, elles non.
   const cles = [
-    ['js/banque.js', /\bchef: \{/], ['js/banque.js', /patronsActifs/], ['js/coachs.js', /\bessaim: \{/], ['js/coachs.js', /\bbanque: \{/],
+    ['js/banque.js', /\bchef: \{/], ['js/banque.js', /patronsActifs/], ['js/coachs.js', /\bessaim: \{/],
     ['js/rogue.js', /cle: 'vestiaire'/], ['js/rogue.js', /ecussons/], ['js/vie-gm.js', /\bad: \{ ico/], ['js/saison.js', /\bentraineur: \{ ico/],
     ['js/dossiers.js', /\blaTete: \{/], ['js/personnel.js', /per_coachDeSprint/],
   ];

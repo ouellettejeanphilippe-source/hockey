@@ -500,6 +500,8 @@ export function coachsActifs(decisions = [], jusqua = Infinity) {
   let dernier = null;
   for (const d of decisions) {
     if (!d || !d.coach || !d.coach.cle || (d.jour || 0) >= jusqua) continue;
+    // V20 : le Comptable (`banque`) est parti ; une vieille partie qui l'avait en poste n'a plus de coach.
+    if (!COACHS[d.coach.cle]) continue;
     if (!dernier || (d.jour || 0) >= dernier.jour) dernier = { ...d.coach, jour: d.jour || 0 };
   }
   return dernier ? [dernier] : [];
