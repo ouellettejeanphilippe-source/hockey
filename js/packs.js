@@ -63,7 +63,6 @@ import { getPlayerKey, getPersonKey, coachDuJoueur, badgesDe, famillesDe } from 
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { ageAtSeason } from './ratings.js';
 import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau, joueursHorsNiveau } from './niveaux.js';
-import { IDENTITES } from './identites.js';
 import { statureDe, EDITIONS } from './rarete.js';
 
 /*
@@ -363,11 +362,11 @@ const ESSAIS_NIVEAU = 8;
  * colle le mieux à sa philosophie, lu dans les vraies stats, jamais dans une
  * cote. V2.3 : ce qui colle, c'est SA COULEUR (`coachDuJoueur`) — l'Aigle
  * recrute des snipers, la Tortue des two-way et des défensifs —, au plus haut
- * palier d'abord ; le Comptable, qui n'a pas de joueurs, des aubaines.
+ * palier d'abord.
  * Le niveau ne change pas : c'est le style qui penche, pas la qualité.
  */
 const scoreDeCouleur = coach => p => (coachDuJoueur(p) === coach ? 1 + ((badgesDe(p)[0] || {}).palier || 0) : 0);
-const recrueDuCoach = coach => (coach === 'banque' ? IDENTITES.aubaines.score : COACHS[coach] ? scoreDeCouleur(coach) : null);
+const recrueDuCoach = coach => (COACHS[coach] ? scoreDeCouleur(coach) : null);
 function recrue(pool, coach, graine, ...parts) {
   const a = pool[Math.floor(hache(graine, 'pack-joueur', ...parts) * pool.length)];
   const score = recrueDuCoach(coach);
@@ -444,7 +443,7 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
   } else {
     // LE NIVEAU D'ABORD : tiré aux taux du pack, puis une saison et un joueur de ce niveau.
     // LE PACK DU COACH (Jalon P2) : seulement des joueurs de sa couleur (`coachDuJoueur`, leur meilleur rôle maîtrisé).
-    // Les huit coachs qui ont des joueurs (`VOIES`) : le Comptable est un patron, personne n'est de sa couleur.
+    // Les huit coachs (`VOIES`).
     const couleur = P.famille === 'coach' ? (VOIES.includes(reglage.coach) ? reglage.coach : VOIES[Math.floor(hache(graine, 'pack-coach', n) * VOIES.length)]) : null;
     if (couleur) reglage.coach = couleur;
     const taux = niveauxDuPack(cle, mods);

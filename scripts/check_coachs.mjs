@@ -13,7 +13,7 @@
  *      comptent ; une carte « + » compte pour sa carte de base ;
  *   3. le scaling : une carte de coach grandit avec les cartes de son coach,
  *      jusqu'à son plafond, et la décision porte le chiffre ;
- *   4. la boutique et le plafond : le Comptable change les packs, les jetons
+ *   4. la boutique et le plafond : les ententes du proprio changent les packs, les jetons
  *      et le plafond comme un patron ; le pack du coach ne tire que sa
  *      couleur, pur ;
  *   5. le moteur : une confiance entre dans `team.coachs`, dans les effets de
@@ -164,8 +164,8 @@ const tenusTous = (cle, jusqua, depuis = 0) => POINTS_PAR_BLOC * Math.max(0, Mat
 /* 2d. Les joueurs ont une couleur, et ils portent leur coach et ses cartes. */
 {
   const tousLesRoles = Object.values(COACH_DU_ROLE).flatMap(g => Object.values(g));
-  exiger('chaque coach de la glace a des rôles de sa couleur (le Comptable paie, il n\'a pas de joueurs)',
-    ORDRE_COACHS.filter(k => k !== 'banque').every(k => tousLesRoles.includes(k)) && !tousLesRoles.includes('banque'), ORDRE_COACHS.map(k => `${COACHS[k].ico} ${tousLesRoles.filter(x => x === k).length}`).join(' · '));
+  exiger('chaque coach a des rôles de sa couleur',
+    ORDRE_COACHS.every(k => tousLesRoles.includes(k)), ORDRE_COACHS.map(k => `${COACHS[k].ico} ${tousLesRoles.filter(x => x === k).length}`).join(' · '));
   exiger(`un rôle maîtrisé (${ROLE_BON} et plus) donne sa couleur ; en dessous, aucune`,
     coachDesRoles({ sniper: 80, passeur: 60 }, 'F') === 'rapaces' && coachDesRoles({ sniper: ROLE_BON - 1 }, 'F') === null && coachDesRoles({ defensif: 70, offensif: 40 }, 'D') === 'tortue', 'sniper 80 → Aigle · sniper 54 → aucune · défensif 70 → Tortue');
   const t = ligue(79, 2)[0];
@@ -192,11 +192,14 @@ const tenusTous = (cle, jusqua, depuis = 0) => POINTS_PAR_BLOC * Math.max(0, Mat
 
 /* 4. La boutique, le plafond, le pack du coach. */
 {
-  const d = [{ jour: 2, coach: effetDePalier('banque', 3) }];
-  const m = modificateurs(d, 10);
-  exiger('le Comptable III : packs −20 %, +3 🪙 par victoire', Math.abs(m.rabais - 0.80) < 1e-9 && m.jetonsVictoire.some(x => x.n === 3 && x.depuis === 2), `rabais ×${m.rabais} · ${JSON.stringify(m.jetonsVictoire)}`);
-  const pl = plafondDe(d, 10, { base: 82_000_000 });
-  exiger('le Comptable III : plafond +5 %', pl.cap === 82_000_000 + Math.round(82_000_000 * 0.05), `${(pl.cap / 1e6).toFixed(2)} M$`);
+  // V20 : le Comptable est parti ; l'argent est aux ententes du proprio, neutres, hors du banc, une à la fois.
+  const ententes = Object.keys(PATRONS).filter(k => PATRONS[k].role === 'entente');
+  exiger('l\'argent est aux ententes du proprio : neutres, et aucun adjoint du banc ne paie', ententes.length >= 5 && ententes.every(k => !BANQUE[`patron:${k}`].coach)
+    && Object.entries(PATRONS).every(([, P]) => !P.econ || P.role === 'entente') && !Object.values(PATRONS).some(P => P.role === 'direction') && !COACHS.banque,
+    `${ententes.length} ententes : ${ententes.map(k => PATRONS[k].ico).join(' ')}`);
+  const d = [{ jour: 2, patron: { cle: 'per_negociateur', role: 'entente', econ: { rabais: 0.9 } } }, { jour: 4, patron: { cle: 'per_fiscaliste', role: 'entente', econ: { plafond: 0.03 } } }];
+  const m = modificateurs(d, 10), pl = plafondDe(d, 10, { base: 82_000_000 });
+  exiger('une entente à la fois : la deuxième remplace la première', m.rabais === 1 && pl.cap === 82_000_000 + Math.round(82_000_000 * 0.03), `rabais ×${m.rabais} · ${(pl.cap / 1e6).toFixed(2)} M$`);
   let hors = 0, impurs = 0;
   for (let n = 0; n < 300; n++) for (const k of ORDRE_COACHS) {
     const a = tirerCartesPack('coach', `g${n}`, n, { coach: k });
@@ -272,7 +275,6 @@ if (LIGUES > 0) {
   const hors = [], I = [], III = [];
   console.log(`\n  ${LIGUES} ligues × 32 équipes, en paires\n`);
   for (const k of ORDRE_COACHS) {
-    if (!Object.keys(COACHS[k].paliers[0]).some(x => x !== 'econ')) continue;   // le Comptable joue à la boutique, pas sur la glace
     const v1 = paires(equipe => [{ jour: 0, equipe, coach: effetDePalier(k, 1) }]);
     const v3 = paires(equipe => [{ jour: 0, equipe, coach: effetDePalier(k, 3) }]);
     I.push(v1); III.push(v3);
@@ -295,7 +297,7 @@ if (LIGUES > 0) {
  * l'intention qu'un adversaire lui prête au duel.)
  */
 {
-  const mal = ORDRE_COACHS.filter(k => k !== 'banque').filter(k => {
+  const mal = ORDRE_COACHS.filter(k => {
     const F = COACHS[k].familles;
     return !F || !F.paie.length || !F.paie.every(f => FAMILLES[f]) || !FAMILLES[F.coute] || F.paie.includes(F.coute);
   });
