@@ -858,7 +858,7 @@ input[type="range"] { accent-color: var(--or); }
 /* Le niveau (Soutien → Phénomène) : la seule capsule pleine, parce qu'elle est un rang. */
 /* Une case étroite (le trio au bureau) la rétrécit avec « … » plutôt que de la couper ; l'infobulle dit le niveau entier. */
 .niv { flex: 0 1 auto; display: inline-block; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px 6px; border-radius: var(--r-1); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; color: var(--encre); background: var(--fond-3); }
-.cell-cote, .fiche-cote b { font: 800 var(--t-1)/1.2 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); }
+.cell-cote { font: 800 var(--t-1)/1.2 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); }
 .niv-partiel { background: transparent; color: var(--encre-2); box-shadow: inset 0 0 0 1px var(--filet); }
 .niv-regulier { background: var(--niv-regulier); }
 .niv-pilier { background: var(--niv-pilier); }
@@ -3520,6 +3520,15 @@ a.spin-club:hover { background: var(--fond-2); }
 /* ---- Sous la carte : ce qui décide — où il ira, le détail ---- */
 .fiche-plus { margin-top: var(--esp-3); border-top: 1px solid var(--filet); padding-top: var(--esp-3); }
 .fiche-plus > .section-label:first-child { margin-top: 0; }
+/* L'hexagone de ses cotes (js/fiche.js `radarHtml`) : un anneau par cran de 5, le milieu en pointillé, la forme aux couleurs du club. */
+.radar-boite { display: grid; place-items: center; }
+.radar { display: block; width: min(100%, 340px); height: auto; overflow: visible; }
+.radar .radar-anneau { fill: none; stroke: var(--filet); }
+.radar .radar-anneau.milieu { stroke: var(--encre-3); stroke-dasharray: 2 3; }
+.radar line { stroke: var(--filet); }
+.radar .radar-forme { fill: var(--team-line, var(--club-vif)); fill-opacity: 0.3; stroke: var(--team-line, var(--club-vif)); stroke-width: 1.5; stroke-linejoin: round; }
+.radar text { font: 700 11px/1 var(--display); letter-spacing: 0.04em; fill: var(--encre-3); }
+.radar text tspan { font-weight: 800; fill: var(--encre-2); }
 /* Le profil mesuré tient sur une seule rangée, quel que soit le nombre d'axes (cinq, ou trois pour un gardien). */
 .profil-titre { margin-top: var(--esp-2); font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .profil-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); margin: var(--esp-2) 0; border-top: 1px solid var(--filet); border-bottom: 1px solid var(--filet); }
