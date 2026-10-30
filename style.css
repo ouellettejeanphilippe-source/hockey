@@ -470,6 +470,12 @@ body:not(.au-repechage) #capGauge { display: none; }
 body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::after { content: ""; position: absolute; top: 8px; left: calc(50% + 10px); width: 8px; height: 8px; border-radius: 50%; background: var(--mauvais); }
 .navtab.on { color: var(--noir); background: var(--encre); }
 .navtab.on .navtab-badge { color: var(--encre); background: var(--noir); }
+/* LE BALAYAGE SE VOIT (js/glisser.js) : sous le doigt, le nom de l'onglet où il mène sort du bord ; plein au seuil, comme
+   un onglet ouvert, le lâcher y va. */
+.glisse-indice { position: fixed; top: 50%; z-index: 300; max-width: 60vw; overflow: hidden; padding: var(--esp-3) var(--esp-4); border: 1px solid var(--filet); background: var(--fond-2); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; text-overflow: ellipsis; pointer-events: none; }
+.glisse-indice[data-cote="d"] { right: 0; border-right: 0; border-radius: var(--r-2) 0 0 var(--r-2); }
+.glisse-indice[data-cote="g"] { left: 0; border-left: 0; border-radius: 0 var(--r-2) var(--r-2) 0; }
+.glisse-indice.pret { border-color: var(--encre); background: var(--encre); color: var(--noir); }
 @media (min-width: 600px) and (max-width: 1199.98px) { .navtab { flex: 1 1 0; min-width: 0; } }
 @media (orientation: landscape) and (min-width: 680px) and (max-width: 999.98px) {
   :root { --rail-w: 72px; --bas-coquille: 0px; }
@@ -3529,7 +3535,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .radar .radar-anneau.milieu { stroke: var(--encre-3); stroke-dasharray: 2 3; }
 .radar line { stroke: var(--filet); }
 .radar .radar-forme { fill: var(--team-line, var(--club-vif)); fill-opacity: 0.3; stroke: var(--team-line, var(--club-vif)); stroke-width: 1.5; stroke-linejoin: round; }
-.radar text { font: 700 11px/1 var(--display); letter-spacing: 0.04em; fill: var(--encre-3); }
+.radar text { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.04em; fill: var(--encre-3); }
 .radar text tspan { font-weight: 800; fill: var(--encre-2); }
 /* Le profil mesuré tient sur une seule rangée, quel que soit le nombre d'axes (cinq, ou trois pour un gardien). */
 .profil-titre { margin-top: var(--esp-2); font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
@@ -3668,8 +3674,9 @@ a.spin-club:hover { background: var(--fond-2); }
 .adj-vide { aspect-ratio: 5 / 7; display: grid; place-items: center; padding: var(--esp-2); border: 1px dashed var(--filet); background: none; color: var(--encre-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
 .adj-vide.survol { border-color: var(--or); color: var(--or); }
 .adj-note { grid-column: 1 / -1; margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-3); }
-/* Le fantôme d'une carte qu'on glisse : il suit le pointeur, par-dessus tout, sans capter le doigt. */
-.fantome { position: fixed; z-index: 1000; pointer-events: none; transform: rotate(-3deg) scale(1.05); opacity: 0.92; }
+/* Le fantôme d'une carte qu'on glisse : il suit le pointeur, par-dessus tout, sans capter le doigt. Posé sous `body`, il
+   passe devant la règle de la carte qu'il copie (`.slot-carte` la met en `relative`, plus bas dans la feuille). */
+body > .fantome { position: fixed; z-index: 1000; margin: 0; pointer-events: none; transform: rotate(-3deg) scale(1.05); opacity: 0.92; }
 .fantome .adj-lignes { display: none; }
 .ej-case-l { margin-top: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 /* LES CARTES D'UNE MAISON (V12-4), toujours visibles : un titre, et une bande de cartons qui se balaie, la suivante au bord, comme la main du duel. */
@@ -3760,6 +3767,11 @@ a.spin-club:hover { background: var(--fond-2); }
 .slot.sous-zone { border-color: color-mix(in srgb, var(--attention) 70%, transparent); }
 .slot.renfort { opacity: 0.72; border-style: dashed; }
 .slot.verrou { opacity: 0.55; border-style: dashed; cursor: default; }
+/* Le glisser-déposer (js/deposer.js, `permuter`) : la case d'où part la carte s'efface ; celle dessous s'allume, en or si
+   elle la prend, en rouge si son poste la refuse. */
+.slot.glisse { opacity: 0.35; }
+.slot.survol { outline: 2px solid var(--or); outline-offset: -2px; }
+.slot.refus { outline: 2px solid var(--mauvais); outline-offset: -2px; }
 /* La carte qu'on vient de signer se pose et luit une fois (`cj-arrive` est dessinée avec le carton). */
 .slot.cj-arrive { animation: cj-arrive 0.9s var(--e-ressort); }
 /* Le bandeau du club : le poste, l'écusson, le salaire, aux couleurs posées en ligne par js/. */
@@ -3934,6 +3946,10 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
 /* La case choisie (à déplacer) : sa carte se lève, cernée. */
 #rosterBoard.en-cartes .slot.selected { outline: 0; transform: none; }
 .slot.selected .slot-carte { transform: translateY(-6px); outline: 2px solid var(--choisi); outline-offset: 2px; }
+/* La carte qu'on glisse au-dessus : celle dessous se lève pour la prendre, ou se ternit en rouge. */
+#rosterBoard.en-cartes .slot:not(.empty):is(.survol, .refus) { outline: 0; }
+.slot.survol .slot-carte { transform: translateY(-6px); outline: 2px solid var(--or); outline-offset: 2px; }
+.slot.refus .slot-carte { outline: 2px solid var(--mauvais); outline-offset: 2px; opacity: 0.6; }
 /* Les cartes posées sur lui, en pastilles à cheval sur le pied de la carte. */
 .slot-posees { position: absolute; z-index: 1; left: 50%; bottom: -8px; transform: translateX(-50%); display: flex; gap: 2px; }
 .slot-posees i { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--or); border-radius: 50%; background: var(--noir); font: normal var(--t-1)/1 var(--display); }

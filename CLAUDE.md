@@ -50,6 +50,7 @@ js/gerant.js          les choix, le dépistage, l'écran du duel (`ouvrirDuel`, 
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
 js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
 js/pile.js            le retour, un niveau à la fois : Échap, bouton B, retour Android, « ‹ Retour »
+js/glisser.js         les gestes du doigt : balayer d'un onglet à l'autre (l'onglet où l'on va sort du bord), tirer une fenêtre vers le bas pour la fermer
 js/manette.js         la manette et le clavier : le focus au voisin, l'anneau lumineux, les invites
 js/direct.js          un match en direct, rejoué depuis sa feuille
 js/glace.js           la patinoire où les tirs apparaissent : la position d'un tir (illustrative) lue de la feuille — le danger, les icônes du tireur, l'accord de son trio, le texte du sommaire — `check_glace`
@@ -65,7 +66,7 @@ js/combat.js          la main de l'adversaire d'un gros match qui n'est pas un d
 js/pouvoirs.js        le coach, un personnage (V21) : son niveau, ses trois pouvoirs par période, ses talents — `check_pouvoirs`
 js/coachs-reels.js    l'entraîneur, une vraie carte de coach-saison (V21) : data/coachs.json, sa philosophie lue des vraies stats de son club, sa maîtrise, le loto du départ (ton cartable d'abord)
 js/adjoints.js        son staff (V21) : les adjoints, des systèmes de jeu, chacun un échange ; une main de six, trois en poste, un parmi trois aux moments forts — `check_pouvoirs`
-js/deposer.js         le glisser-déposer, souris et doigt (l'appui tenu) : la main d'adjoints au Bureau › Coach
+js/deposer.js         le glisser-déposer, souris et doigt (l'appui tenu) : la main d'adjoints au Bureau › Coach, les cartes des Lignes (`permuter`)
 js/dossiers.js        les dossiers de la semaine (V10) : ce qui arrive à ton club, dit par sa voix, un lundi sur deux — `check_dossiers`
 js/cartes.js          le gabarit des cartes (recto, verso, finitions)
 js/rarete.js          les variantes de carte et leur bonus
