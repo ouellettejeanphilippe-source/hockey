@@ -163,7 +163,12 @@ function saisonDe(joueurs) {
       const L = famille[g][k];
       if (!L.length) return [k, 10];
       let n = 0; while (n < L.length && L[n] < b[k]) n++;
-      return [k, Math.max(1, Math.min(20, 1 + Math.round((19 * n) / Math.max(1, L.length))))];
+      let q = n / Math.max(1, L.length);
+      if (q > 0.90 && q <= 0.975) {
+        const t = (q - 0.90) / 0.075;
+        q = 0.90 + 0.075 * Math.pow(t, 2.5);
+      }
+      return [k, Math.max(1, Math.min(20, 1 + Math.round(19 * q)))];
     }));
   };
   s = { niveau, parDefense, seuils, parNiveau, horsNiveau, cote, axes };
