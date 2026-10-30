@@ -164,10 +164,8 @@ function saisonDe(joueurs) {
       if (!L.length) return [k, 10];
       let n = 0; while (n < L.length && L[n] < b[k]) n++;
       let q = n / Math.max(1, L.length);
-      if (q > 0.90 && q <= 0.975) {
-        const t = (q - 0.90) / 0.075;
-        q = 0.90 + 0.075 * Math.pow(t, 2.5);
-      }
+      const u = 2 * (q - 0.5);
+      q = 0.5 + 0.5 * Math.sign(u) * Math.pow(Math.abs(u), 2);
       return [k, Math.max(1, Math.min(20, 1 + Math.round(19 * q)))];
     }));
   };
