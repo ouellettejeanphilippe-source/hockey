@@ -19,7 +19,7 @@ import { jambesHtml, motDuBadge, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
-import { $, G, TEAMFULL, MODE, montrerPage, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
+import { $, G, TEAMFULL, MODE, montrerPage, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setOption, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, cartonDe, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort, varsEquipe } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { poseesSur } from './banque.js';
@@ -276,6 +276,8 @@ function slotEl(s) {
     + (G.selectedSlot === s.i ? ' selected' : '')
     + (!p && G.target === s.i ? ' target' : '')
     + (pen > 0 ? ' oop' : '');
+  // Son rang dans SLOTS : le glisser-déposer le relit (`permuter`).
+  el.dataset.case = s.i;
 
   if (p) {
     el.style.setProperty('--slot-line', couleurVive(p.t));
@@ -392,36 +394,11 @@ function slotEl(s) {
   el.onclick = () => {
     if (estRenfort(p)) { toast('Les renforts sont fournis : tu ne peux pas les déplacer.', 'warn'); return; }
     if (G.selectedSlot !== null) {
-      if (G.selectedSlot === s.i) {
-        G.selectedSlot = null;
-      } else {
-        const src = G.selectedSlot;
-        const a = G.roster[src], b = G.roster[s.i];
-        // Refuser un déplacement qui viole le groupe de poste (D vers F, G vers D…)
-        if (a && !fits(a, s)) {
-          G.selectedSlot = null;
-          toast(`${a.n} ne peut pas jouer à ce poste.`, 'bad');
-          render();
-          return;
-        }
-        if (b && SLOTS[src] && !fits(b, SLOTS[src])) {
-          G.selectedSlot = null;
-          toast(`${b.n} ne peut pas jouer à ce poste.`, 'bad');
-          render();
-          return;
-        }
-        if (a) G.roster[s.i] = a; else delete G.roster[s.i];
-        if (b) G.roster[src] = b; else delete G.roster[src];
-        // RANGER NE RECOMPOSE PAS LA MAIN (S71) : si le déplacement remplit la
-        // case de la main, l'épingle passe à la case libérée, du même poste.
-        if (MODE().loto && G.mainCase === s.i && !G.roster[src] && SLOTS[src] && SLOTS[src].role === SLOTS[s.i].role) G.mainCase = src;
-        G.selectedSlot = null;
-        G.target = null;
-        saveGame();
-      }
+      if (G.selectedSlot === s.i) G.selectedSlot = null;
+      else { permuter(G.selectedSlot, s.i); return; }
     } else if (p) {
       G.selectedSlot = s.i;
-      toast(enCarte ? 'Touche une autre carte pour la déplacer ou les permuter.' : 'Touche une autre case pour déplacer ou permuter.');
+      toast(enCarte ? 'Touche une autre carte pour la déplacer ou les permuter, ou tiens-la et glisse-la.' : 'Touche une autre case pour déplacer ou permuter, ou glisse-la.');
     } else if (G.bonus === 'ROGUE') {
       // En saison, le Rogue n'a pas de vestiaire où piger (son repêchage vient entre deux saisons) : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
       toast('Case libre : un joueur signé à la boutique pourra y entrer sans que personne sorte. Tu peux aussi y déplacer un joueur.');
@@ -439,6 +416,53 @@ function slotEl(s) {
   };
   return el;
 }
+
+/*
+ * DÉPLACER OU PERMUTER, une seule règle pour le toucher (une case, puis l'autre) et pour le geste (la carte glissée sur une
+ * case, js/deposer.js). Un joueur ne va qu'où son poste le permet (`fits` : un défenseur reste en défense, un gardien
+ * devant le filet), dans les deux sens ; un renfort ne bouge pas.
+ */
+const refusDe = (src, dst) => {
+  const a = G.roster[src], b = G.roster[dst];
+  if (estRenfort(a) || estRenfort(b)) return { p: estRenfort(a) ? a : b, renfort: true };
+  if (a && !fits(a, SLOTS[dst])) return { p: a };
+  if (b && SLOTS[src] && !fits(b, SLOTS[src])) return { p: b };
+  return null;
+};
+function permuter(src, dst) {
+  G.selectedSlot = null;
+  const refus = refusDe(src, dst);
+  if (refus) {
+    toast(refus.renfort ? 'Les renforts sont fournis : tu ne peux pas les déplacer.' : `${refus.p.n} ne peut pas jouer à ce poste.`, refus.renfort ? 'warn' : 'bad');
+    render();
+    return;
+  }
+  const a = G.roster[src], b = G.roster[dst];
+  if (a) G.roster[dst] = a; else delete G.roster[dst];
+  if (b) G.roster[src] = b; else delete G.roster[src];
+  // RANGER NE RECOMPOSE PAS LA MAIN (S71) : si le déplacement remplit la
+  // case de la main, l'épingle passe à la case libérée, du même poste.
+  if (MODE().loto && G.mainCase === dst && !G.roster[src] && SLOTS[src] && SLOTS[src].role === SLOTS[dst].role) G.mainCase = src;
+  G.target = null;
+  saveGame();
+  render();
+}
+/*
+ * LA CARTE SE GLISSE (oct., JP : *possibilité de drag and drop les cartes*). Au doigt, un appui tenu la soulève ; à la
+ * souris, elle part dès qu'elle bouge. La case dessous s'allume, en rouge si son poste la refuse ; tenue sur l'onglet
+ * Attaque, Défense ou Filet · réserve, elle l'ouvre. Lâchée, elle déplace ou permute, comme au toucher. Au Rogue, le
+ * fantôme est sa carte ; ailleurs, sa rangée.
+ */
+glisserDeposer({
+  prise: '#rosterBoard .slot[data-case]:not(.empty, .verrou, .renfort)',
+  cible: '#rosterBoard .slot[data-case]:not(.verrou)',
+  permis: (de, vers) => !refusDe(+de.dataset.case, +vers.dataset.case),
+  deposer: (de, vers) => permuter(+de.dataset.case, +vers.dataset.case),
+  fantome: el => el.querySelector('.slot-carte') || el,
+  passe: '.seg-effectif button',
+  // L'onglet s'ouvre sans redessiner l'alignement (l'onglet n'est que du style) : la carte qu'on porte reste la même.
+  ouvrir: o => setOption('effectif', o.dataset.val),
+});
 
 /*
  * Titres des rangées du tableau de profondeur. On les nomme par leur RANG —
