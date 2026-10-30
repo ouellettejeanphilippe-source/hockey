@@ -7,16 +7,19 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne } from './sim.js';
+import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, avecAVenir } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, specialesEnStats } from './impact.js';
 import { COACHS } from './coachs.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
-import { ADJOINTS, ADJOINTS_MAX, BRAS_DROIT, NIVEAU_DES_LOURDS, brasDroitDe, lignesDeLAdjoint } from './adjoints.js';
+import { ADJOINTS, ADJOINTS_MAX, MAIN_ADJOINTS, BRAS_DROIT, NIVEAU_DES_LOURDS, brasDroitDe, lignesDeLAdjoint, staffDe } from './adjoints.js';
+import { rectoDeJeu } from './cartes.js';
+import { glisserDeposer } from './deposer.js';
+import { hubActif } from './coquille.js';
 import { jambesHtml, motDuBadge, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
-import { $, G, TEAMFULL, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
+import { $, G, TEAMFULL, MODE, montrerPage, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, cartonDe, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort, varsEquipe } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { poseesSur } from './banque.js';
@@ -797,6 +800,16 @@ function avecLeBanc(fn) {
   } catch { return null; }
 }
 /*
+ * LE PERSONNAGE DU MATIN : celui que le moteur a joué, plus les décisions de la journée pas encore jouée (un adjoint arrivé
+ * ce matin, le staff qu'on vient de changer) — le moteur ne les applique qu'en jouant la journée (`avecAVenir`, js/sim.js).
+ */
+export function persoDuMatin() {
+  const L = G.ligue, you = L && L.you, M = L && L.moteur;
+  if (!you) return null;
+  if (!M || M.fini) return you.perso || null;
+  return avecAVenir(you, (L.decisions || []).filter(d => d.jour === M.jour && !d.equipe), () => you.perso) || null;
+}
+/*
  * TON COACH, UN PERSONNAGE (V21, docs/refonte-v21.md). Son niveau et sa barre d'expérience, puis ses trois pouvoirs :
  * ouvert ou verrouillé (le niveau qui l'ouvre), ce qu'il fait, sa force (ses talents), et combien de fois il a joué
  * cette saison (lu dans tes feuilles). Puis son staff : chaque adjoint, son échange — ce qu'il donne, ce qu'il coûte.
@@ -805,7 +818,7 @@ function avecLeBanc(fn) {
 export function coachHtml() {
   if (G.bonus !== 'ROGUE' || !G.rogue) return '';
   const L = G.ligue, you = L && L.you;
-  const perso = (you && you.perso) || (G.rogue.coach ? { cle: G.rogue.coach, xp: 0, talents: [], adjoints: [] } : null);
+  const perso = persoDuMatin() || (G.rogue.coach ? { cle: G.rogue.coach, xp: 0, talents: [], adjoints: [] } : null);
   const C = perso && COACHS[perso.cle];
   if (!C) return '';
   const xp = (perso.xp || 0) + ((you && you.xpSaison) || 0), niveau = niveauDuPerso({ ...perso, xpSaison: (you && you.xpSaison) || 0 });
@@ -828,7 +841,7 @@ export function coachHtml() {
     </div>`;
   };
   // L'ALIGNEMENT DU STAFF (V21 ; JP : *les coachs et assistants comme l'alignement*) : la case de l'entraîneur, sa vraie
-  // carte de coach-saison, puis ses pouvoirs, puis les places d'adjoint, libres, et son bras droit tant qu'il n'y est pas.
+  // carte de coach-saison, puis ses pouvoirs, puis son staff et sa main d'adjoints (`staffHtml`).
   const chef = perso.chef;
   return `<div class="ej-coach">
     <div class="ej-case-l">L'entraîneur</div>
@@ -836,15 +849,70 @@ export function coachHtml() {
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
     ${POUVOIRS[perso.cle].map(carte).join('')}
-    <div class="ej-case-l">Adjoints · ${ADJOINTS_MAX} places</div>
-    ${(perso.adjoints || []).filter(k => ADJOINTS[k]).map(k => `<div class="pv adj">
-      <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${ADJOINTS[k].ico}</span><b>${esc(ADJOINTS[k].nom)}</b></div>
-      <p class="pv-dit">${lignesDeLAdjoint(k, perso.cle).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join(' · ')}</p>
-    </div>`).join('')}
-    ${(perso.adjoints || []).length < ADJOINTS_MAX ? `<div class="pv adj vide"><p class="pv-dit">${ADJOINTS_MAX - (perso.adjoints || []).length} place${ADJOINTS_MAX - (perso.adjoints || []).length > 1 ? 's' : ''} libre${ADJOINTS_MAX - (perso.adjoints || []).length > 1 ? 's' : ''} : un adjoint arrive aux 9e, 18e et 26e matchs et après un gros match gagné.</p></div>` : ''}
-    ${(b => (b && !(perso.adjoints || []).includes(b) ? `<div class="pv adj vide"><p class="pv-dit">Son bras droit : ${ADJOINTS[b].ico} ${esc(ADJOINTS[b].nom)} — ses pouvoirs +${Math.round(BRAS_DROIT * 100)} %${niveau >= NIVEAU_DES_LOURDS ? '' : `, dès le niveau ${NIVEAU_DES_LOURDS}`}.</p></div>` : ''))(brasDroitDe(perso.cle))}
+    ${staffHtml(perso, niveau)}
   </div>`;
 }
+/*
+ * LA MAIN D'ADJOINTS (oct., JP : *drag and drop comme l'alignement, genre main de cartes, trois actives à la fois*) : le
+ * staff, trois cases de cartes, puis la main en réserve. On glisse une carte de la main sur une case du staff (ou une du
+ * staff vers la réserve) ; au toucher, une carte puis la case. Chaque carte dit son échange dessous, en vraies stats ; son
+ * bras droit le dit d'abord. Le geste est une décision `staff`, le jour même (js/sim.js `appliquerPerso`).
+ */
+function staffHtml(perso, niveau) {
+  const main = (perso.adjoints || []).filter(k => ADJOINTS[k]), staff = staffDe(perso);
+  const reserve = main.filter(k => !staff.includes(k)), bras = brasDroitDe(perso.cle);
+  // Son échange, dessous au grand écran ; au téléphone, la bande sous la main le dit quand on touche la carte (`.adj-detail`).
+  const carteAdj = (k, zone) => {
+    const A = ADJOINTS[k];
+    return `<button type="button" class="adj-carte tc tc-g-tactique" data-adj="${k}" data-zone="${zone}" aria-pressed="false" title="${zone === 'staff' ? 'Glisse-la en réserve, ou touche-la puis une carte de la réserve' : 'Glisse-la sur une case du staff, ou touche-la puis la case'}">
+      ${rectoDeJeu({ rarete: A.lourd ? 'rare' : 'commune', ico: A.ico, nomHtml: esc(A.nom), typeHtml: k === bras ? 'Bras droit' : 'Adjoint' })}
+      <span class="adj-lignes" data-nom="${esc(`${A.ico} ${A.nom}`)}">${lignesDeLAdjoint(k, perso.cle).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join('')}</span>
+    </button>`;
+  };
+  const libres = ADJOINTS_MAX - staff.length;
+  const brasMot = bras && !main.includes(bras) ? `Son bras droit : ${ADJOINTS[bras].ico} ${esc(ADJOINTS[bras].nom)}, ses pouvoirs +${Math.round(BRAS_DROIT * 100)} %${niveau >= NIVEAU_DES_LOURDS ? '' : `, dès le niveau ${NIVEAU_DES_LOURDS}`}.` : '';
+  return `<div class="ej-case-l">Ton staff · ${staff.length} en poste sur ${ADJOINTS_MAX} · ta main ${main.length} sur ${MAIN_ADJOINTS}</div>
+    <div class="adj-zone adj-staff${staff.length ? '' : ' sans'}" data-zone="staff">${staff.map(k => carteAdj(k, 'staff')).join('')}${Array.from({ length: libres }, () => '<button type="button" class="adj-vide" data-zone="staff">Case libre</button>').join('')}</div>
+    ${main.length ? `<div class="adj-zone adj-reserve" data-zone="reserve">${reserve.map(k => carteAdj(k, 'reserve')).join('') || '<p class="adj-note">En réserve : personne.</p>'}</div>` : ''}
+    <p class="adj-detail" role="status" aria-live="polite">${main.length ? 'Touche une carte : son échange.' : 'Un adjoint arrive aux 9e, 18e et 26e matchs et après un gros match gagné.'}${brasMot ? ` ${brasMot}` : ''}</p>`;
+}
+/*
+ * CHANGER LE STAFF : une carte de la réserve prend la case d'une du staff (ou une case libre) ; une du staff qu'on renvoie
+ * en réserve libère sa case. Le même chemin pour le geste et pour le toucher : la décision du jour (`hub.decider`).
+ */
+function poserLeStaff(source, cible) {
+  const hub = hubActif(), perso = persoDuMatin();
+  if (!hub || !hub.decider || !perso) return;
+  const staff = staffDe(perso), de = source.dataset.zone, vers = cible.dataset.zone, k = source.dataset.adj, l = cible.dataset.adj;
+  let neuf = null;
+  if (de === 'reserve' && vers === 'staff') neuf = l ? staff.map(x => (x === l ? k : x)) : staff.length < ADJOINTS_MAX ? [...staff, k] : null;
+  else if (de === 'staff' && vers === 'reserve') neuf = l ? staff.map(x => (x === k ? l : x)) : staff.filter(x => x !== k);
+  if (!neuf) return;
+  // La saison se rouvre sur la journée : on revient au Coach, où l'on glissait.
+  Promise.resolve(hub.decider({ staff: neuf })).then(() => montrerPage('entraineur'));
+}
+glisserDeposer({ prise: '.adj-carte[data-adj]', cible: '.adj-carte[data-adj], .adj-vide, .adj-zone', deposer: poserLeStaff });
+// AU TOUCHER : une carte, puis la case (ou la carte d'en face) ; toucher la même la repose. Une carte de la réserve va
+// droit à une case libre.
+if (typeof document !== 'undefined') document.addEventListener('click', ev => {
+  // La réserve elle-même reçoit une carte du staff qu'on renvoie.
+  const b = ev.target.closest && (ev.target.closest('.adj-carte[data-adj], .adj-vide') || ev.target.closest('.adj-reserve'));
+  if (!b) return;
+  const choisie = document.querySelector('.adj-carte.choisi');
+  const choisir = el => {
+    for (const x of document.querySelectorAll('.adj-carte.choisi')) { x.classList.remove('choisi'); x.setAttribute('aria-pressed', 'false'); }
+    if (el) { el.classList.add('choisi'); el.setAttribute('aria-pressed', 'true'); }
+    // La bande dit l'échange de la carte touchée, et où la poser.
+    const bande = document.querySelector('.adj-detail'), l = el && el.querySelector('.adj-lignes');
+    if (bande && l) bande.innerHTML = `<b>${esc(l.dataset.nom)}</b> ${l.innerHTML} <small>${el.dataset.zone === 'staff' ? '→ une carte de la réserve, ou glisse-la en réserve' : '→ une case du staff'}</small>`;
+  };
+  if (choisie && choisie !== b && choisie.dataset.zone !== b.dataset.zone) { choisir(null); poserLeStaff(choisie, b); return; }
+  if (!b.dataset.adj) return;
+  if (choisie === b) { choisir(null); return; }
+  const libre = b.dataset.zone === 'reserve' && document.querySelector('.adj-staff .adj-vide');
+  if (libre) { poserLeStaff(b, libre); return; }
+  choisir(b);
+});
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */
 function filetHtml() {
   const b = G.banc, F = b.filetEtat;

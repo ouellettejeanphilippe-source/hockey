@@ -31,7 +31,7 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuill
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
+  nouvelleGraine, avecAVenir, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
@@ -39,9 +39,9 @@ import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronos
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
 import { PALIERS_PACK, SEMAINE } from './inventaire.js';
 import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT } from './pouvoirs.js';
-import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts, lignesDeLAdjoint } from './adjoints.js';
+import { ADJOINTS, adjointsOfferts, lignesDeLAdjoint, quiPartDeLaMain } from './adjoints.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
-import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
+import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, basculerChiffres, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
 import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
@@ -2677,7 +2677,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     tabs.hub.signer = () => { const m = enAttente(); if (m) ctx.boutique.rouvrir(m.achat, jour, decideDuMarche); };
   }
   // LA DÉCISION DU JOUR, PRÊTÉE (S80) : une carte posée au verso d'une fiche ouverte n'importe où pendant la saison.
-  if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
+  // Rend la promesse de la décision : une page qui veut rester ouverte (le Coach, sa main d'adjoints) s'y rouvre ensuite.
+  if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); return onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
   /*
    * UNE TUILE S'OUVRE SUR SA CARTE (S77) : la forme sur « Ma fiche », le
    * classement sur le classement, le deck sur le deck. Un seul écouteur,
@@ -3096,10 +3097,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * jeu*) : un parmi trois, gratuit, chacun un échange — ce qu'il donne, ce qu'il coûte, en vraies stats. `cle` : le
    * moment (le palier, le butin, l'objectif, l'histoire).
    */
-  const persoDuJour = () => (you && you.perso ? { ...you.perso, xpSaison: you.xpSaison || 0 } : null);
+  // Le personnage du matin : les décisions du jour pas encore jouées comprises (un adjoint pris ce matin, le staff changé).
+  const persoDuJour = () => { const p = you && avecAVenir(you, decs.filter(d => d.jour === jour && !d.equipe), () => you.perso); return p ? { ...p, xpSaison: you.xpSaison || 0 } : null; };
   // Le coach du jour lit l'offre (légers d'abord, son bras droit au niveau 3, js/adjoints.js) et dit son bras droit.
   const coachDuJour = () => { const p = persoDuJour(); return p ? { cle: p.cle, niveau: niveauDuPerso(p) } : null; };
-  const optionDAdjoint = k => ({ cle: k, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, mots: lignesDeLAdjoint(k, (persoDuJour() || {}).cle) });
+  // Une main pleine laisse partir le plus ancien hors du staff : l'offre le dit (js/adjoints.js `quiPartDeLaMain`).
+  const optionDAdjoint = k => {
+    const p = persoDuJour(), part = quiPartDeLaMain(p);
+    return { cle: k, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, mots: [...lignesDeLAdjoint(k, (p || {}).cle), ...(part ? [{ txt: `Ta main est pleine : ${ADJOINTS[part].ico} ${ADJOINTS[part].nom} part`, bon: false }] : [])] };
+  };
   const adjointsDuMoment = cle => adjointsOfferts((persoDuJour() || {}).adjoints, graine, cle, 3, coachDuJour()).map(optionDAdjoint);
   const decisionDeLAdjoint = cle => ({ adjoint: { cle } });
   function specsForces() {
@@ -3389,18 +3395,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      * LE TALENT DU COACH (V21) : aux niveaux 2 et 4, un de ses pouvoirs ouverts grandit de moitié. Il attend le lundi.
      */
     const perso = persoDuJour();
-    /*
-     * QUI PART ? (V21) : un staff de plus de `ADJOINTS_MAX` adjoints attend que tu dises qui laisse sa chaise ; d'ici là,
-     * les derniers entrés jouent. Il bloque : le nouveau vient d'arriver, on tranche tout de suite.
-     */
-    const staff = (perso && perso.adjoints) || [];
-    const idStaff = `qp:${staff.join(',')}`;
-    // Une décision prise ce matin ne joue qu'au match du jour : d'ici là, le choix déjà pris ne revient pas (`pris`).
-    if (staff.length > ADJOINTS_MAX && !pris.has(idStaff)) {
-      const id = idStaff;
-      out.push({ id, genre: 'adjoint', bloque: true, de: DE.coach, sujet: `Ton staff : ${staff.length} adjoints pour ${ADJOINTS_MAX} chaises`,
-        choix: { recit: 'Qui part ?', options: staff.filter(k => ADJOINTS[k]).map(optionDAdjoint), decision: cle => ({ palier: id, perdAdjoint: cle }) } });
-    }
     const dus = perso ? talentsDus(niveauDuPerso(perso), perso.talents || []) : 0;
     if (dus > 0 && !pris.has(`ta:${(perso.talents || []).length}`)) {
       const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), nTal = (perso.talents || []).length;
@@ -3736,7 +3730,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const br = boite.brouillon.choix;
     for (const k of Object.keys(br)) if (!msgs.some(m => m.id === k)) delete br[k];
     const coches = m => [].concat(br[m.id] ?? []);
-    const coche = (m, o) => coches(m).some(c => String(c) === String(o.cle));
     // Un choix se touche s'il a une option qui ne s'ouvre pas ailleurs ; il manque tant qu'il bloque.
     const seCoche = m => m.choix.options.some(o => !o.ouvre);
     const manquants = msgs.filter(m => m.bloque && seCoche(m));
@@ -3749,41 +3742,28 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // V4 : tout ce qui est dans À faire se règle ; la pastille du Bureau le dit, d'où qu'on soit (style.css, .navtab[data-section="bureau"]).
     document.body.dataset.aTraiter = String(enSuspens.length);
     const compteur = enSuspens.length ? `<b class="a-traiter">${enSuspens.length} à régler</b>` : '<span class="a-jour">À jour</span>';
-    // « Déjà en jeu » une fois, en tête, avec les joueurs que les choix visent (une fenêtre le redisait à chaque choix).
-    const vises = msgs.filter(seCoche).flatMap(m => [m.choix.joueur, ...(m.choix.joueurs || [])]).filter(Boolean);
-    const encours = msgs.some(m => seCoche(m) && (m.genre === 'choix' || m.genre === 'courriel')) ? dejaEnJeu(vises) : '';
     const noms = C => (C.joueurs || []).map(x => x.n).join(', ');
     const sub = (C, t) => String(t || '').replace(/\{nom\}/g, C.joueur ? C.joueur.n : ((C.joueurs || [])[0] || {}).n || 'ton joueur').replace(/\{noms\}/g, noms(C) || 'tes joueurs');
     const prisHtml = m => {
       const n = coches(m).map(c => (m.choix.options.find(o => String(o.cle) === String(c)) || {}).nom).filter(Boolean).map(x => sub(m.choix, x));
       return n.length ? `<span class="hub-msg-pris">✓ ${ctx.esc(n.join(', '))}</span>` : '';
     };
-    const corpsDe = m => {
-      const C = m.choix, sp = { ...C, cadre: cadreDuMatch(), ouDe: ctx.ouJoue };
-      return `${C.scene ? sceneHtml(C.scene) : ''}${C.recitHtml || (C.recit ? `<p class="hub-msg-mot">${ctx.esc(sub(C, C.recit))}</p>` : '')}
-        ${C.joueur ? enteteJoueur(C.joueur, ctx.ouJoue ? ctx.ouJoue(C.joueur) : '') : ''}
-        ${C.contexte || ''}
-        <div class="af-options">${C.options.map(o => optionHtml(o, sp, { classe: `af-option${o.ouvre ? ' ouvre' : ''}`, on: coche(m, o) })).join('')}</div>`;
-    };
     /*
-     * ON RÈGLE DANS LA BOÎTE (V18-5, docs/ecrans-rogue.md ; JP : *good*). Comme un message d'EHM, un choix s'ouvre sur
-     * place — la voix, le fait, les options — et une option touchée part ; la V12 renvoyait au sous-onglet de sa maison,
-     * un toucher de plus pour chaque choix. Un seul s'ouvre à la fois : celui qui attend, au matin ; toucher une autre
-     * ligne l'ouvre à sa place. Les lignes restent rangées sous leur maison.
+     * UNE BOÎTE DE RÉCEPTION, PAS LES MESSAGES (V21 ; JP : *les événements et choix devraient être en plein écran, pas dans la
+     * boîte*). La V18-5 réglait un choix sur place, déplié dans la boîte ; la boîte n'en garde plus que la ligne — la voix, le
+     * sujet, sa réplique, son état — et la toucher ouvre le choix en plein écran (`ouvrirChoix`) : la scène, le joueur, ce qui
+     * est déjà en jeu, les options. Une option touchée part ; « Plus tard » le laisse dans la boîte. Rien ne s'ouvre de soi-même.
      */
     const etatDe = m => (m.bloque ? (seCoche(m) ? 'À choisir' : 'À régler') : '');
-    if (!boite.ouvert || boite.ouvert.jour !== jour || (boite.ouvert.id && !msgs.some(m => m.id === boite.ouvert.id))) boite.ouvert = { jour, id: attente ? attente.id : null };
-    const ouvert = boite.ouvert.id;
     const msgHtml = m => {
       // Un choix sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).
-      const qui = m.joueur || null, on = m.id === ouvert;
-      return `<article class="hub-msg${m.bloque ? ' bloque' : ''}${on ? ' ouvert' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${m.maison}">
-        <button type="button" class="hub-msg-tete" aria-expanded="${on}">
+      const qui = m.joueur || null;
+      return `<article class="hub-msg${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${m.maison}">
+        <button type="button" class="hub-msg-tete" aria-haspopup="dialog">
           ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
-          <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene && !on ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
+          <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
           <span class="hub-msg-etat">${etatDe(m)}</span>
         </button>
-        ${on ? `<div class="hub-msg-corps">${corpsDe(m)}</div>` : ''}
       </article>`;
     };
     vueMaison = k => {
@@ -3795,7 +3775,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     };
     const boiteHtml = `<section class="hub-boite${msgs.length ? '' : ' vide'}${chiffresOuverts() ? ' chiffres' : ''}" aria-label="À faire">
       <div class="hub-boite-tete"><span class="hub-boite-titre">✅ À faire</span><span class="hub-boite-compte">${compteur}</span></div>
-      ${encours}
       ${msgs.length ? `<div class="hub-msgs">${[...new Set(msgs.map(m => m.maison))].map(k => {
         const M = MAISONS[k], siens = msgs.filter(m => m.maison === k);
         return `<div class="af-maison" data-maison="${k}">
@@ -3827,40 +3806,37 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       quitter();
       onDecision([].concat(m.choix.decision(cles)).map(d => ({ jour: j, ...d })), j);
     };
-    // Toucher une ligne l'ouvre sur place, ou la referme ; la ligne ouverte vient en haut de la boîte.
-    const ouvrirIci = id => {
-      boite.ouvert = { jour, id };
-      redessinerBoite();
-      const el = id && actions.querySelector(`.hub-msg[data-id="${CSS.escape(id)}"]`);
-      if (el) el.scrollIntoView({ block: 'nearest' });
+    /*
+     * LE CHOIX EN PLEIN ÉCRAN. Un choix qui n'a qu'une porte (le combat, le paquet, la main du palier) l'ouvre tout de suite.
+     * Une option › ouvre son écran ; un pari se joue au dé (js/gerant.js, `sceneDuDe`) ; les rivaux (`multi`) se cochent un à
+     * un et partent au dernier — fermé avant, le brouillon les garde (`boite.brouillon`).
+     */
+    const ouvrirMessage = m => {
+      const C = m.choix, portes = C.options.filter(o => !o.desactive);
+      if (portes.length === 1 && portes[0].ouvre) { C.agir(portes[0].cle); return; }
+      jouerSon('valide');
+      const vises = [C.joueur, ...(C.joueurs || [])].filter(Boolean);
+      ouvrirChoix({
+        ...C, de: m.de, ico: C.ico || m.de.ico, titre: m.sujet, cadre: cadreDuMatch(), ouDe: ctx.ouJoue, classeOption: 'af-option', boite: { msg: m.genre, maison: m.maison },
+        recit: C.recitHtml ? '' : C.recit,
+        contexte: `${C.recitHtml || ''}${m.genre === 'choix' || m.genre === 'courriel' ? dejaEnJeu(vises) : ''}${C.contexte || ''}`,
+        lancer: m.spec && typeof m.spec.lancer === 'function' ? m.spec.lancer : null,
+        coches: coches(m), onCoche: l => { br[m.id] = l; },
+        fermable: true, motFermer: 'Plus tard', onFerme: redessinerBoite,
+        onChoix: cles => {
+          const l = [].concat(cles).map(c => C.options.find(x => String(x.cle) === String(c))).filter(Boolean);
+          if (!l.length) return;
+          if (C.multi) { envoyer(m, l.map(o => o.cle)); return; }
+          const o = l[0];
+          if (o.ouvre) { C.agir(o.cle); return; }
+          jouerSon('joue');
+          envoyer(m, o.cle);
+        },
+      });
     };
     actions.querySelectorAll('button.hub-msg-tete').forEach(b => {
-      b.onclick = () => { jouerSon('valide'); const id = b.closest('.hub-msg').dataset.id; ouvrirIci(id === ouvert ? null : id); };
+      b.onclick = () => { const m = msgs.find(x => x.id === b.closest('.hub-msg').dataset.id); if (m) ouvrirMessage(m); };
     });
-    /*
-     * TOUCHER UNE OPTION l'envoie. Un choix `multi` (les rivaux) se coche un à un (un toucher sur la cochée la décoche) et
-     * part au dernier. Une option › ouvre son écran ; un pari se joue au dé, sur-le-champ (js/gerant.js, `sceneDuDe`).
-     */
-    const toucherOption = b => {
-        const m = msgs.find(x => x.id === b.closest('.hub-msg').dataset.id);
-        const o = m && m.choix.options.find(x => String(x.cle) === b.dataset.choix);
-        if (!o || o.desactive) return;
-        if (o.ouvre) { m.choix.agir(o.cle); return; }
-        if (o.pari && m.spec && typeof m.spec.lancer === 'function') {
-          ouvrirChoix(m.spec);
-          const dans = document.querySelector(`#choixModal [data-choix="${CSS.escape(String(o.cle))}"]`);
-          if (dans) dans.click();
-          return;
-        }
-        jouerSon('joue');
-        if (!m.choix.multi) { envoyer(m, o.cle); return; }
-        const l = coches(m).filter(c => String(c) !== String(o.cle));
-        if (l.length === coches(m).length) l.push(o.cle);
-        br[m.id] = l;
-        if (l.length >= m.choix.multi) { envoyer(m, l); return; }
-        redessinerBoite();
-    };
-    actions.querySelectorAll('.af-option[data-choix]').forEach(b => { b.onclick = () => toucherOption(b); });
     // Le sous-onglet ouvert se refait sur la journée ; on y reste où on lisait.
     if (MAISONS[tabs.courant()] && actif()) tabs.rafraichir();
     // LES CHIFFRES (V3) : le bouton ne paraît que s'il y a des chiffres pliés ; le choix se retient d'un écran à l'autre.
@@ -3869,14 +3845,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       bc.hidden = false;
       bc.onclick = () => { const o = basculerChiffres(); actions.querySelector('.hub-boite').classList.toggle('chiffres', o); bc.setAttribute('aria-pressed', String(o)); };
     }
-    // CE QUI ATTEND : l'ouvrir dans la boîte, sous l'affiche du Bureau ; un choix qui n'a qu'une porte (le combat, le paquet) l'ouvre tout de suite.
+    // CE QUI ATTEND s'ouvre en plein écran, d'où qu'on soit.
     const traiter = actions.querySelector('.hub-traiter');
-    if (traiter && attente) traiter.onclick = () => {
-      const portes = attente.choix.options.filter(o => !o.desactive);
-      if (portes.length === 1 && portes[0].ouvre) { attente.choix.agir(portes[0].cle); return; }
-      if (tabs.courant() !== 'journee') tabs.montrer('journee');
-      ouvrirIci(attente.id);
-    };
+    if (traiter && attente) traiter.onclick = () => ouvrirMessage(attente);
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = () => regarderProchain();
     boutonFlottant(actions, termine);

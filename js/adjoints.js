@@ -14,6 +14,12 @@
  * Pur : le moteur (js/sim.js `poserLesAdjoints`) et l'écran lisent la même table. Trois au plus en poste (`ADJOINTS_MAX`) ;
  * un parmi trois, gratuit, aux moments forts (`adjointsOfferts`).
  *
+ * UNE MAIN DE CARTES, TROIS EN POSTE (oct., JP : *drag and drop comme l'alignement, genre main de cartes, trois actives à
+ * la fois*). Le personnage garde tous ses adjoints dans sa main (`adjoints`, dans l'ordre d'arrivée, `MAIN_ADJOINTS` au
+ * plus) ; trois jouent, son staff (`staff`), qu'une décision `staff` change le jour dit (Bureau › Coach : on glisse une
+ * carte de la main sur une case du staff). Un arrivant prend une case libre, sinon il attend dans la main ; une main
+ * pleine laisse partir le plus ancien hors du staff, et l'offre le dit. Plus de « Qui part ? ».
+ *
  * LÉGERS D'ABORD (oct., JP : *tu devrais commencer avec des adjoints avec peu d'impact*). Un adjoint `lourd` est celui dont
  * l'échange pèse le plus selon le club (`check_pouvoirs` : de −4 à +7 victoires d'un club témoin à l'autre ; un léger
  * reste entre −2 et +2). Tant que le coach n'a pas son deuxième pouvoir (niveau `NIVEAU_DES_LOURDS`), on n'offre que
@@ -29,6 +35,8 @@ import { hache } from './util.js';
 import { COACHS } from './coachs.js';
 
 export const ADJOINTS_MAX = 3;
+/* La main : les adjoints du personnage, en poste ou non. Pleine, l'arrivant pousse dehors le plus ancien hors du staff. */
+export const MAIN_ADJOINTS = 6;
 export const ADJOINTS = {
   canonnier: { ico: '🏹', nom: 'Le canonnier', lourd: true, voie: 'essaim', effet: { volume: 1.08 }, adv: { volume: 1.1 } },
   trappeur: { ico: '🚧', nom: 'Le trappeur', effet: { volume: 0.92 }, adv: { volume: 0.92 } },
@@ -95,8 +103,24 @@ export function adjointsOfferts(enPoste, graine, cle, n = 3, perso = null) {
     .sort((a, b) => hache(String(graine), 'adjoint', cle, a) - hache(String(graine), 'adjoint', cle, b)).slice(0, n);
 }
 /*
- * Prendre un adjoint : il entre, le dernier. Un staff de plus de `ADJOINTS_MAX` attend qu'on dise qui part (À faire, « Qui
- * part ? », une décision `perdAdjoint`) ; d'ici là, les `ADJOINTS_MAX` derniers entrés jouent (`adjointsQuiJouent`).
+ * LE STAFF D'UN PERSONNAGE : ses adjoints en poste, trois au plus, tous dans sa main. Un personnage d'avant la main
+ * (`staff` absent) faisait jouer ses trois derniers entrés.
  */
-export const avecAdjoint = (enPoste, cle) => [...(enPoste || []).filter(k => k !== cle), ...(ADJOINTS[cle] ? [cle] : [])];
-export const adjointsQuiJouent = enPoste => (enPoste || []).filter(k => ADJOINTS[k]).slice(-ADJOINTS_MAX);
+export function staffDe(perso) {
+  if (!perso) return [];
+  const main = (perso.adjoints || []).filter(k => ADJOINTS[k]);
+  return Array.isArray(perso.staff) ? [...new Set(perso.staff)].filter(k => main.includes(k)).slice(0, ADJOINTS_MAX) : main.slice(-ADJOINTS_MAX);
+}
+/* Celui qu'une main pleine laisse partir à la prochaine arrivée : le plus ancien hors du staff ; personne si elle a de la place. */
+export function quiPartDeLaMain(perso) {
+  const main = ((perso && perso.adjoints) || []).filter(k => ADJOINTS[k]), staff = staffDe(perso);
+  return main.length >= MAIN_ADJOINTS ? main.find(k => !staff.includes(k)) || null : null;
+}
+/* Prendre un adjoint : il entre dans la main, et dans le staff s'il y a une case libre. Rend `{ adjoints, staff }`. */
+export function avecAdjoint(perso, cle) {
+  if (!ADJOINTS[cle]) return { adjoints: [...((perso && perso.adjoints) || [])], staff: staffDe(perso) };
+  const part = (perso.adjoints || []).includes(cle) ? null : quiPartDeLaMain(perso);
+  const adjoints = [...(perso.adjoints || []).filter(k => k !== cle && k !== part), cle];
+  const avant = staffDe(perso);
+  return { adjoints, staff: avant.includes(cle) || avant.length >= ADJOINTS_MAX ? avant : [...avant, cle] };
+}

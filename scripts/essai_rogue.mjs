@@ -258,7 +258,7 @@ const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée 
 // V10 (tranche 5) : les dossiers de la semaine, la blessure (A4) ; la route (A3) se juge à son bloc.
 const SCENES = ['cartes', 'dossier', 'blessure'];
 const scenes = new Map();
-const barreA = { vus: 0, sous: [], longs: [] };   // « À régler » touché : le choix déplié au-dessus de la barre (B4)
+const barreA = { vus: 0, longs: [] };   // « À régler » touché : le choix ouvert en plein écran (B4 ; V21)
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 /* La saison se rejoue avant d'être écrite : on attend que la sauvegarde compte plus de `n` décisions (10 s au plus), plutôt que de la lire trop tôt. */
 const attendreDecisions = n => page.waitForFunction(n0 => { const ix = JSON.parse(localStorage.getItem('cap82_parties'));
@@ -310,8 +310,8 @@ const suivi = { pas: new Set(), verdict: '' };
 async function lireLeSuivi() {
   const l = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-soir .som-l')].map(e => e.textContent.trim()).filter(t => /^🏢 .+ · \d+\/20 matchs$/.test(t)));
   for (const t of l) suivi.pas.add(t);
-  // La ligne de la boîte, puis le message en entier chez le proprio (son récit, ses vrais chiffres) : on garde le plus long.
-  const v = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg')].map(a => a.textContent.replace(/\s+/g, ' ').trim()).filter(x => /Objectif (atteint|raté|levé)/.test(x)).sort((a, b) => b.length - a.length)[0] || '');
+  // La ligne de la boîte, puis le choix ouvert en plein écran (son récit, ses vrais chiffres) : on garde le plus long.
+  const v = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg, #choixModal:not([hidden]) .choix-sheet[data-msg]')].map(a => a.textContent.replace(/\s+/g, ' ').trim()).filter(x => /Objectif (atteint|raté|levé)/.test(x)).sort((a, b) => b.length - a.length)[0] || '');
   if (v.length > suivi.verdict.length) { suivi.verdict = v; if (/ en \d+ matchs/.test(v)) await page.screenshot({ path: `${DOSSIER}/rogue-verdict-proprio.png` }); }
 }
 async function regler() {
@@ -545,56 +545,50 @@ async function regler() {
         continue;
       }
     }
-    if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])')) { await choix(); continue; }
     /*
      * À FAIRE (V9, tranche 1 ; JP : *tous les choix au même endroit, même UI et UX*). Chaque choix a la même forme : sa
-     * bande (la voix, le sujet), puis ses options `optionHtml`. On règle le choix ouvert comme un joueur pressé : une
-     * réponse risquée tant que le dé n'a pas roulé cinq fois, sinon la première option ; une option › ouvre son écran
-     * (le combat, le paquet, la main, une liste), que les cas plus haut règlent. Toucher une option l'envoie : une décision
-     * par choix (les rivaux, au dernier coché). Photographié une fois ; la route dit l'état du club.
+     * voix, son fait, puis ses options `optionHtml`. On règle le choix ouvert comme un joueur pressé : une réponse risquée
+     * tant que le dé n'a pas roulé cinq fois, sinon la première option ; une option › ouvre son écran (le combat, le paquet,
+     * la main, une liste), que les cas plus haut règlent. Toucher une option l'envoie : une décision par choix (les rivaux,
+     * au dernier coché). Photographié une fois.
+     *
+     * UNE BOÎTE DE RÉCEPTION (V21 ; JP : *les événements et choix devraient être en plein écran, pas dans la boîte*) : la
+     * boîte n'a que des lignes ; « ⏳ Encore un choix » ou la ligne ouvre le choix en plein écran (`data-msg`, sa maison).
      */
-    /*
-     * ON RÈGLE DANS LA BOÎTE (V18-5, docs/ecrans-rogue.md) : le choix qui attend s'ouvre sur place, sous sa maison — la
-     * voix, le fait, les options —, jamais dans un sous-onglet. On règle le premier ouvert qui attend ; un sous-onglet
-     * à l'écran (il ne montre que ce qu'il garde toujours), le Bureau rend la boîte.
-     */
-    const ouvertA = await page.evaluate(() => { const el = [...document.querySelectorAll('#hubModal .hub-boite .hub-msg.ouvert.bloque')].find(x => x.checkVisibility()); if (el) el.dataset.essai = '1'; return !!el; })
-      .then(async vu => { if (!vu) return null; const el = await page.$('#hubModal .hub-msg[data-essai="1"]'); await el.evaluate(x => delete x.dataset.essai); return el; });
-    if (ouvertA) {
-      const lu = await ouvertA.evaluate(el => ({ genre: el.dataset.msg, maison: el.dataset.maison, sujet: (el.querySelector('.hub-msg-sujet') || {}).textContent || '',
-        forme: !!el.querySelector('.hub-msg-corps > .af-options .choix-option.af-option'),
+    const boiteA = await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg]');
+    if (boiteA) {
+      const lu = await boiteA.evaluate(el => ({ genre: el.dataset.msg, maison: el.dataset.maison, sujet: (el.querySelector('.choix-titre') || {}).textContent || '',
+        forme: !!el.querySelector('.choix-options > .choix-option.af-option'),
         compris: [...el.querySelectorAll('button')].some(b => /^\s*Compris\s*$/.test(b.textContent)),
-        etat: (el.querySelector('.hub-msg-corps > .choix-puces') || {}).textContent || '',
-        scene: ((el.querySelector('.hub-msg-corps > .scene .scene-mot') || {}).textContent || '').trim(),
-        fait: ((el.querySelector('.hub-msg-corps > .scene .scene-fait') || {}).textContent || '').trim(),
-        de: ((el.querySelector('.hub-msg-de') || {}).textContent || '').trim(),
-        sous: [...el.querySelectorAll('.af-option .choix-option-sous')].map(x => x.textContent.trim()),
-        opts: [...el.querySelectorAll('.af-option:not([disabled])')].map(b => ({ cle: b.dataset.choix, on: b.classList.contains('on'), ouvre: b.classList.contains('ouvre'), pari: /Pari/.test((b.querySelector('.choix-forme') || {}).textContent || '') })) }));
+        scene: ((el.querySelector('.choix-corps > .scene .scene-mot') || {}).textContent || '').trim(),
+        fait: ((el.querySelector('.choix-corps > .scene .scene-fait') || {}).textContent || '').trim(),
+        de: ((el.querySelector('.choix-corps > .scene .scene-de, .choix-irl') || {}).textContent || '').trim(),
+        boite: [...document.querySelectorAll('#hubModal .hub-msg-corps, #hubModal .hub-boite .choix-option')].length,
+        opts: [...el.querySelectorAll('.choix-options > .af-option:not([disabled])')].map(b => ({ cle: b.dataset.choix, on: b.classList.contains('on'), ouvre: b.classList.contains('ouvre'), pari: /Pari/.test((b.querySelector('.choix-forme') || {}).textContent || '') })) }));
       afaire.genres.add(lu.genre); afaire.ouverts++; afaire.maisons.add(lu.maison);
       if (!lu.forme) afaire.formes.push(`${lu.genre} « ${lu.sujet} »`);
       if (lu.compris) erreurs.push(`« ${lu.sujet} » demande encore « Compris » dans À faire`);
+      if (lu.boite) erreurs.push(`la boîte montre encore ${lu.boite} option(s) dépliée(s) : un choix se règle en plein écran`);
+      if (!lu.de) erreurs.push(`« ${lu.sujet} » (${lu.genre}) ne dit pas qui le demande`);
       if (SCENES.includes(lu.genre)) {
         if (!/^«.+»$/.test(lu.scene) || !lu.fait) erreurs.push(`« ${lu.sujet} » (${lu.genre}) ne cite pas sa voix (« ${lu.scene} »)`);
         if (!scenes.has(lu.genre)) scenes.set(lu.genre, `${lu.de} ${lu.scene} — ${lu.fait}`);
       }
       if (!afaire.vu) { afaire.vu = true; await page.screenshot({ path: `${DOSSIER}/rogue-afaire.png` }); }
       // V20 : l'histoire de la semaine (un dossier), la seule source du lundi.
-      if (lu.genre === 'dossier' && !afaire.histoire) {
-        afaire.histoire = lu.sujet;
-        await ouvertA.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${DOSSIER}/rogue-histoire.png` });
-      }
+      if (lu.genre === 'dossier' && !afaire.histoire) { afaire.histoire = lu.sujet; await page.screenshot({ path: `${DOSSIER}/rogue-histoire.png` }); }
       const libres = lu.opts.filter(o => !o.on);
       const pari = libres.find(o => o.pari);
-      // La case vide : « tes lignes » ouvre les Lignes, qu'aucun cas plus haut ne règle ; on prend une option sur place.
+      // La case vide : « tes lignes » ouvre les Lignes, qu'aucun cas plus haut ne règle ; on prend une option qui part.
       const o = pari && des.length < 5 ? pari : (lu.genre === 'trou' && libres.find(x => !x.ouvre)) || libres[0];
       if (!o) throw new Error(`« ${lu.sujet} » attend dans À faire sans option à toucher`);
       if (o === pari) evenementsDe.push(lu.sujet.trim());
       const n0 = o.ouvre || o === pari ? null : (await decisionsDuCombat()).length;
       if (n0 !== null && !afaire.lots.length) await page.screenshot({ path: `${DOSSIER}/rogue-choix-touche.png` });
-      await ouvertA.$(`.af-option[data-choix="${o.cle.replace(/"/g, '\\"')}"]`).then(b => b.click());
+      await boiteA.$(`.af-option[data-choix="${o.cle.replace(/"/g, '\\"')}"]`).then(b => b.click());
       await page.waitForTimeout(400);
-      // Un rival coché avant le dernier attend les autres ; tout autre choix touché est parti.
-      if (n0 !== null && !(await page.$('#hubModal .af-option.on'))) {
+      // Un rival coché avant le dernier attend les autres, sur place ; tout autre choix touché est parti.
+      if (n0 !== null && !(await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg] .af-option.on'))) {
         await attendreDecisions(n0);
         const pris = (await decisionsDuCombat()).length - n0;
         afaire.lots.push(`${lu.genre}→${pris}`);
@@ -602,6 +596,7 @@ async function regler() {
       }
       continue;
     }
+    if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])')) { await choix(); continue; }
     // Un sous-onglet à l'écran : aucun choix n'y vit (V18-5), et le Bureau rend la boîte.
     const onglet = await page.evaluate(() => { const o = [...document.querySelectorAll('#hubModal .af-onglet')].find(x => x.checkVisibility()); return o ? { k: o.dataset.maison, choix: o.querySelectorAll('.hub-msg, .af-option').length } : null; });
     if (onglet) {
@@ -609,7 +604,7 @@ async function regler() {
       afaire.pages++; await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300); continue;
     }
     const t = await page.$('#hubModal .hub-traiter');
-    // « À régler » déplie le choix qui attend, sous l'affiche du Bureau, ou ouvre l'écran d'un choix à une seule porte.
+    // « À régler » ouvre le choix qui attend en plein écran, ou l'écran d'un choix à une seule porte.
     if (t) {
       if (!(await t.isVisible())) {
         const vus = await page.evaluate(() => [...document.querySelectorAll('#choixModal:not([hidden]) button, #hubModal button')]
@@ -618,31 +613,12 @@ async function regler() {
         await page.screenshot({ path: png }).catch(() => {});
         throw new Error(`« À régler » existe mais n'est pas visible. Boutons visibles : ${vus || 'aucun'} (capture : ${png})`);
       }
-      /*
-       * LA BARRE NE CACHE PLUS LE CHOIX (Jalon M, B4) : « ⏳ Encore un choix · … » tient sur une ligne, et le toucher
-       * pose le choix en haut du volet — sa première option au-dessus de la barre collée.
-       */
+      // « ⏳ Encore un choix · … » tient sur une ligne (Jalon M, B4) ; le toucher ouvre le choix en plein écran, ou l'écran d'un choix à une seule porte.
       const mot = await t.evaluate(b => ({ txt: b.textContent.trim(), h: b.getBoundingClientRect().height }));
       if (!mot.txt.startsWith('⏳') || mot.h > 60) barreA.longs.push(`« ${mot.txt.slice(0, 40)} » (${Math.round(mot.h)} px)`);
-      await t.click({ timeout: 8000 }).catch(async () => {
-        const f = await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet .hub-msg')].map(x => `${x.className} ${x.dataset.msg} ${x.dataset.id} : ${x.textContent.replace(/\s+/g, ' ').trim().slice(0, 300)}`));
-        await page.screenshot({ path: `${DOSSIER}/rogue-regler-cache.png` }).catch(() => {});
-        throw new Error(`« À régler » est caché par une feuille : ${f.join(' | ')}`);
-      }); await page.waitForTimeout(900);
-      const sb = await page.evaluate(() => {
-        const m = [...document.querySelectorAll('#hubModal .hub-boite .hub-msg.ouvert.bloque')].find(x => x.checkVisibility());
-        if (!m || document.querySelector('#choixModal:not([hidden])')) return null;
-        // V18-5 : « À régler » ouvre le choix dans la boîte ; sa première option se touche — rien ne la couvre, ni la barre ni les onglets.
-        const o = m.querySelector('.af-option');
-        if (o) o.scrollIntoView({ block: 'nearest' });
-        const r = o ? o.getBoundingClientRect() : null;
-        const dessus = r ? document.elementFromPoint(r.left + r.width / 2, Math.min(innerHeight - 1, r.top + r.height / 2)) : null;
-        return { sujet: (m.querySelector('.hub-msg-sujet') || {}).textContent || '', opt: r ? r.bottom : null, libre: !o || (dessus && o.contains(dessus)) };
-      });
-      if (sb) { barreA.vus++; if (!sb.libre) barreA.sous.push(`« ${sb.sujet.slice(0, 30)} » : sa 1re option est couverte (elle finit à ${Math.round(sb.opt)})`); }
-      // V18-5 : « À régler » ouvre le choix dans la boîte, ou l'écran d'un choix à une seule porte (le combat, le paquet, la signature).
-      const ou = await page.evaluate(() => (document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden])') ? 'porte'
-        : [...document.querySelectorAll('#hubModal .hub-boite .hub-msg.ouvert')].some(x => x.checkVisibility()) ? 'boîte' : ''));
+      await t.click({ timeout: 8000 }); await page.waitForTimeout(900);
+      const ou = await page.evaluate(() => (document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden])') ? 'porte' : ''));
+      if (ou) barreA.vus++;
       if (!ou) afaire.sansPage.push(mot.txt.slice(0, 40));
       continue;
     }
@@ -1188,8 +1164,11 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   {
     await versLOnglet('bureau', 'entraineur');
     const restes = await page.$$('#hubModal .af-onglet[data-maison="entraineur"] :is(.gens-l, .perso-l, [data-choix^="echelon:"])');
-    console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pouvoirs du coach seulement'}`);
+    // LA MAIN D'ADJOINTS (oct.) : le staff, trois cases de cartes (une carte ou « Case libre ») ; la main, en cartes aussi.
+    const staff = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .adj-staff > :is(.adj-carte, .adj-vide)', e => e.length).catch(() => 0);
+    console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pouvoirs du coach seulement'} · son staff : ${staff} case(s)`);
     if (restes.length) erreurs.push('le sous-onglet de l\'entraîneur montre encore du personnel ou ses échelons');
+    if (staff !== 3) erreurs.push(`le staff du coach n'a pas ses trois cases (${staff})`);
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste
@@ -1601,8 +1580,7 @@ if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 4
 // Depuis le départ de l'Avant-match (oct.), aucun écran ne cache « Jour suivant » à coup sûr : le flottant se juge quand il paraît.
 console.log(`20n. rien ne colle au bord (${MARGE} px) : ${bords.vus} écrans mesurés${bords.fautes.size ? `, ${bords.fautes.size} faute(s) : ${[...bords.fautes.values()].slice(0, 12).join(' | ')}` : ', aucun ne colle'}`);
 if (bords.fautes.size) erreurs.push(`${bords.fautes.size} élément(s) collent au bord de l'écran : ${[...bords.fautes.values()].slice(0, 4).join(' | ')}`);
-console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix dépliés${barreA.sous.length ? `, ${barreA.sous.length} sous la barre` : ', la 1re option au-dessus de la barre chaque fois'}`);
-if (barreA.sous.length) erreurs.push(`la barre collée cache le choix qu'elle ouvre : ${barreA.sous.slice(0, 3).join(' · ')}`);
+console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix ouverts en plein écran`);
 if (barreA.longs.length) erreurs.push(`« Encore un choix » ne tient pas sur une ligne : ${barreA.longs.slice(0, 3).join(' · ')}`);
 console.log(`20k. une feuille à la fois : ${feuilles.vues} capture(s) · ${feuilles.empilees.length ? `empilées : ${feuilles.empilees.join(', ')}` : 'jamais deux'}`);
 if (feuilles.empilees.length) erreurs.push(`des feuilles s'empilent à l'écran : ${feuilles.empilees.join(', ')}`);
