@@ -22,8 +22,34 @@ import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvr
 import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, maxForPick, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
 /* =====================================================================
-   Hexagone (seulement si le brouillard est levé)
+   L'hexagone et le profil mesuré
    ===================================================================== */
+
+/*
+ * L'HEXAGONE (30 oct. 2026 ; JP : *un genre de chart à la FIFA, comme leurs hexagones, pour les patineurs*) : ses cotes sur 20
+ * en polygone — six pointes pour un patineur, trois pour un gardien (`AXES`, js/niveaux.js), chacune une chose que le moteur
+ * joue de lui. L'attaque à droite (les passes, l'avantage), la défense à gauche (le désavantage, la défense), le tir en haut,
+ * la robustesse en bas ; un anneau par cran de 5, celui du milieu (10, le régulier typique) en pointillé. Le mot et le
+ * chiffre à chaque pointe ; la forme, aux couleurs de son club.
+ */
+const ORDRE_RADAR = ['tir', 'jeu', 'avantage', 'robustesse', 'desavantage', 'defense', 'arrets', 'charge', 'presence'];
+function radarHtml(cotes) {
+  const C = ORDRE_RADAR.map(k => cotes.find(c => c.cle === k)).filter(Boolean);
+  if (C.length < 3) return '';
+  const n = C.length, R = 62, cx = 150, cy = 100;
+  const angle = i => -Math.PI / 2 + 2 * Math.PI * i / n;
+  const pt = (i, r) => [cx + r * Math.cos(angle(i)), cy + r * Math.sin(angle(i))].map(v => v.toFixed(1));
+  const poly = r => C.map((_, i) => pt(i, r).join(',')).join(' ');
+  const anneaux = [5, 10, 15, 20].map(v => `<polygon class="radar-anneau${v === 10 ? ' milieu' : ''}" points="${poly(R * v / 20)}"/>`).join('');
+  const rayons = C.map((_, i) => { const [x, y] = pt(i, R); return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`; }).join('');
+  const forme = C.map((c, i) => pt(i, R * c.v / 20).join(',')).join(' ');
+  const mots = C.map((c, i) => {
+    const [x, y] = pt(i, R + 12), cos = Math.cos(angle(i)), sin = Math.sin(angle(i));
+    const ancre = Math.abs(cos) < 0.1 ? 'middle' : cos > 0 ? 'start' : 'end', dy = sin > 0.1 ? '0.9em' : sin < -0.1 ? '0' : '0.35em';
+    return `<text x="${x}" y="${y}" text-anchor="${ancre}" dy="${dy}">${esc(c.mot)} <tspan>${c.v}</tspan></text>`;
+  }).join('');
+  return `<svg class="radar" viewBox="0 0 300 200" role="img" aria-label="${esc(C.map(c => `${c.mot} ${c.v}`).join(', '))}">${anneaux}${rayons}<polygon class="radar-forme" points="${forme}"/>${mots}</svg>`;
+}
 
 /**
  * Le profil mesuré : les mêmes axes que ceux qui décident de l'archétype et
@@ -406,7 +432,7 @@ export function showPlayerModal(p, opts = {}) {
   const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? Number(p.toi).toFixed(1) : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : [])];
   // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
   const cotes = lesCotes(p);
-  const coteHtml = cotes ? `<div class="section-label">Ses cotes sur 20, dans sa saison</div><p class="fiche-cote">${cotes.map(c => `${esc(c.mot)} <b>${c.v}</b>`).join(' · ')}</p>` : '';
+  const coteHtml = cotes ? `<div class="section-label">Ses cotes sur 20, dans sa saison</div><div class="radar-boite">${radarHtml(cotes)}</div>` : '';
   const plusDeDetails = `${coteHtml}<div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
        ${ratings}`;
 

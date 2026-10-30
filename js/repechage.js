@@ -10,7 +10,7 @@ import { registerHiddenRatings, retenirMatchsDuShard, nouvelleGraine, getPlayerK
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
-import { niveauDe, niveauParDefense, cote20, axes20, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
+import { niveauDe, niveauParDefense, axes20, AXES, groupeDuJoueur, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
 import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, cadrePhoto, photoCouchee, cadrePhotoCouchee, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
@@ -137,14 +137,13 @@ const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'hors', hors: 'rare', rare: 'le
  */
 const niveauJoueur = p => { const e = p && p.s && G.shards.get(p.s); return e ? niveauDe(p, e.players) : -1; };
 /* Sa cote sur 20, dans sa saison (docs/cotes-sur-20.md) : un appui à côté du niveau, ou null (peu joué). */
-const MOT_DE_COTE = { tir: 'Tir', jeu: 'Passes', defense: 'Défense', robustesse: 'Robustesse', arrets: 'Arrêts' };
-/* Ses cotes sur 20, une par chose qu'il fait : Tir, Passes, Défense, Robustesse pour un patineur, Arrêts pour un gardien (pas une cote générale). Null sans saison. */
+const MOT_DE_COTE = { tir: 'Tir', jeu: 'Passes', defense: 'Défense', robustesse: 'Robustesse', avantage: 'Avantage', desavantage: 'Désavantage', arrets: 'Arrêts', charge: 'Charge', presence: 'Présence' };
+/* Ses cotes sur 20, une par chose qu'il fait (`AXES`, js/niveaux.js) : six pour un patineur, trois pour un gardien (pas une cote générale). Null sans saison. */
 export const lesCotes = p => {
   const e = p && p.s && G.shards.get(p.s);
   if (!e) return null;
-  if (p.p === 'G') { const v = cote20(p, e.players, true); return v == null ? null : [{ cle: 'arrets', mot: MOT_DE_COTE.arrets, v }]; }
   const a = axes20(p, e.players);
-  return a ? Object.keys(MOT_DE_COTE).filter(k => a[k] != null).map(k => ({ cle: k, mot: MOT_DE_COTE[k], v: a[k] })) : null;
+  return a ? AXES[groupeDuJoueur(p)].filter(k => a[k] != null).map(k => ({ cle: k, mot: MOT_DE_COTE[k], v: a[k] })) : null;
 };
 /*
  * LA PASTILLE DE NIVEAU (1.0, les lignes) : ce qui se lit à la place d'une cote

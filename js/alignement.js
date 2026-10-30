@@ -204,6 +204,8 @@ function slotTags(p, zoneEcartTag, penTag) {
  * en a un, et derrière le banc ses JAMBES. Sa production : ses PTS (ou V)
  * au repêchage, sa fiche à ce jour derrière le banc ; le visage et tout le reste sont dans la fiche, à un toucher.
  */
+/* La forme courte d'une cote, dans une rangée : le tir, les passes, la défense d'un patineur, les arrêts d'un gardien ; le reste est à l'hexagone de sa fiche. */
+const COURT_DE_COTE = { tir: 'T', jeu: 'P', defense: 'D', arrets: 'Arrêts' };
 function piecesDuJoueur(p, s, { ecart, penTag, blesseTag }) {
   // LE RÔLE EN MOTS, COMME À LA SIGNATURE (Jalon U, JP : *refaire l'alignement plus comme la page signature*) : la même
   // étiquette que la rangée du vestiaire (`roleTag`) — « Passeur Or », le second badge en icône, les modifs posées.
@@ -223,7 +225,7 @@ function piecesDuJoueur(p, s, { ecart, penTag, blesseTag }) {
   return {
     role: tag ? `<span class="slot-roles cell-role">${tag}</span>` : '',
     niveau: pastilleNiveau(p),
-    cotes: c ? `<small class="cell-cote" title="${esc(c.map(x => `${x.mot} ${x.v}`).join(' · '))} (cotes sur 20, dans sa saison : un appui, le niveau et le rôle se lisent d'abord)">${c.filter(x => x.cle !== 'robustesse').map(x => `${x.cle === 'arrets' ? 'Arrêts' : x.mot.slice(0, 1)} ${x.v}`).join(' · ')}</small>` : '',
+    cotes: c ? `<small class="cell-cote" title="${esc(c.map(x => `${x.mot} ${x.v}`).join(' · '))} (cotes sur 20, dans sa saison : un appui, le niveau et le rôle se lisent d'abord)">${c.filter(x => x.cle in COURT_DE_COTE).map(x => `${COURT_DE_COTE[x.cle]} ${x.v}`).join(' · ')}</small>` : '',
     verdicts: `${blesseTag}${marque}${zoneTag(p, true)}${penTag}${traits.length ? `<span class="cell-trait" title="${esc(traits.map(t => t.short || t.nom || '').join(' · '))}">${traits.map(t => t.icon).join('')}</span>` : ''}${departs}`,
     prod: `<span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${cle.mot}`)}">${G.banc ? esc(ficheDuJour(p)) : `<span class="pcard-big"><b>${esc(cle.v)}</b> <span>${esc(cle.u)}</span></span>`}</span>`,
     sec: !G.banc && p.p !== 'G' && cle.u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : '',
@@ -238,12 +240,13 @@ function celluleJoueur(p, s, o) {
         <div class="cell-l3">${x.prod}${x.sec}</div>
         ${x.jambes}`;
 }
-/* Sous sa carte (le Rogue) : son badge et son niveau ; son chiffre clé ; ses cotes et ses verdicts ; ses jambes. */
+/* Sous sa carte (le Rogue) : son badge et son niveau ; son chiffre clé ; ses verdicts ; ses jambes. Ses cotes sont à l'hexagone
+   de sa fiche, à un toucher (JP, 30 oct. : *que les infos sous la carte soient moins longues*). */
 function celluleCarte(p, s, o) {
   const x = piecesDuJoueur(p, s, o);
   return `<div class="sc-qui">${x.role}${x.niveau}</div>
         <div class="sc-cle">${x.prod}${x.sec}</div>
-        <div class="sc-verdicts">${x.cotes}${x.verdicts}</div>
+        <div class="sc-verdicts">${x.verdicts}</div>
         ${x.jambes}`;
 }
 

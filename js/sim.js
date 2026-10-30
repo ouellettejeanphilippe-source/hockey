@@ -3351,31 +3351,42 @@ const RAPPEL_PCT_TIR = 0.80;
  * ailier de 2015 se comparent alors correctement : chacun est divisé par le
  * régulier moyen de sa propre saison, à sa propre position.
  */
-function lancersRel(p) {
-  if (!p) return RAPPEL_LANCERS;
+/* Son volume AU REPOS : sa vraie saison et sa réputation de vitesse, sans les facteurs du soir ; null sans lecture. */
+function lancersDeSaison(p) {
   const est_D = p.p === 'D' || p.p === 'LD' || p.p === 'RD';
   const base = seasonLancers(p.s)[est_D ? 3 : 2];
   const perso = (p.sh || 0) / Math.max(1, p.gp || 1);
-  if (!perso || !base) return RAPPEL_LANCERS;
+  if (!perso || !base) return null;
   // La réputation de vitesse agit ici, sur le joueur : elle lui donne plus de
   // rondelles, où qu'on le place dans l'alignement.
+  return borne(perso / base, 0.25, 2.60) * facteurLancersJoueur(p);
+}
+function lancersRel(p) {
+  if (!p) return RAPPEL_LANCERS;
+  const repos = lancersDeSaison(p);
+  if (repos == null) return RAPPEL_LANCERS;
   // Une SITUATION agit sur le même canal que la vitesse : c'est son volume
   // de rondelles à lui, où qu'on le place dans l'alignement.
-  return borne(perso / base, 0.25, 2.60) * facteurLancersJoueur(p) * situDe(p, 'lancers') * lanceeFacteur(p, 'lancers') * facteurEnergie(p) * mutDe(p, 'lancers');
+  return repos * situDe(p, 'lancers') * lanceeFacteur(p, 'lancers') * facteurEnergie(p) * mutDe(p, 'lancers');
 }
 
 /**
  * Finition d'un joueur, en écart au % de tir de sa ligue. Sous 20 lancers
  * dans sa saison, le rapport ne veut rien dire et on le prend pour moyen.
  */
+function finitionDeSaison(p) {
+  const lancers = p.sh || 0;
+  if (lancers < 20) return null;
+  const ligue = seasonLancers(p.s)[1];
+  if (!ligue) return null;
+  // La réputation de lancer agit ici : ce sont SES rondelles qui entrent plus.
+  return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20) * facteurFinitionJoueur(p);
+}
 function pctTirRel(p) {
   if (!p) return RAPPEL_PCT_TIR;
-  const lancers = p.sh || 0;
-  if (lancers < 20) return 1;
-  const ligue = seasonLancers(p.s)[1];
-  if (!ligue) return 1;
-  // La réputation de lancer agit ici : ce sont SES rondelles qui entrent plus.
-  return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20) * facteurFinitionJoueur(p) * situDe(p, 'finition') * lanceeFacteur(p, 'finition') * facteurEnergie(p) * mutDe(p, 'finition');
+  const repos = finitionDeSaison(p);
+  if (repos == null) return 1;
+  return repos * situDe(p, 'finition') * lanceeFacteur(p, 'finition') * facteurEnergie(p) * mutDe(p, 'finition');
 }
 
 // La création d'un joueur, sa situation comprise : un joueur qui voit mieux
@@ -3575,6 +3586,23 @@ function anneeDe(joueurs) {
 
 const coteD = p => (p ? getHiddenRatings(p).d : REPLACEMENT);
 const est_Def = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
+const parMatchDe = (p, k) => (p[k] || 0) / Math.max(1, p.gp || 1);
+/*
+ * LES CLÉS DES UNITÉS SPÉCIALES : ce qui range un joueur à l'avantage (sa création et sa finition) et au désavantage
+ * (sa cote défensive). QUAND LES SHARDS LE DISENT, ON LE LIT : les points en avantage disent qui jouait l'avantage,
+ * les points en désavantage qui le tuait — deux colonnes de l'API que le build garde depuis RATINGS_VERSION 24 (`mesure`).
+ * Le soir (`soir`), ses jambes, sa situation, sa lancée et ses cartes s'y jouent ; au repos, sa vraie saison seule :
+ * c'est le rang que la fiche montre (Avantage, Désavantage ; `axes20`, js/niveaux.js).
+ */
+export function clesSpeciales(p, { mesure = p.ppp != null, soir = false } = {}) {
+  const offensif = soir
+    ? lancersRel(p) * pctTirRel(p) + passesRel(p)
+    : (lancersDeSaison(p) ?? RAPPEL_LANCERS) * (finitionDeSaison(p) ?? 1) + passesRelatives(p);
+  return {
+    an: (mesure ? parMatchDe(p, 'ppp') * 10 : 0) + offensif,
+    dn: (mesure ? (parMatchDe(p, 'shp') + parMatchDe(p, 'shg')) * 200 : 0) + coteD(p),
+  };
+}
 
 /**
  * Les unités spéciales d'un alignement, DEUX par situation comme dans la
@@ -3603,16 +3631,10 @@ function unitesSpeciales(habilles, choix = null) {
   // Sans un seul défenseur habillé (l'infirmerie pleine), des attaquants jouent la pointe, et l'inverse :
   // une unité spéciale n'est jamais vide (check_banque plantait sur une avantage sans paire).
   const F = F0.length ? F0 : D0, D = D0.length ? D0 : F0;
-  const offensif = p => lancersRel(p) * pctTirRel(p) + passesRel(p);
-  // QUAND LES SHARDS LE DISENT, ON LE LIT. Les points en avantage disent qui
-  // jouait l'avantage, les points en désavantage qui le tuait : deux
-  // colonnes de l'API que le build garde depuis RATINGS_VERSION 24. Sans
-  // elles (shards plus anciens), on devine par la valeur offensive et la
-  // cote défensive. Le classement mêle les deux pour départager les zéros.
+  // Sans les points en avantage (shards plus anciens), on devine par la valeur offensive et la cote défensive
+  // (`clesSpeciales`). Le classement mêle les deux pour départager les zéros.
   const mesure = habilles.some(p => p && p.ppp != null);
-  const parMatch = (p, k) => ((p[k] || 0) / Math.max(1, p.gp || 1));
-  const clAN = mesure ? p => parMatch(p, 'ppp') * 10 + offensif(p) : offensif;
-  const clDN = mesure ? p => (parMatch(p, 'shp') + parMatch(p, 'shg')) * 200 + coteD(p) : coteD;
+  const clAN = p => clesSpeciales(p, { mesure, soir: true }).an, clDN = p => clesSpeciales(p, { mesure, soir: true }).dn;
   const ranges = (liste, cle) => liste.slice().sort((a, b) => cle(b) - cle(a));
   const unite = (joueurs, poids, rang = 0) => ({
     joueurs, poids, presence: poids, qualite: 1, rang,
