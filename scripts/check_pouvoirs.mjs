@@ -5,7 +5,8 @@
  *   1. les tables : huit coachs, trois pouvoirs chacun ; douze adjoints, chacun un gain ET un prix ; tous sur des
  *      canaux que le moteur connaît ;
  *   2. le niveau : les seuils, les pouvoirs ouverts, les talents dus ; les adjoints offerts sont purs, distincts,
- *      jamais un déjà en poste ; un staff qui déborde garde ses derniers entrés ; les vraies cartes d'entraîneur
+ *      jamais un déjà dans la main ; la main et son staff (un arrivant prend une case libre, sinon il attend dans la
+ *      main ; pleine, elle laisse partir le plus ancien hors du staff) ; les vraies cartes d'entraîneur
  *      (data/coachs.json) : un coach par club-saison, une philosophie connue, un loto pur de trois philosophies ouvertes ;
  *   3. EN PAIRES, match par match (CLAUDE.md) : deux copies d'un même vrai club, le même match sur les mêmes dés,
  *      une fois avec un coach muet (trois périodes, aucun pouvoir : la soirée en périodes a son propre tirage), une
@@ -31,7 +32,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague } from '../js/sim.js';
 import { POUVOIRS, XP, SEUILS_NIVEAU, NIVEAU_MAX, niveauDe, pouvoirsOuverts, talentsDus, forceDuPouvoir } from '../js/pouvoirs.js';
-import { ADJOINTS, ADJOINTS_MAX, BRAS_DROIT, NIVEAU_DES_LOURDS, adjointsOfferts, avecAdjoint, adjointsQuiJouent, brasDroitDe, lignesDeLAdjoint } from '../js/adjoints.js';
+import { ADJOINTS, ADJOINTS_MAX, MAIN_ADJOINTS, BRAS_DROIT, NIVEAU_DES_LOURDS, adjointsOfferts, avecAdjoint, staffDe, quiPartDeLaMain, brasDroitDe, lignesDeLAdjoint } from '../js/adjoints.js';
 import { MAITRISE, maitriseDu, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
 import fs from 'node:fs';
 import { COACHS } from '../js/coachs.js';
@@ -99,9 +100,16 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
     tot.slice(0, 3).join(', ') || `${Object.values(ADJOINTS).filter(A => !A.lourd).map(A => A.ico).join('')} d'abord, puis ${Object.values(ADJOINTS).filter(A => A.lourd).map(A => A.ico).join('')}`);
   exiger(`son bras droit en poste grandit ses pouvoirs de ${Math.round(BRAS_DROIT * 100)} %, un autre adjoint rien`, forceDuPouvoir({ cle: 'essaim', talents: [], adjoints: ['canonnier'] }, 0) === 1 + BRAS_DROIT
     && forceDuPouvoir({ cle: 'essaim', talents: [], adjoints: ['tireur'] }, 0) === 1 && forceDuPouvoir({ cle: 'rapaces', talents: [], adjoints: ['canonnier', 'tireur'] }, 2) === 1 + BRAS_DROIT);
-  const plein = avecAdjoint(['canonnier', 'tireur', 'mur'], 'soigneur');
-  exiger(`un staff de plus de ${ADJOINTS_MAX} garde ses derniers entrés, en attendant qui part`, plein.length === 4 && adjointsQuiJouent(plein).join() === 'tireur,mur,soigneur' && avecAdjoint(plein, 'tireur').at(-1) === 'tireur',
-    adjointsQuiJouent(plein).join(', '));
+  exiger(`son bras droit dans la main mais hors du staff ne grandit rien`, forceDuPouvoir({ cle: 'essaim', talents: [], adjoints: ['canonnier', 'tireur'], staff: ['tireur'] }, 0) === 1);
+  // LA MAIN (oct.) : l'arrivant prend une case libre, sinon il attend ; pleine, le plus ancien hors du staff part.
+  const libre = avecAdjoint({ adjoints: ['canonnier'], staff: ['canonnier'] }, 'tireur');
+  const trois = { adjoints: ['canonnier', 'tireur', 'mur'], staff: ['canonnier', 'tireur', 'mur'] }, attend = avecAdjoint(trois, 'soigneur');
+  const six = { adjoints: ['canonnier', 'tireur', 'mur', 'soigneur', 'prof', 'rouleur'], staff: ['tireur', 'prof', 'rouleur'] }, pleine = avecAdjoint(six, 'cogneur');
+  exiger(`une main de ${MAIN_ADJOINTS}, ${ADJOINTS_MAX} en poste : l'arrivant prend une case libre, sinon il attend ; pleine, le plus ancien hors du staff part`,
+    libre.staff.join() === 'canonnier,tireur' && attend.adjoints.length === 4 && attend.staff.join() === 'canonnier,tireur,mur'
+    && quiPartDeLaMain(six) === 'canonnier' && pleine.adjoints.length === MAIN_ADJOINTS && !pleine.adjoints.includes('canonnier') && pleine.staff.join() === 'tireur,prof,rouleur'
+    && staffDe({ adjoints: ['tireur', 'mur'], staff: ['mur', 'mur', 'prof', 'tireur'] }).join() === 'mur,tireur' && staffDe({ adjoints: ['a', 'tireur', 'mur', 'prof', 'cogneur'] }).join() === 'mur,prof,cogneur',
+    `${attend.staff.join(', ')} en poste, ${attend.adjoints.at(-1)} attend · pleine : ${quiPartDeLaMain(six)} part`);
 }
 
 /* ---------- 2b. les vrais entraîneurs (js/coachs-reels.js, data/coachs.json) ---------- */
@@ -291,15 +299,20 @@ if (MESURE) {
 /* ---------- 5. la saison ---------- */
 {
   const ligue = () => VESTIAIRES.map((_, i) => club(i));
-  const avec = adjoints => [{ jour: 0, equipe: 0, coach: { cle: 'essaim', xp: 0, talents: [], adjoints } }, { jour: 20, equipe: 0, xpCoach: SEUILS_NIVEAU[2] },
-    { jour: 30, equipe: 0, adjoint: { cle: 'numeroUn' } }];
+  const avec = (adjoints, plus = []) => [{ jour: 0, equipe: 0, coach: { cle: 'essaim', xp: 0, talents: [], adjoints } }, { jour: 20, equipe: 0, xpCoach: SEUILS_NIVEAU[2] },
+    { jour: 30, equipe: 0, adjoint: { cle: 'numeroUn' } }, ...plus];
   const joue = decisions => { const t = ligue(); const L = simulateLeague(t, 82, { graine: 'pouvoirs', decisions: decisions.map(d => ({ ...d })) }); return { t, L }; };
   const A = joue(avec(['canonnier'])), B = joue(avec(['canonnier'])), S = joue(avec([]));
   const toi = A.t[0];
   const fiche = x => `${x.t[0].W}-${x.t[0].L}-${x.t[0].OTL} ${x.t[0].GF}-${x.t[0].GA} xp ${x.t[0].xpSaison}`;
   exiger('la même graine rejoue le même personnage', fiche(A) === fiche(B), fiche(A));
   exiger('l\'expérience de la saison compte les victoires', toi.xpSaison === toi.W * XP.victoire, `${toi.W} victoires, ${toi.xpSaison} points`);
-  exiger('ses adjoints entrent dans le staff et jouent', toi.perso.adjoints.join() === 'canonnier,numeroUn' && fiche(A) !== fiche(S), `${toi.perso.adjoints.join(', ')} · ${fiche(A)} contre ${fiche(S)} sans eux`);
+  exiger('ses adjoints entrent dans le staff et jouent', toi.perso.adjoints.join() === 'canonnier,numeroUn' && staffDe(toi.perso).join() === 'canonnier,numeroUn' && fiche(A) !== fiche(S), `${toi.perso.adjoints.join(', ')} · ${fiche(A)} contre ${fiche(S)} sans eux`);
+  // UNE DÉCISION `staff` (la main glissée au Bureau › Coach) : le jour dit, celui qu'on sort ne joue plus, les journées d'avant ne bougent pas.
+  const T = joue(avec(['canonnier'], [{ jour: 50, equipe: 0, staff: ['numeroUn'] }]));
+  const avant50 = x => x.L.ligue.calendrier.slice(0, 50).flat().filter(m => m.A === x.t[0] || m.B === x.t[0]).map(m => `${m.gfA}-${m.gfB}`).join();
+  exiger('une décision staff change qui joue le jour dit, sans toucher aux journées d\'avant', staffDe(T.t[0].perso).join() === 'numeroUn' && T.t[0].perso.adjoints.join() === 'canonnier,numeroUn'
+    && avant50(T) === avant50(A) && fiche(T) !== fiche(A), `${staffDe(T.t[0].perso).join(', ')} en poste · ${fiche(T)} contre ${fiche(A)}`);
 }
 
 verdict('Les pouvoirs du coach et son staff');

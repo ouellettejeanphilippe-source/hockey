@@ -46,7 +46,7 @@ import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN } from '../js/rogue.js';
 import { COACHS } from '../js/coachs.js';
 import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT } from '../js/pouvoirs.js';
-import { ADJOINTS_MAX, BRAS_DROIT, NIVEAU_DES_LOURDS } from '../js/adjoints.js';
+import { ADJOINTS_MAX, MAIN_ADJOINTS, BRAS_DROIT, NIVEAU_DES_LOURDS } from '../js/adjoints.js';
 import { MAITRISE } from '../js/coachs-reels.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
@@ -278,7 +278,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`premier ou deuxième de la ligue dans sa lecture, ses pouvoirs jouent ×${nombre(MAITRISE[0][1])} (×${nombre(MAITRISE[1][1])} dans les cinq premiers)`, 'la maîtrise de l\'entraîneur'],
     [`Ses trois pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.slice(0, -1).join(', ')} et ${NIVEAU_DES_POUVOIRS.at(-1)}`, 'les pouvoirs'],
     [`fait grandir un pouvoir de ${nombre(TALENT * 100)} %`, 'le talent'],
-    [`${ADJOINTS_MAX === 3 ? 'Trois' : ADJOINTS_MAX} adjoints au plus ; un ${ADJOINTS_MAX === 3 ? 'quatrième' : 'de plus'}, et tu choisis qui part`, 'le staff'],
+    // Oct. : la main d'adjoints, trois en poste (js/adjoints.js `MAIN_ADJOINTS`, `ADJOINTS_MAX`).
+    [`Ta main en garde ${MAIN_ADJOINTS === 6 ? 'six' : MAIN_ADJOINTS}, ${ADJOINTS_MAX === 3 ? 'trois' : ADJOINTS_MAX} en poste : au Bureau › Coach, glisse une carte sur une case de son staff`, 'la main et le staff'],
     // Oct. : légers d'abord, le bras droit (js/adjoints.js).
     [`Légers d'abord : au niveau ${NIVEAU_DES_LOURDS} arrivent les lourds et son <strong>bras droit</strong>, l'adjoint de sa voie : ses pouvoirs +${nombre(BRAS_DROIT * 100)} %`, 'les adjoints légers d\'abord, le bras droit'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],

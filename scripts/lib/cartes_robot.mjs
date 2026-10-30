@@ -4,7 +4,7 @@
  * (scripts/lib/rogue_sim.mjs) :
  *   - l'attentif lit : le talent va au pouvoir qui a le plus joué ; l'adjoint, le bras droit de son coach d'abord (la
  *     synergie, js/adjoints.js), puis dans l'ordre de ce que les échanges rendent en moyenne (`PREFERE`, mesuré par
- *     check_pouvoirs), et le moins utile part quand le staff déborde — jamais son bras droit ; à une
+ *     check_pouvoirs), et ses trois meilleurs en poste, son bras droit d'abord ; à une
  *     histoire, la réponse qui rend le plus, en conséquences concrètes (l'expérience, un adjoint, des jetons, des jambes) ;
  *   - le distrait clique au hasard, sur son propre générateur ;
  *   - le robot d'avant ('defaut') prend la première option de chaque écran : un gérant grossier, qui garde un coach.
@@ -16,7 +16,7 @@ import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { joueurDuFait } from '../../js/vie-gm.js';
 import { COACHS } from '../../js/coachs.js';
 import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts } from '../../js/pouvoirs.js';
-import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts } from '../../js/adjoints.js';
+import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts, avecAdjoint, staffDe } from '../../js/adjoints.js';
 
 const JETON = 0.01;   // une victoire vaut une centaine de jetons, à la louche (le barème : 5 par victoire, les packs à 12 et plus)
 /* Ce que vaut une conséquence, grossièrement, en victoires : un adjoint, un point d'expérience, des jambes, un match d'infirmerie. */
@@ -84,8 +84,8 @@ function valeurDeReponse(o) {
 
 /*
  * LE LUNDI DU ROBOT : l'histoire de la semaine (un lundi tiré de la graine, V20), l'adjoint d'un palier (quand le
- * compte de matchs le franchit), celui d'un gros match gagné, le talent quand le niveau le donne, et qui part quand le
- * staff déborde. Rend les décisions
+ * compte de matchs le franchit), celui d'un gros match gagné, le talent quand le niveau le donne, et son staff tiré de
+ * sa main. Rend les décisions
  * à pousser au jour de la ligue. `etat` : ce que la saison retient (les dossiers ouverts, les paliers et les butins pris).
  */
 export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) {
@@ -125,14 +125,21 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
     const d = adjointDuRobot({ you, graine, cle: `r${mb.jour}`, politique, clic });
     if (d) out.push({ jour: j, palier: `r:${mb.jour}`, ...d });
   }
-  // QUI PART ? (js/saison.js) : le staff déborde après chaque arrivée ; l'attentif laisse partir le moins utile, le distrait
-  // n'importe qui, le robot d'avant le premier entré.
-  const staff = [...((persoDe(you) || {}).adjoints || []), ...out.filter(d => d.adjoint).map(d => d.adjoint.cle)];
-  for (let n = staff.length; n > ADJOINTS_MAX; n--) {
-    const reste = staff.filter(k => ADJOINTS[k] && !out.some(d => d.perdAdjoint === k));
-    const coach = (persoDe(you) || {}).cle;
-    const k = clic ? reste[Math.floor(clic() * reste.length)] : politique === 'defaut' ? reste[0] : reste.reduce((a, b) => (rangDe(b, coach) > rangDe(a, coach) ? b : a));
-    out.push({ jour: j, palier: `qp:${reste.join(',')}`, perdAdjoint: k });
+  // LE STAFF (la main d'adjoints, Bureau › Coach) : après les arrivées et les départs du jour, l'attentif met en poste ses
+  // trois meilleurs (son bras droit d'abord), le distrait trois au hasard ; le robot d'avant laisse le moteur faire (un
+  // arrivant prend une case libre, sinon il attend). Une décision `staff` quand ça change ce qui joue.
+  const P0 = persoDe(you);
+  if (P0 && politique !== 'defaut' && out.some(d => d.adjoint || d.perdAdjoint)) {
+    let P = { ...P0 };
+    for (const d of out) {
+      if (d.adjoint) P = { ...P, ...avecAdjoint(P, d.adjoint.cle) };
+      if (d.perdAdjoint) P = { ...P, adjoints: P.adjoints.filter(k => k !== d.perdAdjoint), staff: staffDe(P).filter(k => k !== d.perdAdjoint) };
+    }
+    const main = P.adjoints.filter(k => ADJOINTS[k]);
+    const melange = l => { const m = [...l]; for (let i = m.length - 1; i > 0; i--) { const k = Math.floor(clic() * (i + 1)); [m[i], m[k]] = [m[k], m[i]]; } return m; };
+    const voulu = (clic ? melange(main) : [...main].sort((a, b) => rangDe(a, P.cle) - rangDe(b, P.cle))).slice(0, ADJOINTS_MAX);
+    const avant = staffDe(P);
+    if (voulu.length !== avant.length || voulu.some(k => !avant.includes(k))) out.push({ jour: j, staff: voulu });
   }
   // LE TALENT (niveaux 2 et 4) : le pouvoir qui a le plus joué grandit ; le distrait, au hasard ; le robot d'avant, le premier.
   const perso = persoDe(you);

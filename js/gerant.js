@@ -404,7 +404,7 @@ function typeAvecForme(type, forme) {
 }
 
 /* `ligne` (S80) : où il joue dans ton alignement (« 3e paire ») — on le dit, on ne le nomme pas par là. */
-export function enteteJoueur(p, ligne = '') {
+function enteteJoueur(p, ligne = '') {
   if (!p) return '';
   const barres = barresProfils(p);
   const marques = (p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="puce neutre">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
@@ -510,15 +510,20 @@ export function ouvrirChoix(spec) {
   const walkout = vedette && vedette.walkout && ((RANG_RARETE[vedette.rarete] || 0) >= RANG_RARETE.rare || vedette.eclat) ? vedette.walkout : null;
   // Le genre dit CE QUE C'EST, à part du titre : un événement n'est pas le combat, le butin n'est pas l'événement.
   const BADGE = { evenement: 'Événement', recompense: 'Butin', entracte: 'Gros match' };
+  // QUI LE DEMANDE (V21, la Boîte en plein écran) : la scène dit sa voix ; sans scène, la voix se dit sous le titre.
+  const irl = spec.irl || (spec.de && spec.de.nom && !spec.scene ? `${spec.de.ico} ${spec.de.nom}` : '');
+  // LES RIVAUX (`multi`) se cochent un à un, sur place, et partent au dernier ; `onCoche` garde le brouillon si on ferme avant.
+  const coches = [].concat(spec.coches || []).map(String);
   const badgeTxt = spec.regle && spec.genre === 'evenement' ? 'Événement · Règlement' : (BADGE[spec.genre] || '');
   const badge = badgeTxt ? `<div class="choix-badge">${badgeTxt}</div>` : '';
-  m.innerHTML = `<div class="choix-sheet${chiffresOuverts() ? ' chiffres' : ''}${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : pile ? ' paquet-pile' : ''}${auxCouleurs(spec.couleurs)}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+  m.innerHTML = `<div class="choix-sheet${chiffresOuverts() ? ' chiffres' : ''}${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : pile ? ' paquet-pile' : ''}${auxCouleurs(spec.couleurs)}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''}${spec.boite ? ` data-msg="${esc(spec.boite.msg)}" data-maison="${esc(spec.boite.maison)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '❓'}</span>
-      <div class="choix-titres">${badge}<div class="choix-titre">${sub(spec.titre)}</div>${spec.irl ? `<div class="choix-irl">${esc(spec.irl)}</div>` : ''}</div>
+      <div class="choix-titres">${badge}<div class="choix-titre">${sub(spec.titre)}</div>${irl ? `<div class="choix-irl">${esc(irl)}</div>` : ''}</div>
       ${spec.fermable ? `<button type="button" class="close-btn choix-fermer" aria-label="${esc(spec.motFermer || 'Plus tard')}" title="${esc(spec.motFermer || 'Plus tard')}">✕</button>` : ''}
     </div>
     <div class="choix-corps">
+      ${spec.scene ? sceneHtml(spec.scene, { voix: true }) : ''}
       ${spec.recit ? `<p class="choix-recit">${sub(spec.recit)}</p>` : ''}
       ${spec.joueur ? enteteJoueur(spec.joueur, ou(spec.joueur)) : ''}
       ${spec.contexte || ''}
@@ -540,7 +545,7 @@ export function ouvrirChoix(spec) {
           joueurHtml: o.joueurHtml || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
           lecture: !!spec.lecture,
         });
-        return optionHtml(o, spec, { mots });
+        return optionHtml(o, spec, { mots, classe: [spec.classeOption, o.ouvre ? 'ouvre' : ''].filter(Boolean).join(' '), on: coches.includes(String(o.cle)) });
       }).join('')}</div>
       ${spec.options.length ? '' : `<p class="empty-msg">${esc(spec.vide || 'Rien ici.')}</p>`}
       <button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
@@ -549,7 +554,8 @@ export function ouvrirChoix(spec) {
     </div>
   </div>`;
   const FETE = spec.cartes || spec.genre === 'recompense' || spec.genre === 'main' || spec.genre === 'entracte' || spec.genre === 'coupe';
-  m.classList.toggle('feuille', !FETE);
+  // Un choix de la Boîte (`boite`) prend tout l'écran (V21 ; JP : *en plein écran, pas dans la boîte*) ; les autres décisions, la feuille.
+  m.classList.toggle('feuille', !FETE && !spec.boite);
   m.hidden = false;
   document.body.classList.add('choix-ouvert');
   // Un paquet se tait tant qu'il est scellé : ses sons sont ceux de l'ouverture.
@@ -578,6 +584,16 @@ export function ouvrirChoix(spec) {
     const o = spec.options.find(x => String(x.cle) === b.dataset.choix);
     b.onclick = () => {
       if (o && o.pari && typeof spec.lancer === 'function') { sceneDuDe(m, spec, o, sub, fermer); return; }
+      if (spec.multi > 1 && o) {
+        const k = String(o.cle), i = coches.indexOf(k);
+        if (i >= 0) coches.splice(i, 1); else coches.push(k);
+        jouerSon('joue');
+        if (coches.length >= spec.multi) { fermer(true); spec.onChoix(coches.map(c => spec.options.find(x => String(x.cle) === c).cle)); return; }
+        b.classList.toggle('on', i < 0);
+        if (i < 0) b.setAttribute('aria-pressed', 'true'); else b.removeAttribute('aria-pressed');
+        if (spec.onCoche) spec.onCoche(coches.map(c => spec.options.find(x => String(x.cle) === c).cle));
+        return;
+      }
       fermer(true); spec.onChoix(b.dataset.choix);
     };
   });

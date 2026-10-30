@@ -71,7 +71,7 @@ Un adjoint est donc un **échange** (js/adjoints.js) : ce que ton club gagne et 
 
 Le n° 1 part environ trois soirs sur quatre : un échange de gardiens s'équilibre à trois contre un.
 
-**Les obtenir : un parmi trois, gratuit, aux moments forts** — les paliers des 9e, 18e et 26e matchs, un gros match gagné, le verdict du proprio, et certaines histoires. Les trois se tirent de la graine parmi ceux qui ne sont pas en poste. Ton staff tient **trois adjoints** ; un quatrième, et tu choisis qui part (À faire, « Qui part ? »). Rien ne s'achète.
+**Les obtenir : un parmi trois, gratuit, aux moments forts** — les paliers des 9e, 18e et 26e matchs, un gros match gagné, le verdict du proprio, et certaines histoires. Les trois se tirent de la graine parmi ceux qui ne sont pas en poste. Ton staff tient **trois adjoints** ; un quatrième, et tu choisis qui part (À faire, « Qui part ? »). Rien ne s'achète. *Oct. : la main d'adjoints remplace « Qui part ? » — tous dans ta main (six au plus), trois en poste, glissés au Bureau › Coach (`staff`, js/deposer.js) ; un arrivant prend une case libre, sinon il attend ; une main pleine laisse partir le plus ancien hors du staff (docs/decisions.md).*
 
 ## 2b. Légers d'abord, le bras droit (oct.)
 
