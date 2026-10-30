@@ -3950,6 +3950,8 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
 #rosterBoard.en-cartes .slot:not(.empty):is(.survol, .refus) { outline: 0; }
 .slot.survol .slot-carte { transform: translateY(-6px); outline: 2px solid var(--or); outline-offset: 2px; }
 .slot.refus .slot-carte { outline: 2px solid var(--mauvais); outline-offset: 2px; opacity: 0.6; }
+/* À la souris, la main dit qu'elle se prend (un clic l'ouvre toujours) ; un renfort ne bouge pas. */
+#rosterBoard .slot:not(.renfort) .slot-carte { cursor: grab; }
 /* Les cartes posées sur lui, en pastilles à cheval sur le pied de la carte. */
 .slot-posees { position: absolute; z-index: 1; left: 50%; bottom: -8px; transform: translateX(-50%); display: flex; gap: 2px; }
 .slot-posees i { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--or); border-radius: 50%; background: var(--noir); font: normal var(--t-1)/1 var(--display); }

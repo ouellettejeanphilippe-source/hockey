@@ -133,4 +133,7 @@ export function glisserDeposer({ prise, cible, deposer, permis = () => true, fan
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && geste) finir(false); });
   // L'appui tenu ne doit pas ouvrir le menu du navigateur sur la carte.
   document.addEventListener('contextmenu', ev => { if (ev.target.closest && ev.target.closest(prise)) ev.preventDefault(); });
+  // À la souris (le PC), une photo de la carte part en glisser natif du navigateur, qui annule le geste (pointercancel) :
+  // la carte se glisse par ce module, jamais par celui du navigateur.
+  document.addEventListener('dragstart', ev => { if (ev.target.closest && ev.target.closest(prise)) ev.preventDefault(); });
 }
