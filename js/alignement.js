@@ -861,19 +861,20 @@ export function coachHtml() {
 function staffHtml(perso, niveau) {
   const main = (perso.adjoints || []).filter(k => ADJOINTS[k]), staff = staffDe(perso);
   const reserve = main.filter(k => !staff.includes(k)), bras = brasDroitDe(perso.cle);
+  // Son échange, dessous au grand écran ; au téléphone, la bande sous la main le dit quand on touche la carte (`.adj-detail`).
   const carteAdj = (k, zone) => {
     const A = ADJOINTS[k];
     return `<button type="button" class="adj-carte tc tc-g-tactique" data-adj="${k}" data-zone="${zone}" aria-pressed="false" title="${zone === 'staff' ? 'Glisse-la en réserve, ou touche-la puis une carte de la réserve' : 'Glisse-la sur une case du staff, ou touche-la puis la case'}">
       ${rectoDeJeu({ rarete: A.lourd ? 'rare' : 'commune', ico: A.ico, nomHtml: esc(A.nom), typeHtml: k === bras ? 'Bras droit' : 'Adjoint' })}
-      <span class="adj-lignes">${lignesDeLAdjoint(k, perso.cle).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join('')}</span>
+      <span class="adj-lignes" data-nom="${esc(`${A.ico} ${A.nom}`)}">${lignesDeLAdjoint(k, perso.cle).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join('')}</span>
     </button>`;
   };
   const libres = ADJOINTS_MAX - staff.length;
-  return `<div class="ej-case-l">Ton staff · ${staff.length} en poste sur ${ADJOINTS_MAX}</div>
-    <div class="adj-zone adj-staff" data-zone="staff">${staff.map(k => carteAdj(k, 'staff')).join('')}${Array.from({ length: libres }, () => '<button type="button" class="adj-vide" data-zone="staff">Case libre</button>').join('')}</div>
-    <div class="ej-case-l">Ta main · ${main.length} sur ${MAIN_ADJOINTS}</div>
-    <div class="adj-zone adj-reserve" data-zone="reserve">${reserve.map(k => carteAdj(k, 'reserve')).join('') || `<p class="adj-note">${main.length ? 'Personne en réserve.' : 'Un adjoint arrive aux 9e, 18e et 26e matchs et après un gros match gagné.'}</p>`}</div>
-    ${bras && !main.includes(bras) ? `<p class="ej-coach-l">Son bras droit : ${ADJOINTS[bras].ico} ${esc(ADJOINTS[bras].nom)} — ses pouvoirs +${Math.round(BRAS_DROIT * 100)} %${niveau >= NIVEAU_DES_LOURDS ? '' : `, dès le niveau ${NIVEAU_DES_LOURDS}`}.</p>` : ''}`;
+  const brasMot = bras && !main.includes(bras) ? `Son bras droit : ${ADJOINTS[bras].ico} ${esc(ADJOINTS[bras].nom)}, ses pouvoirs +${Math.round(BRAS_DROIT * 100)} %${niveau >= NIVEAU_DES_LOURDS ? '' : `, dès le niveau ${NIVEAU_DES_LOURDS}`}.` : '';
+  return `<div class="ej-case-l">Ton staff · ${staff.length} en poste sur ${ADJOINTS_MAX} · ta main ${main.length} sur ${MAIN_ADJOINTS}</div>
+    <div class="adj-zone adj-staff${staff.length ? '' : ' sans'}" data-zone="staff">${staff.map(k => carteAdj(k, 'staff')).join('')}${Array.from({ length: libres }, () => '<button type="button" class="adj-vide" data-zone="staff">Case libre</button>').join('')}</div>
+    ${main.length ? `<div class="adj-zone adj-reserve" data-zone="reserve">${reserve.map(k => carteAdj(k, 'reserve')).join('') || '<p class="adj-note">En réserve : personne.</p>'}</div>` : ''}
+    <p class="adj-detail" role="status" aria-live="polite">${main.length ? 'Touche une carte : son échange.' : 'Un adjoint arrive aux 9e, 18e et 26e matchs et après un gros match gagné.'}${brasMot ? ` ${brasMot}` : ''}</p>`;
 }
 /*
  * CHANGER LE STAFF : une carte de la réserve prend la case d'une du staff (ou une case libre) ; une du staff qu'on renvoie
@@ -901,6 +902,9 @@ if (typeof document !== 'undefined') document.addEventListener('click', ev => {
   const choisir = el => {
     for (const x of document.querySelectorAll('.adj-carte.choisi')) { x.classList.remove('choisi'); x.setAttribute('aria-pressed', 'false'); }
     if (el) { el.classList.add('choisi'); el.setAttribute('aria-pressed', 'true'); }
+    // La bande dit l'échange de la carte touchée, et où la poser.
+    const bande = document.querySelector('.adj-detail'), l = el && el.querySelector('.adj-lignes');
+    if (bande && l) bande.innerHTML = `<b>${esc(l.dataset.nom)}</b> ${l.innerHTML} <small>${el.dataset.zone === 'staff' ? '→ une carte de la réserve, ou glisse-la en réserve' : '→ une case du staff'}</small>`;
   };
   if (choisie && choisie !== b && choisie.dataset.zone !== b.dataset.zone) { choisir(null); poserLeStaff(choisie, b); return; }
   if (!b.dataset.adj) return;
