@@ -144,6 +144,28 @@ function dessinHtml(cle, genre) {
  *       genreCarte, dessin (1.0 : une carte de MATCH — son genre donne le fond
  *       de l'illustration et la couleur de sa bannière, sa clé son dessin) }
  */
+/* Le dessin d'une carte de jeu, et son médaillon : l'icône, sans icône le dessin en petit. */
+const artDeJeu = c => c.artHtml || (c.dessin ? dessinHtml(c.dessin, DESSIN_DU_GENRE[c.genreCarte] ? c.genreCarte : '') : '') || `<span class="tc-art-ico" aria-hidden="true">${c.ico || '🃏'}</span>`;
+const icoDeJeu = c => (c.ico ? `<span class="tcj-ico" aria-hidden="true">${c.ico}</span>` : artDeJeu(c));
+/*
+ * LE RECTO D'UNE CARTE DE JEU, seul : le carton de la glace aux couleurs de son genre (le genre se pose sur un parent
+ * `.tc.tc-g-…`). `carteHtml` l'habille d'un choix ; la main d'adjoints du coach (js/alignement.js) le pose dans ses cases.
+ */
+export function rectoDeJeu(c) {
+  const r = RARETES[c.rarete] ? c.rarete : 'commune', R = RARETES[r];
+  const nomTexte = String(c.nomHtml || '').replace(/<[^>]*>/g, '');
+  return `<span class="carton cs-glace cs-jeu tc-${r}">
+      ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
+      <span class="carton-photo"><span class="tcj-art">${artDeJeu(c)}</span></span>
+      <span class="carton-deco" aria-hidden="true"></span>
+      ${brille(r) ? '<span class="carton-lueur" aria-hidden="true"></span><span class="carton-cadre" aria-hidden="true"></span>' : ''}
+      ${c.coinHtml ? `<span class="carton-pos">${c.coinHtml}</span>` : ''}
+      <span class="cj-gemme" title="${R.nom}">${R.gemme}</span>
+      <span class="carton-nom" style="--n:${Math.max(6, nomTexte.length)}"><span class="lname tc-nom">${c.nomHtml || ''}</span>${c.typeHtml ? `<span class="carton-club-nom">${c.typeHtml}</span>` : ''}</span>
+      <span class="carton-club">${icoDeJeu(c)}</span>
+      <span class="carton-imprime"><b>Cap 82-0</b><span>${R.nom}</span></span>
+    </span>`;
+}
 export function carteHtml(c) {
   const r = RARETES[c.rarete] ? c.rarete : 'commune';
   const R = RARETES[r];
@@ -162,7 +184,6 @@ export function carteHtml(c) {
   </div>`;
   const genre = DESSIN_DU_GENRE[c.genreCarte] ? c.genreCarte : '';
   const famille = !genre && FAMILLES.includes(c.famille) ? c.famille : '';
-  const art = c.artHtml || (c.dessin ? dessinHtml(c.dessin, genre) : '') || `<span class="tc-art-ico" aria-hidden="true">${c.ico || '🃏'}</span>`;
   // `statique` (Jalon U) : la même face hors d'un choix (l'inventaire), sans « Prendre » ; ses boutons sont dessous. `lecture` : à lire seulement.
   /*
    * LE FORMAT CARTE DE HOCKEY (oct. 2026). JP : *j'aime vraiment le format carte de hockey, pas les autres*. Une carte
@@ -170,9 +191,7 @@ export function carteHtml(c) {
    * lieu d'un club ; son dessin dans la fenêtre, son coût dans le coin, sa rareté dans l'autre, son nom sur la plaque
    * et son icône dans le médaillon. Sa rareté en est l'édition : le cadre de métal, l'or, le prisme.
    */
-  const nomTexte = String(c.nomHtml || '').replace(/<[^>]*>/g, '');
-  // Le médaillon porte l'icône ; sans icône, le dessin en petit.
-  const ico = c.ico ? `<span class="tcj-ico" aria-hidden="true">${c.ico}</span>` : art;
+  const ico = icoDeJeu(c);
   /*
    * CE QU'ELLE FAIT SE LIT À SON VERSO (JP : *mettre les stats derrière la carte*). Le recto est la carte, rien d'autre ;
    * la toucher la retourne (`brancherInclinaison`). Toucher ne prend plus : « Prendre », dessous, prend. Le verso est le
@@ -183,17 +202,7 @@ export function carteHtml(c) {
   return `<div class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${famille ? ` tc-f-${famille}` : ''}${c.meilleure ? ' tc-meilleure' : ''}${c.lecture ? ' lecture' : ''}" data-carte="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive && !c.statique ? ' aria-disabled="true"' : ''}>
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
     <${face}>
-    <span class="carton cs-glace cs-jeu tc-${r}">
-      ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
-      <span class="carton-photo"><span class="tcj-art">${art}</span></span>
-      <span class="carton-deco" aria-hidden="true"></span>
-      ${brille(r) ? '<span class="carton-lueur" aria-hidden="true"></span><span class="carton-cadre" aria-hidden="true"></span>' : ''}
-      ${c.coinHtml ? `<span class="carton-pos">${c.coinHtml}</span>` : ''}
-      <span class="cj-gemme" title="${R.nom}">${R.gemme}</span>
-      <span class="carton-nom" style="--n:${Math.max(6, nomTexte.length)}"><span class="lname tc-nom">${c.nomHtml || ''}</span>${c.typeHtml ? `<span class="carton-club-nom">${c.typeHtml}</span>` : ''}</span>
-      <span class="carton-club">${ico}</span>
-      <span class="carton-imprime"><b>Cap 82-0</b><span>${R.nom}</span></span>
-    </span>
+    ${rectoDeJeu(c)}
     ${verso ? `<span class="carton cs-glace cs-jeu tc-${r} tc-verso">
       ${brille(r) ? '<span class="carton-lueur" aria-hidden="true"></span><span class="carton-cadre" aria-hidden="true"></span>' : ''}
       <span class="tcv-corps"><span class="tcv-tete">${ico}<span class="tcv-nom">${c.nomHtml || ''}</span></span>${verso}<span class="tcv-pied"><b>Cap 82-0</b><span>${R.nom}</span></span></span>

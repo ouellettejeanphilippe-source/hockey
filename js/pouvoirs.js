@@ -13,7 +13,7 @@
  * canaux que le moteur connaît : `effet` sur ton club, `adv` sur l'adversaire. La feuille le garde.
  */
 
-import { BRAS_DROIT, adjointsQuiJouent, brasDroitDe } from './adjoints.js';
+import { BRAS_DROIT, staffDe, brasDroitDe } from './adjoints.js';
 
 /* ---------- le niveau ---------- */
 export const XP = { victoire: 1, gros: 2, serie: 5 };
@@ -91,15 +91,15 @@ export const POUVOIRS = {
 };
 
 /*
- * LE PERSONNAGE D'UNE ÉQUIPE : `{ cle, xp, talents: [p…], adjoints: [cle…], chef: { id, n, saison, tag }, maitrise }`, porté par la décision `coach` du jour 0
- * de chaque saison (l'expérience et les choix d'avant), puis par les décisions `talent`, `adjoint` et `perdAdjoint`.
+ * LE PERSONNAGE D'UNE ÉQUIPE : `{ cle, xp, talents: [p…], adjoints: [cle…] (sa main), staff: [cle…] (les trois en poste), chef: { id, n, saison, tag }, maitrise }`,
+ * porté par la décision `coach` du jour 0 de chaque saison (l'expérience et les choix d'avant), puis par les décisions `talent`, `adjoint`, `staff` et `perdAdjoint`.
  * Le moteur y ajoute l'expérience de la saison (`xpSaison`).
  */
 export function niveauDuPerso(perso) {
   return perso ? niveauDe((perso.xp || 0) + (perso.xpSaison || 0)) : 0;
 }
 /* Son bras droit (js/adjoints.js) est-il en poste ? */
-const aSonBrasDroit = perso => !!perso && adjointsQuiJouent(perso.adjoints).includes(brasDroitDe(perso.cle));
+const aSonBrasDroit = perso => !!perso && staffDe(perso).includes(brasDroitDe(perso.cle));
 /*
  * La force d'un pouvoir : 1, plus ses talents, fois la maîtrise de l'entraîneur (sa vraie carte, js/coachs-reels.js),
  * fois son bras droit en poste (oct. : la synergie, pas un chiffre plus gros).

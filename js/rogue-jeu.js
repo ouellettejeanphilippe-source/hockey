@@ -13,6 +13,7 @@ import { hubActif } from './coquille.js';
 import { COACHS, VOIES } from './coachs.js';
 import { chargerCoachs, lotoDesCoachs, motDuRang } from './coachs-reels.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
+import { staffDe } from './adjoints.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -1636,7 +1637,7 @@ async function continuerRun(gardes = [], lotos = []) {
   for (const p of gardes) G.variantes.cartes[getPlayerKey(p)] = meilleureVariante(lireCartable().joueurs[getPlayerKey(p)]) || G.variantes.cartes[getPlayerKey(p)];
   const decsSaison = decisionsDeLaPartie();
   // V21 : le coach de la run continue — son expérience de la saison (séries comprises) rejoint celle d'avant.
-  if (L.you && L.you.perso) G.rogue.perso = { ...L.you.perso, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])], adjoints: [...(L.you.perso.adjoints || [])] };
+  if (L.you && L.you.perso) G.rogue.perso = { ...L.you.perso, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])], adjoints: [...(L.you.perso.adjoints || [])], staff: staffDe(L.you.perso) };
   // Jalon Q : les cartes de la partie te suivent — celles pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
   const poche = cartesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);
   if (poche.length) report.push({ jour: 0, poche, report: true });

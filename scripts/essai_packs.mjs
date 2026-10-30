@@ -97,7 +97,7 @@ async function regler(max = 40) {
       // L'échange (oct.) : la sortie proposée touchée d'avance, sinon le premier qui peut sortir ; « Signer ».
       if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="echange"]')) { if (await page.$('#choixModal .ech-signer[disabled]')) await page.click('#choixModal .ech-q:not([disabled])').catch(() => {}); await page.click('#choixModal .ech-signer:not([disabled])').catch(() => {}); await page.waitForTimeout(600); continue; }
       if (await page.$('#choixModal:not([hidden]) [data-mode="choix"] .aln-ligne .aln-choisir:not([disabled])')) { await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])'); await page.waitForTimeout(600); continue; }
-      if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])')) { await page.click('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])'); await page.waitForTimeout(400); continue; }
+      if (await page.$('#choixModal:not([hidden]) :is(button.choix-option:not(.on), .tc-prendre):not([disabled])')) { await page.click('#choixModal:not([hidden]) :is(button.choix-option:not(.on), .tc-prendre):not([disabled])'); await page.waitForTimeout(400); continue; }
       const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) { await f.click(); await page.waitForTimeout(300); continue; }
       return 'coince';
     }
@@ -110,13 +110,11 @@ async function regler(max = 40) {
     if (e.sommaire) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer').catch(() => {}); await page.waitForTimeout(300); continue; }
     // À FAIRE (V9) : le choix ouvert prend sa première option ; un pack qui attend sa signature rend la main à l'essai.
     // V12 : le choix vit dans le sous-onglet de sa maison (docs/refonte-v12.md).
-    // V18-5 : on règle dans la Boîte, un choix ouvert à la fois (sa tête l'ouvre, ses options dans son corps).
+    // V21 : la Boîte n'a que des lignes ; la toucher ouvre le choix en plein écran, que le cas plus haut règle.
     const ouv = await page.$('#hubModal .hub-msg.bloque');
     if (ouv && await ouv.isVisible()) {
       if (await ouv.evaluate(x => x.dataset.msg) === 'pack') return 'pack';
-      if (!(await ouv.$('.hub-msg-corps'))) { await (await ouv.$('.hub-msg-tete')).click(); await page.waitForTimeout(400); continue; }
-      const o = await ouv.$('.hub-msg-corps .choix-option:not([disabled]):not(.on)'); if (o) { await o.click(); await page.waitForTimeout(500); continue; }
-      return 'coince-boite';
+      await (await ouv.$('.hub-msg-tete')).click(); await page.waitForTimeout(400); continue;
     }
     // Un sous-onglet sans rien qui presse : le Bureau rend la boîte.
     if (await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet')].some(x => x.checkVisibility()))) { await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300); continue; }
@@ -209,9 +207,9 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
     await club(); const r = await regler(); log('   plus tard, boîte :', r);
     if (r === 'pack') {
       // Le pack attend dans À faire (V9) : son option « Signer un joueur › » rouvre l'offre.
-      const pk = await page.$('#hubModal .hub-msg[data-msg="pack"]');
-      if (pk && !(await pk.$('.hub-msg-corps'))) { await (await pk.$('.hub-msg-tete')).click(); await page.waitForTimeout(400); }
-      const rouvrir = await page.$('#hubModal .hub-msg[data-msg="pack"] .hub-msg-corps .choix-option:not([disabled])'); if (rouvrir && await rouvrir.isVisible()) await rouvrir.click();
+      const pk = await page.$('#hubModal .hub-msg[data-msg="pack"] .hub-msg-tete');
+      if (pk) { await pk.click(); await page.waitForTimeout(400); }
+      const rouvrir = await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg="pack"] .choix-option[data-choix="signer"]'); if (rouvrir) await rouvrir.click();
       await page.waitForTimeout(1500);
     }
     else { log('   ⚠ pas de message de pack après « Plus tard »'); pb++; continue; }

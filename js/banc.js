@@ -11,7 +11,7 @@ import { chargerTable } from './charge-table.js';
 import { BANQUE } from './banque.js';
 import { COACHS } from './coachs.js';
 import { POUVOIRS } from './pouvoirs.js';
-import { ADJOINTS } from './adjoints.js';
+import { ADJOINTS, staffDe } from './adjoints.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
@@ -20,7 +20,7 @@ import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue } from './rogue.js';
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
-import { renderMain, coachHtml } from './alignement.js';
+import { renderMain, coachHtml, persoDuMatin } from './alignement.js';
 import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
@@ -231,7 +231,7 @@ function ajouterDecision(avant, d) {
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
-    && !(d.plan && x.plan && x.jour === d.jour)
+    && !(d.plan && x.plan && x.jour === d.jour) && !(d.staff && x.staff && x.jour === d.jour)
     // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
     // autre décision rejoue le match depuis le début : l'entracte déjà choisi
     // ne vaut plus, il sera redemandé sur le nouveau pointage.
@@ -336,8 +336,9 @@ function confirmerDecision(d) {
   else if (d.ballottage && d.ballottage.entre) mot = d.ballottage.sort ? `📒 ${qui(d.ballottage.entre)} prend la place de ${qui(d.ballottage.sort)} : la carte de ${qui(d.ballottage.sort)} va à ton cartable.` : `🪑 ${qui(d.ballottage.entre)} entre dans une case de réserve libre : personne ne sort.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
   // V21 : un adjoint qui arrive ou part, un talent ou de l'expérience pour le coach de la run.
-  const perso = G.ligue && G.ligue.you && G.ligue.you.perso, Pv = p => (perso && POUVOIRS[perso.cle] ? POUVOIRS[perso.cle][p] : null);
-  if (d.adjoint && ADJOINTS[d.adjoint.cle]) mot = `${ADJOINTS[d.adjoint.cle].ico} ${ADJOINTS[d.adjoint.cle].nom} entre dans ton staff, pour la run.`;
+  const perso = persoDuMatin(), Pv = p => (perso && POUVOIRS[perso.cle] ? POUVOIRS[perso.cle][p] : null);
+  // La main d'adjoints (oct.) : l'arrivant prend une case libre du staff, sinon il attend dans ta main, au Coach.
+  if (d.adjoint && ADJOINTS[d.adjoint.cle]) mot = `${ADJOINTS[d.adjoint.cle].ico} ${ADJOINTS[d.adjoint.cle].nom} ${staffDe(perso).includes(d.adjoint.cle) ? 'entre dans ton staff' : 'attend dans ta main : glisse-le dans ton staff, au Coach'}.`;
   else if (d.perdAdjoint && ADJOINTS[d.perdAdjoint]) mot = `${ADJOINTS[d.perdAdjoint].ico} ${ADJOINTS[d.perdAdjoint].nom} quitte ton staff.`;
   else if (d.talent && Pv(d.talent.p)) mot = `${Pv(d.talent.p).ico} ${Pv(d.talent.p).nom} grandit, pour la run.`;
   else if (Number(d.xpCoach) > 0 && perso && COACHS[perso.cle]) mot = `${COACHS[perso.cle].ico} ${COACHS[perso.cle].nom} : +${d.xpCoach} d'expérience.`;

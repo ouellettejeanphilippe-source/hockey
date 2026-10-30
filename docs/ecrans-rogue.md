@@ -59,7 +59,7 @@ Ce que les trois ont en commun et que le Rogue n'a pas : **un écran ne renvoie 
 
 | Sous-onglet | Repère | Verdict | Ce qui change |
 |---|---|---|---|
-| Boîte | EHM : l'accueil et la boîte ; NSS : l'accueil | Reste | Les choix se règlent dans la Boîte, ouverts sur place, comme un message d'EHM ; un matin sans choix, elle n'est pas vide : Hier soir, le prochain match, ton rang. |
+| Boîte | EHM : l'accueil et la boîte ; NSS : l'accueil | Reste | Les choix se règlent depuis la Boîte, une ligne par choix qui l'ouvre en plein écran (V21 ; c'était « ouverts sur place ») ; un matin sans choix, elle n'est pas vide : Hier soir, le prochain match, ton rang. |
 | Proprio | EHM : la direction et l'argent ; NSS : la jauge du patron | Reste | Ses dossiers (la masse salariale, la tête du coach) se rangeaient au Vestiaire : ils sont chez lui, et « L'infirmerie déborde » à l'infirmerie (fait, `maison` d'un dossier). Les rivaux disaient « 1 gros matchs » (fait). |
 | Entraîneur | EHM : le personnel | Reste, allégé | « D'où tu viens » part (Hier soir et le calendrier disent les résultats) ; la route de la saison va au calendrier ; l'adjoint d'un palier y arrive (voir le Butin). |
 | Presse | EHM : les conférences de presse arrivent dans la boîte | Part | Vide presque tous les jours (« Rien à régler ici ») ; ses micros et ses courriels sont des messages de la Boîte, et la une est déjà dans Hier soir. |
@@ -145,7 +145,7 @@ JP, 25 octobre : *good* — les cinq, tels quels.
 
 | Ce qui change | Où | Ce qui le tient |
 |---|---|---|
-| **On règle dans la Boîte.** Un choix s'ouvre sur place sous sa maison, un à la fois — au matin, celui qui attend ; « ⏳ Encore un choix » l'ouvre là. Les sous-onglets Proprio, Entraîneur et Vestiaire ne montrent plus que leur part (`PERMANENT`), sans choix ; le compte des sous-onglets part avec eux. | js/saison.js `rendreActions`, `vueMaison` ; js/game.js `majSousNav` ; js/coquille.js | `essai_rogue` : chaque choix réglé l'est dans la boîte, aucun sous-onglet n'en porte, trois maisons au moins |
+| **On règle dans la Boîte.** Un choix s'ouvre sur place sous sa maison, un à la fois — au matin, celui qui attend ; « ⏳ Encore un choix » l'ouvre là. *V21 (oct.) : la Boîte n'a plus que les lignes ; une ligne ou « ⏳ » ouvre le choix en plein écran (JP : *une boîte de réception, pas les messages*).* Les sous-onglets Proprio, Entraîneur et Vestiaire ne montrent plus que leur part (`PERMANENT`), sans choix ; le compte des sous-onglets part avec eux. | js/saison.js `rendreActions`, `vueMaison` ; js/game.js `majSousNav` ; js/coquille.js | `essai_rogue` : chaque choix réglé l'est dans la boîte, aucun sous-onglet n'en porte, trois maisons au moins |
 | **La Presse dans la Boîte.** Ses micros et ses courriels sont des lignes de la boîte, sous « La presse » ; la une revient à Hier soir. | js/saison.js `MAISONS`, `voletJourneeSeul` | |
 | **Le Butin chez l'entraîneur.** L'adjoint d'un palier se choisit sous l'entraîneur, qui l'engage. | js/saison.js `maisonDe` | |
 | **L'Infirmerie dans Joueurs.** Le filtre 🩹 d'Effectif › Joueurs : qui est blessé, qui joue sa case, les cartes de soin. Défait la V12-2. | js/joueurs.js ; js/saison.js `infirmerieHtml`, prêtée par `tabs.hub.infirmerie` | `essai_rogue` 10c |

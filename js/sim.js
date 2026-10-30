@@ -19,7 +19,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles } from './coachs.js';
 import { POUVOIRS, pouvoirsDeLaPeriode, XP } from './pouvoirs.js';
-import { ADJOINTS, avecAdjoint, adjointsQuiJouent } from './adjoints.js';
+import { ADJOINTS, avecAdjoint, staffDe } from './adjoints.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil, PUNITIONS_SERMON } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -5880,20 +5880,24 @@ function gagnerXp(T, bonus = 0) {
 }
 /*
  * LE COACH, UN PERSONNAGE (V21, js/pouvoirs.js), ET SES ADJOINTS (js/adjoints.js). La décision `coach` (le jour 0 de
- * chaque saison) porte son expérience d'avant, ses talents et ses adjoints ; `talent`, `adjoint` ({ cle }) et
- * `perdAdjoint` s'y ajoutent au jour dit. L'expérience de la saison, le moteur la compte (`xpSaison`, `gagnerXp`).
+ * chaque saison) porte son expérience d'avant, ses talents, sa main d'adjoints et son staff ; `talent`, `adjoint`
+ * ({ cle }), `staff` ([cle…], les trois en poste) et `perdAdjoint` s'y ajoutent au jour dit. L'expérience de la saison,
+ * le moteur la compte (`xpSaison`, `gagnerXp`).
  */
 function appliquerPerso(team, d) {
   if (d.coach && d.coach.cle && POUVOIRS[d.coach.cle]) {
     // L'entraîneur (une vraie carte de coach, js/coachs-reels.js) : son nom, sa saison, sa maîtrise (de 1 à 1,2).
-    team.perso = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])], adjoints: (d.coach.adjoints || []).filter(k => ADJOINTS[k]),
+    const P = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])], adjoints: (d.coach.adjoints || []).filter(k => ADJOINTS[k]),
+      ...(Array.isArray(d.coach.staff) ? { staff: [...d.coach.staff] } : {}),
       ...(d.coach.chef ? { chef: { ...d.coach.chef } } : {}), maitrise: Math.min(1.2, Math.max(1, Number(d.coach.maitrise) || 1)) };
+    team.perso = { ...P, staff: staffDe(P) };
   }
   if (!team.perso) return;
   if (d.talent && Number.isInteger(d.talent.p)) team.perso = { ...team.perso, talents: [...team.perso.talents, d.talent.p] };
-  if (d.adjoint && ADJOINTS[d.adjoint.cle]) team.perso = { ...team.perso, adjoints: avecAdjoint(team.perso.adjoints, d.adjoint.cle) };
+  if (d.adjoint && ADJOINTS[d.adjoint.cle]) team.perso = { ...team.perso, ...avecAdjoint(team.perso, d.adjoint.cle) };
+  if (Array.isArray(d.staff)) team.perso = { ...team.perso, staff: staffDe({ ...team.perso, staff: d.staff }) };
   if (Number(d.xpCoach)) team.perso = { ...team.perso, xp: Math.max(0, team.perso.xp + Number(d.xpCoach)) };
-  if (d.perdAdjoint) team.perso = { ...team.perso, adjoints: team.perso.adjoints.filter(k => k !== d.perdAdjoint) };
+  if (d.perdAdjoint) team.perso = { ...team.perso, adjoints: team.perso.adjoints.filter(k => k !== d.perdAdjoint), staff: staffDe(team.perso).filter(k => k !== d.perdAdjoint) };
 }
 
 function appliquerDecision(team, d, graine = 0) {
@@ -8709,7 +8713,7 @@ function poserLesAdjoints(A, B, LA, LB) {
     retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
   };
   for (const [T, O, LT] of [[A, B, LA], [B, A, LB]]) {
-    for (const k of adjointsQuiJouent(T.perso && T.perso.adjoints)) {
+    for (const k of staffDe(T.perso)) {
       const J = ADJOINTS[k];
       if (!J) continue;
       if (J.effet) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...J.effet });

@@ -1053,9 +1053,11 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 /* Une option choisie sans fermer l'écran (la carte de vestiaire, les choix de la semaine) : le filet d'or, et son crochet. */
 .choix-option.on { border-color: var(--or); }
 .choix-option.on .choix-option-nom::after { content: " ✓"; color: var(--or); }
+/* Une option › ouvre son écran (le combat, le paquet, une liste) au lieu de partir. */
+.choix-option.ouvre .choix-option-nom::after { content: " ›"; color: var(--or); }
 /* Dans un écran qui en porte plusieurs (le gros match, la semaine) : la même option, serrée. */
 :is(.main-vest, .af-option).choix-option { min-height: 0; padding: var(--esp-3); gap: var(--esp-1); }
-/* Les options d'À faire : des tuiles à coins vifs, sans halo ni saut (JP : *j'aime pas les arrondis*) ; un toucher les envoie. */
+/* Les options d'un choix d'À faire, en plein écran, et les plans du duel : des tuiles à coins vifs, sans halo ni saut (JP : *j'aime pas les arrondis*) ; un toucher les envoie. */
 .af-option.choix-option { border-radius: 0; animation: none; }
 .af-option.choix-option:is(:hover, :focus-visible):not([disabled]), .af-option.choix-option.on { box-shadow: inset 3px 0 0 var(--or); }
 .choix-option-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
@@ -3629,9 +3631,11 @@ a.spin-club:hover { background: var(--fond-2); }
 .ej-jauge em.fait { background: var(--encre); }
 .ej-coach-l { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
 /* LES POUVOIRS DU COACH (V21, js/alignement.js `coachHtml`) : une carte par pouvoir de son arbre — ouvert ou verrouillé (le niveau qui
-   l'ouvre), ce qu'il fait, sa force, ses adjoints accrochés dessous, et combien de fois il a joué cette saison. */
+   l'ouvre), ce qu'il fait, sa force, et combien de fois il a joué cette saison. */
 .pv { display: flex; flex-direction: column; gap: 2px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); box-shadow: inset 3px 0 0 var(--or); }
 .pv.ferme { box-shadow: none; opacity: 0.55; }
+/* Un pouvoir verrouillé se lit en une ligne : il viendra à son niveau. */
+.pv.ferme .pv-dit { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-tete { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-3)/1.15 var(--display); text-transform: uppercase; color: var(--encre); }
 .pv-tete small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; color: var(--or); }
 .pv-ico { font-size: var(--t-4); line-height: 1; }
@@ -3639,9 +3643,34 @@ a.spin-club:hover { background: var(--fond-2); }
 .pv-dit { margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-2); }
 .pv-dit .bon { color: var(--bon); }
 .pv-dit .mal { color: var(--mauvais); }
-.pv.adj { box-shadow: inset 3px 0 0 var(--encre-3); }
-/* `.vide` est aussi l'état vide d'une page (une marge de 9vh, centré) : la place libre du staff n'en garde que le pointillé. */
-.pv.adj.vide { box-shadow: none; border: 1px dashed var(--filet); background: none; max-width: none; margin: 0; text-align: left; }
+/* LA MAIN D'ADJOINTS (oct., js/alignement.js `staffHtml`) : le staff, trois cartes de front comme un trio, puis la réserve.
+   Une carte se glisse (js/deposer.js) ou se touche puis sa case ; la zone sous le doigt s'allume. Son échange se lit dessous. */
+.adj-zone { display: grid; grid-template-columns: repeat(3, minmax(0, 96px)); gap: var(--esp-2); align-items: start; width: fit-content; max-width: 100%; padding: var(--esp-2); border: 1px dashed var(--filet); transition: border-color var(--t-vite), background var(--t-vite); }
+.adj-staff { border-style: solid; border-color: var(--or); }
+.adj-reserve { border-top: 0; }
+@media (min-width: 1000px) { .adj-zone { grid-template-columns: repeat(3, minmax(0, 132px)); } }
+.adj-zone.survol { border-color: var(--or); background: var(--fond-2); }
+.adj-carte { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; padding: 0; border: 0; background: none; color: var(--encre); text-align: left; cursor: grab; touch-action: manipulation; -webkit-touch-callout: none; user-select: none; }
+.adj-carte .carton { transition: transform var(--t-vite); filter: drop-shadow(0 2px 4px color-mix(in srgb, black 60%, transparent)); }
+.adj-carte:is(.choisi, .survol) .carton { transform: translateY(-4px); outline: 2px solid var(--choisi); outline-offset: 2px; }
+.adj-carte.survol .carton { outline-color: var(--or); }
+.adj-carte.glisse { opacity: 0.35; }
+/* Son échange : sous la carte au grand écran ; au téléphone, la bande `.adj-detail` le dit pour la carte touchée. */
+.adj-lignes { display: none; flex-direction: column; gap: 2px; font-size: var(--t-1); line-height: 1.25; overflow-wrap: anywhere; }
+@media (min-width: 1000px) { .adj-lignes { display: flex; } }
+:is(.adj-lignes, .adj-detail) .bon { color: var(--bon); }
+:is(.adj-lignes, .adj-detail) .mal { color: var(--mauvais); }
+.adj-detail { margin: 0; font-size: var(--t-1); line-height: 1.4; color: var(--encre-2); }
+.adj-detail > span + span::before { content: " · "; color: var(--encre-3); }
+.adj-detail small { color: var(--encre-3); }
+/* Personne encore en poste : les cases libres n'ont pas besoin de la hauteur d'une carte. */
+.adj-staff.sans .adj-vide { aspect-ratio: auto; min-height: 56px; }
+.adj-vide { aspect-ratio: 5 / 7; display: grid; place-items: center; padding: var(--esp-2); border: 1px dashed var(--filet); background: none; color: var(--encre-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.adj-vide.survol { border-color: var(--or); color: var(--or); }
+.adj-note { grid-column: 1 / -1; margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-3); }
+/* Le fantôme d'une carte qu'on glisse : il suit le pointeur, par-dessus tout, sans capter le doigt. */
+.fantome { position: fixed; z-index: 1000; pointer-events: none; transform: rotate(-3deg) scale(1.05); opacity: 0.92; }
+.fantome .adj-lignes { display: none; }
 .ej-case-l { margin-top: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 /* LES CARTES D'UNE MAISON (V12-4), toujours visibles : un titre, et une bande de cartons qui se balaie, la suivante au bord, comme la main du duel. */
 .ej-coach-l.suite { opacity: 0.6; }
@@ -4023,7 +4052,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet .hub-barre { order: 10; flex: 0 0 auto; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
   body.hub-docke .hub-sheet .hub-boite { order: 2; margin: 0; padding: var(--esp-3) var(--esp-3) 0; }
   /* « À régler » amène le choix au-dessus de la barre collée, ses options comprises (V7 : À faire vit au Bureau). */
-  body.hub-docke .hub-sheet :is(.hub-msg, .hub-boite .af-option) { scroll-margin-top: var(--esp-3); scroll-margin-bottom: 140px; }
+  body.hub-docke .hub-sheet .hub-msg { scroll-margin-top: var(--esp-3); scroll-margin-bottom: 140px; }
   /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire sont des pages (les liens
      du bureau y mènent) ; ce qu'elles portent ne s'empile plus dans l'affiche. */
   .hub-carte .hub-match .hub-match-note:not(.hub-ereintant), .hub-carte .hub-match .hub-lignes { display: none; }
@@ -4211,7 +4240,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-niveau-t { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .hub-niveau .seg button { min-height: 44px; }
 
-/* ---- À faire (V9) : une pile de choix du même dessin, pliés sauf celui qu'on règle ---- */
+/* ---- À faire (V9 ; V21, une boîte de réception) : une ligne par choix ; la toucher l'ouvre en plein écran ---- */
 .hub-boite { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-2); }
 /* Vide, elle ne se montre que sur son sous-onglet (1.0, R2) : sa bande de tête, « À jour ». */
 .hub-boite.vide { display: none; }
@@ -4222,8 +4251,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-boite-compte .a-jour { color: var(--encre-3); }
 .hub-msgs { display: flex; flex-direction: column; }
 .hub-msg { border: 1px solid transparent; border-bottom-color: var(--filet-2); border-left: 3px solid transparent; }
-/* Ouvert, il porte son fond : la photo de la scène ne passe plus derrière ses phrases (audit mobile, oct.). */
-.hub-msg:is(.ouvert, .bloque) { background: var(--fond-1); }
+.hub-msg.bloque { background: var(--fond-1); }
 .hub-msg.bloque { border-color: var(--mauvais); }
 .hub-msg-tete { width: 100%; display: flex; align-items: center; gap: var(--esp-3); min-height: 52px; padding: var(--esp-2) var(--esp-3); border: 0; background: none; color: var(--encre); text-align: left; transition: background var(--t-vite); }
 .hub-msg-tete:hover { background: var(--fond-2); }
@@ -4236,10 +4264,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-msg.bloque .hub-msg-etat { color: var(--mauvais); }
 /* Les rivaux cochés, avant le dernier, se lisent dans sa bande. */
 .hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.hub-msg-tete::after { content: "›"; flex: none; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); transition: transform var(--t-vite); }
-/* ON RÈGLE DANS LA BOÎTE (V18-5) : la ligne ouverte grossit son sujet et tourne sa flèche ; son corps suit. */
-.hub-msg.ouvert .hub-msg-tete::after { transform: rotate(90deg); }
-.hub-msg.ouvert .hub-msg-sujet { font: 800 var(--t-4)/1.15 var(--display); letter-spacing: 0.02em; -webkit-line-clamp: 3; }
+.hub-msg-tete::after { content: "›"; flex: none; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); }
 /* LES MAISONS DE LA BOÎTE (V12 — docs/refonte-v12.md) : ses lignes rangées sous la maison de leur sujet. */
 .af-maison + .af-maison { margin-top: var(--esp-3); }
 .af-maison-tete { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-1); color: var(--encre-2); }
@@ -4250,20 +4275,15 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .af-onglet { display: flex; flex-direction: column; gap: var(--esp-3); }
 /* Ce que le sous-onglet montre toujours (V12-2) : le mandat, la route, ton histoire, les blessés. */
 .af-fond { display: flex; flex-direction: column; gap: var(--esp-3); }
-.hub-msg-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
 .hub-msg-replique { font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.hub-msg-mot, .hub-msg-note { font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 /* LA SCÈNE (Jalon M) : la voix qui demande, sa réplique entre guillemets, le fait dessous — un filet d'or à gauche. */
 .scene { display: flex; flex-direction: column; gap: 2px; margin: 0; padding-left: var(--esp-3); border-left: 3px solid var(--or); }
 .scene-de { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .scene-mot { margin: 0; font-size: var(--t-3); line-height: 1.4; color: var(--encre); }
 .scene-fait { margin: 0; font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); font-variant-numeric: tabular-nums; }
-.hub-msg-note { color: var(--encre-3); }
-/* Les options d'un choix : le bouton `optionHtml`, serré, une colonne au téléphone. Une option › ouvre son écran (le combat, le
-   paquet, une liste) au lieu de se cocher. */
+/* Les plans du duel : le bouton `optionHtml`, serré, une colonne au téléphone. */
 .af-options { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
 @media (min-width: 700px) { .af-options { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); } }
-.af-option.ouvre .choix-option-nom::after { content: " ›"; color: var(--or); }
 .af-chiffres { align-self: center; }
 /* Une nouvelle d'Hier soir : la carte qui change, le vestiaire, les mouvements de l'alignement. */
 .hub-situ, .hub-mouvements { display: flex; flex-direction: column; gap: var(--esp-2); }

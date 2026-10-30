@@ -326,7 +326,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus, 31, ligue);
   // Le coach du jour 0 de chaque saison (js/banc.js) : son expérience d'avant, ses talents, son staff.
-  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], adjoints: [...etat.perso.adjoints] } }];
+  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], adjoints: [...etat.perso.adjoints], ...(etat.perso.staff ? { staff: [...etat.perso.staff] } : {}) } }];
   // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
   const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, (etat.galons && etat.galons.get(getPlayerKey(p))) || 0)]).filter(([, n]) => n > 0));
   if (Object.keys(galons).length) decisions.push({ jour: 0, galons, report: true });
