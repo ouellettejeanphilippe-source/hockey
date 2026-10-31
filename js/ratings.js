@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 30;
+export const RATINGS_VERSION = 31;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 const CAP_REF = 95_500_000;

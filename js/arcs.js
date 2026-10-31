@@ -52,6 +52,7 @@ export const DEFIS = {
   points: { un: 'point', des: 'points', min: 5, reel: p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 0), recompense: 'defi_points' },
   tirs: { un: 'tir', des: 'tirs', min: 18, reel: p => (p.sh || 0) / Math.max(1, p.gp || 0), recompense: 'defi_tirs' },
   coups: { un: 'mise en échec', des: 'mises en échec', min: 4, recompense: 'defi_coups' },
+  blocs: { un: 'tir bloqué', des: 'tirs bloqués', min: 6, recompense: 'defi_blocs' },
   bagarres: { un: 'bagarre gagnée', des: 'bagarres gagnées', min: 2, recompense: 'defi_bagarres' },
   pm: { un: 'au différentiel', des: 'au différentiel', min: 4, recompense: 'defi_pm' },
   arrets: { gardien: true, departs: 5, recompense: 'defi_arrets' },
@@ -64,6 +65,7 @@ function dansLaFeuille(e, p, stat) {
   if (stat === 'points') return f.buts.filter(b => b.marqueur === p || (b.passeurs || []).includes(p)).length;
   if (stat === 'tirs') return (f.lancers || []).filter(l => l.tireur === p).length;
   if (stat === 'coups') return (f.physique || []).filter(x => x.type === 'coup' && x.joueur === p).length;
+  if (stat === 'blocs') return (f.physique || []).filter(x => x.type === 'bloc' && x.joueur === p).length;
   if (stat === 'bagarres') return (f.physique || []).filter(x => x.type === 'bagarre' && (x.gagnant === 'A' ? x.joueur : x.gagnant === 'B' ? x.cible : null) === p).length;
   return 0;
 }
@@ -252,6 +254,16 @@ export const ARCS = {
     ],
     suite: finDuDefi,
   },
+  bouclier: {
+    titre: 'Le bouclier', famille: 'joueur',
+    debut: f => (f.bouclier ? { p: f.bouclier.p, n: f.bouclier.n } : null),
+    defi: (x, f) => poserDefi('blocs', x.p, f.journal, FEU),
+    episodes: [
+      { de: 'en', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.n, 'tir bloqué')} par ${x.p.n} hier soir. Il se jette devant tout ce qui bouge, et le gardien respire.`, effet: { defense: 0.88, blessure: 1.15 }, matchs: FEU },
+      verdict('ph', { defense: 1.1 }),
+    ],
+    suite: finDuDefi,
+  },
   bagarreur: {
     titre: 'Les poings', famille: 'joueur',
     debut: f => (f.bagarreur ? { p: f.bagarreur.p, adv: f.bagarreur.adv } : null),
@@ -375,12 +387,15 @@ function faitsDuMatin(t, jour) {
   const bag = phys.find(x => x.type === 'bagarre' && habilles.includes(gagnantDe(x)));
   const parJoueur = (liste, cle) => { const m = new Map(); for (const x of liste) { const q = cle(x); if (habilles.includes(q)) m.set(q, (m.get(q) || 0) + 1); } return [...m].sort((a, b) => b[1] - a[1])[0] || null; };
   const fr = parJoueur(phys.filter(x => x.type === 'coup'), x => x.joueur);
+  // Le bouclier (oct. 2026) : le patineur qui a bloqué le plus de lancers hier soir, cinq au moins.
+  const bq = parJoueur(phys.filter(x => x.type === 'bloc'), x => x.joueur);
   const tirsHier = fd ? parJoueur((fd.lancers || []).filter(l => !fd.buts.some(b => b.marqueur === l.tireur)), l => l.tireur) : null;
   const defenseurs = habilles.filter(p => p.p === 'D' || p.p === 'LD' || p.p === 'RD').sort((a, b) => (b.simPM || 0) - (a.simPM || 0));
   return {
     club: t, journal: j,
     bagarreur: bag ? { p: gagnantDe(bag), adv: gagnantDe(bag) === bag.joueur ? bag.cible : bag.joueur } : null,
     frappeur: fr && fr[1] >= 3 ? { p: fr[0], n: fr[1] } : null,
+    bouclier: bq && bq[1] >= 5 ? { p: bq[0], n: bq[1] } : null,
     mitraille: tirsHier && tirsHier[1] >= 6 ? { p: tirsHier[0], n: tirsHier[1] } : null,
     verrou: dernier && dernier.win && dernier.ga <= 1 && defenseurs[0] && (defenseurs[0].simPM || 0) > 0 ? { p: defenseurs[0], ga: dernier.ga } : null,
     matchs: j.length, dernier, dernierJour,

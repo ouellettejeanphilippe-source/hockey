@@ -5,7 +5,7 @@
 ## Fait
 
 - **Fondations** (F1 à F7) : modules ES natifs sans build, cotes normalisées par saison, courbe salariale, alignement de 23, simulation calibrée.
-- **Données** (D1 à D9, M1) : 56 shards par saison depuis l'API LNH (55 au jeu, la saison en cours attend ses 41 matchs), chargeur trois niveaux avec IndexedDB, Action `build-data.yml` (la saison en cours chaque lundi), salaires réels, unités spéciales par patineur et par club depuis 1977-78 ; le temps de glace inféré avant 1997-98 (oct. 2026, `scripts/inferer_glace.mjs`).
+- **Données** (D1 à D9, M1) : 56 shards par saison depuis l'API LNH (55 au jeu, la saison en cours attend ses 41 matchs), chargeur trois niveaux avec IndexedDB, Action `build-data.yml` (la saison en cours chaque lundi), salaires réels, unités spéciales par patineur et par club depuis 1977-78 ; le temps de glace inféré avant 1997-98 (oct. 2026, `scripts/inferer_glace.mjs`) ; les revirements et les punitions tirées (2005-06+, 2009-10+) ; les mises en échec, les blocs et les punitions tirées estimés avant leur collecte comme des poids du moteur (`zGeste`, `scripts/inferer_gestes.mjs`), les blocs comptés dans la feuille, les punitions tirées jouées, les départs de qualité (31 oct., MOTEUR.md § 4.8).
 - **Jeu** (J1 à J9, les sprints S7 à S80) : roulette, vestiaire et loto, saison au jour le jour, séries match par match, gros matchs, mode Rogue, Sur table, exhibition, packs, cartable, album.
 - **La 1.0** (28 septembre au 15 octobre 2026) : livrée — les cases de `LIVRAISON.md`, jalons 0 à 5, `v1.0.0`, l'APK.
 - **Les refontes V3 à V21** (octobre 2026, `docs/refonte-v*.md`) : le Rogue refait — les fils et la lancée (V3), la boîte où tout se règle (V4), le duel en trois périodes et les plans (V9, V13, V17), le jeu de cartes neuf et les moments (V10), une maison par sujet (V12), les histoires du lundi (V20), le coach-personnage, ses pouvoirs et son staff d'adjoints (V21), l'affinité à la place des systèmes de ligne (V18), les cotes sur 20 et l'hexagone (27 au 30 oct.).
@@ -18,7 +18,7 @@ Une ligne chacun. Ce qui est engagé vit dans `LIVRAISON.md` ; le reste attend l
 - [ ] **S2** — Mode deux joueurs : repêchage en alternance, puis série 4 de 7.
 - [ ] **S5** — Étendre avant 1970 (le +/- manque avant les années 1960 ; le temps de glace s'infère maintenant).
 - [ ] **S8** — Vrais classements pour `check_ratings.mjs` (Hockey Databank).
-- [ ] **Inférer le reste** de ce que les vieilles saisons ne comptaient pas : les mises en échec et les tirs bloqués avant 2005-06 (la carrure seule les devine aujourd'hui), la possession par joueur (à ajouter d'abord depuis l'API pour les saisons récentes). Même méthode que le temps de glace : ajuster sur les saisons mesurées, éprouver en retenue, un canal du moteur qui existe. Pas les mises au jeu ni le clutch tant que le moteur ne les joue pas.
+- [ ] **La possession par joueur** : les vols et les revirements sont dans les shards (2005-06+) et à la fiche, mais la possession se lit au club ; un canal par joueur serait une mécanique neuve, à mesurer en paires avant. Pas les mises au jeu ni le clutch tant que le moteur ne les joue pas.
 - [ ] `check_profondeur` : rouge tant que la première Coupe arrive avant la run 3, ou qu'après elle l'attentif gagne d'office (docs/refonte-v9.md § 21).
 
 ## Décisions prises

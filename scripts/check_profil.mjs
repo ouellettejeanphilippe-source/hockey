@@ -88,8 +88,9 @@ exiger('buts pour et contre = les buts recomptés un à un', pres(P.butsPour, mo
 exiger('punitions = celles de ton club, recomptées', pres(P.punitions, moy(r => r.pun)), P.punitions.toFixed(2));
 exiger('mises en échec = les coups de la feuille (attendus, pas comptés un à un)', pres(P.coups, moy(r => r.coups)), P.coups.toFixed(1));
 exiger('le rythme est la somme des tirs des deux clubs', pres(P.rythme, P.tirsPour + P.tirsContre), P.rythme.toFixed(2));
-// Le « 10 derniers » dépend du côté : un match à domicile et un match chez l'autre s'additionnent pareil.
-exiger('chaque match se lit du bon côté', derniers.every(m => { const c = m.A === toi ? 'A' : 'B'; const x = chiffresDuMatch(m.f, c); return x.butsPour === (c === 'A' ? m.f.gfA : m.f.gfB); }));
+// Le « 10 derniers » dépend du côté : un match à domicile et un match chez l'autre s'additionnent pareil. Le but des
+// tirs de barrage (V19) n'est à personne : il fait gagner sans compter pour le club.
+exiger('chaque match se lit du bon côté', derniers.every(m => { const c = m.A === toi ? 'A' : 'B'; const x = chiffresDuMatch(m.f, c); return x.butsPour === (c === 'A' ? m.f.gfA : m.f.gfB) - (m.f.fusillade && m.f.fusillade.gagnant === c ? 1 : 0); }));
 
 // 2. Toute la saison jouée : les buts du profil refont la fiche du club.
 jouerJusqua(L, 200);

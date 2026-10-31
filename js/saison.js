@@ -375,7 +375,7 @@ function onglets(barre, volet, liste, rendre) {
    a déjà vu.
    ===================================================================== */
 
-const VIDE = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0 };
+const VIDE = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0, toi: 0, coups: 0, blocs: 0, gwg: 0, dq: 0 };
 
 /*
  * Les colonnes : lire (`v`), écrire (`fmt`), trier. `bas` dit que le
@@ -383,6 +383,9 @@ const VIDE = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0
  */
 const COL_PAT = [
   { cle: 'gp', t: 'PJ', v: c => c.gp },
+  // Oct. 2026 : ce que les feuilles comptent de plus — les minutes, les mises en échec, les blocs, les buts gagnants.
+  // Une saison lue des fiches du moteur (`compteDeFiches`) ne les a pas : « — ».
+  { cle: 'tg', t: 'TG', v: c => (c.toi == null ? null : c.gp ? c.toi / c.gp : 0), fmt: x => (x == null ? '—' : x.toFixed(1)) },
   { cle: 'b', t: 'B', v: c => c.g },
   { cle: 'a', t: 'A', v: c => c.a },
   { cle: 'pts', t: 'PTS', v: c => c.pts, heros: true },
@@ -390,6 +393,9 @@ const COL_PAT = [
   { cle: 'sh', t: 'T', v: c => c.sh },
   { cle: 'pct', t: '%T', v: c => (c.sh ? 100 * c.g / c.sh : 0), fmt: x => x.toFixed(1) },
   { cle: 'pim', t: 'PUN', v: c => c.pim },
+  { cle: 'ht', t: 'MÉ', v: c => (c.coups == null ? null : c.coups), fmt: x => (x == null ? '—' : x) },
+  { cle: 'blocs', t: 'BL', v: c => (c.blocs == null ? null : c.blocs), fmt: x => (x == null ? '—' : x) },
+  { cle: 'bg', t: 'BG', v: c => (c.gwg == null ? null : c.gwg), fmt: x => (x == null ? '—' : x) },
 ];
 const COL_GAR = [
   { cle: 'gp', t: 'PJ', v: c => c.gp },
@@ -398,6 +404,7 @@ const COL_GAR = [
   { cle: 'arr', t: '%ARR', v: c => c.sv / Math.max(1, c.sa), fmt: pct3 },
   { cle: 'mba', t: 'MBA', v: c => c.ga / Math.max(1, c.gp), fmt: x => x.toFixed(2), bas: true },
   { cle: 'bl', t: 'BL', v: c => c.bl },
+  { cle: 'dq', t: 'DQ', v: c => (c.dq == null ? null : c.dq), fmt: x => (x == null ? '—' : x) },
 ];
 
 /** Le tri par défaut d'une colonne : du plus grand au plus petit, sauf la MBA. */
@@ -432,9 +439,9 @@ function compteDeFiches(teams) {
     if (!p) return;
     compte.set(p, p.p === 'G'
       ? { g: 0, a: 0, pts: 0, gp: p.simGP || 0, w: p.simW || 0, l: (p.simL || 0) + (p.simOTL || 0),
-          sa: p.simSA || 0, sv: p.simSV || 0, ga: p.simGA || 0, bl: p.simSO || 0, pm: 0, sh: 0, pim: 0 }
+          sa: p.simSA || 0, sv: p.simSV || 0, ga: p.simGA || 0, bl: p.simSO || 0, pm: 0, sh: 0, pim: 0, dq: null }
       : { g: p.simG || 0, a: p.simA || 0, pts: p.simPTS || 0, gp: p.simGP || 0, w: 0, l: 0,
-          sa: 0, sv: 0, ga: 0, bl: 0, pm: p.simPM || 0, sh: p.simSH || 0, pim: p.simPIM || 0 });
+          sa: 0, sv: 0, ga: 0, bl: 0, pm: p.simPM || 0, sh: p.simSH || 0, pim: p.simPIM || 0, toi: null, coups: null, blocs: null, gwg: null });
   };
   for (const t of teams) { for (const s of SLOTS) pose(t.roster[s.i]); pose(t.rappelG); }
   return compte;

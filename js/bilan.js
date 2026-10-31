@@ -1359,8 +1359,9 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
     const punitions = (f.punitions || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'punition' }));
     // Les blessures du soir (S80), au même moment que le direct les a racontées.
     const blessures = (f.blessures || []).filter(x => periodeDe(x.instant) === per).map(x => ({ ...x, type: 'blessure' }));
-    // Le jeu physique (1.0) : coups marquants, bagarres, mêlées, aux mêmes instants que le direct.
-    const physique = (f.physique || []).filter(x => periodeDe(x.instant) === per);
+    // Le jeu physique (1.0) : coups marquants, bagarres, mêlées, aux mêmes instants que le direct. Les blocs (oct. 2026)
+    // ne se racontent pas un à un : ils sont dans la feuille complète, dessous.
+    const physique = (f.physique || []).filter(x => periodeDe(x.instant) === per && (x.type === 'coup' || x.type === 'bagarre' || x.type === 'melee'));
     if (!buts.length && per === 4) return '';
     const items = [...buts, ...punitions, ...blessures, ...physique].sort((x, y) => x.instant - y.instant);
     const lignes = items.map(b => {
@@ -1415,6 +1416,32 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   const gard = (g, arrets, tirs, t) => g
     ? `<div class="som-gard"><span>${lienJoueur(g, t, mode)}</span><span>${arrets} arrêts sur ${tirs}</span></div>`
     : '';
+  /*
+   * LA FEUILLE DE MATCH COMPLÈTE (oct. 2026 ; JP : *rendre visible ce qu'on compte*). Les patineurs des deux clubs, ce
+   * que la feuille compte de chacun ce soir-là : ses minutes, ses buts, ses passes, ses points, son +/−, ses tirs, ses
+   * mises en échec, ses blocs, ses punitions. Comptés des événements de cette feuille seule (`compterFeuilles`), au
+   * caractère près les mêmes que le direct. Une feuille d'avant (sans `alignes`) n'en a pas.
+   */
+  const feuilleDuMatch = () => {
+    if (!f.alignes || !f.alignes.A || !f.alignes.B) return '';
+    const cpt = compterFeuilles([f]);
+    const estDef = p => p.p === 'D' || p.p === 'LD' || p.p === 'RD';
+    const table = (cote, t) => {
+      const minutes = (f.minutes && f.minutes[cote]) || {};
+      const rangs = (f.alignes[cote] || []).map(p => ({ p, c: cpt.get(p) || {}, tg: minutes[getPlayerKey(p)] || 0 }))
+        .sort((x, y) => (estDef(x.p) - estDef(y.p)) || (y.tg - x.tg));
+      const td = v => `<td>${v}</td>`;
+      return `<div class="som-feuille-club" style="${varsEquipe(getTeamBand(t.tag))}">${getTeamLogoHtml(t.tag, 15)} <b>${esc(teamShort(t))}</b></div>
+        <div class="jr-scroll"><table class="jr-table som-feuille-table">
+          <thead><tr><th class="jr-col-nom">Joueur</th><th>TG</th><th>B</th><th>A</th><th>PTS</th><th>+/−</th><th>T</th><th>MÉ</th><th>BL</th><th>PUN</th></tr></thead>
+          <tbody>${rangs.map(({ p, c, tg }) => `<tr${estDef(p) ? ' class="som-feuille-def"' : ''}><td class="jr-col-nom">${lienJoueur(p, t, mode, esc(formatName(p.n)))}</td>${td(tg ? tg.toFixed(1) : '—')}${td(c.g || 0)}${td(c.a || 0)}${td(c.pts || 0)}${td(pmMatch(c.pm || 0, 1))}${td(c.sh || 0)}${td(c.coups || 0)}${td(c.blocs || 0)}${td(c.pim || 0)}</tr>`).join('')}</tbody>
+        </table></div>`;
+    };
+    return `<div class="som-per som-feuille">
+      <div class="som-per-head"><span>La feuille</span><span class="som-tirs">patineurs · glisse pour tout voir</span></div>
+      ${table('A', A)}${table('B', B)}
+    </div>`;
+  };
 
   /* Le titre ne répète pas le pointage : les deux lignes juste dessous le
      donnent, avec les écusson et les tirs. Trois lignes de titre sur un
@@ -1439,7 +1466,8 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       <div class="som-per-head"><span>Gardiens</span><span class="som-tirs">${esc(pied)}</span></div>
       ${gard(f.gardienA, f.arrets.A, tirsB, A)}
       ${gard(f.gardienB, f.arrets.B, tirsA, B)}
-    </div>`;
+    </div>
+    ${feuilleDuMatch()}`;
   // AU BUREAU, UNE PAGE DU CLUB (1.0, R3) ; ailleurs (le bilan, le calendrier de la Ligue), la fenêtre.
   const hub = hubActif();
   if (hub && hub.ouvrirPage && document.body.dataset.zone === 'hub') {

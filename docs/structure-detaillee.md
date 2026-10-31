@@ -51,7 +51,8 @@ La liste, une ligne par module, est dans CLAUDE.md (« Structure »). Trois d'en
 ```
 scripts/build_shards.py     aspire l'API LNH, écrit data/seasons/<saison>.json, data/index.json et data/seed.json ;
                             --rerate = l'étage 2 sans API (puis index et seed) ; --bios-only = dates de
-                            naissance, tailles et poids ; --gestes-only = tirs bloqués, vols, type de tir ;
+                            naissance, tailles et poids ; --gestes-only = tirs bloqués, vols, revirements,
+                            punitions tirées, type de tir (2005-06+) ;
                             --refresh-current = la saison en cours ; --seed-only = le filet
 scripts/rate.mjs            pont Node vers js/ratings.js (étage 1 + 2) pour une saison
 scripts/rerate.mjs          l'étage 2 sur les shards existants : le temps de glace inféré, la valeur, les salaires
@@ -78,6 +79,8 @@ scripts/planche_cartes.mjs  les planches des cartes : toutes les séries, toutes
 ```
 scripts/inferer_glace.mjs   le temps de glace inféré d'avant 1997-98 : ajuste sur 2010-2025, éprouve en retenue
                             sur 1997-2005, juge les coefficients du jeu (GLACE_INFEREE, js/ratings.js)
+scripts/inferer_gestes.mjs  les mises en échec, les tirs bloqués et les punitions tirées estimés en écart réduit
+                            (GESTES_ESTIMES, js/sim.js) : ajuste sur 2015-2025, éprouve en retenue sur 2005-2012
 scripts/check_familles.mjs  le calage du profil en quatre familles (PROFIL_FAMILLES, js/sim.js) ; dans tout.mjs
 scripts/badges_calibre.mjs  les seuils des paliers de badge et le badge moyen de la ligue
 scripts/roles_calibre.mjs   le décalage de chaque rôle (DECALAGE_ROLES, js/sim.js)
@@ -136,6 +139,7 @@ check_positions         les positions multiples réelles
 check_empreinte         l'empreinte du moteur (scripts/empreinte.json ; EMPREINTE=ecrire la range)
 check_familles          le calage des familles
 check_galons            graver : les galons, le panthéon
+check_gestes            les gestes dans la feuille : les blocs, les punitions tirées, les départs de qualité, le compte
 check_css               une définition par composant
 ```
 
@@ -191,7 +195,9 @@ lib/paquet.mjs              la pile d'un paquet, traversée comme un joueur (ess
 data/seasons/<saison>.json  un shard par saison : season, minGP, v (RATINGS_VERSION), an (les unités spéciales
                             par club depuis 1977-78), players (une entrée par joueur et par club ; les colonnes de
                             l'API, le coffre o d r c sp v, le salaire, l'archétype ak, les zones lz et zd, le
-                            temps de glace toi — inféré avant 1997-98, marqué toiE)
+                            temps de glace toi — inféré avant 1997-98, marqué toiE —, et depuis 2005-06 les
+                            mises en échec ht, blocs bl, vols tk, revirements gv, depuis 2009-10 les punitions
+                            tirées pd, depuis 2009-10 le type de tir ts)
 data/index.json             les saisons au jeu (41 matchs joués au moins) et les 44 équipes
 data/seed.json              le filet hors ligne du Web : dix saisons, hors de l'APK
 data/salaries/<saison>.json salaires réels publiés (playerId → $ de l'époque), facultatif ; sources/ et README.md
