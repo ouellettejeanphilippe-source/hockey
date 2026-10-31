@@ -2,9 +2,10 @@
  * CE QUE LES ROBOTS FONT DU COACH-PERSONNAGE (V21, docs/refonte-v21.md). Le coach d'une run a ses pouvoirs et son
  * staff ; le robot, comme le gérant, choisit ses talents, ses adjoints et ses réponses aux histoires. Selon la politique
  * (scripts/lib/rogue_sim.mjs) :
- *   - l'attentif lit : le talent va au pouvoir qui a le plus joué ; l'adjoint, le bras droit de son coach d'abord (la
- *     synergie, js/adjoints.js), puis dans l'ordre de ce que les échanges rendent en moyenne (`PREFERE`, mesuré par
- *     check_pouvoirs), et ses trois meilleurs en poste, son bras droit d'abord ; à une
+ *   - l'attentif lit : le talent va au pouvoir qui a le plus joué ; l'adjoint, celui dont l'échange rend le plus à SON
+ *     effectif, lu au moteur (`fit`, scripts/lib/rogue_sim.mjs `fitDAdjoint` ; 31 oct. 2026 — avant, l'ordre moyen
+ *     `PREFERE` et le bras droit d'abord, et depuis la V21 il ne battait plus le robot d'avant), et ses trois meilleurs
+ *     en poste à la même lecture ; à une
  *     histoire, la réponse qui rend le plus, en conséquences concrètes (l'expérience, un adjoint, des jetons, des jambes) ;
  *   - le distrait clique au hasard, sur son propre générateur ;
  *   - le robot d'avant ('defaut') prend la première option de chaque écran : un gérant grossier, qui garde un coach.
@@ -68,11 +69,13 @@ function faitsDuRobot(L, you, jetons) {
 }
 
 /* L'ADJOINT D'UN MOMENT FORT (js/saison.js `adjointsDuMoment`) : un parmi trois, tirés de la graine. Rend la décision. */
-function adjointDuRobot({ you, graine, cle, politique, clic }) {
+function adjointDuRobot({ you, graine, cle, politique, clic, fit }) {
   const perso = persoDe(you);
   const offre = adjointsOfferts((perso || {}).adjoints, graine, cle, 3, coachDuJour(perso));
   if (!offre.length || !perso) return null;
-  const k = clic ? offre[Math.floor(clic() * offre.length)] : politique === 'defaut' ? offre[0] : offre.reduce((a, b) => (rangDe(b, perso.cle) < rangDe(a, perso.cle) ? b : a));
+  // L'attentif lit l'échange sur SON effectif (`fit`, scripts/lib/rogue_sim.mjs) ; sans lecture, l'ordre moyen d'avant.
+  const k = clic ? offre[Math.floor(clic() * offre.length)] : politique === 'defaut' ? offre[0]
+    : fit ? offre.reduce((a, b) => (fit(b) > fit(a) ? b : a)) : offre.reduce((a, b) => (rangDe(b, perso.cle) < rangDe(a, perso.cle) ? b : a));
   return { adjoint: { cle: k } };
 }
 /* La valeur d'une réponse d'histoire, en conséquences concrètes, pour l'attentif. */
@@ -88,7 +91,7 @@ function valeurDeReponse(o) {
  * sa main. Rend les décisions
  * à pousser au jour de la ligue. `etat` : ce que la saison retient (les dossiers ouverts, les paliers et les butins pris).
  */
-export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) {
+export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fit = null }) {
   const out = [];
   const auHasard = l => l[Math.floor(clic() * l.length)];
   const j = L.jour;
@@ -116,13 +119,13 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
   const pp = PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));
   if (pp !== undefined) {
     etat.paliers.add(pp);
-    const d = adjointDuRobot({ you, graine, cle: `pp${pp}`, politique, clic });
+    const d = adjointDuRobot({ you, graine, cle: `pp${pp}`, politique, clic, fit });
     if (d) out.push({ jour: j, palier: `pp:${pp}`, ...d });
   }
   // LE BUTIN D'UN GROS MATCH GAGNÉ : un adjoint parmi trois (js/saison.js `recompenseOuverte`).
   for (const mb of (you.minisBoss || []).filter(x => x.gagne && !etat.butins.has(x.jour))) {
     etat.butins.add(mb.jour);
-    const d = adjointDuRobot({ you, graine, cle: `r${mb.jour}`, politique, clic });
+    const d = adjointDuRobot({ you, graine, cle: `r${mb.jour}`, politique, clic, fit });
     if (d) out.push({ jour: j, palier: `r:${mb.jour}`, ...d });
   }
   // LE STAFF (la main d'adjoints, Bureau › Coach) : après les arrivées et les départs du jour, l'attentif met en poste ses
@@ -137,7 +140,8 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
     }
     const main = P.adjoints.filter(k => ADJOINTS[k]);
     const melange = l => { const m = [...l]; for (let i = m.length - 1; i > 0; i--) { const k = Math.floor(clic() * (i + 1)); [m[i], m[k]] = [m[k], m[i]]; } return m; };
-    const voulu = (clic ? melange(main) : [...main].sort((a, b) => rangDe(a, P.cle) - rangDe(b, P.cle))).slice(0, ADJOINTS_MAX);
+    // Le staff de l'attentif : les trois échanges qui rendent le plus à son effectif, lus au moteur (`fit`) ; sans lecture, l'ordre moyen.
+    const voulu = (clic ? melange(main) : fit ? [...main].sort((a, b) => fit(b) - fit(a)) : [...main].sort((a, b) => rangDe(a, P.cle) - rangDe(b, P.cle))).slice(0, ADJOINTS_MAX);
     const avant = staffDe(P);
     if (voulu.length !== avant.length || voulu.some(k => !avant.includes(k))) out.push({ jour: j, staff: voulu });
   }
@@ -153,11 +157,12 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
 
 /*
  * L'ENTRAÎNEUR DU DÉPART D'UNE RUN : le même loto de trois vraies cartes que le jeu (js/coachs-reels.js) ; l'attentif
- * prend celle de la couleur de son effectif, sinon la plus grande maîtrise ; le distrait n'importe laquelle ; le robot
- * d'avant la première. Rend la carte.
+ * prend celle que ses pouvoirs rendent le plus à son effectif (`fit`, scripts/lib/rogue_sim.mjs `fitDeCoach` ; la
+ * couleur de l'effectif, essayée, lui coûtait 1,6 V par saison) ; le distrait n'importe laquelle ; le robot d'avant la
+ * première. Rend la carte.
  */
-export function coachDuRobot(loto, { politique, clic, couleur }) {
+export function coachDuRobot(loto, { politique, clic, fit }) {
   if (clic) return loto[Math.floor(clic() * loto.length)];
-  if (politique === 'attentif') return loto.find(c => c.cle === couleur) || loto.reduce((a, b) => (b.maitrise > a.maitrise ? b : a));
+  if (politique === 'attentif' && fit) { const f = loto.map(fit); return loto[f.indexOf(Math.max(...f))]; }
   return loto[0];
 }

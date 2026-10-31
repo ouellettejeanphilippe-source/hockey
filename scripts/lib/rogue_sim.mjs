@@ -52,14 +52,15 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, retenirMatchsDuShard, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
-  batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup, PLANS, coachDuJoueur,
+  batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup, PLANS,
 } from '../../js/sim.js';
+import { BRAS_DROIT, ADJOINTS } from '../../js/adjoints.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, coachDuRobot } from './cartes_robot.mjs';
-import { niveauDuPerso } from '../../js/pouvoirs.js';
+import { niveauDuPerso, POUVOIRS, grandir } from '../../js/pouvoirs.js';
 import { lotoDesCoachs } from '../../js/coachs-reels.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
-import { alignementAuMieux, chiffresDuSoir, planEnChiffres } from '../../js/impact.js';
+import { alignementAuMieux, chiffresDuSoir, chiffresDuSoirSous, planEnChiffres } from '../../js/impact.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack } from '../../js/packs.js';
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
@@ -231,6 +232,15 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
 }
 
 export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
+/*
+ * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi —
+ * ce que l'attentif NE fait PAS dans cette mesure, pour trouver d'où vient son avance (ou son retard) sur le robot d'avant,
+ * un geste à la fois, sur les mêmes dés. ROBOT_COACH=essaim force la philosophie du coach de l'attentif, pour mesurer ce
+ * que chaque coach vaut à son club.
+ */
+const SAUF = new Set((process.env.ROBOT_SAUF || '').split(',').filter(Boolean));
+const attentifFait = quoi => !SAUF.has(quoi);
+const COACH_FORCE = process.env.ROBOT_COACH || null;
 /* L'attentif lit le moteur, l'affinité de ses lignes comprise (V18). */
 const auMieux = joueurs => alignementAuMieux(joueurs, { plan: true });
 /* Les buts nets par match d'un alignement, lus au moteur — sous un hasard à part : la saison ne bouge pas d'un dé. */
@@ -240,6 +250,124 @@ const lireNet = R => avecHasardIsole('robot', () => {
   const m = chiffresDuSoir(t, activeLineup(t));
   return m.butsPour - m.butsContre;
 });
+/*
+ * CE QU'UN ADJOINT RAPPORTE À CET EFFECTIF (31 oct. 2026 ; docs/decisions.md). Un adjoint est un échange, « ni cadeau ni
+ * piège » sur un club ordinaire (V21) : il paie quand l'échange va à ton club. L'attentif lisait pourtant ses adjoints
+ * dans un ordre fixe (`PREFERE`), et depuis la V21 il ne battait plus le robot d'avant (check_profondeur : +1,3 V au lieu
+ * des 6 à 7 d'avant). Il lit maintenant chaque échange SUR SON EFFECTIF : les buts nets d'un soir avec l'échange posé,
+ * moins sans (`chiffresDuSoirSous`, js/impact.js, les canaux du club et de l'adversaire) ; un entraîneur de gardiens se
+ * lit à la part du filet de ses deux gardiens (leurs matchs de leur vraie saison) et aux buts qu'il change. Le bras
+ * droit du coach vaut un peu plus que sa lecture : il grandit les trois pouvoirs de moitié, que la lecture ne joue pas.
+ */
+const BUTS_CONTRE_SOIR = 3, BRAS_DROIT_LU = 0.1;
+function fitDAdjoint(R, k, coach) {
+  const J = ADJOINTS[k];
+  if (!J) return -Infinity;
+  let fit;
+  if (J.gardiens) {
+    const G = Object.values(R).filter(p => p && p.p === 'G').sort((a, b) => v(b) - v(a));
+    const gp = p => (p && p.gp) || 0, total = gp(G[0]) + gp(G[1]);
+    const part = total ? gp(G[0]) / total : 0.75;
+    fit = -BUTS_CONTRE_SOIR * (part * (J.gardiens.partant - 1) + (1 - part) * (J.gardiens.aux - 1));
+  } else {
+    const net = effets => avecHasardIsole('robot', () => {
+      const t = createTeam('Lu', 'LU', R);
+      t.courbe = true;
+      const m = chiffresDuSoirSous(t, effets);
+      return m.butsPour - m.butsContre;
+    });
+    fit = net({ effets: J.effet ? [{ source: 'adjoint', ...J.effet }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - net({});
+  }
+  return fit + (J.voie === coach ? BRAS_DROIT_LU : 0);
+}
+/*
+ * LE COACH LU SUR TON CLUB (oct.). Mesuré (check_profondeur, quatre graines, huit clubs) : l'attentif qui prenait le
+ * coach de la couleur de son effectif, sinon le plus haut en maîtrise, perdait 1,6 V par saison sur le robot d'avant,
+ * qui prend la première carte ; forcé philosophie par philosophie, le Frelon lui rendait +6,5 V, les sept autres de
+ * +1,4 à +4,0. Il lit donc chaque carte du loto comme il lit un adjoint : chaque pouvoir, ses canaux posés sur son
+ * effectif à la maîtrise de la carte (`chiffresDuSoirSous`), le temps d'une période, sur chaque état du match où sa
+ * condition se lit — le pointage attendu de son club (Poisson sur ses buts pour et contre, la normale sur ses tirs), un
+ * soir sur deux à domicile, un sur cinq de dos-à-dos, un sur dix de gros match —, et chaque but qu'il ajoute ou retire
+ * compté à ce qu'il change aux chances de gagner DANS CET ÉTAT (un but à égalité en 3e vaut ; un but quand on mène de
+ * trois ne vaut rien : lu sans ce poids, l'Aigle sortait premier partout, le contraire de la mesure). Le premier pouvoir
+ * entier, le deuxième à moitié, l'ultime au quart : la run n'y arrive pas toujours.
+ */
+const PART_DOS_A_DOS = 0.2, PART_GROS = 0.1, BUTS_LUS = 8, NULLE = 0.75;
+const poisson = (l, n) => { let p = Math.exp(-l); for (let i = 1; i <= n; i++) p *= l / i; return p; };
+const normale = x => 1 / (1 + Math.exp(-1.702 * x));
+/* Les chances de gagner (une nulle après soixante minutes : NULLE) avant la période k, à moi-lui, sur les buts attendus par période lp et lc. */
+function chancesDeGagner(lp, lc) {
+  const pw = [];
+  for (let k = 0; k < 3; k++) {
+    pw[k] = [];
+    const a = lp * (3 - k), b = lc * (3 - k);
+    for (let moi = 0; moi <= BUTS_LUS + 1; moi++) {
+      pw[k][moi] = [];
+      for (let lui = 0; lui <= BUTS_LUS + 1; lui++) {
+        let w = 0;
+        for (let x = 0; x <= BUTS_LUS; x++) for (let y = 0; y <= BUTS_LUS; y++) { const d = moi + x - lui - y; if (d >= 0) w += poisson(a, x) * poisson(b, y) * (d > 0 ? 1 : NULLE); }
+        pw[k][moi][lui] = w;
+      }
+    }
+  }
+  return pw;
+}
+/*
+ * Ce que les pouvoirs d'une carte valent à ton club, en victoires par match : sur chaque état du match, ceux dont la
+ * condition se lit jouent ENSEMBLE (la ruée et le bourdonnement du Frelon se cumulent en 3e ; la riposte et le tueur
+ * de l'Aigle s'excluent), chacun ouvert à la chance de son niveau (`CHANCE_DU_NIVEAU`) ; les buts que le cumul ajoute
+ * (`pour`) et retire (`contre`) dans la période, lus par `delta(masque)`, pesés par ce qu'un but y change aux chances
+ * de gagner. Mesuré (check_pouvoirs) : seul, chaque pouvoir vaut de 1 à 2,5 V ; le personnage complet avec son bras
+ * droit, de 8,6 (la Tortue) à 16 (le Frelon) — c'est le cumul qui fait l'écart, pas un pouvoir.
+ */
+const CHANCE_DU_NIVEAU = [1, 0.5, 0.25], PART_BRAS_DROIT = 0.5;
+function valeurDesPouvoirs(Ps, m, delta) {
+  const lp = m.butsPour / 3, lc = m.butsContre / 3, mu = (m.tirsPour - m.tirsContre) / 3, sig = Math.sqrt((m.tirsPour + m.tirsContre) / 3);
+  const pw = chancesDeGagner(lp, lc);
+  let valeur = 0;
+  for (let k = 0; k < 3; k++) {
+    const menerAuxTirs = k ? normale(k * mu / (sig * Math.sqrt(k))) : 0, perdreLaPeriode = normale(-mu / sig);
+    for (const [soir, ps] of [[{ domicile: true }, 0.5], [{ visiteur: true }, 0.5]]) for (const [dos, pd] of [[true, PART_DOS_A_DOS], [false, 1 - PART_DOS_A_DOS]])
+      for (const [gros, pg] of [[true, PART_GROS], [false, 1 - PART_GROS]]) for (const [tirs, pt] of [[1, menerAuxTirs], [-1, 1 - menerAuxTirs]])
+        for (const [perdu, pp] of k ? [[true, perdreLaPeriode], [false, 1 - perdreLaPeriode]] : [[null, 1]])
+          for (let moi = 0; moi <= BUTS_LUS; moi++) for (let lui = 0; lui <= BUTS_LUS; lui++) {
+            const w = ps * pd * pg * pt * pp * poisson(lp * k, moi) * poisson(lc * k, lui);
+            if (w < 1e-6) continue;
+            const e = { k, moi, lui, tirsMoi: k ? 20 + tirs : 0, tirsLui: 20, der: perdu == null ? null : { moi: 0, lui: 0, tirsMoi: perdu ? 8 : 10, tirsLui: 9 }, series: false, gros, soir: { ...soir, dosADos: dos, jambesLourdes: dos } };
+            const actifs = Ps.map((P, p) => (P.quand(e) ? p : -1)).filter(p => p >= 0);
+            if (!actifs.length) continue;
+            const levier = d => (pw[k][moi + 1][lui] - pw[k][moi][lui]) * d.pour / 3 + (pw[k][moi][lui] - pw[k][moi][lui + 1]) * -d.contre / 3;
+            // Chaque sous-ensemble des actifs, à la chance que ces niveaux-là soient ouverts et pas les autres.
+            for (let t = 1; t < 1 << actifs.length; t++) {
+              let chance = 1, masque = 0;
+              actifs.forEach((p, i) => { const ouvert = t & (1 << i); chance *= ouvert ? CHANCE_DU_NIVEAU[p] : 1 - CHANCE_DU_NIVEAU[p]; if (ouvert) masque |= 1 << p; });
+              valeur += w * chance * levier(delta(masque));
+            }
+          }
+  }
+  return valeur;
+}
+function fitDeCoach(R, carte) {
+  const Ps = POUVOIRS[carte.cle] || [];
+  // La force lue : la maîtrise de la carte, et son bras droit en poste une run sur deux.
+  const f = (carte.maitrise || 1) * (1 + BRAS_DROIT * PART_BRAS_DROIT);
+  const lire = effets => avecHasardIsole('robot', () => {
+    const t = createTeam('Lu', 'LU', R);
+    t.courbe = true;
+    return chiffresDuSoirSous(t, effets);
+  });
+  const base = lire({}), lus = new Map();
+  const delta = masque => {
+    if (!lus.has(masque)) {
+      const effets = [], effetsAdv = [];
+      Ps.forEach((P, p) => { if (!(masque & (1 << p))) return; if (P.effet) effets.push({ source: 'pouvoir', ...grandir(P.effet, f) }); if (P.adv) effetsAdv.push({ source: 'pouvoir', ...grandir(P.adv, f) }); });
+      const m = lire({ effets, effetsAdv });
+      lus.set(masque, { pour: m.butsPour - base.butsPour, contre: m.butsContre - base.butsContre });
+    }
+    return lus.get(masque);
+  };
+  return valeurDesPouvoirs(Ps, base, delta);
+}
 /* Les clics du distrait : un générateur à lui (null pour les deux autres). Les meilleurs d'abord, ou dans le désordre. */
 const melanger = (l, clic) => l.map(x => [clic(), x]).sort((a, b) => a[0] - b[0]).map(y => y[1]);
 const meilleursDabord = (l, clic, f = x => x) => (clic ? melanger(l, clic) : l.slice().sort((a, b) => v(f(b)) - v(f(a))));
@@ -310,14 +438,12 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // l'autre, son expérience, ses talents et son staff continuent (`etat.perso`, comme au jeu).
   const ouverts = coachsOuverts(rangDePrestige(meta));
   if (!etat.perso) {
-    const couleurs = {};
-    for (const p of Object.values(etat.roster)) { const c = p && coachDuJoueur(p); if (c) couleurs[c] = (couleurs[c] || 0) + v(p); }
-    const couleur = Object.entries(couleurs).sort((a, b) => b[1] - a[1])[0];
-    const c = coachDuRobot(lotoDesCoachs(COACHS_REELS, ouverts, `rogue80:${graine}:chef`), { politique, clic, couleur: couleur && couleur[0] });
+    const c = attentif && COACH_FORCE ? lotoDesCoachs(COACHS_REELS, [COACH_FORCE], `rogue80:${graine}:chef`, 1)[0]
+      : coachDuRobot(lotoDesCoachs(COACHS_REELS, ouverts, `rogue80:${graine}:chef`), { politique: attentif && !attentifFait('coach') ? 'defaut' : politique, clic, fit: carte => fitDeCoach(etat.roster, carte) });
     etat.perso = { cle: c.cle, xp: 0, talents: [], adjoints: [], chef: { id: c.id, n: c.n, saison: c.saison, tag: c.tag }, maitrise: c.maitrise };
   }
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
-  const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux) : etat.roster;
+  const roster = attentif && attentifFait('aumieux') ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux) : etat.roster;
   const masse0 = masseDe(roster);
   // LE VRAI PLAFOND (oct., js/rogue-jeu.js `plafondDeDepart` en `reel`) : celui de la LNH et les déblocages ; une masse plus
   // lourde garde son espace (V9, tranche 4).
@@ -337,7 +463,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
    * LE DUEL (V9, tranche 5, scripts/lib/duel.mjs) : l'attentif lit chaque intention et y répond ; le distrait clique au
    * hasard ; le robot d'avant ne répond à rien. Sans main depuis la V13-2. `mains: false`, aucun : ni geste ni tableau.
    */
-  if (mains && (attentif || clic)) you.robotDuel = robotDuel(attentif ? 'attentif' : 'distrait', clic || undefined);
+  if (mains && ((attentif && attentifFait('duel')) || clic)) you.robotDuel = robotDuel(attentif ? 'attentif' : 'distrait', clic || undefined);
   const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
@@ -360,7 +486,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const plans = new Map();
   let planPose = 'match';
   while (!L.fini) {
-    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique, clic, jetons: jetons(), etat: etatCartes })) {
+    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes,
+      fit: attentif && attentifFait('fit') ? k => fitDAdjoint(you.roster, k, etat.perso.cle) : null })) {
       decisions.push(d);
       depense -= d.gain || 0;
     }
@@ -395,12 +522,13 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
         if (sort === x.p) continue;
         if (masseDe(actuel) - (sort ? sort.$ || 0 : 0) + (x.p.$ || 0) > cap) continue;
         // Une case de réserve libre (débloquée) : il entre sans que personne sorte — ça vaut un peu de profondeur.
-        const gain = attentif ? lireNet(r) - net0 + (sort ? 0 : 0.01) : valeurAlignement(r) - valeur0 + (sort ? 0 : 0.6);
-        if (gain > (attentif ? 0.01 : 0.5) && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
+        const auNet = attentif && attentifFait('net');
+        const gain = auNet ? lireNet(r) - net0 + (sort ? 0 : 0.01) : valeurAlignement(r) - valeur0 + (sort ? 0 : 0.6);
+        if (gain > (auNet ? 0.01 : 0.5) && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
       }
       if (meilleur) {
         const { x, sort } = meilleur;
-        const r = attentif ? ranger(Object.values(meilleur.r).filter(Boolean), nRes, auMieux) : meilleur.r;
+        const r = attentif && attentifFait('aumieux') ? ranger(Object.values(meilleur.r).filter(Boolean), nRes, auMieux) : meilleur.r;
         variantes.set(getPlayerKey(x.p), x.rar);
         poser(x.p); connaitre(x.p);
         dansLaLigue.add(getPersonKey(x.p));
@@ -459,6 +587,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
  */
 function planDuRobot(L, you, plans, attentif, clic) {
   const m = (L.calendrier[L.jour] || []).find(x => x.A === you || x.B === you);
+  if (attentif && !attentifFait('plan')) return undefined;
   if (!m || (!attentif && !clic)) return undefined;
   const cles = Object.keys(PLANS);
   if (clic) return cles[Math.floor(clic() * cles.length)];
