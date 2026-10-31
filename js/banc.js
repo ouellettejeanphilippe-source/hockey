@@ -609,15 +609,17 @@ export async function runSeason(opts = {}) {
   await new Promise(r => setTimeout(r, 20));
 
   let opponents = [];
-  // LA LIGUE QUI MONTE (V9, tranche 8, js/rogue.js `ligueDe`) : en Rogue, son niveau suit le prestige et les exigences de la run.
+  // LA LIGUE QUI MONTE (V9, tranche 8, js/rogue.js `ligueDe`) : en Rogue, son niveau suit le prestige et les exigences de la run,
+  // et dès la deuxième run, l'étape de plus fixée à son départ (`etapeDeRun`, 31 oct.).
   const niveau = G.bonus === 'ROGUE' && G.rogue ? niveauDeLigue(G.rogue.prestige || 0, G.rogue.exigence || 0) : 0;
+  const etapeDeRun = G.bonus === 'ROGUE' && G.rogue ? G.rogue.etapeDeRun || 0 : 0;
   if (opts.adversaires) {
     opponents = opts.adversaires.map(a => createTeam(a.name, a.tag, a.roster, { season: a.season, ecole: a.ecole || [] }));
   } else {
     try { opponents = await buildOpponents(31); } catch { opponents = []; }
   }
   // Leurs cartes : les éditions de la ligue en Rogue, aucune ailleurs (une ligue d'avant n'en laisse pas).
-  habillerLaLigue(opponents, niveau, p => getHiddenRatings(p).v);
+  habillerLaLigue(opponents, niveau, p => getHiddenRatings(p).v, etapeDeRun);
   // TU ES LA 33e ÉQUIPE. Une saison fixée met dans la ligue TOUS ses vrais
   // clubs, et la tienne par-dessus : trente-trois en 2024-25, vingt-deux en
   // 1985-86. C'était le club le plus faible qui cédait sa place pour garder

@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
+import { lireMeta, etapeDeLaRun, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './banque.js';
@@ -946,6 +946,7 @@ async function gardesDeLaRunDavant(meta) {
  */
 export async function ouvrirRogue() {
   const meta = lireMeta();
+  const run = (meta.runs || 0) + 1;
   const R = gardesDeLaDerniere(meta);
   const D = departDuClasseur(meta);
   const nCartable = Object.keys(lireCartable().joueurs).length;
@@ -954,7 +955,7 @@ export async function ouvrirRogue() {
   // La ligue qui monte (tranche 8) : ton prestige la règle, chaque cran la monte ; le départ la dit.
   const rangRun = rangDePrestige(meta);
   const crans = Array.from({ length: ouvertes }, (_, i) => i + 1).map(n => ({ cle: `e${n}`, ico: ICO_EXIGENCE, nom: `Exigence ${n} : ${EXIGENCES[n - 1].nom}`,
-    sous: `Ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, n))}`,
+    sous: `Ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, n), 23, etapeDeLaRun(run))}`,
     bon: `${Math.round(100 * PRIME_EXIGENCE * n)} % de médailles de plus`, prix: `${EXIGENCES[n - 1].texte}${n > 1 ? ', en plus des précédentes' : ''}` }));
   const go = await new Promise(resolve => ouvrirChoix({
     ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant', compact: crans.length > 2,
@@ -965,7 +966,7 @@ export async function ouvrirRogue() {
         meta.vedette ? '★ ton joueur de concession' : '', nCartable && D.n ? `📒 ton classeur : ${motDesCases(D.cases)}` : '',
         `🛒 ${BOUTIQUE.filter(k => packsOuverts(meta)[k] === true).length} packs ouverts à la boutique sur ${BOUTIQUE.length}`,
         R.cases.length && (meta.derniereEquipe || []).length ? `🤝 ta dernière équipe : ${motDesCases(R.cases)}` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
-        `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0))}`].filter(Boolean).join(' · '),
+        `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0), 23, etapeDeLaRun(run))}`].filter(Boolean).join(' · '),
       sous: meta.runs ? `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` : '' }, ...crans],
     onChoix: cle => resolve(cle === 'go' ? 0 : Number(String(cle).slice(1))),
     onFerme: () => resolve(false),
@@ -1132,6 +1133,8 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     depart: jetonsDeDepart(meta), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta, exigence, { reel: true }),
     // S80 : la run sur plusieurs saisons, ses cases de réserve, et ce que le classeur a donné ; V9 (tranche 8) : son cran d'exigence, fixé.
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigence), exigence,
+    // 31 oct. : la deuxième run est plus dure — l'étape d'édition de plus de sa ligue, fixée ici (js/rogue.js `etapeDeLaRun`).
+    etapeDeRun: etapeDeLaRun(m.runs),
     // V21 : le coach de la run, un personnage (js/pouvoirs.js) — son expérience et ses choix passent d'une saison à
     // l'autre (`perso`, la décision du jour 0, js/banc.js) — et le prestige du club, FIXÉ pour la run (js/rogue.js
     // `PRESTIGES`) : un rang gagné en route sert la suivante.
