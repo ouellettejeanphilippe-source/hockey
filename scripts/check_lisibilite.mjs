@@ -16,8 +16,8 @@
  *      plein et clair, texte noir, le même partout.
  *   6. LES TUILES DE CHOIX SONT SOBRES (tranche 6, la décision unifiée ; JP : *un verbe, au plus deux lignes de stats,
  *      trois options au plus, la recommandée marquée par sa place*). Lu sur le code et les données, sur de vrais clubs :
- *      aucune fenêtre de choix n'offre plus de trois options, aucune option (dilemme, séquence, avant-match, réponse,
- *      dossier, fil) ne montre plus de deux lignes de stats vertes ou rouges (`LIGNES_MAX`) — les autres
+ *      aucune fenêtre de choix n'offre plus de trois options, aucune option (avant-match, dossier, fil ; la banque
+ *      d'événements est vide : V22, phase 4) ne montre plus de deux lignes de stats vertes ou rouges (`LIGNES_MAX`) — les autres
  *      se plient sous « Les chiffres », sans rien perdre —, et la tuile est un aplat : ni dégradé, ni ombre, ni saut.
  *      La recommandée n'a pas de macaron : elle est la PREMIÈRE de la liste (le rang dit la recommandation).
  *   7. AUCUN ACCORDÉON (JP, 28 oct. : *j'hais les accordéons*). Aucun `<details>` ni `<summary>` dans AUCUN fichier de js/
@@ -30,11 +30,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, MOMENTS, SEQUENCES, optionsDeSequence, AVANT_GROS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, AVANT_GROS } from '../js/sim.js';
 import { poserClubLu } from '../js/impact.js';
 import { optionHtml, LIGNES_MAX } from '../js/gerant.js';
 import { DOSSIERS } from '../js/dossiers.js';
-import { REPONSES_VIE, CHOIX_DES_FILS } from '../js/vie-gm.js';
+import { CHOIX_DES_FILS } from '../js/vie-gm.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -113,10 +113,8 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
 /* 6. Les tuiles de choix, sobres. */
 {
   const OPTIONS_MAX = 3;
-  const FAMILLES = [
-    ['dilemme', MOMENTS], ['séquence', Object.fromEntries(Object.keys(SEQUENCES).map(k => [k, { options: optionsDeSequence(k) }]))],
-    ['avant-match', AVANT_GROS], ['réponse', REPONSES_VIE], ['dossier', DOSSIERS], ['choix de fil', CHOIX_DES_FILS],
-  ];
+  const FAMILLES = [['avant-match', AVANT_GROS], ['dossier', DOSSIERS], ['choix de fil', CHOIX_DES_FILS]];
+  if (!Object.keys(DOSSIERS).length || !Object.keys(CHOIX_DES_FILS).length) informer('dossiers et choix de fil : banque vide (V22, phase 4)', 'seuls les avant-matchs sont lus');
   // Le nombre d'options : les fenêtres de ces familles.
   const trop = [];
   let nFenetres = 0;

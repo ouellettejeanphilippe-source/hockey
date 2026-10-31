@@ -16,7 +16,7 @@
 
 export const LEXIQUE = {
   coach: {
-    sens: 'le personnage de la run (un des huit de js/coachs.js), son niveau et ses pouvoirs ; la personne derrière le banc est l\'entraîneur ; un adjoint est un système de jeu, un échange',
+    sens: 'le personnage de la run (un des huit de js/coachs.js), son niveau et ses pouvoirs ; la personne derrière le banc est l\'entraîneur ',
     fautif: /\b(le|un|du|sans le|invite le) coach (des gardiens|de sprint|élève|pète|sort|dans leur|paie|a parlé|laisse|qui promet|concentré)|cris du coach|selon le coach|Ton coach paie|Entraîneur-chef|tête de l'entraîneur|paie pas un entraîneur/i,
     faux: 'Le coach des gardiens', bon: 'Le coach de sa couleur',
   },
@@ -26,7 +26,7 @@ export const LEXIQUE = {
     faux: 'Le stage se joue chez l\'entraîneur', bon: 'L\'entraîneur des gardiens',
   },
   adjoint: {
-    sens: 'un système de jeu de ton staff, un échange — ce qu\'il donne, ce qu\'il coûte (V21, js/adjoints.js) ; « ton adjoint » du duel est celui qui propose les plans',
+    sens: 'la voix qui propose tes plans au duel (V17) ; les adjoints du staff de la V21 sont partis, ceux de la main arrivent à la V22 (phase 3)',
     fautif: /adjoints? du coach à chaises|les chaises de ton coach/i,
     faux: 'Les adjoints du coach à chaises', bon: 'Un adjoint parmi trois',
   },
@@ -87,7 +87,7 @@ export const LEXIQUE = {
     faux: 'Badges +,005 arr.', bon: '+,005 au % d\'arrêts',
   },
   matchs: {
-    sens: 'un match se dit en entier, pas « m. » ; les adjoints offerts le sont aux 9e, 18e et 26e MATCHS, une carte dure N matchs, jamais N journées',
+    sens: 'un match se dit en entier, pas « m. » ; une carte dure N matchs, jamais N journées',
     fautif: /\d m\.($|<)|\} m\.($|<)|\d+ journées? (de plus|encore|restantes?)|\} journées? (de plus|encore)/,
     faux: '${x.reste} m.</small>', bon: '5 matchs',
   },

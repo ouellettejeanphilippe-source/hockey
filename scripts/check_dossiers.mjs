@@ -6,10 +6,12 @@
  *      côté et une CONSÉQUENCE CONCRÈTE (V21, docs/refonte-v21.md § 3) : des jetons, de l'expérience au coach, un
  *      adjoint gagné ou perdu, des jambes, une suspension, un soin, l'auxiliaire, la masse salariale, ou ce qui
  *      arrive au joueur nommé ; jamais plus un pourcentage de l'équipe pour quelques soirs ;
- *   3. pur : la même graine, la même semaine et les mêmes faits rendent le même dossier ; jamais deux fois le même dans
- *      une saison ; la pratique du mardi seulement quand rien d'autre n'est vrai ;
+ *   3. pur : la même graine, la même semaine et les mêmes faits rendent le même dossier, toujours un dossier vrai ; aucun
+ *      dossier vrai, aucun dossier (null) ; jamais deux fois le même dans une saison ;
  *   4. chacun s'ouvre : sur des lundis fabriqués, chaque dossier sort au moins une fois ;
  *   5. la porte : aucune réponse ne devient un effet d'équipe ; ses jetons restent à la décision.
+ * La banque est vide (V22, phase 4) : les parties qui jugent un contenu (2, 4, 5) s'informent « banque vide » ; le système
+ * (les lundis d'une histoire, le tirage pur, le null sans dossier vrai) se juge toujours.
  */
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire } from '../js/dossiers.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
@@ -57,6 +59,7 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
     }
   }
   exiger('chaque dossier a sa voix, ses répliques et deux ou trois réponses aux conséquences concrètes', !fautes.length, fautes.slice(0, 4).join(' · ') || `${Object.keys(DOSSIERS).length} dossiers`);
+  if (!Object.keys(DOSSIERS).length) informer('la forme : banque vide (V22, phase 4)', 'aucun dossier à juger');
 }
 
 /* ---------- 2b. les lundis d'une histoire (V20) : tirés de la graine, une semaine sur deux en moyenne, jamais deux runs pareilles ---------- */
@@ -70,6 +73,9 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
 
 /* ---------- 3 et 4 : pur, une fois par saison, chacun s'ouvre ---------- */
 {
+  // La banque est vide : deux dossiers d'essai, qui ne servent qu'à tirer (ils partent à la fin du bloc).
+  const ESSAIS = Object.keys(DOSSIERS).length ? [] : ['essaiRoute', 'essaiRival'];
+  if (ESSAIS.length) { DOSSIERS.essaiRoute = { titre: 'Essai : la route', quand: f => f.visiteur >= 3, options: [] }; DOSSIERS.essaiRival = { titre: 'Essai : le rival', quand: f => !!f.rival, options: [] }; }
   // Des lundis fabriqués : chaque fait balaie ses valeurs, sur une graine qui ne se répète pas.
   let x = 7;
   const r = () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
@@ -79,13 +85,14 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
     const joueur = (p, x) => (r() < p ? { n: 'Untel', cle: 'u', m: 10, ...x } : null);
     return { n: pige([0, 6, 14, 28, 50]), jambes: pige([76, 85, 90, 94]), pire: { n: 'Untel', cle: 'u', j: pige([70, 78, 84, 92]) },
       boude: joueur(0.15, { zone: 'Top 6', ou: '4e trio', pts: 2 }), puni: joueur(0.15, { pun: 5 }), muet: joueur(0.1, { sal: '7,5 M$', pts: 1 }),
+      vedette: joueur(0.6, { fait: 'Untel : 9 points en 10 matchs' }), gardien: joueur(0.6, { fait: 'Untel : 4 buts sur 30 tirs ce soir-là' }),
       blesses: Array.from({ length: pige([0, 1, 2, 3]) }, (_, i) => ({ n: `B${i}`, m: 4 })), soirs, dos: pige([0, 0, 1]), visiteur, domicile: soirs - visiteur,
       rival: r() < 0.2 ? 'Rival' : null, bete: r() < 0.08 ? 'Bête' : null, caisse: pige([5, 40, 60, 120]),
       dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32,
       masse: { espace: pige([-500_000, 800_000, 4_000_000, 9_000_000]), libre: '0,8 M$', lourd: { n: 'Lourd', cle: 'l', sal: '9,5 M$' } },
       defaites: pige([0, 0, 1, 2, 4, 5]), coach: { cle: 'tortue', nom: 'La Tortue', ico: '🐢', niveau: 2, adjoints: 1 } };
   };
-  let purs = true, uneFois = true, reserve = true;
+  let purs = true, uneFois = true, vrai = true, nul = true;
   const sortis = new Map();
   for (let g = 0; g < 400; g++) {
     const deja = [];
@@ -93,20 +100,22 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
       const f = lundi();
       const a = dossierDeLaSemaine(g, w, f, deja), b = dossierDeLaSemaine(g, w, f, deja.slice());
       if (a !== b) purs = false;
+      if (!Object.keys(DOSSIERS).some(k => !deja.includes(k) && DOSSIERS[k].quand(f)) && a !== null) nul = false;
       if (!a) continue;
       if (deja.includes(a)) uneFois = false;
-      const autres = Object.keys(DOSSIERS).filter(k => k !== 'laPratique' && !deja.includes(k) && DOSSIERS[k].quand(f));
-      if (a === 'laPratique' && autres.length) reserve = false;
+      if (!DOSSIERS[a].quand(f)) vrai = false;
       deja.push(a);
       sortis.set(a, (sortis.get(a) || 0) + 1);
     }
   }
   exiger('pur : la même graine, la même semaine et les mêmes faits rendent le même dossier', purs);
   exiger('jamais deux fois le même dossier dans une saison', uneFois);
-  exiger('la pratique du mardi, seulement quand rien d\'autre n\'est vrai', reserve);
+  exiger('le dossier rendu est toujours un dossier vrai, et sans dossier vrai la semaine n\'en a pas (null)', vrai && nul);
   const jamais = Object.keys(DOSSIERS).filter(k => !sortis.has(k));
   exiger('chaque dossier s\'ouvre', !jamais.length, jamais.join(', ') || `${sortis.size} dossiers sur 400 saisons`);
+  if (ESSAIS.length) informer('les lundis fabriqués : banque vide (V22, phase 4)', `${ESSAIS.length} dossiers d'essai, pour le tirage seulement`);
   informer('le plus et le moins ouverts', [...sortis.entries()].sort((p, q) => q[1] - p[1]).filter((_, i, t) => i < 3 || i >= t.length - 3).map(([k, n]) => `${DOSSIERS[k].titre} ${n}`).join(' · '));
+  for (const k of ESSAIS) delete DOSSIERS[k];
 }
 
 /* ---------- 5. la porte des dilemmes ---------- */

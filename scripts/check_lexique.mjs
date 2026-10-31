@@ -138,7 +138,6 @@ informer('prose lue', `${prose.length} chaînes et lignes`);
   const cles = [
     ['js/coachs.js', /\bessaim: \{/], ['js/pouvoirs.js', /\bperso\b/],
     ['js/rogue.js', /cle: 'vestiaire'/], ['js/rogue.js', /ecussons/], ['js/vie-gm.js', /\bad: \{ ico/], ['js/saison.js', /\bentraineur: \{ ico/],
-    ['js/dossiers.js', /\blaTete: \{/],
   ];
   const manquent = cles.filter(([f, re]) => !re.test(lire(f))).map(([f, re]) => `${f} ${re}`);
   exiger('les clés de sauvegarde gardent leur nom', manquent.length === 0, manquent.join(' · ') || `${cles.length} clés en place`);

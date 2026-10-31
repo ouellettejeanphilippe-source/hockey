@@ -15,6 +15,9 @@
  *   5. IL EST VARIÉ : d'une graine à l'autre, la même équipe ne vit pas les mêmes arcs ; les trois familles
  *      (équipe, joueur, adversaire) se voient.
  *
+ * La banque d'arcs est vide (V22, phase 4) : le système se teste sur trois arcs d'essai (une série d'équipe, un joueur à défi,
+ * une bête noire), posés dans `ARCS` pour la durée du script, un par famille.
+ *
  *   node scripts/check_arcs.mjs            (LIGUES=4 ligues pour les faits ; REPRISES=200 blocs par épisode)
  */
 import fs from 'node:fs';
@@ -26,6 +29,36 @@ import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+/* LA BANQUE D'ESSAI : trois arcs, un par famille, aux canaux qui existent. */
+const verdictDuDefi = { de: 'ph', cible: 'joueur', qui: x => x.p, verdict: true, matchs: 5, effet: { finition: 0.53 }, texte: x => `${x.p.n} : ${x.avance.reussi ? 'défi relevé' : 'défi raté'}.` };
+ARCS.serie = {
+  titre: 'Trois de suite', famille: 'equipe',
+  debut: f => (f.victoires === 3 ? { n: 3 } : null),
+  episodes: [
+    { de: 'pt', cible: 'equipe', texte: x => `${x.n} victoires de suite.`, effet: { finition: 1.03, discipline: 1.12 }, matchs: 5 },
+    { de: 'en', cible: 'equipe', texte: () => 'La séquence prend fin.', effet: { defense: 0.97, volume: 0.95 }, matchs: 4 },
+  ],
+  suite: f => f.dernier && !f.dernier.win,
+};
+ARCS.tireur = {
+  titre: 'Le tireur sans but', famille: 'joueur',
+  debut: f => (f.mitraille ? { p: f.mitraille.p, n: f.mitraille.n } : null),
+  defi: (x, f) => ({ stat: 'buts', matchs: 8, cible: 2, depuis: f.journal.length }),
+  episodes: [
+    { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} : ${x.n} tirs, aucun but.`, effet: { finition: 1.45, lancers: 1.35 }, matchs: 8 },
+    verdictDuDefi,
+  ],
+  suite: (f, a) => { const v = avanceDuDefi(f.club, a.x); return !!(v && v.fini); },
+};
+ARCS.revanche = {
+  titre: 'La bête noire', famille: 'adversaire',
+  debut: f => (f.beteNoire ? { adv: f.beteNoire.adv, n: f.beteNoire.n } : null),
+  episodes: [
+    { de: 'en', cible: 'contre', texte: x => `${x.adv.name} t'a battu ${x.n} fois.`, effet: { defense: 1.05 }, matchs: 4 },
+    { de: 'an', cible: 'contre', texte: x => `La revanche contre ${x.adv.name}.`, effet: { volume: 1.04 }, matchs: 4 },
+  ],
+  suite: f => f.dernier && f.dernier.win,
+};
 const LIGUES = Number(process.env.LIGUES ?? 4);
 const SAISONS = ['1985-86', '1995-96', '2005-06', '2010-11', '2015-16', '2021-22'];
 const t0 = Date.now();
@@ -55,25 +88,9 @@ for (let k = 0; k < LIGUES; k++) {
     total++;
     const j = toi.journal.slice(0, a.matchsAuDebut);
     const fin = j.slice(-5);
-    const ok = a.cle === 'emballe' ? j.slice(-5).every(e => e.win) && !(j.length > 5 && j[j.length - 6].win)
-      : a.cle === 'huisClos' ? j.slice(-4).every(e => !e.win) && !(j.length > 4 && !j[j.length - 5].win)
-        : a.cle === 'raclee' ? j.at(-1) && j.at(-1).ga === a.x.ga && j.at(-1).gf === a.x.gf && a.x.ga - a.x.gf >= 5
-          : a.cle === 'recrue' ? a.x.p.elc && fin.reduce((s, e) => s + (e.feuille ? e.feuille.buts.filter(b => b.marqueur === a.x.p).length : 0), 0) === a.x.buts
-            : a.cle === 'releve' ? toi.injuriesLog.some(b => b.player === a.x.meneur && b.games === a.x.matchs && b.at === a.matchsAuDebut)
-              : a.cle === 'chapeau' ? butsDe(j.at(-1), a.x.p) === a.x.buts && a.x.buts >= 3
-                : a.cle === 'vieuxLion' ? butsDe(j.at(-1), a.x.p) === a.x.buts && a.x.buts >= 2 && a.x.age >= 35
-                  : a.cle === 'gardienEbranle' ? j.at(-1).gardien === a.x.p && j.at(-1).ga === a.x.ga && a.x.ga >= 6
-                    : a.cle === 'gardienFeu' ? j.slice(-3).every(e => e.gardien === a.x.p && e.win && e.ga <= 1)
-                      : a.cle === 'heros' ? j.at(-1).win && j.at(-1).ot && butsDe(j.at(-1), a.x.p) >= 1
-                        : a.cle === 'beteNoire' ? j.at(-1).adv === a.x.adv && !j.at(-1).win && j.filter(e => e.adv === a.x.adv && !e.win).length === a.x.n
-                          : a.cle === 'rancune' ? j.at(-1).adv === a.x.adv && toi.injuriesLog.some(b => b.player === a.x.p && b.games === a.x.matchs && b.at === a.matchsAuDebut)
-                          : a.cle === 'ancienClub' ? j.at(-1).adv === a.x.adv && butsDe(j.at(-1), a.x.p) >= 1
-                            : a.cle === 'remontee' ? j.at(-1).win
-                              : a.cle === 'mitraille' ? j.at(-1).feuille.lancers.filter(l => l.tireur === a.x.p).length === a.x.n && a.x.n >= 6 && !butsDe(j.at(-1), a.x.p)
-                                : a.cle === 'frappeur' ? j.at(-1).feuille.physique.filter(x => x.type === 'coup' && x.joueur === a.x.p).length === a.x.n && a.x.n >= 3
-                                  : a.cle === 'bagarreur' ? j.at(-1).feuille.physique.some(x => x.type === 'bagarre' && (x.gagnant === 'A' ? x.joueur : x.gagnant === 'B' ? x.cible : null) === a.x.p)
-                                    : a.cle === 'verrou' ? j.at(-1).win && j.at(-1).ga === a.x.ga && a.x.ga <= 1
-                                      : a.cle === 'calendrier';
+    const ok = a.cle === 'serie' ? fin.slice(-3).every(e => e.win) && !(j.length > 3 && j[j.length - 4].win)
+      : a.cle === 'tireur' ? j.at(-1).feuille.lancers.filter(l => l.tireur === a.x.p).length === a.x.n && a.x.n >= 6 && !butsDe(j.at(-1), a.x.p)
+        : a.cle === 'revanche' && j.at(-1).adv === a.x.adv && !j.at(-1).win && j.filter(e => e.adv === a.x.adv && !e.win).length === a.x.n;
     if (!ok) faux++;
   }
   // LES DÉFIS (oct.) : le verdict se recompte dans les feuilles, et la retouche tombe si, et seulement si, il est relevé.
@@ -107,7 +124,8 @@ exiger('chaque épisode pose son effet dans le moteur, au jour dit', !sansEffet,
 exiger('un défi se recompte dans les feuilles, et sa retouche tombe si, et seulement si, il est relevé', !defisFaux, `${defis} verdicts, ${releves} relevés, ${defisFaux} faux`);
 exiger(`au plus ${ARCS_PAR_SAISON} arcs par saison`, !trop, `${trop} saison(s) de trop`);
 exiger(`${Object.keys(ARCS).length} arcs, deux épisodes chacun, de trois familles`, Object.values(ARCS).every(A => A.episodes.length === 2) && new Set(Object.values(ARCS).map(A => A.famille)).size === 3, Object.keys(ARCS).join(', '));
-exiger('varié : chaque saison vit sa propre suite d\'arcs, et plus d\'une famille se voit', suites.size === LIGUES && familles.size >= 2, `${suites.size} suites sur ${LIGUES} · familles ${[...familles].join(', ')}`);
+// Trois arcs d'essai ne font que six ordres : on demande que les saisons ne vivent pas toutes la même suite.
+exiger('varié : d\'une saison à l\'autre, la suite d\'arcs change, et plus d\'une famille se voit', suites.size > 1 && familles.size >= 2, `${suites.size} suites sur ${LIGUES} · familles ${[...familles].join(', ')}`);
 const moy = diffs.reduce((a, x) => a + x, 0) / diffs.length;
 informer('la même ligue avec et sans arcs (bruit de saison, non jugé)', `${moy >= 0 ? '+' : ''}${moy.toFixed(1)} point en moyenne sur ${diffs.length} paires`);
 

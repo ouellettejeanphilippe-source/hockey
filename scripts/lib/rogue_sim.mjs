@@ -54,7 +54,7 @@ import {
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
   batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup, PLANS,
 } from '../../js/sim.js';
-import { BRAS_DROIT, ADJOINTS } from '../../js/adjoints.js';
+import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE } from '../../js/adjoints.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, coachDuRobot } from './cartes_robot.mjs';
 import { niveauDuPerso, POUVOIRS, grandir } from '../../js/pouvoirs.js';
@@ -251,34 +251,24 @@ const lireNet = R => avecHasardIsole('robot', () => {
   return m.butsPour - m.butsContre;
 });
 /*
- * CE QU'UN ADJOINT RAPPORTE À CET EFFECTIF (31 oct. 2026 ; docs/decisions.md). Un adjoint est un échange, « ni cadeau ni
- * piège » sur un club ordinaire (V21) : il paie quand l'échange va à ton club. L'attentif lisait pourtant ses adjoints
- * dans un ordre fixe (`PREFERE`), et depuis la V21 il ne battait plus le robot d'avant (check_profondeur : +1,3 V au lieu
- * des 6 à 7 d'avant). Il lit maintenant chaque échange SUR SON EFFECTIF : les buts nets d'un soir avec l'échange posé,
- * moins sans (`chiffresDuSoirSous`, js/impact.js, les canaux du club et de l'adversaire) ; un entraîneur de gardiens se
- * lit à la part du filet de ses deux gardiens (leurs matchs de leur vraie saison) et aux buts qu'il change. Le bras
- * droit du coach vaut un peu plus que sa lecture : il grandit les trois pouvoirs de moitié, que la lecture ne joue pas.
+ * CE QU'UN ADJOINT RAPPORTE À CET EFFECTIF (31 oct. 2026 ; docs/decisions.md ; V22). Un adjoint est un style, « ni cadeau
+ * ni piège » sur un club ordinaire : il paie quand le style va à ton club. L'attentif lisait pourtant ses adjoints dans
+ * un ordre fixe, et depuis la V21 il ne battait plus le robot d'avant (check_profondeur : +1,3 V au lieu des 6 à 7
+ * d'avant). Il lit maintenant chaque style SUR SON EFFECTIF : les buts nets d'un soir avec le style posé, moins sans
+ * (`chiffresDuSoirSous`, js/impact.js, les canaux du club et de l'adversaire), au prorata de son séjour : celui de la
+ * voie de son coach joue plus longtemps (`SEJOUR_SYNERGIE`).
  */
-const BUTS_CONTRE_SOIR = 3, BRAS_DROIT_LU = 0.1;
 function fitDAdjoint(R, k, coach) {
   const J = ADJOINTS[k];
   if (!J) return -Infinity;
-  let fit;
-  if (J.gardiens) {
-    const G = Object.values(R).filter(p => p && p.p === 'G').sort((a, b) => v(b) - v(a));
-    const gp = p => (p && p.gp) || 0, total = gp(G[0]) + gp(G[1]);
-    const part = total ? gp(G[0]) / total : 0.75;
-    fit = -BUTS_CONTRE_SOIR * (part * (J.gardiens.partant - 1) + (1 - part) * (J.gardiens.aux - 1));
-  } else {
-    const net = effets => avecHasardIsole('robot', () => {
-      const t = createTeam('Lu', 'LU', R);
-      t.courbe = true;
-      const m = chiffresDuSoirSous(t, effets);
-      return m.butsPour - m.butsContre;
-    });
-    fit = net({ effets: J.effet ? [{ source: 'adjoint', ...J.effet }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - net({});
-  }
-  return fit + (J.voie === coach ? BRAS_DROIT_LU : 0);
+  const net = effets => avecHasardIsole('robot', () => {
+    const t = createTeam('Lu', 'LU', R);
+    t.courbe = true;
+    const m = chiffresDuSoirSous(t, effets);
+    return m.butsPour - m.butsContre;
+  });
+  const fit = net({ effets: J.effet ? [{ source: 'adjoint', ...J.effet }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - net({});
+  return fit * (J.voie === coach ? SEJOUR_SYNERGIE : SEJOUR) / SEJOUR;
 }
 /*
  * LE COACH LU SUR TON CLUB (oct.). Mesuré (check_profondeur, quatre graines, huit clubs) : l'attentif qui prenait le
@@ -317,10 +307,10 @@ function chancesDeGagner(lp, lc) {
  * condition se lit jouent ENSEMBLE (la ruée et le bourdonnement du Frelon se cumulent en 3e ; la riposte et le tueur
  * de l'Aigle s'excluent), chacun ouvert à la chance de son niveau (`CHANCE_DU_NIVEAU`) ; les buts que le cumul ajoute
  * (`pour`) et retire (`contre`) dans la période, lus par `delta(masque)`, pesés par ce qu'un but y change aux chances
- * de gagner. Mesuré (check_pouvoirs) : seul, chaque pouvoir vaut de 1 à 2,5 V ; le personnage complet avec son bras
- * droit, de 8,6 (la Tortue) à 16 (le Frelon) — c'est le cumul qui fait l'écart, pas un pouvoir.
+ * de gagner. Mesuré (check_pouvoirs) : seul, chaque pouvoir vaut de 1 à 2,5 V ; le personnage complet, de 5 à 9 V
+ * (V22, sans bras droit) — c'est le cumul qui fait l'écart, pas un pouvoir.
  */
-const CHANCE_DU_NIVEAU = [1, 0.5, 0.25], PART_BRAS_DROIT = 0.5;
+const CHANCE_DU_NIVEAU = [1, 0.5, 0.25];
 function valeurDesPouvoirs(Ps, m, delta) {
   const lp = m.butsPour / 3, lc = m.butsContre / 3, mu = (m.tirsPour - m.tirsContre) / 3, sig = Math.sqrt((m.tirsPour + m.tirsContre) / 3);
   const pw = chancesDeGagner(lp, lc);
@@ -349,8 +339,8 @@ function valeurDesPouvoirs(Ps, m, delta) {
 }
 function fitDeCoach(R, carte) {
   const Ps = POUVOIRS[carte.cle] || [];
-  // La force lue : la maîtrise de la carte, et son bras droit en poste une run sur deux.
-  const f = (carte.maitrise || 1) * (1 + BRAS_DROIT * PART_BRAS_DROIT);
+  // La force lue : la maîtrise de la carte (V22 : plus de bras droit).
+  const f = carte.maitrise || 1;
   const lire = effets => avecHasardIsole('robot', () => {
     const t = createTeam('Lu', 'LU', R);
     t.courbe = true;
@@ -435,12 +425,12 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const poser = p => { const k = getPlayerKey(p); p._carte = carteDe(variantes.get(k) || varianteTiree(COTES_VARIANTES, graine, k), p.p === 'G', graine, k); };
   Object.values(etat.roster).forEach(poser);
   // LE COACH, UN PERSONNAGE (V21) : choisi au départ de la run (`coachDuRobot`), il la fait au complet ; d'une saison à
-  // l'autre, son expérience, ses talents et son staff continuent (`etat.perso`, comme au jeu).
+  // l'autre, son expérience, ses talents et sa main d'adjoints continuent (`etat.perso`, comme au jeu).
   const ouverts = coachsOuverts(rangDePrestige(meta));
   if (!etat.perso) {
     const c = attentif && COACH_FORCE ? lotoDesCoachs(COACHS_REELS, [COACH_FORCE], `rogue80:${graine}:chef`, 1)[0]
       : coachDuRobot(lotoDesCoachs(COACHS_REELS, ouverts, `rogue80:${graine}:chef`), { politique: attentif && !attentifFait('coach') ? 'defaut' : politique, clic, fit: carte => fitDeCoach(etat.roster, carte) });
-    etat.perso = { cle: c.cle, xp: 0, talents: [], adjoints: [], chef: { id: c.id, n: c.n, saison: c.saison, tag: c.tag }, maitrise: c.maitrise };
+    etat.perso = { cle: c.cle, xp: 0, talents: [], main: [], chef: { id: c.id, n: c.n, saison: c.saison, tag: c.tag }, maitrise: c.maitrise };
   }
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
   const roster = attentif && attentifFait('aumieux') ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux) : etat.roster;
@@ -451,8 +441,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus, 31, ligue);
-  // Le coach du jour 0 de chaque saison (js/banc.js) : son expérience d'avant, ses talents, son staff.
-  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], adjoints: [...etat.perso.adjoints], ...(etat.perso.staff ? { staff: [...etat.perso.staff] } : {}) } }];
+  // Le coach du jour 0 de chaque saison (js/banc.js) : son expérience d'avant, ses talents, sa main d'adjoints.
+  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], main: (etat.perso.main || []).map(c => ({ cle: c.cle, depuis: null, fin: null, sejours: [...(c.sejours || [])] })) } }];
   // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
   const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, (etat.galons && etat.galons.get(getPlayerKey(p))) || 0)]).filter(([, n]) => n > 0));
   if (Object.keys(galons).length) decisions.push({ jour: 0, galons, report: true });
@@ -573,7 +563,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // Le robot ne laisse pas de cartes posées sur des joueurs partagés : chaque saison repart propre.
   for (const p of Object.values(you.roster)) if (p) delete p._carte;
   for (const x of entrees) delete x.p._carte;
-  // `L` et `you` : la ligue jouée, pour qui veut relire ses feuilles (check_moments). `report` : ce que la saison suivante reprend.
+  // `L` et `you` : la ligue jouée, pour qui veut relire ses feuilles (check_moments_si). `report` : ce que la saison suivante reprend.
   // V21 : le personnage que la saison laisse à la suivante — l'expérience gagnée s'ajoute, les choix restent.
   const perso = you.perso ? { ...you.perso, xp: you.perso.xp + (you.xpSaison || 0) } : etat.perso;
   return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster }, L, you, decisions, perso };
@@ -646,7 +636,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     e = Math.round(e);
     ecussons += e;
     const mandat = mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32, exigence });
-    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length, valeur, mandat, coach: r.perso.cle, niveau: niveauDuPerso(r.perso), adjoints: r.perso.adjoints.length });
+    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length, valeur, mandat, coach: r.perso.cle, niveau: niveauDuPerso(r.perso), adjoints: (r.perso.main || []).length });
     // La Coupe (tranche 8) : elle compte, et le cran d'exigence gagné ouvre le suivant (js/rogue.js `payerEcussons`).
     if (r.coupe) { meta.coupes = (meta.coupes || 0) + 1; meta.exigence = Math.max(meta.exigence || 0, exigence); }
     // LE MANDAT DU PROPRIO (js/rogue.js `MANDATS`) : manqué, la run est finie ; la Coupe la gagne.

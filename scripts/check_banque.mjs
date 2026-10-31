@@ -13,6 +13,8 @@
  *   3. le moteur : le stage monte l'expérience du coach, une histoire aussi, et un SOIN raccourcit vraiment une
  *      blessure ; une histoire sur un joueur tient sur lui ;
  *   4. la saison se rejoue au but près avec ces décisions.
+ * La banque de dossiers est vide (V22, phase 4) : ce qu'elle prêtait à ce script (le dossier du proprio, un dossier sur un
+ * joueur) est ici écrit en valeurs d'essai, qui font jouer le même système (`plafondDe`, la réponse posée sur le joueur nommé).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -87,7 +89,8 @@ informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}
 /* 2b. La masse salariale (V16, tranche 6) : les réponses du dossier du proprio, au dollar, par la décision `plafond`. */
 {
   const base = 82_000_000;
-  const O = Object.fromEntries(DOSSIERS.laMasse.options.map(o => [o.cle, o]));
+  // Les réponses d'un dossier de masse salariale, en valeurs d'essai (le contrat de télé, le rachat d'une part).
+  const O = { tele: { plafond: { espace: 2_500_000 } }, rachat: { plafond: { facteur: 0.833 } } };
   const pl = plafondDe([
     { jour: 3, plafond: { nom: 'tele', ...O.tele.plafond } }, { jour: 4, plafond: { nom: 'rachat', ...O.rachat.plafond, joueur: 'B' } },
     { jour: 50, plafond: { nom: 'tard', espace: 5_000_000 } },
@@ -95,7 +98,7 @@ informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}
   const attendu = base + O.tele.plafond.espace;
   exiger('le contrat de télé fait le plafond au dollar', pl.cap === attendu,
     `${(pl.cap / 1e6).toFixed(2)} M$ (attendu ${(attendu / 1e6).toFixed(2)}) · ${pl.lignes.map(l => `${l.nom} ${l.montant > 0 ? '+' : ''}${(l.montant / 1e6).toFixed(1)}`).join(' · ')}`);
-  exiger(`le rachat : ${Math.round(O.rachat.plafond.facteur * 100)} % sur son joueur, payé en jetons`, pl.facteurs.get('B') === O.rachat.plafond.facteur && O.rachat.gain < 0,
+  exiger(`le rachat : ${Math.round(O.rachat.plafond.facteur * 100)} % sur son joueur`, pl.facteurs.get('B') === O.rachat.plafond.facteur,
     [...pl.facteurs].map(([k, v]) => `${k} ${Math.round(v * 100)} %`).join(' · '));
   exiger('une décision prise plus tard ne compte pas encore', plafondDe([{ jour: 50, plafond: { espace: 5_000_000 } }], 20, { base }).cap === base);
 }
@@ -103,10 +106,12 @@ informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}
 /* 3. Le moteur. */
 const t0 = ligue(79, 16), moi = t0[0];
 const avant = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => moi.roster[s.i]).find(Boolean);
+// Un dossier d'essai sur un joueur : sa réponse se pose sur lui (V11, tranche 4), pas sur l'équipe.
+DOSSIERS.ilBoude = { titre: 'Il boude', ico: '😒', options: [{ cle: 'parler', nom: 'Lui parler', gain: -6, duree: 8, lui: { lancers: 1.43, finition: 1.17 } }] };
 const decs = [
   { jour: 0, equipe: 0, coach: { cle: 'tortue', xp: 0, talents: [], adjoints: [] } },
   { jour: 5, equipe: 0, ...payloadDe('consommable:stage', {}) },
-  { jour: 10, equipe: 0, moment: { famille: 'dossier', cle: 'laPratique', choix: 'systeme' }, xpCoach: 2 },
+  { jour: 10, equipe: 0, xpCoach: 2 },
   { jour: 20, equipe: 0, moment: { famille: 'dossier', cle: 'ilBoude', choix: 'parler', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] }, gain: -6 },
 ];
 simulateLeague(t0, 82, { graine: 'banque', decisions: decs });

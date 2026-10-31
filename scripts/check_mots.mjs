@@ -104,5 +104,6 @@ for (const [k, D] of Object.entries(DOSSIERS)) for (const o of D.options) {
   }
 }
 informer('les clubs lus', TEAMS.map(t => t.name).join(' · '));
+if (!nOptions) informer('les dossiers : banque vide (V22, phase 4)', 'aucune réponse à lire');
 exiger('chaque réponse d\'un dossier dit ses lignes : le vert au bon, le rouge au prix, rien de promis sans ligne', !fautes.length, fautes.join(' · ') || `${nOptions} réponses`);
 verdict('Les mots d\'un choix disent ses lignes');

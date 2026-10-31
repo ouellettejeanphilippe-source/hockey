@@ -125,4 +125,31 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
   exiger('une vieille saison se rejoue au but près, sans son adjoint', a === b && b === sans, `${a.split(' ').slice(0, 2).join(' ')} …`);
 }
 
+/*
+ * UNE PARTIE D'AVANT LA V22 (docs/refonte-v22.md ; la banque d'événements est partie, le système reste) : ses décisions
+ * nomment un dilemme (`m:`), une séquence (`s:`), un courriel ou un point de presse (`vie:`), un fil et un dossier dont
+ * la clé n'existe plus. `effetDeMoment` n'en pose aucun effet, et la saison se rejoue sans planter, au but près, comme
+ * si elles n'avaient pas été prises.
+ */
+{
+  const { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey, effetDeMoment } = await import('../js/sim.js');
+  const { TEMOINS, equipeReelle } = await import('./lib/vestiaires.mjs');
+  const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(ps), { season: sa }); };
+  const ligue = () => TEMOINS.map(club);
+  const k = getPlayerKey(SLOTS.filter(sl => !sl.scratch && sl.group === 'F').map(sl => ligue()[0].roster[sl.i]).find(Boolean));
+  const vieilles = [
+    { jour: 14, equipe: 0, palier: 'm:14', moment: { famille: 'moment', cle: 'tropdejoueurs', choix: 'simplifier' } },
+    { jour: 25, equipe: 0, palier: 's:25', moment: { famille: 'sequence', cle: 'defaites', choix: 'cap' } },
+    { jour: 33, equipe: 0, palier: 'vie:33', moment: { famille: 'vie', cle: 'e3', choix: 'parler', joueur: k, joueurs: [k] } },
+    { jour: 42, equipe: 0, palier: 'fil:42', moment: { famille: 'fil', cle: 'cheechoo', choix: 'monter', joueur: k, joueurs: [k] } },
+    { jour: 51, equipe: 0, palier: 'do:7', moment: { famille: 'dossier', cle: 'laPratique', choix: 'systeme', joueur: k, joueurs: [k] } },
+  ];
+  const equipe = ligue()[0];
+  exiger('une partie d\'avant la V22 : un moment, une séquence, un courriel, un fil et un dossier inconnus ne posent aucun effet', vieilles.every(d => effetDeMoment(d, equipe) === null), vieilles.map(d => d.moment.famille).join(', '));
+  const fiche = decisions => { const t = ligue(); simulateLeague(t, 82, { graine: 'reprise-v22', decisions: decisions.map(d => ({ ...d, moment: d.moment && { ...d.moment } })) }); return t.map(x => `${x.W}-${x.L}-${x.OTL} ${x.GF}-${x.GA}`).join(' '); };
+  const a = fiche(vieilles), b = fiche(vieilles), sans = fiche([]);
+  exiger('elle se rejoue au but près, deux passes identiques', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);
+  exiger('ses choix d\'une banque partie ne jouent plus rien : la même saison que sans eux', a === sans, a === sans ? 'la même saison que sans eux' : `${a} contre ${sans}`);
+}
+
 verdict('Le fichier transférable');

@@ -143,7 +143,8 @@ for (const seed of GRAINES) {
 }
 
 informer('exemples d\'états', exemples.join(' · ') || 'aucun');
-exiger('chaque fil suivi a un état chaque matin, recompté dans les feuilles', matins > 0 && matinsOk === matins, `${matinsOk}/${matins} matins, ${suivis} fils`);
+if (!Object.keys(CHOIX_DES_FILS).length) informer('fils suivis : banque vide (V22, phase 4)', 'la partie 1 et la partie 2 (le joueur parti) n\'ont rien à relire ; l\'objectif du proprio se juge toujours');
+exiger('chaque fil suivi a un état chaque matin, recompté dans les feuilles', matinsOk === matins, `${matinsOk}/${matins} matins, ${suivis} fils`);
 exiger('chaque fil suivi finit par un retour au chiffre des feuilles', finis === suivis && finisOk === finis, `${finisOk}/${suivis}`);
 exiger('un fil dont le joueur part : la promesse tombe le lendemain, sans effet', partisOk === partis, `${partisOk}/${partis}`);
 exiger('l\'objectif du proprio se recompte à chaque match et finit', objectifs > 0 && objOk === objectifs, `${objOk}/${objectifs}`);
