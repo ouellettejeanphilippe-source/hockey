@@ -5247,6 +5247,28 @@ function noterTrous(team, lineup) {
 
 /* `cedule` : un match de la SAISON au vrai calendrier (la ligue, le pronostic) — `gameIdx` est alors le jour, et le
    soir éreintant un dos-à-dos. Ailleurs (le tournoi, l'exhibition), un match sur quatre, comme avant. */
+/*
+ * LES MINUTES DE CHACUN (oct. 2026 ; JP : *fait tout ce que tu peux*). Le moteur ne joue pas le temps, il l'attribue
+ * (MOTEUR.md § 4.1) : chaque unité a sa part des présences (`presence`), à forces égales (PART_UNITE), en avantage
+ * (POIDS_AN) et en désavantage (POIDS_DN). Les minutes d'un patineur sont donc la somme de ses unités : sa part des
+ * minutes à cinq contre cinq (soixante moins les fenêtres de punition des deux clubs), plus sa part des minutes
+ * d'avantage de son club, plus sa part des minutes où il tue une punition. Un club fait 300 minutes de patineurs moins
+ * celles où il est à court d'un homme (check_gestes le tient). La prolongation n'est pas comptée. Par clé de joueur.
+ */
+function minutesDuSoir(pA, pB, journal) {
+  const pp = { A: 0, B: 0 };
+  for (const x of journal.punitions || []) { const fin = x.fin ?? (x.instant + (x.minutes || AN_MINUTES)); pp[x.cote === 'A' ? 'B' : 'A'] += Math.max(0, Math.min(60, fin) - Math.min(60, x.instant)); }
+  const fe = Math.max(0, 60 - pp.A - pp.B), out = { A: {}, B: {} };
+  for (const [cote, P] of [['A', pA], ['B', pB]]) {
+    const autre = cote === 'A' ? 'B' : 'A', m = out[cote];
+    const poser = (unites, t) => { for (const u of unites || []) for (const p of u.joueurs || []) { const k = getPlayerKey(p); m[k] = (m[k] || 0) + (u.presence || 0) * t; } };
+    poser(P.unites && P.unites.F, fe); poser(P.unites && P.unites.D, fe);
+    poser(P.avantage && P.avantage.F, pp[cote]); poser(P.avantage && P.avantage.D, pp[cote]);
+    poser(P.desavantage && P.desavantage.F, pp[autre]); poser(P.desavantage && P.desavantage.D, pp[autre]);
+    for (const k of Object.keys(m)) m[k] = Math.round(m[k] * 10) / 10;
+  }
+  return out;
+}
 export function playGame(A, B, gameIdx, track = true, series = false, journal = null, ronde = 0, cedule = false) {
   MEMO_MATCH++;
   // L'échelle de la fin de partie (S80) : en saison, la journée ; en séries, la ronde.
@@ -5387,7 +5409,10 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
       const w = 1 + Math.floor(hasard() * 3), l = Math.floor(hasard() * w);
       if (gagneA) gfA++; else gfB++;
       tb = gagneA ? 'A' : 'B';
-      if (journal) journal.fusillade = { gagnant: gagneA ? 'A' : 'B', A: gagneA ? w : l, B: gagneA ? l : w };
+      // Qui a déjoué le gardien (oct. 2026) : les attaquants, à leur finition — nommés au direct, crédités de rien, comme à la LNH.
+      const tireursDe = (P, n) => { const F = (P.patineurs || []).filter(p => !estD(p)); const out = []; for (let i = 0; i < n && F.length; i++) out.push(weightedPick(F, p => Math.max(0.05, pctTirRel(p)))); return out; };
+      const marqueurs = { A: tireursDe(pA, gagneA ? w : l), B: tireursDe(pB, gagneA ? l : w) };
+      if (journal) journal.fusillade = { gagnant: gagneA ? 'A' : 'B', A: gagneA ? w : l, B: gagneA ? l : w, marqueurs };
     }
   }
   if (journal) {
@@ -5404,6 +5429,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
       // LA GLACE DE CHAQUE TRIO ET DE CHAQUE PAIRE CE SOIR-LÀ (oct. 2026) : leur part des présences à forces égales, telle
       // que le moteur l'a jouée. C'est là que « ton quatrième trio joue plus » se recompte (scripts/check_dilemmes.mjs).
       glace: { A: glaceDe(pA), B: glaceDe(pB) },
+      // LES MINUTES DE CHACUN (oct. 2026) : le temps de glace de chaque patineur, lu des parts de présence de ses unités.
+      minutes: minutesDuSoir(pA, pB, journal),
     });
     // LES JOUEURS SUR LEUR LANCÉE CE SOIR (V3.6), dans une ligue Rogue : ce que le vendeur de chandails paie.
     if (A.courbe || B.courbe) journal.lancees = { A: Object.values(LA).filter(p => p && p._lancee && p._lancee !== LANCEE.doute), B: Object.values(LB).filter(p => p && p._lancee && p._lancee !== LANCEE.doute) };
@@ -5522,6 +5549,9 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
   // Les départs : n fenêtres de deux minutes dans 60, dans un ordre mêlé,
   // séparées par des écarts tirés au hasard (partition uniforme du temps libre).
   shuffle(mineures);
+  // Pas plus de fenêtres que la plage n'en contient (oct. 2026) : onze mineures en vingt minutes posaient la onzième
+  // à 20:00-22:00, dans la période suivante — son but comptait dans l'une au moteur, dans l'autre sur la feuille.
+  mineures.splice(Math.floor((T1 - T0) / AN_MINUTES));
   const libre = Math.max(0, (T1 - T0) - mineures.length * AN_MINUTES);
   const coupures = Array.from({ length: mineures.length }, () => hasard() * libre).sort((a, b) => a - b);
   mineures.forEach((m, k) => { m.t0 = T0 + coupures[k] + k * AN_MINUTES; });
@@ -6879,16 +6909,16 @@ export const tirsTotal = (feuille, cote) => feuille.tirs[cote].reduce((a, b) => 
 export function compterFeuilles(feuilles, compte = new Map()) {
   const de = p => {
     let c = compte.get(p);
-    if (!c) { c = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0, coups: 0, blocs: 0, dq: 0 }; compte.set(p, c); }
+    if (!c) { c = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0, coups: 0, blocs: 0, dq: 0, toi: 0, ppg: 0, ppp: 0, shg: 0, shp: 0, gwg: 0, otg: 0, coupsRecus: 0, bagarres: 0, bagarresG: 0 }; compte.set(p, c); }
     return c;
   };
   for (const f of feuilles) {
     if (!f) continue;
     // Les matchs joués d'un patineur : les soirs où il était habillé.
-    for (const cote of ['A', 'B']) for (const p of (f.alignes?.[cote] || [])) de(p).gp++;
+    for (const cote of ['A', 'B']) for (const p of (f.alignes?.[cote] || [])) { const c = de(p); c.gp++; c.toi += (f.minutes && f.minutes[cote] && f.minutes[cote][getPlayerKey(p)]) || 0; }
     for (const b of f.buts) {
-      if (b.marqueur) { const c = de(b.marqueur); c.g++; c.pts++; }
-      for (const a of b.passeurs || []) { const c = de(a); c.a++; c.pts++; }
+      if (b.marqueur) { const c = de(b.marqueur); c.g++; c.pts++; if (b.an) { c.ppg++; c.ppp++; } if (b.dn) { c.shg++; c.shp++; } }
+      for (const a of b.passeurs || []) { const c = de(a); c.a++; c.pts++; if (b.an) c.ppp++; if (b.dn) c.shp++; }
       // Le +/- va à ceux que le moteur a mis sur la glace pour ce but-là.
       for (const x of b.pour || []) de(x).pm++;
       for (const x of b.contre || []) de(x).pm--;
@@ -6900,7 +6930,20 @@ export function compterFeuilles(feuilles, compte = new Map()) {
       if (e.minutes) { if (e.joueur) de(e.joueur).pim += e.minutes; if (e.cible) de(e.cible).pim += e.minutes; }
       // Les mises en échec et les tirs bloqués (oct. 2026) : ce que la feuille compte, l'onglet Joueurs le montre.
       if (e.type === 'coup' && e.joueur) de(e.joueur).coups++;
+      if (e.type === 'coup' && e.cible) de(e.cible).coupsRecus++;
       if (e.type === 'bloc' && e.joueur) de(e.joueur).blocs++;
+      if (e.type === 'bagarre') {
+        for (const q of [e.joueur, e.cible]) if (q) de(q).bagarres++;
+        const gagnant = e.gagnant === 'A' ? e.joueur : e.gagnant === 'B' ? e.cible : null;
+        if (gagnant) de(gagnant).bagarresG++;
+      }
+    }
+    // Le but gagnant (oct. 2026), comme la LNH le compte : le but du vainqueur qui dépasse d'un le total du perdant ; en
+    // prolongation s'il tombe après soixante minutes ; aucun après des tirs de barrage.
+    if (f.vainqueur && !f.fusillade) {
+      const W = f.vainqueur, perdant = f.buts.filter(b => b.cote !== W).length;
+      const g = f.buts.filter(b => b.cote === W).sort((x, y) => x.instant - y.instant)[perdant];
+      if (g && g.marqueur) { const c = de(g.marqueur); c.gwg++; if (g.instant >= 60) c.otg++; }
     }
     for (const cote of ['A', 'B']) {
       const g = cote === 'A' ? f.gardienA : f.gardienB;

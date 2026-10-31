@@ -9,13 +9,15 @@
  *      facteurs de tirage des clubs tournent autour de 1 (la ligue ne bouge pas) ;
  *   3. le compte des feuilles (`compterFeuilles`) rend à chaque patineur ses coups et ses blocs, et à chaque gardien des
  *      départs de qualité, pas plus que ses matchs, à un taux de 35 à 75 % (la vraie LNH : autour de 55 %) ;
+ *   4b. les minutes de chacun : un club fait 300 minutes de patineurs moins celles où il tue une punition, toutes à des
+ *      habillés ; chaque match sans tirs de barrage a un but gagnant, un seul ;
  *   4. un lancer bloqué blesse : au moins une blessure « au pied » dans la saison, et les matchs-hommes perdus par club
  *      restent ceux de la vraie LNH (180 à 220 ; de 120 à 280 ici) — le bloc choisit qui se blesse, pas combien ;
  *   5. l'estimation d'un geste (`zGeste`) est finie pour tout patineur, mesuré ou pas.
  *
  *   node scripts/check_gestes.mjs
  */
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, compterFeuilles, zGeste, blocsDe, tirageDe, K_TIRAGE, BLOCS_PAR_TIR, BLOCS_D_SUR_F, BLOCS_QUI_BLESSENT } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, compterFeuilles, getPlayerKey, zGeste, blocsDe, tirageDe, K_TIRAGE, BLOCS_PAR_TIR, BLOCS_D_SUR_F, BLOCS_QUI_BLESSENT } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -82,6 +84,28 @@ const pieds = blessures.filter(b => b.genre === 'pied').length;
 exiger(`un lancer bloqué blesse : au moins une blessure au pied dans la saison (${BLOCS_QUI_BLESSENT} blocs et plus le soir même)`, pieds >= 1, `${pieds} sur ${blessures.length} blessures`);
 // La LNH perd de 180 à 220 matchs-hommes par club et par saison (js/sim.js, BLESSURES_LNH) : la blessure du bloc n'en ajoute pas, elle choisit qui.
 borne('les matchs-hommes perdus par club restent ceux de la vraie LNH', blessures.reduce((a, b) => a + (b.games || 0), 0) / L.teams.length, 120, 280);
+
+/* ---------- 4b. les minutes de chacun, le but gagnant ---------- */
+let ecartMax = 0, depasse = 0, pleins = 0, minutesHorsAlignes = 0, gagnants = 0, sansBarrage = 0;
+for (const f of feuilles) {
+  const pk = { A: 0, B: 0 };
+  for (const x of f.punitions || []) pk[x.cote] += Math.max(0, Math.min(60, x.fin ?? x.instant + 2) - Math.min(60, x.instant));
+  for (const cote of ['A', 'B']) {
+    const al = f.alignes?.[cote] || [], m = (f.minutes && f.minutes[cote]) || {}, cles = new Set(al.map(getPlayerKey));
+    const total = Object.values(m).reduce((a, c) => a + c, 0), attendu = 300 - pk[cote];
+    // Un club qui habille ses dix-huit patineurs remplit ses minutes ; un club à court (dix avants, trois défenseurs dans
+    // cette ligue d'essai) en fait moins, jamais plus.
+    if (al.filter(p => !estD(p)).length === 12 && al.filter(estD).length === 6) { pleins++; ecartMax = Math.max(ecartMax, Math.abs(total - attendu)); }
+    if (total > attendu + 1) depasse++;
+    for (const k of Object.keys(m)) if (!cles.has(k)) minutesHorsAlignes++;
+  }
+  if (!f.fusillade) sansBarrage++;
+}
+const compte2 = compterFeuilles(feuilles);
+for (const [, c] of compte2) gagnants += c.gwg || 0;
+exiger('un club de dix-huit patineurs fait 300 minutes moins celles où il tue une punition (à une minute près) ; aucun club n\'en fait plus', pleins > 100 && ecartMax < 1 && depasse === 0, `${pleins} alignements pleins, écart au pire ${ecartMax.toFixed(2)} min, ${depasse} au-dessus`);
+exiger('chaque minute va à un patineur habillé', minutesHorsAlignes === 0, `${minutesHorsAlignes} hors alignement`);
+exiger('chaque match sans tirs de barrage a son but gagnant, et un seul', gagnants === sansBarrage, `${gagnants} buts gagnants pour ${sansBarrage} matchs`);
 
 /* ---------- 5. l'estimation d'un geste ---------- */
 const patineurs = L.teams.flatMap(t => Object.values(t.roster || {}).filter(p => p && p.p !== 'G'));

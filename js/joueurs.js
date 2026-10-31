@@ -26,18 +26,18 @@ function statsDe(p, compte) {
   if (c) {
     return p.p === 'G'
       ? { pj: c.gp, v: c.w, d: c.l, pctArr: c.sa ? c.sv / c.sa : null, moy: c.gp ? c.ga / c.gp : null, dq: c.dq }
-      : { pj: c.gp, b: c.g, a: c.a, pts: c.pts, pm: c.pm, tirs: c.sh, pctTir: c.sh ? c.g / c.sh : null, coups: c.coups, blocs: c.blocs };
+      : { pj: c.gp, b: c.g, a: c.a, pts: c.pts, pm: c.pm, tirs: c.sh, pctTir: c.sh ? c.g / c.sh : null, coups: c.coups, blocs: c.blocs, tg: c.gp && c.toi ? c.toi / c.gp : null };
   }
-  if (compte) return p.p === 'G' ? { pj: 0, v: 0, d: 0, pctArr: null, moy: null, dq: 0 } : { pj: 0, b: 0, a: 0, pts: 0, pm: 0, tirs: 0, pctTir: null, coups: 0, blocs: 0 };
+  if (compte) return p.p === 'G' ? { pj: 0, v: 0, d: 0, pctArr: null, moy: null, dq: 0 } : { pj: 0, b: 0, a: 0, pts: 0, pm: 0, tirs: 0, pctTir: null, coups: 0, blocs: 0, tg: null };
   const st = displayStats(p);
   return p.p === 'G'
     ? { pj: st.gp, v: st.w, d: st.l, pctArr: p.sv ?? null, moy: p.ga ?? null }
     // Sa vraie saison : les mises en échec et les blocs seulement si la ligue les comptait (2005-06+) — jamais l'estimation du moteur.
-    : { pj: st.gp, b: st.g, a: st.a, pts: st.pt, pm: st.pm, tirs: p.sh ?? 0, pctTir: p.sh ? (p.g || 0) / p.sh : null, coups: p.ht != null ? Math.round(p.ht * st.gp) : null, blocs: p.bl != null ? Math.round(p.bl * st.gp) : null };
+    : { pj: st.gp, b: st.g, a: st.a, pts: st.pt, pm: st.pm, tirs: p.sh ?? 0, pctTir: p.sh ? (p.g || 0) / p.sh : null, coups: p.ht != null ? Math.round(p.ht * st.gp) : null, blocs: p.bl != null ? Math.round(p.bl * st.gp) : null, tg: p.toi > 0 ? p.toi : null, tgE: !!p.toiE };
 }
 
 const COLONNES = {
-  F: [['jambes', 'Jambes'], ['pj', 'PJ'], ['b', 'B'], ['a', 'A'], ['pts', 'PTS'], ['pm', '+/−'], ['tirs', 'Tirs'], ['pctTir', '% tir'], ['coups', 'MÉ'], ['blocs', 'BL'], ['sal', '$']],
+  F: [['jambes', 'Jambes'], ['pj', 'PJ'], ['tg', 'TG'], ['b', 'B'], ['a', 'A'], ['pts', 'PTS'], ['pm', '+/−'], ['tirs', 'Tirs'], ['pctTir', '% tir'], ['coups', 'MÉ'], ['blocs', 'BL'], ['sal', '$']],
   G: [['jambes', 'Jambes'], ['pj', 'PJ'], ['v', 'V'], ['d', 'D'], ['pctArr', '% arr.'], ['moy', 'Moy.'], ['dq', 'DQ'], ['sal', '$']],
 };
 const FORMAT = {
@@ -45,6 +45,7 @@ const FORMAT = {
   pctTir: x => (x == null ? '—' : pct1(x)),
   pctArr: x => (x == null ? '—' : pct3(x)),
   moy: x => (x == null ? '—' : virgule(x.toFixed(2))),
+  tg: (x, st) => (x == null ? '—' : `${st && st.tgE ? '≈ ' : ''}${virgule(x.toFixed(1))}`),
   coups: x => (x == null ? '—' : x),
   blocs: x => (x == null ? '—' : x),
   dq: x => (x == null ? '—' : x),
@@ -92,7 +93,7 @@ export function remplirJoueurs() {
   host.innerHTML = g === 'B' ? `${barre}${infirmerie() || '<p class="jr-pied">Personne à l\'infirmerie.</p>'}${cartes}` : `${barre}
     <div class="jr-scroll"><table class="jr-table">
       <thead><tr><th class="jr-col-nom">Joueur</th>${cols.map(([k, t]) => `<th data-tri="${k}" class="${k === cle ? 'on' : ''}" role="button" tabindex="0">${t}${k === cle ? (asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
-      <tbody>${vues.map(r => `<tr class="${r.s.scratch ? 'reserve' : ''}${blesses.has(r.p) ? ' blesse' : ''}"><td class="jr-col-nom">${nom(r)}</td>${cols.map(([k]) => `<td${k === cle ? ' class="on"' : ''}>${FORMAT[k] ? FORMAT[k](r.st[k]) : r.st[k] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tbody>${vues.map(r => `<tr class="${r.s.scratch ? 'reserve' : ''}${blesses.has(r.p) ? ' blesse' : ''}"><td class="jr-col-nom">${nom(r)}</td>${cols.map(([k]) => `<td${k === cle ? ' class="on"' : ''}>${FORMAT[k] ? FORMAT[k](r.st[k], r.st) : r.st[k] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
     </table></div>
     <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En gris : la réserve.' : ''}</p>${cartes}`;
   host.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; remplirJoueurs(); }; });

@@ -608,7 +608,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       // Aucun joueur n'est crédité du but des tirs de barrage : il ne fait que le pointage.
       if (f.fusillade.gagnant === 'A') gA++; else gB++;
       const vTB = f.fusillade.gagnant === 'A' ? A : B;
-      ligne('periode', `<b>Tirs de barrage</b> · ${ctx.esc(ctx.teamShort(A))} ${f.fusillade.A} – ${f.fusillade.B} ${ctx.esc(ctx.teamShort(B))} · ${ctx.esc(cap(ctx.teamShort(vTB)))} l'emporte.`);
+      const mq = f.fusillade.marqueurs, noms = (l, c) => (l || []).map(p => nomLie(p, c)).join(', ');
+      const dejoue = mq && (mq.A?.length || mq.B?.length) ? ` Déjoué par ${[mq.A?.length ? noms(mq.A, 'A') : '', mq.B?.length ? noms(mq.B, 'B') : ''].filter(Boolean).join(' et ')}.` : '';
+      ligne('periode', `<b>Tirs de barrage</b> · ${ctx.esc(ctx.teamShort(A))} ${f.fusillade.A} – ${f.fusillade.B} ${ctx.esc(ctx.teamShort(B))} · ${ctx.esc(cap(ctx.teamShort(vTB)))} l'emporte.${dejoue}`);
       majBoard();
       return PAUSE_PERIODE;
     }
