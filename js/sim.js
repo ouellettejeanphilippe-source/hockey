@@ -18,7 +18,8 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles } from './coachs.js';
-import { POUVOIRS, pouvoirsDeLaPeriode, XP } from './pouvoirs.js';
+import { POUVOIRS, pouvoirsDeLaPeriode, XP, niveauDuPerso } from './pouvoirs.js';
+import { ADJOINTS, mainDe, postesDe, embaucher, poster, finirLesSejours, resteDe } from './adjoints.js';
 import { DOSSIERS } from './dossiers.js';
 import { CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -2245,8 +2246,8 @@ export function effetDeMoment(d, team = null) {
   // Un dossier (V10) paie ou coûte des jetons (`gain`) : la caisse les lit sur la décision, pas l'effet ; son plafond
   // (`plafond`) aussi, et ses conséquences concrètes (V21 : l'expérience du coach, un soin).
   // Ce qui va au joueur nommé (`lui`, V11) n'est pas un effet d'équipe : `appliquerDecision` le pose sur lui.
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, plafond: _pl, xp: _x, soin: _so, ...canaux } = o;
-  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l; void _pl; void _x; void _so;
+  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, plafond: _pl, xp: _x, adjoint: _b, soin: _so, ...canaux } = o;
+  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l; void _pl; void _x; void _b; void _so;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
   // Le nom de l'option nomme son joueur (« … pour {nom} »), comme à l'écran du choix : « Ce qui court » le relit tel quel.
@@ -4907,6 +4908,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   noterTrous(A, LA); noterTrous(B, LB);
   // LE PLAN DE MATCH (V17) : posé avant le profil du match, retiré après ; au duel, chaque période pose le sien.
   const retirerPlans = (A._gros || B._gros || {}).duel ? () => {} : poserLesPlans(A, B, LA, LB);
+  // LES ADJOINTS EN POSTE (V22) : leur style, le temps du match, le duel compris ; la feuille les nomme.
+  const retirerAdjoints = poserLesAdjoints(A, B, journal);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   let gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
   const partantA = gA, partantB = gB;
@@ -5082,10 +5085,11 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   applyInjuries(A, LA, heavy, journal, 'A', pA, pB); applyInjuries(B, LB, heavy, journal, 'B', pB, pA);
   if (track) {
     A.games++; B.games++;
+    finirSejours(A); finirSejours(B);
     // La suite (V10, les moments « après une défaite », « après trois victoires ») : +n victoires, −n défaites.
     for (const [T, w] of [[A, winA], [B, !winA]]) T._suite = w ? Math.max(1, (T._suite || 0) + 1) : Math.min(-1, (T._suite || 0) - 1);
   }
-  retirerPlans();
+  retirerPlans(); retirerAdjoints();
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
 
@@ -5603,19 +5607,38 @@ function gagnerXp(T, bonus = 0) {
 /*
  * LE COACH, UN PERSONNAGE (V21, js/pouvoirs.js). La décision `coach` (le jour 0 de chaque saison) porte son expérience
  * d'avant et ses talents ; `talent` et `xpCoach` s'y ajoutent au jour dit. L'expérience de la saison, le moteur la
- * compte (`xpSaison`, `gagnerXp`). V22 : les adjoints du staff sont partis ; une vieille décision `adjoint`, `staff` ou
- * `perdAdjoint` n'est plus lue.
+ * compte (`xpSaison`, `gagnerXp`). V22 (js/adjoints.js) : sa main d'adjoints (`main`) suit la run ; `embauche` ({ cle })
+ * y met une carte, `poste` ({ cle }) en pose une sur une case, le jour dit, pour son séjour ; le moteur finit les séjours
+ * (`finirLesSejours`). Une vieille décision `adjoint`, `staff` ou `perdAdjoint` (V21) n'est plus lue.
  */
 function appliquerPerso(team, d) {
   if (d.coach && d.coach.cle && POUVOIRS[d.coach.cle]) {
     // L'entraîneur (une vraie carte de coach, js/coachs-reels.js) : son nom, sa saison, sa maîtrise (de 1 à 1,2).
     const P = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])],
+      // Sa main suit la run ; chaque saison repart sans séjour en cours, les cartes gardent leurs fiches.
+      main: (d.coach.main || []).filter(c => c && ADJOINTS[c.cle]).map(c => ({ cle: c.cle, depuis: null, fin: null, sejours: [...(c.sejours || [])] })),
       ...(d.coach.chef ? { chef: { ...d.coach.chef } } : {}), maitrise: Math.min(1.2, Math.max(1, Number(d.coach.maitrise) || 1)) };
     team.perso = P;
   }
   if (!team.perso) return;
   if (d.talent && Number.isInteger(d.talent.p)) team.perso = { ...team.perso, talents: [...team.perso.talents, d.talent.p] };
   if (Number(d.xpCoach)) team.perso = { ...team.perso, xp: Math.max(0, team.perso.xp + Number(d.xpCoach)) };
+  if (d.embauche && ADJOINTS[d.embauche.cle]) team.perso = { ...team.perso, main: embaucher(team.perso, d.embauche.cle, team.games || 0) };
+  if (d.poste && ADJOINTS[d.poste.cle]) {
+    const niveau = niveauDuPerso({ ...team.perso, xpSaison: team.xpSaison || 0 });
+    team.perso = { ...team.perso, main: poster(team.perso, d.poste.cle, team.games || 0, niveau, team) };
+  }
+}
+/*
+ * LA FIN D'UN SÉJOUR (V22) : après le match, une carte dont le séjour est fait revient dans la main avec sa fiche, et le
+ * club le note pour Hier soir (`sejoursFinis`, lu par js/saison.js).
+ */
+function finirSejours(T) {
+  if (!T.perso || !mainDe(T.perso).length) return;
+  const { main, finis } = finirLesSejours(T.perso, T.games || 0, T);
+  if (!finis.length) return;
+  T.perso = { ...T.perso, main };
+  for (const f of finis) (T.sejoursFinis = T.sejoursFinis || []).push({ jour: Number.isFinite(T.jourCourant) ? T.jourCourant : null, ...f });
 }
 
 function appliquerDecision(team, d, graine = 0) {
@@ -6023,7 +6046,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._adapt;
       for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._galon; delete p._si; delete p._soir; delete p._arcFx; delete p._arcSi; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.arcs = []; t._arcsVus = null; t.effetsCibles = [];
-      t.suivis = []; t.retours = []; t.blessesQuiJouent = []; t.commotions = null;
+      t.suivis = []; t.retours = []; t.sejoursFinis = []; t.blessesQuiJouent = []; t.commotions = null;
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null; t.rivaux = null; t.beteNoire = null;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
     }
@@ -6496,6 +6519,7 @@ export function feuilleVierge() {
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
     pouvoirs: [],                                         // V21 : { cote, k, p, cle, nom, ico, buts, contre }
+    adjoints: [],                                         // V22 : { cote, cle, nom, ico, reste } — les adjoints en poste ce soir
     prolongation: false,
   };
 }
@@ -6616,7 +6640,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.perso = null; t.xpSaison = 0; t.plan = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.perso = null; t.xpSaison = 0; t.sejoursFinis = []; t.plan = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0];
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -8438,6 +8462,28 @@ function poserLesPlans(A, B, LA, LB) {
       retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
     }
     retraits.push(poserFxDeJoueurs(fx.joueurs));
+  }
+  return () => { for (const r of retraits.reverse()) r(); };
+}
+/*
+ * LES ADJOINTS EN POSTE (V22, js/adjoints.js) : chaque carte posée joue son style le temps du match — sur ton club (`effet`),
+ * sur l'adversaire (`adv`) —, et la feuille la nomme avec ce qui lui reste. Rend la fonction qui les retire.
+ */
+function poserLesAdjoints(A, B, journal) {
+  const retraits = [];
+  const poser = (X, e) => {
+    const avait = '_effetMatch' in X, avant = X._effetMatch;
+    X._effetMatch = [...(avant || []), e];
+    retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
+  };
+  for (const [T, O, cote] of [[A, B, 'A'], [B, A, 'B']]) {
+    if (!T.perso) continue;
+    for (const c of postesDe(T.perso, T.games || 0)) {
+      const J = ADJOINTS[c.cle];
+      if (J.effet) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...J.effet });
+      if (J.adv) poser(O, { source: 'adjoint', nom: J.nom, ico: J.ico, ...J.adv });
+      if (journal) (journal.adjoints = journal.adjoints || []).push({ cote, cle: c.cle, nom: J.nom, ico: J.ico, reste: resteDe(c, T.games || 0, T.perso.cle) });
+    }
   }
   return () => { for (const r of retraits.reverse()) r(); };
 }

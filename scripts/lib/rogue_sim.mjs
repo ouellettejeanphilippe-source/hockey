@@ -307,14 +307,14 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const poser = p => { const k = getPlayerKey(p); p._carte = carteDe(variantes.get(k) || varianteTiree(COTES_VARIANTES, graine, k), p.p === 'G', graine, k); };
   Object.values(etat.roster).forEach(poser);
   // LE COACH, UN PERSONNAGE (V21) : choisi au départ de la run (`coachDuRobot`), il la fait au complet ; d'une saison à
-  // l'autre, son expérience, ses talents et son staff continuent (`etat.perso`, comme au jeu).
+  // l'autre, son expérience, ses talents et sa main d'adjoints continuent (`etat.perso`, comme au jeu).
   const ouverts = coachsOuverts(rangDePrestige(meta));
   if (!etat.perso) {
     const couleurs = {};
     for (const p of Object.values(etat.roster)) { const c = p && coachDuJoueur(p); if (c) couleurs[c] = (couleurs[c] || 0) + v(p); }
     const couleur = Object.entries(couleurs).sort((a, b) => b[1] - a[1])[0];
     const c = coachDuRobot(lotoDesCoachs(COACHS_REELS, ouverts, `rogue80:${graine}:chef`), { politique, clic, couleur: couleur && couleur[0] });
-    etat.perso = { cle: c.cle, xp: 0, talents: [], adjoints: [], chef: { id: c.id, n: c.n, saison: c.saison, tag: c.tag }, maitrise: c.maitrise };
+    etat.perso = { cle: c.cle, xp: 0, talents: [], main: [], chef: { id: c.id, n: c.n, saison: c.saison, tag: c.tag }, maitrise: c.maitrise };
   }
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
   const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux) : etat.roster;
@@ -325,8 +325,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus, 31, ligue);
-  // Le coach du jour 0 de chaque saison (js/banc.js) : son expérience d'avant, ses talents, son staff.
-  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], adjoints: [...etat.perso.adjoints], ...(etat.perso.staff ? { staff: [...etat.perso.staff] } : {}) } }];
+  // Le coach du jour 0 de chaque saison (js/banc.js) : son expérience d'avant, ses talents, sa main d'adjoints.
+  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], main: (etat.perso.main || []).map(c => ({ cle: c.cle, depuis: null, fin: null, sejours: [...(c.sejours || [])] })) } }];
   // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
   const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, (etat.galons && etat.galons.get(getPlayerKey(p))) || 0)]).filter(([, n]) => n > 0));
   if (Object.keys(galons).length) decisions.push({ jour: 0, galons, report: true });
@@ -445,7 +445,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // Le robot ne laisse pas de cartes posées sur des joueurs partagés : chaque saison repart propre.
   for (const p of Object.values(you.roster)) if (p) delete p._carte;
   for (const x of entrees) delete x.p._carte;
-  // `L` et `you` : la ligue jouée, pour qui veut relire ses feuilles (check_moments). `report` : ce que la saison suivante reprend.
+  // `L` et `you` : la ligue jouée, pour qui veut relire ses feuilles (check_moments_si). `report` : ce que la saison suivante reprend.
   // V21 : le personnage que la saison laisse à la suivante — l'expérience gagnée s'ajoute, les choix restent.
   const perso = you.perso ? { ...you.perso, xp: you.perso.xp + (you.xpSaison || 0) } : etat.perso;
   return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster }, L, you, decisions, perso };

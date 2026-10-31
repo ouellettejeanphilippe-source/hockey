@@ -1198,7 +1198,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
 let posee = null, nomModif = '';
 /*
  * LE STAGE DU COACH (V16, tranche 6 ; V21) : une carte rare qui donne de l'expérience au coach. Elle se joue chez
- * l'entraîneur ; sa décision porte ses points (`xpCoach`). Le proprio qui doute du coach est une histoire (`laTete`).
+ * l'entraîneur ; sa décision porte ses points (`xpCoach`). Le proprio qui doute du coach était une histoire (`laTete`, partie à la V22).
  */
 {
   await versLOnglet('bureau', 'entraineur');

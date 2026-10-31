@@ -34,7 +34,7 @@ import {
   INTENTIONS, PERIODES_DU_DUEL, MISE_DOUBLEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, K_ROB, ROB_ORDINAIRE, DISSUASION,
   EFFET_ROLE, EFFET_PALIER, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
-  POIDS_AN, POIDS_DN, PLANS, MOMENTS,
+  POIDS_AN, POIDS_DN, PLANS,
 } from '../js/sim.js';
 import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
@@ -46,7 +46,7 @@ import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN } from '../js/rogue.js';
 import { COACHS } from '../js/coachs.js';
 import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT } from '../js/pouvoirs.js';
-import { ADJOINTS_MAX, MAIN_ADJOINTS, BRAS_DROIT, NIVEAU_DES_LOURDS } from '../js/adjoints.js';
+import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU } from '../js/adjoints.js';
 import { MAITRISE } from '../js/coachs-reels.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
@@ -278,10 +278,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`premier ou deuxième de la ligue dans sa lecture, ses pouvoirs jouent ×${nombre(MAITRISE[0][1])} (×${nombre(MAITRISE[1][1])} dans les cinq premiers)`, 'la maîtrise de l\'entraîneur'],
     [`Ses trois pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.slice(0, -1).join(', ')} et ${NIVEAU_DES_POUVOIRS.at(-1)}`, 'les pouvoirs'],
     [`fait grandir un pouvoir de ${nombre(TALENT * 100)} %`, 'le talent'],
-    // Oct. : la main d'adjoints, trois en poste (js/adjoints.js `MAIN_ADJOINTS`, `ADJOINTS_MAX`).
-    [`Ta main en garde ${MAIN_ADJOINTS === 6 ? 'six' : MAIN_ADJOINTS}, ${ADJOINTS_MAX === 3 ? 'trois' : ADJOINTS_MAX} en poste : au Bureau › Coach, glisse une carte sur une case de son staff`, 'la main et le staff'],
-    // Oct. : légers d'abord, le bras droit (js/adjoints.js).
-    [`Légers d'abord : au niveau ${NIVEAU_DES_LOURDS} arrivent les lourds et son <strong>bras droit</strong>, l'adjoint de sa voie : ses pouvoirs +${nombre(BRAS_DROIT * 100)} %`, 'les adjoints légers d\'abord, le bras droit'],
+    // V22 : la main d'adjoints, des séjours (js/adjoints.js).
+    [`elle joue ${SEJOUR} matchs (${SEJOUR_SYNERGIE} si son style rejoint ton coach), revient dans ta main et se repose ${REPOS} matchs ; ta main en garde ${MAIN_MAX}, une case en poste au niveau 1, ${CASES_PAR_NIVEAU[2] === 2 ? 'deux' : CASES_PAR_NIVEAU[2]} au 3, ${CASES_PAR_NIVEAU[4] === 3 ? 'trois' : CASES_PAR_NIVEAU[4]} au 5`, 'la main et les séjours'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
     [`trois cartes : ${Object.keys(SORTES_DECK).length === 3 ? 'un vrai joueur, un nouveau rôle, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
@@ -377,6 +375,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     if (!nombres.length && !/Bruins|Wild|Kings/.test(sc.fait)) fautes.push(`le dossier ${cle} : « ${sc.fait} » ne dit aucun fait`);
     n++;
   }
+  if (!Object.keys(DOSSIERS).length) informer('les dossiers : banque vide (V22, phase 4)', 'aucune scène de dossier à juger');
   const repliques = [...Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m]))),
     ...Object.entries(DOSSIERS).flatMap(([cle, D]) => D.mots.map(m => [`dossier/${cle}`, m]))];
   for (const [ou, m] of repliques) if (!m || /\d|\{/.test(m)) fautes.push(`${ou} : « ${m} »`);

@@ -23,23 +23,56 @@ La boîte « À faire » et ses spécifications (`messagesCourants`, `specsForce
 
 Le coach garde ses pouvoirs seuls : `forceDuPouvoir` = talents × maîtrise de l'entraîneur.
 
-## Ce qui reste à refaire
+## Phase 3 — Les adjoints : une main, des séjours, un style (fait le 31 oct.)
 
-### Phase 3 — Les adjoints : une main, des séjours, un style
+JP, 31 oct. : *simple, impactant, le fun, marquant*. Quatre mots, quatre règles. Tranché par JP : 12 matchs, les cases suivent le niveau, la carte revient dans la main (main bornée).
 
-À valider avec JP avant de coder (les défauts sont ceux du plan) :
+**Simple — une carte, un style, un séjour.** Un adjoint est une carte de hockey (`carteHtml`, `.cs-jeu`) : son nom, son icône, son style en deux lignes au verso — ce qu'il donne, ce qu'il coûte, en vraies stats de match — et son séjour, en matchs. Rien d'autre : ni léger ni lourd, ni bras droit, ni main de six, ni « qui part ? ». Ta **main** tient quatre cartes. Tu en **joues** une quand tu veux (Bureau › Coach, glissée ou touchée sur une case) : elle est en poste **`SEJOUR` matchs** (12), puis elle part d'elle-même. Les cases en poste suivent le niveau du coach : une au niveau 1, deux au niveau 3, trois au niveau 5 — ton personnage monte, son banc s'élargit.
 
-1. Ton coach plus une **main** d'adjoints (quatre cartes au plus). Un adjoint **se joue** depuis la main et reste en poste **X matchs** (défaut : 12), puis il part de lui-même.
-2. **Un style, pas une force** : chaque adjoint change la forme du match sur deux canaux du moteur, un gain et un prix, en vraies stats de match. Au plus ±1,5 V seul (`check_pouvoirs`). Une liste neuve, écrite de zéro, à partir du profil de style (`js/profil-style.js`).
-3. En poste : 1 au niveau 1-2 du coach, 2 au 3-4, 3 au 5.
-4. Ils arrivent aux mêmes occasions qu'avant (paliers, butin d'un gros match, verdict, histoires), un parmi trois, gratuit.
-5. Pas de bras droit. Un adjoint dont le style rejoint la philosophie du coach reste +3 matchs.
-6. Deux champs de décision neufs (`main`, `joue`) ; le moteur compte les matchs *joués* du club depuis la pose.
-7. L'écran : Bureau › Coach, la main en cartes (`deposer.js`) et les cases en poste avec le compte à rebours.
+**Impactant — un style court frappe fort.** Un échange permanent de la V21 devait rester petit (±1 tir par match) pour tenir sous sa borne sur 82 matchs ; un séjour de 12 matchs peut frapper trois fois plus fort (±3 à 4 tirs, ±0,4 but, ±0,8 punition par soir, `check_pouvoirs`) et rester sous ±1,5 V sur la saison. Tu le VOIS dès le premier soir, et la feuille le dit (« 🏹 Le canonnier · 12 matchs restants »). Deux canaux par style, jamais plus.
 
-### Phase 4 — La banque d'événements neuve
+**Le fun — le bon moment.** Jouer une carte, c'est un choix de timing : le canonnier avant la semaine à la maison, le mur avant les trois matchs contre ta bête noire, le gourou des gardiens quand ton n° 1 est chaud. Un style qui rejoint la philosophie de ton coach (le canonnier chez le Frelon, le mur chez la Tortue) dure **16 matchs au lieu de 12** (`SEJOUR_SYNERGIE`) : la synergie, pas un chiffre plus gros. Deux en poste s'additionnent sans règle de plus. Les cartes arrivent aux moments forts, un parmi trois, gratuit : les 9e, 18e et 26e matchs, un gros match gagné, le verdict du proprio, une histoire.
 
-Écrite de zéro, petite d'abord : six histoires, une par fait de hockey lisible dans les feuilles. Les trois premières sont soumises à JP (ton et mécanique) avant le reste. Récompenses concrètes seulement : de l'expérience au coach, des jetons, une carte d'adjoint dans la main, un blessé qui revient, un dépanneur. Puis les quatre choix de fil, un à la fois, avec leur retour. Les règles de CLAUDE.md tiennent déjà (`check_dossiers`, `check_mots`, `check_effets`).
+**Marquant — la carte revient, et elle se souvient.** (JP : *il revient dans la main, mais maximum de cartes en main.*) Le séjour fini, Hier soir le dit avec ses vrais chiffres : « 🏹 Le canonnier a fini son séjour : 12 matchs, 8-3-1, +3,1 tirs par match. » La carte **retourne dans ta main** et se **repose `REPOS` matchs** (12 : sans repos, la rejouer de suite en ferait un échange permanent, et un style court ne pourrait plus frapper fort) ; puis elle se rejoue. Son verso compte ses séjours chez toi (« 3 séjours · 24-9-3 »), comme les galons d'un joueur. La main tient **`MAIN_MAX` cartes** (4), en poste comprises ; pleine, une offre dit laquelle part si tu prends (la plus ancienne hors poste), et tu peux passer. Chaque adjoint a une voix d'`EXPEDITEURS` : il se présente à son arrivée, une réplique sans chiffre (js/scenes.js).
+
+**Les styles**, écrits de zéro, huit pour commencer — un par philosophie, pour que la synergie se lise d'un coup d'œil (js/adjoints.js, neuf) :
+
+| Adjoint | Style | Ce qu'il donne | Ce qu'il coûte | Rejoint |
+|---|---|---|---|---|
+| 🏹 Le canonnier | Tirer de partout | tes tirs +18 % | ta précision −10 %, leurs tirs +6 % | 🐝 |
+| 🔭 Le tireur d'élite | Choisir ses tirs | ta précision +12 % | tes tirs −10 % | 🦅 |
+| 🧱 Le mur | Fermer la zone | leurs tirs −14 % | tes tirs −10 % | 🐢 |
+| 🏋 Le cogneur | Le jeu physique | mises en échec, leur précision −2 % | tes punitions +40 % | 🦏 |
+| 🏃 Le préparateur | Les jambes fraîches | blessures −35 %, usure −15 % | tes tirs −5 % | 🫁 |
+| 🧘 Le moine | La discipline | tes punitions −30 % | moins de mises en échec, tes tirs −6 % | 😇 |
+| 🔁 Le rouleur | Quatre trios | tes 3e et 4e trios jouent plus, blessures −30 %, leurs tirs −8 % | ton 1er trio joue moins | 🪜 |
+| 🎤 Le vedettiste | Le premier trio | ton 1er trio joue plus, précision +3 % | blessures +30 %, leurs tirs +8 % | 🌠 |
+
+Mesurés (`check_pouvoirs`, 200 matchs par club, quatre clubs témoins) : chaque style se voit chaque soir (de 1,3 à 3,3 fois le seuil), reste sous ±1,5 V ramené à un match sur deux, et s'arrête au bon match. Un match isolé ne paie pas les blessures : le préparateur et le rouleur valent plus sur une vraie saison que ce que la mesure dit (−0,8 et −0,2 V), le vedettiste moins.
+
+**Le code.** Deux décisions neuves : `main: { cle }` (la carte reçue, au jour dit) et `joue: { adjoint: cle }` (la carte posée, au jour dit) ; `appliquerPerso` les lit, le moteur compte les matchs joués du club depuis la pose et retire l'adjoint tout seul (déterministe, rejouable). Le robot (`cartes_robot.mjs`) joue la carte dont le style va à son club, dès qu'une case est libre.
+
+## Phase 4 — La banque d'événements neuve (première banque, 31 oct.)
+
+Les mêmes quatre mots.
+
+**Simple** : un lundi sur deux, une histoire, **deux options**, chaque option **une seule chose concrète** — des jetons, de l'expérience au coach, une carte d'adjoint dans ta main, un blessé qui revient, un joueur suspendu, un dépanneur. Jamais un pourcentage, jamais une durée.
+**Impactant** : la chose est grosse : 20 jetons, +5 d'expérience, une carte d'adjoint, deux matchs de suspension.
+**Le fun** : l'option audacieuse est un dé (`pari`, déjà là) ; on voit la face avant de valider.
+**Marquant** : l'histoire nomme un joueur et ses vrais chiffres (le fait), une voix la dit, et son issue se lit à Hier soir avec les vraies stats.
+
+Six histoires pour commencer (`DOSSIERS`, js/dossiers.js), une par fait lu dans les feuilles ou la cédule, chacune nommant un joueur :
+
+| Histoire | Voix | Le fait | Réponse 1 | Réponse 2 |
+|---|---|---|---|---|
+| 📸 Tout le monde veut la vedette | l'analyste | ton meilleur pointeur des dix derniers matchs, le rang du club | la tournée des médias : +20 🪙 | le garder pour la glace : +5 d'expérience au coach |
+| 🥶 La disette | l'entraîneur | un gros contrat à un point ou moins en huit matchs | le défi devant les journalistes : un dé sur lui (tirs ×1,5, précision ×1,3 ou ×0,5, 8 matchs) | le reposer deux matchs |
+| 🥅 Le gardien battu | l'entraîneur | cinq buts ou plus au dernier match | le renvoyer devant le filet : un dé sur lui (arrêts ×0,85 ou ×1,15, 6 matchs) | l'auxiliaire deux soirs |
+| 🥊 La chicane au vestiaire | le capitaine | quatre punitions ou plus en dix matchs | le suspendre deux matchs : +4 d'expérience | une amende : +8 🪙 |
+| 🧳 La semaine sur la route | le physio | trois matchs à l'étranger, le plus bas en jambes | le vol nolisé : −15 🪙, les jambes de tous +10 | l'autobus de nuit : +10 🪙, les jambes de tous −8 |
+| 📋 Un adjoint en vue | le DG | 50 🪙 ou plus en caisse | signer le chèque : −25 🪙, une carte d'adjoint dans ta main | garder l'argent |
+
+Jamais un pourcentage ni une durée à l'équipe ; l'audace est un dé sur le joueur nommé, et ses deux issues se lisent avant de valider. À écrire ensuite : le duo, la recrue, le fond et le sommet du classement, puis les quatre choix de fil (le Cheechoo, la disette, le duo, la recrue), un à la fois, avec leur retour. `check_dossiers`, `check_mots`, `check_incidents`, `check_clarte` et `check_lisibilite` les tiennent.
 
 ## Les vérifications
 

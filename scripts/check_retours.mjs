@@ -13,6 +13,8 @@
  *   7. une commotion se garde : la suivante d'un même joueur porte sa mémoire, en Rogue seulement ; le report d'une
  *      saison à l'autre (`commotions`) compte aussi ;
  *   8. le jeu voit des retours : au moins trois sortes de fils, sur quelques ligues.
+ * La banque des choix de fil est vide (V22, phase 4) : 1 à 5 et 8 s'informent « banque vide » tant qu'aucun fil n'ouvre de
+ * choix ; 6 et 7 (le blessé, la commotion) se jugent toujours.
  * `GRAINES` : les ligues (83,85,86 par défaut).
  */
 import fs from 'node:fs';
@@ -171,14 +173,15 @@ for (const seed of GRAINES) {
   }
 }
 
-exiger('le choix d\'un fil ne touche pas aux journées d\'avant', avantPareil === choix && choix > 0, `${avantPareil} sur ${choix}`);
+exiger('le choix d\'un fil ne touche pas aux journées d\'avant', avantPareil === choix, `${avantPareil} sur ${choix}`);
+if (!Object.keys(CHOIX_DES_FILS).length) informer('choix de fil : banque vide (V22, phase 4)', 'rien à relire, les contrôles de 1 à 5 sont vides');
 exiger('la saison se rejoue pareil, retours compris', rejouePareil === choix, `${rejouePareil} sur ${choix}`);
 exiger('le retour arrive le matin qui suit son dernier match, jamais avant', aLHeure === choix, `${aLHeure} sur ${choix}`);
 exiger('son chiffre se recompte dans ces feuilles-là, et le texte le dit', recompte === choix, `${recompte} sur ${choix}`);
 exiger('le seuil décide de la branche', branche === choix, `${branche} sur ${choix}`);
 exiger('l\'effet du retour est posé sur le bon joueur, de son matin', effetPose === choix, `${effetPose} sur ${choix}`);
 exiger('le Cheechoo monte au 1er trio, celui qu\'il déloge prend sa case', montesOk === montes, `${montesOk} sur ${montes}`);
-exiger('le jeu voit des retours : trois sortes de fils au moins', Object.keys(vus).length >= 3, Object.entries(vus).map(([k, n]) => `${CHOIX_DES_FILS[k].ico} ${k} ${n}`).join(' · '));
+if (Object.keys(CHOIX_DES_FILS).length) exiger('le jeu voit des retours : trois sortes de fils au moins', Object.keys(vus).length >= Math.min(3, Object.keys(CHOIX_DES_FILS).length), Object.entries(vus).map(([k, n]) => `${CHOIX_DES_FILS[k].ico} ${k} ${n}`).join(' · '));
 exiger('jouer blessé : il sort de l\'infirmerie le jour même, rien d\'avant ne bouge', blesses > 0 && sortis === blesses, `${sortis} sur ${blesses}`);
 exiger('jouer blessé : il joue le soir suivant', joue === blesses, `${joue} sur ${blesses}`);
 exiger('jouer blessé : diminué, « Il joue amoché », le temps qu\'il lui restait', amoche === blesses, `${amoche} sur ${blesses}`);

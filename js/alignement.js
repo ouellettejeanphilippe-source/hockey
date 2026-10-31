@@ -11,12 +11,15 @@ import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUn
 import { alignementAuMieux, unitesDuSoir, specialesEnStats } from './impact.js';
 import { COACHS } from './coachs.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
+import { ADJOINTS, MAIN_MAX, casesDuNiveau, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, lignesDeLAdjoint, ficheDeLaCarte, casesLibres } from './adjoints.js';
+import { carteHtml } from './cartes.js';
+import { hubActif } from './coquille.js';
 import { glisserDeposer } from './deposer.js';
 import { jambesHtml, motDuBadge, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
-import { $, G, TEAMFULL, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setOption, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
+import { $, G, TEAMFULL, MODE, montrerPage, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setOption, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, cartonDe, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort, varsEquipe } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { poseesSur } from './banque.js';
@@ -836,7 +839,7 @@ export function persoDuMatin() {
 /*
  * TON COACH, UN PERSONNAGE (V21, docs/refonte-v21.md). Son niveau et sa barre d'expérience, puis ses trois pouvoirs :
  * ouvert ou verrouillé (le niveau qui l'ouvre), ce qu'il fait, sa force (ses talents), et combien de fois il a joué
- * cette saison (lu dans tes feuilles). V22 : le staff d'adjoints est parti ; ses adjoints neufs arrivent à la phase 3.
+ * cette saison (lu dans tes feuilles). Puis sa main d'adjoints (V22, `mainHtml`).
  * Le personnage est celui que la ligue rejouée porte.
  */
 export function coachHtml() {
@@ -872,8 +875,48 @@ export function coachHtml() {
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
     ${POUVOIRS[perso.cle].map(carte).join('')}
+    ${mainHtml(perso, niveau)}
   </div>`;
 }
+/*
+ * TA MAIN D'ADJOINTS (V22, js/adjoints.js ; JP : *coach plus adjoints dans une main, qui sont là x matchs et changent le
+ * style de l'équipe*). Les cases en poste (au niveau du coach), chacune une carte et ce qui lui reste ; puis la main : les
+ * cartes prêtes (« Poster » dessous, ou glissée sur une case libre) et celles au repos. Une carte se retourne : son style
+ * en vraies stats, sa réplique, sa fiche chez toi. Poster est une décision `poste`, le jour même (js/sim.js `appliquerPerso`).
+ */
+function mainHtml(perso, niveau) {
+  const L = G.ligue, you = L && L.you, games = (you && you.games) || 0;
+  const main = mainDe(perso), cases = casesDuNiveau(niveau);
+  const postes = main.filter(c => enPoste(c, games, perso.cle)), autres = main.filter(c => !enPoste(c, games, perso.cle));
+  const carteAdj = c => {
+    const A = ADJOINTS[c.cle], l = lignesDeLAdjoint(c.cle), syn = motDeSynergie(c.cle, perso.cle), fiche = ficheDeLaCarte(c);
+    const etat = enPoste(c, games, perso.cle) ? 'poste' : auRepos(c, games) ? 'repos' : 'prete';
+    const sous = etat === 'poste' ? `Encore ${resteDe(c, games, perso.cle)} match${resteDe(c, games, perso.cle) > 1 ? 's' : ''}` : etat === 'repos' ? `Au repos · ${reposDe(c, games)} match${reposDe(c, games) > 1 ? 's' : ''}` : `${sejourDe(c.cle, perso.cle)} matchs`;
+    return `<div class="adj-carte" data-adj="${c.cle}" data-etat="${etat}">
+      ${carteHtml({ cle: c.cle, rarete: 'commune', genreCarte: 'tactique', ico: A.ico, nomHtml: esc(A.nom), typeHtml: esc(A.style), statique: true,
+        texteHtml: `${esc(A.dit)}${syn ? `<br><b class="bon">${esc(syn)}</b>` : ''}${fiche ? `<br>${esc(fiche)}` : ''}`,
+        bonHtml: l.filter(x => x.bon).map(x => esc(x.txt)).join(' · '), prixHtml: l.filter(x => !x.bon).map(x => esc(x.txt)).join(' · ') })}
+      <span class="adj-sous">${sous}</span>
+      ${etat === 'prete' && casesLibres(perso, games, niveau) ? `<button type="button" class="btn-sign adj-poster" data-poste="${c.cle}">Poster</button>` : ''}
+    </div>`;
+  };
+  const vides = Math.max(0, cases - postes.length);
+  return `<div class="ej-case-l">En poste · ${postes.length} sur ${cases}${cases < 3 ? ` · une case de plus au niveau ${cases === 1 ? 3 : 5}` : ''}</div>
+    <div class="adj-zone adj-postes" data-zone="postes">${postes.map(carteAdj).join('')}${Array.from({ length: vides }, () => `<button type="button" class="adj-case vide" title="Glisse une carte de ta main ici">Case libre</button>`).join('')}</div>
+    <div class="ej-case-l">Ta main · ${main.length} sur ${MAIN_MAX}</div>
+    ${autres.length ? `<div class="adj-zone adj-main" data-zone="main">${autres.map(carteAdj).join('')}</div>` : `<p class="adj-note">${main.length ? 'Toutes tes cartes sont en poste.' : 'Un adjoint arrive aux 9e, 18e et 26e matchs, après un gros match gagné et au verdict du proprio.'}</p>`}`;
+}
+/* POSTER UNE CARTE : la décision du jour (`hub.decider`), puis on revient au Coach, où l'on était. */
+function posterLAdjoint(cle) {
+  const hub = hubActif();
+  if (!hub || !hub.decider || !ADJOINTS[cle]) return;
+  Promise.resolve(hub.decider({ poste: { cle } })).then(() => montrerPage('entraineur'));
+}
+glisserDeposer({ prise: '.adj-main .adj-carte[data-etat="prete"]', cible: '.adj-case.vide', deposer: de => posterLAdjoint(de.dataset.adj), fantome: el => el.querySelector('.tc') || el });
+if (typeof document !== 'undefined') document.addEventListener('click', ev => {
+  const b = ev.target.closest && ev.target.closest('.adj-poster[data-poste]');
+  if (b) posterLAdjoint(b.dataset.poste);
+});
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */
 function filetHtml() {
   const b = G.banc, F = b.filetEtat;

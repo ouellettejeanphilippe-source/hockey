@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { exiger, informer, verdict } from './verdict.mjs';
+import { exiger, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
 import { entierDeGraine, objectifsOfferts, ajustementsOfferts, situationsDuJour, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
   autoRoster, registerHiddenRatings, createTeam } from '../js/sim.js';

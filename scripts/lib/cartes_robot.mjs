@@ -1,11 +1,10 @@
 /*
- * CE QUE LES ROBOTS FONT DU COACH-PERSONNAGE (V21, docs/refonte-v21.md). Le coach d'une run a ses pouvoirs et son
- * staff ; le robot, comme le gérant, choisit ses talents, ses adjoints et ses réponses aux histoires. Selon la politique
- * (scripts/lib/rogue_sim.mjs) :
- *   - l'attentif lit : le talent va au pouvoir qui a le plus joué ; l'adjoint, le bras droit de son coach d'abord (la
- *     synergie, js/adjoints.js), puis dans l'ordre de ce que les échanges rendent en moyenne (`PREFERE`, mesuré par
- *     check_pouvoirs), et ses trois meilleurs en poste, son bras droit d'abord ; à une
- *     histoire, la réponse qui rend le plus, en conséquences concrètes (l'expérience, un adjoint, des jetons, des jambes) ;
+ * CE QUE LES ROBOTS FONT DU COACH-PERSONNAGE (V21, docs/refonte-v21.md ; V22, js/adjoints.js). Le coach d'une run a ses
+ * pouvoirs et sa main d'adjoints ; le robot, comme le gérant, choisit ses talents, ses adjoints, les poste et répond aux
+ * histoires. Selon la politique (scripts/lib/rogue_sim.mjs) :
+ *   - l'attentif lit : le talent va au pouvoir qui a le plus joué ; l'adjoint offert, celui de la voie de son coach
+ *     d'abord (la synergie), sinon le premier ; dès qu'une case est libre, il poste une carte prête, celle de sa voie
+ *     d'abord ; à une histoire, la réponse qui rend le plus, en conséquences concrètes (l'expérience, des jetons, des jambes) ;
  *   - le distrait clique au hasard, sur son propre générateur ;
  *   - le robot d'avant ('defaut') prend la première option de chaque écran : un gérant grossier, qui garde un coach.
  * Le robot ne voit que ce que l'écran montre : les feuilles jouées, la cédule de la semaine, ses jambes, sa caisse.
@@ -16,17 +15,14 @@ import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { joueurDuFait } from '../../js/vie-gm.js';
 import { COACHS } from '../../js/coachs.js';
 import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts } from '../../js/pouvoirs.js';
-import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts, avecAdjoint, staffDe } from '../../js/adjoints.js';
+import { ADJOINTS, adjointsOfferts, pretesDe, casesLibres } from '../../js/adjoints.js';
 
 const JETON = 0.01;   // une victoire vaut une centaine de jetons, à la louche (le barème : 5 par victoire, les packs à 12 et plus)
 /* Ce que vaut une conséquence, grossièrement, en victoires : un adjoint, un point d'expérience, des jambes, un match d'infirmerie. */
 const VAUT = { adjoint: 0.5, xp: 0.05, jambes: 0.02, absent: 0.15, soin: 0.1 };
 
-/* L'ordre de l'attentif : les échanges qui paient le plus souvent d'abord (check_pouvoirs, la section des adjoints). */
-const PREFERE = ['rouleur', 'cogneur', 'trappeur', 'vedettiste', 'soigneur', 'canonnier', 'prof', 'tireur', 'numeroDeux', 'numeroUn', 'mitrailleur', 'mur'];
-const rangDe = (k, coach = null) => (coach && ADJOINTS[k] && ADJOINTS[k].voie === coach ? -1 : PREFERE.includes(k) ? PREFERE.indexOf(k) : PREFERE.length);
-/* Le coach du jour, comme l'écran le lit pour offrir ses adjoints (`adjointsOfferts`) : sa clé et son niveau. */
-const coachDuJour = perso => (perso ? { cle: perso.cle, niveau: niveauDuPerso(perso) } : null);
+/* L'attentif préfère l'adjoint de la voie de son coach (la synergie : un séjour plus long), sinon le premier offert. */
+const rangDe = (k, coach = null) => (coach && ADJOINTS[k] && ADJOINTS[k].voie === coach ? -1 : Object.keys(ADJOINTS).indexOf(k));
 const feuillesDe = (L, you) => L.calendrier.slice(0, L.jour).flatMap(j => j.filter(m => (m.A === you || m.B === you) && m.feuille)).map(m => ({ m, f: m.feuille, cote: m.A === you ? 'A' : 'B' }));
 /* Combien de périodes chaque pouvoir a joué cette saison, lu dans les feuilles (`feuille.pouvoirs`). */
 function foisDesPouvoirs(L, you) {
@@ -63,29 +59,29 @@ function faitsDuRobot(L, you, jetons) {
     bete: advs.includes(you.beteNoire) ? 'bête noire' : null,
     caisse: jetons, dernier: der ? { pour: chez ? der.gfA : der.gfB, contre: chez ? der.gfB : der.gfA, adv: 'eux' } : null,
     rang, equipes: L.teams.length, defaites,
-    coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso), adjoints: (perso.adjoints || []).length } : null,
+    coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso) } : null,
   };
 }
 
 /* L'ADJOINT D'UN MOMENT FORT (js/saison.js `adjointsDuMoment`) : un parmi trois, tirés de la graine. Rend la décision. */
 function adjointDuRobot({ you, graine, cle, politique, clic }) {
   const perso = persoDe(you);
-  const offre = adjointsOfferts((perso || {}).adjoints, graine, cle, 3, coachDuJour(perso));
-  if (!offre.length || !perso) return null;
+  const offre = perso ? adjointsOfferts(perso, graine, cle, 3) : [];
+  if (!offre.length) return null;
   const k = clic ? offre[Math.floor(clic() * offre.length)] : politique === 'defaut' ? offre[0] : offre.reduce((a, b) => (rangDe(b, perso.cle) < rangDe(a, perso.cle) ? b : a));
-  return { adjoint: { cle: k } };
+  return { embauche: { cle: k } };
 }
 /* La valeur d'une réponse d'histoire, en conséquences concrètes, pour l'attentif. */
 function valeurDeReponse(o) {
-  let v = (o.gain || 0) * JETON + (o.xp || 0) * VAUT.xp + (o.adjoint ? VAUT.adjoint : 0) - (o.perdAdjoint ? VAUT.adjoint : 0) + (o.soin || 0) * VAUT.soin;
+  let v = (o.gain || 0) * JETON + (o.xp || 0) * VAUT.xp + (o.adjoint ? VAUT.adjoint : 0) + (o.soin || 0) * VAUT.soin;
   if (o.action) v += (o.action.energieTous || 0) * VAUT.jambes - (o.action.absents || 0) * VAUT.absent + (o.action.energie || 0) * VAUT.jambes / 4;
   return v;
 }
 
 /*
  * LE LUNDI DU ROBOT : l'histoire de la semaine (un lundi tiré de la graine, V20), l'adjoint d'un palier (quand le
- * compte de matchs le franchit), celui d'un gros match gagné, le talent quand le niveau le donne, et son staff tiré de
- * sa main. Rend les décisions
+ * compte de matchs le franchit), celui d'un gros match gagné, le talent quand le niveau le donne, et les cartes qu'il
+ * poste. Rend les décisions
  * à pousser au jour de la ligue. `etat` : ce que la saison retient (les dossiers ouverts, les paliers et les butins pris).
  */
 export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) {
@@ -101,14 +97,13 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
     if (cle) {
       etat.dossiers.push(cle);
       const D = DOSSIERS[cle], lui = D.joueur ? D.joueur(f) : null;
-      const perso = persoDe(you), partant = perso && perso.adjoints.length ? perso.adjoints[perso.adjoints.length - 1] : null;
-      const possibles = D.options.filter(o => !(o.gain < 0 && f.caisse < -o.gain) && !(o.perdAdjoint && !partant));
+      const perso = persoDe(you);
+      const possibles = D.options.filter(o => !(o.gain < 0 && f.caisse < -o.gain));
       const o = clic ? auHasard(possibles) : politique === 'defaut' ? possibles[0] : possibles.reduce((b, x) => (valeurDeReponse(x) > valeurDeReponse(b) ? x : b));
-      const offert = o.adjoint && perso ? adjointsOfferts(perso.adjoints, graine, `do:${w}`, 1, coachDuJour(perso))[0] || null : null;
+      const offert = o.adjoint && perso ? adjointsOfferts(perso, graine, `do:${w}`, 1)[0] || null : null;
       out.push({ jour: j, palier: `do:${w}`, moment: { famille: 'dossier', cle, choix: o.cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) },
         ...(o.gain ? { gain: o.gain } : {}), ...(o.xp ? { xpCoach: o.xp } : {}),
-        ...(offert ? { adjoint: { cle: offert } } : {}),
-        ...(o.perdAdjoint && partant ? { perdAdjoint: partant } : {}),
+        ...(offert ? { embauche: { cle: offert } } : {}),
         ...(o.soin && lui ? { gestes: { soin: o.soin, joueurs: [lui.cle] } } : {}) });
     }
   }
@@ -125,21 +120,14 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
     const d = adjointDuRobot({ you, graine, cle: `r${mb.jour}`, politique, clic });
     if (d) out.push({ jour: j, palier: `r:${mb.jour}`, ...d });
   }
-  // LE STAFF (la main d'adjoints, Bureau › Coach) : après les arrivées et les départs du jour, l'attentif met en poste ses
-  // trois meilleurs (son bras droit d'abord), le distrait trois au hasard ; le robot d'avant laisse le moteur faire (un
-  // arrivant prend une case libre, sinon il attend). Une décision `staff` quand ça change ce qui joue.
+  // POSTER (V22) : une case libre et une carte prête, l'attentif la poste (celle de sa voie d'abord), le distrait une au hasard ;
+  // le robot d'avant ne poste rien. Une décision `poste` par case libre, le jour même ; une carte qui entre aujourd'hui attend lundi.
   const P0 = persoDe(you);
-  if (P0 && politique !== 'defaut' && out.some(d => d.adjoint || d.perdAdjoint)) {
-    let P = { ...P0 };
-    for (const d of out) {
-      if (d.adjoint) P = { ...P, ...avecAdjoint(P, d.adjoint.cle) };
-      if (d.perdAdjoint) P = { ...P, adjoints: P.adjoints.filter(k => k !== d.perdAdjoint), staff: staffDe(P).filter(k => k !== d.perdAdjoint) };
-    }
-    const main = P.adjoints.filter(k => ADJOINTS[k]);
-    const melange = l => { const m = [...l]; for (let i = m.length - 1; i > 0; i--) { const k = Math.floor(clic() * (i + 1)); [m[i], m[k]] = [m[k], m[i]]; } return m; };
-    const voulu = (clic ? melange(main) : [...main].sort((a, b) => rangDe(a, P.cle) - rangDe(b, P.cle))).slice(0, ADJOINTS_MAX);
-    const avant = staffDe(P);
-    if (voulu.length !== avant.length || voulu.some(k => !avant.includes(k))) out.push({ jour: j, staff: voulu });
+  if (P0 && politique !== 'defaut') {
+    const games = you.games || 0;
+    let libres = casesLibres(P0, games, niveauDuPerso(P0));
+    const pretes = pretesDe(P0, games).map(c => c.cle).sort((a, b) => rangDe(a, P0.cle) - rangDe(b, P0.cle));
+    while (libres > 0 && pretes.length) { const k = clic ? pretes.splice(Math.floor(clic() * pretes.length), 1)[0] : pretes.shift(); out.push({ jour: j, poste: { cle: k } }); libres--; }
   }
   // LE TALENT (niveaux 2 et 4) : le pouvoir qui a le plus joué grandit ; le distrait, au hasard ; le robot d'avant, le premier.
   const perso = persoDe(you);

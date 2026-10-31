@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue,
   totauxDuSoir, motsDesTotaux, profilMatch, activeLineup, effetDeMoment, effetsActifs, flechesDe, pariDeDecision } from '../js/sim.js';
 import { motsDuSoir, alignementDuSoir, PARTS_DU_SOIR } from '../js/impact.js';
+import { DOSSIERS } from '../js/dossiers.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin } from './lib/temoins.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -192,8 +193,10 @@ const decisions = [
  */
 {
   const teams = ligue(11);
+  // La banque est vide (V22, phase 4) : un dossier d'essai, dont la réponse est un pari sur l'équipe.
+  DOSSIERS.essaiPari = { titre: 'Un dossier d\'essai', options: [{ cle: 'laisser', nom: 'Laisser aller', pari: { chance: 3 / 6, gagne: { duree: 4, finition: 1.1 }, perd: { duree: 4, finition: 0.9 } } }] };
   const paris = [];
-  for (let j = 2; j < 60; j += 3) paris.push({ jour: j, equipe: 0, moment: { famille: 'moment', cle: 'courbe', choix: 'laisser', joueurs: [] } });
+  for (let j = 2; j < 60; j += 3) paris.push({ jour: j, equipe: 0, moment: { famille: 'dossier', cle: 'essaiPari', choix: 'laisser', joueurs: [] } });
   const L = creerLigue(teams, 82, { graine: 'paris', decisions: paris });
   const dits = paris.map(d => pariDeDecision(d, L.graine));
   jouerJusqua(L, 62);
