@@ -238,6 +238,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
 const des = [], evenementsDe = [];
 let journal = '';   // le journal de l'ouverture, lu une fois
 let directs = 0;   // les gestes faits dans le direct d'un gros match
+let sommaireSimple = null;
 const soirs = { pages: 0, match: 0 };   // les pages du soir, et celles qui sont le sommaire d'un match
 const duelCourt = { n: 0, max: 0, longs: 0 };
 // UNE SEULE FEUILLE À LA FOIS (Jalon M, B7) : à chaque capture qui en montre une, au plus une `.choix-sheet` se voit.
@@ -342,6 +343,16 @@ async function regler() {
       // Le soir d'un seul match (JP, 17 oct.) : la page est son sommaire — ses buts par période —, pas une page « Victoire ».
       const pg = await page.$eval('#hubModal .hub-page[data-genre="sommaire"]', el => ({ match: !!el.querySelector('.som-per'), titre: (el.querySelector('.hub-page-titre, h2') || {}).textContent || '' }));
       soirs.pages++; if (pg.match) { soirs.match++; if (soirs.match === 1) await page.screenshot({ path: `${DOSSIER}/rogue-sommaire-soir.png` }); }
+      // Le sommaire simple (JP, 31 oct.) : les étoiles se voient d'abord, le reste attend sous « Plus de détails ».
+      if (pg.match && soirs.match === 1) {
+        const vu = sel => page.$eval(`#hubModal .hub-page[data-genre="sommaire"] ${sel}`, el => el.offsetParent !== null).catch(() => false);
+        const avant = { etoiles: await vu('.ent-etoiles'), tableau: await vu('.som-extra .ent-carte') };
+        await page.click('#hubModal .hub-page[data-genre="sommaire"] [data-som-plus]');
+        await page.waitForTimeout(150);
+        const apres = { feuille: await vu('.som-feuille') };
+        await page.screenshot({ path: `${DOSSIER}/rogue-sommaire-detail.png` });
+        sommaireSimple = { avant, apres };
+      }
       await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue;
     }
     if (await page.$('#choixModal:not([hidden]) .duel-prop')) {
@@ -1574,6 +1585,13 @@ console.log(`20f. les pages du soir : ${soirs.pages}, dont ${soirs.match} sommai
 console.log(`20r. le gros match en direct : ${directs} geste(s) dans le direct`);
 if (combats.length && !directs) erreurs.push('un gros match a été joué sans son direct');
 console.log(`20q. le journal de l'ouverture : ${journal || 'pas croisé (aucun rechargement en pleine saison)'}`);
+if (sommaireSimple) {
+  const { avant, apres } = sommaireSimple;
+  console.log(`20f'. le sommaire simple : étoiles vues ${avant.etoiles}, détails cachés ${!avant.tableau}, ouverts ${apres.feuille}`);
+  if (!avant.etoiles) erreurs.push('le sommaire du soir ne montre pas les trois étoiles d\'emblée');
+  if (avant.tableau) erreurs.push('le sommaire du soir montre ses détails avant « Plus de détails »');
+  if (!apres.feuille) erreurs.push('« Plus de détails » n\'ouvre pas la feuille du match');
+}
 if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été le sommaire d'un match (${soirs.pages} page(s) du soir)`);
 console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
 if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);

@@ -1464,7 +1464,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   // écrit ; les trois étoiles et le tableau du match disent la même chose en
   // chiffres, et ne se répètent pas d'un match à l'autre.
   const cartons = cartesDeMatch({ f, A, B, ctx: { teamShort, fiche: (p, t, html) => lienJoueur(p, t, mode, html) } });
-  const etoiles = cartons.filter(c => c.titre === 'Les trois étoiles'), tableauDuMatch = cartons.filter(c => c.titre !== 'Les trois étoiles');
+  const etoiles = cartons.filter(c => c.kicker === 'Les trois étoiles'), tableauDuMatch = cartons.filter(c => c.kicker !== 'Les trois étoiles');
   /*
    * LE SOMMAIRE SIMPLE (JP, 31 oct. : *plus simple c'est mieux, quitte à jouter détails toggleable*) : le pointage, ce
    * que le soir a changé, les trois étoiles et les buts avec le pointage qui monte, comme à l'exhibition. Tout le
