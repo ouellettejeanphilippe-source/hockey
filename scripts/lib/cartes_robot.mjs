@@ -157,11 +157,12 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
 
 /*
  * L'ENTRAÎNEUR DU DÉPART D'UNE RUN : le même loto de trois vraies cartes que le jeu (js/coachs-reels.js) ; l'attentif
- * prend celle de la couleur de son effectif, sinon la plus grande maîtrise ; le distrait n'importe laquelle ; le robot
- * d'avant la première. Rend la carte.
+ * prend celle que ses pouvoirs rendent le plus à son effectif (`fit`, scripts/lib/rogue_sim.mjs `fitDeCoach` ; la
+ * couleur de l'effectif, essayée, lui coûtait 1,6 V par saison) ; le distrait n'importe laquelle ; le robot d'avant la
+ * première. Rend la carte.
  */
-export function coachDuRobot(loto, { politique, clic, couleur }) {
+export function coachDuRobot(loto, { politique, clic, fit }) {
   if (clic) return loto[Math.floor(clic() * loto.length)];
-  if (politique === 'attentif') return loto.find(c => c.cle === couleur) || loto.reduce((a, b) => (b.maitrise > a.maitrise ? b : a));
+  if (politique === 'attentif' && fit) { const f = loto.map(fit); return loto[f.indexOf(Math.max(...f))]; }
   return loto[0];
 }
