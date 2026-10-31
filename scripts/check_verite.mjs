@@ -3,7 +3,7 @@
  * 27 oct. 2026 : *l'écran et le moteur disent des chiffres différents*).
  * Chaque affichage lit la valeur du moteur ; un test par accroc :
  *
- *   1. LA GRAINE COMPTE pour les tirages purs (dilemmes, situations,
+ *   1. LA GRAINE COMPTE pour les tirages purs (situations,
  *      objectifs, ajustements) : une graine en base 36 valait 0 par
  *      `Number(graine)`, et toutes les runs tiraient pareil.
  *   2. LE COACH (V21) : son choix dit ses pouvoirs et les niveaux qui les
@@ -21,10 +21,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { exiger, informer, verdict } from './verdict.mjs';
+import { exiger, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
-import { entierDeGraine, matchDuMoment, momentDuJour, objectifsOfferts, ajustementsOfferts, situationsDuJour, JOURS_MOMENTS, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
-  autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, faitsDuClub, jourEvenement } from '../js/sim.js';
+import { entierDeGraine, objectifsOfferts, ajustementsOfferts, situationsDuJour, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
+  autoRoster, registerHiddenRatings, createTeam } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { COACHS, COACH_DU_ROLE } from '../js/coachs.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS } from '../js/pouvoirs.js';
@@ -57,27 +57,14 @@ function ligue(seed, n = 12) {
   }
   return out;
 }
-const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.joue && (m.A === you || m.B === you)).map(m => ({ j, m })));
 
 /* ---------- 1. la graine compte ---------- */
 {
   const a = 'k7q2z9', b = 'm3x8p1';   // deux graines comme `nouvelleGraine` les fait (base 36) : Number() en faisait 0
   exiger('une graine en base 36 n\'est pas 0', entierDeGraine(a) !== 0 && entierDeGraine(b) !== 0 && entierDeGraine(a) !== entierDeGraine(b), `${entierDeGraine(a)} · ${entierDeGraine(b)} (Number : ${Number(a) >>> 0})`);
   exiger('la même graine donne le même entier, en chaîne ou en nombre', entierDeGraine(12345) === entierDeGraine('12345') && entierDeGraine(`${a}:q`) !== entierDeGraine(a));
-  // Une vraie ligue, ses faits à chaque journée de dilemme : les deux graines tirent parmi les mêmes dilemmes vrais.
   const teams = ligue(7), you = teams[0];
   you.isPlayer = true;
-  const L = creerLigue(teams, 82, { graine: 'verite-7', courbe: true });
-  const N = L.calendrier.length, tirages = { [a]: [], [b]: [], [`${a}`]: [] }, encore = [];
-  for (const J of JOURS_MOMENTS) {
-    const jEv = jourEvenement(you, J);
-    jouerJusqua(L, jEv);
-    const c = faitsDuClub(you, tes(L, you), jEv, N);
-    for (const g of [a, b]) tirages[g].push(momentDuJour(g, J, [], c) || '');
-    encore.push(momentDuJour(a, J, [], c) || '');
-  }
-  exiger('deux graines, deux calendriers de dilemmes', tirages[a].some((k, i) => k !== tirages[b][i]) && tirages[a].filter(Boolean).length >= 3, `${tirages[a].join(' ')} / ${tirages[b].join(' ')}`);
-  exiger('la même graine rejoue les mêmes dilemmes', tirages[a].join() === encore.join());
   const oa = objectifsOfferts(a, 0).join(), ob = objectifsOfferts(b, 0).join();
   exiger('deux graines, deux offres du proprio', oa !== ob, `${oa} / ${ob}`);
   const sa = situationsDuJour(you, a, JOURS_SITUATIONS[0], 0), sb = situationsDuJour(you, b, JOURS_SITUATIONS[0], 0);
@@ -127,16 +114,6 @@ const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.jou
     src.split('\n').forEach((l, k) => { if (/money\(MODE\(\)\.cap\)/.test(l) && !/de base, tordu/.test(l)) fautes.push(`${f}:${k + 1}`); });
   }
   exiger('la jauge, le budget et le bilan lisent plafondDeJauge, pas MODE().cap', fautes.length === 0 && /capMax: \(\) => plafondDeJauge\(\)/.test(g), fautes.join(' · ') || 'plafondDeJauge partout');
-}
-
-/* ---------- 6. les dilemmes tombent quand la graine le dit (V19, JP : *plus « randoms »*) ---------- */
-{
-  const graines = ['a1', 'b2', 'c3', 'd4', 'e5', 'f6', 'g7', 'h8'];
-  const hors = [], jours = new Set();
-  for (const g of graines) for (const k of JOURS_MOMENTS) { const m = matchDuMoment(g, k); jours.add(`${k}:${m}`); if (m < k - 2 || m > k + 2) hors.push(`${g}/${k}→${m}`); }
-  exiger('un dilemme tombe à deux matchs près de sa grille', hors.length === 0, hors.join(' · ') || `${jours.size} dates tirées`);
-  exiger('la même graine tire le même match, une autre en tire un autre', JOURS_MOMENTS.every(k => matchDuMoment('a1', k) === matchDuMoment('a1', k)) && JOURS_MOMENTS.some(k => matchDuMoment('a1', k) !== matchDuMoment('b2', k)));
-  exiger('toutes les dates d\'écart se tirent (−2 à +2), rien n\'est fixé', new Set(graines.flatMap(g => JOURS_MOMENTS.map(k => matchDuMoment(g, k) - k))).size === 5);
 }
 
 verdict('La vérité des chiffres');

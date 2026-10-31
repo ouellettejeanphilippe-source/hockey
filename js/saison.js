@@ -24,7 +24,7 @@
  */
 
 import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
-  MOMENTS, faitsDuClub, OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, suivisEnCours, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
+  OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, suivisEnCours, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   MUTATIONS,
   AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
@@ -39,13 +39,13 @@ import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronos
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
 import { PALIERS_PACK, SEMAINE } from './inventaire.js';
 import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT } from './pouvoirs.js';
-import { ADJOINTS, adjointsOfferts, lignesDeLAdjoint, quiPartDeLaMain } from './adjoints.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, basculerChiffres, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
 import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
+import { ADJOINTS, adjointsOfferts, lignesDeLAdjoint, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, reposDe, mainDe, auRepos } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE } from './banque.js';
@@ -891,6 +891,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const accVus = new Set();
   const accidentsNeufs = () => (you.mutations || []).filter(m => m.source === 'accident' && m.jour <= jour && !accVus.has(m));
   const situationsNeuves = () => (you.situations || []).filter(f => !situVues.has(f) && f.jour <= jour);
+  // V22 : un séjour d'adjoint qui finit est une nouvelle d'Hier soir, avec sa fiche (js/sim.js `finirSejours`).
+  const sejVus = new Set();
+  const sejoursNeufs = () => (you.sejoursFinis || []).filter(x => !sejVus.has(x) && x.jour !== null && x.jour < jour);
   /*
    * CE QUI EST ARRIVÉ CETTE SEMAINE, GARDÉ JUSQU'À CE QU'ON L'AIT LU (V4.4). JP : *ya encore des courriels qu'on voit pas*.
    * Une avance ne gardait que la dernière situation et le dernier accident : deux dans la même semaine, et le premier
@@ -948,12 +951,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const totauxDuMatch = j => auSoirDu(j, aVenir => motsDuSoir(you, null, null, aVenir));
   const partsDuSoirDu = j => auSoirDu(j, aVenir => alignementDuSoir(you, null, null, aVenir));
   const pris = new Set(decs.filter(d => typeof d.palier === 'string').map(d => d.palier));
-  /*
-   * CE QUI EST VRAIMENT ARRIVÉ AVANT UN DILEMME (S80, oct. 2026). JP : *les trucs comme, après neuf buts encaissés…
-   * faut que ça soit arrivé pour vrai* ; *toujours nommer les joueurs impliqués*. Lu sur tes matchs d'AVANT la journée
-   * prévue — le même avant et après un report — et sur ton effectif (`faitsDuClub`, js/sim.js).
-   */
-  const faitsAvant = J => faitsDuClub(you, miens, J, N);
   /* Tes matchs sous la forme que les objectifs lisent. */
   const mesMatchs = depuisJ => miens.filter(x => x.j >= depuisJ).map(({ m }) => {
     const cote = m.A === you ? 'A' : 'B';
@@ -1215,7 +1212,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // règle du palier, étendue aux blessures, aux situations et aux cases
       // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
       if (stop && semaine) { if (arretDeSemaine()) { arrete = true; break; } continue; }
-      if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length))
+      if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length || sejoursNeufs().length))
         || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourNeuf() || PALIERS_PACK.some(x => miens.length >= x && !packsVus.has(x)))) { arrete = true; break; }
     }
     const pal = palierOuvert();
@@ -1231,6 +1228,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (trou) trousVus.add(trou);
     for (const f of situationsNeuves()) { situVues.add(f); retenirInfo(`s:${f.jour}`, 'situation', f); }
     for (const a of accidentsNeufs()) { accVus.add(a); retenirInfo(`a:${a.jour}:${getPlayerKey(a.p)}`, 'accident', a); }
+    for (const x of sejoursNeufs()) { sejVus.add(x); retenirInfo(`adj:${x.jour}:${x.cle}`, 'sejour', x); }
     // La journée révélée est la seule chose que la reprise a besoin de savoir :
     // tout le reste se rejoue de la graine.
     if (onJour) onJour(jour);
@@ -1790,6 +1788,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (genre === 'accident' && MUTATIONS[x.cle]) return `<div class="hub-situ hub-accident" role="status">
       <div class="hub-situ-quoi">${MUTATIONS[x.cle].ico} <b>${ctx.esc(x.p.n)}</b> · ${ctx.esc(MUTATIONS[x.cle].nom)} — ${ctx.esc(MUTATIONS[x.cle].quoi)}</div>
       <div class="choix-puces">${puces(motsDeMutationEnChiffres(x.cle, x.p, { deja: true }))}</div>
+    </div>`;
+    if (genre === 'sejour' && ADJOINTS[x.cle]) return `<div class="hub-situ hub-sejour" role="status">
+      <div class="hub-situ-quoi">${ADJOINTS[x.cle].ico} <b>${ctx.esc(ADJOINTS[x.cle].nom)}</b> a fini son séjour : ${x.fin - x.debut} matchs, ${x.v}-${x.d}-${x.dp}. Il revient dans ta main.</div>
     </div>`;
     if (genre === 'situation') return `<div class="hub-situ" role="status">
       <div class="hub-situ-rang">${[['porte', x.porte], ['pese', x.pese]].map(([sens, b]) => {
@@ -2523,9 +2524,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Le verdict du proprio : joué, au jour de sa décision ; à venir, au bout des MATCHS_OBJECTIF de chaque objectif.
     for (const d of decs) if (typeof d.palier === 'string' && d.palier.startsWith('v:')) m(d.jour, '🏢', 'le verdict du proprio', 'haut');
     JOURS_OBJECTIFS.forEach(k => { const j = jEv(k + MATCHS_OBJECTIF); if (futur(j) && !decs.some(d => d.palier === `v:${k}`)) m(j, '🏢', 'le verdict du proprio', 'haut'); });
-    // Les événements : pris, au jour de la décision ; à venir, possibles.
-    for (const d of decs) if (d.moment && d.moment.famille === 'moment' && typeof d.palier === 'string' && d.palier.startsWith('m:')) m(d.jour, '❓', `un événement : ${(MOMENTS[d.moment.cle] || {}).titre || 'tranché'}`, 'bas');
-    // Les événements et les situations à venir ne s'annoncent pas : leur jour est tiré de la graine (`matchDuMoment`), rien ne le dit d'avance.
     // Le vestiaire : les situations vécues ; à venir, possibles (une situation peut être reportée).
     for (const x of you.situations || []) if (x.jour < jour) m(x.jour, '💬', 'le vestiaire a vécu quelque chose', 'bas');
     // Les accidents : ils ne se prévoient pas ; joués, ils se marquent.
@@ -2684,7 +2682,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     tabs.hub.signer = () => { const m = enAttente(); if (m) ctx.boutique.rouvrir(m.achat, jour, decideDuMarche); };
   }
   // LA DÉCISION DU JOUR, PRÊTÉE (S80) : une carte posée au verso d'une fiche ouverte n'importe où pendant la saison.
-  // Rend la promesse de la décision : une page qui veut rester ouverte (le Coach, sa main d'adjoints) s'y rouvre ensuite.
+  // Rend la promesse de la décision : une page qui veut rester ouverte (le Coach) s'y rouvre ensuite.
   if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); return onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
   /*
    * UNE TUILE S'OUVRE SUR SA CARTE (S77) : la forme sur « Ma fiche », le
@@ -3099,22 +3097,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * match ne s'ouvre que seule, comme avant : elle a son écran de combat.
    */
   const choixForce = () => specsForces()[0] || null;
-  /*
-   * LES ADJOINTS D'UN MOMENT FORT (V21, js/adjoints.js ; JP : *les assistants sont des ajustements, des systèmes de
-   * jeu*) : un parmi trois, gratuit, chacun un échange — ce qu'il donne, ce qu'il coûte, en vraies stats. `cle` : le
-   * moment (le palier, le butin, l'objectif, l'histoire).
-   */
-  // Le personnage du matin : les décisions du jour pas encore jouées comprises (un adjoint pris ce matin, le staff changé).
+  // Le personnage du matin : les décisions du jour pas encore jouées comprises (un talent pris ce matin).
   const persoDuJour = () => { const p = you && avecAVenir(you, decs.filter(d => d.jour === jour && !d.equipe), () => you.perso); return p ? { ...p, xpSaison: you.xpSaison || 0 } : null; };
-  // Le coach du jour lit l'offre (légers d'abord, son bras droit au niveau 3, js/adjoints.js) et dit son bras droit.
-  const coachDuJour = () => { const p = persoDuJour(); return p ? { cle: p.cle, niveau: niveauDuPerso(p) } : null; };
-  // Une main pleine laisse partir le plus ancien hors du staff : l'offre le dit (js/adjoints.js `quiPartDeLaMain`).
+  /*
+   * LES ADJOINTS D'UN MOMENT FORT (V22, js/adjoints.js) : un parmi trois, gratuit, chacun une carte — son style en vraies
+   * stats, son séjour, et la synergie avec ton coach. `cle` : le moment (le palier, le butin, le verdict, l'histoire). Une
+   * main pleine laisse partir la plus ancienne hors poste, et l'offre le dit.
+   */
   const optionDAdjoint = k => {
-    const p = persoDuJour(), part = quiPartDeLaMain(p);
-    return { cle: k, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, mots: [...lignesDeLAdjoint(k, (p || {}).cle), ...(part ? [{ txt: `Ta main est pleine : ${ADJOINTS[part].ico} ${ADJOINTS[part].nom} part`, bon: false }] : [])] };
+    const p = persoDuJour(), part = p ? quiPartDeLaMain(p, you.games || 0) : null, syn = p ? motDeSynergie(k, p.cle) : null;
+    return { cle: k, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, sous: ADJOINTS[k].style, mots: [...lignesDeLAdjoint(k),
+      ...(syn ? [{ txt: syn, bon: true }] : [{ txt: `Un séjour de ${sejourDe(k, p ? p.cle : null)} matchs`, bon: null }]),
+      ...(part ? [{ txt: `Ta main est pleine : ${ADJOINTS[part].ico} ${ADJOINTS[part].nom} part`, bon: false }] : [])] };
   };
-  const adjointsDuMoment = cle => adjointsOfferts((persoDuJour() || {}).adjoints, graine, cle, 3, coachDuJour()).map(optionDAdjoint);
-  const decisionDeLAdjoint = cle => ({ adjoint: { cle } });
+  const adjointsDuMoment = cle => (persoDuJour() ? adjointsOfferts(persoDuJour(), graine, cle, 3).map(optionDAdjoint) : []);
+  const decisionDeLAdjoint = cle => ({ embauche: { cle } });
   function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
     // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.
@@ -3175,8 +3172,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         decision: () => ({ palier: `v:${vo.j0}`, leve: true }) });
       else specs.push(vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
-          // V21 : le proprio paie des jetons et un adjoint parmi trois, qui modifie un pouvoir du coach.
-          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Il sort son carnet de chèques : +${(((ctx.rogue && ctx.rogue.mandat && ctx.rogue.mandat()) || {}).bareme || JETONS).objectif} 🪙 et un adjoint parmi trois pour ton coach.`,
+          // Le proprio paie des jetons (V22 : l'adjoint parmi trois reviendra avec la main, phase 3).
+          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Il sort son carnet de chèques : +${(((ctx.rogue && ctx.rogue.mandat && ctx.rogue.mandat()) || {}).bareme || JETONS).objectif} 🪙 et un adjoint parmi trois.`,
           options: adjointsDuMoment(`v${vo.j0}`),
           decision: cle => ({ palier: `v:${vo.j0}`, ...decisionDeLAdjoint(cle) }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
@@ -3200,7 +3197,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           return { cle, ico: OBJECTIFS[cle].ico, nom: motsDeLObjectif(cle, oo.quoi[cle]).nom, sous: raisonObjectif(cle, oo.quoi[cle]),
             mots: m ? [{ txt: `${m.mot} · ${x < 0.05 ? 'moins de 1 chance sur 10' : `environ ${Math.max(1, Math.round(x * 10))} chance${Math.round(x * 10) > 1 ? 's' : ''} sur 10`}`, bon: x >= 0.7 ? true : x < 0.45 ? false : undefined }] : [] };
         }),
-        contexte: `<div class="choix-puces"><span class="puce bon">Réussi : 👔 un adjoint parmi trois</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs</span></div>`,
+        contexte: `<div class="choix-puces"><span class="puce bon">Réussi : il paie, et un adjoint parmi trois</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs</span></div>`,
         decision: cle => ({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour, ...(oo.quoi[cle] ? { quoi: oo.quoi[cle] } : {}) } }) });
     }
     if (mo) specs.push({ de: DE.depisteur, ico: '⚔', titre: `Gros match contre ${ctx.teamShort(mo.mb.adv)}`, recit: 'Leur intention, une carte de vestiaire, puis ce que ton adjoint propose pour la 1re période.', ouvrir: () => ouvrirDuelDuSoir(mo) });
@@ -3258,7 +3255,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     };
   }
   /*
-   * CE QUE LE PROPRIO LIT LE LUNDI (V16, tranche 6 — js/dossiers.js `laMasse`, `laTete`) : l'espace sous le plafond et
+   * CE QUE LE PROPRIO LIT LE LUNDI (V16, tranche 6 ; les histoires de js/dossiers.js le lisent) : l'espace sous le plafond et
    * le contrat le plus lourd, nommé ; les défaites de suite, le coach en poste et deux autres qu'il nommerait.
    */
   function faitsDuProprio() {
@@ -3420,16 +3417,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // V11 (tranche 4) : le joueur qu'il nomme, et ce que chaque réponse lui fait à lui.
       const lui = D.joueur ? D.joueur(dossier.faits) : null;
       const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
-      // LES CONSÉQUENCES CONCRÈTES (V21) : l'adjoint offert est nommé (le premier tiré pour cette histoire), celui qui part
-      // aussi (le dernier entré).
-      const perso = persoDuJour();
-      const offert = perso ? adjointsOfferts(perso.adjoints, graine, `do:${dossier.w}`, 1, coachDuJour())[0] || null : null;
-      const partant = perso && (perso.adjoints || []).length ? perso.adjoints[perso.adjoints.length - 1] : null;
-      const nomDAdjoint = k => `${ADJOINTS[k].ico} ${ADJOINTS[k].nom}`;
+      // LES CONSÉQUENCES CONCRÈTES (V21 ; V22 : la carte d'adjoint offerte est nommée, la première tirée pour cette histoire).
+      const persoDo = persoDuJour();
+      const offert = persoDo ? adjointsOfferts(persoDo, graine, `do:${dossier.w}`, 1)[0] || null : null;
       const motsConcrets = o => [
         ...(o.xp ? [{ txt: `Ton coach : ${o.xp > 0 ? '+' : '−'}${Math.abs(o.xp)} d'expérience`, bon: o.xp > 0 }] : []),
-        ...(o.adjoint && offert ? [{ txt: `Arrive : ${nomDAdjoint(offert)}`, bon: true }, ...lignesDeLAdjoint(offert, perso.cle)] : []),
-        ...(o.perdAdjoint ? [partant ? { txt: `Part : ${nomDAdjoint(partant)}`, bon: false } : { txt: 'Ton staff est vide', bon: null }] : []),
+        ...(o.adjoint && offert ? [{ txt: `Dans ta main : ${ADJOINTS[offert].ico} ${ADJOINTS[offert].nom}, ${ADJOINTS[offert].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjoint(offert)] : []),
         ...(o.action && o.action.energieTous ? [{ txt: `Les jambes de tous : ${o.action.energieTous > 0 ? '+' : '−'}${Math.abs(o.action.energieTous)}`, bon: o.action.energieTous > 0 }] : []),
         ...(o.action && o.action.energie && lui ? [{ txt: `Jambes de ${nomCourt(lui.n)} : ${o.action.energie > 0 ? '+' : '−'}${Math.abs(o.action.energie)}`, bon: o.action.energie > 0 }] : []),
         ...(o.action && o.action.absents && lui ? [{ txt: `${nomCourt(lui.n)} manque ${o.action.absents} matchs`, bon: false }] : []),
@@ -3444,13 +3437,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // L'AUDACE (V20) : un pari sur le joueur nommé, au dé ; sa fenêtre, celle de ses deux issues.
         ...(o.pari ? { quand: fenetreDuChoix(miens.length, o.pari.gagne.duree) } : {}),
         mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...motsConcrets(o), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
-        desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : o.perdAdjoint && !partant ? 'Ton staff est vide' : null }));
+        desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : null }));
       const decision = cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}),
         // V16 (tranche 6) : la masse salariale passe par sa décision (`plafond`) ; V21 : le coach, le soin, par les leurs.
         ...(o.plafond ? { plafond: { cle: `${dossier.cle}.${cle}`, nom: motsDuDossier(o, dossier.faits, lui).nom, ...o.plafond, ...(o.plafond.facteur && lui ? { joueur: lui.cle } : {}) } } : {}),
         ...(o.xp ? { xpCoach: o.xp } : {}),
-        ...(o.adjoint && offert ? { adjoint: { cle: offert } } : {}),
-        ...(o.perdAdjoint && partant ? { perdAdjoint: partant } : {}),
+        ...(o.adjoint && offert ? { embauche: { cle: offert } } : {}),
         ...(o.soin && lui ? { gestes: { soin: o.soin, joueurs: [lui.cle] } } : {}) }; };
       const scene = sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`);
       // L'AUDACE SE JOUE AU DÉ (V20 ; js/gerant.js `sceneDuDe`) : le sel se tire au lancer, le dé montre ce que le moteur en fera.
@@ -3661,7 +3653,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Les fils suivis, puis ce que tes réponses du vestiaire jouent encore (un dilemme, une séquence), et pour combien de matchs.
     const effets = ctx.rogue ? effetsEnCours(you, jour).effets.filter(e => ['moment', 'sequence'].includes(e.source) && e.reste > 0)
       .map(e => `${e.ico || '✨'} ${e.nom}${e.choix ? ` · ${e.choix}` : ''} · encore ${e.reste} match${e.reste > 1 ? 's' : ''}`) : [];
-    const l = [...enCours().map(motDuSuiviEnCours), ...effets, ...defisEnCours().map(motDuDefiEnCours)];
+    // V22 : les adjoints en poste (ce qui leur reste) et ceux au repos.
+    const pA = ctx.rogue ? persoDuJour() : null, gA = you.games || 0;
+    const adj = pA ? [...postesDe(pA, gA).map(c => `${ADJOINTS[c.cle].ico} ${ADJOINTS[c.cle].nom} en poste · encore ${resteDe(c, gA, pA.cle)} match${resteDe(c, gA, pA.cle) > 1 ? 's' : ''}`),
+      ...mainDe(pA).filter(c => auRepos(c, gA)).map(c => `${ADJOINTS[c.cle].ico} ${ADJOINTS[c.cle].nom} au repos · ${reposDe(c, gA)} match${reposDe(c, gA) > 1 ? 's' : ''}`)] : [];
+    const l = [...enCours().map(motDuSuiviEnCours), ...effets, ...adj, ...defisEnCours().map(motDuDefiEnCours)];
     return l.length ? `<div class="hub-etat" role="group" aria-label="Ce qui court">${l.map(t => `<div class="hub-etat-l"><span class="hub-etat-k">⏳ Ce qui court</span><span class="hub-etat-v">${ctx.esc(t)}</span></div>`).join('')}</div>` : '';
   }
   /* Ce qui a bougé hier soir : un pas d'un fil suivi ou de l'objectif du proprio, en une ligne chacun. */

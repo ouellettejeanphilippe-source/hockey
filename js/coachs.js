@@ -3,7 +3,7 @@
  *
  * JP, 29 oct. 2026 : *coach-personnage à la Hades*. Un coach est choisi au départ d'une run (le prestige en ouvre
  * plus, `VOIES`) et la fait au complet : son niveau, son arbre de trois pouvoirs et ses talents vivent dans
- * js/pouvoirs.js, son staff dans js/adjoints.js. Ici, son identité : son totem (`ico`, une icône, un coach), son surnom,
+ * js/pouvoirs.js. Ici, son identité : son totem (`ico`, une icône, un coach), son surnom,
  * `de` pour les phrases (« les joueurs du Frelon »), sa philosophie en une ligne, et ses `familles` (ce qu'un
  * adversaire lit pour choisir son intention au duel, `coachPaie`, js/sim.js).
  *

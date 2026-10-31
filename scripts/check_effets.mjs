@@ -1,7 +1,8 @@
 /*
  * CHAQUE EFFET SE VOIT (25 oct. 2026 ; JP : *0,4 pt, ça va fuck all faire* ; *recheck tous les effets*). Tout ce qui
- * touche ton club en Rogue — les réponses des dossiers (ce qui va au joueur nommé, leurs paris), les dilemmes et les
- * séquences, l'avant-match, le point de presse et les courriels, les arcs, les retours des fils — se mesure EN
+ * touche ton club en Rogue — les réponses des dossiers (ce qui va au joueur nommé, leurs paris),
+ * l'avant-match, les arcs, les retours des fils (la banque d'événements est vide, V22, phase 4 : seuls l'avant-match
+ * se mesure aujourd'hui, le reste dès que la banque neuve y entre) — se mesure EN
  * PAIRES (CLAUDE.md), match par match, comme check_places : deux copies d'un même vrai club, les mêmes dés, une fois
  * sans l'effet, une fois avec, son moment posé. Un effet partagé (un paquet de réponses) se mesure une fois.
  *   1. il se voit dans la feuille d'un soir où il joue : ±2 tirs (un bord ou le rythme), ±0,3 but des deux clubs,
@@ -15,9 +16,9 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
-import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, activeLineup, effetsDesJoueurs, getPlayerKey, depenserEnergie, MOMENTS, SEQUENCES, AVANT_GROS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, activeLineup, effetsDesJoueurs, getPlayerKey, depenserEnergie, AVANT_GROS } from '../js/sim.js';
 import { DOSSIERS } from '../js/dossiers.js';
-import { REPONSES_VIE, CHOIX_DES_FILS } from '../js/vie-gm.js';
+import { CHOIX_DES_FILS } from '../js/vie-gm.js';
 import { ARCS } from '../js/arcs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -35,7 +36,7 @@ function items() {
     const add = (suf, x, dur) => { const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `${pre}:${k}.${O.cle}${suf}`, nom: `${M.titre || k} : ${O.nom}`, rarete: 'commune', si: null, duree: dur ?? x.duree, effet: e, joueur: x.lui || null }); };
     add('', O); if (O.pari) { add('+', O.pari.gagne); add('-', O.pari.perd); } if (O.ensuite) add('>', O.ensuite);
   } };
-  fam('v', MOMENTS); fam('s', SEQUENCES); fam('g', AVANT_GROS); fam('p', REPONSES_VIE);
+  fam('g', AVANT_GROS);
   for (const [k, A] of Object.entries(ARCS)) (A.episodes || []).forEach((E, i) => { if (E.effet && Object.keys(E.effet).length && E.cible !== 'joueur') out.push({ id: `a:${k}.${i}`, nom: `${A.titre} (${i + 1})`, rarete: 'commune', si: null, duree: E.matchs, effet: prend(E.effet, CANAUX), contre: E.cible === 'contre' });
     else if (E.effet && Object.keys(E.effet).length) out.push({ id: `a:${k}.${i}`, nom: `${A.titre} (${i + 1})`, rarete: 'commune', si: null, duree: E.matchs, effet: {}, joueur: prend(E.effet, CJ) }); });
   for (const [k, F] of Object.entries(CHOIX_DES_FILS)) for (const O of F.options) if (O.suivi) for (const b of ['gagne', 'perd']) { const B = O.suivi[b]; if (B) out.push({ id: `f:${k}.${O.cle}.${b}`, nom: `${F.titre} : ${O.nom} (${b})`, rarete: 'commune', si: null, duree: B.duree, effet: {}, joueur: prend(B.effets[0], CJ) }); }

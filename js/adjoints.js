@@ -1,62 +1,72 @@
 /*
- * LES ADJOINTS, DES SYSTÈMES DE JEU (V21 ; JP : *les assistants sont des ajustements, des systèmes de jeu* ; *genre deux
- * tirs de plus, mais en alloue deux de plus, ou tu buffs légèrement le gardien numéro un mais un nerf le numéro deux ou
- * l'inverse*). Un adjoint est un ÉCHANGE : ce que ton club gagne et ce qu'il donne, sur les canaux que le moteur connaît,
- * tous les matchs. Il change la forme du match, pas sa force : sur un club ordinaire, le net est près de zéro ; sur le
- * tien, il paie si l'échange lui va (des tireurs, un gardien n° 1 solide, une profondeur). `check_pouvoirs` le mesure.
+ * LES ADJOINTS : UNE MAIN, DES SÉJOURS, UN STYLE (V22, docs/refonte-v22.md). JP, 31 oct. 2026 : *coach plus adjoints
+ * dans une main, qui sont là x matchs et changent le style de l'équipe* ; *simple, impactant, le fun, marquant*.
  *
- *   effet    sur ton club (`volume`, `finition`, `defense`, `discipline`, `blessure`, `robustesse`, `F` : la glace des trios)
- *   adv      sur l'adversaire, le temps du match
- *   gardiens les buts accordés de ton gardien n° 1 (la première case du filet) et de ton n° 2, le soir où il joue :
- *            un multiplicateur (0,95 = 5 % de moins), que le moteur pose sur son canal `arrets`, sous `GAIN_GARDIEN_MAX`.
- *            Le n° 1 part environ trois soirs sur quatre : un échange de gardiens s'équilibre à 3 contre 1.
+ * SIMPLE. Un adjoint est une carte : un style de jeu en deux lignes — ce qu'il donne, ce qu'il coûte, en vraies stats
+ * de match — et un séjour, en matchs. Ta MAIN tient `MAIN_MAX` cartes, en poste comprises. Tu en POSTES une quand tu
+ * veux (Bureau › Coach) : elle joue `SEJOUR` matchs, puis elle revient dans ta main et se repose `REPOS` matchs avant
+ * de se rejouer. Les cases en poste suivent le niveau du coach (`CASES_PAR_NIVEAU`) : une au niveau 1, deux au 3,
+ * trois au 5.
  *
- * Pur : le moteur (js/sim.js `poserLesAdjoints`) et l'écran lisent la même table. Trois au plus en poste (`ADJOINTS_MAX`) ;
- * un parmi trois, gratuit, aux moments forts (`adjointsOfferts`).
+ * IMPACTANT. Un échange permanent devait rester petit pour tenir sous sa borne sur 82 matchs ; un séjour de douze
+ * matchs frappe bien plus fort chaque soir (±3 tirs, ±0,4 but) et reste sous ±1,5 V sur la saison : une carte ne joue
+ * qu'un match sur deux au plus (`SEJOUR / (SEJOUR + REPOS)`). Sans repos, la rejouer de suite en referait un échange
+ * permanent — c'est pour ça qu'il y en a un. Deux canaux par style, jamais plus (`check_pouvoirs`).
  *
- * UNE MAIN DE CARTES, TROIS EN POSTE (oct., JP : *drag and drop comme l'alignement, genre main de cartes, trois actives à
- * la fois*). Le personnage garde tous ses adjoints dans sa main (`adjoints`, dans l'ordre d'arrivée, `MAIN_ADJOINTS` au
- * plus) ; trois jouent, son staff (`staff`), qu'une décision `staff` change le jour dit (Bureau › Coach : on glisse une
- * carte de la main sur une case du staff). Un arrivant prend une case libre, sinon il attend dans la main ; une main
- * pleine laisse partir le plus ancien hors du staff, et l'offre le dit. Plus de « Qui part ? ».
+ * LE FUN. Jouer une carte est un choix de moment : le canonnier avant la semaine à la maison, le mur avant ta bête noire.
+ * Un style qui rejoint la philosophie de ton coach (`voie`) dure `SEJOUR_SYNERGIE` matchs au lieu de `SEJOUR` : la
+ * synergie, pas un chiffre plus gros. Les cartes arrivent aux moments forts, un parmi trois, gratuit
+ * (`adjointsOfferts`) ; une main pleine laisse partir la plus ancienne hors poste (`quiPartDeLaMain`), et l'offre le dit.
  *
- * LÉGERS D'ABORD (oct., JP : *tu devrais commencer avec des adjoints avec peu d'impact*). Un adjoint `lourd` est celui dont
- * l'échange pèse le plus selon le club (`check_pouvoirs` : de −4 à +7 victoires d'un club témoin à l'autre ; un léger
- * reste entre −2 et +2). Tant que le coach n'a pas son deuxième pouvoir (niveau `NIVEAU_DES_LOURDS`), on n'offre que
- * des légers ; les lourds et son bras droit arrivent avec lui.
+ * MARQUANT. La carte se souvient : chaque séjour s'écrit à son verso avec sa fiche (`sejours`), et Hier soir le dit
+ * quand il finit (js/sim.js `finirLesSejours`). Chaque adjoint a une réplique (`dit`), sans chiffre.
  *
- * SON BRAS DROIT (oct., JP : *le coach peut avoir un gros impact, tant que c'est lié à une synergie logique et non
- * car le chiffre est gros, comme un champion de LoL avec les bons items*). Chaque coach a UN adjoint de sa voie (`voie`) :
- * le canonnier sert la ruée du Frelon, le tireur d'élite la riposte de l'Aigle. En poste, il fait grandir les trois
- * pouvoirs du coach (`BRAS_DROIT`, js/pouvoirs.js `forceDuPouvoir`), en plus de son propre échange, qui va dans le sens
- * de ces pouvoirs. Seul, sur un autre coach, il reste un échange comme les autres.
+ * Pur : le moteur (js/sim.js `poserLesAdjoints`, `appliquerPerso`) et l'écran (js/alignement.js) lisent la même table.
+ * La main d'un personnage : `perso.main = [{ cle, depuis, fin, sejours: [{ debut, fin, v, d, dp }] }]` — `depuis`, le
+ * compte de matchs du club à la pose (en poste tant que `games - depuis < sejour`) ; `fin`, celui de la fin du dernier
+ * séjour (au repos tant que `games - fin < REPOS`).
  */
 import { hache } from './util.js';
 import { COACHS } from './coachs.js';
 
-export const ADJOINTS_MAX = 3;
-/* La main : les adjoints du personnage, en poste ou non. Pleine, l'arrivant pousse dehors le plus ancien hors du staff. */
-export const MAIN_ADJOINTS = 6;
+export const SEJOUR = 12;
+export const SEJOUR_SYNERGIE = 16;
+export const REPOS = 12;
+export const MAIN_MAX = 4;
+/* Les cases en poste, par niveau du coach (1 à 5). */
+export const CASES_PAR_NIVEAU = [1, 1, 2, 2, 3];
+export const casesDuNiveau = n => CASES_PAR_NIVEAU[Math.min(CASES_PAR_NIVEAU.length, Math.max(1, n || 1)) - 1];
+
+/*
+ * Huit styles, un par philosophie (`voie` : la clé du coach de js/coachs.js), pour que la synergie se lise d'un coup
+ * d'œil. `effet` sur ton club, `adv` sur l'adversaire, le temps du match ; les canaux sont ceux du moteur.
+ */
 export const ADJOINTS = {
-  canonnier: { ico: '🏹', nom: 'Le canonnier', lourd: true, voie: 'essaim', effet: { volume: 1.08 }, adv: { volume: 1.1 } },
-  trappeur: { ico: '🚧', nom: 'Le trappeur', effet: { volume: 0.92 }, adv: { volume: 0.92 } },
-  tireur: { ico: '📐', nom: 'Le tireur d\'élite', voie: 'rapaces', effet: { finition: 1.13, volume: 0.9 } },
-  mitrailleur: { ico: '💨', nom: 'Le mitrailleur', effet: { volume: 1.13, finition: 0.91 } },
-  mur: { ico: '🧱', nom: 'Le bâtisseur de mur', lourd: true, voie: 'tortue', effet: { defense: 0.92, finition: 0.92 } },
-  numeroUn: { ico: '🧤', nom: 'L\'entraîneur du n° 1', gardiens: { partant: 0.9, aux: 1.3 } },
-  numeroDeux: { ico: '🧊', nom: 'L\'entraîneur du n° 2', gardiens: { partant: 1.04, aux: 0.88 } },
-  cogneur: { ico: '🏋', nom: 'Le préparateur physique', lourd: true, voie: 'rhinos', effet: { robustesse: 2, discipline: 1.25 } },
-  prof: { ico: '🧭', nom: 'Le prof de discipline', lourd: true, voie: 'choeur', effet: { discipline: 0.75, robustesse: -1 } },
-  rouleur: { ico: '🧲', nom: 'Le rouleur', lourd: true, voie: 'profondeur', effet: { F: [0.78, 0.9, 1.15, 1.35] }, adv: { volume: 0.9 } },
-  vedettiste: { ico: '📊', nom: 'Le vedettiste', lourd: true, voie: 'etoiles', effet: { F: [1.2, 1.05, 0.92, 0.8] }, adv: { volume: 1.08 } },
-  soigneur: { ico: '🧪', nom: 'Le soigneur', voie: 'souffle', effet: { blessure: 0.7, volume: 0.98 } },
+  canonnier: { ico: '🏹', nom: 'Le canonnier', style: 'Tirer de partout', voie: 'essaim',
+    dit: 'Une rondelle sur la palette, c\'est une rondelle au filet. On comptera après.',
+    effet: { volume: 1.18, finition: 0.9 }, adv: { volume: 1.06 } },
+  lunette: { ico: '🔭', nom: 'Le tireur d\'élite', style: 'Choisir ses tirs', voie: 'rapaces',
+    dit: 'Un bon tir vaut trois mauvais. On attend l\'ouverture, et on la prend.',
+    effet: { finition: 1.12, volume: 0.9 } },
+  mur: { ico: '🧱', nom: 'Le mur', style: 'Fermer la zone', voie: 'tortue',
+    dit: 'Personne ne traverse la ligne bleue debout. Le reste, c\'est du détail.',
+    effet: { volume: 0.9 }, adv: { volume: 0.86 } },
+  cogneur: { ico: '🏋', nom: 'Le cogneur', style: 'Le jeu physique', voie: 'rhinos',
+    dit: 'Finis tes mises en échec. Ils vont lever la tête, et c\'est là qu\'ils vont rater.',
+    effet: { robustesse: 2, discipline: 1.4 }, adv: { finition: 0.98 } },
+  preparateur: { ico: '🏃', nom: 'Le préparateur', style: 'Les jambes fraîches', voie: 'souffle',
+    dit: 'Des présences courtes, du repos, de l\'eau. On ne gagne rien à l\'infirmerie.',
+    effet: { blessure: 0.65, energie: 0.85, volume: 0.95 } },
+  moine: { ico: '🧘', nom: 'Le moine', style: 'La discipline', voie: 'choeur',
+    dit: 'Les bâtons sur la glace, la bouche fermée. L\'arbitre ne nous verra pas de la soirée.',
+    effet: { discipline: 0.7, robustesse: -2, volume: 0.94 } },
+  rouleur: { ico: '🔁', nom: 'Le rouleur', style: 'Quatre trios', voie: 'profondeur',
+    dit: 'Tout le monde joue, tout le monde est frais en troisième. C\'est là que ça se gagne.',
+    effet: { F: [0.82, 1, 1.1, 1.2], blessure: 0.7 }, adv: { volume: 0.92 } },
+  vedettiste: { ico: '🎤', nom: 'Le vedettiste', style: 'Le premier trio', voie: 'etoiles',
+    dit: 'On paie des vedettes pour qu\'elles jouent. Mets-les sur la glace et laisse-les faire.',
+    effet: { F: [1.2, 1, 0.92, 0.84], finition: 1.03, blessure: 1.3 }, adv: { volume: 1.08 } },
 };
-/* Ce que son bras droit en poste ajoute aux pouvoirs du coach (js/pouvoirs.js `forceDuPouvoir`). */
-export const BRAS_DROIT = 0.5;
-/* Le niveau du coach qui ouvre les adjoints lourds et son bras droit : celui de son deuxième pouvoir (js/pouvoirs.js). */
-export const NIVEAU_DES_LOURDS = 3;
-/* Le bras droit d'un coach (sa clé, js/coachs.js) : l'adjoint de sa voie. */
-export const brasDroitDe = coach => Object.keys(ADJOINTS).find(k => ADJOINTS[k].voie === coach) || null;
 
 /* Un canal, en mots, de ton côté : ce qu'il dit et s'il aide (`bon`). */
 const pct = v => `${v > 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)} %`;
@@ -66,61 +76,95 @@ const MOTS = {
   defense: v => ({ txt: `Buts contre ${pct(v)}`, bon: v < 1 }),
   discipline: v => ({ txt: `Tes punitions ${pct(v)}`, bon: v < 1 }),
   blessure: v => ({ txt: `Tes blessures ${pct(v)}`, bon: v < 1 }),
+  energie: v => ({ txt: `Usure des jambes ${pct(v)}`, bon: v < 1 }),
   robustesse: v => ({ txt: `${v > 0 ? 'Plus' : 'Moins'} de mises en échec`, bon: v > 0 }),
 };
-/*
- * CE QU'UN ADJOINT DIT : son gain d'abord, puis son prix, chacun une ligne en vraies stats. La glace des trios se dit
- * en mots (le haut ou le bas de l'alignement joue plus) ; les gardiens, par leur rang. `coach` : le bras droit de ton
- * coach le dit d'abord.
- */
-export function lignesDeLAdjoint(cle, coach = null) {
+const MOTS_ADV = {
+  volume: v => ({ txt: `Leurs tirs ${pct(v)}`, bon: v < 1 }),
+  finition: v => ({ txt: `Leur précision ${pct(v)}`, bon: v < 1 }),
+};
+/* CE QU'UN ADJOINT DIT : ses lignes vertes d'abord, puis ses rouges, chacune en vraies stats. */
+export function lignesDeLAdjoint(cle) {
   const A = ADJOINTS[cle];
   if (!A) return [];
   const out = [];
-  if (coach && A.voie === coach && COACHS[coach]) out.push({ txt: `Bras droit ${COACHS[coach].de} : ses pouvoirs +${Math.round(BRAS_DROIT * 100)} %`, bon: true });
   for (const [k, v] of Object.entries(A.effet || {})) {
     if (k === 'F') {
       const haut = v[0] > 1;
       out.push({ txt: haut ? 'Ton 1er trio joue plus' : 'Tes 3e et 4e trios jouent plus', bon: true }, { txt: haut ? 'Le bas de l\'alignement joue moins' : 'Ton 1er trio joue moins', bon: false });
     } else if (MOTS[k]) out.push(MOTS[k](v));
   }
-  for (const [k, v] of Object.entries(A.adv || {})) if (k === 'volume') out.push({ txt: `Leurs tirs ${pct(v)}`, bon: v < 1 });
-  const g = A.gardiens;
-  if (g) out.push({ txt: `Ton gardien n° 1 : buts accordés ${pct(g.partant)}`, bon: g.partant < 1 }, { txt: `Ton gardien n° 2 : buts accordés ${pct(g.aux)}`, bon: g.aux < 1 });
+  for (const [k, v] of Object.entries(A.adv || {})) if (MOTS_ADV[k]) out.push(MOTS_ADV[k](v));
   return [...out.filter(x => x.bon), ...out.filter(x => !x.bon)];
 }
 
+/* Le séjour d'un adjoint chez un coach : plus long s'il rejoint sa philosophie. */
+export const sejourDe = (cle, coach) => (ADJOINTS[cle] && ADJOINTS[cle].voie === coach ? SEJOUR_SYNERGIE : SEJOUR);
+/* La ligne de synergie, à dire sur la carte : « Rejoint le Frelon : 16 matchs ». */
+export const motDeSynergie = (cle, coach) => (ADJOINTS[cle] && ADJOINTS[cle].voie === coach && COACHS[coach] ? `Rejoint ${COACHS[coach].nom.replace(/^(Le|La|L')\s?/, m => m.toLowerCase())} : ${SEJOUR_SYNERGIE} matchs` : null);
+
+/* La main d'un personnage, propre : ses cartes connues, dans l'ordre d'arrivée. */
+export const mainDe = perso => ((perso && perso.main) || []).filter(c => c && ADJOINTS[c.cle]);
+/* Une carte est en poste si son séjour court : `games`, le compte de matchs du club. */
+export const enPoste = (c, games, coach) => c.depuis != null && games - c.depuis < sejourDe(c.cle, coach);
+/* Ce qui lui reste en poste, en matchs. */
+export const resteDe = (c, games, coach) => (enPoste(c, games, coach) ? sejourDe(c.cle, coach) - (games - c.depuis) : 0);
+/* Au repos : son dernier séjour est fini depuis moins de `REPOS` matchs. */
+export const auRepos = (c, games) => c.depuis == null && c.fin != null && games - c.fin < REPOS;
+export const reposDe = (c, games) => (auRepos(c, games) ? REPOS - (games - c.fin) : 0);
+/* Les cartes en poste d'un personnage, et celles de la main prêtes à l'être. */
+export const postesDe = (perso, games) => mainDe(perso).filter(c => enPoste(c, games, perso.cle));
+export const pretesDe = (perso, games) => mainDe(perso).filter(c => !enPoste(c, games, perso.cle) && !auRepos(c, games));
+/* Les cases libres, au niveau du coach. */
+export const casesLibres = (perso, games, niveau) => Math.max(0, casesDuNiveau(niveau) - postesDe(perso, games).length);
+
 /*
  * LES ADJOINTS OFFERTS (un parmi trois, gratuits, aux moments forts) : tirés de la graine parmi ceux qui ne sont pas
- * déjà en poste. `cle` : le moment fort (le palier, le butin, l'histoire) ; deux moments n'offrent pas les mêmes.
- * `perso` (le coach du jour, `{ cle, niveau }`) : sous `NIVEAU_DES_LOURDS`, des légers seulement, et pas encore son bras
- * droit ; sans lui, tous.
+ * déjà dans la main. `cle` : le moment fort (le palier, le butin, le verdict, l'histoire) ; deux moments n'offrent pas
+ * les mêmes.
  */
-export function adjointsOfferts(enPoste, graine, cle, n = 3, perso = null) {
-  const pris = new Set(enPoste || []);
-  const tot = !!perso && perso.niveau < NIVEAU_DES_LOURDS;
-  return Object.keys(ADJOINTS).filter(k => !pris.has(k) && !(tot && (ADJOINTS[k].lourd || ADJOINTS[k].voie === perso.cle)))
+export function adjointsOfferts(perso, graine, cle, n = 3) {
+  const pris = new Set(mainDe(perso).map(c => c.cle));
+  return Object.keys(ADJOINTS).filter(k => !pris.has(k))
     .sort((a, b) => hache(String(graine), 'adjoint', cle, a) - hache(String(graine), 'adjoint', cle, b)).slice(0, n);
 }
+/* Celle qu'une main pleine laisse partir à la prochaine arrivée : la plus ancienne hors poste ; personne si elle a de la place. */
+export function quiPartDeLaMain(perso, games) {
+  const main = mainDe(perso);
+  return main.length >= MAIN_MAX ? (main.find(c => !enPoste(c, games, perso.cle)) || {}).cle || null : null;
+}
+/* Embaucher : la carte entre dans la main, neuve ; pleine, la plus ancienne hors poste part. Rend la main. */
+export function embaucher(perso, cle, games) {
+  const main = mainDe(perso);
+  if (!ADJOINTS[cle] || main.some(c => c.cle === cle)) return main;
+  const part = quiPartDeLaMain(perso, games);
+  return [...main.filter(c => c.cle !== part), { cle, depuis: null, fin: null, sejours: [] }];
+}
+/* Poster : une carte prête, une case libre ; sinon la main ne bouge pas. Rend la main. */
+export function poster(perso, cle, games, niveau, fiche0 = null) {
+  const main = mainDe(perso), c = main.find(x => x.cle === cle);
+  if (!c || enPoste(c, games, perso.cle) || auRepos(c, games) || !casesLibres(perso, games, niveau)) return main;
+  return main.map(x => (x === c ? { ...x, depuis: games, fin: null, fiche0: fiche0 ? { W: fiche0.W || 0, L: fiche0.L || 0, OTL: fiche0.OTL || 0 } : null } : x));
+}
 /*
- * LE STAFF D'UN PERSONNAGE : ses adjoints en poste, trois au plus, tous dans sa main. Un personnage d'avant la main
- * (`staff` absent) faisait jouer ses trois derniers entrés.
+ * LA FIN D'UN SÉJOUR : au compte de matchs `games`, les cartes dont le séjour est fait reviennent dans la main avec leur
+ * fiche (`v`, `d`, `dp`, lue sur la fiche du club entre la pose et maintenant). Rend { main, finis: [{ cle, debut, fin, v, d, dp }] }.
  */
-export function staffDe(perso) {
-  if (!perso) return [];
-  const main = (perso.adjoints || []).filter(k => ADJOINTS[k]);
-  return Array.isArray(perso.staff) ? [...new Set(perso.staff)].filter(k => main.includes(k)).slice(0, ADJOINTS_MAX) : main.slice(-ADJOINTS_MAX);
+export function finirLesSejours(perso, games, fiche) {
+  const finis = [];
+  const main = mainDe(perso).map(c => {
+    if (c.depuis == null || games - c.depuis < sejourDe(c.cle, perso.cle)) return c;
+    const f0 = c.fiche0 || { W: 0, L: 0, OTL: 0 };
+    const s = { debut: c.depuis, fin: games, v: (fiche.W || 0) - f0.W, d: (fiche.L || 0) - f0.L, dp: (fiche.OTL || 0) - f0.OTL };
+    finis.push({ cle: c.cle, ...s });
+    return { cle: c.cle, depuis: null, fin: games, sejours: [...(c.sejours || []), s] };
+  });
+  return { main, finis };
 }
-/* Celui qu'une main pleine laisse partir à la prochaine arrivée : le plus ancien hors du staff ; personne si elle a de la place. */
-export function quiPartDeLaMain(perso) {
-  const main = ((perso && perso.adjoints) || []).filter(k => ADJOINTS[k]), staff = staffDe(perso);
-  return main.length >= MAIN_ADJOINTS ? main.find(k => !staff.includes(k)) || null : null;
-}
-/* Prendre un adjoint : il entre dans la main, et dans le staff s'il y a une case libre. Rend `{ adjoints, staff }`. */
-export function avecAdjoint(perso, cle) {
-  if (!ADJOINTS[cle]) return { adjoints: [...((perso && perso.adjoints) || [])], staff: staffDe(perso) };
-  const part = (perso.adjoints || []).includes(cle) ? null : quiPartDeLaMain(perso);
-  const adjoints = [...(perso.adjoints || []).filter(k => k !== cle && k !== part), cle];
-  const avant = staffDe(perso);
-  return { adjoints, staff: avant.includes(cle) || avant.length >= ADJOINTS_MAX ? avant : [...avant, cle] };
+/* La fiche d'une carte chez toi, tous séjours confondus : « 2 séjours · 15-7-2 ». */
+export function ficheDeLaCarte(c) {
+  const s = (c && c.sejours) || [];
+  if (!s.length) return null;
+  const t = s.reduce((a, x) => ({ v: a.v + x.v, d: a.d + x.d, dp: a.dp + x.dp }), { v: 0, d: 0, dp: 0 });
+  return `${s.length} séjour${s.length > 1 ? 's' : ''} · ${t.v}-${t.d}-${t.dp}`;
 }

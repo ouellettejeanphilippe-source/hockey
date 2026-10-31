@@ -1,6 +1,6 @@
 /*
  * LE VERDICT DU LUNDI D'APRÈS (V19, tranche 6, la décision unifiée ; JP : *une seule lecture des choix*). Chaque choix à
- * effet daté que tu fais — un dilemme, une séquence, un dossier, un fil, une route — dit, le lundi d'après, ce que ton club
+ * effet daté que tu fais — un dossier, un fil — dit, le lundi d'après, ce que ton club
  * a fait depuis en vraies stats de match (js/verdicts.js : les tirs, la précision, les tirs contre, le % d'arrêts). Rien
  * d'inventé : sur une vraie ligue jouée, chaque verdict se recompte à la main dans les feuilles (les lancers de la feuille,
  * pas le même chemin que le code).
@@ -12,12 +12,16 @@
  *   5. il ne lit que le passé : les mêmes feuilles, plus celles qui suivent, rendent le même verdict ; un dé de pari se dit ;
  *   6. l'écran passe par là (js/saison.js) et la coquille hors ligne le liste.
  *
+ * La banque d'événements est vide (V22, phase 4) : le système se teste sur une banque d'essai de deux entrées (un dossier,
+ * un fil), posée ici dans les tables du jeu pour la durée du script, aux options qui couvrent chaque cas (un effet de match,
+ * une action, un pari, un « rien », des jetons seuls).
+ *
  *   node scripts/check_verdicts.mjs         (quelques secondes)
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, MOMENTS, SEQUENCES, pariDeDecision } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, pariDeDecision } from '../js/sim.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { CHOIX_DES_FILS } from '../js/vie-gm.js';
 import { motsDeStats } from '../js/impact.js';
@@ -53,21 +57,24 @@ const lundis = Array.from({ length: Math.floor(N / SEMAINE) }, (_, w) => (w + 1)
 console.log('\n  LE VERDICT DU LUNDI D\'APRÈS (V19, tranche 6)\n');
 informer('la ligue lue', `${teams.map(t => t.name).join(' · ')} — ${miens.length} matchs de ${you.name} sur ${N} jours`);
 
-/* Les choix à lire : de vraies options, à des jours de la saison. */
-const optionQuiBouge = liste => { for (const [cle, ev] of Object.entries(liste)) for (const o of ev.options) if (!o.rien && (o.finition || o.volume || o.defense || o.energie || o.discipline || o.blessure || o.robustesse) && !o.pari) return { cle, o }; return null; };
-const dilemme = optionQuiBouge(MOMENTS), sequence = { cle: 'defaites', o: SEQUENCES.defaites.options.find(o => o.cle === 'cap') };
-const unPari = (() => { for (const [cle, ev] of Object.entries(MOMENTS)) for (const o of ev.options) if (o.pari) return { cle, o }; return null; })();
+/* Les choix à lire : une banque d'essai, à des jours de la saison. */
+DOSSIERS.essai = { titre: 'Un dossier d\'essai', options: [
+  { cle: 'effet', nom: 'Plus de tirs', bon: 'Plus de tirs', prix: 'Plus de punitions', volume: 1.095, discipline: 1.213, duree: 10 },
+  { cle: 'action', nom: 'Le vol nolisé', action: { energieTous: 10 }, gain: -15 },
+  { cle: 'pari', nom: 'Le pari', pari: { chance: 3 / 6, gagne: { duree: 8, lui: { lancers: 1.45, finition: 1.3 } }, perd: { duree: 8, lui: { lancers: 0.6, finition: 0.75 } } } },
+  { cle: 'rien', nom: 'Rien ne change', rien: true },
+  { cle: 'jetons', nom: 'Des jetons seuls', gain: 10 },
+] };
+CHOIX_DES_FILS.essai = { titre: 'Un fil d\'essai', options: [{ cle: 'geste', nom: 'Un geste', action: { energieTous: 6 } }] };
 const mom = (famille, cle, choix) => ({ famille, cle, choix });
 const choix = [
-  { id: 'dilemme', J: 28, moment: mom('moment', dilemme.cle, dilemme.o.cle), duree: dilemme.o.duree || 8, doit: true },
-  { id: 'séquence', J: 40, moment: mom('sequence', sequence.cle, sequence.o.cle), duree: sequence.o.duree || 8, doit: true },
-  { id: 'dossier', J: 47, moment: mom('dossier', 'laRoute', 'nolise'), duree: DOSSIERS.laRoute.options.find(o => o.cle === 'nolise').duree || 8, doit: true },
-  { id: 'fil (un geste)', J: 61, moment: mom('fil', 'disette', 'reposer'), duree: 8, doit: true },
-  { id: 'pari', J: 75, moment: mom('moment', unPari.cle, unPari.o.cle), duree: unPari.o.duree || 8, doit: true },
-  { id: 'dossier (le mini-camp)', J: 54, moment: mom('dossier', 'laSemaineTranquille', 'camp'), duree: 8, doit: true },
-  { id: 'rien ne change', J: 33, moment: mom('moment', 'ecole', 'non'), duree: 8, doit: false },
-  { id: 'des jetons seuls', J: 68, moment: mom('dossier', 'laMasse', 'rachat'), duree: 8, doit: false },
-  { id: 'trop tard', J: N - 8, moment: mom('moment', dilemme.cle, dilemme.o.cle), duree: 8, doit: false },
+  { id: 'dossier (un effet de match)', J: 28, moment: mom('dossier', 'essai', 'effet'), duree: 10, doit: true },
+  { id: 'dossier (une action)', J: 47, moment: mom('dossier', 'essai', 'action'), duree: 8, doit: true },
+  { id: 'fil (un geste)', J: 61, moment: mom('fil', 'essai', 'geste'), duree: 8, doit: true },
+  { id: 'pari', J: 75, moment: mom('dossier', 'essai', 'pari'), duree: 8, doit: true },
+  { id: 'rien ne change', J: 33, moment: mom('dossier', 'essai', 'rien'), duree: 8, doit: false },
+  { id: 'des jetons seuls', J: 68, moment: mom('dossier', 'essai', 'jetons'), duree: 8, doit: false },
+  { id: 'trop tard', J: N - 8, moment: mom('dossier', 'essai', 'effet'), duree: 8, doit: false },
 ].map((c, i) => ({ ...c, d: { jour: c.J, palier: `v:${i}`, sel: `verdict-${i}`, moment: { ...c.moment, joueur: null, joueurs: [] } } }));
 
 /* Ce que dit le code, lundi après lundi, avec les seuls matchs déjà joués. */
@@ -88,7 +95,7 @@ const dits = c => [...parLundi].flatMap(([M, vs]) => vs.filter(v => v.palier ===
     else if (vus[0].M !== attendu) fautes.push(`${c.id} : au lundi ${vus[0].M}, attendu ${attendu}`);
     else notes.push(`${c.id} (J${c.J}) → lundi ${attendu}`);
   }
-  exiger('un choix qui bouge le match dit son verdict une fois, le premier lundi où il a assez de matchs derrière lui', !fautes.length && notes.length >= 6, fautes.join(' · ') || notes.join(' · '));
+  exiger('un choix qui bouge le match dit son verdict une fois, le premier lundi où il a assez de matchs derrière lui', !fautes.length && notes.length >= 4, fautes.join(' · ') || notes.join(' · '));
 }
 
 /* 2. Les chiffres se recomptent à la main, dans les lancers de chaque feuille. */
@@ -117,7 +124,7 @@ const dits = c => [...parLundi].flatMap(([M, vs]) => vs.filter(v => v.palier ===
     if (v.n < Math.min(MATCHS_MIN, c.duree) || v.nAvant < AVANT_MIN || v.nAvant > 10) fautes.push(`${c.id} : ${v.n} matchs d'après / ${v.nAvant} d'avant, hors de la règle`);
     informer(`${c.id}`, `lundi ${M} · ${v.n} matchs contre ${v.nAvant} : ${v.mots.map(m => m.txt).join(' · ') || 'rien de net'}`);
   }
-  exiger(`chaque verdict se recompte dans les feuilles : les ${lus} lus (tirs, précision, tirs contre, % d'arrêts ; matchs d'après contre dix d'avant)`, !fautes.length && lus >= 6, fautes.join(' · ') || `${avecMots} disent des stats, ${rien} avouent « rien de net »`);
+  exiger(`chaque verdict se recompte dans les feuilles : les ${lus} lus (tirs, précision, tirs contre, % d'arrêts ; matchs d'après contre dix d'avant)`, !fautes.length && lus >= 4, fautes.join(' · ') || `${avecMots} disent des stats, ${rien} avouent « rien de net »`);
 }
 
 /* 3. Un choix sans effet de match ne dit rien (déjà jugé au point 1) ; ici les cas limites. */
@@ -132,7 +139,7 @@ const dits = c => [...parLundi].flatMap(([M, vs]) => vs.filter(v => v.palier ===
   const tous = [...parLundi.values()].flat();
   const mots = tous.flatMap(v => v.mots);
   const mauvais = mots.filter(m => !/(tir|précision|% d'arrêts)/.test(m.txt) || /victoire|défaite|note|but net|cote/i.test(m.txt));
-  exiger('la ligne ne dit que des tirs, de la précision, des tirs contre, des arrêts : jamais une victoire ni une note', tous.length >= 6 && !mauvais.length && mots.every(m => typeof m.bon === 'boolean'), mauvais.map(m => m.txt).join(' · ') || `${tous.length} verdicts, ${mots.length} stats (ex. « ${(mots[0] || {}).txt} »)`);
+  exiger('la ligne ne dit que des tirs, de la précision, des tirs contre, des arrêts : jamais une victoire ni une note', tous.length >= 4 && !mauvais.length && mots.every(m => typeof m.bon === 'boolean'), mauvais.map(m => m.txt).join(' · ') || `${tous.length} verdicts, ${mots.length} stats (ex. « ${(mots[0] || {}).txt} »)`);
 }
 
 /* 5. Il ne lit que le passé ; le dé d'un pari se dit. */

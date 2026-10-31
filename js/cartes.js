@@ -149,9 +149,9 @@ const artDeJeu = c => c.artHtml || (c.dessin ? dessinHtml(c.dessin, DESSIN_DU_GE
 const icoDeJeu = c => (c.ico ? `<span class="tcj-ico" aria-hidden="true">${c.ico}</span>` : artDeJeu(c));
 /*
  * LE RECTO D'UNE CARTE DE JEU, seul : le carton de la glace aux couleurs de son genre (le genre se pose sur un parent
- * `.tc.tc-g-…`). `carteHtml` l'habille d'un choix ; la main d'adjoints du coach (js/alignement.js) le pose dans ses cases.
+ * `.tc.tc-g-…`). `carteHtml` l'habille d'un choix .
  */
-export function rectoDeJeu(c) {
+function rectoDeJeu(c) {
   const r = RARETES[c.rarete] ? c.rarete : 'commune', R = RARETES[r];
   const nomTexte = String(c.nomHtml || '').replace(/<[^>]*>/g, '');
   return `<span class="carton cs-glace cs-jeu tc-${r}">

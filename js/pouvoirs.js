@@ -5,15 +5,11 @@
  *   LE NIVEAU     de 1 à 5, gagné en jouant (`XP`, `SEUILS_NIVEAU`) ; il suit la run d'une saison à l'autre
  *   L'ARBRE       trois pouvoirs par coach, ouverts aux niveaux 1, 3 et 5 (`NIVEAU_DES_POUVOIRS`)
  *   LES TALENTS   aux niveaux 2 et 4, un pouvoir débloqué grandit de moitié (`TALENT`)
- *   LES ADJOINTS  des systèmes de jeu, des échanges, à côté du coach (js/adjoints.js) ; son bras droit, l'adjoint de
- *                 sa voie, fait grandir ses trois pouvoirs (`BRAS_DROIT`)
  *
  * UN POUVOIR SE JOUE PÉRIODE PAR PÉRIODE. Avant chaque période, il lit ce qui est déjà joué (`etat` : la période `k`,
  * le pointage, les tirs, la dernière période, le soir) et, s'il se déclenche, frappe la période qui vient sur les
  * canaux que le moteur connaît : `effet` sur ton club, `adv` sur l'adversaire. La feuille le garde.
  */
-
-import { BRAS_DROIT, staffDe, brasDroitDe } from './adjoints.js';
 
 /* ---------- le niveau ---------- */
 export const XP = { victoire: 1, gros: 2, serie: 5 };
@@ -91,20 +87,18 @@ export const POUVOIRS = {
 };
 
 /*
- * LE PERSONNAGE D'UNE ÉQUIPE : `{ cle, xp, talents: [p…], adjoints: [cle…] (sa main), staff: [cle…] (les trois en poste), chef: { id, n, saison, tag }, maitrise }`,
- * porté par la décision `coach` du jour 0 de chaque saison (l'expérience et les choix d'avant), puis par les décisions `talent`, `adjoint`, `staff` et `perdAdjoint`.
+ * LE PERSONNAGE D'UNE ÉQUIPE : `{ cle, xp, talents: [p…], chef: { id, n, saison, tag }, maitrise }`,
+ * porté par la décision `coach` du jour 0 de chaque saison (l'expérience et les choix d'avant), puis par les décisions `talent` et `xpCoach`.
  * Le moteur y ajoute l'expérience de la saison (`xpSaison`).
  */
 export function niveauDuPerso(perso) {
   return perso ? niveauDe((perso.xp || 0) + (perso.xpSaison || 0)) : 0;
 }
-/* Son bras droit (js/adjoints.js) est-il en poste ? */
-const aSonBrasDroit = perso => !!perso && staffDe(perso).includes(brasDroitDe(perso.cle));
 /*
- * La force d'un pouvoir : 1, plus ses talents, fois la maîtrise de l'entraîneur (sa vraie carte, js/coachs-reels.js),
- * fois son bras droit en poste (oct. : la synergie, pas un chiffre plus gros).
+ * La force d'un pouvoir : 1, plus ses talents, fois la maîtrise de l'entraîneur (sa vraie carte, js/coachs-reels.js).
+ * V22 : le bras droit est parti avec les adjoints du staff.
  */
-export const forceDuPouvoir = (perso, p) => (1 + TALENT * (perso.talents || []).filter(x => x === p).length) * (perso.maitrise || 1) * (aSonBrasDroit(perso) ? 1 + BRAS_DROIT : 1);
+export const forceDuPouvoir = (perso, p) => (1 + TALENT * (perso.talents || []).filter(x => x === p).length) * (perso.maitrise || 1);
 /* Un effet grandi : chaque canal s'écarte de 1 (ou de 0, la robustesse) `f` fois plus. */
 export function grandir(effet, f) {
   if (!effet) return null;
