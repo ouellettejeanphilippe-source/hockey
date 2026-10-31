@@ -99,6 +99,8 @@ function confirmer() {
 }
 function lireManette() {
   boucle = null;
+  // Sur glace (js/sur-glace.js) lit la manette elle-même : le bâton patine, A passe, X tire ; rien ne navigue.
+  if (document.body.classList.contains('sur-glace')) { boucle = requestAnimationFrame(lireManette); return; }
   const pads = [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(Boolean);
   if (!pads.length) return;
   const p = pads[0];

@@ -238,6 +238,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
 const des = [], evenementsDe = [];
 let journal = '';   // le journal de l'ouverture, lu une fois
 let directs = 0;   // les gestes faits dans le direct d'un gros match
+let sommaireSimple = null;
 const soirs = { pages: 0, match: 0 };   // les pages du soir, et celles qui sont le sommaire d'un match
 const duelCourt = { n: 0, max: 0, longs: 0 };
 // UNE SEULE FEUILLE À LA FOIS (Jalon M, B7) : à chaque capture qui en montre une, au plus une `.choix-sheet` se voit.
@@ -341,6 +342,16 @@ async function regler() {
       // Le soir d'un seul match (JP, 17 oct.) : la page est son sommaire — ses buts par période —, pas une page « Victoire ».
       const pg = await page.$eval('#hubModal .hub-page[data-genre="sommaire"]', el => ({ match: !!el.querySelector('.som-per'), titre: (el.querySelector('.hub-page-titre, h2') || {}).textContent || '' }));
       soirs.pages++; if (pg.match) { soirs.match++; if (soirs.match === 1) await page.screenshot({ path: `${DOSSIER}/rogue-sommaire-soir.png` }); }
+      // Le sommaire simple (JP, 31 oct.) : les étoiles se voient d'abord, le reste attend sous « Plus de détails ».
+      if (pg.match && soirs.match === 1) {
+        const vu = sel => page.$eval(`#hubModal .hub-page[data-genre="sommaire"] ${sel}`, el => el.offsetParent !== null).catch(() => false);
+        const avant = { etoiles: await vu('.ent-etoiles'), tableau: await vu('.som-extra .ent-carte') };
+        await page.click('#hubModal .hub-page[data-genre="sommaire"] [data-som-plus]');
+        await page.waitForTimeout(150);
+        const apres = { feuille: await vu('.som-feuille') };
+        await page.screenshot({ path: `${DOSSIER}/rogue-sommaire-detail.png` });
+        sommaireSimple = { avant, apres };
+      }
       await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue;
     }
     if (await page.$('#choixModal:not([hidden]) .duel-prop')) {
@@ -1535,6 +1546,34 @@ console.log(`20m. les maisons réglées dans la boîte : ${[...afaire.maisons].j
 if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni le choix ni son écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);
 if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a réglé les choix que de ${afaire.maisons.size} maison(s) : ${[...afaire.maisons].join(', ')}`);
 if (afaire.horsBoite.size) erreurs.push(`un sous-onglet porte encore des choix : ${[...afaire.horsBoite].join(', ')}`);
+console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
+// LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.
+if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucun duel ne s'est rendu à sa troisième période (${periodes.join(' · ') || 'aucune période'})`);
+// LE SOIR D'UN MATCH (JP, 17 oct.) : une page du soir qui suit un gros match est le sommaire du match.
+console.log(`20f. les pages du soir : ${soirs.pages}, dont ${soirs.match} sommaire(s) de match`);
+console.log(`20r. le gros match en direct : ${directs} geste(s) dans le direct`);
+if (combats.length && !directs) erreurs.push('un gros match a été joué sans son direct');
+console.log(`20q. le journal de l'ouverture : ${journal || 'pas croisé (aucun rechargement en pleine saison)'}`);
+if (sommaireSimple) {
+  const { avant, apres } = sommaireSimple;
+  console.log(`20f'. le sommaire simple : étoiles vues ${avant.etoiles}, détails cachés ${!avant.tableau}, ouverts ${apres.feuille}`);
+  if (!avant.etoiles) erreurs.push('le sommaire du soir ne montre pas les trois étoiles d\'emblée');
+  if (avant.tableau) erreurs.push('le sommaire du soir montre ses détails avant « Plus de détails »');
+  if (!apres.feuille) erreurs.push('« Plus de détails » n\'ouvre pas la feuille du match');
+}
+if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été le sommaire d'un match (${soirs.pages} page(s) du soir)`);
+console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
+if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);
+// Depuis le départ de l'Avant-match (oct.), aucun écran ne cache « Jour suivant » à coup sûr : le flottant se juge quand il paraît.
+console.log(`20n. rien ne colle au bord (${MARGE} px) : ${bords.vus} écrans mesurés${bords.fautes.size ? `, ${bords.fautes.size} faute(s) : ${[...bords.fautes.values()].slice(0, 12).join(' | ')}` : ', aucun ne colle'}`);
+if (bords.fautes.size) erreurs.push(`${bords.fautes.size} élément(s) collent au bord de l'écran : ${[...bords.fautes.values()].slice(0, 4).join(' | ')}`);
+console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix ouverts en plein écran`);
+if (barreA.longs.length) erreurs.push(`« Encore un choix » ne tient pas sur une ligne : ${barreA.longs.slice(0, 3).join(' · ')}`);
+console.log(`20k. une feuille à la fois : ${feuilles.vues} capture(s) · ${feuilles.empilees.length ? `empilées : ${feuilles.empilees.join(', ')}` : 'jamais deux'}`);
+if (feuilles.empilees.length) erreurs.push(`des feuilles s'empilent à l'écran : ${feuilles.empilees.join(', ')}`);
+console.log(`20j. le gros match plus court : ${duelCourt.n} entracte(s) de l'adjoint · la plus longue à ${duelCourt.max.toFixed(2).replace('.', ',')} écran · ${duelCourt.longs} au-dessus de 1,3`);
+if (duelCourt.longs) erreurs.push(`${duelCourt.longs} entracte(s) du duel font plus de 1,3 écran (${duelCourt.max.toFixed(2)})`);
+if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
 console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}${mise.scene ? ` | la mise : ${mise.scene}` : ''}`);
 {
   // V21 : le coach de la saison — ses talents et son expérience.

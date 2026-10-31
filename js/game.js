@@ -1289,6 +1289,8 @@ export function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
     // L'EXHIBITION (S78, js/exhibition.js) : aucune partie, on revient au menu en la fermant.
     // 1.0 (J3-6) : l'écran d'exhibition se charge au clic, pas avec le premier écran.
     exhibition: () => { fermerMenu(); import('./exhibition.js').then(({ ouvrirExhibition }) => ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
+    // SUR GLACE (31 oct. 2026, js/sur-glace.js) : la physique à la manette, chargée au clic ; aucune partie, retour au menu.
+    glace: () => { fermerMenu(); import('./sur-glace.js').then(({ ouvrirSurGlace }) => ouvrirSurGlace(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
     rogue: {
       // 1.0 (R7, R8) : la dernière run sur le carton, rien à la première visite.
       resume: () => {
@@ -1451,6 +1453,8 @@ function setupEvents() {
     () => ['liveModal', 'tableModal'].some(id => $(id) && $(id).style.display === 'flex'),
     // L'exhibition, ouverte du Menu, se referme sur lui.
     () => { const b = document.querySelector('#exhibitionModal .exh-fermer'); if (!b) return false; b.click(); return true; },
+    // Sur glace, pareil.
+    () => { const b = document.querySelector('#glaceModal .sg-fermer'); if (!b) return false; b.click(); return true; },
     fermerRegles,
     // Le Menu en pleine partie : « Retour à la partie ». Au lancement, il est
     // l'écran titre, et rien n'est sous lui.

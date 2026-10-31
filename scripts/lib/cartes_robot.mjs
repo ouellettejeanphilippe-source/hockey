@@ -2,9 +2,10 @@
  * CE QUE LES ROBOTS FONT DU COACH-PERSONNAGE (V21, docs/refonte-v21.md ; V22, js/adjoints.js). Le coach d'une run a ses
  * pouvoirs et sa main d'adjoints ; le robot, comme le gérant, choisit ses talents, ses adjoints, les poste et répond aux
  * histoires. Selon la politique (scripts/lib/rogue_sim.mjs) :
- *   - l'attentif lit : le talent va au pouvoir qui a le plus joué ; l'adjoint offert, celui de la voie de son coach
- *     d'abord (la synergie), sinon le premier ; dès qu'une case est libre, il poste une carte prête, celle de sa voie
- *     d'abord ; à une histoire, la réponse qui rend le plus, en conséquences concrètes (l'expérience, des jetons, des jambes) ;
+ *   - l'attentif lit : le talent va au pouvoir qui a le plus joué ; l'adjoint offert, celui dont le style rend le plus
+ *     à SON effectif, lu au moteur (`fit`, scripts/lib/rogue_sim.mjs `fitDAdjoint` ; 31 oct. 2026), sinon celui de la
+ *     voie de son coach ; dès qu'une case est libre, il poste la carte prête qui rend le plus ; à une histoire, la
+ *     réponse qui rend le plus, en conséquences concrètes (l'expérience, un adjoint, des jetons, des jambes) ;
  *   - le distrait clique au hasard, sur son propre générateur ;
  *   - le robot d'avant ('defaut') prend la première option de chaque écran : un gérant grossier, qui garde un coach.
  * Le robot ne voit que ce que l'écran montre : les feuilles jouées, la cédule de la semaine, ses jambes, sa caisse.
@@ -64,11 +65,13 @@ function faitsDuRobot(L, you, jetons) {
 }
 
 /* L'ADJOINT D'UN MOMENT FORT (js/saison.js `adjointsDuMoment`) : un parmi trois, tirés de la graine. Rend la décision. */
-function adjointDuRobot({ you, graine, cle, politique, clic }) {
+function adjointDuRobot({ you, graine, cle, politique, clic, fit }) {
   const perso = persoDe(you);
   const offre = perso ? adjointsOfferts(perso, graine, cle, 3) : [];
   if (!offre.length) return null;
-  const k = clic ? offre[Math.floor(clic() * offre.length)] : politique === 'defaut' ? offre[0] : offre.reduce((a, b) => (rangDe(b, perso.cle) < rangDe(a, perso.cle) ? b : a));
+  // L'attentif lit le style sur SON effectif (`fit`, scripts/lib/rogue_sim.mjs) ; sans lecture, la voie de son coach d'abord.
+  const k = clic ? offre[Math.floor(clic() * offre.length)] : politique === 'defaut' ? offre[0]
+    : fit ? offre.reduce((a, b) => (fit(b) > fit(a) ? b : a)) : offre.reduce((a, b) => (rangDe(b, perso.cle) < rangDe(a, perso.cle) ? b : a));
   return { embauche: { cle: k } };
 }
 /* La valeur d'une réponse d'histoire, en conséquences concrètes, pour l'attentif. */
@@ -84,7 +87,7 @@ function valeurDeReponse(o) {
  * poste. Rend les décisions
  * à pousser au jour de la ligue. `etat` : ce que la saison retient (les dossiers ouverts, les paliers et les butins pris).
  */
-export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) {
+export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fit = null }) {
   const out = [];
   const auHasard = l => l[Math.floor(clic() * l.length)];
   const j = L.jour;
@@ -111,13 +114,13 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
   const pp = PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));
   if (pp !== undefined) {
     etat.paliers.add(pp);
-    const d = adjointDuRobot({ you, graine, cle: `pp${pp}`, politique, clic });
+    const d = adjointDuRobot({ you, graine, cle: `pp${pp}`, politique, clic, fit });
     if (d) out.push({ jour: j, palier: `pp:${pp}`, ...d });
   }
   // LE BUTIN D'UN GROS MATCH GAGNÉ : un adjoint parmi trois (js/saison.js `recompenseOuverte`).
   for (const mb of (you.minisBoss || []).filter(x => x.gagne && !etat.butins.has(x.jour))) {
     etat.butins.add(mb.jour);
-    const d = adjointDuRobot({ you, graine, cle: `r${mb.jour}`, politique, clic });
+    const d = adjointDuRobot({ you, graine, cle: `r${mb.jour}`, politique, clic, fit });
     if (d) out.push({ jour: j, palier: `r:${mb.jour}`, ...d });
   }
   // POSTER (V22) : une case libre et une carte prête, l'attentif la poste (celle de sa voie d'abord), le distrait une au hasard ;
@@ -126,7 +129,8 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
   if (P0 && politique !== 'defaut') {
     const games = you.games || 0;
     let libres = casesLibres(P0, games, niveauDuPerso(P0));
-    const pretes = pretesDe(P0, games).map(c => c.cle).sort((a, b) => rangDe(a, P0.cle) - rangDe(b, P0.cle));
+    // Celle qui rend le plus à son effectif d'abord (`fit`) ; sans lecture, la voie de son coach.
+    const pretes = pretesDe(P0, games).map(c => c.cle).sort((a, b) => (fit ? fit(b) - fit(a) : rangDe(a, P0.cle) - rangDe(b, P0.cle)));
     while (libres > 0 && pretes.length) { const k = clic ? pretes.splice(Math.floor(clic() * pretes.length), 1)[0] : pretes.shift(); out.push({ jour: j, poste: { cle: k } }); libres--; }
   }
   // LE TALENT (niveaux 2 et 4) : le pouvoir qui a le plus joué grandit ; le distrait, au hasard ; le robot d'avant, le premier.
@@ -141,11 +145,12 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
 
 /*
  * L'ENTRAÎNEUR DU DÉPART D'UNE RUN : le même loto de trois vraies cartes que le jeu (js/coachs-reels.js) ; l'attentif
- * prend celle de la couleur de son effectif, sinon la plus grande maîtrise ; le distrait n'importe laquelle ; le robot
- * d'avant la première. Rend la carte.
+ * prend celle que ses pouvoirs rendent le plus à son effectif (`fit`, scripts/lib/rogue_sim.mjs `fitDeCoach` ; la
+ * couleur de l'effectif, essayée, lui coûtait 1,6 V par saison) ; le distrait n'importe laquelle ; le robot d'avant la
+ * première. Rend la carte.
  */
-export function coachDuRobot(loto, { politique, clic, couleur }) {
+export function coachDuRobot(loto, { politique, clic, fit }) {
   if (clic) return loto[Math.floor(clic() * loto.length)];
-  if (politique === 'attentif') return loto.find(c => c.cle === couleur) || loto.reduce((a, b) => (b.maitrise > a.maitrise ? b : a));
+  if (politique === 'attentif' && fit) { const f = loto.map(fit); return loto[f.indexOf(Math.max(...f))]; }
   return loto[0];
 }

@@ -4877,6 +4877,10 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-ligne span:nth-child(2) { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .som-ligne span:nth-child(3) { min-width: 54px; text-align: right; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
 .som-per { margin-bottom: var(--esp-4); }
+/* Le sommaire simple : le reste (`.som-extra`) attend sous « Plus de détails ». */
+.som-racine:not(.som-plus) .som-extra { display: none; }
+.som-bascule { display: block; width: 100%; min-height: 44px; margin: var(--esp-2) 0 var(--esp-4); }
+.som-pt { float: right; margin-left: var(--esp-2); font: 700 var(--t-1)/1.5 var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: var(--encre-3); }
 /* La feuille de match complète (oct. 2026) : un tableau par club, dans le cadre des tableaux du jeu. */
 .som-feuille-club { display: flex; align-items: center; gap: var(--esp-2); padding: var(--esp-2) 0; font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
 .som-feuille .jr-scroll { margin-bottom: var(--esp-3); }
@@ -6278,6 +6282,82 @@ body.exh-ouverte { overflow: hidden; }
   .exh-actions .exh-jouer { grid-column: auto; }
   .exh-encore { grid-template-columns: 1fr; }
 }
+/* ---- Sur glace (js/sur-glace.js, #glaceModal.sg) : le terrain de jeu de la physique, un canevas plein écran et son HUD ---- */
+body.sur-glace { overflow: hidden; }
+.sg { position: fixed; inset: 0; z-index: 420; overflow: hidden; background: var(--noir); touch-action: none; user-select: none; -webkit-user-select: none; }
+.sg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.sg-haut { position: absolute; top: calc(var(--esp-2) + var(--safe-top)); left: var(--esp-2); right: var(--esp-2); display: flex; align-items: center; gap: var(--esp-2); pointer-events: none; }
+.sg-haut > * { pointer-events: auto; }
+.sg-btn { flex: none; width: 44px; height: 44px; padding: 0; border: 1px solid var(--filet); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); color: var(--encre); font: 700 var(--t-3)/1 var(--display); }
+.sg-btn[aria-pressed="true"], .sg-btn[aria-expanded="true"] { border-color: var(--or); color: var(--or); }
+.sg-haut .sg-btn[data-sg="vue"] { margin-left: auto; }
+.sg-flash { position: absolute; top: 30%; left: 0; right: 0; text-align: center; font: 800 var(--t-7)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre); text-shadow: 0 2px 8px var(--noir-pur); pointer-events: none; }
+/* La barre de puissance du tir, comme dans les jeux de soccer : elle monte tant qu'on tient, le tir part quand on lâche. */
+.sg-puissance { position: absolute; left: 50%; bottom: calc(var(--esp-6) + var(--safe-bas) + 52px); width: 160px; height: 10px; transform: translateX(-50%); border: 1px solid var(--encre); background: color-mix(in srgb, var(--noir) 70%, transparent); }
+.sg-puissance-plein { height: 100%; background: linear-gradient(90deg, var(--bon), var(--or) 60%, var(--mauvais)); }
+.sg-bas { position: absolute; left: var(--esp-2); right: var(--esp-2); bottom: calc(var(--esp-2) + var(--safe-bas)); display: flex; flex-direction: column; gap: var(--esp-1); pointer-events: none; }
+.sg-vitesse { align-self: flex-start; padding: 4px 8px; border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; color: var(--encre); }
+.sg-invites { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); width: fit-content; max-width: 100%; padding: 4px 8px; border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); font: 600 var(--t-1)/1.2 var(--corps); color: var(--encre-2); }
+.sg-invites kbd { min-width: 22px; padding: 2px 5px; border-radius: var(--r-1); text-align: center; font: 700 var(--t-1)/1 var(--display); color: var(--encre); background: var(--fond-2); border: 1px solid var(--filet); }
+/* Le doigt : deux boutons ronds à droite, au pouce ; le bâton se pose n'importe où sur la moitié gauche. Souris et clavier ne les voient pas. */
+.sg-doigt { display: none; position: absolute; right: var(--esp-3); bottom: calc(var(--esp-6) + var(--safe-bas)); flex-direction: column; gap: var(--esp-3); align-items: center; }
+@media (pointer: coarse) { .sg-doigt { display: flex; } .sg-invites { display: none; } }
+.sg-rond { width: 64px; height: 64px; padding: 0; border: 2px solid var(--encre-2); border-radius: 50%; background: color-mix(in srgb, var(--noir) 70%, transparent); color: var(--encre); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; touch-action: none; }
+.sg-rond:active { background: var(--encre); color: var(--noir-pur); }
+.sg-rond-tir { width: 76px; height: 76px; border-color: var(--club-vif); }
+.sg-regles { position: absolute; top: calc(var(--esp-2) + var(--safe-top) + 52px); right: var(--esp-2); left: var(--esp-2); max-width: 520px; margin-left: auto; max-height: calc(100% - 140px); overflow-y: auto; padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 92%, transparent); color: var(--encre-2); font-size: var(--t-2); line-height: 1.4; }
+.sg-regles h3 { margin: 0 0 var(--esp-2); font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); }
+.sg-regles ul { margin: 0; padding-left: 1.1em; }
+.sg-regles li + li { margin-top: var(--esp-1); }
+.sg-regles-mot { margin: var(--esp-2) 0 0; color: var(--encre-3); }
+/* L'accueil : l'affiche de deux clubs, les options, le match ou l'entraînement. */
+.sg-accueil { height: 100%; overflow-y: auto; overscroll-behavior: contain; max-width: 760px; margin: 0 auto; padding: calc(var(--esp-3) + var(--safe-top)) var(--esp-4) calc(var(--esp-6) + var(--safe-bas)); }
+.sg-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--esp-3); padding: var(--esp-2) 0 var(--esp-4); border-bottom: 1px solid var(--filet); margin-bottom: var(--esp-4); }
+.sg-tete .close-btn { position: static; flex: none; }
+.sg-titre { margin: 0; font: 800 var(--t-6)/1 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
+.sg-sous { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+.sg-affiche { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-3); align-items: start; }
+@media (min-width: 640px) { .sg-affiche { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); } }
+.sg-vs { justify-self: center; align-self: center; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); }
+.sg-cote { min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); }
+.sg-cote-t { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
+.sg-bandeau { display: flex; align-items: center; gap: var(--esp-3); min-height: 56px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--eq-bg, var(--fond-2)); color: var(--eq-ink, var(--encre)); box-shadow: inset 4px 0 0 var(--eq-stripe, transparent); }
+.sg-bandeau b { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; min-width: 0; }
+.sg-bandeau small { margin-left: auto; font-size: var(--t-1); opacity: 0.85; }
+.sg-choix { display: flex; gap: var(--esp-2); align-items: center; }
+.sg-choix .opt-select { flex: 1 1 0; min-width: 0; margin: 0; }
+.sg-choix .btn { flex: none; }
+.sg-options { display: flex; flex-wrap: wrap; gap: var(--esp-3) var(--esp-4); align-items: center; margin: var(--esp-4) 0; font-size: var(--t-2); color: var(--encre-2); }
+.sg-options label { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; }
+.sg-options .opt-select { margin: 0; }
+.sg-options input { width: 22px; height: 22px; accent-color: var(--club-vif); }
+.sg-actions { display: grid; gap: var(--esp-2); margin: var(--esp-4) 0; }
+.sg-actions .btn small { display: block; font: 400 var(--t-1)/1.2 var(--corps); letter-spacing: 0; text-transform: none; opacity: 0.8; }
+.sg-regles-accueil { position: static; max-width: none; margin: 0; max-height: none; }
+/* Le tableau indicateur du match, en haut : les deux clubs, le pointage, l'horloge, les punis. */
+.sg-tableau { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--esp-2); height: 44px; padding: 0 var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); white-space: nowrap; overflow: hidden; }
+.sg-tableau b { font-size: var(--t-4); }
+.sg-club { padding: 2px 6px; border-radius: var(--r-0); background: var(--eq); color: var(--eq-ink, var(--blanc)); }
+.sg-temps { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.sg-temps small { font-size: var(--t-1); letter-spacing: 0.06em; color: var(--encre-2); }
+.sg-puni { padding: 2px 6px; border-left: 3px solid var(--eq); font-size: var(--t-1); color: var(--encre-2); text-transform: none; }
+.sg-rond-echec { width: 56px; height: 56px; border-color: var(--mauvais); }
+/* La fin du match : la carte du pointage, les stats, les buts, rejouer. */
+.sg-fin { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--esp-4); background: color-mix(in srgb, var(--noir-pur) 72%, transparent); }
+.sg-fin[hidden] { display: none; }
+.sg-fin-carte { width: 100%; max-width: 420px; max-height: 100%; overflow-y: auto; padding: var(--esp-4); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-1); }
+.sg-fin-carte h2 { margin: 0 0 var(--esp-3); font: 800 var(--t-5)/1.1 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
+.sg-fin-score { display: flex; align-items: center; justify-content: center; gap: var(--esp-3); margin-bottom: var(--esp-3); font: 800 var(--t-6)/1 var(--display); }
+.sg-fin-score span { padding: 4px 8px; border-radius: var(--r-0); background: var(--eq); color: var(--eq-ink, var(--blanc)); font-size: var(--t-3); }
+.sg-fin-stats { width: 100%; border-collapse: collapse; font: 600 var(--t-2)/1.4 var(--corps); }
+.sg-fin-stats td { width: 20%; text-align: center; font: 700 var(--t-3)/1.4 var(--display); }
+.sg-fin-stats th { font-weight: 500; color: var(--encre-2); }
+.sg-fin-buts { margin: var(--esp-3) 0 0; padding: 0; list-style: none; font-size: var(--t-2); color: var(--encre-2); }
+.sg-fin-buts li { padding: 4px 0; border-top: 1px solid var(--filet); }
+.sg-fin-buts span { display: inline-block; padding: 1px 6px; margin-right: 6px; border-radius: var(--r-0); background: var(--eq); color: var(--blanc); font: 700 var(--t-1)/1.3 var(--display); }
+.sg-fin-actions { display: grid; gap: var(--esp-2); margin-top: var(--esp-4); }
+
+
 /* == 10. SUR TABLE : le plateau, le tournoi, la feuille de match du plateau == */
 /* Le bloc est gardé, dédoublonné et ramené aux jetons : la glace garde ses
    jetons --glace-* (une patinoire est blanche dans les trois palettes), les
