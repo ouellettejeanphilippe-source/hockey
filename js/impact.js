@@ -162,6 +162,14 @@ function lire(team, lu, adv, opts) {
 export function chiffresDuSoir(team, lineup = null, adv = null, aVenir = []) {
   return lire(team, lineup, adv, { aVenir, n: N_BASE });
 }
+/*
+ * Les mêmes nombres, sous des effets posés le temps de la lecture — sur ton club (`effets`) et sur l'adversaire moyen
+ * (`effetsAdv`), comme `lectureDuMatch` les pose. C'est ainsi qu'un échange d'adjoint se lit pour TON club avant de le
+ * prendre (le robot attentif, scripts/lib/rogue_sim.mjs) : son gain et son prix, sur ton effectif, pas en moyenne.
+ */
+export function chiffresDuSoirSous(team, { effets = [], effetsAdv = [] } = {}) {
+  return lire(team, null, null, { effets, effetsAdv, n: N_BASE });
+}
 
 /*
  * ALIGNER AU MIEUX, JUGÉ PAR LE MOTEUR (oct.). JP : *aligner au mieux considéré positions, stratégie, etc.* La
