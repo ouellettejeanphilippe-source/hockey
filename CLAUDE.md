@@ -4,7 +4,7 @@
 
 Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (le jour à jour, le duel joué au plan que ton adjoint propose, ton coach-personnage et ses pouvoirs, la boutique, la run), **Sur table** et l'exhibition.
 
-Hébergé sur GitHub Pages. Aucun backend, aucune dépendance npm, aucun framework.
+Un site statique, joué en local, en APK (Capacitor) ou en exe (Electron) ; il n'est plus publié en ligne. Aucun backend, aucune dépendance npm, aucun framework.
 
 ## Où on travaille
 
@@ -12,13 +12,13 @@ Le Rogue, tout le temps, sauf si JP demande expressément un autre mode. Le 82-0
 
 ## Avant de coder
 
-Lis `LIVRAISON.md` — c'est le plan de travail courant vers la 1.0 : les jalons, chaque item avec son fichier, sa valeur et le script qui le prouve. Coche les cases au fur et à mesure et ajoute une ligne à son journal.
+Lis `LIVRAISON.md` — c'est le plan de travail courant et son journal : la 1.0 (livrée en octobre 2026), puis les refontes V3 à V21 et ce qui reste ; chaque item nomme son fichier, sa valeur et le script qui le prouve. Coche les cases au fur et à mesure et ajoute une ligne à son journal, la plus récente en premier.
 
 Lis `ARCHITECTURE.md` — il explique pourquoi le découpage se fait par saison et non par équipe. Ce choix n'est pas arbitraire et le défaire casse la normalisation par époque.
 
 Lis `MOTEUR.md` — c'est la spécification de la refonte de la simulation par événements, avec les mesures qui appuient chaque choix. Si tu touches à `js/sim.js`, lis-le avant, et `docs/moteur-recalibrer.md` pour la recalibration.
 
-`PLAN.md` garde l'état court et les décisions prises. L'histoire de chaque décision (pourquoi, ce qui a été essayé et écarté, mesuré) est dans `docs/decisions.md` ; le journal sprint par sprint dans `docs/journal/`. Avant de défaire une règle ci-dessous, lis sa décision.
+`PLAN.md` garde l'état court et les décisions prises. L'histoire de chaque décision (pourquoi, ce qui a été essayé et écarté, mesuré) est dans `docs/decisions.md` ; les refontes du Rogue dans `docs/refonte-v*.md` ; le journal des sprints S7 à S80 dans `docs/journal/` (depuis, le journal vit dans LIVRAISON.md). Avant de défaire une règle ci-dessous, lis sa décision.
 
 ## Structure
 
@@ -30,7 +30,7 @@ site.webmanifest, favicon.svg, icon-*.png   installation et icônes
 fonts/                Barlow Condensed, Manrope, Noto Emoji et les polices des séries de cartes (OFL, fonts/POLICES.txt), hébergées ici
 data/                 shards par saison (seasons/), index, seed, portraits.json, salaires, trophées, réputations
 img/logos, img/mugs   écussons des 44 franchises et visages recadrés (scripts/logos.mjs, scripts/portraits.mjs)
-img/actions           photos de match recadrées en 5:7, la face au centre (≈ 145 Mo, versionnées depuis oct. 2026 ; scripts/actions.mjs refait celles de la LNH, scripts/actions_commons.mjs les photos libres de Commons et d'Openverse, créditées au dos, scripts/actions_saisons.mjs une photo par saison, {id}-{saison}.webp ; scripts/actions_couchees.mjs les photos couchées, de la LNH comme de Commons, couchees/{clé}.webp, pour les cartes horizontales ; data/actions.json les liste)
+img/actions           photos de match recadrées en 5:7, la face au centre (≈ 170 Mo, versionnées depuis oct. 2026 ; scripts/actions.mjs refait celles de la LNH, scripts/actions_commons.mjs les photos libres de Commons et d'Openverse, créditées au dos, scripts/actions_saisons.mjs une photo par saison, {id}-{saison}.webp ; scripts/actions_couchees.mjs les photos couchées, de la LNH comme de Commons, couchees/{clé}.webp, pour les cartes horizontales ; data/actions.json les liste)
 
 js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les sections et l'en-tête, l'historique
 js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes
@@ -45,6 +45,7 @@ js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, pl
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard()
 js/ratings.js         les cotes (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
+js/util.js            les petits outils partagés (un seul exemplaire de chaque : `esc`, `money`, `virgule`, `ordF`…)
 js/saison.js          l'écran de saison et des séries : le Bureau (À faire, où les choix se règlent ; hier soir ; ton plan ; le journal), Ligue › Classement (un club s'y ouvre) et Calendrier
 js/gerant.js          les choix, le dépistage, l'écran du duel (`ouvrirDuel`, ce que ton adjoint propose)
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
@@ -56,7 +57,14 @@ js/direct.js          un match en direct, rejoué depuis sa feuille
 js/glace.js           la patinoire où les tirs apparaissent : la position d'un tir (illustrative) lue de la feuille — le danger, les icônes du tireur, l'accord de son trio, le texte du sommaire — `check_glace`
 js/commentaire.js     le commentateur du direct
 js/recit.js           les mots du sommaire d'un match
+js/apres-match.js     le récit d'après-match, comme à la télé : le fil du match, sobre et précis
+js/panel-tv.js        le panel : l'univers médiatique de la saison, les mêmes visages qui reviennent
 js/scenes.js          les scènes des choix du Rogue : qui demande, le fait déjà joué, sa réplique sans chiffre — `check_clarte` § 5
+js/vie-gm.js          la vie d'un DG-coach en messages : les voix (`EXPEDITEURS`), le joueur du fait, les choix des fils (`CHOIX_DES_FILS`) — `check_vie`
+js/arcs.js            les arcs d'un joueur et ses défis (`DEFIS`) : nés d'un fait du journal du club, suivis au Vestiaire — `check_arcs`
+js/verdicts.js        ta semaine : le verdict d'un choix à effet daté, le lundi d'après, en vraies stats — `check_verdicts`
+js/cartes-vie.js      « une saison dans la vie d'un DG-coach » : les cartes neuves de la banque, au même format que les autres
+js/profil-style.js    le profil de style : la preuve que ton build joue, lue dans les feuilles — `check_profil`
 js/causes.js          ce qui a fait le match : les causes qui ont décidé d'un lancer, dites à ton club (sommaire, direct, bilan)
 js/entracte.js        le rapport d'entracte en cartons
 js/pronostic.js       le dépistage d'avant-match
@@ -102,8 +110,10 @@ js/tournoi.js         Sur table : le tournoi de six clubs
 js/sons.js            les effets sonores synthétisés (Web Audio)
 
 scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs, portraits.mjs, actions.mjs, recrues.mjs → data/recrues.json
-                      la vraie saison recrue…), vérifications (check_*.mjs, smoke*.mjs, tout.mjs qui enchaîne les rapides),
-                      calibration (calibrate_sim, mock_*), verdict.mjs (le juge partagé), lib/mort.mjs (la mesure du code mort)
+                      la vraie saison recrue…), vérifications (check_*.mjs, smoke*.mjs, tout.mjs qui enchaîne les rapides), les essais à la
+                      main (essai_*.mjs), calibration (calibrate_sim, mock_*, *_calibre, inferer_glace : le temps de glace d'avant 1997-98),
+                      verdict.mjs (le juge partagé), lib/ (mort.mjs la mesure du code mort, rogue_sim.mjs la run jouée par un robot…) ;
+                      la liste complète : docs/structure-detaillee.md
 mobile/, desktop/     l'APK (Capacitor) et l'exe (Electron) ; seul leur code est versionné
 mobile/assembler-www.mjs  www/ de l'APK : sans data/salaries ni data/seed.json, JS regroupé en lots et minifié,
                       CSS minifié (esbuild, devDependency de mobile/ seulement ; --brut pour s'en passer),
@@ -216,7 +226,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **cartable** : tes cartes de joueur, d'une partie à l'autre, et tes entraîneurs (V21 ; JP : *c'est comme les cartes de joueurs*) : celui que tu prends entre au cartable et y compte ses runs, et le loto de l'entraîneur tire d'abord là, les moins joués d'abord, deux au plus, plus une carte neuve (`coachAuCartable`, js/cartable.js ; `lotoDesCoachs`, js/coachs-reels.js). **classeur** : le tirage de ton cartable au départ d'une run (« Le départ du classeur ») : des **cases**, chacune d'un niveau (une Régulier sans rien, Pilier et ★ Étoile aux pages), un loto de trois cartes de ce niveau (cinq au tri) dont tu gardes une ; un niveau absent, la case prend celui d'en dessous (`departDuClasseur`, `lotoDeCase`, js/rogue.js). Les lotos du cartable entre deux saisons, ceux qui restent (un Pilier et un Régulier de ton équipe finie, `gardesDeLaRun`) et ceux qui te suivent de ta dernière run (Pilier, Pilier, ★ Étoile, un par déblocage « Garder », `gardesDeLaDerniere`) se tirent pareil. La **banque** : toutes les cartes de jeu. Un **doublon** est un joueur déjà à ton cartable ; trois doublons montent sa carte d'une édition, jusqu'à l'Or (`monterLesDoublons`).
 - **édition** : la carte d'un joueur, de 1 à 5 — Base, Cadre, Hors-cadre, Or, Holo (`EDITIONS`, js/rarete.js) ; chacune change la carte entière et monte ses badges. Ce que l'écran montre, c'est la plus haute décidée sur lui, le jour même (`rareteJoueur`, js/repechage.js) ; le moteur, lui, ne la joue qu'au matin de sa journée (`varianteJoueur`) — `essai_rogue` 12a'. Elle se monte par les doublons, par un doublon plus fort tiré d'un pack, et par les cartes de l'atelier (🖌 🪟 🔆 ✨). La **rareté** (commune → légendaire, en diamants) est aux cartes de jeu seulement ; « édition » n'est plus le nom d'une carte de l'atelier, qui est une **retouche**.
 - **médailles** 🏅 : la monnaie des déblocages ; **jetons** 🪙 : celle de la boutique. L'**écusson** est un logo, jamais une monnaie.
-- **coach** : seulement la philosophie, et sa maison au Bureau ; la personne derrière le banc est **l'entraîneur** (« L'entraîneur des gardiens », la voix qui parle de la glace) ; un **adjoint** modifie un pouvoir du coach (jamais « entraîneur-chef », jamais « le coach de… ») — `check_lexique`.
+- **coach, entraîneur, adjoint** : un mot chacun — `check_lexique`. Le coach est la philosophie et, en Rogue, ton personnage (ci-dessus), et sa maison est au Bureau ; la personne derrière le banc est **l'entraîneur** (« L'entraîneur des gardiens », la voix qui parle de la glace) ; un **adjoint** est un échange du staff, jamais un modificateur de pouvoir (jamais « entraîneur-chef », jamais « le coach de… »).
 - **relance** : seulement le dé qu'on relance (la roulette, la relance d'équipe sur table) ; la sortie de zone se dit « sortie », la passe du gardien « remise ».
 - **rejouer** : les mêmes clubs, d'autres dés (« Rejouer la saison ») ; l'historique « reprend l'alignement », une décision « reprend la saison ».
 - **rival** : un club à deux rangs ou moins ; la **bête noire** 😤 : celui qui t'a battu deux fois ; **ta rivalité** : le club le plus croisé en gros match.
@@ -233,7 +243,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **unités spéciales** : AN 1 et AN 2 (l'avantage numérique), DN 1 et DN 2 (le désavantage) ; le moteur les range, l'onglet AN · DN des Lignes les change (`speciales`, `check_speciales`).
 - **agressivité** : 🕊️ Prudente, ⚖️ Moyenne, 💥 Musclée, 🪓 Rentre-dedans — celle de la carrure de la ligne. La consigne du match est partie (V18).
 - **contrat** : le salaire d'un joueur au plafond ; la masse salariale se manipule au dossier du proprio (💵 « La masse salariale » : un rachat, un contrat lourd), plus par des cartes (V16, tranche 6).
-- **carte rare** : une des dix cartes qui montent un joueur, un coach ou un adjoint, ou qui soignent (V16, tranche 6) ; elle se joue chez ce qu'elle monte. Pas « outil », pas « consommable » à l'écran.
+- **carte rare** : une des neuf cartes de la banque (`BANQUE`, js/banque.js) qui montent un joueur (les retouches 🖌 🪟 🔆 ✨, l'échange d'un doublon) ou le coach (le stage), ou qui soignent (le physio, la chirurgie, glace et compression) ; elle se joue chez ce qu'elle monte. Pas « outil », pas « consommable » à l'écran.
 - **usure des jambes** : ce qu'un match coûte aux jambes (la puce « Usure des jambes +12 % »).
 - « énergie » n'est plus un mot de l'écran (il voulait dire cinq choses) — `check_clarte`. Les clés du code (`energie`, `ENERGIE_MAIN`) restent, pour ne pas casser les sauvegardes.
 - **Une icône = un sens** dans les étiquettes qu'on voit en jouant : rôles, trophées, archétypes, styles de gardien, carrure, agressivité, coachs, mesures d'équipe ; 🛡 est le trait Selke, rien d'autre — `check_lexique` (`ICONES`, js/lexique.js). Avant d'ajouter une icône, cherche-la dans `js/`, et passe-la à `scripts/emojis.mjs` (la police au trait).
@@ -258,13 +268,15 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 
 `node scripts/smoke_table.mjs http://localhost:8000` fait le même parcours en mode bonus : l'option « Sur table » dans les options, le même auto-draft, le tournoi (`#hubModal`), le plateau (`#tableModal`, 247 cases, deux filets d'une case) où il joue un match geste par geste — il touche une pièce, lit les cases allumées, choisit des modes, dégage, tire, saute des verdicts en touchant la glace, dépense des relances d'équipe, change de trio — puis le reste du tournoi et le bilan. Il échoue si moins de quinze gestes ont pu être joués : c'est ce qui attrape une interface qui se fige.
 
-L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `check_feuilles.mjs` sur une ligue, plus `check_fiches.mjs`, `check_table.mjs`, `check_regles.mjs` et `smoke_table.mjs`. Les scripts de calibration (monotonie, plafond, tireurs) restent à lancer à la main.
+L'Action `verifier.yml` fait tout ça à chaque PR, et, chacun dans sa propre étape : `check_coquille`, `check_graine`, `check_instantane`, `check_empreinte`, `check_ballottage`, `check_lancee`, `check_moments_si`, `check_gros` (`LIGUES=4`), `check_commentaire`, `check_feuilles` (une ligue), `check_parts`, `check_table`, `check_regles` (`MATCHS=80`), `check_ratings`, `check_traits`, `check_fiches`, `check_clarte`, `check_lexique`, `check_lisibilite`, `check_glace`, `check_pouvoirs` (`MESURE=0 N=20`), `check_mort`, `check_css`, puis `tout.mjs` (les 32 rapides), `check_actions`, le smoke et `smoke_table`. Les scripts de calibration (monotonie, plafond, tireurs, familles, badges, rôles, `inferer_glace`) restent à lancer à la main.
 
 **Avant de pousser** (JP, 13 oct. : *c'est nécessaire de tester ici et en CI ?*) : ne relance pas ici ce que `verifier` refait. Ici, seulement `node scripts/tout.mjs` et `check_mort` (quelques secondes, un rouge en CI coûte une demi-heure), plus ce que le CI ne fait pas, quand le changement touche leur terrain : `essai_rogue`, `essai_packs`, `essai_achat` pour la signature, la boutique ou le jour à jour du Rogue ; `check_rogue`, `check_banque`, `check_cartes` quand on touche au moteur ou aux cartes. Le smoke, smoke_table, `check_gros`, `check_graine`, `check_feuilles` : le CI.
 
-`node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (une demi-heure et plus ; `FAMILLES=patrons PART=1/4` n'en mesure qu'un quart, pour le partager entre quatre processus) se lancent à part.
+`node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (une douzaine de minutes) se lancent à part.
 
-Depuis la V21 : `node scripts/check_pouvoirs.mjs` (cinq minutes sur quatre processus ; `N` matchs par club et par pouvoir, 600 ; `COACHS=a,b` quelques coachs ; `MESURE=0 N=20` en CI, dix secondes) — chaque pouvoir, en paires contre un coach muet joué lui aussi en trois périodes : il joue exactement les périodes que sa condition lit dans la feuille, ne change rien hors d'elles, se voit le soir où il joue, reste sous sa borne et n'est jamais un piège ; le personnage complet ; l'expérience, les adjoints payants et contagieux sur une saison.
+Depuis la V21 : `node scripts/check_pouvoirs.mjs` (cinq minutes sur quatre processus ; `N` matchs par club et par pouvoir, 600 ; `COACHS=a,b` quelques coachs ; `MESURE=0 N=20` en CI, dix secondes) — chaque pouvoir, en paires contre un coach muet joué lui aussi en trois périodes : il joue exactement les périodes que sa condition lit dans la feuille, ne change rien hors d'elles, se voit le soir où il joue, reste sous sa borne et n'est jamais un piège ; le personnage complet ; l'expérience, et les adjoints qui jouent (l'échange se voit, ni cadeau ni piège) sur une saison.
+
+Depuis le 31 oct. 2026 : `node scripts/inferer_glace.mjs` (une seconde) — le temps de glace inféré d'avant 1997-98 (`glaceInferee`, js/ratings.js) : la régression s'ajuste sur 2010-2025 et s'éprouve en retenue, vers le passé, sur 1997-2005 (R² ≥ 0,75 chez les avants, ≥ 0,6 chez les défenseurs ; la zone lue des minutes au moins aussi juste que le rang d'usage ; les coefficients écrits dans le jeu à 0,1 minute de l'ajustement du jour, sinon recopier la ligne « à coller » et monter `RATINGS_VERSION`), puis `python3 scripts/build_shards.py --rerate` refait les shards. Un chiffre inféré se joue dans un canal qui existe, se dit estimé (« ≈ »), et ne fait pas la valeur.
 
 L'impact des choix en chiffres de match (`docs/impact-des-choix.md`) : `node scripts/check_chiffres.mjs` (une minute : ce que l'écran annonce égale ce que le moteur joue, en paires) et `node scripts/check_impact.mjs` (douze secondes : la base de la ligue, le témoin à zéro ; `COMPLET=1` le tableau de chaque choix).
 

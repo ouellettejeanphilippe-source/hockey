@@ -53,7 +53,7 @@ const COL_PAT = [
   { cle: 'sh', t: 'T', titre: 'Lancers', v: p => p.sh || 0 },
   { cle: 'pct', t: '%T', titre: 'Pourcentage de tir', v: p => (p.sh ? 100 * (p.g || 0) / p.sh : 0), fmt: x => (x ? x.toFixed(1) : '—') },
   { cle: 'pim', t: 'PUN', titre: 'Minutes de punition', v: p => p.pim || 0 },
-  { cle: 'toi', t: 'TG', titre: 'Temps de glace par match', v: p => p.toi || 0, fmt: x => (x ? x.toFixed(1) : '—') },
+  { cle: 'toi', t: 'TG', titre: 'Temps de glace par match', v: p => p.toi || 0, fmt: (x, p) => (x ? `${p && p.toiE ? '≈ ' : ''}${x.toFixed(1)}` : '—') },
 ];
 const COL_GAR = [
   { cle: 'gp', t: 'PJ', titre: 'Matchs joués', v: p => p.gp || 0 },
@@ -360,7 +360,7 @@ function voletClub() {
       <tbody>${rangs.map(p => `<tr>
         <td class="left"><button type="button" class="eq-joueur" data-joueur="${esc(String(p.id))}">${esc(p.n)}${p.x ? '<i class="eq-echange" title="Échangé en cours de saison : ces totaux sont ceux de sa SAISON ENTIÈRE, pas de son passage ici">⇄</i>' : ''}</button></td>
         <td class="sub-cell">${esc(POSTE(p))}</td>
-        ${CO.map(c => `<td class="stat${c.heros ? ' heros' : ''}">${esc(String(c.fmt ? c.fmt(c.v(p)) : c.v(p)))}</td>`).join('')}
+        ${CO.map(c => `<td class="stat${c.heros ? ' heros' : ''}">${esc(String(c.fmt ? c.fmt(c.v(p), p) : c.v(p)))}</td>`).join('')}
       </tr>`).join('') || `<tr><td colspan="${CO.length + 2}" class="eq-vide">Personne.</td></tr>`}</tbody>
     </table>
     ${echange ? '<p class="eq-note">⇄ Échangé en cours de saison : sa ligne revient sous chacun de ses clubs, avec ses totaux de la saison ENTIÈRE.</p>' : ''}

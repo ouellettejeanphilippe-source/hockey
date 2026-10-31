@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 29;
+export const RATINGS_VERSION = 30;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 const CAP_REF = 95_500_000;
@@ -724,6 +724,85 @@ function zonesDuDeploiement(entries) {
   return entries;
 }
 
+/*
+ * LE TEMPS DE GLACE INFÉRÉ, AVANT 1997-98 (RATINGS_VERSION 30 ; JP, 31 oct. 2026 : *inférer plus de données avec ce qui
+ * existe, des trucs qu'on a pas de 1970, ça permettrait d'avoir un moteur plus complet et réaliste*). Avant 1997-98,
+ * `toi` valait 0 : l'usage d'un patineur se lisait à ses matchs joués, la mesure défensive se passait des minutes, le
+ * rôle énergie de ses points. Les minutes se prédisent avec les colonnes de toutes les époques : ses buts, passes,
+ * lancers, points en avantage et en désavantage et punitions par match (en écarts types parmi les réguliers de la
+ * saison à son poste), sa part des matchs, et son rang chez son club par `usageSansGlace`. Une régression linéaire par
+ * poste, AJUSTÉE SUR 2010-11 À 2025-26 ET ÉPROUVÉE EN RETENUE, VERS LE PASSÉ, SUR 1997-98 À 2005-06
+ * (scripts/inferer_glace.mjs) : R² 0,80 chez les avants et 0,67 chez les défenseurs, 1,9 et 2,5 minutes d'erreur type ;
+ * la zone de déploiement lue de ces minutes tombe juste 70 % du temps (61 % chez les défenseurs), contre 67 % (61 %)
+ * pour le rang d'usage seul. Puis une mise à l'échelle PAR SAISON : un club des années 70 habillait moins de patineurs
+ * et la régression ne le sait pas, mais la somme des minutes d'un club par match est de la physique (trois avants et
+ * deux défenseurs sur la glace) ; la médiane des clubs de la saison est ramenée à celle des saisons mesurées
+ * (`parClub`, 1997-98 à 2005-06). Normaliser chaque club séparément a été essayé et écarté : en retenue, l'erreur
+ * montait (2,2 et 3,0 minutes). Un patineur inféré porte `toiE: 1` : la fiche dit « ≈ ». Les coefficients viennent du
+ * script, qui les éprouve ; à refaire s'il les dit périmés.
+ */
+const TRAITS_GLACE = ['g', 'a', 'sh', 'ppp', 'shp', 'pim'];
+const RANG_GLACE_MAX = 14;
+/* Un écart type borné : la droite ne s'extrapole pas à un Gretzky (163 passes, six écarts types : 32 minutes sans la borne). */
+const Z_GLACE_MAX = 3;
+const GLACE_INFEREE = {
+  F: { b: [16.09, 0.27, 1.13, 1, 0.21, 0.39, -0.29, 1.09, -0.23, -2.06], parClub: 194.7 },
+  D: { b: [17.96, 0.07, 0.92, 1.06, -0.21, 0.35, -0.1, 3.19, -0.29, 0.1], parClub: 129.5 },
+};
+const ECHELLE_GLACE = [0.85, 1.25];
+const GLACE_MIN = 3;
+/** Les traits de chaque patineur d'une saison : [1, z(buts), z(passes), z(lancers), z(AN), z(DN), z(punitions), part des matchs, rang au club, 1/rang]. */
+export function traitsDeGlace(entries) {
+  const out = new Map();
+  const matchs = Math.max(1, ...entries.map(e => e.gp || 0));
+  const parMatchDe = (e, k) => (e[k] || 0) / Math.max(1, e.gp || 0);
+  for (const pos of ['F', 'D']) {
+    const groupe = entries.filter(e => e.p === pos);
+    const reguliers = groupe.filter(e => (e.gp || 0) >= 20);
+    if (!reguliers.length) continue;
+    const z = {};
+    for (const k of TRAITS_GLACE) {
+      const v = reguliers.map(e => parMatchDe(e, k));
+      const m = v.reduce((a, b) => a + b, 0) / v.length;
+      const sd = Math.sqrt(v.reduce((a, b) => a + (b - m) * (b - m), 0) / v.length) || 1;
+      z[k] = x => Math.max(-Z_GLACE_MAX, Math.min(Z_GLACE_MAX, (x - m) / sd));
+    }
+    const parClub = new Map();
+    for (const e of groupe) { if (!parClub.has(e.t)) parClub.set(e.t, []); parClub.get(e.t).push(e); }
+    for (const club of parClub.values()) {
+      const usages = club.filter(e => (e.gp || 0) >= MATCHS_REGULIER).map(e => usageSansGlace(e, matchs));
+      for (const e of club) {
+        const u = usageSansGlace(e, matchs), rang = Math.min(RANG_GLACE_MAX, 1 + usages.filter(x => x > u).length);
+        out.set(e, { pos, x: [1, ...TRAITS_GLACE.map(k => z[k](parMatchDe(e, k))), (e.gp || 0) / matchs, rang, 1 / rang] });
+      }
+    }
+  }
+  return out;
+}
+/**
+ * Pose le temps de glace inféré (`toi`, `toiE: 1`) sur les patineurs d'une saison que la ligue ne mesurait pas, et le
+ * refait sur une saison déjà inférée ; ne touche pas à une saison mesurée. Rend vrai si elle a inféré.
+ */
+export function glaceInferee(entries, coefs = GLACE_INFEREE) {
+  if (entries.some(e => e.p !== 'G' && e.toi > 0 && !e.toiE)) return false;
+  const traits = traitsDeGlace(entries);
+  const matchs = Math.max(1, ...entries.map(e => e.gp || 0));
+  for (const pos of ['F', 'D']) {
+    const brut = new Map(), sommes = new Map();
+    for (const [e, t] of traits) {
+      if (t.pos !== pos) continue;
+      const m = coefs[pos].b.reduce((a, b, i) => a + b * t.x[i], 0);
+      brut.set(e, m);
+      sommes.set(e.t, (sommes.get(e.t) || 0) + m * (e.gp || 0) / matchs);
+    }
+    if (!brut.size) continue;
+    const tri = [...sommes.values()].sort((a, b) => a - b), mediane = tri[tri.length >> 1];
+    const facteur = Math.min(ECHELLE_GLACE[1], Math.max(ECHELLE_GLACE[0], mediane > 0 ? coefs[pos].parClub / mediane : 1));
+    for (const [e, m] of brut) { e.toi = Math.max(GLACE_MIN, Math.round(m * facteur * 10) / 10); e.toiE = 1; }
+  }
+  return true;
+}
+
 /**
  * Zone de trio d'un joueur : celle de son usage chez son club (`p.zd`, posé au build) ; sinon (un gardien, un shard
  * d'avant RATINGS_VERSION 29) déduite de la cote globale passée en `v` (getHiddenRatings(p).v).
@@ -1303,7 +1382,9 @@ function scorePatineur(p, ctx) {
   const prod = fiable(gp, (p.pt || 0) / gp / (est_D ? (ptD || 0.35) : (ptF || 0.62)));
   const vol = fiable(gp, (p.sh || 0) / gp / (est_D ? (shD || 1.35) : (shF || 1.75)));
   const pm = fiable(gp, ((p.pm || 0) - LISSAGE_EQUIPE * (ctx.pmEquipe.get(p.t ?? p.teams?.[0]) || 0)) / gp, 0);
-  const usage = p.toi ? fiable(gp, p.toi / (est_D ? 21 : 16)) : gp / ctx.games;
+  // Des minutes inférées (`toiE`) ne font pas la valeur : prédites des points et des lancers, elles compteraient la
+  // production deux fois, et la force des clubs d'avant 1997-98 suivait moins bien leur classement (0,81 → 0,79).
+  const usage = p.toi && !p.toiE ? fiable(gp, p.toi / (est_D ? 21 : 16)) : gp / ctx.games;
 
   // Racine sur la production : l'écart entre le 1er et le 20e marqueur compte
   // plus que celui entre le 200e et le 220e, mais pas au carré.
@@ -1487,6 +1568,7 @@ export function buildSeasonShard(label, skaterRows, goalieRows, realtimeById, mi
  * refaits avec la formule courante.
  */
 export function rerateShard(shard, opts = {}) {
+  glaceInferee(shard.players);
   const players = finalizeSeason(collapseByTeam(shard.players), shard.season, opts);
   return { season: shard.season, minGP: shard.minGP, v: RATINGS_VERSION, ...(shard.an ? { an: shard.an } : {}), players: zonesDuDeploiement(expandByTeam(players, shard.season)) };
 }
