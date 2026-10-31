@@ -87,24 +87,24 @@ function jouer(e, entrees, s) {
   const toi = e.patineurs[0];
   Object.assign(toi, { x: -27, y: 9, cap: 0 });
   let vmax = 0, t95 = null, t = 0;
-  for (; t < 8; t += DT) { avancer(e, { toi: { x: 1, y: 0 } }, DT); vmax = Math.max(vmax, v(toi)); if (t95 === null && v(toi) >= 0.95 * 8.3) t95 = t; }
-  borne('la pointe d\'un patineur, en ligne droite', vmax * 3.6, 28, 33, ' km/h');
-  exiger('… atteinte à 95 % en moins de six secondes', t95 !== null && t95 < 6, t95 === null ? 'jamais' : `${t95.toFixed(1)} s`);
+  for (; t < 6; t += DT) { avancer(e, { toi: { x: 1, y: 0 } }, DT); vmax = Math.max(vmax, v(toi)); if (t95 === null && v(toi) >= 0.95 * 10.4) t95 = t; }
+  borne('la pointe d\'un patineur, en ligne droite', vmax * 3.6, 35, 40, ' km/h');
+  exiger('… atteinte à 95 % en moins de trois secondes (arcade)', t95 !== null && t95 < 3, t95 === null ? 'jamais' : `${t95.toFixed(1)} s`);
   // Le frein : le bâton à l'envers.
   const x0 = toi.x, tf = e.t;
   while (v(toi) > 0.3 && e.t - tf < 5) avancer(e, { toi: { x: -1, y: 0 } }, DT);
-  borne('le frein : de la pointe à l\'arrêt', e.t - tf, 0.6, 2.5, ' s');
-  borne('… sur quelques mètres', toi.x - x0, 2, 12, ' m');
+  borne('le frein : de la pointe à l\'arrêt', e.t - tf, 0.4, 1.5, ' s');
+  borne('… sur quelques mètres', toi.x - x0, 1.5, 8, ' m');
 }
 {
   const e = glaceVide();
   const toi = e.patineurs[0];
   Object.assign(toi, { x: -27, y: -8, cap: 0 });
-  jouer(e, { toi: { x: 1, y: 0 } }, 7);
+  jouer(e, { toi: { x: 1, y: 0 } }, 4);
   const xv = toi.x, vv = v(toi);
   let maxX = -1e9;
   for (let t = 0; t < 3; t += DT) { avancer(e, { toi: { x: 0, y: 1 } }, DT); maxX = Math.max(maxX, toi.x); }
-  borne('à pleine vitesse, le virage le plus serré a un rayon de plusieurs mètres', maxX - xv, 5, 12, ' m');
+  borne('à pleine vitesse, le virage le plus serré a un rayon de quelques mètres (arcade, mais pas sur place)', maxX - xv, 2.5, 8, ' m');
   exiger('… et il a bel et bien tourné vers le bâton', Math.abs(toi.cap - Math.PI / 2) < 0.3, `cap ${toi.cap.toFixed(2)} rad à ${(vv * 3.6).toFixed(0)} km/h`);
 }
 {
@@ -113,7 +113,7 @@ function jouer(e, entrees, s) {
   Object.assign(toi, { x: -20, y: 0, cap: 0, vx: 0, vy: 0 });
   let tPivot = null;
   for (let t = 0; t < 2; t += DT) { avancer(e, { toi: { x: -1, y: 0.01 } }, DT); if (tPivot === null && Math.abs(Math.abs(toi.cap) - Math.PI) < 0.3) tPivot = t; }
-  exiger('à l\'arrêt, il pivote d\'un demi-tour en moins d\'une seconde et demie', tPivot !== null && tPivot < 1.5, tPivot === null ? 'jamais' : `${tPivot.toFixed(2)} s`);
+  exiger('à l\'arrêt, il pivote d\'un demi-tour en moins d\'une demi-seconde', tPivot !== null && tPivot < 0.5, tPivot === null ? 'jamais' : `${tPivot.toFixed(2)} s`);
 }
 
 /* ---------- la lame ---------- */
@@ -197,10 +197,10 @@ function jouer(e, entrees, s) {
     }
     return { buts, arrets, part: arrets / Math.max(1, buts + arrets) };
   };
-  const enclave = taux(8, 30, 120, 'enclave'), bleue = taux(18, 35, 120, 'bleue');
-  informer('les tirs de l\'enclave (8 m, 108 km/h)', `${enclave.buts} buts, ${enclave.arrets} arrêts`);
+  const enclave = taux(8, 32, 120, 'enclave'), bleue = taux(18, 40, 120, 'bleue');
+  informer('les tirs de l\'enclave (8 m, 115 km/h)', `${enclave.buts} buts, ${enclave.arrets} arrêts`);
   borne('le gardien arrête la plupart des tirs de l\'enclave, pas tous', enclave.part, 0.55, 0.95);
-  informer('les tirs de la bleue (18 m, 126 km/h)', `${bleue.buts} buts, ${bleue.arrets} arrêts`);
+  informer('les tirs de la bleue (18 m, 144 km/h)', `${bleue.buts} buts, ${bleue.arrets} arrêts`);
   borne('… et presque tous ceux de la bleue', bleue.part, 0.85, 1);
   exiger('la bleue est plus facile à arrêter que l\'enclave', bleue.part > enclave.part, `${(bleue.part * 100).toFixed(0)} % contre ${(enclave.part * 100).toFixed(0)} %`);
 }
