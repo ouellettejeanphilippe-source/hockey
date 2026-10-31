@@ -4830,6 +4830,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 /* Une punition, une blessure : le rouge de ce qui coûte ; chez toi, plus appuyé. */
 .live-ligne.punition { box-shadow: inset 3px 0 0 var(--mauvais); }
 .live-pun-mot { font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; margin-right: var(--esp-1); color: var(--mauvais); }
+.live-tiree { display: block; opacity: 0.75; }
 .live-ligne.blessure { background: color-mix(in srgb, var(--mauvais) 10%, transparent); box-shadow: inset 3px 0 0 var(--mauvais); }
 .live-ligne.blessure.nous { background: color-mix(in srgb, var(--mauvais) 20%, transparent); }
 .live-bless-mot { font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; margin-right: var(--esp-1); color: var(--mauvais); }

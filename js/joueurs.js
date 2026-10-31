@@ -5,7 +5,8 @@
  * ouvre la fiche. Rien d'autre : les lignes se règlent dans l'onglet Lignes. En Rogue, le filtre 🩹 est l'infirmerie (V18-5,
  * docs/ecrans-rogue.md ; EHM : les blessés vivent dans l'effectif) : qui est blessé, qui joue sa case, ce qui le soigne.
  *
- * Des vraies stats seulement (PJ, B, A, PTS, +/−, tirs, précision ; V, D, % d'arrêts, moyenne), jamais une cote.
+ * Des vraies stats seulement (PJ, B, A, PTS, +/−, tirs, précision, mises en échec et blocs quand la ligue les comptait ;
+ * V, D, % d'arrêts, moyenne, et les départs de qualité comptés dans tes feuilles), jamais une cote.
  */
 import { SLOTS, badgesDe, PALIERS, getPlayerKey } from './sim.js';
 import { esc, money, pct3, virgule } from './util.js';
@@ -24,25 +25,29 @@ function statsDe(p, compte) {
   const c = compte && compte.get(p);
   if (c) {
     return p.p === 'G'
-      ? { pj: c.gp, v: c.w, d: c.l, pctArr: c.sa ? c.sv / c.sa : null, moy: c.gp ? c.ga / c.gp : null }
-      : { pj: c.gp, b: c.g, a: c.a, pts: c.pts, pm: c.pm, tirs: c.sh, pctTir: c.sh ? c.g / c.sh : null };
+      ? { pj: c.gp, v: c.w, d: c.l, pctArr: c.sa ? c.sv / c.sa : null, moy: c.gp ? c.ga / c.gp : null, dq: c.dq }
+      : { pj: c.gp, b: c.g, a: c.a, pts: c.pts, pm: c.pm, tirs: c.sh, pctTir: c.sh ? c.g / c.sh : null, coups: c.coups, blocs: c.blocs };
   }
-  if (compte) return p.p === 'G' ? { pj: 0, v: 0, d: 0, pctArr: null, moy: null } : { pj: 0, b: 0, a: 0, pts: 0, pm: 0, tirs: 0, pctTir: null };
+  if (compte) return p.p === 'G' ? { pj: 0, v: 0, d: 0, pctArr: null, moy: null, dq: 0 } : { pj: 0, b: 0, a: 0, pts: 0, pm: 0, tirs: 0, pctTir: null, coups: 0, blocs: 0 };
   const st = displayStats(p);
   return p.p === 'G'
     ? { pj: st.gp, v: st.w, d: st.l, pctArr: p.sv ?? null, moy: p.ga ?? null }
-    : { pj: st.gp, b: st.g, a: st.a, pts: st.pt, pm: st.pm, tirs: p.sh ?? 0, pctTir: p.sh ? (p.g || 0) / p.sh : null };
+    // Sa vraie saison : les mises en échec et les blocs seulement si la ligue les comptait (2005-06+) — jamais l'estimation du moteur.
+    : { pj: st.gp, b: st.g, a: st.a, pts: st.pt, pm: st.pm, tirs: p.sh ?? 0, pctTir: p.sh ? (p.g || 0) / p.sh : null, coups: p.ht != null ? Math.round(p.ht * st.gp) : null, blocs: p.bl != null ? Math.round(p.bl * st.gp) : null };
 }
 
 const COLONNES = {
-  F: [['jambes', 'Jambes'], ['pj', 'PJ'], ['b', 'B'], ['a', 'A'], ['pts', 'PTS'], ['pm', '+/−'], ['tirs', 'Tirs'], ['pctTir', '% tir'], ['sal', '$']],
-  G: [['jambes', 'Jambes'], ['pj', 'PJ'], ['v', 'V'], ['d', 'D'], ['pctArr', '% arr.'], ['moy', 'Moy.'], ['sal', '$']],
+  F: [['jambes', 'Jambes'], ['pj', 'PJ'], ['b', 'B'], ['a', 'A'], ['pts', 'PTS'], ['pm', '+/−'], ['tirs', 'Tirs'], ['pctTir', '% tir'], ['coups', 'MÉ'], ['blocs', 'BL'], ['sal', '$']],
+  G: [['jambes', 'Jambes'], ['pj', 'PJ'], ['v', 'V'], ['d', 'D'], ['pctArr', '% arr.'], ['moy', 'Moy.'], ['dq', 'DQ'], ['sal', '$']],
 };
 const FORMAT = {
   pm: x => (x > 0 ? `+${x}` : x < 0 ? `−${-x}` : '0'),
   pctTir: x => (x == null ? '—' : pct1(x)),
   pctArr: x => (x == null ? '—' : pct3(x)),
   moy: x => (x == null ? '—' : virgule(x.toFixed(2))),
+  coups: x => (x == null ? '—' : x),
+  blocs: x => (x == null ? '—' : x),
+  dq: x => (x == null ? '—' : x),
   sal: x => money(x),
   jambes: x => (x == null ? '—' : `<span class="jr-jambes ${x >= 80 ? 'frais' : x < 60 ? 'use' : ''}">${Math.round(x)}</span>`),
 };
@@ -61,7 +66,8 @@ export function remplirJoueurs() {
   });
   const groupeDe = r => (r.p.p === 'G' ? 'G' : r.p.p === 'D' ? 'D' : 'F');
   const g = etat.groupe;
-  const cols = COLONNES[g === 'G' ? 'G' : 'F'].filter(([k]) => k !== 'jambes' || energie);
+  // Les départs de qualité se comptent dans tes feuilles : la vraie saison d'un gardien ne les a pas.
+  const cols = COLONNES[g === 'G' ? 'G' : 'F'].filter(([k]) => (k !== 'jambes' || energie) && (k !== 'dq' || compte));
   const [cle, asc] = etat.tri[g];
   const val = r => { const v = r.st[cle]; return v == null ? -Infinity : v; };
   const vues = rangees.filter(r => groupeDe(r) === g).sort((x, y) => (asc ? val(x) - val(y) : val(y) - val(x)) || x.s.i - y.s.i);

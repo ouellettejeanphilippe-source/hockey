@@ -1135,7 +1135,7 @@ export function rolesBruts(p) {
     energie: melange([[0.35, zSH], [0.25, zHT ?? mr], [-0.4, zTOI ?? zPT]]) + t('VITESSE'),
     bagarreur: melange([[0.8, zPIM], [0.2, zGB]]),
   } : {
-    defensif: melange([[0.55, md], [0.2, zBL ?? mr], [-0.25, zPT]]) + t('NORRIS') * 0.5,
+    defensif: melange([[0.55, md], [0.2, zBL ?? zGeste(p, 'bl')], [-0.25, zPT]]) + t('NORRIS') * 0.5,
     offensif: melange([[0.45, zPT], [0.3, zG], [0.25, zSH]]) + t('TIR'),
     manieur: melange([[0.55, zA], [0.25, zTOI], [0.2, zPPP]]) + t('CREATEUR', 'VITESSE') * 0.6,
     physique: melange([[0.4, mr], [0.3, zHT ?? zPIM], [0.3, zGB]]) + t('COLOSSE'),
@@ -1193,8 +1193,8 @@ export function famillesBrutes(p) {
  * est ce reste, en écarts types : 0 chez le joueur typique de ses points.
  */
 export const PROFIL_FAMILLES = {
-  F: { tir: [-0.057, 0.818, 0.454], jeu: [-0.078, 0.859, 0.409], defense: [0.355, 0.204, 0.515], robustesse: [0.451, 0.073, 0.652] },
-  D: { tir: [0.099, 0.919, 0.283], jeu: [0.128, 0.925, 0.225], defense: [0.416, 0.562, 0.349], robustesse: [-0.323, -0.17, 0.803] },
+  F: { tir: [-0.057, 0.818, 0.454], jeu: [-0.078, 0.859, 0.409], defense: [0.355, 0.204, 0.515], robustesse: [0.44, 0.077, 0.656] },
+  D: { tir: [0.099, 0.919, 0.283], jeu: [0.141, 0.914, 0.215], defense: [0.399, 0.591, 0.348], robustesse: [-0.323, -0.169, 0.8] },
 };
 const FAMILLES_CACHE = new WeakMap();
 export function famillesDe(p) {
@@ -1355,6 +1355,50 @@ function physiqueBrut(p) {
  * mesuré sur 37 501 patineurs).
  */
 const zPhysique = p => { const ph = physiqueDe(p); return Math.log(ph / (1 - ph)) / 1.4; };
+/*
+ * LES GESTES QUE LA LIGUE NE COMPTAIT PAS (oct. 2026 ; JP : *inférer plus de données avec ce qui existe […] un moteur
+ * plus complet et réaliste*). Les mises en échec et les tirs bloqués arrivent en 2005-06, les punitions tirées en
+ * 2009-10. Avant, le moteur ESTIME le geste d'un patineur en écart réduit dans sa saison (`zGeste`) : une droite sur ce
+ * que toutes les époques comptent — ses buts, passes, lancers, points en avantage et en désavantage, punitions par match,
+ * son temps de glace (mesuré ou inféré), son poids, sa grandeur, son gabarit —, ajustée sur 2015-2025 et éprouvée en
+ * retenue, vers le passé, sur 2005-2012 (scripts/inferer_gestes.mjs : le rang de qui frappe à 0,59 et 0,54, de qui
+ * bloque à 0,56 et 0,64, de qui tire des punitions à 0,65 et 0,53 ; le repli d'avant pour les blocs, la robustesse
+ * mesurée, rendait 0,16 chez les défenseurs). C'est un poids du moteur — qui frappe, qui bloque, qui attire la
+ * punition —, jamais une statistique affichée : la fiche ne montre que ce que la ligue a compté. Un 0 est le joueur
+ * moyen de son poste ; la mesure, quand elle existe, passe devant.
+ */
+const TRAITS_GESTE = ['gpg', 'apg', 'shpg', 'ppppg', 'shppg', 'pimpg', 'toi', 'wgt', 'hgt', 'gb'];
+const GESTES_ESTIMES = {
+  ht: { F: [0, -0.03, -0.22, 0.06, -0.11, 0.06, 0.41, -0.03, 0.22, -0.09, 0.05], D: [-0.01, -0.07, -0.19, 0.01, -0.08, -0.01, 0.4, 0.13, 0.22, -0.1, 0.08] },
+  bl: { F: [0, -0.08, -0.23, -0.26, -0.12, 0.16, 0.04, 0.73, 0.08, 0.03, -0.04], D: [-0.01, -0.02, -0.13, -0.16, -0.21, 0.07, 0.01, 0.79, 0.03, -0.1, 0.15] },
+  pd: { F: [0.01, 0.07, 0.16, 0.19, -0.1, 0.01, 0.59, 0.05, -0.08, -0.02, -0.02], D: [-0.01, 0.03, 0, 0.04, 0.06, 0.01, 0.58, 0.11, -0.06, -0.01, -0.04] },
+};
+/** Les traits d'un patineur pour estimer un geste : [1, ses dix statistiques en écart réduit dans sa saison, à son poste (0 quand la saison ne l'a pas)]. */
+export function traitsDeGeste(p) {
+  const g = estD(p) ? 'D' : 'F', gp = Math.max(1, p.gp || 1);
+  const v = { gpg: (p.g || 0) / gp, apg: (p.a || 0) / gp, shpg: (p.sh || 0) / gp, ppppg: p.ppp == null ? null : p.ppp / gp, shppg: p.shp == null ? null : p.shp / gp,
+    pimpg: (p.pim || 0) / gp, toi: p.toi > 0 ? p.toi : null, wgt: p.wgt > 0 ? p.wgt : null, hgt: p.hgt > 0 ? p.hgt : null, gb: p.gb == null ? null : Number(p.gb) };
+  return [1, ...TRAITS_GESTE.map(k => zSaison(p, g, k, v[k]) ?? 0)];
+}
+/** Le geste d'un patineur en écart réduit dans sa saison : la mesure si la ligue l'a comptée, sinon l'estimation (0 pour un gardien). */
+export function zGeste(p, cle) {
+  if (!p || p.p === 'G') return 0;
+  const g = estD(p) ? 'D' : 'F';
+  const mesure = p[cle] == null ? null : zSaison(p, g, cle, p[cle]);
+  if (mesure != null) return mesure;
+  const b = GESTES_ESTIMES[cle][g], x = traitsDeGeste(p);
+  return borne(b.reduce((a, c, i) => a + c * x[i], 0), -3.5, 3.5);
+}
+/*
+ * LES TIRS BLOQUÉS (oct. 2026). Un défenseur ne fait pas baisser les lancers contre dans ce moteur (MOTEUR.md § 4.4 : la
+ * défensive rend les lancers qui passent moins dangereux), mais il en bloque, et la feuille le compte : pour chaque
+ * lancer au but, `BLOCS_PAR_TIR` tentatives bloquées en moyenne (la ligue, 2005-06 à 2023-24 : 0,49 à 0,56 bloc par tir
+ * contre, 14 à 16 par match), créditées à un défenseur ou un attaquant sur la glace selon son geste (`blocsDe` : un
+ * défenseur bloque 2,7 fois plus qu'un attaquant à geste égal — 64 % des blocs réels vont aux défenseurs, deux sur
+ * cinq patineurs). Le volume de lancers ne bouge pas ; ce qui bouge, c'est qui les a bloqués — un défi, une blessure.
+ */
+export const BLOCS_PAR_TIR = 0.5, BLOCS_D_SUR_F = 2.7;
+export const blocsDe = p => (estD(p) ? BLOCS_D_SUR_F : 1) * Math.exp(0.5 * zGeste(p, 'bl'));
 /* Ses blessures, selon sa carrure : un costaud se blesse moins, un léger plus (la fiche le dit). */
 export const blessureDuPhysique = p => Math.exp(-ROB_BLESSURE * zPhysique(p));
 const rendementPhysique = ph => borne(1 + 4 * (ph - 0.5), 0.2, 2);
@@ -1542,7 +1586,8 @@ const maitriseUnite = (joueurs, role) => joueurs.reduce((a, p) => a + maitrise(p
 function coupsDe(p) {
   if (!p || p.p === 'G') return 0;
   if (p.ht != null) return p.ht;
-  return COUP_MOYEN * Math.exp(0.5 * zPhysique(p));
+  // Avant 2005-06 : l'estimation du geste (oct. 2026), qui lit aussi ses punitions, ses minutes et son gabarit ; la carrure seule rangeait moins bien qui frappe.
+  return COUP_MOYEN * Math.exp(0.5 * zGeste(p, 'ht'));
 }
 /* Ce qu'un coup reçu coûte à ce joueur, en jambes : un costaud encaisse, un léger accuse. */
 /* Ce qu'un coup reçu coûte aux jambes de CE joueur : continu, de 0,6 (physique 1) à 1,8 (physique 0) ; la fiche dit le sien. */
@@ -3323,6 +3368,18 @@ export const POIDS_AN = [0.65, 0.35];        // part du temps d'avantage de chaq
 export const POIDS_DN = [0.60, 0.40];
 const PART_LANCERS_D_AN = 0.38;       // en avantage, la pointe tire plus (Lidström) — repère public
 const DISCIPLINE_MIN = 0.5;    // bornes de l'indiscipline d'un alignement
+/* Les punitions tirées (oct. 2026) : la pente mesurée du geste moyen de l'alignement aux occasions réelles, et ses bornes. */
+export const K_TIRAGE = 0.29;
+/* Le geste moyen des vrais alignements, pondéré par la glace (494 clubs, 2010-2025 : +0,064 — les bons joueurs attirent plus et jouent plus) : soustrait, pour que la ligue ne bouge pas. */
+const TIRAGE_CENTRE = 0.064, TIRAGE_MIN = 0.8, TIRAGE_MAX = 1.25;
+/** Le geste « tirer des punitions » d'un alignement : la moyenne de ses patineurs, pondérée par leur temps de glace. */
+export function tirageDe(profil) {
+  if (profil._tirage != null) return profil._tirage;
+  let s = 0, w = 0;
+  for (const p of profil.patineurs || []) { const g = p.toi > 0 ? p.toi : 15; s += g * zGeste(p, 'pd'); w += g; }
+  profil._tirage = w ? s / w : 0;
+  return profil._tirage;
+}
 const DISCIPLINE_MAX = 1.8;
 
 /** Période d'un instant du match : 1, 2, 3, puis la prolongation. */
@@ -4513,6 +4570,15 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // `p` (S70) : la chance que CE lancer entre. Le direct en tire ses jeux dangereux ; lu, jamais tiré.
     const lancer = journal ? { cote, instant, tireur, gardien, but: false, mode, special, ligne: trioOff ? trioOff.rang : null, acc: trioOff ? trioOff.accord || null : null, p: Math.round(p * 1000) / 1000 } : null;
     if (lancer) journal.lancers.push(lancer);
+    // LES TIRS BLOQUÉS (oct. 2026) : autour de ce lancer, des tentatives bloquées, créditées à qui défend cette présence. Le lancer, lui, est déjà au but.
+    if (journal && defGlace && defGlace.length) {
+      const nBlocs = poisson(BLOCS_PAR_TIR);
+      for (let k = 0; k < nBlocs; k++) {
+        const bloqueur = weightedPick(defGlace, blocsDe);
+        bloqueur._blocs = (bloqueur._blocs || 0) + 1;
+        journal.physique.push({ type: 'bloc', cote: cote === 'A' ? 'B' : 'A', instant: Math.max(0, instant - 0.05 * (k + 1)), joueur: bloqueur, tireur });
+      }
+    }
 
     const de = hasard();
     // CE QUI A FAIT CE LANCER (oct.) : pour les matchs de ton club, chaque cause nommée, et celles qui ont décidé de ce dé.
@@ -4702,6 +4768,9 @@ export const fragiliteDe = p => { const f = frailDe(p); return (BLESSURE_BASE + 
  * Une blessure de moins de `BLESSURE_MOMENT` matchs ne bloque jamais la journée (js/ballottage.js).
  */
 export const BLESSURES_LNH = 9, FRAPPE = 0.12, INFIRMERIE_PLEINE = 4;
+/* Un lancer bloqué blesse (oct. 2026) : +25 % de risque par bloc du soir, ramené au patineur moyen (15 blocs par club sur 18 patineurs) ; trois blocs et plus, c'est le pied. */
+const BLESSURE_BLOC = 0.25, BLOCS_PAR_PATINEUR = 15 / 18;
+export const BLOCS_QUI_BLESSENT = 3;
 function injuryChance(p, heavy = false) {
   const frail = frailDe(p);
   let pr = BLESSURE_BASE + BLESSURES_LNH * BLESSURE_FRAGILE * frail * frail;
@@ -4724,6 +4793,7 @@ const BLESSURES = {
   commotion: { nom: 'une commotion cérébrale', cause: 'après un coup marquant' },
   aine: { nom: 'une élongation à l\'aine', cause: 'les jambes vidées' },
   epaule: { nom: 'une épaule séparée', cause: 'sur une mise en échec' },
+  pied: { nom: 'une blessure au pied', cause: 'sur un lancer bloqué' },
   dos: { nom: 'des maux de dos', cause: 'au bout d\'un dos-à-dos' },
   haut: { nom: 'une blessure au haut du corps', cause: '' },
   bas: { nom: 'une blessure au bas du corps', cause: '' },
@@ -4739,10 +4809,11 @@ const BLESSURES = {
   gateau: { nom: 'une brûlure à la main', cause: 'en allumant les chandelles du gâteau d\'un coéquipier', drole: true },
 };
 const DROLES = Object.keys(BLESSURES).filter(k => BLESSURES[k].drole);
-function genreDeBlessure(p, team, matchs, { bagarre, sonne, jambes, frappe, heavy }) {
+function genreDeBlessure(p, team, matchs, { bagarre, sonne, jambes, bloc, frappe, heavy }) {
   if (bagarre) return 'main';
   if (sonne) return 'commotion';
   if (jambes) return 'aine';
+  if (bloc) return 'pied';
   const x = empreinte(`${getPlayerKey(p)}|${team.name}|${team.games}|blessure`);
   if (frappe > 1.25) return 'epaule';
   if (heavy && x < 0.5) return 'dos';
@@ -5117,9 +5188,12 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil 
     // L'ÉNERGIE (S68) : sous 60, le risque monte — jusqu'au double à 30.
     const usee = 1 + Math.max(0, ENERGIE_BLESSURE - energieDe(p)) / 30;
     // Sonné par un coup marquant, ou une bagarre perdue (1.0) : ce soir, il se blesse plus.
-    const soiree = (p._sonne ? BLESSURE_SONNE : 1) * (p._bagarrePerdue ? BLESSURE_BAGARRE_PERDUE : 1);
-    const causes = { bagarre: !!p._bagarrePerdue, sonne: !!p._sonne, jambes: energieDe(p) < ENERGIE_BLESSURE, frappe, heavy };
-    delete p._sonne; delete p._bagarrePerdue;
+    // Les lancers bloqués ce soir (oct. 2026) : le bloqueur se blesse plus, et pas le même endroit ; ramené au patineur
+    // moyen pour que la ligue garde son nombre de blessures — c'est QUI se blesse qui change, un peu.
+    const blocs = p._blocs || 0;
+    const soiree = (p._sonne ? BLESSURE_SONNE : 1) * (p._bagarrePerdue ? BLESSURE_BAGARRE_PERDUE : 1) * (1 + BLESSURE_BLOC * blocs) / (1 + BLESSURE_BLOC * BLOCS_PAR_PATINEUR);
+    const causes = { bagarre: !!p._bagarrePerdue, sonne: !!p._sonne, jambes: energieDe(p) < ENERGIE_BLESSURE, bloc: blocs >= BLOCS_QUI_BLESSENT, frappe, heavy };
+    delete p._sonne; delete p._bagarrePerdue; delete p._blocs;
     const plein = Math.max(0.25, 1 - 0.25 * Math.max(0, team.injured.size - INFIRMERIE_PLEINE));
     if (hasard() < injuryChance(p, heavy) * frappe * plein * dissuasion * soiree * effetsDeSaison(team).blessure * (team._blessureDuSoir ?? 1) * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
       const tire = injuryLength();
@@ -5430,12 +5504,21 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
    * contre trois et le quatre contre quatre ne sont pas modélisés.
    */
   const mineures = [];
-  const tirerMineures = (cote, puni) => {
-    const n = poisson(occasions * (puni ? puni.discipline : 1) * frac);
-    for (let k = 0; k < n; k++) mineures.push({ cote, puni });
+  /*
+   * LES PUNITIONS TIRÉES (oct. 2026). Une punition a deux bouts : celui qui la prend (l'indiscipline de son alignement,
+   * ci-dessus) et celui qui l'attire. La ligue compte les punitions tirées depuis 2009-10 (`pd`) ; avant, le moteur les
+   * estime (`zGeste`). Mesuré sur 494 clubs de 2010 à 2025 : le geste moyen de l'alignement, pondéré par le temps de
+   * glace, explique les occasions d'avantage numérique réelles du club à 0,72 de corrélation, pente 0,29 en logarithme
+   * (`K_TIRAGE`). L'alignement qui attire prend donc plus d'avantages, celui qui n'attire rien, moins ; la ligue, elle,
+   * ne bouge pas (un 0 est le club moyen). La feuille nomme qui l'a tirée (`tiree`).
+   */
+  const tirage = profil => borne(Math.exp(K_TIRAGE * (tirageDe(profil) - TIRAGE_CENTRE)), TIRAGE_MIN, TIRAGE_MAX);
+  const tirerMineures = (cote, puni, profite) => {
+    const n = poisson(occasions * (puni ? puni.discipline : 1) * (profite ? tirage(profite) : 1) * frac);
+    for (let k = 0; k < n; k++) mineures.push({ cote, puni, profite });
   };
-  tirerMineures('A', pB);   // `cote` = l'équipe qui PROFITE ; `puni` = l'alignement qui écope
-  tirerMineures('B', pA);
+  tirerMineures('A', pB, pA);   // `cote` = l'équipe qui PROFITE ; `puni` = l'alignement qui écope
+  tirerMineures('B', pA, pB);
   // Les départs : n fenêtres de deux minutes dans 60, dans un ordre mêlé,
   // séparées par des écarts tirés au hasard (partition uniforme du temps libre).
   shuffle(mineures);
@@ -5450,7 +5533,8 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
     const t0 = m.t0;
     const coupable = m.puni && m.puni.patineurs.length ? weightedPick(m.puni.patineurs, p => punitionsRel(p) + 0.05) : null;
     if (coupable && track) coupable.simPIM = (coupable.simPIM || 0) + AN_MINUTES;
-    const entree = journal ? { cote: cote === 'A' ? 'B' : 'A', instant: t0, joueur: coupable, minutes: AN_MINUTES, fin: t0 + AN_MINUTES } : null;
+    const tiree = m.profite && m.profite.patineurs.length ? weightedPick(m.profite.patineurs, p => Math.exp(0.7 * zGeste(p, 'pd')) + 0.05) : null;
+    const entree = journal ? { cote: cote === 'A' ? 'B' : 'A', instant: t0, joueur: coupable, tiree, minutes: AN_MINUTES, fin: t0 + AN_MINUTES } : null;
     if (entree) journal.punitions.push(entree);
     const st = {
       mode: 'AN', lancers: AN_TIRS_MIN * AN_MINUTES * (off.avantage ? off.avantage.volume : 1),
@@ -6769,9 +6853,9 @@ export function feuilleVierge() {
   return {
     buts: [],
     lancers: [],                                          // chaque tir, daté, avec tireur, gardien et mode (FE, AN, DN)
-    punitions: [],                                        // { cote (l'équipe punie), instant, joueur, minutes }
+    punitions: [],                                        // { cote (l'équipe punie), instant, joueur, tiree (qui l'a attirée), minutes }
     blessures: [],                                        // { cote, joueur, matchs, instant } : racontées au direct (S80)
-    physique: [],                                         // { type: coup | bagarre | melee, cote, instant, joueur, cible, gagnant, minutes } (1.0)
+    physique: [],                                         // { type: coup | bagarre | melee | bloc, cote, instant, joueur, cible, gagnant, minutes, tireur } (1.0 ; bloc : oct. 2026)
     coups: { A: 0, B: 0 },                                // les mises en échec de chaque club, attendues (1.0)
     coupsBase: { A: 0, B: 0 },                            // les mêmes, sans carte de robustesse (V19)
     glacePremier: { A: 0, B: 0 },                         // la part de glace du premier trio de chaque club (V19)
@@ -6795,7 +6879,7 @@ export const tirsTotal = (feuille, cote) => feuille.tirs[cote].reduce((a, b) => 
 export function compterFeuilles(feuilles, compte = new Map()) {
   const de = p => {
     let c = compte.get(p);
-    if (!c) { c = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0 }; compte.set(p, c); }
+    if (!c) { c = { g: 0, a: 0, pts: 0, gp: 0, w: 0, l: 0, sa: 0, sv: 0, ga: 0, bl: 0, pm: 0, sh: 0, pim: 0, coups: 0, blocs: 0, dq: 0 }; compte.set(p, c); }
     return c;
   };
   for (const f of feuilles) {
@@ -6812,7 +6896,12 @@ export function compterFeuilles(feuilles, compte = new Map()) {
     for (const l of f.lancers || []) if (l.tireur) de(l.tireur).sh++;
     for (const pu of f.punitions || []) if (pu.joueur) de(pu.joueur).pim += pu.minutes || 2;
     // Les bagarres et les mêlées (1.0) : les minutes vont aux deux.
-    for (const e of f.physique || []) if (e.minutes) { if (e.joueur) de(e.joueur).pim += e.minutes; if (e.cible) de(e.cible).pim += e.minutes; }
+    for (const e of f.physique || []) {
+      if (e.minutes) { if (e.joueur) de(e.joueur).pim += e.minutes; if (e.cible) de(e.cible).pim += e.minutes; }
+      // Les mises en échec et les tirs bloqués (oct. 2026) : ce que la feuille compte, l'onglet Joueurs le montre.
+      if (e.type === 'coup' && e.joueur) de(e.joueur).coups++;
+      if (e.type === 'bloc' && e.joueur) de(e.joueur).blocs++;
+    }
     for (const cote of ['A', 'B']) {
       const g = cote === 'A' ? f.gardienA : f.gardienB;
       if (!g) continue;
@@ -6822,6 +6911,9 @@ export function compterFeuilles(feuilles, compte = new Map()) {
       c.gp++; c.ga += alloues; c.sv += f.arrets[cote] || 0; c.sa += (f.arrets[cote] || 0) + alloues;
       if (f.vainqueur === cote) c.w++; else c.l++;
       if (!alloues) c.bl++;
+      // Le départ de qualité (oct. 2026) : son % d'arrêts du soir au moins celui de sa ligue, ou deux buts au plus à vingt millièmes près.
+      const svLigue = 1 - seasonLancers(g.s)[1] / 100, svSoir = c.sa || alloues ? (f.arrets[cote] || 0) / ((f.arrets[cote] || 0) + alloues) : 1;
+      if (svSoir >= svLigue || (alloues <= 2 && svSoir >= svLigue - 0.02)) c.dq++;
     }
   }
   return compte;
@@ -7340,6 +7432,7 @@ export const MUTATIONS = {
   defi_points: { nom: 'Le moteur', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de pointeur : son trio passe par lui.', profils: { passeur: 10, offensif: 6 }, creation: 1.12, finition: 1.05 },
   defi_tirs: { nom: 'Le canon', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de tireur : il tire de partout.', profils: { offensif: 10 }, lancers: 1.15 },
   defi_coups: { nom: 'Le marteau', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de mises en échec : son badge monte d\'un métal.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
+  defi_blocs: { nom: 'Le bouclier', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de tirs bloqués : son badge monte d\'un métal.', palier: 1, profils: { defensif: 12, deuxsens: 6 }, defense: 0.92 },
   defi_bagarres: { nom: 'Le poids lourd', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de bagarres : son badge monte d\'un métal.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
   defi_pm: { nom: 'Le verrou', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi défensif : on le passe moins.', profils: { defensif: 12, deuxsens: 8 }, defense: 0.9 },
   defi_arrets: { nom: 'Le mur', ico: '🏵', cible: 'libre', source: 'defi', gardien: true, quoi: 'Il a relevé son défi d\'arrêts : les buts faciles, c\'est fini.', arrets: 0.9 },

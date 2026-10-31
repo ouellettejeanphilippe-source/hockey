@@ -146,7 +146,7 @@ function evenementsDuMatch(f, graine) {
   }
   for (const b of f.buts) ev.push({ type: 'but', cote: b.cote, instant: b.instant, but: b });
   for (const x of (f.punitions || [])) {
-    ev.push({ type: 'punition', cote: x.cote, instant: x.instant, joueur: x.joueur, minutes: x.minutes });
+    ev.push({ type: 'punition', cote: x.cote, instant: x.instant, joueur: x.joueur, tiree: x.tiree, minutes: x.minutes });
     // La fin de la mineure, quand elle est allée au bout : le puni revient.
     // Fermée par un but, c'est le but qui le dit. Une feuille d'avant
     // (sans `fin`) se contente des deux minutes.
@@ -537,7 +537,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       st.pun[e.cote]++;
       st.anOcc[e.cote === 'A' ? 'B' : 'A']++;
       ligne(`punition ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
-        <span><b class="live-pun-mot">PUNITION · ${e.minutes} MIN</b> ${com.punition({ j: e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : '', eq: ctx.esc(ctx.teamShort(profite)), autre: ctx.esc(ctx.teamShort(puni)), tard: serre(e.instant) })}</span>`, couleurs(e.cote));
+        <span><b class="live-pun-mot">PUNITION · ${e.minutes} MIN</b> ${com.punition({ j: e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : '', eq: ctx.esc(ctx.teamShort(profite)), autre: ctx.esc(ctx.teamShort(puni)), tard: serre(e.instant) })}${e.tiree ? ` <small class="live-tiree">Tirée par ${nomLie(e.tiree, e.cote === 'A' ? 'B' : 'A')}.</small>` : ''}</span>`, couleurs(e.cote));
       return 500;
     }
     /*

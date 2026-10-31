@@ -429,7 +429,9 @@ export function showPlayerModal(p, opts = {}) {
   // LE DÉTAIL SE REPLIE (S71) : le profil mesuré, le temps de glace, les
   // mises en échec, les mises au jeu — là pour qui les cherche.
   // Le reste de sa vraie saison (1.0, C2 : le MJ % ne joue pas dans la saison ; il est parti), au verso avec ses saisons.
-  const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? `${p.toiE ? '≈ ' : ''}${Number(p.toi).toFixed(1)}` : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : [])];
+  const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? `${p.toiE ? '≈ ' : ''}${Number(p.toi).toFixed(1)}` : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : []),
+    // Ce que la ligue compte depuis 2005-06 (les blocs, les vols, les revirements) et 2009-10 (les punitions tirées) ; rien avant, jamais l'estimation du moteur.
+    ...(p.bl != null ? [['BL/M', p.bl]] : []), ...(p.tk != null ? [['VOL/M', p.tk]] : []), ...(p.gv != null ? [['REV/M', p.gv]] : []), ...(p.pd != null ? [['PT/M', virgule(Number(p.pd).toFixed(2))]] : [])];
   // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
   const cotes = lesCotes(p);
   const coteHtml = cotes ? `<div class="section-label">Ses cotes sur 20, dans sa saison</div><div class="radar-boite">${radarHtml(cotes)}</div>` : '';
