@@ -738,28 +738,36 @@ export const exigencesOuvertes = m => ((m && m.coupes) ? Math.min(EXIGENCES.leng
  * choisir les clubs à leur vrai bilan ne bougeait presque rien. Les premiers niveaux devaient prendre « les plus
  * faibles d'un tirage plus large » : le tri n'a jamais trié (NaN), et trier pour vrai donnait la Coupe au robot dès
  * la run 1 (JP, 27 oct. : *on a été vraiment plus fort qu'on aurait dû*) — retiré, docs/decisions.md.
+ * LA DEUXIÈME RUN EST PLUS DURE (31 oct. ; JP : *plus tough la deuxième run*) : la première run joue la ligue nue de son
+ * niveau ; dès la deuxième, chaque club adverse porte `ETAPE_APRES_LA_PREMIERE` étape d'édition de plus, fixée au
+ * départ de la run comme le prestige (`G.rogue.etapeDeRun`). Mesuré (check_profondeur, quatre campagnes) : sans elle,
+ * l'attentif qui lit ses adjoints et son coach gagnait sa première Coupe à la run 2 une fois sur deux, en runs de 4 à
+ * 6 saisons au niveau le plus bas. Une marche, pas une pente : la ligue ne monte pas à chaque run (docs/decisions.md).
  */
 export const NIVEAUX_PLEINS = 2;
 export const ETAPES_PAR_CRAN = 2;
+export const ETAPE_APRES_LA_PREMIERE = 1;
 export const niveauDeLigue = (rang = 0, exigence = 0) => Math.max(0, (rang || 0) + ETAPES_PAR_CRAN * (exigence || 0));
-/* L'étape des éditions d'un niveau de ligue. */
-export const ligueDe = niveau => ({ etape: Math.max(0, (niveau || 0) - NIVEAUX_PLEINS) });
+/* L'étape de plus que porte la ligue d'une run : aucune à la première, `ETAPE_APRES_LA_PREMIERE` ensuite. */
+export const etapeDeLaRun = (run = 1) => ((run || 1) > 1 ? ETAPE_APRES_LA_PREMIERE : 0);
+/* L'étape des éditions d'un niveau de ligue, plus celle de la run. */
+export const ligueDe = (niveau, etapeDeRun = 0) => ({ etape: Math.max(0, (niveau || 0) - NIVEAUX_PLEINS) + (etapeDeRun || 0) });
 /* L'édition d'un adversaire, au rang `r` de son club (0 : son meilleur) sur `n` : un tiers de plus du club par étape. */
 export function editionDansLaLigue(etape, r, n) {
   const tiers = r < n / 3 ? 2 : r < (2 * n) / 3 ? 1 : 0;
   return EDITIONS[Math.min(EDITIONS.length - 1, Math.floor(((etape || 0) + (etape ? tiers : 0)) / 3))];
 }
 /* La ligue en mots, pour le départ d'une run : « des clubs de toute l'histoire », « 8 Hors-cadre et 15 Cadre par club ». */
-export function motDeLaLigue(niveau, n = 23) {
-  const { etape } = ligueDe(niveau);
+export function motDeLaLigue(niveau, n = 23, etapeDeRun = 0) {
+  const { etape } = ligueDe(niveau, etapeDeRun);
   if (!etape) return 'des clubs de toute l\'histoire';
   const compte = new Map();
   for (let r = 0; r < n; r++) { const e = editionDansLaLigue(etape, r, n); if (e !== 'commune') compte.set(e, (compte.get(e) || 0) + 1); }
   return `des clubs de toute l'histoire, et leurs cartes : ${[...compte].map(([e, k]) => `${k} ${NOM_VARIANTE[e]}`).join(', ')} par club`;
 }
 /* Habiller la ligue : les cartes des adversaires, selon le niveau ; `valeur(p)` classe chaque club, son meilleur d'abord. */
-export function habillerLaLigue(adversaires, niveau, valeur) {
-  const { etape } = ligueDe(niveau);
+export function habillerLaLigue(adversaires, niveau, valeur, etapeDeRun = 0) {
+  const { etape } = ligueDe(niveau, etapeDeRun);
   for (const t of adversaires || []) {
     const js = Object.values((t && t.roster) || {}).filter(Boolean).sort((a, b) => valeur(b) - valeur(a));
     js.forEach((p, r) => { const e = editionDansLaLigue(etape, r, js.length); if (e === 'commune') delete p._carte; else p._carte = { rar: e }; });

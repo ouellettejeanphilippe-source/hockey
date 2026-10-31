@@ -19,7 +19,7 @@ Une ligne chacun. Ce qui est engagé vit dans `LIVRAISON.md` ; le reste attend l
 - [ ] **S5** — Étendre avant 1970 (le +/- manque avant les années 1960 ; le temps de glace s'infère maintenant).
 - [ ] **S8** — Vrais classements pour `check_ratings.mjs` (Hockey Databank).
 - [ ] **La possession par joueur** : les vols et les revirements sont dans les shards (2005-06+) et à la fiche, mais la possession se lit au club ; un canal par joueur serait une mécanique neuve, à mesurer en paires avant. Pas les mises au jeu ni le clutch tant que le moteur ne les joue pas.
-- [ ] `check_profondeur` : rouge tant que la première Coupe arrive avant la run 3, ou qu'après elle l'attentif gagne d'office (docs/refonte-v9.md § 21). Le 31 oct. 2026, l'attentif rebat le robot d'avant de 6,4 V par saison (il lit ses adjoints et son coach sur son effectif) ; reste posée la question d'un juge de run plutôt que du +5 V par saison, et l'attentif gagne maintenant sa première Coupe à la run 2 ou 3 (médiane 2,5 sur quatre campagnes) : la deuxième run est trop facile pour lui.
+- [ ] `check_profondeur` : rouge tant que la première Coupe arrive avant la run 3, ou qu'après elle l'attentif gagne d'office (docs/refonte-v9.md § 21). Le 31 oct. 2026, l'attentif rebat le robot d'avant de 6,4 V par saison (il lit ses adjoints et son coach sur son effectif) ; reste posée la question d'un juge de run plutôt que du +5 V par saison. Depuis la deuxième run plus dure (31 oct., `ETAPE_APRES_LA_PREMIERE`), sa première Coupe arrive aux runs 3, 4, 3 et 6 : les juges de campagne sont verts.
 - [ ] `check_pouvoirs` à l'échantillon plein (N=600, hors du CI) : le duo vedette à +2,9 V (borne 2,5), le prof de discipline à 1,7 V (borne ±1,5) — deux réglages d'équilibre.
 
 ## Décisions prises

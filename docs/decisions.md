@@ -3101,6 +3101,18 @@ JP : *inférer plus de données avec ce qui existe, des trucs qu'on a pas de 197
 
 **Ce que ça change dans le jeu.** Avant 1997-98 : les zones de déploiement, la mesure défensive (le niveau « déf. », la cote de Défense) et les rôles énergie, manieur et deux-sens des défenseurs lisent des minutes. `PROFIL_FAMILLES` a bougé d'un cran (recalé par `check_familles`), l'empreinte du moteur a été refaite (S136, cotes v30). La règle reste celle de LIVRAISON.md : un chiffre inféré se joue dans un canal qui existe, se prouve en retenue, et se dit estimé. Les suivants, dans l'ordre : les mises en échec et les tirs bloqués avant 2005-06, la possession par joueur ; pas les mises au jeu ni le clutch tant que le moteur ne les joue pas.
 
+## 31 octobre 2026 — La deuxième run est plus dure : une étape d'édition de plus dès la deuxième
+
+JP, après le robot qui lit ses adjoints et son coach : *plus tough la deuxième run*.
+
+**Le constat.** Avec l'attentif qui lit ce qu'il prend, `check_profondeur` en quatre campagnes donnait sa première Coupe aux runs 3, 2, 2 et 3 (médiane 2,5, le juge veut 3 à 8). Les deux Coupes de run 2 venaient de runs de 4 et 6 saisons au niveau de ligue le plus bas : le mandat tenu saison après saison, les packs et les galons qui s'empilent, et une ligue qui ne bouge pas tant que le prestige ne monte pas (aux niveaux 0 à 2, les adversaires sont de toute l'histoire, sans édition ; et le prestige ne monte presque jamais avant la run 3 ou 4).
+
+**Décidé.** La première run joue la ligue nue de son niveau ; dès la deuxième, chaque club adverse porte une étape d'édition de plus (`ETAPE_APRES_LA_PREMIERE`, `etapeDeLaRun`, `ligueDe(niveau, etapeDeRun)`, js/rogue.js) : au niveau 0, un tiers de chaque club en Cadre, ses meilleurs d'abord — le canal de la ligue qui monte (V9, tranche 8), rien de neuf. L'étape est fixée au départ de la run, comme le prestige et l'exigence (`G.rogue.etapeDeRun`, js/rogue-jeu.js ; js/banc.js l'habille) : une partie sauvegardée d'avant n'en a pas et ne change pas. Le robot la joue dès qu'un classeur ou une dernière équipe précède la run (`jouerRun`, scripts/lib/rogue_sim.mjs). Le départ de la run le dit (« des clubs de toute l'histoire, et leurs cartes : 8 Cadre par club »), la page des règles aussi (`check_clarte`), `check_rogue` tient l'étape.
+
+**Pourquoi une marche et pas une pente.** La tranche 8 avait écarté une ligue qui monte au numéro de run : elle punirait celui qui échoue. Ici la marche est unique — la deuxième run et la dixième portent la même étape — ; ce qui monte ensuite reste le prestige et les exigences. C'est la première run qu'on traite à part, celle où l'on découvre le jeu avec des bouche-trous et sans classeur.
+
+**Mesuré après** (`CAMPAGNES=4 GRAINES=1 FILS=4`, trois quarts d'heure). L'attentif gagne sa première Coupe aux runs **3, 4, 3 et 6** (médiane 3,5 ; c'était 3, 2, 2, 3), la regagne ensuite 11 fois en 32 runs (34 %), et le distrait jamais en 48 runs : les trois juges de campagne sont verts. Le robot d'avant, lui, ne la gagne plus qu'une campagne sur quatre (à la run 4 ; `check_rogue` complet, sur ses propres graines : runs 6 et 6, et sa courbe des déblocages tient, 47 → 75 → 86 → 93 → 100 points en première saison, 37 vérifications vertes). La première run ne bouge pas (aucune Coupe à la run 1, douze campagnes sur douze).
+
 ## 31 octobre 2026 — Le robot attentif lit ce qu'il prend : l'adjoint et le coach (check_profondeur)
 
 JP : *Go pour check_profondeur* ; puis *Go pour le correctif du robot quand les ablations sont finies*.

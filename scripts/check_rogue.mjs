@@ -45,7 +45,7 @@ import {
   DEBLOCAGES, departDuClasseur, lotosDeSaison, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli, rangDuMandat,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, exigencesOuvertes,
   EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, gardesDeLaRun, GARDES_DE_SAISON, ESPACE_DE_DEPART, soutiensDuDepart,
-  ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN,
+  ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN, etapeDeLaRun, ETAPE_APRES_LA_PREMIERE,
 } from '../js/rogue.js';
 import { EDITIONS } from '../js/rarete.js';
 import { NIVEAUX as NOMS_DE_NIVEAU } from '../js/niveaux.js';
@@ -285,6 +285,10 @@ if (!isMainThread) {
       fautes.join(' · ') || `étapes ${etapes.join(' · ')} · éditions à l'étape 3 : ${somme(3)} crans pour ${n} joueurs`);
     exiger('un cran d\'exigence monte la ligue de ETAPES_PAR_CRAN niveaux, le prestige d\'un', niveauDeLigue(2, 0) === 2 && niveauDeLigue(4, 3) === 4 + 3 * ETAPES_PAR_CRAN && niveauDeLigue(0, 0) === 0,
       `Dynastie, cran 3 : niveau ${niveauDeLigue(4, 3)}`);
+    // La deuxième run est plus dure (31 oct.) : une étape de plus dès la deuxième, la même à la dixième — une marche, pas une pente.
+    exiger('la première run joue sa ligue nue ; dès la deuxième, une étape d\'édition de plus, la même à toutes les suivantes',
+      etapeDeLaRun(1) === 0 && etapeDeLaRun(2) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(10) === ETAPE_APRES_LA_PREMIERE && ligueDe(0, etapeDeLaRun(2)).etape === ETAPE_APRES_LA_PREMIERE && ligueDe(3, etapeDeLaRun(2)).etape === 1 + ETAPE_APRES_LA_PREMIERE,
+      `run 2 au niveau 0 : étape ${ligueDe(0, etapeDeLaRun(2)).etape}`);
     const club = { roster: Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { n: `j${i}`, v: n - i, _carte: { rar: 'rare' } }])) };
     habillerLaLigue([club], 0, p => p.v);
     const nu = Object.values(club.roster).every(p => !p._carte);
