@@ -395,8 +395,10 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
         if (sort === x.p) continue;
         if (masseDe(actuel) - (sort ? sort.$ || 0 : 0) + (x.p.$ || 0) > cap) continue;
         // Une case de réserve libre (débloquée) : il entre sans que personne sorte — ça vaut un peu de profondeur.
-        const gain = attentif ? lireNet(r) - net0 + (sort ? 0 : 0.01) : valeurAlignement(r) - valeur0 + (sort ? 0 : 0.6);
-        if (gain > (attentif ? 0.01 : 0.5) && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
+        // MESURE seulement (l'ablation) : ROBOT_SIGNE_VALEUR=1, l'attentif signe à la valeur, comme le robot d'avant.
+        const auNet = attentif && process.env.ROBOT_SIGNE_VALEUR !== '1';
+        const gain = auNet ? lireNet(r) - net0 + (sort ? 0 : 0.01) : valeurAlignement(r) - valeur0 + (sort ? 0 : 0.6);
+        if (gain > (auNet ? 0.01 : 0.5) && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
       }
       if (meilleur) {
         const { x, sort } = meilleur;
@@ -459,6 +461,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
  */
 function planDuRobot(L, you, plans, attentif, clic) {
   const m = (L.calendrier[L.jour] || []).find(x => x.A === you || x.B === you);
+  // MESURE seulement (check_profondeur, l'ablation) : ROBOT_SANS_PLAN=1, l'attentif ne pose aucun plan de match.
+  if (attentif && process.env.ROBOT_SANS_PLAN === '1') return undefined;
   if (!m || (!attentif && !clic)) return undefined;
   const cles = Object.keys(PLANS);
   if (clic) return cles[Math.floor(clic() * cles.length)];
