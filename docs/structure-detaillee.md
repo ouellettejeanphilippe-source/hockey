@@ -43,6 +43,7 @@ La liste, une ligne par module, est dans CLAUDE.md (« Structure »). Trois d'en
 - `js/sim.js` — le plus gros : l'alignement (`SLOTS`, `autoRoster`, les positions multiples), les rôles et les badges (`rolesBruts`, `badgesDe`, `AFFINITES`), les familles (`famillesBrutes`, `PROFIL_FAMILLES` calé par check_familles), le moteur de match lancer par lancer (`playGame`, MOTEUR.md), la ligue au jour le jour (`creerLigue`, `jouerJusqua`, les décisions datées, `deDuJour`), les séries (`creerSeries`, `jouerMatchSeries`, la mort subite), les blessures, les fils et leurs retours, les moments (`MOMENTS_SI`), les pouvoirs du coach joués par période. Tout son hasard passe par `hasard()`.
 - `js/ratings.js` — partagé par le build et le navigateur. L'étage 1 (`rateSkaters`, `rateGoalies`) lit les lignes de l'API ; l'étage 2 (`rerateShard` : `glaceInferee` pour le temps de glace d'avant 1997-98, `finalizeSeason` pour la valeur, le salaire, l'archétype et le contrat d'entrée, `zonesDuDeploiement` pour la zone) ne lit que le shard. Toucher une formule, c'est monter `RATINGS_VERSION`.
 - `js/game.js` — le contrôleur : l'état `G`, `render()`, le démarrage, la sauvegarde (`VERSION_MOTEUR`, qui monte quand un match ne se rejoue plus pareil), les sections, l'historique.
+- `js/physique.js` — Sur glace, la physique (31 oct. 2026) : un pas fixe de 1/120 s, des mètres et des kilogrammes, un hasard semé ; la rondelle, la bande et ses coins, les poteaux et la maille, le patineur (poussée, frein, adhérence des lames, dérive), la lame et la passe, le tir chargé, la mise en échec par l'élan, le gardien à 150 ms de retard ; `reglesDeLaGlace()` écrit chaque chiffre — `scripts/check_physique.mjs`. L'écran est `js/sur-glace.js` : un canevas vu de haut, la caméra sur la rondelle (debout, l'attaque vers le haut), la manette, le clavier et le doigt, les sons ; un lien du menu, comme l'exhibition.
 
 ## Les scripts, par famille
 
@@ -109,6 +110,7 @@ Dans `tout.mjs` (moins de quinze secondes chacun ; le CI les enchaîne) :
 
 ```
 check_glace             la position d'un tir lue de la feuille, le danger, les icônes du tireur
+check_physique          Sur glace : la rondelle, la bande, le patineur, la lame, le filet, le gardien, le choc, la graine
 check_prolongation      la prolongation, les tirs de barrage, la mort subite
 check_cotes             les cotes sur 20 : tranches, cloche, six axes, trois pour un gardien
 check_incidents         les incidents liés à des joueurs
