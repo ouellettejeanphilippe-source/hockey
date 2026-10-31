@@ -2,7 +2,7 @@
 
 ## Le projet en une phrase
 
-Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (le jour à jour, le duel joué au plan que ton adjoint propose, ton coach-personnage et ses pouvoirs, la boutique, la run), **Sur table** et l'exhibition.
+Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (le jour à jour, le duel joué au plan que ton adjoint propose, ton coach-personnage et ses pouvoirs, la boutique, la run), **Sur table**, l'exhibition et **Sur glace** (le terrain de jeu d'une physique 2D crédible, à la manette : un patineur, une rondelle, un filet).
 
 Un site statique, joué en local, en APK (Capacitor) ou en exe (Electron) ; il n'est plus publié en ligne. Aucun backend, aucune dépendance npm, aucun framework.
 
@@ -104,6 +104,10 @@ js/menu.js            l'écran titre, et le même écran en menu pause en pleine
 js/sauvegardes.js     les parties sauvegardées, et leur export en fichier transférable, importé au menu — `check_sauvegardes`
 js/mouvement.js       les chiffres qui se comptent
 js/exhibition.js      l'exhibition
+js/physique.js        Sur glace, la physique (31 oct. 2026) : des mètres, des secondes, un pas fixe de 1/120 s, un hasard semé ; la rondelle (frottement, bande, coins, poteaux), le patineur (poussée, frein, adhérence, dérive), la lame, le tir et la passe, la mise en échec (l'élan, la chute), le gardien (150 ms de retard) ; `reglesDeLaGlace()` dit chaque chiffre — `check_physique`
+js/sur-glace.js       Sur glace, l'écran : le canevas vu de haut (debout, on attaque vers le haut), la caméra qui suit la rondelle, la manette, le clavier et le doigt, les sons des événements ; chargé du menu à la demande, hors de toute partie
+js/physique.js        Sur glace, la physique (31 oct. 2026) : des mètres, des secondes, un pas fixe de 1/120 s, un hasard semé ; la rondelle (frottement, bande, coins, poteaux), le patineur (poussée, frein, adhérence, dérive), la lame, le tir et la passe, la mise en échec (l'élan, la chute), le gardien (150 ms de retard) ; `reglesDeLaGlace()` dit chaque chiffre — `check_physique`
+js/sur-glace.js       Sur glace, l'écran : le canevas vu de haut (debout, on attaque vers le haut), la caméra qui suit la rondelle, la manette, le clavier et le doigt, les sons des événements ; chargé du menu à la demande, hors de toute partie
 js/table.js           Sur table : le moteur du plateau et reglesDuPlateau()
 js/plateau.js         Sur table : l'écran du plateau
 js/tournoi.js         Sur table : le tournoi de six clubs
@@ -180,6 +184,8 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Signer, c'est l'échange (JP : *alignement simple, et un comparatif en haut entre les deux joueurs, style Yahoo Fantasy*) : l'alignement en lignes simples, la sortie proposée touchée d'avance ; toucher un joueur le met face à l'arrivant, stat par stat, avec sa case et la masse ; « Signer » décide (`choisirQuiSort`, js/repechage.js) — smoke, `essai_rogue`.
 - Toute commande visible doit fonctionner.
 - Une surface de base se change À LA SOURCE, jamais en fin de fichier.
+- Sur glace (js/physique.js) : chaque chiffre qu'une phrase de l'écran affirme (une vitesse, un rayon, un rebond, un retard) est une constante du moteur et se rejoue en Node sur un pas fixe ; la même graine et les mêmes entrées rendent la même empreinte — `check_physique`. Le moteur de la saison (js/sim.js) reste le moteur des matchs du jeu.
+- Sur glace (js/physique.js) : chaque chiffre qu'une phrase de l'écran affirme (une vitesse, un rayon, un rebond, un retard) est une constante du moteur et se rejoue en Node sur un pas fixe ; la même graine et les mêmes entrées rendent la même empreinte — `check_physique`. Le moteur de la saison (js/sim.js) reste le moteur des matchs du jeu.
 - Le noir est le décor ; la couleur vient des équipes, aux vraies couleurs, jamais délavées ; les écussons des disparues sont dessinés (`js/logos.js`), jamais empruntés.
 - Moins de mots, et surtout pas les évidents : une ligne à l'écran, le détail chiffré dans la page des règles, dont chaque chiffre vient d'une constante — `check_clarte`.
 - Un choix se dit en vraies stats de match : tirs, % au tir, tirs contre, % d'arrêts (`statsDe`, `motsDeStats`, js/impact.js) ; jamais en victoires ni en but net, jamais en note. Sur une carte, chaque stat est une barre qui diverge du match ordinaire, le chiffre dessous (`pucesDeFace`).

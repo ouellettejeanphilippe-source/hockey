@@ -6298,6 +6298,33 @@ body.exh-ouverte { overflow: hidden; }
 /* Le « ? » des règles : rond, une lettre en condensée ; sa taille vient de .icon-btn. */
 .table-regles { flex: none; font: 800 var(--t-4)/1 var(--display); border-radius: 50%; }
 
+/* ---- Sur glace (js/sur-glace.js, #glaceModal.sg) : le terrain de jeu de la physique, un canevas plein écran et son HUD ---- */
+body.sur-glace { overflow: hidden; }
+.sg { position: fixed; inset: 0; z-index: 420; overflow: hidden; background: var(--noir); touch-action: none; user-select: none; -webkit-user-select: none; }
+.sg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.sg-haut { position: absolute; top: calc(var(--esp-2) + var(--safe-top)); left: var(--esp-2); right: var(--esp-2); display: flex; align-items: center; gap: var(--esp-2); pointer-events: none; }
+.sg-haut > * { pointer-events: auto; }
+.sg-btn { flex: none; width: 44px; height: 44px; padding: 0; border: 1px solid var(--filet); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); color: var(--encre); font: 700 var(--t-3)/1 var(--display); }
+.sg-btn[aria-pressed="true"], .sg-btn[aria-expanded="true"] { border-color: var(--or); color: var(--or); }
+.sg-compte { flex: 0 1 auto; min-width: 0; height: 44px; display: flex; align-items: center; padding: 0 var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sg-haut .sg-btn[data-sg="vue"] { margin-left: auto; }
+.sg-flash { position: absolute; top: 30%; left: 0; right: 0; text-align: center; font: 800 var(--t-7)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre); text-shadow: 0 2px 8px var(--noir-pur); pointer-events: none; }
+.sg-bas { position: absolute; left: var(--esp-2); right: var(--esp-2); bottom: calc(var(--esp-2) + var(--safe-bas)); display: flex; flex-direction: column; gap: var(--esp-1); pointer-events: none; }
+.sg-vitesse { align-self: flex-start; padding: 4px 8px; border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; color: var(--encre); }
+.sg-invites { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); width: fit-content; max-width: 100%; padding: 4px 8px; border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); font: 600 var(--t-1)/1.2 var(--corps); color: var(--encre-2); }
+.sg-invites kbd { min-width: 22px; padding: 2px 5px; border-radius: var(--r-1); text-align: center; font: 700 var(--t-1)/1 var(--display); color: var(--encre); background: var(--fond-2); border: 1px solid var(--filet); }
+/* Le doigt : deux boutons ronds à droite, au pouce ; le bâton se pose n'importe où sur la moitié gauche. Souris et clavier ne les voient pas. */
+.sg-doigt { display: none; position: absolute; right: var(--esp-3); bottom: calc(var(--esp-6) + var(--safe-bas)); flex-direction: column; gap: var(--esp-3); align-items: center; }
+@media (pointer: coarse) { .sg-doigt { display: flex; } .sg-invites { display: none; } }
+.sg-rond { width: 64px; height: 64px; padding: 0; border: 2px solid var(--encre-2); border-radius: 50%; background: color-mix(in srgb, var(--noir) 70%, transparent); color: var(--encre); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; touch-action: none; }
+.sg-rond:active { background: var(--encre); color: var(--noir-pur); }
+.sg-rond-tir { width: 76px; height: 76px; border-color: var(--club-vif); }
+.sg-regles { position: absolute; top: calc(var(--esp-2) + var(--safe-top) + 52px); right: var(--esp-2); left: var(--esp-2); max-width: 520px; margin-left: auto; max-height: calc(100% - 140px); overflow-y: auto; padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 92%, transparent); color: var(--encre-2); font-size: var(--t-2); line-height: 1.4; }
+.sg-regles h3 { margin: 0 0 var(--esp-2); font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); }
+.sg-regles ul { margin: 0; padding-left: 1.1em; }
+.sg-regles li + li { margin-top: var(--esp-1); }
+.sg-regles-mot { margin: var(--esp-2) 0 0; color: var(--encre-3); }
+
 /* ---- Le tableau indicateur : les deux clubs, le pointage, la période, la ligne d'état ---- */
 .t-tete { border-bottom: 1px solid var(--filet-2); position: relative; }
 .tb-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); }
