@@ -28,7 +28,11 @@ export const STATS = {
   toi: p => (p.toi > 0 ? p.toi : null),
   ht: p => (p.ht == null ? null : p.ht),
   bl: p => (p.bl == null ? null : p.bl),
+  pd: p => (p.pd == null ? null : p.pd),
   gb: p => (p.gb == null ? null : Number(p.gb)),
+  // Les gestes estimés (oct. 2026, js/sim.js `traitsDeGeste`) lisent aussi le poids et la grandeur.
+  wgt: p => (p.wgt > 0 ? p.wgt : null),
+  hgt: p => (p.hgt > 0 ? p.hgt : null),
 };
 const ref = {};
 for (const f of fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort()) {

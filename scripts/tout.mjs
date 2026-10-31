@@ -21,7 +21,7 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 // dépistage 11 s, totaux 5 s, blessures 11 s, impact 11 s, dilemmes 14 s (oct. 2026). check_coquille, check_clarte et check_mort ont leur propre étape dans la CI.
 // Trop lents pour cette liste, et lancés à part : check_packs 18 s, check_gardiens 23 s, check_combat 29 s,
 // check_jambes 65 s, check_chiffres 55 s, check_graine 116 s (sa propre étape), check_banque 12 minutes.
-const RAPIDES = ['check_glace', 'check_physique', 'check_prolongation', 'check_cotes', 'check_incidents', 'check_lisibilite', 'check_verdicts', 'check_lexique', 'check_verite', 'check_deck', 'check_emojis', 'check_speciales', 'check_fils', 'check_dossiers', 'check_mots', 'check_au_mieux', 'check_identite', 'check_atelier', 'check_pronostic', 'check_totaux', 'check_profil', 'check_sauvegardes', 'check_choix', 'check_vie', 'check_calendrier', 'check_blessures', 'check_impact', 'check_causes', 'check_positions', 'check_empreinte', 'check_familles', 'check_galons', 'check_css'];
+const RAPIDES = ['check_glace', 'check_physique', 'check_prolongation', 'check_cotes', 'check_incidents', 'check_lisibilite', 'check_verdicts', 'check_lexique', 'check_verite', 'check_deck', 'check_emojis', 'check_speciales', 'check_fils', 'check_dossiers', 'check_mots', 'check_au_mieux', 'check_identite', 'check_atelier', 'check_pronostic', 'check_totaux', 'check_profil', 'check_sauvegardes', 'check_choix', 'check_vie', 'check_calendrier', 'check_blessures', 'check_impact', 'check_causes', 'check_positions', 'check_empreinte', 'check_familles', 'check_galons', 'check_gestes', 'check_css'];
 const liste = process.argv.slice(2).length ? process.argv.slice(2) : RAPIDES;
 let echecs = 0;
 for (const nom of liste) {

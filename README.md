@@ -85,6 +85,8 @@ Le moteur joue chaque match **lancer par lancer** ([MOTEUR.md](MOTEUR.md)). Le r
 
 Les trios jouent 30 / 26 / 23,5 / 20,5 % du temps à forces égales, les paires 37 / 32 / 31 % : ton quatrième trio pèse pour vrai. Un joueur rend selon ses badges, la chimie d'une ligne vient de l'**affinité** de ses joueurs (deux badges qui s'accordent : 🎯 sniper et 🅰 passeur, 🔧 checker et 🪠 plombier…), sa carrure fait l'agressivité de sa ligne, ses jambes s'usent et se refont. Buts et passes se distribuent comme sa vraie saison les a distribués. La même graine rejoue la même saison, au but près. Un match nul va en prolongation, puis aux tirs de barrage ; en séries, la mort subite dure ce qu'il faut.
 
+La feuille de match compte aussi ce que la ligue n'a longtemps pas compté : les tirs bloqués, crédités à qui défendait (un bloc blesse, parfois), et qui a tiré chaque punition — l'alignement qui attire les punitions prend plus d'avantages numériques. Avant leur collecte (2005-06, 2009-10), le moteur estime ces gestes des colonnes de toutes les époques, comme des poids (qui frappe, qui bloque), jamais comme des chiffres affichés ; la méthode et ses mesures : MOTEUR.md § 4.8.
+
 ## Documentation
 
 - [CLAUDE.md](CLAUDE.md) — les consignes vivantes pour les agents de code : les règles fermes, la structure, le vocabulaire, comment tester

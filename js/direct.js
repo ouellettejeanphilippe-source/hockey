@@ -146,7 +146,7 @@ function evenementsDuMatch(f, graine) {
   }
   for (const b of f.buts) ev.push({ type: 'but', cote: b.cote, instant: b.instant, but: b });
   for (const x of (f.punitions || [])) {
-    ev.push({ type: 'punition', cote: x.cote, instant: x.instant, joueur: x.joueur, minutes: x.minutes });
+    ev.push({ type: 'punition', cote: x.cote, instant: x.instant, joueur: x.joueur, tiree: x.tiree, minutes: x.minutes });
     // La fin de la mineure, quand elle est allée au bout : le puni revient.
     // Fermée par un but, c'est le but qui le dit. Une feuille d'avant
     // (sans `fin`) se contente des deux minutes.
@@ -156,7 +156,8 @@ function evenementsDuMatch(f, graine) {
   // LES BLESSURES (S80) : datées sur la feuille, après la dernière action du blessé ce soir-là.
   for (const x of (f.blessures || [])) ev.push({ type: 'blessure', cote: x.cote, instant: x.instant, joueur: x.joueur, matchs: x.matchs, genre: x.genre });
   // LE JEU PHYSIQUE (1.0) : les coups marquants, les bagarres, les mêlées, datés sur la feuille.
-  for (const x of (f.physique || [])) ev.push({ type: x.type, cote: x.cote, instant: x.instant, joueur: x.joueur, cible: x.cible, gagnant: x.gagnant, minutes: x.minutes });
+  // Les blocs (oct. 2026) ne se racontent pas un à un au direct : quinze par match, c'est du bruit ; ils sont dans la feuille complète du sommaire.
+  for (const x of (f.physique || []).filter(x => x.type !== 'bloc')) ev.push({ type: x.type, cote: x.cote, instant: x.instant, joueur: x.joueur, cible: x.cible, gagnant: x.gagnant, minutes: x.minutes });
   for (let per = 1; per <= 3; per++) ev.push({ type: 'periode', per, instant: per * 20 - 1e-6 });
   // Les tirs de barrage (V19) : après cinq minutes sans but, avant la fin.
   if (f.fusillade) ev.push({ type: 'tb', instant: 65 + 1e-6 });
@@ -537,7 +538,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       st.pun[e.cote]++;
       st.anOcc[e.cote === 'A' ? 'B' : 'A']++;
       ligne(`punition ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(puni.tag, 13)}
-        <span><b class="live-pun-mot">PUNITION · ${e.minutes} MIN</b> ${com.punition({ j: e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : '', eq: ctx.esc(ctx.teamShort(profite)), autre: ctx.esc(ctx.teamShort(puni)), tard: serre(e.instant) })}</span>`, couleurs(e.cote));
+        <span><b class="live-pun-mot">PUNITION · ${e.minutes} MIN</b> ${com.punition({ j: e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : '', eq: ctx.esc(ctx.teamShort(profite)), autre: ctx.esc(ctx.teamShort(puni)), tard: serre(e.instant) })}${e.tiree ? ` <small class="live-tiree">Tirée par ${nomLie(e.tiree, e.cote === 'A' ? 'B' : 'A')}.</small>` : ''}</span>`, couleurs(e.cote));
       return 500;
     }
     /*
@@ -608,7 +609,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       // Aucun joueur n'est crédité du but des tirs de barrage : il ne fait que le pointage.
       if (f.fusillade.gagnant === 'A') gA++; else gB++;
       const vTB = f.fusillade.gagnant === 'A' ? A : B;
-      ligne('periode', `<b>Tirs de barrage</b> · ${ctx.esc(ctx.teamShort(A))} ${f.fusillade.A} – ${f.fusillade.B} ${ctx.esc(ctx.teamShort(B))} · ${ctx.esc(cap(ctx.teamShort(vTB)))} l'emporte.`);
+      const mq = f.fusillade.marqueurs, noms = (l, c) => (l || []).map(p => nomLie(p, c)).join(', ');
+      const dejoue = mq && (mq.A?.length || mq.B?.length) ? ` Déjoué par ${[mq.A?.length ? noms(mq.A, 'A') : '', mq.B?.length ? noms(mq.B, 'B') : ''].filter(Boolean).join(' et ')}.` : '';
+      ligne('periode', `<b>Tirs de barrage</b> · ${ctx.esc(ctx.teamShort(A))} ${f.fusillade.A} – ${f.fusillade.B} ${ctx.esc(ctx.teamShort(B))} · ${ctx.esc(cap(ctx.teamShort(vTB)))} l'emporte.${dejoue}`);
       majBoard();
       return PAUSE_PERIODE;
     }

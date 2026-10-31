@@ -261,12 +261,14 @@ TYPES_TIR = [
 
 
 def fetch_actions(year):
-    """{ playerId: {bl, tk, ts} } : blocs, vols et type de tir signature.
+    """{ playerId: {bl, tk, gv, pd, ts} } : blocs, vols, revirements, punitions tirees et type de tir signature.
 
-    Deux points de terminaison, deux couvertures, et il faut les connaitre :
+    Trois points de terminaison, trois couvertures, et il faut les connaitre :
 
-      skater/realtime   mises en echec, TIRS BLOQUES, VOLS, revirements
+      skater/realtime   mises en echec, TIRS BLOQUES, VOLS, REVIREMENTS
                         -> depuis 2005-06 seulement
+      skater/penalties  les PUNITIONS TIREES (penaltiesDrawn : celles que
+                        l'adversaire prend contre lui) -> depuis 2005-06
       skater/shottype   tirs et buts par type (poignet, frappe, sur
                         reception, revers, deviation)
                         -> depuis 2009-10 seulement
@@ -288,16 +290,27 @@ def fetch_actions(year):
     lignes = api("skater/realtime", {"limit": -1, "sort": "playerId", "cayenneExp": exp})
     total_bl = sum((r.get("blockedShots") or 0) for r in lignes)
     total_tk = sum((r.get("takeaways") or 0) for r in lignes)
+    total_gv = sum((r.get("giveaways") or 0) for r in lignes)
     for r in lignes:
         pid, gp = r.get("playerId"), r.get("gamesPlayed") or 0
         if not pid or gp < 1:
             continue
-        bl, tk = r.get("blockedShots"), r.get("takeaways")
+        bl, tk, gv = r.get("blockedShots"), r.get("takeaways"), r.get("giveaways")
         e = out.setdefault(pid, {})
         if total_bl > 0 and isinstance(bl, (int, float)) and bl >= 0:
             e["bl"] = round(bl / gp, 2)
         if total_tk > 0 and isinstance(tk, (int, float)) and tk >= 0:
             e["tk"] = round(tk / gp, 2)
+        if total_gv > 0 and isinstance(gv, (int, float)) and gv >= 0:
+            e["gv"] = round(gv / gp, 2)
+    # Les punitions tirees (oct. 2026) : meme regle, zero n'est pas une donnee.
+    pens = api("skater/penalties", {"limit": -1, "sort": "playerId", "cayenneExp": exp})
+    total_pd = sum((r.get("penaltiesDrawn") or 0) for r in pens)
+    for r in pens:
+        pid, gp, pd = r.get("playerId"), r.get("gamesPlayed") or 0, r.get("penaltiesDrawn")
+        if not pid or gp < 1 or total_pd <= 0 or not isinstance(pd, (int, float)) or pd < 0:
+            continue
+        out.setdefault(pid, {})["pd"] = round(pd / gp, 3)
     # UNE SIGNATURE, C'EST CE QUI DEPASSE LA LIGUE, pas ce qui domine son
     # propre total. Premier essai : le type le plus tire, seuil d'un quart.
     # Resultat mesure sur 2021-22 : 774 joueurs << poignet >> sur 797, 21
@@ -342,7 +355,7 @@ def fetch_actions(year):
 
 
 def patch_actions(labels):
-    """Ajoute blocs (bl), vols (tk) et type de tir signature (ts) aux shards."""
+    """Ajoute blocs (bl), vols (tk), revirements (gv), punitions tirees (pd) et type de tir signature (ts) aux shards."""
     for label in labels:
         path = os.path.join(SEASONS_DIR, f"{label}.json")
         if not os.path.exists(path):
@@ -355,10 +368,10 @@ def patch_actions(labels):
             continue
         with open(path, encoding="utf-8") as f:
             shard = json.load(f)
-        n = {"bl": 0, "tk": 0, "ts": 0}
+        n = {"bl": 0, "tk": 0, "gv": 0, "pd": 0, "ts": 0}
         for p in shard["players"]:
             e = gestes.get(p.get("id")) or {}
-            for k in ("bl", "tk", "ts"):
+            for k in ("bl", "tk", "gv", "pd", "ts"):
                 if k in e:
                     p[k] = e[k]
                     n[k] += 1
@@ -368,7 +381,7 @@ def patch_actions(labels):
                     p.pop(k, None)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(shard, f, ensure_ascii=False, separators=(",", ":"))
-        print(f"{n['bl']} blocs, {n['tk']} vols, {n['ts']} types de tir")
+        print(f"{n['bl']} blocs, {n['tk']} vols, {n['gv']} revirements, {n['pd']} punitions tirees, {n['ts']} types de tir")
         time.sleep(0.35)
 
 
@@ -444,7 +457,7 @@ def main():
     ap.add_argument("--bios-only", action="store_true",
                     help="ajouter dates de naissance, tailles et poids aux shards, puis --rerate")
     ap.add_argument("--gestes-only", action="store_true",
-                    help="ajouter blocs, vols et type de tir aux shards (2005-06+), puis --rerate")
+                    help="ajouter blocs, vols, revirements, punitions tirees et type de tir aux shards (2005-06+), puis --rerate")
     args = ap.parse_args()
 
     os.makedirs(SEASONS_DIR, exist_ok=True)

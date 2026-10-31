@@ -250,6 +250,8 @@ export function statsSim(p, mode = 'saison') {
 export const compteEnGrille = c => c && {
   GP: c.gp, G: c.g, A: c.a, PTS: c.pts, PM: c.pm, SH: c.sh, PIM: c.pim,
   W: c.w, L: c.l, GA: c.ga, SO: c.bl, SA: c.sa, SV: c.sv,
+  // Oct. 2026 : les minutes, les points en avantage et en désavantage, le but gagnant, les coups, les blocs, les bagarres, les départs de qualité.
+  TOI: c.toi, PPP: c.ppp, SHP: c.shp, GWG: c.gwg, HT: c.coups, BL: c.blocs, BAG: c.bagarres, BAGG: c.bagarresG, DQ: c.dq,
 };
 
 /*
@@ -371,12 +373,17 @@ function grilleSim(p, S) {
     return cellStat('PJ', S.GP || 0) + cellStat('V', S.W || 0, true) + cellStat('D', S.L || 0)
       + (S.OTL === undefined ? '' : cellStat('DP', S.OTL))
       + cellStat('BL', S.SO || 0) + cellStat('MBA', ((S.GA || 0) / Math.max(1, S.GP || 1)).toFixed(2)) + cellStat('%ARR', pct)
-      + cellStat('ARR', S.SV || 0) + cellStat('TIRS', S.SA || 0);
+      + cellStat('ARR', S.SV || 0) + cellStat('TIRS', S.SA || 0) + (S.DQ === undefined ? '' : cellStat('DQ', S.DQ));
   }
   return cellStat('PJ', S.GP || 0) + cellStat('B', S.G || 0) + cellStat('A', S.A || 0) + cellStat('PTS', S.PTS || 0, true)
     + cellStat('PTS/M', S.GP ? ((S.PTS || 0) / S.GP).toFixed(2) : '—') + cellStat('+/M', pmMatch(S.PM || 0, S.GP || 0))
     + cellStat('PUN', S.PIM || 0) + cellStat('L', S.SH || 0) + cellStat('%', S.SH ? (100 * (S.G || 0) / S.SH).toFixed(1) : '—')
-    + (S.PPG === undefined ? '' : cellStat('BAN', S.PPG)) + (S.Inj ? cellStat('RATÉS', S.Inj) : '');
+    + (S.PPG === undefined ? '' : cellStat('BAN', S.PPG)) + (S.Inj ? cellStat('RATÉS', S.Inj) : '')
+    // Oct. 2026 : ce que les feuilles comptent de plus (les compteurs sim* d'une saison d'un coup ne les ont pas).
+    + (S.TOI === undefined ? '' : cellStat('TG/M', S.GP && S.TOI ? virgule((S.TOI / S.GP).toFixed(1)) : '—'))
+    + (S.PPP === undefined ? '' : cellStat('PTS AN', S.PPP)) + (S.SHP === undefined ? '' : cellStat('PTS DN', S.SHP))
+    + (S.GWG === undefined ? '' : cellStat('BG', S.GWG)) + (S.HT === undefined ? '' : cellStat('MÉ', S.HT)) + (S.BL === undefined ? '' : cellStat('BL', S.BL))
+    + (S.BAG === undefined || !S.BAG ? '' : cellStat('BAGARRES', `${S.BAGG}-${S.BAG - S.BAGG}`));
 }
 
 /**
@@ -429,7 +436,9 @@ export function showPlayerModal(p, opts = {}) {
   // LE DÉTAIL SE REPLIE (S71) : le profil mesuré, le temps de glace, les
   // mises en échec, les mises au jeu — là pour qui les cherche.
   // Le reste de sa vraie saison (1.0, C2 : le MJ % ne joue pas dans la saison ; il est parti), au verso avec ses saisons.
-  const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? `${p.toiE ? '≈ ' : ''}${Number(p.toi).toFixed(1)}` : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : [])];
+  const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? `${p.toiE ? '≈ ' : ''}${Number(p.toi).toFixed(1)}` : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : []),
+    // Ce que la ligue compte depuis 2005-06 (les blocs, les vols, les revirements) et 2009-10 (les punitions tirées) ; rien avant, jamais l'estimation du moteur.
+    ...(p.bl != null ? [['BL/M', p.bl]] : []), ...(p.tk != null ? [['VOL/M', p.tk]] : []), ...(p.gv != null ? [['REV/M', p.gv]] : []), ...(p.pd != null ? [['PT/M', virgule(Number(p.pd).toFixed(2))]] : [])];
   // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
   const cotes = lesCotes(p);
   const coteHtml = cotes ? `<div class="section-label">Ses cotes sur 20, dans sa saison</div><div class="radar-boite">${radarHtml(cotes)}</div>` : '';
