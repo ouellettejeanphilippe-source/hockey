@@ -54,12 +54,13 @@ import {
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
   batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup, PLANS, coachDuJoueur,
 } from '../../js/sim.js';
+import { ADJOINTS } from '../../js/adjoints.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, coachDuRobot } from './cartes_robot.mjs';
 import { niveauDuPerso } from '../../js/pouvoirs.js';
 import { lotoDesCoachs } from '../../js/coachs-reels.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
-import { alignementAuMieux, chiffresDuSoir, planEnChiffres } from '../../js/impact.js';
+import { alignementAuMieux, chiffresDuSoir, chiffresDuSoirSous, planEnChiffres } from '../../js/impact.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack } from '../../js/packs.js';
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
@@ -247,6 +248,36 @@ const lireNet = R => avecHasardIsole('robot', () => {
   const m = chiffresDuSoir(t, activeLineup(t));
   return m.butsPour - m.butsContre;
 });
+/*
+ * CE QU'UN ADJOINT RAPPORTE À CET EFFECTIF (31 oct. 2026 ; docs/decisions.md). Un adjoint est un échange, « ni cadeau ni
+ * piège » sur un club ordinaire (V21) : il paie quand l'échange va à ton club. L'attentif lisait pourtant ses adjoints
+ * dans un ordre fixe (`PREFERE`), et depuis la V21 il ne battait plus le robot d'avant (check_profondeur : +1,3 V au lieu
+ * des 6 à 7 d'avant). Il lit maintenant chaque échange SUR SON EFFECTIF : les buts nets d'un soir avec l'échange posé,
+ * moins sans (`chiffresDuSoirSous`, js/impact.js, les canaux du club et de l'adversaire) ; un entraîneur de gardiens se
+ * lit à la part du filet de ses deux gardiens (leurs matchs de leur vraie saison) et aux buts qu'il change. Le bras
+ * droit du coach vaut un peu plus que sa lecture : il grandit les trois pouvoirs de moitié, que la lecture ne joue pas.
+ */
+const BUTS_CONTRE_SOIR = 3, BRAS_DROIT_LU = 0.1;
+function fitDAdjoint(R, k, coach) {
+  const J = ADJOINTS[k];
+  if (!J) return -Infinity;
+  let fit;
+  if (J.gardiens) {
+    const G = Object.values(R).filter(p => p && p.p === 'G').sort((a, b) => v(b) - v(a));
+    const gp = p => (p && p.gp) || 0, total = gp(G[0]) + gp(G[1]);
+    const part = total ? gp(G[0]) / total : 0.75;
+    fit = -BUTS_CONTRE_SOIR * (part * (J.gardiens.partant - 1) + (1 - part) * (J.gardiens.aux - 1));
+  } else {
+    const net = effets => avecHasardIsole('robot', () => {
+      const t = createTeam('Lu', 'LU', R);
+      t.courbe = true;
+      const m = chiffresDuSoirSous(t, effets);
+      return m.butsPour - m.butsContre;
+    });
+    fit = net({ effets: J.effet ? [{ source: 'adjoint', ...J.effet }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - net({});
+  }
+  return fit + (J.voie === coach ? BRAS_DROIT_LU : 0);
+}
 /* Les clics du distrait : un générateur à lui (null pour les deux autres). Les meilleurs d'abord, ou dans le désordre. */
 const melanger = (l, clic) => l.map(x => [clic(), x]).sort((a, b) => a[0] - b[0]).map(y => y[1]);
 const meilleursDabord = (l, clic, f = x => x) => (clic ? melanger(l, clic) : l.slice().sort((a, b) => v(f(b)) - v(f(a))));
@@ -367,7 +398,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const plans = new Map();
   let planPose = 'match';
   while (!L.fini) {
-    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes })) {
+    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes,
+      fit: attentif && attentifFait('fit') ? k => fitDAdjoint(you.roster, k, etat.perso.cle) : null })) {
       decisions.push(d);
       depense -= d.gain || 0;
     }
