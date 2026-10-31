@@ -1193,8 +1193,8 @@ export function famillesBrutes(p) {
  * est ce reste, en écarts types : 0 chez le joueur typique de ses points.
  */
 export const PROFIL_FAMILLES = {
-  F: { tir: [-0.057, 0.818, 0.454], jeu: [-0.078, 0.859, 0.409], defense: [0.353, 0.17, 0.543], robustesse: [0.451, 0.073, 0.652] },
-  D: { tir: [0.099, 0.919, 0.283], jeu: [0.128, 0.925, 0.225], defense: [0.412, 0.531, 0.383], robustesse: [-0.323, -0.17, 0.803] },
+  F: { tir: [-0.057, 0.818, 0.454], jeu: [-0.078, 0.859, 0.409], defense: [0.355, 0.204, 0.515], robustesse: [0.451, 0.073, 0.652] },
+  D: { tir: [0.099, 0.919, 0.283], jeu: [0.128, 0.925, 0.225], defense: [0.416, 0.562, 0.349], robustesse: [-0.323, -0.17, 0.803] },
 };
 const FAMILLES_CACHE = new WeakMap();
 export function famillesDe(p) {

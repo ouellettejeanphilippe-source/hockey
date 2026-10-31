@@ -215,7 +215,7 @@ function profilMesure(p) {
   <div class="profil-grid">
     ${m ? cell('DIFFÉRENTIEL', pmMatch(m.diff82, 82), `Son +/- par match, corrigé à moitié de celui de son club — un bon joueur d'un mauvais club n'est pas puni deux fois.`) : ''}
     ${m && m.dn82 != null ? cell('DÉSAVANTAGE', Math.round(m.dn82), `Points en désavantage numérique par 82 matchs : qui tue les punitions.`) : ''}
-    ${p.toi ? cell('MINUTES', p.toi.toFixed(1), 'Temps de glace par match, en minutes.') : ''}
+    ${p.toi ? cell('MINUTES', `${p.toiE ? '≈ ' : ''}${Number(p.toi).toFixed(1)}`, p.toiE ? 'Temps de glace par match, en minutes, estimé : la ligue ne le comptait pas avant 1997-98.' : 'Temps de glace par match, en minutes.') : ''}
     ${cell('PUN / MATCH', r(dur), `Minutes de punition par match, sur le régulier moyen de ${p.s} : c'est ce qui décide de ses punitions${p.ht != null ? ` · ${p.ht} mises en échec par match` : ''}.`)}
   </div>`;
 }
@@ -429,7 +429,7 @@ export function showPlayerModal(p, opts = {}) {
   // LE DÉTAIL SE REPLIE (S71) : le profil mesuré, le temps de glace, les
   // mises en échec, les mises au jeu — là pour qui les cherche.
   // Le reste de sa vraie saison (1.0, C2 : le MJ % ne joue pas dans la saison ; il est parti), au verso avec ses saisons.
-  const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? Number(p.toi).toFixed(1) : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : [])];
+  const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? `${p.toiE ? '≈ ' : ''}${Number(p.toi).toFixed(1)}` : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : [])];
   // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
   const cotes = lesCotes(p);
   const coteHtml = cotes ? `<div class="section-label">Ses cotes sur 20, dans sa saison</div><div class="radar-boite">${radarHtml(cotes)}</div>` : '';
