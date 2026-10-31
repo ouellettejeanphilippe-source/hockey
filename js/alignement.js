@@ -901,12 +901,11 @@ function mainHtml(perso, niveau) {
       ${etat === 'prete' && casesLibres(perso, games, niveau) ? `<button type="button" class="btn-sign adj-poster" data-poste="${c.cle}">Poster</button>` : ''}
     </div>`;
   };
+  // UNE SEULE RANGÉE (l'onglet tient en un écran) : les cases en poste d'abord, puis la main ; quatre cartes de front au plus.
   const vides = Math.max(0, cases - postes.length);
-  return `<div class="ej-case-l">En poste · ${postes.length} sur ${cases}${cases < 3 ? ` · une case de plus au niveau ${cases === 1 ? 3 : 5}` : ''}</div>
-    <div class="adj-zone adj-postes" data-zone="postes">${postes.map(carteAdj).join('')}${Array.from({ length: vides }, () => `<button type="button" class="adj-case vide" title="Glisse une carte de ta main ici">Case libre</button>`).join('')}</div>
-    <div class="ej-case-l">Ta main · ${main.length} sur ${MAIN_MAX}</div>
-    ${autres.length ? `<div class="adj-zone adj-main" data-zone="main">${autres.map(carteAdj).join('')}</div>` : `<p class="adj-note">${main.length ? 'Toutes tes cartes sont en poste.' : 'Un adjoint arrive aux 9e, 18e et 26e matchs, après un gros match gagné et au verdict du proprio.'}</p>`}
-    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite">Touche une carte : son style, sa réplique.</p>' : ''}`;
+  return `<div class="ej-case-l">En poste · ${postes.length} sur ${cases} · ta main · ${main.length} sur ${MAIN_MAX}${cases < 3 ? ` · une case de plus au niveau ${cases === 1 ? 3 : 5}` : ''}</div>
+    <div class="adj-zone" data-zone="main">${postes.map(carteAdj).join('')}${Array.from({ length: vides }, () => `<button type="button" class="adj-case vide" title="Glisse une carte de ta main ici">Case libre</button>`).join('')}${autres.map(carteAdj).join('')}</div>
+    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite">Touche une carte : son style, sa réplique.</p>' : '<p class="adj-note">Un adjoint arrive aux 9e, 18e et 26e matchs, après un gros match gagné et au verdict du proprio.</p>'}`;
 }
 /* POSTER UNE CARTE : la décision du jour (`hub.decider`), puis on revient au Coach, où l'on était. */
 function posterLAdjoint(cle) {
@@ -914,7 +913,7 @@ function posterLAdjoint(cle) {
   if (!hub || !hub.decider || !ADJOINTS[cle]) return;
   Promise.resolve(hub.decider({ poste: { cle } })).then(() => montrerPage('entraineur'));
 }
-glisserDeposer({ prise: '.adj-main .adj-carte[data-etat="prete"]', cible: '.adj-case.vide', deposer: de => posterLAdjoint(de.dataset.adj), fantome: el => el.querySelector('.tc') || el });
+glisserDeposer({ prise: '.adj-zone .adj-carte[data-etat="prete"]', cible: '.adj-case.vide', deposer: de => posterLAdjoint(de.dataset.adj), fantome: el => el.querySelector('.tc') || el });
 if (typeof document !== 'undefined') document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('.adj-poster[data-poste]');
   if (b) { posterLAdjoint(b.dataset.poste); return; }

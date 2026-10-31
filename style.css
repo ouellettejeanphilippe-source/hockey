@@ -3649,10 +3649,10 @@ a.spin-club:hover { background: var(--fond-2); }
 .pv-dit { margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-2); }
 .pv-dit .bon { color: var(--bon); }
 .pv-dit .mal { color: var(--mauvais); }
-/* TA MAIN D'ADJOINTS (V22, js/alignement.js `mainHtml`) : les cases en poste, trois cartes de front au plus, comme un trio ; puis la
-   main. Une carte prête se glisse (js/deposer.js) sur une case libre, ou « Poster » dessous. Son état se lit sous elle. */
-.adj-zone { display: grid; grid-template-columns: repeat(3, minmax(0, 96px)); gap: var(--esp-2); align-items: start; }
-@media (min-width: 1000px) { .adj-zone { grid-template-columns: repeat(3, minmax(0, 132px)); } }
+/* TA MAIN D'ADJOINTS (V22, js/alignement.js `mainHtml`) : une seule rangée, les cases en poste puis la main, quatre cartes de
+   front au plus (l'onglet tient en un écran). Une carte prête se glisse (js/deposer.js) sur une case libre, ou « Poster » dessous. */
+.adj-zone { display: grid; grid-template-columns: repeat(4, minmax(0, 78px)); gap: var(--esp-2); align-items: start; }
+@media (min-width: 1000px) { .adj-zone { grid-template-columns: repeat(4, minmax(0, 120px)); } }
 .adj-carte { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
 .adj-carte .choix-option.tc { padding: 0; min-height: 0; }
 .adj-carte[data-etat="repos"] .tc { opacity: 0.55; filter: grayscale(0.6); }
