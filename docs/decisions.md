@@ -3111,7 +3111,7 @@ JP, après le robot qui lit ses adjoints et son coach : *plus tough la deuxième
 
 **Pourquoi une marche et pas une pente.** La tranche 8 avait écarté une ligue qui monte au numéro de run : elle punirait celui qui échoue. Ici la marche est unique — la deuxième run et la dixième portent la même étape — ; ce qui monte ensuite reste le prestige et les exigences. C'est la première run qu'on traite à part, celle où l'on découvre le jeu avec des bouche-trous et sans classeur.
 
-**Mesuré après.** (quatre campagnes, `CAMPAGNES=4 GRAINES=1 FILS=4`) — À COMPLÉTER.
+**Mesuré après** (`CAMPAGNES=4 GRAINES=1 FILS=4`, trois quarts d'heure). L'attentif gagne sa première Coupe aux runs **3, 4, 3 et 6** (médiane 3,5 ; c'était 3, 2, 2, 3), la regagne ensuite 11 fois en 32 runs (34 %), et le distrait jamais en 48 runs : les trois juges de campagne sont verts. Le robot d'avant, lui, ne la gagne plus qu'une campagne sur quatre (à la run 4 ; `check_rogue` complet, sur ses propres graines : runs 6 et 6, et sa courbe des déblocages tient, 47 → 75 → 86 → 93 → 100 points en première saison, 37 vérifications vertes). La première run ne bouge pas (aucune Coupe à la run 1, douze campagnes sur douze).
 
 ## 31 octobre 2026 — Le robot attentif lit ce qu'il prend : l'adjoint et le coach (check_profondeur)
 
