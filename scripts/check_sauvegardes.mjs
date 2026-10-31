@@ -142,7 +142,7 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
     { jour: 25, equipe: 0, palier: 's:25', moment: { famille: 'sequence', cle: 'defaites', choix: 'cap' } },
     { jour: 33, equipe: 0, palier: 'vie:33', moment: { famille: 'vie', cle: 'e3', choix: 'parler', joueur: k, joueurs: [k] } },
     { jour: 42, equipe: 0, palier: 'fil:42', moment: { famille: 'fil', cle: 'cheechoo', choix: 'monter', joueur: k, joueurs: [k] } },
-    { jour: 51, equipe: 0, palier: 'do:7', moment: { famille: 'dossier', cle: 'laRoute', choix: 'nolise', joueur: k, joueurs: [k] } },
+    { jour: 51, equipe: 0, palier: 'do:7', moment: { famille: 'dossier', cle: 'laPratique', choix: 'systeme', joueur: k, joueurs: [k] } },
   ];
   const equipe = ligue()[0];
   exiger('une partie d\'avant la V22 : un moment, une séquence, un courriel, un fil et un dossier inconnus ne posent aucun effet', vieilles.every(d => effetDeMoment(d, equipe) === null), vieilles.map(d => d.moment.famille).join(', '));
