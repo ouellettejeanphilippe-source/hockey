@@ -87,14 +87,21 @@ function jouer(e, entrees, s) {
   const toi = e.patineurs[0];
   Object.assign(toi, { x: -27, y: 9, cap: 0 });
   let vmax = 0, t95 = null, t = 0;
-  for (; t < 6; t += DT) { avancer(e, { toi: { x: 1, y: 0 } }, DT); vmax = Math.max(vmax, v(toi)); if (t95 === null && v(toi) >= 0.95 * 10.4) t95 = t; }
+  for (; t < 4; t += DT) { avancer(e, { toi: { x: 1, y: 0 } }, DT); vmax = Math.max(vmax, v(toi)); if (t95 === null && v(toi) >= 0.95 * PATIN.vMax) t95 = t; }
   borne('la pointe d\'un patineur, en ligne droite', vmax * 3.6, 35, 40, ' km/h');
   exiger('… atteinte à 95 % en moins de trois secondes (arcade)', t95 !== null && t95 < 3, t95 === null ? 'jamais' : `${t95.toFixed(1)} s`);
   // Le frein : le bâton à l'envers.
+  // Le frein : le bâton à l'envers, jusqu'à ce qu'il n'avance plus (ensuite, il repart dans l'autre sens).
   const x0 = toi.x, tf = e.t;
-  while (v(toi) > 0.3 && e.t - tf < 5) avancer(e, { toi: { x: -1, y: 0 } }, DT);
+  while (toi.vx > 0.3 && e.t - tf < 5) avancer(e, { toi: { x: -1, y: 0 } }, DT);
   borne('le frein : de la pointe à l\'arrêt', e.t - tf, 0.4, 1.5, ' s');
   borne('… sur quelques mètres', toi.x - x0, 1.5, 8, ' m');
+  // La roue libre : le bâton lâché à pleine vitesse, on s'arrête vite (JP : *ça glisse trop*).
+  Object.assign(toi, { x: -27, y: 9, cap: 0, vx: 0, vy: 0 });
+  jouer(e, { toi: { x: 1, y: 0 } }, 4);
+  const tr = e.t;
+  while (v(toi) > 0.3 && e.t - tr < 8) avancer(e, { toi: { x: 0, y: 0 } }, DT);
+  borne('la roue libre : le bâton lâché, l\'arrêt vient vite', e.t - tr, 1, 3.5, ' s');
 }
 {
   const e = glaceVide();
@@ -149,6 +156,21 @@ function jouer(e, entrees, s) {
     return t ? t.v : 0;
   };
   const poignet = tir(DT), frappe = tir(1);
+  // Le tir vise comme dans les jeux de soccer : le bâton droit, le centre ; à fond de côté, à côté du filet.
+  const ou = (bx, by) => {
+    const g = glaceVide('ou');
+    g.gardien.x = LIGNE_BUT + 4; g.gardien.y = 10;   // le gardien hors du chemin : on mesure la visée seule
+    Object.assign(g.patineurs[0], { x: LIGNE_BUT - 5, y: 0, cap: 0 });
+    Object.assign(g.rondelle, { x: LIGNE_BUT - 3.9, y: 0.3 });
+    avancer(g, { toi: { x: 0, y: 0 } }, DT);
+    avancer(g, { toi: { x: 0, y: 0, tir: true } }, DT);
+    avancer(g, { toi: { x: bx, y: by, tir: false } }, DT);
+    const R = g.rondelle, t = (LIGNE_BUT - R.x) / R.vx;
+    return R.y + R.vy * t;
+  };
+  const centre = ou(1, 0), cote = ou(0, 1);
+  borne('le bâton droit vers le but : le tir vise le centre', Math.abs(centre), 0, 0.5, ' m');
+  borne('le bâton à fond de côté : à côté du filet', Math.abs(cote), FILET.large / 2, FILET.large / 2 + 0.9, ' m');
   borne('le tir du poignet part à la vitesse dite', poignet, BATON.tirMin - 0.5, BATON.tirMin + 3, ' m/s');
   borne('le lancer frappé chargé, plus vite', frappe, BATON.tirMax - 0.5, BATON.tirMax + 3, ' m/s');
 }
