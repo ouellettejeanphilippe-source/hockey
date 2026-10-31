@@ -4882,6 +4882,10 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-ligne span:nth-child(2) { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .som-ligne span:nth-child(3) { min-width: 54px; text-align: right; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
 .som-per { margin-bottom: var(--esp-4); }
+/* Le sommaire simple : le reste (`.som-extra`) attend sous « Plus de détails ». */
+.som-racine:not(.som-plus) .som-extra { display: none; }
+.som-bascule { display: block; width: 100%; min-height: 44px; margin: var(--esp-2) 0 var(--esp-4); }
+.som-pt { float: right; margin-left: var(--esp-2); font: 700 var(--t-1)/1.5 var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: var(--encre-3); }
 /* La feuille de match complète (oct. 2026) : un tableau par club, dans le cadre des tableaux du jeu. */
 .som-feuille-club { display: flex; align-items: center; gap: var(--esp-2); padding: var(--esp-2) 0; font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
 .som-feuille .jr-scroll { margin-bottom: var(--esp-3); }
