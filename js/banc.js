@@ -11,7 +11,6 @@ import { chargerTable } from './charge-table.js';
 import { BANQUE } from './banque.js';
 import { COACHS } from './coachs.js';
 import { POUVOIRS } from './pouvoirs.js';
-import { ADJOINTS, staffDe } from './adjoints.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
@@ -231,7 +230,7 @@ function ajouterDecision(avant, d) {
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
-    && !(d.plan && x.plan && x.jour === d.jour) && !(d.staff && x.staff && x.jour === d.jour)
+    && !(d.plan && x.plan && x.jour === d.jour)
     // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
     // autre décision rejoue le match depuis le début : l'entracte déjà choisi
     // ne vaut plus, il sera redemandé sur le nouveau pointage.
@@ -245,7 +244,7 @@ function ajouterDecision(avant, d) {
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
-  // V9 : ni la carte prise à un palier (`place` : V16, un adjoint, qui rejoint ton personnel), ni « Attendre » le physio (`attend`).
+  // V9 : ni la carte prise à un palier (`place`), ni « Attendre » le physio (`attend`).
   // V13-2 : ni le butin d'un gros match, pris (`place`) ou passé (`r:<jour>` seul).
   const deckSeul = !d.coach && (d.recompense !== undefined || (typeof d.palier === 'string' && d.palier.startsWith('r:')) || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || !!d.place || !!d.attend || (!!d.garde && !d.mutation));
   // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
@@ -326,7 +325,6 @@ function confirmerDecision(d) {
   let mot = null;
   // Le pack d'une série gagnée (Jalon P1) : il s'ouvre, et ses joueurs vont au cartable.
   if (d.packSerie) { ouvrirPackDeSerie(d.packSerie, d.ronde); return; }
-  // V16 : la récompense d'une victoire est un adjoint, qui rejoint ton personnel.
   if (d.deck === 'recrue' && d.ballottage) mot = `🎟 ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
   else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans tes cartes : pose-la au verso d'un joueur, quand tu veux.`;
@@ -335,12 +333,9 @@ function confirmerDecision(d) {
   else if (d.ballottage && d.ballottage.ecole) mot = `📟 ${qui(d.ballottage.entre)} monte du club-école : gratuit, hors plafond.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   else if (d.ballottage && d.ballottage.entre) mot = d.ballottage.sort ? `📒 ${qui(d.ballottage.entre)} prend la place de ${qui(d.ballottage.sort)} : la carte de ${qui(d.ballottage.sort)} va à ton cartable.` : `🪑 ${qui(d.ballottage.entre)} entre dans une case de réserve libre : personne ne sort.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
-  // V21 : un adjoint qui arrive ou part, un talent ou de l'expérience pour le coach de la run.
+  // V21 : un talent ou de l'expérience pour le coach de la run.
   const perso = persoDuMatin(), Pv = p => (perso && POUVOIRS[perso.cle] ? POUVOIRS[perso.cle][p] : null);
-  // La main d'adjoints (oct.) : l'arrivant prend une case libre du staff, sinon il attend dans ta main, au Coach.
-  if (d.adjoint && ADJOINTS[d.adjoint.cle]) mot = `${ADJOINTS[d.adjoint.cle].ico} ${ADJOINTS[d.adjoint.cle].nom} ${staffDe(perso).includes(d.adjoint.cle) ? 'entre dans ton staff' : 'attend dans ta main : glisse-le dans ton staff, au Coach'}.`;
-  else if (d.perdAdjoint && ADJOINTS[d.perdAdjoint]) mot = `${ADJOINTS[d.perdAdjoint].ico} ${ADJOINTS[d.perdAdjoint].nom} quitte ton staff.`;
-  else if (d.talent && Pv(d.talent.p)) mot = `${Pv(d.talent.p).ico} ${Pv(d.talent.p).nom} grandit, pour la run.`;
+  if (d.talent && Pv(d.talent.p)) mot = `${Pv(d.talent.p).ico} ${Pv(d.talent.p).nom} grandit, pour la run.`;
   else if (Number(d.xpCoach) > 0 && perso && COACHS[perso.cle]) mot = `${COACHS[perso.cle].ico} ${COACHS[perso.cle].nom} : +${d.xpCoach} d'expérience.`;
   if (mot) toast(mot);
 }
@@ -636,7 +631,7 @@ export async function runSeason(opts = {}) {
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
       // LE COACH DE LA RUN (V21, js/pouvoirs.js) : son expérience, ses talents et ses adjoints d'avant, chaque saison.
       ...(G.bonus === 'ROGUE' && G.rogue && COACHS[(G.rogue.perso || {}).cle || G.rogue.coach]
-        ? [{ jour: 0, coach: G.rogue.perso && G.rogue.perso.cle ? { ...G.rogue.perso } : { cle: G.rogue.coach, xp: 0, talents: [], adjoints: [] }, rogue: { depart: true } }] : [])];
+        ? [{ jour: 0, coach: G.rogue.perso && G.rogue.perso.cle ? { ...G.rogue.perso } : { cle: G.rogue.coach, xp: 0, talents: [] }, rogue: { depart: true } }] : [])];
   // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
   poserCartes(decisions);
   /*

@@ -3649,35 +3649,9 @@ a.spin-club:hover { background: var(--fond-2); }
 .pv-dit { margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-2); }
 .pv-dit .bon { color: var(--bon); }
 .pv-dit .mal { color: var(--mauvais); }
-/* LA MAIN D'ADJOINTS (oct., js/alignement.js `staffHtml`) : le staff, trois cartes de front comme un trio, puis la réserve.
-   Une carte se glisse (js/deposer.js) ou se touche puis sa case ; la zone sous le doigt s'allume. Son échange se lit dessous. */
-.adj-zone { display: grid; grid-template-columns: repeat(3, minmax(0, 96px)); gap: var(--esp-2); align-items: start; width: fit-content; max-width: 100%; padding: var(--esp-2); border: 1px dashed var(--filet); transition: border-color var(--t-vite), background var(--t-vite); }
-.adj-staff { border-style: solid; border-color: var(--or); }
-.adj-reserve { border-top: 0; }
-@media (min-width: 1000px) { .adj-zone { grid-template-columns: repeat(3, minmax(0, 132px)); } }
-.adj-zone.survol { border-color: var(--or); background: var(--fond-2); }
-.adj-carte { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; padding: 0; border: 0; background: none; color: var(--encre); text-align: left; cursor: grab; touch-action: manipulation; -webkit-touch-callout: none; user-select: none; }
-.adj-carte .carton { transition: transform var(--t-vite); filter: drop-shadow(0 2px 4px color-mix(in srgb, black 60%, transparent)); }
-.adj-carte:is(.choisi, .survol) .carton { transform: translateY(-4px); outline: 2px solid var(--choisi); outline-offset: 2px; }
-.adj-carte.survol .carton { outline-color: var(--or); }
-.adj-carte.glisse { opacity: 0.35; }
-/* Son échange : sous la carte au grand écran ; au téléphone, la bande `.adj-detail` le dit pour la carte touchée. */
-.adj-lignes { display: none; flex-direction: column; gap: 2px; font-size: var(--t-1); line-height: 1.25; overflow-wrap: anywhere; }
-@media (min-width: 1000px) { .adj-lignes { display: flex; } }
-:is(.adj-lignes, .adj-detail) .bon { color: var(--bon); }
-:is(.adj-lignes, .adj-detail) .mal { color: var(--mauvais); }
-.adj-detail { margin: 0; font-size: var(--t-1); line-height: 1.4; color: var(--encre-2); }
-.adj-detail > span + span::before { content: " · "; color: var(--encre-3); }
-.adj-detail small { color: var(--encre-3); }
-/* Personne encore en poste : les cases libres n'ont pas besoin de la hauteur d'une carte. */
-.adj-staff.sans .adj-vide { aspect-ratio: auto; min-height: 56px; }
-.adj-vide { aspect-ratio: 5 / 7; display: grid; place-items: center; padding: var(--esp-2); border: 1px dashed var(--filet); background: none; color: var(--encre-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
-.adj-vide.survol { border-color: var(--or); color: var(--or); }
-.adj-note { grid-column: 1 / -1; margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-3); }
 /* Le fantôme d'une carte qu'on glisse : il suit le pointeur, par-dessus tout, sans capter le doigt. Posé sous `body`, il
    passe devant la règle de la carte qu'il copie (`.slot-carte` la met en `relative`, plus bas dans la feuille). */
 body > .fantome { position: fixed; z-index: 1000; margin: 0; pointer-events: none; transform: rotate(-3deg) scale(1.05); opacity: 0.92; }
-.fantome .adj-lignes { display: none; }
 .ej-case-l { margin-top: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 /* LES CARTES D'UNE MAISON (V12-4), toujours visibles : un titre, et une bande de cartons qui se balaie, la suivante au bord, comme la main du duel. */
 .ej-coach-l.suite { opacity: 0.6; }

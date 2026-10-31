@@ -19,9 +19,8 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles } from './coachs.js';
 import { POUVOIRS, pouvoirsDeLaPeriode, XP } from './pouvoirs.js';
-import { ADJOINTS, avecAdjoint, staffDe } from './adjoints.js';
 import { DOSSIERS } from './dossiers.js';
-import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil, PUNITIONS_SERMON } from './vie-gm.js';
+import { CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { nomCourt } from './recit.js';
 
 export const CAP = 95_500_000;
@@ -2083,12 +2082,6 @@ export function effetsActifs(team) {
  * saison (`poserStyles`), sans hasard, donc l'écran lit exactement ce que le
  * moteur jouera. Ce n'est pas une cote : c'est un mot, comme l'archétype.
  */
-export const STYLES = {
-  offensif: { nom: 'Offensif', ico: '🎯', mot: 'Ils marquent beaucoup', contre: 'trappe' },
-  defensif: { nom: 'Défensif', ico: '🧱', mot: 'Ils ferment le jeu', contre: 'echec' },
-  robuste: { nom: 'Robuste', ico: '🥊', mot: 'Ils frappent tout ce qui bouge', contre: 'surnombre' },
-  equilibre: { nom: 'Équilibré', ico: '⚖', mot: 'Rien ne dépasse', contre: null },
-};
 const STYLE_SEUIL = 0.35;
 
 function poserStyles(teams) {
@@ -2110,354 +2103,18 @@ function poserStyles(teams) {
   });
 }
 
-/*
- * LES DILEMMES. Des histoires vraies de la LNH — drôles, marquantes, parfois
- * tragiques — et quelques-unes inventées. Chaque option achète quelque chose
- * et le paie ; aucune n'est gratuite, et `check_moments_si.mjs` mesure qu'aucune
- * ne vaut une victoire à elle seule. La durée est en journées.
- */
+/* Un effet de choix dure `DUREE_MOMENT` journées, sauf mention contraire. */
 const DUREE_MOMENT = 10;
 /*
- * LES DILEMMES (S66, refaits en S72). JP : *les choix, pas obligé d'être
- * toujours avec un malus et un bonus, varie les « cartes »* ; *mettons que tu
- * rappelles des joueurs du club-école, ou whatever ce genre de cartes, faut
- * le faire pour vrai*. Une option peut être :
- *   - un CADEAU (un bonus seul), ou deux cadeaux — lequel prendre ;
- *   - un MOINDRE MAL (les deux options coûtent) ;
- *   - un PARI (`pari` : une chance, ce qu'on gagne, ce qu'on perd — tiré de la
- *     graine, sans consommer un dé) ;
- *   - un INVESTISSEMENT (`ensuite` : un effet qui arrive plus tard) ;
- *   - un GESTE RÉEL sur un joueur NOMMÉ (`cible` du dilemme, `action` de
- *     l'option) : il reste au vestiaire et un réserviste — ou un rappelé du
- *     club-école — joue à sa place (`absents`), il joue épuisé (`energie`),
- *     ou le gardien auxiliaire prend le filet (`gardienAux`) ;
- *   - un changement de carte (`mutation`, S68) ;
- *   - rien (`rien`), quand refuser est un vrai choix.
- * Plus de factions (S72) : ce qu'une option coûte ou rapporte se joue sur la
- * glace.
+ * LA FAMILLE D'UNE DÉCISION DE MOMENT (V22) : le choix d'un fil (`fil`, js/vie-gm.js) ou un dossier de la semaine
+ * (`dossier`, js/dossiers.js). Les dilemmes, les séquences et les réponses de courriel sont partis avec leur banque ; une
+ * vieille décision de ces familles ne trouve plus rien et ne joue rien. Même forme { ico, titre, options } pour toutes :
+ * `effetDeMoment`, `appliquerGestes`, `pariDeDecision`.
  */
-/*
- * CE QUI EST VRAIMENT ARRIVÉ (oct. 2026). JP, sur « Les adieux au casier » : *seulement si un joueur x est voté out
- * de l'équipe. Toutes ces choses doivent être vraies, donc si choix que quatrième trio joue plus, il joue plus pour
- * vrai. Toujours nommer les joueurs impliqués.* Chaque dilemme porte un `fait` : une entrée de `FAITS`, lue sur
- * tes matchs d'AVANT sa journée et sur ton effectif (`faitsDuClub`). Sans son fait, il ne se tire pas ; avec lui,
- * il nomme les joueurs que le fait nomme (`joueur`, `joueurs`) et dit ses vrais chiffres (`n`, `m`). Le calendrier
- * (`quand`) peut s'ajouter au fait, jamais le remplacer. `scripts/check_dilemmes.mjs` recompte chaque fait dans les
- * feuilles.
- */
-const FENETRE_FAIT = 10;
-const pl = (n, un, des = `${un}s`) => `${n} ${n > 1 ? des : un}`;
-/* Les moments de la saison où un dilemme peut se dire (son `quand`), selon la journée sur la saison. */
-const momentsOuverts = f => [f < 0.3 && 'octobre', f >= 0.15 && f < 0.55 && 'decembre', f >= 0.45 && f < 0.72 && 'echeance', f >= 0.6 && 'mars'].filter(Boolean);
-/* L'autre gardien de ton alignement, celui qui prendrait le filet ({aux}). */
-const auxDe = (c, g) => ((c.gardiens || []).find(x => x !== g) || {}).n || null;
-/*
- * QUI PORTE UN FAIT D'ÉQUIPE (V19, tranche 5 ; JP : *les incidents, toujours liés à des joueurs*). Un fait d'équipe se lit dans les
- * feuilles par quelqu'un de ton effectif : le gardien du filet, le patineur qui a le plus tiré, le plus bas en jambes
- * (`porteurs`, `faitsDuClub`). Il ne change rien au geste du dilemme (`joueur` reste le joueur que ses options touchent) :
- * `porte` est nommé dans la scène, avec son chiffre `np`.
- */
-const porteDe = x => (x ? { porte: x.p, np: x.n } : {});
-/* Chaque fait : `lire` le trouve dans le contexte (ou rend null), `dire` l'écrit en vrais chiffres, sous la voix. */
-export const FAITS = {
-  gardienBattu: { lire: c => (c.dernier && c.dernier.gardien && c.dernier.contre >= 6 && auxDe(c, c.dernier.gardien) ? { joueur: c.dernier.gardien, n: c.dernier.contre, aux: auxDe(c, c.dernier.gardien) } : null),
-    dire: r => `${r.joueur.n} : ${r.n} buts accordés au dernier match` },
-  punitionTard: { lire: c => (c.dernier && c.dernier.punisTard.length ? { joueur: c.dernier.punisTard[0], n: c.dernier.punisTard.length } : null),
-    dire: r => `${r.joueur.n} au cachot dans les cinq dernières minutes · ${pl(r.n, 'punition')} en fin de match` },
-  gardienCharge: { lire: c => (c.gardienSuite && c.gardienSuite.n >= 4 && auxDe(c, c.gardienSuite.p) ? { joueur: c.gardienSuite.p, n: c.gardienSuite.n, aux: auxDe(c, c.gardienSuite.p) } : null),
-    dire: r => `${r.joueur.n} : ${r.n} départs de suite` },
-  panneGardien: { lire: c => (c.serieD >= 3 && c.gardienSerie && auxDe(c, c.gardienSerie.p) ? { n: c.serieD, joueur: c.gardienSerie.p, m: c.gardienSerie.buts, aux: auxDe(c, c.gardienSerie.p) } : null),
-    dire: r => `${r.n} défaites de suite · ${r.joueur.n} : ${pl(r.m, 'but')} accordés` },
-  punitions: { lire: c => { const x = (c.punis || []).find(y => y.n >= PUNITIONS_SERMON); return x ? { joueur: x.p, n: x.n, m: x.m } : null; },
-    dire: r => `${r.joueur.n} : ${r.n} punitions en ${r.m} matchs` },
-  blesses: { lire: c => (c.blesses && c.blesses.length >= 2 ? { joueurs: c.blesses.map(x => x.p), n: c.blesses.length } : null),
-    dire: r => `${r.n} blessés : ${r.joueurs.map(p => p.n).join(', ')}` },
-  route: { lire: c => (c.route >= 3 ? { n: c.route, ...porteDe(c.porteurs.bas) } : null), dire: r => `${r.n} matchs de suite sur la route${r.porte ? ` · ${r.porte.n} : jambes ${r.np}` : ''}` },
-  jambes: { lire: c => { const x = (c.jambes || []).filter(y => y.haut && y.j < 82).sort((a, b) => a.j - b.j)[0]; return x ? { joueur: x.p, n: x.j } : null; },
-    dire: r => `${r.joueur.n} : jambes ${r.n}` },
-  jambesEquipe: { lire: c => (c.jambes && c.jambes.length && c.moyenneJambes < 90 ? { n: c.moyenneJambes, ...porteDe(c.porteurs.bas) } : null),
-    dire: r => `Jambes ${r.n} en moyenne${r.porte ? ` · ${r.porte.n} : jambes ${r.np}` : ''}` },
-  chaud: { lire: c => (c.chaud && c.chaud.pts >= 7 ? { joueur: c.chaud.p, n: c.chaud.pts, m: c.chaud.m } : null), dire: r => `${r.joueur.n} : ${r.n} points en ${r.m} matchs` },
-  disetteMarqueur: { lire: c => {
-    const x = (c.joueurs || []).filter(j => j.marqueur && c.recents >= 10 && j.butsRecents <= 2).sort((a, b) => (b.p.g || 0) - (a.p.g || 0))[0];
-    return x ? { joueur: x.p, n: x.butsRecents === 0 ? 'aucun but' : x.butsRecents === 1 ? 'un seul but' : `${x.butsRecents} buts`, m: c.recents } : null;
-  }, dire: r => `${r.joueur.n} : ${r.n} en ${r.m} matchs` },
-  recrue: { lire: c => { const x = (c.recrues || [])[0]; return x ? { joueur: x.p, n: x.n, m: x.pts } : null; },
-    dire: r => `${r.joueur.n}, recrue : ${pl(r.m, 'point')} en ${r.n} matchs` },
-  parti: { lire: c => { const x = (c.partis || [])[0]; return x ? { joueur: x.p, n: x.n, m: x.m } : null; },
-    dire: r => `${r.joueur.n} : ${r.n} de tes ${r.m} derniers matchs, plus dans ton effectif` },
-  quatrieme: { lire: c => (c.quatrieme && c.quatrieme.joueurs.length >= 2 && c.quatrieme.m >= FENETRE_FAIT && c.quatrieme.pts <= 2 ? { joueurs: c.quatrieme.joueurs, n: c.quatrieme.pts, m: c.quatrieme.m } : null),
-    dire: r => `Ton quatrième trio, ${r.joueurs.map(p => p.n).join(', ')} : ${pl(r.n, 'point')} en ${r.m} matchs` },
-  passoire: { lire: c => (c.cinq && c.cinq.contre >= 17 ? { n: c.cinq.contre, m: c.cinq.m, ...porteDe(c.porteurs.filet5) } : null),
-    dire: r => `${r.n} buts accordés en ${r.m} matchs${r.porte ? ` · ${r.porte.n} au filet ${r.np} de ces ${r.m} matchs` : ''}` },
-  passoirePaire: { lire: c => (c.cinq && c.cinq.contre >= 17 && c.paire1.length === 2 ? { n: c.cinq.contre, m: c.cinq.m, joueurs: c.paire1 } : null),
-    dire: r => `${r.n} buts accordés en ${r.m} matchs · ta première paire : ${r.joueurs.map(p => p.n).join(' et ')}` },
-  disette: { lire: c => (c.cinq && c.cinq.pour <= 8 ? { n: c.cinq.pour, m: c.cinq.m, ...porteDe(c.porteurs.tirs5) } : null),
-    dire: r => `${pl(r.n, 'but')} pour toi en ${r.m} matchs${r.porte ? ` · ${r.porte.n} : ${pl(r.np, 'tir')} sur ces ${r.m} matchs` : ''}` },
-  tirsContre: { lire: c => (c.trois && c.trois.tirsContre >= 105 && c.trois.gardien ? { joueur: c.trois.gardien, n: c.trois.tirsContre, m: c.trois.m } : null),
-    dire: r => `${r.n} tirs contre toi en ${r.m} matchs · ${r.joueur.n} en a reçu le plus` },
-  avantagesRares: { lire: c => (c.quatre && c.quatre.punisEux <= 10 ? { n: c.quatre.punisEux, m: c.quatre.m, ...porteDe(c.porteurs.tirs4) } : null),
-    dire: r => `${pl(r.n, 'punition')} contre eux en ${r.m} matchs${r.porte ? ` · ${r.porte.n} : ${pl(r.np, 'tir')} sur ces ${r.m} matchs` : ''}` },
-  defaiteParUn: { lire: c => (c.dernier && c.dernier.contre === c.dernier.pour + 1 ? { n: c.dernier.pour, m: c.dernier.contre, ...porteDe(c.porteurs.tirsDernier) } : null),
-    dire: r => `Battus ${r.m}-${r.n} au dernier match${r.porte ? ` · ${r.porte.n} : ${pl(r.np, 'tir')} ce soir-là` : ''}` },
-  plombier: { lire: c => (c.plombier ? { joueur: c.plombier.p, n: c.plombier.buts, m: c.plombier.m } : null), dire: r => `${r.joueur.n} : ${pl(r.n, 'but')} en ${r.m} matchs` },
-  veteranD: { lire: c => (c.veteransD && c.veteransD.length && c.eleve && c.eleve !== c.veteransD[0].p ? { vieux: c.veteransD[0].p.n, n: c.veteransD[0].age, joueur: c.eleve } : null),
-    dire: r => `${r.vieux} : ${r.n} ans, le plus vieux de tes défenseurs · ${r.joueur.n}, son élève` },
-  tirsD: { lire: c => (c.tirsD && c.tirsD.n >= 15 ? { joueur: c.tirsD.p, n: c.tirsD.n, m: c.tirsD.m } : null), dire: r => `${r.joueur.n} : ${r.n} tirs en ${r.m} matchs` },
-};
-/* Le fait d'un dilemme dans ce contexte : son calendrier d'abord (s'il en a un), puis son fait, ou null. */
-function faitDuDilemme(m, c) {
-  if (!m || !c || !FAITS[m.fait]) return null;
-  if (m.quand && !(c.N > 0 && momentsOuverts(c.J / c.N).some(x => m.quand.includes(x)))) return null;
-  return FAITS[m.fait].lire(c);
-}
-/*
- * LE CONTEXTE DES FAITS : ce que tes matchs d'avant la journée `J` et ton effectif disent. PUR : la même saison
- * rejouée redonne le même contexte. `matchs` : tes matchs joués, [{ j, m }] dans l'ordre.
- */
-export function faitsDuClub(team, matchs, J, N) {
-  const avant = matchs.filter(x => x.j < J);
-  const coteDe = m => (m.A === team ? 'A' : 'B');
-  const fe = m => m.feuille || { buts: [], lancers: [], punitions: [], blessures: [], alignes: {} };
-  const gagne = m => (m.A === team) === (m.gfA > m.gfB);
-  const pour = m => (m.A === team ? m.gfA : m.gfB), contre = m => (m.A === team ? m.gfB : m.gfA);
-  const sesButs = (m, p) => (fe(m).buts || []).filter(b => b.cote === coteDe(m) && b.marqueur === p).length;
-  const sesPoints = (m, p) => (fe(m).buts || []).filter(b => b.cote === coteDe(m) && (b.marqueur === p || (b.passeurs || []).includes(p))).length;
-  const alignes = m => fe(m).alignes?.[coteDe(m)] || [];
-  // Ton gardien d'un soir : celui qui a reçu le plus de tirs d'en face.
-  const gardienDe = m => { const n = new Map(); for (const l of fe(m).lancers || []) if (l.cote !== coteDe(m) && l.gardien) n.set(l.gardien, (n.get(l.gardien) || 0) + 1); return [...n].sort((a, b) => b[1] - a[1])[0]?.[0] || null; };
-  const cases = (g, u = null) => SLOTS.filter(s => !s.scratch && s.group === g && (u === null || s.unit === u)).map(s => team.roster[s.i]).filter(Boolean);
-  const age = p => (p.bd && p.s ? parseInt(p.s, 10) - parseInt(p.bd, 10) : 0);
-  const dans = new Set(Object.values(team.roster || {}).filter(Boolean).map(getPlayerKey));
-  const d = avant[avant.length - 1];
-  let dernier = null;
-  if (d) {
-    const m = d.m, f = fe(m), cote = coteDe(m);
-    dernier = {
-      domicile: cote === 'A', pour: pour(m), contre: contre(m), gardien: gardienDe(m),
-      punisTard: (f.punitions || []).filter(x => x.cote === cote && x.joueur && x.instant >= 55 && x.instant < 60).map(x => x.joueur),
-    };
-  }
-  let serieV = 0, serieD = 0;
-  for (let i = avant.length - 1; i >= 0 && gagne(avant[i].m); i--) serieV++;
-  for (let i = avant.length - 1; i >= 0 && !gagne(avant[i].m); i--) serieD++;
-  const serie = avant.slice(avant.length - serieD);
-  const somme = (liste, f) => liste.reduce((a, { m }) => a + f(m), 0);
-  // Le meilleur pointeur d'une fenêtre ; le gardien de la glissade.
-  const meilleur = (liste, f, qui) => qui.map(p => ({ p, x: somme(liste, m => f(m, p)) })).filter(y => y.x > 0).sort((a, b) => b.x - a.x)[0] || null;
-  const patineurs = [...cases('F'), ...cases('D')];
-  const trio1 = cases('F', 0);
-  const gs = serieD >= 3 ? (() => { const n = new Map(); for (const { m } of serie) { const g = gardienDe(m); if (g) n.set(g, (n.get(g) || 0) + 1); } const g = [...n].sort((a, b) => b[1] - a[1])[0]?.[0];
-    return g && dans.has(getPlayerKey(g)) ? { p: g, buts: somme(serie, m => (fe(m).buts || []).filter(b => b.cote !== coteDe(m) && b.gardien === g).length) } : null; })() : null;
-  // Les douze derniers : les buts de chacun.
-  const recents = avant.slice(-12), butsRecents = new Map();
-  for (const { m } of recents) for (const b of fe(m).buts || []) if (b.cote === coteDe(m) && b.marqueur) butsRecents.set(b.marqueur, (butsRecents.get(b.marqueur) || 0) + 1);
-  // Les punitions de chacun (V3) : la plus courte fenêtre de deux à quatre de SES matchs qui en compte trois.
-  const punis = [];
-  for (const p of patineurs) {
-    const siens = avant.filter(({ m }) => alignes(m).includes(p));
-    for (let n = 2; n <= 4 && n <= siens.length; n++) {
-      const k = siens.slice(-n).reduce((s, { m }) => s + (fe(m).punitions || []).filter(x => x.cote === coteDe(m) && x.joueur === p).length, 0);
-      if (k >= PUNITIONS_SERMON) { punis.push({ p, n: k, m: n }); break; }
-    }
-  }
-  punis.sort((a, b) => b.n / b.m - a.n / a.m);
-  // Partis : habillés chez toi dans tes dix derniers matchs, et plus dans ton effectif.
-  const fen = avant.slice(-FENETRE_FAIT), vus = new Map();
-  for (const { m } of fen) for (const p of [...alignes(m), gardienDe(m)].filter(Boolean)) vus.set(p, (vus.get(p) || 0) + 1);
-  // Le gardien de rappel et les rappelés du club-école dépannent sans jamais avoir été de ton effectif : ils ne partent pas.
-  const partis = [...vus].filter(([p]) => !dans.has(getPlayerKey(p)) && !p._rappel && !(team.ecole || []).includes(p)).map(([p, n]) => ({ p, n, m: fen.length })).sort((a, b) => b.n - a.n);
-  // Ton infirmerie, ce matin.
-  const blesses = [...(team.injured || new Map())].filter(([p, n]) => p && n > 0 && dans.has(getPlayerKey(p))).map(([p, n]) => ({ p, n })).sort((a, b) => b.n - a.n);
-  let route = 0;
-  for (let i = avant.length - 1; i >= 0 && avant[i].m.B === team; i--) route++;
-  let gardienSuite = null;
-  for (let i = avant.length - 1; i >= 0; i--) { const g = gardienDe(avant[i].m); if (!g || (gardienSuite && g !== gardienSuite.p)) break; gardienSuite = { p: g, n: (gardienSuite ? gardienSuite.n : 0) + 1 }; }
-  if (gardienSuite && !dans.has(getPlayerKey(gardienSuite.p))) gardienSuite = null;
-  // Les jambes de ce matin-là (le haut : tes deux premiers trios).
-  const matin = ((team.jourLignes || [])[J] || {}).energie || {};
-  const haut = new Set([...cases('F', 0), ...cases('F', 1)]);
-  const jambes = patineurs.map(p => ({ p, j: Math.round(matin[getPlayerKey(p)] ?? energieDe(p)), haut: haut.has(p) }));
-  const fenetre = k => (avant.length >= k ? avant.slice(-k) : null);
-  // Le gardien de ton effectif qui a reçu le plus de tirs sur ces matchs.
-  const plusRecu = liste => { const n = new Map(); for (const { m } of liste) for (const l of fe(m).lancers || []) if (l.cote !== coteDe(m) && l.gardien && dans.has(getPlayerKey(l.gardien))) n.set(l.gardien, (n.get(l.gardien) || 0) + 1);
-    return [...n].sort((a, b) => b[1] - a[1])[0]?.[0] || null; };
-  const f5 = fenetre(5), f3 = fenetre(3), f4 = fenetre(4);
-  // Qui porte un fait d'équipe : le gardien le plus souvent au filet, le patineur qui a le plus tiré, le plus bas en jambes.
-  const classe = n => [...n].sort((a, b) => b[1] - a[1] || (getPlayerKey(a[0]) < getPlayerKey(b[0]) ? -1 : 1)).map(([p, k]) => ({ p, n: k }))[0] || null;
-  const tireurs = liste => { const n = new Map(); for (const { m } of liste) for (const l of fe(m).lancers || []) if (l.cote === coteDe(m) && l.tireur && dans.has(getPlayerKey(l.tireur))) n.set(l.tireur, (n.get(l.tireur) || 0) + 1); return classe(n); };
-  const auFilet = liste => { const n = new Map(); for (const { m } of liste) { const g = gardienDe(m); if (g && dans.has(getPlayerKey(g))) n.set(g, (n.get(g) || 0) + 1); } return classe(n); };
-  const bas = jambes.slice().sort((a, b) => a.j - b.j || (getPlayerKey(a.p) < getPlayerKey(b.p) ? -1 : 1))[0];
-  const chaud = f5 ? meilleur(f5, sesPoints, cases('F')) : null;
-  const q4 = cases('F', 3);
-  const qFen = avant.slice(-FENETRE_FAIT);
-  const plomb = qFen.length >= FENETRE_FAIT ? q4.map(p => ({ p, buts: somme(qFen, m => sesButs(m, p)) })).filter(x => x.buts <= 1)
-    .sort((a, b) => a.buts - b.buts || (getPlayerKey(a.p) < getPlayerKey(b.p) ? -1 : 1))[0] : null;
-  const tirsDe = (liste, p) => somme(liste, m => (fe(m).lancers || []).filter(l => l.cote === coteDe(m) && l.tireur === p).length);
-  const tD = qFen.length >= FENETRE_FAIT ? cases('D').map(p => ({ p, n: tirsDe(qFen, p) })).sort((a, b) => b.n - a.n || (getPlayerKey(a.p) < getPlayerKey(b.p) ? -1 : 1))[0] : null;
-  const recrues = cases('F').filter(p => p.rk && !trio1.includes(p)).map(p => { const siens = avant.filter(({ m }) => alignes(m).includes(p)); return { p, n: siens.length, pts: somme(siens, m => sesPoints(m, p)) }; })
-    .filter(x => x.n >= FENETRE_FAIT).sort((a, b) => b.pts - a.pts || (getPlayerKey(a.p) < getPlayerKey(b.p) ? -1 : 1));
-  return {
-    J, N, n: avant.length, dernier, serieV, serieD, recents: recents.length, punis,
-    joueurs: cases('F').map(p => ({ p, marqueur: (p.g || 0) >= 25, butsRecents: butsRecents.get(p) || 0 })),
-    // L'élève du vétéran : celui que « L'école du vétéran » viserait (`cibleMutation`, la carte `dur`).
-    eleve: cibleMutation(team, 'dur'),
-    veteransD: cases('D').map(p => ({ p, age: age(p) })).filter(x => x.age >= 33).sort((a, b) => b.age - a.age),
-    gardienSerie: gs,
-    partis, blesses, route, gardiens: cases('G'), gardienSuite, jambes,
-    moyenneJambes: jambes.length ? Math.round(jambes.reduce((a, x) => a + x.j, 0) / jambes.length) : 100,
-    chaud: chaud ? { p: chaud.p, pts: chaud.x, m: 5 } : null,
-    quatrieme: { joueurs: q4, pts: q4.reduce((a, p) => a + somme(qFen, m => sesPoints(m, p)), 0), m: qFen.length },
-    paire1: cases('D', 0),
-    cinq: f5 ? { pour: somme(f5, pour), contre: somme(f5, contre), m: 5 } : null,
-    trois: f3 ? { tirsContre: somme(f3, m => (fe(m).lancers || []).filter(l => l.cote !== coteDe(m)).length), gardien: plusRecu(f3), m: 3 } : null,
-    quatre: f4 ? { punisEux: somme(f4, m => (fe(m).punitions || []).filter(x => x.cote !== coteDe(m)).length), m: 4 } : null,
-    plombier: plomb ? { p: plomb.p, buts: plomb.buts, m: qFen.length } : null,
-    tirsD: tD ? { p: tD.p, n: tD.n, m: qFen.length } : null,
-    recrues,
-    porteurs: { filet5: f5 ? auFilet(f5) : null, tirs5: f5 ? tireurs(f5) : null, tirs4: f4 ? tireurs(f4) : null, tirsDernier: d ? tireurs([d]) : null, bas: bas ? { p: bas.p, n: bas.j } : null },
-  };
-}
+export const familleDeMoment = m => (m.famille === 'fil' ? CHOIX_DES_FILS[m.cle] : m.famille === 'dossier' ? DOSSIERS[m.cle] : undefined);
 
 /*
- * RIEN QUE CE QUI EST ARRIVÉ, ET CE QUE L'OPTION FAIT (24 oct. 2026). JP : *tous ces éléments doivent être liés à
- * quelque chose qui arrive avant ou que ça cause dans la simulation*. Un dilemme n'a plus de récit : sa scène dit le
- * fait (`FAITS[...].dire`, les joueurs nommés, les vrais chiffres) et la voix qui en pense quelque chose
- * (js/scenes.js) ; le nom d'une option dit le geste, son gain et son prix disent ce que le moteur en fait.
- */
-export const MOMENTS = {
-  tropdejoueurs: {
-    ico: '🧢', titre: 'Pris en fin de match', fait: 'punitionTard', de: 'ad',
-    options: [
-      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.788, volume: 0.913, duree: 10 },
-      { cle: 'rythme', nom: 'Garder des changements rapides', bon: 'Plus de tirs', prix: 'Plus de punitions', volume: 1.095, discipline: 1.213, duree: 10 },
-    ],
-  },
-  zamboni: {
-    ico: '🧤', titre: 'Le gardien qui ne sort plus', fait: 'gardienCharge', de: 'en',
-    options: [
-      { cle: 'conge', nom: 'Donner deux matchs à {aux}', bon: '{aux} prend le filet ; ensuite, moins de buts contre', prix: 'Deux matchs sans {nom}',
-        action: { gardienAux: 2 }, ensuite: { apres: 2, duree: 10, defense: 0.94 } },
-      { cle: 'garder', nom: 'Garder {nom} devant le filet', prix: 'Plus de buts contre', defense: 1.06, duree: 5 },
-    ],
-  },
-  dernier: {
-    ico: '🧳', titre: 'Une soirée à oublier', fait: 'gardienBattu', de: 'en',
-    options: [
-      { cle: 'reposer', nom: 'Trois matchs de repos : {aux} au filet', bon: '{aux} prend le filet ; ensuite, moins de buts contre', prix: 'Trois matchs sans {nom}',
-        action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.92 } },
-      { cle: 'soutenir', nom: 'Renvoyer {nom} devant le filet', bon: 'Une chance sur deux : moins de buts contre', prix: 'Sinon : plus de buts contre',
-        pari: { chance: 0.5, gagne: { defense: 0.89, duree: 5 }, perd: { defense: 1.11, duree: 5 } } },
-    ],
-  },
-  baton: {
-    ico: '🏒', titre: 'La disette', fait: 'disetteMarqueur', de: 'an',
-    options: [
-      { cle: 'ancien', nom: 'Lui demander de choisir ses coups', bon: '{nom} : plus de précision', prix: '{nom} : moins de tirs', duree: 8, lui: { finition: 1.8, lancers: 0.5 } },
-      { cle: 'travail', nom: 'Lui demander de tirer plus', bon: '{nom} : plus de tirs', prix: '{nom} : moins de précision', duree: 8, lui: { lancers: 1.76, finition: 0.76 } },
-    ],
-  },
-  /*
-   * LES DILEMMES QUI CHANGENT UNE CARTE (S68). Le joueur visé est celui que le fait nomme, et l'option qui porte
-   * `mutation` le change pour le reste de la saison.
-   */
-  camp: {
-    ico: '🎯', titre: 'Le tir du plombier', fait: 'plombier', de: 'ad',
-    options: [
-      { cle: 'gun', nom: 'Faire travailler son tir à {nom}', mutation: 'tir_gun', bon: '{nom} : plus de précision, plus de tirs' },
-      { cle: 'repos', nom: 'Du repos pour tout le monde', bon: 'Moins de blessures', blessure: 0.5, duree: 10 },
-    ],
-  },
-  pointe: {
-    ico: '💣', titre: 'La pointe de l\'avantage', fait: 'tirsD', de: 'ad',
-    options: [
-      { cle: 'chance', nom: 'Donner la pointe de l\'avantage à {nom}', mutation: 'pointe', bon: '{nom} : plus de tirs' },
-      { cle: 'attendre', nom: 'Le garder à la défensive', bon: 'Moins de buts contre', defense: 0.94, duree: 6 },
-    ],
-  },
-  ecole: {
-    ico: '🧓', titre: 'L\'école du vétéran', fait: 'veteranD', de: 'ca',
-    options: [
-      { cle: 'oui', nom: 'Confier {nom} à {vieux}', mutation: 'dur', bon: '{nom} : plus de défense', prix: '{nom} : moins de passes' },
-      { cle: 'non', nom: '{nom} garde son style', bon: 'Rien ne change', rien: true },
-    ],
-  },
-  /*
-   * CONTOURNER LE RÈGLEMENT (JP). Pas un cadeau : chaque trou dans le livre a son prix, sur les canaux qui existent
-   * déjà. Chacun répond à ce que tes matchs viennent de dire : les buts qui ne rentrent plus, les tirs reçus, les
-   * punitions qu'ils ne prennent pas, la défaite par un but, les buts accordés.
-   */
-  courbe: {
-    ico: '📏', titre: 'La courbe illégale', regle: true, fait: 'disette', de: 'eq',
-    options: [
-      { cle: 'laisser', nom: 'Laisser passer les courbes illégales', bon: 'Une chance sur deux : plus de précision', prix: 'Sinon : plus de punitions',
-        pari: { chance: 0.5, gagne: { finition: 1.16, duree: 6 }, perd: { discipline: 1.265, duree: 6 } }, trou: true },
-      { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.825, volume: 0.94, duree: 6 },
-    ],
-  },
-  trapeze: {
-    ico: '🥅', titre: 'Hors du trapèze', regle: true, fait: 'tirsContre', de: 'ad',
-    options: [
-      { cle: 'sortir', nom: 'Laisser {nom} jouer la rondelle partout', bon: 'Moins de buts contre', prix: 'Plus de punitions', defense: 0.92, discipline: 1.19, duree: 6, trou: true },
-      { cle: 'filet', nom: 'Garder {nom} dans sa zone', bon: 'Moins de buts contre', defense: 0.96, duree: 5 },
-    ],
-  },
-  embellir: {
-    ico: '🎭', titre: 'L\'embellissement', regle: true, fait: 'avantagesRares', de: 'an',
-    options: [
-      { cle: 'plonger', nom: 'Vendre les contacts', bon: 'Une fois sur trois : plus de précision', prix: 'Sinon : plus de punitions',
-        pari: { chance: 2 / 6, gagne: { finition: 1.14, duree: 5 }, perd: { discipline: 1.288, duree: 8 } }, trou: true },
-      { cle: 'debout', nom: 'Rester debout', bon: 'Moins de punitions', discipline: 0.825, duree: 6 },
-    ],
-  },
-  desert: {
-    ico: '🚪', titre: 'Le filet désert', regle: true, fait: 'defaiteParUn', de: 'ad',
-    options: [
-      { cle: 'sortir', nom: 'Sortir le gardien plus tôt', bon: 'Plus de tirs', prix: 'Plus de buts contre', volume: 1.095, defense: 1.095, duree: 4, trou: true },
-      { cle: 'attendre', nom: 'Attendre la dernière minute', bon: 'Moins de buts contre', defense: 0.96, duree: 4 },
-    ],
-  },
-  mort: {
-    ico: '🪝', titre: 'Le hockey qu\'on a interdit', irl: 'La règle de l\'obstruction, 2005', regle: true, fait: 'passoire', de: 'ca',
-    options: [
-      { cle: 'accrocher', nom: 'Accrocher, retenir, tuer le jeu au centre', bon: 'Moins de buts contre', prix: 'Moins de tirs, plus de punitions', defense: 0.913, volume: 0.913, discipline: 1.19, duree: 8, trou: true },
-      { cle: 'aujourd', nom: 'Ouvrir le jeu', bon: 'Plus de tirs', prix: 'Plus de buts contre', volume: 1.08, defense: 1.06, duree: 6 },
-    ],
-  },
-  minutes: {
-    ico: '⏱', titre: 'La paire qui ne descend plus', regle: true, fait: 'passoirePaire', de: 'ad',
-    options: [
-      { cle: 'doubler', nom: 'Laisser {noms} sur la glace', bon: 'Ta première paire joue plus', prix: 'Ta troisième paire joue moins ; plus de blessures, plus d\'usure des jambes', D: [1.22, 1, 0.72], blessure: 1.32, energie: 1.128, duree: 6, trou: true },
-      { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Moins de blessures, moins d\'usure des jambes', prix: 'Moins de tirs', blessure: 0.76, energie: 0.872, volume: 0.96, duree: 6 },
-    ],
-  },
-  ...MOMENTS_VIE,
-};
-for (const m of Object.values(MOMENTS)) m.faits = c => faitDuDilemme(m, c);
-
-/*
- * LA FAMILLE D'UNE DÉCISION DE MOMENT : un dilemme (`moment`), une séquence, ou la réponse à un courriel ou
- * à un point de presse (`vie`, js/vie-gm.js), le choix d'un fil (`fil`, V9), ou un dossier de la semaine (`dossier`, V10, js/dossiers.js). Tous ont la même forme { ico, titre, options } et passent
- * par les mêmes fonctions : `effetDeMoment`, `appliquerGestes`, `pariDeDecision`.
- */
-export const familleDeMoment = m => (m.famille === 'sequence' ? SEQUENCES[m.cle] : m.famille === 'vie' ? REPONSES_VIE[m.cle] : m.famille === 'fil' ? CHOIX_DES_FILS[m.cle]
-  : m.famille === 'dossier' ? DOSSIERS[m.cle] : MOMENTS[m.cle]);
-
-export const JOURS_MOMENTS = [8, 14, 25, 33, 42, 51, 60, 70];
-/*
- * LE MATCH OÙ UN DILEMME TOMBE (V19 ; JP : *les événements, plus « randoms » du point de vue du joueur*). La grille
- * `JOURS_MOMENTS` garde les clés des décisions (« m:14 ») ; le jour, lui, se décale de −2 à +2 matchs, tiré de la graine :
- * la même graine rejoue le même jour, une autre en tombe un autre, et rien ne l'annonce d'avance.
- */
-export const matchDuMoment = (graine, k) => k + (entierDeGraine(`${graine}|m${k}`) % 5) - 2;
-/* Le dilemme d'une journée : PUR, graine et jour, jamais deux fois le même. */
-/*
- * `faits` (S80, oct. 2026) : ce qui est VRAIMENT arrivé avant la journée du dilemme (`faitsDuClub`).
- * Chaque dilemme a son fait (`FAITS`) et ne se tire que s'il est vrai ; sans faits, rien ne se tire.
- */
-/*
- * LA GRAINE EN ENTIER (refonte coachs-cartes-incidents, tranche 2, oct. 2026). Les tirages purs (`momentDuJour`,
- * `situationsDuJour`, `objectifsOfferts`, `ajustementsOfferts`) faisaient `Number(graine) >>> 0` : la graine d'une
+ * LA GRAINE EN ENTIER (refonte coachs-cartes-incidents, tranche 2, oct. 2026). Les tirages purs (`situationsDuJour`, `objectifsOfferts`, `ajustementsOfferts`) faisaient `Number(graine) >>> 0` : la graine d'une
  * partie est en base 36 (`nouvelleGraine`) et celle du matin `graine:dé`, donc NaN, donc 0 — toutes les runs tiraient
  * les mêmes dilemmes, situations et accidents aux mêmes jours. Un hachage de la chaîne (FNV-1a) : la même graine
  * tire pareil, une autre tire autrement — `check_verite`.
@@ -2468,53 +2125,6 @@ export function entierDeGraine(graine) {
   x ^= x >>> 15; x = Math.imul(x, 0x2c1b3c6d) >>> 0; x ^= x >>> 12;
   return x >>> 0;
 }
-export function momentDuJour(graine, jour, deja = [], faits = null) {
-  const cles = faits ? Object.keys(MOMENTS).filter(c => !deja.includes(c) && MOMENTS[c].faits(faits)) : [];
-  if (!cles.length) return null;
-  let x = (entierDeGraine(graine) ^ (jour * 0x85ebca6b) ^ 0x5bd1e995) >>> 0;
-  x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
-  // On tire parmi ce qui reste en retirant les déjà vus AVANT le tirage : deux
-  // dilemmes d'une même partie ne se ressemblent jamais.
-  return cles[x % cles.length];
-}
-
-/*
- * LES SÉQUENCES, et elles touchent aux TRIOS. Trois défaites de suite, ou
- * quatre victoires : le vestiaire attend quelque chose de toi. Les options
- * déplacent les minutes (`F`, `D`) comme un roulement, pour quelques matchs.
- */
-export const SEQUENCES = {
-  defaites: {
-    ico: '📉', titre: 'Trois défaites de suite', seuil: 3,
-    recit: 'Le vestiaire est à plat. Les journalistes demandent si ton poste est menacé.',
-    options: [
-      { cle: 'brasser', nom: 'Donner la glace au bas de l\'alignement', bon: 'Le choc : les 2e, 3e et 4e trios jouent plus', prix: 'Ton premier trio joue moins', F: [0.9, 1.05, 1.08, 1.05], volume: 1.095, duree: 8 },
-      { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.913, duree: 8 },
-      { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Si les jambes suivent, on redevient une équipe physique', prix: 'Sinon, des corps fatigués',
-        pari: { chance: 0.5, gagne: { robustesse: 3, duree: 8 }, perd: { blessure: 1.5, duree: 8 } } },
-      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.875, discipline: 1.235, blessure: 1.24, trou: true, duree: 8 },
-    ],
-  },
-  victoires: {
-    ico: '📈', titre: 'Quatre victoires de suite', seuil: 4,
-    recit: 'Tout roule. Ton premier trio ne rate plus rien.',
-    options: [
-      { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.48, duree: 8 },
-      { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', defense: 0.92, duree: 8 },
-      { cle: 'tous', nom: 'Tout le monde joue', bon: 'Le 4e trio goûte au succès, les corps se reposent', prix: 'Tes vedettes jouent moins', F: [0.9, 0.97, 1.05, 1.2], D: [0.95, 1, 1.08], blessure: 0.68, duree: 8 },
-      { cle: 'forcer', nom: 'La séquence passe avant le repos', bon: 'Le premier trio ne sort plus', prix: 'Les jambes lâchent, et l\'arbitre aussi', F: [1.22, 1, 0.95, 0.8], discipline: 1.19, blessure: 1.32, trou: true, duree: 8 },
-    ],
-  },
-};
-const DUREE_SEQUENCE = 8;
-/*
- * TROIS OPTIONS AU PLUS (V19, tranche 6 ; JP : *trois options au plus*). Une séquence en avait quatre : deux sont retirées de l'écran
- * (la pratique à huis clos, le trio en feu doublé), mais restent ici — une partie d'avant qui les a choisies rejoue le même effet
- * (`effetDeMoment` les lit par leur clé, les clés de sauvegarde ne bougent jamais).
- */
-const OPTIONS_RETIREES = new Set(['defaites.huis', 'victoires.doubler']);
-/** Les options qu'une séquence offrait à l'écran (V20 : les séquences ne s'offrent plus ; une partie d'avant les relit). */
-export const optionsDeSequence = cle => SEQUENCES[cle].options.filter(o => !OPTIONS_RETIREES.has(`${cle}.${o.cle}`));
 
 /*
  * LES OBJECTIFS DU PROPRIO. Aux journées 0 et 41, trois défis pour tes vingt
@@ -2631,12 +2241,12 @@ export function effetDeMoment(d, team = null) {
   const fam = familleDeMoment(m);
   const o = fam && fam.options.find(x => x.cle === m.choix);
   if (!o) return null;
-  const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
+  const duree = o.duree || DUREE_MOMENT;
   // Un dossier (V10) paie ou coûte des jetons (`gain`) : la caisse les lit sur la décision, pas l'effet ; son plafond
-  // (`plafond`) aussi, et ses conséquences concrètes (V21 : l'expérience du coach, un adjoint gagné ou perdu, un soin).
+  // (`plafond`) aussi, et ses conséquences concrètes (V21 : l'expérience du coach, un soin).
   // Ce qui va au joueur nommé (`lui`, V11) n'est pas un effet d'équipe : `appliquerDecision` le pose sur lui.
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, plafond: _pl, xp: _x, adjoint: _b, perdAdjoint: _pb, soin: _so, ...canaux } = o;
-  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l; void _pl; void _x; void _b; void _pb; void _so;
+  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, plafond: _pl, xp: _x, soin: _so, ...canaux } = o;
+  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l; void _pl; void _x; void _so;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
   // Le nom de l'option nomme son joueur (« … pour {nom} »), comme à l'écran du choix : « Ce qui court » le relit tel quel.
@@ -5297,8 +4907,6 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   noterTrous(A, LA); noterTrous(B, LB);
   // LE PLAN DE MATCH (V17) : posé avant le profil du match, retiré après ; au duel, chaque période pose le sien.
   const retirerPlans = (A._gros || B._gros || {}).duel ? () => {} : poserLesPlans(A, B, LA, LB);
-  // LES ADJOINTS (V21) : leurs échanges, tous les matchs, le duel compris.
-  const retirerAdjoints = poserLesAdjoints(A, B, LA, LB);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   let gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
   const partantA = gA, partantB = gB;
@@ -5477,7 +5085,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     // La suite (V10, les moments « après une défaite », « après trois victoires ») : +n victoires, −n défaites.
     for (const [T, w] of [[A, winA], [B, !winA]]) T._suite = w ? Math.max(1, (T._suite || 0) + 1) : Math.min(-1, (T._suite || 0) - 1);
   }
-  retirerPlans(); retirerAdjoints();
+  retirerPlans();
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
 
@@ -5993,25 +5601,21 @@ function gagnerXp(T, bonus = 0) {
   if (T && T.perso) T.xpSaison = (T.xpSaison || 0) + XP.victoire + bonus;
 }
 /*
- * LE COACH, UN PERSONNAGE (V21, js/pouvoirs.js), ET SES ADJOINTS (js/adjoints.js). La décision `coach` (le jour 0 de
- * chaque saison) porte son expérience d'avant, ses talents, sa main d'adjoints et son staff ; `talent`, `adjoint`
- * ({ cle }), `staff` ([cle…], les trois en poste) et `perdAdjoint` s'y ajoutent au jour dit. L'expérience de la saison,
- * le moteur la compte (`xpSaison`, `gagnerXp`).
+ * LE COACH, UN PERSONNAGE (V21, js/pouvoirs.js). La décision `coach` (le jour 0 de chaque saison) porte son expérience
+ * d'avant et ses talents ; `talent` et `xpCoach` s'y ajoutent au jour dit. L'expérience de la saison, le moteur la
+ * compte (`xpSaison`, `gagnerXp`). V22 : les adjoints du staff sont partis ; une vieille décision `adjoint`, `staff` ou
+ * `perdAdjoint` n'est plus lue.
  */
 function appliquerPerso(team, d) {
   if (d.coach && d.coach.cle && POUVOIRS[d.coach.cle]) {
     // L'entraîneur (une vraie carte de coach, js/coachs-reels.js) : son nom, sa saison, sa maîtrise (de 1 à 1,2).
-    const P = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])], adjoints: (d.coach.adjoints || []).filter(k => ADJOINTS[k]),
-      ...(Array.isArray(d.coach.staff) ? { staff: [...d.coach.staff] } : {}),
+    const P = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])],
       ...(d.coach.chef ? { chef: { ...d.coach.chef } } : {}), maitrise: Math.min(1.2, Math.max(1, Number(d.coach.maitrise) || 1)) };
-    team.perso = { ...P, staff: staffDe(P) };
+    team.perso = P;
   }
   if (!team.perso) return;
   if (d.talent && Number.isInteger(d.talent.p)) team.perso = { ...team.perso, talents: [...team.perso.talents, d.talent.p] };
-  if (d.adjoint && ADJOINTS[d.adjoint.cle]) team.perso = { ...team.perso, ...avecAdjoint(team.perso, d.adjoint.cle) };
-  if (Array.isArray(d.staff)) team.perso = { ...team.perso, staff: staffDe({ ...team.perso, staff: d.staff }) };
   if (Number(d.xpCoach)) team.perso = { ...team.perso, xp: Math.max(0, team.perso.xp + Number(d.xpCoach)) };
-  if (d.perdAdjoint) team.perso = { ...team.perso, adjoints: team.perso.adjoints.filter(k => k !== d.perdAdjoint), staff: staffDe(team.perso).filter(k => k !== d.perdAdjoint) };
 }
 
 function appliquerDecision(team, d, graine = 0) {
@@ -7511,7 +7115,7 @@ const CIBLES = {
   pointe: { g: 'D', s: pr => pr.manieur - pr.offensif },
   mou: { g: 'D', s: pr => -pr.defensif },
 };
-export function cibleMutation(team, cle) {
+function cibleMutation(team, cle) {
   const M = MUTATIONS[cle];
   const C = M && CIBLES[M.cible];
   if (!C) return null;
@@ -8377,7 +7981,7 @@ const AMPLEUR_CHOIX = 2.5;
       e[k] = Math.round(Math.min(2, Math.max(0.5, 1 + (e[k] - 1) * AMPLEUR_CHOIX)) * 10000) / 10000;
     }
   };
-  for (const fam of [...Object.values(MOMENTS), ...Object.values(SEQUENCES), ...Object.values(AVANT_GROS), ...Object.values(REPONSES_VIE)]) {
+  for (const fam of Object.values(AVANT_GROS)) {
     for (const o of (fam && fam.options) || []) { amplifier(o); amplifier(o.ensuite); if (o.pari) { amplifier(o.pari.gagne); amplifier(o.pari.perd); } }
   }
 }
@@ -8834,31 +8438,6 @@ function poserLesPlans(A, B, LA, LB) {
       retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
     }
     retraits.push(poserFxDeJoueurs(fx.joueurs));
-  }
-  return () => { for (const r of retraits.reverse()) r(); };
-}
-/*
- * LES ADJOINTS (V21, js/adjoints.js) : chacun un échange, posé le temps du match — sur ton club, sur l'adversaire, sur
- * tes gardiens n° 1 et n° 2 (la première et la deuxième case du filet). Rend la fonction qui les retire.
- */
-function poserLesAdjoints(A, B, LA, LB) {
-  const retraits = [];
-  const poser = (X, e) => {
-    const avait = '_effetMatch' in X, avant = X._effetMatch;
-    X._effetMatch = [...(avant || []), e];
-    retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
-  };
-  for (const [T, O, LT] of [[A, B, LA], [B, A, LB]]) {
-    for (const k of staffDe(T.perso)) {
-      const J = ADJOINTS[k];
-      if (!J) continue;
-      if (J.effet) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...J.effet });
-      if (J.adv) poser(O, { source: 'adjoint', nom: J.nom, ico: J.ico, ...J.adv });
-      if (J.gardiens) {
-        const [n1, n2] = SLOTS.filter(sl => sl.group === 'G' && !sl.scratch).map(sl => LT[sl.i]);
-        retraits.push(poserFxDeJoueurs([[n1, { arrets: J.gardiens.partant }], [n2, { arrets: J.gardiens.aux }]].filter(([p]) => p)));
-      }
-    }
   }
   return () => { for (const r of retraits.reverse()) r(); };
 }

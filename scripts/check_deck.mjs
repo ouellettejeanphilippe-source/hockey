@@ -34,7 +34,6 @@ import {
 import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, payloadDe } from '../js/banque.js';
 import { monterLesDoublons, missionsDuCartable, decennieDe } from '../js/cartable.js';
 import { cartesDeLaPartie, PALIERS_PACK } from '../js/inventaire.js';
-import { adjointsOfferts } from '../js/adjoints.js';
 import { BANQUE } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -148,8 +147,7 @@ console.log('\n  Le deck (S73)\n');
  * TES CARTES (V9, tranche 5b — docs/refonte-v9.md § 6.4 ; V16). La poche, la main de la semaine et ses deux cartes par
  * semaine sont parties : une carte se joue quand on veut, autant qu'on veut ; les places et la carte de trop aussi
  * (V16). Les cartes reportées au jour 0 d'une saison neuve (`poche`) y entrent. Le palier de la saison (`pp:<match>`)
- * offre un adjoint parmi trois (V21) ; pris, il va au staff du coach. Le butin d'un gros match gagné (`r:<jour>`,
- * V13-2) aussi.
+ * et le butin d'un gros match gagné (`r:<jour>`, V13-2) n'y mettent rien.
  */
 {
   const ev = idsDe('consommable').filter(id => BANQUE[id].vie !== 'permanent').slice(0, 5);
@@ -162,16 +160,12 @@ console.log('\n  Le deck (S73)\n');
   const poche = cartesDeLaPartie({ decisions: [report], rogue: true });
   const apres = cartesDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], rogue: true });
   exiger('les cartes de la saison d\'avant entrent au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
-  // V21 : le palier offre un adjoint parmi trois (`adjointsOfferts`, js/adjoints.js) : pris, il va au staff du coach, pas à tes cartes.
-  const offres = PALIERS_PACK.map(p => adjointsOfferts([], 'deck', `pp${p}`));
-  exiger('chaque palier offre trois adjoints distincts, purs', offres.every(o => o.length === 3 && new Set(o).size === 3)
-    && PALIERS_PACK.every((p, i) => JSON.stringify(adjointsOfferts([], 'deck', `pp${p}`)) === JSON.stringify(offres[i])), offres.map((o, i) => `${PALIERS_PACK[i]} : ${o.join(', ')}`).join(' · '));
-  const prise = { jour: 21, palier: `pp:${PALIERS_PACK[0]}`, adjoint: { cle: offres[0][1] } };
-  const avec = cartesDeLaPartie({ decisions: [prise], rogue: true });
-  exiger('l\'adjoint pris au palier va au staff, pas à tes cartes', avec.length === 0, avec.map(x => `${x.ref} ${x.id}`).join(' · ') || 'aucune carte');
-  const butin = { jour: 31, palier: 'r:30', adjoint: { cle: offres[1][0] } };
-  const apresButin = cartesDeLaPartie({ decisions: [butin], rogue: true });
-  exiger('l\'adjoint du butin d\'un gros match gagné va au staff, pas à tes cartes', apresButin.length === 0, apresButin.map(x => `${x.ref} ${x.source}`).join(' · ') || 'aucune carte');
+  // Un palier ou un butin d'un gros match n'ajoute aucune carte à l'inventaire : V22, les adjoints du staff sont partis
+  // (ceux de la main reviennent à la phase 3) ; une vieille décision `adjoint` ne donne rien à tes cartes.
+  const prise = { jour: 21, palier: `pp:${PALIERS_PACK[0]}`, adjoint: { cle: 'canonnier' } };
+  const butin = { jour: 31, palier: 'r:30', adjoint: { cle: 'mur' } };
+  const avec = cartesDeLaPartie({ decisions: [prise, butin], rogue: true });
+  exiger('un palier ou un butin ne met aucune carte dans tes cartes', avec.length === 0, avec.map(x => `${x.ref} ${x.id}`).join(' · ') || 'aucune carte');
 }
 
 /*

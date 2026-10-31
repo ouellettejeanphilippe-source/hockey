@@ -13,7 +13,6 @@ import { hubActif } from './coquille.js';
 import { COACHS, VOIES } from './coachs.js';
 import { chargerCoachs, lotoDesCoachs, motDuRang } from './coachs-reels.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
-import { staffDe } from './adjoints.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -84,7 +83,7 @@ function resultatsRogue(j) {
   }
   // V8 : un rival choisi paie son butin (un multiple du gros match) ; les autres gros matchs, un.
   const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0);
-  // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`) : un adjoint depuis la V16 (`place`), une place à la V10, au deck avant.
+  // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`) : (`place` ou `carte`, des vieilles parties).
   const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && (d.place || d.carte)).length;
   // 1.0 (J1-C) : les rondes de séries gagnées (`finDesSeriesRogue` les pose) — la prime `JETONS.serie` se verse enfin.
   const series = (G.rogue && G.rogue.series && G.rogue.series.rondes) || 0;
@@ -561,11 +560,11 @@ export function masseDuLundi(j) {
   const espace = pl.cap - capUsed(pl);
   return { espace, libre: money(Math.max(0, espace)), lourd: lourd ? { n: lourd.n, cle: getPlayerKey(lourd), sal: money(capHit(lourd, pl)), dollars: capHit(lourd, pl) } : null };
 }
-/* Le coach de la run (V21) : son nom, son niveau et son staff, ce que la tête du coach (js/dossiers.js `laTete`) lit. */
+/* Le coach de la run (V21) : son nom et son niveau, ce que les faits du lundi lisent (js/saison.js `faitsDuLundi`). */
 export function coachsDuLundi() {
   const you = G.ligue && G.ligue.you, perso = you && you.perso;
   if (!perso || !COACHS[perso.cle]) return null;
-  return { cle: perso.cle, nom: COACHS[perso.cle].nom, ico: COACHS[perso.cle].ico, niveau: niveauDuPerso({ ...perso, xpSaison: you.xpSaison || 0 }), adjoints: (perso.adjoints || []).length };
+  return { cle: perso.cle, nom: COACHS[perso.cle].nom, ico: COACHS[perso.cle].ico, niveau: niveauDuPerso({ ...perso, xpSaison: you.xpSaison || 0 }) };
 }
 /*
  * JOUER UNE CARTE DE L'INVENTAIRE : sa cible (un joueur, un blessé, une
@@ -1135,7 +1134,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     // V21 : le coach de la run, un personnage (js/pouvoirs.js) — son expérience et ses choix passent d'une saison à
     // l'autre (`perso`, la décision du jour 0, js/banc.js) — et le prestige du club, FIXÉ pour la run (js/rogue.js
     // `PRESTIGES`) : un rang gagné en route sert la suivante.
-    ...(coach && COACHS[coach.cle] ? { coach: coach.cle, perso: { cle: coach.cle, xp: 0, talents: [], adjoints: [], chef: { id: coach.id, n: coach.n, saison: coach.saison, tag: coach.tag }, maitrise: coach.maitrise } } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta),
+    ...(coach && COACHS[coach.cle] ? { coach: coach.cle, perso: { cle: coach.cle, xp: 0, talents: [], chef: { id: coach.id, n: coach.n, saison: coach.saison, tag: coach.tag }, maitrise: coach.maitrise } } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta),
     classeur: { cases: D.cases, pris: tires.map(x => x.cle) },
     // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
     cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],
@@ -1637,7 +1636,7 @@ async function continuerRun(gardes = [], lotos = []) {
   for (const p of gardes) G.variantes.cartes[getPlayerKey(p)] = meilleureVariante(lireCartable().joueurs[getPlayerKey(p)]) || G.variantes.cartes[getPlayerKey(p)];
   const decsSaison = decisionsDeLaPartie();
   // V21 : le coach de la run continue — son expérience de la saison (séries comprises) rejoint celle d'avant.
-  if (L.you && L.you.perso) G.rogue.perso = { ...L.you.perso, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])], adjoints: [...(L.you.perso.adjoints || [])], staff: staffDe(L.you.perso) };
+  if (L.you && L.you.perso) G.rogue.perso = { ...L.you.perso, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])] };
   // Jalon Q : les cartes de la partie te suivent — celles pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
   const poche = cartesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);
   if (poche.length) report.push({ jour: 0, poche, report: true });

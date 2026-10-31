@@ -63,7 +63,6 @@ js/scenes.js          les scènes des choix du Rogue : qui demande, le fait déj
 js/vie-gm.js          la vie d'un DG-coach en messages : les voix (`EXPEDITEURS`), le joueur du fait, les choix des fils (`CHOIX_DES_FILS`) — `check_vie`
 js/arcs.js            les arcs d'un joueur et ses défis (`DEFIS`) : nés d'un fait du journal du club, suivis au Vestiaire — `check_arcs`
 js/verdicts.js        ta semaine : le verdict d'un choix à effet daté, le lundi d'après, en vraies stats — `check_verdicts`
-js/cartes-vie.js      « une saison dans la vie d'un DG-coach » : les cartes neuves de la banque, au même format que les autres
 js/profil-style.js    le profil de style : la preuve que ton build joue, lue dans les feuilles — `check_profil`
 js/causes.js          ce qui a fait le match : les causes qui ont décidé d'un lancer, dites à ton club (sommaire, direct, bilan)
 js/entracte.js        le rapport d'entracte en cartons

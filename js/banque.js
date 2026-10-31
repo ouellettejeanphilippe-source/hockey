@@ -5,7 +5,7 @@
  * créer de zéro avec la nouvelle philosophie en tête*.
  *
  * UN SEUL REGISTRE pour tout ce qui se joue. Depuis la V21 (docs/refonte-v21.md), le personnel est parti : les
- * adjoints sont des systèmes de jeu, des échanges (js/adjoints.js), offerts aux moments forts, jamais des cartes. Restent ici les
+ * adjoints du staff sont partis (V22), jamais des cartes de la banque. Restent ici les
  * cartes rares (V16, tranche 6, § 4d) : les retouches d'édition de l'atelier, le stage du coach, trois soins et
  * l'échange d'un doublon.
  * La masse salariale et le congédiement sont des dossiers du proprio (js/dossiers.js). Les cartes de match sont parties avec la main du duel (V13-2,
@@ -79,7 +79,7 @@ export const CONSOMMABLES = {
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
 const SOURCES_MOD = ['atelier'];
 /* V16 (docs/refonte-v16.md) : de l'atelier, seules les retouches d'édition restent des cartes ; l'équipement, les clauses,
- * le feu et les modifs d'un moment sont devenus des adjoints, partis à leur tour (V21). */
+ * le feu et les modifs d'un moment sont devenus des adjoints, partis à leur tour (V21, V22). */
 const RARETE_MOD = { pinceau: 'commune', fenetre: 'peu', dorure: 'rare', lustre: 'legendaire', mentorTrio: 'rare' };
 // Le mentor (`mentorTrio`) n'est pas une carte : il vient du choix d'un fil (js/vie-gm.js `CHOIX_DES_FILS`).
 const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source) && !MUTATIONS[k].mentor);

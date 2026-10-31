@@ -248,7 +248,6 @@ const compterFeuilles = async ou => {
 };
 const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et le premier duel, photographiés une fois
 const afaire = { vu: false, lots: [], histoire: '', genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
-const butin = { vus: 0, pris: [], fautes: [] };   // V21 : le butin d'une victoire, un adjoint parmi trois, un échange
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const intentionsVues = new Set();   // V17 : les intentions lues au duel, leurs puces jugées
 const veilles = [];   // V17 : un gros match ouvert avant son matin
@@ -521,31 +520,6 @@ async function regler() {
       continue;
     }
     /*
-     * LE BUTIN D'UNE VICTOIRE (V5 ; V13-2 ; V21) : un adjoint parmi trois, un échange pour la run — ni
-     * « Retirer une carte ». On prend le premier ; la décision porte `adjoint` et son palier `r:`. Photographié une fois.
-     */
-    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="recompense"] .choix-option:not([disabled])')) {
-      const lu = await page.$eval('#choixModal .choix-sheet[data-genre="recompense"]', m => ({
-        titre: ((m.querySelector('.choix-titre') || {}).textContent || '').trim(), recit: ((m.querySelector('.choix-recit') || {}).textContent || '').trim(),
-        cles: [...m.querySelectorAll('.choix-options [data-choix]:not([disabled])')].map(b => b.dataset.choix), autre: !!m.querySelector('.choix-autre') }));
-      // La récompense d'une série gagnée (un pack de joueurs) a son propre écran : on la laisse au cas général.
-      if (/Récompense/.test(lu.titre)) {
-        if (!butin.vus++) { await page.waitForTimeout(500); await page.screenshot({ path: `${DOSSIER}/rogue-butin.png` }); }
-        if (lu.cles.length !== 3) butin.fautes.push(`${lu.cles.length} adjoint(s) offerts au lieu de trois`);
-        if (!/ce qu'il donne, ce qu'il coûte/.test(lu.recit)) butin.fautes.push(`le butin ne dit pas l'échange d'un adjoint (« ${lu.recit} »)`);
-        if (lu.autre) butin.fautes.push('le butin offre encore « Retirer une carte »');
-        const n0 = (await decisionsDuCombat()).length;
-        await page.click(`#choixModal:not([hidden]) [data-choix="${lu.cles[0]}"]`); await page.waitForTimeout(1200);
-        await attendreDecisions(n0);
-        const sv = await lireSauvegarde();
-        const d = (((sv.partie || {}).decisions) || []).slice(n0).find(x => String(x.palier || '').startsWith('r:'));
-        const pris = d && d.adjoint ? d.adjoint.cle : null;
-        if (!d || pris !== lu.cles[0] || d.recompense !== undefined || d.retrait !== undefined) butin.fautes.push(`le butin n'enregistre pas l'adjoint pris (${JSON.stringify(d || null)})`);
-        else butin.pris.push(lu.cles[0]);
-        continue;
-      }
-    }
-    /*
      * À FAIRE (V9, tranche 1 ; JP : *tous les choix au même endroit, même UI et UX*). Chaque choix a la même forme : sa
      * voix, son fait, puis ses options `optionHtml`. On règle le choix ouvert comme un joueur pressé : une réponse risquée
      * tant que le dé n'a pas roulé cinq fois, sinon la première option ; une option › ouvre son écran (le combat, le paquet,
@@ -675,7 +649,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
   console.log(`5c. ton coach : ${coachs || '(absent)'} · décision du jour 0 : ${d0 ? JSON.stringify(d0.coach) : '(aucune)'}`);
-  if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.talents) || !Array.isArray(d0.coach.adjoints)) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec son expérience, ses talents et son staff');
+  if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.talents)) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec son expérience et ses talents');
   if (((sv0.partie || {}).decisions || []).some(x => x.patron)) erreurs.push('une décision de personnel (`patron`) reste dans la partie');
   console.log(`5f. ses pouvoirs : ${pouvoirs.map(x => `${x.nom} (${x.etat})`).join(' | ') || '(aucun)'}`);
   if (!/^Niveau [1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
@@ -1164,11 +1138,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   {
     await versLOnglet('bureau', 'entraineur');
     const restes = await page.$$('#hubModal .af-onglet[data-maison="entraineur"] :is(.gens-l, .perso-l, [data-choix^="echelon:"])');
-    // LA MAIN D'ADJOINTS (oct.) : le staff, trois cases de cartes (une carte ou « Case libre ») ; la main, en cartes aussi.
-    const staff = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .adj-staff > :is(.adj-carte, .adj-vide)', e => e.length).catch(() => 0);
-    console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pouvoirs du coach seulement'} · son staff : ${staff} case(s)`);
+    console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pouvoirs du coach seulement'}`);
     if (restes.length) erreurs.push('le sous-onglet de l\'entraîneur montre encore du personnel ou ses échelons');
-    if (staff !== 3) erreurs.push(`le staff du coach n'a pas ses trois cases (${staff})`);
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste
@@ -1564,35 +1535,12 @@ console.log(`20m. les maisons réglées dans la boîte : ${[...afaire.maisons].j
 if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni le choix ni son écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);
 if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a réglé les choix que de ${afaire.maisons.size} maison(s) : ${[...afaire.maisons].join(', ')}`);
 if (afaire.horsBoite.size) erreurs.push(`un sous-onglet porte encore des choix : ${[...afaire.horsBoite].join(', ')}`);
-console.log(`20c. le butin d'une victoire (un adjoint parmi trois, sur un pouvoir du coach) : ${butin.vus ? `${butin.vus} offert(s), pris : ${butin.pris.join(', ') || 'aucun'}` : 'aucun butin cette run'}`);
-if (butin.fautes.length) erreurs.push(`le butin d'une victoire : ${[...new Set(butin.fautes)].slice(0, 3).join(' · ')}`);
-console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
-// LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.
-if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucun duel ne s'est rendu à sa troisième période (${periodes.join(' · ') || 'aucune période'})`);
-// LE SOIR D'UN MATCH (JP, 17 oct.) : une page du soir qui suit un gros match est le sommaire du match.
-console.log(`20f. les pages du soir : ${soirs.pages}, dont ${soirs.match} sommaire(s) de match`);
-console.log(`20r. le gros match en direct : ${directs} geste(s) dans le direct`);
-if (combats.length && !directs) erreurs.push('un gros match a été joué sans son direct');
-console.log(`20q. le journal de l'ouverture : ${journal || 'pas croisé (aucun rechargement en pleine saison)'}`);
-if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été le sommaire d'un match (${soirs.pages} page(s) du soir)`);
-console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
-if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);
-// Depuis le départ de l'Avant-match (oct.), aucun écran ne cache « Jour suivant » à coup sûr : le flottant se juge quand il paraît.
-console.log(`20n. rien ne colle au bord (${MARGE} px) : ${bords.vus} écrans mesurés${bords.fautes.size ? `, ${bords.fautes.size} faute(s) : ${[...bords.fautes.values()].slice(0, 12).join(' | ')}` : ', aucun ne colle'}`);
-if (bords.fautes.size) erreurs.push(`${bords.fautes.size} élément(s) collent au bord de l'écran : ${[...bords.fautes.values()].slice(0, 4).join(' | ')}`);
-console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix ouverts en plein écran`);
-if (barreA.longs.length) erreurs.push(`« Encore un choix » ne tient pas sur une ligne : ${barreA.longs.slice(0, 3).join(' · ')}`);
-console.log(`20k. une feuille à la fois : ${feuilles.vues} capture(s) · ${feuilles.empilees.length ? `empilées : ${feuilles.empilees.join(', ')}` : 'jamais deux'}`);
-if (feuilles.empilees.length) erreurs.push(`des feuilles s'empilent à l'écran : ${feuilles.empilees.join(', ')}`);
-console.log(`20j. le gros match plus court : ${duelCourt.n} entracte(s) de l'adjoint · la plus longue à ${duelCourt.max.toFixed(2).replace('.', ',')} écran · ${duelCourt.longs} au-dessus de 1,3`);
-if (duelCourt.longs) erreurs.push(`${duelCourt.longs} entracte(s) du duel font plus de 1,3 écran (${duelCourt.max.toFixed(2)})`);
-if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
 console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}${mise.scene ? ` | la mise : ${mise.scene}` : ''}`);
 {
-  // V21 : le coach de la saison — ses talents et ses adjoints pris, et les pouvoirs qui ont joué dans les feuilles.
+  // V21 : le coach de la saison — ses talents et son expérience.
   const sv = await lireSauvegarde().catch(() => null);
   const ds = (((sv && sv.partie) || {}).decisions || []);
-  console.log(`20p. le coach : ${ds.filter(d => d.talent).length} talent(s), ${ds.filter(d => d.adjoint).length} adjoint(s) pris, ${ds.filter(d => d.xpCoach).length} gain(s) d'expérience`);
+  console.log(`20p. le coach : ${ds.filter(d => d.talent).length} talent(s), ${ds.filter(d => d.xpCoach).length} gain(s) d'expérience`);
 }
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();

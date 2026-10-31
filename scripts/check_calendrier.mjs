@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, effetsEnCours, matchsEntre, jourEvenement,
-  soirEreintant, dosADos, JOURS_MOMENTS, JOURS_SITUATIONS, PALIERS_CARTES } from '../js/sim.js';
+  soirEreintant, dosADos, JOURS_SITUATIONS, PALIERS_CARTES } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -76,7 +76,7 @@ exiger('ses quatre matchs sont les quatre premiers du club', fx && matchsEntre(t
 
 // 3. Les événements, datés en matchs, tombent un jour de congé quand il y en a un.
 let conges = 0, possibles = 0, faux = 0;
-for (const t of teams) for (const k of [...JOURS_MOMENTS, ...JOURS_SITUATIONS, ...PALIERS_CARTES]) {
+for (const t of teams) for (const k of [...JOURS_SITUATIONS, ...PALIERS_CARTES]) {
   const j = jourEvenement(t, k), m = t._jours[k];
   const congeAvant = m > 0 && !t._jours.includes(m - 1);
   if (congeAvant) { possibles++; if (j === m - 1) conges++; else faux++; } else if (j !== m) faux++;
@@ -103,7 +103,7 @@ exiger('le soir éreintant est un dos-à-dos d\'un des deux clubs', ecartesSoir 
   const bloc = (src.match(/const marquesDeSaison = \(\) => \{[\s\S]*?\n  \};/) || [''])[0];
   exiger('la route et le calendrier lisent la même liste', !!bloc && /routeHtml\(jour, N, marquesDeSaison\(\)\)/.test(src) && /for \(const x of marquesDeSaison\(\)\)/.test(src));
   exiger('un événement et une situation à venir ne s\'annoncent pas : rien n\'est promis d\'avance', !/un événement possible/.test(bloc) && !/vivra peut-être quelque chose/.test(bloc));
-  exiger('le passé ne marque que ce qui est arrivé (les décisions prises, les situations vécues)', /d\.moment\.famille === 'moment'/.test(bloc) && /you\.situations/.test(bloc));
+  exiger('le passé ne marque que ce qui est arrivé (les situations vécues ; la banque d\'événements est vide, V22)', !/d\.moment\.famille === 'moment'/.test(bloc) && /you\.situations/.test(bloc));
   exiger('le verdict du proprio et les accidents sont sur la route', /le verdict du proprio/.test(bloc) && /source === 'accident'/.test(bloc));
 }
 

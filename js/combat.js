@@ -35,7 +35,6 @@
  * récompenses offertes aussi. Une partie reprise retrouve les mêmes mains.
  */
 import { hache, SENS_DES_CANAUX } from './util.js';
-import { CARTES_MATCH_VIE } from './cartes-vie.js';
 
 export const ENERGIE_MAIN = 3;
 
@@ -210,7 +209,6 @@ export const CARTES_MATCH = {
    * (check_gros, check_robot), et la v2 ne change pas la difficulté.
    */
 
-  ...CARTES_MATCH_VIE,
 };
 
 /* Les canaux qu'une carte touche (1.0, J1-G) : ce qui est bon quand ça monte, et quand ça baisse (js/util.js). */
