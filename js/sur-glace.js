@@ -14,7 +14,7 @@
  *   Start, Échap, ✕                        retour au menu
  */
 import { nouvelleGlace, avancer, remise, reglesDeLaGlace, lame, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, GARDIEN, RONDELLE } from './physique.js';
-import { nouvelleGraine } from './sim.js';
+import { nouvelleGraine, entierDeGraine } from './sim.js';
 import { jouerSon } from './sons.js';
 import { esc } from './util.js';
 
@@ -22,6 +22,24 @@ const VUE = 20;          // la caméra montre ça de glace EN TRAVERS, m (JP, 31
 const SUIVI = 6;         // la vitesse à laquelle elle rattrape la rondelle, par seconde
 const SONS = { tir: 'tir', passe: 'passe', but: 'but', arret: 'arret', poteau: 'retour', bande: 'tap', echec: 'echec', gel: 'sifflet', remise: 'mj' };
 const COULEURS = { glace: '#e8eef3', ligne: '#c8102e', bleue: '#1d4fa3', bande: '#3a3f4a', toi: '#f47b20', plot: '#8d939f', gardien: '#f2f4f7', rondelle: '#111' };
+/*
+ * LES VISAGES (JP : *c'est poche les formes, fait un sprite, ou rond avec face d'un joueur*). Un patineur est un
+ * jeton rond aux couleurs de son chandail, la vraie face d'un joueur dedans — les visages recadrés d'img/mugs, les
+ * mêmes que les cartes. Une distribution de vedettes ; la graine de la glace choisit la tienne.
+ */
+const VEDETTES = [8478402, 8471675, 8447400, 8448782, 8471214, 8448624];   // McDavid, Crosby, Gretzky, Lemieux, Ovechkin, Lafleur
+const PLOT = 8459455, GARDIEN_VISAGE = 8451033;                             // Pronger ; Roy
+const images = new Map();
+function visage(id) {
+  let im = images.get(id);
+  if (!im) {
+    im = new Image();
+    im.onerror = () => { if (!im.src.endsWith('silhouette.webp')) im.src = 'img/mugs/silhouette.webp'; };
+    im.src = `img/mugs/${id}.webp`;
+    images.set(id, im);
+  }
+  return im.complete && im.naturalWidth > 0 ? im : null;
+}
 
 let el = null, canvas = null, cx = null, etat = null, raf = null, dernier = 0, ctxJeu = null;
 let cam = { x: 0, y: 0, k: 20 };
@@ -32,11 +50,14 @@ let flash = { mot: '', reste: 0 };
 let trace = [];
 let vueEntiere = false;
 let taille = { w: 1, h: 1, dpr: 1, portrait: false };
+let tonVisage = VEDETTES[0];
 
 /* ---------- ouvrir, fermer ---------- */
 export function ouvrirSurGlace(ctx) {
   ctxJeu = ctx;
   etat = nouvelleGlace(nouvelleGraine());
+  tonVisage = VEDETTES[entierDeGraine(etat.graine) % VEDETTES.length];
+  for (const id of [tonVisage, PLOT, GARDIEN_VISAGE]) visage(id);
   trace = []; flash = { mot: '', reste: 0 }; vueEntiere = false;
   el = document.createElement('div');
   el.id = 'glaceModal';
@@ -275,18 +296,34 @@ function patinoire() {
   }
 }
 
+/* Un jeton : l'ombre, l'anneau du chandail, la face dedans, et l'épaule qui dit le cap. */
+function jeton(x, y, r, couleur, id, cap, fort) {
+  cx.fillStyle = 'rgba(0,0,0,0.22)';
+  cx.beginPath(); cx.ellipse(x + 0.08, y + 0.12, r * 1.02, r * 0.9, 0, 0, Math.PI * 2); cx.fill();
+  cercle(x, y, r, couleur, fort ? '#fff' : 'rgba(0,0,0,0.4)', fort ? 0.07 : 0.04);
+  // L'épaule : un croissant plus sombre à l'arrière, l'avant reste clair.
+  cx.strokeStyle = 'rgba(0,0,0,0.3)'; cx.lineWidth = r * 0.3;
+  cx.beginPath(); cx.arc(x, y, r * 0.84, cap + Math.PI * 0.6, cap + Math.PI * 1.4); cx.stroke();
+  const im = visage(id), rf = r * 0.72;
+  cx.save();
+  cx.beginPath(); cx.arc(x, y, rf, 0, Math.PI * 2); cx.clip();
+  if (im) cx.drawImage(im, x - rf, y - rf, rf * 2, rf * 2);
+  else { cx.fillStyle = '#d8c3a5'; cx.fillRect(x - rf, y - rf, rf * 2, rf * 2); }
+  cx.restore();
+  cx.strokeStyle = 'rgba(255,255,255,0.85)'; cx.lineWidth = 0.04;
+  cx.beginPath(); cx.arc(x, y, rf, 0, Math.PI * 2); cx.stroke();
+}
+
 function patineur(s, couleur, toi) {
   const lm = lame(s);
   cx.save();
   if (s.auSol > 0) cx.globalAlpha = 0.6;
   // Le bâton, du corps à la lame.
-  cx.strokeStyle = '#4a2f14'; cx.lineWidth = 0.06; cx.lineCap = 'round';
-  cx.beginPath(); cx.moveTo(s.x, s.y); cx.lineTo(lm.x, lm.y); cx.stroke();
-  cx.lineWidth = 0.1;
-  cx.beginPath(); cx.moveTo(lm.x - Math.cos(s.cap) * 0.15, lm.y - Math.sin(s.cap) * 0.15); cx.lineTo(lm.x + Math.cos(s.cap) * 0.2, lm.y + Math.sin(s.cap) * 0.2); cx.stroke();
-  // Le corps : un cercle aux couleurs du club, le casque qui dit le cap.
-  cercle(s.x, s.y, s.rayon, couleur, toi ? '#fff' : 'rgba(0,0,0,0.35)', toi ? 0.08 : 0.04);
-  cercle(s.x + Math.cos(s.cap) * 0.16, s.y + Math.sin(s.cap) * 0.16, 0.2, '#1a1a1a');
+  cx.strokeStyle = '#4a2f14'; cx.lineWidth = 0.07; cx.lineCap = 'round';
+  cx.beginPath(); cx.moveTo(s.x + Math.cos(s.cap + 0.6) * s.rayon * 0.7, s.y + Math.sin(s.cap + 0.6) * s.rayon * 0.7); cx.lineTo(lm.x, lm.y); cx.stroke();
+  cx.lineWidth = 0.12;
+  cx.beginPath(); cx.moveTo(lm.x - Math.cos(s.cap) * 0.15, lm.y - Math.sin(s.cap) * 0.15); cx.lineTo(lm.x + Math.cos(s.cap) * 0.22, lm.y + Math.sin(s.cap) * 0.22); cx.stroke();
+  jeton(s.x, s.y, s.rayon, couleur, toi ? tonVisage : PLOT, s.cap, toi);
   if (s.charge > 0) {
     cx.strokeStyle = COULEURS.ligne; cx.lineWidth = 0.08;
     cx.beginPath(); cx.arc(s.x, s.y, s.rayon + 0.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.charge / BATON.charge)); cx.stroke();
@@ -311,10 +348,11 @@ function dessiner() {
   }
   // Le gardien : un bloc large, et sa tête.
   const Gd = etat.gardien;
+  // Les jambières : le bloc qu'il couvre, aux couleurs du club ; sa face par-dessus, tournée vers la rondelle.
   cx.fillStyle = COULEURS.gardien;
   cx.fillRect(Gd.x - GARDIEN.profondeur, Gd.y - GARDIEN.demi, GARDIEN.profondeur * 2, GARDIEN.demi * 2);
-  cx.strokeStyle = COULEURS.bleue; cx.lineWidth = 0.05; cx.strokeRect(Gd.x - GARDIEN.profondeur, Gd.y - GARDIEN.demi, GARDIEN.profondeur * 2, GARDIEN.demi * 2);
-  cercle(Gd.x, Gd.y, 0.2, '#1a1a1a');
+  cx.strokeStyle = COULEURS.bleue; cx.lineWidth = 0.06; cx.strokeRect(Gd.x - GARDIEN.profondeur, Gd.y - GARDIEN.demi, GARDIEN.profondeur * 2, GARDIEN.demi * 2);
+  jeton(Gd.x, Gd.y, 0.42, COULEURS.bleue, GARDIEN_VISAGE, Math.atan2(R.y - Gd.y, R.x - Gd.x), false);
   for (const s of etat.patineurs) patineur(s, s.id === 'toi' ? COULEURS.toi : COULEURS.plot, s.id === 'toi');
   cercle(R.x, R.y, Math.max(RONDELLE.rayon, 3 / cam.k), COULEURS.rondelle);
   // Le bâton du doigt, en pixels d'écran.
