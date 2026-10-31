@@ -231,6 +231,13 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
 }
 
 export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
+/*
+ * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi —
+ * ce que l'attentif NE fait PAS dans cette mesure, pour trouver d'où vient son avance (ou son retard) sur le robot d'avant,
+ * un geste à la fois, sur les mêmes dés.
+ */
+const SAUF = new Set((process.env.ROBOT_SAUF || '').split(',').filter(Boolean));
+const attentifFait = quoi => !SAUF.has(quoi);
 /* L'attentif lit le moteur, l'affinité de ses lignes comprise (V18). */
 const auMieux = joueurs => alignementAuMieux(joueurs, { plan: true });
 /* Les buts nets par match d'un alignement, lus au moteur — sous un hasard à part : la saison ne bouge pas d'un dé. */
@@ -313,11 +320,11 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     const couleurs = {};
     for (const p of Object.values(etat.roster)) { const c = p && coachDuJoueur(p); if (c) couleurs[c] = (couleurs[c] || 0) + v(p); }
     const couleur = Object.entries(couleurs).sort((a, b) => b[1] - a[1])[0];
-    const c = coachDuRobot(lotoDesCoachs(COACHS_REELS, ouverts, `rogue80:${graine}:chef`), { politique, clic, couleur: couleur && couleur[0] });
+    const c = coachDuRobot(lotoDesCoachs(COACHS_REELS, ouverts, `rogue80:${graine}:chef`), { politique: attentif && !attentifFait('coach') ? 'defaut' : politique, clic, couleur: couleur && couleur[0] });
     etat.perso = { cle: c.cle, xp: 0, talents: [], adjoints: [], chef: { id: c.id, n: c.n, saison: c.saison, tag: c.tag }, maitrise: c.maitrise };
   }
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
-  const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux) : etat.roster;
+  const roster = attentif && attentifFait('aumieux') ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux) : etat.roster;
   const masse0 = masseDe(roster);
   // LE VRAI PLAFOND (oct., js/rogue-jeu.js `plafondDeDepart` en `reel`) : celui de la LNH et les déblocages ; une masse plus
   // lourde garde son espace (V9, tranche 4).
@@ -337,7 +344,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
    * LE DUEL (V9, tranche 5, scripts/lib/duel.mjs) : l'attentif lit chaque intention et y répond ; le distrait clique au
    * hasard ; le robot d'avant ne répond à rien. Sans main depuis la V13-2. `mains: false`, aucun : ni geste ni tableau.
    */
-  if (mains && (attentif || clic)) you.robotDuel = robotDuel(attentif ? 'attentif' : 'distrait', clic || undefined);
+  if (mains && ((attentif && attentifFait('duel')) || clic)) you.robotDuel = robotDuel(attentif ? 'attentif' : 'distrait', clic || undefined);
   const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
@@ -360,7 +367,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const plans = new Map();
   let planPose = 'match';
   while (!L.fini) {
-    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique, clic, jetons: jetons(), etat: etatCartes })) {
+    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes })) {
       decisions.push(d);
       depense -= d.gain || 0;
     }
@@ -395,14 +402,13 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
         if (sort === x.p) continue;
         if (masseDe(actuel) - (sort ? sort.$ || 0 : 0) + (x.p.$ || 0) > cap) continue;
         // Une case de réserve libre (débloquée) : il entre sans que personne sorte — ça vaut un peu de profondeur.
-        // MESURE seulement (l'ablation) : ROBOT_SIGNE_VALEUR=1, l'attentif signe à la valeur, comme le robot d'avant.
-        const auNet = attentif && process.env.ROBOT_SIGNE_VALEUR !== '1';
+        const auNet = attentif && attentifFait('net');
         const gain = auNet ? lireNet(r) - net0 + (sort ? 0 : 0.01) : valeurAlignement(r) - valeur0 + (sort ? 0 : 0.6);
         if (gain > (auNet ? 0.01 : 0.5) && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
       }
       if (meilleur) {
         const { x, sort } = meilleur;
-        const r = attentif ? ranger(Object.values(meilleur.r).filter(Boolean), nRes, auMieux) : meilleur.r;
+        const r = attentif && attentifFait('aumieux') ? ranger(Object.values(meilleur.r).filter(Boolean), nRes, auMieux) : meilleur.r;
         variantes.set(getPlayerKey(x.p), x.rar);
         poser(x.p); connaitre(x.p);
         dansLaLigue.add(getPersonKey(x.p));
@@ -461,8 +467,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
  */
 function planDuRobot(L, you, plans, attentif, clic) {
   const m = (L.calendrier[L.jour] || []).find(x => x.A === you || x.B === you);
-  // MESURE seulement (check_profondeur, l'ablation) : ROBOT_SANS_PLAN=1, l'attentif ne pose aucun plan de match.
-  if (attentif && process.env.ROBOT_SANS_PLAN === '1') return undefined;
+  if (attentif && !attentifFait('plan')) return undefined;
   if (!m || (!attentif && !clic)) return undefined;
   const cles = Object.keys(PLANS);
   if (clic) return cles[Math.floor(clic() * cles.length)];
