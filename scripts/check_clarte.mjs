@@ -185,7 +185,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // Oct. 2026 : la page dit les raretés (JP : *spas clair les niveaux de rareté des cartes*) : 2 250 mots.
   // V9, tranche 8 : la page dit les exigences, cran par cran (JP : *les exigences*), et la ligue qui monte : 2 400 mots.
   // V17 : la page dit les six plans de match, chacun avec ses chiffres : 2 500 mots.
-  borne('la page des règles est courte', mots, 300, 2500, 'mots');
+  // 31 oct. 2026 : la page dit la deuxième run plus dure (JP : *plus tough la deuxième run*), une phrase : 2 520 mots.
+  borne('la page des règles est courte', mots, 300, 2520, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -271,7 +272,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // La ligue qui monte (tranche 8, puis le 27 oct.) : des clubs de toute l'histoire aux premiers rangs, puis les éditions.
     [`des clubs de toute l'histoire aux ${NIVEAUX_PLEINS === 2 ? 'deux' : NIVEAUX_PLEINS} premiers rangs`, 'les premières ligues'],
     [`Un cran d'exigence en vaut ${ETAPES_PAR_CRAN}.`, 'la ligue et les exigences'],
-    [`Ta première run joue sa ligue nue ; dès la deuxième, chaque club porte ${ETAPE_APRES_LA_PREMIERE === 1 ? 'une étape' : `${ETAPE_APRES_LA_PREMIERE} étapes`} de plus.`, 'la deuxième run'],
+    [`Dès ta deuxième run, chaque club porte ${ETAPE_APRES_LA_PREMIERE === 1 ? 'une étape' : `${ETAPE_APRES_LA_PREMIERE} étapes`} de plus.`, 'la deuxième run'],
     [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
     // V21 : le coach, un personnage (js/pouvoirs.js) — son expérience, ses niveaux, ses pouvoirs, ses talents, ses adjoints.
     [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],
