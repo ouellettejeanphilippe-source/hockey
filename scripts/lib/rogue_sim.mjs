@@ -235,10 +235,12 @@ export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
 /*
  * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi —
  * ce que l'attentif NE fait PAS dans cette mesure, pour trouver d'où vient son avance (ou son retard) sur le robot d'avant,
- * un geste à la fois, sur les mêmes dés.
+ * un geste à la fois, sur les mêmes dés. ROBOT_COACH=essaim force la philosophie du coach de l'attentif, pour mesurer ce
+ * que chaque coach vaut à son club.
  */
 const SAUF = new Set((process.env.ROBOT_SAUF || '').split(',').filter(Boolean));
 const attentifFait = quoi => !SAUF.has(quoi);
+const COACH_FORCE = process.env.ROBOT_COACH || null;
 /* L'attentif lit le moteur, l'affinité de ses lignes comprise (V18). */
 const auMieux = joueurs => alignementAuMieux(joueurs, { plan: true });
 /* Les buts nets par match d'un alignement, lus au moteur — sous un hasard à part : la saison ne bouge pas d'un dé. */
@@ -351,7 +353,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     const couleurs = {};
     for (const p of Object.values(etat.roster)) { const c = p && coachDuJoueur(p); if (c) couleurs[c] = (couleurs[c] || 0) + v(p); }
     const couleur = Object.entries(couleurs).sort((a, b) => b[1] - a[1])[0];
-    const c = coachDuRobot(lotoDesCoachs(COACHS_REELS, ouverts, `rogue80:${graine}:chef`), { politique: attentif && !attentifFait('coach') ? 'defaut' : politique, clic, couleur: couleur && couleur[0] });
+    const c = attentif && COACH_FORCE ? lotoDesCoachs(COACHS_REELS, [COACH_FORCE], `rogue80:${graine}:chef`, 1)[0]
+      : coachDuRobot(lotoDesCoachs(COACHS_REELS, ouverts, `rogue80:${graine}:chef`), { politique: attentif && !attentifFait('coach') ? 'defaut' : politique, clic, couleur: couleur && couleur[0] });
     etat.perso = { cle: c.cle, xp: 0, talents: [], adjoints: [], chef: { id: c.id, n: c.n, saison: c.saison, tag: c.tag }, maitrise: c.maitrise };
   }
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
