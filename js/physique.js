@@ -12,9 +12,11 @@
  *     100 km/h traverse la patinoire, une passe douce à 20 km/h meurt après une quinzaine de mètres ;
  *   - la bande rend 55 % de la vitesse normale, le coin est un arc de 28 pieds, le poteau rend 70 %, le filet
  *     arrête tout ;
- *   - le patineur pèse 85 kg, pousse à 3,6 m/s², file à 31 km/h au plus, freine à 7 m/s² ; ses lames mordent
+ *   - le patineur pèse 85 kg, pousse à 7 m/s², file à 38 km/h au plus, freine à 12 m/s² ; ses lames mordent
  *     de côté (`grip`), mais pas au-delà de `adherence` m/s² : à pleine vitesse, le virage le plus serré fait
- *     neuf mètres de rayon, et il dérive un peu ;
+ *     six mètres de rayon, et il dérive un peu. ARCADE (JP, 31 oct. : *joueur trop lent ; penser à une physique
+ *     arcade plus NHL 94*) : la physique reste la même, ses chiffres penchent vers la console — la pointe en
+ *     deux secondes, le demi-tour sur un dix cents, le tir qui part vite et qui vise le filet (`assist`) ;
  *   - la mise en échec est une collision entre deux masses ; celui qui a le moins d'élan tombe si l'écart
  *     dépasse `CHUTE.seuil` kg·m/s ;
  *   - le gardien voit la rondelle avec 150 ms de retard, bouge à 5 m/s au plus, couvre 1,10 m de large ; un tir
@@ -41,14 +43,14 @@ const G = 9.81;
 
 export const RONDELLE = { masse: 0.17, rayon: 0.038, frottement: 0.10, bande: 0.55, poteau: 0.70, filet: 0.10 };
 export const PATIN = {
-  masse: 85, rayon: 0.42,
-  vMax: 8.9,        // la vitesse de pointe, m/s (la glisse en retire un peu : ≈ 8,6, 31 km/h)
-  accel: 3.6,       // la poussée, m/s²
-  frein: 7,         // l'arrêt, m/s²
+  masse: 85, rayon: 0.55,   // un peu plus gros que nature (JP : *joueur plus gros un peu*) : il se voit, il se frappe
+  vMax: 10.8,       // la vitesse de pointe, m/s (la glisse en retire un peu : ≈ 10,6, 38 km/h)
+  accel: 7,         // la poussée, m/s² : la pointe en deux secondes, comme à la console
+  frein: 12,        // l'arrêt, m/s²
   glisse: 0.25,     // ce que les lames perdent en roue libre, m/s²
-  grip: 6,          // la morsure des lames de côté : la vitesse en travers s'éteint à ce taux, par seconde
-  adherence: 8,     // l'accélération latérale que les lames tiennent, m/s² : le rayon de virage, c'est v² / adherence
-  pivot: 5,         // le virage sur place, rad/s
+  grip: 10,         // la morsure des lames de côté : la vitesse en travers s'éteint à ce taux, par seconde
+  adherence: 18,    // l'accélération latérale que les lames tiennent, m/s² : le rayon de virage, c'est v² / adherence
+  pivot: 9,         // le virage sur place, rad/s
   portee: 1.5,      // la rondelle plus loin que ça de la lame est perdue
   bande: 0.15,      // ce que le patineur rend sur la bande
   sol: 1.4,         // le temps au sol après une chute, s
@@ -57,11 +59,12 @@ export const BATON = {
   lame: [1.0, 0.3],          // où la lame tient la rondelle, devant et de côté, m
   ressort: 80, amorti: 18,   // la rondelle suit la lame comme un ressort amorti (critique)
   maniement: 45,             // l'accélération que la lame peut donner à la rondelle, m/s² : au-delà, elle traîne
-  passe: 13,                 // la passe, m/s (47 km/h)
-  tirMin: 20, tirMax: 40,    // le tir, du poignet au lancer frappé chargé, m/s (72 à 144 km/h)
-  charge: 0.7,               // le temps de charge d'un lancer frappé, s
+  passe: 16,                 // la passe, m/s (58 km/h)
+  tirMin: 24, tirMax: 42,    // le tir, du poignet au lancer frappé chargé, m/s (86 à 151 km/h)
+  charge: 0.45,              // le temps de charge d'un lancer frappé, s
   ecart: 0.035,              // l'écart-type de la visée, rad, doublé à pleine charge
   visee: 0.6,                // le bâton vise jusqu'à ça de côté du cap, rad
+  assist: 0.55,              // la visée assistée : le filet à moins de ça de la visée, le tir part vers lui, rad
   reception: 16,             // une rondelle qui arrive plus vite que ça ne se prend pas : elle dévie
   lachee: 0.25,              // après un tir ou une passe, la lame la laisse filer ce temps-là
 };
@@ -319,7 +322,7 @@ function rondelle(etat, entrees, ev) {
       } else if (porteur.tenaitTir && !e.tir) {
         const part = Math.min(1, porteur.charge / BATON.charge);
         const v = BATON.tirMin + (BATON.tirMax - BATON.tirMin) * part;
-        lancer(etat, porteur, vise, v, BATON.ecart * (1 + part), 0.5);
+        lancer(etat, porteur, viseeAssistee(etat, porteur, vise), v, BATON.ecart * (1 + part), 0.5);
         etat.compte.tirs++;
         etat.dernierTir = hyp(R.vx, R.vy);
         ev.push({ type: 'tir', v: etat.dernierTir, charge: part });
@@ -370,6 +373,24 @@ function but(etat, avantX, ev) {
     return true;
   }
   return false;
+}
+
+/*
+ * LA VISÉE ASSISTÉE (arcade, à la NHL 94) : si un filet est à moins de `assist` de la visée, le tir part vers un
+ * point du filet — le coin du côté où le bâton penche, le centre sinon ; le hasard de la visée fait le reste.
+ */
+function viseeAssistee(etat, s, vise) {
+  const lm = lame(s);
+  for (const sg of [1, -1]) {
+    const xb = sg * LIGNE_BUT;
+    if ((xb - lm.x) * sg <= 0.5) continue;   // on l'a déjà dépassé
+    const centre = Math.atan2(0 - lm.y, xb - lm.x);
+    const d = plier(centre - vise);
+    if (Math.abs(d) > BATON.assist) continue;
+    const coin = Math.abs(d) > 0.08 ? -Math.sign(d) * (FILET.large / 2 - 0.25) : 0;
+    return Math.atan2(coin - lm.y, xb - lm.x);
+  }
+  return vise;
 }
 
 /* Un lancer : la rondelle part de la lame, dans la visée, à la vitesse dite plus une part de l'élan du corps. */
@@ -516,7 +537,7 @@ export function reglesDeLaGlace() {
     `Le patineur pèse ${PATIN.masse} kg, pousse à ${dec(PATIN.accel)} m/s² jusqu'à ≈ ${kmh(PATIN.vMax * Math.sqrt(1 - PATIN.glisse / PATIN.accel))} km/h, freine à ${PATIN.frein} m/s² (le bâton à l'envers).`,
     `Ses lames tiennent ${PATIN.adherence} m/s² de côté : à pleine vitesse, le virage le plus serré fait ${dec(PATIN.vMax ** 2 / PATIN.adherence, 0)} m de rayon ; à l'arrêt, il pivote à ${PATIN.pivot} rad/s.`,
     `La lame tient la rondelle à ${dec(BATON.lame[0])} m devant ; plus loin que ${dec(PATIN.portee)} m, elle est perdue. Une rondelle qui arrive à plus de ${kmh(BATON.reception)} km/h ne se prend pas : elle dévie.`,
-    `La passe part à ${kmh(BATON.passe)} km/h, le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge)} s à ${kmh(BATON.tirMax)} km/h, plus une part de ton élan ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (le double à pleine charge).`,
+    `La passe part à ${kmh(BATON.passe)} km/h, le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, plus une part de ton élan ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (le double à pleine charge), et un filet à moins de ${Math.round(BATON.assist * 57.3)}° de la visée attire le tir.`,
     `Une mise en échec échange l'élan des deux corps (masse × vitesse) ; le moins lancé tombe ${dec(PATIN.sol)} s si l'écart dépasse ${CHUTE.seuil} kg·m/s, et lâche la rondelle.`,
     `Le gardien voit la rondelle ${Math.round(GARDIEN.reaction * 1000)} ms en retard, bouge à ${kmh(GARDIEN.vMax)} km/h au plus, couvre ${dec(GARDIEN.demi * 2, 2)} m des ${dec(FILET.large, 2)} m du filet ; il gèle ${Math.round(GARDIEN.couvre * 100)} % de ses arrêts, les autres rebondissent à ${Math.round(GARDIEN.rebond * 100)} % de la vitesse.`,
   ];

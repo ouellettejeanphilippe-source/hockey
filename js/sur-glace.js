@@ -13,13 +13,13 @@
  *   X ou RT tenu, Maj tenue                charger le tir ; lâché, il part
  *   Start, Échap, ✕                        retour au menu
  */
-import { nouvelleGlace, avancer, remise, reglesDeLaGlace, lame, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, GARDIEN, RONDELLE } from './physique.js';
+import { nouvelleGlace, avancer, remise, reglesDeLaGlace, lame, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, GARDIEN, RONDELLE } from './physique.js';
 import { nouvelleGraine } from './sim.js';
 import { jouerSon } from './sons.js';
 import { esc } from './util.js';
 
-const VUE = 34;          // la caméra montre à peu près ça de glace dans le sens de la longueur, m
-const SUIVI = 4;         // la vitesse à laquelle elle rattrape la rondelle, par seconde
+const VUE = 20;          // la caméra montre ça de glace EN TRAVERS, m (JP, 31 oct., sur une capture : *s't'un bon ratio ça* — vingt mètres de large, quatorze patineurs entre les bleues)
+const SUIVI = 6;         // la vitesse à laquelle elle rattrape la rondelle, par seconde
 const SONS = { tir: 'tir', passe: 'passe', but: 'but', arret: 'arret', poteau: 'retour', bande: 'tap', echec: 'echec', gel: 'sifflet', remise: 'mj' };
 const COULEURS = { glace: '#e8eef3', ligne: '#c8102e', bleue: '#1d4fa3', bande: '#3a3f4a', toi: '#f47b20', plot: '#8d939f', gardien: '#f2f4f7', rondelle: '#111' };
 
@@ -211,7 +211,7 @@ function camera(dt) {
   const long = taille.portrait ? taille.h : taille.w, court = taille.portrait ? taille.w : taille.h;
   const marge = 2;
   const kEntier = Math.min(long / (L + 2 * marge), court / (W + 2 * marge));
-  const k = vueEntiere ? kEntier : Math.max(kEntier, long / VUE);
+  const k = vueEntiere ? kEntier : Math.max(kEntier, court / VUE);
   cam.k = k;
   const R = etat.rondelle;
   const f = 1 - Math.exp(-SUIVI * dt);
@@ -285,10 +285,10 @@ function patineur(s, couleur, toi) {
   cx.beginPath(); cx.moveTo(lm.x - Math.cos(s.cap) * 0.15, lm.y - Math.sin(s.cap) * 0.15); cx.lineTo(lm.x + Math.cos(s.cap) * 0.2, lm.y + Math.sin(s.cap) * 0.2); cx.stroke();
   // Le corps : un cercle aux couleurs du club, le casque qui dit le cap.
   cercle(s.x, s.y, s.rayon, couleur, toi ? '#fff' : 'rgba(0,0,0,0.35)', toi ? 0.08 : 0.04);
-  cercle(s.x + Math.cos(s.cap) * 0.12, s.y + Math.sin(s.cap) * 0.12, 0.16, '#1a1a1a');
+  cercle(s.x + Math.cos(s.cap) * 0.16, s.y + Math.sin(s.cap) * 0.16, 0.2, '#1a1a1a');
   if (s.charge > 0) {
     cx.strokeStyle = COULEURS.ligne; cx.lineWidth = 0.08;
-    cx.beginPath(); cx.arc(s.x, s.y, s.rayon + 0.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.charge / 0.7)); cx.stroke();
+    cx.beginPath(); cx.arc(s.x, s.y, s.rayon + 0.18, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.charge / BATON.charge)); cx.stroke();
   }
   cx.restore();
 }
