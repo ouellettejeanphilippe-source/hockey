@@ -156,7 +156,8 @@ function evenementsDuMatch(f, graine) {
   // LES BLESSURES (S80) : datées sur la feuille, après la dernière action du blessé ce soir-là.
   for (const x of (f.blessures || [])) ev.push({ type: 'blessure', cote: x.cote, instant: x.instant, joueur: x.joueur, matchs: x.matchs, genre: x.genre });
   // LE JEU PHYSIQUE (1.0) : les coups marquants, les bagarres, les mêlées, datés sur la feuille.
-  for (const x of (f.physique || [])) ev.push({ type: x.type, cote: x.cote, instant: x.instant, joueur: x.joueur, cible: x.cible, gagnant: x.gagnant, minutes: x.minutes });
+  // Les blocs (oct. 2026) ne se racontent pas un à un au direct : quinze par match, c'est du bruit ; ils sont dans la feuille complète du sommaire.
+  for (const x of (f.physique || []).filter(x => x.type !== 'bloc')) ev.push({ type: x.type, cote: x.cote, instant: x.instant, joueur: x.joueur, cible: x.cible, gagnant: x.gagnant, minutes: x.minutes });
   for (let per = 1; per <= 3; per++) ev.push({ type: 'periode', per, instant: per * 20 - 1e-6 });
   // Les tirs de barrage (V19) : après cinq minutes sans but, avant la fin.
   if (f.fusillade) ev.push({ type: 'tb', instant: 65 + 1e-6 });
