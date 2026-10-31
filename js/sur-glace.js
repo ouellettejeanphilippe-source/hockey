@@ -54,6 +54,7 @@ export function ouvrirSurGlace(ctx) {
       <button type="button" class="sg-btn" data-sg="regles" aria-expanded="false" title="Ce que la glace fait">?</button>
     </div>
     <div class="sg-flash" aria-live="polite"></div>
+    <div class="sg-puissance" hidden><div class="sg-puissance-plein"></div></div>
     <div class="sg-bas">
       <div class="sg-vitesse"></div>
       <div class="sg-invites">${invites()}</div>
@@ -331,6 +332,10 @@ function hud() {
   el.querySelector('.sg-compte').textContent = `Tirs ${c.tirs} · Buts ${c.buts} · Arrêts ${c.arrets}${c.poteaux ? ` · Poteaux ${c.poteaux}` : ''}`;
   const toi = etat.patineurs[0];
   el.querySelector('.sg-vitesse').textContent = `${Math.round(Math.hypot(toi.vx, toi.vy) * 3.6)} km/h${etat.dernierTir ? ` · dernier tir ${Math.round(etat.dernierTir * 3.6)} km/h` : ''}`;
+  const barre = el.querySelector('.sg-puissance');
+  const charge = Math.min(1, toi.charge / BATON.charge);
+  barre.hidden = !(toi.charge > 0 && etat.rondelle.porteur === 'toi');
+  barre.firstElementChild.style.width = `${Math.round(charge * 100)}%`;
   const f = el.querySelector('.sg-flash');
   const mot = flash.reste > 0 ? flash.mot : '';
   if (f.textContent !== mot) f.textContent = mot;

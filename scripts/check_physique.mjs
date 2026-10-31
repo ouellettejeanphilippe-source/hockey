@@ -156,6 +156,21 @@ function jouer(e, entrees, s) {
     return t ? t.v : 0;
   };
   const poignet = tir(DT), frappe = tir(1);
+  // Le tir vise comme dans les jeux de soccer : le bâton droit, le centre ; à fond de côté, à côté du filet.
+  const ou = (bx, by) => {
+    const g = glaceVide('ou');
+    g.gardien.x = LIGNE_BUT + 4; g.gardien.y = 10;   // le gardien hors du chemin : on mesure la visée seule
+    Object.assign(g.patineurs[0], { x: LIGNE_BUT - 5, y: 0, cap: 0 });
+    Object.assign(g.rondelle, { x: LIGNE_BUT - 3.9, y: 0.3 });
+    avancer(g, { toi: { x: 0, y: 0 } }, DT);
+    avancer(g, { toi: { x: 0, y: 0, tir: true } }, DT);
+    avancer(g, { toi: { x: bx, y: by, tir: false } }, DT);
+    const R = g.rondelle, t = (LIGNE_BUT - R.x) / R.vx;
+    return R.y + R.vy * t;
+  };
+  const centre = ou(1, 0), cote = ou(0, 1);
+  borne('le bâton droit vers le but : le tir vise le centre', Math.abs(centre), 0, 0.5, ' m');
+  borne('le bâton à fond de côté : à côté du filet', Math.abs(cote), FILET.large / 2, FILET.large / 2 + 0.9, ' m');
   borne('le tir du poignet part à la vitesse dite', poignet, BATON.tirMin - 0.5, BATON.tirMin + 3, ' m/s');
   borne('le lancer frappé chargé, plus vite', frappe, BATON.tirMax - 0.5, BATON.tirMax + 3, ' m/s');
 }

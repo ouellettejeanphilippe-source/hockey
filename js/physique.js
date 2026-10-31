@@ -65,6 +65,7 @@ export const BATON = {
   ecart: 0.035,              // l'écart-type de la visée, rad, doublé à pleine charge
   visee: 0.6,                // le bâton vise jusqu'à ça de côté du cap, rad
   assist: 1.5,               // la visée assistée : le filet à moins de ça du cap (presque de côté), le tir part vers lui, rad (JP : *impossible de viser et patiner*)
+  large: 0.4,                // le bâton à fond de côté vise ça au-delà du poteau : on peut rater le filet, comme dans FIFA, m
   reception: 16,             // une rondelle qui arrive plus vite que ça ne se prend pas : elle dévie
   lachee: 0.25,              // après un tir ou une passe, la lame la laisse filer ce temps-là
 };
@@ -323,7 +324,7 @@ function rondelle(etat, entrees, ev) {
       } else if (porteur.tenaitTir && !e.tir) {
         const part = Math.min(1, porteur.charge / BATON.charge);
         const v = BATON.tirMin + (BATON.tirMax - BATON.tirMin) * part;
-        lancer(etat, porteur, viseeAssistee(etat, porteur, vise), v, BATON.ecart * (1 + part), 0.5);
+        lancer(etat, porteur, viseeAssistee(porteur, vise, m > 0.1 ? e : null), v, BATON.ecart * (1 + 1.5 * part), 0.5);
         etat.compte.tirs++;
         etat.dernierTir = hyp(R.vx, R.vy);
         ev.push({ type: 'tir', v: etat.dernierTir, charge: part });
@@ -377,21 +378,24 @@ function but(etat, avantX, ev) {
 }
 
 /*
- * LA VISÉE ASSISTÉE (arcade, à la NHL 94 ; JP : *impossible de viser et patiner*) : le bâton patine, il ne vise pas.
- * Si un filet est devant toi (à moins de `assist` du cap, presque de côté), le tir part vers lui : au coin du côté
- * où le bâton penche par rapport à la ligne du filet, au centre sinon ; le hasard de la visée fait le reste. Le dos
- * au filet, le tir part dans le cap.
+ * LE TIR, COMME DANS LES JEUX DE HOCKEY ET DE SOCCER (JP : *impossible de viser et patiner* ; *je veux tir comme les
+ * jeux de hockey et soccer standards*). Le bâton patine ; au moment de lâcher le tir, il dit OÙ dans le filet, par
+ * rapport à la ligne rondelle-filet : droit vers le but, le centre ; penché, vers ce coin ; à fond de côté, `large`
+ * au-delà du poteau — on peut rater, comme dans FIFA. Il faut que le filet soit devant (à moins de `assist` du cap) ;
+ * le dos au filet, le tir part dans le cap. La charge fait la vitesse, et écarte la visée.
  */
-function viseeAssistee(etat, s, vise) {
+function viseeAssistee(s, vise, baton) {
   const lm = lame(s);
   for (const sg of [1, -1]) {
     const xb = sg * LIGNE_BUT;
     if ((xb - lm.x) * sg <= 0.5) continue;   // on l'a déjà dépassé
-    const centre = Math.atan2(0 - lm.y, xb - lm.x);
+    const dx = xb - lm.x, dy = 0 - lm.y, d = hyp(dx, dy) || 1e-9;
+    const centre = Math.atan2(dy, dx);
     if (Math.abs(plier(centre - s.cap)) > BATON.assist) continue;
-    const d = plier(centre - vise);
-    const coin = Math.abs(d) > 0.08 ? -Math.sign(d) * (FILET.large / 2 - 0.25) : 0;
-    return Math.atan2(coin - lm.y, xb - lm.x);
+    // La composante du bâton en travers de la ligne du filet, de -1 à 1, choisit le point visé sur la ligne de but.
+    const travers = baton ? clamp((-baton.x * dy + baton.y * dx) / d, -1, 1) : 0;
+    const y = travers * (FILET.large / 2 + BATON.large);
+    return Math.atan2(y - lm.y, xb - lm.x);
   }
   return vise;
 }
@@ -540,7 +544,7 @@ export function reglesDeLaGlace() {
     `Le patineur pèse ${PATIN.masse} kg, pousse à ${dec(PATIN.accel)} m/s² jusqu'à ${kmh(PATIN.vMax)} km/h, freine à ${PATIN.frein} m/s² (le bâton à l'envers) et perd ${dec(PATIN.glisse)} m/s² en roue libre.`,
     `Ses lames tiennent ${PATIN.adherence} m/s² de côté : à pleine vitesse, le virage le plus serré fait ${dec(PATIN.vMax ** 2 / PATIN.adherence, 0)} m de rayon ; à l'arrêt, il pivote à ${PATIN.pivot} rad/s.`,
     `La lame tient la rondelle à ${dec(BATON.lame[0])} m devant ; plus loin que ${dec(PATIN.portee)} m, elle est perdue. Une rondelle qui arrive à plus de ${kmh(BATON.reception)} km/h ne se prend pas : elle dévie.`,
-    `La passe part à ${kmh(BATON.passe)} km/h, le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, plus une part de ton élan ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (le double à pleine charge), et un filet à moins de ${Math.round(BATON.assist * 57.3)}° de ton cap attire le tir (le bâton choisit le coin).`,
+    `La passe part à ${kmh(BATON.passe)} km/h, le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, plus une part de ton élan ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (le double à pleine charge), et un filet à moins de ${Math.round(BATON.assist * 57.3)}° de ton cap attire le tir : le bâton choisit où (droit, le centre ; penché, le coin ; à fond de côté, ${Math.round(BATON.large * 100)} cm à côté du poteau).`,
     `Une mise en échec échange l'élan des deux corps (masse × vitesse) ; le moins lancé tombe ${dec(PATIN.sol)} s si l'écart dépasse ${CHUTE.seuil} kg·m/s, et lâche la rondelle.`,
     `Le gardien voit la rondelle ${Math.round(GARDIEN.reaction * 1000)} ms en retard, bouge à ${kmh(GARDIEN.vMax)} km/h au plus, couvre ${dec(GARDIEN.demi * 2, 2)} m des ${dec(FILET.large, 2)} m du filet ; il gèle ${Math.round(GARDIEN.couvre * 100)} % de ses arrêts, les autres rebondissent à ${Math.round(GARDIEN.rebond * 100)} % de la vitesse.`,
   ];
