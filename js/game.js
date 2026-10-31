@@ -1290,7 +1290,7 @@ export function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
     // 1.0 (J3-6) : l'écran d'exhibition se charge au clic, pas avec le premier écran.
     exhibition: () => { fermerMenu(); import('./exhibition.js').then(({ ouvrirExhibition }) => ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
     // SUR GLACE (31 oct. 2026, js/sur-glace.js) : la physique à la manette, chargée au clic ; aucune partie, retour au menu.
-    glace: () => { fermerMenu(); import('./sur-glace.js').then(({ ouvrirSurGlace }) => ouvrirSurGlace({ onFerme: () => afficherMenu(contexteDuMenu({ vierge, enJeu })) })); },
+    glace: () => { fermerMenu(); import('./sur-glace.js').then(({ ouvrirSurGlace }) => ouvrirSurGlace(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
     rogue: {
       // 1.0 (R7, R8) : la dernière run sur le carton, rien à la première visite.
       resume: () => {
