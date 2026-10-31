@@ -3663,6 +3663,11 @@ a.spin-club:hover { background: var(--fond-2); }
 .adj-case { aspect-ratio: 5 / 7; display: grid; place-items: center; padding: var(--esp-2); border: 1px dashed var(--filet); background: none; color: var(--encre-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; border-radius: var(--r-1); }
 .adj-case.survol { border-color: var(--or); color: var(--or); }
 .adj-note { margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-3); }
+/* Le verso d'une petite carte : son style seul, serré ; la réplique et la fiche vont dans la bande. */
+.adj-carte .tcv-corps { font-size: 9.5cqw; line-height: 1.2; gap: 2px; }
+.adj-carte .tcv-pied { display: none; }
+.adj-detail { margin: 0; font-size: var(--t-1); line-height: 1.4; color: var(--encre-2); }
+.adj-detail .bon { color: var(--bon); }
 /* Le fantôme d'une carte qu'on glisse : il suit le pointeur, par-dessus tout, sans capter le doigt. Posé sous `body`, il
    passe devant la règle de la carte qu'il copie (`.slot-carte` la met en `relative`, plus bas dans la feuille). */
 body > .fantome { position: fixed; z-index: 1000; margin: 0; pointer-events: none; transform: rotate(-3deg) scale(1.05); opacity: 0.92; }

@@ -892,10 +892,11 @@ function mainHtml(perso, niveau) {
     const A = ADJOINTS[c.cle], l = lignesDeLAdjoint(c.cle), syn = motDeSynergie(c.cle, perso.cle), fiche = ficheDeLaCarte(c);
     const etat = enPoste(c, games, perso.cle) ? 'poste' : auRepos(c, games) ? 'repos' : 'prete';
     const sous = etat === 'poste' ? `Encore ${resteDe(c, games, perso.cle)} match${resteDe(c, games, perso.cle) > 1 ? 's' : ''}` : etat === 'repos' ? `Au repos · ${reposDe(c, games)} match${reposDe(c, games) > 1 ? 's' : ''}` : `${sejourDe(c.cle, perso.cle)} matchs`;
-    return `<div class="adj-carte" data-adj="${c.cle}" data-etat="${etat}">
+    // Le verso, petit, dit le style seul ; la réplique, la synergie et la fiche se lisent dans la bande, au toucher (`.adj-detail`).
+    const detail = `<b>${esc(A.nom)}</b> · ${esc(A.style)} — « ${esc(A.dit)} »${syn ? ` · <b class="bon">${esc(syn)}</b>` : ''}${fiche ? ` · ${esc(fiche)}` : ''}`;
+    return `<div class="adj-carte" data-adj="${c.cle}" data-etat="${etat}" data-detail="${esc(detail)}">
       ${carteHtml({ cle: c.cle, rarete: 'commune', genreCarte: 'tactique', ico: A.ico, nomHtml: esc(A.nom), typeHtml: esc(A.style), statique: true,
-        texteHtml: `${esc(A.dit)}${syn ? `<br><b class="bon">${esc(syn)}</b>` : ''}${fiche ? `<br>${esc(fiche)}` : ''}`,
-        bonHtml: l.filter(x => x.bon).map(x => esc(x.txt)).join(' · '), prixHtml: l.filter(x => !x.bon).map(x => esc(x.txt)).join(' · ') })}
+        bonHtml: l.filter(x => x.bon).map(x => esc(x.txt)).join('<br>'), prixHtml: l.filter(x => !x.bon).map(x => esc(x.txt)).join('<br>') })}
       <span class="adj-sous">${sous}</span>
       ${etat === 'prete' && casesLibres(perso, games, niveau) ? `<button type="button" class="btn-sign adj-poster" data-poste="${c.cle}">Poster</button>` : ''}
     </div>`;
@@ -904,7 +905,8 @@ function mainHtml(perso, niveau) {
   return `<div class="ej-case-l">En poste · ${postes.length} sur ${cases}${cases < 3 ? ` · une case de plus au niveau ${cases === 1 ? 3 : 5}` : ''}</div>
     <div class="adj-zone adj-postes" data-zone="postes">${postes.map(carteAdj).join('')}${Array.from({ length: vides }, () => `<button type="button" class="adj-case vide" title="Glisse une carte de ta main ici">Case libre</button>`).join('')}</div>
     <div class="ej-case-l">Ta main · ${main.length} sur ${MAIN_MAX}</div>
-    ${autres.length ? `<div class="adj-zone adj-main" data-zone="main">${autres.map(carteAdj).join('')}</div>` : `<p class="adj-note">${main.length ? 'Toutes tes cartes sont en poste.' : 'Un adjoint arrive aux 9e, 18e et 26e matchs, après un gros match gagné et au verdict du proprio.'}</p>`}`;
+    ${autres.length ? `<div class="adj-zone adj-main" data-zone="main">${autres.map(carteAdj).join('')}</div>` : `<p class="adj-note">${main.length ? 'Toutes tes cartes sont en poste.' : 'Un adjoint arrive aux 9e, 18e et 26e matchs, après un gros match gagné et au verdict du proprio.'}</p>`}
+    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite">Touche une carte : son style, sa réplique.</p>' : ''}`;
 }
 /* POSTER UNE CARTE : la décision du jour (`hub.decider`), puis on revient au Coach, où l'on était. */
 function posterLAdjoint(cle) {
@@ -915,7 +917,11 @@ function posterLAdjoint(cle) {
 glisserDeposer({ prise: '.adj-main .adj-carte[data-etat="prete"]', cible: '.adj-case.vide', deposer: de => posterLAdjoint(de.dataset.adj), fantome: el => el.querySelector('.tc') || el });
 if (typeof document !== 'undefined') document.addEventListener('click', ev => {
   const b = ev.target.closest && ev.target.closest('.adj-poster[data-poste]');
-  if (b) posterLAdjoint(b.dataset.poste);
+  if (b) { posterLAdjoint(b.dataset.poste); return; }
+  // AU TOUCHER D'UNE CARTE : la bande sous la main dit son style, sa réplique, sa synergie et sa fiche chez toi.
+  const c = ev.target.closest && ev.target.closest('.adj-carte[data-detail]');
+  const bande = c && c.closest('.ej-coach') && c.closest('.ej-coach').querySelector('.adj-detail');
+  if (bande) bande.innerHTML = c.dataset.detail;
 });
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */
 function filetHtml() {
