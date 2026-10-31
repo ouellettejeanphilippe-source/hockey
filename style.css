@@ -3662,6 +3662,8 @@ a.spin-club:hover { background: var(--fond-2); }
 .adj-poster { align-self: center; }
 .adj-case { aspect-ratio: 5 / 7; display: grid; place-items: center; padding: var(--esp-2); border: 1px dashed var(--filet); background: none; color: var(--encre-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; border-radius: var(--r-1); }
 .adj-case.survol { border-color: var(--or); color: var(--or); }
+/* Personne dans la main : les cases libres n'ont pas besoin de la hauteur d'une carte. */
+.adj-zone.sans .adj-case { aspect-ratio: auto; min-height: 56px; }
 .adj-note { margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-3); }
 /* Le verso d'une petite carte : son style seul, serré ; la réplique et la fiche vont dans la bande. */
 .adj-carte .tcv-corps { font-size: 9.5cqw; line-height: 1.2; gap: 2px; }
