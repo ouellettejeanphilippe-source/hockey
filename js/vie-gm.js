@@ -6,7 +6,7 @@
  *   EXPEDITEURS     qui écrit dans la boîte : une seule distribution de voix
  *   joueurDuFait    le joueur qu'un fait vise, lu dans les feuilles déjà jouées
  *   VOIX_DES_FILS   les fils de la saison, dits par quelqu'un (la une, la boîte)
- *   CHOIX_DES_FILS  le choix qu'un fil fort ouvre (vide : la banque neuve s'écrit à la V22, phase 4)
+ *   CHOIX_DES_FILS  le choix qu'un fil fort ouvre, deux réponses, un suivi (V22)
  *
  * Tout est PUR : le même contexte et la même graine redonnent le même tirage, sans `hasard()`.
  */
@@ -101,8 +101,49 @@ const VOIX_DES_FILS = {
  * un dé (js/sim.js `retoursDuMatin`). Le retour se lit à la une, avec ses vrais chiffres (`texteDuRetour`).
  * Les mots : `{nom}` le joueur du fil, `{deplace}` celui qu'il déloge, `{passeur}` son passeur, `{vieux}` le vétéran mentor.
  */
-/* LE CHOIX D'UN FIL — vide (V22). Forme d'une entrée : { ico, titre, question, options: [{ cle, nom, bon, prix, …, suivi?: { apres, mesure, seuil, depuis, gagne?, perd? } }] }. */
-export const CHOIX_DES_FILS = {};
+/*
+ * LE CHOIX D'UN FIL (V22, docs/refonte-v22.md, phase 4 ; JP : *simple, impactant, le fun, marquant*). Un fil fort — le
+ * Cheechoo, la disette, le duo, la recrue — ouvre un choix à deux réponses : une qui ENGAGE (un suivi, `suivi` : dans
+ * `apres` matchs, le moteur relit les feuilles du joueur nommé — ses buts, ses points, les buts du duo — et le seuil
+ * décide, `gagne` ou `perd`, des effets forts et courts sur lui, jamais un dé), une qui ne promet rien ou qui fait un
+ * geste concret (`action`, `monte`, `mentor`). Le retour se lit à la une avec ses vrais chiffres (`texteDuRetour`).
+ * Les mots : `{nom}` le joueur du fil, `{deplace}` celui qu'il déloge, `{passeur}` son passeur, `{vieux}` le vétéran mentor.
+ */
+export const CHOIX_DES_FILS = {
+  feu: { ico: '🔥', titre: 'Le Cheechoo', question: 'Il brûle. Tu le montes ?',
+    options: [
+      { cle: 'monter', nom: 'Le monter au 1er trio', bon: 'Plus de glace au gars en feu', prix: '{deplace} descend à sa place', monte: true,
+        suivi: { apres: 10, mesure: 'buts', seuil: 4, depuis: 'qu\'il est monté',
+          gagne: { mot: 'il a pris le trio pour de bon', duree: 12, effets: [{ sur: 'joueur', finition: 1.5, lancers: 1.2 }] },
+          perd: { mot: '{deplace} veut sa place, et il la reprend', duree: 8, effets: [{ sur: 'joueur', finition: 0.6 }, { sur: 'deplace', finition: 1.3 }] } } },
+      { cle: 'laisser', nom: 'Ne rien changer', bon: 'On ne touche pas à ce qui brûle', rien: true },
+    ] },
+  disette: { ico: '🥶', titre: 'La disette', question: 'Il ne marque plus. Tu fais quoi de lui ?',
+    options: [
+      { cle: 'parler', nom: 'Lui parler, seul à seul', bon: 'Il sait que tu crois en lui', prix: 'S\'il ne marque toujours pas, le doute s\'installe',
+        suivi: { apres: 8, mesure: 'buts', seuil: 2, depuis: 'votre discussion',
+          gagne: { mot: 'il respire, la rondelle rentre', duree: 10, effets: [{ sur: 'joueur', finition: 1.5 }] },
+          perd: { mot: 'le doute s\'installe', duree: 8, effets: [{ sur: 'joueur', finition: 0.55 }] } } },
+      { cle: 'reposer', nom: 'Le reposer deux matchs', bon: 'Il revient la tête vidée', prix: 'Deux matchs sans lui', action: { absents: 2 } },
+    ] },
+  duo: { ico: '🤝', titre: 'Le duo', question: 'Ces deux-là se trouvent. Tu les soudes ?',
+    options: [
+      { cle: 'souder', nom: 'Les garder ensemble', bon: 'Un duo qu\'on nomme, pour la saison', prix: 'S\'ils s\'essoufflent, ils se tapent sur les nerfs',
+        suivi: { apres: 10, mesure: 'duo', seuil: 3, depuis: 'qu\'on les garde ensemble',
+          gagne: { mot: 'leur lien est nommé, pour la saison', duree: 82, effets: [{ sur: 'joueur', finition: 1.4 }, { sur: 'passeur', creation: 1.2 }] },
+          perd: { mot: 'ils se lassent l\'un de l\'autre', duree: 6, effets: [{ sur: 'joueur', finition: 0.6 }, { sur: 'passeur', creation: 0.8 }] } } },
+      { cle: 'laisser', nom: 'Ne rien promettre', bon: 'Chacun son jeu', rien: true },
+    ] },
+  recrue: { ico: '🐣', titre: 'La recrue', question: 'Le petit produit. Tu lui fais confiance ?',
+    options: [
+      { cle: 'confiance', nom: 'Lui faire confiance', bon: 'S\'il produit, il s\'impose pour la saison', prix: 'S\'il cale, un trou de mémoire',
+        suivi: { apres: 10, mesure: 'points', seuil: 6, depuis: 'qu\'on lui fait confiance',
+          gagne: { mot: 'il s\'impose pour de bon', duree: 82, effets: [{ sur: 'joueur', finition: 1.3, creation: 1.3 }] },
+          perd: { mot: 'un trou de mémoire', duree: 6, effets: [{ sur: 'joueur', finition: 0.55, creation: 0.55 }] } } },
+      // Le vétéran mentor (`mentorTrio`, js/sim.js), le temps de la saison, sur la ligne de la recrue.
+      { cle: 'mentor', nom: 'Le confier à {vieux}', bon: 'Sur la ligne du vétéran, son badge monte d\'un métal', prix: 'Il change de ligne', mentor: true },
+    ] },
+};
 const UNITES_DU_SUIVI = { buts: 'but', points: 'point', duo: 'but' };
 export const avecNoms = (t, x) => String(t || '').replace(/\{nom\}/g, x.nom || '').replace(/\{deplace\}/g, x.deplace || 'son remplaçant').replace(/\{passeur\}/g, x.passeur || 'son passeur').replace(/\{vieux\}/g, x.vieux || 'un vétéran');
 /** L'engagement d'une option, en mots : « Dans 10 matchs, 4 buts : il garde le feu ; sinon, X demande à jouer. » */

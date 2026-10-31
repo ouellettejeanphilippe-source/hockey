@@ -60,7 +60,7 @@ js/recit.js           les mots du sommaire d'un match
 js/apres-match.js     le récit d'après-match, comme à la télé : le fil du match, sobre et précis
 js/panel-tv.js        le panel : l'univers médiatique de la saison, les mêmes visages qui reviennent
 js/scenes.js          les scènes des choix du Rogue : qui demande, le fait déjà joué, sa réplique sans chiffre — `check_clarte` § 5
-js/vie-gm.js          les voix (`EXPEDITEURS`), le joueur du fait, les fils dits par quelqu'un, les choix des fils (`CHOIX_DES_FILS`, vide depuis la V22 : la banque neuve s'écrit à la phase 4) — `check_vie`
+js/vie-gm.js          les voix (`EXPEDITEURS`), le joueur du fait, les fils dits par quelqu'un, les choix des fils (`CHOIX_DES_FILS`, récrits à la V22 : deux réponses, un suivi) — `check_vie`
 js/arcs.js            les arcs d'un joueur et ses défis (`DEFIS`) : nés d'un fait du journal du club, suivis au Vestiaire ; la table `ARCS` est vide depuis la V22, le système reste — `check_arcs`
 js/verdicts.js        ta semaine : le verdict d'un choix à effet daté, le lundi d'après, en vraies stats — `check_verdicts`
 js/profil-style.js    le profil de style : la preuve que ton build joue, lue dans les feuilles — `check_profil`

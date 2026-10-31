@@ -72,7 +72,7 @@ Six histoires pour commencer (`DOSSIERS`, js/dossiers.js), une par fait lu dans 
 | 🧳 La semaine sur la route | le physio | trois matchs à l'étranger, le plus bas en jambes | le vol nolisé : −15 🪙, les jambes de tous +10 | l'autobus de nuit : +10 🪙, les jambes de tous −8 |
 | 📋 Un adjoint en vue | le DG | 50 🪙 ou plus en caisse | signer le chèque : −25 🪙, une carte d'adjoint dans ta main | garder l'argent |
 
-Jamais un pourcentage ni une durée à l'équipe ; l'audace est un dé sur le joueur nommé, et ses deux issues se lisent avant de valider. À écrire ensuite : le duo, la recrue, le fond et le sommet du classement, puis les quatre choix de fil (le Cheechoo, la disette, le duo, la recrue), un à la fois, avec leur retour. `check_dossiers`, `check_mots`, `check_incidents`, `check_clarte` et `check_lisibilite` les tiennent.
+Jamais un pourcentage ni une durée à l'équipe ; l'audace est un dé sur le joueur nommé, et ses deux issues se lisent avant de valider. Les quatre choix de fil (`CHOIX_DES_FILS`, js/vie-gm.js) sont écrits aussi : le Cheechoo (le monter au 1er trio, un suivi de 4 buts en 10 matchs), la disette (lui parler, 2 buts en 8 ; ou le reposer), le duo (les souder, 3 buts du duo en 10), la recrue (lui faire confiance, 6 points en 10 ; ou le vétéran mentor) ; deux réponses chacun, le suivi se relit dans les feuilles (`check_retours`, `check_suivis`, `check_effets`). À écrire ensuite, selon le jeu : le fond et le sommet du classement, le dos-à-dos. `check_dossiers`, `check_mots`, `check_incidents`, `check_clarte` et `check_lisibilite` les tiennent.
 
 ## Les vérifications
 

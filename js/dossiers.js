@@ -86,7 +86,7 @@ export const DOSSIERS = {
       'Cinq buts, ça laisse des traces. Le prochain départ décide s\'il rebondit ou s\'il coule.'],
     options: [
       { cle: 'renvoyer', nom: 'Le renvoyer devant le filet', bon: 'Si ça passe : il se venge, moins de buts accordés', prix: 'Sinon : il coule encore, plus de buts accordés',
-        pari: { chance: 3 / 6, gagne: { duree: 6, lui: { arrets: 0.85 } }, perd: { duree: 6, lui: { arrets: 1.15 } } } },
+        pari: { chance: 3 / 6, gagne: { duree: 6, lui: { arrets: 0.78 } }, perd: { duree: 6, lui: { arrets: 1.22 } } } },
       { cle: 'auxiliaire', nom: 'L\'auxiliaire deux soirs', bon: 'Ton partant souffle', prix: 'Deux soirs avec l\'auxiliaire', action: { gardienAux: 2 } },
     ],
   },
