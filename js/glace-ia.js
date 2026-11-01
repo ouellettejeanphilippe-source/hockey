@@ -15,7 +15,12 @@
  *                         harpon à portée, la mise en échec de face et seulement sur le porteur), les autres se placent
  *                         entre la rondelle et leur filet, chacun sur un adversaire
  *   la mise en jeu        le centre presse le bouton autour de la chute, à un hasard près
- *   les tirs de barrage   le tireur fonce et lance de l'enclave
+ *   les tirs de barrage   le tireur fonce et lance de l'enclave (le tir de punition pareil)
+ *   l'avantage numérique  le parapluie : un à la pointe au centre, deux aux demi-bandes, un dans l'enclave, un devant
+ *                         le filet ; en désavantage, la boîte : quatre dans le carré devant leur gardien, le plus
+ *                         proche sort sur le porteur quand il entre dans le carré
+ *   les défenseurs        reculent face au porteur qui descend sur eux (le bouton de recul, le cap tenu vers lui)
+ *   le turbo              le porteur fonce quand la glace devant lui est libre, tant que ses jambes tiennent
  *
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
  * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler (un tir en charge, le moment de la mise en jeu,
@@ -97,9 +102,9 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   const dBut = hyp(but.x - s.x, but.y - s.y);
   const pression = Math.min(Infinity, ...adv.map(o => hyp(o.x - s.x, o.y - s.y)));
   const enDesavantage = M && M.penalites.filter(p => p.equipe === s.equipe).length > M.penalites.filter(p => p.equipe !== s.equipe).length;
-  const fusillade = M && M.fusillade;
+  const fusillade = M && M.ronde;
   const couloir = couloirOuvert(R.x, R.y, but.x, but.y, adv, 1.1, 0.75);
-  // Les tirs de barrage : foncer, lancer de l'enclave.
+  // Les tirs de barrage, le tir de punition : foncer, lancer de l'enclave.
   if (fusillade) {
     if (dBut < 7.5) return charger(memo, s, but, a, 0.35, etat);
     const e = vers(s, but.x - a * 4, (etat.de() - 0.5) * 2);
@@ -155,6 +160,9 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   cible = dansLaGlace(cible.x, cible.y);
   const e = vers(s, cible.x, cible.y, 1);
   memo.dirX = e.x; memo.dirY = e.y;
+  // LE TURBO : la glace libre devant, les jambes qui tiennent, on fonce.
+  const libreDevant = !adv.some(o => { const dx = o.x - s.x, dy = o.y - s.y; return hyp(dx, dy) < 5 && dx * e.x + dy * e.y > 0; });
+  if (libreDevant && s.jambes > 40 && u(s.x) > -BLEUE) e.sprint = true;
   return e;
 }
 /* Tenir le tir le temps de la charge, puis lâcher (la visée assistée fait le reste ; le bâton choisit le coin). */
@@ -174,7 +182,12 @@ function soutenir(etat, s, a, but, u, miens, adv, porteur) {
   const D = miens.filter(m => m.poste === 'D'), iD = D.indexOf(s);
   const F = miens.filter(m => m.poste !== 'D');
   let cible;
-  if (s.poste === 'D' || (iD >= 0)) {
+  // L'AVANTAGE NUMÉRIQUE, en zone : le parapluie. Les postes se prennent dans l'ordre, le porteur en garde un.
+  if (enZone && miens.length > adv.length && miens.length >= 5) {
+    const postes = [{ x: a * (BLEUE + 1.5), y: 0 }, { x: a * (BLEUE + 6), y: -7.5 }, { x: a * (BLEUE + 6), y: 7.5 }, { x: but.x - a * 6, y: 0 }, { x: but.x - a * 2.2, y: 1.5 }];
+    const ordre = miens.slice().sort((p, q) => (p.poste === 'D' ? 0 : 1) - (q.poste === 'D' ? 0 : 1) || p.id.localeCompare(q.id));
+    cible = postes[Math.min(ordre.indexOf(s), postes.length - 1)];
+  } else if (s.poste === 'D' || (iD >= 0)) {
     const cote = iD === 0 ? -1 : 1;
     cible = enZone ? { x: a * (BLEUE + 2.5), y: cote * 6 } : { x: a * (u(R.x) - 7), y: cote * 5 };
   } else {
@@ -192,8 +205,8 @@ function soutenir(etat, s, a, but, u, miens, adv, porteur) {
   if (s.poste !== 'D' && F.length <= 2 && s.poste === 'C' && enZone) cible = { x: but.x - a * 6, y: 0 };
   cible = dansLaGlace(cible.x, cible.y);
   const e = espacer(s, miens, vers(s, cible.x, cible.y), 2.2, adv);
-  // Le tir sur réception : une passe vient vers moi dans l'enclave, le bâton est prêt.
-  if (R.passeVers === s.id && hyp(but.x - s.x, but.y - s.y) < 14 && u(s.x) > BLEUE) e.tir = true;
+  // Le tir sur réception : une passe vient vers moi dans l'enclave, le bâton est prêt ; devant le filet, la déviation aussi.
+  if ((R.passeVers === s.id || hyp(but.x - s.x, but.y - s.y) < 5) && hyp(but.x - s.x, but.y - s.y) < 14 && u(s.x) > BLEUE) e.tir = true;
   return e;
 }
 
@@ -214,7 +227,11 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
   };
   const ordre = miens.slice().sort((p, q) => tempsVers(p) - tempsVers(q));
   const rang = ordre.indexOf(s);
-  const chasse = rang === 0 || (!porteur && rang === 1);
+  const notreZone = u(R.x) < -BLEUE;
+  // LE DÉSAVANTAGE, en zone : la boîte devant notre gardien ; le plus proche ne sort que si le porteur entre dans le carré.
+  const desavantage = miens.length < adv.length && notreZone && !(porteur && porteur.equipe === s.equipe);
+  const dansLeCarre = porteur && u(porteur.x) < -(LIGNE_BUT - 9.5) && Math.abs(porteur.y) < 5;
+  const chasse = desavantage ? (rang === 0 && (dansLeCarre || !porteur)) : (rang === 0 || (!porteur && rang === 1));
   if (chasse) {
     let cible, e;
     if (porteur) {
@@ -223,13 +240,15 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
       const dx = porteur.x - s.x, dy = porteur.y - s.y, d = hyp(dx, dy);
       const devant = Math.abs(plier(Math.atan2(dy, dx) - s.cap)) < 0.7;
       // Dans son dos et près de lui : on ne fonce pas (la charge par-derrière, c'est deux minutes), on se colle et on harponne.
-      const dansSonDos = (dx * Math.cos(porteur.cap) + dy * Math.sin(porteur.cap)) < 0;
+      const dansSonDos = (dx * Math.cos(porteur.cap) + dy * Math.sin(porteur.cap)) > 0.3 * d;
       if (dansSonDos && d < 3.5) { e.x *= 0.25; e.y *= 0.25; }
       // Le harpon à portée, de face ; la mise en échec de face, en fonçant — jamais par-derrière, c'est deux minutes.
       if (d < HARPON.portee + 0.3 && devant && s.harponRepos <= 0 && etat.de() < 0.5) e.tir = true;
       const vs = hyp(s.vx, s.vy) || 1e-9;
-      const parDerriere = (s.vx * Math.cos(porteur.cap) + s.vy * Math.sin(porteur.cap)) / vs > 0.45;
-      if (d < 2.6 && devant && !parDerriere && vs > 3 && s.elanRepos <= 0) e.echec = true;
+      // De face seulement : le porteur vient vers nous (son cap contre notre vitesse) ; de côté ou dans son dos, on ne fonce pas.
+      const deFace = (s.vx * Math.cos(porteur.cap) + s.vy * Math.sin(porteur.cap)) / vs < -0.2;
+      const enFaceDeLui = (dx * Math.cos(porteur.cap) + dy * Math.sin(porteur.cap)) < -0.3 * d;
+      if (d < 2.6 && devant && deFace && enFaceDeLui && vs > 3 && s.elanRepos <= 0) e.echec = true;
     } else {
       const t = tempsVers(s);
       cible = { x: R.x + R.vx * Math.min(t, 2), y: R.y + R.vy * Math.min(t, 2) };
@@ -240,9 +259,14 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
   }
   // Les autres se placent : entre la rondelle et notre filet, chacun à son rang.
   const D = miens.filter(m => m.poste === 'D'), iD = D.indexOf(s);
-  const notreZone = u(R.x) < -BLEUE;
   let cible;
-  if (iD >= 0) {
+  if (desavantage) {
+    const coins = [{ x: monBut.x + a * 3.5, y: -2.8 }, { x: monBut.x + a * 3.5, y: 2.8 }, { x: monBut.x + a * 8.5, y: -3.5 }, { x: monBut.x + a * 8.5, y: 3.5 }];
+    const ordreBoite = miens.slice().sort((p, q) => (p.poste === 'D' ? 0 : 1) - (q.poste === 'D' ? 0 : 1) || p.id.localeCompare(q.id));
+    cible = coins[Math.min(ordreBoite.indexOf(s), coins.length - 1)];
+    // Le carré glisse vers le côté de la rondelle.
+    cible = { x: cible.x, y: cible.y + clamp(R.y, -4, 4) * 0.35 };
+  } else if (iD >= 0) {
     const cote = iD === 0 ? -1 : 1;
     cible = { x: monBut.x + (R.x - monBut.x) * (notreZone ? 0.45 : 0.6), y: R.y * 0.4 + cote * 2.5 };
     if (u(cible.x) < -(LIGNE_BUT - 2.5)) cible.x = -a * (LIGNE_BUT - 2.5);
@@ -260,5 +284,8 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
     else cible = { x: a * (u(R.x) - 4), y: role * 7 };
   }
   cible = dansLaGlace(cible.x, cible.y);
-  return espacer(s, miens, vers(s, cible.x, cible.y), 2.2, adv.filter(o => o !== porteur));
+  const e = espacer(s, miens, vers(s, cible.x, cible.y), 2.2, adv.filter(o => o !== porteur));
+  // LE DÉFENSEUR RECULE face au porteur qui descend sur lui : il va vers son filet, le cap tenu vers la rondelle.
+  if (iD >= 0 && porteur && u(porteur.x) < u(s.x) + 12 && u(porteur.x) > u(s.x) - 1 && e.x * -a > 0.3) e.recul = true;
+  return e;
 }

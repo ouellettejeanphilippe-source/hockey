@@ -16,12 +16,16 @@
  *   le match      deux clubs joués par l'IA (js/glace-ia.js) vont au bout : trois périodes, des mises en jeu, des
  *                 tirs, des buts, des changements de ligne ; le hors-jeu, le dégagement refusé, la punition et son
  *                 avantage numérique se sifflent quand leur fait est là ; la prolongation à trois, les tirs de
- *                 barrage décident un match nul ; la même graine rend la même empreinte.
+ *                 barrage décident un match nul ; la même graine rend la même empreinte ;
+ *   la hauteur    la rondelle retombe et rebondit, passe par-dessus la barre, sonne la barre, se soulève quand la
+ *                 passe est barrée ; le patin recule, coupe à prix, sprinte ; les passes décisives, les trois
+ *                 étoiles, le gardien retiré, le tir de punition, la prolongation des séries, deux humains, la
+ *                 difficulté ; une collision de course n'est jamais punie (1er nov. 2026).
  *
  *   node scripts/check_physique.mjs
  */
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, parametresDuPatineur, parametresDuGardien, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, BATON, RONDELLE, GARDIEN, CHUTE, MATCH } from '../js/physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, BATON, RONDELLE, GARDIEN, CHUTE, MATCH } from '../js/physique.js';
 import { decisionIA } from '../js/glace-ia.js';
 
 const t0 = Date.now();
@@ -278,12 +282,12 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
   borne('… des buts, mais pas une pluie', M.pointage.A + M.pointage.B, 1, 12, ' buts');
   borne('… des mises en jeu gagnées des deux côtés', Math.min(M.mej.A, M.mej.B), 1, 60);
   exiger('… des passes, des prises, des mises en échec', (compte.passe || 0) > 10 && (compte.prise || 0) > 20 && (compte.echec || 0) > 0, `${compte.passe || 0} passes, ${compte.prise || 0} prises, ${compte.echec || 0} contacts`);
-  borne('… et pas plus de punitions qu\'un match de la LNH n\'en voit par heure (par 6 min)', compte.punition || 0, 0, 24);
+  borne('… et pas plus de punitions qu\'un match de la LNH n\'en voit (par 6 min ; JP : *ya trop de pénalités*)', compte.punition || 0, 0, 4);
   informer('ce que le match a vu', Object.entries(compte).map(([k, n]) => `${k} ${n}`).join(' · '));
   const lignes = e.equipes.A.lignes.F;
   exiger('les trois trios sont là, et les deux paires', lignes.every(l => l.length === 3) && e.equipes.A.lignes.D.every(l => l.length === 2), `${lignes.map(l => l.length).join('+')} avants, ${e.equipes.A.lignes.D.map(l => l.length).join('+')} défenseurs`);
-  const fatigues = e.patineurs.filter(s => s.jambes < 100).length;
-  exiger('les jambes ont joué : des patineurs sont fatigués, et personne n\'a joué seul tout le match', fatigues > 10, `${fatigues} patineurs sous 100`);
+  const ontJoue = e.patineurs.filter(s => s.stats.tg > 10).length;
+  exiger('les jambes ont joué : les lignes ont changé, et personne n\'a joué seul tout le match', ontJoue > 10 && e.patineurs.some(s => s.jambes < 100), `${ontJoue} patineurs ont plus de 10 s de glace`);
 }
 {
   const e = nouveauMatch({ graine: 'cinq', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
@@ -341,7 +345,7 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
     const victime = A[0], frappeur = B[0];
     for (const s of [...A, ...B]) { s.x = -20; s.y = 10; s.vx = 0; s.vy = 0; }
     Object.assign(victime, { x: 0, y: -6, cap: 0, vx: 0, vy: 0 });
-    Object.assign(frappeur, { x: -4, y: -6, cap: 0, vx: 9, vy: 0, elan: 0.3 });
+    Object.assign(frappeur, { x: -2.5, y: -6, cap: 0, vx: 9, vy: 0, elan: 0.35 });   // le bouton pressé : l'élan court encore au contact
     // Les fautifs ont la rondelle (un coéquipier du frappeur la porte) : la punition tombe tout de suite.
     const porteurB = B[1];
     Object.assign(porteurB, { x: 15, y: 8, cap: 0, vx: 0, vy: 0 });
@@ -372,18 +376,193 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
     Object.assign(e.rondelle, { x: 6.1, y: 8.3, vx: 0, vy: 0 });
     avancer(e, { [porteurA.id]: { x: 0, y: 0 } }, DT);
     Object.assign(victime, { x: 0, y: -6, cap: 0, vx: 0, vy: 0 });
-    Object.assign(frappeur, { x: -4, y: -6, cap: 0, vx: 9, vy: 0, elan: 0.3 });
+    Object.assign(frappeur, { x: -2.5, y: -6, cap: 0, vx: 9, vy: 0, elan: 0.35 });   // le bouton pressé : l'élan court encore au contact
     const ev = jouer(e, { [frappeur.id]: { x: 1, y: 0 }, [porteurA.id]: { x: 0, y: 0 } }, 1);
     const p = ev.find(x => x.type === 'punition');
     exiger('la punition à retardement : le sifflet attend tant que l\'équipe lésée a la rondelle', !!p && p.attente && !e.arret && e.match.enAttente && e.match.enAttente.id === frappeur.id, p ? `${p.genre}, en attente` : 'rien');
   }
 }
 
+/* ---------- la hauteur de la rondelle (1er nov. 2026) ---------- */
+{
+  const e = glaceVide('haut');
+  Object.assign(e.rondelle, { x: -20, y: 6, vx: 4, vy: 0, z: 1, vz: 0 });
+  let rebond = 0, posee = false;
+  for (let t = 0; t < 3; t += DT) { avancer(e, {}, DT); if (e.rondelle.z <= 0) posee = true; if (posee && e.rondelle.z > rebond) rebond = e.rondelle.z; }
+  exiger('la rondelle en l\'air retombe sous la gravité et finit au sol', e.rondelle.z === 0 && e.rondelle.vz === 0, `z ${e.rondelle.z}`);
+  borne('… après un rebond qui rend ce que le sol dit', rebond, RONDELLE.rebondSol ** 2 * 1 * 0.8, RONDELLE.rebondSol ** 2 * 1 * 1.05, ' m (depuis 1 m)');
+}
+{
+  const tirHaut = z => {
+    const e = glaceVide('barre');
+    e.gardiens[0].y = -8;
+    Object.assign(e.rondelle, { x: LIGNE_BUT - 1, y: 0, vx: 22, vy: 0, z, vz: 0 });   // à un mètre : la gravité n'a pas le temps
+    return jouer(e, {}, 0.5);
+  };
+  const dessus = tirHaut(FILET.haut + 0.3), dedans = tirHaut(0.6), barre = tirHaut(FILET.haut);
+  exiger('un tir par-dessus la barre horizontale n\'est pas un but', !dessus.some(x => x.type === 'but') && !dessus.some(x => x.type === 'poteau'), dessus.map(x => x.type).join(' ') || 'rien');
+  exiger('… le même tir à 60 cm du sol en est un', dedans.some(x => x.type === 'but'), dedans.map(x => x.type).join(' ') || 'rien');
+  exiger('… et juste à la barre, elle sonne et revient', barre.some(x => x.type === 'poteau' && x.barre) && !barre.some(x => x.type === 'but'), barre.map(x => x.type).join(' ') || 'rien');
+}
+{
+  // La passe soulevée : un adversaire couché sur la ligne de passe, la rondelle passe par-dessus.
+  const e = nouveauMatch({ graine: 'saucer', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: 'A', ia: decisionIA });
+  jouer(e, {}, 0.6); e.mej = null; e.enJeu = true;
+  const A = surGlace(e, 'A'), B = surGlace(e, 'B');
+  for (const s of [...A, ...B]) { s.x = -20; s.y = 10; s.vx = 0; s.vy = 0; }
+  const porteur = A[0], receveur = A[1], barreur = B[0];
+  Object.assign(porteur, { x: 0, y: -5, cap: 0, vx: 0, vy: 0 });
+  Object.assign(receveur, { x: 8, y: -5, cap: 0, vx: 0, vy: 0 });
+  Object.assign(barreur, { x: 4, y: -5, cap: Math.PI, vx: 0, vy: 0, lachee: 2 });
+  Object.assign(e.rondelle, { x: 1.1, y: -4.7, vx: 0, vy: 0, porteur: porteur.id });
+  e.controles.A = porteur.id;
+  let zMax = 0;
+  const ev = [];
+  for (let t = 0; t < 0.8; t += DT) { ev.push(...avancer(e, { [porteur.id]: { x: 1, y: 0, passe: t > 0.05 } }, DT)); zMax = Math.max(zMax, e.rondelle.z); }
+  const p = ev.find(x => x.type === 'passe');
+  exiger('une passe dont la ligne est barrée se soulève', !!p && p.soulevee && p.vers === receveur.id, p ? `vers ${p.vers}, soulevée ${p.soulevee}` : 'aucune passe');
+  borne('… et monte assez pour passer un bâton', zMax, 0.3, 1.2, ' m');
+}
+
+/* ---------- le patin de plus : reculer, couper, sprinter ---------- */
+{
+  const e = glaceVide('recul');
+  const toi = e.patineurs[0];
+  Object.assign(toi, { x: -10, y: 9, cap: 0, vx: 0, vy: 0 });
+  jouer(e, { toi: { x: -1, y: 0, recul: true } }, 2.5);
+  exiger('à reculons, on va vers l\'arrière le cap tenu devant', toi.vx < -3 && Math.abs(toi.cap) < 0.3, `vx ${toi.vx.toFixed(1)} m/s, cap ${toi.cap.toFixed(2)} rad`);
+  borne('… moins vite qu\'en avant', -toi.vx / PATIN.vMax, PATIN.recul - 0.12, PATIN.recul + 0.02);
+}
+{
+  const vitesseApres = tourne => {
+    const e = glaceVide('coupe');
+    const toi = e.patineurs[0];
+    Object.assign(toi, { x: -27, y: 0, cap: 0, vx: 0, vy: 0 });
+    jouer(e, { toi: { x: 1, y: 0 } }, 4);
+    jouer(e, { toi: tourne ? { x: 0, y: 1 } : { x: 1, y: 0 } }, 0.5);
+    return v(toi);
+  };
+  const droit = vitesseApres(false), coupe = vitesseApres(true);
+  exiger('couper sec coûte de la vitesse', coupe < droit * 0.9, `${(droit * 3.6).toFixed(0)} km/h tout droit, ${(coupe * 3.6).toFixed(0)} km/h en coupant`);
+}
+{
+  const course = sprint => {
+    const e = glaceVide('turbo');
+    const toi = e.patineurs[0];
+    Object.assign(toi, { x: -27, y: 9, cap: 0, vx: 0, vy: 0, jambes: 100 });
+    let vmax = 0;
+    for (let t = 0; t < 3; t += DT) { avancer(e, { toi: { x: 1, y: 0, sprint } }, DT); vmax = Math.max(vmax, v(toi)); }
+    return { vmax, jambes: toi.jambes };
+  };
+  const sans = course(false), avec = course(true);
+  exiger('le turbo va plus vite que la pointe ordinaire', avec.vmax > sans.vmax * 1.08, `${(sans.vmax * 3.6).toFixed(0)} → ${(avec.vmax * 3.6).toFixed(0)} km/h`);
+  exiger('… et use les jambes bien plus vite', 100 - avec.jambes > (100 - sans.jambes) * 2.5, `${(100 - sans.jambes).toFixed(1)} contre ${(100 - avec.jambes).toFixed(1)} jambes en 3 s`);
+}
+
+/* ---------- ce qui fait qu'un match se raconte ---------- */
+{
+  const e = nouveauMatch({ graine: 'aides', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
+  jouer(e, {}, 0.6); e.mej = null; e.enJeu = true;
+  const A = surGlace(e, 'A'), B = surGlace(e, 'B');
+  for (const s of [...A, ...B]) { s.x = -20; s.y = -10; s.vx = 0; s.vy = 0; }
+  const passeur = A[0], marqueur = A[1];
+  e.match.touches.A = [{ id: passeur.id, t: e.t - 2 }];
+  const G2 = e.gardiens.find(g => g.equipe === 'B'); G2.x = LIGNE_BUT + 2; G2.y = 8;
+  Object.assign(e.rondelle, { x: LIGNE_BUT - 3, y: 0, vx: 25, vy: 0, z: 0.3, vz: 0, porteur: null, dernier: { equipe: 'A', id: marqueur.id, t: e.t, x: LIGNE_BUT - 3, lance: true } });
+  const ev = jouer(e, {}, 0.5);
+  const b = ev.find(x => x.type === 'but');
+  exiger('un but porte sa passe décisive : le dernier coéquipier à avoir touché la rondelle', !!b && b.qui === marqueur.id && b.aides.length === 1 && b.aides[0] === passeur.id, b ? `${b.qui}, aides ${b.aides.join(',')}` : 'aucun but');
+  exiger('… et chacun la compte dans ses stats', marqueur.stats.buts === 1 && passeur.stats.aides === 1 && e.match.journal[0].aides[0] === passeur.id, `${marqueur.stats.buts} B, ${passeur.stats.aides} A`);
+}
+{
+  const { e } = matchComplet('etoiles', 90);
+  const E = e.match.etoiles;
+  exiger('la fin du match nomme trois étoiles, à leur note', E.length === 3 && E.every(x => x.nom && x.equipe) && E[0].note >= E[1].note && E[1].note >= E[2].note, E.map(x => `${x.nom} ${x.note.toFixed(1)}`).join(' · '));
+}
+{
+  const e = nouveauMatch({ graine: 'desert', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: 'B', ia: decisionIA });
+  jouer(e, {}, 0.6); e.mej = null; e.enJeu = true;
+  retirerGardien(e, 'B', true);
+  const six = surGlace(e, 'B').length;
+  exiger('le gardien retiré, un sixième attaquant saute sur la glace', six === 6 && droitSurGlace(e, 'B') === 6 && e.gardiens.find(g => g.equipe === 'B').retire, `${six} B sur la glace`);
+  for (const s of [...surGlace(e, 'A'), ...surGlace(e, 'B')]) { s.x = -20; s.y = -10; s.vx = 0; s.vy = 0; }
+  const tireur = surGlace(e, 'A')[0];
+  Object.assign(e.rondelle, { x: LIGNE_BUT - 6, y: 0, vx: 18, vy: 0, z: 0, vz: 0, porteur: null, dernier: { equipe: 'A', id: tireur.id, t: e.t, x: LIGNE_BUT - 6, lance: true } });
+  const ev = jouer(e, {}, 0.8);
+  exiger('… et un tir vers le filet désert entre', ev.some(x => x.type === 'but' && x.equipe === 'A') && e.match.pointage.A === 1, ev.map(x => x.type).join(' '));
+  jouer(e, {}, 4);
+  exiger('… à l\'arrêt de jeu, le gardien remis revient dans son filet', (retirerGardien(e, 'B', false), !e.gardiens.find(g => g.equipe === 'B').retire && droitSurGlace(e, 'B') === 5), `${surGlace(e, 'B').length} B`);
+}
+{
+  // LE TIR DE PUNITION : un harpon raté par-derrière accroche le porteur en échappée. Le dé décide ; sur une série
+  // fixe de graines, il arrive, et le match reprend après la ronde.
+  let trouve = null, essais = 0;
+  for (let k = 0; k < 400 && !trouve; k++) {
+    const e = nouveauMatch({ graine: `echappee-${k}`, A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: 'B', ia: decisionIA });
+    jouer(e, {}, 0.6); e.mej = null; e.enJeu = true;
+    const A = surGlace(e, 'A'), B = surGlace(e, 'B');
+    for (const s of [...A, ...B]) { s.x = -20; s.y = -10; s.vx = 0; s.vy = 0; }
+    const porteur = A[0], chasseur = B[0];
+    Object.assign(porteur, { x: 6, y: 0, cap: 0, vx: 7, vy: 0 });
+    Object.assign(chasseur, { x: 4.95, y: 0.3, cap: 0, vx: 7, vy: 0 });   // dans son dos, à portée de harpon, sans le toucher
+    Object.assign(e.rondelle, { x: 7.1, y: 0.3, vx: 7, vy: 0, porteur: porteur.id });
+    e.controles.B = chasseur.id;
+    const ev = [];
+    // Le harpon part à l'appui, pas tenu : on presse par coups, tous les 0,8 s.
+    for (let t = 0; t < 2 && !ev.some(x => x.type === 'tirpunition'); t += DT) ev.push(...avancer(e, { [chasseur.id]: { x: 1, y: 0, tir: (t % 0.8) < 0.3 } }, DT));
+    essais++;
+    if (ev.some(x => x.type === 'tirpunition')) trouve = { e, ev };
+  }
+  exiger('un harpon raté par-derrière sur une échappée vaut un tir de punition', !!trouve && trouve.e.match.tirDePunition && trouve.e.match.tirDePunition.eq === 'A', trouve ? `à la graine ${essais}` : `jamais en ${essais} essais`);
+  if (trouve) {
+    const { e } = trouve;
+    const ev = jouer(e, {}, 3);
+    exiger('… joué seul devant le gardien, comme une ronde', ev.some(x => x.type === 'remise') && e.match.ronde && e.match.ronde.genre === 'punition' && surGlace(e, 'A').length === 1 && surGlace(e, 'B').length === 0, e.match.ronde ? `ronde ${e.match.ronde.genre}, ${surGlace(e, 'A').length} A sur la glace` : 'pas de ronde');
+    const ev2 = jouer(e, {}, MATCH.tirDePunition + 4);
+    exiger('… puis le match reprend', ev2.some(x => x.type === 'ronde' && x.genre === 'punition') && !e.match.ronde && !e.match.tirDePunition && !e.match.fini && surGlace(e, 'A').length === 5, `${surGlace(e, 'A').length} A, ronde ${e.match.ronde ? 'encore' : 'finie'}`);
+  }
+}
+{
+  // En séries, pas de trois contre trois ni de tirs de barrage : une prolongation à cinq, de la longueur d'une période.
+  const e = nouveauMatch({ graine: 'nul', A: club('AAA', 100), B: club('BBB', 200), periode: 8, prolongation: 8, humain: null, ia: decisionIA, series: true });
+  let pas = 0;
+  while (!e.match.prolongation && !e.match.fini && pas < 120 * 60) { avancer(e, {}, DT); pas++; }
+  const M = e.match;
+  exiger('en séries, la prolongation se joue à cinq, une période entière, sans tirs de barrage', M.prolongation && !M.fusillade && M.series && M.reste <= 8 && M.reste > 7 && droitSurGlace(e, 'A') === 5, `${M.pointage.A}–${M.pointage.B}, P${M.periode}, ${M.reste.toFixed(1)} s, ${droitSurGlace(e, 'A')} sur la glace`);
+}
+{
+  const e = nouveauMatch({ graine: 'deux', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humains: ['A', 'B'], ia: decisionIA });
+  jouer(e, {}, 0.6);
+  const a = e.patineurs.find(s => s.id === e.controles.A), b = e.patineurs.find(s => s.id === e.controles.B);
+  exiger('à deux joueurs, chacun contrôle un patineur de son club', !!a && !!b && a.equipe === 'A' && b.equipe === 'B' && a.surGlace && b.surGlace, `${e.controles.A} et ${e.controles.B}`);
+}
+{
+  const dur = nouveauMatch({ graine: 'dur', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: 'A', ia: decisionIA, difficulte: 'difficile' });
+  const base = club('BBB', 200).patineurs[0].p.vMax;
+  const b = dur.patineurs.find(s => s.equipe === 'B'), a = dur.patineurs.find(s => s.equipe === 'A');
+  exiger('la difficulté pèse sur le club de l\'IA seulement', Math.abs(b.p.vMax / base - DIFFICULTES.difficile) < 1e-9 && Math.abs(a.p.vMax - club('AAA', 100).patineurs[0].p.vMax) < 1e-9, `B ×${(b.p.vMax / base).toFixed(2)}, A ×${(a.p.vMax / club('AAA', 100).patineurs[0].p.vMax).toFixed(2)}`);
+}
+{
+  // Une collision de course, sans le bouton : elle renverse peut-être, elle n'est jamais punie.
+  const e = nouveauMatch({ graine: 'course', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
+  jouer(e, {}, 0.6); e.mej = null; e.enJeu = true;
+  const A = surGlace(e, 'A'), B = surGlace(e, 'B');
+  for (const s of [...A, ...B]) { s.x = -20; s.y = 10; s.vx = 0; s.vy = 0; }
+  const victime = A[0], coureur = B[0];
+  Object.assign(victime, { x: 0, y: -6, cap: 0, vx: 0, vy: 0 });
+  Object.assign(coureur, { x: -2.5, y: -6, cap: 0, vx: 10, vy: 0, elan: 0 });
+  const porteurB = B[1];
+  Object.assign(porteurB, { x: 15, y: 8, cap: 0, vx: 0, vy: 0 });
+  Object.assign(e.rondelle, { x: 16.1, y: 8.3, vx: 0, vy: 0, porteur: porteurB.id });
+  const ev = jouer(e, { [coureur.id]: { x: 1, y: 0 }, [porteurB.id]: { x: 0, y: 0 } }, 1.2);
+  exiger('une collision de course, par-derrière mais sans le bouton, n\'est pas une punition', ev.some(x => x.type === 'echec' && x.qui === coureur.id) && !ev.some(x => x.type === 'punition'), ev.filter(x => x.type !== 'prise').map(x => x.type).join(' ') || 'rien');
+}
+
 /* ---------- les règles, écrites de là ---------- */
 {
   const r = reglesDeLaGlace();
-  exiger('les règles de la glace se lisent du code', r.length >= 9 && r.every(l => /\d/.test(l)), `${r.length} lignes`);
-  exiger('… et disent les constantes', r.some(l => l.includes(`${Math.round(RONDELLE.masse * 1000)} g`)) && r.some(l => l.includes(`${Math.round(GARDIEN.reaction * 1000)} ms`)) && r.some(l => l.includes(`${PATIN.masse} kg`)) && r.some(l => l.includes(`${MATCH.punition / 60} minutes`)), 'la masse, la réaction, le poids, la punition');
+  exiger('les règles de la glace se lisent du code', r.length >= 11 && r.every(l => /\d/.test(l)), `${r.length} lignes`);
+  exiger('… et disent les constantes', r.some(l => l.includes(`${Math.round(RONDELLE.masse * 1000)} g`)) && r.some(l => l.includes(`${Math.round(GARDIEN.reaction * 1000)} ms`)) && r.some(l => l.includes(`${PATIN.masse} kg`)) && r.some(l => l.includes(`${MATCH.punition / 60} minutes`)) && r.some(l => l.includes(`${Math.round(GARDIEN.trous.haut * 100)} %`)) && r.some(l => l.includes(`${MATCH.retraitGardien} s`)), 'la masse, la réaction, le poids, la punition, les trous, le retrait');
 }
 
 verdict(`La physique de Sur glace · ${((Date.now() - t0) / 1000).toFixed(1)} s`);
