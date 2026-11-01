@@ -7,10 +7,18 @@
  * release GitHub (.github/workflows/publier.yml) avec l'APK et l'installateur Windows. Le dépôt est public : le menu
  * demande la dernière release à GitHub, sans jeton, une fois l'heure au plus, et si elle est plus récente que la
  * version installée, un bouton télécharge le bon fichier — l'APK sur le téléphone (Android l'installe par-dessus,
- * la même signature, les parties gardées), l'installateur sur le PC. Dans un navigateur, rien : le jeu y est servi
- * depuis le dossier, il est déjà à la version du dossier.
+ * la même signature, les parties gardées), l'installateur sur le PC.
+ *
+ * LA VERSION WEB (JP : *je parlais de mettre à jour la version Web sans perdre les saves*). Le site (GitHub Pages)
+ * suit main tout seul ; c'est le téléphone qui garde l'ancienne : le travailleur de service ne prend la neuve qu'au
+ * rechargement d'après, et une application qu'on ne ferme jamais ne recharge pas — le réflexe de vider les données
+ * du site effaçait alors les parties, qui vivent dans le stockage de la même adresse. Le menu compare la version du
+ * code qui tourne (`VERSION`, js/version.js) à celle du sw.js que le serveur sert, sans cache ; plus récente, le
+ * bouton fait prendre au travailleur de service la version neuve (il recharge chaque fichier de la coquille en
+ * passant le cache) puis recharge la page. Rien n'efface le stockage : les parties restent.
  */
 import { surAppareil } from './visages.js';
+import { VERSION } from './version.js';
 
 const DEPOT = 'ouellettejeanphilippe-source/hockey';
 const CLE = 'cap82_maj';
@@ -43,12 +51,21 @@ export function offre(release, installee, ou) {
   return version && url && installee && plusRecente(version, installee) ? { version, url } : null;
 }
 
-/* Ce qu'on offre au menu, ou null : à jour, hors ligne, dans un navigateur, ou GitHub qui ne répond pas. */
+/* La version Web offerte : celle que le serveur sert, si elle passe celle qui tourne ; { version, web: true } ou null. */
+export function offreWeb(texteDuServeur, installee) {
+  const version = versionDe(texteDuServeur || '');
+  return version && installee && plusRecente(version, installee) ? { version, web: true } : null;
+}
+
+/* Ce qu'on offre au menu, ou null : à jour, hors ligne, ou le serveur (GitHub) qui ne répond pas. */
 export async function miseAJour() {
   const ou = plateforme();
-  if (!ou) return null;
   try {
-    const installee = versionDe(await (await fetch('sw.js', { cache: 'no-store' })).text());
+    if (!ou) {
+      if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return null;
+      return offreWeb(await (await fetch('sw.js', { cache: 'no-store' })).text(), VERSION);
+    }
+    const installee = VERSION;
     let memo = null;
     try { memo = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch { /* rien */ }
     let release = memo && Date.now() - memo.t < DELAI ? memo.release : null;
@@ -63,9 +80,24 @@ export async function miseAJour() {
   } catch { return null; }
 }
 
-/* Télécharger : sur Android, la navigation hors de l'application ouvre le navigateur de l'appareil, qui reçoit l'APK ;
-   sous Windows, la fenêtre neuve part au navigateur (`setWindowOpenHandler`, desktop/main.js). */
-export function telecharger(url) {
-  if (plateforme() === 'apk') location.href = url;
-  else window.open(url, '_blank');
+/* Mettre à jour. La version Web : le travailleur de service neuf s'installe (il recharge chaque fichier de la
+   coquille sans passer par le cache, sw.js), prend la main (`skipWaiting`, `clients.claim`), et la page recharge ;
+   le stockage n'est jamais touché. L'APK et l'exe : sur Android, la navigation hors de l'application ouvre le
+   navigateur de l'appareil, qui reçoit l'APK ; sous Windows, la fenêtre neuve part au navigateur. */
+export async function mettreAJour(o) {
+  if (!o.web) {
+    if (plateforme() === 'apk') location.href = o.url;
+    else window.open(o.url, '_blank');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) {
+      const prise = new Promise(r => { navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }); setTimeout(r, PATIENCE); });
+      await reg.update();
+      if (reg.installing || reg.waiting) await prise;
+    }
+  } catch { /* le rechargement reprend quand même la page du serveur */ }
+  location.reload();
 }
+const PATIENCE = 30e3;   // au plus ça d'attente que la coquille neuve soit téléchargée, ms ; au-delà, on recharge quand même

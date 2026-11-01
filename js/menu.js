@@ -15,7 +15,8 @@
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer, exporter, importer } from './sauvegardes.js';
 import { esc } from './util.js';
 import { surAppareil } from './visages.js';
-import { miseAJour, telecharger } from './mise-a-jour.js';
+import { miseAJour, mettreAJour } from './mise-a-jour.js';
+import { VERSION } from './version.js';
 /*
  * LE FICHIER SORT (1.0). Sur le web, un lien `download` suffit. Dans
  * l'application Android, la WebView n'enregistre pas un tel lien : on passe
@@ -145,6 +146,7 @@ function dessiner(m) {
   const pied = `<nav class="menu-pied" aria-label="Réglages">
       <button type="button" class="menu-entree" data-menu="options"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg>Options</button>
       <button type="button" class="menu-entree" data-menu="regles"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles</button>
+      <span class="menu-version">Version ${esc(VERSION)}</span>
     </nav>`;
 
   const liensRogue = ctx.enJeu && active && active.genre === 'rogue' && ctx.rogue
@@ -202,8 +204,9 @@ function dessiner(m) {
   const place = m.querySelector('.menu-maj-place');
   if (place) miseAJour().then(o => {
     if (!o || !place.isConnected) return;
-    place.innerHTML = `<button type="button" class="menu-lien menu-maj">Mettre à jour <small>la version ${esc(o.version)} est prête</small> ›</button>`;
-    place.firstElementChild.onclick = () => telecharger(o.url);
+    place.innerHTML = `<button type="button" class="menu-lien menu-maj">Mettre à jour <small>la version ${esc(o.version)} est prête${o.web ? ' · tes parties restent' : ''}</small> ›</button>`;
+    const b = place.firstElementChild;
+    b.onclick = () => { b.disabled = true; b.querySelector('small').textContent = 'téléchargement…'; mettreAJour(o); };
   });
   m.querySelectorAll('[data-menu]').forEach(b => {
     b.onclick = () => {

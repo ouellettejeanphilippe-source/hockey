@@ -100,7 +100,8 @@ js/roles_ref.js       la référence des rôles
 js/franchises.js      les franchises et leurs relocalisations
 js/logos.js, js/logos_locaux.js   couleurs et écussons des 44 franchises
 js/menu.js            l'écran titre, et le même écran en menu pause en pleine partie
-js/mise-a-jour.js     la mise à jour à même le menu : dans l'APK et l'exe, la dernière release GitHub (.github/workflows/publier.yml, une par version de sw.js) plus récente que la version installée offre son fichier — `check_maj`
+js/mise-a-jour.js     la mise à jour à même le menu : la version Web (GitHub Pages) compare la version qui tourne (js/version.js) au sw.js du serveur et, plus récent, fait prendre la coquille neuve au travailleur de service puis recharge, le stockage (les parties) jamais touché ; dans l'APK et l'exe, la dernière release GitHub (.github/workflows/publier.yml) offre son fichier — `check_maj`
+js/version.js         la version du code qui tourne, la même que `VERSION` de sw.js : les deux montent ensemble — `check_maj`
 js/sauvegardes.js     les parties sauvegardées, et leur export en fichier transférable, importé au menu — `check_sauvegardes`
 js/mouvement.js       les chiffres qui se comptent
 js/exhibition.js      l'exhibition
