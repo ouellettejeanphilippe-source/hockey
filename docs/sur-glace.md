@@ -162,7 +162,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | La secousse de l'écran sur un gros coup et un but, l'arrêt sur image d'un impact (hit stop) | ✅ | `secousse`, `GEL` (l'arrêt sur image de 60 ms), js/sur-glace.js |
 | La vibration de la manette (haptique) | ✅ | `vibrer` : le tir, le coup reçu, le but |
 | La reprise d'un but (le ralenti), la célébration | ⬜ | rejouer les 4 dernières secondes d'états gardés |
-| La mémoire d'un appui (le bouton pressé un peu trop tôt compte quand même) | 🟡 | la passe tenue quand elle arrive repart aussitôt (`tenaitPasse` remis à la prise) ; un vrai tampon de 100 ms manque |
+| La mémoire d'un appui (le bouton pressé un peu trop tôt compte quand même) | ✅ | `TAMPON` (100 ms) : un appui de passe ou de tir juste avant la prise se joue à la prise ; le une-temps aussi |
 | L'indicateur du receveur de la passe (qui va la recevoir) | ✅ | `receveurDePasse` (js/physique.js), l'anneau jaune, pointillé si la ligne est barrée (`receveur`, js/sur-glace.js) |
 | La barre de puissance, le changement de joueur, les boutons qui changent avec la rondelle | ✅ | `hud`, `changerDeJoueur` |
 | Le radar, le tableau, les punis, le flash des événements | ✅ | `radar`, `hud` |
