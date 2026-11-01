@@ -156,9 +156,9 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Le rendu old school (gros pixels, lignes de balayage, la police d'arcade) | ✅ | `RETRO`, `.sg-crt`, Bungee |
 | Les jetons à la vraie face, les locaux en blanc | ✅ | `jeton`, `chandails` |
 | Les animations procédurales (la foulée, le bâton, la chute, l'impact, le papillon, la lumière, la chute de la rondelle) | ✅ | `patineur`, `gardien`, `animer` |
-| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé) | ✅ | un petit bonhomme en trois dimensions (capsules et sphères : casque, visage, tronc, épaules, bras, gants, bâton, pantalon, jambes, patins ; le gardien et ses jambières) rendu en pixels avec un tampon de profondeur, trois tons, les décalques (le visage devant, le numéro derrière), le contour ; seize directions (`modelePatineur`, `modeleGardien`, `rendre`, `spriteDe`, js/sur-glace.js) |
+| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé) | ✅ | dessinés à la main pixel par pixel par l'atelier de graphistes (scripts/sprites : les planches en lettres, le guide, la recherche, l'aperçu, l'assembleur → js/sprites.js) : cinq directions, dix poses du patineur, le gardien en quatre poses et trois directions, teints aux couleurs du club |
 | Les sons synthétisés (le tir, la passe, la bande, le but, le sifflet, l'échec) | ✅ | `SONS`, js/sons.js |
-| La foule (une rumeur qui monte, le « ohhh » du poteau, la clameur du but), l'annonceur | ⬜ | js/commentaire.js a déjà les banques de mots du direct : un commentateur du match en direct serait du texte, pas de la voix |
+| La foule (une rumeur qui monte, le « ohhh » du poteau, la clameur du but), l'annonceur | ✅ | js/sons-glace.js : la foule en cinq couches de bruit pilotée par une intensité, le ohhh, la clameur, les huées, la sirène ; l'annonceur manque |
 | La secousse de l'écran sur un gros coup et un but, l'arrêt sur image d'un impact (hit stop) | ✅ | `secousse`, `GEL` (l'arrêt sur image de 60 ms), js/sur-glace.js |
 | La vibration de la manette (haptique) | ✅ | `vibrer` : le tir, le coup reçu, le but |
 | La reprise d'un but (le ralenti), la célébration | ⬜ | rejouer les 4 dernières secondes d'états gardés |

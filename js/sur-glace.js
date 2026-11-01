@@ -18,6 +18,7 @@
  */
 import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, DIFFICULTES, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, RONDELLE } from './physique.js';
 import { decisionIA } from './glace-ia.js';
+import { PATINEURS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
 import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
 import { axes20, cote20 } from './niveaux.js';
 import { getTraits } from './traits.js';
@@ -27,12 +28,9 @@ import { esc, estD } from './util.js';
 
 const GRADINS = 3.2;     // la caméra montre TOUTE LA LARGEUR de la glace et ses gradins, debout, sur tous les écrans (JP, 1er nov. : *vue verticale, caméra largeur complète style NHL 26* — la caméra de NHL 94) : ça de gradins de chaque côté, m
 const SUIVI = 6;         // la vitesse à laquelle elle rattrape la rondelle, par seconde
-const PIXEL = 0.07;      // un pixel de sprite, en mètres (un bonhomme de 22 pixels, trapu comme à la console) ; à l'écran, un pixel de sprite fait un nombre ENTIER de pixels (jamais de flou) : deux au téléphone, trois en mode large
-const SPRITE_L = 40, SPRITE_H = 38, ANCRE = [20, 32];   // un sprite : 40 × 38 pixels, les patins du joueur au pixel (20, 32) ; la place pour le bâton levé et le corps couché
-const HAUTEUR = 1.0;     // la vue penchée : un mètre de haut fait ça de mètres vers le haut de l'écran (grand, comme à la console) ; le sol reste celui de la patinoire (la lame au point de la rondelle)
-const VISEE = [0, 0.6, 0.8], BAS_ECRAN = [0, 0.8, -0.6], LUMIERE = [-0.45, -0.35, 0.82];   // vers l'œil, vers le bas de l'écran, et d'où vient la lumière (en haut à gauche, devant)
-const FOULEES = 6;       // les images d'un cycle de patinage
-const DIRECTIONS = 16;   // les sprites se dessinent en seize directions
+const PIXEL = 1 / 14;    // un pixel de sprite, en mètres : quatorze par mètre (la lame à quatorze pixels devant les patins) ; à l'écran, un pixel de sprite fait un nombre ENTIER de pixels (jamais de flou) : deux au téléphone, trois en mode large
+const FOULEES = 4;       // les images d'un cycle de patinage
+const DIRECTIONS = 8;    // les sprites existent en huit directions : cinq dessinées, trois en miroir
 const GEL = 0.06;        // l'arrêt sur image d'une mise en échec qui renverse, s (le hit stop)
 const NOM = 1200;        // le nom du porteur se montre ça de temps à la prise, ms (JP : *nom apparaît une seconde à la possession*)
 const COULEURS = {
@@ -51,16 +49,14 @@ const chandails = (bandA, bandB) => ({
 });
 const CLE = 'cap82_glace';
 /*
- * LES SPRITES 16 BITS (JP, 1er nov. : *look snes* ; *deviens graphiste de 16-bit* ; *animations et sprites à chier*).
- * Un petit bonhomme en TROIS DIMENSIONS — des capsules et des sphères en mètres : le casque et le visage, le tronc,
- * les épaules, les bras, les gants, le bâton dans les mains, le pantalon, les jambes, les patins ; le gardien avec
- * son masque, sa mitaine, son bloqueur et ses jambières — posé par une vraie animation (le cycle de patinage à six
- * images, les jambes qui poussent de côté, le tronc qui se penche ; le lancer qui se charge et fouette ; la passe ;
- * la mise en échec, l'épaule devant ; la chute, couché sur la glace ; le gardien debout et en papillon), puis
- * RENDU EN PIXELS comme à la console : la caméra penchée au-dessus du sol de la patinoire (les patins et la lame
- * restent où le moteur les met), un tampon de profondeur, trois tons par couleur selon la lumière, le visage et le
- * numéro dans le dos en décalques qui ne se voient que de leur côté, un contour sombre. Seize directions, aux
- * couleurs du club, rendus une fois chacun et gardés. Les visages (img/mugs) restent à la barre du nom.
+ * LES SPRITES 16 BITS (JP, 1er nov. : *look snes* ; *deviens graphiste de 16-bit* ; *animations et sprites à
+ * chier* ; *fais-toi plusieurs sous-agents graphistes*). Dessinés à la main, pixel par pixel, par un atelier de
+ * graphistes (docs/decisions.md) : js/sprites.js tient les planches en lettres, une lettre par matière — le
+ * contour, le chandail en trois tons, la bande du club, le numéro, la peau, le casque, le pantalon, les gants, les
+ * patins, le bâton et son ruban, les jambières, l'ombre tramée. Cinq directions dessinées (S, SE, E, NE, N), trois en
+ * miroir ; dix poses du patineur (le repos, le cycle de patinage en quatre images, la charge, le fouetté, la passe,
+ * l'épaule, la chute), le gardien en garde et en papillon. Teints aux couleurs du club une fois, gardés. Les visages
+ * (img/mugs) restent à la barre du nom.
  */
 const sprites = new Map();
 /* Mélanger une couleur hexadécimale vers le blanc (k > 0) ou le noir (k < 0). */
@@ -74,152 +70,27 @@ function teinter(hex, k) {
 function teintesDe(eq) {
   const c = couleurs[eq];
   return {
-    k: COULEURS.trait, J: c.bg, T: c.epaule, W: c.numero, Q: COULEURS.jambiere, S: COULEURS.peau, H: c.casque, P: c.pantalon, G: teinter(c.pantalon, -0.1),
-    K: COULEURS.patin, B: COULEURS.baton, L: COULEURS.lame,
+    k: COULEURS.trait, J: c.bg, j: teinter(c.bg, 0.3), d: teinter(c.bg, -0.25), T: c.epaule, W: c.numero, S: COULEURS.peau, s: COULEURS.peauOmbre,
+    H: c.casque, h: teinter(c.casque, 0.35), P: c.pantalon, p: teinter(c.pantalon, 0.25), G: teinter(c.pantalon, -0.1), K: COULEURS.patin, L: COULEURS.lameSprite,
+    B: COULEURS.baton, b: COULEURS.lame, Q: COULEURS.jambiere, q: COULEURS.jambiereOmbre, o: COULEURS.ombreSprite,
   };
 }
-/* Un segment épais du modèle : de a à b (x devant, y à gauche, z en haut, en mètres), le rayon, la couleur, un décalque. */
-const cap = (a, b, r, c, decalque = null) => ({ a, b, r, c, decalque });
-const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-/*
- * LE PATINEUR dans une pose : `patin` (la phase du cycle, 0 à 1), `repos`, `charge` (la part de charge), `tir`
- * (le fouetté), `passe`, `echec` (l'épaule), `chute` (couché). Trapu comme à la console : une grosse tête, de
- * grosses épaules, 1,6 m.
- */
-function modelePatineur(pose, part) {
-  const parts = [];
-  let hanche = [0, 0, 0.68], cou = [0.12, 0, 1.05];
-  // LE CYCLE DE PATINAGE : chaque jambe pousse de côté et vers l'arrière, puis revient sous le corps.
-  const phase = pose === 'patin' ? part * Math.PI * 2 : null;
-  const pencher = pose === 'patin' ? 0.14 : pose === 'echec' ? 0.25 : 0.06;
-  cou = [0.12 + pencher, 0, 1.05 - pencher * 0.3];
-  for (const cote of [1, -1]) {
-    const ph = phase == null ? Math.PI / 2 : phase + (cote > 0 ? 0 : Math.PI);
-    const pousse = phase == null ? 0 : Math.max(0, -Math.sin(ph));
-    const hj = [0, cote * 0.13, 0.68];
-    // Exagéré, pour que ça se lise (JP : *faut que les animations soient claires*) : la jambe qui pousse part loin de côté et derrière.
-    const genou = phase == null ? [0.14, cote * 0.18, 0.4] : [0.1 + 0.3 * Math.cos(ph), cote * (0.18 + 0.2 * pousse), 0.4 - 0.1 * pousse];
-    const cheville = phase == null ? [0.02, cote * 0.19, 0.08] : [-0.18 + 0.6 * Math.cos(ph), cote * (0.2 + 0.5 * pousse), 0.08];
-    const pointe = [cheville[0] + 0.26, cheville[1], 0.05];
-    parts.push(cap(hj, genou, 0.13, 'P'), cap(genou, cheville, 0.11, 'J', 'bas'), cap(cheville, pointe, 0.07, 'K'));
-  }
-  if (pose === 'echec') { hanche = [0.05, 0.12, 0.68]; cou = [0.42, 0.3, 0.9]; }   // l'épaule gauche devant, le tronc couché vers l'avant
-  // Le tronc, les épaules, la tête : gros, comme à la console (trois têtes de haut).
-  parts.push(cap(hanche, cou, 0.25, 'J', 'tronc'));
-  const epG = [cou[0] - 0.04, cou[1] + 0.3, cou[2] - 0.05], epD = [cou[0] - 0.04, cou[1] - 0.3, cou[2] - 0.05];
-  parts.push(cap(epG, epD, 0.18, 'T'));
-  const tete = [cou[0] + 0.08, cou[1], cou[2] + 0.27];
-  parts.push(cap(tete, tete, 0.25, 'H', 'tete'));
-  // LE BÂTON : du haut (la main droite) à la lame, selon la pose ; la main gauche à mi-manche.
-  let haut, lame;
-  // Les poses du bâton, franches : la charge le lève haut derrière la tête (par crans), le fouetté le lance devant en l'air.
-  if (pose === 'charge') { haut = [0.3 - 0.3 * part, 0.35, 0.95 + 0.6 * part]; lame = [-0.1 - 0.5 * part, 0.6 + 0.1 * part, 0.4 + 1.6 * part]; }   // à fond : le bâton droit au-dessus de la tête
-  else if (pose === 'tir') { haut = [0.6, -0.2, 1.15]; lame = [1.55, -0.75, 1.4]; }
-  else if (pose === 'passe') { haut = [0.5, 0.0, 0.9]; lame = [1.45, -0.1, 0.1]; }
-  else if (pose === 'echec') { haut = [0.6, 0.5, 0.95]; lame = [0.7, 1.1, 0.05]; }
-  else if (pose === 'chute') { haut = [0.5, 0.4, 0.3]; lame = [1.3, 0.9, 0.03]; }
-  else { const bal = phase == null ? 0 : 0.1 * Math.sin(phase); haut = [0.45, 0.08 + bal, 0.9]; lame = [1.0, 0.3 + bal * 2, 0.03]; }
-  const bas = mix(haut, lame, 0.42);
-  parts.push(cap(haut, lame, 0.035, 'B'), cap(lame, [lame[0] + 0.12, lame[1] + 0.34, lame[2]], 0.055, 'L'));   // le manche, et la lame enrubannée
-  // Les bras : de l'épaule au coude, du coude au gant qui tient le bâton.
-  for (const [ep, main, cote] of [[epD, haut, -1], [epG, bas, 1]]) {
-    const coude = [mix(ep, main, 0.5)[0] - 0.05, mix(ep, main, 0.5)[1] + cote * 0.08, mix(ep, main, 0.5)[2] - 0.12];
-    parts.push(cap(ep, coude, 0.1, 'J'), cap(coude, main, 0.09, 'J'), cap(main, main, 0.11, 'G'));
-  }
-  // LA CHUTE : tout le corps couché, la tête devant.
-  if (pose === 'chute') for (const q of parts) { for (const k of ['a', 'b']) { const [x, y, z] = q[k]; q[k] = [z * 0.9 + 0.1, y, 0.12 + Math.max(-0.05, -x * 0.9)]; } }
-  return parts;
-}
-/* LE GARDIEN : debout, les jambières en V, la mitaine et le bloqueur devant ; en papillon, les jambières à plat de chaque côté. */
-function modeleGardien(pose) {
-  const parts = [];
-  const papillon = pose !== 'garde';
-  const hz = papillon ? 0.38 : 0.6;
-  for (const cote of [1, -1]) {
-    const hj = [0, cote * 0.18, hz];
-    const genou = papillon ? [0.1, cote * 0.28, 0.12] : [0.28, cote * 0.3, 0.32];
-    const cheville = papillon ? [-0.05, cote * 0.78, 0.07] : [0.1, cote * 0.36, 0.08];
-    parts.push(cap(hj, genou, 0.12, 'P'), cap(genou, cheville, 0.15, 'Q'), cap(cheville, [cheville[0] + 0.22, cheville[1], 0.05], 0.065, 'K'));
-  }
-  const hanche = [0, 0, hz], cou = [0.14, 0, hz + 0.45];
-  parts.push(cap(hanche, cou, 0.27, 'J', 'tronc'));
-  parts.push(cap([cou[0] - 0.04, 0.3, cou[2] - 0.05], [cou[0] - 0.04, -0.3, cou[2] - 0.05], 0.16, 'T'));
-  const tete = [cou[0] + 0.08, 0, cou[2] + 0.24];
-  parts.push(cap(tete, tete, 0.21, 'H', 'masque'));
-  // La mitaine à gauche, le bloqueur et le bâton à droite.
-  const mitaine = [0.42, 0.5, hz + 0.32], bloqueur = [0.42, -0.5, hz + 0.28];
-  parts.push(cap([cou[0], 0.3, cou[2] - 0.05], mitaine, 0.08, 'J'), cap(mitaine, mitaine, 0.14, 'G'));
-  parts.push(cap([cou[0], -0.3, cou[2] - 0.05], bloqueur, 0.08, 'J'), cap(bloqueur, [bloqueur[0] + 0.05, bloqueur[1] - 0.05, bloqueur[2] - 0.12], 0.13, 'Q'));
-  parts.push(cap(bloqueur, [0.95, -0.25, 0.03], 0.035, 'B'), cap([0.7, -0.33, 0.25], [0.95, -0.25, 0.03], 0.06, 'B'), cap([0.95, -0.25, 0.03], [1.05, -0.1, 0.03], 0.05, 'L'));
-  return parts;
-}
-const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-/*
- * LE RENDU EN PIXELS d'un modèle tourné dans une direction de l'écran : chaque capsule se projette (le sol à plat,
- * la hauteur vers le haut de l'écran), chaque pixel garde la surface la plus près de l'œil, prend son ton à la
- * lumière, son décalque à la vraie normale (le visage devant, le numéro derrière), puis le contour.
- */
-function rendre(parts, angle, teintes) {
-  const cs = Math.cos(angle), sn = Math.sin(angle);
-  const monde = ([x, y, z]) => [x * cs + y * sn, x * sn - y * cs, z];   // le repère du corps vers l'écran (x à droite, y vers le bas, z en haut)
-  const devant = [cs, sn, 0];
-  const W = SPRITE_L, H = SPRITE_H;
-  const prof = new Float32Array(W * H).fill(-1e9), couleur = new Array(W * H).fill(null);
-  const px = v => ANCRE[0] + v[0] / PIXEL, py = v => ANCRE[1] + (v[1] - v[2] * HAUTEUR) / PIXEL;
-  for (const q of parts) {
-    const A = monde(q.a), B = monde(q.b);
-    const ax = px(A), ay = py(A), bx = px(B), by = py(B), r = q.r / PIXEL;
-    const x0 = Math.max(0, Math.floor(Math.min(ax, bx) - r - 1)), x1 = Math.min(W - 1, Math.ceil(Math.max(ax, bx) + r + 1));
-    const y0 = Math.max(0, Math.floor(Math.min(ay, by) - r - 1)), y1 = Math.min(H - 1, Math.ceil(Math.max(ay, by) + r + 1));
-    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const cx0 = x + 0.5, cy0 = y + 0.5;
-      const t = l2 > 0 ? Math.max(0, Math.min(1, ((cx0 - ax) * dx + (cy0 - ay) * dy) / l2)) : 0;
-      const qx = ax + dx * t, qy = ay + dy * t;
-      const ex = (cx0 - qx) / r, ey = (cy0 - qy) / r, d2 = ex * ex + ey * ey;
-      if (d2 > 1) continue;
-      const nv = Math.sqrt(1 - d2);
-      const P = mix(A, B, t);
-      const profondeur = P[1] * VISEE[1] + P[2] * VISEE[2] + nv * q.r;
-      const i = y * W + x;
-      if (profondeur <= prof[i]) continue;
-      prof[i] = profondeur;
-      // La vraie normale : à droite, vers le bas de l'écran, vers l'œil.
-      const n = [ex + BAS_ECRAN[0] * ey + VISEE[0] * nv, BAS_ECRAN[1] * ey + VISEE[1] * nv, BAS_ECRAN[2] * ey + VISEE[2] * nv];
-      let c = q.c;
-      if (q.decalque === 'tronc') { if (dot(n, devant) < -0.72 && t > 0.3 && t < 0.8) c = 'W'; else if (t > 0.86) c = 'T'; else if (t < 0.08) c = 'T'; }
-      else if (q.decalque === 'tete') { if (dot(n, devant) > 0.35 && n[2] < 0.3) c = 'S'; }
-      else if (q.decalque === 'masque') { if (dot(n, devant) > 0.45 && n[2] < 0.45) c = 'W'; }
-      else if (q.decalque === 'bas') { if (t > 0.35 && t < 0.6) c = 'T'; }
-      const lum = dot(n, LUMIERE);
-      couleur[i] = { c, ton: lum > 0.55 ? 0.28 : lum < 0.05 ? -0.3 : 0 };
-    }
-  }
-  const im = document.createElement('canvas');
-  im.width = W; im.height = H;
-  const g = im.getContext('2d');
-  // L'ombre au sol, sous les patins.
-  g.fillStyle = COULEURS.ombreSprite;
-  for (let y = -1; y <= 2; y++) { const l = y === 0 || y === 1 ? 7 : 5; for (let x = -l; x < l; x++) if ((x + y) % 2 === 0) g.fillRect(ANCRE[0] + 2 + x, ANCRE[1] + 1 + y, 1, 1); }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = y * W + x, v = couleur[i];
-    const voisins = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([a, b]) => { const X = x + a, Y = y + b; return X >= 0 && Y >= 0 && X < W && Y < H ? Y * W + X : -1; }).filter(j => j >= 0);
-    if (!v) { if (voisins.some(j => couleur[j])) { g.fillStyle = teintes.k; g.fillRect(x, y, 1, 1); } continue; }
-    // Le contour intérieur : un voisin bien plus près de l'œil, c'est une autre pièce devant moi.
-    if (voisins.some(j => couleur[j] && prof[j] > prof[i] + 0.1)) { g.fillStyle = teintes.k; g.fillRect(x, y, 1, 1); continue; }
-    const base = teintes[v.c] || teintes.J;
-    g.fillStyle = v.ton ? teinter(base, v.ton) : base;
-    g.fillRect(x, y, 1, 1);
-  }
-  return im;
-}
-/* Le sprite d'un club dans une pose et une direction (0 à 15 de l'écran), rendu une fois et gardé. */
-function spriteDe(eq, genre, pose, part, dir) {
-  const cle = `${eq}:${genre}:${pose}:${part}:${dir}`;
+/* Les huit directions de l'écran (0 = vers la droite, puis dans le sens des aiguilles) : la planche dessinée, et si elle se lit en miroir. */
+const HUIT = [['E', false], ['SE', false], ['S', false], ['SE', true], ['E', true], ['NE', true], ['N', false], ['NE', false]];
+const QUATRE = [['E', false], ['S', false], ['E', true], ['N', false]];
+/* Le sprite d'un club dans une pose et une direction, teint une fois et gardé. */
+function spriteDe(eq, genre, pose, dir) {
+  const cle = `${eq}:${genre}:${pose}:${dir}`;
   let im = sprites.get(cle);
   if (im) return im;
-  const parts = genre === 'G' ? modeleGardien(pose) : modelePatineur(pose, part);
-  im = rendre(parts, dir * 2 * Math.PI / DIRECTIONS, teintesDe(eq));
+  const [nom, miroir] = (genre === 'G' ? QUATRE : HUIT)[dir];
+  const planche = (genre === 'G' ? GARDIENS : PATINEURS)[nom];
+  const lignes = planche[pose] || planche.repos || planche.garde;
+  const teintes = teintesDe(eq);
+  im = document.createElement('canvas');
+  im.width = LARGEUR; im.height = HAUTEUR;
+  const g = im.getContext('2d');
+  lignes.forEach((ligne, y) => [...ligne].forEach((ch, x) => { const t = teintes[ch]; if (t) { g.fillStyle = t; g.fillRect(miroir ? LARGEUR - 1 - x : x, y, 1, 1); } }));
   sprites.set(cle, im);
   return im;
 }
@@ -870,14 +741,14 @@ function ecussonAuCentre() {
 const echelle = () => Math.max(1, Math.round(cam.k * PIXEL));
 /* L'angle d'un cap sur l'écran (y vers le bas) : debout, la glace est tournée d'un quart de tour. */
 const angleEcran = cap => cap - Math.PI / 2;
-/* La direction d'un cap, en seizièmes de tour de l'écran (0 = vers la droite). */
-const directionDe = cap => ((Math.round(angleEcran(cap) / (2 * Math.PI) * DIRECTIONS) % DIRECTIONS) + DIRECTIONS) % DIRECTIONS;
+/* La direction d'un cap, en huitièmes de tour de l'écran (0 = vers la droite), ou en quarts pour le gardien. */
+const directionDe = (cap, n = DIRECTIONS) => ((Math.round(angleEcran(cap) / (2 * Math.PI) * n) % n) + n) % n;
 /* Le corps, en pixels d'écran : son sprite dans sa pose et sa direction, les patins au point du patineur, aligné sur la grille, sans lissage. */
-function corps(x, y, eq, genre, pose, part, cap) {
-  const im = spriteDe(eq, genre, pose, part, directionDe(cap));
+function corps(x, y, eq, genre, pose, dir) {
+  const im = spriteDe(eq, genre, pose, dir);
   const S = echelle(), p = ecran(x, y);
   cx.imageSmoothingEnabled = false;
-  cx.drawImage(im, Math.round(p.x) - ANCRE[0] * S, Math.round(p.y) - ANCRE[1] * S, SPRITE_L * S, SPRITE_H * S);
+  cx.drawImage(im, Math.round(p.x) - ANCRE[0] * S, Math.round(p.y) - ANCRE[1] * S, LARGEUR * S, HAUTEUR * S);
 }
 
 /*
@@ -905,14 +776,15 @@ function marques(s) {
 function patineur(s, now) {
   const v = Math.hypot(s.vx, s.vy);
   const anim = s.anim || (s.anim = { dist: 0 });
-  if (s.auSol > 0) { corps(s.x, s.y, s.equipe, 'P', 'chute', 0, v > 0.3 ? Math.atan2(s.vy, s.vx) : s.cap); return; }
-  if (anim.tir && now - anim.tir < 320) { corps(s.x, s.y, s.equipe, 'P', 'tir', 0, s.cap); return; }
-  if (s.charge > 0 && etat.rondelle.porteur === s.id) { corps(s.x, s.y, s.equipe, 'P', 'charge', Math.min(3, 1 + Math.floor(3 * s.charge / BATON.charge)) / 3, s.cap); return; }
-  if (anim.passe && now - anim.passe < 240) { corps(s.x, s.y, s.equipe, 'P', 'passe', 0, s.cap); return; }
-  if (s.elan > 0) { corps(s.x, s.y, s.equipe, 'P', 'echec', 0, s.cap); return; }
-  // LA FOULÉE : six images, au rythme de la distance parcourue ; à l'arrêt, le repos.
-  if (v > 0.6) corps(s.x, s.y, s.equipe, 'P', 'patin', (Math.floor(anim.dist * 2.2) % FOULEES) / FOULEES, s.cap);
-  else corps(s.x, s.y, s.equipe, 'P', 'repos', 0, s.cap);
+  const dir = directionDe(s.auSol > 0 && v > 0.3 ? Math.atan2(s.vy, s.vx) : s.cap);
+  let pose = 'repos';
+  if (s.auSol > 0) pose = 'chute';
+  else if (anim.tir && now - anim.tir < 320) pose = 'tir';
+  else if (s.charge > 0 && etat.rondelle.porteur === s.id) pose = 'charge';
+  else if (anim.passe && now - anim.passe < 240) pose = 'passe';
+  else if (s.elan > 0) pose = 'echec';
+  else if (v > 0.6) pose = `patin${1 + Math.floor(anim.dist * 2.2) % FOULEES}`;   // LA FOULÉE : quatre images, au rythme de la distance parcourue
+  corps(s.x, s.y, s.equipe, 'P', pose, dir);
 }
 /* LE RECEVEUR : quand tu portes la rondelle, l'anneau jaune dit à qui la passe irait ; pointillé, la ligne est barrée (elle sera soulevée). */
 function receveur() {
@@ -934,7 +806,7 @@ function gardien(Gd, now) {
   const R = etat.rondelle;
   // LE PAPILLON : les jambières à plat sur un arrêt, un demi-seconde ; sinon la garde, tourné vers la rondelle.
   const arret = Gd.anim && now - Gd.anim < 450;
-  corps(Gd.x, Gd.y, Gd.equipe, 'G', arret ? Gd.animPose || 'papillon' : 'garde', 0, Math.atan2(R.y - Gd.y, R.x - Gd.x));
+  corps(Gd.x, Gd.y, Gd.equipe, 'G', arret ? Gd.animPose || 'papillon' : 'garde', directionDe(Math.atan2(R.y - Gd.y, R.x - Gd.x), 4));
 }
 
 function dessiner(now) {
