@@ -25,7 +25,7 @@ import { nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
 import { esc, estD } from './util.js';
 
-const VUE = 18;          // la caméra montre ça de glace EN TRAVERS, m (JP, 31 oct., sur une capture : *s't'un bon ratio ça*) — debout au téléphone ; couchée en mode large, comme la caméra des NHL modernes (JP, 1er nov.), la même largeur dans la hauteur
+const GRADINS = 3.2;     // la caméra montre TOUTE LA LARGEUR de la glace et ses gradins, debout, sur tous les écrans (JP, 1er nov. : *vue verticale, caméra largeur complète style NHL 26* — la caméra de NHL 94) : ça de gradins de chaque côté, m
 const SUIVI = 6;         // la vitesse à laquelle elle rattrape la rondelle, par seconde
 const PIXEL = 0.07;      // un pixel de sprite, en mètres (un bonhomme de 22 pixels, trapu comme à la console) ; à l'écran, un pixel de sprite fait un nombre ENTIER de pixels (jamais de flou) : deux au téléphone, trois en mode large
 const SPRITE_L = 40, SPRITE_H = 38, ANCRE = [20, 32];   // un sprite : 40 × 38 pixels, les patins du joueur au pixel (20, 32) ; la place pour le bâton levé et le corps couché
@@ -42,6 +42,7 @@ const COULEURS = {
   baton: '#9a6a34', lame: '#1c1c22', jambiere: '#f2f4f7', pantalon: '#1f2230', rondelle: '#111', trace: 'rgba(20,20,20,0.35)',
   lumiere: '#ff2a2a', lampe: '#5a1414', banc: 'rgba(255,255,255,0.05)', passe: '#ffe14d',
   trait: '#101014', peau: '#e8c39e', peauOmbre: '#c49672', jambiereOmbre: '#c4c9d2', patin: '#15161c', lameSprite: '#d7dde6', ombreSprite: 'rgba(0,0,0,0.3)',
+  gradin: '#16181f', fouleSombre: '#3a3d47', fouleClaire: '#b9b2a4',
   radarFond: 'rgba(10,11,14,0.75)', radarGlace: 'rgba(232,238,243,0.9)', doigt: 'rgba(255,255,255,0.08)', doigtTrait: 'rgba(255,255,255,0.35)', doigtPlein: 'rgba(255,255,255,0.6)',
 };
 /* Les chandails : les locaux (B, « eux ») en blanc aux épaules du club, les visiteurs (A, toi) en couleur. */
@@ -133,7 +134,7 @@ function modelePatineur(pose, part) {
 /* LE GARDIEN : debout, les jambières en V, la mitaine et le bloqueur devant ; en papillon, les jambières à plat de chaque côté. */
 function modeleGardien(pose) {
   const parts = [];
-  const papillon = pose === 'papillon';
+  const papillon = pose !== 'garde';
   const hz = papillon ? 0.38 : 0.6;
   for (const cote of [1, -1]) {
     const hj = [0, cote * 0.18, hz];
@@ -540,10 +541,8 @@ function brancherDoigt() {
   }
 }
 
-/* La glace est DEBOUT au téléphone (on attaque vers le haut en première) ; COUCHÉE en mode large, comme à la télé. */
-const debout = () => !taille.large;
-/* Un vecteur de l'écran vers la glace. */
-const versGlace = (sx, sy) => (debout() ? { x: -sy, y: sx } : { x: sx, y: sy });
+/* La glace est DEBOUT, partout (on attaque vers le haut en première). Un vecteur de l'écran vers la glace. */
+const versGlace = (sx, sy) => ({ x: -sy, y: sx });
 const on = (p, i) => !!(p && p.buttons[i] && p.buttons[i].pressed);
 
 /*
@@ -670,7 +669,8 @@ function animer(v, now) {
     anims.push({ type: 'impact', x: o ? (s.x + o.x) / 2 : s.x, y: o ? (s.y + o.y) / 2 : s.y, t0: now, dur: 260 });
   } else if (v.type === 'arret' || v.type === 'gel') {
     const Gd = etat.gardiens.find(g => g.equipe === v.equipe) || etat.gardiens[0];
-    if (Gd) Gd.anim = now;
+    // L'ARRÊT se voit (JP : *gardiens qui bougent et font des saves*) : la mitaine ou le bloqueur en haut, le papillon en bas.
+    if (Gd) { Gd.anim = now; Gd.animPose = v.haut ? (v.cote > 0 ? 'mitaine' : 'bloqueur') : 'papillon'; }
   } else if (v.type === 'but') {
     const cote = v.cote || (etat.match ? etat.equipes[v.equipe].attaque : 1);
     anims.push({ type: 'lumiere', cote, t0: now, dur: 2500 });
@@ -691,32 +691,28 @@ function mesurer() {
 }
 
 /*
- * La caméra suit la rondelle, et ne montre jamais au-delà de la bande, plus une marge. Debout, le long de la glace,
- * c'est la hauteur de l'écran ; couchée (le mode large, JP : *caméra similaire aux NHL modernes*), c'est sa largeur,
- * et l'on voit dix-huit mètres de glace en travers dans la hauteur : la caméra de la télé qui suit le jeu.
+ * La caméra de NHL 94 : la glace debout, TOUTE sa largeur et ses gradins dans la largeur de l'écran, et elle suit la
+ * rondelle le long de la patinoire, sans jamais montrer au-delà du bout des gradins.
  */
 function camera(dt) {
-  const long = debout() ? taille.h : taille.w, court = debout() ? taille.w : taille.h;
-  const marge = 2;
-  const kEntier = Math.min(long / (L + 2 * marge), court / (W + 2 * marge));
-  const k = vueEntiere ? kEntier : Math.max(kEntier, court / VUE);
+  const long = taille.h, court = taille.w;
+  const kEntier = Math.min(long / (L + 2 * GRADINS), court / (W + 2 * GRADINS));
+  const k = vueEntiere ? kEntier : court / (W + 2 * GRADINS);
   cam.k = k;
   const R = etat.rondelle;
   const f = 1 - Math.exp(-SUIVI * dt);
-  cam.x += (R.x - cam.x) * f; cam.y += (R.y - cam.y) * f;
-  const hx = long / (2 * k), hy = court / (2 * k);
-  cam.x = hx >= L / 2 + marge ? 0 : Math.max(-L / 2 - marge + hx, Math.min(L / 2 + marge - hx, cam.x));
-  cam.y = hy >= W / 2 + marge ? 0 : Math.max(-W / 2 - marge + hy, Math.min(W / 2 + marge - hy, cam.y));
+  cam.x += (R.x - cam.x) * f;
+  cam.y = 0;
+  const hx = long / (2 * k);
+  cam.x = hx >= L / 2 + GRADINS ? 0 : Math.max(-L / 2 - GRADINS + hx, Math.min(L / 2 + GRADINS - hx, cam.x));
 }
-/* Un point de la glace à l'écran (en pixels CSS) : debout, la glace est tournée d'un quart de tour, l'axe long vers le haut. */
-const ecran = (x, y) => (debout()
-  ? { x: taille.w / 2 + (y - cam.y) * cam.k + tremble.x, y: taille.h / 2 - (x - cam.x) * cam.k + tremble.y }
-  : { x: taille.w / 2 + (x - cam.x) * cam.k + tremble.x, y: taille.h / 2 + (y - cam.y) * cam.k + tremble.y });
-/* Le repère de la glace sur le canevas : le centre de l'écran (et la secousse), le quart de tour debout, l'échelle, la caméra. */
+/* Un point de la glace à l'écran (en pixels CSS) : la glace est tournée d'un quart de tour, l'axe long vers le haut. */
+const ecran = (x, y) => ({ x: taille.w / 2 + (y - cam.y) * cam.k + tremble.x, y: taille.h / 2 - (x - cam.x) * cam.k + tremble.y });
+/* Le repère de la glace sur le canevas : le centre de l'écran (et la secousse), le quart de tour, l'échelle, la caméra. */
 function repereGlace() {
   cx.setTransform(taille.dpr, 0, 0, taille.dpr, 0, 0);
   cx.translate(taille.w / 2 + tremble.x, taille.h / 2 + tremble.y);
-  if (debout()) cx.rotate(-Math.PI / 2);
+  cx.rotate(-Math.PI / 2);
   cx.scale(cam.k, cam.k);
   cx.translate(-cam.x, -cam.y);
 }
@@ -773,12 +769,56 @@ function patinoire() {
   cx.fillStyle = COULEURS.banc;
   cx.fillRect(-14, Y + 0.4, 12, 1.6); cx.fillRect(2, Y + 0.4, 12, 1.6);
   cx.fillRect(-5, -Y - 2, 4, 1.6); cx.fillRect(1, -Y - 2, 4, 1.6);
+  foule();
+  ecussonAuCentre();
+}
+/*
+ * LA FOULE (JP : *foule*) : les gradins tout autour de la bande, des rangées de têtes aux couleurs des deux clubs et
+ * du monde ordinaire, tirées d'un hachage fixe (la même foule tout le match) ; elle se lève sur un but des locaux.
+ */
+function foule() {
+  const X = L / 2, Y = W / 2;
+  cx.fillStyle = COULEURS.gradin;
+  cx.fillRect(-X - GRADINS, -Y - GRADINS, L + 2 * GRADINS, GRADINS - 0.3); cx.fillRect(-X - GRADINS, Y + 0.3, L + 2 * GRADINS, GRADINS - 0.3);
+  cx.fillRect(-X - GRADINS, -Y, GRADINS - 0.3, W); cx.fillRect(X + 0.3, -Y, GRADINS - 0.3, W);
+  const but = anims.find(a => a.type === 'lumiere');
+  const saut = but ? Math.abs(Math.sin((performance.now() - but.t0) / 110)) * 0.25 : 0;
+  const pas = 0.55;
+  const tete = (x, y, i, j) => {
+    const h = (i * 73856093 ^ j * 19349663) >>> 0;
+    const r = (h % 97) / 97;
+    cx.fillStyle = r < 0.22 ? couleurs.A.bg : r < 0.5 ? (couleurs.B.club || couleurs.B.bg) : r < 0.7 ? COULEURS.fouleSombre : COULEURS.fouleClaire;
+    cx.fillRect(x, y - (r > 0.5 ? saut : 0), pas * 0.6, pas * 0.6);
+  };
+  // Les deux longs côtés, puis les deux bouts, en rangées qui reculent.
+  for (let i = 0; i < Math.floor((L + 2 * GRADINS) / pas); i++) for (let j = 0; j < 4; j++) {
+    const x = -X - GRADINS + 0.2 + i * pas, d = 0.5 + j * 0.65;
+    if (Math.abs(x) < X + 0.3 || j > 0) { tete(x, -Y - d - 0.3, i, j); tete(x, Y + d, i, j + 10); }
+  }
+  for (let i = 0; i < Math.floor(W / pas); i++) for (let j = 0; j < 4; j++) {
+    const y = -Y + 0.2 + i * pas, d = 0.5 + j * 0.65;
+    tete(-X - d - 0.3, y, i + 300, j); tete(X + d, y, i + 300, j + 10);
+  }
+}
+/* L'ÉCUSSON DES LOCAUX au centre de la glace (JP : *logo de l'équipe à domicile dans le centre de la glace*), droit pour qui regarde l'écran. */
+let ecusson = null;   // { code, im }
+function ecussonAuCentre() {
+  const code = etat.match && etat.equipes.B.tag;
+  if (!code || !ctxJeu.logoLocal(code)) return;
+  if (!ecusson || ecusson.code !== code) { const im = new Image(); im.src = `img/logos/${code}.svg`; ecusson = { code, im }; }
+  const im = ecusson.im;
+  if (!im.complete || !im.naturalWidth) return;
+  cx.save();
+  cx.globalAlpha = 0.45;
+  cx.rotate(Math.PI / 2);   // la glace est tournée d'un quart de tour : l'écusson se remet droit
+  cx.drawImage(im, -3.2, -3.2, 6.4, 6.4);
+  cx.restore();
 }
 
 /* L'échelle d'un sprite à l'écran : un nombre entier de pixels par pixel de sprite. */
 const echelle = () => Math.max(1, Math.round(cam.k * PIXEL));
 /* L'angle d'un cap sur l'écran (y vers le bas) : debout, la glace est tournée d'un quart de tour. */
-const angleEcran = cap => (debout() ? cap - Math.PI / 2 : cap);
+const angleEcran = cap => cap - Math.PI / 2;
 /* La direction d'un cap, en seizièmes de tour de l'écran (0 = vers la droite). */
 const directionDe = cap => ((Math.round(angleEcran(cap) / (2 * Math.PI) * DIRECTIONS) % DIRECTIONS) + DIRECTIONS) % DIRECTIONS;
 /* Le corps, en pixels d'écran : son sprite dans sa pose et sa direction, les patins au point du patineur, aligné sur la grille, sans lissage. */
@@ -798,7 +838,13 @@ function corps(x, y, eq, genre, pose, part, cap) {
 /* Sous les patineurs, sur la glace (en mètres) : l'anneau de celui que tu contrôles, l'arc de la charge. */
 function marques(s) {
   const toi = Object.values(etat.controles).includes(s.id);
-  if (toi) { cx.strokeStyle = COULEURS.blanc; cx.lineWidth = 0.08; cx.setLineDash([0.25, 0.18]); cx.beginPath(); cx.arc(s.x, s.y, s.rayon + 0.3, 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]); }
+  // TON JOUEUR : un gros disque plein aux couleurs de son club sous ses patins (JP : *gros rond ombre en dessous, couleur de l'équipe ; le symbole blanc est pas viable*).
+  if (toi) {
+    const c = couleurs[s.equipe];
+    cx.globalAlpha = 0.85;
+    cercle(s.x, s.y, s.rayon + 0.45, c.club || c.bg, COULEURS.contour, 0.1);
+    cx.globalAlpha = 1;
+  }
   if (s.charge > 0 && etat.rondelle.porteur === s.id) {
     cx.strokeStyle = COULEURS.ligne; cx.lineWidth = 0.09;
     cx.beginPath(); cx.arc(s.x, s.y, s.rayon + 0.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.charge / BATON.charge)); cx.stroke();
@@ -836,8 +882,8 @@ function gardien(Gd, now) {
   if (Gd.retire) return;
   const R = etat.rondelle;
   // LE PAPILLON : les jambières à plat sur un arrêt, un demi-seconde ; sinon la garde, tourné vers la rondelle.
-  const papillon = Gd.anim && now - Gd.anim < 450;
-  corps(Gd.x, Gd.y, Gd.equipe, 'G', papillon ? 'papillon' : 'garde', 0, Math.atan2(R.y - Gd.y, R.x - Gd.x));
+  const arret = Gd.anim && now - Gd.anim < 450;
+  corps(Gd.x, Gd.y, Gd.equipe, 'G', arret ? Gd.animPose || 'papillon' : 'garde', 0, Math.atan2(R.y - Gd.y, R.x - Gd.x));
 }
 
 function dessiner(now) {
@@ -914,12 +960,12 @@ function dessiner(now) {
 function radar() {
   const { w, h, dpr } = taille;
   cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const larg = debout() ? 56 : 132, haut = debout() ? 132 : 56;
+  const larg = 56, haut = 132;
   const x0 = w - larg - 10, y0 = h - haut - (taille.large ? 60 : 96);
   cx.fillStyle = COULEURS.radarFond; cx.fillRect(x0 - 3, y0 - 3, larg + 6, haut + 6);
   cx.fillStyle = COULEURS.radarGlace; cx.fillRect(x0, y0, larg, haut);
-  const k = (debout() ? haut : larg) / L;
-  const pt = (x, y) => (debout() ? [x0 + larg / 2 + y * k, y0 + haut / 2 - x * k] : [x0 + larg / 2 + x * k, y0 + haut / 2 + y * k]);
+  const k = haut / L;
+  const pt = (x, y) => [x0 + larg / 2 + y * k, y0 + haut / 2 - x * k];
   cx.fillStyle = COULEURS.ligne;
   const [cx1, cy1] = pt(0, -W / 2), [cx2, cy2] = pt(0, W / 2);
   cx.fillRect(Math.min(cx1, cx2) - 0.5, Math.min(cy1, cy2) - 0.5, Math.abs(cx2 - cx1) + 1, Math.abs(cy2 - cy1) + 1);

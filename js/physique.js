@@ -60,7 +60,7 @@ export const PATIN = {
   grip: 22,         // la morsure des lames de côté : la vitesse en travers s'éteint à ce taux, par seconde
   adherence: 26,    // l'accélération latérale que les lames tiennent, m/s² : le rayon de virage, c'est v² / adherence (4 m à pleine vitesse)
   pivot: 12,        // le virage sur place, rad/s
-  portee: 1.5,      // la rondelle plus loin que ça de la lame est perdue
+  portee: 1.9,      // la rondelle plus loin que ça de la lame est perdue (JP : *que la puck colle un peu plus aux bâtons*)
   virage: 0.03,     // le prix d'un virage : la part de vitesse perdue par radian tourné (couper sec coûte, un peu)
   croise: 1.25,     // les croisés : la poussée bonifiée quand on tourne à vitesse moyenne
   recul: 0.8,       // à reculons, la pointe et la poussée valent ça du droit
@@ -71,8 +71,8 @@ export const PATIN = {
 };
 export const BATON = {
   lame: [1.0, 0.0],          // où la lame tient la rondelle : un mètre devant, dans l'axe (les sprites en miroir gardent la rondelle à la lame)
-  ressort: 80, amorti: 18,   // la rondelle suit la lame comme un ressort amorti (critique)
-  maniement: 45,             // l'accélération que la lame peut donner à la rondelle, m/s² : au-delà, elle traîne
+  ressort: 130, amorti: 24,  // la rondelle suit la lame comme un ressort amorti (critique), serré : elle colle
+  maniement: 75,             // l'accélération que la lame peut donner à la rondelle, m/s² : au-delà, elle traîne
   passe: 16,                 // la passe, m/s (58 km/h) : plus loin, plus fort (`passeLoin`)
   passeLoin: 0.4,            // ce qu'un mètre de plus ajoute à la passe, m/s, jusqu'à `passeMax`
   passeMax: 24,
@@ -82,7 +82,7 @@ export const BATON = {
   visee: 0.6,                // le bâton vise jusqu'à ça de côté du cap, rad
   assist: 1.5,               // la visée assistée : le filet à moins de ça du cap (presque de côté), le tir part vers lui, rad (JP : *impossible de viser et patiner*)
   large: 0.4,                // le bâton à fond de côté vise ça au-delà du poteau : on peut rater le filet, comme dans FIFA, m
-  reception: 16,             // une rondelle qui arrive plus vite que ça ne se prend pas : elle dévie
+  reception: 20,             // une rondelle qui arrive plus vite que ça ne se prend pas : elle dévie
   lachee: 0.25,              // après un tir ou une passe, la lame la laisse filer ce temps-là
   uneTemps: 0.9,             // le tir sur réception part à cette part du lancer frappé, sans charger
   hauteurMin: 1.2, hauteurMax: 4.2,   // la montée du lancer, m/s : le poignet reste bas, le frappé chargé monte aux coins du haut
@@ -100,7 +100,7 @@ export const GARDIEN = {
 export const CHUTE = { seuil: 300, bande: 1.5 };   // l'écart d'élan, kg·m/s, au-delà duquel le moins lancé des deux tombe ; contre la bande, le coup pèse plus
 export const HARPON = { duree: 0.25, portee: 2.2, largeur: 0.55, repos: 0.7, pousse: 5, trebuche: 0.04 };   // le harponnage : un coup de bâton devant soi ; raté sur le porteur, un sur vingt-cinq l'accroche
 const ECHEC = { duree: 0.35, repos: 1.2, accel: 2, vMax: 1.15, derriere: 0.8, recent: 1.0 };   // l'élan d'une mise en échec ; par-derrière et sur qui n'a pas la rondelle, c'est puni
-const JAMBES = { usure: 2.4, repos: 4, changement: 55, presence: 45 };   // la fatigue d'une présence : ce qu'elle coûte par seconde, ce que le banc rend, quand on change
+const JAMBES = { usure: 1.8, repos: 6, changement: 55, presence: 45 };   // la fatigue d'une présence : ce qu'elle coûte par seconde, ce que le banc rend, quand on change
 export const MATCH = {
   periode: 180, prolongation: 120, surglace: 5, surglaceOT: 3, rondesFusillade: 3, retraitGardien: 90, tirDePunition: 12,
   punition: 120, mej: 0.9, pauses: { but: 2.5, gel: 1.2, horsjeu: 1.2, degagement: 1.2, punition: 1.5, periode: 3, fin: 0 },
@@ -136,13 +136,14 @@ export function lame(s) {
  * un patineur ordinaire (10).
  */
 export function parametresDuPatineur({ cote = 10, tir = 10, jeu = 10, defense = 10, robustesse = 10, poidsLb = null, vitesse = false } = {}) {
-  const f = 0.9 + 0.012 * (cote - 1);
+  // Les cotes se sentent (JP, 1er nov. : *que les stats des joueurs aient un impact*) : ±17 % de pointe et de poussée entre un 1 et un 20, ±20 % de lancer.
+  const f = 0.84 + 0.018 * (cote - 1);
   return {
-    vMax: PATIN.vMax * f * (vitesse ? 1.04 : 1),
+    vMax: PATIN.vMax * f * (vitesse ? 1.05 : 1),
     accel: PATIN.accel * f,
-    tir: 0.85 + 0.015 * tir,              // × la vitesse du lancer
-    precision: 1.3 - 0.03 * tir,          // × l'écart de la visée
-    passe: 1.4 - 0.03 * jeu,              // × l'écart de la passe
+    tir: 0.8 + 0.02 * tir,                // × la vitesse du lancer
+    precision: 1.4 - 0.04 * tir,          // × l'écart de la visée
+    passe: 1.5 - 0.04 * jeu,              // × l'écart de la passe
     defense: defense / 20,                // le harpon
     masse: poidsLb ? poidsLb * 0.4536 : PATIN.masse,
     equilibre: 0.7 + 0.03 * robustesse,   // × le seuil de chute
@@ -375,7 +376,7 @@ function patineurContreFilet(s) {
 }
 
 /* ---------- le patineur ---------- */
-const formeDe = s => 0.8 + 0.2 * clamp(s.jambes, 0, 100) / 100;
+const formeDe = s => 0.88 + 0.12 * clamp(s.jambes, 0, 100) / 100;   // la fatigue pèse peu (JP, 1er nov. : *ou pas de fatigue*) : au pire 12 % de moins
 /*
  * PATINER. Le bâton (le stick de la manette) dit où on VEUT aller ; le corps suit avec son inertie :
  *   - le cap tourne vers le bâton, au plus `pivot` rad/s à l'arrêt, et de moins en moins vite à mesure que la
@@ -941,7 +942,7 @@ function gardien(etat, Gd, ev) {
     const ang = (s > 0 ? Math.PI : 0) + (etat.de() - 0.5) * 1.4;
     const vt = vr * GARDIEN.rebond;
     R.vx = Math.cos(ang) * vt; R.vy = Math.sin(ang) * vt; R.vz = 0.5; R.z = Math.min(R.z, 0.3);
-    ev.push({ type: 'arret', gele: false, equipe: Gd.equipe });
+    ev.push({ type: 'arret', gele: false, equipe: Gd.equipe, haut: R.z > 0.6, cote: Math.sign((R.y - Gd.y) * s || 1) });
   }
 }
 function geler(etat, Gd, ev, arret = false) {

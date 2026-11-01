@@ -213,11 +213,12 @@ function soutenir(etat, s, a, but, u, miens, adv, porteur) {
     // défenseurs aux leurs. Le côté de la rondelle décide (`c`).
     const c = Math.sign(R.y || 1);
     const notreZone = u(R.x) < -BLEUE;
+    const devance = u(R.x) > BLEUE - 6 ? Math.min(u(R.x) - 1, BLEUE - 1.5) : u(R.x) + 5;   // près de la bleue, les ailiers TRAÎNENT la rondelle d'un mètre (JP : *trop de hors-jeu*)
     const postesF = enZone
       ? [{ x: but.x - a * 2.8, y: -c * 1.8 }, { x: but.x - a * 8, y: c * 2.5 }, { x: a * (BLEUE + 6), y: -c * 7 }]          // devant le filet, l'enclave, la demi-bande opposée
       : notreZone
         ? [{ x: -a * (LIGNE_BUT - 9), y: 0 }, { x: -a * (BLEUE + 3), y: -8 }, { x: -a * (BLEUE + 3), y: 8 }]              // la sortie : le centre haut, les ailiers aux demi-bandes
-        : [{ x: a * (u(R.x) + 1), y: -R.y * 0.5 }, { x: a * (u(R.x) + 5), y: -8 }, { x: a * (u(R.x) + 5), y: 8 }];       // la zone neutre : le centre dans l'autre couloir, les ailiers larges
+        : [{ x: a * (u(R.x) + 1), y: -R.y * 0.5 }, { x: a * devance, y: -8 }, { x: a * devance, y: 8 }];                 // la zone neutre : le centre dans l'autre couloir, les ailiers larges, jamais devant la rondelle près de la bleue
     const postesD = enZone
       ? [{ x: a * (BLEUE + 2), y: -6.5 }, { x: a * (BLEUE + 2), y: 6.5 }]
       : notreZone
