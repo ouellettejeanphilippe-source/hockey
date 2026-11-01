@@ -82,7 +82,7 @@ export const BATON = {
   visee: 0.6,                // le bâton vise jusqu'à ça de côté du cap, rad
   assist: 1.5,               // la visée assistée : le filet à moins de ça du cap (presque de côté), le tir part vers lui, rad (JP : *impossible de viser et patiner*)
   large: 0.4,                // le bâton à fond de côté vise ça au-delà du poteau : on peut rater le filet, comme dans FIFA, m
-  reception: 20,             // une rondelle qui arrive plus vite que ça ne se prend pas : elle dévie
+  reception: 25,             // une rondelle qui arrive plus vite que ça ne se prend pas : elle dévie (25 m/s = 90 km/h)
   lachee: 0.25,              // après un tir ou une passe, la lame la laisse filer ce temps-là
   uneTemps: 0.9,             // le tir sur réception part à cette part du lancer frappé, sans charger
   hauteurMin: 1.2, hauteurMax: 4.2,   // la montée du lancer, m/s : le poignet reste bas, le frappé chargé monte aux coins du haut
@@ -630,8 +630,9 @@ function rondelle(etat, entrees, ev) {
     const devant = (R.x - s.x) * Math.cos(s.cap) + (R.y - s.y) * Math.sin(s.cap) > 0;
     const vrel = hyp(R.vx - s.vx, R.vy - s.vy);
     if (R.z > 1.4) continue;   // trop haut pour tout le monde
-    if (dl < 0.7 || (dl < PATIN.portee - 0.3 && devant && vrel < 4)) {
-      const passeAMoi = R.passeDe && R.passeDe !== s.id && parId(etat, R.passeDe) && parId(etat, R.passeDe).equipe === s.equipe;
+    const passeAMoi = R.passeDe && R.passeDe !== s.id && parId(etat, R.passeDe) && parId(etat, R.passeDe).equipe === s.equipe;
+    const passePourMoi = R.passeVers === s.id;
+    if (dl < 1.0 || (dl < PATIN.portee && devant && (vrel < 6 || passeAMoi || passePourMoi))) {
       if (vrel <= BATON.reception * (passeAMoi ? 1.5 : 1) && R.z < 0.35) {
         R.porteur = s.id; R.z = 0; R.vz = 0;
         toucher(etat, s, false);

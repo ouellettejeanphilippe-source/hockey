@@ -518,13 +518,30 @@ function boucle(now) {
   if (flash.reste > 0 && !pause) flash.reste -= dt;
   if (!pause) {
     ambiance(dt);
+    for (const s of etat.patineurs) { if (!s.anim) s.anim = { dist: 0 }; s.anim.dist += Math.hypot(s.vx, s.vy) * dt; }
+  }
+  // L'INTERPOLATION : le moteur avance en pas fixes (1/120 s) mais l'écran dessine à la cadence du moniteur ;
+  // sans lissage, les sprites sautent d'un pas à l'autre et le patinage paraît haché. On extrapole chaque
+  // position du reste de l'accumulateur (au plus 8 ms) pour que le mouvement soit continu entre les pas.
+  const r = !pause && etat.reste > 0 ? etat.reste : 0;
+  if (r > 0) {
+    for (const s of etat.patineurs) { s._ox = s.x; s._oy = s.y; s.x += s.vx * r; s.y += s.vy * r; }
+    for (const g of etat.gardiens) { g._ox = g.x; g._oy = g.y; g.x += g.vx * r; g.y += g.vy * r; }
+    etat.rondelle._ox = etat.rondelle.x; etat.rondelle._oy = etat.rondelle.y;
+    etat.rondelle.x += etat.rondelle.vx * r; etat.rondelle.y += etat.rondelle.vy * r;
+  }
+  if (!pause) {
     trace.push({ x: etat.rondelle.x, y: etat.rondelle.y });
     if (trace.length > 14) trace.shift();
-    for (const s of etat.patineurs) { if (!s.anim) s.anim = { dist: 0 }; s.anim.dist += Math.hypot(s.vx, s.vy) * dt; }
     camera(dt);
   }
   dessiner(now);
   hud();
+  if (r > 0) {
+    for (const s of etat.patineurs) { s.x = s._ox; s.y = s._oy; }
+    for (const g of etat.gardiens) { g.x = g._ox; g.y = g._oy; }
+    etat.rondelle.x = etat.rondelle._ox; etat.rondelle.y = etat.rondelle._oy;
+  }
   raf = requestAnimationFrame(boucle);
 }
 /*
