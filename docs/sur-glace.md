@@ -152,11 +152,11 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Fonction | État | Où |
 |---|---|---|
 | Le pas de temps fixe séparé du rendu, le temps réel rattrapé par petits pas | ✅ | `avancer` |
-| La caméra qui suit la rondelle, la glace debout partout, deux zooms | ✅ | `camera`, `VUE`, `VUE_LONG`, `vueEntiere` |
+| La caméra qui suit la rondelle, la glace debout au téléphone et couchée en mode large comme à la télé, deux zooms | ✅ | `camera`, `VUE`, `debout`, `vueEntiere` |
 | Le rendu old school (gros pixels, lignes de balayage, la police d'arcade) | ✅ | `RETRO`, `.sg-crt`, Bungee |
 | Les jetons à la vraie face, les locaux en blanc | ✅ | `jeton`, `chandails` |
 | Les animations procédurales (la foulée, le bâton, la chute, l'impact, le papillon, la lumière, la chute de la rondelle) | ✅ | `patineur`, `gardien`, `animer` |
-| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé) | ✅ | rastérisés pixel par pixel en seize directions et quatre foulées, aux couleurs du club, contour, ombrage, à l'échelle entière (`spriteDe`, `partDuPatineur`, `partDuGardien`, js/sur-glace.js) |
+| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé) | ✅ | dessinés à la main pixel par pixel, en vue de trois quarts comme à la console : le visage ou le numéro dans le dos, le casque, les bandes, les gants, le pantalon, les bas, les patins ; huit directions, la foulée en trois images ; le gardien avec son masque, sa mitaine, son bloqueur et ses jambières ; aux couleurs du club (`TORSES`, `JAMBES`, `GARDIENS`, `spriteDe`, js/sur-glace.js) |
 | Les sons synthétisés (le tir, la passe, la bande, le but, le sifflet, l'échec) | ✅ | `SONS`, js/sons.js |
 | La foule (une rumeur qui monte, le « ohhh » du poteau, la clameur du but), l'annonceur | ⬜ | js/commentaire.js a déjà les banques de mots du direct : un commentateur du match en direct serait du texte, pas de la voix |
 | La secousse de l'écran sur un gros coup et un but, l'arrêt sur image d'un impact (hit stop) | ✅ | `secousse`, `GEL` (l'arrêt sur image de 60 ms), js/sur-glace.js |
