@@ -50,7 +50,7 @@ const FICHIERS = [
   'js/entracte.js',
   'js/profil-style.js', 'js/impact.js',
   'js/equipes.js', 'js/saison.js', 'js/verdicts.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
-  'js/cartes.js', 'js/franchises.js', 'js/galons.js', 'js/identites.js', 'js/combat.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
+  'js/cartes.js', 'js/franchises.js', 'js/galons.js', 'js/identites.js', 'js/combat.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js', 'js/sons-glace.js', 'js/sprites.js',
   'js/sauvegardes.js', 'js/menu.js', 'js/pile.js', 'js/glisser.js', 'js/manette.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/adjoints.js', 'js/pouvoirs.js', 'js/coachs-reels.js', 'js/dossiers.js', 'js/apres-match.js', 'js/panel-tv.js', 'js/vie-gm.js', 'js/scenes.js', 'js/coachs.js', 'js/club.js', 'js/packs.js', 'js/inventaire.js', 'js/magasin.js',
   'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/depart.js', 'js/visages.js', 'js/recadrage.js', 'js/ballottage.js', 'js/arcs.js', 'js/util.js',
   'js/actions.js', 'js/recadrage-action.js', 'js/impact.js',

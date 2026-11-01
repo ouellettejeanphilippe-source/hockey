@@ -1311,7 +1311,7 @@ export function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
 
 /* Ce que l'exhibition lit du jeu : les saisons, le chargeur de shards, l'affichage — et le direct. */
 const ctxExhibition = onFerme => ({
-  saisons: state.index.seasons, shard: getShard, esc, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
+  saisons: state.index.seasons, shard: getShard, esc, logo: getTeamLogoHtml, logoLocal: code => LOGOS_LOCAUX.has(code), band: getTeamBand, mug: headshotHtml,
   nom: code => TEAMFULL[code] || code,
   direct: { esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml },
   onFerme,

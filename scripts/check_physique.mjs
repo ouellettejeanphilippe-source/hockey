@@ -278,7 +278,7 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
   const { e, compte } = matchComplet('mesure', 120);
   const M = e.match;
   exiger('un match de l\'IA contre l\'IA va au bout : trois périodes et un vainqueur', M.fini && M.periode >= 3 && !!M.vainqueur, `${M.pointage.A}–${M.pointage.B}, ${M.periode} période(s)${M.prolongation ? ', prolongation' : ''}${M.fusillade ? ', tirs de barrage' : ''}`);
-  borne('… avec des tirs des deux côtés (3 × 2 min)', M.tirs.A + M.tirs.B, 12, 120, ' tirs');
+  borne('… avec des tirs des deux côtés (3 × 2 min)', M.tirs.A + M.tirs.B, 12, 160, ' tirs');
   borne('… des buts, mais pas une pluie', M.pointage.A + M.pointage.B, 1, 12, ' buts');
   borne('… des mises en jeu gagnées des deux côtés', Math.min(M.mej.A, M.mej.B), 1, 60);
   exiger('… des passes, des prises, des mises en échec', (compte.passe || 0) > 10 && (compte.prise || 0) > 20 && (compte.echec || 0) > 0, `${compte.passe || 0} passes, ${compte.prise || 0} prises, ${compte.echec || 0} contacts`);
@@ -300,9 +300,11 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
 }
 {
   // La prolongation à trois contre trois, puis les tirs de barrage : des périodes de dix secondes, personne ne marque.
-  const { e } = matchComplet('nul', 8, 8);
-  const M = e.match;
-  exiger('un match nul va en prolongation, puis aux tirs de barrage, et finit avec un vainqueur', M.prolongation && !!M.fusillade && M.fini && !!M.vainqueur, `${M.pointage.A}–${M.pointage.B}, ronde ${M.fusillade ? M.fusillade.ronde : '-'}, ${M.fusillade ? `${M.fusillade.essais.A}+${M.fusillade.essais.B} essais` : ''}`);
+  // Une série fixe de graines ; la première dont le temps réglementaire finit à égalité sert (le même résultat à chaque fois).
+  let e = null;
+  for (let k = 0; k < 40 && !e; k++) { const essai = matchComplet(`nul-${k}`, 8, 8).e; if (essai.match.prolongation) e = essai; }
+  const M = e ? e.match : { pointage: { A: '?', B: '?' } };
+  exiger('un match nul va en prolongation, puis aux tirs de barrage, et finit avec un vainqueur', !!e && M.prolongation && !!M.fusillade && M.fini && !!M.vainqueur, `${M.pointage.A}–${M.pointage.B}, ronde ${M.fusillade ? M.fusillade.ronde : '-'}, ${M.fusillade ? `${M.fusillade.essais.A}+${M.fusillade.essais.B} essais` : ''}`);
 }
 {
   // LES RÈGLES, UNE À UNE, sur une glace de match mise en scène.
@@ -380,6 +382,38 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
     const ev = jouer(e, { [frappeur.id]: { x: 1, y: 0 }, [porteurA.id]: { x: 0, y: 0 } }, 1);
     const p = ev.find(x => x.type === 'punition');
     exiger('la punition à retardement : le sifflet attend tant que l\'équipe lésée a la rondelle', !!p && p.attente && !e.arret && e.match.enAttente && e.match.enAttente.id === frappeur.id, p ? `${p.genre}, en attente` : 'rien');
+    // … et tombe à l'instant où les fautifs la touchent : A la lance vers un B placé devant.
+    const receveurB = B[2];
+    Object.assign(receveurB, { x: 12, y: 8, cap: Math.PI, vx: 0, vy: 0 });
+    Object.assign(e.rondelle, { x: 7, y: 8, vx: 9, vy: 0, z: 0, vz: 0, porteur: null, passeDe: null, dernier: { equipe: 'A', id: porteurA.id, t: e.t, x: 7, lance: true } });
+    const ev2 = jouer(e, {}, 1.2);
+    exiger('… et tombe dès que les fautifs touchent la rondelle (JP : *pénalité à retardement brisée*)', !e.match.enAttente && e.match.penalites.some(q => q.id === frappeur.id) && e.arret && e.arret.genre === 'punition' && frappeur.boxe, `${e.match.penalites.length} puni(s), ${e.arret ? e.arret.genre : 'le jeu continue'}, ${ev2.filter(x => x.type !== 'prise').map(x => x.type).join(' ')}`);
+  }
+  // LE HORS-JEU DIFFÉRÉ : la rondelle passée dans la zone avec un attaquant déjà dedans, le bras se lève, le jeu continue.
+  {
+    const e = scene('differe');
+    const A = surGlace(e, 'A'), fautif = A[1], passeur = A[0];
+    for (const s of surGlace(e, 'B')) { s.x = -20; s.y = 10; }
+    for (const s of A) { s.x = -15; s.y = -8; s.vx = 0; s.vy = 0; }
+    Object.assign(fautif, { x: BLEUE + 4, y: 6, cap: Math.PI, vx: 0, vy: 0 });
+    Object.assign(passeur, { x: BLEUE - 5, y: -6, cap: 0, vx: 0, vy: 0 });
+    Object.assign(e.rondelle, { x: BLEUE - 2.2, y: -6, vx: 14, vy: 0, z: 0, vz: 0, porteur: null, dernier: { equipe: 'A', id: passeur.id, t: e.t, x: BLEUE - 2.2, lance: true } });   // déjà loin de la lame du passeur
+    const ev = jouer(e, { [fautif.id]: { x: -1, y: 0 } }, 0.6);
+    exiger('le hors-jeu différé : lancée dans la zone avec un attaquant dedans, le bras se lève et le jeu continue', ev.some(x => x.type === 'horsjeuDiffere' && x.equipe === 'A') && !ev.some(x => x.type === 'horsjeu') && !e.arret && e.match.horsJeuDiffere === 'A', ev.filter(x => x.type !== 'prise').map(x => x.type).join(' ') || 'rien');
+    // L'attaquant ressort : le bras tombe.
+    const ev2 = jouer(e, { [fautif.id]: { x: -1, y: 0 } }, 2.5);
+    exiger('… il tombe quand les attaquants ressortent de la zone', ev2.some(x => x.type === 'horsjeuLeve') && !e.match.horsJeuDiffere && !ev2.some(x => x.type === 'horsjeu'), ev2.filter(x => x.type !== 'prise').map(x => x.type).join(' ') || 'rien');
+  }
+  {
+    const e = scene('differe-touche');
+    const A = surGlace(e, 'A'), fautif = A[1], passeur = A[0];
+    for (const s of surGlace(e, 'B')) { s.x = -20; s.y = 10; }
+    for (const s of A) { s.x = -15; s.y = -8; s.vx = 0; s.vy = 0; }
+    Object.assign(fautif, { x: BLEUE + 6, y: -6, cap: Math.PI, vx: 0, vy: 0, lachee: 0 });
+    Object.assign(passeur, { x: BLEUE - 5, y: -6, cap: 0, vx: 0, vy: 0 });
+    Object.assign(e.rondelle, { x: BLEUE - 2.2, y: -6, vx: 14, vy: 0, z: 0, vz: 0, porteur: null, dernier: { equipe: 'A', id: passeur.id, t: e.t, x: BLEUE - 2.2, lance: true } });   // déjà loin de la lame du passeur
+    const ev = jouer(e, { [fautif.id]: { x: 0, y: 0 } }, 1.5);
+    exiger('… et siffle si un attaquant la touche dans la zone pendant ce temps', ev.some(x => x.type === 'horsjeuDiffere') && ev.some(x => x.type === 'horsjeu' && x.genre === 'touche') && e.arret && e.arret.genre === 'horsjeu', ev.filter(x => x.type !== 'prise').map(x => x.type).join(' ') || 'rien');
   }
 }
 

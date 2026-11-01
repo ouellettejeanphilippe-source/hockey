@@ -82,6 +82,12 @@ export function decisionIA(etat, s) {
     return { x: 0, y: 0, passe: etat.mej.reste <= memo.mej + 0.0001 };
   }
 
+  // LE HORS-JEU DIFFÉRÉ contre nous : on ressort de la zone, vite, et personne n'y entre tant que le bras est levé.
+  if (M && M.horsJeuDiffere === eq && porteur !== s) {
+    if (u(s.x) > BLEUE - 0.6) return vers(s, a * (BLEUE - 2), s.y, 0.5);
+    if (u(R.x) > BLEUE) return vers(s, a * (BLEUE - 1.5), clamp(R.y, -8, 8), 1);
+  }
+
   // UN TIR EN CHARGE : on tient, puis on lâche.
   if (memo.tir && porteur === s) {
     memo.tir.reste -= 4 / 120;
@@ -141,7 +147,10 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   }
   // PATINER : vers le filet par le côté le plus libre ; derrière le filet, on ressort devant.
   let cible;
-  if (u(s.x) > LIGNE_BUT - 1) cible = { x: but.x - a * 4, y: Math.sign(s.y || 1) * 5 };
+  // Un coéquipier déjà dans la zone : on n'entre pas (le hors-jeu), on tient la bleue le long de la bande le temps qu'il ressorte.
+  const unDedans = u(s.x) < BLEUE && u(s.x) > BLEUE - 6 && miens.some(m => m !== s && u(m.x) > BLEUE + 0.25);
+  if (unDedans) cible = { x: a * (BLEUE - 1.5), y: Math.sign(s.y || 1) * 9 };
+  else if (u(s.x) > LIGNE_BUT - 1) cible = { x: but.x - a * 4, y: Math.sign(s.y || 1) * 5 };
   else if (u(s.x) < BLEUE) {
     if (memo.cote == null || etat.t - (memo.coteT || -9) > 2) {
       const gauche = adv.filter(o => o.y < 0).length, droite = adv.length - gauche;
@@ -175,6 +184,18 @@ function charger(memo, s, but, a, part, etat) {
   return { x: x / m, y: y / m, tir: true };
 }
 
+/* Le poste de `s` parmi `postes`, les candidats se servant du plus près au plus loin (le même calcul chez chacun : la même réponse). */
+function posteDe(s, candidats, postes) {
+  const libres = postes.slice(), restants = candidats.slice();
+  while (libres.length && restants.length) {
+    let meilleur = null;
+    for (const m of restants) for (const p of libres) { const d = hyp(m.x - p.x, m.y - p.y); if (!meilleur || d < meilleur.d) meilleur = { m, p, d }; }
+    if (meilleur.m === s) return meilleur.p;
+    restants.splice(restants.indexOf(meilleur.m), 1); libres.splice(libres.indexOf(meilleur.p), 1);
+  }
+  return postes[postes.length - 1];
+}
+
 /* ---------- les coéquipiers du porteur ---------- */
 function soutenir(etat, s, a, but, u, miens, adv, porteur) {
   const R = etat.rondelle;
@@ -187,18 +208,23 @@ function soutenir(etat, s, a, but, u, miens, adv, porteur) {
     const postes = [{ x: a * (BLEUE + 1.5), y: 0 }, { x: a * (BLEUE + 6), y: -7.5 }, { x: a * (BLEUE + 6), y: 7.5 }, { x: but.x - a * 6, y: 0 }, { x: but.x - a * 2.2, y: 1.5 }];
     const ordre = miens.slice().sort((p, q) => (p.poste === 'D' ? 0 : 1) - (q.poste === 'D' ? 0 : 1) || p.id.localeCompare(q.id));
     cible = postes[Math.min(ordre.indexOf(s), postes.length - 1)];
-  } else if (s.poste === 'D' || (iD >= 0)) {
-    const cote = iD === 0 ? -1 : 1;
-    cible = enZone ? { x: a * (BLEUE + 2.5), y: cote * 6 } : { x: a * (u(R.x) - 7), y: cote * 5 };
   } else {
-    const role = s.poste === 'AG' ? -1 : s.poste === 'AD' ? 1 : 0;
-    if (enZone) {
-      cible = role === 0 ? { x: but.x - a * 7, y: 0 } : { x: but.x - a * 10, y: role * 6.5 };
-      // Le centre dans l'enclave : si le porteur y est déjà, il va de l'autre côté.
-      if (role === 0 && hyp(porteur.x - cible.x, porteur.y - cible.y) < 3) cible = { x: but.x - a * 4, y: -Math.sign(porteur.y || 1) * 4 };
-    } else {
-      cible = role === 0 ? { x: a * (u(R.x) + 3), y: R.y * 0.5 } : { x: a * (u(R.x) + 7), y: role * 8 };
-    }
+    // LES POSTES DU SOUTIEN, par zone (JP, 1er nov. : *positionnement original*) : chacun au poste le plus près, les
+    // défenseurs aux leurs. Le côté de la rondelle décide (`c`).
+    const c = Math.sign(R.y || 1);
+    const notreZone = u(R.x) < -BLEUE;
+    const devance = u(R.x) > BLEUE - 6 ? Math.min(u(R.x) - 1, BLEUE - 1.5) : u(R.x) + 5;   // près de la bleue, les ailiers TRAÎNENT la rondelle d'un mètre (JP : *trop de hors-jeu*)
+    const postesF = enZone
+      ? [{ x: but.x - a * 2.8, y: -c * 1.8 }, { x: but.x - a * 8, y: c * 2.5 }, { x: a * (BLEUE + 6), y: -c * 7 }]          // devant le filet, l'enclave, la demi-bande opposée
+      : notreZone
+        ? [{ x: -a * (LIGNE_BUT - 9), y: 0 }, { x: -a * (BLEUE + 3), y: -8 }, { x: -a * (BLEUE + 3), y: 8 }]              // la sortie : le centre haut, les ailiers aux demi-bandes
+        : [{ x: a * (u(R.x) + 1), y: -R.y * 0.5 }, { x: a * devance, y: -8 }, { x: a * devance, y: 8 }];                 // la zone neutre : le centre dans l'autre couloir, les ailiers larges, jamais devant la rondelle près de la bleue
+    const postesD = enZone
+      ? [{ x: a * (BLEUE + 2), y: -6.5 }, { x: a * (BLEUE + 2), y: 6.5 }]
+      : notreZone
+        ? [{ x: -a * (LIGNE_BUT - 2.5), y: -c * 3 }, { x: -a * (LIGNE_BUT - 7), y: c * 4 }]
+        : [{ x: a * (u(R.x) - 8), y: -5 }, { x: a * (u(R.x) - 8), y: 5 }];
+    cible = posteDe(s, miens.filter(m => m !== porteur && (m.poste === 'D') === (s.poste === 'D')), s.poste === 'D' ? postesD : postesF);
   }
   // En deçà de la bleue tant que la rondelle n'y est pas : pas de hors-jeu.
   if (!enZone && u(cible.x) > BLEUE - 0.8) cible.x = a * (BLEUE - 0.8);
@@ -266,22 +292,22 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
     cible = coins[Math.min(ordreBoite.indexOf(s), coins.length - 1)];
     // Le carré glisse vers le côté de la rondelle.
     cible = { x: cible.x, y: cible.y + clamp(R.y, -4, 4) * 0.35 };
-  } else if (iD >= 0) {
-    const cote = iD === 0 ? -1 : 1;
-    cible = { x: monBut.x + (R.x - monBut.x) * (notreZone ? 0.45 : 0.6), y: R.y * 0.4 + cote * 2.5 };
-    if (u(cible.x) < -(LIGNE_BUT - 2.5)) cible.x = -a * (LIGNE_BUT - 2.5);
   } else {
-    const role = s.poste === 'AG' ? -1 : s.poste === 'AD' ? 1 : 0;
-    // Un adversaire à couvrir : le plus proche non couvert de mon côté, sinon le poste.
-    const libres = adv.filter(o => o !== porteur && (role === 0 || Math.sign(o.y || role) === role));
-    let marque = null, dm = Infinity;
-    for (const o of libres) {
-      const d = hyp(o.x - s.x, o.y - s.y);
-      if (d < dm && d < 14) { dm = d; marque = o; }
-    }
-    if (marque && notreZone) cible = { x: marque.x + (monBut.x - marque.x) * 0.15, y: marque.y + (monBut.y - marque.y) * 0.15 };
-    else if (role === 0) cible = { x: monBut.x + (R.x - monBut.x) * 0.7, y: R.y * 0.6 };
-    else cible = { x: a * (u(R.x) - 4), y: role * 7 };
+    // LES POSTES SANS LA RONDELLE, par zone : dans la nôtre, devant le filet, l'enclave basse et les deux pointes ;
+    // en zone neutre, le 1-2-2 ; dans la leur, l'échec avant à deux et un troisième haut. Le chasseur est déjà parti.
+    const c = Math.sign(R.y || 1);
+    const leurZone = u(R.x) > BLEUE;
+    const chasseur = ordre[0];
+    const postes = notreZone
+      ? [{ x: -a * (LIGNE_BUT - 2.5), y: c * 1.6 }, { x: -a * (LIGNE_BUT - 6.5), y: -c * 1.8 }, { x: -a * (BLEUE + 3), y: c * 6.5 }, { x: -a * (BLEUE + 3), y: -c * 6.5 }]
+      : leurZone
+        ? [{ x: a * (u(R.x) - 4), y: -c * 5 }, { x: a * (BLEUE + 2), y: R.y * 0.3 }, { x: a * (BLEUE - 5), y: -6 }, { x: a * (BLEUE - 5), y: 6 }]
+        : [{ x: a * (u(R.x) - 5), y: -6 }, { x: a * (u(R.x) - 5), y: 6 }, { x: -a * (BLEUE + 1), y: -4.5 }, { x: -a * (BLEUE + 1), y: 4.5 }];
+    // Les défenseurs prennent les deux derniers postes (les plus bas), les avants les deux premiers.
+    const miensSans = miens.filter(m => m !== chasseur);
+    const D2 = miensSans.filter(m => m.poste === 'D'), F2 = miensSans.filter(m => m.poste !== 'D');
+    const bas = notreZone ? postes.slice(0, 2) : postes.slice(2), hauts = notreZone ? postes.slice(2) : postes.slice(0, 2);
+    cible = s.poste === 'D' ? posteDe(s, D2, D2.length > bas.length ? [...bas, ...hauts] : bas) : posteDe(s, F2, F2.length > hauts.length ? [...hauts, ...bas] : hauts);
   }
   cible = dansLaGlace(cible.x, cible.y);
   const e = espacer(s, miens, vers(s, cible.x, cible.y), 2.2, adv.filter(o => o !== porteur));

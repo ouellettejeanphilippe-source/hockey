@@ -113,7 +113,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 |---|---|---|
 | La mise en jeu : tout le monde placé, la rondelle qui tombe, le Jeu du centre, le hasard, le bouton à la chute | ✅ | `placerMiseEnJeu`, `tomber` — check « mises en jeu gagnées » |
 | Le hors-jeu à l'entrée de la zone | ✅ | `horsJeu` — check « le hors-jeu se siffle » |
-| Le hors-jeu différé (le bras levé, la zone à vider) | ⬜ | |
+| Le hors-jeu différé (le bras levé, la zone à vider) | ✅ | `M.horsJeuDiffere`, `horsJeu` : lancée dans la zone avec un attaquant dedans, le bras se lève ; levé si les attaquants ressortent, sifflé s'ils la touchent ; l'IA ressort et n'entre pas — check « le hors-jeu différé » |
 | Le dégagement refusé (touché, permis en désavantage) | ✅ | `degagement` — check « le dégagement refusé » |
 | Le dégagement hybride (la course aux points de mise en jeu) | ⬜ | |
 | L'horloge, trois périodes, les côtés qui changent | ✅ | `pas`, `finDePeriode` |
@@ -156,9 +156,9 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Le rendu old school (gros pixels, lignes de balayage, la police d'arcade) | ✅ | `RETRO`, `.sg-crt`, Bungee |
 | Les jetons à la vraie face, les locaux en blanc | ✅ | `jeton`, `chandails` |
 | Les animations procédurales (la foulée, le bâton, la chute, l'impact, le papillon, la lumière, la chute de la rondelle) | ✅ | `patineur`, `gardien`, `animer` |
-| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé) | ✅ | dessinés à la main pixel par pixel, en vue de trois quarts comme à la console : le visage ou le numéro dans le dos, le casque, les bandes, les gants, le pantalon, les bas, les patins ; huit directions, la foulée en trois images ; le gardien avec son masque, sa mitaine, son bloqueur et ses jambières ; aux couleurs du club (`TORSES`, `JAMBES`, `GARDIENS`, `spriteDe`, js/sur-glace.js) |
+| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé) | ✅ | dessinés à la main pixel par pixel par l'atelier de graphistes (scripts/sprites : les planches en lettres, le guide, la recherche, l'aperçu, l'assembleur → js/sprites.js) : cinq directions, dix poses du patineur, le gardien en quatre poses et trois directions, teints aux couleurs du club |
 | Les sons synthétisés (le tir, la passe, la bande, le but, le sifflet, l'échec) | ✅ | `SONS`, js/sons.js |
-| La foule (une rumeur qui monte, le « ohhh » du poteau, la clameur du but), l'annonceur | ⬜ | js/commentaire.js a déjà les banques de mots du direct : un commentateur du match en direct serait du texte, pas de la voix |
+| La foule (une rumeur qui monte, le « ohhh » du poteau, la clameur du but), l'annonceur | ✅ | js/sons-glace.js : la foule en cinq couches de bruit pilotée par une intensité, le ohhh, la clameur, les huées, la sirène ; l'annonceur manque |
 | La secousse de l'écran sur un gros coup et un but, l'arrêt sur image d'un impact (hit stop) | ✅ | `secousse`, `GEL` (l'arrêt sur image de 60 ms), js/sur-glace.js |
 | La vibration de la manette (haptique) | ✅ | `vibrer` : le tir, le coup reçu, le but |
 | La reprise d'un but (le ralenti), la célébration | ⬜ | rejouer les 4 dernières secondes d'états gardés |
