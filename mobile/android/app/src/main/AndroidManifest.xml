@@ -32,4 +32,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- navigator.vibrate : l'haptique de Sur glace, du glisser et du déposer -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

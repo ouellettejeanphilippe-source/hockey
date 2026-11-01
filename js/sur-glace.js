@@ -23,7 +23,7 @@ import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from
 import { axes20, cote20 } from './niveaux.js';
 import { getTraits } from './traits.js';
 import { nomCourt } from './recit.js';
-import { coupDeGlace, fouleReagit, ambianceFoule, crissement, couperLaGlace } from './sons-glace.js';
+import { coupDeGlace, fouleReagit, ambianceFoule, couperLaGlace } from './sons-glace.js';
 import { esc, estD } from './util.js';
 
 const GRADINS = 3.2;     // les gradins autour de la glace, m : la caméra ne montre jamais au-delà
@@ -112,7 +112,7 @@ let trace = [];
 let vueEntiere = false;
 let taille = { w: 1, h: 1, dpr: 1, large: false };
 let tonVisage = VEDETTES[0];
-let choix = null;        // l'affiche : { A: { saison, club }, B: {…}, periode, horsjeu, degagement, series, deux, difficulte }
+let choix = null;        // l'affiche : { A: { saison, club }, B: {…}, periode, horsjeu, degagement, series, deux, difficulte, vibration }
 let couleurs = chandails({ bg: COULEURS.toi, ink: COULEURS.blanc, stripe: COULEURS.encreBlanc }, { bg: COULEURS.plot, ink: COULEURS.blanc });
 let anims = [];          // les animations en cours : { type, t0, dur, … }
 let noms = { A: 'Toi', B: 'Eux' };
@@ -141,7 +141,7 @@ export function ouvrirSurGlace(ctx) {
   choix = {
     A: valide(memo.A) ? memo.A : null, B: valide(memo.B) ? memo.B : null, periode: memo.periode || 180,
     horsjeu: memo.horsjeu !== false, degagement: memo.degagement !== false, series: !!memo.series, deux: !!memo.deux,
-    difficulte: DIFFICULTES[memo.difficulte] ? memo.difficulte : 'normal',
+    difficulte: DIFFICULTES[memo.difficulte] ? memo.difficulte : 'normal', vibration: memo.vibration !== false,
   };
   accueil();
 }
@@ -218,6 +218,7 @@ async function accueil() {
       <label><input type="checkbox" data-regle="degagement"${choix.degagement ? ' checked' : ''}> Dégagement refusé</label>
       <label><input type="checkbox" data-regle="series"${choix.series ? ' checked' : ''}> Séries <small>la prolongation à cinq, autant qu'il en faut</small></label>
       <label><input type="checkbox" data-regle="deux"${choix.deux ? ' checked' : ''}> Deux joueurs <small>la deuxième manette ; seule, elle joue Eux</small></label>
+      <label><input type="checkbox" data-regle="vibration"${choix.vibration ? ' checked' : ''}> Vibration <small>la manette ou le téléphone</small></label>
     </div>
     <div class="sg-actions">
       <button type="button" class="btn go" data-sg="match">▶ Jouer le match</button>
@@ -399,6 +400,7 @@ function surTouche(ev) {
 function brancherDoigt() {
   canvas.addEventListener('pointerdown', ev => {
     if (ev.pointerType === 'mouse') return;
+    auDoigt = true;
     if (doigt) return;
     doigt = { id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY };
     canvas.setPointerCapture(ev.pointerId);
@@ -428,7 +430,7 @@ function brancherDoigt() {
   canvas.addEventListener('pointercancel', lacher);
   for (const b of el.querySelectorAll('[data-doigt]')) {
     const quoi = b.dataset.doigt;
-    b.addEventListener('pointerdown', ev => { boutons[quoi] = true; ev.preventDefault(); });
+    b.addEventListener('pointerdown', ev => { boutons[quoi] = true; ev.preventDefault(); if (ev.pointerType !== 'mouse' && etat) { auDoigt = true; vibrer(etat.humains[0], 'bouton'); } });
     const fin = () => { boutons[quoi] = false; };
     b.addEventListener('pointerup', fin);
     b.addEventListener('pointercancel', fin);
@@ -504,13 +506,38 @@ function menuPause(p) {
   if (b && !tenu.b) basculerPause();
   tenu.haut = haut; tenu.bas = bas; tenu.a = a; tenu.b = b;
 }
-/* La manette qui vibre (le dual-rumble du Gamepad API) : le tir, le coup reçu, le but. Sans manette, rien. */
-function vibrer(eq, fort, faible, duree) {
+/*
+ * L'HAPTIQUE (JP, 1er nov. : *ajouter haptics*) : ce que tes mains sentent du match. À la manette, le dual-rumble du
+ * Gamepad API (le moteur fort pour les coups, le faible pour la rondelle) ; au doigt, le vibreur du téléphone
+ * (`navigator.vibrate`, la permission VIBRATE de l'APK), des impulsions courtes, plus brèves qu'à la manette — un
+ * téléphone vibre fort. Chaque sensation : [fort, faible, durée à la manette (ms), motif au téléphone (ms)].
+ */
+const HAPTIQUE = {
+  prise: [0, 0.25, 35, 8],                  // la rondelle arrive sur ta lame
+  passe: [0, 0.3, 40, 10],
+  tir: [0.15, 0.6, 70, 18],
+  poteau: [0.3, 0.6, 110, [14, 40, 14]],
+  harpon: [0.2, 0.5, 60, 14],               // ton harpon qui sort la rondelle
+  echecDonne: [0.45, 0.7, 110, 25],
+  echecRecu: [0.9, 0.5, 170, [45, 30, 20]],
+  butPour: [1, 0.8, 420, [60, 50, 60, 50, 140]],
+  butContre: [0.4, 0.8, 300, 50],
+  bouton: [0, 0, 0, 6],                     // un piton du doigt sous ton pouce
+};
+let auDoigt = false;      // le téléphone vibre seulement quand on joue au doigt
+function vibrer(eq, quoi) {
+  if (!choix || !choix.vibration || !eq || !HAPTIQUE[quoi]) return;
+  const [fort, faible, duree, motif] = HAPTIQUE[quoi];
   const p = manettes[eq];
   const v = p && p.vibrationActuator;
-  if (!v || typeof v.playEffect !== 'function') return;
-  try { v.playEffect('dual-rumble', { startDelay: 0, duration: duree, strongMagnitude: fort, weakMagnitude: faible }).catch(() => {}); } catch { /* une manette sans moteur */ }
+  if (v && typeof v.playEffect === 'function' && duree) {
+    try { v.playEffect('dual-rumble', { startDelay: 0, duration: duree, strongMagnitude: fort, weakMagnitude: faible }).catch(() => {}); } catch { /* une manette sans moteur */ }
+    return;
+  }
+  // Au doigt, c'est le premier humain qui tient le téléphone.
+  if (!p && auDoigt && etat && eq === etat.humains[0] && navigator.vibrate) { try { navigator.vibrate(motif); } catch { /* un appareil sans vibreur */ } }
 }
+const tonJoueur = id => !!etat && Object.values(etat.controles).includes(id);
 const equipeDe = id => { const s = etat.patineurs.find(p => p.id === id); return s ? s.equipe : null; };
 
 /* ---------- la boucle ---------- */
@@ -526,10 +553,10 @@ function boucle(now) {
   for (const v of ev) {
     sonner(v);
     animer(v, now);
-    if (v.type === 'but') { flash = { mot: etat.match ? `BUT ! ${noms[v.equipe]}` : 'BUT !', reste: 2 }; secousse = { t0: now, dur: 450, amp: 4 }; for (const eq of etat.humains) vibrer(eq, eq === v.equipe ? 1 : 0.4, 0.8, 400); }
+    if (v.type === 'but') { flash = { mot: etat.match ? `BUT ! ${noms[v.equipe]}` : 'BUT !', reste: 2 }; secousse = { t0: now, dur: 450, amp: 4 }; for (const eq of etat.humains) vibrer(eq, eq === v.equipe ? 'butPour' : 'butContre'); }
     else if (v.type === 'arret' && v.gele) flash = { mot: 'Gelée.', reste: 1.2 };
     else if (v.type === 'arret') flash = { mot: 'Arrêt !', reste: 0.8 };
-    else if (v.type === 'poteau') { flash = { mot: v.barre ? 'La barre !' : 'Poteau !', reste: 0.8 }; secousse = { t0: now, dur: 160, amp: 2 }; }
+    else if (v.type === 'poteau') { flash = { mot: v.barre ? 'La barre !' : 'Poteau !', reste: 0.8 }; secousse = { t0: now, dur: 160, amp: 2 }; const d = etat.rondelle.dernier; if (d && tonJoueur(d.id)) vibrer(d.equipe, 'poteau'); }
     else if (v.type === 'horsjeu') flash = { mot: 'Hors-jeu', reste: 1.2 };
     else if (v.type === 'degagement') flash = { mot: 'Dégagement refusé', reste: 1.2 };
     else if (v.type === 'vitre') flash = { mot: 'Par-dessus la vitre', reste: 1.2 };
@@ -541,8 +568,12 @@ function boucle(now) {
     else if (v.type === 'fusillade') flash = { mot: 'Tirs de barrage', reste: 2 };
     else if (v.type === 'ronde') flash = { mot: v.but ? `Compté, ${noms[v.equipe]}` : `Raté, ${noms[v.equipe]}`, reste: 1.5 };
     else if (v.type === 'mej') flash = { mot: `Mise en jeu gagnée, ${noms[v.equipe]}`, reste: 0.9 };
-    else if (v.type === 'tir') { if (Object.values(etat.controles).includes(v.qui)) flash = { mot: `${Math.round(v.v * 3.6)} km/h${v.uneTemps ? ' · sur réception' : ''}`, reste: 1 }; vibrer(equipeDe(v.qui), 0, 0.6, 70); }
-    else if (v.type === 'echec' && v.fort) { gel = GEL; secousse = { t0: now, dur: 200, amp: 3 }; vibrer(equipeDe(v.sur), 0.9, 0.5, 160); vibrer(equipeDe(v.qui), 0.4, 0.7, 100); }
+    else if (v.type === 'tir') { if (Object.values(etat.controles).includes(v.qui)) flash = { mot: `${Math.round(v.v * 3.6)} km/h${v.uneTemps ? ' · sur réception' : ''}`, reste: 1 }; if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'tir'); }
+    else if (v.type === 'echec' && v.fort) { gel = GEL; secousse = { t0: now, dur: 200, amp: 3 }; if (tonJoueur(v.sur)) vibrer(equipeDe(v.sur), 'echecRecu'); if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'echecDonne'); }
+    else if (v.type === 'prise' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'prise');
+    else if (v.type === 'passe' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'passe');
+    else if (v.type === 'harpon' && v.gardien) flash = { mot: `Le harpon de ${nomDe(v.qui)}`, reste: 0.9 };
+    else if (v.type === 'harpon' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'harpon');
     else if (v.type === 'remise') trace = [];
     else if (v.type === 'fin') finDuMatch();
   }
@@ -608,7 +639,7 @@ function sonner(v) {
   else if (v.type === 'deviation') coupDeGlace('passe');
   else if (v.type === 'bloc') coupDeGlace('reception');
 }
-/* La foule de la soirée : sa base monte avec le moment (la 3e, la prolongation, un pointage serré, les locaux en zone offensive) ; le crissement de ton patineur. */
+/* La foule de la soirée : sa base monte avec le moment (la 3e, la prolongation, un pointage serré, les locaux en zone offensive). Les patins ne font aucun son (JP : *pas le bruit de patinage*). */
 function ambiance(dt) {
   const M = etat.match;
   let base = 0.18;
@@ -618,14 +649,6 @@ function ambiance(dt) {
     if (etat.rondelle.x * etat.equipes.B.attaque > BLEUE) base += 0.15;
   }
   ambianceFoule(base, dt);
-  const toi = etat.patineurs.find(p => p.id === etat.controles[etat.humains[0]]);
-  if (!toi) { crissement(0, 0); return; }
-  const anim = toi.anim || (toi.anim = {});
-  // LE COUP DE PATIN s'entend : la phase de la foulée passe le milieu d'une poussée (¼ et ¾ du tour)
-  const f = toi.foulee, fp = anim.fouleePrec == null ? f : anim.fouleePrec;
-  const passe = q => (fp <= f ? fp < q && f >= q : fp < q || f >= q);
-  anim.fouleePrec = f;
-  crissement(Math.hypot(toi.vx, toi.vy), toi.virage, { coup: f !== fp && (passe(0.375) || passe(0.875)), freine: toi.freine });
 }
 const nomDe = id => { const s = etat.patineurs.find(p => p.id === id); if (s) return s.nom; const g = etat.gardiens.find(x => `G:${x.equipe}` === id); return g ? g.nom : ''; };
 /* Un événement du moteur devient une animation : le fouetté du tir, la poussée de la passe, l'impact, le papillon, la lumière, le nom du porteur. */

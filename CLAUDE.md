@@ -111,7 +111,7 @@ js/table.js           Sur table : le moteur du plateau et reglesDuPlateau()
 js/plateau.js         Sur table : l'écran du plateau
 js/tournoi.js         Sur table : le tournoi de six clubs
 js/sons.js            les effets sonores synthétisés (Web Audio) ; ses briques servent js/sons-glace.js
-js/sons-glace.js      Sur glace : la foule vivante (cinq couches de bruit, une intensité), le ohhh, la clameur, les huées, le tir, la bande, le poteau, le sifflet, la sirène, le crissement des patins
+js/sons-glace.js      Sur glace : la foule vivante (cinq couches de bruit, une intensité), le ohhh, la clameur, les huées, le tir, la bande, le poteau, le sifflet, la sirène (les patins ne font aucun son)
 js/sprites.js         Sur glace : les sprites en lettres (écrit par scripts/sprites/rendu.mjs, ne pas éditer à la main)
 
 scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs, portraits.mjs, actions.mjs, recrues.mjs → data/recrues.json
