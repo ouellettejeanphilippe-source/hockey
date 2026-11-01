@@ -614,16 +614,21 @@ function mesurer() {
 
 /*
  * La caméra de NHL 94 : la glace debout, TOUTE sa largeur et ses gradins dans la largeur de l'écran, et elle suit la
- * rondelle le long de la patinoire, sans jamais montrer au-delà du bout des gradins.
+ * rondelle le long de la patinoire, sans jamais montrer au-delà du bout des gradins. Elle DEVANCE le jeu : un décalage
+ * dans la direction de la rondelle, pour que tu voies où tu vas, pas d'où tu viens.
  */
+const DEVANCE = 3.5;    // le décalage maximal vers la direction du jeu, m
+const DEVANCE_V = 0.35; // le décalage par m/s de vitesse de la rondelle
 function camera(dt) {
   const long = taille.h, court = taille.w;
   const kEntier = Math.min(long / (L + 2 * GRADINS), court / (W + 2 * GRADINS));
   const k = vueEntiere ? kEntier : court / (W + 2 * GRADINS);
   cam.k = k;
   const R = etat.rondelle;
+  const avance = Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V));
+  const cible = R.x + avance;
   const f = 1 - Math.exp(-SUIVI * dt);
-  cam.x += (R.x - cam.x) * f;
+  cam.x += (cible - cam.x) * f;
   cam.y = 0;
   const hx = long / (2 * k);
   cam.x = hx >= L / 2 + GRADINS ? 0 : Math.max(-L / 2 - GRADINS + hx, Math.min(L / 2 + GRADINS - hx, cam.x));
@@ -783,7 +788,7 @@ function patineur(s, now) {
   else if (s.charge > 0 && etat.rondelle.porteur === s.id) pose = 'charge';
   else if (anim.passe && now - anim.passe < 240) pose = 'passe';
   else if (s.elan > 0) pose = 'echec';
-  else if (v > 0.6) pose = `patin${1 + Math.floor(anim.dist * 2.2) % FOULEES}`;   // LA FOULÉE : quatre images, au rythme de la distance parcourue
+  else if (v > 0.6) { const rythme = Math.min(3.5, Math.max(1.2, v * 0.3)); pose = `patin${1 + Math.floor(anim.dist * rythme) % FOULEES}`; }   // LA FOULÉE : quatre images, au rythme de la vitesse (lent à basse vitesse, rapide à pleine)
   corps(s.x, s.y, s.equipe, 'P', pose, dir);
 }
 /* LE RECEVEUR : quand tu portes la rondelle, l'anneau jaune dit à qui la passe irait ; pointillé, la ligne est barrée (elle sera soulevée). */

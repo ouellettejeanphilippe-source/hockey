@@ -20,7 +20,7 @@
  *     ses lames mordent de côté (`grip`), mais pas au-delà de `adherence` m/s² : cinq mètres de rayon à pleine
  *     vitesse. ARCADE (JP : *joueur trop lent ; penser à une physique arcade plus NHL 94*) : la physique reste la
  *     même, ses chiffres penchent vers la console — la pointe en deux secondes et demie, le demi-tour sur un dix
- *     cents, la roue libre qui s'arrête vite, le tir qui vise le filet (`assist`, `large`) ;
+ *     cents, la roue libre qui dure (NHL 94), le tir qui vise le filet (`assist`, `large`) ;
  *   - la mise en échec est une collision entre deux masses ; celui qui a le moins d'élan tombe si l'écart
  *     dépasse `CHUTE.seuil` kg·m/s ; frapper qui n'a pas la rondelle, ou par-derrière, c'est deux minutes ;
  *   - le gardien voit la rondelle avec 150 ms de retard, bouge à 5 m/s au plus, couvre 1,0 m de large.
@@ -56,8 +56,8 @@ export const PATIN = {
   vMax: 10.6,       // la vitesse de pointe, m/s (38 km/h)
   accel: 11,        // la poussée, m/s² : la pointe en moins de deux secondes, sec comme à la console (JP, 1er nov. : *mouvement pas assez sec*)
   frein: 14,        // l'arrêt, m/s² (avec la roue libre et l'air, un arrêt net en une demi-seconde)
-  glisse: 6,        // la roue libre, m/s² : le bâton lâché, on s'arrête en moins de deux secondes (JP : *ça glisse trop*) ; en poussant, les lames ne perdent rien
-  grip: 22,         // la morsure des lames de côté : la vitesse en travers s'éteint à ce taux, par seconde
+  glisse: 3.5,      // la roue libre, m/s² : le bâton lâché, on glisse trois secondes (arcade, entre NHL 94 et le réel) ; en poussant, les lames ne perdent rien
+  grip: 15,         // la morsure des lames de côté : la vitesse en travers s'éteint à ce taux, par seconde (15 : le patineur dérive un peu, comme sur la vraie glace)
   adherence: 26,    // l'accélération latérale que les lames tiennent, m/s² : le rayon de virage, c'est v² / adherence (4 m à pleine vitesse)
   pivot: 12,        // le virage sur place, rad/s
   portee: 1.9,      // la rondelle plus loin que ça de la lame est perdue (JP : *que la puck colle un peu plus aux bâtons*)
@@ -101,6 +101,7 @@ export const CHUTE = { seuil: 300, bande: 1.5 };   // l'écart d'élan, kg·m/s,
 export const HARPON = { duree: 0.25, portee: 2.2, largeur: 0.55, repos: 0.7, pousse: 5, trebuche: 0.04 };   // le harponnage : un coup de bâton devant soi ; raté sur le porteur, un sur vingt-cinq l'accroche
 const ECHEC = { duree: 0.35, repos: 1.2, accel: 2, vMax: 1.15, derriere: 0.8, recent: 1.0 };   // l'élan d'une mise en échec ; par-derrière et sur qui n'a pas la rondelle, c'est puni
 const JAMBES = { usure: 1.8, repos: 6, changement: 55, presence: 45 };   // la fatigue d'une présence : ce qu'elle coûte par seconde, ce que le banc rend, quand on change
+const TAMPON = 0.10;   // le tampon d'entrée, s : un appui de passe ou de tir dans cette fenêtre avant la prise compte quand même
 export const MATCH = {
   periode: 180, prolongation: 120, surglace: 5, surglaceOT: 3, rondesFusillade: 3, retraitGardien: 90, tirDePunition: 12,
   punition: 120, mej: 0.9, pauses: { but: 2.5, gel: 1.2, horsjeu: 1.2, degagement: 1.2, punition: 1.5, periode: 3, fin: 0 },
@@ -163,7 +164,7 @@ function patineur(id, equipe, x, y, cap, extra = {}) {
     id, equipe, poste: extra.poste || 'C', nom: extra.nom || id, visage: extra.visage || null, ligne: extra.ligne ?? 0,
     x, y, vx: 0, vy: 0, cap, masse: p.masse, rayon: PATIN.rayon, p,
     auSol: 0, charge: 0, lachee: 0, tenaitTir: false, tenaitPasse: false, tenaitEchec: false,
-    harpon: 0, harponRepos: 0, elan: 0, elanRepos: 0, jambes: 100, surGlace: true, boxe: false, touche: -10,
+    harpon: 0, harponRepos: 0, elan: 0, elanRepos: 0, jambes: 100, surGlace: true, boxe: false, touche: -10, tamponPasse: -1, tamponTir: -1,
     poste0: extra.poste0 || null, ia: null, stats: { buts: 0, aides: 0, tirs: 0, echecs: 0, blocs: 0, tg: 0 },
   };
 }
@@ -426,7 +427,8 @@ function patiner(s, e, enJeu) {
   const v2 = hyp(s.vx, s.vy);
   if (v2 > 0) {
     // LE PRIX DU VIRAGE : couper sec coûte de la vitesse (les carres mordent, l'énergie part dans la glace).
-    const dec = (pousse > 0 ? 0 : PATIN.glisse) + PATIN.accel * (v2 / vMax) ** 2 + Math.abs(omega) * PATIN.virage * v2;
+    // La glisse s'estompe avec la poussée (m) au lieu de tomber d'un coup : la transition est douce.
+    const dec = PATIN.glisse * (1 - m) + PATIN.accel * (v2 / vMax) ** 2 + Math.abs(omega) * PATIN.virage * v2;
     const f = Math.max(0, v2 - dec * PAS) / v2;
     s.vx *= f; s.vy *= f;
   }
@@ -637,13 +639,23 @@ function rondelle(etat, entrees, ev) {
         ev.push({ type: 'prise', qui: s.id, passe: !!passeAMoi });
         const e = entrees[s.id];
         // LE TIR SUR RÉCEPTION (une-temps) : le bouton tenu quand la passe arrive, le lancer part tout de suite.
-        if (passeAMoi && e && e.tir) {
+        const tirTenu = e && e.tir;
+        const tirTampon = !tirTenu && etat.t - s.tamponTir <= TAMPON;
+        if (passeAMoi && (tirTenu || tirTampon)) {
           const vise = viseeAssistee(etat, s, s.cap, hyp(e.x || 0, e.y || 0) > 0.1 ? e : null);
           lancer(etat, s, vise, BATON.tirMax * BATON.uneTemps * s.p.tir, BATON.ecart * 2.2 * s.p.precision, 0.3, BATON.hauteurMax * 0.7 + gauss(etat.de) * BATON.ecartHauteur);
           tirer(etat, s, ev, 1, true);
+          s.tamponTir = -1;
         }
-        // LA MÉMOIRE D'UN APPUI : la passe tenue quand elle arrive repart aussitôt (le une-deux).
+        // LE TAMPON DE LA PASSE : appuyée juste avant la prise, elle repart aussitôt (le une-deux).
+        else if (etat.t - s.tamponPasse <= TAMPON) {
+          const m = e ? hyp(e.x || 0, e.y || 0) : 0;
+          const vise = m > 0.1 ? s.cap + clamp(plier(Math.atan2(e.y, e.x) - s.cap), -BATON.visee, BATON.visee) : s.cap;
+          passer(etat, s, m > 0.1 ? e : null, vise, ev);
+          s.tamponPasse = -1;
+        }
         s.tenaitPasse = false;
+        s.tamponPasse = -1; s.tamponTir = -1;
         R.passeDe = null; R.passeVers = null;
         return;
       }
@@ -1255,6 +1267,11 @@ function pas(etat, entrees, ev) {
     if (etat.rondelle.porteur !== s.id) {
       if (e && e.tir && !s.tenaitTir && s.harponRepos <= 0 && s.auSol <= 0) { s.harpon = HARPON.duree; s.harponRepos = HARPON.repos; }
       if (e && e.echec && !s.tenaitEchec && s.elanRepos <= 0 && s.auSol <= 0) { s.elan = ECHEC.duree; s.elanRepos = ECHEC.repos; ev.push({ type: 'elan', qui: s.id }); }
+    }
+    // Le tampon d'entrée : un appui de passe ou de tir sans la rondelle se mémorise pour la prise.
+    if (etat.rondelle.porteur !== s.id && etat.humains.includes(s.equipe)) {
+      if (e && e.passe && !s.tenaitPasse) s.tamponPasse = etat.t;
+      if (e && e.tir && !s.tenaitTir) s.tamponTir = etat.t;
     }
     if (s.harpon > 0) { harponner(etat, s, ev); s.harpon -= PAS; }
     if (s.harponRepos > 0) s.harponRepos -= PAS;
