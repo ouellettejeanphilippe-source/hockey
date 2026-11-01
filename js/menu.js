@@ -64,7 +64,9 @@ export function fermerMenu() {
 
 export function afficherMenu(ctx) {
   ctxCourant = ctx;
-  try { sessionStorage.removeItem('cap82_session'); } catch { /* ignore */ }
+  // Au titre seulement (JP : *toujours revenir au menu initial*, hors partie) : un rechargement y revient. Le menu PAUSE,
+  // ouvert en pleine partie, garde la session — recharger retombe dans la partie (les séries rouvrent, smoke).
+  if (!ctx.enJeu) try { sessionStorage.removeItem('cap82_session'); } catch { /* ignore */ }
   let m = document.getElementById('menuDepart');
   if (!m) {
     m = document.createElement('div');
