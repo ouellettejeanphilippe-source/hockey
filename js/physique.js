@@ -849,6 +849,7 @@ function lancer(etat, s, vise, v, ecart, elan, montee = 0) {
  * du passeur. Personne dans le cône : la rondelle part dans le bâton (un renvoi). Le receveur prend le contrôle.
  */
 /** À qui la passe irait, et si la ligne est barrée : ce que l'écran montre avant l'appui. */
+const PASSE_VISEE = 2.5;   // le prix d'un radian d'écart entre la poussée du bâton et le receveur : à 15°, un coéquipier perd ce que la couverture coûte
 export function receveurDePasse(etat, s, baton) {
   const lm = lame(s);
   const ang0 = baton ? Math.atan2(baton.y, baton.x) : s.cap;
@@ -868,7 +869,9 @@ export function receveurDePasse(etat, s, baton) {
       const px = lm.x + u * dx, py = lm.y + u * dy;
       if (hyp(o.x - px, o.y - py) < 1.3) couvert++;
     }
-    const sc = Math.cos(ecartAng) * 2 - d / 25 - couvert * 1.5;
+    // LA DIRECTION D'ABORD (JP, 1er nov. 2026 : *privilégier la passe si un joueur est dans la direction*) : celui que
+    // le bâton pointe la reçoit, même couvert (elle se soulève alors) ; un autre ne la prend qu'à quelques degrés de lui.
+    const sc = Math.cos(ecartAng) * 2 - ecartAng * PASSE_VISEE - d / 25 - couvert * 0.5;
     if (sc > score) { score = sc; meilleur = m; barree = couvert > 0; }
   }
   return { vers: meilleur, barree };

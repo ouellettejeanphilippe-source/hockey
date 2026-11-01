@@ -458,6 +458,25 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
   borne('… et monte assez pour passer un bâton', zMax, 0.3, 1.2, ' m');
 }
 
+{
+  // LA DIRECTION D'ABORD (1er nov. 2026) : le coéquipier que le bâton pointe, couvert, contre un autre libre à 35° de là.
+  const e = nouveauMatch({ graine: 'visee', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: 'A', ia: decisionIA });
+  jouer(e, {}, 0.6); e.mej = null; e.enJeu = true;
+  const A = surGlace(e, 'A'), B = surGlace(e, 'B');
+  for (const s of [...A, ...B]) { s.x = -20; s.y = 10; s.vx = 0; s.vy = 0; }
+  const porteur = A[0], vise = A[1], libre = A[2], couvreur = B[0];
+  Object.assign(porteur, { x: 0, y: -5, cap: 0 });
+  Object.assign(vise, { x: 10, y: -5, cap: 0 });
+  Object.assign(libre, { x: 8, y: 0.6, cap: 0 });
+  Object.assign(couvreur, { x: 5, y: -5, cap: Math.PI, lachee: 2 });
+  Object.assign(e.rondelle, { x: 1.1, y: -4.7, vx: 0, vy: 0, porteur: porteur.id });
+  e.controles.A = porteur.id;
+  const ev = [];
+  for (let t = 0; t < 0.3; t += DT) ev.push(...avancer(e, { [porteur.id]: { x: 1, y: 0, passe: t > 0.05 } }, DT));
+  const p = ev.find(x => x.type === 'passe');
+  exiger('la passe va au coéquipier que le bâton pointe, même couvert, pas au libre à 35°', !!p && p.vers === vise.id, p ? `vers ${p.vers === vise.id ? 'le pointé' : p.vers === libre.id ? 'le libre' : p.vers}` : 'aucune passe');
+}
+
 /* ---------- le patin de plus : reculer, couper, sprinter ---------- */
 {
   const e = glaceVide('recul');

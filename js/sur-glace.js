@@ -30,7 +30,7 @@ const GRADINS = 3.2;     // la caméra montre TOUTE LA LARGEUR de la glace et se
 const SUIVI = 6;         // la vitesse à laquelle elle rattrape la rondelle, par seconde
 const PIXEL = 1 / 14;    // un pixel de sprite, en mètres : quatorze par mètre (la lame à quatorze pixels devant les patins) ; à l'écran, un pixel de sprite fait un nombre ENTIER de pixels (jamais de flou) : deux au téléphone, trois en mode large
 const FOULEES = 4;       // les images d'un cycle de patinage
-const DIRECTIONS = 8;    // les sprites existent en huit directions : cinq dessinées, trois en miroir
+const DIRECTIONS = 8;    // les sprites du patineur existent en huit directions, toutes rendues (le bâton reste dans la même main)
 const GEL = 0.06;        // l'arrêt sur image d'une mise en échec qui renverse, s (le hit stop)
 const NOM = 1200;        // le nom du porteur se montre ça de temps à la prise, ms (JP : *nom apparaît une seconde à la possession*)
 const COULEURS = {
@@ -44,19 +44,20 @@ const COULEURS = {
 };
 /* Les chandails : les locaux (B, « eux ») en blanc aux épaules du club, les visiteurs (A, toi) en couleur. */
 const chandails = (bandA, bandB) => ({
-  A: { bg: bandA.bg, ink: bandA.ink, epaule: bandA.stripe || bandA.ink, casque: teinter(bandA.bg, -0.12), pantalon: teinter(bandA.bg, -0.5), numero: bandA.ink },
-  B: { bg: COULEURS.blanc, ink: COULEURS.encreBlanc, epaule: bandB.bg, club: bandB.bg, casque: bandB.bg, pantalon: teinter(bandB.bg, -0.35), numero: bandB.bg },
+  A: { bg: bandA.bg, ink: bandA.ink, epaule: bandA.stripe || bandA.ink, casque: teinter(bandA.bg, -0.45), pantalon: teinter(bandA.bg, -0.5) },
+  B: { bg: COULEURS.blanc, ink: COULEURS.encreBlanc, epaule: bandB.bg, club: bandB.bg, casque: bandB.bg, pantalon: teinter(bandB.bg, -0.35) },
 });
 const CLE = 'cap82_glace';
 /*
- * LES SPRITES 16 BITS (JP, 1er nov. : *look snes* ; *deviens graphiste de 16-bit* ; *animations et sprites à
- * chier* ; *fais-toi plusieurs sous-agents graphistes*). Dessinés à la main, pixel par pixel, par un atelier de
- * graphistes (docs/decisions.md) : js/sprites.js tient les planches en lettres, une lettre par matière — le
- * contour, le chandail en trois tons, la bande du club, le numéro, la peau, le casque, le pantalon, les gants, les
- * patins, le bâton et son ruban, les jambières, l'ombre tramée. Cinq directions dessinées (S, SE, E, NE, N), trois en
- * miroir ; dix poses du patineur (le repos, le cycle de patinage en quatre images, la charge, le fouetté, la passe,
- * l'épaule, la chute), le gardien en garde et en papillon. Teints aux couleurs du club une fois, gardés. Les visages
- * (img/mugs) restent à la barre du nom.
+ * LES SPRITES 16 BITS (JP, 1er nov. : *look snes* ; *ya moyen d'avoir un vrai pixel art de qualité ?* ; *ça, c'est
+ * des sprites*). Rendus par scripts/sprites/rendu.mjs à la manière des sprites précalculés des années 90 : un joueur
+ * en volumes (un squelette, ses membres, son casque, son bâton), posé image par image, vu de trois quarts du dessus,
+ * rastérisé en pixels, ses tons choisis par une seule lumière, son contour et son ombre portée tramée sur la glace.
+ * js/sprites.js tient les images en lettres, une lettre par matière (le chandail en trois tons, la bande du club, le
+ * casque, la peau, le pantalon, les gants, les patins, le bâton, les jambières, l'ombre) ; teintes aux couleurs du club
+ * une fois, gardées. Le patineur en huit directions et dix poses (le repos, la foulée en quatre images, la charge, le
+ * fouetté, la passe, l'épaule, la chute), le gardien en quatre directions (la garde, le papillon, la mitaine, le
+ * bloqueur). Les visages (img/mugs) restent à la barre du nom.
  */
 const sprites = new Map();
 /* Mélanger une couleur hexadécimale vers le blanc (k > 0) ou le noir (k < 0). */
@@ -70,27 +71,27 @@ function teinter(hex, k) {
 function teintesDe(eq) {
   const c = couleurs[eq];
   return {
-    k: COULEURS.trait, J: c.bg, j: teinter(c.bg, 0.3), d: teinter(c.bg, -0.25), T: c.epaule, W: c.numero, S: COULEURS.peau, s: COULEURS.peauOmbre,
+    k: COULEURS.trait, J: c.bg, j: teinter(c.bg, 0.3), d: teinter(c.bg, -0.3), T: c.epaule, S: COULEURS.peau, s: COULEURS.peauOmbre,
     H: c.casque, h: teinter(c.casque, 0.35), P: c.pantalon, p: teinter(c.pantalon, 0.25), G: teinter(c.pantalon, -0.1), K: COULEURS.patin, L: COULEURS.lameSprite,
-    B: COULEURS.baton, b: COULEURS.lame, Q: COULEURS.jambiere, q: COULEURS.jambiereOmbre, o: COULEURS.ombreSprite,
+    B: COULEURS.baton, b: COULEURS.lame, Q: COULEURS.jambiere, q: COULEURS.jambiereOmbre, W: COULEURS.jambiere, o: COULEURS.ombreSprite,
   };
 }
-/* Les huit directions de l'écran (0 = vers la droite, puis dans le sens des aiguilles) : la planche dessinée, et si elle se lit en miroir. */
-const HUIT = [['E', false], ['SE', false], ['S', false], ['SE', true], ['E', true], ['NE', true], ['N', false], ['NE', false]];
-const QUATRE = [['E', false], ['S', false], ['E', true], ['N', false]];
+/* Les directions de l'écran (0 = vers la droite, puis dans le sens des aiguilles) : huit pour le patineur, quatre pour le gardien. */
+const HUIT = ['E', 'SE', 'S', 'SO', 'O', 'NO', 'N', 'NE'];
+const QUATRE = ['E', 'S', 'O', 'N'];
 /* Le sprite d'un club dans une pose et une direction, teint une fois et gardé. */
 function spriteDe(eq, genre, pose, dir) {
   const cle = `${eq}:${genre}:${pose}:${dir}`;
   let im = sprites.get(cle);
   if (im) return im;
-  const [nom, miroir] = (genre === 'G' ? QUATRE : HUIT)[dir];
+  const nom = (genre === 'G' ? QUATRE : HUIT)[dir];
   const planche = (genre === 'G' ? GARDIENS : PATINEURS)[nom];
   const lignes = planche[pose] || planche.repos || planche.garde;
   const teintes = teintesDe(eq);
   im = document.createElement('canvas');
   im.width = LARGEUR; im.height = HAUTEUR;
   const g = im.getContext('2d');
-  lignes.forEach((ligne, y) => [...ligne].forEach((ch, x) => { const t = teintes[ch]; if (t) { g.fillStyle = t; g.fillRect(miroir ? LARGEUR - 1 - x : x, y, 1, 1); } }));
+  lignes.forEach((ligne, y) => [...ligne].forEach((ch, x) => { const t = teintes[ch]; if (t) { g.fillStyle = t; g.fillRect(x, y, 1, 1); } }));
   sprites.set(cle, im);
   return im;
 }

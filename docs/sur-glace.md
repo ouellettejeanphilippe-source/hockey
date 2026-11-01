@@ -51,7 +51,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 |---|---|---|
 | Porter la rondelle : elle suit la lame comme un ressort amorti, traîne à grande vitesse, se perd au virage trop serré | ✅ | `rondelle` (porteur), `BATON.ressort`, `maniement`, `PATIN.portee` — check « reste à la lame » |
 | La prendre : à la lame, devant, si elle n'arrive pas trop vite ; sinon elle dévie | ✅ | `rondelle` (libre), `BATON.reception` |
-| La passe menée à un coéquipier (celui que le bâton désigne, là où il sera, plus fort quand il est loin) | ✅ | `passer` — check « la passe part » |
+| La passe menée à un coéquipier (celui que le bâton désigne, là où il sera, plus fort quand il est loin) | ✅ | `passer`, `receveurDePasse` : la direction d'abord (`PASSE_VISEE`), le pointé la reçoit même couvert — check « la passe part », « la passe va au coéquipier que le bâton pointe » |
 | Le receveur prend le contrôle | ✅ | `rondelle` (prise), `etat.controle` |
 | Le tir du poignet (un appui) et le lancer frappé (chargé) | ✅ | `lancer`, `BATON.tirMin`, `tirMax`, `charge` — check « le tir du poignet », « le lancer frappé » |
 | Le tir sur réception (une-temps) | ✅ | `rondelle` (prise avec `e.tir`) |
@@ -156,7 +156,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Le rendu old school (gros pixels, lignes de balayage, la police d'arcade) | ✅ | `RETRO`, `.sg-crt`, Bungee |
 | Les jetons à la vraie face, les locaux en blanc | ✅ | `jeton`, `chandails` |
 | Les animations procédurales (la foulée, le bâton, la chute, l'impact, le papillon, la lumière, la chute de la rondelle) | ✅ | `patineur`, `gardien`, `animer` |
-| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé) | ✅ | dessinés à la main pixel par pixel par l'atelier de graphistes (scripts/sprites : les planches en lettres, le guide, la recherche, l'aperçu, l'assembleur → js/sprites.js) : cinq directions, dix poses du patineur, le gardien en quatre poses et trois directions, teints aux couleurs du club |
+| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé) | ✅ | rendus par scripts/sprites/rendu.mjs (→ js/sprites.js) : un joueur en volumes posé image par image, vu de trois quarts, en trois tons, son contour et son ombre portée tramée ; huit directions et dix poses du patineur, le gardien en quatre poses et quatre directions, sans miroir, teints aux couleurs du club |
 | Les sons synthétisés (le tir, la passe, la bande, le but, le sifflet, l'échec) | ✅ | `SONS`, js/sons.js |
 | La foule (une rumeur qui monte, le « ohhh » du poteau, la clameur du but), l'annonceur | ✅ | js/sons-glace.js : la foule en cinq couches de bruit pilotée par une intensité, le ohhh, la clameur, les huées, la sirène ; l'annonceur manque |
 | La secousse de l'écran sur un gros coup et un but, l'arrêt sur image d'un impact (hit stop) | ✅ | `secousse`, `GEL` (l'arrêt sur image de 60 ms), js/sur-glace.js |
