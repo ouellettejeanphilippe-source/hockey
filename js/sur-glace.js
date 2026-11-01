@@ -22,7 +22,7 @@ import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from
 import { axes20, cote20 } from './niveaux.js';
 import { getTraits } from './traits.js';
 import { nomCourt } from './recit.js';
-import { jouerSon } from './sons.js';
+import { coupDeGlace, fouleReagit, ambianceFoule, crissement, couperLaGlace } from './sons-glace.js';
 import { esc, estD } from './util.js';
 
 const GRADINS = 3.2;     // la caméra montre TOUTE LA LARGEUR de la glace et ses gradins, debout, sur tous les écrans (JP, 1er nov. : *vue verticale, caméra largeur complète style NHL 26* — la caméra de NHL 94) : ça de gradins de chaque côté, m
@@ -35,7 +35,6 @@ const FOULEES = 6;       // les images d'un cycle de patinage
 const DIRECTIONS = 16;   // les sprites se dessinent en seize directions
 const GEL = 0.06;        // l'arrêt sur image d'une mise en échec qui renverse, s (le hit stop)
 const NOM = 1200;        // le nom du porteur se montre ça de temps à la prise, ms (JP : *nom apparaît une seconde à la possession*)
-const SONS = { tir: 'tir', passe: 'passe', but: 'but', arret: 'arret', poteau: 'retour', bande: 'tap', echec: 'echec', gel: 'sifflet', remise: 'mj', horsjeu: 'sifflet', degagement: 'sifflet', punition: 'sifflet', periode: 'periode', fin: 'fin', harpon: 'vol', mej: 'de', vitre: 'sifflet', tirpunition: 'sifflet', deviation: 'tap', bloc: 'tap' };
 const COULEURS = {
   glace: '#dfe9f1', ligne: '#d0021b', bleue: '#1546b0', bande: '#2b2f3a', enclave: '#9fc3e6', maille: '#f7f7f7', noir: '#0a0b0e',
   toi: '#f47b20', plot: '#8d939f', blanc: '#f4f4f4', encreBlanc: '#111', contour: '#1b1d24', ombre: 'rgba(0,0,0,0.25)',
@@ -286,6 +285,7 @@ function arreterLaBoucle() {
   window.removeEventListener('keyup', surTouche, true);
   window.removeEventListener('resize', mesurer);
   canvas = null; cx = null; etat = null; pause = false; gel = 0; secousse = null;
+  couperLaGlace();
   touche = { haut: 0, bas: 0, gauche: 0, droite: 0, passe: false, tir: false, echec: false, changer: false, recul: false };
   doigt = null; boutons = { passe: false, tir: false, echec: false };
 }
@@ -465,7 +465,7 @@ function lancer(e) {
     if (!b) return;
     const quoi = b.dataset.sg;
     if (quoi === 'pause') basculerPause();
-    else if (quoi === 'centre') { remise(etat, 'but'); trace = []; jouerSon('mj'); }
+    else if (quoi === 'centre') { remise(etat, 'but'); trace = []; coupDeGlace('miseEnJeu'); }
     else if (quoi === 'vue') { vueEntiere = !vueEntiere; b.setAttribute('aria-pressed', String(vueEntiere)); }
   });
   el.querySelector('.sg-pause').addEventListener('click', ev => {
@@ -622,7 +622,7 @@ function boucle(now) {
   if (gel > 0) gel -= dt;
   const ev = pause || gel > 0 ? [] : avancer(etat, e, dt);
   for (const v of ev) {
-    if (SONS[v.type] && !(v.type === 'echec' && !v.fort)) jouerSon(SONS[v.type]);
+    sonner(v);
     animer(v, now);
     if (v.type === 'but') { flash = { mot: etat.match ? `BUT ! ${noms[v.equipe]}` : 'BUT !', reste: 2 }; secousse = { t0: now, dur: 450, amp: 4 }; for (const eq of etat.humains) vibrer(eq, eq === v.equipe ? 1 : 0.4, 0.8, 400); }
     else if (v.type === 'arret' && v.gele) flash = { mot: 'Gelée.', reste: 1.2 };
@@ -646,6 +646,7 @@ function boucle(now) {
   }
   if (flash.reste > 0 && !pause) flash.reste -= dt;
   if (!pause) {
+    ambiance(dt);
     trace.push({ x: etat.rondelle.x, y: etat.rondelle.y });
     if (trace.length > 14) trace.shift();
     for (const s of etat.patineurs) { if (!s.anim) s.anim = { dist: 0 }; s.anim.dist += Math.hypot(s.vx, s.vy) * dt; }
@@ -654,6 +655,56 @@ function boucle(now) {
   dessiner(now);
   hud();
   raf = requestAnimationFrame(boucle);
+}
+/*
+ * LES SONS DU MATCH (js/sons-glace.js) : chaque événement du moteur a son coup, la foule réagit, l'arbitre siffle.
+ */
+function sonner(v) {
+  const M = etat.match;
+  if (v.type === 'tir') { coupDeGlace('tir', 0, { v: v.v }); fouleReagit('tir'); }
+  else if (v.type === 'passe') coupDeGlace('passe');
+  else if (v.type === 'prise' && v.passe) coupDeGlace('reception');
+  else if (v.type === 'bande') coupDeGlace('bande', 0, { v: v.v });
+  else if (v.type === 'vitre') { coupDeGlace('vitre'); coupDeGlace('sifflet', 0.4); }
+  else if (v.type === 'poteau') { coupDeGlace('poteau'); coupDeGlace('ohhh', 0, { double: true }); }
+  else if (v.type === 'arret') { if (!v.gele) coupDeGlace('reception'); else coupDeGlace('sifflet', 0.3); coupDeGlace('ohhh', 0, {}); }
+  else if (v.type === 'echec' && v.fort) {
+    const s = etat.patineurs.find(p => p.id === v.sur);
+    const bande = s && (Math.abs(s.x) > L / 2 - 1.6 || Math.abs(s.y) > W / 2 - 1.6);
+    coupDeGlace('echec', 0, { fort: true, bande }); fouleReagit('echec');
+  }
+  else if (v.type === 'gel' || v.type === 'degagement') coupDeGlace('sifflet');
+  else if (v.type === 'horsjeu') coupDeGlace('sifflet', 0, { coups: 2 });
+  else if (v.type === 'punition' && !v.attente) { coupDeGlace('sifflet', 0, { duree: 0.9 }); coupDeGlace('huees', 0.6); fouleReagit('punition'); }
+  else if (v.type === 'tirpunition' || v.type === 'fusillade') coupDeGlace('sifflet', 0, { duree: 0.9 });
+  else if (v.type === 'but') {
+    const locaux = M && v.equipe === 'B';
+    coupDeGlace('sirene', 0.4);
+    if (locaux || !M) { coupDeGlace('clameur', 0.2); fouleReagit('butLocaux'); } else { coupDeGlace('ohhh', 0, { grave: true }); fouleReagit('butVisiteurs'); }
+  }
+  else if (v.type === 'periode') coupDeGlace('sifflet', 0, { duree: 1.2 });
+  else if (v.type === 'fin') coupDeGlace('sifflet', 0, { duree: 0.5, coups: 3 });
+  else if (v.type === 'mej') coupDeGlace('miseEnJeu');
+  else if (v.type === 'harpon') coupDeGlace('harpon');
+  else if (v.type === 'deviation') coupDeGlace('passe');
+  else if (v.type === 'bloc') coupDeGlace('reception');
+}
+/* La foule de la soirée : sa base monte avec le moment (la 3e, la prolongation, un pointage serré, les locaux en zone offensive) ; le crissement de ton patineur. */
+function ambiance(dt) {
+  const M = etat.match;
+  let base = 0.18;
+  if (M) {
+    if (M.periode >= 3 || M.prolongation) base += 0.08;
+    if (Math.abs(M.pointage.A - M.pointage.B) <= 1) base += 0.05;
+    if (etat.rondelle.x * etat.equipes.B.attaque > BLEUE) base += 0.15;
+  }
+  ambianceFoule(base, dt);
+  const toi = etat.patineurs.find(p => p.id === etat.controles[etat.humains[0]]);
+  if (!toi) { crissement(0, 0); return; }
+  const anim = toi.anim || (toi.anim = { dist: 0 });
+  const dcap = anim.capPrec == null ? 0 : Math.atan2(Math.sin(toi.cap - anim.capPrec), Math.cos(toi.cap - anim.capPrec));
+  anim.capPrec = toi.cap;
+  crissement(Math.hypot(toi.vx, toi.vy), dt > 0 ? dcap / dt : 0);
 }
 const nomDe = id => { const s = etat.patineurs.find(p => p.id === id); if (s) return s.nom; const g = etat.gardiens.find(x => `G:${x.equipe}` === id); return g ? g.nom : ''; };
 /* Un événement du moteur devient une animation : le fouetté du tir, la poussée de la passe, l'impact, le papillon, la lumière, le nom du porteur. */

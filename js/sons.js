@@ -39,7 +39,7 @@ let bruitBlanc = null;   // un tampon d'une seconde de souffle, fabriqué une fo
 export const sonsActifs = () => actif;
 export function activerSons(on) { actif = !!on; }
 
-function contexte() {
+export function contexte() {
   try {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -60,7 +60,7 @@ if (typeof document !== 'undefined') {
 
 /* ---------- les briques ---------- */
 
-function souffle(c) {
+export function souffle(c) {
   if (!bruitBlanc) {
     bruitBlanc = c.createBuffer(1, c.sampleRate, c.sampleRate);
     const d = bruitBlanc.getChannelData(0);
@@ -72,7 +72,7 @@ function souffle(c) {
 }
 
 /* Une enveloppe : monte en `att`, descend en `dec`, sur un gain donné. */
-function enveloppe(c, t, gain, att, dec) {
+export function enveloppe(c, t, gain, att, dec) {
   const g = c.createGain();
   g.gain.setValueAtTime(0.0001, t);
   g.gain.linearRampToValueAtTime(gain, t + att);
@@ -80,14 +80,14 @@ function enveloppe(c, t, gain, att, dec) {
   return g;
 }
 
-function filtre(c, type, freq, q = 1) {
+export function filtre(c, type, freq, q = 1) {
   const f = c.createBiquadFilter();
   f.type = type; f.frequency.value = freq; f.Q.value = q;
   return f;
 }
 
 /* Un souffle filtré : la brique de tout ce qui frotte, frappe ou glisse. */
-function bruit(c, t, { gain = 0.3, att = 0.005, dec = 0.15, type = 'bandpass', freq = 1000, q = 1, vers = null, duree = null }) {
+export function bruit(c, t, { gain = 0.3, att = 0.005, dec = 0.15, type = 'bandpass', freq = 1000, q = 1, vers = null, duree = null }) {
   const s = souffle(c), f = filtre(c, type, freq, q), g = enveloppe(c, t, gain, att, dec);
   if (vers !== null) f.frequency.exponentialRampToValueAtTime(vers, t + att + dec);
   s.connect(f); f.connect(g); g.connect(c.destination);
@@ -95,7 +95,7 @@ function bruit(c, t, { gain = 0.3, att = 0.005, dec = 0.15, type = 'bandpass', f
 }
 
 /* Une note : `forme` et fréquence, avec une glissade facultative. */
-function note(c, t, { forme = 'sine', freq = 440, vers = null, gain = 0.2, att = 0.005, dec = 0.2, passeBas = null }) {
+export function note(c, t, { forme = 'sine', freq = 440, vers = null, gain = 0.2, att = 0.005, dec = 0.2, passeBas = null }) {
   const o = c.createOscillator(), g = enveloppe(c, t, gain, att, dec);
   o.type = forme; o.frequency.setValueAtTime(freq, t);
   if (vers !== null) o.frequency.exponentialRampToValueAtTime(vers, t + att + dec);
