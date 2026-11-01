@@ -27,7 +27,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-3.2.1';  // 3.2.1 : Sur glace, la glace en 16 bits, la zone au complet dans l'écran, les défenseurs du bon côté, l'haptique au téléphone (la permission VIBRATE), le gardien qui colle au poteau, couvre, dirige ses rebonds et harponne, les patineurs de vitesses proches, les patins muets. 3.2.0 : la mise à jour à même le menu (js/mise-a-jour.js, .github/workflows/publier.yml). 3.1.2 : Sur glace, la foulée du moteur, la caméra rapprochée. 3.1.1 : Sur glace, les sprites rendus en volumes (scripts/sprites/rendu.mjs). 3.1.0 : Sur glace, toutes les mécaniques (la hauteur, le patin, la pause, deux joueurs, les sprites 16 bits). 3.0.0 : la V22, la banque d'événements et les adjoints du staff partent, les adjoints en main (docs/refonte-v22.md). 2.11.0 : Sur glace, le match complet et l'IA (js/glace-ia.js). 2.10.0 : Sur glace, le terrain de jeu de la physique (js/physique.js, js/sur-glace.js). 2.9.2 : la main d'adjoints du coach, glissée en cartes (js/deposer.js). 2.9.1 : tes entraîneurs au cartable (l'onglet Coachs de l'album). 2.9.0 : la V21, le coach personnage et son staff, l'entraîneur-chef une vraie carte (js/pouvoirs.js, js/adjoints.js, js/coachs-reels.js, data/coachs.json ; js/personnel.js, js/echelons.js et js/chiffre.js partent). 2.8.1 : les cartes couchées (img/actions/couchees, data/actions.json « couchees »). 2.8.0 : la V16, le personnel seule carte bonus (js/places.js et js/equipement.js partent). 2.7.5 : la photo générale seulement sur une carte de son club. 2.7.4 : une photo de match par saison, quand Commons en a une (img/actions/{id}-{saison}.webp, data/actions.json « saisons »). 2.7.3 : les photos libres des vieilles saisons et leur crédit. 2.7.2 : le dos tient dans sa carte. 2.7.1 : la photo d'action cadrée dans sa fenêtre (data/actions.json, ses cadres). 2.7.0 : une série de cartes par saison et leurs polices (fonts/POLICES.txt). 2.6.0 : la V13, le duel à ton tableau, sans main ni cahier. 2.5.0 : la V10, le cahier neuf (js/cahier.js). 2.4.0 : la V9 complète, les exigences et la ligue qui monte (js/rogue.js). 2.3.0 : la V9, les galons (js/galons.js). 2.2.3 : Manrope pour le texte (fonts/Manrope-*.woff2). 2.2.2 : tes unités spéciales (l'onglet AN · DN des Lignes). 2.2.1 : les émojis au trait en tranches (fonts/NotoEmoji-*.woff2). 2.2.0 : la V7, les cinq onglets refaits (js/joueurs.js). 2.1.0 : la V5, le nœud de la semaine (js/noeuds.js). 2.0.2 : ce qui a fait la différence (js/causes.js). 2.0.1 : ton club (js/club.js). 2.0.0 : les cartes de la v2 et les coachs (js/coachs.js). 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
+const VERSION = 'cap82-3.2.2';  // 3.2.2 : Sur glace, la glace en 16 bits, la zone au complet dans l'écran, les défenseurs du bon côté, l'haptique au téléphone (la permission VIBRATE), le gardien qui colle au poteau, couvre, dirige ses rebonds et harponne, les patineurs de vitesses proches, les patins muets. 3.2.1 : la mise à jour de la version Web à même le menu, les parties gardées (js/version.js). 3.2.0 : la mise à jour à même le menu (js/mise-a-jour.js, .github/workflows/publier.yml). 3.1.2 : Sur glace, la foulée du moteur, la caméra rapprochée. 3.1.1 : Sur glace, les sprites rendus en volumes (scripts/sprites/rendu.mjs). 3.1.0 : Sur glace, toutes les mécaniques (la hauteur, le patin, la pause, deux joueurs, les sprites 16 bits). 3.0.0 : la V22, la banque d'événements et les adjoints du staff partent, les adjoints en main (docs/refonte-v22.md). 2.11.0 : Sur glace, le match complet et l'IA (js/glace-ia.js). 2.10.0 : Sur glace, le terrain de jeu de la physique (js/physique.js, js/sur-glace.js). 2.9.2 : la main d'adjoints du coach, glissée en cartes (js/deposer.js). 2.9.1 : tes entraîneurs au cartable (l'onglet Coachs de l'album). 2.9.0 : la V21, le coach personnage et son staff, l'entraîneur-chef une vraie carte (js/pouvoirs.js, js/adjoints.js, js/coachs-reels.js, data/coachs.json ; js/personnel.js, js/echelons.js et js/chiffre.js partent). 2.8.1 : les cartes couchées (img/actions/couchees, data/actions.json « couchees »). 2.8.0 : la V16, le personnel seule carte bonus (js/places.js et js/equipement.js partent). 2.7.5 : la photo générale seulement sur une carte de son club. 2.7.4 : une photo de match par saison, quand Commons en a une (img/actions/{id}-{saison}.webp, data/actions.json « saisons »). 2.7.3 : les photos libres des vieilles saisons et leur crédit. 2.7.2 : le dos tient dans sa carte. 2.7.1 : la photo d'action cadrée dans sa fenêtre (data/actions.json, ses cadres). 2.7.0 : une série de cartes par saison et leurs polices (fonts/POLICES.txt). 2.6.0 : la V13, le duel à ton tableau, sans main ni cahier. 2.5.0 : la V10, le cahier neuf (js/cahier.js). 2.4.0 : la V9 complète, les exigences et la ligue qui monte (js/rogue.js). 2.3.0 : la V9, les galons (js/galons.js). 2.2.3 : Manrope pour le texte (fonts/Manrope-*.woff2). 2.2.2 : tes unités spéciales (l'onglet AN · DN des Lignes). 2.2.1 : les émojis au trait en tranches (fonts/NotoEmoji-*.woff2). 2.2.0 : la V7, les cinq onglets refaits (js/joueurs.js). 2.1.0 : la V5, le nœud de la semaine (js/noeuds.js). 2.0.2 : ce qui a fait la différence (js/causes.js). 2.0.1 : ton club (js/club.js). 2.0.0 : les cartes de la v2 et les coachs (js/coachs.js). 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
@@ -50,7 +50,7 @@ const FICHIERS = [
   'js/entracte.js',
   'js/profil-style.js', 'js/impact.js',
   'js/equipes.js', 'js/saison.js', 'js/verdicts.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
-  'js/cartes.js', 'js/franchises.js', 'js/galons.js', 'js/identites.js', 'js/combat.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js', 'js/sons-glace.js', 'js/sprites.js', 'js/mise-a-jour.js',
+  'js/cartes.js', 'js/franchises.js', 'js/galons.js', 'js/identites.js', 'js/combat.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js', 'js/sons-glace.js', 'js/sprites.js', 'js/mise-a-jour.js', 'js/version.js',
   'js/sauvegardes.js', 'js/menu.js', 'js/pile.js', 'js/glisser.js', 'js/manette.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/adjoints.js', 'js/pouvoirs.js', 'js/coachs-reels.js', 'js/dossiers.js', 'js/apres-match.js', 'js/panel-tv.js', 'js/vie-gm.js', 'js/scenes.js', 'js/coachs.js', 'js/club.js', 'js/packs.js', 'js/inventaire.js', 'js/magasin.js',
   'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/depart.js', 'js/visages.js', 'js/recadrage.js', 'js/ballottage.js', 'js/arcs.js', 'js/util.js',
   'js/actions.js', 'js/recadrage-action.js', 'js/impact.js',
@@ -94,10 +94,17 @@ const estVisage = url => url.origin === self.location.origin && url.pathname.inc
 // hors ligne de js/data.js, donc il passe par la coquille.
 const estShard = url => url.pathname.includes('/data/seasons/');
 
+/*
+ * LE RÉSEAU D'ABORD, ET JAMAIS LE CACHE HTTP (1er nov. 2026 ; JP : *quand on republie, le browser utilise souvent
+ * l'ancienne version un temps crisse*). GitHub Pages sert chaque fichier avec `max-age=600` : un `fetch` ordinaire le
+ * reprenait du cache du navigateur sans demander au serveur, et la page mélangeait l'ancienne version et la neuve.
+ * `no-cache` revalide chaque fichier (un 304 quand il n'a pas bougé) : la page charge toujours ce que le serveur sert.
+ * Une navigation ne prend pas d'options : on la refait à son adresse.
+ */
 async function reseauDabord(req) {
   const cache = await caches.open(COQUILLE);
   try {
-    const rep = await fetch(req);
+    const rep = await fetch(req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : new Request(req, { cache: 'no-cache' }));
     if (rep && rep.ok) cache.put(req, rep.clone());
     return rep;
   } catch {
@@ -169,5 +176,6 @@ self.addEventListener('fetch', ev => {
   if (estVisage(url)) { ev.respondWith(visage(req)); return; }
   if (url.origin !== self.location.origin) return;
   if (estShard(url)) return;
+  if (url.pathname.endsWith('/sw.js')) return;   // la version que le menu relit (js/mise-a-jour.js) : le réseau seul, rien au cache
   ev.respondWith(reseauDabord(req));
 });

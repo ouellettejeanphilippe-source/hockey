@@ -44,6 +44,7 @@ import { brancherGlisser } from './glisser.js';
 import { brancherManette } from './manette.js';
 import { brancherInclinaison } from './cartes.js';
 import { afficherMenu, fermerMenu } from './menu.js';
+import { surveillerLaVersion } from './mise-a-jour.js';
 import { MT, chargerTable } from './charge-table.js';
 import { ouvrirChoix, titreDuBadge, motDuBadge } from './gerant.js';
 import { poserClubLu } from './impact.js';
@@ -1214,6 +1215,8 @@ async function boot() {
     setupEvents();
     // Les cartes se penchent sous le doigt (S77) : un seul écouteur délégué, pour tout le jeu.
     brancherInclinaison(document);
+    // La version Web suit ce que le serveur publie, toute seule (js/mise-a-jour.js).
+    surveillerLaVersion();
     // Les segments démarrent sur la valeur écrite dans le HTML : sans cette
     // ligne, un réglage relu du stockage s'appliquait au rendu mais pas au
     // bouton, qui montrait alors autre chose que ce qu'on regardait.
