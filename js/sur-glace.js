@@ -788,7 +788,7 @@ function patineur(s, now) {
   else if (s.charge > 0 && etat.rondelle.porteur === s.id) pose = 'charge';
   else if (anim.passe && now - anim.passe < 240) pose = 'passe';
   else if (s.elan > 0) pose = 'echec';
-  else if (v > 0.6) pose = `patin${1 + Math.floor(anim.dist * 2.2) % FOULEES}`;   // LA FOULÉE : quatre images, au rythme de la distance parcourue
+  else if (v > 0.6) { const rythme = Math.min(3.5, Math.max(1.2, v * 0.3)); pose = `patin${1 + Math.floor(anim.dist * rythme) % FOULEES}`; }   // LA FOULÉE : quatre images, au rythme de la vitesse (lent à basse vitesse, rapide à pleine)
   corps(s.x, s.y, s.equipe, 'P', pose, dir);
 }
 /* LE RECEVEUR : quand tu portes la rondelle, l'anneau jaune dit à qui la passe irait ; pointillé, la ligne est barrée (elle sera soulevée). */

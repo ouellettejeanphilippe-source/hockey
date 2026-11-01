@@ -57,7 +57,7 @@ export const PATIN = {
   accel: 11,        // la poussée, m/s² : la pointe en moins de deux secondes, sec comme à la console (JP, 1er nov. : *mouvement pas assez sec*)
   frein: 14,        // l'arrêt, m/s² (avec la roue libre et l'air, un arrêt net en une demi-seconde)
   glisse: 3.5,      // la roue libre, m/s² : le bâton lâché, on glisse trois secondes (arcade, entre NHL 94 et le réel) ; en poussant, les lames ne perdent rien
-  grip: 22,         // la morsure des lames de côté : la vitesse en travers s'éteint à ce taux, par seconde
+  grip: 15,         // la morsure des lames de côté : la vitesse en travers s'éteint à ce taux, par seconde (15 : le patineur dérive un peu, comme sur la vraie glace)
   adherence: 26,    // l'accélération latérale que les lames tiennent, m/s² : le rayon de virage, c'est v² / adherence (4 m à pleine vitesse)
   pivot: 12,        // le virage sur place, rad/s
   portee: 1.9,      // la rondelle plus loin que ça de la lame est perdue (JP : *que la puck colle un peu plus aux bâtons*)
@@ -427,7 +427,8 @@ function patiner(s, e, enJeu) {
   const v2 = hyp(s.vx, s.vy);
   if (v2 > 0) {
     // LE PRIX DU VIRAGE : couper sec coûte de la vitesse (les carres mordent, l'énergie part dans la glace).
-    const dec = (pousse > 0 ? 0 : PATIN.glisse) + PATIN.accel * (v2 / vMax) ** 2 + Math.abs(omega) * PATIN.virage * v2;
+    // La glisse s'estompe avec la poussée (m) au lieu de tomber d'un coup : la transition est douce.
+    const dec = PATIN.glisse * (1 - m) + PATIN.accel * (v2 / vMax) ** 2 + Math.abs(omega) * PATIN.virage * v2;
     const f = Math.max(0, v2 - dec * PAS) / v2;
     s.vx *= f; s.vy *= f;
   }
