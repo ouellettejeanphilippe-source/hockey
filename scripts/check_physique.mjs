@@ -380,6 +380,38 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
     const ev = jouer(e, { [frappeur.id]: { x: 1, y: 0 }, [porteurA.id]: { x: 0, y: 0 } }, 1);
     const p = ev.find(x => x.type === 'punition');
     exiger('la punition à retardement : le sifflet attend tant que l\'équipe lésée a la rondelle', !!p && p.attente && !e.arret && e.match.enAttente && e.match.enAttente.id === frappeur.id, p ? `${p.genre}, en attente` : 'rien');
+    // … et tombe à l'instant où les fautifs la touchent : A la lance vers un B placé devant.
+    const receveurB = B[2];
+    Object.assign(receveurB, { x: 12, y: 8, cap: Math.PI, vx: 0, vy: 0 });
+    Object.assign(e.rondelle, { x: 7, y: 8, vx: 9, vy: 0, z: 0, vz: 0, porteur: null, passeDe: null, dernier: { equipe: 'A', id: porteurA.id, t: e.t, x: 7, lance: true } });
+    const ev2 = jouer(e, {}, 1.2);
+    exiger('… et tombe dès que les fautifs touchent la rondelle (JP : *pénalité à retardement brisée*)', !e.match.enAttente && e.match.penalites.some(q => q.id === frappeur.id) && e.arret && e.arret.genre === 'punition' && frappeur.boxe, `${e.match.penalites.length} puni(s), ${e.arret ? e.arret.genre : 'le jeu continue'}, ${ev2.filter(x => x.type !== 'prise').map(x => x.type).join(' ')}`);
+  }
+  // LE HORS-JEU DIFFÉRÉ : la rondelle passée dans la zone avec un attaquant déjà dedans, le bras se lève, le jeu continue.
+  {
+    const e = scene('differe');
+    const A = surGlace(e, 'A'), fautif = A[1], passeur = A[0];
+    for (const s of surGlace(e, 'B')) { s.x = -20; s.y = 10; }
+    for (const s of A) { s.x = -15; s.y = -8; s.vx = 0; s.vy = 0; }
+    Object.assign(fautif, { x: BLEUE + 4, y: 6, cap: Math.PI, vx: 0, vy: 0 });
+    Object.assign(passeur, { x: BLEUE - 5, y: -6, cap: 0, vx: 0, vy: 0 });
+    Object.assign(e.rondelle, { x: BLEUE - 3.8, y: -6, vx: 14, vy: 0, z: 0, vz: 0, porteur: null, dernier: { equipe: 'A', id: passeur.id, t: e.t, x: BLEUE - 3.8, lance: true } });
+    const ev = jouer(e, { [fautif.id]: { x: -1, y: 0 } }, 0.6);
+    exiger('le hors-jeu différé : lancée dans la zone avec un attaquant dedans, le bras se lève et le jeu continue', ev.some(x => x.type === 'horsjeuDiffere' && x.equipe === 'A') && !ev.some(x => x.type === 'horsjeu') && !e.arret && e.match.horsJeuDiffere === 'A', ev.filter(x => x.type !== 'prise').map(x => x.type).join(' ') || 'rien');
+    // L'attaquant ressort : le bras tombe.
+    const ev2 = jouer(e, { [fautif.id]: { x: -1, y: 0 } }, 2.5);
+    exiger('… il tombe quand les attaquants ressortent de la zone', ev2.some(x => x.type === 'horsjeuLeve') && !e.match.horsJeuDiffere && !ev2.some(x => x.type === 'horsjeu'), ev2.filter(x => x.type !== 'prise').map(x => x.type).join(' ') || 'rien');
+  }
+  {
+    const e = scene('differe-touche');
+    const A = surGlace(e, 'A'), fautif = A[1], passeur = A[0];
+    for (const s of surGlace(e, 'B')) { s.x = -20; s.y = 10; }
+    for (const s of A) { s.x = -15; s.y = -8; s.vx = 0; s.vy = 0; }
+    Object.assign(fautif, { x: BLEUE + 6, y: -6, cap: Math.PI, vx: 0, vy: 0, lachee: 0 });
+    Object.assign(passeur, { x: BLEUE - 5, y: -6, cap: 0, vx: 0, vy: 0 });
+    Object.assign(e.rondelle, { x: BLEUE - 3.8, y: -6, vx: 14, vy: 0, z: 0, vz: 0, porteur: null, dernier: { equipe: 'A', id: passeur.id, t: e.t, x: BLEUE - 3.8, lance: true } });
+    const ev = jouer(e, { [fautif.id]: { x: 0, y: 0 } }, 1.5);
+    exiger('… et siffle si un attaquant la touche dans la zone pendant ce temps', ev.some(x => x.type === 'horsjeuDiffere') && ev.some(x => x.type === 'horsjeu' && x.genre === 'touche') && e.arret && e.arret.genre === 'horsjeu', ev.filter(x => x.type !== 'prise').map(x => x.type).join(' ') || 'rien');
   }
 }
 
