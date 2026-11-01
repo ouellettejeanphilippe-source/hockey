@@ -58,7 +58,8 @@ jobs:
       KEYPASS: ${{ secrets.CAP82_KEYPASS }}
     steps:
       - if: env.KEYSTORE_B64 == '' || env.KEYPASS == ''
-        run: echo "::warning::Les secrets CAP82_KEYSTORE_B64 et CAP82_KEYPASS manquent : la release part sans APK (voir l'en-tête de publier.yml)."
+        run: |
+          echo "::warning::Les secrets CAP82_KEYSTORE_B64 et CAP82_KEYPASS manquent : la release part sans APK (voir l'en-tête de publier.yml)."
       - if: env.KEYSTORE_B64 != '' && env.KEYPASS != ''
         uses: actions/checkout@v4
       - if: env.KEYSTORE_B64 != '' && env.KEYPASS != ''
