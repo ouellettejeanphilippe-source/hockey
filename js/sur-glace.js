@@ -118,6 +118,7 @@ let pause = false, gel = 0, secousse = null, tremble = { x: 0, y: 0 };
 let manettes = {};       // la manette de chaque humain, ce tour-ci : { A: Gamepad, B: Gamepad }
 let tenu = { start: false, haut: false, bas: false, a: false, b: false };   // les fronts de la manette au menu de pause
 let batons = { A: { x: 0, y: 0 }, B: { x: 0, y: 0 } };   // la dernière poussée de chaque humain (le receveur de la passe se lit dessus)
+let relachement = null;  // le tir ou la passe au relâchement du joystick : { tir, passe, reste, dx, dy }
 const lire = () => { try { return JSON.parse(localStorage.getItem(CLE) || 'null'); } catch { return null; } };
 const ecrire = v => { try { localStorage.setItem(CLE, JSON.stringify(v)); } catch { /* rien à retenir */ } };
 
@@ -137,7 +138,7 @@ export function ouvrirSurGlace(ctx) {
   choix = {
     A: valide(memo.A) ? memo.A : null, B: valide(memo.B) ? memo.B : null, periode: memo.periode || 180,
     horsjeu: memo.horsjeu !== false, degagement: memo.degagement !== false, series: !!memo.series, deux: !!memo.deux,
-    difficulte: DIFFICULTES[memo.difficulte] ? memo.difficulte : 'normal',
+    difficulte: DIFFICULTES[memo.difficulte] ? memo.difficulte : 'normal', baton: !!memo.baton,
   };
   accueil();
 }
@@ -214,6 +215,7 @@ async function accueil() {
       <label><input type="checkbox" data-regle="degagement"${choix.degagement ? ' checked' : ''}> Dégagement refusé</label>
       <label><input type="checkbox" data-regle="series"${choix.series ? ' checked' : ''}> Séries <small>la prolongation à cinq, autant qu'il en faut</small></label>
       <label><input type="checkbox" data-regle="deux"${choix.deux ? ' checked' : ''}> Deux joueurs <small>la deuxième manette ; seule, elle joue Eux</small></label>
+      <label><input type="checkbox" data-regle="baton"${choix.baton ? ' checked' : ''}> Bâton au relâchement <small>le joystick tire ou passe quand tu le lâches</small></label>
     </div>
     <div class="sg-actions">
       <button type="button" class="btn go" data-sg="match">▶ Jouer le match</button>
@@ -292,7 +294,7 @@ function commencerLEntrainement() {
 /* ---------- la glace ---------- */
 function lancer(e) {
   etat = e;
-  trace = []; flash = { mot: '', reste: 0 }; vueEntiere = false; enfin = false; anims = []; pause = false; gel = 0; secousse = null;
+  trace = []; flash = { mot: '', reste: 0 }; vueEntiere = false; enfin = false; anims = []; pause = false; gel = 0; secousse = null; relachement = null;
   sprites.clear();
   el.innerHTML = `
     <canvas class="sg-canvas" aria-label="La patinoire"></canvas>
@@ -400,7 +402,26 @@ function brancherDoigt() {
     canvas.setPointerCapture(ev.pointerId);
   });
   canvas.addEventListener('pointermove', ev => { if (doigt && ev.pointerId === doigt.id) { doigt.x = ev.clientX; doigt.y = ev.clientY; } });
-  const lacher = ev => { if (doigt && ev.pointerId === doigt.id) doigt = null; };
+  const lacher = ev => {
+    if (!doigt || ev.pointerId !== doigt.id) return;
+    if (choix && choix.baton && etat) {
+      const dx = (doigt.x - doigt.x0) / 48, dy = (doigt.y - doigt.y0) / 48;
+      const m = Math.hypot(dx, dy);
+      if (m > 0.3) {
+        const nx = dx / m, ny = dy / m;
+        const eq = etat.humains[0], ctl = etat.controles[eq];
+        const porte = ctl && etat.rondelle.porteur === ctl;
+        if (porte) {
+          const a = etat.equipes[eq].attaque;
+          const g = versGlace(nx, ny);
+          const versFilet = g.x * a;
+          if (versFilet > 0.3) relachement = { tir: true, passe: false, reste: 0.08 + m * 0.12, sx: nx, sy: ny };
+          else relachement = { tir: false, passe: true, reste: 0.06, sx: nx, sy: ny };
+        }
+      }
+    }
+    doigt = null;
+  };
   canvas.addEventListener('pointerup', lacher);
   canvas.addEventListener('pointercancel', lacher);
   for (const b of el.querySelectorAll('[data-doigt]')) {
@@ -450,6 +471,13 @@ function entrees() {
       if (!sx && !sy) { sx = (touche.droite ? 1 : 0) - (touche.gauche ? 1 : 0); sy = (touche.bas ? 1 : 0) - (touche.haut ? 1 : 0); }
       passe = passe || touche.passe || boutons.passe; tir = tir || touche.tir || boutons.tir; echec = echec || touche.echec || boutons.echec;
       changer = changer || touche.changer || boutons.changer; recul = recul || touche.recul;
+      if (relachement && relachement.reste > 0) {
+        if (relachement.tir) tir = true;
+        if (relachement.passe) passe = true;
+        if (!sx && !sy) { sx = relachement.sx; sy = relachement.sy; }
+        relachement.reste -= 4 / 120;
+        if (relachement.reste <= 0) relachement = null;
+      }
     }
     const m = Math.hypot(sx, sy);
     if (m > 1) { sx /= m; sy /= m; }
@@ -635,12 +663,13 @@ function mesurer() {
  * rondelle le long de la patinoire, sans jamais montrer au-delà du bout des gradins. Elle DEVANCE le jeu : un décalage
  * dans la direction de la rondelle, pour que tu voies où tu vas, pas d'où tu viens.
  */
-const DEVANCE = 3.5;    // le décalage maximal vers la direction du jeu, m
-const DEVANCE_V = 0.35; // le décalage par m/s de vitesse de la rondelle
+const DEVANCE = 5;      // le décalage maximal vers la direction du jeu, m
+const DEVANCE_V = 0.45; // le décalage par m/s de vitesse de la rondelle
+const ZOOM = 1.2;       // la caméra rapprochée : on voit la zone, pas tout le long
 function camera(dt) {
   const long = taille.h, court = taille.w;
   const kEntier = Math.min(long / (L + 2 * GRADINS), court / (W + 2 * GRADINS));
-  const k = vueEntiere ? kEntier : court / (W + 2 * GRADINS);
+  const k = vueEntiere ? kEntier : court / (W + 2 * GRADINS) * ZOOM;
   cam.k = k;
   const R = etat.rondelle;
   const avance = Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V));

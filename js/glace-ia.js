@@ -1,30 +1,25 @@
 /**
- * SUR GLACE — L'IA DES NEUF AUTRES (31 oct. 2026). JP : *avoir toutes les mécaniques de hockey*. Le moteur
- * (js/physique.js) joue la glace ; chaque patineur qui n'est pas sous ta manette reçoit d'ici son bâton et ses
- * boutons, comme toi — l'IA ne triche pas, elle pousse le même stick. Des comportements de pilotage à la Reynolds
- * (poursuivre, intercepter, arriver, se tenir à distance) et une lecture de la situation à la Simple Soccer de
- * Buckland : qui a la rondelle, où elle est, qui est le plus proche.
+ * SUR GLACE — L'IA DES NEUF AUTRES (31 oct. 2026, améliorée 1er nov.). Le moteur (js/physique.js) joue la glace ;
+ * chaque patineur qui n'est pas sous ta manette reçoit d'ici son bâton et ses boutons, comme toi — l'IA ne triche pas,
+ * elle pousse le même stick. Des comportements de pilotage à la Reynolds et une lecture de la situation à la Buckland.
  *
- *   le porteur            lance quand le couloir est ouvert et le filet pas trop loin, passe quand on le presse ou
- *                         qu'un coéquipier est bien mieux placé, sinon patine vers le filet par le côté le plus libre ;
- *                         jamais un lancer de sa moitié (le dégagement refusé), sauf en désavantage
- *   ses coéquipiers       des points de soutien par poste (les ailiers aux bandes, le centre dans l'enclave, les
- *                         défenseurs à la pointe), en deçà de la bleue tant que la rondelle n'y est pas (le hors-jeu),
- *                         et le bâton prêt pour un tir sur réception dans l'enclave
- *   l'équipe sans elle    le plus proche la chasse (l'interception d'une rondelle libre, la poursuite du porteur, le
- *                         harpon à portée, la mise en échec de face et seulement sur le porteur), les autres se placent
- *                         entre la rondelle et leur filet, chacun sur un adversaire
+ *   le porteur            lance quand le couloir est ouvert et le tir est bon (distance ET angle), passe la transversale
+ *                         pour le tir sur réception, cycle derrière le filet quand l'avant est bloqué, dégage au fond
+ *                         quand la zone ne s'ouvre pas ; jamais de sa moitié, sauf en désavantage
+ *   ses coéquipiers       des positions RELATIVES au porteur : en zone, un devant le filet (déviations), un dans l'enclave
+ *                         opposée (le tir sur réception), un à la demi-bande ; le joueur qui vient de passer fonce au
+ *                         filet (le give-and-go) ; en deçà de la bleue tant que la rondelle n'y est pas (le hors-jeu)
+ *   l'équipe sans elle    en zone défensive, la COUVERTURE INDIVIDUELLE (chaque joueur couvre l'adversaire le plus proche,
+ *                         entre lui et son filet) ; en zone neutre, le 1-2-2 avec conscience de l'adversaire ; dans leur
+ *                         zone, l'échec avant structuré
  *   la mise en jeu        le centre presse le bouton autour de la chute, à un hasard près
  *   les tirs de barrage   le tireur fonce et lance de l'enclave (le tir de punition pareil)
- *   l'avantage numérique  le parapluie : un à la pointe au centre, deux aux demi-bandes, un dans l'enclave, un devant
- *                         le filet ; en désavantage, la boîte : quatre dans le carré devant leur gardien, le plus
- *                         proche sort sur le porteur quand il entre dans le carré
- *   les défenseurs        reculent face au porteur qui descend sur eux (le bouton de recul, le cap tenu vers lui)
+ *   l'avantage numérique  le parapluie ; en désavantage, la boîte
+ *   les défenseurs        reculent face au porteur qui descend sur eux
  *   le turbo              le porteur fonce quand la glace devant lui est libre, tant que ses jambes tiennent
  *
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
- * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler (un tir en charge, le moment de la mise en jeu,
- * un côté choisi) vit sur le patineur (`s.memo`).
+ * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler vit sur le patineur (`s.memo`).
  */
 import { LIGNE_BUT, BLEUE, BATON, HARPON, W, surGlace, autre } from './physique.js';
 
@@ -75,6 +70,8 @@ export function decisionIA(etat, s) {
   const porteur = R.porteur ? etat.patineurs.find(p => p.id === R.porteur) : null;
   const M = etat.match;
 
+  if (porteur === s) memo.dernierePossession = etat.t;
+
   // LA MISE EN JEU : le centre presse autour de la chute ; les autres attendent.
   if (etat.mej) {
     if (etat.mej.centres[eq] !== s.id) return { x: 0, y: 0 };
@@ -117,15 +114,36 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
     memo.dirX = e.x; memo.dirY = e.y;
     return e;
   }
-  // LANCER ? Le filet devant, pas trop loin, le couloir ouvert — ou tout près — ou pressé dans la zone. Jamais de sa moitié.
+  // LANCER ? La qualité du tir : la distance ET l'angle. Jamais de sa moitié, sauf en désavantage.
   const deSaMoitie = u(s.x) < 0;
   const peutLancer = !deSaMoitie || enDesavantage;
   const lateral = Math.abs(s.y);
-  if (peutLancer && ((dBut < 11 && lateral < 8 && couloir) || dBut < 6 || (pression < 2.2 && dBut < 17 && couloir && u(s.x) > BLEUE))) {
+  const angleFilet = Math.abs(Math.atan2(s.y, but.x - s.x));
+  const bonTir = dBut < 11 && lateral < 8 && couloir && angleFilet < 0.9;
+  if (peutLancer && (bonTir || dBut < 6 || (pression < 2.2 && dBut < 17 && couloir && u(s.x) > BLEUE))) {
     const charge = clamp((dBut - 4) / 14, 0.05, 0.9);
     return charger(memo, s, but, a, charge, etat);
   }
-  // PASSER ? Un coéquipier ouvert et mieux placé, surtout si l'on est pressé.
+  // DERRIÈRE LE FILET : chercher une passe devant (l'enclave, le devant du filet) ou ressortir de l'autre côté.
+  const derriere = u(s.x) > LIGNE_BUT - 2.5 && dBut > 4;
+  if (derriere) {
+    for (const m of miens) {
+      if (m === s || m.auSol > 0) continue;
+      const ouvert = Math.min(Infinity, ...adv.map(o => hyp(o.x - m.x, o.y - m.y))) > 2.5;
+      if (!ouvert) continue;
+      const devantFilet = u(m.x) > BLEUE && hyp(but.x - m.x, but.y - m.y) < 10 && Math.abs(m.y) < 6;
+      if (devantFilet && couloirOuvert(R.x, R.y, m.x, m.y, adv, 1.3)) {
+        const dx = m.x - s.x, dy = m.y - s.y, d = hyp(dx, dy) || 1;
+        memo.dirX = dx / d; memo.dirY = dy / d;
+        return { x: dx / d, y: dy / d, passe: true };
+      }
+    }
+    const cible = { x: but.x - a * 5, y: -Math.sign(s.y || 1) * 5 };
+    const e = vers(s, cible.x, cible.y, 1);
+    memo.dirX = e.x; memo.dirY = e.y;
+    return e;
+  }
+  // PASSER ? La transversale pour le tir sur réception, un coéquipier ouvert et bien placé.
   let meilleur = null, score = 0.6;
   for (const m of miens) {
     if (m === s || m.auSol > 0) continue;
@@ -137,13 +155,24 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
     const avance = u(m.x) - u(s.x);
     const horsJeu = u(m.x) > BLEUE + 0.2 && u(R.x) < BLEUE;   // il est déjà dans la zone, la rondelle pas : un hors-jeu
     if (horsJeu) continue;
-    const sc = (ouvert ? 1 : 0) + avance * 0.12 - d * 0.02 + (pression < 2.5 ? 0.6 : 0) + (u(m.x) > BLEUE && hyp(but.x - m.x, but.y - m.y) < 14 && ouvert ? 0.8 : 0);
+    const dansEnclave = u(m.x) > BLEUE && hyp(but.x - m.x, but.y - m.y) < 14;
+    const transversale = dansEnclave && ouvert && Math.sign(m.y) !== Math.sign(s.y);
+    const sc = (ouvert ? 1 : 0) + avance * 0.12 - d * 0.02 + (pression < 2.5 ? 0.6 : 0)
+      + (dansEnclave && ouvert ? 0.8 : 0) + (transversale ? 0.7 : 0);
     if (sc > score) { score = sc; meilleur = m; }
   }
   if (meilleur && (pression < 3 || score > 1.6 || etat.de() < 0.02)) {
     const dx = meilleur.x - s.x, dy = meilleur.y - s.y, d = hyp(dx, dy) || 1;
     memo.dirX = dx / d; memo.dirY = dy / d;
     return { x: dx / d, y: dy / d, passe: true };
+  }
+  // DÉGAGER AU FOND quand l'entrée de zone est bloquée et qu'on est pressé.
+  const presEntree = u(s.x) > BLEUE - 8 && u(s.x) < BLEUE + 2 && pression < 3.5;
+  const entreePleine = adv.filter(o => u(o.x) > BLEUE - 4 && u(o.x) < BLEUE + 8 && Math.abs(o.y - s.y) < 6).length >= 2;
+  if (presEntree && entreePleine && !enDesavantage && etat.de() < 0.15) {
+    const coin = s.y < 0 ? -1 : 1;
+    memo.dirX = a; memo.dirY = coin * 0.3;
+    return { x: a, y: coin * 0.3, tir: true };
   }
   // PATINER : vers le filet par le côté le plus libre ; derrière le filet, on ressort devant.
   let cible;
@@ -159,11 +188,12 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
     }
     cible = { x: a * (BLEUE + 4), y: memo.cote * 7 };
   } else {
-    cible = { x: but.x - a * 5.5, y: clamp(s.y * 0.4, -3, 3) };
-    // Un défenseur dans le chemin : on le contourne.
+    // En zone : couper vers l'enclave en contournant les défenseurs.
+    const coteY = Math.sign(s.y || (etat.de() < 0.5 ? -1 : 1));
+    cible = { x: but.x - a * 5.5, y: coteY * clamp(Math.abs(s.y) - 1.5, 0, 3) };
     for (const o of adv) {
       const dx = o.x - s.x, dy = o.y - s.y, d = hyp(dx, dy);
-      if (d < 3 && dx * a > 0) { cible.y = s.y + (dy > 0 ? -4 : 4); cible.x = s.x + a * 3; break; }
+      if (d < 3.5 && dx * a > 0) { cible.y = s.y + (dy > 0 ? -4 : 4); cible.x = s.x + a * 3; break; }
     }
   }
   cible = dansLaGlace(cible.x, cible.y);
@@ -196,12 +226,24 @@ function posteDe(s, candidats, postes) {
   return postes[postes.length - 1];
 }
 
+/* L'adversaire que `s` couvre parmi `adversaires`, les plus proches d'abord (le même calcul chez chacun : la même réponse). */
+function marqueDe(s, couvreurs, adversaires) {
+  const libres = adversaires.slice(), restants = couvreurs.slice();
+  while (libres.length && restants.length) {
+    let meilleur = null;
+    for (const m of restants) for (const o of libres) { const d = hyp(m.x - o.x, m.y - o.y); if (!meilleur || d < meilleur.d) meilleur = { m, o, d }; }
+    if (meilleur.m === s) return meilleur.o;
+    restants.splice(restants.indexOf(meilleur.m), 1); libres.splice(libres.indexOf(meilleur.o), 1);
+  }
+  return null;
+}
+
 /* ---------- les coéquipiers du porteur ---------- */
 function soutenir(etat, s, a, but, u, miens, adv, porteur) {
   const R = etat.rondelle;
   const enZone = u(R.x) > BLEUE;
-  const D = miens.filter(m => m.poste === 'D'), iD = D.indexOf(s);
   const F = miens.filter(m => m.poste !== 'D');
+  const memo = s.memo || (s.memo = {});
   let cible;
   // L'AVANTAGE NUMÉRIQUE, en zone : le parapluie. Les postes se prennent dans l'ordre, le porteur en garde un.
   if (enZone && miens.length > adv.length && miens.length >= 5) {
@@ -209,22 +251,34 @@ function soutenir(etat, s, a, but, u, miens, adv, porteur) {
     const ordre = miens.slice().sort((p, q) => (p.poste === 'D' ? 0 : 1) - (q.poste === 'D' ? 0 : 1) || p.id.localeCompare(q.id));
     cible = postes[Math.min(ordre.indexOf(s), postes.length - 1)];
   } else {
-    // LES POSTES DU SOUTIEN, par zone (JP, 1er nov. : *positionnement original*) : chacun au poste le plus près, les
-    // défenseurs aux leurs. Le côté de la rondelle décide (`c`).
     const c = Math.sign(R.y || 1);
     const notreZone = u(R.x) < -BLEUE;
-    const devance = u(R.x) > BLEUE - 6 ? Math.min(u(R.x) - 1, BLEUE - 1.5) : u(R.x) + 5;   // près de la bleue, les ailiers TRAÎNENT la rondelle d'un mètre (JP : *trop de hors-jeu*)
-    const postesF = enZone
-      ? [{ x: but.x - a * 2.8, y: -c * 1.8 }, { x: but.x - a * 8, y: c * 2.5 }, { x: a * (BLEUE + 6), y: -c * 7 }]          // devant le filet, l'enclave, la demi-bande opposée
-      : notreZone
-        ? [{ x: -a * (LIGNE_BUT - 9), y: 0 }, { x: -a * (BLEUE + 3), y: -8 }, { x: -a * (BLEUE + 3), y: 8 }]              // la sortie : le centre haut, les ailiers aux demi-bandes
-        : [{ x: a * (u(R.x) + 1), y: -R.y * 0.5 }, { x: a * devance, y: -8 }, { x: a * devance, y: 8 }];                 // la zone neutre : le centre dans l'autre couloir, les ailiers larges, jamais devant la rondelle près de la bleue
-    const postesD = enZone
-      ? [{ x: a * (BLEUE + 2), y: -6.5 }, { x: a * (BLEUE + 2), y: 6.5 }]
-      : notreZone
-        ? [{ x: -a * (LIGNE_BUT - 2.5), y: -c * 3 }, { x: -a * (LIGNE_BUT - 7), y: c * 4 }]
-        : [{ x: a * (u(R.x) - 8), y: -5 }, { x: a * (u(R.x) - 8), y: 5 }];
-    cible = posteDe(s, miens.filter(m => m !== porteur && (m.poste === 'D') === (s.poste === 'D')), s.poste === 'D' ? postesD : postesF);
+    const devance = u(R.x) > BLEUE - 6 ? Math.min(u(R.x) - 1, BLEUE - 1.5) : u(R.x) + 5;   // près de la bleue, les ailiers TRAÎNENT la rondelle d'un mètre
+    // LE GIVE-AND-GO : le joueur qui vient de passer fonce au filet 1,5 s.
+    const vientDePasser = enZone && s.poste !== 'D' && memo.dernierePossession && etat.t - memo.dernierePossession < 1.5 && etat.t - memo.dernierePossession > 0.05;
+    if (vientDePasser) {
+      cible = { x: but.x - a * 3, y: clamp(s.y * 0.3, -3, 3) };
+    } else if (enZone) {
+      // LES POSTES EN ZONE : RELATIFS AU PORTEUR — un devant le filet (déviations, rebonds), un dans l'enclave opposée
+      // (le tir sur réception, la transversale), un à la demi-bande loin du porteur.
+      const cp = Math.sign(porteur.y || 1);
+      const derriereFilet = u(porteur.x) > LIGNE_BUT - 3;
+      const postesF = derriereFilet
+        ? [{ x: but.x - a * 3.5, y: -cp * 2.5 }, { x: but.x - a * 7, y: cp * 1.5 }, { x: a * (BLEUE + 4), y: -cp * 5 }]
+        : [{ x: but.x - a * 2.5, y: -cp * 1.5 }, { x: but.x - a * 8, y: -porteur.y * 0.5 }, { x: a * (BLEUE + 5), y: -cp * 8 }];
+      const postesD = [{ x: a * (BLEUE + 2), y: -6.5 }, { x: a * (BLEUE + 2), y: 6.5 }];
+      cible = posteDe(s, miens.filter(m => m !== porteur && (m.poste === 'D') === (s.poste === 'D')), s.poste === 'D' ? postesD : postesF);
+    } else if (notreZone) {
+      // LA SORTIE DE ZONE : le centre haut, les ailiers aux demi-bandes.
+      const postesF = [{ x: -a * (LIGNE_BUT - 9), y: 0 }, { x: -a * (BLEUE + 3), y: -8 }, { x: -a * (BLEUE + 3), y: 8 }];
+      const postesD = [{ x: -a * (LIGNE_BUT - 2.5), y: -c * 3 }, { x: -a * (LIGNE_BUT - 7), y: c * 4 }];
+      cible = posteDe(s, miens.filter(m => m !== porteur && (m.poste === 'D') === (s.poste === 'D')), s.poste === 'D' ? postesD : postesF);
+    } else {
+      // LA ZONE NEUTRE : le centre dans l'autre couloir, les ailiers larges, jamais devant la rondelle près de la bleue.
+      const postesF = [{ x: a * (u(R.x) + 1), y: -R.y * 0.5 }, { x: a * devance, y: -8 }, { x: a * devance, y: 8 }];
+      const postesD = [{ x: a * (u(R.x) - 8), y: -5 }, { x: a * (u(R.x) - 8), y: 5 }];
+      cible = posteDe(s, miens.filter(m => m !== porteur && (m.poste === 'D') === (s.poste === 'D')), s.poste === 'D' ? postesD : postesF);
+    }
   }
   // En deçà de la bleue tant que la rondelle n'y est pas : pas de hors-jeu.
   if (!enZone && u(cible.x) > BLEUE - 0.8) cible.x = a * (BLEUE - 0.8);
@@ -283,7 +337,7 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
     }
     return e;
   }
-  // Les autres se placent : entre la rondelle et notre filet, chacun à son rang.
+  // Les autres se placent : entre la rondelle et notre filet, chacun sur un adversaire.
   const D = miens.filter(m => m.poste === 'D'), iD = D.indexOf(s);
   let cible;
   if (desavantage) {
@@ -293,21 +347,44 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
     // Le carré glisse vers le côté de la rondelle.
     cible = { x: cible.x, y: cible.y + clamp(R.y, -4, 4) * 0.35 };
   } else {
-    // LES POSTES SANS LA RONDELLE, par zone : dans la nôtre, devant le filet, l'enclave basse et les deux pointes ;
-    // en zone neutre, le 1-2-2 ; dans la leur, l'échec avant à deux et un troisième haut. Le chasseur est déjà parti.
     const c = Math.sign(R.y || 1);
     const leurZone = u(R.x) > BLEUE;
     const chasseur = ordre[0];
-    const postes = notreZone
-      ? [{ x: -a * (LIGNE_BUT - 2.5), y: c * 1.6 }, { x: -a * (LIGNE_BUT - 6.5), y: -c * 1.8 }, { x: -a * (BLEUE + 3), y: c * 6.5 }, { x: -a * (BLEUE + 3), y: -c * 6.5 }]
-      : leurZone
-        ? [{ x: a * (u(R.x) - 4), y: -c * 5 }, { x: a * (BLEUE + 2), y: R.y * 0.3 }, { x: a * (BLEUE - 5), y: -6 }, { x: a * (BLEUE - 5), y: 6 }]
-        : [{ x: a * (u(R.x) - 5), y: -6 }, { x: a * (u(R.x) - 5), y: 6 }, { x: -a * (BLEUE + 1), y: -4.5 }, { x: -a * (BLEUE + 1), y: 4.5 }];
-    // Les défenseurs prennent les deux derniers postes (les plus bas), les avants les deux premiers.
-    const miensSans = miens.filter(m => m !== chasseur);
-    const D2 = miensSans.filter(m => m.poste === 'D'), F2 = miensSans.filter(m => m.poste !== 'D');
-    const bas = notreZone ? postes.slice(0, 2) : postes.slice(2), hauts = notreZone ? postes.slice(2) : postes.slice(0, 2);
-    cible = s.poste === 'D' ? posteDe(s, D2, D2.length > bas.length ? [...bas, ...hauts] : bas) : posteDe(s, F2, F2.length > hauts.length ? [...hauts, ...bas] : hauts);
+    const miensSans = miens.filter(m => m !== chasseur && (porteur || m !== ordre[1]));
+
+    // LA COUVERTURE INDIVIDUELLE en zone défensive : chaque joueur couvre l'adversaire le plus proche,
+    // entre lui et le filet, décalé vers la rondelle — le système défensif logique.
+    if (notreZone && porteur) {
+      const adversaires = adv.filter(o => o !== porteur);
+      const marque = marqueDe(s, miensSans, adversaires);
+      if (marque) {
+        cible = { x: marque.x * 0.5 + monBut.x * 0.5, y: marque.y * 0.65 + monBut.y * 0.35 };
+        cible.y += clamp((R.y - cible.y) * 0.15, -1.5, 1.5);
+      } else {
+        const postes = [{ x: -a * (LIGNE_BUT - 2.5), y: c * 1.6 }, { x: -a * (LIGNE_BUT - 6.5), y: -c * 1.8 }, { x: -a * (BLEUE + 3), y: c * 6.5 }, { x: -a * (BLEUE + 3), y: -c * 6.5 }];
+        const D2 = miensSans.filter(m => m.poste === 'D'), F2 = miensSans.filter(m => m.poste !== 'D');
+        const bas = postes.slice(0, 2), hauts = postes.slice(2);
+        cible = s.poste === 'D' ? posteDe(s, D2, D2.length > bas.length ? [...bas, ...hauts] : bas) : posteDe(s, F2, F2.length > hauts.length ? [...hauts, ...bas] : hauts);
+      }
+    } else if (leurZone) {
+      // L'ÉCHEC AVANT structuré : deux en haut pressent, un couvre la sortie ; les D à la bleue.
+      const postes = [{ x: a * (u(R.x) - 4), y: -c * 5 }, { x: a * (BLEUE + 2), y: R.y * 0.3 }, { x: a * (BLEUE - 5), y: -6 }, { x: a * (BLEUE - 5), y: 6 }];
+      const D2 = miensSans.filter(m => m.poste === 'D'), F2 = miensSans.filter(m => m.poste !== 'D');
+      const hauts = postes.slice(0, 2), bas = postes.slice(2);
+      cible = s.poste === 'D' ? posteDe(s, D2, D2.length > bas.length ? [...bas, ...hauts] : bas) : posteDe(s, F2, F2.length > hauts.length ? [...hauts, ...bas] : hauts);
+    } else {
+      // LE 1-2-2 en zone neutre avec conscience de l'adversaire : les avants couvrent leur adversaire, les D tiennent la ligne.
+      const adversaires = porteur ? adv.filter(o => o !== porteur) : adv;
+      const marque = s.poste !== 'D' ? marqueDe(s, miensSans.filter(m => m.poste !== 'D'), adversaires) : null;
+      if (marque) {
+        cible = { x: marque.x - a * 4, y: marque.y * 0.55 };
+      } else {
+        const postes = [{ x: a * (u(R.x) - 5), y: -6 }, { x: a * (u(R.x) - 5), y: 6 }, { x: -a * (BLEUE + 1), y: -4.5 }, { x: -a * (BLEUE + 1), y: 4.5 }];
+        const D2 = miensSans.filter(m => m.poste === 'D'), F2 = miensSans.filter(m => m.poste !== 'D');
+        const hauts = postes.slice(0, 2), bas = postes.slice(2);
+        cible = s.poste === 'D' ? posteDe(s, D2, D2.length > bas.length ? [...bas, ...hauts] : bas) : posteDe(s, F2, F2.length > hauts.length ? [...hauts, ...bas] : hauts);
+      }
+    }
   }
   cible = dansLaGlace(cible.x, cible.y);
   const e = espacer(s, miens, vers(s, cible.x, cible.y), 2.2, adv.filter(o => o !== porteur));
