@@ -138,7 +138,7 @@ export function ouvrirSurGlace(ctx) {
   choix = {
     A: valide(memo.A) ? memo.A : null, B: valide(memo.B) ? memo.B : null, periode: memo.periode || 180,
     horsjeu: memo.horsjeu !== false, degagement: memo.degagement !== false, series: !!memo.series, deux: !!memo.deux,
-    difficulte: DIFFICULTES[memo.difficulte] ? memo.difficulte : 'normal', baton: !!memo.baton,
+    difficulte: DIFFICULTES[memo.difficulte] ? memo.difficulte : 'normal',
   };
   accueil();
 }
@@ -215,7 +215,6 @@ async function accueil() {
       <label><input type="checkbox" data-regle="degagement"${choix.degagement ? ' checked' : ''}> Dégagement refusé</label>
       <label><input type="checkbox" data-regle="series"${choix.series ? ' checked' : ''}> Séries <small>la prolongation à cinq, autant qu'il en faut</small></label>
       <label><input type="checkbox" data-regle="deux"${choix.deux ? ' checked' : ''}> Deux joueurs <small>la deuxième manette ; seule, elle joue Eux</small></label>
-      <label><input type="checkbox" data-regle="baton"${choix.baton ? ' checked' : ''}> Bâton au relâchement <small>le joystick tire ou passe quand tu le lâches</small></label>
     </div>
     <div class="sg-actions">
       <button type="button" class="btn go" data-sg="match">▶ Jouer le match</button>
@@ -404,7 +403,7 @@ function brancherDoigt() {
   canvas.addEventListener('pointermove', ev => { if (doigt && ev.pointerId === doigt.id) { doigt.x = ev.clientX; doigt.y = ev.clientY; } });
   const lacher = ev => {
     if (!doigt || ev.pointerId !== doigt.id) return;
-    if (choix && choix.baton && etat) {
+    if (etat) {
       const dx = (doigt.x - doigt.x0) / 48, dy = (doigt.y - doigt.y0) / 48;
       const m = Math.hypot(dx, dy);
       if (m > 0.3) {
