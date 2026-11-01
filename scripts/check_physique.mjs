@@ -27,7 +27,7 @@
  */
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH } from '../js/physique.js';
-import { decisionIA } from '../js/glace-ia.js';
+import { decisionIA, ECART_D } from '../js/glace-ia.js';
 
 const t0 = Date.now();
 const G = 9.81;
@@ -364,6 +364,23 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
   const ontJoue = e.patineurs.filter(s => s.stats.tg > 10).length;
   exiger('les jambes ont joué : les lignes ont changé, et personne n\'a joué seul tout le match', ontJoue > 10 && e.patineurs.some(s => s.jambes < 100), `${ontJoue} patineurs ont plus de 10 s de glace`);
 }
+/* ---------- l'IA : le défenseur ne se laisse pas déborder (JP, 1er nov. : *éviter trop d'échappées*) ---------- */
+{
+  const e = nouveauMatch({ graine: 'ecart', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
+  for (let t = 0; t < 10 && (e.mej || e.arret || !e.enJeu); t += DT) avancer(e, {}, DT);   // la rondelle tombe, le jeu commence
+  const aA = e.equipes.A.attaque;
+  const porteur = surGlace(e, 'A').find(s => s.poste === 'C');
+  const D = surGlace(e, 'B').filter(s => s.poste === 'D');
+  // Le porteur part du centre à pleine vitesse vers leur filet ; les deux défenseurs l'attendent à leur bleue, immobiles,
+  // les autres sont loin derrière lui.
+  Object.assign(porteur, { x: 0, y: 0, vx: aA * 11, vy: 0, cap: aA > 0 ? 0 : Math.PI });
+  Object.assign(e.rondelle, { x: aA * 1, y: 0, vx: 0, vy: 0, z: 0, porteur: porteur.id });
+  D.forEach((d, i) => Object.assign(d, { x: aA * (BLEUE + 1), y: i ? 4.5 : -4.5, vx: 0, vy: 0 }));
+  for (const s of e.patineurs) if (s.surGlace && s !== porteur && !D.includes(s)) Object.assign(s, { x: -aA * 20, y: s.y, vx: 0, vy: 0 });
+  const recule = D.map(d => decisionIA(e, d)).map(r => r.x * aA);
+  exiger('le porteur arrive à pleine vitesse : les défenseurs reculent avant d\'être dépassés', recule.every(v => v > 0.2), `${recule.map(v => v.toFixed(2)).join(' et ')} vers leur filet (l'écart : ${ECART_D.base} m + ${ECART_D.parVitesse} m par m/s)`);
+}
+
 {
   const e = nouveauMatch({ graine: 'cinq', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
   jouer(e, {}, 0.6);

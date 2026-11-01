@@ -146,6 +146,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | L'écran devant le gardien, la déviation visée | ⬜ | (§ 3) |
 | Retirer le gardien en fin de match quand on tire de l'arrière | ✅ | le moteur le décide pour l'IA (`MATCH.retraitGardien`) |
 | Patiner à reculons en défense | ✅ | `defendre` : le défenseur recule face au porteur qui descend sur lui |
+| Les défenseurs du bon côté (JP : *éviter trop d'échappées*) : entre l'attaquant le plus avancé et leur filet, l'écart selon sa vitesse ; le chasseur contient un porteur lancé ; même à l'attaque, le défenseur du côté faible reste le dernier homme | ✅ | `duBonCote`, `ECART_D`, `CONTENIR` (js/glace-ia.js) — check « les défenseurs reculent » ; IA contre IA, 24 matchs de 3 × 3 min : 16,3 → 6,9 échappées par match |
 | Les niveaux de difficulté, le style d'un vrai club lu de ses vraies stats (un club qui frappe, un club qui lance) | 🟡 | `DIFFICULTES` (facile, normale, difficile : ×0,93 à ×1,07 sur la pointe, la poussée, le tir, la précision, la réaction du gardien du club de l'IA) ; le style lu des vraies stats manque |
 | L'IA qui tient compte des jambes (changer, ménager) | 🟡 | `habiller` change aux arrêts ; l'IA ne le demande pas |
 
@@ -154,7 +155,8 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Fonction | État | Où |
 |---|---|---|
 | Le pas de temps fixe séparé du rendu, le temps réel rattrapé par petits pas | ✅ | `avancer` |
-| La caméra qui suit la rondelle, la glace debout au téléphone et couchée en mode large comme à la télé, deux zooms | ✅ | `camera`, `VUE`, `debout`, `vueEntiere` |
+| La caméra qui suit la rondelle, deux zooms ; la zone au complet, la largeur de la glace presque bord à bord (JP : *la zone offensive doit rentrer dans un écran 16:9 au complet*), la bleue et la bande du fond gardées à l'écran quand la rondelle est dans une zone | ✅ | `camera`, `MARGE_VUE`, `ZONE`, `vueEntiere` |
+| La glace en 16 bits (JP : *glace et cie plus 16-bit*) : la glace tramée (Bayer), les lignes, la bande jaune et blanche à panneaux aux couleurs des clubs, la lisse, la vitre, les gradins, la foule en têtes de quatre pixels (assise et debout), les filets en damier, l'écusson, rendus une fois à la résolution des sprites et agrandis d'un nombre entier | ✅ | `fondDeGlace`, `PAL`, `BAYER`, `VITRE`, `origine` (js/sur-glace.js) |
 | Le rendu old school (gros pixels, lignes de balayage, la police d'arcade) | ✅ | `RETRO`, `.sg-crt`, Bungee |
 | Les jetons à la vraie face, les locaux en blanc | ✅ | `jeton`, `chandails` |
 | Les animations procédurales (la foulée, le bâton, la chute, l'impact, le papillon, la lumière, la chute de la rondelle) | ✅ | `patineur`, `gardien`, `animer` |

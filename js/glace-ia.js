@@ -15,7 +15,9 @@
  *   la mise en jeu        le centre presse le bouton autour de la chute, à un hasard près
  *   les tirs de barrage   le tireur fonce et lance de l'enclave (le tir de punition pareil)
  *   l'avantage numérique  le parapluie ; en désavantage, la boîte
- *   les défenseurs        reculent face au porteur qui descend sur eux
+ *   les défenseurs        reculent face au porteur qui descend sur eux ; ne se laissent jamais déborder : entre
+ *                         l'attaquant le plus avancé et leur filet, à un écart qui grandit avec sa vitesse (`duBonCote`) ;
+ *                         celui qui chasse un porteur lancé le contient au lieu de foncer
  *   le turbo              le porteur fonce quand la glace devant lui est libre, tant que ses jambes tiennent
  *
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
@@ -57,6 +59,25 @@ function couloirOuvert(x0, y0, x1, y1, adv, marge = 1.2, jusqua = 1) {
     if (hyp(o.x - (x0 + u * dx), o.y - (y0 + u * dy)) < marge) return false;
   }
   return true;
+}
+
+/*
+ * DU BON CÔTÉ (JP, 1er nov. : *meilleure position des défenseurs, pour éviter trop d'échappées*) : un défenseur ne se
+ * laisse jamais déborder. Il reste entre l'attaquant le plus avancé vers son filet et ce filet, avec un ÉCART qui grandit
+ * avec la vitesse de l'attaquant (il recule avant qu'on le dépasse, pas après) ; quand la règle le tire en arrière, il
+ * glisse aussi vers le couloir de cet attaquant. `marge` : la profondeur qu'il peut laisser de plus (pincer en zone).
+ */
+export const ECART_D = { base: 3, parVitesse: 1.2, couloir: 0.5 };
+const CONTENIR = { base: 1.4, parVitesse: 0.9, max: 10 };   // l'écart du défenseur qui contient le porteur, m (et par m/s du porteur)
+function duBonCote(cible, a, u, adv, marge = 0) {
+  let plusLoin = null;
+  for (const o of adv) if (!plusLoin || u(o.x) < u(plusLoin.x)) plusLoin = o;
+  if (!plusLoin) return cible;
+  const fonce = Math.max(0, -(plusLoin.vx * a));   // sa vitesse vers notre filet
+  const limite = Math.max(-(LIGNE_BUT - 2.5), u(plusLoin.x) - ECART_D.base - ECART_D.parVitesse * fonce + marge);
+  if (u(cible.x) <= limite) return cible;
+  const tire = Math.min(1, (u(cible.x) - limite) / 6);
+  return { x: a * limite, y: cible.y + (plusLoin.y * 0.8 - cible.y) * ECART_D.couloir * tire };
 }
 
 /** L'entrée d'un patineur joué par l'IA : { x, y, passe, tir, echec }, en coordonnées de glace. */
@@ -282,6 +303,13 @@ function soutenir(etat, s, a, but, u, miens, adv, porteur) {
   }
   // En deçà de la bleue tant que la rondelle n'y est pas : pas de hors-jeu.
   if (!enZone && u(cible.x) > BLEUE - 0.8) cible.x = a * (BLEUE - 0.8);
+  // LES DÉFENSEURS, même à l'attaque, restent du bon côté de l'adversaire qui traîne haut : celui du côté fort peut
+  // pincer de quelques mètres, l'autre reste le dernier homme.
+  if (s.poste === 'D') {
+    const D = miens.filter(m => m.poste === 'D' && m !== porteur);
+    const fort = D.slice().sort((p, q) => hyp(p.x - R.x, p.y - R.y) - hyp(q.x - R.x, q.y - R.y))[0] === s && D.length > 1;
+    cible = duBonCote(cible, a, u, adv, fort ? 5 : 1);
+  }
   if (s.poste !== 'D' && F.length <= 2 && s.poste === 'C' && enZone) cible = { x: but.x - a * 6, y: 0 };
   cible = dansLaGlace(cible.x, cible.y);
   const e = espacer(s, miens, vers(s, cible.x, cible.y), 2.2, adv);
@@ -316,8 +344,18 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
     let cible, e;
     if (porteur) {
       cible = { x: porteur.x + porteur.vx * 0.3, y: porteur.y + porteur.vy * 0.3 };
-      e = vers(s, cible.x, cible.y, 2.2);   // on arrive en freinant : la charge, c'est le bouton
+      // LE DÉFENSEUR CONTIENT au lieu de foncer : encore du bon côté du porteur qui monte, hors de notre fond de zone, il
+      // se place devant lui sur sa ligne vers notre filet, à un écart qui suit sa vitesse, et l'attend.
+      const ligne = { x: monBut.x - porteur.x, y: monBut.y - porteur.y }, dl = hyp(ligne.x, ligne.y) || 1;
+      const contient = s.poste === 'D' && u(s.x) < u(porteur.x) && u(porteur.x) > -(LIGNE_BUT - 9);
+      if (contient) {
+        const fonce = Math.max(0, -(porteur.vx * a));
+        const ecart = clamp(CONTENIR.base + CONTENIR.parVitesse * fonce, CONTENIR.base, CONTENIR.max);
+        cible = { x: porteur.x + ligne.x / dl * ecart, y: porteur.y + ligne.y / dl * ecart };
+      }
+      e = vers(s, cible.x, cible.y, contient ? 1 : 2.2);   // on arrive en freinant : la charge, c'est le bouton
       const dx = porteur.x - s.x, dy = porteur.y - s.y, d = hyp(dx, dy);
+      if (contient && d < 8 && e.x * -a > 0.2) e.recul = true;
       const devant = Math.abs(plier(Math.atan2(dy, dx) - s.cap)) < 0.7;
       // Dans son dos et près de lui : on ne fonce pas (la charge par-derrière, c'est deux minutes), on se colle et on harponne.
       const dansSonDos = (dx * Math.cos(porteur.cap) + dy * Math.sin(porteur.cap)) > 0.3 * d;
@@ -368,7 +406,7 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
       }
     } else if (leurZone) {
       // L'ÉCHEC AVANT structuré : deux en haut pressent, un couvre la sortie ; les D à la bleue.
-      const postes = [{ x: a * (u(R.x) - 4), y: -c * 5 }, { x: a * (BLEUE + 2), y: R.y * 0.3 }, { x: a * (BLEUE - 5), y: -6 }, { x: a * (BLEUE - 5), y: 6 }];
+      const postes = [{ x: a * (u(R.x) - 4), y: -c * 5 }, { x: a * (BLEUE + 2), y: R.y * 0.3 }, { x: a * (BLEUE - 7), y: -5.5 }, { x: a * (BLEUE - 7), y: 5.5 }];
       const D2 = miensSans.filter(m => m.poste === 'D'), F2 = miensSans.filter(m => m.poste !== 'D');
       const hauts = postes.slice(0, 2), bas = postes.slice(2);
       cible = s.poste === 'D' ? posteDe(s, D2, D2.length > bas.length ? [...bas, ...hauts] : bas) : posteDe(s, F2, F2.length > hauts.length ? [...hauts, ...bas] : hauts);
@@ -386,9 +424,12 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
       }
     }
   }
+  // LES DÉFENSEURS ne se laissent pas déborder : entre l'attaquant le plus avancé et notre filet, l'écart selon sa vitesse.
+  if (iD >= 0 && !desavantage) cible = duBonCote(cible, a, u, adv);
   cible = dansLaGlace(cible.x, cible.y);
-  const e = espacer(s, miens, vers(s, cible.x, cible.y), 2.2, adv.filter(o => o !== porteur));
-  // LE DÉFENSEUR RECULE face au porteur qui descend sur lui : il va vers son filet, le cap tenu vers la rondelle.
-  if (iD >= 0 && porteur && u(porteur.x) < u(s.x) + 12 && u(porteur.x) > u(s.x) - 1 && e.x * -a > 0.3) e.recul = true;
+  const e = espacer(s, miens, vers(s, cible.x, cible.y, 1), 2.2, adv.filter(o => o !== porteur));
+  // LE DÉFENSEUR RECULE face au porteur qui descend sur lui, quand il est près : il va vers son filet, le cap tenu vers
+  // la rondelle. Loin, il se retourne et patine de face, plus vite, pour garder son écart.
+  if (iD >= 0 && porteur && u(porteur.x) < u(s.x) + 7 && u(porteur.x) > u(s.x) - 1 && e.x * -a > 0.3) e.recul = true;
   return e;
 }
