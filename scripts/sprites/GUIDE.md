@@ -12,6 +12,8 @@ Comme les sprites précalculés des années 90 : un joueur en volumes, posé, vu
   bâton. Les genoux et les coudes se plient par cinématique inverse (`ik`) : une pose ne dit que le bassin, l'inclinaison
   et la torsion du torse, les chevilles, le pommeau et la lame du bâton ; les mains suivent le bâton. Le gardien
   (`gardien: true`) prend les jambières, la mitaine, le bloqueur, le masque et la palette.
+- **La foulée** (`foulee`, `jambeDeFoulee`) : une seule courbe de la phase (0 à 1, la même que `s.foulee` du moteur,
+  `FOULEE` de js/physique.js) donne les huit images ; la jambe tendue, c'est le coup de patin. Change la courbe, pas une image.
 - **Les poses** (`POSES`, `POSES_GARDIEN`) : en mètres, le corps regarde +y, x à sa droite, z en haut. La lame posée sur
   la glace est écrite à un mètre devant ; le rendu la ramène aux quatorze pixels du jeu dans chaque direction.
 - **La vue** : la hauteur raccourcie de `HAUTEUR_VUE`, la profondeur du sol de `PROFONDEUR`, le joueur grossi de `GROS`

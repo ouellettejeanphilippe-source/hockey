@@ -25,7 +25,7 @@
  *   node scripts/check_physique.mjs
  */
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, BATON, RONDELLE, GARDIEN, CHUTE, MATCH } from '../js/physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH } from '../js/physique.js';
 import { decisionIA } from '../js/glace-ia.js';
 
 const t0 = Date.now();
@@ -109,6 +109,24 @@ function jouer(e, entrees, s) {
   const tr = e.t;
   while (v(toi) > 0.3 && e.t - tr < 8) avancer(e, { toi: { x: 0, y: 0 } }, DT);
   borne('la roue libre : le bâton lâché, l\'arrêt vient vite', e.t - tr, 1, 3.5, ' s');
+}
+{
+  // LA FOULÉE (1er nov. 2026) : on pousse par coups de patin, une jambe puis l'autre, au rythme que les règles disent ;
+  // la vitesse y monte par à-coups, et la phase s'arrête quand on glisse.
+  const e = glaceVide('foulee');
+  const toi = e.patineurs[0];
+  Object.assign(toi, { x: -27, y: 9, cap: 0 });
+  let avant = 0;
+  const acc = [];
+  for (let t = 0; t < 2; t += DT) { avancer(e, { toi: { x: 1, y: 0 } }, DT); acc.push((v(toi) - avant) / DT); avant = v(toi); }
+  const coups = acc.filter((a, i) => i > 0 && i < acc.length - 1 && a > acc[i - 1] && a >= acc[i + 1]).length;   // chaque sommet de l'accélération, un coup de patin
+  const aMin = Math.min(...acc.slice(6)), aMax = Math.max(...acc.slice(6));
+  const attendu = 2 * 2 * (FOULEE.cadence + FOULEE.parVitesse * PATIN.vMax / 2);
+  borne('la poussée vient par coups de patin, au rythme dit', coups, attendu - 2, attendu + 2, ' coups en 2 s');
+  exiger('… la vitesse monte par à-coups, pas comme un moteur', aMax > 1.8 * Math.max(0.5, aMin), `de ${aMin.toFixed(1)} à ${aMax.toFixed(1)} m/s²`);
+  const phase = toi.foulee;
+  jouer(e, { toi: { x: 0, y: 0 } }, 0.5);
+  exiger('… et la foulée s\'arrête quand il glisse', toi.foulee === phase && toi.pousse === 0, `phase ${phase.toFixed(3)} → ${toi.foulee.toFixed(3)}`);
 }
 {
   const e = glaceVide();
@@ -300,9 +318,9 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
 }
 {
   // La prolongation à trois contre trois, puis les tirs de barrage : des périodes de dix secondes, personne ne marque.
-  // Une série fixe de graines ; la première dont le temps réglementaire finit à égalité sert (le même résultat à chaque fois).
+  // Une série fixe de graines ; la première qui finit à égalité ET dont la prolongation reste blanche sert (le même résultat à chaque fois).
   let e = null;
-  for (let k = 0; k < 40 && !e; k++) { const essai = matchComplet(`nul-${k}`, 8, 8).e; if (essai.match.prolongation) e = essai; }
+  for (let k = 0; k < 40 && !e; k++) { const essai = matchComplet(`nul-${k}`, 8, 8).e; if (essai.match.prolongation && essai.match.fusillade) e = essai; }
   const M = e ? e.match : { pointage: { A: '?', B: '?' } };
   exiger('un match nul va en prolongation, puis aux tirs de barrage, et finit avec un vainqueur', !!e && M.prolongation && !!M.fusillade && M.fini && !!M.vainqueur, `${M.pointage.A}–${M.pointage.B}, ronde ${M.fusillade ? M.fusillade.ronde : '-'}, ${M.fusillade ? `${M.fusillade.essais.A}+${M.fusillade.essais.B} essais` : ''}`);
 }
@@ -482,9 +500,11 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
   const e = glaceVide('recul');
   const toi = e.patineurs[0];
   Object.assign(toi, { x: -10, y: 9, cap: 0, vx: 0, vy: 0 });
-  jouer(e, { toi: { x: -1, y: 0, recul: true } }, 2.5);
+  jouer(e, { toi: { x: -1, y: 0, recul: true } }, 2);
+  let somme = 0, n = 0;   // la vitesse bat au rythme des coups de patin : sa moyenne sur une demi-seconde
+  for (let t = 0; t < 0.5; t += DT) { avancer(e, { toi: { x: -1, y: 0, recul: true } }, DT); somme -= toi.vx; n++; }
   exiger('à reculons, on va vers l\'arrière le cap tenu devant', toi.vx < -3 && Math.abs(toi.cap) < 0.3, `vx ${toi.vx.toFixed(1)} m/s, cap ${toi.cap.toFixed(2)} rad`);
-  borne('… moins vite qu\'en avant', -toi.vx / PATIN.vMax, PATIN.recul - 0.12, PATIN.recul + 0.02);
+  borne('… moins vite qu\'en avant', somme / n / PATIN.vMax, PATIN.recul - 0.12, PATIN.recul + 0.02);
 }
 {
   const vitesseApres = tourne => {

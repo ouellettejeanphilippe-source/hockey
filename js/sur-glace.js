@@ -26,10 +26,12 @@ import { nomCourt } from './recit.js';
 import { coupDeGlace, fouleReagit, ambianceFoule, crissement, couperLaGlace } from './sons-glace.js';
 import { esc, estD } from './util.js';
 
-const GRADINS = 3.2;     // la caméra montre TOUTE LA LARGEUR de la glace et ses gradins, debout, sur tous les écrans (JP, 1er nov. : *vue verticale, caméra largeur complète style NHL 26* — la caméra de NHL 94) : ça de gradins de chaque côté, m
+const GRADINS = 3.2;     // les gradins autour de la glace, m : la caméra ne montre jamais au-delà
 const SUIVI = 6;         // la vitesse à laquelle elle rattrape la rondelle, par seconde
 const PIXEL = 1 / 14;    // un pixel de sprite, en mètres : quatorze par mètre (la lame à quatorze pixels devant les patins) ; à l'écran, un pixel de sprite fait un nombre ENTIER de pixels (jamais de flou) : deux au téléphone, trois en mode large
-const FOULEES = 4;       // les images d'un cycle de patinage
+const FOULEES = 8;       // les images d'un tour de foulée (rendues de la même courbe que la poussée du moteur, `s.foulee`)
+const VIRAGE_PENCHE = 1.3;   // à partir de ce virage (rad/s), à vitesse, le patineur se couche dans la courbe
+const VIRAGE_VITESSE = 4.5;  // … et à partir de cette vitesse, m/s
 const DIRECTIONS = 8;    // les sprites du patineur existent en huit directions, toutes rendues (le bâton reste dans la même main)
 const GEL = 0.06;        // l'arrêt sur image d'une mise en échec qui renverse, s (le hit stop)
 const NOM = 1200;        // le nom du porteur se montre ça de temps à la prise, ms (JP : *nom apparaît une seconde à la possession*)
@@ -547,7 +549,7 @@ function boucle(now) {
   if (flash.reste > 0 && !pause) flash.reste -= dt;
   if (!pause) {
     ambiance(dt);
-    for (const s of etat.patineurs) { if (!s.anim) s.anim = { dist: 0 }; s.anim.dist += Math.hypot(s.vx, s.vy) * dt; }
+    for (const s of etat.patineurs) neige(s, now);
   }
   // L'INTERPOLATION : le moteur avance en pas fixes (1/120 s) mais l'écran dessine à la cadence du moniteur ;
   // sans lissage, les sprites sautent d'un pas à l'autre et le patinage paraît haché. On extrapole chaque
@@ -618,17 +620,19 @@ function ambiance(dt) {
   ambianceFoule(base, dt);
   const toi = etat.patineurs.find(p => p.id === etat.controles[etat.humains[0]]);
   if (!toi) { crissement(0, 0); return; }
-  const anim = toi.anim || (toi.anim = { dist: 0 });
-  const dcap = anim.capPrec == null ? 0 : Math.atan2(Math.sin(toi.cap - anim.capPrec), Math.cos(toi.cap - anim.capPrec));
-  anim.capPrec = toi.cap;
-  crissement(Math.hypot(toi.vx, toi.vy), dt > 0 ? dcap / dt : 0);
+  const anim = toi.anim || (toi.anim = {});
+  // LE COUP DE PATIN s'entend : la phase de la foulée passe le milieu d'une poussée (¼ et ¾ du tour)
+  const f = toi.foulee, fp = anim.fouleePrec == null ? f : anim.fouleePrec;
+  const passe = q => (fp <= f ? fp < q && f >= q : fp < q || f >= q);
+  anim.fouleePrec = f;
+  crissement(Math.hypot(toi.vx, toi.vy), toi.virage, { coup: f !== fp && (passe(0.375) || passe(0.875)), freine: toi.freine });
 }
 const nomDe = id => { const s = etat.patineurs.find(p => p.id === id); if (s) return s.nom; const g = etat.gardiens.find(x => `G:${x.equipe}` === id); return g ? g.nom : ''; };
 /* Un événement du moteur devient une animation : le fouetté du tir, la poussée de la passe, l'impact, le papillon, la lumière, le nom du porteur. */
 function animer(v, now) {
   const s = v.qui ? etat.patineurs.find(p => p.id === v.qui) : null;
-  if (v.type === 'tir' && s) (s.anim || (s.anim = { dist: 0 })).tir = now;
-  else if (v.type === 'passe' && s) (s.anim || (s.anim = { dist: 0 })).passe = now;
+  if (v.type === 'tir' && s) (s.anim || (s.anim = {})).tir = now;
+  else if (v.type === 'passe' && s) (s.anim || (s.anim = {})).passe = now;
   else if (v.type === 'prise' && s && etat.match) {
     const deja = anims.find(a => a.type === 'nom' && a.id === s.id);
     if (deja) deja.t0 = now; else anims.push({ type: 'nom', id: s.id, t0: now, dur: NOM });
@@ -665,20 +669,23 @@ function mesurer() {
  */
 const DEVANCE = 5;      // le décalage maximal vers la direction du jeu, m
 const DEVANCE_V = 0.45; // le décalage par m/s de vitesse de la rondelle
-const ZOOM = 1.2;       // la caméra rapprochée : on voit la zone, pas tout le long
+/* LA CAMÉRA RAPPROCHÉE (JP, 1er nov. : *glace trop grande*) : on voit à peu près LARGEUR_VUE mètres en travers, comme
+   NHL 94 qui montrait un peu plus de la moitié de la largeur ; l'échelle est celle qui donne un nombre ENTIER de pixels
+   d'écran par pixel de sprite (deux au téléphone), et la caméra suit la rondelle dans les deux sens. */
+const LARGEUR_VUE = 16;
 function camera(dt) {
   const long = taille.h, court = taille.w;
   const kEntier = Math.min(long / (L + 2 * GRADINS), court / (W + 2 * GRADINS));
-  const k = vueEntiere ? kEntier : court / (W + 2 * GRADINS) * ZOOM;
+  const S = Math.max(1, Math.round(Math.min(court, long * 0.75) / LARGEUR_VUE * PIXEL));
+  const k = vueEntiere ? kEntier : S / PIXEL;
   cam.k = k;
   const R = etat.rondelle;
-  const avance = Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V));
-  const cible = R.x + avance;
   const f = 1 - Math.exp(-SUIVI * dt);
-  cam.x += (cible - cam.x) * f;
-  cam.y = 0;
-  const hx = long / (2 * k);
-  cam.x = hx >= L / 2 + GRADINS ? 0 : Math.max(-L / 2 - GRADINS + hx, Math.min(L / 2 + GRADINS - hx, cam.x));
+  const borne = (c, demi, bout) => (demi >= bout ? 0 : Math.max(-bout + demi, Math.min(bout - demi, c)));
+  cam.x += (R.x + Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V)) - cam.x) * f;
+  cam.y += (R.y + Math.max(-DEVANCE, Math.min(DEVANCE, R.vy * DEVANCE_V)) - cam.y) * f;
+  cam.x = borne(cam.x, long / (2 * k), L / 2 + GRADINS);
+  cam.y = borne(cam.y, court / (2 * k), W / 2 + GRADINS);
 }
 /* Un point de la glace à l'écran (en pixels CSS) : la glace est tournée d'un quart de tour, l'axe long vers le haut. */
 const ecran = (x, y) => ({ x: taille.w / 2 + (y - cam.y) * cam.k + tremble.x, y: taille.h / 2 - (x - cam.x) * cam.k + tremble.y });
@@ -810,14 +817,16 @@ function corps(x, y, eq, genre, pose, dir) {
  * le flash, la rondelle qui tombe à la mise en jeu, le nom du porteur à la prise.
  */
 /* Sous les patineurs, sur la glace (en mètres) : l'anneau de celui que tu contrôles, l'arc de la charge. */
+const MARQUE = { rayon: 0.62, sol: 0.72 };   // l'ellipse de ton joueur, m ; raccourcie en travers de l'écran comme la profondeur du sol des sprites (PROFONDEUR de scripts/sprites/rendu.mjs)
 function marques(s) {
   const toi = Object.values(etat.controles).includes(s.id);
-  // TON JOUEUR : un gros disque plein aux couleurs de son club sous ses patins (JP : *gros rond ombre en dessous, couleur de l'équipe ; le symbole blanc est pas viable*).
+  // TON JOUEUR : une ellipse au sol, aux couleurs de son club, sous ses patins (JP : *gros rond ombre en dessous, couleur de
+  // l'équipe*) ; à plat comme le sol des sprites (`MARQUE`), et à moitié transparente : le joueur, lui, reste devant.
   if (toi) {
     const c = couleurs[s.equipe];
-    cx.globalAlpha = 0.85;
-    cercle(s.x, s.y, s.rayon + 0.45, c.club || c.bg, COULEURS.contour, 0.1);
-    cx.globalAlpha = 1;
+    cx.beginPath(); cx.ellipse(s.x, s.y, MARQUE.rayon * MARQUE.sol, MARQUE.rayon, 0, 0, Math.PI * 2);
+    cx.globalAlpha = 0.6; cx.fillStyle = c.club || c.bg; cx.fill();
+    cx.globalAlpha = 1; cx.strokeStyle = COULEURS.contour; cx.lineWidth = 0.08; cx.stroke();
   }
   if (s.charge > 0 && etat.rondelle.porteur === s.id) {
     cx.strokeStyle = COULEURS.ligne; cx.lineWidth = 0.09;
@@ -827,7 +836,7 @@ function marques(s) {
 /* Un patineur, en pixels d'écran : sa pose du moment (la chute, le lancer, la passe, l'épaule, la foulée, le repos). */
 function patineur(s, now) {
   const v = Math.hypot(s.vx, s.vy);
-  const anim = s.anim || (s.anim = { dist: 0 });
+  const anim = s.anim || (s.anim = {});
   const dir = directionDe(s.auSol > 0 && v > 0.3 ? Math.atan2(s.vy, s.vx) : s.cap);
   let pose = 'repos';
   if (s.auSol > 0) pose = 'chute';
@@ -835,8 +844,24 @@ function patineur(s, now) {
   else if (s.charge > 0 && etat.rondelle.porteur === s.id) pose = 'charge';
   else if (anim.passe && now - anim.passe < 240) pose = 'passe';
   else if (s.elan > 0) pose = 'echec';
-  else if (v > 0.6) { const rythme = Math.min(3.5, Math.max(1.2, v * 0.3)); pose = `patin${1 + Math.floor(anim.dist * rythme) % FOULEES}`; }   // LA FOULÉE : quatre images, au rythme de la vitesse (lent à basse vitesse, rapide à pleine)
+  else if (s.freine && v > 1.5) pose = 'freinage';   // L'ARRÊT HOCKEY : les lames en travers
+  else if (Math.abs(s.virage) > VIRAGE_PENCHE && v > VIRAGE_VITESSE) pose = s.virage > 0 ? 'virageD' : 'virageG';   // couché dans la courbe
+  else if (s.pousse > 0.1 && v > 0.3) pose = `patin${1 + Math.floor(s.foulee * FOULEES) % FOULEES}`;   // LA FOULÉE : la phase du moteur, la jambe tendue au coup de patin
+  else if (v > 1.2) pose = 'glisse';   // il ne pousse plus : les deux lames sur la glace
   corps(s.x, s.y, s.equipe, 'P', pose, dir);
+}
+/* LA NEIGE (JP : *ça feel zéro comme patiner*) : un arrêt hockey, ou un virage sec à vitesse, fait gicler la glace
+   des lames devant le patineur, en grains blancs qui s'éteignent. Rien que de l'image : le moteur n'en sait rien. */
+const NEIGE = { duree: 0.35, grain: 0.11, vitesse: 4.5 };
+function neige(s, now) {
+  const v = Math.hypot(s.vx, s.vy);
+  const fort = s.surGlace && !s.auSol && (s.freine && v > 3 ? 1 : Math.abs(s.virage) > 2.2 && v > 6 ? 0.5 : 0);
+  if (!fort) return;
+  const a0 = Math.atan2(s.vy, s.vx);
+  for (let k = 0; k < 3; k++) {
+    const a = a0 + (Math.random() - 0.5) * 1.6, w = NEIGE.vitesse * fort * (0.5 + Math.random());
+    anims.push({ type: 'neige', t0: now, dur: NEIGE.duree * 1000 * (0.6 + 0.6 * Math.random()), x: s.x + Math.cos(a0) * 0.3, y: s.y + Math.sin(a0) * 0.3, vx: Math.cos(a) * w + s.vx * 0.3, vy: Math.sin(a) * w + s.vy * 0.3 });
+  }
 }
 /* LE RECEVEUR : quand tu portes la rondelle, l'anneau jaune dit à qui la passe irait ; pointillé, la ligne est barrée (elle sera soulevée). */
 function receveur() {
@@ -879,6 +904,15 @@ function dessiner(now) {
     cx.beginPath(); cx.moveTo(trace[0].x, trace[0].y); for (const p of trace) cx.lineTo(p.x, p.y); cx.stroke();
   }
   receveur();
+  cx.fillStyle = COULEURS.blanc;
+  for (const a of anims) {
+    if (a.type !== 'neige') continue;
+    const t = (now - a.t0) / 1000, f = 1 - (now - a.t0) / a.dur;
+    if (f <= 0) continue;
+    cx.globalAlpha = 0.9 * f;
+    cx.fillRect(a.x + a.vx * t - NEIGE.grain / 2, a.y + a.vy * t - NEIGE.grain / 2, NEIGE.grain, NEIGE.grain);
+  }
+  cx.globalAlpha = 1;
   for (const s of etat.patineurs) if (s.surGlace || s.boxe) marques(s);
   // LA RONDELLE : à la mise en jeu, elle tombe ; en l'air, elle grossit et laisse son ombre au sol.
   const chute = etat.mej ? Math.max(0, etat.mej.reste / 0.9) : 0;

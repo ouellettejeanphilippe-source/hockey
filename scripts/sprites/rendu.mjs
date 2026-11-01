@@ -81,7 +81,7 @@ const MINCES = new Set(['baton', 'ruban', 'lame']);
 /* ---------- le patineur, posé ---------- */
 const DEFAUT = {
   hanche: [0, 0, 0.8], tangage: 0.45, lacet: 0, roulis: 0, tete: 0,   // le bassin, l'inclinaison du torse, sa torsion
-  pieds: [[-0.17, 0.02, 0.12, 0.25], [0.17, -0.02, 0.12, -0.25]],     // gauche, droit : x, y, z (la cheville), le lacet du pied
+  pieds: [[-0.17, 0.02, 0.12, -0.25], [0.17, -0.02, 0.12, -0.25]],    // gauche, droit : x, y, z (la cheville), le lacet du pied (négatif : la pointe vers l'extérieur)
   pommeau: [-0.1, 0.32, 0.92], talon: [0.1, 0.92, 0.04], bout: [-0.08, 1.0, 0.04],   // le bâton : le pommeau, le talon de la lame, son bout
   basDeLaMain: 0.42,   // où la main du bas tient le manche, de 0 (pommeau) à 1 (talon)
   libre: null, libreD: null,   // une main qui lâche le bâton : où elle va
@@ -170,20 +170,46 @@ function modele(pose, face = 0) {
 }
 
 /* ---------- les poses ---------- */
-const miroirPose = p => {   // la même pose de l'autre pied
-  const q = { ...p };
-  if (p.pieds) q.pieds = [p.pieds[1], p.pieds[0]].map(([x, y, z, l]) => [-x, y, z, l]);
-  if (p.hanche) q.hanche = [-p.hanche[0], p.hanche[1], p.hanche[2]];
-  if (p.roulis) q.roulis = -p.roulis;
-  return q;
-};
-const patin1 = { hanche: [-0.06, 0.04, 0.72], tangage: 0.62, lacet: 0.12, roulis: -0.08, pieds: [[-0.08, 0.12, 0.12, 0.15], [0.46, -0.34, 0.14, -0.75]], pommeau: [-0.12, 0.42, 0.86], talon: [0.06, 0.95, 0.04], bout: [-0.12, 1.0, 0.04] };
-const patin2 = { hanche: [-0.03, 0.04, 0.8], tangage: 0.55, lacet: 0.04, pieds: [[-0.12, 0.06, 0.12, 0.1], [0.12, -0.12, 0.26, -0.2]], pommeau: [-0.1, 0.4, 0.9], talon: [0.1, 0.94, 0.04], bout: [-0.08, 1.0, 0.04] };
+/*
+ * LA FOULÉE, en continu (1er nov. 2026 ; JP : *boucle d'animation laide as fuck*). Une seule fonction de la phase
+ * (0 à 1, la même que `s.foulee` du moteur) donne chaque image : une jambe pousse en s'ouvrant loin de côté et vers
+ * l'arrière pendant que l'autre glisse sous le corps, puis elle se lève et revient sous lui, et c'est l'autre qui pousse.
+ * Le bassin passe au-dessus de la jambe qui glisse, descend au coup de patin, les épaules tournent un peu contre les
+ * hanches, la lame du bâton balance. Huit images tirées de la même courbe : la boucle se referme sans saut.
+ */
+const doux = t => t * t * (3 - 2 * t);
+const entre = (a, b, t) => a + (b - a) * t;
+function jambeDeFoulee(cote, p) {   // p = 0 : la jambe au bout de sa poussée ; de 0 à ½ elle revient en l'air, de ½ à 1 elle pousse
+  const dessous = [cote * 0.11, 0.1, 0.12], tendue = [cote * 0.5, -0.38, 0.13];
+  if (p < 0.5) {
+    const r = doux(p / 0.5), q = lerp(tendue, dessous, r);
+    return [q[0], q[1], 0.12 + 0.15 * Math.sin(Math.PI * p / 0.5), entre(-0.85, -0.15, r)];
+  }
+  const e = (p - 0.5) / 0.5, q = lerp(dessous, tendue, e * (0.6 + 0.4 * e));
+  return [q[0], q[1], 0.12, entre(-0.15, -0.85, e)];
+}
+const IMAGES_DE_FOULEE = 8;
+function foulee(theta) {
+  const c = Math.cos(2 * Math.PI * theta), c2 = Math.cos(4 * Math.PI * theta);
+  return {
+    hanche: [-0.08 * c, 0.04, 0.76 - 0.04 * c2], tangage: 0.62, lacet: 0.12 * c, roulis: -0.07 * c,
+    pieds: [jambeDeFoulee(-1, (theta + 0.5) % 1), jambeDeFoulee(1, theta)],
+    pommeau: [-0.12 + 0.04 * c, 0.42, 0.88], talon: [0.06 + 0.1 * c, 0.95, 0.04], bout: [-0.12 + 0.1 * c, 1.0, 0.04],
+  };
+}
+const FOULEES = Object.fromEntries(Array.from({ length: IMAGES_DE_FOULEE }, (_, k) => [`patin${k + 1}`, foulee(k / IMAGES_DE_FOULEE)]));
 // couché à plat : les bras ouverts, les jambes écartées ; le bâton lâché sur la glace à côté (ses points sont déjà ceux de la glace)
 const CHUTE = { hanche: [0, 0, 0.82], tangage: 0.05, pieds: [[-0.3, 0.05, 0.12, 0.3], [0.25, 0.1, 0.16, -0.3]], libre: [-0.5, 0.2, 1.3], libreD: [0.5, 0.2, 1.3], pommeau: [0.42, -0.35, 0.03], talon: [0.62, 0.62, 0.03], bout: [0.5, 0.72, 0.03] };
 const POSES = {
   repos: {},
-  patin1, patin2, patin3: miroirPose(patin1), patin4: miroirPose(patin2),
+  ...FOULEES,
+  // la glisse : les deux lames sur la glace, l'une devant l'autre, les genoux pliés, le bâton qui traîne
+  glisse: { hanche: [0, 0.02, 0.74], tangage: 0.55, pieds: [[-0.13, 0.2, 0.12, -0.1], [0.14, -0.16, 0.12, -0.2]], pommeau: [-0.1, 0.42, 0.86], talon: [0.08, 0.95, 0.04], bout: [-0.1, 1.0, 0.04] },
+  // l'arrêt hockey : les hanches tournées, les deux lames en travers, le corps qui se retient en arrière
+  freinage: { hanche: [0.04, 0, 0.64], tangage: 0.05, lacet: 0.55, roulis: -0.2, pieds: [[-0.12, 0.22, 0.11, Math.PI / 2], [0.16, -0.18, 0.11, -Math.PI / 2]], pommeau: [-0.15, 0.35, 0.8], talon: [0.0, 0.92, 0.04], bout: [-0.18, 0.98, 0.04] },
+  // le virage à vitesse : le corps couché dans la courbe, les lames dehors sur leurs carres
+  virageG: { hanche: [-0.08, 0.04, 0.72], tangage: 0.55, lacet: -0.15, roulis: -0.42, pieds: [[0.0, 0.18, 0.12, 0.2], [0.34, -0.14, 0.12, 0.05]], pommeau: [-0.18, 0.42, 0.84], talon: [-0.1, 0.94, 0.04], bout: [-0.28, 0.98, 0.04] },
+  virageD: { hanche: [0.08, 0.04, 0.72], tangage: 0.55, lacet: 0.15, roulis: 0.42, pieds: [[-0.34, -0.14, 0.12, 0.05], [0.0, 0.18, 0.12, 0.2]], pommeau: [-0.05, 0.42, 0.84], talon: [0.16, 0.94, 0.04], bout: [-0.02, 1.0, 0.04] },
   // le lancer frappé qui se charge : le bâton haut derrière l'épaule droite, les genoux pliés, le regard devant
   charge: { hanche: [0, -0.02, 0.72], tangage: 0.35, lacet: -0.55, tete: 0.5, pieds: [[-0.3, 0.12, 0.12, 0.5], [0.3, -0.1, 0.12, -0.3]], pommeau: [0.0, 0.25, 0.98], talon: [0.5, -0.35, 1.55], bout: [0.62, -0.28, 1.66], basDeLaMain: 0.3 },
   // le fouetté : le bâton loin devant, en l'air, la jambe droite tendue derrière
@@ -337,12 +363,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
     const patineurs = planche(), gardiens = plancheGardien();
     const erreurs = [...verifier(patineurs), ...verifier(gardiens)];
     if (erreurs.length) { console.error(erreurs.join('\n')); process.exit(1); }
-    const bloc = obj => JSON.stringify(obj, null, 0).replace(/\],"/g, '],\n  "').replace(/^\{/, '{\n  ').replace(/\}$/, '\n}');
+    // chaque ligne perd ses points de fin (le vide) : le fichier fond de moitié, et le jeu lit pareil
+    const court = P => Object.fromEntries(Object.entries(P).map(([d, poses]) => [d, Object.fromEntries(Object.entries(poses).map(([p, l]) => [p, l.map(x => x.replace(/\.+$/, ''))]))]));
+    const bloc = obj => JSON.stringify(court(obj), null, 0).replace(/\],"/g, '],\n  "').replace(/^\{/, '{\n  ').replace(/\}$/, '\n}');
     const cible = mode || path.join(ici, '..', '..', 'js', 'sprites.js');
     fs.writeFileSync(cible, `/**
  * LES SPRITES DE SUR GLACE (1er nov. 2026 ; JP : *ya moyen d'avoir un vrai pixel art de qualité ?* ; *ça, c'est des
  * sprites*). Écrit par scripts/sprites/rendu.mjs, qui rastérise un joueur en volumes posé image par image : ne pas
- * éditer à la main. Chaque image fait ${LARGEUR} colonnes sur ${HAUTEUR} lignes, les patins à l'ancre (${ANCRE[0]}, ${ANCRE[1]}), la lame du bâton
+ * éditer à la main. Chaque image fait ${LARGEUR} colonnes sur ${HAUTEUR} lignes (le vide de fin de ligne retiré), les patins à l'ancre (${ANCRE[0]}, ${ANCRE[1]}), la lame du bâton
  * quatorze pixels devant ; une lettre par matière, teinte aux couleurs du club par js/sur-glace.js : k contour · J j d
  * chandail · T bande · W masque · S s peau · H h casque · P p pantalon · G gants · K patin · L lame · B manche · b ruban
  * · Q q jambières · o l'ombre portée, tramée ; « . » vide. Le patineur en huit directions (${HUIT.join(', ')}), le gardien en

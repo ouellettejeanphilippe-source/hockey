@@ -69,6 +69,17 @@ export const PATIN = {
   bande: 0.15,      // ce que le patineur rend sur la bande
   sol: 1.4,         // le temps au sol après une chute, s
 };
+/*
+ * LA FOULÉE (1er nov. 2026 ; JP : *patin pas le fun, ça feel zéro comme patiner*). On ne pousse pas comme un moteur :
+ * une jambe, puis l'autre. La phase de la foulée (`s.foulee`, de 0 à 1, deux coups de patin par tour) avance à la
+ * cadence du patineur pendant qu'il pousse et s'arrête quand il glisse ; la poussée monte au coup de patin et retombe
+ * entre deux, sans rien changer à sa moyenne. Le sprite dessine la même phase : la jambe tendue, c'est le coup.
+ */
+export const FOULEE = {
+  cadence: 1.0,     // les tours de foulée par seconde, au départ (deux coups de patin chacun)
+  parVitesse: 0.05, // ce qu'un m/s ajoute à la cadence : à pleine vitesse, un peu plus de trois coups par seconde
+  coup: 0.6,        // la poussée au coup de patin monte de ça, et retombe d'autant entre deux
+};
 export const BATON = {
   lame: [1.0, 0.0],          // où la lame tient la rondelle : un mètre devant, dans l'axe (les sprites en miroir gardent la rondelle à la lame)
   ressort: 130, amorti: 24,  // la rondelle suit la lame comme un ressort amorti (critique), serré : elle colle
@@ -163,7 +174,7 @@ function patineur(id, equipe, x, y, cap, extra = {}) {
   return {
     id, equipe, poste: extra.poste || 'C', nom: extra.nom || id, visage: extra.visage || null, ligne: extra.ligne ?? 0,
     x, y, vx: 0, vy: 0, cap, masse: p.masse, rayon: PATIN.rayon, p,
-    auSol: 0, charge: 0, lachee: 0, tenaitTir: false, tenaitPasse: false, tenaitEchec: false,
+    auSol: 0, foulee: 0, pousse: 0, virage: 0, freine: false, charge: 0, lachee: 0, tenaitTir: false, tenaitPasse: false, tenaitEchec: false,
     harpon: 0, harponRepos: 0, elan: 0, elanRepos: 0, jambes: 100, surGlace: true, boxe: false, touche: -10, tamponPasse: -1, tamponTir: -1,
     poste0: extra.poste0 || null, ia: null, stats: { buts: 0, aides: 0, tirs: 0, echecs: 0, blocs: 0, tg: 0 },
   };
@@ -405,6 +416,7 @@ function patiner(s, e, enJeu) {
   const v = hyp(s.vx, s.vy);
   const m = e && enJeu ? Math.min(1, hyp(e.x || 0, e.y || 0)) : 0;
   let pousse = 0, omega = 0;
+  s.freine = false;
   if (m > 0.1) {
     const phi = Math.atan2(e.y, e.x);
     // À RECULONS : on regarde à l'opposé de là où l'on va (le défenseur face au porteur), et l'on pousse dans le bâton.
@@ -413,6 +425,7 @@ function patiner(s, e, enJeu) {
       const f = Math.max(0, v - PATIN.frein * m * PAS) / v;
       s.vx *= f; s.vy *= f;
       s.cap += clamp(d, -1, 1) * PAS;
+      s.freine = true;   // l'arrêt hockey : le sprite met les lames en travers, la glace gicle
     } else {
       const omegaMax = Math.min(PATIN.pivot * agilite, PATIN.adherence * agilite / Math.max(v, 0.5));
       omega = clamp(d * 6, -omegaMax, omegaMax);
@@ -420,10 +433,14 @@ function patiner(s, e, enJeu) {
       pousse = accel * m * Math.max(0, Math.cos(d)) * (s.charge > 0 ? 0.5 : 1);
       // LES CROISÉS : en tournant à vitesse moyenne, on pousse plus fort que tout droit.
       if (Math.abs(omega) > 0.4 && v > 2 && v < 0.9 * vMax) pousse *= PATIN.croise;
+      // LA FOULÉE : le coup de patin, une jambe puis l'autre ; la phase n'avance que si l'on pousse.
+      if (pousse > 0) s.foulee = (s.foulee + (FOULEE.cadence + FOULEE.parVitesse * v) * PAS) % 1;
+      pousse *= 1 + FOULEE.coup * Math.cos(4 * Math.PI * (s.foulee + 0.125));   // au milieu de la poussée de chaque jambe (la droite pousse de ½ à 1, la gauche de 0 à ½)
       const sens = recul ? phi : s.cap;
       s.vx += Math.cos(sens) * pousse * PAS; s.vy += Math.sin(sens) * pousse * PAS;
     }
   }
+  s.pousse = pousse > 0 ? m : 0; s.virage = omega;   // ce que le sprite lit : pousse-t-il, et tourne-t-il
   const v2 = hyp(s.vx, s.vy);
   if (v2 > 0) {
     // LE PRIX DU VIRAGE : couper sec coûte de la vitesse (les carres mordent, l'énergie part dans la glace).
@@ -1359,6 +1376,7 @@ export function reglesDeLaGlace() {
     `La rondelle pèse ${Math.round(RONDELLE.masse * 1000)} g et perd ≈ ${dec(RONDELLE.frottement * G, 1)} m/s par seconde : une passe à ${kmh(BATON.passe)} km/h meurt après ${Math.round(arretDe(BATON.passe))} m, un tir à ${kmh(BATON.tirMax)} km/h traverserait ${Math.round(arretDe(BATON.tirMax))} m.`,
     `La bande rend ${Math.round(RONDELLE.bande * 100)} % de la vitesse qui la frappe, le poteau ${Math.round(RONDELLE.poteau * 100)} %, la maille du filet ${Math.round(RONDELLE.filet * 100)} %.`,
     `Un patineur ordinaire pèse ${PATIN.masse} kg (un vrai joueur, son poids à la LNH), pousse à ${dec(PATIN.accel)} m/s² jusqu'à ${kmh(PATIN.vMax)} km/h, freine à ${PATIN.frein} m/s² (le bâton à l'envers) et perd ${dec(PATIN.glisse)} m/s² en roue libre ; sa cote sur 20 fait sa pointe, ses cotes Tir, Jeu, Défense et Robustesse son lancer, sa passe, son harpon et son équilibre.`,
+    `Il pousse par coups de patin, une jambe puis l'autre : ${dec(2 * FOULEE.cadence)} par seconde au départ, ${dec(2 * (FOULEE.cadence + FOULEE.parVitesse * PATIN.vMax))} à pleine vitesse ; le coup pousse ${Math.round(FOULEE.coup * 100)} % plus fort que la moyenne, et l'entre-deux d'autant moins.`,
     `Ses lames tiennent ${PATIN.adherence} m/s² de côté : à pleine vitesse, le virage le plus serré fait ${dec(PATIN.vMax ** 2 / PATIN.adherence, 0)} m de rayon ; à l'arrêt, il pivote à ${PATIN.pivot} rad/s. Une présence coûte ${dec(JAMBES.usure)} jambes par seconde à fond, le banc en rend ${JAMBES.repos} ; sous ${JAMBES.changement}, ou après ${JAMBES.presence} s, la ligne change à l'arrêt de jeu.`,
     `La lame tient la rondelle à ${dec(BATON.lame[0])} m devant ; plus loin que ${dec(PATIN.portee)} m, elle est perdue. Une rondelle qui arrive à plus de ${kmh(BATON.reception)} km/h ne se prend pas : elle dévie. Le harpon porte à ${dec(HARPON.portee)} m devant, ${dec(HARPON.duree, 2)} s, et repose ${dec(HARPON.repos)} s.`,
     `La passe part à ${kmh(BATON.passe)} km/h, plus ${dec(BATON.passeLoin)} m/s par mètre de plus, menée là où le coéquipier sera ; le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, le tir sur réception à ${Math.round(BATON.uneTemps * 100)} % du frappé sans charger ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (plus à pleine charge), et le tir part toujours vers le filet attaqué : le bâton choisit où (droit, le centre ; penché, le coin ; à fond de côté, ${Math.round(BATON.large * 100)} cm à côté du poteau).`,
