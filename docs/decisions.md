@@ -3131,7 +3131,7 @@ JP : *Go pour check_profondeur* ; puis *Go pour le correctif du robot quand les 
 
 **Ce qui a été écarté.** Le coach de la couleur dominante de l'effectif (mesuré : il coûte) ; la plus grande maîtrise (×1,1 ou ×1,2 sur 1 à 2,5 V, ça ne décide rien) ; une table des philosophies rangées par la mesure (juste tant que l'équilibre ne bouge pas, puis fausse en silence : la lecture, elle, suit le moteur) ; baisser le seuil du juge.
 
-**Noté en passant** (`check_pouvoirs` N=600, hors du CI qui tourne sans la mesure) : le duo vedette des Étoiles fait +2,9 V (borne 2,5) et le prof de discipline, un adjoint, 1,7 V (borne ±1,5). Des réglages d'équilibre, à part.
+**Noté en passant** (`check_pouvoirs` N=600, hors du CI qui tourne sans la mesure) : le duo vedette des Étoiles fait +2,9 V (borne 2,5) et le prof de discipline, un adjoint, 1,7 V (borne ±1,5). Des réglages d'équilibre, à part. **Réglé le 1er nov.** (JP : *go les réglages*) : le prof est parti avec la V22 (huit cartes d'adjoint neuves, toutes sous ±1,5 V à l'échantillon plein) ; le duo vedette passe de 30 % de glace et +35 % de précision à 25 % et +28 % (encore +2,5 V, à la limite), puis à **20 % et +25 % : +2,3 V**, 31 vérifications vertes (`COACHS=etoiles N=600`).
 
 ## 31 octobre 2026 — Les gestes que la ligue ne comptait pas : blocs, punitions tirées, coups estimés
 
