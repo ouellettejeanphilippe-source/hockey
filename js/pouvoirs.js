@@ -81,7 +81,8 @@ export const POUVOIRS = {
   ],
   etoiles: [
     { cle: 'spectacle', ico: '🌠', nom: 'Le spectacle', dit: 'En 3e période, à égalité ou derrière d\'un but : ton 1er trio joue 40 % plus, +32 % de précision.', quand: e => k3(e) && e.moi <= e.lui && e.lui - e.moi <= 1, effet: { F: [1.4, 1, 0.85, 0.75], finition: 1.32 } },
-    { cle: 'duo', ico: '🎭', nom: 'Le duo vedette', dit: 'En 1re période, à domicile : ton 1er trio joue 30 % plus, +35 % de précision.', quand: e => e.k === 0 && soirDe(e, 'domicile'), effet: { F: [1.3, 1, 0.85, 0.8], finition: 1.35 } },
+    // 1er nov. 2026 : mesuré à +2,9 V (N=600) pour une borne de 2,5, de 30 % et +35 % ; ramené à 25 % et +28 %.
+    { cle: 'duo', ico: '🎭', nom: 'Le duo vedette', dit: 'En 1re période, à domicile : ton 1er trio joue 25 % plus, +28 % de précision.', quand: e => e.k === 0 && soirDe(e, 'domicile'), effet: { F: [1.25, 1, 0.88, 0.82], finition: 1.28 } },
     { cle: 'grandsoir', ico: '🎬', nom: 'Le grand soir', dit: 'En séries ou en gros match : +25 % de précision toute la soirée.', quand: e => e.series || e.gros, effet: { finition: 1.25 } },
   ],
 };
