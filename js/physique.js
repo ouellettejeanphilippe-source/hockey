@@ -70,7 +70,7 @@ export const PATIN = {
   sol: 1.4,         // le temps au sol après une chute, s
 };
 export const BATON = {
-  lame: [1.0, 0.3],          // où la lame tient la rondelle, devant et de côté, m
+  lame: [1.0, 0.0],          // où la lame tient la rondelle : un mètre devant, dans l'axe (les sprites en miroir gardent la rondelle à la lame)
   ressort: 80, amorti: 18,   // la rondelle suit la lame comme un ressort amorti (critique)
   maniement: 45,             // l'accélération que la lame peut donner à la rondelle, m/s² : au-delà, elle traîne
   passe: 16,                 // la passe, m/s (58 km/h) : plus loin, plus fort (`passeLoin`)
