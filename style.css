@@ -1199,6 +1199,7 @@ body.menu-ouvert { overflow: hidden; }
 .menu-lien:hover { border-color: var(--or); }
 /* La mise à jour (js/mise-a-jour.js) : le même lien, à l'or, sous le titre, seulement quand une version attend. */
 .menu-maj { margin: 0 0 var(--esp-3); border-color: var(--or); color: var(--or); }
+.menu-version { flex-basis: 100%; text-align: center; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
 
 /* ---- Mes parties : une liste en bandes, rangée par mode ---- */
 .menu-parties { margin-top: var(--esp-4); border-top: 1px solid var(--filet); }

@@ -15,7 +15,8 @@
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer, exporter, importer } from './sauvegardes.js';
 import { esc } from './util.js';
 import { surAppareil } from './visages.js';
-import { miseAJour, telecharger } from './mise-a-jour.js';
+import { miseAJour, telecharger, appliquerAuTitre } from './mise-a-jour.js';
+import { VERSION } from './version.js';
 /*
  * LE FICHIER SORT (1.0). Sur le web, un lien `download` suffit. Dans
  * l'application Android, la WebView n'enregistre pas un tel lien : on passe
@@ -145,6 +146,7 @@ function dessiner(m) {
   const pied = `<nav class="menu-pied" aria-label="Réglages">
       <button type="button" class="menu-entree" data-menu="options"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg>Options</button>
       <button type="button" class="menu-entree" data-menu="regles"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Règles</button>
+      <span class="menu-version">Version ${esc(VERSION)}</span>
     </nav>`;
 
   const liensRogue = ctx.enJeu && active && active.genre === 'rogue' && ctx.rogue
@@ -197,8 +199,9 @@ function dessiner(m) {
       </div>`;
   }
 
-  // LA MISE À JOUR (js/mise-a-jour.js) : au menu principal seulement, et seulement quand une version plus récente
-  // attend à GitHub ; la réponse arrive après le dessin, le bouton se glisse sous le titre.
+  // LA MISE À JOUR (js/mise-a-jour.js). La version Web : une version neuve déjà prise s'applique dès le titre. L'APK et
+  // l'exe : au menu principal seulement, quand une release plus récente attend à GitHub, le bouton se glisse sous le titre.
+  if (!ctx.enJeu) appliquerAuTitre();
   const place = m.querySelector('.menu-maj-place');
   if (place) miseAJour().then(o => {
     if (!o || !place.isConnected) return;
