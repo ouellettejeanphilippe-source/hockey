@@ -94,10 +94,17 @@ const estVisage = url => url.origin === self.location.origin && url.pathname.inc
 // hors ligne de js/data.js, donc il passe par la coquille.
 const estShard = url => url.pathname.includes('/data/seasons/');
 
+/*
+ * LE RÉSEAU D'ABORD, ET JAMAIS LE CACHE HTTP (1er nov. 2026 ; JP : *quand on republie, le browser utilise souvent
+ * l'ancienne version un temps crisse*). GitHub Pages sert chaque fichier avec `max-age=600` : un `fetch` ordinaire le
+ * reprenait du cache du navigateur sans demander au serveur, et la page mélangeait l'ancienne version et la neuve.
+ * `no-cache` revalide chaque fichier (un 304 quand il n'a pas bougé) : la page charge toujours ce que le serveur sert.
+ * Une navigation ne prend pas d'options : on la refait à son adresse.
+ */
 async function reseauDabord(req) {
   const cache = await caches.open(COQUILLE);
   try {
-    const rep = await fetch(req);
+    const rep = await fetch(req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : new Request(req, { cache: 'no-cache' }));
     if (rep && rep.ok) cache.put(req, rep.clone());
     return rep;
   } catch {
@@ -169,5 +176,6 @@ self.addEventListener('fetch', ev => {
   if (estVisage(url)) { ev.respondWith(visage(req)); return; }
   if (url.origin !== self.location.origin) return;
   if (estShard(url)) return;
+  if (url.pathname.endsWith('/sw.js')) return;   // la version que le menu relit (js/mise-a-jour.js) : le réseau seul, rien au cache
   ev.respondWith(reseauDabord(req));
 });

@@ -7,7 +7,7 @@
  */
 import fs from 'node:fs';
 import { exiger, verdict } from './verdict.mjs';
-import { versionDe, plusRecente, fichierPour, offre, offreWeb } from '../js/mise-a-jour.js';
+import { versionDe, plusRecente, fichierPour, offre, versionNeuve } from '../js/mise-a-jour.js';
 import { VERSION } from '../js/version.js';
 
 const sw = fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
@@ -28,9 +28,10 @@ exiger('une version plus récente à GitHub est offerte, avec son fichier', !!o 
 exiger('… à jour, rien n\'est offert', offre({ ...release, tag_name: `v${v}` }, v, 'apk') === null);
 exiger('… une release sans APK n\'offre rien au téléphone', offre({ tag_name: 'v9.0.0', assets: [release.assets[1]] }, v, 'apk') === null);
 
-// LA VERSION WEB : le sw.js du serveur, plus récent que le code qui tourne, offre la mise à jour ; jamais un fichier.
-exiger('la version Web : le serveur plus récent offre la mise à jour, sans fichier à télécharger', (o => !!o && o.web && o.version === '9.0.0' && !o.url)(offreWeb("const VERSION = 'cap82-9.0.0';", v)));
-exiger('… le serveur à la même version, ou une plus vieille, ou illisible, n\'offre rien', offreWeb(sw, v) === null && offreWeb("const VERSION = 'cap82-1.0.0';", v) === null && offreWeb('<html>404</html>', v) === null);
+// LA VERSION WEB se met à jour toute seule : le serveur plus récent est vu, le cache HTTP n'est plus lu, rien n'est effacé.
+exiger('la version Web : un sw.js plus récent au serveur est une version neuve', versionNeuve("const VERSION = 'cap82-9.0.0';", v) === '9.0.0');
+exiger('… la même, une plus vieille, ou une page illisible, non', versionNeuve(sw, v) === null && versionNeuve("const VERSION = 'cap82-1.0.0';", v) === null && versionNeuve('<html>404</html>', v) === null);
+exiger('… le travailleur de service revalide chaque fichier auprès du serveur (le max-age de GitHub Pages ne sert plus du vieux)', /cache: 'no-cache'/.test(sw.slice(sw.indexOf('async function reseauDabord'), sw.indexOf('async function cacheDabord'))));
 const maj = fs.readFileSync(new URL('../js/mise-a-jour.js', import.meta.url), 'utf8');
 exiger('… et la mise à jour ne touche jamais au stockage (les parties restent)', !/localStorage\.(removeItem|clear)|indexedDB\.deleteDatabase|caches\.delete/.test(maj));
 

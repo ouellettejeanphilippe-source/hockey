@@ -15,7 +15,7 @@
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer, exporter, importer } from './sauvegardes.js';
 import { esc } from './util.js';
 import { surAppareil } from './visages.js';
-import { miseAJour, mettreAJour } from './mise-a-jour.js';
+import { miseAJour, telecharger, appliquerAuTitre } from './mise-a-jour.js';
 import { VERSION } from './version.js';
 /*
  * LE FICHIER SORT (1.0). Sur le web, un lien `download` suffit. Dans
@@ -199,14 +199,14 @@ function dessiner(m) {
       </div>`;
   }
 
-  // LA MISE À JOUR (js/mise-a-jour.js) : au menu principal seulement, et seulement quand une version plus récente
-  // attend à GitHub ; la réponse arrive après le dessin, le bouton se glisse sous le titre.
+  // LA MISE À JOUR (js/mise-a-jour.js). La version Web : une version neuve déjà prise s'applique dès le titre. L'APK et
+  // l'exe : au menu principal seulement, quand une release plus récente attend à GitHub, le bouton se glisse sous le titre.
+  if (!ctx.enJeu) appliquerAuTitre();
   const place = m.querySelector('.menu-maj-place');
   if (place) miseAJour().then(o => {
     if (!o || !place.isConnected) return;
-    place.innerHTML = `<button type="button" class="menu-lien menu-maj">Mettre à jour <small>la version ${esc(o.version)} est prête${o.web ? ' · tes parties restent' : ''}</small> ›</button>`;
-    const b = place.firstElementChild;
-    b.onclick = () => { b.disabled = true; b.querySelector('small').textContent = 'téléchargement…'; mettreAJour(o); };
+    place.innerHTML = `<button type="button" class="menu-lien menu-maj">Mettre à jour <small>la version ${esc(o.version)} est prête</small> ›</button>`;
+    place.firstElementChild.onclick = () => telecharger(o.url);
   });
   m.querySelectorAll('[data-menu]').forEach(b => {
     b.onclick = () => {

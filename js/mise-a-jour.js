@@ -9,13 +9,14 @@
  * version installée, un bouton télécharge le bon fichier — l'APK sur le téléphone (Android l'installe par-dessus,
  * la même signature, les parties gardées), l'installateur sur le PC.
  *
- * LA VERSION WEB (JP : *je parlais de mettre à jour la version Web sans perdre les saves*). Le site (GitHub Pages)
- * suit main tout seul ; c'est le téléphone qui garde l'ancienne : le travailleur de service ne prend la neuve qu'au
- * rechargement d'après, et une application qu'on ne ferme jamais ne recharge pas — le réflexe de vider les données
- * du site effaçait alors les parties, qui vivent dans le stockage de la même adresse. Le menu compare la version du
- * code qui tourne (`VERSION`, js/version.js) à celle du sw.js que le serveur sert, sans cache ; plus récente, le
- * bouton fait prendre au travailleur de service la version neuve (il recharge chaque fichier de la coquille en
- * passant le cache) puis recharge la page. Rien n'efface le stockage : les parties restent.
+ * LA VERSION WEB SE MET À JOUR TOUTE SEULE (JP : *quand on republie, le browser utilise souvent l'ancienne version un
+ * temps crisse*). Le site (GitHub Pages) suit main ; deux choses gardaient l'ancienne version au téléphone : le cache
+ * HTTP du navigateur (`max-age=600`, que le travailleur de service ne contourne plus : sw.js, `no-cache`), et
+ * l'application qu'on ne ferme jamais, qui ne recharge jamais. `surveillerLaVersion` compare la version du code qui
+ * tourne (`VERSION`, js/version.js) au sw.js du serveur — au démarrage, au retour dans l'application, toutes les
+ * `VERIF` — et, plus récente, fait prendre la coquille neuve au travailleur de service, puis recharge quand c'est sans
+ * dommage : au menu titre, ou au retour après une absence d'au moins `ABSENCE`. Jamais au milieu d'un geste ; rien
+ * n'efface le stockage : les parties restent.
  */
 import { surAppareil } from './visages.js';
 import { VERSION } from './version.js';
@@ -51,20 +52,66 @@ export function offre(release, installee, ou) {
   return version && url && installee && plusRecente(version, installee) ? { version, url } : null;
 }
 
-/* La version Web offerte : celle que le serveur sert, si elle passe celle qui tourne ; { version, web: true } ou null. */
-export function offreWeb(texteDuServeur, installee) {
+/* La version neuve que le serveur sert, si elle passe celle qui tourne ; null sinon. */
+export function versionNeuve(texteDuServeur, installee) {
   const version = versionDe(texteDuServeur || '');
-  return version && installee && plusRecente(version, installee) ? { version, web: true } : null;
+  return version && installee && plusRecente(version, installee) ? version : null;
 }
 
-/* Ce qu'on offre au menu, ou null : à jour, hors ligne, ou le serveur (GitHub) qui ne répond pas. */
+const VERIF = 10 * 60e3;   // la version du serveur se relit au plus tard ça après la dernière fois, ms
+const ABSENCE = 60e3;      // revenir dans l'application après ça d'absence, ms : recharger ne coupe rien
+const PATIENCE = 30e3;     // au plus ça d'attente que la coquille neuve soit téléchargée, ms
+let prete = null, cacheDepuis = 0, enCours = null;
+/* Recharger pour une version, une seule fois par session : si le CDN sert encore un vieux fichier quelques minutes,
+   la page ne recharge pas en boucle — elle réessaiera à la session suivante. */
+const TENTEE = 'cap82_maj_tentee';
+const dejaTentee = v => { try { return sessionStorage.getItem(TENTEE) === v; } catch { return false; } };
+function recharger() {
+  if (!prete || dejaTentee(prete)) return;
+  try { sessionStorage.setItem(TENTEE, prete); } catch { /* rien */ }
+  location.reload();
+}
+const auTitre = () => { const m = document.getElementById('menuDepart'); return !!m && !m.classList.contains('en-jeu'); };
+/* La version Web : relire celle du serveur (le paramètre passe le cache du CDN) ; neuve, la coquille neuve se prend. */
+function verifier() {
+  if (enCours) return enCours;
+  enCours = (async () => {
+    try {
+      if (!prete) {
+        const neuve = versionNeuve(await (await fetch(`sw.js?v=${Date.now()}`, { cache: 'no-store' })).text(), VERSION);
+        if (!neuve || dejaTentee(neuve)) return;
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) {
+          const prise = new Promise(r => { navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }); setTimeout(r, PATIENCE); });
+          await reg.update();
+          if (reg.installing || reg.waiting) await prise;
+        }
+        prete = neuve;
+      }
+      if (auTitre()) recharger();
+    } catch { /* hors ligne : on relira plus tard */ } finally { enCours = null; }
+  })();
+  return enCours;
+}
+/* Au démarrage de la version Web (js/game.js) : la surveillance, au retour dans l'application et toutes les VERIF. */
+export function surveillerLaVersion() {
+  if (plateforme() || !('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cacheDepuis = Date.now(); return; }
+    if (prete && cacheDepuis && Date.now() - cacheDepuis >= ABSENCE) { recharger(); return; }
+    verifier();
+  });
+  setInterval(verifier, VERIF);
+  verifier();
+}
+/* Le menu titre s'ouvre : une version neuve déjà prise s'applique tout de suite. */
+export function appliquerAuTitre() { recharger(); }
+
+/* Ce qu'on offre au menu de l'APK et de l'exe, ou null : à jour, hors ligne, ou GitHub qui ne répond pas. */
 export async function miseAJour() {
   const ou = plateforme();
+  if (!ou) return null;
   try {
-    if (!ou) {
-      if (!('serviceWorker' in navigator) || !location.protocol.startsWith('http')) return null;
-      return offreWeb(await (await fetch('sw.js', { cache: 'no-store' })).text(), VERSION);
-    }
     const installee = VERSION;
     let memo = null;
     try { memo = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch { /* rien */ }
@@ -80,24 +127,9 @@ export async function miseAJour() {
   } catch { return null; }
 }
 
-/* Mettre à jour. La version Web : le travailleur de service neuf s'installe (il recharge chaque fichier de la
-   coquille sans passer par le cache, sw.js), prend la main (`skipWaiting`, `clients.claim`), et la page recharge ;
-   le stockage n'est jamais touché. L'APK et l'exe : sur Android, la navigation hors de l'application ouvre le
-   navigateur de l'appareil, qui reçoit l'APK ; sous Windows, la fenêtre neuve part au navigateur. */
-export async function mettreAJour(o) {
-  if (!o.web) {
-    if (plateforme() === 'apk') location.href = o.url;
-    else window.open(o.url, '_blank');
-    return;
-  }
-  try {
-    const reg = await navigator.serviceWorker.getRegistration();
-    if (reg) {
-      const prise = new Promise(r => { navigator.serviceWorker.addEventListener('controllerchange', r, { once: true }); setTimeout(r, PATIENCE); });
-      await reg.update();
-      if (reg.installing || reg.waiting) await prise;
-    }
-  } catch { /* le rechargement reprend quand même la page du serveur */ }
-  location.reload();
+/* Télécharger : sur Android, la navigation hors de l'application ouvre le navigateur de l'appareil, qui reçoit l'APK ;
+   sous Windows, la fenêtre neuve part au navigateur (`setWindowOpenHandler`, desktop/main.js). */
+export function telecharger(url) {
+  if (plateforme() === 'apk') location.href = url;
+  else window.open(url, '_blank');
 }
-const PATIENCE = 30e3;   // au plus ça d'attente que la coquille neuve soit téléchargée, ms ; au-delà, on recharge quand même
