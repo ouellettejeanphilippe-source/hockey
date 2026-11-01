@@ -6350,6 +6350,7 @@ body.sur-glace { overflow: hidden; }
 .sg-temps { display: flex; flex-direction: column; align-items: center; line-height: 1; }
 .sg-temps small { font-size: var(--t-1); letter-spacing: 0.06em; color: var(--encre-2); }
 .sg-puni { padding: 2px 6px; border-left: 3px solid var(--eq); font-size: var(--t-1); color: var(--encre-2); text-transform: none; }
+.sg-rond-changer { width: 48px; height: 48px; font-size: var(--t-1); border-color: var(--encre-2); }
 .sg-rond-echec { width: 56px; height: 56px; border-color: var(--mauvais); }
 /* La fin du match : la carte du pointage, les stats, les buts, rejouer. */
 .sg-fin { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--esp-4); background: color-mix(in srgb, var(--noir-pur) 72%, transparent); }
