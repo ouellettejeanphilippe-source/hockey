@@ -6285,13 +6285,15 @@ body.exh-ouverte { overflow: hidden; }
 /* ---- Sur glace (js/sur-glace.js, #glaceModal.sg) : le terrain de jeu de la physique, un canevas plein écran et son HUD ---- */
 body.sur-glace { overflow: hidden; }
 .sg { position: fixed; inset: 0; z-index: 420; overflow: hidden; background: var(--noir); touch-action: none; user-select: none; -webkit-user-select: none; }
-.sg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+/* OLD SCHOOL (JP : *feel plus old school*) : le canevas est dessiné en gros pixels et agrandi sans lissage, sous des lignes de balayage. */
+.sg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; image-rendering: pixelated; }
+.sg-crt { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--noir-pur) 16%, transparent) 0 1px, transparent 1px 3px); mix-blend-mode: multiply; }
 .sg-haut { position: absolute; top: calc(var(--esp-2) + var(--safe-top)); left: var(--esp-2); right: var(--esp-2); display: flex; align-items: center; gap: var(--esp-2); pointer-events: none; }
 .sg-haut > * { pointer-events: auto; }
 .sg-btn { flex: none; width: 44px; height: 44px; padding: 0; border: 1px solid var(--filet); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); color: var(--encre); font: 700 var(--t-3)/1 var(--display); }
 .sg-btn[aria-pressed="true"], .sg-btn[aria-expanded="true"] { border-color: var(--or); color: var(--or); }
 .sg-haut .sg-btn[data-sg="vue"] { margin-left: auto; }
-.sg-flash { position: absolute; top: 30%; left: 0; right: 0; text-align: center; font: 800 var(--t-7)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre); text-shadow: 0 2px 8px var(--noir-pur); pointer-events: none; }
+.sg-flash { position: absolute; top: 30%; left: 0; right: 0; padding: 0 var(--esp-3); text-align: center; font: 400 var(--t-6)/1.1 "Bungee", var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); text-shadow: 3px 3px 0 var(--noir-pur); pointer-events: none; }
 /* La barre de puissance du tir, comme dans les jeux de soccer : elle monte tant qu'on tient, le tir part quand on lâche. */
 .sg-puissance { position: absolute; left: 50%; bottom: calc(var(--esp-6) + var(--safe-bas) + 52px); width: 160px; height: 10px; transform: translateX(-50%); border: 1px solid var(--encre); background: color-mix(in srgb, var(--noir) 70%, transparent); }
 .sg-puissance-plein { height: 100%; background: linear-gradient(90deg, var(--bon), var(--or) 60%, var(--mauvais)); }
@@ -6336,7 +6338,14 @@ body.sur-glace { overflow: hidden; }
 .sg-regles-accueil { position: static; max-width: none; margin: 0; max-height: none; }
 /* Le tableau indicateur du match, en haut : les deux clubs, le pointage, l'horloge, les punis. */
 .sg-tableau { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: var(--esp-2); height: 44px; padding: 0 var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir) 80%, transparent); font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); white-space: nowrap; overflow: hidden; }
-.sg-tableau b { font-size: var(--t-4); }
+.sg-tableau b { font: 400 var(--t-4)/1 "Bungee", var(--display); }
+.sg-temps { font-family: "Bungee", var(--display); font-weight: 400; }
+@media (max-width: 480px) {
+  .sg-tableau { gap: var(--esp-1); padding: 0 var(--esp-2); font-size: var(--t-1); }
+  .sg-tableau b { font-size: var(--t-3); }
+  .sg-club { padding: 2px 4px; }
+  .sg-flash { font-size: var(--t-4); }
+}
 .sg-club { padding: 2px 6px; border-radius: var(--r-0); background: var(--eq); color: var(--eq-ink, var(--blanc)); }
 .sg-temps { display: flex; flex-direction: column; align-items: center; line-height: 1; }
 .sg-temps small { font-size: var(--t-1); letter-spacing: 0.06em; color: var(--encre-2); }
