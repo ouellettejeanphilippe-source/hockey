@@ -63,6 +63,7 @@ export function fermerMenu() {
 
 export function afficherMenu(ctx) {
   ctxCourant = ctx;
+  try { sessionStorage.removeItem('cap82_session'); } catch { /* ignore */ }
   let m = document.getElementById('menuDepart');
   if (!m) {
     m = document.createElement('div');

@@ -103,7 +103,7 @@ let el = null, canvas = null, cx = null, etat = null, raf = null, dernier = 0, c
 let cam = { x: 0, y: 0, k: 20 };
 let touche = { haut: 0, bas: 0, gauche: 0, droite: 0, passe: false, tir: false, echec: false, changer: false, recul: false };
 let doigt = null;        // le bâton du doigt : { id, x0, y0, x, y }
-let boutons = { passe: false, tir: false, echec: false };
+let boutons = { passe: false, tir: false, echec: false, changer: false };
 let flash = { mot: '', reste: 0 };
 let trace = [];
 let vueEntiere = false;
@@ -158,7 +158,7 @@ function arreterLaBoucle() {
   canvas = null; cx = null; etat = null; pause = false; gel = 0; secousse = null;
   couperLaGlace();
   touche = { haut: 0, bas: 0, gauche: 0, droite: 0, passe: false, tir: false, echec: false, changer: false, recul: false };
-  doigt = null; boutons = { passe: false, tir: false, echec: false };
+  doigt = null; boutons = { passe: false, tir: false, echec: false, changer: false };
 }
 
 /* ---------- l'accueil : l'affiche ---------- */
@@ -310,6 +310,7 @@ function lancer(e) {
       <div class="sg-invites"></div>
     </div>
     <div class="sg-doigt" aria-hidden="true">
+      <button type="button" class="sg-rond sg-rond-changer" data-doigt="changer">Changer</button>
       <button type="button" class="sg-rond sg-rond-echec" data-doigt="echec">Échec</button>
       <button type="button" class="sg-rond" data-doigt="passe">Passe</button>
       <button type="button" class="sg-rond sg-rond-tir" data-doigt="tir">Tir</button>
@@ -448,7 +449,7 @@ function entrees() {
       }
       if (!sx && !sy) { sx = (touche.droite ? 1 : 0) - (touche.gauche ? 1 : 0); sy = (touche.bas ? 1 : 0) - (touche.haut ? 1 : 0); }
       passe = passe || touche.passe || boutons.passe; tir = tir || touche.tir || boutons.tir; echec = echec || touche.echec || boutons.echec;
-      changer = changer || touche.changer; recul = recul || touche.recul;
+      changer = changer || touche.changer || boutons.changer; recul = recul || touche.recul;
     }
     const m = Math.hypot(sx, sy);
     if (m > 1) { sx /= m; sy /= m; }
@@ -518,13 +519,30 @@ function boucle(now) {
   if (flash.reste > 0 && !pause) flash.reste -= dt;
   if (!pause) {
     ambiance(dt);
+    for (const s of etat.patineurs) { if (!s.anim) s.anim = { dist: 0 }; s.anim.dist += Math.hypot(s.vx, s.vy) * dt; }
+  }
+  // L'INTERPOLATION : le moteur avance en pas fixes (1/120 s) mais l'écran dessine à la cadence du moniteur ;
+  // sans lissage, les sprites sautent d'un pas à l'autre et le patinage paraît haché. On extrapole chaque
+  // position du reste de l'accumulateur (au plus 8 ms) pour que le mouvement soit continu entre les pas.
+  const r = !pause && etat.reste > 0 ? etat.reste : 0;
+  if (r > 0) {
+    for (const s of etat.patineurs) { s._ox = s.x; s._oy = s.y; s.x += s.vx * r; s.y += s.vy * r; }
+    for (const g of etat.gardiens) { g._ox = g.x; g._oy = g.y; g.x += g.vx * r; g.y += g.vy * r; }
+    etat.rondelle._ox = etat.rondelle.x; etat.rondelle._oy = etat.rondelle.y;
+    etat.rondelle.x += etat.rondelle.vx * r; etat.rondelle.y += etat.rondelle.vy * r;
+  }
+  if (!pause) {
     trace.push({ x: etat.rondelle.x, y: etat.rondelle.y });
     if (trace.length > 14) trace.shift();
-    for (const s of etat.patineurs) { if (!s.anim) s.anim = { dist: 0 }; s.anim.dist += Math.hypot(s.vx, s.vy) * dt; }
     camera(dt);
   }
   dessiner(now);
   hud();
+  if (r > 0) {
+    for (const s of etat.patineurs) { s.x = s._ox; s.y = s._oy; }
+    for (const g of etat.gardiens) { g.x = g._ox; g.y = g._oy; }
+    etat.rondelle.x = etat.rondelle._ox; etat.rondelle.y = etat.rondelle._oy;
+  }
   raf = requestAnimationFrame(boucle);
 }
 /*
@@ -947,7 +965,7 @@ function hud() {
   if (inv.dataset.html !== html) { inv.innerHTML = html; inv.dataset.html = html; }
   const dg = el.querySelector('.sg-doigt');
   const porte = toi && etat.rondelle.porteur === toi.id;
-  dg.querySelector('[data-doigt="passe"]').textContent = porte ? 'Passe' : etat.mej ? 'Mise' : 'Changer';
+  dg.querySelector('[data-doigt="passe"]').textContent = porte ? 'Passe' : etat.mej ? 'Mise' : 'Passe';
   dg.querySelector('[data-doigt="tir"]').textContent = porte ? 'Tir' : 'Harpon';
   dg.querySelector('[data-doigt="echec"]').textContent = porte ? 'Turbo' : 'Échec';
 }

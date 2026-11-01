@@ -50,16 +50,16 @@ export const FILET = { large: 6 * PIED, profond: 44 / 12 * PIED, haut: 4 * PIED,
 const PAS = 1 / 120;
 const G = 9.81;
 
-export const RONDELLE = { masse: 0.17, rayon: 0.038, frottement: 0.10, bande: 0.55, poteau: 0.70, filet: 0.10, rebondSol: 0.35, vitre: 2.3 };   // `vitre` : plus haut que ça contre la bande, la rondelle sort du jeu
+export const RONDELLE = { masse: 0.17, rayon: 0.038, frottement: 0.15, bande: 0.55, poteau: 0.70, filet: 0.10, rebondSol: 0.35, vitre: 2.3 };   // `frottement` à 0.15 : la rondelle roule moins loin, les passes ne glissent pas à l'infini (JP : *snappy*) ; `vitre` : plus haut que ça contre la bande, la rondelle sort du jeu
 export const PATIN = {
   masse: 85, rayon: 0.55,   // un peu plus gros que nature (JP : *joueur plus gros un peu*) : il se voit, il se frappe
   vMax: 10.6,       // la vitesse de pointe, m/s (38 km/h)
-  accel: 11,        // la poussée, m/s² : la pointe en moins de deux secondes, sec comme à la console (JP, 1er nov. : *mouvement pas assez sec*)
-  frein: 14,        // l'arrêt, m/s² (avec la roue libre et l'air, un arrêt net en une demi-seconde)
+  accel: 14,        // la poussée, m/s² : réactif comme NHL 94 (JP, 1er nov. : *mouvement plus snappy*)
+  frein: 18,        // l'arrêt, m/s² : un arrêt hockey en moins d'une demi-seconde
   glisse: 3.5,      // la roue libre, m/s² : le bâton lâché, on glisse trois secondes (arcade, entre NHL 94 et le réel) ; en poussant, les lames ne perdent rien
   grip: 15,         // la morsure des lames de côté : la vitesse en travers s'éteint à ce taux, par seconde (15 : le patineur dérive un peu, comme sur la vraie glace)
   adherence: 26,    // l'accélération latérale que les lames tiennent, m/s² : le rayon de virage, c'est v² / adherence (4 m à pleine vitesse)
-  pivot: 12,        // le virage sur place, rad/s
+  pivot: 16,        // le virage sur place, rad/s : réactif au doigt et à la manette
   portee: 1.9,      // la rondelle plus loin que ça de la lame est perdue (JP : *que la puck colle un peu plus aux bâtons*)
   virage: 0.03,     // le prix d'un virage : la part de vitesse perdue par radian tourné (couper sec coûte, un peu)
   croise: 1.25,     // les croisés : la poussée bonifiée quand on tourne à vitesse moyenne
@@ -80,9 +80,9 @@ export const BATON = {
   charge: 0.45,              // le temps de charge d'un lancer frappé, s
   ecart: 0.025,              // l'écart-type de la visée, rad, plus à pleine charge
   visee: 0.6,                // le bâton vise jusqu'à ça de côté du cap, rad
-  assist: 1.5,               // la visée assistée : le filet à moins de ça du cap (presque de côté), le tir part vers lui, rad (JP : *impossible de viser et patiner*)
+  assist: 1.5,               // (V1 : le seuil d'angle pour la visée assistée ; V2, 1er nov. : le tir part TOUJOURS vers le filet, le bâton choisit le coin)
   large: 0.4,                // le bâton à fond de côté vise ça au-delà du poteau : on peut rater le filet, comme dans FIFA, m
-  reception: 20,             // une rondelle qui arrive plus vite que ça ne se prend pas : elle dévie
+  reception: 25,             // une rondelle qui arrive plus vite que ça ne se prend pas : elle dévie (25 m/s = 90 km/h)
   lachee: 0.25,              // après un tir ou une passe, la lame la laisse filer ce temps-là
   uneTemps: 0.9,             // le tir sur réception part à cette part du lancer frappé, sans charger
   hauteurMin: 1.2, hauteurMax: 4.2,   // la montée du lancer, m/s : le poignet reste bas, le frappé chargé monte aux coins du haut
@@ -630,8 +630,9 @@ function rondelle(etat, entrees, ev) {
     const devant = (R.x - s.x) * Math.cos(s.cap) + (R.y - s.y) * Math.sin(s.cap) > 0;
     const vrel = hyp(R.vx - s.vx, R.vy - s.vy);
     if (R.z > 1.4) continue;   // trop haut pour tout le monde
-    if (dl < 0.7 || (dl < PATIN.portee - 0.3 && devant && vrel < 4)) {
-      const passeAMoi = R.passeDe && R.passeDe !== s.id && parId(etat, R.passeDe) && parId(etat, R.passeDe).equipe === s.equipe;
+    const passeAMoi = R.passeDe && R.passeDe !== s.id && parId(etat, R.passeDe) && parId(etat, R.passeDe).equipe === s.equipe;
+    const passePourMoi = R.passeVers === s.id;
+    if (dl < 1.0 || (dl < PATIN.portee && devant && (vrel < 6 || passeAMoi || passePourMoi))) {
       if (vrel <= BATON.reception * (passeAMoi ? 1.5 : 1) && R.z < 0.35) {
         R.porteur = s.id; R.z = 0; R.vz = 0;
         toucher(etat, s, false);
@@ -819,8 +820,7 @@ function viseeAssistee(etat, s, vise, baton) {
   const xb = sg * LIGNE_BUT;
   if ((xb - lm.x) * sg <= 0.5) return vise;   // on l'a déjà dépassé
   const dx = xb - lm.x, dy = 0 - lm.y, d = hyp(dx, dy) || 1e-9;
-  const centre = Math.atan2(dy, dx);
-  if (Math.abs(plier(centre - s.cap)) > BATON.assist) return vise;
+  // JP, 1er nov. : *tir toujours vers but* — le tir part toujours vers le filet, le bâton choisit le coin.
   const travers = baton ? clamp((-baton.x * dy + baton.y * dx) / d, -1, 1) : 0;
   const y = travers * (FILET.large / 2 + BATON.large);
   return Math.atan2(y - lm.y, xb - lm.x);
@@ -1358,7 +1358,7 @@ export function reglesDeLaGlace() {
     `Un patineur ordinaire pèse ${PATIN.masse} kg (un vrai joueur, son poids à la LNH), pousse à ${dec(PATIN.accel)} m/s² jusqu'à ${kmh(PATIN.vMax)} km/h, freine à ${PATIN.frein} m/s² (le bâton à l'envers) et perd ${dec(PATIN.glisse)} m/s² en roue libre ; sa cote sur 20 fait sa pointe, ses cotes Tir, Jeu, Défense et Robustesse son lancer, sa passe, son harpon et son équilibre.`,
     `Ses lames tiennent ${PATIN.adherence} m/s² de côté : à pleine vitesse, le virage le plus serré fait ${dec(PATIN.vMax ** 2 / PATIN.adherence, 0)} m de rayon ; à l'arrêt, il pivote à ${PATIN.pivot} rad/s. Une présence coûte ${dec(JAMBES.usure)} jambes par seconde à fond, le banc en rend ${JAMBES.repos} ; sous ${JAMBES.changement}, ou après ${JAMBES.presence} s, la ligne change à l'arrêt de jeu.`,
     `La lame tient la rondelle à ${dec(BATON.lame[0])} m devant ; plus loin que ${dec(PATIN.portee)} m, elle est perdue. Une rondelle qui arrive à plus de ${kmh(BATON.reception)} km/h ne se prend pas : elle dévie. Le harpon porte à ${dec(HARPON.portee)} m devant, ${dec(HARPON.duree, 2)} s, et repose ${dec(HARPON.repos)} s.`,
-    `La passe part à ${kmh(BATON.passe)} km/h, plus ${dec(BATON.passeLoin)} m/s par mètre de plus, menée là où le coéquipier sera ; le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, le tir sur réception à ${Math.round(BATON.uneTemps * 100)} % du frappé sans charger ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (plus à pleine charge), et un filet à moins de ${Math.round(BATON.assist * 57.3)}° de ton cap attire le tir : le bâton choisit où (droit, le centre ; penché, le coin ; à fond de côté, ${Math.round(BATON.large * 100)} cm à côté du poteau).`,
+    `La passe part à ${kmh(BATON.passe)} km/h, plus ${dec(BATON.passeLoin)} m/s par mètre de plus, menée là où le coéquipier sera ; le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, le tir sur réception à ${Math.round(BATON.uneTemps * 100)} % du frappé sans charger ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (plus à pleine charge), et le tir part toujours vers le filet attaqué : le bâton choisit où (droit, le centre ; penché, le coin ; à fond de côté, ${Math.round(BATON.large * 100)} cm à côté du poteau).`,
     `Une mise en échec échange l'élan des deux corps (masse × vitesse) ; le moins lancé tombe ${dec(PATIN.sol)} s si l'écart dépasse ${CHUTE.seuil} kg·m/s (× son équilibre), et lâche la rondelle. L'élan du bouton pousse ${ECHEC.accel} fois plus fort pendant ${dec(ECHEC.duree, 2)} s. Frapper qui n'a pas la rondelle depuis ${dec(ECHEC.recent)} s, ou par-derrière : ${MATCH.punition / 60} minutes.`,
     `Le gardien voit la rondelle ${Math.round(GARDIEN.reaction * 1000)} ms en retard (sa cote Arrêts le raccourcit), bouge à ${kmh(GARDIEN.vMax)} km/h au plus, couvre ${dec(GARDIEN.demi * 2, 2)} m des ${dec(FILET.large, 2)} m du filet ; il gèle ${Math.round(GARDIEN.couvre * 100)} % de ses arrêts, les autres rebondissent à ${Math.round(GARDIEN.rebond * 100)} % de la vitesse.`,
     `Le hors-jeu se siffle à l'entrée de la zone quand on y porte la rondelle ; lancée ou passée dedans, il est différé, levé si les attaquants ressortent, sifflé s'ils la touchent ; le dégagement refusé quand la rondelle lancée de sa moitié passe la ligne de but sans être touchée (permis en désavantage) ; la mise en jeu tombe après ${dec(MATCH.mej)} s, le bouton pressé juste à la chute vaut un bonus. Trois périodes, puis ${MATCH.prolongation / 60} minutes à ${MATCH.surglaceOT} contre ${MATCH.surglaceOT}, puis ${MATCH.rondesFusillade} tirs de barrage et la mort subite ; en séries, la prolongation à cinq, autant qu'il en faut.`,
