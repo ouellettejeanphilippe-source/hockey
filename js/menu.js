@@ -15,6 +15,7 @@
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer, exporter, importer } from './sauvegardes.js';
 import { esc } from './util.js';
 import { surAppareil } from './visages.js';
+import { miseAJour, telecharger } from './mise-a-jour.js';
 /*
  * LE FICHIER SORT (1.0). Sur le web, un lien `download` suffit. Dans
  * l'application Android, la WebView n'enregistre pas un tel lien : on passe
@@ -181,6 +182,7 @@ function dessiner(m) {
           <div class="menu-logo">CAP <b>82-0</b></div>
           <div class="menu-sous">23 joueurs. Un plafond. La Coupe.</div>
         </header>
+        <div class="menu-maj-place"></div>
         ${heros ? `<button type="button" class="menu-continuer" data-menu="continuer">
           <span class="mc-mot">Continuer</span>
           ${active ? `<span class="mc-quoi">${GENRES[active.genre] ? GENRES[active.genre].ico : ''} ${esc(active.titre)} · ${esc(ligneResume(active) || quand(active.maj))}</span>` : ''}
@@ -193,6 +195,14 @@ function dessiner(m) {
       </div>`;
   }
 
+  // LA MISE À JOUR (js/mise-a-jour.js) : au menu principal seulement, et seulement quand une version plus récente
+  // attend à GitHub ; la réponse arrive après le dessin, le bouton se glisse sous le titre.
+  const place = m.querySelector('.menu-maj-place');
+  if (place) miseAJour().then(o => {
+    if (!o || !place.isConnected) return;
+    place.innerHTML = `<button type="button" class="menu-lien menu-maj">Mettre à jour <small>la version ${esc(o.version)} est prête</small> ›</button>`;
+    place.firstElementChild.onclick = () => telecharger(o.url);
+  });
   m.querySelectorAll('[data-menu]').forEach(b => {
     b.onclick = () => {
       const quoi = b.dataset.menu, id = b.dataset.id;

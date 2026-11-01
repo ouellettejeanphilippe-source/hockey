@@ -1,0 +1,137 @@
+name: Publier
+
+# LA RELEASE DE CHAQUE VERSION (1er nov. 2026 ; JP : *ajouter un bouton pour updater le jeu à même le menu principal
+# lorsque pas à jour*). La version du jeu, c'est celle de sw.js (`VERSION = 'cap82-3.2.0'`). À chaque poussée sur main
+# dont la version n'a pas encore sa release, cette Action fabrique :
+#
+#   l'APK      comme mobile/fabriquer-apk.ps1 : assembler-www, cap sync, Gradle, zipalign, apksigner. Il est signé avec
+#              LA MÊME clé que l'APK déjà installé, sinon Android refuse de l'installer par-dessus. La clé reste hors du
+#              dépôt : deux secrets du dépôt (Settings › Secrets and variables › Actions) la donnent —
+#                CAP82_KEYSTORE_B64  le fichier apps-locales.keystore en base64
+#                                    (PowerShell : [Convert]::ToBase64String([IO.File]::ReadAllBytes('D:\sdk\keys\apps-locales.keystore')))
+#                CAP82_KEYPASS       son mot de passe
+#              Sans eux, la release part sans APK (un avertissement le dit), et le téléphone ne voit rien à installer.
+#   l'exe      l'installateur Windows d'electron-builder (desktop/), à la version du jeu.
+#
+# puis la release `v<version>`, que le menu du jeu lit (js/mise-a-jour.js) pour offrir la mise à jour.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publier
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      neuve: ${{ steps.v.outputs.neuve }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(sed -nE "s/.*VERSION = 'cap82-([0-9]+\.[0-9]+\.[0-9]+)'.*/\1/p" sw.js | head -1)
+          test -n "$V" || { echo "::error::pas de VERSION dans sw.js"; exit 1; }
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "La release v$V existe déjà : rien à publier."
+            echo "neuve=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "neuve=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  apk:
+    needs: version
+    if: needs.version.outputs.neuve == 'true'
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.CAP82_KEYSTORE_B64 }}
+      KEYPASS: ${{ secrets.CAP82_KEYPASS }}
+    steps:
+      - if: env.KEYSTORE_B64 == '' || env.KEYPASS == ''
+        run: echo "::warning::Les secrets CAP82_KEYSTORE_B64 et CAP82_KEYPASS manquent : la release part sans APK (voir l'en-tête de publier.yml)."
+      - if: env.KEYSTORE_B64 != '' && env.KEYPASS != ''
+        uses: actions/checkout@v4
+      - if: env.KEYSTORE_B64 != '' && env.KEYPASS != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - if: env.KEYSTORE_B64 != '' && env.KEYPASS != ''
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Assembler et synchroniser
+        if: env.KEYSTORE_B64 != '' && env.KEYPASS != ''
+        working-directory: mobile
+        run: |
+          npm ci
+          node assembler-www.mjs
+          npx cap sync android
+      - name: Compiler
+        if: env.KEYSTORE_B64 != '' && env.KEYPASS != ''
+        working-directory: mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+      - name: Aligner et signer
+        if: env.KEYSTORE_B64 != '' && env.KEYPASS != ''
+        run: |
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/cle.keystore"
+          "$BT/zipalign" -p 4 mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligne.apk"
+          "$BT/apksigner" sign --ks "$RUNNER_TEMP/cle.keystore" --ks-pass env:KEYPASS --key-pass env:KEYPASS --ks-key-alias apps-locales --out Cap-82-0.apk "$RUNNER_TEMP/aligne.apk"
+          "$BT/apksigner" verify Cap-82-0.apk
+          rm -f "$RUNNER_TEMP/cle.keystore"
+      - if: env.KEYSTORE_B64 != '' && env.KEYPASS != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: Cap-82-0.apk
+
+  exe:
+    needs: version
+    if: needs.version.outputs.neuve == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fabriquer l'installateur
+        working-directory: desktop
+        shell: bash
+        run: |
+          npm ci
+          npx electron-builder --win nsis --x64 --publish never -c.extraMetadata.version=${{ needs.version.outputs.version }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exe
+          path: desktop/dist/Cap-82-0-installateur.exe
+
+  release:
+    needs: [version, apk, exe]
+    if: always() && needs.version.outputs.neuve == 'true' && needs.exe.result == 'success' && needs.apk.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: fichiers
+      - name: La release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ needs.version.outputs.version }}
+        run: |
+          ls -R fichiers
+          gh release create "v$V" fichiers/*/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+            --title "Cap 82-0 $V" \
+            --notes "La version $V du jeu. Le menu principal de l'application l'offre d'elle-même. Android : ouvre Cap-82-0.apk, il s'installe par-dessus et garde tes parties. Windows : Cap-82-0-installateur.exe."
