@@ -2,6 +2,7 @@
 
 - `decisions.md` — l'histoire de chaque décision, de S1 à la V21 (31 oct. 2026) : le pourquoi, ce qui a été essayé et écarté, ce qui a été mesuré ; un titre par décision. Les plus récentes en bas (la main d'adjoints, la Boîte en plein écran, le temps de glace inféré).
 - `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).
+- `sur-glace.md` — Sur glace, toutes les fonctions d'un jeu de hockey 2D (1er nov. 2026), JP : *fais la liste de toutes les fonctions nécessaires, du game feel, au but objet physique, à la physique de changer de direction en patin* : par domaine, faite, partielle ou à faire, ce qui la porte, et l'ordre de travail (la hauteur de la rondelle d'abord).
 - `structure-detaillee.md` — la structure du dépôt, fichier par fichier, dans sa version longue.
 - `organisation-equilibrage.md` — équilibrer sans casser le jeu : où vivent les chiffres, ce qui casse, et le plan en dix actions (l'empreinte du moteur d'abord).
 - `refonte-v21.md` — le coach, un personnage (29 oct.), JP : *you didn't really redo the system* ; *coach-personnage à la Hades* ; *1 parmi 3 gratuit aux moments forts* ; son niveau (1 à 5) et son expérience, ses trois pouvoirs joués période par période, ses talents, son staff d'adjoints (une main de six, trois en poste, un échange chacun), son bras droit, ton entraîneur en vraie carte de coach-saison ; le personnel de la V10 à la V20 part. **La refonte en cours.**

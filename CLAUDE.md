@@ -16,7 +16,7 @@ Lis `LIVRAISON.md` — c'est le plan de travail courant et son journal : la 1.0 
 
 Lis `ARCHITECTURE.md` — il explique pourquoi le découpage se fait par saison et non par équipe. Ce choix n'est pas arbitraire et le défaire casse la normalisation par époque.
 
-Lis `MOTEUR.md` — c'est la spécification de la refonte de la simulation par événements, avec les mesures qui appuient chaque choix. Si tu touches à `js/sim.js`, lis-le avant, et `docs/moteur-recalibrer.md` pour la recalibration.
+Lis `MOTEUR.md` — c'est la spécification de la refonte de la simulation par événements, avec les mesures qui appuient chaque choix. Si tu touches à `js/sim.js`, lis-le avant, et `docs/moteur-recalibrer.md` pour la recalibration. Pour Sur glace, `docs/sur-glace.md` est l'inventaire de toutes les fonctions d'un jeu de hockey 2D, faites ou à faire, et l'ordre de travail.
 
 `PLAN.md` garde l'état court et les décisions prises. L'histoire de chaque décision (pourquoi, ce qui a été essayé et écarté, mesuré) est dans `docs/decisions.md` ; les refontes du Rogue dans `docs/refonte-v*.md` ; le journal des sprints S7 à S80 dans `docs/journal/` (depuis, le journal vit dans LIVRAISON.md). Avant de défaire une règle ci-dessous, lis sa décision.
 
