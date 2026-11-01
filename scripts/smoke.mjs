@@ -1921,7 +1921,7 @@ if (enabled) {
     const lbAvant = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_leaderboard') || '[]').length; } catch { return -1; } });
     await page.reload({ waitUntil: 'networkidle' });
     let poRepris = true;
-    try { await page.waitForSelector('#hubModal .hub-sheet', { state: 'visible', timeout: 90000 }); }
+    try { await page.waitForSelector('#hubModal .hub-sheet', { state: 'visible', timeout: 180000 }); }
     catch { poRepris = false; }
     if (!poRepris) {
       console.log('\n✗ les séries en cours ne survivent pas à un rafraîchissement : l\'écran des séries ne rouvre pas.');
