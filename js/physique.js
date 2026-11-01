@@ -45,12 +45,12 @@ export const LIGNE_BUT = L / 2 - 11 * PIED;  // 27,13 : la ligne de but, à 3,35
 export const BLEUE = 25 * PIED;              // 7,62 : la ligne bleue, de part et d'autre du centre
 /* Les points de mise en jeu de la zone, ceux de la zone neutre, et le rayon des cercles. */
 export const POINT = { x: L / 2 - 31 * PIED, y: 22 * PIED, r: 15 * PIED, neutre: BLEUE - 5 * PIED };
-export const FILET = { large: 6 * PIED, profond: 44 / 12 * PIED, poteau: 0.03, enclave: 6 * PIED };
+export const FILET = { large: 6 * PIED, profond: 44 / 12 * PIED, haut: 4 * PIED, poteau: 0.03, enclave: 6 * PIED };   // `haut` : la barre horizontale, 1,22 m
 
 const PAS = 1 / 120;
 const G = 9.81;
 
-export const RONDELLE = { masse: 0.17, rayon: 0.038, frottement: 0.10, bande: 0.55, poteau: 0.70, filet: 0.10 };
+export const RONDELLE = { masse: 0.17, rayon: 0.038, frottement: 0.10, bande: 0.55, poteau: 0.70, filet: 0.10, rebondSol: 0.35, vitre: 2.3 };   // `vitre` : plus haut que ça contre la bande, la rondelle sort du jeu
 export const PATIN = {
   masse: 85, rayon: 0.55,   // un peu plus gros que nature (JP : *joueur plus gros un peu*) : il se voit, il se frappe
   vMax: 10.6,       // la vitesse de pointe, m/s (38 km/h)
@@ -61,6 +61,11 @@ export const PATIN = {
   adherence: 18,    // l'accélération latérale que les lames tiennent, m/s² : le rayon de virage, c'est v² / adherence
   pivot: 9,         // le virage sur place, rad/s
   portee: 1.5,      // la rondelle plus loin que ça de la lame est perdue
+  virage: 0.06,     // le prix d'un virage : la part de vitesse perdue par radian tourné (couper sec coûte)
+  croise: 1.25,     // les croisés : la poussée bonifiée quand on tourne à vitesse moyenne
+  recul: 0.8,       // à reculons, la pointe et la poussée valent ça du droit
+  sprint: 1.18,     // le turbo (le bouton tenu avec la rondelle) : la pointe et la poussée, au prix des jambes
+  sprintJambes: 4,  // × l'usure des jambes pendant le turbo
   bande: 0.15,      // ce que le patineur rend sur la bande
   sol: 1.4,         // le temps au sol après une chute, s
 };
@@ -80,19 +85,24 @@ export const BATON = {
   reception: 16,             // une rondelle qui arrive plus vite que ça ne se prend pas : elle dévie
   lachee: 0.25,              // après un tir ou une passe, la lame la laisse filer ce temps-là
   uneTemps: 0.9,             // le tir sur réception part à cette part du lancer frappé, sans charger
+  hauteurMin: 1.2, hauteurMax: 4.2,   // la montée du lancer, m/s : le poignet reste bas, le frappé chargé monte aux coins du haut
+  ecartHauteur: 0.6,         // l'écart-type de la montée, m/s (plus à pleine charge) : par-dessus la barre, ça arrive
+  soulevee: 2.8,             // la passe soulevée (saucer) : sa montée, m/s, quand un bâton barre la ligne (40 cm au plus haut, par-dessus une lame)
+  deviation: 0.12,           // l'écart d'une déviation volontaire vers le filet, rad
 };
 export const GARDIEN = {
   reaction: 0.15, vMax: 5, accel: 14, demi: 0.5, profondeur: 0.3,
+  trous: { haut: 0.35, cinq: 0.2, corps: 0.03 },   // ce qui passe quand même : le coin du haut (la mitaine, le bloqueur), entre les jambières, sur le corps
   sortie: 1.1,       // à combien devant la ligne il défie, m
   couvre: 0.5,       // la part des arrêts gelés ; l'autre part rebondit
   rebond: 0.35,      // ce qu'un rebond garde de la vitesse
 };
-export const CHUTE = { seuil: 300 };   // l'écart d'élan, kg·m/s, au-delà duquel le moins lancé des deux tombe
-export const HARPON = { duree: 0.25, portee: 2.2, largeur: 0.55, repos: 0.7, pousse: 5 };   // le harponnage : un coup de bâton devant soi
-const ECHEC = { duree: 0.35, repos: 1.2, accel: 2, vMax: 1.15, derriere: 0.6, recent: 1.0 };   // l'élan d'une mise en échec ; par-derrière et sur qui n'a pas la rondelle, c'est puni
+export const CHUTE = { seuil: 300, bande: 1.5 };   // l'écart d'élan, kg·m/s, au-delà duquel le moins lancé des deux tombe ; contre la bande, le coup pèse plus
+export const HARPON = { duree: 0.25, portee: 2.2, largeur: 0.55, repos: 0.7, pousse: 5, trebuche: 0.04 };   // le harponnage : un coup de bâton devant soi ; raté sur le porteur, un sur vingt-cinq l'accroche
+const ECHEC = { duree: 0.35, repos: 1.2, accel: 2, vMax: 1.15, derriere: 0.8, recent: 1.0 };   // l'élan d'une mise en échec ; par-derrière et sur qui n'a pas la rondelle, c'est puni
 const JAMBES = { usure: 2.4, repos: 4, changement: 55, presence: 45 };   // la fatigue d'une présence : ce qu'elle coûte par seconde, ce que le banc rend, quand on change
 export const MATCH = {
-  periode: 180, prolongation: 120, surglace: 5, surglaceOT: 3, rondesFusillade: 3,
+  periode: 180, prolongation: 120, surglace: 5, surglaceOT: 3, rondesFusillade: 3, retraitGardien: 90, tirDePunition: 12,
   punition: 120, mej: 0.9, pauses: { but: 2.5, gel: 1.2, horsjeu: 1.2, degagement: 1.2, punition: 1.5, periode: 3, fin: 0 },
 };
 
@@ -136,8 +146,11 @@ export function parametresDuPatineur({ cote = 10, tir = 10, jeu = 10, defense = 
     defense: defense / 20,                // le harpon
     masse: poidsLb ? poidsLb * 0.4536 : PATIN.masse,
     equilibre: 0.7 + 0.03 * robustesse,   // × le seuil de chute
+    agilite: 1 + (85 - (poidsLb ? poidsLb * 0.4536 : PATIN.masse)) / 150,   // un petit tourne plus court : × l'adhérence et le pivot
   };
 }
+/* La difficulté : ce que le club de l'IA vaut de plus ou de moins (JP : *toutes les mécaniques*). */
+export const DIFFICULTES = { facile: 0.93, normal: 1, difficile: 1.07 };
 export function parametresDuGardien({ arrets = 10 } = {}) {
   return { reaction: 0.21 - 0.004 * arrets, demi: 0.42 + 0.005 * arrets, vMax: GARDIEN.vMax };
 }
@@ -150,12 +163,12 @@ function patineur(id, equipe, x, y, cap, extra = {}) {
     x, y, vx: 0, vy: 0, cap, masse: p.masse, rayon: PATIN.rayon, p,
     auSol: 0, charge: 0, lachee: 0, tenaitTir: false, tenaitPasse: false, tenaitEchec: false,
     harpon: 0, harponRepos: 0, elan: 0, elanRepos: 0, jambes: 100, surGlace: true, boxe: false, touche: -10,
-    poste0: extra.poste0 || null, ia: null,
+    poste0: extra.poste0 || null, ia: null, stats: { buts: 0, aides: 0, tirs: 0, echecs: 0, blocs: 0, tg: 0 },
   };
 }
 function gardienNeuf(equipe, sens, extra = {}) {
   const p = extra.p || parametresDuGardien();
-  return { equipe, sens, nom: extra.nom || 'le gardien', visage: extra.visage || null, p, x: sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [] };
+  return { equipe, sens, nom: extra.nom || 'le gardien', visage: extra.visage || null, p, x: sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [], retire: false, arrets: 0 };
 }
 
 /**
@@ -165,8 +178,8 @@ function gardienNeuf(equipe, sens, extra = {}) {
 export function nouvelleGlace(graine = 'glace') {
   const gardien = gardienNeuf('B', 1);
   const etat = {
-    mode: 'entrainement', graine, de: generateur(graine), t: 0, reste: 0, ia: null, humain: 'A', controle: 'toi',
-    rondelle: { x: 0, y: 0, vx: 0, vy: 0, porteur: null, dernier: null, passeDe: null, passeVers: null },
+    mode: 'entrainement', graine, de: generateur(graine), t: 0, reste: 0, ia: null, humains: ['A'], controles: { A: 'toi', B: null }, changeTenu: {},
+    rondelle: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, porteur: null, dernier: null, passeDe: null, passeVers: null },
     patineurs: [
       patineur('toi', 'A', -6, 0, 0),
       patineur('plot', 'B', LIGNE_BUT - 12, -4.5, Math.PI, { poste0: { x: LIGNE_BUT - 12, y: -4.5 } }),
@@ -186,26 +199,32 @@ export function nouvelleGlace(graine = 'glace') {
  * gardien: { nom, visage, p } }. Les trois trios et les deux paires, dans l'ordre des lignes. `humain` : 'A' (toi),
  * ou null (deux IA, pour mesurer). `ia` : la fonction de js/glace-ia.js. `regles` : { horsjeu, degagement }.
  */
-export function nouveauMatch({ graine = 'match', A, B, periode = MATCH.periode, prolongation = MATCH.prolongation, humain = 'A', ia = null, regles = {} } = {}) {
+export function nouveauMatch({ graine = 'match', A, B, periode = MATCH.periode, prolongation = MATCH.prolongation, humain = 'A', humains = null, ia = null, regles = {}, series = false, difficulte = 'normal' } = {}) {
+  const quiJoue = humains || (humain ? [humain] : []);
   const etat = {
-    mode: 'match', graine, de: generateur(graine), t: 0, reste: 0, ia, humain, controle: null,
-    rondelle: { x: 0, y: 0, vx: 0, vy: 0, porteur: null, dernier: null, passeDe: null, passeVers: null },
+    mode: 'match', graine, de: generateur(graine), t: 0, reste: 0, ia, humains: quiJoue, controles: { A: null, B: null }, changeTenu: {},
+    rondelle: { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, porteur: null, dernier: null, passeDe: null, passeVers: null },
     patineurs: [], gardiens: [], equipes: {},
     compte: { tirs: 0, buts: 0, arrets: 0, poteaux: 0, echecs: 0 },
     arret: null, dernierTir: 0, enJeu: false, mej: null,
     regles: { horsjeu: regles.horsjeu !== false, degagement: regles.degagement !== false },
     match: {
-      periode: 1, duree: periode, reste: periode, dureeOT: prolongation, prolongation: false, fini: false, vainqueur: null,
-      pointage: { A: 0, B: 0 }, tirs: { A: 0, B: 0 }, echecs: { A: 0, B: 0 }, mej: { A: 0, B: 0 }, pim: { A: 0, B: 0 },
-      penalites: [], enAttente: null, fusillade: null, journal: [],
+      periode: 1, duree: periode, reste: periode, dureeOT: prolongation, prolongation: false, series: !!series, fini: false, vainqueur: null,
+      pointage: { A: 0, B: 0 }, tirs: { A: 0, B: 0 }, echecs: { A: 0, B: 0 }, mej: { A: 0, B: 0 }, pim: { A: 0, B: 0 }, blocs: { A: 0, B: 0 },
+      penalites: [], enAttente: null, fusillade: null, ronde: null, tirDePunition: null, journal: [], touches: { A: [], B: [] }, etoiles: [],
     },
   };
+  const f = DIFFICULTES[difficulte] || 1;
   for (const [eq, club] of [['A', A], ['B', B]]) {
     const attaque = eq === 'A' ? 1 : -1;
     const E = { attaque, nom: club.nom || eq, tag: club.tag || eq, lignes: { F: [[], [], []], D: [[], []] }, enPoste: { F: 0, D: 0 }, presence: 0 };
+    // La difficulté pèse sur le club que l'IA joue seule.
+    const force = quiJoue.includes(eq) ? 1 : f;
     club.patineurs.forEach((j, k) => {
+      const p0 = j.p || parametresDuPatineur();
+      const p = force === 1 ? p0 : { ...p0, vMax: p0.vMax * force, accel: p0.accel * force, tir: p0.tir * force, precision: p0.precision / force };
       const s = patineur(j.id != null ? `${eq}:${j.id}` : `${eq}:${k}`, eq, -attaque * 5, 0, attaque > 0 ? 0 : Math.PI,
-        { poste: j.poste, nom: j.nom, visage: j.visage, ligne: j.ligne || 0, p: j.p });
+        { poste: j.poste, nom: j.nom, visage: j.visage, ligne: j.ligne || 0, p });
       s.surGlace = false;
       etat.patineurs.push(s);
       const groupe = j.poste === 'D' ? 'D' : 'F';
@@ -213,7 +232,9 @@ export function nouveauMatch({ graine = 'match', A, B, periode = MATCH.periode, 
       li.push(s.id);
     });
     etat.equipes[eq] = E;
-    etat.gardiens.push(gardienNeuf(eq, -attaque, { nom: club.gardien && club.gardien.nom, visage: club.gardien && club.gardien.visage, p: club.gardien && club.gardien.p }));
+    const pg0 = (club.gardien && club.gardien.p) || parametresDuGardien();
+    const pg = force === 1 ? pg0 : { ...pg0, reaction: pg0.reaction / (force * force), demi: pg0.demi * force };
+    etat.gardiens.push(gardienNeuf(eq, -attaque, { nom: club.gardien && club.gardien.nom, visage: club.gardien && club.gardien.visage, p: pg }));
   }
   for (const eq of ['A', 'B']) habiller(etat, eq);
   arreter(etat, 'debut', { x: 0, y: 0 }, 0.5);
@@ -226,8 +247,24 @@ const parId = (etat, id) => etat.patineurs.find(s => s.id === id);
 const penalisesDe = (etat, eq) => etat.match.penalites.filter(p => p.equipe === eq).length;
 /* Combien de patineurs une équipe a droit sur la glace : cinq, trois en prolongation, moins ses punis, trois au moins. */
 export function droitSurGlace(etat, eq) {
-  const base = etat.match.prolongation ? MATCH.surglaceOT : MATCH.surglace;
-  return Math.max(3, base - penalisesDe(etat, eq));
+  const base = etat.match.prolongation && !etat.match.series ? MATCH.surglaceOT : MATCH.surglace;
+  const sixieme = gardienDe(etat, eq).retire ? 1 : 0;
+  return Math.max(3, base - penalisesDe(etat, eq)) + sixieme;
+}
+/*
+ * RETIRER LE GARDIEN (un sixième attaquant) : il va au banc tout de suite, le patineur le plus reposé du banc saute sur
+ * la glace ; remis, il revient dans son filet à l'arrêt de jeu suivant. L'IA le fait d'elle-même en fin de match quand
+ * elle tire de l'arrière (`MATCH.retraitGardien` secondes), et le remet si elle revient à égalité.
+ */
+export function retirerGardien(etat, eq, oui) {
+  const Gd = gardienDe(etat, eq);
+  if (!etat.match || Gd.retire === oui) return;
+  Gd.retire = oui;
+  if (oui) {
+    Object.assign(Gd, { x: (eq === 'A' ? -1 : 1) * 8, y: W / 2 + 1.2, vx: 0, vy: 0 });
+    const banc = etat.patineurs.filter(s => s.equipe === eq && !s.surGlace && !s.boxe).sort((a, b) => b.jambes - a.jambes)[0];
+    if (banc) { banc.surGlace = true; banc.x = (eq === 'A' ? -1 : 1) * 8; banc.y = W / 2 - 1; banc.vx = 0; banc.vy = 0; banc.cap = -Math.PI / 2; }
+  }
 }
 
 /* ---------- l'alignement : qui est sur la glace ---------- */
@@ -358,27 +395,37 @@ function patiner(s, e, enJeu) {
     return;
   }
   const forme = formeDe(s);
-  const vMax = s.p.vMax * forme * (s.elan > 0 ? ECHEC.vMax : 1), accel = s.p.accel * forme * (s.elan > 0 ? ECHEC.accel : 1);
+  const recul = !!(e && e.recul);
+  const sprint = !!(e && e.sprint && s.jambes > 5);
+  const vMax = s.p.vMax * forme * (s.elan > 0 ? ECHEC.vMax : 1) * (recul ? PATIN.recul : 1) * (sprint ? PATIN.sprint : 1);
+  const accel = s.p.accel * forme * (s.elan > 0 ? ECHEC.accel : 1) * (recul ? PATIN.recul : 1) * (sprint ? PATIN.sprint : 1);
+  const agilite = s.p.agilite || 1;
   const v = hyp(s.vx, s.vy);
   const m = e && enJeu ? Math.min(1, hyp(e.x || 0, e.y || 0)) : 0;
-  let pousse = 0;
+  let pousse = 0, omega = 0;
   if (m > 0.1) {
     const phi = Math.atan2(e.y, e.x);
-    const d = plier(phi - s.cap);
-    if (Math.abs(d) > 2.1 && v > 1.2) {
+    // À RECULONS : on regarde à l'opposé de là où l'on va (le défenseur face au porteur), et l'on pousse dans le bâton.
+    const d = plier((recul ? phi + Math.PI : phi) - s.cap);
+    if (!recul && Math.abs(d) > 2.1 && v > 1.2) {
       const f = Math.max(0, v - PATIN.frein * m * PAS) / v;
       s.vx *= f; s.vy *= f;
       s.cap += clamp(d, -1, 1) * PAS;
     } else {
-      const omegaMax = Math.min(PATIN.pivot, PATIN.adherence / Math.max(v, 0.5));
-      s.cap += clamp(d * 6, -omegaMax, omegaMax) * PAS;
+      const omegaMax = Math.min(PATIN.pivot * agilite, PATIN.adherence * agilite / Math.max(v, 0.5));
+      omega = clamp(d * 6, -omegaMax, omegaMax);
+      s.cap += omega * PAS;
       pousse = accel * m * Math.max(0, Math.cos(d)) * (s.charge > 0 ? 0.5 : 1);
-      s.vx += Math.cos(s.cap) * pousse * PAS; s.vy += Math.sin(s.cap) * pousse * PAS;
+      // LES CROISÉS : en tournant à vitesse moyenne, on pousse plus fort que tout droit.
+      if (Math.abs(omega) > 0.4 && v > 2 && v < 0.9 * vMax) pousse *= PATIN.croise;
+      const sens = recul ? phi : s.cap;
+      s.vx += Math.cos(sens) * pousse * PAS; s.vy += Math.sin(sens) * pousse * PAS;
     }
   }
   const v2 = hyp(s.vx, s.vy);
   if (v2 > 0) {
-    const dec = (pousse > 0 ? 0 : PATIN.glisse) + PATIN.accel * (v2 / vMax) ** 2;
+    // LE PRIX DU VIRAGE : couper sec coûte de la vitesse (les carres mordent, l'énergie part dans la glace).
+    const dec = (pousse > 0 ? 0 : PATIN.glisse) + PATIN.accel * (v2 / vMax) ** 2 + Math.abs(omega) * PATIN.virage * v2;
     const f = Math.max(0, v2 - dec * PAS) / v2;
     s.vx *= f; s.vy *= f;
   }
@@ -388,8 +435,8 @@ function patiner(s, e, enJeu) {
   s.vx = avant * c - travers * n; s.vy = avant * n + travers * c;
   s.cap = plier(s.cap);
   s.x += s.vx * PAS; s.y += s.vy * PAS;
-  // Les jambes : une présence coûte, d'autant plus qu'on pousse.
-  if (enJeu) s.jambes = Math.max(0, s.jambes - JAMBES.usure * (0.4 + 0.6 * m) * PAS);
+  // Les jambes : une présence coûte, d'autant plus qu'on pousse, et le turbo quatre fois plus. Le temps de glace se compte.
+  if (enJeu) { s.jambes = Math.max(0, s.jambes - JAMBES.usure * (0.4 + 0.6 * m) * (sprint ? PATIN.sprintJambes : 1) * PAS); s.stats.tg += PAS; }
 }
 
 /* Le plot : il retourne à son poste, à petite vitesse, et fait face au centre. */
@@ -437,21 +484,27 @@ function collisions(etat, ev) {
     frappeur.choc = { sur: frappe.id, t: etat.t };
     const elanAvant = frappeur === a ? avantA : avantB;
     const vf = hyp(elanAvant.vx, elanAvant.vy) || 1e-9;
-    const fort = Math.abs(ecart) > CHUTE.seuil * frappe.p.equilibre && vf > 4;
+    // Contre la bande, le coup pèse plus : le corps n'a nulle part où aller.
+    const contreLaBande = Math.abs(frappe.x) > L / 2 - 1.6 || Math.abs(frappe.y) > W / 2 - 1.6;
+    const poids = Math.abs(ecart) * (contreLaBande ? CHUTE.bande : 1);
+    const fort = poids > CHUTE.seuil * frappe.p.equilibre && vf > 4;
     ev.push({ type: 'echec', fort, qui: frappeur.id, sur: frappe.id });
     etat.compte.echecs++;
-    if (etat.match && fort) etat.match.echecs[frappeur.equipe]++;
+    if (etat.match && fort) { etat.match.echecs[frappeur.equipe]++; frappeur.stats.echecs++; }
     if (fort) {
-      if (frappe.auSol <= 0) frappe.auSol = PATIN.sol;
+      if (frappe.auSol <= 0) frappe.auSol = PATIN.sol * (contreLaBande ? 1.3 : 1);
       if (etat.rondelle.porteur === frappe.id) { etat.rondelle.porteur = null; frappe.lachee = BATON.lachee; etat.rondelle.dernier = { equipe: frappe.equipe, id: frappe.id, t: etat.t, x: etat.rondelle.x, lance: false }; }
     }
-    // Une vraie charge (qui renverse, lancée à l'élan ou à pleine vitesse) sur qui n'a pas la rondelle et n'est pas
-    // dans la bataille pour elle, ou par-derrière : deux minutes.
-    if (fort && etat.match && !etat.match.fusillade && (frappeur.elan > 0 || vf > 7)) {
-      const parDerriere = (elanAvant.vx * Math.cos(frappe.cap) + elanAvant.vy * Math.sin(frappe.cap)) / vf > ECHEC.derriere;
+    // UNE PUNITION NE TOMBE QUE SUR UNE CHARGE VOULUE (JP : *ya trop de pénalités, c'est non stop*) : le bouton d'élan
+    // pressé, le coup qui renverse ; jamais sur une collision de course. Sur qui n'a pas la rondelle et n'est pas dans
+    // la bataille pour elle, l'obstruction ; par-derrière, la charge (contre la bande, la charge contre la bande).
+    if (fort && etat.match && !etat.match.ronde && frappeur.elan > 0) {
+      // Par-derrière : le frappeur arrive dans le dos du frappé (sa position, projetée sur le cap du frappé).
+      const dd = hyp(frappe.x - frappeur.x, frappe.y - frappeur.y) || 1e-9;
+      const parDerriere = ((frappe.x - frappeur.x) * Math.cos(frappe.cap) + (frappe.y - frappeur.y) * Math.sin(frappe.cap)) / dd > ECHEC.derriere;
       const loinDeLaRondelle = hyp(frappe.x - etat.rondelle.x, frappe.y - etat.rondelle.y) > 3;
       const sansRondelle = etat.rondelle.porteur !== frappe.id && etat.t - frappe.touche > ECHEC.recent && loinDeLaRondelle;
-      if (parDerriere) punir(etat, frappeur, 'charge par-derrière', ev);
+      if (parDerriere) punir(etat, frappeur, contreLaBande ? 'charge contre la bande' : 'charge par-derrière', ev);
       else if (sansRondelle) punir(etat, frappeur, 'obstruction', ev);
     }
   }
@@ -469,7 +522,7 @@ function harponner(etat, s, ev) {
   const dansLeCouloir = (x, y) => { const u = (x - s.x) * c + (y - s.y) * n, v = -(x - s.x) * n + (y - s.y) * c; return u > 0.3 && u < HARPON.portee && Math.abs(v) < HARPON.largeur; };
   const porteur = R.porteur ? parId(etat, R.porteur) : null;
   const notrePasse = !porteur && R.passeDe && parId(etat, R.passeDe) && parId(etat, R.passeDe).equipe === s.equipe;
-  if (dansLeCouloir(R.x, R.y) && (!porteur || porteur.equipe !== s.equipe) && !notrePasse) {
+  if (dansLeCouloir(R.x, R.y) && R.z < 0.4 && (!porteur || porteur.equipe !== s.equipe) && !notrePasse) {
     const chance = porteur ? clamp(0.5 + (s.p.defense - (1.4 - porteur.p.passe) / 0.03 / 20) * 0.6, 0.25, 0.85) : 1;
     if (etat.de() < chance) {
       if (porteur) { R.porteur = null; porteur.lachee = 0.4; }
@@ -477,25 +530,34 @@ function harponner(etat, s, ev) {
       toucher(etat, s, false);
       s.lachee = 0.2;
       ev.push({ type: 'harpon', qui: s.id });
+    } else if (porteur && etat.de() < HARPON.trebuche && (porteur.x - s.x) * Math.cos(porteur.cap) + (porteur.y - s.y) * Math.sin(porteur.cap) > 0) {
+      // Le harpon rate, par-derrière, et accroche les patins du porteur : il tombe, deux minutes ; sur une échappée, un tir de punition.
+      porteur.auSol = PATIN.sol * 0.8;
+      if (etat.match && !etat.match.ronde) {
+        if (enEchappee(etat, porteur)) accorderTirDePunition(etat, porteur, s, ev);
+        else punir(etat, s, 'avoir fait trébucher', ev);
+      }
     }
     s.harpon = 0;
-    return;
   }
-  for (const o of etat.patineurs) {
-    if (!o.surGlace || o.equipe === s.equipe || o.auSol > 0) continue;
-    if (dansLeCouloir(o.x, o.y) && hyp(o.x - s.x, o.y - s.y) < 1.1 && R.porteur !== o.id && etat.de() < (1 / 6) * PAS / HARPON.duree) {
-      o.auSol = PATIN.sol * 0.8;
-      if (etat.match && !etat.match.fusillade) punir(etat, s, 'avoir fait trébucher', ev);
-      s.harpon = 0;
-      return;
-    }
-  }
+}
+/* Une échappée : le porteur dans la moitié adverse, aucun adversaire entre lui et le filet (le gardien à part). */
+function enEchappee(etat, porteur) {
+  const a = etat.equipes[porteur.equipe].attaque;
+  if (porteur.x * a < 0) return false;
+  return !etat.patineurs.some(o => o.surGlace && o.equipe !== porteur.equipe && o.x * a > porteur.x * a - 1);
 }
 
 /* ---------- la rondelle ---------- */
 function toucher(etat, s, lance) {
   etat.rondelle.dernier = { equipe: s.equipe, id: s.id, t: etat.t, x: etat.rondelle.x, lance };
   s.touche = etat.t;
+  if (!etat.match) return;
+  const T = etat.match.touches;
+  T[autre(s.equipe)] = [];   // l'autre équipe perd son fil
+  const mien = T[s.equipe];
+  if (!mien.length || mien[mien.length - 1].id !== s.id) mien.push({ id: s.id, t: etat.t });
+  if (mien.length > 4) mien.shift();
 }
 
 function rondelle(etat, entrees, ev) {
@@ -504,6 +566,7 @@ function rondelle(etat, entrees, ev) {
   const avantX = R.x;
   if (porteur) {
     porteur.touche = etat.t;
+    R.z = 0; R.vz = 0;
     const lm = lame(porteur);
     const dx = lm.x - R.x, dy = lm.y - R.y;
     let ax = BATON.ressort * dx - BATON.amorti * (R.vx - porteur.vx);
@@ -522,22 +585,36 @@ function rondelle(etat, entrees, ev) {
       else if (porteur.tenaitTir && !e.tir) {
         const part = Math.min(1, porteur.charge / BATON.charge);
         const v = (BATON.tirMin + (BATON.tirMax - BATON.tirMin) * part) * porteur.p.tir;
-        lancer(etat, porteur, viseeAssistee(etat, porteur, vise, m > 0.1 ? e : null), v, BATON.ecart * (1 + 0.6 * part) * porteur.p.precision, 0.5);
+        lancer(etat, porteur, viseeAssistee(etat, porteur, vise, m > 0.1 ? e : null), v, BATON.ecart * (1 + 0.6 * part) * porteur.p.precision, 0.5,
+          BATON.hauteurMin + (BATON.hauteurMax - BATON.hauteurMin) * part + gauss(etat.de) * BATON.ecartHauteur * (1 + part));
         tirer(etat, porteur, ev, part);
       }
     }
     return;
   }
-  // Libre : le frottement, la bande, le filet.
+  // Libre : le frottement au sol, la gravité en l'air, la bande (et la vitre), le filet.
   const v = hyp(R.vx, R.vy);
-  if (v > 0) { const f = Math.max(0, v - RONDELLE.frottement * G * PAS) / v; R.vx *= f; R.vy *= f; }
+  if (v > 0 && R.z <= 0) { const f = Math.max(0, v - RONDELLE.frottement * G * PAS) / v; R.vx *= f; R.vy *= f; }
+  if (R.z > 0 || R.vz > 0) {
+    R.vz -= G * PAS; R.z += R.vz * PAS;
+    if (R.z <= 0) { R.z = 0; R.vz = R.vz < -0.6 ? -R.vz * RONDELLE.rebondSol : 0; if (R.vz === 0) { R.vx *= 0.85; R.vy *= 0.85; } }
+  }
   R.x += R.vx * PAS; R.y += R.vy * PAS;
   const choc = bander(R, RONDELLE.rayon, RONDELLE.bande);
   if (choc > 3) ev.push({ type: 'bande', v: choc });
-  contreFilet(R, RONDELLE.rayon, etat, ev);
+  // Par-dessus la vitre : hors jeu, mise en jeu au point le plus près.
+  if (choc > 0 && R.z > RONDELLE.vitre && etat.match && !etat.match.ronde) {
+    ev.push({ type: 'vitre' });
+    R.z = 0; R.vz = 0;
+    arreter(etat, 'vitre', { x: Math.sign(R.x || 1) * (Math.abs(R.x) > BLEUE ? POINT.x : POINT.neutre), y: Math.sign(R.y || 1) * POINT.y }, MATCH.pauses.horsjeu);
+    return;
+  }
+  if (R.z < FILET.haut) contreFilet(R, RONDELLE.rayon, etat, ev);
   if (but(etat, avantX, ev)) return;
   if (etat.match && degagement(etat, avantX, ev)) return;
-  // Quelqu'un la prend ? À la lame, devant, si elle n'arrive pas trop vite ; sinon, le corps la dévie.
+  // Quelqu'un la prend ? À la lame, devant, si elle n'arrive pas trop vite et qu'elle est au sol ; sinon, le corps ou
+  // le bâton la dévie : un coéquipier du lanceur, le bâton prêt, la redirige vers le filet ; un adversaire la bloque.
+  const vol = hyp(R.vx, R.vy) > 12;
   for (const s of etat.patineurs) {
     if (!s.surGlace) continue;
     if (s.lachee > 0) { s.lachee -= PAS; continue; }
@@ -546,36 +623,64 @@ function rondelle(etat, entrees, ev) {
     const dl = hyp(R.x - lm.x, R.y - lm.y);
     const devant = (R.x - s.x) * Math.cos(s.cap) + (R.y - s.y) * Math.sin(s.cap) > 0;
     const vrel = hyp(R.vx - s.vx, R.vy - s.vy);
+    if (R.z > 1.4) continue;   // trop haut pour tout le monde
     if (dl < 0.7 || (dl < PATIN.portee - 0.3 && devant && vrel < 4)) {
       const passeAMoi = R.passeDe && R.passeDe !== s.id && parId(etat, R.passeDe) && parId(etat, R.passeDe).equipe === s.equipe;
-      if (vrel <= BATON.reception * (passeAMoi ? 1.5 : 1)) {
-        R.porteur = s.id;
+      if (vrel <= BATON.reception * (passeAMoi ? 1.5 : 1) && R.z < 0.35) {
+        R.porteur = s.id; R.z = 0; R.vz = 0;
         toucher(etat, s, false);
-        if (etat.humain === s.equipe) etat.controle = s.id;
+        if (etat.humains.includes(s.equipe)) etat.controles[s.equipe] = s.id;
         ev.push({ type: 'prise', qui: s.id, passe: !!passeAMoi });
-        // LE TIR SUR RÉCEPTION (une-temps) : le bouton tenu quand la passe arrive, le lancer part tout de suite.
         const e = entrees[s.id];
+        // LE TIR SUR RÉCEPTION (une-temps) : le bouton tenu quand la passe arrive, le lancer part tout de suite.
         if (passeAMoi && e && e.tir) {
           const vise = viseeAssistee(etat, s, s.cap, hyp(e.x || 0, e.y || 0) > 0.1 ? e : null);
-          lancer(etat, s, vise, BATON.tirMax * BATON.uneTemps * s.p.tir, BATON.ecart * 2.2 * s.p.precision, 0.3);
+          lancer(etat, s, vise, BATON.tirMax * BATON.uneTemps * s.p.tir, BATON.ecart * 2.2 * s.p.precision, 0.3, BATON.hauteurMax * 0.7 + gauss(etat.de) * BATON.ecartHauteur);
           tirer(etat, s, ev, 1, true);
         }
+        // LA MÉMOIRE D'UN APPUI : la passe tenue quand elle arrive repart aussitôt (le une-deux).
+        s.tenaitPasse = false;
         R.passeDe = null; R.passeVers = null;
         return;
       }
-      const nx = (R.x - lm.x) / (dl || 1e-9), ny = (R.y - lm.y) / (dl || 1e-9);
-      const vn = R.vx * nx + R.vy * ny;
-      if (vn < 0) { R.vx -= 1.4 * vn * nx; R.vy -= 1.4 * vn * ny; R.vx *= 0.4; R.vy *= 0.4; toucher(etat, s, false); }
-      continue;
+      // La déviation : vers le filet pour un coéquipier du lanceur qui tient son bâton (la lame levée jusqu'à 1,2 m).
+      const d = R.dernier;
+      const e = entrees[s.id];
+      if (vol && d && d.equipe === s.equipe && d.id !== s.id && e && e.tir && R.z < 1.2) {
+        const vise = viseeAssistee(etat, s, Math.atan2(R.vy, R.vx), null) + gauss(etat.de) * BATON.deviation;
+        const vt = hyp(R.vx, R.vy) * 0.8;
+        R.vx = Math.cos(vise) * vt; R.vy = Math.sin(vise) * vt; R.vz = Math.max(0, R.vz) * 0.5 + 0.5;
+        toucher(etat, s, true);
+        s.lachee = 0.2;
+        ev.push({ type: 'deviation', qui: s.id });
+        return;
+      }
+      // La lame sur la glace la dévie si elle rase le sol (une passe soulevée passe par-dessus) ; un lancer adverse, c'est un bloc.
+      if (R.z < 0.3) {
+        const nx = (R.x - lm.x) / (dl || 1e-9), ny = (R.y - lm.y) / (dl || 1e-9);
+        const vn = R.vx * nx + R.vy * ny;
+        if (vn < 0) {
+          R.vx -= 1.4 * vn * nx; R.vy -= 1.4 * vn * ny; R.vx *= 0.4; R.vy *= 0.4; R.vz = Math.min(R.vz, 0);
+          bloquer(etat, s, vol, ev);
+        }
+        continue;
+      }
     }
-    if (contreCercle(R, RONDELLE.rayon, s.x, s.y, s.rayon, 0.3) > 0) toucher(etat, s, false);
+    // Le corps (les patins, les jambières, le tronc jusqu'à un mètre) la dévie ; un lancer adverse, c'est un bloc.
+    if (R.z < 1.0 && contreCercle(R, RONDELLE.rayon, s.x, s.y, s.rayon, 0.3) > 0) bloquer(etat, s, vol, ev);
   }
+}
+function bloquer(etat, s, vol, ev) {
+  const d = etat.rondelle.dernier;
+  if (vol && d && d.tir && d.equipe !== s.equipe && etat.match) { etat.match.blocs[s.equipe]++; s.stats.blocs++; ev.push({ type: 'bloc', qui: s.id }); }
+  toucher(etat, s, false);
 }
 
 /* Un tir compté : les tirs du match, le dernier tir, l'événement. */
 function tirer(etat, s, ev, part, uneTemps = false) {
   etat.compte.tirs++;
-  if (etat.match) etat.match.tirs[s.equipe]++;
+  etat.rondelle.dernier.tir = true;   // un lancer au but, pas une passe : ce qu'un bloc arrête
+  if (etat.match) { etat.match.tirs[s.equipe]++; s.stats.tirs++; }
   etat.dernierTir = hyp(etat.rondelle.vx, etat.rondelle.vy);
   ev.push({ type: 'tir', v: etat.dernierTir, charge: part, qui: s.id, uneTemps });
 }
@@ -588,8 +693,13 @@ function but(etat, avantX, ev) {
     const entre = Math.abs(R.y) < FILET.large / 2 - RONDELLE.rayon;
     const passee = s > 0 ? (R.x - RONDELLE.rayon > xb && avantX - RONDELLE.rayon <= xb) : (R.x + RONDELLE.rayon < xb && avantX + RONDELLE.rayon >= xb);
     if (!(entre && passee)) continue;
+    // LA BARRE HORIZONTALE : trop haut, la rondelle passe par-dessus ; juste à la barre, elle sonne et revient.
+    if (R.z + RONDELLE.rayon > FILET.haut) {
+      if (R.z - RONDELLE.rayon < FILET.haut + 0.06) { R.x = avantX; R.vx = -R.vx * RONDELLE.poteau; R.vz = -Math.abs(R.vz) * 0.5; etat.compte.poteaux++; ev.push({ type: 'poteau', barre: true }); }
+      continue;
+    }
     etat.compte.buts++;
-    R.vx = 0; R.vy = 0; R.porteur = null;
+    R.vx = 0; R.vy = 0; R.vz = 0; R.z = 0; R.porteur = null;
     if (!etat.match) { etat.arret = { genre: 'but', reste: 2 }; ev.push({ type: 'but', cote: s }); return true; }
     // Qui marque : l'équipe qui attaque ce filet ; un but dans son propre filet compte pour l'autre.
     const pour = etat.equipes.A.attaque === s ? 'A' : 'B';
@@ -604,9 +714,14 @@ function but(etat, avantX, ev) {
 function marquer(etat, pour, marqueur, ev) {
   const M = etat.match;
   M.pointage[pour]++;
-  M.journal.push({ t: etat.t, periode: M.periode, reste: M.reste, equipe: pour, qui: marqueur, fusillade: !!M.fusillade });
-  ev.push({ type: 'but', equipe: pour, qui: marqueur });
-  if (M.fusillade) { finDeRonde(etat, true, ev); return; }
+  // Les passes décisives : les deux derniers coéquipiers à avoir touché la rondelle avant le marqueur, dans les quinze secondes.
+  const aides = marqueur && !M.ronde
+    ? M.touches[pour].filter(t => t.id !== marqueur && etat.t - t.t < 15).map(t => t.id).filter((id, i, l) => l.indexOf(id) === i).slice(-2).reverse()
+    : [];
+  M.journal.push({ t: etat.t, periode: M.periode, reste: M.reste, equipe: pour, qui: marqueur, aides, fusillade: !!M.fusillade, punition: !!M.tirDePunition });
+  if (marqueur && !M.fusillade) { parId(etat, marqueur).stats.buts++; for (const a of aides) parId(etat, a).stats.aides++; }
+  ev.push({ type: 'but', equipe: pour, qui: marqueur, aides });
+  if (M.ronde) { finDeRonde(etat, true, ev); return; }
   // Un but en avantage numérique libère le puni qui a le moins de temps à faire ; une punition en attente contre l'autre s'annule.
   const contre = autre(pour);
   const punis = M.penalites.filter(p => p.equipe === contre).sort((a, b) => a.reste - b.reste);
@@ -674,7 +789,7 @@ function viseeAssistee(etat, s, vise, baton) {
 }
 
 /* Un lancer : la rondelle part de la lame, dans la visée, à la vitesse dite plus une part de l'élan du corps. */
-function lancer(etat, s, vise, v, ecart, elan) {
+function lancer(etat, s, vise, v, ecart, elan, montee = 0) {
   const R = etat.rondelle;
   const ang = vise + gauss(etat.de) * ecart;
   const lm = lame(s);
@@ -682,6 +797,7 @@ function lancer(etat, s, vise, v, ecart, elan) {
   const long = s.vx * Math.cos(ang) + s.vy * Math.sin(ang);
   const vt = v + Math.max(0, long) * elan;
   R.vx = Math.cos(ang) * vt; R.vy = Math.sin(ang) * vt;
+  R.z = 0.02; R.vz = Math.max(0, montee);
   R.porteur = null;
   R.passeDe = null; R.passeVers = null;
   s.lachee = BATON.lachee;
@@ -694,11 +810,11 @@ function lancer(etat, s, vise, v, ecart, elan) {
  * ouvert devant), à qui l'on mène la rondelle là où il sera ; la vitesse monte avec la distance ; l'écart suit le Jeu
  * du passeur. Personne dans le cône : la rondelle part dans le bâton (un renvoi). Le receveur prend le contrôle.
  */
-function passer(etat, s, baton, vise, ev) {
-  const R = etat.rondelle;
+/** À qui la passe irait, et si la ligne est barrée : ce que l'écran montre avant l'appui. */
+export function receveurDePasse(etat, s, baton) {
   const lm = lame(s);
   const ang0 = baton ? Math.atan2(baton.y, baton.x) : s.cap;
-  let meilleur = null, score = -Infinity;
+  let meilleur = null, score = -Infinity, barree = false;
   for (const m of etat.patineurs) {
     if (!m.surGlace || m.equipe !== s.equipe || m.id === s.id || m.auSol > 0) continue;
     const dx = m.x - lm.x, dy = m.y - lm.y, d = hyp(dx, dy) || 1e-9;
@@ -715,8 +831,14 @@ function passer(etat, s, baton, vise, ev) {
       if (hyp(o.x - px, o.y - py) < 1.3) couvert++;
     }
     const sc = Math.cos(ecartAng) * 2 - d / 25 - couvert * 1.5;
-    if (sc > score) { score = sc; meilleur = m; }
+    if (sc > score) { score = sc; meilleur = m; barree = couvert > 0; }
   }
+  return { vers: meilleur, barree };
+}
+function passer(etat, s, baton, vise, ev) {
+  const R = etat.rondelle;
+  const lm = lame(s);
+  const { vers: meilleur, barree } = receveurDePasse(etat, s, baton);
   if (!meilleur) {
     lancer(etat, s, vise, BATON.passe, BATON.ecart * 0.6 * s.p.passe, 1);
     ev.push({ type: 'passe', qui: s.id, vers: null });
@@ -732,9 +854,10 @@ function passer(etat, s, baton, vise, ev) {
     d = hyp(tx - lm.x, ty - lm.y);
     v = clamp(BATON.passe + (d - 8) * BATON.passeLoin, BATON.passe * 0.8, BATON.passeMax);
   }
-  lancer(etat, s, Math.atan2(ty - lm.y, tx - lm.x), v, BATON.ecart * 0.6 * s.p.passe, 0.5);
+  // La ligne barrée par un bâton : la passe soulevée passe par-dessus et retombe.
+  lancer(etat, s, Math.atan2(ty - lm.y, tx - lm.x), v, BATON.ecart * 0.6 * s.p.passe, 0.5, barree ? BATON.soulevee : 0);
   R.passeDe = s.id; R.passeVers = meilleur.id;
-  ev.push({ type: 'passe', qui: s.id, vers: meilleur.id });
+  ev.push({ type: 'passe', qui: s.id, vers: meilleur.id, soulevee: barree });
 }
 
 /* ---------- le gardien ---------- */
@@ -745,6 +868,7 @@ function passer(etat, s, baton, vise, ev) {
  */
 function gardien(etat, Gd, ev) {
   const R = etat.rondelle, s = Gd.sens;
+  if (Gd.retire) return;   // au banc : le filet est désert
   const n = Math.round(Gd.p.reaction / PAS);
   const vueDuJour = { x: R.x, y: R.y, vx: R.vx, vy: R.vy, libre: !R.porteur };
   while (Gd.memoire.length < n) Gd.memoire.push(vueDuJour);
@@ -776,17 +900,22 @@ function gardien(etat, Gd, ev) {
   if (R.porteur || etat.arret) return;
   const dansY = Math.abs(R.y - Gd.y) < Gd.p.demi + RONDELLE.rayon;
   const dansX = Math.abs(R.x - Gd.x) < GARDIEN.profondeur + RONDELLE.rayon;
-  if (!(dansY && dansX)) return;
+  if (!(dansY && dansX) || R.z > FILET.haut) return;
   const vr = hyp(R.vx, R.vy);
-  if (vr < 2) { geler(etat, Gd, ev); return; }
+  if (vr < 2 && R.z < 0.3) { geler(etat, Gd, ev); return; }
   if (R.vx * s <= 0) return;
+  // LES TROUS : le coin du haut (la mitaine, le bloqueur), entre les jambières, le corps — ce qui passe quand même.
+  const dy = Math.abs(R.y - Gd.y);
+  const trou = R.z > 0.85 && dy > 0.35 ? GARDIEN.trous.haut : R.z < 0.2 && dy < 0.18 ? GARDIEN.trous.cinq : GARDIEN.trous.corps;
+  if (etat.de() < trou) return;   // elle passe
   etat.compte.arrets++;
+  Gd.arrets++;
   R.x = Gd.x - s * (GARDIEN.profondeur + RONDELLE.rayon + 0.02);
   if (etat.de() < GARDIEN.couvre) { geler(etat, Gd, ev, true); }
   else {
     const ang = (s > 0 ? Math.PI : 0) + (etat.de() - 0.5) * 1.4;
     const vt = vr * GARDIEN.rebond;
-    R.vx = Math.cos(ang) * vt; R.vy = Math.sin(ang) * vt;
+    R.vx = Math.cos(ang) * vt; R.vy = Math.sin(ang) * vt; R.vz = 0.5; R.z = Math.min(R.z, 0.3);
     ev.push({ type: 'arret', gele: false, equipe: Gd.equipe });
   }
 }
@@ -795,7 +924,7 @@ function geler(etat, Gd, ev, arret = false) {
   R.vx = 0; R.vy = 0;
   ev.push(arret ? { type: 'arret', gele: true, equipe: Gd.equipe } : { type: 'gel', equipe: Gd.equipe });
   if (!etat.match) { etat.arret = { genre: 'gel', reste: 1.5 }; return; }
-  if (etat.match.fusillade) { finDeRonde(etat, false, ev); return; }
+  if (etat.match.ronde) { finDeRonde(etat, false, ev); return; }
   arreter(etat, 'gel', { x: Gd.sens * POINT.x, y: Math.sign(R.y || 1) * POINT.y }, MATCH.pauses.gel);
 }
 
@@ -804,7 +933,7 @@ function geler(etat, Gd, ev, arret = false) {
 function arreter(etat, genre, point, pause) {
   etat.enJeu = false;
   etat.arret = { genre, reste: pause, point };
-  etat.rondelle.porteur = null;
+  etat.rondelle.porteur = null; etat.rondelle.z = 0; etat.rondelle.vz = 0;
   etat.rondelle.passeDe = null; etat.rondelle.passeVers = null;
   for (const s of etat.patineurs) { s.charge = 0; s.harpon = 0; s.elan = 0; }
   // Une punition en attente tombe à l'arrêt de jeu.
@@ -817,9 +946,10 @@ function arreter(etat, genre, point, pause) {
  * bouton pressé juste à la chute : +0,35), le gagnant la tire derrière lui, vers un défenseur.
  */
 function placerMiseEnJeu(etat, point) {
-  if (etat.match && !etat.match.fusillade) for (const eq of ['A', 'B']) habiller(etat, eq);
+  if (etat.match && !etat.match.ronde) for (const eq of ['A', 'B']) habiller(etat, eq);
   const R = etat.rondelle;
-  R.x = point.x; R.y = point.y; R.vx = 0; R.vy = 0; R.porteur = null; R.dernier = null;
+  R.x = point.x; R.y = point.y; R.z = 0; R.vx = 0; R.vy = 0; R.vz = 0; R.porteur = null; R.dernier = null;
+  if (etat.match) { etat.match.touches.A = []; etat.match.touches.B = []; }
   const centres = {};
   for (const eq of ['A', 'B']) {
     const s = etat.equipes[eq].attaque;
@@ -839,15 +969,14 @@ function placerMiseEnJeu(etat, point) {
     D.forEach((p, i) => place(p, point.x - s * 8, point.y + (i === 0 ? -3.5 : 3.5)));
     centres[eq] = centre ? centre.id : null;
     const Gd = gardienDe(etat, eq);
-    Object.assign(Gd, { x: Gd.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [] });
+    if (!Gd.retire) Object.assign(Gd, { x: Gd.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [] });
   }
   // Les joueurs hors glace : au banc, ou au cachot.
   for (const s of etat.patineurs) if (!s.surGlace) { s.x = (s.equipe === 'A' ? -1 : 1) * (s.boxe ? 3 : 8); s.y = (s.boxe ? -1 : 1) * (W / 2 + 1.2); s.vx = 0; s.vy = 0; }
   etat.mej = { point, reste: MATCH.mej, centres, appuis: { A: null, B: null } };
-  if (etat.humain) {
-    const mien = surGlace(etat, etat.humain);
-    const c = centres[etat.humain];
-    etat.controle = c || (mien[0] && mien[0].id) || null;
+  for (const eq of etat.humains) {
+    const mien = surGlace(etat, eq);
+    etat.controles[eq] = centres[eq] || (mien[0] && mien[0].id) || null;
   }
 }
 function tomber(etat, ev) {
@@ -875,7 +1004,7 @@ function tomber(etat, ev) {
 function punir(etat, s, genre, ev) {
   const M = etat.match;
   if (!M || M.fini) return;
-  if (M.penalites.some(p => p.id === s.id) || M.enAttente) return;   // une punition en attente à la fois
+  if (M.penalites.some(p => p.id === s.id) || M.enAttente || M.tirDePunition) return;   // une punition en attente à la fois
   const p = { id: s.id, equipe: s.equipe, genre, reste: MATCH.punition };
   ev.push({ type: 'punition', qui: s.id, equipe: s.equipe, genre, attente: false });
   const porteur = etat.rondelle.porteur ? parId(etat, etat.rondelle.porteur) : null;
@@ -892,7 +1021,7 @@ function appliquerPunition(etat, p) {
   M.pim[p.equipe] += 2;
   s.surGlace = false; s.boxe = true;
   s.x = (s.equipe === 'A' ? -1 : 1) * 3; s.y = -(W / 2 + 1.2); s.vx = 0; s.vy = 0;
-  if (etat.controle === s.id) etat.controle = null;
+  for (const eq of ['A', 'B']) if (etat.controles[eq] === s.id) etat.controles[eq] = null;
   if (!etat.arret) {
     const sg = etat.equipes[p.equipe].attaque;
     arreter(etat, 'punition', { x: -sg * POINT.x, y: Math.sign(etat.rondelle.y || 1) * POINT.y }, MATCH.pauses.punition);
@@ -913,17 +1042,28 @@ function finDePeriode(etat, ev) {
   ev.push({ type: 'periode', periode: M.periode });
   if (M.periode >= 3 || M.prolongation) {
     if (M.pointage.A !== M.pointage.B) { finir(etat, M.pointage.A > M.pointage.B ? 'A' : 'B', ev); return; }
-    if (!M.prolongation) { M.prolongation = true; M.periode++; M.reste = M.dureeOT; }
+    // En séries, la prolongation à cinq, autant qu'il en faut ; en saison, une à trois, puis les tirs de barrage.
+    if (M.series) { M.prolongation = true; M.periode++; M.reste = M.duree; }
+    else if (!M.prolongation) { M.prolongation = true; M.periode++; M.reste = M.dureeOT; }
     else { commencerFusillade(etat, ev); return; }
   } else { M.periode++; M.reste = M.duree; }
+  for (const g of etat.gardiens) g.retire = false;
   for (const eq of ['A', 'B']) etat.equipes[eq].attaque = -etat.equipes[eq].attaque;
   for (const g of etat.gardiens) g.sens = -g.sens;
   for (const s of etat.patineurs) s.jambes = Math.min(100, s.jambes + 40);
   arreter(etat, 'periode', { x: 0, y: 0 }, MATCH.pauses.periode);
 }
+/* Les trois étoiles : les buts, les passes, les tirs et les mises en échec ; un gardien vaut ses arrêts. */
+function etoilesDu(etat) {
+  const M = etat.match;
+  const notes = etat.patineurs.map(s => ({ id: s.id, nom: s.nom, equipe: s.equipe, visage: s.visage, note: s.stats.buts * 3 + s.stats.aides * 2 + s.stats.tirs * 0.3 + s.stats.echecs * 0.2 + s.stats.blocs * 0.2, stats: s.stats }));
+  for (const g of etat.gardiens) notes.push({ id: `G:${g.equipe}`, nom: g.nom, equipe: g.equipe, visage: g.visage, gardien: true, note: g.arrets * 0.5 + (M.pointage[autre(g.equipe)] === 0 && g.arrets > 0 ? 3 : 0), stats: { arrets: g.arrets } });
+  return notes.sort((a, b) => b.note - a.note).slice(0, 3);
+}
 function finir(etat, vainqueur, ev) {
   const M = etat.match;
   M.fini = true; M.vainqueur = vainqueur;
+  M.etoiles = etoilesDu(etat);
   etat.enJeu = false;
   etat.arret = { genre: 'fin', reste: Infinity, point: null };
   etat.rondelle.porteur = null;
@@ -943,29 +1083,44 @@ function commencerFusillade(etat, ev) {
   ev.push({ type: 'fusillade' });
   arreter(etat, 'fusillade', null, 1.5);
 }
-function placerRonde(etat) {
-  const F = etat.match.fusillade, R = etat.rondelle;
-  const eq = F.tireur, s = etat.equipes[eq].attaque;
-  const ids = F.ordre[eq];
-  const tireur = parId(etat, ids[F.essais[eq] % ids.length]);
+/* Une ronde : un tireur seul devant le gardien, du centre — les tirs de barrage, ou un tir de punition. */
+function placerRonde(etat, eq, tireurId, genre) {
+  const M = etat.match, R = etat.rondelle;
+  const s = etat.equipes[eq].attaque;
+  const tireur = parId(etat, tireurId);
   for (const p of etat.patineurs) { p.surGlace = p.id === tireur.id; p.x = (p.equipe === 'A' ? -1 : 1) * 8; p.y = W / 2 + 1.2; p.vx = 0; p.vy = 0; p.auSol = 0; p.charge = 0; }
   tireur.x = -s * 2; tireur.y = 0; tireur.cap = s > 0 ? 0 : Math.PI; tireur.surGlace = true; tireur.lachee = 0; tireur.ia = null;
-  R.x = 0; R.y = 0; R.vx = 0; R.vy = 0; R.porteur = null; R.dernier = null;
-  for (const g of etat.gardiens) Object.assign(g, { x: g.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [] });
-  etat.controle = etat.humain === eq ? tireur.id : null;
-  F.reste = 12;
-  F.enCours = { eq, tireur: tireur.id };
+  R.x = 0; R.y = 0; R.z = 0; R.vx = 0; R.vy = 0; R.vz = 0; R.porteur = null; R.dernier = null;
+  for (const g of etat.gardiens) { g.retire = false; Object.assign(g, { x: g.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [] }); }
+  etat.controles = { A: null, B: null };
+  if (etat.humains.includes(eq)) etat.controles[eq] = tireur.id;
+  M.ronde = { eq, tireur: tireur.id, genre, reste: MATCH.tirDePunition };
   etat.enJeu = true;
 }
+/* Le tir de punition : accordé sur une échappée fauchée ; joué comme une ronde, puis le match reprend. */
+function accorderTirDePunition(etat, porteur, fautif, ev) {
+  const M = etat.match;
+  M.tirDePunition = { eq: porteur.equipe, tireur: porteur.id, fautif: fautif.id };
+  ev.push({ type: 'tirpunition', equipe: porteur.equipe, qui: porteur.id, fautif: fautif.id });
+  arreter(etat, 'tirpunition', null, MATCH.pauses.punition);
+}
 function finDeRonde(etat, but, ev) {
-  const M = etat.match, F = M.fusillade;
-  if (!F.enCours) return;
-  const eq = F.enCours.eq;
-  F.enCours = null;
+  const M = etat.match, R0 = M.ronde;
+  if (!R0) return;
+  const eq = R0.eq;
+  M.ronde = null;
+  ev.push({ type: 'ronde', equipe: eq, but, genre: R0.genre });
+  etat.rondelle.porteur = null; etat.rondelle.vx = 0; etat.rondelle.vy = 0; etat.rondelle.z = 0; etat.rondelle.vz = 0;
+  if (R0.genre === 'punition') {
+    // Le match reprend : au centre après un but, dans la zone du gardien sinon.
+    M.tirDePunition = null;
+    const sg = etat.equipes[eq].attaque;
+    arreter(etat, but ? 'but' : 'gel', but ? { x: 0, y: 0 } : { x: sg * POINT.x, y: Math.sign(etat.rondelle.y || 1) * POINT.y }, but ? MATCH.pauses.but : MATCH.pauses.gel);
+    return;
+  }
+  const F = M.fusillade;
   F.essais[eq]++;
   if (but) F.buts[eq]++;
-  ev.push({ type: 'ronde', equipe: eq, but });
-  etat.rondelle.porteur = null; etat.rondelle.vx = 0; etat.rondelle.vy = 0;
   // Décidé ? Après trois rondes chacun, celui qui mène ; avant, si l'autre ne peut plus rattraper.
   const nA = F.essais.A, nB = F.essais.B, bA = F.buts.A, bB = F.buts.B, R = MATCH.rondesFusillade;
   const resteA = Math.max(0, R - nA), resteB = Math.max(0, R - nB);
@@ -983,7 +1138,7 @@ function finDeRonde(etat, but, ev) {
 /* Après un but, tout au centre ; après un gel, une mise en jeu au point du côté de la rondelle. */
 export function remise(etat, genre = 'but') {
   const R = etat.rondelle, toi = etat.patineurs[0];
-  R.vx = 0; R.vy = 0; R.porteur = null; R.dernier = null;
+  R.vx = 0; R.vy = 0; R.z = 0; R.vz = 0; R.porteur = null; R.dernier = null;
   if (genre === 'but') { R.x = 0; R.y = 0; toi.x = -6; toi.y = 0; }
   else { R.x = POINT.x; R.y = Math.sign(R.y || -1) * POINT.y; toi.x = POINT.x - 2.5; toi.y = R.y; }
   toi.vx = 0; toi.vy = 0; toi.cap = 0; toi.auSol = 0; toi.charge = 0; toi.lachee = 0;
@@ -1004,7 +1159,13 @@ function pas(etat, entrees, ev) {
     const genre = etat.arret.genre, point = etat.arret.point;
     etat.arret = null;
     if (!M) { remise(etat, genre); ev.push({ type: 'remise' }); return; }
-    if (M.fusillade) { placerRonde(etat); ev.push({ type: 'remise' }); return; }
+    if (M.tirDePunition) { placerRonde(etat, M.tirDePunition.eq, M.tirDePunition.tireur, 'punition'); ev.push({ type: 'remise' }); return; }
+    if (M.fusillade) {
+      const F = M.fusillade, ids = F.ordre[F.tireur];
+      placerRonde(etat, F.tireur, ids[F.essais[F.tireur] % ids.length], 'fusillade');
+      ev.push({ type: 'remise' });
+      return;
+    }
     placerMiseEnJeu(etat, point);
     ev.push({ type: 'remise', point });
     return;
@@ -1030,12 +1191,23 @@ function pas(etat, entrees, ev) {
     for (const s of etat.patineurs) if (!s.surGlace && !s.boxe) s.jambes = Math.min(100, s.jambes + JAMBES.repos * PAS);
     if (M.reste <= 0) { M.reste = 0; finDePeriode(etat, ev); return; }
   }
-  if (M && M.fusillade && M.fusillade.enCours) {
-    M.fusillade.reste -= PAS;
-    const s = etat.equipes[M.fusillade.enCours.eq].attaque, R = etat.rondelle, tireur = parId(etat, M.fusillade.enCours.tireur);
-    const recule = R.vx * s < -1 && !R.porteur, trop = M.fusillade.reste <= 0, passee = Math.abs(R.x) > LIGNE_BUT + 0.5 && !R.porteur;
+  if (M && M.ronde) {
+    M.ronde.reste -= PAS;
+    const s = etat.equipes[M.ronde.eq].attaque, R = etat.rondelle, tireur = parId(etat, M.ronde.tireur);
+    const recule = R.vx * s < -1 && !R.porteur, trop = M.ronde.reste <= 0, passee = Math.abs(R.x) > LIGNE_BUT + 0.5 && !R.porteur;
     const perduePres = !R.porteur && hyp(R.vx, R.vy) < 0.5 && hyp(R.x - tireur.x, R.y - tireur.y) > 3;
     if (recule || trop || passee || perduePres) { finDeRonde(etat, false, ev); return; }
+  }
+  // L'IA retire son gardien en fin de match quand elle tire de l'arrière, et le remet si elle revient.
+  if (M && etat.enJeu && !M.ronde && (etat.tic & 63) === 0) {
+    for (const eq of ['A', 'B']) {
+      if (etat.humains.includes(eq)) continue;
+      const Gd = gardienDe(etat, eq), a = etat.equipes[eq].attaque;
+      const ecart = M.pointage[autre(eq)] - M.pointage[eq];
+      const veut = M.periode === 3 && !M.prolongation && M.reste < MATCH.retraitGardien && ecart >= 1 && ecart <= 2 && etat.rondelle.x * a > 0;
+      if (veut && !Gd.retire) retirerGardien(etat, eq, true);
+      else if (Gd.retire && ecart <= 0) retirerGardien(etat, eq, false);
+    }
   }
   // Les entrées de chacun : l'humain, sinon l'IA.
   const entreesDe = s => {
@@ -1067,7 +1239,7 @@ function pas(etat, entrees, ev) {
   for (const s of etat.patineurs) if (s.surGlace) { bander(s, s.rayon, PATIN.bande); patineurContreFilet(s); }
   const avantX = etat.rondelle.x;
   rondelle(etat, toutes, ev);
-  if (M && !etat.arret && !M.fusillade) horsJeu(etat, avantX, ev);
+  if (M && !etat.arret && !M.ronde) horsJeu(etat, avantX, ev);
   for (const Gd of etat.gardiens) gardien(etat, Gd, ev);
   for (const s of etat.patineurs) {
     const e = toutes[s.id];
@@ -1076,18 +1248,19 @@ function pas(etat, entrees, ev) {
     s.tenaitEchec = !!(e && e.echec);
     if (!s.tenaitTir) s.charge = 0;
   }
-  // Le changement de joueur de l'humain : demandé, ou quand l'adversaire a la rondelle et que le contrôlé en est loin.
-  if (etat.humain && M) {
-    const e = etat.controle ? entrees[etat.controle] : null;
+  // Le changement de joueur de chaque humain : demandé, ou quand l'adversaire a la rondelle et que le contrôlé en est loin.
+  if (M) for (const eq of etat.humains) {
+    const ctl = etat.controles[eq];
+    const e = ctl ? entrees[ctl] : null;
     const porteur = etat.rondelle.porteur ? parId(etat, etat.rondelle.porteur) : null;
     // Sans la rondelle, le bouton de la passe change de joueur (comme à la console) ; `changer` le fait aussi.
-    const veut = !!(e && (e.changer || (e.passe && etat.rondelle.porteur !== etat.controle)));
-    const demande = veut && !etat.changeTenu;
-    etat.changeTenu = veut;
-    if (demande || !etat.controle || !parId(etat, etat.controle).surGlace) changerDeJoueur(etat, demande, ev);
-    else if (porteur && porteur.equipe !== etat.humain && (etat.tic & 15) === 0) {
-      const proches = plusProches(etat, etat.humain, etat.rondelle);
-      if (proches.length > 1 && proches[0] !== etat.controle && proches[1] !== etat.controle) changerDeJoueur(etat, false, ev);
+    const veut = !!(e && (e.changer || (e.passe && etat.rondelle.porteur !== ctl)));
+    const demande = veut && !etat.changeTenu[eq];
+    etat.changeTenu[eq] = veut;
+    if (demande || !ctl || !parId(etat, ctl).surGlace) changerDeJoueur(etat, eq, demande, ev);
+    else if (porteur && porteur.equipe !== eq && (etat.tic & 15) === 0) {
+      const proches = plusProches(etat, eq, etat.rondelle);
+      if (proches.length > 1 && proches[0] !== ctl && proches[1] !== ctl) changerDeJoueur(etat, eq, false, ev);
     }
   }
 }
@@ -1095,12 +1268,12 @@ function plusProches(etat, eq, o) {
   return surGlace(etat, eq).map(s => [s.id, hyp(s.x - o.x, s.y - o.y)]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
 }
 /* Le changement de joueur : le plus proche de la rondelle ; demandé, le suivant si c'est déjà lui. */
-function changerDeJoueur(etat, demande, ev) {
-  const proches = plusProches(etat, etat.humain, etat.rondelle);
-  if (!proches.length) { etat.controle = null; return; }
+function changerDeJoueur(etat, eq, demande, ev) {
+  const proches = plusProches(etat, eq, etat.rondelle);
+  if (!proches.length) { etat.controles[eq] = null; return; }
   let vers = proches[0];
-  if (demande && vers === etat.controle && proches.length > 1) vers = proches[1];
-  if (vers !== etat.controle) { etat.controle = vers; ev.push({ type: 'changement', qui: vers }); }
+  if (demande && vers === etat.controles[eq] && proches.length > 1) vers = proches[1];
+  if (vers !== etat.controles[eq]) { etat.controles[eq] = vers; ev.push({ type: 'changement', qui: vers, equipe: eq }); }
 }
 
 /**
@@ -1120,7 +1293,7 @@ export function avancer(etat, entrees, dt) {
 export function empreinte(etat) {
   const r = x => Math.round(x * 1000);
   const R = etat.rondelle;
-  const mots = [r(etat.t), r(R.x), r(R.y), r(R.vx), r(R.vy), R.porteur || '-',
+  const mots = [r(etat.t), r(R.x), r(R.y), r(R.z), r(R.vx), r(R.vy), R.porteur || '-',
     ...etat.gardiens.flatMap(g => [r(g.x), r(g.y)]),
     ...etat.patineurs.flatMap(s => [r(s.x), r(s.y), r(s.vx), r(s.vy), r(s.cap), r(s.auSol), r(s.jambes)]),
     etat.compte.tirs, etat.compte.buts, etat.compte.arrets, etat.compte.poteaux];
@@ -1144,6 +1317,8 @@ export function reglesDeLaGlace() {
     `La passe part à ${kmh(BATON.passe)} km/h, plus ${dec(BATON.passeLoin)} m/s par mètre de plus, menée là où le coéquipier sera ; le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, le tir sur réception à ${Math.round(BATON.uneTemps * 100)} % du frappé sans charger ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (plus à pleine charge), et un filet à moins de ${Math.round(BATON.assist * 57.3)}° de ton cap attire le tir : le bâton choisit où (droit, le centre ; penché, le coin ; à fond de côté, ${Math.round(BATON.large * 100)} cm à côté du poteau).`,
     `Une mise en échec échange l'élan des deux corps (masse × vitesse) ; le moins lancé tombe ${dec(PATIN.sol)} s si l'écart dépasse ${CHUTE.seuil} kg·m/s (× son équilibre), et lâche la rondelle. L'élan du bouton pousse ${ECHEC.accel} fois plus fort pendant ${dec(ECHEC.duree, 2)} s. Frapper qui n'a pas la rondelle depuis ${dec(ECHEC.recent)} s, ou par-derrière : ${MATCH.punition / 60} minutes.`,
     `Le gardien voit la rondelle ${Math.round(GARDIEN.reaction * 1000)} ms en retard (sa cote Arrêts le raccourcit), bouge à ${kmh(GARDIEN.vMax)} km/h au plus, couvre ${dec(GARDIEN.demi * 2, 2)} m des ${dec(FILET.large, 2)} m du filet ; il gèle ${Math.round(GARDIEN.couvre * 100)} % de ses arrêts, les autres rebondissent à ${Math.round(GARDIEN.rebond * 100)} % de la vitesse.`,
-    `Le hors-jeu se siffle à l'entrée de la zone, le dégagement refusé quand la rondelle lancée de sa moitié passe la ligne de but sans être touchée (permis en désavantage) ; la mise en jeu tombe après ${dec(MATCH.mej)} s, le bouton pressé juste à la chute vaut un bonus. Trois périodes, puis ${MATCH.prolongation / 60} minutes à ${MATCH.surglaceOT} contre ${MATCH.surglaceOT}, puis ${MATCH.rondesFusillade} tirs de barrage et la mort subite.`,
+    `Le hors-jeu se siffle à l'entrée de la zone, le dégagement refusé quand la rondelle lancée de sa moitié passe la ligne de but sans être touchée (permis en désavantage) ; la mise en jeu tombe après ${dec(MATCH.mej)} s, le bouton pressé juste à la chute vaut un bonus. Trois périodes, puis ${MATCH.prolongation / 60} minutes à ${MATCH.surglaceOT} contre ${MATCH.surglaceOT}, puis ${MATCH.rondesFusillade} tirs de barrage et la mort subite ; en séries, la prolongation à cinq, autant qu'il en faut.`,
+    `La rondelle a une hauteur : le poignet monte à ${dec(BATON.hauteurMin)} m/s, le frappé chargé à ${dec(BATON.hauteurMax)} m/s (±${dec(BATON.ecartHauteur)}), la gravité la ramène, le sol lui rend ${Math.round(RONDELLE.rebondSol * 100)} % ; la barre est à ${dec(FILET.haut, 2)} m, la vitre à ${dec(RONDELLE.vitre)} m (par-dessus, hors jeu) ; une passe dont la ligne est barrée se soulève à ${dec(BATON.soulevee)} m/s ; au sol seulement, elle se prend. Le gardien laisse passer ${Math.round(GARDIEN.trous.haut * 100)} % des tirs dans le coin du haut, ${Math.round(GARDIEN.trous.cinq * 100)} % entre les jambières, ${Math.round(GARDIEN.trous.corps * 100)} % sur le corps.`,
+    `À reculons, la pointe et la poussée valent ${Math.round(PATIN.recul * 100)} % ; le turbo les monte à ${Math.round(PATIN.sprint * 100)} % et use les jambes ${PATIN.sprintJambes} fois plus vite ; en tournant à vitesse moyenne, les croisés poussent ${Math.round((PATIN.croise - 1) * 100)} % plus fort ; couper sec coûte ${Math.round(PATIN.virage * 100)} % de vitesse par radian ; un patineur plus léger que ${PATIN.masse} kg tourne plus court. Un harpon raté par-derrière sur le porteur l'accroche une fois sur ${Math.round(1 / HARPON.trebuche)} : deux minutes, ou un tir de punition sur une échappée. Le gardien se retire pour un sixième attaquant (l'IA, sous ${MATCH.retraitGardien} s, à un ou deux buts) ; une charge contre la bande pèse ${dec(CHUTE.bande)} fois ; une punition ne tombe que sur une charge voulue, le bouton pressé.`,
   ];
 }
