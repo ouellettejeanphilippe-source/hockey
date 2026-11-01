@@ -239,6 +239,11 @@ const COUPS = {
     bruit(c, t, { gain: 0.25 * al(0.15), att: 0.001, dec: 0.018, type: 'highpass', freq: 2400 });
     note(c, t, { forme: 'triangle', freq: 1500 * al(), vers: 700, gain: 0.06, att: 0.001, dec: 0.03 });
   },
+  // le coup de patin : la carre qui mord la glace, court et sec (« tchk »), une jambe puis l'autre
+  coupDePatin(c, t, fort) {
+    bruit(c, t, { gain: 0.05 + 0.07 * fort, att: 0.004, dec: 0.09, freq: 5200, q: 1.6 });
+    bruit(c, t + 0.01, { gain: 0.03 + 0.03 * fort, att: 0.01, dec: 0.12, type: 'lowpass', freq: 1500 });
+  },
   frein(c, t) {
     bruit(c, t, { gain: 0.25, att: 0.01, dec: 0.25, freq: 1800, q: 2 });
     bruit(c, t + 0.05, { gain: 0.12, att: 0.02, dec: 0.3, type: 'lowpass', freq: 1200 });
@@ -278,7 +283,7 @@ export function fouleReagit(quoi) {
 }
 /* ---------- le crissement de ton patineur ---------- */
 /** Chaque image : la vitesse (m/s) et le virage (rad/s) de ton patineur ; 0 et 0 quand il n'y en a pas. */
-export function crissement(v, virage) {
+export function crissement(v, virage, { coup = false, freine = false } = {}) {
   if (!sonsActifs()) return;
   try {
     const c = contexte();
@@ -290,10 +295,12 @@ export function crissement(v, virage) {
       patins = { c, g, bp, dernierFrein: 0 };
     }
     const t = c.currentTime;
-    const gain = v < 1 ? 0 : Math.min(0.12, 0.12 * (v - 1) / 7);
+    // le chuintement de fond, plus bas qu'avant : ce sont les coups de patin qui font le son du patin
+    const gain = v < 1 ? 0 : Math.min(0.06, 0.06 * (v - 1) / 7);
     patins.g.gain.setTargetAtTime(gain, t, 0.05);
     patins.bp.frequency.setTargetAtTime(3000 + 375 * Math.min(8, v), t, 0.1);
-    if (Math.abs(virage) > 2.2 && v > 3 && t - patins.dernierFrein > 0.45) { patins.dernierFrein = t; COUPS.frein(c, t); }
+    if (coup && v > 0.8) COUPS.coupDePatin(c, t, Math.min(1, v / 8));
+    if ((freine || Math.abs(virage) > 2.2) && v > 3 && t - patins.dernierFrein > 0.45) { patins.dernierFrein = t; COUPS.frein(c, t); }
   } catch { /* rien */ }
 }
 /** Au départ de l'écran : la foule se tait, les patins aussi. */
