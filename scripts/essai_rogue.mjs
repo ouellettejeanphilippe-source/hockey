@@ -129,10 +129,11 @@ await page.addInitScript(cartes => {
   localStorage.setItem('essai80', '1');
   localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, i === 1 ? { v: { commune: 3 }, n: 3 } : { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
   // V16 (tranche 6) : « Le stage du coach » attend dans l'inventaire permanent, pour monter le coach d'un cran (plus bas, 10c).
-  // « Une caisse de départ » (+20 jetons) : les Harfangs puis le Pack Argent s'achètent quel que soit le tirage de la saison
-  // (sans elle, une caisse de 22 ou 36 jetons laissait l'essai en panne de jetons devant le Pack Argent : une loterie).
+  // « Une caisse de départ » et « Une grosse caisse » (+40 jetons) : les Harfangs puis le Pack Époque s'achètent quel que soit le
+  // tirage de la saison (sans elles, une caisse de 22 ou 36 jetons laissait l'essai en panne devant le pack : une loterie ;
+  // V23, les salaires des adjoints : 23 jetons après les Harfangs, sous les 26 de l'Époque).
   // V9 (tranche 8) : une Coupe déjà gagnée ouvre le premier cran des exigences ; l'essai le voit, et part au cran 0.
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], collection: [], cartes: [], runs: 0, coupes: 1, jalons: {}, jeu: 'v21', inventaire: { 'consommable:stage': 1, 'consommable:echangeDoublon': 1 } }));
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'caisse2', 'classeur1'], collection: [], cartes: [], runs: 0, coupes: 1, jalons: {}, jeu: 'v21', inventaire: { 'consommable:stage': 1, 'consommable:echangeDoublon': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -155,7 +156,7 @@ await choix('.choix-option[data-choix="go"]');
  * le prestige ouvre (ce méta est un Club de quartier, donc quatre) ; chacune dit son club et sa saison, et ses trois
  * pouvoirs avec le niveau qui ouvre chacun.
  */
-const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], jalons: {} })].coachs;
+const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'caisse2', 'classeur1'], jalons: {} })].coachs;
 await page.waitForFunction(() => /Ton entraîneur/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
 const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
@@ -419,7 +420,7 @@ async function regler() {
         if (!fait) erreurs.push('le duel n\'annonce pas leur intention');
         const lu = await page.$eval('#choixModal', m => ({
           voix: (m.querySelector('.duel-adjoint .scene-de') || {}).textContent || '', mot: ((m.querySelector('.duel-adjoint .scene-mot') || {}).textContent || '').trim(),
-          props: [...m.querySelectorAll('.duel-prop')].map(b => ({ cle: b.dataset.prop, puces: b.querySelectorAll('.puce').length, on: b.disabled })),
+          props: [...m.querySelectorAll('.duel-prop')].map(b => ({ cle: b.dataset.prop, puces: b.querySelectorAll('.puce, .choix-option-gros').length, on: b.disabled })),
           tableau: !!m.querySelector('.duel-tableau, .duel-tab-s, .duel-geste, .duel-verdict'),
         }));
         if (!/adjoint/i.test(lu.voix) || !/^«.+»$/.test(lu.mot)) erreurs.push(`l'adjoint ne parle pas au duel (« ${lu.voix} ${lu.mot} »)`);
@@ -431,7 +432,7 @@ async function regler() {
          * LEURS PUCES (V17) : leur intention se lit comme ton plan, en vraies stats de la période, le canal qui la définit
          * d'abord, ce qui est à eux sous « Eux : ». 🦂 : tes punitions ; ⛔ : tes tirs ; 🐗 : leurs tirs ; 🦈 et 🥷 : ton joueur visé.
          */
-        const pu = await page.$eval('#choixModal .duel-intention', e => ({ etape: (e.querySelector('.main-etape') || {}).textContent || '', puces: [...e.querySelectorAll('.puce')].map(x => x.textContent.trim()) }));
+        const pu = await page.$eval('#choixModal .duel-intention', e => ({ etape: `${(e.querySelector('.duel-ico') || {}).textContent || ''} ${(e.querySelector('.main-etape') || {}).textContent || ''}`, puces: [...e.querySelectorAll('.puce')].map(x => x.textContent.trim()) }));
         const DEF = { '🦂': /^≈ \+.* punitions? pour toi/, '⛔': /^≈ −.* tirs? pour toi/, '🐗': /^Eux : ≈ \+.* tirs?/, '🦈': /: moins de tirs, des coups/, '🥷': /: moins de tirs, moins de chances/ };
         const ico = Object.keys(DEF).find(k => pu.etape.includes(k));
         intentionsVues.add(ico || '?');

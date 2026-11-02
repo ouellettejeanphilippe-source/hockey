@@ -84,6 +84,14 @@ const BOITES = new Map();
  * par match, côte à côte : de vraies stats, jamais une cote. `lignes` :
  * [titre, moi, lui] ; une ligne sans valeurs est un intertitre.
  */
+/*
+ * LE TABLEAU DU DUEL (V23 ; JP : *feel sports broadcast*) : chaque club sur sa plaque de couleur, son nom court, son pointage
+ * en gros sur l'ardoise noire, comme le tableau d'une télé. Le tien à gauche.
+ */
+function scoreDuDuel(ctx, a, b, ma, mb) {
+  const eq = (t, n, i) => `<span class="ent2-eq${i ? ' eux' : ''}" style="${varsEquipe(ctx.band(t.tag))}">${ctx.logo(t.tag, 22)}<i>${ctx.esc(ctx.tagCourt(t))}</i><b>${n}</b></span>`;
+  return `<div class="ent2-score" aria-label="${ctx.esc(`${ctx.teamShort(a)} ${ma}, ${ctx.teamShort(b)} ${mb}`)}">${eq(a, ma, 0)}${eq(b, mb, 1)}</div>`;
+}
 function tableEntracte(ctx, nomMoi, nomLui, lignes) {
   const t = x => ctx.esc(x);
   return `<table class="ent2-stats"><thead><tr><th></th><th colspan="2">Ce soir</th><th colspan="2">Par match</th></tr>
@@ -3967,7 +3975,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const buts = f.buts.filter(b => b.instant < 20 * k)
       .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : adv).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
     D.tete = `<div class="ent2">
-      <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(adv))} ${ctx.logo(adv.tag, 22)}</span></div>
+      ${scoreDuDuel(ctx, you, adv, moi, lui)}
       <div class="ent2-note">Après ${k === 1 ? 'une période' : 'deux périodes'} · tirs ${tirs(cMoi)}–${tirs(moiA ? 'B' : 'A')}</div>
       <ol class="ent2-periodes" aria-label="Les trois périodes">${[0, 1, 2].map(i => `<li class="${i < k ? 'faite' : i === k ? 'a-jouer' : ''}">${i ? `${i + 1}e` : '1re'}${i < k ? ` · ${faites[i].pointage.moi}–${faites[i].pointage.lui}` : i === k ? ' · à jouer' : ''}</li>`).join('')}</ol>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
@@ -4003,7 +4011,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const buts = f.buts.filter(b => b.instant < 40)
       .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : adv).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
     const contexte = `<div class="ent2">
-      <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(adv))} ${ctx.logo(adv.tag, 22)}</span></div>
+      ${scoreDuDuel(ctx, you, adv, moi, lui)}
       <div class="ent2-note">Après deux périodes · tirs ${tirs(cMoi)}–${tirs(cLui)}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
       ${statsEntracte(f, cMoi, cLui, adv)}
@@ -4344,7 +4352,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : boss).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
     const { wA, wB } = gains(s);
     D.tete = `<div class="ent2">
-      <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(boss))} ${ctx.logo(boss.tag, 22)}</span></div>
+      ${scoreDuDuel(ctx, you, boss, moi, lui)}
       <div class="ent2-note">Match ${k + 1} · après ${p === 1 ? 'une période' : 'deux périodes'} · tirs ${tirs(cMoi)}–${tirs(moiA ? 'B' : 'A')} · série ${s.A === you ? wA : wB}-${s.A === you ? wB : wA}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
     </div>`;
@@ -4385,7 +4393,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : boss).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
     const { wA, wB } = gains(s);
     const contexte = `<div class="ent2">
-      <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(boss))} ${ctx.logo(boss.tag, 22)}</span></div>
+      ${scoreDuDuel(ctx, you, boss, moi, lui)}
       <div class="ent2-note">Match ${k + 1} · après deux périodes · tirs ${tirs(cMoi)}–${tirs(cLui)} · série ${s.A === you ? wA : wB}-${s.A === you ? wB : wA}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
       ${tableEntracte(ctx, ctx.tagCourt(you), ctx.tagCourt(boss), lignesEntracte(f, cMoi, cLui, c => saisonFeuilles.get(c === cMoi ? you : boss) || null))}

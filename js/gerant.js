@@ -1293,13 +1293,13 @@ export function ouvrirDuel(spec) {
     </div>` : '';
     /*
      * CE QUE TON ADJOINT PROPOSE (V17). JP : *mon adjoint propose des ajustements à chaque période, j'en choisis un*.
-     * Sa scène (la voix, sa réplique, le fait), puis ses plans en tuiles à coins vifs, chacun en vraies stats de la
-     * période ; « Garder » laisse ton plan en force. Toucher une tuile joue la période.
+     * Sa scène (la voix, sa réplique), puis ses plans en cartes (V23), chacune son gros chiffre au cœur, en vraies stats
+     * de la période ; « Garder » laisse ton plan en force. Toucher une carte joue la période.
      */
     const bloque = manque();
     const propositionsHtml = () => `<div class="duel-adjoint">
       ${D.scene ? sceneHtml(D.scene, { voix: true }) : ''}
-      <div class="af-options duel-props">${[...D.propositions, D.garder].map(o => optionHtml({ ...o, ...(bloque ? { desactive: bloque } : {}) }, {}, { mots: o.mots || [], plein: true, classe: 'af-option duel-prop', attr: `data-prop="${esc(o.cle)}"` })).join('')}</div>
+      <div class="af-options duel-props">${[...D.propositions, D.garder].map(o => optionHtml({ ...o, ...(bloque ? { desactive: bloque } : {}) }, {}, { mots: o.mots || [], classe: 'af-option duel-prop', attr: `data-prop="${esc(o.cle)}"` })).join('')}</div>
     </div>`;
     m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
       <div class="choix-tete">
@@ -1311,7 +1311,8 @@ export function ouvrirDuel(spec) {
         ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
         ${D.tete ? `<div class="duel-tete">${D.tete}</div>` : ''}
         <div class="duel-intention">
-          ${etape('duel', `${D.ico} ${esc(D.nom)} · leur intention`)}
+          <span class="duel-ico" aria-hidden="true">${D.ico}</span>
+          ${etape('duel', `${esc(D.nom)} · leur jeu en ${D.periode}`)}
           <p class="duel-fait">${esc(D.fait)}</p>
           ${D.pourquoi ? `<p class="duel-pourquoi">${esc(D.pourquoi)}</p>` : ''}
           ${D.mots && D.mots.length ? `<div class="choix-puces">${pucesEnBref(D.mots)}</div>` : ''}
