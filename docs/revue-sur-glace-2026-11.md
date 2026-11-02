@@ -190,7 +190,7 @@ Deux réglages ont été faits en route, pour l'équilibre : le premier jet (le 
 - **À sentir à la manette** : la protection automatique (est-ce qu'elle se sent, ou faut-il la tenir sur LB ?) ; la feinte, qui pourrait être trop sûre contre l'IA (elle mord à tout coup pendant 0,3 s, une feinte par seconde) ; le trio choisi qui se replace pendant la mise en jeu ; les changements à la volée de tes coéquipiers (≈ toutes les 30 s par groupe, des présences plus courtes que dans la LNH : `JAMBES.volee` à 50 les allongerait).
 - **Les captures** : un porteur qui protège au coin, le dos au poursuivant, la rondelle de l'autre côté (`protege-2.png`), et l'invite du trio à l'arrêt de jeu (`trio.png`), Chromium sans tête, 1280 × 720, aucune erreur dans la console. Le changement à la volée n'a pas été vu à l'image.
 
-## 7. Le lot 4 : le jeu physique, les fautes et la présentation d'un match (version 3.2.9)
+## 7. Le lot 4 : le jeu physique, les fautes et la présentation d'un match (version 3.2.10)
 
 Les propositions 6 et 7 de la section 4 : ce qui fait qu'un match de NHL 94 se raconte. Chaque geste pousse le même bâton pour toi et pour l'IA, chaque faute se siffle sur un fait mis en scène dans `check_physique` (157 → 170 vérifications, toutes vertes), et chaque chiffre dit à l'écran vient d'une constante (deux lignes de plus dans les règles).
 
@@ -218,7 +218,7 @@ Les propositions 6 et 7 de la section 4 : ce qui fait qu'un match de NHL 94 se r
 
 L'IA contre l'IA, 96 matchs de 3 × 2 minutes, les graines du lot 3 (`postes-0` à `23`, `100`, `200`, `300`), le même harnais ; puis de vrais clubs (douze saisons, de 1975-76 à 2023-24, bâtis comme l'écran les bâtit), 96 matchs, pour la bagarre (les clubs inventés du harnais n'ont que des défenseurs de Robustesse 14).
 
-| Par match de 6 min | 3.2.8 | 3.2.9 |
+| Par match de 6 min | 3.2.8 | 3.2.10 |
 |---|---|---|
 | Punitions | 0,76 | 1,88 |
 | … dont l'accrochage, le cinglage, le bâton élevé | — | 0,14, 0,53, 0,23 |
