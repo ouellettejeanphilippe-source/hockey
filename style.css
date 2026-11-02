@@ -1055,7 +1055,7 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option .choix-puces { justify-content: center; }
 /* Face à face, une carte se lit d'un coup d'œil : son nom, son gros chiffre, son prix. Le bon côté redit le gros chiffre et
    les gestes en mots se lisent dans « Les chiffres » : ils se taisent ici (V23 ; JP : *trop de texte*). */
-.choix-sheet:not(.chiffres) .choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option :is(.choix-option-bon, .puce.neutre:not(.duree)) { display: none; }
+.choix-sheet:not(.chiffres) .choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option:has(.choix-option-gros) :is(.choix-option-bon, .puce.neutre:not(.duree)) { display: none; }
 .choix-options.compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--esp-2); }
 .choix-options.compact .choix-option { min-height: 0; padding: var(--esp-2) var(--esp-3); gap: 2px; }
 .choix-options.compact .choix-option-nom { font-size: var(--t-3); }
@@ -1088,6 +1088,7 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-option.ouvre .choix-option-nom::after { content: " ›"; color: var(--or); }
 /* LE GROS CHIFFRE : ce que la carte rapporte d'abord, en grand (« +20 🪙 »), le mot qui le nomme en petit. */
 .choix-option-gros { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); color: var(--bon); }
+.choix-option-gros.prix { color: var(--mauvais); }
 .choix-option-gros b { font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
 .choix-option-gros small { font: 650 var(--t-2)/1.3 var(--corps); color: var(--encre-2); }
 /* Dans un écran qui en porte plusieurs (le gros match, la semaine) : la même option, serrée. */

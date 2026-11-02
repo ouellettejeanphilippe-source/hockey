@@ -490,7 +490,7 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
     ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
     <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
     ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
-    ${gros ? `<span class="choix-option-gros"><b>${esc(gros.chiffre)}</b>${gros.reste ? ` <small>${sub(gros.reste)}</small>` : ''}</span>` : ''}
+    ${gros ? `<span class="choix-option-gros${gros.prix ? ' prix' : ''}"><b>${esc(gros.chiffre)}</b>${gros.reste ? ` <small>${sub(gros.reste)}</small>` : ''}</span>` : ''}
     ${o.sous ? `<span class="choix-option-sous">${sub(o.sous)}</span>` : ''}
     ${pucesHtml ? `<span class="choix-puces">${pucesHtml}</span>` : ''}
     ${o.bon && !o.rien ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
@@ -501,16 +501,17 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
 }
 /* La forme d'une option, en clé de style : la couleur du filet de sa carte (V23). */
 const FORME_CLE = { Cadeau: 'cadeau', 'Échange': 'echange', 'Moindre mal': 'moindre', Pari: 'pari' };
-/* Le gros chiffre d'une option : sa première ligne verte qui porte un nombre, coupée en { chiffre, reste, mot }. */
+/* Le gros chiffre d'une option : sa première ligne verte qui porte un nombre (sinon sa première rouge), coupée en { chiffre, reste, mot, prix }. */
 function grosChiffre(mots) {
-  for (const m of mots || []) {
-    if (m.bon !== true) continue;
+  // Le gain d'abord ; sans gain, le coût (« −25 🪙 »), en rouge.
+  const ordre = [...(mots || []).filter(m => m.bon === true), ...(mots || []).filter(m => m.bon === false)];
+  for (const m of ordre) {
     const t = String(m.txt), x = /[+−-]\s?\d[\d\s,]*(?:\s?(?:%|🪙))?/.exec(t);
     if (!x) continue;
     // Le mot qui le nomme : ce qui suit le nombre (« +5 d'expérience »), sinon ce qui le précède (« Les jambes de tous : +10 »).
     const apres = t.slice(x.index + x[0].length).trim(), avant = t.slice(0, x.index).replace(/\s*:\s*$/, '').trim();
     const reste = apres || avant;
-    return { chiffre: x[0].trim(), reste, mot: m };
+    return { chiffre: x[0].trim(), reste, mot: m, prix: m.bon === false };
   }
   return null;
 }

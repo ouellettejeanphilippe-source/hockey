@@ -136,11 +136,11 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
       break;
     }
   }
-  // V23 : le gros chiffre d'une carte (`choix-option-gros`) est une ligne verte visible, prise à la liste.
+  // V23 : le gros chiffre d'une carte (`choix-option-gros`) est une ligne visible prise à la liste, verte (ou rouge, `prix`, sans gain).
   const lignes = html => {
     const puces = [...html.matchAll(/<span class="puce ([^"]*)"/g)].map(m => m[1]);
     const colorees = puces.filter(c => /\b(bon|prix)\b/.test(c));
-    const gros = (html.match(/class="choix-option-gros"/g) || []).length;
+    const gros = (html.match(/class="choix-option-gros( prix)?"/g) || []).length;
     return { vues: colorees.filter(c => !/\bdetail\b/.test(c)).length + gros, toutes: colorees.length + gros };
   };
   const tuiles = [];
