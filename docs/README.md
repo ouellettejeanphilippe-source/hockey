@@ -3,7 +3,9 @@
 - `decisions.md` — l'histoire de chaque décision, de S1 à la V21 (31 oct. 2026) : le pourquoi, ce qui a été essayé et écarté, ce qui a été mesuré ; un titre par décision. Les plus récentes en bas (la main d'adjoints, la Boîte en plein écran, le temps de glace inféré).
 - `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).
 - `sur-glace.md` — Sur glace, toutes les fonctions d'un jeu de hockey 2D (1er nov. 2026), JP : *fais la liste de toutes les fonctions nécessaires, du game feel, au but objet physique, à la physique de changer de direction en patin* : par domaine, faite, partielle ou à faire, ce qui la porte, et l'ordre de travail (la hauteur de la rondelle d'abord).
+- `structure.md` — la structure du dépôt, une ligne par fichier (sortie de CLAUDE.md le 2 nov. 2026).
 - `structure-detaillee.md` — la structure du dépôt, fichier par fichier, dans sa version longue.
+- `livraison-1.0.md` — le plan de la 1.0 et ses jalons (0 à 5, C, R, P, Q, U, M, V10), archivés de LIVRAISON.md le 2 nov. 2026 ; les cases encore ouvertes ont été reprises dans `../LIVRAISON.md`.
 - `organisation-equilibrage.md` — équilibrer sans casser le jeu : où vivent les chiffres, ce qui casse, et le plan en dix actions (l'empreinte du moteur d'abord).
 - `refonte-v21.md` — le coach, un personnage (29 oct.), JP : *you didn't really redo the system* ; *coach-personnage à la Hades* ; *1 parmi 3 gratuit aux moments forts* ; son niveau (1 à 5) et son expérience, ses trois pouvoirs joués période par période, ses talents, son staff d'adjoints (une main de six, trois en poste, un échange chacun), son bras droit, ton entraîneur en vraie carte de coach-saison ; le personnel de la V10 à la V20 part. **La refonte en cours.**
 - `refonte-v20.md` — le coach, son banc, ses histoires (29 oct.) — *dépassée par la V21 pour le coach et le banc (le chiffre à tenir et le banc sont partis) ; ses histoires du lundi (§ 4) tiennent*, JP : *revoir entièrement les événements et coachs et assistants coach pour système plus clair et fun* ; ce qu'il y a, compté (quatre chemins de confiance, contrats en jours, dix sources d'événements, 70 à 85 décisions par saison) ; une règle par sujet — le coach : un chiffre ; le banc : cinq chaises, trois fenêtres ; les histoires : un joueur, deux options, un verdict — et la couleur du coach qui vaut un cran de plus partout ; six tranches et ce que JP tranche.
@@ -37,7 +39,10 @@
 - `carte-des-rouages.md` — toutes les mécaniques et leurs liens, vues du bord du joueur, et les 118 accrocs (lus dans le code le 3 oct.).
 - `feuille-de-route-v2.md` — la V2 en six jalons et 56 items (réparer, supprimer, améliorer, attacher ensemble, ajouter), tirés de la carte des rouages.
 - `plan-historique.md` — « Fait » et les trois « À faire » de PLAN.md d'avant 1.0.
-- `journal/` — le journal par sprint, S7 à S80 (jusqu'au 28 sept. 2026) : les sections S78 à S80 de CLAUDE.md et PLAN.md, et les rangées du journal de PLAN.md classées par le sprint qu'elles nomment (`avant-S78.md` : celles qui n'en nomment aucun). Depuis la 1.0, le journal vit dans `../LIVRAISON.md`.
+- `journal/` — le journal par sprint, S7 à S80 (jusqu'au 28 sept. 2026) : les sections S78 à S80 de CLAUDE.md et PLAN.md, et les rangées du journal de PLAN.md classées par le sprint qu'elles nomment (`avant-S78.md` : celles qui n'en nomment aucun). Depuis la 1.0, le journal vit dans `../LIVRAISON.md` (les vingt plus récentes) et, entier, par mois :
+  - `journal/2026-09.md`
+  - `journal/2026-10.md`
+  - `journal/2026-11.md`
   - `journal/avant-S78.md`
   - `journal/S7.md`
   - `journal/S8.md`
@@ -112,4 +117,4 @@
   - `journal/S79.md`
   - `journal/S80.md`
 
-Le plan courant est `../LIVRAISON.md`. Les consignes vivantes sont dans `../CLAUDE.md`.
+Le plan courant est `../LIVRAISON.md`. Les consignes vivantes sont dans `../CLAUDE.md` et, par terrain, dans `../.claude/rules/`.
