@@ -245,7 +245,7 @@ Trois réglages en route : le premier jet des fautes (un seul dé, 10 %, pour le
 - **À sentir à la manette** : soulever le bâton (est-ce que « collé de côté » se trouve sans y penser, ou faut-il un piton à part ?) ; les fautes (1,9 punition par match de 6 min, c'est près de cinq par match de 15 min : à voir si c'est trop) ; le duel de la bagarre (7,5 appuis par seconde battent un dur de l'IA ; un enfant au téléphone ?) ; la reprise (le ralenti à × 0,4 dure 11 s : la passer est-il assez évident ?).
 - **Les captures** (Chromium sans tête, 1280 × 720, aucune erreur dans la console) : les partants (`alignements.png`), une montée et son but repris au ralenti (`montee.png`, `reprise-0.png` à `reprise-5.png`), une bagarre (`bagarre.png`, `bagarre-fin.png`) et l'entracte (`entracte.png`).
 
-## 8. Le lot 5 : la finition et l'équilibre (version 3.2.11)
+## 8. Le lot 5 : la finition et l'équilibre (version 3.2.12)
 
 Un lot de finition : ce que la section 7 laissait douteux (le rythme des punitions, le compte des tirs, la main des sprites) et deux ⬜ de l'inventaire (le gardien qui joue la rondelle, la célébration). Chaque comportement a son fait mis en scène dans `check_physique` (170 → 185 vérifications, toutes vertes).
 
@@ -284,7 +284,7 @@ Un lot de finition : ce que la section 7 laissait douteux (le rythme des punitio
 
 L'IA contre l'IA, 96 matchs de 3 × 2 minutes, les graines du lot 3 et du lot 4, le même harnais.
 
-| Par match de 6 min | 3.2.10 | 3.2.11 |
+| Par match de 6 min | 3.2.10 | 3.2.12 |
 |---|---|---|
 | Punitions | 1,88 | 0,63 |
 | … la charge par-derrière, le cinglage, le bâton élevé, l'accrochage, le trébuchement | 0,81, 0,53, 0,23, 0,14, 0,14 | 0,00, 0,27, 0,16, 0,05, 0,10 |
