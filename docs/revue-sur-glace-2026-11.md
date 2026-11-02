@@ -308,6 +308,69 @@ Deux réglages en route, pour l'équilibre. Le premier jet des dés (1,5 % de ci
 - **À sentir à la manette** : 0,63 punition par match de 6 min, c'est ≈ 1,6 par match de 15 min — l'avantage numérique devient rare ; la célébration de 2,5 s avant la reprise ; le trapèze sur la glace se comprend-il ?
 - **Les captures** (Chromium sans tête, 1280 × 720, aucune erreur dans la console) : un gaucher et un droitier côte à côte, et un patineur qui protège (`mains.png`), le gardien derrière son filet (`gardien-sort.png`, `gardien-joue.png`, `gardien-revient.png`), la célébration (`fete-1.png`, `fete-2.png`).
 
+## 9. Le lot 6 : la feinte, l'avantage numérique et le style d'un vrai club (version 3.2.14)
+
+Trois choses que les sections 6 à 8 laissaient douteuses. Chaque comportement a son fait mis en scène dans `check_physique` (185 → 193 vérifications, toutes vertes) ; l'IA pousse le même bâton ; le chiffre de la feinte dit à l'écran vient de `FEINTE`.
+
+### La feinte, juste
+
+- **La cause** : `harponner`, `soulever` et l'élan voyaient `porteur.feinte > 0` et rataient à coup sûr, quel que soit le défenseur (0 harpon réussi sur 40) ; rien ne coûtait de la répéter chaque seconde.
+- **La correction** (js/physique.js `FEINTE`, `litLaFeinte`) : un défenseur la lit 4 % par point de Défense sur 20 au-dessus de 8 (à 18, 40 %), et 35 % de plus quand le même porteur feintait moins de 3 s plus tôt ; lue, son geste se joue comme sans feinte. L'écran dit « X a lu la feinte » (`feinteLue`) ; la page des règles, les chiffres. L'IA ne refeinte pas avant 3 s.
+- **La preuve** (le même harpon, de face, 60 fois) :
+
+| | La feinte passe |
+|---|---|
+| Avant, contre tous | 40 sur 40 |
+| Contre un défenseur de Défense 6 | 60 sur 60 |
+| Contre un défenseur de Défense 18 (lue 27 fois) | 39 sur 60 (son harpon sans feinte : 42 réussis sur 60) |
+| Défense 10, la première / répétée 1,5 s après | 57 / 47 sur 60 |
+
+### L'avantage numérique qui vaut quelque chose
+
+- **La cause**, mesurée (500 matchs IA contre IA, les graines `postes-0` à `49`, `100` à `149`, … `900` à `949`) : le club à cinq marquait 0,89 fois son rythme à forces égales, le club à quatre 0,86 fois — 115 buts en avantage, 111 en désavantage. Le club à quatre attaquait comme à cinq : il échec-avantait, gardait la rondelle, montait.
+- **La correction** (js/glace-ia.js `AVANTAGE`, sans toucher au moteur) : en désavantage, le porteur la dégage au fond de sa zone ou de la neutre (permis), sauf seul devant ; sans la rondelle hors de sa zone, pas d'échec avant : le plus près chasse la rondelle libre, les autres attendent dans leur zone, la boîte prête. En avantage, en zone, le porteur tient le tour de la zone au lieu de foncer dans la boîte, cherche la passe d'un côté à l'autre (elle part plus tôt) et lance de la pointe à travers l'écran.
+- **La preuve** : trois faits (le tir de la pointe : 21 décisions sur 40 en avantage avec l'écran, 0 sans écran, 0 à forces égales ; le dégagement du désavantage ; le plus avancé des quatre à −5,8 m quand l'autre la porte chez lui, à +15,6 m à cinq).
+
+| 500 matchs de 3 × 2 min | 3.2.12 | 3.2.14 |
+|---|---|---|
+| Avantages | 306 | 269 |
+| Buts en avantage (conversion) | 115 (37,6 %) | 106 (39,4 %) |
+| Buts en désavantage | 111 | 19 |
+| Ce que vaut un avantage, net | +0,01 but | +0,32 but |
+| La rondelle dans leur zone, en avantage | 31 % du temps | 34 % |
+| Le rythme en avantage / en désavantage, à côté de forces égales | 0,89 / 0,86 | 0,84 / 0,15 |
+| Buts par match | 3,97 | 3,88 |
+| Hors-jeu | 0,95 | 0,91 |
+| Passes réussies | 66,7 % | 68,4 % |
+| Punitions | 0,64 | 0,57 |
+
+**Les 20 % de la LNH ne se transposent pas** : un club marque ici ≈ 0,32 but par minute à forces égales (≈ 19 par 60 min, sept fois la LNH), et une punition dure 2 min d'un match de 6. La conversion était déjà au-dessus de 20 % ; ce qui ne valait rien, c'était l'écart entre les deux clubs. Le harnais compte un avantage chaque fois qu'un club passe à plus de punis que l'autre.
+
+Deux essais en route : le désavantage qui attendait à sa bleue, dans la neutre (la rondelle dans leur zone 25 % du temps de l'avantage, buts 3,58 : l'entrée de zone bouchée) ; puis dans sa zone (3,77, toujours 25 %) ; le tour de la zone pour le porteur du club à cinq les a remontés (34 %, 3,88).
+
+### Le style d'un vrai club
+
+- **La cause** : l'adversaire jouait toujours « équilibré », et l'IA d'un club ne se distinguait que par ses cotes.
+- **La correction** (js/glace-ia.js `STYLE`, `styleDuClub` ; js/sur-glace.js) : ses tirs, ses mises en échec (avant 2005, la LNH ne les comptait pas : ses minutes de punition) par match de patineur, et les tirs reçus par match de ses gardiens, à côté de la moyenne des clubs de sa saison, bornés à ±30 %. Ils déplacent des seuils de décision, jamais une cote : qui lançait tire de plus loin (la distance du bon tir et du tir pressé × 1 + 2 × l'écart), qui frappait s'élance de plus loin et moins vite (× 1 + 1,2 × l'écart), qui accordait 7 % de tirs de moins joue la stratégie défensive, qui lançait 7 % de plus l'offensive. L'adversaire joue la stratégie de son style ; la tienne reste à toi, mais tes coéquipiers de l'IA tirent et chargent comme ton club. L'affiche le dit sous le club (« 2011-12 · lance »).
+- **La preuve** : trois faits (le style lu de cinq clubs inventés, pareils sauf un trait ; à 11,2 m du filet, le club qui lance tire, l'ordinaire non ; à 3,2 m de face, le club qui frappe s'élance, l'ordinaire non), et deux paires de vrais clubs, 60 matchs avec le style puis sans :
+
+| Par match de 6 min | Avec | Sans |
+|---|---|---|
+| SJS 2011-12 (lance, offensive) : tirs de plus de 11 m | 7,4 | 1,6 |
+| … ses tirs tentés, ses tirs au but | 41,1, 16,1 | 41,8, 18,8 |
+| NYR 2011-12 (frappe) : élans, mises en échec à l'élan | 24,6, 13,0 | 17,4, 8,7 |
+| SJS 2011-12 : mises en échec à l'élan | 5,5 | 8,9 |
+| CAR 2023-24 (lance, tient sa zone, défensive) : tirs tentés accordés à TOR | 36,9 | 41,6 |
+| TOR 2023-24 (frappe) : mises en échec à l'élan | 13,4 | 9,2 |
+
+### Ce qui reste
+
+- **Le club à cinq ne marque pas plus vite qu'à forces égales** (0,84 fois ; la LNH, ≈ 2,7 fois) : l'avantage vaut maintenant parce que le désavantage ne marque plus. Un quart du temps de l'avantage, la rondelle dégagée file dans sa zone, vite (plus de 8 m/s) ; la retrouver et remonter prend le reste. Le tir sur réception de la passe d'un côté à l'autre serait le prochain levier.
+- **Un club qui lance tire de plus loin, pas plus souvent** : ses tirs tentés ne bougent pas, et ses tirs au but baissent (de loin, il rate plus). C'est ce que les stats disent (un club de volume), mais ce n'est pas plus de buts.
+- **La feinte de l'IA contre toi** se lit à ta Défense, comme la tienne contre elle ; à sentir à la manette : 40 % à 18 de Défense, est-ce trop ?
+- **Le style de ton club** choisit tes seuils, pas ta stratégie (« Ta stratégie » reste à l'affiche) ; un « Celle du club » serait à ajouter si JP le veut.
+- **Rien n'a été vu à l'écran** : « X a lu la feinte » et le style sur l'affiche n'ont pas été capturés.
+
 ## Comment ces chiffres ont été faits
 
-`node scripts/check_physique.mjs` (98 vérifications avant le lot 1, 114 après, 136 après le lot 2, 157 après le lot 3, 170 après le lot 4, 185 après le lot 5, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
+`node scripts/check_physique.mjs` (98 vérifications avant le lot 1, 114 après, 136 après le lot 2, 157 après le lot 3, 170 après le lot 4, 185 après le lot 5, 193 après le lot 6, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
