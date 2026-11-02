@@ -687,14 +687,26 @@ export const MANDATS = [
   { top: 6, mot: 'finir dans les six premiers' },
   { top: 3, mot: 'finir dans les trois premiers' },
 ];
-/* Le mandat de la saison `n` (1 = la première de la run) ; « Le proprio impatient » (les exigences) l'avance. */
-export const mandatDe = (n, exigence = 0) => MANDATS[Math.max(0, Math.min(MANDATS.length, (n || 1) + exigencesDe(exigence).mandat) - 1)];
+/*
+ * LA PREMIÈRE SAISON DE LA PREMIÈRE RUN (nov. 2026, docs/revue-rogue-2026-11.md § 1 ; docs/decisions.md). Mesuré
+ * (check_profondeur) : le gérant attentif finissait sa première saison entre le 22e et le 26e rang, et la run finissait
+ * là, trois runs de suite — le coach, ses talents et ses adjoints ne vivaient jamais une deuxième saison. Le proprio
+ * de ta première run te laisse une saison pour bâtir : finir dans les `MANDAT_DE_LA_PREMIERE.top` premiers, séries ou
+ * pas ; dès la deuxième saison, et dès la deuxième run, les mandats de toujours.
+ */
+export const MANDAT_DE_LA_PREMIERE = { top: 24, sansSeries: true, mot: 'finir dans les vingt-quatre premiers' };
+/*
+ * Le mandat de la saison `n` (1 = la première de la run) ; « Le proprio impatient » (les exigences) l'avance.
+ * `premiere` : la première run de la partie (`G.rogue.numero` 1).
+ */
+export const mandatDe = (n, exigence = 0, premiere = false) => (premiere && (n || 1) === 1 && !exigencesDe(exigence).mandat ? MANDAT_DE_LA_PREMIERE
+  : MANDATS[Math.max(0, Math.min(MANDATS.length, (n || 1) + exigencesDe(exigence).mandat) - 1)]);
 /* Le rang à atteindre pour le mandat `M` dans une ligue de `nEquipes` clubs (null : faire les séries). */
 export const rangDuMandat = (M, nEquipes = 32) => (M.top ? Math.min(M.top, nEquipes) : null);
 /* La saison a-t-elle rempli son mandat ? `series` : qualifiée ; `rang` : au classement ; `nEquipes` : la taille de la ligue. */
-export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32, exigence = 0 } = {}) => {
-  const seuil = rangDuMandat(mandatDe(n, exigence), nEquipes);
-  return !!series && (seuil == null || rang <= seuil);
+export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32, exigence = 0, premiere = false } = {}) => {
+  const M = mandatDe(n, exigence, premiere), seuil = rangDuMandat(M, nEquipes);
+  return (!!series || !!M.sansSeries) && (seuil == null || rang <= seuil);
 };
 
 /*

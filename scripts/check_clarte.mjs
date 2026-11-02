@@ -43,7 +43,7 @@ import { RARETES } from '../js/cartes.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
 import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
-import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN, ETAPE_APRES_LA_PREMIERE } from '../js/rogue.js';
+import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, MANDAT_DE_LA_PREMIERE, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN, ETAPE_APRES_LA_PREMIERE } from '../js/rogue.js';
 import { COACHS } from '../js/coachs.js';
 import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT, NIVEAUX_TALENT } from '../js/pouvoirs.js';
 import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU, CASE_DE_PLUS } from '../js/adjoints.js';
@@ -186,7 +186,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // V9, tranche 8 : la page dit les exigences, cran par cran (JP : *les exigences*), et la ligue qui monte : 2 400 mots.
   // V17 : la page dit les six plans de match, chacun avec ses chiffres : 2 500 mots.
   // 31 oct. 2026 : la page dit la deuxième run plus dure (JP : *plus tough la deuxième run*), une phrase : 2 520 mots.
-  borne('la page des règles est courte', mots, 300, 2520, 'mots');
+  // Nov. 2026 : la page dit le mandat de la première saison de la première run (`MANDAT_DE_LA_PREMIERE`), une phrase : 2 540 mots.
+  borne('la page des règles est courte', mots, 300, 2540, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -323,8 +324,9 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   const manquants = ecrits.filter(([t]) => !brut.includes(t)).map(([t, nom]) => `${nom} (« ${t.slice(0, 70)} »)`);
   exiger('chaque chiffre de la page vient de sa constante', manquants.length === 0, manquants.join(' · ') || `${ecrits.length} chiffres vérifiés`);
   const mandats = MANDATS.map(m => m.mot);
-  exiger('les mandats du proprio sont ceux du code', /faire les séries, puis finir dans les dix premiers, puis les six, puis les trois premiers/.test(texte) && mandats.length === 4,
-    mandats.join(' → '));
+  exiger('les mandats du proprio sont ceux du code', /faire les séries, puis finir dans les dix premiers, puis les six, puis les trois premiers/.test(texte) && mandats.length === 4
+    && texte.includes(`à ta première run, la première saison : les ${MANDAT_DE_LA_PREMIERE.top} premiers, séries ou pas`) && MANDAT_DE_LA_PREMIERE.sansSeries,
+    `${mandats.join(' → ')} · la première run : ${MANDAT_DE_LA_PREMIERE.mot}`);
 }
 
 /*

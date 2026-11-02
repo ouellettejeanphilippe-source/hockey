@@ -21,7 +21,7 @@ import { mandatDe, MANDATS, JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaR
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml, persoDuMatin } from './alignement.js';
-import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
+import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, premiereRun, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 import { niveauDe, REGULIER, PILIER } from './niveaux.js';
@@ -772,8 +772,8 @@ function ouvrirEcranSaison(depuis = 0) {
           // S80 : la saison de la run, le mandat du proprio, et celui d'après ; le barème de la run, tel que `jetonsRogue`
           // le compte (`G.rogue.bareme`) — le sommaire y lit la prime d'un gros match.
           // V9 (tranche 8) : « Le proprio impatient » avance le mandat (`G.rogue.exigence`).
-          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison(), (G.rogue && G.rogue.exigence) || 0).mot,
-            suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1, (G.rogue && G.rogue.exigence) || 0).mot : null,
+          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison(), (G.rogue && G.rogue.exigence) || 0, premiereRun()).mot,
+            suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1, (G.rogue && G.rogue.exigence) || 0, premiereRun()).mot : null,
             bareme: (G.rogue && G.rogue.bareme) || JETONS }),
           // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
           jetons: j => jetonsRogue(j),
