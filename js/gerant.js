@@ -1281,13 +1281,14 @@ export function ouvrirDuel(spec) {
     const etape = (k, txt) => `<div class="main-etape"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span></div>`;
     const pli = (k, txt) => `<button type="button" class="main-pli" data-deplier="${k}"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span><span class="main-pli-ouvrir" aria-hidden="true">›</span></button>`;
     const vestPris = V && vest && V.options.find(o => o.cle === vest);
+    // V23 (JP : *trop d'infos*) : la carte du vestiaire se joue en deux cartes face à face, le gros chiffre au cœur, le reste sous « Les chiffres ».
     const vestiaire = vestPris && !ouverts.has('vest') ? pli('vest', `${V.ico} ${esc(V.titre)} · ✓ ${nV.sub(vestPris.nom)}`) : V ? `<div class="main-vestiaire">
       ${etape('vest', `${V.ico} ${esc(V.titre)} · garde une carte`)}
       ${V.recit ? `<p class="main-vest-recit">${nV.sub(V.recit)}</p>` : ''}
       <div class="main-vest-rang">${V.options.map(o => {
         const { duree: _d, ...canaux } = o;
         const mv = [...motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, V.cadre), ...motsDeCarte(o, nV.noms)];
-        return optionHtml({ ...o, desactive: V.pris && V.pris !== o.cle ? 'L\'autre est gardée' : o.desactive }, V, { mots: mv, classe: 'main-vest', plein: true, attr: `data-vest="${esc(o.cle)}"`, on: vest === o.cle });
+        return optionHtml({ ...o, desactive: V.pris && V.pris !== o.cle ? 'L\'autre est gardée' : o.desactive }, V, { mots: mv, classe: 'main-vest', attr: `data-vest="${esc(o.cle)}"`, on: vest === o.cle });
       }).join('')}</div>
     </div>` : '';
     /*

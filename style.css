@@ -3670,6 +3670,8 @@ a.spin-club:hover { background: var(--fond-2); }
    l'ouvre), ce qu'il fait, sa force, et combien de fois il a joué cette saison. */
 .pv { display: flex; flex-direction: column; gap: 2px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); box-shadow: inset 3px 0 0 var(--or); }
 .pv.ferme { box-shadow: none; opacity: 0.55; }
+/* V23 : un pouvoir pas encore ouvert dit son nom et son niveau ; ce qu'il fera se lit quand il s'ouvre (l'onglet tient en un écran). */
+.pv.ferme .pv-dit { display: none; }
 .pv-tete { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-3)/1.15 var(--display); text-transform: uppercase; color: var(--encre); }
 .pv-tete small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; color: var(--or); }
 .pv-ico { font-size: var(--t-4); line-height: 1; }
@@ -5398,8 +5400,12 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 /* V23 : au duel, ton adjoint parle en une phrase ; le fait (« Avant la 1re contre… ») redisait l'intention juste au-dessus. */
 .duel-adjoint .scene-fait { display: none; }
 .main-vestiaire { display: flex; flex-direction: column; gap: var(--esp-2); }
-.main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
-.main-vest-rang { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
+.main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* V23 : deux cartes face à face, comme une histoire ; le gros chiffre au cœur, les noms et les gestes sous « Les chiffres ». */
+.main-vest-rang { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }
+.main-vest-rang > .choix-option { min-height: 150px; text-align: center; align-items: center; }
+.main-vest-rang > .choix-option .choix-option-gros { flex-direction: column; align-items: center; margin: auto 0; }
+.main-sheet:not(.chiffres) .main-vest-rang > .choix-option:has(.choix-option-gros) :is(.choix-option-bon, .choix-option-prix, .puce.neutre:not(.duree)) { display: none; }
 @media (min-width: 700px) { .main-vest-rang { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* LE DUEL (V9) : leur intention, ton adjoint, la mise doublée. */
 /* LEUR INTENTION, UNE CARTE DE BOSS (V23 ; JP : *que les gros matchs, ça soit vraiment un jeu*) : leur jeu de la période,

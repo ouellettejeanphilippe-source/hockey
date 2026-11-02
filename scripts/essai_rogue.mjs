@@ -306,16 +306,23 @@ async function sonde(h) {
  * matin à sa maison, le Proprio (V23 : plus dans Hier soir) — « 🎯 … · Martin : 5 / 21 points » ; son verdict arrive comme un
  * message de la boîte, aux vrais chiffres.
  */
-const suivi = { pas: new Set(), verdict: '' };
+const suivi = { pas: new Set(), verdict: '', journee: null };
 async function lireLeSuivi() {
   // V23 (JP : *trop d'infos différentes*) : le pas de l'objectif ne se redit plus au Bureau ; il se lit chaque matin à sa
   // maison, le Proprio (`.hub-etat-v`, l'état en vrais chiffres). On y va, on lit, on revient à la Boîte.
+  // Une fois par journée : la fin de saison repasse ici à chaque décision.
+  const journee = await page.textContent('#hubModal .live-match', { timeout: 1000 }).catch(() => '');
+  if (journee && journee === suivi.journee) return lireLeVerdict();
+  suivi.journee = journee;
   await page.click('#sousNav .soustab[data-page="proprio"]', { timeout: 2000 }).catch(() => {});
   await page.waitForTimeout(150);
   const l = await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet[data-maison="proprio"] .hub-etat-v')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /\d+ \/ \d+/.test(t) && !/^Le proprio veut/.test(t)));
   for (const t of l) suivi.pas.add(t);
   await page.click('#sousNav .soustab[data-page="match"]', { timeout: 2000 }).catch(() => {});
   await page.waitForTimeout(150);
+  return lireLeVerdict();
+}
+async function lireLeVerdict() {
   // La ligne de la boîte, puis le choix ouvert en plein écran (son récit, ses vrais chiffres) : on garde le plus long.
   const v = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg, #choixModal:not([hidden]) .choix-sheet[data-msg]')].map(a => a.textContent.replace(/\s+/g, ' ').trim()).filter(x => /Objectif (atteint|raté|levé)/.test(x)).sort((a, b) => b.length - a.length)[0] || '');
   if (v.length > suivi.verdict.length) { suivi.verdict = v; if (/ en \d+ matchs/.test(v)) await page.screenshot({ path: `${DOSSIER}/rogue-verdict-proprio.png` }); }

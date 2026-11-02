@@ -3864,8 +3864,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (portes.length === 1 && portes[0].ouvre) { C.agir(portes[0].cle); return; }
       jouerSon('valide');
       const vises = [C.joueur, ...(C.joueurs || [])].filter(Boolean);
+      /*
+       * UNE HISTOIRE SE JOUE EN CARTES (V23 ; JP : *c'est visuellement plate, c'est pareil à avant*). Ses réponses sont des
+       * cartes de hockey, celles des packs : le cadre de leur rareté (le dé, rare ; le cadeau, peu commune), leur icône, leur
+       * nom sur la plaque ; la toucher la retourne, son verso dit ce qu'elle fait ; « Prendre », dessous, la joue.
+       */
+      const enCartes = m.genre === 'dossier';
+      const icoDe = o => (o.pari ? '🎲' : o.gain > 0 ? '🪙' : o.adjoint ? '📋' : C.ico || m.de.ico);
+      const options = enCartes ? C.options.map(o => ({ ...o, genreCarte: 'tactique', ico: icoDe(o), rarete: o.pari ? 'rare' : o.prix ? 'commune' : 'peu', motChoix: 'Jouer' })) : C.options;
       ouvrirChoix({
-        ...C, de: m.de, ico: C.ico || m.de.ico, titre: m.sujet, cadre: cadreDuMatch(), ouDe: ctx.ouJoue, classeOption: 'af-option', boite: { msg: m.genre, maison: m.maison },
+        ...C, options, ...(enCartes ? { cartes: true } : {}), de: m.de, ico: C.ico || m.de.ico, titre: m.sujet, cadre: cadreDuMatch(), ouDe: ctx.ouJoue, classeOption: 'af-option', boite: { msg: m.genre, maison: m.maison },
         recit: C.recitHtml ? '' : C.recit,
         contexte: `${C.recitHtml || ''}${m.genre === 'choix' || m.genre === 'courriel' ? dejaEnJeu(vises) : ''}${C.contexte || ''}`,
         lancer: m.spec && typeof m.spec.lancer === 'function' ? m.spec.lancer : null,
