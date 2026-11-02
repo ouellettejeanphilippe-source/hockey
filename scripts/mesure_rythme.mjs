@@ -62,7 +62,7 @@ function relire(r) {
   for (const d of decisions) {
     const p = String(d.palier || '');
     const sorte = p.startsWith('pp:') ? 'palier' : p.startsWith('do:') ? 'histoire' : p.startsWith('r:') ? 'butin' : p.startsWith('ta:') ? 'talent' : d.ballottage ? 'signature' : null;
-    if (sorte) out.push({ sorte, m: avant(d.jour), ...(sorte === 'histoire' ? { cle: d.moment.cle } : {}) });
+    if (sorte) out.push({ sorte, m: avant(d.jour), ...(sorte === 'histoire' ? { cle: d.moment.cle, xp: Number(d.xpCoach) || 0, gain: Number(d.gain) || 0, adjoint: !!d.embauche } : {}) });
   }
   for (const mb of you.minisBoss || []) out.push({ sorte: 'gros', m: avant(mb.jour) });
   const n = joue.filter(Boolean).length;
@@ -99,7 +99,7 @@ if (!isMainThread) {
     while (suivante < taches.length) { const k = suivante++; resultats[k] = await lancer(taches[k]); }
   }));
 
-  const trous = [], parQuart = [0, 0, 0, 0], parSorte = {}, histoires = new Map();
+  const trous = [], parQuart = [0, 0, 0, 0], parSorte = {}, histoires = new Map(), rapporte = { xp: 0, gain: 0, adjoint: 0 };
   let quartsVides = 0, nSaisons = 0, signatures = 0;
   for (const { cle, saisons } of resultats) {
     const lignes = saisons.map(({ moments, matchs }) => {
@@ -107,7 +107,7 @@ if (!isMainThread) {
       const vrais = moments.filter(x => x.sorte !== 'signature');
       signatures += moments.length - vrais.length;
       for (const x of moments) parSorte[x.sorte] = (parSorte[x.sorte] || 0) + 1;
-      for (const x of vrais.filter(y => y.sorte === 'histoire')) histoires.set(x.cle, (histoires.get(x.cle) || 0) + 1);
+      for (const x of vrais.filter(y => y.sorte === 'histoire')) { histoires.set(x.cle, (histoires.get(x.cle) || 0) + 1); rapporte.xp += x.xp; rapporte.gain += x.gain; rapporte.adjoint += x.adjoint ? 1 : 0; }
       // Les matchs où un moment tombe, du début (le match 0) à la fin de la saison.
       const ms = [...new Set([0, ...vrais.map(x => x.m), matchs])].sort((a, b) => a - b);
       let trou = 0, ou = '';
@@ -122,6 +122,8 @@ if (!isMainThread) {
   }
   const tries = [...trous].sort((a, b) => a - b);
   informer('les moments, par sorte (par saison)', Object.entries(SORTES).map(([k, nom]) => `${nom} ${((parSorte[k] || 0) / nSaisons).toFixed(1)}`).join(' · '));
+  // L'ÉCONOMIE : ce que les réponses de l'attentif aux histoires rapportent (une histoire qui revient ne doit pas l'emballer).
+  informer('ce que les histoires rapportent à l\'attentif (par saison)', `${(rapporte.xp / nSaisons).toFixed(1)} d'expérience au coach · ${(rapporte.gain / nSaisons).toFixed(1)} 🪙 · ${(rapporte.adjoint / nSaisons).toFixed(1)} carte d'adjoint`);
   informer('les histoires sorties (sur toutes les saisons)', [...histoires.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · ') || '—');
   informer('les moments par quart de saison (moyenne par saison)', parQuart.map((v, i) => `${['1-20', '21-41', '42-61', '62-82'][i]} : ${(v / nSaisons).toFixed(1)}`).join(' · ') + ` · signatures à part : ${(signatures / nSaisons).toFixed(1)} par saison`);
   informer('le plus long trou de chaque saison', `médiane ${tries[Math.floor(tries.length / 2)]}, pire ${tries.at(-1)} · ${trous.filter(x => x > TROU_MAX).length} saisons sur ${nSaisons} au-dessus de ${TROU_MAX}`);

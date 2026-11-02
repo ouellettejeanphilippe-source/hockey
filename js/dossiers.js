@@ -26,7 +26,8 @@
  *   faits : { n, jambes, pire: { n, cle, j }, blesses: [{ n, m }], soirs, dos, visiteur, domicile, rival, bete,
  *             caisse, masse: { espace, libre, lourd: { n, cle, sal } }, defaites, coach: { cle, nom, ico, niveau, adjoints }, dernier: { pour, contre, adv }, rang, equipes,
  *             boude: { n, cle, zone, ou, pts, m }, puni: { n, cle, pun, m }, muet: { n, cle, sal, pts, m },
- *             vedette: { n, cle, fait }, gardien: { n, cle, fait } }
+ *             vedette: { n, cle, fait }, gardien: { n, cle, fait },
+ *             retard, avance, dosRoute }   (nov. 2026 : `faitsDeLaCourse` ; les dos-à-dos de la semaine joués à l'étranger)
  *   (un joueur absent des faits : null)
  *
  * TOUJOURS UN JOUEUR (V19, tranche 5 ; JP : *les incidents, toujours liés à des joueurs*). Un dossier d'équipe s'accroche
@@ -39,6 +40,16 @@ import { hache } from './util.js';
 
 /* Les faits d'un joueur se lisent sur ses FENETRE_JOUEUR derniers matchs ; la chicane, à PUNITIONS_CHICANE punitions. */
 export const FENETRE_JOUEUR = 10, PUNITIONS_CHICANE = 4;
+/* LA DEUXIÈME MOITIÉ (nov. 2026) : trois histoires ne s'ouvrent qu'après MI_SAISON matchs ; la course est perdue à RETARD_FOND points des séries. */
+const MI_SAISON = 41, RETARD_FOND = 8;
+/*
+ * LA COURSE (nov. 2026), pure : le retard sur la dernière place des séries (0 si tu y es) et l'avance du premier sur le
+ * 2e (null si tu n'es pas premier), lus au classement du matin — `points`, du premier au dernier ; `rang`, le tien.
+ */
+export function faitsDeLaCourse(points, rang, places = 16) {
+  const moi = points[rang - 1] ?? 0;
+  return { retard: rang > places ? Math.max(0, (points[places - 1] ?? 0) - moi) : 0, avance: rang === 1 && points.length > 1 ? moi - points[1] : null };
+}
 
 /*
  * LA BANQUE NEUVE (V22, docs/refonte-v22.md, phase 4 ; JP : *simple, impactant, le fun, marquant*). Les dix-neuf dossiers
@@ -129,6 +140,51 @@ export const DOSSIERS = {
       { cle: 'garder', nom: 'Garder l\'argent', bon: 'La caisse reste pleine', rien: true },
     ],
   },
+  /*
+   * LA DEUXIÈME MOITIÉ DE SAISON (nov. 2026 ; docs/revue-rogue-2026-11.md § 2.1) : passé le 26e match, il ne se passait
+   * plus rien. Trois histoires lues au classement et à la cédule, après MI_SAISON matchs, sur le modèle des six.
+   */
+  // Le fond du classement : la course aux séries perdue d'avance. Vendre la fin de saison, ou se battre autour de la vedette.
+  leFond: {
+    de: 'pr', ico: '📉', titre: 'La course perdue d\'avance',
+    quand: f => f.n >= MI_SAISON && f.retard >= RETARD_FOND && !!f.vedette,
+    joueur: f => f.vedette,
+    fait: f => `${f.rang}e sur ${f.equipes} après ${f.n} matchs, à ${f.retard ?? 0} points des séries${avec(f.vedette)}`,
+    mots: ['Les séries s\'éloignent, et les billets ne se vendent plus. Vous vendez la fin de saison, ou vous la jouez autour de lui ?',
+      'Je ne paie pas pour regarder couler mon club. Dites-moi si on se bat encore.'],
+    options: [
+      { cle: 'vendre', nom: 'Vendre la fin de saison', bon: 'Le proprio garde l\'argent des séries', gain: 20 },
+      { cle: 'battre', nom: 'Se battre jusqu\'au bout', bon: 'Si ça passe : il porte le club, plus de tirs et de précision', prix: 'Sinon : il force, moins de précision',
+        pari: { chance: 4 / 6, gagne: { duree: 10, lui: { lancers: 1.5, finition: 1.3 } }, perd: { duree: 10, lui: { finition: 0.6 } } } },
+    ],
+  },
+  // Le sommet : la première place à défendre. Des jambes pour avril, ou la pédale au fond.
+  leSommet: {
+    de: 'ca', ico: '🏔', titre: 'La première place à défendre',
+    quand: f => f.n >= MI_SAISON && f.rang === 1 && f.avance !== null && !!f.pire,
+    joueur: f => f.pire,
+    fait: f => `1er sur ${f.equipes} après ${f.n} matchs, ${f.avance ?? 0} point${f.avance > 1 ? 's' : ''} devant le 2e · jambes ${f.jambes}${f.pire ? ` · ${f.pire.n} : ${f.pire.j}` : ''}`,
+    mots: ['Tout le monde veut nous battre, maintenant. Les gars veulent écraser la ligue ; moi, je garderais des jambes pour avril.',
+      'Premier, ça se défend chaque soir. On met la pédale au fond, ou on lève le pied avant les séries ?'],
+    options: [
+      { cle: 'menager', nom: 'Ménager les jambes pour les séries', bon: 'Les jambes de tous reviennent', action: { energieTous: 10 } },
+      { cle: 'pedale', nom: 'La pédale au fond', bon: 'Les commanditaires suivent le premier', prix: 'Les jambes de tous paient', gain: 25, action: { energieTous: -5 } },
+    ],
+  },
+  // Le dos-à-dos : deux soirs de suite sur la route, et le plus bas en jambes.
+  leDosADos: {
+    de: 'en', ico: '🛫', titre: 'Deux soirs de suite sur la route',
+    quand: f => f.n >= MI_SAISON && f.dosRoute >= 1 && !!f.pire,
+    joueur: f => f.pire,
+    fait: f => `${f.dosRoute > 1 ? `${f.dosRoute} dos-à-dos` : 'Un dos-à-dos'} à l'étranger cette semaine · jambes ${f.jambes}${f.pire ? ` · ${f.pire.n} : ${f.pire.j}` : ''}`,
+    mots: ['Deux villes, deux soirs, et lui qui traîne déjà la patte. Je le laisse à l\'hôtel un soir, ou il embarque ?',
+      'Le deuxième soir, c\'est là que les jambes lâchent. Lui, surtout.'],
+    options: [
+      { cle: 'hotel', nom: 'Le laisser souffler un soir', bon: 'Ses jambes reviennent', prix: 'Il manque un match', action: { absents: 1, energie: 35 } },
+      { cle: 'embarque', nom: 'Il joue les deux soirs', bon: 'Si ça passe : il tient, plus de tirs et de précision', prix: 'Sinon : il s\'use, moins de précision',
+        pari: { chance: 3 / 6, gagne: { duree: 6, lui: { lancers: 1.5, finition: 1.15 } }, perd: { duree: 6, lui: { finition: 0.6 } } } },
+    ],
+  },
 };
 /*
  * LA SEMAINE D'UNE HISTOIRE (V20, docs/refonte-v20.md § 3 ; JP : *oui à tout* ; le 27 oct. : *les événements devraient
@@ -140,10 +196,23 @@ const CHANCE_HISTOIRE = 0.55;
 export const semaineAHistoire = (graine, w) => w >= 1 && hache(String(graine), 'histoire', String(w)) < CHANCE_HISTOIRE;
 const tirer = (graine, w, cle) => hache(String(graine), 'dossier', String(w), cle);
 /*
- * LE DOSSIER D'UNE SEMAINE : PUR, la graine, la semaine et les faits du lundi. Parmi les vrais qui ne se sont pas
- * encore ouverts cette saison (`deja`), le plus haut de son tirage ; aucun vrai, aucun dossier (null).
+ * UNE HISTOIRE REVIENT (nov. 2026 ; docs/revue-rogue-2026-11.md § 2.1). Elle ne s'ouvrait qu'une fois par saison, contre
+ * quatorze lundis à histoire environ : la banque était vide vers la mi-saison. Sortie la semaine w0, elle se repose
+ * REPOS_HISTOIRE semaines, puis revient si son fait est vrai de nouveau, sur un AUTRE joueur que celui qu'elle a déjà
+ * nommé, et SORTIES_MAX fois par saison au plus : sans ces deux bornes, la même vedette revenait quatre fois, et le coach
+ * prenait vingt points d'expérience de plus par saison (scripts/mesure_rythme.mjs).
+ */
+export const REPOS_HISTOIRE = 5, SORTIES_MAX = 2;
+const auRepos = (k, w, deja, faits) => {
+  const lui = DOSSIERS[k].joueur ? DOSSIERS[k].joueur(faits) : null;
+  const siennes = deja.filter(x => x.cle === k);
+  return siennes.length >= SORTIES_MAX || siennes.some(x => w - x.w <= REPOS_HISTOIRE || (!!lui && x.joueur === lui.cle));
+};
+/*
+ * LE DOSSIER D'UNE SEMAINE : PUR, la graine, la semaine et les faits du lundi. Parmi les vrais qui ne se reposent pas
+ * (`deja` : ceux sortis cette saison, `{ cle, w, joueur }`), le plus haut de son tirage ; aucun vrai, aucun dossier (null).
  */
 export function dossierDeLaSemaine(graine, w, faits, deja = []) {
-  const vraies = Object.keys(DOSSIERS).filter(k => !deja.includes(k) && DOSSIERS[k].quand(faits));
+  const vraies = Object.keys(DOSSIERS).filter(k => DOSSIERS[k].quand(faits) && !auRepos(k, w, deja, faits));
   return vraies.length ? vraies.reduce((b, k) => (tirer(graine, w, k) > tirer(graine, w, b) ? k : b)) : null;
 }

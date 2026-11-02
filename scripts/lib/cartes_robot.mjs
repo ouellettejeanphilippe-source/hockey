@@ -11,7 +11,7 @@
  * Le robot ne voit que ce que l'écran montre : les feuilles jouées, la cédule de la semaine, ses jambes, sa caisse.
  */
 import { dosADos, energieDe, SLOTS, rivalChoisi, getPlayerKey } from '../../js/sim.js';
-import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, FENETRE_JOUEUR, PUNITIONS_CHICANE } from '../../js/dossiers.js';
+import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, FENETRE_JOUEUR, PUNITIONS_CHICANE } from '../../js/dossiers.js';
 import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { joueurDuFait } from '../../js/vie-gm.js';
 import { COACHS } from '../../js/coachs.js';
@@ -42,7 +42,8 @@ function faitsDuRobot(L, you, jetons) {
   const advs = soirs.map(m => (m.A === you ? m.B : m.A));
   const miens = feuillesDe(L, you).filter(x => Number.isFinite(x.m.gfA));
   const der = miens.length ? miens[miens.length - 1].m : null, chez = der && der.A === you;
-  const rang = [...L.teams].sort((a, b) => (b.PTS || 0) - (a.PTS || 0)).indexOf(you) + 1;
+  const classes = [...L.teams].sort((a, b) => (b.PTS || 0) - (a.PTS || 0)), rang = classes.indexOf(you) + 1;
+  const monSoir = j => (L.calendrier[j] || []).find(m => m.A === you || m.B === you);
   const habilles = new Set(SLOTS.filter(sl => !sl.scratch).map(sl => you.roster[sl.i]).filter(Boolean));
   const porte = sorte => { const x = joueurDuFait(sorte, miens.slice(-FENETRE_JOUEUR).map(({ f, cote }) => ({ f, cote })), habilles); return x ? { n: x.p.n, cle: getPlayerKey(x.p), fait: x.fait } : null; };
   let defaites = 0;
@@ -69,6 +70,8 @@ function faitsDuRobot(L, you, jetons) {
     bete: advs.includes(you.beteNoire) ? 'bête noire' : null,
     caisse: jetons, dernier: der ? { pour: chez ? der.gfA : der.gfB, contre: chez ? der.gfB : der.gfA, adv: 'eux' } : null,
     rang, equipes: L.teams.length, defaites,
+    ...faitsDeLaCourse(classes.map(t => t.PTS || 0), rang),
+    dosRoute: jours.filter(j => dosADos(you, j) && monSoir(j).B === you && monSoir(j - 1) && monSoir(j - 1).B === you).length,
     coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso) } : null,
     puni: puni ? { ...qui(puni), pun: puni.pun } : null,
     muet: muet ? { ...qui(muet), sal: '', pts: muet.pts } : null,
@@ -109,8 +112,8 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
   if (lundi && semaineAHistoire(graine, w)) {
     const cle = dossierDeLaSemaine(graine, w, f, etat.dossiers);
     if (cle) {
-      etat.dossiers.push(cle);
       const D = DOSSIERS[cle], lui = D.joueur ? D.joueur(f) : null;
+      etat.dossiers.push({ cle, w, joueur: lui ? lui.cle : null });
       const perso = persoDe(you);
       const possibles = D.options.filter(o => !(o.gain < 0 && f.caisse < -o.gain));
       const o = clic ? auHasard(possibles) : politique === 'defaut' ? possibles[0] : possibles.reduce((b, x) => (valeurDeReponse(x) > valeurDeReponse(b) ? x : b));
@@ -121,7 +124,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
         ...(o.soin && lui ? { gestes: { soin: o.soin, joueurs: [lui.cle] } } : {}) });
     }
   }
-  // LE PALIER (9e, 18e, 26e matchs) : un adjoint parmi trois.
+  // LE PALIER (`PALIERS_PACK`, js/inventaire.js) : un adjoint parmi trois.
   const pp = PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));
   if (pp !== undefined) {
     etat.paliers.add(pp);
