@@ -38,7 +38,7 @@ Range-les par domaine (Sur glace : le patin, la lame, le jeu physique, le gardie
 **À trancher par JP** : <les choix de goût>
 ```
 
-« Qui » nomme l'agent qui s'en charge : `glace-sensations`, `glace-ia`, `glace-graphiste`, `glace-son`, `glace-perf` ; `rogue-design`, `rogue-equilibre`, `rogue-economie`.
+« Qui » nomme l'agent qui s'en charge : `glace-sensations`, `glace-ia`, `glace-graphiste`, `glace-son`, `glace-perf` ; `rogue-design`, `rogue-equilibre`, `rogue-economie`, `rogue-ux` (un écran, un parcours, ce qui ne répond pas), `rogue-recit` (une histoire, une voix).
 
 ## 5. Ensuite
 
