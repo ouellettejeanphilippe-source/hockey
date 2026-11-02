@@ -38,6 +38,10 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 - **B (avec A)** : une histoire peut revenir après 5 semaines de repos, plus trois histoires de deuxième moitié déjà notées (le fond du classement, le sommet, le dos-à-dos). Fichier : js/dossiers.js. La preuve : `check_dossiers`, `check_incidents`, `mesure_rythme`.
 - **C** : assumer le creux, avec « jusqu'au prochain choix » qui saute au prochain gros match. Le moins cher, mais ça ne règle pas le fond.
 
+**Fait (2 nov., A et B)** : `PALIERS_PACK` [9, 18, 26] → [10, 30, 50, 70], entrelacés avec les mains du deck des 20e, 40e et 60e ; une histoire revient après `REPOS_HISTOIRE` = 5 semaines, sur un autre joueur, deux fois par saison au plus (`SORTIES_MAX`, pour que l'expérience du coach ne s'emballe pas : 25,8 points par saison sans cette borne, 9,8 avec, 5 avant) ; trois histoires après le 41e match — 📉 la course perdue d'avance (+20 🪙, ou un dé sur la vedette), 🏔 la première place à défendre (les jambes de tous +10, ou +25 🪙 et −5), 🛫 deux soirs de suite sur la route (un match de repos et +35 de jambes, ou un dé sur lui), chacune pesée à moins de 0,1 V entre ses deux réponses. `scripts/mesure_rythme.mjs` (neuf), avant → après : le plus long trou sans moment 12 → 10 matchs en médiane, 22 → 12 au pire, 20 → 4 saisons sur 24 au-dessus de 10 ; les moments par quart 8,6 · 8,0 · 6,8 · 4,5 → 7,5 · 9,8 · 8,4 · 7,5, aucun quart vide (2 avant) ; 4,7 → 8,7 histoires par saison. Le détail et le pourquoi : docs/decisions.md (2 nov.).
+
+**Mesuré après, `check_profondeur` complet (4 graines, 2 campagnes, 27 min)** : cinq vérifications vertes, **une rouge** — l'attentif ne bat plus le robot d'avant que de **+4,5 V par saison** (± 1,3 ; seuil 5 ; +5,1 avant ce lot), dans le bruit mais sous le seuil. L'attentif contre le distrait monte à +18,4 V (+17,6 avant), le robot d'avant contre le distrait à +13,8 V (+12,6) : le rythme aide aussi le robot qui prend le premier choix. Sur une carrière, l'écart se creuse au contraire : la première Coupe de l'attentif aux runs 5 et 3, celle du robot d'avant jamais en 12 runs (campagne 1) et à la run 4 (campagne 2) — avant ce lot, les deux arrivaient à la même run (6 et 4). Rien n'a été réglé pour faire passer le juge : à JP de dire si le seuil de 5 V par saison reste la bonne mesure (la question d'un juge de run est déjà posée dans PLAN.md).
+
 ### 2.2 Le coach du départ : toujours les trois mêmes, et un qui domine
 
 - Au Club de garage, `coachsOuverts(0)` ouvre trois voies, et `lotoDesCoachs` ne tire qu'une carte par philosophie. Le loto offre donc **toujours** la Tortue, le Frelon et le Rhino ; voir les huit demande la Dynastie.
@@ -94,8 +98,8 @@ Un premier lot, chaque réglage seul et prouvé :
 
 ## 4. Ce que JP tranche
 
-1. Étaler les paliers des 9e, 18e et 26e matchs (2.1 A) ?
-2. Une histoire peut-elle revenir dans la même saison (2.1 B) ?
+1. Étaler les paliers des 9e, 18e et 26e matchs (2.1 A) ? — *fait le 2 nov. (délégué), aux 10e, 30e, 50e et 70e.*
+2. Une histoire peut-elle revenir dans la même saison (2.1 B) ? — *fait le 2 nov. (délégué) : après cinq semaines, sur un autre joueur, deux fois au plus ; et trois histoires de deuxième moitié.*
 3. Le coach du départ : empêcher le cumul du Frelon (2.2 A), et le loto parmi les huit voies dès la première run (2.2 B) ?
 4. Les adjoints : `REPOS` à 20, et moins d'offres (2.3 A et B) ?
 5. Le talent du niveau 2 : couper l'écran (2.4 A) ou lui donner une vraie alternative (2.4 B) ?

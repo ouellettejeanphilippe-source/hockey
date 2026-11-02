@@ -7,13 +7,15 @@
  *      adjoint gagné ou perdu, des jambes, une suspension, un soin, l'auxiliaire, la masse salariale, ou ce qui
  *      arrive au joueur nommé ; jamais plus un pourcentage de l'équipe pour quelques soirs ;
  *   3. pur : la même graine, la même semaine et les mêmes faits rendent le même dossier, toujours un dossier vrai ; aucun
- *      dossier vrai, aucun dossier (null) ; jamais deux fois le même dans une saison ;
+ *      dossier vrai, aucun dossier (null) ; jamais deux fois le même pendant son repos (`REPOS_HISTOIRE` semaines), ni sur
+ *      le même joueur, ni plus de `SORTIES_MAX` fois (nov.
+ *      2026 : une histoire revient dans la saison, docs/revue-rogue-2026-11.md § 2.1), et il revient ;
  *   4. chacun s'ouvre : sur des lundis fabriqués, chaque dossier sort au moins une fois ;
  *   5. la porte : aucune réponse ne devient un effet d'équipe ; ses jetons restent à la décision.
  * La banque est vide (V22, phase 4) : les parties qui jugent un contenu (2, 4, 5) s'informent « banque vide » ; le système
  * (les lundis d'une histoire, le tirage pur, le null sans dossier vrai) se juge toujours.
  */
-import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire } from '../js/dossiers.js';
+import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, REPOS_HISTOIRE, SORTIES_MAX } from '../js/dossiers.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
 import { BANQUE, ORDRE_CATEGORIES } from '../js/banque.js';
 import { effetDeMoment } from '../js/sim.js';
@@ -71,7 +73,7 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
     && !semaineAHistoire('h0', 0) && semaineAHistoire('h7', 9) === semaineAHistoire('h7', 9), `${(100 * part).toFixed(0)} % des lundis, ${distinctes} grilles distinctes sur 60`);
 }
 
-/* ---------- 3 et 4 : pur, une fois par saison, chacun s'ouvre ---------- */
+/* ---------- 3 et 4 : pur, jamais pendant son repos, chacun s'ouvre ---------- */
 {
   // La banque est vide : deux dossiers d'essai, qui ne servent qu'à tirer (ils partent à la fin du bloc).
   const ESSAIS = Object.keys(DOSSIERS).length ? [] : ['essaiRoute', 'essaiRival'];
@@ -82,34 +84,40 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
   const pige = a => a[Math.floor(r() * a.length)];
   const lundi = () => {
     const soirs = pige([1, 2, 3, 3, 4]), visiteur = Math.floor(r() * (soirs + 1));
-    const joueur = (p, x) => (r() < p ? { n: 'Untel', cle: 'u', m: 10, ...x } : null);
-    return { n: pige([0, 6, 14, 28, 50]), jambes: pige([76, 85, 90, 94]), pire: { n: 'Untel', cle: 'u', j: pige([70, 78, 84, 92]) },
+    const joueur = (p, x) => (r() < p ? { n: 'Untel', cle: pige(['u', 'v', 'w']), m: 10, ...x } : null);
+    return { n: pige([0, 6, 14, 28, 50]), jambes: pige([76, 85, 90, 94]), pire: { n: 'Untel', cle: pige(['u', 'v', 'w']), j: pige([70, 78, 84, 92]) },
       boude: joueur(0.15, { zone: 'Top 6', ou: '4e trio', pts: 2 }), puni: joueur(0.15, { pun: 5 }), muet: joueur(0.1, { sal: '7,5 M$', pts: 1 }),
       vedette: joueur(0.6, { fait: 'Untel : 9 points en 10 matchs' }), gardien: joueur(0.6, { fait: 'Untel : 4 buts sur 30 tirs ce soir-là' }),
       blesses: Array.from({ length: pige([0, 1, 2, 3]) }, (_, i) => ({ n: `B${i}`, m: 4 })), soirs, dos: pige([0, 0, 1]), visiteur, domicile: soirs - visiteur,
       rival: r() < 0.2 ? 'Rival' : null, bete: r() < 0.08 ? 'Bête' : null, caisse: pige([5, 40, 60, 120]),
-      dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32,
+      dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32, dosRoute: pige([0, 0, 1, 2]),
       masse: { espace: pige([-500_000, 800_000, 4_000_000, 9_000_000]), libre: '0,8 M$', lourd: { n: 'Lourd', cle: 'l', sal: '9,5 M$' } },
       defaites: pige([0, 0, 1, 2, 4, 5]), coach: { cle: 'tortue', nom: 'La Tortue', ico: '🐢', niveau: 2, adjoints: 1 } };
   };
-  let purs = true, uneFois = true, vrai = true, nul = true;
+  // La course (nov. 2026) : lue sur un classement fabriqué, au rang du lundi (`faitsDeLaCourse`).
+  const avecLaCourse = f => ({ ...f, ...faitsDeLaCourse(Array.from({ length: 32 }, (_, i) => 120 - i * pige([1, 2, 3])), f.rang) });
+  let purs = true, uneFois = true, vrai = true, nul = true, revenus = 0;
   const sortis = new Map();
+  // Au repos : sortie SORTIES_MAX fois déjà, ou il y a REPOS_HISTOIRE semaines ou moins, ou sur un joueur qu'elle a déjà nommé.
+  const nomme = (k, f) => (DOSSIERS[k].joueur ? (DOSSIERS[k].joueur(f) || {}).cle || null : null);
+  const auRepos = (k, w, deja, f) => deja.filter(x => x.cle === k).length >= SORTIES_MAX || deja.some(x => x.cle === k && (w - x.w <= REPOS_HISTOIRE || (!!nomme(k, f) && x.joueur === nomme(k, f))));
   for (let g = 0; g < 400; g++) {
     const deja = [];
     for (let w = 2; w < 26; w += 2) {
-      const f = lundi();
+      const f = avecLaCourse(lundi());
       const a = dossierDeLaSemaine(g, w, f, deja), b = dossierDeLaSemaine(g, w, f, deja.slice());
       if (a !== b) purs = false;
-      if (!Object.keys(DOSSIERS).some(k => !deja.includes(k) && DOSSIERS[k].quand(f)) && a !== null) nul = false;
+      if (!Object.keys(DOSSIERS).some(k => DOSSIERS[k].quand(f) && !auRepos(k, w, deja, f)) && a !== null) nul = false;
       if (!a) continue;
-      if (deja.includes(a)) uneFois = false;
+      if (auRepos(a, w, deja, f)) uneFois = false;
+      if (deja.some(x => x.cle === a)) revenus++;
       if (!DOSSIERS[a].quand(f)) vrai = false;
-      deja.push(a);
+      deja.push({ cle: a, w, joueur: nomme(a, f) });
       sortis.set(a, (sortis.get(a) || 0) + 1);
     }
   }
   exiger('pur : la même graine, la même semaine et les mêmes faits rendent le même dossier', purs);
-  exiger('jamais deux fois le même dossier dans une saison', uneFois);
+  exiger(`jamais deux fois le même dossier pendant son repos (${REPOS_HISTOIRE} semaines) ni sur le même joueur, ${SORTIES_MAX} fois par saison au plus, et il revient après`, uneFois && revenus > 0, `${revenus} retours sur 400 saisons`);
   exiger('le dossier rendu est toujours un dossier vrai, et sans dossier vrai la semaine n\'en a pas (null)', vrai && nul);
   const jamais = Object.keys(DOSSIERS).filter(k => !sortis.has(k));
   exiger('chaque dossier s\'ouvre', !jamais.length, jamais.join(', ') || `${sortis.size} dossiers sur 400 saisons`);

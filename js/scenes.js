@@ -48,7 +48,7 @@ export const MOTS_DES_SCENES = {
     jambes: ['Les gars sont brûlés. On joue propre et on ménage les jambes.', 'Ça pèse dans les jambes. Pas question de courir partout.'],
     vedette: ['Leur meilleur, je le ferais suivre de près.', 'Si on éteint leur vedette, le reste suivra.'],
   },
-  // LE PALIER DE LA SAISON (A2) : le proprio, aux 9e, 18e et 26e matchs.
+  // LE PALIER DE LA SAISON (A2) : le proprio, aux matchs de `PALIERS_PACK` (js/inventaire.js).
   palier: {
     fond: [
       'Je vous ai laissé trois enveloppes sur le bureau. Prenez celle qui nous sort du fond.',
@@ -130,7 +130,7 @@ export function sceneDeLAdjoint({ intention, cible = '', raison, moi = 0, lui = 
 }
 
 /*
- * A2 · LES PALIERS DES 9e, 18e ET 26e MATCHS. Le proprio, qui vouvoie. Le fait : la fiche après n matchs, le rang, et
+ * A2 · LES PALIERS DE LA SAISON (`PALIERS_PACK`, js/inventaire.js). Le proprio, qui vouvoie. Le fait : la fiche après n matchs, le rang, et
  * ce que le mandat demande.
  *   n          les matchs joués ; fiche : { V, D, DP } ; rang : la place au classement, sur `equipes` ;
  *   mandat     le mot du mandat (`mandatDe(...).mot`) ; graine : la partie

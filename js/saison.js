@@ -47,7 +47,7 @@ import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { ADJOINTS, adjointsOfferts, lignesDeLAdjoint, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, reposDe, mainDe, auRepos } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
-import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
+import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE } from './banque.js';
 import { DEFIS, avanceDuDefi, motDuDefi } from './arcs.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
@@ -861,7 +861,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const jEv = k => jourEvenement(you, k);
   const palierOuvert = () => (onDecision ? PALIERS_CARTES.find(j => jour >= jEv(j) && !prises.has(j)) : undefined);
   const paliersVus = new Set();      // les paliers qui ont déjà arrêté l'avance
-  const packsVus = new Set();        // V4 : les packs gratuits (matchs 9, 18, 26) qui ont déjà arrêté l'avance
+  const packsVus = new Set();        // V4 : les paliers de la saison (`PALIERS_PACK`) qui ont déjà arrêté l'avance
   /*
    * LES PALIERS DÉJÀ PROPOSÉS À CE PASSAGE (S74). La main s'ouvrait seulement
    * quand un clic s'arrêtait sur le palier ; un choix forcé tombé le même jour
@@ -3215,7 +3215,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const w = jour / SEMAINE;
     if (!semaineAHistoire(graine, w) || pris.has(`do:${w}`)) return null;
     const faits = faitsDuLundi();
-    const cle = dossierDeLaSemaine(graine, w, faits, decs.filter(d => d.moment && d.moment.famille === 'dossier').map(d => d.moment.cle));
+    // Une histoire revient après son repos (`REPOS_HISTOIRE`), sur un autre joueur : celles de la saison, leur semaine (`do:w`), leur joueur.
+    const cle = dossierDeLaSemaine(graine, w, faits, decs.filter(d => d.moment && d.moment.famille === 'dossier').map(d => ({ cle: d.moment.cle, w: Number(String(d.palier).slice(3)) || Math.floor(d.jour / SEMAINE), joueur: d.moment.joueur || null })));
     return cle ? { w, cle, faits } : null;
   }
   /* Les mots d'une réponse de dossier, ses noms posés : le joueur qu'il nomme ({nom}), les coachs que le proprio nomme ({coach0}, {coach1}). */
@@ -3251,6 +3252,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       caisse: ctx.rogue.jetons ? ctx.rogue.jetons(jour) : null,
       dernier: der ? { pour: chez ? der.gfA : der.gfB, contre: chez ? der.gfB : der.gfA, adv: ctx.teamShort(chez ? der.B : der.A) } : null,
       rang: rangDe(you), equipes: teams.length,
+      // LA COURSE ET LA ROUTE (nov. 2026, js/dossiers.js) : le retard sur les séries, l'avance du premier, les dos-à-dos à l'étranger.
+      ...faitsDeLaCourse(classement().map(t => fiche.get(t).PTS), rangDe(you), enSeries),
+      dosRoute: jours.filter(j => dosADos(you, j) && calendrier[j][indexMien(j)].B === you && indexMien(j - 1) >= 0 && calendrier[j - 1][indexMien(j - 1)].B === you).length,
       ...faitsDesJoueurs(), ...faitsDuProprio(),
     };
   }
@@ -3382,7 +3386,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           agir: () => ouvrirMain(pal) } });
     }
     /*
-     * LE PALIER DE LA SAISON (V9, tranche 5b ; V21) : aux matchs 9, 18 et 26, un adjoint parmi trois, un échange
+     * LE PALIER DE LA SAISON (V9, tranche 5b ; V21) : aux matchs de `PALIERS_PACK` (10, 30, 50, 70), un adjoint parmi trois, un échange
      * (`adjointsOfferts`, js/adjoints.js). Il attend le lundi, comme les autres.
      */
     const pp = ctx.rogue && ctx.inventaire ? PALIERS_PACK.find(x => miens.length >= x && !pris.has(`pp:${x}`)) : undefined;
@@ -3425,7 +3429,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ...(o.adjoint && offert ? [{ txt: `Dans ta main : ${ADJOINTS[offert].ico} ${ADJOINTS[offert].nom}, ${ADJOINTS[offert].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjoint(offert)] : []),
         ...(o.action && o.action.energieTous ? [{ txt: `Les jambes de tous : ${o.action.energieTous > 0 ? '+' : '−'}${Math.abs(o.action.energieTous)}`, bon: o.action.energieTous > 0 }] : []),
         ...(o.action && o.action.energie && lui ? [{ txt: `Jambes de ${nomCourt(lui.n)} : ${o.action.energie > 0 ? '+' : '−'}${Math.abs(o.action.energie)}`, bon: o.action.energie > 0 }] : []),
-        ...(o.action && o.action.absents && lui ? [{ txt: `${nomCourt(lui.n)} manque ${o.action.absents} matchs`, bon: false }] : []),
+        ...(o.action && o.action.absents && lui ? [{ txt: `${nomCourt(lui.n)} manque ${o.action.absents} match${o.action.absents > 1 ? 's' : ''}`, bon: false }] : []),
         ...(o.action && o.action.gardienAux ? [{ txt: `L'auxiliaire garde le filet ${o.action.gardienAux} soir`, bon: null }] : []),
         ...(o.soin && lui ? [{ txt: `${nomCourt(lui.n)} : −${o.soin} matchs d'infirmerie`, bon: true }] : []),
       ];

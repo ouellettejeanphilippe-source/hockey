@@ -77,7 +77,7 @@ const lundiPlein = {
   gardien: { n: 'Legardien', cle: 'lg', fait: 'Legardien : 6 buts sur 31 tirs ce soir-là' },
   boude: { n: 'Leboudeur', cle: 'bd', zone: 'Top 6', ou: '4e trio', pts: 2, m: 10 }, puni: { n: 'Lepuni', cle: 'pn', pun: 5, m: 10 }, muet: { n: 'Lemuet', cle: 'mt', sal: '7,5 M$', pts: 1, m: 10 },
   blesses: [{ n: 'Leblesse', m: 12, cle: 'bl' }, { n: 'Unautre', m: 4, cle: 'ua' }], soirs: 4, dos: 1, visiteur: 3, domicile: 1, rival: 'Rival', bete: 'Bête', caisse: 10,
-  dernier: { pour: 0, contre: 5, adv: 'Eux' }, rang: 30, equipes: 32,
+  dernier: { pour: 0, contre: 5, adv: 'Eux' }, rang: 30, equipes: 32, retard: 9, avance: null, dosRoute: 1,
   masse: { espace: 500_000, libre: '0,5 M$', lourd: { n: 'Legros', cle: 'gr', sal: '9,5 M$', dollars: 9_500_000 } },
   defaites: 5, coach: 'La Tortue', coachs: [{ cle: 'a', nom: 'Le Frelon', ico: '🐝' }, { cle: 'b', nom: "L'Aigle", ico: '🦅' }],
 };
