@@ -51,6 +51,8 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 - **A (recommandée)** : le bourdonnement ne joue que si tu mènes en 3e, donc jamais en même temps que la ruée (js/pouvoirs.js). La preuve : `COACHS=essaim N=600 node scripts/check_pouvoirs.mjs`, puis `check_profondeur` avec `ROBOT_COACH` pour chacune des trois voies du départ, à moins de 1,5 V l'une de l'autre.
 - **B** : un loto de trois voies tirées parmi les huit dès la première run ; le prestige ouvre autre chose (la maîtrise, les cartes du cartable). Touche la décision « le coach au prestige » (docs/decisions.md). La preuve : les campagnes de `check_profondeur`, la première Coupe toujours à la run 3 ou plus tard.
 
+**Fait (2 nov., A)** : le bourdonnement joue « en 3e, quand tu mènes » (« avec plus de tirs qu'eux » avant), jamais avec la ruée. `COACHS=essaim N=600 check_pouvoirs` vert : 47 → 45 % des soirs, +1,9 tir le soir où il joue, +1,2 → +1,7 V (borne 2,5) ; le Frelon complet +7,8 → +7,5 V. Les trois voies du départ (`ROBOT_COACH`, `CAMPAGNES=0 GRAINES=2`), l'attentif sur le robot d'avant, avant → après : 🐢 +2,8 → +2,9 · 🐝 +4,4 → +3,4 · 🦏 +4,4 → +4,6 V (± 2) ; l'écart 1,6 → 1,7 V, dans le bruit. Le +6,5 V du 31 oct. ne se retrouvait plus après la V22 (+4,4, à égalité avec le Rhino) : le Frelon ne dominait déjà plus, il est maintenant au milieu. B n'est pas fait. Le détail : docs/decisions.md (2 nov., le Frelon ne cumule plus).
+
 ### 2.3 Les adjoints : poser dès qu'une case se libère domine
 
 - **`SEJOUR = 12` et `REPOS = 12`** (js/adjoints.js) : deux cartes en alternance couvrent une case toute la saison. Une case vide est perdue, donc poser tout de suite domine ; c'est ce que fait le robot (`lundiDuRobot`).
@@ -72,6 +74,8 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 - **A (recommandée)** : couper l'écran du niveau 2 ; le talent s'applique seul et Hier soir le dit. Le vrai choix reste au niveau 4 (js/saison.js, cartes_robot.mjs). La preuve : `essai_rogue`, `check_verite`.
 - **B** : une vraie alternative au niveau 2 — « +50 % au pouvoir I » ou « une case d'adjoint tout de suite » (`CASES_PAR_NIVEAU` à `[1, 2, 2, 2, 3]`). La preuve : `check_pouvoirs`, le personnage complet sous 16 V.
 
+**Fait (2 nov., B)** : au premier talent, « Un adjoint de plus en poste » — une case de plus dès le niveau 2 et pour la run (`CASE_DE_PLUS`, js/adjoints.js : 1, 2, 3, 3, 4 cases), et une carte pour la remplir — contre le pouvoir I grandi de 50 %. La case seule au niveau 2 ne comptait qu'une trentaine de matchs ; seule pour la run, elle n'ajoutait que 6 matchs-cases occupés la première saison (`mesure_main`, `ROBOT_TALENT` : la main n'a souvent qu'une carte au niveau 2). Avec la carte : +19 matchs-cases la première saison, +35 ensuite, ≈ 0,3 puis 0,55 V par saison (0,5 V la carte, le poids du robot) ; le pouvoir I grandi, ≈ 0,4 puis 0,7 V en moyenne (de 0 pour le verrou de la Tortue à 1,15 V pour l'usure du Rhino). Le bon choix dépend du coach. `check_pouvoirs` (le personnage complet sous 16 V), `check_clarte`, `check_verite`, `check_sauvegardes` verts. Le détail : docs/decisions.md.
+
 ### 2.5 Les histoires : deux faux choix sur six
 
 - 🥶 **La disette** : le défi met ses lancers à ×1,5 dans les deux issues ; ses buts font ×1,95 si ça passe et ×0,75 sinon, ×1,35 en moyenne. « Le reposer » coûte deux matchs sans lui et ne rapporte rien. Son `bon` (« la tête vidée ») ne nomme aucune ligne, contre `check_mots`.
@@ -81,6 +85,8 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 **Options**
 - **A (recommandée)** : un vrai gain à l'option prudente — au retour du repos, ses lancers ×1,2 sur 6 matchs ; l'auxiliaire donne +20 de jambes au partant et un départ « chaud » au retour (js/dossiers.js). La preuve : `check_effets`, `check_mots`, et un script à écrire, `scripts/mesure_histoires.mjs`, qui pèse chaque réponse en V par `chiffresDuSoirSous` (comme `fitDAdjoint`) : les deux réponses à ±0,3 V l'une de l'autre, ou de nature opposée.
 - **B** : rendre le défi moins rentable (ses lancers à ×1,0, ou une chance de 2 sur 6).
+
+**Fait (2 nov., A)** : pesées par `check_effets` (`IDS=d: DETAIL=1 N=600`), plus deux poids mesurés en paires (un match de l'auxiliaire : −0,053 V ; un match sans le gros contrat : −0,059 V). Avant : 🥶 défi +0,14 V contre repos −0,12 V ; 🥅 renvoyer **−0,17 V** (×1,22 coûte plus que ×0,78 ne rapporte : il ne dominait pas) contre l'auxiliaire −0,11 V, un pur coût. Après : le repos rend, à son retour, tirs ×1,5 et précision ×1,1 sur six matchs (×1,2 seul ne se voyait pas) : **+0,07 V** contre +0,14 ; l'auxiliaire rend un départ chaud, buts accordés ×0,78 sur ses deux départs au retour (+20 de jambes n'aurait rien fait : un gardien les retrouve après un congé) : **−0,01 V** contre −0,17. Les deux paires à moins de 0,3 V, le sûr contre le dé. Leurs bons nomment leurs lignes ; `check_mots` lit maintenant ce qui va au joueur nommé. `check_effets`, `check_mots`, `check_dossiers` verts. `scripts/mesure_histoires.mjs` n'est pas écrit : `check_effets DETAIL=1` en tient lieu.
 
 ### 2.6 La boutique n'est pas mesurée comme un choix
 
@@ -100,10 +106,10 @@ Un premier lot, chaque réglage seul et prouvé :
 
 1. Étaler les paliers des 9e, 18e et 26e matchs (2.1 A) ? — *fait le 2 nov. (délégué), aux 10e, 30e, 50e et 70e.*
 2. Une histoire peut-elle revenir dans la même saison (2.1 B) ? — *fait le 2 nov. (délégué) : après cinq semaines, sur un autre joueur, deux fois au plus ; et trois histoires de deuxième moitié.*
-3. Le coach du départ : empêcher le cumul du Frelon (2.2 A), et le loto parmi les huit voies dès la première run (2.2 B) ?
+3. Le coach du départ : empêcher le cumul du Frelon (2.2 A), et le loto parmi les huit voies dès la première run (2.2 B) ? — *A fait le 2 nov. (délégué) ; B non.*
 4. Les adjoints : `REPOS` à 20, et moins d'offres (2.3 A et B) ?
-5. Le talent du niveau 2 : couper l'écran (2.4 A) ou lui donner une vraie alternative (2.4 B) ?
-6. Les deux histoires à faux choix : relever l'option prudente (2.5 A) ou baisser le défi (2.5 B) ?
+5. Le talent du niveau 2 : couper l'écran (2.4 A) ou lui donner une vraie alternative (2.4 B) ? — *B fait le 2 nov. (délégué) : une case d'adjoint de plus et sa carte.*
+6. Les deux histoires à faux choix : relever l'option prudente (2.5 A) ou baisser le défi (2.5 B) ? — *A fait le 2 nov. (délégué).*
 7. Les trois premières runs d'une saison chacune : voulu, ou trop dur ?
 
 ## Comment ces chiffres ont été faits
