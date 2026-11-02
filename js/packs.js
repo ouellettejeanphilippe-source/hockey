@@ -128,7 +128,9 @@ export const PACKS_JOUEURS = {
   argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', joueurs: 3, cartes: 2, prix: 22, texte: 'Trois vrais joueurs, et parfois une carte rare, de meilleures chances.' },
   or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', joueurs: 4, cartes: 2, prix: 38, texte: 'Quatre vrais joueurs, et parfois une carte rare, les meilleures chances de la boutique.' },
   // V10 : le pack à thème de la première run, au métal du Bronze ; ses crans le montent (js/rogue.js `CRANS_DE_PACK`).
-  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'bronze', choix: 'decennie', joueurs: 3, cartes: 2, prix: 20, texte: 'Trois joueurs de la décennie de ton choix, et parfois une carte rare.' },
+  // Nov. 2026 (docs/revue-rogue-2026-11.md § 2.6) : il vise aussi le poste qui manque (`poste`, `POSTES_DU_PACK`) — le
+  // Bronze reste le moins cher, au hasard ; l'Époque coûte plus et donne ce dont ton effectif a besoin.
+  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'bronze', choix: 'decennie', poste: true, joueurs: 3, cartes: 2, prix: 20, texte: 'Trois joueurs de la décennie et du poste de ton choix, et parfois une carte rare.' },
   specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes de la famille de ton choix, le quart du haut à leurs points égaux, et parfois une carte rare.' },
   club: { famille: 'equipe', nom: 'Pack Club', ico: '🏟', tier: 'argent', choix: 'franchise', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois joueurs de la franchise de ton choix, toutes époques confondues, et parfois une carte rare.' },
   // V10 : le pack d'étoiles de la boutique, mixte comme les autres, que la Coupe ouvre (js/rogue.js `packsOuverts`).
@@ -140,6 +142,8 @@ export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:speciali
 /* Les décennies du Pack Époque, et les rôles du Pack Spécialistes, avec leur nom. */
 export const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
 export const NOMS_SKILLS = { sniper: '🎯 Tir', passeur: '🪄 Jeu', defensif: '❄ Défense', dur: '🥊 Robustesse', gardien: '🥅 Gardiens', recrue: '🐣 Recrues', veteran: '🧓 Vétérans' };
+/* Les postes d'un pack qui vise le poste (`poste`, le Pack Époque) : le groupe du joueur (js/niveaux.js `groupeDuJoueur`). */
+export const POSTES_DU_PACK = { F: 'Des avants', D: 'Des défenseurs', G: 'Des gardiens' };
 
 /* LES CARTES RARES D'UN PACK DE JOUEURS (js/banque.js) : gardées dans ton inventaire. V21 : le Pack Personnel est parti
    avec le personnel ; les adjoints ne sont pas des cartes de pack. */
@@ -440,6 +444,9 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
     // Les huit coachs (`VOIES`).
     const couleur = P.famille === 'coach' ? (VOIES.includes(reglage.coach) ? reglage.coach : VOIES[Math.floor(hache(graine, 'pack-coach', n) * VOIES.length)]) : null;
     if (couleur) reglage.coach = couleur;
+    // LE POSTE CHOISI (nov. 2026, `P.poste`) : seulement des joueurs de ce groupe ; « Au hasard », tous.
+    const poste = P.poste && POSTES_DU_PACK[reglage.poste] ? reglage.poste : null;
+    if (P.poste) reglage.poste = poste;
     const taux = niveauxDuPack(cle, mods);
     const permis = NIVEAUX.map((N, k) => k).filter(k => taux[NIVEAUX[k].cle] > 0);
     const essais = Math.min(ESSAIS_NIVEAU, saisons.length);
@@ -456,7 +463,7 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
           const hors = k === 0 && hache(graine, 'pack-hors', cle, n, c, e) < PART_HORS_NIVEAU;
           const pool = (P.famille === 'equipe'
             ? (sh.byTeam[codeDeFranchise(reglage.franchise, sa)] || []).filter(p => (hors ? joueursHorsNiveau(sh.players).includes(p) : niveauDe(p, sh.players) === k))
-            : hors ? joueursHorsNiveau(sh.players) : joueursParNiveau(sh.players)[k]).filter(p => dispo(p) && (!couleur || coachDuJoueur(p) === couleur));
+            : hors ? joueursHorsNiveau(sh.players) : joueursParNiveau(sh.players)[k]).filter(p => dispo(p) && (!couleur || coachDuJoueur(p) === couleur) && (!poste || groupeDuJoueur(p) === poste));
           if (pool.length) carte = { p: recrue(pool, mods.coach, graine, cle, n, c, k, e), niveau: k };
         }
         if (carte) break;
