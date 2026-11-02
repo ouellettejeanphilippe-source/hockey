@@ -924,8 +924,24 @@ function ecussonDuCentre() {
   if (!ecusson || ecusson.code !== code) { const im = new Image(); im.src = `img/logos/${code}.svg`; ecusson = { code, im }; }
 }
 
-/* L'échelle d'un sprite à l'écran : un nombre entier de pixels par pixel de sprite. */
-const echelle = () => Math.max(1, Math.round(cam.k * PIXEL * taille.dpr)) / taille.dpr;
+/*
+ * LES JOUEURS PLUS GROS QUE NATURE (JP, 2 nov. : *tu peux aussi juste grossir les joueurs*) : la zone remplit l'écran,
+ * et les joueurs sont dessinés `GROS` fois leur taille, comme dans les jeux 16 bits. Rien que de l'image : le moteur
+ * garde ses corps ; la rondelle portée se dessine à la lame du sprite (`rondelleVue`), le reste à sa place.
+ */
+const GROS = 1.5;
+/* L'échelle d'un sprite à l'écran : un nombre entier de pixels de l'appareil par pixel de sprite ; `gros` faux, celle de la glace (la rondelle). */
+const echelle = (gros = true) => Math.max(1, Math.round(cam.k * PIXEL * (gros ? GROS : 1) * taille.dpr)) / taille.dpr;
+/* La rondelle portée, vue à la lame du sprite grossi : un décalage qui la suit en douceur, et revient à zéro quand elle part. */
+let rondelleVue = { x: 0, y: 0, t: 0 };
+function decalageRondelle(now) {
+  const R = etat.rondelle, p = R.porteur && etat.patineurs.find(q => q.id === R.porteur);
+  const lm = p && lame(p);
+  const cible = lm ? { x: (lm.x - p.x) * (GROS - 1), y: (lm.y - p.y) * (GROS - 1) } : { x: 0, y: 0 };
+  const f = 1 - Math.exp(-Math.min(0.1, (now - (rondelleVue.t || now)) / 1000) / 0.05);
+  rondelleVue = { x: rondelleVue.x + (cible.x - rondelleVue.x) * f, y: rondelleVue.y + (cible.y - rondelleVue.y) * f, t: now };
+  return rondelleVue;
+}
 /* L'angle d'un cap sur l'écran (y vers le bas) : debout, la glace est tournée d'un quart de tour. */
 const angleEcran = cap => cap - Math.PI / 2;
 /* La direction d'un cap, en huitièmes de tour de l'écran (0 = vers la droite), ou en quarts pour le gardien. */
@@ -952,13 +968,13 @@ function marques(s) {
   // l'équipe*) ; à plat comme le sol des sprites (`MARQUE`), et à moitié transparente : le joueur, lui, reste devant.
   if (toi) {
     const c = couleurs[s.equipe];
-    cx.beginPath(); cx.ellipse(s.x, s.y, MARQUE.rayon * MARQUE.sol, MARQUE.rayon, 0, 0, Math.PI * 2);
+    cx.beginPath(); cx.ellipse(s.x, s.y, MARQUE.rayon * MARQUE.sol * GROS, MARQUE.rayon * GROS, 0, 0, Math.PI * 2);
     cx.globalAlpha = 0.6; cx.fillStyle = c.club || c.bg; cx.fill();
     cx.globalAlpha = 1; cx.strokeStyle = COULEURS.contour; cx.lineWidth = 0.08; cx.stroke();
   }
   if (s.charge > 0 && etat.rondelle.porteur === s.id) {
     cx.strokeStyle = COULEURS.ligne; cx.lineWidth = 0.09;
-    cx.beginPath(); cx.arc(s.x, s.y, s.rayon + 0.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.charge / BATON.charge)); cx.stroke();
+    cx.beginPath(); cx.arc(s.x, s.y, s.rayon * GROS + 0.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.charge / BATON.charge)); cx.stroke();
   }
 }
 /* Un patineur, en pixels d'écran : sa pose du moment (la chute, le lancer, la passe, l'épaule, la foulée, le repos). */
@@ -1001,7 +1017,7 @@ function receveur() {
     if (!r || !r.vers) continue;
     cx.strokeStyle = COULEURS.passe; cx.lineWidth = 0.1;
     if (r.barree) cx.setLineDash([0.2, 0.2]);
-    cx.beginPath(); cx.arc(r.vers.x, r.vers.y, r.vers.rayon + 0.22, 0, Math.PI * 2); cx.stroke();
+    cx.beginPath(); cx.arc(r.vers.x, r.vers.y, r.vers.rayon * GROS + 0.22, 0, Math.PI * 2); cx.stroke();
     cx.setLineDash([]);
   }
 }
@@ -1047,7 +1063,7 @@ function dessiner(now) {
   const z = Math.max(chute * 0.6, Math.min(1.5, R.z || 0));
   // En pixels de sprite, sur la grille : quatre de large, trois de haut, un reflet ; en l'air, elle grossit et son ombre reste au sol.
   cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const S = echelle(), sol = ecran(R.x, R.y), haut = ecran(R.x + z * 0.5, R.y);
+  const dv = decalageRondelle(now), S = echelle(false), sol = ecran(R.x + dv.x, R.y + dv.y), haut = ecran(R.x + dv.x + z * 0.5, R.y + dv.y);
   const lw = S * (4 + Math.round(z * 2)), lh = S * (3 + Math.round(z * 2));
   if (z > 0) { cx.fillStyle = COULEURS.ombre; cx.fillRect(Math.round(sol.x - lw / 2), Math.round(sol.y - lh / 2), lw, lh); }
   cx.fillStyle = COULEURS.rondelle; cx.fillRect(Math.round(haut.x - lw / 2), Math.round(haut.y - lh / 2), lw, lh);
@@ -1077,8 +1093,8 @@ function dessiner(now) {
     const mot = s.nom.toUpperCase(), lw = cx.measureText(mot).width + 10;
     const nx = Math.max(lw / 2 + 8, Math.min(w - lw / 2 - 8, p.x));   // l'étiquette reste dans l'écran, à 8 px des bords
     cx.globalAlpha = f;
-    cx.fillStyle = couleurs[s.equipe].bg; cx.fillRect(Math.round(nx - lw / 2), Math.round(p.y - s.rayon * cam.k - 24), Math.round(lw), 16);
-    cx.fillStyle = couleurs[s.equipe].ink; cx.fillText(mot, Math.round(nx), Math.round(p.y - s.rayon * cam.k - 16));
+    cx.fillStyle = couleurs[s.equipe].bg; cx.fillRect(Math.round(nx - lw / 2), Math.round(p.y - s.rayon * GROS * cam.k - 24), Math.round(lw), 16);
+    cx.fillStyle = couleurs[s.equipe].ink; cx.fillText(mot, Math.round(nx), Math.round(p.y - s.rayon * GROS * cam.k - 16));
     cx.globalAlpha = 1;
   }
   // LE FLASH DU BUT, sur tout l'écran.
