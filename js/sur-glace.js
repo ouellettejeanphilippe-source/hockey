@@ -45,8 +45,8 @@ const COULEURS = {
 };
 /* Les chandails : les locaux (B, « eux ») en blanc aux épaules du club, les visiteurs (A, toi) en couleur. */
 const chandails = (bandA, bandB) => ({
-  A: { bg: bandA.bg, ink: bandA.ink, epaule: bandA.stripe || bandA.ink, casque: teinter(bandA.bg, -0.45), pantalon: teinter(bandA.bg, -0.5) },
-  B: { bg: COULEURS.blanc, ink: COULEURS.encreBlanc, epaule: bandB.bg, club: bandB.bg, casque: bandB.bg, pantalon: teinter(bandB.bg, -0.35) },
+  A: { bg: bandA.bg, ink: bandA.ink, epaule: bandA.stripe || bandA.ink, casque: teinter(bandA.bg, -0.45), pantalon: teinter(bandA.bg, -0.5), tribune: [bandA.bg, bandA.stripe || bandA.ink] },
+  B: { bg: COULEURS.blanc, ink: COULEURS.encreBlanc, epaule: bandB.bg, club: bandB.bg, casque: bandB.bg, pantalon: teinter(bandB.bg, -0.35), tribune: [bandB.bg, bandB.stripe || bandB.ink] },
 });
 const CLE = 'cap82_glace';
 /*
@@ -690,16 +690,14 @@ function mesurer() {
  */
 const DEVANCE = 5;      // le décalage maximal vers la direction du jeu, m
 const DEVANCE_V = 0.45; // le décalage par m/s de vitesse de la rondelle
-/* LA ZONE QUI REMPLIT L'ÉCRAN (JP, 1er et 2 nov. : *la zone offensive doit rentrer dans un écran 16:9 au complet,
-   presque pleine largeur* ; *qu'en 16:9, la zone offensive ou défensive remplisse, et adapte la zone neutre aussi*) :
-   la glace est taillée pour (js/physique.js) — sa largeur, plus `MARGE_VUE` de bande, en travers d'un écran 16:9, montre
-   en long une zone entière ou toute la zone neutre. La caméra prend l'échelle exacte qui le fait, en pixels de
-   l'appareil (un pixel de sprite y fait deux pixels ou plus, la glace reste nette) ; sous 2,5, un nombre entier. Elle
-   cadre la zone où est la rondelle — la sienne, la neutre ou l'autre —, la bleue et la bande du fond dans l'écran, et
-   change de cadre une fois la bleue franchie d'un demi-mètre (sans va-et-vient sur la ligne). Un écran plus long que
-   ça (un téléphone debout) en montre plus, et suit la rondelle. */
+/* L'ÉQUIVALENT D'UNE ZONE À L'ÉCRAN (JP, 1er et 2 nov. : *la zone offensive doit rentrer dans un écran 16:9 au complet,
+   presque pleine largeur* ; *caméra normale, pas snaps aux zones : ça doit afficher l'équivalent d'une zone*) : la
+   glace est taillée pour (js/physique.js) — sa largeur, plus `MARGE_VUE` de bande, en travers d'un écran 16:9 montre
+   en long la profondeur d'une zone. La caméra prend l'échelle exacte qui le fait, en pixels de l'appareil (un pixel de
+   sprite y fait deux pixels ou plus, la glace reste nette) ; sous 2,5, un nombre entier. Elle suit la rondelle, en
+   devançant le jeu, sans jamais montrer au-delà des gradins. */
 const MARGE_VUE = 1.4;               // m de plus que la largeur de la glace : la bande, la vitre, un rang de foule
-const MARGE_FOND = 0.6;              // m de plus que la zone, en long : la bande du fond
+const MARGE_FOND = 0.6;              // m de plus que la zone, en long
 const ZONE = L / 2 - BLEUE;          // la profondeur d'une zone, de la bleue à la bande du fond
 function camera(dt) {
   const long = taille.h, court = taille.w, dpr = taille.dpr;
@@ -711,13 +709,7 @@ function camera(dt) {
   const R = etat.rondelle;
   const f = 1 - Math.exp(-SUIVI * dt);
   const borne = (c, demi, bout) => (demi >= bout ? 0 : Math.max(-bout + demi, Math.min(bout - demi, c)));
-  const voit = long / k;
-  // garder le segment [a, b] de la glace dans l'écran : le centre entre b − voit/2 et a + voit/2, sinon le milieu
-  const garder = (a, b, c) => { const bas = b - voit / 2, haut = a + voit / 2; return bas <= haut ? Math.max(bas, Math.min(haut, c)) : (a + b) / 2; };
-  if (R.x > BLEUE + 0.5) cam.zone = 1; else if (R.x < -BLEUE - 0.5) cam.zone = -1; else if (Math.abs(R.x) < BLEUE - 0.5 || cam.zone == null) cam.zone = 0;
-  const tx0 = R.x + Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V));
-  const tx = cam.zone ? cam.zone * garder(BLEUE - 0.4, L / 2 + MARGE_FOND, tx0 * cam.zone) : garder(-(BLEUE + 0.4), BLEUE + 0.4, tx0);
-  cam.x += (tx - cam.x) * f;
+  cam.x += (R.x + Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V)) - cam.x) * f;
   // toute la largeur tient dans l'écran : la glace reste centrée, elle ne glisse plus de côté
   const ty = court / k >= W + 0.6 ? 0 : R.y + Math.max(-DEVANCE, Math.min(DEVANCE, R.vy * DEVANCE_V));
   cam.y += (ty - cam.y) * f;
@@ -751,12 +743,13 @@ const PAL = {
   rouge: '#c8102e', rougeSombre: '#8e0b21', bleu: '#1c4db5', bleuSombre: '#123479',
   enclave: '#8fc1ec', enclaveClair: '#a9d0f1',
   plinthe: '#e9bb1c', plintheSombre: '#a9850f', bande: '#f3f2ec', bandeOmbre: '#d7d6cf', lisse: '#24272f',
-  vitre: '#a7c2d3', vitreSombre: '#86a3b6', gradin: '#191b22', gradinRang: '#23262f', banc: '#26304a', bancBois: '#5b3d22',
+  vitre: '#a7c2d3', vitreSombre: '#86a3b6', banc: '#26304a', bancBois: '#5b3d22',
   maille: '#f5f6f8', mailleSombre: '#c4cad3',
   peau: ['#f0c8a0', '#c99268', '#8d5a3c'], fouleNeutre: ['#2c3140', '#4a4f5c', '#7a7466', '#b9b2a4', '#ddd6c8'],
 };
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + 0.5) / 16);
 const VITRE = { plinthe: 0.14, bande: 0.43, lisse: 0.57, vitre: 0.85 };   // de la glace vers les gradins, m
+const FOULE = { vide: 0.05, locaux: 0.62, visiteurs: 0.86, secondaire: 0.18 };   // les parts de la foule, cumulées : vides, locaux (dont leur deuxième couleur), visiteurs, puis les neutres
 const PUB = 4.5;   // la longueur d'un panneau sur la bande, m
 let fond = null;   // { cle, images: [assise, debout], nx, ny }
 const hex = c => { const v = parseInt(c.slice(1), 16); return [v >> 16 & 255, v >> 8 & 255, v & 255]; };
@@ -774,7 +767,7 @@ function bruitDoux(x, y) {
 }
 function fondDeGlace() {
   const logo = ecusson && ecusson.im.complete && ecusson.im.naturalWidth ? ecusson.code : '';
-  const cle = `${couleurs.A.bg}|${couleurs.B.club || couleurs.B.bg}|${logo}`;
+  const cle = `${couleurs.A.tribune}|${couleurs.B.tribune}|${logo}`;
   if (fond && fond.cle === cle) return fond;
   const n = Math.round(1 / PIXEL);
   const nx = 2 * Math.ceil((L / 2 + GRADINS) * n), ny = 2 * Math.ceil((W / 2 + GRADINS) * n);
@@ -783,6 +776,8 @@ function fondDeGlace() {
   const img = g.createImageData(nx, ny), d = img.data;
   const C = {};
   for (const [k, v] of Object.entries(PAL)) C[k] = Array.isArray(v) ? v.map(hex) : hex(v);
+  // Les marches des gradins, teintes à la couleur des locaux : l'aréna est la leur.
+  C.gradin = hex(teinter(couleurs.B.tribune[0], -0.78)); C.gradinRang = hex(teinter(couleurs.B.tribune[0], -0.6));
   const pubs = [hex(couleurs.A.bg), hex(couleurs.B.club || couleurs.B.bg), hex('#1d2230'), hex('#f0c419')];
   const X = L / 2, Y = W / 2, demi = FILET.large / 2;
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
@@ -862,19 +857,25 @@ function fondDeGlace() {
     if (y > W / 2 && h < VITRE.vitre + 1.6 && Math.abs(x) < 14) continue;   // les bancs
     if (y < -W / 2 && h < VITRE.vitre + 1.6 && Math.abs(x) < 5) continue;   // les cachots
     const r = hache(i, j);
-    if (r < 0.12) continue;   // un siège vide
-    const chandail = r < 0.32 ? couleurs.A.bg : r < 0.55 ? (couleurs.B.club || couleurs.B.bg) : PAL.fouleNeutre[Math.floor(hache(j, i) * PAL.fouleNeutre.length)];
+    if (r < FOULE.vide) continue;   // un siège vide
+    // LES COULEURS DES CLUBS (JP, 2 nov. : *gradins plus colorés des équipes*) : les locaux d'abord, au chandail du club
+    // ou à sa deuxième couleur, puis les visiteurs ; quelques neutres.
+    const [Bp, Bs] = couleurs.B.tribune, [Ap, As] = couleurs.A.tribune;
+    const locaux = r < FOULE.locaux;
+    const chandail = locaux ? (r < FOULE.locaux - FOULE.secondaire ? Bp : Bs) : r < FOULE.visiteurs ? (r < FOULE.visiteurs - FOULE.secondaire / 2 ? Ap : As) : PAL.fouleNeutre[Math.floor(hache(j, i) * PAL.fouleNeutre.length)];
     const peau = PAL.peau[Math.floor(hache(i + 7, j) * PAL.peau.length)];
     // vers la glace : l'axe le plus court jusqu'à elle
     const versX = Math.abs(x) - (L / 2 - COIN) > Math.abs(y) - (W / 2 - COIN) ? -Math.sign(x) : 0, versY = versX ? 0 : -Math.sign(y);
     for (let v = 0; v < 2; v++) {
       const gg = images[v].getContext('2d');
-      const leve = v === 1 && r > 0.32 ? 2 : 0;   // debout : les partisans des locaux (et les neutres) se lèvent
+      const leve = v === 1 && (locaux || r >= FOULE.visiteurs) ? 2 : 0;   // debout : les partisans des locaux (et les neutres) se lèvent
       const ox = i + 1 + versX * leve, oy = j + 1 + versY * leve;
-      gg.fillStyle = chandail; gg.fillRect(ox - versX * 2, oy - versY * 2, 4, 4);
-      gg.fillStyle = peau; gg.fillRect(ox + 1, oy, 2, 4); gg.fillRect(ox, oy + 1, 4, 2);
-      gg.fillStyle = 'rgba(255,255,255,0.35)'; gg.fillRect(ox + 1, oy + 1, 1, 1);
-      if (v === 1 && leve && r > 0.8) { gg.fillStyle = peau; gg.fillRect(ox + versX * 3 + 1, oy + versY * 3 + 1, 1, 1); }   // un bras en l'air
+      // le corps : un bloc de cinq pixels au chandail, son ombre d'un pixel ; la tête, plus petite, du côté de la glace
+      gg.fillStyle = chandail; gg.fillRect(ox - 1 - versX, oy - 1 - versY, 5, 5);
+      gg.fillStyle = 'rgba(0,0,0,0.3)'; gg.fillRect(ox - 1 - versX, oy + 3 - versY, 5, 1);
+      gg.fillStyle = peau; gg.fillRect(ox + 1 + versX * 2, oy + versY * 2, 1, 3); gg.fillRect(ox + versX * 2, oy + 1 + versY * 2, 3, 1);
+      if (r > FOULE.locaux - 0.04 && r < FOULE.locaux) { gg.fillStyle = Bs; gg.fillRect(ox - 2 + versX * 3, oy - 2 + versY * 3, 3, 2); }   // une serviette agitée
+      if (v === 1 && leve && hache(j, i + 3) > 0.6) { gg.fillStyle = peau; gg.fillRect(ox + versX * 4 + 1, oy + versY * 4 + 1, 1, 1); }   // un bras en l'air
     }
   }
   fond = { cle, images, nx, ny };
@@ -924,24 +925,8 @@ function ecussonDuCentre() {
   if (!ecusson || ecusson.code !== code) { const im = new Image(); im.src = `img/logos/${code}.svg`; ecusson = { code, im }; }
 }
 
-/*
- * LES JOUEURS PLUS GROS QUE NATURE (JP, 2 nov. : *tu peux aussi juste grossir les joueurs*) : la zone remplit l'écran,
- * et les joueurs sont dessinés `GROS` fois leur taille, comme dans les jeux 16 bits. Rien que de l'image : le moteur
- * garde ses corps ; la rondelle portée se dessine à la lame du sprite (`rondelleVue`), le reste à sa place.
- */
-const GROS = 1.5;
-/* L'échelle d'un sprite à l'écran : un nombre entier de pixels de l'appareil par pixel de sprite ; `gros` faux, celle de la glace (la rondelle). */
-const echelle = (gros = true) => Math.max(1, Math.round(cam.k * PIXEL * (gros ? GROS : 1) * taille.dpr)) / taille.dpr;
-/* La rondelle portée, vue à la lame du sprite grossi : un décalage qui la suit en douceur, et revient à zéro quand elle part. */
-let rondelleVue = { x: 0, y: 0, t: 0 };
-function decalageRondelle(now) {
-  const R = etat.rondelle, p = R.porteur && etat.patineurs.find(q => q.id === R.porteur);
-  const lm = p && lame(p);
-  const cible = lm ? { x: (lm.x - p.x) * (GROS - 1), y: (lm.y - p.y) * (GROS - 1) } : { x: 0, y: 0 };
-  const f = 1 - Math.exp(-Math.min(0.1, (now - (rondelleVue.t || now)) / 1000) / 0.05);
-  rondelleVue = { x: rondelleVue.x + (cible.x - rondelleVue.x) * f, y: rondelleVue.y + (cible.y - rondelleVue.y) * f, t: now };
-  return rondelleVue;
-}
+/* L'échelle d'un sprite à l'écran : un nombre entier de pixels de l'appareil par pixel de sprite. */
+const echelle = () => Math.max(1, Math.round(cam.k * PIXEL * taille.dpr)) / taille.dpr;
 /* L'angle d'un cap sur l'écran (y vers le bas) : debout, la glace est tournée d'un quart de tour. */
 const angleEcran = cap => cap - Math.PI / 2;
 /* La direction d'un cap, en huitièmes de tour de l'écran (0 = vers la droite), ou en quarts pour le gardien. */
@@ -968,13 +953,13 @@ function marques(s) {
   // l'équipe*) ; à plat comme le sol des sprites (`MARQUE`), et à moitié transparente : le joueur, lui, reste devant.
   if (toi) {
     const c = couleurs[s.equipe];
-    cx.beginPath(); cx.ellipse(s.x, s.y, MARQUE.rayon * MARQUE.sol * GROS, MARQUE.rayon * GROS, 0, 0, Math.PI * 2);
+    cx.beginPath(); cx.ellipse(s.x, s.y, MARQUE.rayon * MARQUE.sol, MARQUE.rayon, 0, 0, Math.PI * 2);
     cx.globalAlpha = 0.6; cx.fillStyle = c.club || c.bg; cx.fill();
     cx.globalAlpha = 1; cx.strokeStyle = COULEURS.contour; cx.lineWidth = 0.08; cx.stroke();
   }
   if (s.charge > 0 && etat.rondelle.porteur === s.id) {
     cx.strokeStyle = COULEURS.ligne; cx.lineWidth = 0.09;
-    cx.beginPath(); cx.arc(s.x, s.y, s.rayon * GROS + 0.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.charge / BATON.charge)); cx.stroke();
+    cx.beginPath(); cx.arc(s.x, s.y, s.rayon + 0.2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, s.charge / BATON.charge)); cx.stroke();
   }
 }
 /* Un patineur, en pixels d'écran : sa pose du moment (la chute, le lancer, la passe, l'épaule, la foulée, le repos). */
@@ -1017,7 +1002,7 @@ function receveur() {
     if (!r || !r.vers) continue;
     cx.strokeStyle = COULEURS.passe; cx.lineWidth = 0.1;
     if (r.barree) cx.setLineDash([0.2, 0.2]);
-    cx.beginPath(); cx.arc(r.vers.x, r.vers.y, r.vers.rayon * GROS + 0.22, 0, Math.PI * 2); cx.stroke();
+    cx.beginPath(); cx.arc(r.vers.x, r.vers.y, r.vers.rayon + 0.22, 0, Math.PI * 2); cx.stroke();
     cx.setLineDash([]);
   }
 }
@@ -1063,7 +1048,7 @@ function dessiner(now) {
   const z = Math.max(chute * 0.6, Math.min(1.5, R.z || 0));
   // En pixels de sprite, sur la grille : quatre de large, trois de haut, un reflet ; en l'air, elle grossit et son ombre reste au sol.
   cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const dv = decalageRondelle(now), S = echelle(false), sol = ecran(R.x + dv.x, R.y + dv.y), haut = ecran(R.x + dv.x + z * 0.5, R.y + dv.y);
+  const S = echelle(), sol = ecran(R.x, R.y), haut = ecran(R.x + z * 0.5, R.y);
   const lw = S * (4 + Math.round(z * 2)), lh = S * (3 + Math.round(z * 2));
   if (z > 0) { cx.fillStyle = COULEURS.ombre; cx.fillRect(Math.round(sol.x - lw / 2), Math.round(sol.y - lh / 2), lw, lh); }
   cx.fillStyle = COULEURS.rondelle; cx.fillRect(Math.round(haut.x - lw / 2), Math.round(haut.y - lh / 2), lw, lh);
@@ -1093,8 +1078,8 @@ function dessiner(now) {
     const mot = s.nom.toUpperCase(), lw = cx.measureText(mot).width + 10;
     const nx = Math.max(lw / 2 + 8, Math.min(w - lw / 2 - 8, p.x));   // l'étiquette reste dans l'écran, à 8 px des bords
     cx.globalAlpha = f;
-    cx.fillStyle = couleurs[s.equipe].bg; cx.fillRect(Math.round(nx - lw / 2), Math.round(p.y - s.rayon * GROS * cam.k - 24), Math.round(lw), 16);
-    cx.fillStyle = couleurs[s.equipe].ink; cx.fillText(mot, Math.round(nx), Math.round(p.y - s.rayon * GROS * cam.k - 16));
+    cx.fillStyle = couleurs[s.equipe].bg; cx.fillRect(Math.round(nx - lw / 2), Math.round(p.y - s.rayon * cam.k - 24), Math.round(lw), 16);
+    cx.fillStyle = couleurs[s.equipe].ink; cx.fillText(mot, Math.round(nx), Math.round(p.y - s.rayon * cam.k - 16));
     cx.globalAlpha = 1;
   }
   // LE FLASH DU BUT, sur tout l'écran.
