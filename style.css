@@ -653,7 +653,8 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn.go.hub-flottant:active:not(:disabled) { transform: translateX(-50%) translateY(2px) scale(0.96); }
 @media (min-width: 1200px) { .hub-flottant { display: none; } }
 
-/* ---- Le toast : au bureau en bas, au téléphone en bande sous l'en-tête (1.0, R4) ---- */
+/* ---- Le toast : au bureau en bas ; au téléphone, en bande au-dessus des onglets du bas (V23 : sous l'en-tête, il couvrait
+   les sous-onglets du Bureau et le haut de la page, docs/refonte-v23.md G1) ---- */
 .toast {
   position: fixed; left: 50%; z-index: 80; transform: translate(-50%, 24px) scale(0.9);
   bottom: calc(var(--navbar-h) + var(--actionbar-h) + var(--esp-3) + var(--safe-bas));
@@ -667,13 +668,11 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .toast.warn { border-left-color: var(--or); }
 .toast.bad { border-left-color: var(--mauvais); }
 @media (max-width: 1199.98px) {
-  .toast { left: 0; right: 0; bottom: auto; top: var(--topbar-h); max-width: none; border-radius: 0; border-left: 0; border-bottom: 2px solid var(--club-vif); transform: translateY(-6px); text-align: left; }
+  /* Au-dessus du bouton flottant (« Jour suivant », sa hauteur réservée) : le toast ne cache jamais ce qu'on touche. */
+  .toast { left: 0; right: 0; top: auto; bottom: calc(var(--bas-coquille) + var(--flottant-h) + var(--esp-4)); max-width: none; border-radius: 0; border-left: 0; border-top: 2px solid var(--club-vif); transform: translateY(6px); text-align: left; }
   .toast.on { transform: none; }
-  .toast.warn { border-bottom-color: var(--or); }
-  .toast.bad { border-bottom-color: var(--mauvais); }
-  /* Au vestiaire, le haut de l'écran est le club qu'on vient de tirer : le toast descend au-dessus des onglets. */
-  body[data-page="repechage"] .toast { top: auto; bottom: calc(var(--bas-coquille) + var(--esp-2)); transform: translateY(6px); border-bottom: 0; border-top: 2px solid var(--club-vif); }
-  body[data-page="repechage"] .toast.on { transform: none; }
+  .toast.warn { border-top-color: var(--or); }
+  .toast.bad { border-top-color: var(--mauvais); }
 }
 
 /* ---- Le chargement et le voile ---- */
@@ -1026,6 +1025,8 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 /* Un gros match aux couleurs de l'adversaire (JP) : la tête de la feuille porte son bandeau. */
 .choix-sheet.aux-couleurs .choix-tete { background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 3px 0 var(--eq-stripe); }
 .choix-sheet.aux-couleurs :is(.choix-ico, .choix-badge, .choix-titre) { color: inherit; }
+/* V23 (G1) : le sous-titre (« Journée 32 · Ton rival ») prend l'encre du club, un cran plus doux ; son gris tombait sur l'orange. */
+.choix-sheet.aux-couleurs .choix-irl { color: inherit; opacity: 0.85; }
 .choix-irl { font: 700 var(--t-1)/1.2 var(--display); text-transform: uppercase; color: var(--encre-3); margin-top: 3px; letter-spacing: 0.1em; }
 .choix-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-4); padding: var(--esp-4); }
 /* LE PIED D'UNE FENÊTRE QUI CONFIRME (Jalon U, le dessin de « qui sort ? ») : ce qui va se passer à gauche, le verbe
@@ -3643,8 +3644,6 @@ a.spin-club:hover { background: var(--fond-2); }
    l'ouvre), ce qu'il fait, sa force, et combien de fois il a joué cette saison. */
 .pv { display: flex; flex-direction: column; gap: 2px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); box-shadow: inset 3px 0 0 var(--or); }
 .pv.ferme { box-shadow: none; opacity: 0.55; }
-/* Un pouvoir verrouillé se lit en une ligne : il viendra à son niveau. */
-.pv.ferme .pv-dit { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pv-tete { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-3)/1.15 var(--display); text-transform: uppercase; color: var(--encre); }
 .pv-tete small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; color: var(--or); }
 .pv-ico { font-size: var(--t-4); line-height: 1; }

@@ -153,7 +153,7 @@ Les clés de sauvegarde ne bougent jamais.
 ## Les tranches, dans l'ordre
 
 1. **A1 · Le banc s'allume au sommaire** — fait (2 nov.) : `banc` (js/profil-style.js), `bancHtml` (js/bilan.js), `.banc` (style.css), `check_banc`.
-2. **G1 · Les finis** : les sept défauts des captures — `essai_rogue`.
+2. **G1 · Les finis** — fait (2 nov.) : le toast, les pouvoirs fermés, la journée, le sous-titre du duel ; trois défauts écartés (LIVRAISON.md).
 3. **C · Les niveaux des entraîneurs et des adjoints** — fait (2 nov.) : `NOMS_NIV`, `FORCE_NIV`, `PRIX_NIV`, `BORNE_NIV`, `niveauOffert` (js/adjoints.js), `MAITRISE` en cinq niveaux (js/coachs-reels.js) — `check_pouvoirs`.
 3'. **D' · La règle du coach, le salaire, l'ancien arbitre** — fait (2 nov.) — `check_banc`, `check_pouvoirs`, `check_clarte`.
 4. **A2 · Le banc au Bureau et aux entractes.**
