@@ -151,7 +151,7 @@ export const LAISSEE = { arriere: 2.2, cone: 1.0, portee: 6, suit: 2.5, vitesse:
 export const GARDIEN = {
   reaction: 0.17, vMax: 5, accel: 14, profondeur: 0.3,   // `reaction` : le retard d'un gardien de cote 10 (sa cote Arrêts l'ôte ou l'ajoute)
   demi: 0.58,        // la demi-largeur qu'il couvre, à une cote de 10, m (0,5 avant la glace courte : de la bleue, à 11 m, il ne reste que 0,28 s pour aller au coin)
-  trous: { haut: 0.35, cinq: 0.2, corps: 0.03 },   // ce qui passe quand même : le coin du haut (la mitaine, le bloqueur), entre les jambières, sur le corps
+  trous: { haut: 0.35, cinq: 0.25, corps: 0.04 },   // ce qui passe quand même : le coin du haut (la mitaine, le bloqueur), entre les jambières, sur le corps (le lot 5 : 0,2 et 0,03 avant, les buts perdus avec les avantages numériques)
   sortie: 1.1,       // à combien devant la ligne il défie, m
   couvre: 0.5,       // la part des arrêts gelés ; l'autre part rebondit
   rebond: 0.35,      // ce qu'un rebond garde de la vitesse
@@ -164,6 +164,14 @@ export const GARDIEN = {
   ecran: 0.12, ecranLarge: 0.25, ecranPres: 0.7, ecranLoin: 3,
   lente: 3,          // m/s : plus lente que ça, la rondelle qui touche le gardien se gèle
   harpon: { portee: 1.7, repos: 1.2, chance: 0.12, parArret: 0.012 },   // le harpon du gardien sur le porteur qui arrive seul devant lui
+  // LE GARDIEN JOUE LA RONDELLE (le lot 5) : libre, plus lente que `lente` m/s, à `derriere` m au moins derrière sa ligne
+  // des buts, dans le trapèze, et lui dessus `avance` s avant tout adversaire (un coéquipier, s'il y est `avance` s avant
+  // lui, la prend) : il sort la jouer — une remise au coéquipier
+  // ouvert (un défenseur d'abord ; aucun adversaire à `couloir` m de la ligne), sinon le long de la bande à `bande` m/s —,
+  // puis revient, et n'y retourne pas avant `repos` s. LE TRAPÈZE (la règle de 2005) : derrière la ligne des buts, il
+  // ne la joue qu'entre deux lignes à `trapeze` m de l'axe, à la ligne des buts et à la bande (18 et 28 pieds de large) ;
+  // dehors, deux minutes. Il la voit `reaction` s en retard : celle qui glisse dehors pendant qu'il y va, c'est la punition.
+  jouer: { lente: 5, derriere: 0.3, avance: 0.3, portee: 0.9, couloir: 1.6, bande: 16, repos: 2, trapeze: [9 * PIED, 14 * PIED] },
 };
 export const CHUTE = { seuil: 300, bande: 1.5 };   // l'écart d'élan, kg·m/s, au-delà duquel le moins lancé des deux tombe ; contre la bande, le coup pèse plus
 export const HARPON = { duree: 0.25, portee: 2.2, largeur: 0.55, repos: 0.7, pousse: 5, trebuche: 0.04 };   // le harponnage : un coup de bâton devant soi ; raté sur le porteur, un sur vingt-cinq l'accroche
@@ -184,7 +192,7 @@ export const LEVE = { pres: 1.5, cote: [0.9, 2.3], portee: 1.8, force: 0.8, lach
  *   - à travers son corps (il protège, le harpon passe par lui) : le bâton élevé (`eleve` des fois).
  * Le trébuchement (`HARPON.trebuche`) reste à part : par-derrière, à toute vitesse, il le fait tomber.
  */
-export const FAUTES = { rapide: 6, accroche: 0.25, ralenti: 0.55, fonce: 5, cinglage: 0.035, eleve: 0.1 };
+export const FAUTES = { rapide: 6, accroche: 0.1, ralenti: 0.55, fonce: 5, cinglage: 0.025, eleve: 0.08 };
 /*
  * LA BAGARRE (NHL 94 l'avait ; le moteur de la saison aussi, `tirerPhysique`, js/sim.js) : après une grosse mise en
  * échec (`gros` fois le seuil de chute) ou une punition, le frappé et le frappeur (le puni et sa victime) laissent tomber
@@ -206,11 +214,17 @@ export const JAMBES = { usure: 1.8, repos: 6, changement: 55, presence: 45, vole
  * au même instant : jamais un patineur de trop.
  */
 export const BANC = { x: 5, porte: 1.4 };
+/*
+ * LA CÉLÉBRATION D'UN BUT (le lot 5) : le jeu arrêté, pendant `duree` s, les coéquipiers du buteur patinent vers lui (à
+ * `vitesse` m/s au plus) et se serrent à `rayon` m autour de lui ; les autres freinent (`frein`, par seconde). Puis l'écran
+ * passe la reprise (js/sur-glace.js). Rien qui compte : la mise en jeu au centre replace tout le monde.
+ */
+export const CELEBRATION = { duree: 2.5, vitesse: 5, rayon: 1.0, frein: 1.5 };
 export const porteDuBanc = eq => ({ x: (eq === 'A' ? -1 : 1) * BANC.x, y: W / 2 - PATIN.rayon - 0.1 });
 const TAMPON = 0.10;   // le tampon d'entrée, s : un appui de passe ou de tir dans cette fenêtre avant la prise compte quand même
 export const MATCH = {
   periode: 180, prolongation: 120, surglace: 5, surglaceOT: 3, rondesFusillade: 3, retraitGardien: 90, tirDePunition: 12,
-  punition: 120, pauses: { but: 2.5, gel: 1.2, horsjeu: 1.2, degagement: 1.2, punition: 1.5, bagarre: 1.5, periode: 3, fin: 0 },
+  punition: 120, pauses: { but: 3.5, gel: 1.2, horsjeu: 1.2, degagement: 1.2, punition: 1.5, bagarre: 1.5, periode: 3, fin: 0 },
 };
 
 /* ---------- les outils ---------- */
@@ -285,7 +299,7 @@ function patineur(id, equipe, x, y, cap, extra = {}) {
 }
 function gardienNeuf(equipe, sens, extra = {}) {
   const p = extra.p || parametresDuGardien();
-  return { equipe, sens, nom: extra.nom || 'le gardien', visage: extra.visage || null, p, x: sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [], retire: false, arrets: 0, harponRepos: 0 };
+  return { equipe, sens, nom: extra.nom || 'le gardien', visage: extra.visage || null, p, x: sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [], retire: false, arrets: 0, harponRepos: 0, joue: false, jouerRepos: 0 };
 }
 
 /**
@@ -660,6 +674,11 @@ function entreeDuPlot(s) {
  * rondelle. En match, frapper qui n'a pas la rondelle (ni ne l'a eue depuis une seconde), c'est l'obstruction ;
  * frapper par-derrière, c'est la charge : deux minutes (`punir`).
  */
+/* `q` montre le dos à `s` : `s` est derrière lui, à moins de `ECHEC.derriere` (en cosinus) de l'axe de son dos. */
+function dosTourne(s, q) {
+  const d = hyp(q.x - s.x, q.y - s.y) || 1e-9;
+  return ((q.x - s.x) * Math.cos(q.cap) + (q.y - s.y) * Math.sin(q.cap)) / d > ECHEC.derriere;
+}
 function collisions(etat, ev) {
   const P = etat.patineurs.filter(s => s.surGlace);
   for (const s of P) for (const g of etat.gardiens) contreCercle(s, s.rayon, g.x, g.y, 0.45, 0.1);
@@ -708,9 +727,11 @@ function collisions(etat, ev) {
     // pressé, le coup qui renverse ; jamais sur une collision de course. Sur qui n'a pas la rondelle et n'est pas dans
     // la bataille pour elle, l'obstruction ; par-derrière, la charge (contre la bande, la charge contre la bande).
     if (fort && etat.match && !etat.match.ronde && frappeur.elan > 0) {
-      // Par-derrière : le frappeur arrive dans le dos du frappé (sa position, projetée sur le cap du frappé).
-      const dd = hyp(frappe.x - frappeur.x, frappe.y - frappeur.y) || 1e-9;
-      const parDerriere = ((frappe.x - frappeur.x) * Math.cos(frappe.cap) + (frappe.y - frappeur.y) * Math.sin(frappe.cap)) / dd > ECHEC.derriere;
+      // Par-derrière : le frappeur arrive dans le dos du frappé (sa position, projetée sur le cap du frappé), et le frappé
+      // le lui montrait déjà quand il s'est élancé (le lot 5, la règle 43 de la LNH : celui qui se retourne au dernier
+      // instant, la rondelle partie, se met lui-même en danger ; c'était 0,8 punition par match sur 1,9, chaque fois un
+      // joueur qui venait de passer et se détournait, chargé de face).
+      const parDerriere = dosTourne(frappeur, frappe) && (frappeur.elanDos || []).includes(frappe.id);
       const loinDeLaRondelle = hyp(frappe.x - etat.rondelle.x, frappe.y - etat.rondelle.y) > 3;
       const sansRondelle = etat.rondelle.porteur !== frappe.id && etat.t - frappe.touche > ECHEC.recent && loinDeLaRondelle;
       if (parDerriere) punir(etat, frappeur, contreLaBande ? 'charge contre la bande' : 'charge par-derrière', ev, frappe);
@@ -1002,7 +1023,7 @@ function bloquer(etat, s, vol, ev) {
   toucher(etat, s, false);
 }
 
-/* Un tir compté : les tirs du match, le dernier tir, l'événement. */
+/* Un tir tenté : le dernier tir, l'événement ; le tir au but, lui, se compte à l'arrêt ou au but (`tirAuBut`). */
 function tirer(etat, s, ev, part, uneTemps = false, revers = false) {
   // Lancée de hors de la zone d'attaque, c'est un lancer au fond (ou un dégagement) : pas un tir au but.
   const fond = etat.rondelle.dernier.x * etat.equipes[s.equipe].attaque <= BLEUE;
@@ -1012,7 +1033,19 @@ function tirer(etat, s, ev, part, uneTemps = false, revers = false) {
   if (fond) return;
   etat.compte.tirs++;
   etat.rondelle.dernier.tir = true;   // un lancer au but, pas une passe : ce qu'un bloc arrête
-  if (etat.match) { etat.match.tirs[s.equipe]++; s.stats.tirs++; }
+}
+/*
+ * UN TIR AU BUT, compté comme la LNH le compte (le lot 5) : un arrêt ou un but, rien d'autre. Le tir à côté, sur le
+ * poteau, bloqué ou par-dessus la barre est tenté, pas au but ; la rondelle déviée compte à qui l'a déviée ; les tirs
+ * de barrage ne comptent pas. Ainsi, pour chaque club, ses tirs = les arrêts du gardien d'en face + ses buts —
+ * `check_physique`. (Avant, chaque tir tenté de la zone comptait : 2 tirs pour 1 but et 0 arrêt à l'entracte.)
+ */
+function tirAuBut(etat, eq, qui) {
+  const M = etat.match;
+  if (!M || M.fusillade) return;
+  M.tirs[eq]++;
+  const s = qui != null ? etat.patineurs.find(p => p.id === qui) : null;
+  if (s && s.equipe === eq) s.stats.tirs++;
 }
 
 /* Le but : la rondelle entière passe la ligne, entre les poteaux, par devant — portée ou lancée. */
@@ -1050,6 +1083,7 @@ function marquer(etat, pour, marqueur, ev) {
     : [];
   M.journal.push({ t: etat.t, periode: M.periode, reste: M.reste, equipe: pour, qui: marqueur, aides, fusillade: !!M.fusillade, punition: !!M.tirDePunition });
   if (marqueur && !M.fusillade) { parId(etat, marqueur).stats.buts++; for (const a of aides) parId(etat, a).stats.aides++; }
+  tirAuBut(etat, pour, marqueur);
   ev.push({ type: 'but', equipe: pour, qui: marqueur, aides });
   if (M.ronde) { finDeRonde(etat, true, ev); return; }
   // Un but en avantage numérique libère le puni qui a le moins de temps à faire ; une punition en attente contre l'autre s'annule.
@@ -1063,6 +1097,30 @@ function marquer(etat, pour, marqueur, ev) {
   if (M.enAttente && M.enAttente.equipe === contre) M.enAttente = null;
   if (M.prolongation) { finir(etat, pour, ev); return; }
   arreter(etat, 'but', { x: 0, y: 0 }, MATCH.pauses.but);
+  etat.arret.fete = { eq: pour, qui: marqueur, fin: MATCH.pauses.but - CELEBRATION.duree };
+}
+/* La célébration (`CELEBRATION`) : les coéquipiers vont au buteur et s'y serrent sans se rentrer dedans ; les autres freinent. */
+function feter(etat, F) {
+  const C = CELEBRATION, buteur = F.qui ? parId(etat, F.qui) : null, enFete = !!buteur && buteur.surGlace && etat.arret.reste > F.fin;
+  const fetards = etat.patineurs.filter(s => s.surGlace && s.equipe === F.eq);
+  for (const s of etat.patineurs) {
+    if (!s.surGlace) continue;
+    s.pousse = 0;
+    let ax = -s.vx * C.frein, ay = -s.vy * C.frein;
+    if (enFete && s.equipe === F.eq && s !== buteur) {
+      const dx = buteur.x - s.x, dy = buteur.y - s.y, d = hyp(dx, dy) || 1e-9, v = Math.min(C.vitesse, Math.max(0, d - C.rayon) * 2);
+      ax = (dx / d * v - s.vx) * 4; ay = (dy / d * v - s.vy) * 4;
+      if (d > 0.5) s.cap = Math.atan2(dy, dx);
+    }
+    s.vx += ax * PAS; s.vy += ay * PAS;
+    s.x += s.vx * PAS; s.y += s.vy * PAS;
+  }
+  // serrés, pas empilés : deux fêtards à moins de deux rayons se poussent l'un l'autre
+  for (let i = 0; i < fetards.length; i++) for (let j = i + 1; j < fetards.length; j++) {
+    const a = fetards[i], b = fetards[j], dx = b.x - a.x, dy = b.y - a.y, d = hyp(dx, dy) || 1e-9, min = a.rayon + b.rayon;
+    if (d < min) { const k = (min - d) / 2 / d; a.x -= dx * k; a.y -= dy * k; b.x += dx * k; b.y += dy * k; }
+  }
+  for (const s of etat.patineurs) if (s.surGlace) { bander(s, s.rayon, PATIN.bande); patineurContreFilet(s); }
 }
 
 /*
@@ -1267,7 +1325,13 @@ function gardien(etat, Gd, ev) {
   const xb = s * LIGNE_BUT;
   const xMin = LIGNE_BUT - 1.6, xMax = LIGNE_BUT - 0.15;   // en profondeur, côté centre
   const versMoi = vu.vx * s > 8 && vu.x * s < LIGNE_BUT;
-  if (vu.libre && versMoi) {
+  // LE GARDIEN JOUE LA RONDELLE (le lot 5, `GARDIEN.jouer`) : il y va, sa lame à `portee` d'elle, du côté d'où il vient.
+  if (Gd.jouerRepos > 0) Gd.jouerRepos -= PAS;
+  Gd.joue = Gd.jouerRepos <= 0 && !etat.arret && !(etat.match && etat.match.ronde) && vu.libre && aJouer(etat, Gd, vu);
+  if (Gd.joue) {
+    const dx = Gd.x - vu.x, dy = Gd.y - vu.y, d = hyp(dx, dy) || 1e-9;
+    cible = { x: vu.x + dx / d * 0.5, y: vu.y + dy / d * 0.5 };
+  } else if (vu.libre && versMoi) {
     const t = (Gd.x - vu.x) / vu.vx;
     cible = { x: Gd.x, y: clamp(vu.y + vu.vy * t, -1.1, 1.1) };
   } else if (vu.x * s > LIGNE_BUT) {
@@ -1281,6 +1345,9 @@ function gardien(etat, Gd, ev) {
     // À ANGLE FERMÉ, il colle au poteau : jamais plus loin de côté que le poteau lui-même (au-delà, il ouvrait le haut du filet).
     cible = { x: s * clamp(Math.abs(cx + dx / d * sortie), xMin, xMax), y: clamp(dy / d * sortie, -FILET.large / 2, FILET.large / 2) };
   }
+  // Entre devant et derrière son filet, il en fait le tour par le côté (le filet ne se traverse pas).
+  const devant = x => x * s < LIGNE_BUT + FILET.profond / 2;
+  if (devant(Gd.x) !== devant(cible.x) && Math.abs(Gd.y) < FILET.large / 2 + 0.45) cible = { x: s * (LIGNE_BUT + FILET.profond / 2), y: (Math.sign(Gd.y || cible.y) || 1) * (FILET.large / 2 + 0.7) };
   const k = 40, c = 2 * Math.sqrt(k);
   let ax = k * (cible.x - Gd.x) - c * Gd.vx, ay = k * (cible.y - Gd.y) - c * Gd.vy;
   const a = hyp(ax, ay);
@@ -1289,12 +1356,15 @@ function gardien(etat, Gd, ev) {
   const v = hyp(Gd.vx, Gd.vy);
   if (v > Gd.p.vMax) { Gd.vx *= Gd.p.vMax / v; Gd.vy *= Gd.p.vMax / v; }
   Gd.x += Gd.vx * PAS; Gd.y += Gd.vy * PAS;
+  // Sorti de son demi-cercle (derrière ou à côté du filet), le filet l'arrête comme un patineur.
+  if (Gd.x * s > LIGNE_BUT - 0.1 || Math.abs(Gd.y) > FILET.large / 2) { Gd.rayon = 0.4; patineurContreFilet(Gd); }
   if (Gd.harponRepos > 0) Gd.harponRepos -= PAS;
   if (R.porteur && !etat.arret) { harponDuGardien(etat, Gd, ev); return; }
   if (R.porteur || etat.arret) return;
+  if (Gd.joue && R.z < 0.3 && hyp(R.x - Gd.x, R.y - Gd.y) < GARDIEN.jouer.portee) { jouerLaRondelle(etat, Gd, ev); return; }
   const dansY = Math.abs(R.y - Gd.y) < Gd.p.demi + RONDELLE.rayon;
   const dansX = Math.abs(R.x - Gd.x) < GARDIEN.profondeur + RONDELLE.rayon;
-  if (!(dansY && dansX) || R.z > FILET.haut) return;
+  if (!(dansY && dansX) || R.z > FILET.haut || Gd.x * s > LIGNE_BUT) return;   // derrière sa ligne, il ne gèle rien
   const vr = hyp(R.vx, R.vy);
   if (vr < GARDIEN.lente && R.z < 0.3) { geler(etat, Gd, ev); return; }
   if (R.vx * s <= 0) return;
@@ -1303,7 +1373,9 @@ function gardien(etat, Gd, ev) {
   const trou = R.z > 0.85 && dy > 0.35 ? GARDIEN.trous.haut : R.z < 0.2 && dy < 0.18 ? GARDIEN.trous.cinq : GARDIEN.trous.corps;
   if (etat.de() < trou) return;   // elle passe
   etat.compte.arrets++;
-  Gd.arrets++;
+  // L'arrêt d'un tir au but : la rondelle venue de l'adversaire (pas d'un coéquipier), hors des tirs de barrage.
+  const dT = R.dernier;
+  if (!(dT && dT.equipe === Gd.equipe) && !(etat.match && etat.match.fusillade)) { Gd.arrets++; tirAuBut(etat, autre(Gd.equipe), dT && dT.id); }
   R.x = Gd.x - s * (GARDIEN.profondeur + RONDELLE.rayon + 0.02);
   const haut = R.z > 0.85;
   if (etat.de() < (haut ? GARDIEN.mitaine : GARDIEN.couvre)) { geler(etat, Gd, ev, true); }
@@ -1317,6 +1389,75 @@ function gardien(etat, Gd, ev) {
     R.vx = Math.cos(ang) * vt; R.vy = Math.sin(ang) * vt; R.vz = 0.5; R.z = Math.min(R.z, 0.3);
     ev.push({ type: 'arret', gele: false, equipe: Gd.equipe, haut: R.z > 0.6, cote: Math.sign((R.y - Gd.y) * s || 1) });
   }
+}
+/* LE TRAPÈZE (`GARDIEN.jouer.trapeze`) : devant sa ligne des buts, partout ; derrière, entre ses deux lignes, qui s'ouvrent vers la bande. */
+function dansLeTrapeze(x, y, s) {
+  const u = x * s - LIGNE_BUT;
+  if (u <= 0) return true;
+  const [a, b] = GARDIEN.jouer.trapeze;
+  return Math.abs(y) <= a + (b - a) * Math.min(1, u / (L / 2 - LIGNE_BUT));
+}
+/* Le gardien va-t-il jouer la rondelle qu'il voit (`vu`) ? Lente, derrière sa ligne, dans le trapèze, et lui dessus le premier. */
+function aJouer(etat, Gd, vu) {
+  const J = GARDIEN.jouer, s = Gd.sens;
+  if (Gd.retire || etat.rondelle.z > 0.3 || vu.x * s < LIGNE_BUT + J.derriere || hyp(vu.vx, vu.vy) > J.lente || !dansLeTrapeze(vu.x, vu.y, s)) return false;
+  // parti, il continue tant qu'aucun adversaire n'y arrive avant lui ; pour partir, il lui faut `avance` s d'avance
+  const moi = hyp(vu.x - Gd.x, vu.y - Gd.y) / Gd.p.vMax, marge = Gd.joue ? 0 : J.avance;
+  return !etat.patineurs.some(o => {
+    if (!o.surGlace || o.auSol > 0) return false;
+    const t = hyp(lame(o).x - vu.x, lame(o).y - vu.y) / o.p.vMax;
+    return o.equipe === Gd.equipe ? t + J.avance < moi : t < moi + marge;
+  });
+}
+/* La distance d'un point au segment de a à b. */
+function auSegment(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, d2 = dx * dx + dy * dy || 1e-9;
+  const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / d2, 0, 1);
+  return hyp(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+/*
+ * LE GARDIEN JOUE LA RONDELLE : hors du trapèze, deux minutes ; sinon une remise au coéquipier ouvert (un défenseur
+ * d'abord), menée là où il patine, ou, personne d'ouvert, le long de la bande de son côté, vers le haut de la glace.
+ */
+function jouerLaRondelle(etat, Gd, ev) {
+  const R = etat.rondelle, s = Gd.sens, J = GARDIEN.jouer;
+  Gd.joue = false; Gd.jouerRepos = J.repos;
+  R.dernier = { equipe: Gd.equipe, id: `G:${Gd.equipe}`, t: etat.t, x: R.x, lance: false };
+  R.passeDe = null; R.passeVers = null;
+  if (!dansLeTrapeze(R.x, R.y, s)) {
+    R.vx = 0; R.vy = 0;
+    if (etat.match && !etat.match.ronde) punirLeGardien(etat, Gd, ev);
+    return;
+  }
+  let vers = null, mieux = Infinity;
+  for (const m of etat.patineurs) {
+    if (!m.surGlace || m.auSol > 0 || m.equipe !== Gd.equipe) continue;
+    const d = hyp(m.x - R.x, m.y - R.y);
+    if (d < 4 || d > 25 || etat.patineurs.some(o => o.surGlace && o.equipe !== Gd.equipe && auSegment(o, R, m) < J.couloir)) continue;
+    const note = d + (m.poste === 'D' ? 0 : 6);
+    if (note < mieux) { mieux = note; vers = m; }
+  }
+  if (vers) {
+    const d = hyp(vers.x - R.x, vers.y - R.y), v = Math.min(BATON.passeMax, BATON.passe + BATON.passeLoin * d), t = d / v;
+    const tx = vers.x + vers.vx * t, ty = vers.y + vers.vy * t, dd = hyp(tx - R.x, ty - R.y) || 1e-9;
+    R.vx = (tx - R.x) / dd * v; R.vy = (ty - R.y) / dd * v;
+    R.passeVers = vers.id;
+  } else {
+    const ang = Math.atan2((Math.sign(R.y) || 1) * W / 2 - R.y, -s * 12);
+    R.vx = Math.cos(ang) * J.bande; R.vy = Math.sin(ang) * J.bande;
+  }
+  R.vz = 0;
+  ev.push({ type: 'jeuDuGardien', equipe: Gd.equipe, vers: vers ? vers.id : null });
+}
+/* Le gardien puni (le trapèze) : ses deux minutes, purgées par un patineur sur la glace, le jeu arrêté sur-le-champ. */
+function punirLeGardien(etat, Gd, ev) {
+  const M = etat.match;
+  if (M.penalites.some(p => p.equipe === Gd.equipe && p.trapeze) || M.enAttente || M.tirDePunition) return;
+  const servant = surGlace(etat, Gd.equipe).filter(q => q.poste !== 'D' && !M.penalites.some(p => p.id === q.id))[0] || surGlace(etat, Gd.equipe)[0];
+  if (!servant) return;
+  const p = { id: servant.id, equipe: Gd.equipe, genre: 'le gardien hors du trapèze', reste: MATCH.punition, avantage: MATCH.punition, trapeze: true };
+  ev.push({ type: 'punition', qui: servant.id, equipe: Gd.equipe, genre: p.genre, attente: false, gardien: true });
+  appliquerPunition(etat, p);
 }
 /* L'écran : le patineur (pas le porteur) qui se tient sur la ligne de la rondelle au gardien, entre les deux. */
 function masque(etat, Gd) {
@@ -1740,6 +1881,7 @@ function pas(etat, entrees, ev) {
   if (M && !M.ronde && !M.fusillade && !M.tirDePunition && (etat.arret || etat.mej) && !(etat.arret && etat.arret.reste === Infinity)) lireLesTrios(etat, entrees, ev);
   if (etat.arret) {
     if (etat.arret.reste === Infinity) return;
+    if (etat.arret.fete) feter(etat, etat.arret.fete);
     etat.arret.reste -= PAS;
     if (etat.arret.reste > 0) return;
     const genre = etat.arret.genre, point = etat.arret.point;
@@ -1827,6 +1969,8 @@ function pas(etat, entrees, ev) {
       }
       if (e && e.echec && !s.tenaitEchec && s.elanRepos <= 0 && s.auSol <= 0) {
         s.elan = ECHEC.duree; s.elanRepos = ECHEC.repos; ev.push({ type: 'elan', qui: s.id });
+        // Qui lui montre déjà le dos quand il s'élance (le lot 5) : la charge par-derrière ne se siffle que sur eux.
+        s.elanDos = etat.patineurs.filter(q => q.surGlace && q.equipe !== s.equipe && dosTourne(s, q)).map(q => q.id);
         // Lancé pendant la feinte du porteur adverse : il a mordu (`FEINTE`), la charge ne le renversera pas.
         const p = etat.rondelle.porteur ? parId(etat, etat.rondelle.porteur) : null;
         s.mordu = p && p.equipe !== s.equipe && p.feinte > 0 ? p.id : null;
@@ -1976,7 +2120,7 @@ export function reglesDeLaGlace() {
     `Ses lames tiennent ${PATIN.adherence} m/s² de côté : à pleine vitesse, le virage le plus serré fait ${dec(PATIN.vMax ** 2 / PATIN.adherence, 0)} m de rayon ; à l'arrêt, il pivote à ${PATIN.pivot} rad/s. Une présence coûte ${dec(JAMBES.usure)} jambes par seconde à fond, le banc en rend ${JAMBES.repos} ; sous ${JAMBES.changement}, ou après ${JAMBES.presence} s, la ligne change à l'arrêt de jeu.`,
     `La lame tient la rondelle à ${dec(BATON.lame[0])} m devant ; plus loin que ${dec(PATIN.portee)} m, elle est perdue. Une rondelle qui arrive à plus de ${kmh(BATON.reception)} km/h ne se prend pas : elle dévie. Le harpon porte à ${dec(HARPON.portee)} m devant, ${dec(HARPON.duree, 2)} s, et repose ${dec(HARPON.repos)} s.`,
     `La passe part à ${kmh(BATON.passe)} km/h, plus ${dec(BATON.passeLoin)} m/s par mètre de plus, menée là où le coéquipier sera ; le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, le tir sur réception à ${Math.round(BATON.uneTemps * 100)} % du frappé sans charger ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (plus à pleine charge), et le tir part toujours vers le filet attaqué : le bâton choisit où (droit, le centre ; penché, le coin ; à fond de côté, ${Math.round(BATON.large * 100)} cm à côté du poteau).`,
-    `Une mise en échec échange l'élan des deux corps (masse × vitesse) ; le moins lancé tombe ${dec(PATIN.sol)} s si l'écart dépasse ${CHUTE.seuil} kg·m/s (× son équilibre), et lâche la rondelle. L'élan du bouton pousse ${ECHEC.accel} fois plus fort pendant ${dec(ECHEC.duree, 2)} s. Frapper qui n'a pas la rondelle depuis ${dec(ECHEC.recent)} s, ou par-derrière : ${MATCH.punition / 60} minutes.`,
+    `Une mise en échec échange l'élan des deux corps (masse × vitesse) ; le moins lancé tombe ${dec(PATIN.sol)} s si l'écart dépasse ${CHUTE.seuil} kg·m/s (× son équilibre), et lâche la rondelle. L'élan du bouton pousse ${ECHEC.accel} fois plus fort pendant ${dec(ECHEC.duree, 2)} s. Frapper qui n'a pas la rondelle depuis ${dec(ECHEC.recent)} s, ou par-derrière (qui te montrait déjà le dos quand tu t'es élancé) : ${MATCH.punition / 60} minutes.`,
     `Le gardien de cote 10 voit la rondelle ${Math.round(GARDIEN.reaction * 1000)} ms en retard et couvre ${dec(GARDIEN.demi * 2, 2)} m des ${dec(FILET.large, 2)} m du filet (sa cote Arrêts le rend plus vif et plus large) ; il bouge à ${kmh(GARDIEN.vMax)} km/h au plus ; il gèle ${Math.round(GARDIEN.couvre * 100)} % de ses arrêts (${Math.round(GARDIEN.mitaine * 100)} % des tirs hauts, la mitaine), les autres rebondissent à ${Math.round(GARDIEN.rebond * 100)} % de la vitesse — de côté, vers le coin, selon sa cote Arrêts. À angle fermé, il colle au poteau ; une rondelle libre sous ${GARDIEN.lente} m/s à ${dec(GARDIEN.demiCercle)} m de son filet, il va la couvrir s'il y est le premier ; le porteur qui arrive à ${dec(GARDIEN.harpon.portee)} m de lui, il le harponne (une chance sur ${Math.round(1 / (GARDIEN.harpon.chance + GARDIEN.harpon.parArret * 10))} à une cote de 10).`,
     `Le hors-jeu se siffle à l'entrée de la zone quand on y porte la rondelle ; lancée ou passée dedans, il est différé, levé si les attaquants ressortent, sifflé s'ils la touchent ; le dégagement refusé quand la rondelle lancée de sa moitié passe la ligne de but sans être touchée (permis en désavantage) ; Trois périodes, puis ${MATCH.prolongation / 60} minutes à ${MATCH.surglaceOT} contre ${MATCH.surglaceOT}, puis ${MATCH.rondesFusillade} tirs de barrage et la mort subite ; en séries, la prolongation à cinq, autant qu'il en faut.`,
     `La mise en jeu : les deux centres face à face au point, personne d'autre dans le cercle (${dec(POINT.r, 2)} m de rayon), les ailiers sur ses traits, les défenseurs de l'attaque à ${dec(MEJ.bleue)} m en dedans de la bleue ; la rondelle tombe après ${dec(MEJ.chute)} s. Chaque centre vaut sa cote Jeu sur 20 × ${dec(MEJ.jeu)}, plus un dé × ${dec(MEJ.hasard)}, plus le bouton : +${dec(MEJ.timing, 2)} à la chute pile, moins à mesure qu'on s'en éloigne, rien à ${Math.round(MEJ.fenetre * 1000)} ms avant ou après ; seul le premier appui compte. Gagnée par plus de ${dec(MEJ.nette, 2)}, la rondelle part vers le coéquipier que le bâton pointe (au neutre, droit derrière : le défenseur) ; plus serrée, elle reste libre au point, à qui la prend.`,
@@ -1988,5 +2132,6 @@ export function reglesDeLaGlace() {
     `Collé au porteur, de côté (ni devant lui ni dans son dos, à ${dec(LEVE.pres)} m au plus), X lui soulève le bâton et lui prend la rondelle : sans contact ni punition, ${Math.round(LEVE.force * 100)} % de ce qu'un harpon ouvert réussirait, qu'il protège ou non (le harpon, lui, passe par son corps ${Math.round(PROTEGE.harpon * 100)} % aussi souvent). Un harpon raté a ses fautes, deux minutes : par-derrière sur un porteur lancé à plus de ${kmh(FAUTES.rapide)} km/h, l'accrochage (${Math.round(FAUTES.accroche * 100)} %) ; en fonçant sur lui à plus de ${kmh(FAUTES.fonce)} km/h, le cinglage (${dec(FAUTES.cinglage * 100)} %) ; à travers son corps, le bâton élevé (${Math.round(FAUTES.eleve * 100)} %).`,
     `La bagarre : après une mise en échec de plus de ${Math.round(CHUTE.seuil * BAGARRE.gros)} kg·m/s ou une punition, deux joueurs de Robustesse ${BAGARRE.robuste + 1} ou plus sur 20 peuvent laisser tomber les gants, plus souvent s'ils passaient du temps au cachot à la LNH (jusqu'à ${BAGARRE.pimMax} fois pour ${BAGARRE.pimMax * BAGARRE.pim} minutes par match) ; une par joueur, jamais en prolongation. ${dec(BAGARRE.duree)} s de duel : martèle A ou X, chaque coup pèse ta Robustesse et ta masse ; l'IA frappe ${BAGARRE.cadence} fois par seconde. ${BAGARRE.minutes} minutes chacun, coïncidentes : les deux clubs restent à cinq.`,
     `À l'arrêt de jeu, Y choisit ton trio : il joue, quelles que soient ses jambes. À la volée, la rondelle loin, la ligne qui passe sous ${JAMBES.volee} jambes file à la porte de son banc, s'il y en a une à ${JAMBES.frais} au banc (l'IA comme tes coéquipiers ; toi, fatigué, tu y patines) ; à ${dec(BANC.porte)} m de la porte, l'un sort et le plus reposé entre, au même instant : jamais un patineur de trop. Les bancs sont à ${BANC.x} m du centre, chacun du côté de son filet de la première période : en deuxième, la présence est plus longue. Le gardien remis en jeu revient quand un patineur sort.`,
+    `Le gardien joue la rondelle libre derrière son filet, plus lente que ${kmh(GARDIEN.jouer.lente)} km/h, s'il y est le premier : une remise au coéquipier ouvert, sinon le long de la bande, puis il revient. Derrière sa ligne, il ne la joue que dans le trapèze (${dec(2 * GARDIEN.jouer.trapeze[0] / PIED, 0)} pieds de large à la ligne des buts, ${dec(2 * GARDIEN.jouer.trapeze[1] / PIED, 0)} à la bande) : dehors, ${MATCH.punition / 60} minutes. Un tir au but est un arrêt ou un but, comme la LNH les compte ; un but, et les coéquipiers du buteur se regroupent ${dec(CELEBRATION.duree)} s.`,
   ];
 }
