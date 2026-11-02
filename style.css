@@ -5091,6 +5091,9 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 }
 .choix-main::-webkit-scrollbar { display: none; }
 .choix-main > .tc { flex: 0 0 min(72vw, 270px); scroll-snap-align: start; }
+/* V23 : deux cartes (une histoire, deux réponses) se font face, côte à côte, sans se balayer : rien de coupé au bord. */
+.choix-main:has(> .tc:first-child:nth-last-child(2)) { overflow-x: visible; margin: 0; padding-inline: 0; }
+.choix-main > .tc:first-child:nth-last-child(2), .choix-main > .tc:first-child:nth-last-child(2) + .tc { flex: 1 1 0; min-width: 0; }
 .main-sheet .choix-main > .tc { flex-basis: min(64vw, 240px); }
 /* Un joueur dans la bande : sa carte en grand, de la largeur de sa place (JP, oct. : « quand ouverture de pack, mettre
    cartes en gros, pas en miniature »). Les joueurs se balaient comme les autres cartes, un à la fois au téléphone. */

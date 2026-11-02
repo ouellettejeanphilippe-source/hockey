@@ -4,7 +4,7 @@
  *
  * SIMPLE. Un adjoint est une carte : un style de jeu en deux lignes — ce qu'il donne, ce qu'il coûte, en vraies stats
  * de match — et un séjour, en matchs. Ta MAIN tient `MAIN_MAX` cartes, en poste comprises. Tu en POSTES une quand tu
- * veux (Bureau › Coach) : elle joue `SEJOUR` matchs, puis elle revient dans ta main et se repose `REPOS` matchs avant
+ * veux (Ton club › Coach) : elle joue `SEJOUR` matchs, puis elle revient dans ta main et se repose `REPOS` matchs avant
  * de se rejouer. Les cases en poste suivent le niveau du coach (`CASES_PAR_NIVEAU`) : une au niveau 1, deux au 3,
  * trois au 5 ; le premier talent du coach peut en ouvrir une de plus (`CASE_DE_PLUS`, js/pouvoirs.js `TALENT_CASE`).
  *

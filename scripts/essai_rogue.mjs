@@ -556,7 +556,7 @@ async function regler() {
     const boiteA = await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg]');
     if (boiteA) {
       const lu = await boiteA.evaluate(el => ({ genre: el.dataset.msg, maison: el.dataset.maison, sujet: (el.querySelector('.choix-titre') || {}).textContent || '',
-        forme: !!el.querySelector('.choix-options > .choix-option.af-option'),
+        forme: !!el.querySelector('.choix-options > .choix-option:is(.af-option, .tc)'),
         compris: [...el.querySelectorAll('button')].some(b => /^\s*Compris\s*$/.test(b.textContent)),
         scene: ((el.querySelector('.choix-corps > .scene .scene-mot') || {}).textContent || '').trim(),
         fait: ((el.querySelector('.choix-corps > .scene .scene-fait') || {}).textContent || '').trim(),
@@ -655,7 +655,7 @@ const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] 
 console.log(`5. le proprio : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le mandat de la run');
 // LE CONTENU PERMANENT (V12-2) : la route dit les deux semaines qui viennent ; le Bureau ne les redit pas.
-await versLOnglet('bureau', 'entraineur');
+await versLOnglet('club', 'entraineur');
 const routeOnglet = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .bu-route');
 await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
 const routeBoite = await page.$('#hubModal .hub-volet:not(:has(.af-onglet)) .bu-route, #hubModal .hub-carte .hub-etat');
@@ -665,7 +665,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
 {
   // TON COACH, UN PERSONNAGE (V21) : au sous-onglet de l'entraîneur (V12-2) — son niveau, son expérience, ses trois pouvoirs,
   // le premier ouvert, les deux autres au niveau qui les ouvre.
-  await versLOnglet('bureau', 'entraineur');
+  await versLOnglet('club', 'entraineur');
   await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
   const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
@@ -1001,8 +1001,8 @@ else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n
  * alignement jusque-là (`poserAlignementDuJour`, js/sim.js).
  */
 {
-  await page.click('#navbar .navtab[data-section="lignes"]').catch(() => {});
-  await page.waitForTimeout(800);
+  await versLOnglet('club', 'alignement');
+  await page.waitForTimeout(400);
   const noms = await page.$$eval('.slot .slot-carte', e => e.map(x => x.getAttribute('aria-label').replace(/^La carte de /, '')));
   const nom = nomSigne.split(' ').slice(-1)[0];
   if (!noms.some(n => n.includes(nom))) erreurs.push(`${nomSigne}, signé d'un pack, n'est pas dans l'alignement`);
@@ -1035,7 +1035,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // CINQ PORTES EN BAS (oct., JP : *tu peux avoir cinq menus icons*) : Bureau, Joueurs, Lignes, Marché, Ligue ; l'Avant-match est parti.
   const portes = await page.$$eval('#navbar .navtab', e => e.filter(b => b.offsetParent).map(b => b.dataset.section)).catch(() => []);
   console.log(`10b. la barre : ${portes.join(' · ')}`);
-  if (portes.join() !== 'bureau,joueurs,lignes,marche,ligue') erreurs.push(`la barre du bas n'a pas ses cinq portes : ${portes.join(' · ')}`);
+  if (portes.join() !== 'bureau,club,marche,ligue') erreurs.push(`la barre du bas n'a pas ses quatre portes (V23) : ${portes.join(' · ')}`);
   // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?* ; *j'hais les accordéons*) : une rangée
   // sous la ligne du match, qui ouvre une feuille des six plans, celui en force le dit, 🥷 nomme les deux joueurs ; en toucher un
   // écrit la décision.
@@ -1086,7 +1086,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   if (await page.$('#teteCartes')) erreurs.push('l\'en-tête garde le raccourci de « Tes cartes »');
   if (afaire.genres.has('places')) erreurs.push('À faire demande encore laquelle vendre (la carte de trop)');
   // L'INFIRMERIE (V8 ; le filtre 🩹 de Joueurs en V18-5) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie.
-  await page.click('#navbar .navtab[data-section="joueurs"]'); await page.waitForTimeout(500);
+  await versLOnglet('club', 'joueurs');
   await page.screenshot({ path: `${DOSSIER}/rogue-effectif.png`, fullPage: true });
   const marques = await page.$$eval('#pageJoueursCorps .jr-bl', e => e.length).catch(() => 0);
   if (await page.$('#sousNav .soustab[data-page="infirmerie"]')) erreurs.push('l\'infirmerie est encore un sous-onglet d\'Effectif');
@@ -1117,7 +1117,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
  * à l'effectif ; il n'y a plus de « Tes cartes » qui y renvoie.
  */
 {
-  const SEC = { proprio: 'bureau', entraineur: 'bureau' };
+  const SEC = { proprio: 'bureau', entraineur: 'club' };
   const ici = {};
   let plafond = '';
   for (const k of Object.keys(SEC)) {
@@ -1131,7 +1131,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   if (!plafond) erreurs.push('le proprio ne montre pas la masse salariale');
   // Les cartes de joueur (une retouche, l'échange d'un doublon) vivent sous le tableau d'Effectif › Joueurs.
   {
-    await versLOnglet('joueurs', 'joueurs');
+    await versLOnglet('club', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
     await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
     ici.joueurs = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'joueurs')); await fermerLaFeuille();
@@ -1145,7 +1145,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // V12-4 : chaque sous-onglet tient en un écran (390 × 844) ; on mesure chacun, la feuille entière.
   const hauteur = () => page.$eval('#hubModal .hub-sheet', e => e.scrollHeight / Math.max(1, e.clientHeight)).catch(() => 0);
   const ecrans = {}, avecChoix = new Set();
-  for (const [sec, k] of [['bureau', 'match'], ['bureau', 'proprio'], ['bureau', 'entraineur'], ['bureau', 'vestiaire']]) {
+  for (const [sec, k] of [['bureau', 'match'], ['bureau', 'proprio'], ['club', 'entraineur'], ['club', 'vestiaire']]) {
     await versLOnglet(sec, k);
     await page.waitForTimeout(300);
     ecrans[k] = await hauteur();
@@ -1162,7 +1162,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   }
   // V21 : le personnel est parti ; aucune rangée d'adjoint au banc de l'entraîneur, ses pouvoirs seulement.
   {
-    await versLOnglet('bureau', 'entraineur');
+    await versLOnglet('club', 'entraineur');
     const restes = await page.$$('#hubModal .af-onglet[data-maison="entraineur"] :is(.gens-l, .perso-l, [data-choix^="echelon:"])');
     console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pouvoirs du coach seulement'}`);
     if (restes.length) erreurs.push('le sous-onglet de l\'entraîneur montre encore du personnel ou ses échelons');
@@ -1175,15 +1175,15 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // `ARRET=10h` : on ne veut que ces hauteurs (une mise en page qu'on retouche) ; le reste de la saison attend.
   if (process.env.ARRET === '10h') {
     // Chaque sous-onglet en entier : l'écran grandit à sa hauteur, le temps d'une capture.
-    for (const [sec, k] of [['bureau', 'entraineur'], ['bureau', 'vestiaire']]) {
+    for (const [sec, k] of [['club', 'entraineur'], ['club', 'vestiaire']]) {
       await versLOnglet(sec, k);
       await page.setViewportSize({ width: 390, height: Math.ceil(844 * Math.max(1, ecrans[k])) + 40 });
       await page.waitForTimeout(400);
       await page.screenshot({ path: `${DOSSIER}/ecran-${k}.png` });
       await page.setViewportSize({ width: 390, height: 844 });
     }
-    await page.click('#navbar .navtab[data-section="lignes"]').catch(() => {});
-    await page.waitForTimeout(800);
+    await versLOnglet('club', 'alignement');
+    await page.waitForTimeout(400);
     for (const t of ['Attaque', 'Défense', 'Filet · réserve']) {
       await page.getByRole('button', { name: t, exact: true }).first().click().catch(() => {});
       await page.waitForTimeout(500);
@@ -1227,7 +1227,7 @@ let posee = null, nomModif = '';
  * l'entraîneur ; sa décision porte ses points (`xpCoach`). Le proprio qui doute du coach était une histoire (`laTete`, partie à la V22).
  */
 {
-  await versLOnglet('bureau', 'entraineur');
+  await versLOnglet('club', 'entraineur');
   await deplierLesCartes('#hubModal .af-onglet[data-maison="entraineur"]');
   const clesEntraineur = await cartesDeLaMaison('#hubModal .af-onglet[data-maison="entraineur"]', 'entraineur');
   const jouer = clesEntraineur.includes('meta|consommable:stage|') ? await page.$('#choixModal [data-choix="meta|consommable:stage|"]') : null;
@@ -1242,7 +1242,7 @@ let posee = null, nomModif = '';
     if (!ds) erreurs.push('« Le stage du coach » n\'écrit pas sa décision d\'expérience');
   }
   const versLEffectif = async () => {
-    await versLOnglet('joueurs', 'joueurs');
+    await versLOnglet('club', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
   };
   /*

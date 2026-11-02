@@ -1653,10 +1653,18 @@ const SECTIONS = [
  *   Ligue     où j'en suis ?
  * Les autres modes gardent les leurs (`SECTIONS`).
  */
+/*
+ * V23, LA NOUVELLE INTERFACE DU ROGUE (docs/refonte-v23.md ; JP, 2 nov. : *je veux une nouvelle interface* ; *go, quatre
+ * portes*). Quatre portes, pensées autour de la run :
+ *   Ce soir   l'accueil : hier soir (le score bug, ton banc), ce soir (le VS, ton plan), tes choix en cartes, jouer ; le proprio
+ *   Ton club  les lignes, les joueurs, ton coach et sa main d'adjoints, le vestiaire
+ *   Marché    la boutique, l'album
+ *   Ligue     le classement, le calendrier, les meneurs, le palmarès
+ * Le match, le duel et les séries s'ouvrent en plein écran par-dessus, comme une diffusion.
+ */
 const SECTIONS_ROGUE = [
-  { cle: 'bureau', ico: 'i-club', titre: 'Bureau' },
-  { cle: 'joueurs', ico: 'i-jersey', titre: 'Joueurs' },
-  { cle: 'lignes', ico: 'i-list', titre: 'Lignes' },
+  { cle: 'bureau', ico: 'i-club', titre: 'Ce soir' },
+  { cle: 'club', ico: 'i-jersey', titre: 'Ton club' },
   { cle: 'marche', ico: 'i-marche', titre: 'Marché' },
   { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
 ];
@@ -1675,9 +1683,12 @@ const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
 const voletDeSaison = v => !!voletPour(v) || !!(G.banc && !G.banc.serie && G.bonus === 'ROGUE');
 /* V12 (docs/refonte-v12.md) : les maisons de la boîte qui ont un sous-onglet, au Bureau. La Presse et le Butin sont partis
    dans la boîte, l'Infirmerie dans Joueurs (son filtre 🩹) : V18-5, docs/ecrans-rogue.md. */
-const MAISONS_DU_BUREAU = ['proprio', 'entraineur', 'vestiaire'];
+const MAISONS_DU_BUREAU = ['proprio'];
+/* V23 : le coach et le vestiaire vivent dans Ton club, avec les lignes et les joueurs. */
+const MAISONS_DU_CLUB = ['entraineur', 'vestiaire'];
 const PAGES_DE = {
   bureau: () => ['match', ...(G.bonus === 'ROGUE' ? MAISONS_DU_BUREAU.filter(voletDeSaison) : [])],
+  club: () => ['alignement', 'joueurs', ...MAISONS_DU_CLUB.filter(voletDeSaison)],
   joueurs: () => [auVestiaire() ? 'repechage' : 'joueurs'],
   lignes: () => ['alignement'],
   // V16 (tranche 6) : « Tes cartes » est parti — chaque carte rare se joue chez ce qu'elle monte.
@@ -1699,7 +1710,7 @@ const PAGE = {
   proprio: ['i-club', 'Proprio'], entraineur: ['i-cal', 'Coach'], vestiaire: ['i-jersey', 'Vestiaire'],
 };
 /* En Rogue, le Bureau s'ouvre sur la boîte (V12) : ses sous-onglets en sont les maisons. */
-const motDePage = p => (p === 'match' && G.bonus === 'ROGUE' ? 'Boîte' : PAGE[p][1]);
+const motDePage = p => (p === 'match' && G.bonus === 'ROGUE' ? 'Ce soir' : PAGE[p][1]);
 const ALIAS_PAGE = { bilan: 'match', series: 'match', stats: 'meneurs', ligue: 'classement', jambes: 'joueurs' };
 /* Les sections du bilan que montre chaque page. */
 const VOLETS_DU_BILAN = {
