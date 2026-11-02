@@ -12,7 +12,8 @@
  *   A, Espace                              la passe ; sans la rondelle, changer de joueur ; à la mise en jeu, la chute
  *                                          (le bâton tenu dit où elle part : derrière, le défenseur ; de côté, l'ailier) ;
  *                                          le bâton tiré vers l'arrière, un coéquipier qui suit : la passe laissée
- *   X ou RT tenu, Maj tenue                charger le tir ; lâché, il part ; sans la rondelle, le harpon
+ *   X ou RT tenu, Maj tenue                charger le tir ; lâché, il part ; sans la rondelle, le harpon ; collé au
+ *                                          porteur, de côté, soulever son bâton (le même piton)
  *   B ou RB, Ctrl                          avec la rondelle, le turbo ; sans elle, l'élan d'une mise en échec
  *   Y, E                                   changer de joueur ; avec la rondelle, la feinte (le bâton dit de quel côté) ;
  *                                          à l'arrêt de jeu, le trio suivant (comme NHL 94)
@@ -20,8 +21,10 @@
  *                                          côté du corps ; fatigué à la porte de ton banc, tu sors, le suivant entre
  *   LB ou LT, Q                            patiner à reculons (le cap tenu vers le jeu)
  *   Start, Échap, ✕                        la pause : reprendre, retirer le gardien, les règles, quitter
+ *   A ou X martelés                        la bagarre (les gants tombés : chaque appui, un coup)
+ *   A, X, Start, le doigt                  passer la reprise d'un but ; fermer les alignements, l'entracte
  */
-import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, porteDuBanc, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, BANC } from './physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, BANC, BAGARRE } from './physique.js';
 import { decisionIA, STRATEGIES } from './glace-ia.js';
 import { PATINEURS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
 import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
@@ -40,6 +43,13 @@ const VIRAGE_VITESSE = 4.5;  // … et à partir de cette vitesse, m/s
 const DIRECTIONS = 8;    // les sprites du patineur existent en huit directions, toutes rendues (le bâton reste dans la même main)
 const GEL = 0.06;        // l'arrêt sur image d'une mise en échec qui renverse, s (le hit stop)
 const NOM = 1200;        // le nom du porteur se montre ça de temps à la prise, ms (JP : *nom apparaît une seconde à la possession*)
+/*
+ * LA REPRISE D'UN BUT (le lot 4) : l'écran garde ce qu'il a dessiné des `duree` dernières secondes (un tampon : les
+ * positions, les poses, la rondelle — le moteur, lui, ne se rejoue pas : son hasard ne se garde pas) ; `attente` s après
+ * le but, le match s'arrête et les rejoue au ralenti (`vitesse`), jusqu'à `apres` s après le but. A, X, Start ou le doigt
+ * la passent ; à deux, chacun le peut.
+ */
+const REPRISE = { duree: 4, vitesse: 0.4, attente: 1.0, apres: 0.6 };
 const COULEURS = {
   ligne: '#d0021b', bande: '#2b2f3a', noir: '#0a0b0e', reflet: '#5d6270',
   toi: '#f47b20', plot: '#8d939f', blanc: '#f4f4f4', encreBlanc: '#111', contour: '#1b1d24', ombre: 'rgba(0,0,0,0.25)',
@@ -126,6 +136,10 @@ let manettes = {};       // la manette de chaque humain, ce tour-ci : { A: Gamep
 let tenu = { start: false, haut: false, bas: false, a: false, b: false };   // les fronts de la manette au menu de pause
 let batons = { A: { x: 0, y: 0 }, B: { x: 0, y: 0 } };   // la dernière poussée de chaque humain (le receveur de la passe se lit dessus)
 let relachement = null;  // le tir ou la passe au relâchement du joystick : { tir, passe, reste, dx, dy }
+let images = [];         // LA REPRISE : les dernières secondes dessinées (`REPRISE`)
+let reprise = null;      // { attente, t, tBut, images, allume } : un but à rejouer
+let rideau = null;       // 'alignements' ou 'entracte' : un écran entre deux jeux, le match attend
+let tenuPasser = true, clique = false;   // le bouton qui passe la reprise ou ferme le rideau (son front), le doigt qui touche
 const lire = () => { try { return JSON.parse(localStorage.getItem(CLE) || 'null'); } catch { return null; } };
 const ecrire = v => { try { localStorage.setItem(CLE, JSON.stringify(v)); } catch { /* rien à retenir */ } };
 
@@ -165,6 +179,7 @@ function arreterLaBoucle() {
   window.removeEventListener('keyup', surTouche, true);
   window.removeEventListener('resize', mesurer);
   canvas = null; cx = null; etat = null; pause = false; gel = 0; secousse = null;
+  images = []; reprise = null; rideau = null;
   couperLaGlace();
   touche = { haut: 0, bas: 0, gauche: 0, droite: 0, passe: false, tir: false, echec: false, changer: false, recul: false };
   doigt = null; boutons = { passe: false, tir: false, echec: false, changer: false };
@@ -277,7 +292,8 @@ async function club(cote) {
     const main = p.np === 'RD' || p.sc === 'R' || p.shootsCatches === 'R' ? 'D' : 'G';
     patineurs.push({
       id: p.id, nom: nomCourt(p.n), visage: p.id, poste: s.group === 'D' ? 'D' : s.role, ligne: s.unit,
-      p: parametresDuPatineur({ cote: cote20(p, tous) || 8, tir: ax.tir || 10, jeu: ax.jeu || 10, defense: ax.defense || 10, robustesse: ax.robustesse || 10, poidsLb: p.wgt || null, vitesse: traits.some(t => t === 'VITESSE' || (t && t.key === 'VITESSE')), main }),
+      // SA RUDESSE (le lot 4) : ses vraies minutes de punition par match à la LNH, si le shard les a (la bagarre).
+      p: parametresDuPatineur({ cote: cote20(p, tous) || 8, tir: ax.tir || 10, jeu: ax.jeu || 10, defense: ax.defense || 10, robustesse: ax.robustesse || 10, poidsLb: p.wgt || null, vitesse: traits.some(t => t === 'VITESSE' || (t && t.key === 'VITESSE')), main, pim: p.gp > 0 && p.pim != null ? p.pim / p.gp : null }),
     });
   }
   const g = roster[SLOTS.find(s => s.group === 'G' && s.unit === 0).i] || pool.find(p => p.p === 'G');
@@ -317,6 +333,7 @@ function commencerLEntrainement() {
 function lancer(e) {
   etat = e;
   trace = []; flash = { mot: '', reste: 0 }; vueEntiere = false; enfin = false; anims = []; pause = false; gel = 0; secousse = null; relachement = null;
+  images = []; reprise = null; rideau = null;
   sprites.clear();
   el.innerHTML = `
     <canvas class="sg-canvas" aria-label="La patinoire"></canvas>
@@ -349,10 +366,11 @@ function lancer(e) {
         <aside class="sg-regles" hidden>
           <h3>Ce que la glace fait</h3>
           <ul>${reglesDeLaGlace().map(r => `<li>${esc(r)}</li>`).join('')}</ul>
-          <p class="sg-regles-mot">Le bâton gauche, les flèches ou WASD patinent ; à l'envers, c'est le frein. A ou Espace passe, change de joueur sans la rondelle, et prend la mise en jeu à la chute : le bâton tenu dit où tu l'envoies (vers l'arrière, ton défenseur ; de côté, ton ailier) ; le bâton tiré vers l'arrière, un coéquipier qui te suit, tu lui laisses la rondelle. X, RT ou Maj tenue charge le tir (le bâton choisit le coin) ; sans la rondelle, c'est le harpon. B, RB ou Ctrl : le turbo avec la rondelle, la mise en échec sans elle. Y ou E change de joueur ; avec la rondelle, c'est la feinte (le bâton dit de quel côté) ; à l'arrêt de jeu, le trio suivant. Lent, un adversaire collé, tu protèges la rondelle de toi-même : tourne-lui le dos. Fatigué, patine jusqu'à la porte de ton banc : le plus reposé saute sur la glace. LB, LT ou Q patine à reculons. Start, Échap ou ॥ : la pause.</p>
+          <p class="sg-regles-mot">Le bâton gauche, les flèches ou WASD patinent ; à l'envers, c'est le frein. A ou Espace passe, change de joueur sans la rondelle, et prend la mise en jeu à la chute : le bâton tenu dit où tu l'envoies (vers l'arrière, ton défenseur ; de côté, ton ailier) ; le bâton tiré vers l'arrière, un coéquipier qui te suit, tu lui laisses la rondelle. X, RT ou Maj tenue charge le tir (le bâton choisit le coin) ; sans la rondelle, c'est le harpon ; collé au porteur, de côté, tu lui soulèves le bâton. Les gants tombés, martèle A ou X. B, RB ou Ctrl : le turbo avec la rondelle, la mise en échec sans elle. Y ou E change de joueur ; avec la rondelle, c'est la feinte (le bâton dit de quel côté) ; à l'arrêt de jeu, le trio suivant. Lent, un adversaire collé, tu protèges la rondelle de toi-même : tourne-lui le dos. Fatigué, patine jusqu'à la porte de ton banc : le plus reposé saute sur la glace. LB, LT ou Q patine à reculons. Start, Échap ou ॥ : la pause. A passe la reprise d'un but.</p>
         </aside>
       </div>
     </div>
+    <div class="sg-rideau" hidden></div>
     <div class="sg-fin" hidden></div>`;
   canvas = el.querySelector('.sg-canvas');
   cx = canvas.getContext('2d');
@@ -379,6 +397,8 @@ function lancer(e) {
     }
   });
   brancherDoigt();
+  el.querySelector('.sg-rideau').addEventListener('click', ev => { if (ev.target.closest('[data-rideau]')) clique = true; });
+  if (etat.match) ouvrirRideau('alignements');
   window.addEventListener('keydown', surTouche, true);
   window.addEventListener('keyup', surTouche, true);
   window.addEventListener('resize', mesurer);
@@ -389,7 +409,7 @@ function lancer(e) {
 }
 /* LA PAUSE (Start, Échap, ॥ ; le retour de js/pile.js clique ॥) : le jeu s'arrête, le menu s'ouvre ; encore, il reprend. */
 function basculerPause() {
-  if (!el || !etat || enfin) return;
+  if (!el || !etat || enfin || rideau) return;
   pause = !pause;
   const P = el.querySelector('.sg-pause');
   P.hidden = !pause;
@@ -410,7 +430,11 @@ function invites() {
   const m = document.body.classList.contains('manette');
   const k = (pad, clav) => `<kbd>${m ? pad : clav}</kbd>`;
   const arret = etat && etat.match && (etat.arret || etat.mej);
-  return `<span>${k('⬤', 'Flèches')} Patiner</span><span>${k('Ⓐ', 'Espace')} ${porte ? 'Passe' : etat && etat.mej ? 'À la chute (le bâton : où)' : 'Changer'}</span><span>${k('Ⓧ', 'Maj')} ${porte ? 'Tir (tenir)' : 'Harpon'}</span><span>${k('Ⓑ', 'Ctrl')} ${porte ? 'Turbo' : 'Échec'}</span>${porte ? `<span>${k('Ⓨ', 'E')} Feinte</span>` : arret ? `<span>${k('Ⓨ', 'E')} ${trioSuivant()}</span>` : ''}<span>${k('LB', 'Q')} Reculer</span><span>${k('Start', 'Échap')} Pause</span>`;
+  if (etat && etat.match && etat.match.bagarre) return `<span>${k('Ⓐ', 'Espace')} Frappe ! (martèle)</span>`;
+  if (reprise && reprise.attente <= 0) return `<span>${k('Ⓐ', 'Espace')} Passer la reprise</span>`;
+  const toi = ctl && !porte && etat.patineurs.find(p => p.id === ctl);
+  const leve = toi && etat.match && leveraitLeBaton(etat, toi);
+  return `<span>${k('⬤', 'Flèches')} Patiner</span><span>${k('Ⓐ', 'Espace')} ${porte ? 'Passe' : etat && etat.mej ? 'À la chute (le bâton : où)' : 'Changer'}</span><span>${k('Ⓧ', 'Maj')} ${porte ? 'Tir (tenir)' : leve ? 'Soulever le bâton' : 'Harpon'}</span><span>${k('Ⓑ', 'Ctrl')} ${porte ? 'Turbo' : 'Échec'}</span>${porte ? `<span>${k('Ⓨ', 'E')} Feinte</span>` : arret ? `<span>${k('Ⓨ', 'E')} ${trioSuivant()}</span>` : ''}<span>${k('LB', 'Q')} Reculer</span><span>${k('Start', 'Échap')} Pause</span>`;
 }
 /* À l'arrêt de jeu, ce que Y ferait : le trio suivant (celui qui sauterait sur la glace), et ses jambes. */
 function trioSuivant() {
@@ -435,6 +459,7 @@ function surTouche(ev) {
 /* Le bâton du doigt : la moitié gauche de l'écran ; là où le doigt se pose, c'est le centre. */
 function brancherDoigt() {
   canvas.addEventListener('pointerdown', ev => {
+    if (reprise && reprise.attente <= 0) { clique = true; return; }
     if (ev.pointerType === 'mouse') return;
     auDoigt = true;
     if (doigt) return;
@@ -489,7 +514,7 @@ function entrees() {
   if (etat.humains.length === 2 && liste.length === 1) manettes.B = liste[0];
   else etat.humains.forEach((eq, i) => { if (liste[i]) manettes[eq] = liste[i]; });
   const start = liste.some(p => on(p, 9));
-  if (start && !tenu.start) basculerPause();
+  if (start && !tenu.start) { if (rideau || (reprise && reprise.attente <= 0)) clique = true; else basculerPause(); }
   tenu.start = start;
   if (pause) { menuPause(liste[0]); return {}; }
   const out = {};
@@ -585,13 +610,30 @@ function boucle(now) {
   dernier = now;
   const e = entrees();
   if (!el || !etat) return;
+  // LA REPRISE et LE RIDEAU : le match attend ; A, X, Start ou le doigt passent.
+  if ((reprise && reprise.attente <= 0) || rideau) {
+    if (passer()) { if (rideau) fermerRideau(); else finDeReprise(); }
+    else {
+      if (rideau) { camera(dt); dessiner(now); } else rejouer(dt, now);
+      hud();
+      raf = requestAnimationFrame(boucle);
+      return;
+    }
+  } else passer();
   // L'ARRÊT SUR IMAGE d'une mise en échec qui renverse (le hit stop) : quelques images où rien ne bouge.
   if (gel > 0) gel -= dt;
   const ev = pause || gel > 0 ? [] : avancer(etat, e, dt);
+  if (!pause && etat.match) garderImage(now);
+  if (reprise && reprise.attente > 0 && !pause && (reprise.attente -= dt) <= 0) commencerReprise();
   for (const v of ev) {
     sonner(v);
     animer(v, now);
-    if (v.type === 'but') { flash = { mot: etat.match ? `BUT ! ${noms[v.equipe]}` : 'BUT !', reste: 2 }; secousse = { t0: now, dur: 450, amp: 4 }; for (const eq of etat.humains) vibrer(eq, eq === v.equipe ? 'butPour' : 'butContre'); }
+    if (v.type === 'but') {
+      flash = { mot: etat.match ? `BUT ! ${noms[v.equipe]}` : 'BUT !', reste: 2 }; secousse = { t0: now, dur: 450, amp: 4 }; for (const eq of etat.humains) vibrer(eq, eq === v.equipe ? 'butPour' : 'butContre');
+      // La reprise, sauf pour le but qui finit le match ou celui d'un tir de barrage, d'un tir de punition.
+      const j = etat.match && etat.match.journal[etat.match.journal.length - 1];
+      if (j && !etat.match.fini && !j.fusillade && !j.punition) reprise = { attente: REPRISE.attente, t: 0, tBut: etat.t, images: null, allume: false };
+    }
     else if (v.type === 'arret' && v.gele) flash = { mot: 'Gelée.', reste: 1.2 };
     else if (v.type === 'arret') flash = { mot: 'Arrêt !', reste: 0.8 };
     else if (v.type === 'poteau') { flash = { mot: v.barre ? 'La barre !' : 'Poteau !', reste: 0.8 }; secousse = { t0: now, dur: 160, amp: 2 }; const d = etat.rondelle.dernier; if (d && tonJoueur(d.id)) vibrer(d.equipe, 'poteau'); }
@@ -599,10 +641,15 @@ function boucle(now) {
     else if (v.type === 'degagement') flash = { mot: 'Dégagement refusé', reste: 1.2 };
     else if (v.type === 'vitre') flash = { mot: 'Par-dessus la vitre', reste: 1.2 };
     else if (v.type === 'punition') flash = { mot: `${nomDe(v.qui)} · ${v.genre} · 2 min${v.attente ? ' à retardement' : ''}`, reste: 2.2 };
+    else if (v.type === 'leve' && v.ok && tonJoueur(v.qui)) { flash = { mot: 'Bâton soulevé !', reste: 0.9 }; vibrer(equipeDe(v.qui), 'harpon'); }
+    else if (v.type === 'leve' && v.ok && tonJoueur(v.sur)) flash = { mot: `${nomDe(v.qui)} te soulève le bâton`, reste: 0.9 };
+    else if (v.type === 'gants') { secousse = { t0: now, dur: 250, amp: 3 }; for (const eq of etat.humains) vibrer(eq, 'echecRecu'); }
+    else if (v.type === 'coup') { secousse = { t0: now, dur: 90, amp: 2 }; if (tonJoueur(v.qui)) vibrer(v.equipe, 'echecDonne'); }
+    else if (v.type === 'bagarre') flash = { mot: `${v.gagnant ? `${nomDe(v[v.gagnant])} gagne la bagarre` : 'Bagarre nulle'} · ${BAGARRE.minutes} min chacun`, reste: 2.4 };
     else if (v.type === 'tirpunition') flash = { mot: `Tir de punition, ${nomDe(v.qui)}`, reste: 2.2 };
     else if (v.type === 'liberation') flash = { mot: `${nomDe(v.qui)} revient`, reste: 1.2 };
     else if (v.type === 'deviation') flash = { mot: `Déviée, ${nomDe(v.qui)}`, reste: 0.9 };
-    else if (v.type === 'periode') flash = { mot: etat.match.prolongation ? (etat.match.series ? 'Prolongation' : 'Prolongation, 3 contre 3') : `Fin de la ${v.periode}${v.periode === 1 ? 're' : 'e'} période`, reste: 2.5 };
+    else if (v.type === 'periode') { flash = { mot: etat.match.prolongation ? (etat.match.series ? 'Prolongation' : 'Prolongation, 3 contre 3') : `Fin de la ${v.periode}${v.periode === 1 ? 're' : 'e'} période`, reste: 2.5 }; if (!etat.match.fini) ouvrirRideau('entracte', v.periode); }
     else if (v.type === 'fusillade') flash = { mot: 'Tirs de barrage', reste: 2 };
     else if (v.type === 'ronde') flash = { mot: v.but ? `Compté, ${noms[v.equipe]}` : `Raté, ${noms[v.equipe]}`, reste: 1.5 };
     else if (v.type === 'mej') flash = { mot: `${v.libre ? 'Rondelle libre !' : `Mise en jeu gagnée, ${noms[v.equipe]}`}${tonTiming(v.timing)}`, reste: 1.1 };
@@ -676,7 +723,9 @@ function sonner(v) {
   else if (v.type === 'periode') coupDeGlace('sifflet', 0, { duree: 1.2 });
   else if (v.type === 'fin') coupDeGlace('sifflet', 0, { duree: 0.5, coups: 3 });
   else if (v.type === 'mej') coupDeGlace('miseEnJeu');
-  else if (v.type === 'harpon') coupDeGlace('harpon');
+  else if (v.type === 'harpon' || (v.type === 'leve' && v.ok)) coupDeGlace('harpon');
+  else if (v.type === 'gants') { coupDeGlace('sifflet', 0, { duree: 0.6, coups: 2 }); coupDeGlace('clameur', 0.2); fouleReagit('bagarre'); }
+  else if (v.type === 'coup') coupDeGlace('poing');
   else if (v.type === 'deviation') coupDeGlace('passe');
   else if (v.type === 'bloc') coupDeGlace('reception');
 }
@@ -700,6 +749,9 @@ function animer(v, now) {
   else if (v.type === 'prise' && s && etat.match) {
     const deja = anims.find(a => a.type === 'nom' && a.id === s.id);
     if (deja) deja.t0 = now; else anims.push({ type: 'nom', id: s.id, t0: now, dur: NOM });
+  } else if (v.type === 'coup' && s) {
+    s.anim.coup = now;
+    anims.push({ type: 'impact', x: s.x + Math.cos(s.cap) * 0.5, y: s.y + Math.sin(s.cap) * 0.5, t0: now, dur: 160 });
   } else if (v.type === 'echec' && v.fort && s) {
     const o = etat.patineurs.find(p => p.id === v.sur);
     anims.push({ type: 'impact', x: o ? (s.x + o.x) / 2 : s.x, y: o ? (s.y + o.y) / 2 : s.y, t0: now, dur: 260 });
@@ -771,7 +823,10 @@ function camera(dt) {
   const sd = kZone * dpr * PIXEL;   // les pixels de l'appareil par pixel de sprite
   const k = vueEntiere ? kEntier : sd >= 2.5 ? kZone : Math.max(1, Math.floor(sd)) / (PIXEL * dpr);
   cam.k = k;
-  const R = etat.rondelle;
+  // LA BAGARRE : la caméra va aux deux qui se battent, pas à la rondelle.
+  const B = etat.match && etat.match.bagarre;
+  const deux = B && [B.A, B.B].map(id => etat.patineurs.find(s => s.id === id));
+  const R = deux ? { x: (deux[0].x + deux[1].x) / 2, y: (deux[0].y + deux[1].y) / 2, vx: 0, vy: 0 } : etat.rondelle;
   const f = 1 - Math.exp(-SUIVI * dt);
   const voit = long / k;
   // garder [a, b] à l'écran, au plus près de c ; trop court pour les deux bouts, le milieu
@@ -1174,10 +1229,16 @@ function marques(s) {
 /* Un patineur, en pixels d'écran : sa pose du moment (la chute, le lancer, la passe, l'épaule, la foulée, le repos). */
 function patineur(s, now) {
   const v = Math.hypot(s.vx, s.vy);
-  const anim = s.anim || (s.anim = {});
   const dir = directionDe(s.auSol > 0 && v > 0.3 ? Math.atan2(s.vy, s.vx) : s.cap);
+  corps(s.x, s.y, s.equipe, 'P', s.pose || poseDe(s, now), dir);
+}
+function poseDe(s, now) {
+  const v = Math.hypot(s.vx, s.vy);
+  const anim = s.anim || (s.anim = {});
+  const B = etat.match && etat.match.bagarre;
   let pose = 'repos';
-  if (s.auSol > 0) pose = 'chute';
+  if (B && (B.A === s.id || B.B === s.id)) pose = anim.coup && now - anim.coup < 140 ? 'echec' : 'repos';   // LA BAGARRE : l'épaule à chaque coup
+  else if (s.auSol > 0) pose = 'chute';
   else if (anim.tir && now - anim.tir < 320) pose = 'tir';
   else if (s.charge > 0 && etat.rondelle.porteur === s.id) pose = 'charge';
   else if (anim.passe && now - anim.passe < 240) pose = 'passe';
@@ -1186,7 +1247,7 @@ function patineur(s, now) {
   else if (Math.abs(s.virage) > VIRAGE_PENCHE && v > VIRAGE_VITESSE) pose = s.virage > 0 ? 'virageD' : 'virageG';   // couché dans la courbe
   else if (s.pousse > 0.1 && v > 0.3) pose = `patin${1 + Math.floor(s.foulee * FOULEES) % FOULEES}`;   // LA FOULÉE : la phase du moteur, la jambe tendue au coup de patin
   else if (v > 1.2) pose = 'glisse';   // il ne pousse plus : les deux lames sur la glace
-  corps(s.x, s.y, s.equipe, 'P', pose, dir);
+  return pose;
 }
 /* LA NEIGE (JP : *ça feel zéro comme patiner*) : un arrêt hockey, ou un virage sec à vitesse, fait gicler la glace
    des lames devant le patineur, en grains blancs qui s'éteignent. Rien que de l'image : le moteur n'en sait rien. */
@@ -1220,8 +1281,122 @@ function gardien(Gd, now) {
   if (Gd.retire) return;
   const R = etat.rondelle;
   // LE PAPILLON : les jambières à plat sur un arrêt, un demi-seconde ; sinon la garde, tourné vers la rondelle.
-  const arret = Gd.anim && now - Gd.anim < 450;
-  corps(Gd.x, Gd.y, Gd.equipe, 'G', arret ? Gd.animPose || 'papillon' : 'garde', directionDe(Math.atan2(R.y - Gd.y, R.x - Gd.x), 4));
+  corps(Gd.x, Gd.y, Gd.equipe, 'G', Gd.pose || poseDuGardien(Gd, now), directionDe(Math.atan2(R.y - Gd.y, R.x - Gd.x), 4));
+}
+const poseDuGardien = (Gd, now) => (Gd.anim && now - Gd.anim < 450 ? Gd.animPose || 'papillon' : 'garde');
+
+/* ---------- la reprise d'un but (le lot 4, `REPRISE`) ---------- */
+/* Ce qu'on vient de dessiner, gardé : les patineurs sur la glace (leur pose), les gardiens, la rondelle. */
+function garderImage(now) {
+  const R = etat.rondelle;
+  images.push({
+    t: etat.t, controles: { ...etat.controles },
+    rondelle: { x: R.x, y: R.y, z: R.z, vx: R.vx, vy: R.vy, porteur: R.porteur },
+    patineurs: etat.patineurs.filter(s => s.surGlace).map(s => ({ id: s.id, equipe: s.equipe, nom: s.nom, x: s.x, y: s.y, vx: s.vx, vy: s.vy, cap: s.cap, auSol: s.auSol, rayon: s.rayon, surGlace: true, charge: 0, pose: poseDe(s, now) })),
+    gardiens: etat.gardiens.map(g => ({ equipe: g.equipe, x: g.x, y: g.y, vx: g.vx, vy: g.vy, retire: g.retire, pose: poseDuGardien(g, now) })),
+  });
+  while (images.length && etat.t - images[0].t > REPRISE.duree + REPRISE.attente + 0.3) images.shift();
+}
+function commencerReprise() {
+  const I = images.filter(f => f.t >= reprise.tBut - REPRISE.duree && f.t <= reprise.tBut + REPRISE.apres);
+  if (I.length < 10) { reprise = null; return; }
+  reprise.images = I; reprise.t = 0;
+  anims = []; tenuPasser = true;
+  rejouer(5, performance.now());   // la caméra saute d'un coup au début de la reprise
+}
+function finDeReprise() {
+  reprise = null; trace = []; flash = { mot: '', reste: 0 };
+  dernier = performance.now();
+}
+/* Une image de la reprise : les deux images gardées qui l'entourent, mélangées ; dessinée comme le match, puis le vrai match revient. */
+function rejouer(dt, now) {
+  const I = reprise.images, t0 = I[0].t;
+  reprise.t += Math.min(dt, 0.1) * REPRISE.vitesse;
+  const tc = Math.min(t0 + reprise.t, I[I.length - 1].t);
+  let k = 0;
+  while (k < I.length - 2 && I[k + 1].t <= tc) k++;
+  const a = I[k], b = I[k + 1] || a, f = b.t > a.t ? Math.min(1, (tc - a.t) / (b.t - a.t)) : 0;
+  const mel = (p, q) => (q ? { ...p, x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f } : p);
+  const vrai = etat;
+  etat = {
+    ...vrai, humains: [], mej: null, controles: a.controles,
+    rondelle: { ...mel(a.rondelle, b.rondelle), z: a.rondelle.z + (b.rondelle.z - a.rondelle.z) * f },
+    patineurs: a.patineurs.map(s => mel(s, b.patineurs.find(q => q.id === s.id))),
+    gardiens: a.gardiens.map(g => mel(g, b.gardiens.find(q => q.equipe === g.equipe))),
+  };
+  trace = I.slice(Math.max(0, k - 13), k + 1).map(x => x.rondelle);
+  if (!reprise.allume && tc >= reprise.tBut) {
+    reprise.allume = true;
+    const j = vrai.match.journal[vrai.match.journal.length - 1];
+    anims.push({ type: 'lumiere', cote: vrai.equipes[j.equipe].attaque, t0: now, dur: 2500 });
+  }
+  flash = { mot: '● Reprise', reste: 0.2 };
+  camera(dt > 1 ? dt : dt * REPRISE.vitesse);
+  dessiner(now);
+  etat = vrai;
+  if (tc >= I[I.length - 1].t) finDeReprise();
+}
+/* Le bouton qui passe : un front de A, X ou du doigt (Start, lui, fait `clique`). */
+function passer() {
+  const liste = [...(navigator.getGamepads ? navigator.getGamepads() : [])].filter(Boolean);
+  const appui = liste.some(p => on(p, 0) || on(p, 2)) || touche.passe || touche.tir || boutons.passe || boutons.tir;
+  const front = (appui && !tenuPasser) || clique;
+  tenuPasser = appui; clique = false;
+  return front;
+}
+
+/* ---------- les alignements au départ, l'entracte (le lot 4) ---------- */
+const tagDe = eq => `<span style="--eq:${couleurs[eq].club || couleurs[eq].bg}">${esc(etat.equipes[eq].tag)}</span>`;
+/* Le % d'arrêts du gardien d'un club, en chiffres de la LNH (« 91,2 % »), sans les tirs de barrage. */
+function pctArrets(eq) {
+  const g = etat.gardiens.find(x => x.equipe === eq);
+  const contre = etat.match.journal.filter(j => j.equipe !== eq && !j.fusillade).length;
+  return g.arrets + contre ? `${(100 * g.arrets / (g.arrets + contre)).toFixed(1).replace('.', ',')} %` : '—';
+}
+/* Les stats du match, côte à côte : l'entracte et la fin les lisent. */
+function lignesDeStats() {
+  const M = etat.match;
+  const ligne = (mot, a, b) => `<tr><td>${a}</td><th>${mot}</th><td>${b}</td></tr>`;
+  return ligne('Tirs', M.tirs.A, M.tirs.B) + ligne('Tirs bloqués', M.blocs.A, M.blocs.B) + ligne('Mises en échec', M.echecs.A, M.echecs.B)
+    + ligne('Mises en jeu gagnées', M.mej.A, M.mej.B) + ligne('% d\'arrêts', pctArrets('A'), pctArrets('B')) + ligne('Minutes de punition', M.pim.A, M.pim.B);
+}
+function ouvrirRideau(genre, periode = 0) {
+  const R = el.querySelector('.sg-rideau'), M = etat.match;
+  const nomDuJoueur = id => esc(nomDe(id));
+  let html;
+  if (genre === 'alignements') {
+    // LES PARTANTS : le trio et la paire qui sautent sur la glace, puis le gardien, une ligne chacun.
+    const ordre = ['AG', 'C', 'AD', 'D'];
+    const lignes = ['A', 'B'].flatMap(eq => {
+      const sur = etat.patineurs.filter(s => s.equipe === eq && s.surGlace).sort((a, b) => ordre.indexOf(a.poste) - ordre.indexOf(b.poste));
+      const F = sur.filter(s => s.poste !== 'D').map(s => nomDuJoueur(s.id)).join(' – '), D = sur.filter(s => s.poste === 'D').map(s => nomDuJoueur(s.id)).join(' – ');
+      return [`<li>${tagDe(eq)} ${F} <small>· ${D}</small></li>`, `<li>${tagDe(eq)} ${esc(etat.gardiens.find(g => g.equipe === eq).nom)} <small>· devant le filet</small></li>`];
+    });
+    html = `<h2>Les partants</h2><div class="sg-fin-score">${tagDe('A')}<b>vs</b>${tagDe('B')}</div><ul class="sg-fin-buts">${lignes.join('')}</ul>
+      <div class="sg-fin-actions"><button type="button" class="btn go" data-rideau>▶ Au jeu</button></div>`;
+  } else {
+    // L'ENTRACTE : le pointage, les stats côte à côte, les buts par joueur.
+    const buts = {};
+    for (const j of M.journal) if (j.qui && !j.fusillade) buts[j.qui] = (buts[j.qui] || 0) + 1;
+    const marqueurs = ['A', 'B'].map(eq => {
+      const l = Object.entries(buts).filter(([id]) => equipeDe(id) === eq).sort((a, b) => b[1] - a[1]).map(([id, n]) => `${nomDuJoueur(id)}${n > 1 ? ` ${n}` : ''}`);
+      return l.length ? `<li>${tagDe(eq)} ${l.join(', ')}</li>` : '';
+    }).join('');
+    const suite = M.fusillade ? 'les tirs de barrage' : M.prolongation ? 'la prolongation' : `la ${M.periode}e période`;
+    html = `<h2>${periode > 3 ? 'Fin de la prolongation' : `Fin de la ${periode}${periode === 1 ? 're' : 'e'} période`}</h2>
+      <div class="sg-fin-score">${tagDe('A')}<b>${M.pointage.A} – ${M.pointage.B}</b>${tagDe('B')}</div>
+      <table class="sg-fin-stats"><tbody>${lignesDeStats()}</tbody></table>
+      ${marqueurs ? `<h3 class="sg-fin-t">Les buts</h3><ul class="sg-fin-buts">${marqueurs}</ul>` : ''}
+      <div class="sg-fin-actions"><button type="button" class="btn go" data-rideau>▶ ${esc(suite.charAt(0).toUpperCase() + suite.slice(1))}</button></div>`;
+  }
+  R.innerHTML = `<div class="sg-fin-carte">${html}</div>`;
+  R.hidden = false;
+  rideau = genre; tenuPasser = true;
+}
+function fermerRideau() {
+  el.querySelector('.sg-rideau').hidden = true;
+  rideau = null;
+  dernier = performance.now();
 }
 
 function dessiner(now) {
@@ -1365,8 +1540,9 @@ function hud() {
   const charge = toi ? Math.min(1, toi.charge / BATON.charge) : 0;
   barre.hidden = !(toi && toi.charge > 0 && etat.rondelle.porteur === toi.id);
   barre.firstElementChild.style.width = `${Math.round(charge * 100)}%`;
+  if (M && M.bagarre) { const B = M.bagarre; flash = { mot: `Bagarre ! ${nomDe(B.A)} ${Math.round(B.coups.A)} – ${Math.round(B.coups.B)} ${nomDe(B.B)}`, reste: 0.2 }; }
   const f = el.querySelector('.sg-flash');
-  const mot = flash.reste > 0 ? flash.mot : '';
+  const mot = flash.reste > 0 && !rideau ? flash.mot : '';
   if (f.textContent !== mot) f.textContent = mot;
   const inv = el.querySelector('.sg-invites');
   const html = invites();
@@ -1383,7 +1559,6 @@ function finDuMatch() {
   enfin = true;
   const M = etat.match;
   const F = el.querySelector('.sg-fin');
-  const ligne = (mot, a, b) => `<tr><td>${a}</td><th>${mot}</th><td>${b}</td></tr>`;
   const quand = j => j.fusillade ? 'tirs de barrage' : `${j.punition ? 'tir de punition · ' : ''}${j.periode > 3 ? 'prol.' : `P${j.periode}`} ${horloge(j.reste)}`;
   const buts = M.journal.map(j => `<li><span style="--eq:${couleurs[j.equipe].bg}">${esc(etat.equipes[j.equipe].tag)}</span> ${esc(j.qui ? nomDe(j.qui) : 'but')}${j.aides && j.aides.length ? ` <small>(${esc(j.aides.map(nomDe).join(', '))})</small>` : ''} · ${quand(j)}</li>`).join('');
   const statsDe = e => e.gardien ? `${e.stats.arrets} arrêts` : [e.stats.buts ? `${e.stats.buts} B` : '', e.stats.aides ? `${e.stats.aides} A` : '', `${e.stats.tirs} tirs`, e.stats.echecs ? `${e.stats.echecs} MÉ` : ''].filter(Boolean).join(' · ');
@@ -1391,7 +1566,7 @@ function finDuMatch() {
   F.innerHTML = `<div class="sg-fin-carte">
     <h2>${esc(noms[M.vainqueur])} l'emporte</h2>
     <div class="sg-fin-score"><span style="--eq:${couleurs.A.bg};--eq-ink:${couleurs.A.ink}">${esc(etat.equipes.A.tag)}</span><b>${M.pointage.A} – ${M.pointage.B}</b><span style="--eq:${couleurs.B.bg};--eq-ink:${couleurs.B.ink}">${esc(etat.equipes.B.tag)}</span></div>
-    <table class="sg-fin-stats"><tbody>${ligne('Tirs', M.tirs.A, M.tirs.B)}${ligne('Tirs bloqués', M.blocs.A, M.blocs.B)}${ligne('Mises en échec', M.echecs.A, M.echecs.B)}${ligne('Mises en jeu', M.mej.A, M.mej.B)}${ligne('Minutes de punition', M.pim.A, M.pim.B)}</tbody></table>
+    <table class="sg-fin-stats"><tbody>${lignesDeStats()}</tbody></table>
     ${etoiles ? `<h3 class="sg-fin-t">Les trois étoiles</h3><ol class="sg-fin-etoiles">${etoiles}</ol>` : ''}
     ${buts ? `<ul class="sg-fin-buts">${buts}</ul>` : ''}
     <div class="sg-fin-actions"><button type="button" class="btn go" data-fin="rejouer">Rejouer</button><button type="button" class="btn" data-fin="accueil">Deux autres clubs</button><button type="button" class="btn" data-fin="menu">Menu</button></div>

@@ -13,7 +13,8 @@
  *   les voix      le « ohhh » d'un tir dangereux ou d'un poteau, les huées d'une punition : des dents de scie
  *                 graves avec un vibrato (sans lui, ça sonne machine), dans les formants d'une voyelle
  *   les coups     le tir (le frottement, le clic, le corps), la passe, la rondelle contre la bande (trois modes
- *                 inharmoniques, le bois), le poteau (la cloche), la mise en échec, la mise en jeu, le harpon
+ *                 inharmoniques, le bois), le poteau (la cloche), la mise en échec, la mise en jeu, le harpon,
+ *                 le coup de poing d'une bagarre (et la foule qui se lève)
  *   l'arbitre     le sifflet (deux sinus qui battent, du souffle, du plastique), la sirène de but (deux cornes)
  *   les patins    aucun son (JP, 1er nov. : *pas le bruit de patinage*) : le crissement, le coup de patin et le frein sont partis
  *
@@ -234,6 +235,10 @@ const COUPS = {
     bruit(c, t + 0.05, { gain: 0.2, att: 0.001, dec: 0.02, type: 'highpass', freq: 2200 });
     bruit(c, t + 0.11, { gain: 0.18, att: 0.001, dec: 0.02, type: 'highpass', freq: 2600 });
   },
+  poing(c, t) {   // la bagarre : un coup sourd, le gant sur l'épaule, dans les médiums (un petit haut-parleur ne rend pas les graves)
+    note(c, t, { freq: 140 * al(0.15), vers: 60, gain: 0.35, att: 0.002, dec: 0.09 });
+    bruit(c, t, { gain: 0.3 * al(0.2), att: 0.001, dec: 0.05, type: 'bandpass', freq: 700 * al(0.2), q: 1.2 });
+  },
   harpon(c, t) {
     bruit(c, t, { gain: 0.25 * al(0.15), att: 0.001, dec: 0.018, type: 'highpass', freq: 2400 });
     note(c, t, { forme: 'triangle', freq: 1500 * al(), vers: 700, gain: 0.06, att: 0.001, dec: 0.03 });
@@ -269,6 +274,7 @@ export function fouleReagit(quoi) {
     else if (quoi === 'butVisiteurs') bosse(-0.1, 4);
     else if (quoi === 'echec') bosse(0.3, 2);
     else if (quoi === 'punition') bosse(0.15, 3);
+    else if (quoi === 'bagarre') bosse(0.75, 6);   // les gants tombent : toute l'aréna debout
   } catch { /* rien */ }
 }
 /** Au départ de l'écran : la foule se tait. */

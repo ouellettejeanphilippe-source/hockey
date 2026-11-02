@@ -6356,8 +6356,8 @@ body.sur-glace { overflow: hidden; }
 .sg-rond-changer { width: 48px; height: 48px; font-size: var(--t-1); border-color: var(--encre-2); }
 .sg-rond-echec { width: 56px; height: 56px; border-color: var(--mauvais); }
 /* La fin du match : la carte du pointage, les stats, les buts, rejouer. */
-.sg-fin { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--esp-4); background: color-mix(in srgb, var(--noir-pur) 72%, transparent); }
-.sg-fin[hidden] { display: none; }
+.sg-fin, .sg-rideau { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--esp-4); background: color-mix(in srgb, var(--noir-pur) 72%, transparent); }
+.sg-fin[hidden], .sg-rideau[hidden] { display: none; }
 .sg-fin-carte { width: 100%; max-width: 420px; max-height: 100%; overflow-y: auto; padding: var(--esp-4); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-1); }
 .sg-fin-carte h2 { margin: 0 0 var(--esp-3); font: 800 var(--t-5)/1.1 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
 .sg-fin-score { display: flex; align-items: center; justify-content: center; gap: var(--esp-3); margin-bottom: var(--esp-3); font: 800 var(--t-6)/1 var(--display); }

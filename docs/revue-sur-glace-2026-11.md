@@ -190,6 +190,61 @@ Deux réglages ont été faits en route, pour l'équilibre : le premier jet (le 
 - **À sentir à la manette** : la protection automatique (est-ce qu'elle se sent, ou faut-il la tenir sur LB ?) ; la feinte, qui pourrait être trop sûre contre l'IA (elle mord à tout coup pendant 0,3 s, une feinte par seconde) ; le trio choisi qui se replace pendant la mise en jeu ; les changements à la volée de tes coéquipiers (≈ toutes les 30 s par groupe, des présences plus courtes que dans la LNH : `JAMBES.volee` à 50 les allongerait).
 - **Les captures** : un porteur qui protège au coin, le dos au poursuivant, la rondelle de l'autre côté (`protege-2.png`), et l'invite du trio à l'arrêt de jeu (`trio.png`), Chromium sans tête, 1280 × 720, aucune erreur dans la console. Le changement à la volée n'a pas été vu à l'image.
 
+## 7. Le lot 4 : le jeu physique, les fautes et la présentation d'un match (version 3.2.10)
+
+Les propositions 6 et 7 de la section 4 : ce qui fait qu'un match de NHL 94 se raconte. Chaque geste pousse le même bâton pour toi et pour l'IA, chaque faute se siffle sur un fait mis en scène dans `check_physique` (157 → 170 vérifications, toutes vertes), et chaque chiffre dit à l'écran vient d'une constante (deux lignes de plus dans les règles).
+
+### Le jeu physique et les fautes
+
+| Le geste | Comment il se joue | La constante | La preuve (check_physique) |
+|---|---|---|---|
+| **Soulever le bâton** | X sans la rondelle, le piton du harpon. Collé au porteur (1,5 m au plus), de côté (ni devant lui ni dans son dos), la rondelle à portée de ta lame : tu lui lèves le bâton et tu prends la rondelle. Sans contact, sans punition ; son corps n'y change rien, sa feinte oui. L'invite dit « Soulever le bâton » quand tu es bien placé | `LEVE` : 80 % d'un harpon ouvert (la Défense contre le Jeu) | Le porteur qui protège : 27 rondelles volées sur 60 de côté, 8 harpons réussis sur 60 dans son dos ; 0 punition |
+| **L'accrochage** | Un harpon raté par-derrière sur un porteur lancé à plus de 22 km/h : deux minutes, et il le ralentit | `FAUTES.accroche` 25 %, `rapide` 6 m/s | 98 sur 370 harpons ratés à 8 m/s (le dé : 24 % après le trébuchement), 0 à 3 m/s |
+| **Le cinglage** | Un harpon raté en fonçant sur le porteur à plus de 18 km/h | `FAUTES.cinglage` 3,5 %, `fonce` 5 m/s | 28 sur 684 en fonçant, 0 arrêté |
+| **Le bâton élevé** | Un harpon raté à travers le corps du porteur (il protège) | `FAUTES.eleve` 10 % | 37 sur 364 |
+| **La bagarre** | Après une mise en échec de plus de 900 kg·m/s ou une punition, le frappé et le frappeur (la victime et le puni) laissent tomber les gants, au dé de leur rudesse : la Robustesse au-dessus de 11 sur 20 (en deçà, jamais), fois leurs vraies minutes de punition par match à la LNH (`pim` et `gp` du shard, de 0,3 à 3 fois). Une par joueur, jamais en prolongation. Le jeu s'arrête, la caméra va aux deux ; 3,5 s de duel : A ou X martelés (l'IA, 5 coups par seconde), chaque coup pèse la Robustesse et la masse. Cinq minutes chacun, coïncidentes ; la foule se lève, le coup de poing | `BAGARRE` | Deux durs à cuire : les gants tombent ; toi qui martèles à 7,5 coups par seconde, tu gagnes, sans le bouton tu perds ; 5 minutes chacun, 5 contre 5 à la mise en jeu, sortis du cachot ils rentrent au banc ; deux joueurs ordinaires, 0 bagarre en 30 gros coups |
+
+**Les punitions coïncidentes** : une punition garde maintenant les secondes qui comptent pour l'avantage (`avantage`) ; la majeure d'une bagarre n'en a pas. La mineure et la majeure d'un même joueur se suivent (un but en avantage n'efface que la mineure) ; sa mineure finie, son club, à court, reçoit un patineur par la porte (`renfort`) ; sorti du cachot, le puni saute sur la glace si son club y manque d'un patineur, sinon il rentre au banc (`liberer`). L'IA lit le désavantage de là (`penalisesDe`).
+
+**L'IA** soulève le bâton collée au porteur, la rondelle cachée ou pas (elle ne harponnait pas une rondelle cachée, le lot 3). Elle ne cherche pas la faute : ce sont ses harpons ratés qui la font.
+
+### La présentation
+
+- **La reprise d'un but** (js/sur-glace.js, `REPRISE`) : l'écran garde ce qu'il dessine, un tampon des positions, des poses et de la rondelle. Une seconde après un but, le match s'arrête et les 4 s d'avant le but, plus 0,6 s, repassent au ralenti (× 0,4), la caméra sur la rondelle d'alors, la lumière qui s'allume au but. A, X, Start ou le doigt la passent ; à deux, chacun le peut (elle ne gêne pas : un appui). Pas de reprise pour le but qui finit le match, un tir de barrage ou un tir de punition. Le moteur, lui, ne se rejoue pas : son hasard (`de`) ne se garde pas, ce sont les images dessinées qui repassent.
+- **Les partants** : au coup d'envoi, le trio et la paire de chaque club, puis son gardien, une ligne chacun ; le match attend « ▶ Au jeu » (A, X, Start).
+- **L'entracte** : à chaque fin de période, le pointage, les tirs, les tirs bloqués, les mises en échec, les mises en jeu gagnées, le % d'arrêts de chaque gardien, les minutes de punition et les buts par joueur ; la fin du match lit les mêmes stats (le % d'arrêts en plus).
+
+### Les chiffres, avant → après
+
+L'IA contre l'IA, 96 matchs de 3 × 2 minutes, les graines du lot 3 (`postes-0` à `23`, `100`, `200`, `300`), le même harnais ; puis de vrais clubs (douze saisons, de 1975-76 à 2023-24, bâtis comme l'écran les bâtit), 96 matchs, pour la bagarre (les clubs inventés du harnais n'ont que des défenseurs de Robustesse 14).
+
+| Par match de 6 min | 3.2.8 | 3.2.10 |
+|---|---|---|
+| Punitions | 0,76 | 1,88 |
+| … dont l'accrochage, le cinglage, le bâton élevé | — | 0,14, 0,53, 0,23 |
+| Minutes de punition | 1,5 | 4,1 |
+| Bâtons soulevés (réussis) | — | 29 (40 %) |
+| Harpons réussis | 48,5 | 46,3 |
+| Buts | 3,94 | 4,03 |
+| Hors-jeu | 0,93 | 0,98 |
+| Passes réussies | 66,3 % | 66,8 % |
+| % d'arrêts | 89,8 | 90,1 |
+| Cycles | 4,0 | 3,7 |
+| De vrais clubs : bagarres | — | 0,20 (17 matchs sur 96) |
+| De vrais clubs : punitions | — | 1,75 |
+
+Trois réglages en route : le premier jet des fautes (un seul dé, 10 %, pour le cinglage et le bâton élevé) donnait 1,4 cinglage par match à lui seul — l'IA harponne en fonçant ≈ 14 fois par match ; le cinglage a pris son propre dé (3,5 %) et un seuil plus haut (5 m/s). La bagarre après une « grosse » mise en échec de 1,6 fois le seuil de chute (480 kg·m/s) aurait eu ≈ 135 occasions par match ; à 3 fois (900), ≈ 2 avec les clubs inventés, ≈ 6 avec de vrais clubs, plus lourds. Le dé de la bagarre est passé de 0,25 à 0,75 pour qu'elle arrive à un match sur cinq ou six avec de vrais clubs (un sur douze avant). Et un défaut trouvé en chemin : le puni d'une majeure coïncidente revenait sur la glace d'un club déjà à cinq (1 053 images de trop sur 24 matchs) ; il rentre au banc.
+
+### Ce qui reste
+
+- **Le double-échec, la rudesse après le sifflet, l'inconduite** : pas faits. La majeure n'existe que pour la bagarre.
+- **La bagarre de l'IA contre toi est rare et subie** : tu ne la provoques pas, et tu ne la refuses pas. NHL 93 avait un bouton pour se battre ; à décider. Le duel est simple (marteler) ; un coup et une esquive seraient la suite.
+- **La reprise rejoue des images, pas le moteur** : elle ne peut pas changer d'angle ni reculer. Un vrai rejeu demanderait de garder l'état du hasard (`generateur`) avec l'état du match.
+- **Les clubs inventés du harnais** se battent presque jamais (0,04 par match) : le check ne mesure la fréquence que sur des faits mis en scène ; la fréquence vraie vient du harnais à vrais clubs (scratchpad), pas de `check_physique`.
+- **La règle de `.claude/rules/sur-glace.md`** dit qu'un vrai joueur n'apporte que ses cotes sur 20 et son poids : il apporte aussi sa main (le lot 3) et ses minutes de punition (le lot 4). À écrire si JP le garde.
+- **À sentir à la manette** : soulever le bâton (est-ce que « collé de côté » se trouve sans y penser, ou faut-il un piton à part ?) ; les fautes (1,9 punition par match de 6 min, c'est près de cinq par match de 15 min : à voir si c'est trop) ; le duel de la bagarre (7,5 appuis par seconde battent un dur de l'IA ; un enfant au téléphone ?) ; la reprise (le ralenti à × 0,4 dure 11 s : la passer est-il assez évident ?).
+- **Les captures** (Chromium sans tête, 1280 × 720, aucune erreur dans la console) : les partants (`alignements.png`), une montée et son but repris au ralenti (`montee.png`, `reprise-0.png` à `reprise-5.png`), une bagarre (`bagarre.png`, `bagarre-fin.png`) et l'entracte (`entracte.png`).
+
 ## Comment ces chiffres ont été faits
 
-`node scripts/check_physique.mjs` (98 vérifications avant le lot 1, 114 après, 136 après le lot 2, 157 après le lot 3, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
+`node scripts/check_physique.mjs` (98 vérifications avant le lot 1, 114 après, 136 après le lot 2, 157 après le lot 3, 170 après le lot 4, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
