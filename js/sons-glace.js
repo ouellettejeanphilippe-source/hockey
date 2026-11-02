@@ -15,6 +15,9 @@
  *   les coups     le tir (le frottement, le clic, le corps), la passe, la rondelle contre la bande (trois modes
  *                 inharmoniques, le bois), le poteau (la cloche), la mise en échec, la mise en jeu, le harpon,
  *                 le coup de poing d'une bagarre (et la foule qui se lève)
+ *   la célébration  après un but, pendant que les joueurs se regroupent (le lot 5) : la foule tape des mains en
+ *                 cadence, trois fois trois coups ; chaque coup, des centaines de mains étalées sur 40 ms, dans les médiums
+ *                 (1 à 2,5 kHz : un téléphone les rend) ; pour les visiteurs, une poignée de partisans, plus bas
  *   l'arbitre     le sifflet (deux sinus qui battent, du souffle, du plastique), la sirène de but (deux cornes)
  *   les patins    aucun son (JP, 1er nov. : *pas le bruit de patinage*) : le crissement, le coup de patin et le frein sont partis
  *
@@ -250,6 +253,14 @@ const COUPS = {
   huees(c, t) {
     voix(c, t, { n: 10, grave: 170, aigu: 260, formants: [[300, 6], [700, 5]], att: 0.4, tenue: 2.5, rel: 1.2, gain: 0.25, etale: 0.6 });
     const b = boucle(c, tamponBrun || (tamponBrun = brun(c, 5.3))), f = filtre(c, 'lowpass', 300), g = enveloppe(c, t, 0.15, 0.4, 3.5); b.connect(f); f.connect(g); g.connect(sortie(c)); b.stop(t + 4.2);
+  },
+  ovation(c, t, { fort = true } = {}) {
+    const g = fort ? 1 : 0.3, mains = fort ? 6 : 3;
+    for (let serie = 0; serie < 3; serie++) for (let k = 0; k < 3; k++) {
+      const t0 = t + serie * 0.75 + k * 0.17 * al(0.05);
+      for (let m = 0; m < mains; m++) bruit(c, t0 + Math.random() * 0.04, { gain: 0.07 * g * al(0.3), att: 0.001, dec: 0.03, type: 'bandpass', freq: 1000 + Math.random() * 1500, q: 1.5 });
+    }
+    if (fort) voix(c, t + 2.2, { n: 8, grave: 180, aigu: 300, formants: [[600, 5], [1700, 6]], att: 0.2, tenue: 0.6, rel: 0.9, gain: 0.22, etale: 0.3 });
   },
   clameur(c, t) {
     const r = boucle(c, tamponRose || (tamponRose = rose(c, 7.1))), f = filtre(c, 'highpass', 2500, 0.7), g = enveloppe(c, t, 0.25, 0.3, 5); r.connect(f); f.connect(g); g.connect(sortie(c)); r.stop(t + 5.5);
