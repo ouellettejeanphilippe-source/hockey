@@ -102,6 +102,7 @@ scripts/mock_zones.mjs      le malus de zone ferme-t-il l'empilement ?
 scripts/sonde_aptitudes.mjs l'échelle des profils sur 330 vraies équipes
 scripts/sonde_gros_matchs.mjs combien de gros matchs par saison
 scripts/mesure_prep.mjs, mesure_rogue.mjs, mesure_defilement.mjs   des mesures d'époque (S76-S77), gardées
+scripts/mesure_main.mjs   la main d'adjoints de l'attentif : les cartes qui ne jouent jamais un séjour, l'occupation des cases (nov. 2026)
 ```
 
 ### Vérifier (chacun passe par verdict.mjs et pose le code de sortie)

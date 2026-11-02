@@ -30,7 +30,8 @@
  *     gros match en duel (V9, tranche 5) : il répond à chaque intention, puis
  *     joue ce que l'adjoint jouerait (scripts/lib/duel.mjs) ; chaque soir, son plan
  *     de match (V17) : contre chaque club, celui qui rend le plus de buts nets
- *     lus au moteur (`planDuRobot`) ;
+ *     lus au moteur (`planDuRobot`) ; à la boutique, le pack qui rend le plus
+ *     par jeton (`packLu`, nov. 2026) ;
  *   - 'distrait' : il clique sans lire. Un coach au hasard ; une carte du pack au hasard, et qui
  *     sort au hasard (le nouveau prend sa case) ; aux gros matchs et en séries, une réponse sur deux et une
  *     main jouable au hasard ; un plan de match au hasard chaque soir ; des rivaux, des gardés et des lotos au hasard. Ses
@@ -233,7 +234,7 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
 
 export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
 /*
- * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi —
+ * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi,fit,boutique —
  * ce que l'attentif NE fait PAS dans cette mesure, pour trouver d'où vient son avance (ou son retard) sur le robot d'avant,
  * un geste à la fois, sur les mêmes dés. ROBOT_COACH=essaim force la philosophie du coach de l'attentif, pour mesurer ce
  * que chaque coach vaut à son club.
@@ -409,6 +410,41 @@ function packVoulu(meta, jetons, n, exigence = 0) {
   if (peut('bronze')) return { cle: 'bronze' };
   return null;
 }
+/*
+ * LA BOUTIQUE LUE PAR L'ATTENTIF (nov. 2026, docs/revue-rogue-2026-11.md § 2.6 ; MESURE seulement, `ROBOT_SAUF=boutique`
+ * la lui retire). Le robot d'avant achète dans un ordre fixe : l'ablation ne pouvait pas dire si choisir son pack compte.
+ * L'attentif lit l'offre : chaque pack que la boutique vend, tiré `ESSAIS_DE_PACK` fois au matin de la saison sur un
+ * générateur à lui (les dés de la saison ne bougent pas), et, à chaque achat, ce que vaudrait le meilleur joueur qu'il
+ * en signerait — sa valeur au-dessus du plus faible habillé de son groupe, s'il tient sous le plafond à sa place —, en
+ * moyenne sur les tirages, sur le prix du pack à cet achat. Il prend le pack qui rend le plus par jeton ; si aucun ne
+ * rend rien, l'ordre du robot d'avant.
+ */
+const PACKS_DE_LA_BOUTIQUE = ['bronze', 'epoque', 'argent', 'or', 'specialistes', 'club', 'vedettes', 'coach'];
+const ESSAIS_DE_PACK = 12;
+function lireLaBoutique(meta, graine, saison, libre) {
+  const rnd = generateur('rogue80-boutique', graine, saison), ouverts = packsOuverts(meta), lu = [];
+  const roles = ['sniper', 'passeur', 'defensif', 'gardien'].filter(r => !VERROUS[r] || aDebloque(meta, VERROUS[r]));
+  for (const cle of PACKS_DE_LA_BOUTIQUE.filter(k => ouverts[`j:${k}`] === true && PACKS_JOUEURS[k])) {
+    for (const role of cle === 'specialistes' ? roles : [null]) {
+      lu.push({ cle, ...(role ? { role } : {}), tirages: Array.from({ length: ESSAIS_DE_PACK }, () => tirerPack(rnd, cle, libre, role, meta).map(x => x.p)) });
+    }
+  }
+  return lu;
+}
+function packLu(lu, roster, cap, jetons, n, exigence) {
+  const habilles = SLOTS.filter(sl => !sl.scratch && roster[sl.i]).map(sl => roster[sl.i]);
+  const masse = masseDe(roster);
+  const plusFaible = new Map(['F', 'D', 'G'].map(g => [g, habilles.filter(p => groupe(p) === g).reduce((b, p) => (!b || v(p) < v(b) ? p : b), null)]));
+  const gainDe = p => { const sort = plusFaible.get(groupe(p)); return !sort || masse - (sort.$ || 0) + (p.$ || 0) > cap ? 0 : Math.max(0, v(p) - v(sort)); };
+  let meilleur = null;
+  for (const o of lu) {
+    const prix = prixAuAchat(o.cle, n, exigence);
+    if (jetons < prix) continue;
+    const attendu = o.tirages.reduce((a, t) => a + Math.max(0, ...t.map(gainDe)), 0) / o.tirages.length;
+    if (attendu > 0 && (!meilleur || attendu / prix > meilleur.parJeton)) meilleur = { cle: o.cle, ...(o.role ? { role: o.role } : {}), parJeton: attendu / prix };
+  }
+  return meilleur ? { cle: meilleur.cle, ...(meilleur.role ? { role: meilleur.role } : {}) } : null;
+}
 
 /*
  * UNE SAISON D'UNE RUN. `etat` : l'alignement et les variantes qui continuent
@@ -457,6 +493,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
+  // L'attentif lit la boutique au matin de la saison (`lireLaBoutique`) ; `ROBOT_SAUF=boutique`, l'ordre du robot d'avant.
+  const boutique = attentif && attentifFait('boutique') ? lireLaBoutique(meta, graine, saison, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p))) : null;
   const entrees = [];
   let depense = 0, achats = 0, signes = 0, serie = 0, serieMax = 0;
   const jetons = () => {
@@ -483,7 +521,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     }
     // La boutique, le matin : tant qu'il y a de quoi acheter.
     for (let garde = 0; garde < 4; garde++) {
-      const voulu = packVoulu(meta, jetons(), achats, exigence);
+      const voulu = (boutique && packLu(boutique, you.roster, cap, jetons(), achats, exigence)) || packVoulu(meta, jetons(), achats, exigence);
       if (!voulu) break;
       depense += prixAuAchat(voulu.cle, achats, exigence); achats++;
       const actuel = you.roster;

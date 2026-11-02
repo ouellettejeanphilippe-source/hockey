@@ -11,7 +11,9 @@
  * IMPACTANT. Un échange permanent devait rester petit pour tenir sous sa borne sur 82 matchs ; un séjour de douze
  * matchs frappe bien plus fort chaque soir (±3 tirs, ±0,4 but) et reste sous ±1,5 V sur la saison : une carte ne joue
  * qu'un match sur deux au plus (`SEJOUR / (SEJOUR + REPOS)`). Sans repos, la rejouer de suite en referait un échange
- * permanent — c'est pour ça qu'il y en a un. Deux canaux par style, jamais plus (`check_pouvoirs`).
+ * permanent — c'est pour ça qu'il y en a un. Il dure plus que le séjour (nov. 2026, docs/decisions.md) : deux cartes en
+ * alternance ne couvrent plus une case toute la saison, la troisième compte (`scripts/mesure_main.mjs`). Deux canaux par
+ * style, jamais plus (`check_pouvoirs`).
  *
  * LE FUN. Jouer une carte est un choix de moment : le canonnier avant la semaine à la maison, le mur avant ta bête noire.
  * Un style qui rejoint la philosophie de ton coach (`voie`) dure `SEJOUR_SYNERGIE` matchs au lieu de `SEJOUR` : la
@@ -31,7 +33,7 @@ import { COACHS } from './coachs.js';
 
 export const SEJOUR = 12;
 export const SEJOUR_SYNERGIE = 16;
-export const REPOS = 12;
+export const REPOS = 20;
 export const MAIN_MAX = 4;
 /* Les cases en poste, par niveau du coach (1 à 5). */
 export const CASES_PAR_NIVEAU = [1, 1, 2, 2, 3];
