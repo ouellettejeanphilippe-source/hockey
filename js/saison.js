@@ -2148,7 +2148,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <span class="hub-hier-score">${eq(m.A, m.gfA)}<i>–</i>${eq(m.B, m.gfB)}${m.ot ? '<small>P</small>' : ''}</span>
       ${m.feuille ? '<span class="hub-hier-voir">Sommaire ›</span>' : ''}
       ${but && but.marqueur ? `<span class="hub-hier-recit">${ctx.esc(recitDeBut({ ...but, gagnant: true }))}</span>` : ''}
-    </div>${ctx.rogue && m.feuille ? bancDuSoirHtml(m.feuille, m.A, m.B, ctx.esc) : ''}`;
+    </div>${ctx.rogue && m.feuille ? bancDuSoirHtml(m.feuille, m.A, m.B, ctx.esc, { joues: true }) : ''}`;
   };
   // LES RÉSULTATS DE LA JOURNÉE (S79) : ils font le classement, donc ils vivent avec lui.
   const resultatsDuJour = () => {
@@ -2389,13 +2389,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     /*
      * LE BUREAU DU ROGUE, EN QUATRE BLOCS (V23 ; JP : *ya trop d'éléments, pas clair, pas pensé, pas de juice* ; *faut vraiment
      * revoir*). Hier soir n'est plus qu'un score bug et ton banc (la règle du coach et les salaires s'y lisent), le gros match
-     * en une ligne, la une, les nouvelles, ce qui bouge et le lundi, la semaine passée. Le drame, tes lignes à forces égales
+     * en une ligne, la une, les nouvelles et, le lundi, la semaine passée (JP : *trop d'infos différentes* : le pas d'une promesse se lit à sa maison, le Proprio ou le Vestiaire). Le drame, tes lignes à forces égales
      * et le récit du gros match vivent au sommaire du soir (un toucher sur le score bug) ; « Autour de la ligue », à la Ligue.
      */
     if (soirEnVolet) {
       const score = k >= 0 ? resultatHier({ j, k, m: matchs[k] }) : '';
       const gros = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> · ${etatDuGros(ELAN)} ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> · ${etatDuGros(SONNE)} ${mbHier.duree || SONNE.duree} matchs`}</div>` : '';
-      return `<section class="hub-soir" aria-label="Hier soir">${score}${gros}${uneHtml()}${nouvellesHtml()}${bouge}${semainePasseeHtml()}</section>`;
+      return `<section class="hub-soir" aria-label="Hier soir">${score}${gros}${uneHtml()}${nouvellesHtml()}${semainePasseeHtml()}</section>`;
     }
     return `${cartesDuBureau()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
   };

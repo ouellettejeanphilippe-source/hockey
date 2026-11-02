@@ -8,10 +8,13 @@
 import { banc } from './profil-style.js';
 
 const PERIODE_COURTE = ['1re', '2e', '3e'];
-/** Le banc d'un soir : `f`, sa feuille ; `A`, `B`, ses deux clubs (le tien porte `isPlayer` ou un personnage) ; `esc`, l'échappement. */
-export function bancDuSoirHtml(f, A, B, esc) {
+/**
+ * Le banc d'un soir : `f`, sa feuille ; `A`, `B`, ses deux clubs (le tien porte `isPlayer` ou un personnage) ; `esc`,
+ * l'échappement. `joues` (V23, le Bureau) : seulement ce qui a joué — rien n'a joué, pas de banc ; le sommaire montre tout.
+ */
+export function bancDuSoirHtml(f, A, B, esc, { joues = false } = {}) {
   const toi = A.isPlayer ? A : B.isPlayer ? B : A.perso ? A : B.perso ? B : null;
-  const cartes = banc(toi, f);
+  const cartes = banc(toi, f).filter(c => !joues || c.joue);
   if (!cartes.length) return '';
   let i = 0;
   const carte = c => {

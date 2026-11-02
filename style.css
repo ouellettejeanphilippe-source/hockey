@@ -1053,6 +1053,9 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option { min-height: 200px; padding: var(--esp-3); text-align: center; align-items: center; }
 .choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option .choix-option-gros { flex-direction: column; align-items: center; margin: auto 0; }
 .choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option .choix-puces { justify-content: center; }
+/* Face à face, une carte se lit d'un coup d'œil : son nom, son gros chiffre, son prix. Le bon côté redit le gros chiffre et
+   les gestes en mots se lisent dans « Les chiffres » : ils se taisent ici (V23 ; JP : *trop de texte*). */
+.choix-sheet:not(.chiffres) .choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option :is(.choix-option-bon, .puce.neutre:not(.duree)) { display: none; }
 .choix-options.compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--esp-2); }
 .choix-options.compact .choix-option { min-height: 0; padding: var(--esp-2) var(--esp-3); gap: 2px; }
 .choix-options.compact .choix-option-nom { font-size: var(--t-3); }
@@ -5391,6 +5394,8 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 /* V23 : le tableau des deux clubs attend « Les chiffres » ; devant, le pointage, leur jeu et tes cartes. */
 .main-sheet:not(.chiffres) .main-stats { display: none; }
 .main-enjeu { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
+/* V23 : au duel, ton adjoint parle en une phrase ; le fait (« Avant la 1re contre… ») redisait l'intention juste au-dessus. */
+.duel-adjoint .scene-fait { display: none; }
 .main-vestiaire { display: flex; flex-direction: column; gap: var(--esp-2); }
 .main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
 .main-vest-rang { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
