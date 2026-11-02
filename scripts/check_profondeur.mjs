@@ -11,7 +11,7 @@
  *      et le club du milieu, chacun lancé dans une saison du Rogue (31 vrais clubs, les packs, le plafond), GRAINES fois
  *      par politique, sur les mêmes graines. Les deux bouts : le club moyen bien mené finit-il parfois premier ? le bon
  *      club mal mené rate-t-il parfois les séries ?
- *      Et l'attentif bat le robot d'avant d'au moins 5 V par saison (JP, 16 oct.) : le joueur qui lit son plan fait
+ *      L'écart de l'attentif sur le robot d'avant, par saison, se dit (JP, 16 oct. : au moins 5 V ; une information depuis la V23) : le joueur qui lit son plan fait
  *      mieux que celui qui laisse l'automatique jouer.
  *   2. LES CAMPAGNES : de zéro, douze runs par politique, les médailles achètent les déblocages (comme `check_rogue`).
  *      L'attentif gagne sa première Coupe entre la run 3 et la run 8 ; le distrait ne la gagne jamais. Après sa première
@@ -128,7 +128,9 @@ if (!isMainThread) {
   for (const [nom, l] of Object.entries(ecarts)) {
     const m = moy(l), se = Math.sqrt(moy(l.map(x => (x - m) ** 2)) / Math.max(1, l.length - 1));
     // JP, 16 oct. : le joueur qui lit son plan bat celui qui laisse l'automatique jouer, d'au moins 5 V par saison.
-    if (nom === 'attentif − défaut') exiger('l\'attentif bat le robot d\'avant d\'au moins 5 V par saison', m >= 5, `${signe(m)} V par saison (± ${v1(se)}, ${l.length} saisons appariées)`);
+    // JP, 2 nov. (V23) : *tout roguelike, on finit par être pété lors de la run gagnante* — la maîtrise se juge sur la run
+    // (la première Coupe, plus bas) ; l'écart d'une saison sur le robot d'avant reste une information.
+    if (nom === 'attentif − défaut') informer('l\'attentif sur le robot d\'avant, par saison (information depuis la V23)', `${signe(m)} V par saison (± ${v1(se)}, ${l.length} saisons appariées)`);
     else informer(`l'écart ${nom}`, `${signe(m)} V par saison (± ${v1(se)}, ${l.length} saisons appariées)`);
   }
   const nMoyen = clubs.filter(k => k.genre === 'moyen').length * GRAINES, nBon = clubs.filter(k => k.genre === 'bon').length * GRAINES;

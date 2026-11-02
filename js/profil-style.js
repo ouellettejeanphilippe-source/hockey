@@ -22,7 +22,7 @@ import { tirsTotal } from './sim.js';
 import { CARTES_MATCH } from './combat.js';
 import { virgule } from './util.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, niveauDuPerso } from './pouvoirs.js';
-import { ADJOINTS } from './adjoints.js';
+import { ADJOINTS, NOMS_NIV, nivDe } from './adjoints.js';
 
 /** Combien de derniers matchs le profil lit. */
 export const N_PROFIL = 10;
@@ -160,7 +160,7 @@ export function banc(team, feuille) {
     };
   });
   const adjoints = (feuille.adjoints || []).filter(x => x.cote === cote).map(x => ({
-    genre: 'adjoint', ico: x.ico, nom: x.nom, dit: (ADJOINTS[x.cle] && ADJOINTS[x.cle].style) || '', joue: true, periodes: [], reste: x.reste,
+    genre: 'adjoint', ico: x.ico, nom: x.nom, dit: `${NOMS_NIV[nivDe(x) - 1]} · ${(ADJOINTS[x.cle] && ADJOINTS[x.cle].style) || ''}`, joue: true, periodes: [], reste: x.reste,
   }));
   return [...pouvoirs, ...adjoints];
 }

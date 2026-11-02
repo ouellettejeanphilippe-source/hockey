@@ -48,6 +48,7 @@ import { COACHS } from '../js/coachs.js';
 import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT, NIVEAUX_TALENT } from '../js/pouvoirs.js';
 import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU, CASE_DE_PLUS } from '../js/adjoints.js';
 import { MAITRISE } from '../js/coachs-reels.js';
+import { FORCE_NIV } from '../js/adjoints.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
@@ -278,7 +279,9 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V21 : le coach, un personnage (js/pouvoirs.js) — son expérience, ses niveaux, ses pouvoirs, ses talents, ses adjoints.
     [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],
     [`une victoire ${XP.victoire} point, un gros match gagné ${XP.gros} de plus, une série gagnée ${XP.serie} ; ${SEUILS_NIVEAU.slice(1).map((x, i) => `${i ? '' : 'niveau '}${i + 2} à ${x}`).join(', ').replace(/, ([^,]*)$/, ', $1')} points`, 'l\'expérience du coach'],
-    [`premier ou deuxième de la ligue dans sa lecture, ses pouvoirs jouent ×${nombre(MAITRISE[0][1])} (×${nombre(MAITRISE[1][1])} dans les cinq premiers)`, 'la maîtrise de l\'entraîneur'],
+    // V23 : le niveau de l'entraîneur, de Soutien à ★ Phénomène, fait sa maîtrise (js/coachs-reels.js `MAITRISE`).
+    [`son rang dans cette lecture fait son niveau et la force de ses pouvoirs, de ×${nombre(MAITRISE.at(-1)[1])} au Soutien à ×${nombre(MAITRISE[0][1])} au ★ Phénomène`, 'la maîtrise de l\'entraîneur'],
+    [`un ★ Phénomène donne ${nombre(Math.round((FORCE_NIV[4] - 1) * 100))} % de plus qu'un Pilier, un Soutien ${nombre(Math.round((1 - FORCE_NIV[0]) * 100))} % de moins`, 'le niveau d\'un adjoint'],
     [`Ses trois pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.slice(0, -1).join(', ')} et ${NIVEAU_DES_POUVOIRS.at(-1)}`, 'les pouvoirs'],
     [`fait grandir un pouvoir de ${nombre(TALENT * 100)} %`, 'le talent'],
     // Nov. 2026 : le premier talent peut ouvrir une case d'adjoint de plus, à chaque niveau dès le sien (`CASE_DE_PLUS`).

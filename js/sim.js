@@ -19,7 +19,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles } from './coachs.js';
 import { POUVOIRS, pouvoirsDeLaPeriode, XP, niveauDuPerso, TALENT_CASE } from './pouvoirs.js';
-import { ADJOINTS, mainDe, postesDe, embaucher, poster, finirLesSejours, resteDe } from './adjoints.js';
+import { ADJOINTS, mainDe, postesDe, embaucher, poster, finirLesSejours, resteDe, styleAuNiveau, nivDe } from './adjoints.js';
 import { DOSSIERS } from './dossiers.js';
 import { CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -5617,14 +5617,14 @@ function appliquerPerso(team, d) {
     const P = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])],
       // Sa main suit la run ; chaque saison repart sans séjour en cours, les cartes gardent leurs fiches.
       main: (d.coach.main || []).filter(c => c && ADJOINTS[c.cle]).map(c => ({ cle: c.cle, depuis: null, fin: null, sejours: [...(c.sejours || [])] })),
-      ...(d.coach.chef ? { chef: { ...d.coach.chef } } : {}), maitrise: Math.min(1.2, Math.max(1, Number(d.coach.maitrise) || 1)) };
+      ...(d.coach.chef ? { chef: { ...d.coach.chef } } : {}), maitrise: Math.min(1.3, Math.max(0.9, Number(d.coach.maitrise) || 1)) };
     team.perso = P;
   }
   if (!team.perso) return;
   // Un talent : l'index du pouvoir qui grandit ; au premier, la case d'adjoint de plus (`TALENT_CASE`, nov. 2026), une fois.
   if (d.talent && (Number.isInteger(d.talent.p) || (d.talent.p === TALENT_CASE && !team.perso.talents.includes(TALENT_CASE)))) team.perso = { ...team.perso, talents: [...team.perso.talents, d.talent.p] };
   if (Number(d.xpCoach)) team.perso = { ...team.perso, xp: Math.max(0, team.perso.xp + Number(d.xpCoach)) };
-  if (d.embauche && ADJOINTS[d.embauche.cle]) team.perso = { ...team.perso, main: embaucher(team.perso, d.embauche.cle, team.games || 0) };
+  if (d.embauche && ADJOINTS[d.embauche.cle]) team.perso = { ...team.perso, main: embaucher(team.perso, d.embauche.cle, team.games || 0, d.embauche.niv || null) };
   if (d.poste && ADJOINTS[d.poste.cle]) {
     const niveau = niveauDuPerso({ ...team.perso, xpSaison: team.xpSaison || 0 });
     team.perso = { ...team.perso, main: poster(team.perso, d.poste.cle, team.games || 0, niveau, team) };
@@ -8480,10 +8480,11 @@ function poserLesAdjoints(A, B, journal) {
   for (const [T, O, cote] of [[A, B, 'A'], [B, A, 'B']]) {
     if (!T.perso) continue;
     for (const c of postesDe(T.perso, T.games || 0)) {
-      const J = ADJOINTS[c.cle];
-      if (J.effet) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...J.effet });
-      if (J.adv) poser(O, { source: 'adjoint', nom: J.nom, ico: J.ico, ...J.adv });
-      if (journal) (journal.adjoints = journal.adjoints || []).push({ cote, cle: c.cle, nom: J.nom, ico: J.ico, reste: resteDe(c, T.games || 0, T.perso.cle) });
+      // V23 : à son niveau (`styleAuNiveau`, js/adjoints.js ; le Pilier sans niveau, la table telle quelle).
+      const J = ADJOINTS[c.cle], S = styleAuNiveau(c.cle, nivDe(c));
+      if (S.effet) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...S.effet });
+      if (S.adv) poser(O, { source: 'adjoint', nom: J.nom, ico: J.ico, ...S.adv });
+      if (journal) (journal.adjoints = journal.adjoints || []).push({ cote, cle: c.cle, nom: J.nom, ico: J.ico, niv: nivDe(c), reste: resteDe(c, T.games || 0, T.perso.cle) });
     }
   }
   return () => { for (const r of retraits.reverse()) r(); };

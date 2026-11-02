@@ -11,7 +11,8 @@ import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUn
 import { alignementAuMieux, unitesDuSoir, specialesEnStats } from './impact.js';
 import { COACHS } from './coachs.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
-import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, lignesDeLAdjoint, ficheDeLaCarte, casesLibres } from './adjoints.js';
+import { MAITRISE } from './coachs-reels.js';
+import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, lignesDeLAdjoint, ficheDeLaCarte, casesLibres, nivDe, NOMS_NIV, RARETE_NIV } from './adjoints.js';
 import { carteHtml } from './cartes.js';
 import { hubActif } from './coquille.js';
 import { glisserDeposer } from './deposer.js';
@@ -843,6 +844,8 @@ export function persoDuMatin() {
  * cette saison (lu dans tes feuilles). Puis sa main d'adjoints (V22, `mainHtml`).
  * Le personnage est celui que la ligue rejouée porte.
  */
+/* La maîtrise de chaque niveau d'entraîneur, de Soutien à ★ Phénomène (V23, js/coachs-reels.js `MAITRISE`). */
+const NIV_DE_MAITRISE = MAITRISE.map(([, m]) => m).reverse();
 export function coachHtml() {
   if (G.bonus !== 'ROGUE' || !G.rogue) return '';
   const L = G.ligue, you = L && L.you;
@@ -872,7 +875,7 @@ export function coachHtml() {
   const chef = perso.chef;
   return `<div class="ej-coach">
     <div class="ej-case-l">L'entraîneur</div>
-    <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(chef ? chef.n : C.nom)}</b><span class="ej-rang">Niveau ${niveau}</span><small>${chef ? `${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)} · ${esc(C.nom)}${(perso.maitrise || 1) > 1 ? ` · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}` : esc(C.mot)}</small></div>
+    <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(chef ? chef.n : C.nom)}</b><span class="ej-rang">Niveau ${niveau}</span><small>${chef ? `${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)} · ${esc(C.nom)}${(perso.maitrise || 1) !== 1 ? ` · ${esc(NOMS_NIV[NIV_DE_MAITRISE.indexOf(perso.maitrise)] || '')} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}` : esc(C.mot)}</small></div>
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
     ${POUVOIRS[perso.cle].map(carte).join('')}
@@ -892,13 +895,14 @@ function mainHtml(perso, niveau) {
   const plusTard = [2, 3, 4, 5].find(n => n > niveau && casesDuPerso(perso, n) > cases);
   const postes = main.filter(c => enPoste(c, games, perso.cle)), autres = main.filter(c => !enPoste(c, games, perso.cle));
   const carteAdj = c => {
-    const A = ADJOINTS[c.cle], l = lignesDeLAdjoint(c.cle), syn = motDeSynergie(c.cle, perso.cle), fiche = ficheDeLaCarte(c);
+    // V23 : la carte à son niveau — ses lignes, sa rareté (le cadre de la série), son nom de niveau.
+    const niv = nivDe(c), A = ADJOINTS[c.cle], l = lignesDeLAdjoint(c.cle, niv), syn = motDeSynergie(c.cle, perso.cle), fiche = ficheDeLaCarte(c);
     const etat = enPoste(c, games, perso.cle) ? 'poste' : auRepos(c, games) ? 'repos' : 'prete';
     const sous = etat === 'poste' ? `Encore ${resteDe(c, games, perso.cle)} match${resteDe(c, games, perso.cle) > 1 ? 's' : ''}` : etat === 'repos' ? `Au repos · ${reposDe(c, games)} match${reposDe(c, games) > 1 ? 's' : ''}` : `${sejourDe(c.cle, perso.cle)} matchs`;
     // Le verso, petit, dit le style seul ; la réplique, la synergie et la fiche se lisent dans la bande, au toucher (`.adj-detail`).
-    const detail = `<b>${esc(A.nom)}</b> · ${esc(A.style)} — « ${esc(A.dit)} »${syn ? ` · <b class="bon">${esc(syn)}</b>` : ''}${fiche ? ` · ${esc(fiche)}` : ''}`;
+    const detail = `<b>${esc(A.nom)}</b> · ${esc(NOMS_NIV[niv - 1])} · ${esc(A.style)} — « ${esc(A.dit)} »${syn ? ` · <b class="bon">${esc(syn)}</b>` : ''}${fiche ? ` · ${esc(fiche)}` : ''}`;
     return `<div class="adj-carte" data-adj="${c.cle}" data-etat="${etat}" data-detail="${esc(detail)}">
-      ${carteHtml({ cle: c.cle, rarete: 'commune', genreCarte: 'tactique', ico: A.ico, nomHtml: esc(A.nom), typeHtml: esc(A.style), statique: true,
+      ${carteHtml({ cle: c.cle, rarete: RARETE_NIV[niv - 1], genreCarte: 'tactique', ico: A.ico, nomHtml: esc(A.nom), typeHtml: esc(`${NOMS_NIV[niv - 1]} · ${A.style}`), statique: true,
         bonHtml: l.filter(x => x.bon).map(x => esc(x.txt)).join('<br>'), prixHtml: l.filter(x => !x.bon).map(x => esc(x.txt)).join('<br>') })}
       <span class="adj-sous">${sous}</span>
       ${etat === 'prete' && casesLibres(perso, games, niveau) ? `<button type="button" class="btn-sign adj-poster" data-poste="${c.cle}">Poster</button>` : ''}

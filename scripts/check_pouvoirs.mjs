@@ -31,8 +31,8 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague } from '../js/sim.js';
 import { POUVOIRS, XP, SEUILS_NIVEAU, NIVEAU_MAX, niveauDe, pouvoirsOuverts, talentsDus, forceDuPouvoir, TALENT_CASE } from '../js/pouvoirs.js';
-import { MAITRISE, maitriseDu, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
-import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, REPOS, MAIN_MAX, CASES_PAR_NIVEAU, adjointsOfferts, lignesDeLAdjoint, mainDe, enPoste, auRepos, embaucher, poster, quiPartDeLaMain, casesDuNiveau, casesDuPerso, CASE_DE_PLUS } from '../js/adjoints.js';
+import { MAITRISE, maitriseDu, niveauDuCoach, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
+import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, REPOS, MAIN_MAX, CASES_PAR_NIVEAU, adjointsOfferts, lignesDeLAdjoint, mainDe, enPoste, auRepos, embaucher, poster, quiPartDeLaMain, casesDuNiveau, casesDuPerso, CASE_DE_PLUS, NOMS_NIV, BORNE_NIV, NIV_DEFAUT, styleAuNiveau, niveauOffert } from '../js/adjoints.js';
 import fs from 'node:fs';
 import { COACHS } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
@@ -87,6 +87,11 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
     && forceDuPouvoir({ talents: [1, 1] }, 1) === 2 && forceDuPouvoir({ talents: [] }, 0) === 1);
   // LA MAIN (V22) : trois offerts, purs, jamais un déjà dans la main ; une main pleine laisse partir la plus ancienne hors poste.
   const P = { cle: 'essaim', talents: [], main: [{ cle: 'canonnier', depuis: null, fin: null, sejours: [] }] };
+  // V23 : au Pilier, le style est la table telle quelle (une vieille carte se rejoue pareil) ; le niveau d'une offre est pur, entre 1 et 5, et un moment fort ne le baisse jamais.
+  const tel = Object.keys(ADJOINTS).every(k => JSON.stringify(styleAuNiveau(k)) === JSON.stringify({ effet: ADJOINTS[k].effet || null, adv: ADJOINTS[k].adv || null }));
+  const nivs = Array.from({ length: 400 }, (_, g) => [niveauOffert(`g${g}`, 'r30', 'mur'), niveauOffert(`g${g}`, 'r30', 'mur', true)]);
+  exiger('le niveau d\'un adjoint : le Pilier est la table, une offre tire de 1 à 5, un moment fort monte d\'un cran', tel && nivs.every(([a, b]) => a >= 1 && a <= 5 && b === Math.min(5, a + 1)) && new Set(nivs.map(([a]) => a)).size === 5,
+    [1, 2, 3, 4, 5].map(n => `${NOMS_NIV[n - 1]} ${nivs.filter(([a]) => a === n).length}`).join(' · '));
   const a = adjointsOfferts(P, 'g', 'pp9'), b = adjointsOfferts(P, 'g', 'pp9');
   exiger('trois adjoints offerts, purs, distincts, jamais un déjà dans la main', a.length === 3 && JSON.stringify(a) === JSON.stringify(b) && new Set(a).size === 3 && a.every(k => ADJOINTS[k] && k !== 'canonnier'), a.join(', '));
   const autres = new Set();
@@ -108,12 +113,14 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
   const donnees = JSON.parse(fs.readFileSync(new URL('../data/coachs.json', import.meta.url), 'utf8'));
   const index = JSON.parse(fs.readFileSync(new URL('../data/index.json', import.meta.url), 'utf8')).seasons;
   const cartes = Object.entries(donnees).flatMap(([saison, clubs]) => Object.keys(clubs).map(tag => carteDuCoach(donnees, saison, tag)));
-  const fautes = cartes.filter(c => !c || !c.n || !POUVOIRS[c.cle] || !(c.rang >= 1) || c.maitrise < 1 || c.maitrise > MAITRISE[0][1] || !(c.fiche.gp > 0));
+  const fautes = cartes.filter(c => !c || !c.n || !POUVOIRS[c.cle] || !(c.rang >= 1) || c.maitrise < MAITRISE.at(-1)[1] || c.maitrise > MAITRISE[0][1] || c.maitrise !== maitriseDu(c.rang) || !(c.fiche.gp > 0));
   exiger('un vrai entraîneur pour chaque club de chaque saison, une philosophie connue', !fautes.length && index.every(s => donnees[s]) && cartes.length > 1000,
     `${cartes.length} cartes · ${Object.keys(POUVOIRS).map(k => `${k} ${cartes.filter(c => c.cle === k).length}`).join(' · ')}`);
   const bowman = carteDuCoach(donnees, '1976-77', 'MTL');
   exiger('Scotty Bowman, Canadiens 1976-77 : sa fiche, sa Coupe, son Jack Adams', bowman && bowman.n === 'Scotty Bowman' && bowman.fiche.v === 60 && bowman.coupe && bowman.jack, bowman ? `${bowman.n} · ${bowman.cle} · ${bowman.rang}e · ×${bowman.maitrise}` : 'absent');
-  exiger('la maîtrise : ×1,2 aux deux premiers rangs, ×1,1 aux cinq premiers, ×1 ensuite', maitriseDu(1) === 1.2 && maitriseDu(2) === 1.2 && maitriseDu(3) === 1.1 && maitriseDu(6) === 1);
+  // V23 : cinq niveaux, comme les joueurs (js/coachs-reels.js `MAITRISE`, `niveauDuCoach`).
+  exiger('la maîtrise suit le niveau : ★ Phénomène ×1,3 au 1er rang, ★ Étoile ×1,2 aux 3 premiers, Pilier ×1,1 aux 8, Régulier ×1 aux 16, Soutien ×0,9 ensuite',
+    [[1, 5, 1.3], [2, 4, 1.2], [3, 4, 1.2], [4, 3, 1.1], [8, 3, 1.1], [9, 2, 1], [16, 2, 1], [17, 1, 0.9], [32, 1, 0.9]].every(([r, n, m]) => niveauDuCoach(r) === n && maitriseDu(r) === m));
   const ouverts = ['tortue', 'essaim', 'rhinos'];
   const a = lotoDesCoachs(donnees, ouverts, 'g'), b = lotoDesCoachs(donnees, ouverts, 'g'), c = lotoDesCoachs(donnees, ouverts, 'h');
   exiger('le loto de l\'entraîneur : trois cartes, trois philosophies ouvertes, pur', a.length === 3 && new Set(a.map(x => x.cle)).size === 3 && a.every(x => ouverts.includes(x.cle))
@@ -194,12 +201,12 @@ function mesurerPouvoir(c, idx, n) {
 }
 /* Le personnage complet d'un coach : niveau 5, ses deux talents ; en victoires. */
 /* Un adjoint seul (`cle`), en poste, en paires contre le coach muet sans main, tous les soirs : ce qu'il change. */
-function mesurerAdjoint(cle, n) {
-  const m = { cle, soirs: { n: 0, tp: 0, tc: 0, gf: 0, ga: 0, pun: 0, punEux: 0, coups: 0, bl: 0 }, d: 0 };
+function mesurerAdjoint(cle, n, niv = NIV_DEFAUT) {
+  const m = { cle, niv, soirs: { n: 0, tp: 0, tc: 0, gf: 0, ga: 0, pun: 0, punEux: 0, coups: 0, bl: 0 }, d: 0 };
   for (let i = 0; i < VESTIAIRES.length; i++) for (let g = 0; g < n; g++) {
     const j = (i + 1 + (g % (VESTIAIRES.length - 1))) % VESTIAIRES.length;
     const o = soirDuMatch(g), graine = `ad${cle}:${i}:${g}`;
-    const a = match(i, j, graine, o.visiteur, MUET, o), b = match(i, j, graine, o.visiteur, { ...MUET, main: [{ cle, depuis: 0, fin: null, sejours: [] }] }, o);
+    const a = match(i, j, graine, o.visiteur, MUET, o), b = match(i, j, graine, o.visiteur, { ...MUET, main: [{ cle, niv, depuis: 0, fin: null, sejours: [] }] }, o);
     m.soirs.n++; for (const k of Object.keys(m.soirs)) if (k !== 'n') m.soirs[k] += b[k] - a[k];
     m.d += (b.gf - b.ga) - (a.gf - a.ga);
     if (!b.f.adjoints.some(x => x.cote === b.moi && x.cle === cle)) m.sansNote = (m.sansNote || 0) + 1;
@@ -218,14 +225,16 @@ function mesurerComplet(c, n) {
   return { c, v: (d / k) * 82 / BUTS_PAR_V };
 }
 const MUET = { cle: '__muet', xp: 0, talents: [] };
+/* V23 : chaque adjoint se mesure à trois niveaux — le Soutien, le Pilier (la table), le ★ Phénomène. */
+const NIVEAUX_MESURES = [1, NIV_DEFAUT, 5];
 // UN FILS : ses tâches (« p:coach:idx », « c:coach »), rendues en JSON.
 if (process.env.PART) {
-  const out = process.env.PART.split(',').map(t => { const [s, c, idx] = t.split(':'); return s === 'p' ? mesurerPouvoir(c, Number(idx), N) : s === 'a' ? mesurerAdjoint(c, N) : mesurerComplet(c, N); });
+  const out = process.env.PART.split(',').map(t => { const [s, c, idx] = t.split(':'); return s === 'p' ? mesurerPouvoir(c, Number(idx), N) : s === 'a' ? mesurerAdjoint(c, N, Number(idx) || NIV_DEFAUT) : mesurerComplet(c, N); });
   process.stdout.write(JSON.stringify(out));
   process.exit(0);
 }
 console.log(`\n  Les pouvoirs du coach (V21) · ${N} matchs par club${MESURE ? '' : ' · sans les bornes'}\n`);
-const taches = [...QUELS.flatMap(c => POUVOIRS[c].map((_, idx) => `p:${c}:${idx}`)), ...(MESURE ? [...QUELS.map(c => `c:${c}`), ...Object.keys(ADJOINTS).map(k => `a:${k}`)] : [])];
+const taches = [...QUELS.flatMap(c => POUVOIRS[c].map((_, idx) => `p:${c}:${idx}`)), ...(MESURE ? [...QUELS.map(c => `c:${c}`), ...Object.keys(ADJOINTS).flatMap(k => NIVEAUX_MESURES.map(v => `a:${k}:${v}`))] : [])];
 const lancer = l => new Promise((ok, ko) => {
   const p = spawn(process.execPath, [ICI], { env: { ...process.env, PART: l.join(',') } });
   let t = '';
@@ -267,11 +276,23 @@ if (MESURE) {
       Math.abs(x.pun) / VISIBLE.punitions, Math.abs(x.punEux) / VISIBLE.punitions, Math.abs(x.coups) / VISIBLE.coups, Math.abs(x.bl * 82) / VISIBLE.blessures);
     m.v = (m.d / m.soirs.n) * MATCHS_PAR_SAISON / BUTS_PAR_V;
     const A = ADJOINTS[m.cle];
-    informer(`${A.ico} ${A.nom}`.padEnd(26), `par soir : tirs ${f(x.tp)} / ${f(x.tc)} · buts ${f(x.gf, 2)} / ${f(x.ga, 2)} · pun. ${f(x.pun, 2)} / ${f(x.punEux, 2)} · coups ${f(x.coups)} · blessures ${f(x.bl * 82)}/saison · vu ${m.vue.toFixed(1)} · ${f(m.v)} V sur ${Math.round(MATCHS_PAR_SAISON)} matchs`);
+    informer(`${A.ico} ${A.nom} · ${NOMS_NIV[m.niv - 1]}`.padEnd(36), `par soir : tirs ${f(x.tp)} / ${f(x.tc)} · buts ${f(x.gf, 2)} / ${f(x.ga, 2)} · pun. ${f(x.pun, 2)} / ${f(x.punEux, 2)} · coups ${f(x.coups)} · blessures ${f(x.bl * 82)}/saison · vu ${m.vue.toFixed(1)} · ${f(m.v)} V sur ${Math.round(MATCHS_PAR_SAISON)} matchs`);
   }
   exiger('chaque adjoint en poste est nommé à la feuille, chaque soir', adj.every(m => !m.sansNote), adj.filter(m => m.sansNote).map(m => `${ADJOINTS[m.cle].nom} (${m.sansNote})`).join(', ') || 'tous');
-  exiger('chaque adjoint se voit dans la feuille', adj.every(m => m.vue >= 1), adj.filter(m => m.vue < 1).map(m => `${ADJOINTS[m.cle].nom} (${m.vue.toFixed(2)})`).join(', ') || 'tous');
-  exiger(`chaque adjoint est un style : ni cadeau ni piège sur une saison (±${String(ECHANGE_V).replace('.', ',')} V)`, adj.every(m => Math.abs(m.v) <= ECHANGE_V), adj.filter(m => Math.abs(m.v) > ECHANGE_V).map(m => `${ADJOINTS[m.cle].nom} ${f(m.v)}`).join(', ') || 'tous');
+  const qui = m => `${ADJOINTS[m.cle].nom} ${NOMS_NIV[m.niv - 1]}`;
+  exiger('chaque adjoint se voit dans la feuille, à chaque niveau', adj.every(m => m.vue >= 1), adj.filter(m => m.vue < 1).map(m => `${qui(m)} (${m.vue.toFixed(2)})`).join(', ') || 'tous');
+  // V23 : la borne suit le niveau, comme une carte suit sa rareté (`BORNE_NIV` : ±1 V au Soutien et au Régulier, ±1,5 au Pilier, ±2,5 à l'Étoile, ±4 au Phénomène).
+  exiger(`chaque adjoint reste sous la borne de son niveau sur une saison (${BORNE_NIV.map(b => `±${String(b).replace('.', ',')}`).join(' · ')} V)`, adj.every(m => Math.abs(m.v) <= BORNE_NIV[m.niv - 1]), adj.filter(m => Math.abs(m.v) > BORNE_NIV[m.niv - 1]).map(m => `${qui(m)} ${f(m.v)}`).join(', ') || 'tous');
+  // Un niveau de plus vaut plus : le ★ Phénomène bat le Soutien du même style, en paires sur les mêmes dés.
+  const parCle = cle => Object.fromEntries(adj.filter(m => m.cle === cle).map(m => [m.niv, m.v]));
+  // Un soir isolé ne paie pas les blessures ni les jambes (le préparateur, le rouleur valent plus sur une saison) : chacun au
+  // moins à `BRUIT_V` près de son Soutien, et en moyenne sur les huit, le Phénomène rend `ECART_NIV_V` de plus.
+  const BRUIT_V = 0.3, ECART_NIV_V = 0.6;
+  const ecarts = Object.keys(ADJOINTS).map(k => [k, parCle(k)]).filter(([, v]) => v[5] != null && v[1] != null);
+  const pasMieux = ecarts.filter(([, v]) => v[5] < v[1] - BRUIT_V);
+  const moyen = ecarts.reduce((a, [, v]) => a + v[5] - v[1], 0) / Math.max(1, ecarts.length);
+  exiger(`le ★ Phénomène d'un style rend plus que son Soutien (chacun à ${String(BRUIT_V).replace('.', ',')} V près, ${String(ECART_NIV_V).replace('.', ',')} V de plus en moyenne)`, !pasMieux.length && moyen >= ECART_NIV_V,
+    pasMieux.map(([k, v]) => `${ADJOINTS[k].nom} ${f(v[1])} → ${f(v[5])}`).join(', ') || `${f(moyen)} V en moyenne`);
 }
 
 /* ---------- 5. la saison ---------- */

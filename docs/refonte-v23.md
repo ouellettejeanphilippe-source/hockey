@@ -121,9 +121,9 @@ Les clés de sauvegarde ne bougent jamais.
 - [ ] C : chaque niveau d'adjoint sous sa borne, et le Phénomène bat le Soutien du même style en paires — `check_pouvoirs` ; les vieilles parties lisent un Régulier — `check_sauvegardes`.
 - [ ] D : chaque relais se voit le soir où il joue ; une paire rend 1,2 à 1,6 fois ses pièces — `check_relais` (à écrire) ; l'attentif qui lit les relais bat celui qui ne les lit pas d'au moins 1 V par saison — `check_profondeur` (`ROBOT_SAUF=relais`).
 - [ ] E : une suite ne s'ouvre que sur un fait vrai ; une rare au plus une fois par run ; les deux réponses à 0,3 V — `check_dossiers`, `check_effets DETAIL=1`, `check_mots`, `mesure_rythme`.
-- [ ] F : sans encerclement, la ligue est la même au but près ; le pouvoir adverse neutre sur une saison — `check_encercle` (à écrire), `check_gros`, `check_robot`.
+- [ ] F (réduit, JP : pas d'encerclement) : leur coach en séries, son pouvoir neutre sur une saison — `check_gros`, `check_robot`.
 - [ ] G : sous `reducedMotion`, aucune animation active ; un jour ordinaire rend le Bureau stable en moins de 500 ms ; aucun toast sur l'en-tête, le bouton flottant ne couvre rien de touchable, aucun « … » dans une ligne de pouvoir — `essai_rogue` (`bords.mjs`).
-- [ ] La maîtrise : l'attentif bat le robot du premier choix d'au moins 5 V par saison — `check_profondeur` (+4,5 aujourd'hui).
+- [ ] La maîtrise, jugée sur la run (JP) : la première Coupe de l'attentif à la run 3 ou plus tard, le distrait jamais — `check_profondeur` ; l'écart sur le robot du premier choix, en information.
 - [ ] À juger par JP à l'essai : le ton (« Mise au jeu ▶ » ou « Jour suivant »), les noms (le banc), la vibration par défaut.
 
 ## Les tranches, dans l'ordre
@@ -135,15 +135,17 @@ Les clés de sauvegarde ne bougent jamais.
 5. **B · Les choix en cartes** — après le oui de JP sur la tuile sobre.
 6. **E · Les suites et les rares**, les six fiches.
 7. **D · Le relais et moins d'offres** — après le oui de JP.
-8. **F · Le match encerclé et leur coach en séries.**
+8. **F · Leur coach en séries** (l'encerclement est écarté par JP).
 
 Pour chaque tranche de mécanique, le robot attentif apprend le geste avant la mesure ; sinon `ROBOT_SAUF` mesure zéro.
 
-## Ce que JP tranche
+## Ce que JP a tranché (2 nov. 2026)
 
-1. **Les niveaux (C)** : la borne d'un adjoint suit son niveau (±1 à ±4 V), comme une carte suit sa rareté ?
-2. **Les choix en cartes (B)** : défaire la tuile sobre V19 et les coins vifs ; une carte tenue a son ombre ?
-3. **Le relais (D)** : défaire « la synergie se paie en durée, jamais en force » ?
-4. **Le match encerclé (F)** : remplace-t-il les gros matchs automatiques des rivaux, ou s'y ajoute-t-il ? Leur coach en séries ?
-5. **Une histoire rare** peut-elle laisser une trace permanente au verso d'un joueur ?
-6. **Le juge de la maîtrise** : 5 V par saison contre le robot du premier choix, ou un juge de run (la première Coupe) ?
+JP : *Oui, oui, oui, l'adjoint peut être ce que tu veux, je pense que c'est plus organique de pas choisir, oui, tsé, c'est tough à évaluer car tout roguelike, on finit par être pété lors de la run gagnante, ou presque.*
+
+1. **Les niveaux (C)** : oui. La borne d'un adjoint suit son niveau (±1 à ±4 V), comme une carte suit sa rareté.
+2. **Les choix en cartes (B)** : oui. La tuile sobre de la V19 et les coins vifs partent pour les choix ; une carte tenue a son ombre.
+3. **Le relais (D)** : oui, et l'adjoint est libre (*l'adjoint peut être ce que tu veux*) : son signal, son relais, ses canaux se dessinent au mieux du jeu, sous la borne de son niveau.
+4. **Le match encerclé (F)** : non (*plus organique de pas choisir*). Les gros matchs restent ceux que le classement amène ; F se réduit à leur coach en séries, à faire plus tard.
+5. **Une histoire rare** laisse une trace permanente au verso du joueur : oui.
+6. **Le juge de la maîtrise** : la run, pas la saison (*tout roguelike, on finit par être pété lors de la run gagnante*). `check_profondeur` juge la première Coupe (à la run 3 ou plus tard) et l'écart attentif contre distrait ; les 5 V par saison contre le robot du premier choix deviennent une information, plus un rouge.

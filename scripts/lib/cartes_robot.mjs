@@ -16,7 +16,7 @@ import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { joueurDuFait } from '../../js/vie-gm.js';
 import { COACHS } from '../../js/coachs.js';
 import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts, TALENT_CASE } from '../../js/pouvoirs.js';
-import { ADJOINTS, adjointsOfferts, pretesDe, casesLibres } from '../../js/adjoints.js';
+import { ADJOINTS, adjointsOfferts, pretesDe, casesLibres, niveauOffert, momentFort } from '../../js/adjoints.js';
 
 /* MESURE seulement (jamais lu par le jeu) : ROBOT_TALENT=case ou pouvoir force le premier talent de l'attentif (scripts/mesure_main.mjs). */
 const TALENT_FORCE = process.env.ROBOT_TALENT || null;
@@ -86,10 +86,12 @@ function adjointDuRobot({ you, graine, cle, politique, clic, fit }) {
   const perso = persoDe(you);
   const offre = perso ? adjointsOfferts(perso, graine, cle, 3) : [];
   if (!offre.length) return null;
-  // L'attentif lit le style sur SON effectif (`fit`, scripts/lib/rogue_sim.mjs) ; sans lecture, la voie de son coach d'abord.
+  // V23 : chaque carte a son niveau, tiré comme à l'écran (`niveauOffert`).
+  const niv = k => niveauOffert(graine, cle, k, momentFort(cle));
+  // L'attentif lit le style sur SON effectif, à son niveau (`fit`, scripts/lib/rogue_sim.mjs) ; sans lecture, la voie de son coach d'abord.
   const k = clic ? offre[Math.floor(clic() * offre.length)] : politique === 'defaut' ? offre[0]
-    : fit ? offre.reduce((a, b) => (fit(b) > fit(a) ? b : a)) : offre.reduce((a, b) => (rangDe(b, perso.cle) < rangDe(a, perso.cle) ? b : a));
-  return { embauche: { cle: k } };
+    : fit ? offre.reduce((a, b) => (fit(b, niv(b)) > fit(a, niv(a)) ? b : a)) : offre.reduce((a, b) => (rangDe(b, perso.cle) < rangDe(a, perso.cle) ? b : a));
+  return { embauche: { cle: k, niv: niv(k) } };
 }
 /*
  * La valeur d'une réponse d'histoire, en conséquences concrètes, pour l'attentif. `lu` (nov. 2026, scripts/lib/rogue_sim.mjs
@@ -132,7 +134,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
       const offert = o.adjoint && perso ? adjointsOfferts(perso, graine, `do:${w}`, 1)[0] || null : null;
       out.push({ jour: j, palier: `do:${w}`, moment: { famille: 'dossier', cle, choix: o.cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) },
         ...(o.gain ? { gain: o.gain } : {}), ...(o.xp ? { xpCoach: o.xp } : {}),
-        ...(offert ? { embauche: { cle: offert } } : {}),
+        ...(offert ? { embauche: { cle: offert, niv: niveauOffert(graine, `do:${w}`, offert) } } : {}),
         ...(o.soin && lui ? { gestes: { soin: o.soin, joueurs: [lui.cle] } } : {}) });
     }
   }
@@ -156,7 +158,8 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
     const games = you.games || 0;
     let libres = casesLibres(P0, games, niveauDuPerso(P0));
     // Celle qui rend le plus à son effectif d'abord (`fit`) ; sans lecture, la voie de son coach.
-    const pretes = pretesDe(P0, games).map(c => c.cle).sort((a, b) => (fit ? fit(b) - fit(a) : rangDe(a, P0.cle) - rangDe(b, P0.cle)));
+    const nivs = new Map(pretesDe(P0, games).map(c => [c.cle, c.niv]));
+    const pretes = pretesDe(P0, games).map(c => c.cle).sort((a, b) => (fit ? fit(b, nivs.get(b)) - fit(a, nivs.get(a)) : rangDe(a, P0.cle) - rangDe(b, P0.cle)));
     while (libres > 0 && pretes.length) { const k = clic ? pretes.splice(Math.floor(clic() * pretes.length), 1)[0] : pretes.shift(); out.push({ jour: j, poste: { cle: k } }); libres--; }
   }
   // LE TALENT (niveaux 2 et 4) : le pouvoir qui a le plus joué grandit ; le distrait, au hasard ; le robot d'avant, le premier.
@@ -177,7 +180,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
       : lus ? (premier && lire.case > lus.get(meilleur) ? TALENT_CASE : meilleur)
       : premier && soirs * 2 < Math.max(1, you.games || 0) ? TALENT_CASE : ouverts.reduce((a, b) => (fois[b] >= fois[a] ? b : a));
     const offert = p === TALENT_CASE ? adjointsOfferts(perso, graine, 'ta0', 1)[0] || null : null;
-    out.push({ jour: j, palier: `ta:${perso.talents.length}`, talent: { p }, ...(offert ? { embauche: { cle: offert } } : {}) });
+    out.push({ jour: j, palier: `ta:${perso.talents.length}`, talent: { p }, ...(offert ? { embauche: { cle: offert, niv: niveauOffert(graine, 'ta0', offert) } } : {}) });
   }
   return out;
 }

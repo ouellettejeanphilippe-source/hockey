@@ -11,7 +11,8 @@ import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRos
 import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
 import { COACHS, VOIES } from './coachs.js';
-import { chargerCoachs, lotoDesCoachs, motDuRang } from './coachs-reels.js';
+import { chargerCoachs, lotoDesCoachs, motDuRang, niveauDuCoach } from './coachs-reels.js';
+import { NOMS_NIV } from './adjoints.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE, POSTES_DU_PACK } from './packs.js';
@@ -1010,7 +1011,8 @@ async function choisirCoach() {
       const C = COACHS[c.cle];
       const runs = (siens[c.id] || {}).r || 0;
       return { cle: c.id, ico: C.ico, nom: c.n, sous: `${nomDuClubSaison(c.tag, c.saison)} · ${fiche(c)} · ${c.neuf ? 'nouvelle carte' : `📒 ton cartable, ${runs} run${runs > 1 ? 's' : ''}`}`,
-        mots: [{ txt: `${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise > 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: null },
+        // V23 : son niveau, comme un joueur (`niveauDuCoach`), et la force qu'il donne à ses pouvoirs.
+        mots: [{ txt: `${NOMS_NIV[niveauDuCoach(c.rang) - 1]} · ${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise !== 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: c.maitrise > 1 ? true : c.maitrise < 1 ? false : null },
           ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${P.dit}`, bon: null }))] };
     }),
     onChoix: id => resolve(loto.find(c => c.id === id) || null),
