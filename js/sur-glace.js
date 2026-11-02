@@ -10,14 +10,18 @@
  * LES MÊMES PITONS QUE LES NHL CLASSIQUES (JP, 1er nov. 2026) :
  *   le bâton gauche, les flèches ou WASD   patiner (le bâton à l'envers : freiner)
  *   A, Espace                              la passe ; sans la rondelle, changer de joueur ; à la mise en jeu, la chute
- *                                          (le bâton tenu dit où elle part : derrière, le défenseur ; de côté, l'ailier)
+ *                                          (le bâton tenu dit où elle part : derrière, le défenseur ; de côté, l'ailier) ;
+ *                                          le bâton tiré vers l'arrière, un coéquipier qui suit : la passe laissée
  *   X ou RT tenu, Maj tenue                charger le tir ; lâché, il part ; sans la rondelle, le harpon
  *   B ou RB, Ctrl                          avec la rondelle, le turbo ; sans elle, l'élan d'une mise en échec
- *   Y, E                                   changer de joueur
+ *   Y, E                                   changer de joueur ; avec la rondelle, la feinte (le bâton dit de quel côté) ;
+ *                                          à l'arrêt de jeu, le trio suivant (comme NHL 94)
+ *   (rien)                                 protéger la rondelle : lent, un adversaire collé, la lame passe de l'autre
+ *                                          côté du corps ; fatigué à la porte de ton banc, tu sors, le suivant entre
  *   LB ou LT, Q                            patiner à reculons (le cap tenu vers le jeu)
  *   Start, Échap, ✕                        la pause : reprendre, retirer le gardien, les règles, quitter
  */
-import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON } from './physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, porteDuBanc, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, BANC } from './physique.js';
 import { decisionIA, STRATEGIES } from './glace-ia.js';
 import { PATINEURS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
 import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
@@ -269,9 +273,11 @@ async function club(cote) {
     if ((s.group === 'F' && s.unit > 2) || (s.group === 'D' && s.unit > 1)) continue;
     const ax = axes20(p, tous) || {};
     const traits = getTraits(p) || [];
+    // SA MAIN (le lot 3) : la LNH la dit — un défenseur droitier est « RD », un avant lance de « R » ; sans donnée, gaucher.
+    const main = p.np === 'RD' || p.sc === 'R' || p.shootsCatches === 'R' ? 'D' : 'G';
     patineurs.push({
       id: p.id, nom: nomCourt(p.n), visage: p.id, poste: s.group === 'D' ? 'D' : s.role, ligne: s.unit,
-      p: parametresDuPatineur({ cote: cote20(p, tous) || 8, tir: ax.tir || 10, jeu: ax.jeu || 10, defense: ax.defense || 10, robustesse: ax.robustesse || 10, poidsLb: p.wgt || null, vitesse: traits.some(t => t === 'VITESSE' || (t && t.key === 'VITESSE')) }),
+      p: parametresDuPatineur({ cote: cote20(p, tous) || 8, tir: ax.tir || 10, jeu: ax.jeu || 10, defense: ax.defense || 10, robustesse: ax.robustesse || 10, poidsLb: p.wgt || null, vitesse: traits.some(t => t === 'VITESSE' || (t && t.key === 'VITESSE')), main }),
     });
   }
   const g = roster[SLOTS.find(s => s.group === 'G' && s.unit === 0).i] || pool.find(p => p.p === 'G');
@@ -343,7 +349,7 @@ function lancer(e) {
         <aside class="sg-regles" hidden>
           <h3>Ce que la glace fait</h3>
           <ul>${reglesDeLaGlace().map(r => `<li>${esc(r)}</li>`).join('')}</ul>
-          <p class="sg-regles-mot">Le bâton gauche, les flèches ou WASD patinent ; à l'envers, c'est le frein. A ou Espace passe, change de joueur sans la rondelle, et prend la mise en jeu à la chute : le bâton tenu dit où tu l'envoies (vers l'arrière, ton défenseur ; de côté, ton ailier). X, RT ou Maj tenue charge le tir (le bâton choisit le coin) ; sans la rondelle, c'est le harpon. B, RB ou Ctrl : le turbo avec la rondelle, la mise en échec sans elle. Y ou E change de joueur ; LB, LT ou Q patine à reculons. Start, Échap ou ॥ : la pause.</p>
+          <p class="sg-regles-mot">Le bâton gauche, les flèches ou WASD patinent ; à l'envers, c'est le frein. A ou Espace passe, change de joueur sans la rondelle, et prend la mise en jeu à la chute : le bâton tenu dit où tu l'envoies (vers l'arrière, ton défenseur ; de côté, ton ailier) ; le bâton tiré vers l'arrière, un coéquipier qui te suit, tu lui laisses la rondelle. X, RT ou Maj tenue charge le tir (le bâton choisit le coin) ; sans la rondelle, c'est le harpon. B, RB ou Ctrl : le turbo avec la rondelle, la mise en échec sans elle. Y ou E change de joueur ; avec la rondelle, c'est la feinte (le bâton dit de quel côté) ; à l'arrêt de jeu, le trio suivant. Lent, un adversaire collé, tu protèges la rondelle de toi-même : tourne-lui le dos. Fatigué, patine jusqu'à la porte de ton banc : le plus reposé saute sur la glace. LB, LT ou Q patine à reculons. Start, Échap ou ॥ : la pause.</p>
         </aside>
       </div>
     </div>
@@ -403,7 +409,17 @@ function invites() {
   const porte = etat && etat.rondelle.porteur && etat.rondelle.porteur === ctl;
   const m = document.body.classList.contains('manette');
   const k = (pad, clav) => `<kbd>${m ? pad : clav}</kbd>`;
-  return `<span>${k('⬤', 'Flèches')} Patiner</span><span>${k('Ⓐ', 'Espace')} ${porte ? 'Passe' : etat && etat.mej ? 'À la chute (le bâton : où)' : 'Changer'}</span><span>${k('Ⓧ', 'Maj')} ${porte ? 'Tir (tenir)' : 'Harpon'}</span><span>${k('Ⓑ', 'Ctrl')} ${porte ? 'Turbo' : 'Échec'}</span><span>${k('LB', 'Q')} Reculer</span><span>${k('Start', 'Échap')} Pause</span>`;
+  const arret = etat && etat.match && (etat.arret || etat.mej);
+  return `<span>${k('⬤', 'Flèches')} Patiner</span><span>${k('Ⓐ', 'Espace')} ${porte ? 'Passe' : etat && etat.mej ? 'À la chute (le bâton : où)' : 'Changer'}</span><span>${k('Ⓧ', 'Maj')} ${porte ? 'Tir (tenir)' : 'Harpon'}</span><span>${k('Ⓑ', 'Ctrl')} ${porte ? 'Turbo' : 'Échec'}</span>${porte ? `<span>${k('Ⓨ', 'E')} Feinte</span>` : arret ? `<span>${k('Ⓨ', 'E')} ${trioSuivant()}</span>` : ''}<span>${k('LB', 'Q')} Reculer</span><span>${k('Start', 'Échap')} Pause</span>`;
+}
+/* À l'arrêt de jeu, ce que Y ferait : le trio suivant (celui qui sauterait sur la glace), et ses jambes. */
+function trioSuivant() {
+  const eq = etat.humains[0], E = etat.equipes[eq], n = E.lignes.F.length;
+  let k = E.choix != null ? E.choix : E.enPoste.F;
+  for (let i = 0; i < n; i++) { k = (k + 1) % n; if (E.lignes.F[k].length) break; }
+  const ids = E.lignes.F[k] || [];
+  const j = ids.length ? Math.round(ids.reduce((a, id) => a + etat.patineurs.find(p => p.id === id).jambes, 0) / ids.length) : 0;
+  return `Trio ${k + 1} (jambes ${j})`;
 }
 
 /* ---------- les entrées ---------- */
@@ -510,8 +526,10 @@ function entrees() {
     const ctl = etat.controles[eq];
     if (!ctl) continue;
     const porte = etat.rondelle.porteur === ctl;
-    // B : le turbo avec la rondelle, la mise en échec sans elle (les NHL classiques).
-    out[ctl] = { x: g.x, y: g.y, passe, tir, echec: echec && !porte, sprint: echec && porte, changer, recul };
+    // B : le turbo avec la rondelle, la mise en échec sans elle (les NHL classiques). Y : changer de joueur ; avec la
+    // rondelle, la feinte ; à l'arrêt de jeu, le trio suivant.
+    const arret = !!(etat.match && (etat.arret || etat.mej));
+    out[ctl] = { x: g.x, y: g.y, passe, tir, echec: echec && !porte, sprint: echec && porte, changer: changer && !porte && !arret, feinte: changer && porte, ligne: changer && arret, recul };
   }
   return out;
 }
@@ -593,6 +611,9 @@ function boucle(now) {
     else if (v.type === 'prise' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'prise');
     else if (v.type === 'passe' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'passe');
     else if (v.type === 'harpon' && v.gardien) flash = { mot: `Le harpon de ${nomDe(v.qui)}`, reste: 0.9 };
+    else if (v.type === 'mordu' && tonJoueur(v.sur)) flash = { mot: `${nomDe(v.qui)} a mordu !`, reste: 0.9 };
+    else if (v.type === 'trio') flash = { mot: `Trio ${v.ligne + 1} · jambes ${v.jambes}`, reste: 1.2 };
+    else if (v.type === 'volee' && etat.humains.includes(v.equipe) && v.entre && tonJoueur(v.entre)) flash = { mot: `${nomDe(v.entre)} saute sur la glace`, reste: 1.2 };
     else if (v.type === 'harpon' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'harpon');
     else if (v.type === 'remise') trace = [];
     else if (v.type === 'fin') finDuMatch();
@@ -1094,6 +1115,17 @@ function patinoire() {
   repereGlace();
   ecussonDuCentre();
 }
+/* LES PORTES DES BANCS (le lot 3) : sur la bande, aux couleurs du club ; un patineur y sort, le suivant y entre (`porteDuBanc`). */
+function portes() {
+  if (!etat.match) return;
+  cx.setTransform(taille.dpr, 0, 0, taille.dpr, 0, 0);
+  cx.lineWidth = Math.max(2, Math.round(0.22 * cam.k));
+  for (const eq of ['A', 'B']) {
+    const p = porteDuBanc(eq), a = ecran(p.x - BANC.porte, W / 2), b = ecran(p.x + BANC.porte, W / 2);
+    cx.strokeStyle = couleurs[eq].club || couleurs[eq].bg;
+    cx.beginPath(); cx.moveTo(Math.round(a.x), Math.round(a.y)); cx.lineTo(Math.round(b.x), Math.round(b.y)); cx.stroke();
+  }
+}
 /* L'écusson des locaux se charge une fois ; la glace se refait quand il arrive. */
 let ecusson = null;   // { code, im }
 function ecussonDuCentre() {
@@ -1204,6 +1236,7 @@ function dessiner(now) {
   }
   repereGlace();
   patinoire();
+  portes();
   const R = etat.rondelle;
   if (trace.length > 1) {
     cx.strokeStyle = COULEURS.trace; cx.lineWidth = 0.08; cx.lineCap = 'round';
@@ -1343,6 +1376,7 @@ function hud() {
   dg.querySelector('[data-doigt="passe"]').textContent = porte ? 'Passe' : etat.mej ? 'Mise' : 'Passe';
   dg.querySelector('[data-doigt="tir"]').textContent = porte ? 'Tir' : 'Harpon';
   dg.querySelector('[data-doigt="echec"]').textContent = porte ? 'Turbo' : 'Échec';
+  dg.querySelector('[data-doigt="changer"]').textContent = porte ? 'Feinte' : M && (etat.arret || etat.mej) ? 'Trio' : 'Changer';
 }
 function finDuMatch() {
   if (enfin || !etat.match) return;
