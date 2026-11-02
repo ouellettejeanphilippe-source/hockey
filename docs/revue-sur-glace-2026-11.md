@@ -133,6 +133,63 @@ Une note sur le point de départ : le rapport du lot 1 disait 5,0 buts et 4,9 ho
 - **Le dégagement** ne va qu'à l'ailier : un dégagement vers la neutre glisse jusqu'au bout de la glace (la rondelle ne perd rien le long de la bande), un dégagement refusé presque chaque fois. Un frottement le long de la bande (§ 1, 🟡) le rendrait possible.
 - **À voir à la manette** : le lancer au fond (ta visée change hors de la zone : le tir part où tu pointes), la lame qui ne prend pas la rondelle le bras levé, l'écran vu de l'écran. Une capture d'une attaque en zone (Toronto chez les Golden Seals) a été faite, sans erreur dans la console ; l'écran en action, lui, n'a pas été vu à l'image.
 
+## 6. Le lot 3 : le porteur a des gestes, et on choisit ses lignes (version 3.2.7)
+
+Les propositions 4 et 5 de la section 4. Chaque geste pousse le même bâton pour toi et pour l'IA ; chacun a son fait mis en scène dans `check_physique` (136 → 157 vérifications, toutes vertes) et sa ligne dans les règles de l'écran.
+
+### D'abord, ce qui coupait la possession
+
+Le lot 2 voyait une possession en zone offensive de 0,1 s en médiane et pensait au harpon. Mesuré (24 matchs de la 3.2.6, 3 575 possessions en zone, ce qui les finit) : 1 908 par un tir, 1 267 par une passe, 100 par un harpon, 84 par une mise en échec. L'IA lance ou passe dans la demi-seconde ; au coin, pressée, elle lançait même d'un angle mort, ce qui tuait le cycle. Protéger la rondelle ne suffisait donc pas : il fallait aussi que l'IA garde la rondelle au coin.
+
+### Les gestes
+
+| Le geste | Comment il se joue | La constante | La preuve (check_physique) |
+|---|---|---|---|
+| **Protéger la rondelle** | Sans bouton : plus lent que 20 km/h, un adversaire debout à 2,6 m, la lame passe de l'autre côté du corps. Tourne-lui le dos : son harpon doit passer par ton corps | `PROTEGE` : 0,75 m de côté ; le harpon × 0,3 | Le même harpon, du même mètre et demi : 8 réussis sur 60 dans ton dos, 26 sur 60 de face |
+| **L'IA au coin** | Pressée, sans passe, elle file lentement le long de la bande, dos au poursuivant, 1,6 s au plus, le temps qu'un coéquipier s'ouvre en haut ; elle ne lance plus de là, et ne harponne pas une rondelle cachée derrière un corps | `COIN` (js/glace-ia.js) | « l'IA protège dans le coin » : le bâton à 0,3, loin de lui, 31 images sur 31 |
+| **La feinte** | Y avec la rondelle ; le bâton dit de quel côté, au neutre vers le revers | `FEINTE` : 1 m, 0,3 s, 1 s de repos, la poussée à 60 % | 0 harpon réussi sur 40 pendant la feinte (18 sur 40 sans) ; la charge ne renverse pas ; l'IA feinte devant un défenseur seul (`FEINTE_IA`) |
+| **Le revers et la main** | La lame du côté de la main (la LNH la dit : `np` RD/LD, `sc` ; sans donnée, gaucher). La rondelle de l'autre côté du corps, ou lancée à plus de 74° du cap vers ce côté : le revers. Le tir sur réception ne part que du coup droit | `BATON.cote` 25 cm ; `REVERS` : le tir à 82 %, 1,5 fois l'écart ; la passe à 85 %, 1,6 fois | Le même tir du poignet, du même point, le filet à sa gauche : un droitier 89 km/h et 1,3° d'écart, un gaucher (du revers) 73 km/h et 2,2° |
+| **La passe laissée** | A, le bâton tiré vers l'arrière, un coéquipier qui te suit (derrière, 6 m au plus, lancé dans ton sens) ; personne qui suit, c'est une passe | `LAISSEE` : 1,5 m/s | La rondelle reste derrière, celui qui suit la prend ; sans lui, une passe |
+
+### Les lignes
+
+- **Choisir son trio** : Y à l'arrêt de jeu, le trio suivant ; l'invite le nomme avec ses jambes (« Trio 3 (jambes 100) »). Il joue même fatigué ; encore Y pendant la mise en jeu, elle se replace avec le suivant. Les paires de défenseurs restent aux jambes. Check : le trio 2 choisi à 40 jambes est celui qui joue ; le trio 3 aussi.
+- **À la volée, par la porte** : chaque club a sa porte sur la bande, à 5 m du centre (dans la neutre : personne n'entre hors-jeu), du côté de son filet de la première période — en deuxième, la présence est plus longue. Un patineur qui demande le banc et arrive à 1,4 m de la porte sort ; au même instant, le plus reposé de son groupe entre par la même porte. Un pour un, jamais téléporté. Toi, fatigué (sous 60 jambes), tu y patines et tu sors. Check : trois avants à 45 jambes, un trio frais au banc, la rondelle loin : trois changements, chacun entre à la porte (à 0,02 m au plus), au plus 5 sur la glace, et au banc leurs jambes remontent (45 → 67 à 76 en 8 s).
+- **L'IA change selon les jambes** : la rondelle loin (dans leur moitié, hors de leur zone, pas à eux), un groupe sous 60 jambes en moyenne file à la porte s'il y a une ligne à 80 au banc ; dans leur zone, elle reste, sauf sous 40 ; l'adversaire qui porte la rondelle chez elle, elle revient. Aux arrêts, `habiller` change comme avant.
+- **Un défaut trouvé en chemin** : le gardien remis en jeu revenait au filet avec les six patineurs sur la glace jusqu'à l'arrêt suivant (1 200 à 5 000 images par 24 matchs, IA contre IA). Il attend maintenant qu'un patineur sorte par la porte ; à l'arrêt de jeu, il revient tout de suite. Le check compte les images de trop dans les matchs mesurés : 0.
+
+### Les chiffres, avant → après
+
+L'IA contre l'IA, 96 matchs de 3 × 2 minutes (les graines `postes-0` à `23`, `100` à `123`, `200` à `223`, `300` à `323`), le même harnais que le lot 2.
+
+| Par match de 6 min | 3.2.6 | 3.2.7 |
+|---|---|---|
+| Cycles (du coin, le long de la bande, au coéquipier en haut) | 1,1 | 4,0 |
+| Possession en zone offensive, % du jeu (deux clubs) | 8,5 % | 9,6 % |
+| … la durée d'une possession en zone : médiane, 75e, 90e centile | 0,10, 0,28, 0,64 s | 0,10, 0,34, 0,74 s |
+| Le porteur protège, % du temps en zone | — | 10 % |
+| Harpons réussis | 58 | 48 |
+| Tirs du revers | — | 16 % |
+| Feintes | — | 10 |
+| Changements à la volée | — | 71 |
+| Buts | 3,8 | 3,9 |
+| Hors-jeu | 1,1 | 0,9 |
+| Passes réussies | 67 % | 66 % |
+| Punitions | 1,0 | 0,8 |
+| En zone, un joueur dans l'enclave | 39 % | 36 % |
+| % d'arrêts | 89,1 | 89,8 |
+
+Deux réglages ont été faits en route, pour l'équilibre : le premier jet (le revers dès 34° du cap, à 75 % et 1,8 fois l'écart) faisait 40 % des tirs du revers, et avec ses autres défauts depuis corrigés, 3,0 buts par match (74° et 82 % : 16 % des tirs, 3,9 buts) ; l'IA qui ne chargeait plus un porteur qui protège ne prenait presque plus de punitions (0,25 par match) — elle charge comme avant, seul le harpon dans le dos est retenu.
+
+### Ce qui reste
+
+- **La médiane ne bouge pas** (0,10 s) : la plupart des possessions en zone sont des tirs sur réception et des passes du premier coup, voulus. Ce qui s'allonge, c'est la queue (75e et 90e centiles) et le cycle.
+- **Les sprites tiennent tous le bâton de la même main** : la rondelle d'un droitier, ou celle qu'on protège, est à côté de la lame dessinée (25 cm, puis 75 cm). Des sprites en miroir pour les droitiers se rendraient par scripts/sprites/rendu.mjs (le double des images).
+- **La passe laissée de l'IA est involontaire** : ≈ 26 par match, quand elle passe en arrière à un coéquipier qui la suit. Elle ne la cherche pas.
+- **Les joueurs au banc ne se voient pas** : la porte est dessinée aux couleurs du club, pas le banc.
+- **À sentir à la manette** : la protection automatique (est-ce qu'elle se sent, ou faut-il la tenir sur LB ?) ; la feinte, qui pourrait être trop sûre contre l'IA (elle mord à tout coup pendant 0,3 s, une feinte par seconde) ; le trio choisi qui se replace pendant la mise en jeu ; les changements à la volée de tes coéquipiers (≈ toutes les 30 s par groupe, des présences plus courtes que dans la LNH : `JAMBES.volee` à 50 les allongerait).
+- **Les captures** : un porteur qui protège au coin, le dos au poursuivant, la rondelle de l'autre côté (`protege-2.png`), et l'invite du trio à l'arrêt de jeu (`trio.png`), Chromium sans tête, 1280 × 720, aucune erreur dans la console. Le changement à la volée n'a pas été vu à l'image.
+
 ## Comment ces chiffres ont été faits
 
-`node scripts/check_physique.mjs` (98 vérifications avant le lot 1, 114 après, 136 après le lot 2, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
+`node scripts/check_physique.mjs` (98 vérifications avant le lot 1, 114 après, 136 après le lot 2, 157 après le lot 3, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
