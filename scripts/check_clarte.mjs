@@ -273,7 +273,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // La ligue qui monte (tranche 8, puis le 27 oct.) : des clubs de toute l'histoire aux premiers rangs, puis les éditions.
     [`des clubs de toute l'histoire aux ${NIVEAUX_PLEINS === 2 ? 'deux' : NIVEAUX_PLEINS} premiers rangs`, 'les premières ligues'],
     [`Un cran d'exigence en vaut ${ETAPES_PAR_CRAN}.`, 'la ligue et les exigences'],
-    [`Dès ta deuxième run, chaque club porte ${ETAPE_APRES_LA_PREMIERE === 1 ? 'une étape' : `${ETAPE_APRES_LA_PREMIERE} étapes`} de plus.`, 'la deuxième run'],
+    [`Passé ta toute première saison, chaque club porte ${ETAPE_APRES_LA_PREMIERE === 1 ? 'une étape' : `${ETAPE_APRES_LA_PREMIERE} étapes`} de plus.`, 'la deuxième run'],
     [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
     // V21 : le coach, un personnage (js/pouvoirs.js) — son expérience, ses niveaux, ses pouvoirs, ses talents, ses adjoints.
     [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],

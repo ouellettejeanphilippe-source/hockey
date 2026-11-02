@@ -42,7 +42,7 @@
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ, REVERS, PROTEGE, FEINTE, LAISSEE, BANC, JAMBES, HARPON, FAUTES, BAGARRE, LEVE, CELEBRATION } from '../js/physique.js';
 import { PATINEURS, DROITIERS, ANCRE } from '../js/sprites.js';
-import { decisionIA, ECART_D, SORTIE, ECRAN_D } from '../js/glace-ia.js';
+import { decisionIA, styleDuClub, ECART_D, SORTIE, ECRAN_D } from '../js/glace-ia.js';
 
 const t0 = Date.now();
 const G = 9.81;
@@ -1119,15 +1119,16 @@ const tonPorteur = (graine, cap, main = 'G') => {
   return { e, toi, plot };
 };
 /* Le plot, à (x, y), harponne la rondelle (son bâton pointé vers elle) ; `avant` : ce que toi fais d'abord. Réussi ? */
-const harponDuPlot = (graine, cap, x, y, avant = null) => {
+const harponDuPlot = (graine, cap, x, y, avant = null, regler = null) => {
   const { e, toi, plot } = tonPorteur(graine, cap);
   Object.assign(plot, { x, y, vx: 0, vy: 0, poste0: null });
+  if (regler) regler(e, toi, plot);
   jouer(e, { toi: { x: 0, y: 0 }, plot: { x: 0, y: 0 } }, 0.3);   // la lame se place
   if (avant) avancer(e, { toi: avant, plot: { x: 0, y: 0 } }, DT);
   plot.cap = Math.atan2(e.rondelle.y - plot.y, e.rondelle.x - plot.x);
   const protege = toi.protege, lat = toi.lat;
   const ev = [...avancer(e, { toi: { x: 0, y: 0 }, plot: { x: 0, y: 0, tir: true } }, DT), ...jouer(e, { toi: { x: 0, y: 0 }, plot: { x: 0, y: 0 } }, 0.3)];
-  return { ok: ev.some(x => x.type === 'harpon' && x.qui === 'plot'), mordu: ev.some(x => x.type === 'mordu'), protege, lat, toi, e };
+  return { ok: ev.some(x => x.type === 'harpon' && x.qui === 'plot'), mordu: ev.some(x => x.type === 'mordu'), lue: ev.some(x => x.type === 'feinteLue'), protege, lat, toi, e };
 };
 {
   // PROTÉGER : le même harpon, du même mètre et demi, dans ton dos (ton corps entre lui et la rondelle) ou de face.
@@ -1158,19 +1159,33 @@ const harponDuPlot = (graine, cap, x, y, avant = null) => {
   exiger('l\'IA protège dans le coin : pressée, sans passe, elle file lentement, dos au poursuivant, la lame cachée', loin && Math.hypot(dec.x, dec.y) < 0.5 && e.rondelle.porteur === porteur.id && protegees >= images / 2 && v < PROTEGE.vitesse, `le bâton à ${Math.hypot(dec.x, dec.y).toFixed(2)}, ${loin ? 'loin de lui' : 'vers lui'}, au plus ${(v * 3.6).toFixed(0)} km/h pressée, elle protège ${protegees} images sur ${images}`);
 }
 {
-  // LA FEINTE : le même harpon, de face, lancé pendant la feinte (Y) ou sans elle.
-  const N = 40;
-  let avec = 0, sans = 0, mordus = 0, ecart = 0;
-  for (let i = 0; i < N; i++) {
-    const a = harponDuPlot(`feinte-${i}`, Math.PI, -1.4, 0.2, { x: 0, y: 0, feinte: true }), b = harponDuPlot(`feinte-sans-${i}`, Math.PI, -1.4, 0.2);
-    if (a.ok) avec++; if (b.ok) sans++; if (a.mordu) mordus++;
-  }
+  // LA FEINTE : le même harpon, de face, lancé pendant la feinte (Y) ou sans elle, par un défenseur faible (Défense 6 sur
+  // 20) ou fort (18) ; puis la feinte répétée, 1,5 s après la précédente, devant un défenseur ordinaire (10).
+  const N = 60;
+  const defenseur = (def, deja = false) => (e, toi, plot) => { plot.p = parametresDuPatineur({ defense: def }); if (deja) toi.feinteT = e.t - 1.5; };
+  const essais = (nom, def, deja, feinte = true) => {
+    let ok = 0, mordus = 0, lues = 0;
+    for (let i = 0; i < N; i++) {
+      const r = harponDuPlot(`${nom}-${i}`, Math.PI, -1.4, 0.2, feinte ? { x: 0, y: 0, feinte: true } : null, defenseur(def, deja));
+      if (r.ok) ok++; if (r.mordu) mordus++;
+      if (r.lue) lues++;
+    }
+    return { ok, mordus, lues, passe: N - ok };
+  };
+  const faible = essais('feinte-faible', 6, false), fort = essais('feinte-forte', 18, false), sansF = essais('feinte-sans', 18, false, false);
+  const unique = essais('feinte-une', 10, false), repetee = essais('feinte-repetee', 10, true);
+  let ecart = 0;
   { const { e, toi } = tonPorteur('feinte-lame', 0); const lat0 = toi.lat; jouer(e, { toi: { x: 0, y: 0, feinte: true } }, 0.15); ecart = Math.abs(toi.lat - lat0); }
   exiger('la feinte (Y) déporte la lame d\'un mètre, un instant', ecart > 0.8 * FEINTE.ecart && ecart <= FEINTE.ecart + 0.01, `${ecart.toFixed(2)} m en 0,15 s (${FEINTE.ecart} m, ${FEINTE.duree} s)`);
-  exiger('… un harpon lancé pendant la feinte rate : il a mordu', avec === 0 && mordus === N && sans >= N * 0.3, `${avec} réussis sur ${N} pendant la feinte (${mordus} ont mordu), ${sans} sur ${N} sans elle`);
+  exiger('… un harpon lancé pendant la feinte rate : un défenseur faible (Défense 6) mord toujours', faible.ok === 0 && faible.mordus === N, `la feinte passe ${faible.passe} fois sur ${N} (${faible.mordus} ont mordu)`);
+  exiger('… un défenseur fort (Défense 18) la lit parfois, et son harpon se joue alors comme sans feinte', fort.lues > N * 0.2 && fort.lues < N * 0.6 && fort.ok > 0 && fort.passe > N / 2 && sansF.ok > fort.ok,
+    `il la lit ${fort.lues} fois sur ${N} (${Math.round(FEINTE.lit * (18 - FEINTE.aveugle) * 100)} % attendus) ; la feinte passe ${fort.passe} fois sur ${N}, son harpon sans feinte réussit ${sansF.ok} fois sur ${N}`);
+  exiger('… et la feinte répétée trop vite se lit mieux', repetee.lues > unique.lues + N * 0.15 && repetee.passe < unique.passe,
+    `Défense 10 : lue ${unique.lues} fois sur ${N} la première, ${repetee.lues} répétée en moins de ${FEINTE.usee} s ; elle passe ${unique.passe}, puis ${repetee.passe}`);
   // La charge lancée pendant la feinte : le plot fonce sur toi, l'élan pressé, à 9 m/s.
   const charge = feinte => {
     const { e, toi, plot } = tonPorteur(`charge-${feinte}`, 0);
+    plot.p = parametresDuPatineur({ defense: 6 });   // un défenseur faible : il mord toujours
     Object.assign(plot, { x: -3, y: 0, vx: 9, vy: 0, cap: 0, poste0: null });
     if (feinte) avancer(e, { toi: { x: 0, y: 0, feinte: true } }, DT);
     const ev = jouer(e, { toi: { x: 0, y: 0 }, plot: { x: 1, y: 0, echec: true } }, 0.4);
@@ -1188,6 +1203,92 @@ const harponDuPlot = (graine, cap, x, y, avant = null) => {
   let n = 0;
   for (let k = 0; k < 60; k++) { porteur.memo = {}; if (decisionIA(e, porteur).feinte) n++; }
   exiger('… et l\'IA feinte parfois devant un défenseur seul', n > 0 && n < 30, `${n} décisions sur 60`);
+}
+{
+  // LE STYLE D'UN VRAI CLUB (le lot 6), lu dans les joueurs de sa saison : trois clubs de dix patineurs et un gardien,
+  // pareils sauf un trait — LAN lance 30 % de plus, FRA frappe 30 % de plus, TIE reçoit 15 % de tirs de moins.
+  const saison = [];
+  for (const [t, sh, ht, sa] of [['LAN', 130, 2, 2000], ['FRA', 100, 2.6, 2000], ['TIE', 100, 2, 1700], ['MOY', 100, 2, 2000], ['AUT', 100, 2, 2000]]) {
+    for (let i = 0; i < 10; i++) saison.push({ t, p: i < 6 ? 'F' : 'D', gp: 60, sh, ht, pim: 30 });
+    saison.push({ t, p: 'G', gp: 60, sa });
+  }
+  const sLan = styleDuClub('LAN', saison), sFra = styleDuClub('FRA', saison), sTie = styleDuClub('TIE', saison), sMoy = styleDuClub('MOY', saison);
+  exiger('le style d\'un vrai club se lit dans ses vraies stats : qui lance, qui frappe, qui tient sa zone', sLan.tir > 0.15 && sLan.strategie === 'offensive' && sFra.frappe > 0.15 && sFra.tir < 0 && sTie.contre < -0.07 && sTie.strategie === 'defensive' && sMoy.mots.length === 0 && sMoy.strategie === 'equilibree',
+    `LAN : tirs +${Math.round(sLan.tir * 100)} %, ${sLan.strategie} (${sLan.mots}) ; FRA : mises en échec +${Math.round(sFra.frappe * 100)} % (${sFra.mots}) ; TIE : tirs contre ${Math.round(sTie.contre * 100)} %, ${sTie.strategie} (${sTie.mots}) ; MOY : ${sMoy.strategie}`);
+  // Le même porteur, à 11,2 m du filet, le couloir libre : le club qui lance tire, l'autre non.
+  const tire = style => {
+    const e = enScene('style-tir', null, -18);
+    const porteur = surGlace(e, 'A').find(s => s.poste === 'C');
+    e.equipes.A.style = style;
+    Object.assign(porteur, { x: 8.5, y: 4, cap: 0, vx: 2, vy: 0 });
+    const lm = lame(porteur); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 2, vy: 0, porteur: porteur.id });
+    return !!decisionIA(e, porteur).tir;
+  };
+  exiger('… le porteur d\'un club qui lance tire de plus loin', tire(sLan) && !tire(sMoy), `à 11,2 m du filet : le club qui lance ${tire(sLan) ? 'tire' : 'ne tire pas'}, le club ordinaire ${tire(sMoy) ? 'tire' : 'ne tire pas'}`);
+  // Le même chasseur, de face, à 3,2 m du porteur qui vient sur lui : le club qui frappe s'élance, l'autre non.
+  const charge = style => {
+    const e = enScene('style-charge', null, 18);
+    const A = surGlace(e, 'A'), B = surGlace(e, 'B'), s = A.find(q => q.poste === 'C'), porteur = B.find(q => q.poste === 'C');
+    e.equipes.A.style = style;
+    for (const q of [...A, ...B]) Object.assign(q, { x: 15, y: 10 + [...A, ...B].indexOf(q) % 3, vx: 0, vy: 0 });
+    Object.assign(porteur, { x: -5, y: 0, cap: Math.PI, vx: -4, vy: 0 });
+    Object.assign(s, { x: -8.2, y: 0, cap: 0, vx: 3.5, vy: 0, elanRepos: 0 });
+    const lm = lame(porteur); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: -4, vy: 0, porteur: porteur.id });
+    return !!decisionIA(e, s).echec;
+  };
+  exiger('… et le chasseur d\'un club qui frappe s\'élance de plus loin', charge(sFra) && !charge(sMoy), `à 3,2 m, de face : le club qui frappe ${charge(sFra) ? "s'élance" : "ne s'élance pas"}, le club ordinaire ${charge(sMoy) ? "s'élance" : "ne s'élance pas"}`);
+}
+{
+  // L'AVANTAGE NUMÉRIQUE ET LE DÉSAVANTAGE (le lot 6 ; mesuré, l'avantage ne valait rien : le club à cinq marquait 0,9 fois
+  // son rythme à forces égales, le club à quatre aussi). Un ailier du club `eq` au cachot, deux minutes.
+  const aQuatre = (e, eq) => {
+    const s = surGlace(e, eq).find(q => q.poste === 'AG');
+    Object.assign(s, { surGlace: false, boxe: true, x: 3, y: -(W / 2 + 1.2), vx: 0, vy: 0 });
+    e.match.penalites.push({ id: s.id, equipe: eq, genre: 'accrochage', reste: MATCH.punition, avantage: MATCH.punition });
+  };
+  // Le porteur à la pointe, à 12,5 m du filet, un coéquipier devant le gardien, personne sur lui : en avantage, il lance à
+  // travers l'écran ; à forces égales, non (trop loin pour un bon tir).
+  const pointe = (avantage, ecran) => {
+    let n = 0;
+    for (let k = 0; k < 40; k++) {
+      const e = enScene(`pointe-${k}`, null, 18);
+      if (avantage) aQuatre(e, 'B');
+      const A = surGlace(e, 'A'), porteur = A.find(q => q.poste === 'D'), devant = A.find(q => q.poste === 'C');
+      for (const q of surGlace(e, 'B')) Object.assign(q, { x: 2 + surGlace(e, 'B').indexOf(q) * 2, y: -11 });
+      Object.assign(porteur, { x: BLEUE + 0.5, y: 6, cap: -0.5, vx: 0, vy: 0 });
+      if (ecran) Object.assign(devant, { x: LIGNE_BUT - 2, y: 0.5 });
+      const lm = lame(porteur); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 0, vy: 0, porteur: porteur.id });
+      if (decisionIA(e, porteur).tir) n++;
+    }
+    return n;
+  };
+  const pp = pointe(true, true), ppSans = pointe(true, false), egal = pointe(false, true);
+  exiger('l\'avantage numérique : le tir de la pointe à travers l\'écran', pp > 5 && ppSans === 0 && egal === 0, `sur 40 décisions, à 12,5 m : ${pp} tirs en avantage avec l'écran, ${ppSans} sans écran, ${egal} à forces égales`);
+  // Le porteur dans sa zone, deux adversaires devant : en désavantage, il la dégage au fond ; à forces égales, non.
+  const degage = desavantage => {
+    const e = enScene('degage', null, 18);
+    if (desavantage) aQuatre(e, 'A');
+    const A = surGlace(e, 'A'), porteur = A.find(q => q.poste === 'D');
+    for (const q of A) if (q !== porteur) Object.assign(q, { x: -10, y: -8 + A.indexOf(q) * 4 });
+    surGlace(e, 'B').forEach((q, i) => Object.assign(q, { x: -9 + i, y: 6 - i * 3 }));
+    Object.assign(porteur, { x: -15, y: 3, cap: 0, vx: 0, vy: 0 });
+    const lm = lame(porteur); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 0, vy: 0, porteur: porteur.id });
+    const d = decisionIA(e, porteur);
+    return !!d.tir && d.x > 0.5;
+  };
+  exiger('… le désavantage : de sa zone, le porteur la dégage au fond', degage(true) && !degage(false), `en désavantage, ${degage(true) ? 'il la dégage' : 'il la garde'} ; à forces égales, ${degage(false) ? 'il la dégage' : 'il la garde'}`);
+  // L'autre club la porte dans sa zone : à quatre, pas d'échec avant, on l'attend en deçà de notre bleue ; à cinq, on presse.
+  const attend = desavantage => {
+    const e = enScene('attend', null, 18);
+    if (desavantage) aQuatre(e, 'A');
+    const B = surGlace(e, 'B'), porteur = B.find(q => q.poste === 'D');
+    Object.assign(porteur, { x: 15, y: 3, cap: Math.PI, vx: 0, vy: 0 });
+    const lm = lame(porteur); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 0, vy: 0, porteur: porteur.id });
+    jouer(e, { [porteur.id]: { x: 0, y: 0 } }, 3.5);
+    return Math.max(...surGlace(e, 'A').map(q => q.x));
+  };
+  const xPK = attend(true), xEgal = attend(false);
+  exiger('… et sans la rondelle, pas d\'échec avant : on attend en deçà de sa bleue', xPK < 0 && xEgal > BLEUE, `le plus avancé des siens après 3,5 s : à ${xPK.toFixed(1)} m à quatre, à ${xEgal.toFixed(1)} m à cinq (la bleue à ${BLEUE} m)`);
 }
 {
   // LE REVERS ET LA MAIN : le même tir du poignet, du même point, le même cap, le filet à 86° à sa gauche : un droitier le

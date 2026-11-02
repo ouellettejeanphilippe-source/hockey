@@ -292,8 +292,9 @@ if (!isMainThread) {
     exiger('un cran d\'exigence monte la ligue de ETAPES_PAR_CRAN niveaux, le prestige d\'un', niveauDeLigue(2, 0) === 2 && niveauDeLigue(4, 3) === 4 + 3 * ETAPES_PAR_CRAN && niveauDeLigue(0, 0) === 0,
       `Dynastie, cran 3 : niveau ${niveauDeLigue(4, 3)}`);
     // La deuxième run est plus dure (31 oct.) : une étape de plus dès la deuxième, la même à la dixième — une marche, pas une pente.
-    exiger('la première run joue sa ligue nue ; dès la deuxième, une étape d\'édition de plus, la même à toutes les suivantes',
-      etapeDeLaRun(1) === 0 && etapeDeLaRun(2) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(10) === ETAPE_APRES_LA_PREMIERE && ligueDe(0, etapeDeLaRun(2)).etape === ETAPE_APRES_LA_PREMIERE && ligueDe(3, etapeDeLaRun(2)).etape === 1 + ETAPE_APRES_LA_PREMIERE,
+    // Lot 5 (nov. 2026) : seule la première saison de la première run joue la ligue nue ; sa deuxième saison porte la marche.
+    exiger('la première saison de la première run joue sa ligue nue ; dès sa deuxième saison et dès la deuxième run, une étape d\'édition de plus, la même ensuite',
+      etapeDeLaRun(1) === 0 && etapeDeLaRun(1, 2) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(2, 1) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(2) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(10) === ETAPE_APRES_LA_PREMIERE && ligueDe(0, etapeDeLaRun(2)).etape === ETAPE_APRES_LA_PREMIERE && ligueDe(3, etapeDeLaRun(2)).etape === 1 + ETAPE_APRES_LA_PREMIERE,
       `run 2 au niveau 0 : étape ${ligueDe(0, etapeDeLaRun(2)).etape}`);
     const club = { roster: Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { n: `j${i}`, v: n - i, _carte: { rar: 'rare' } }])) };
     habillerLaLigue([club], 0, p => p.v);
