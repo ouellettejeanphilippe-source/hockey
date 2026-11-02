@@ -113,6 +113,9 @@ export const BATON = {
   ecartHauteur: 0.6,         // l'écart-type de la montée, m/s (plus à pleine charge) : par-dessus la barre, ça arrive
   soulevee: 2.8,             // la passe soulevée (saucer) : sa montée, m/s, quand un bâton barre la ligne (40 cm au plus haut, par-dessus une lame)
   deviation: 0.12,           // l'écart d'une déviation volontaire vers le filet, rad
+  // LA DÉVIATION MALGRÉ SOI (2 nov. 2026) : un tir qui frappe une lame posée à moins de `devant` m du filet visé ne
+  // meurt pas comme une passe bloquée : il change de route, de `devie` rad (écart-type), et garde `garde` de sa vitesse.
+  devant: 5, devie: 0.35, garde: 0.8,
 };
 export const GARDIEN = {
   reaction: 0.17, vMax: 5, accel: 14, profondeur: 0.3,   // `reaction` : le retard d'un gardien de cote 10 (sa cote Arrêts l'ôte ou l'ajoute)
@@ -124,6 +127,10 @@ export const GARDIEN = {
   mitaine: 0.75,     // un tir haut arrêté se gèle aussi souvent que ça : la mitaine l'attrape
   coin: [0.75, 1.3], // le rebond contrôlé part de côté, vers le coin, à cet angle de l'axe du filet, rad ; l'autre sort devant
   demiCercle: 1.8,   // le demi-cercle : une rondelle libre plus lente que `lente` dedans, il va la couvrir, s'il y est le premier
+  // L'ÉCRAN (2 nov. 2026) : un patineur, de l'une ou l'autre équipe, sur la ligne de la rondelle au gardien (à `ecranLarge`
+  // m de plus que son corps), entre les deux et à `ecranPres` m au moins du gardien, la rondelle à `ecranLoin` m au moins :
+  // le gardien la voit `ecran` s plus tard encore, et ce qu'il a vu en dernier reste devant ses yeux le temps de la retrouver.
+  ecran: 0.12, ecranLarge: 0.25, ecranPres: 0.7, ecranLoin: 3,
   lente: 3,          // m/s : plus lente que ça, la rondelle qui touche le gardien se gèle
   harpon: { portee: 1.7, repos: 1.2, chance: 0.12, parArret: 0.012 },   // le harpon du gardien sur le porteur qui arrive seul devant lui
 };
@@ -608,6 +615,35 @@ function toucher(etat, s, lance) {
   if (mien.length > 4) mien.shift();
 }
 
+/*
+ * LA PRISE QUI SERAIT HORS-JEU (2 nov. 2026 ; mesuré : 4,3 hors-jeu par match de 6 min, l'IA contre l'IA, la plupart
+ * dans les mêlées à la bleue). La lame prend d'elle-même la rondelle qui passe à sa portée. Le bras levé pour son équipe,
+ * un joueur dans la zone lève son bâton : il ne la prend que s'il la VISE, le bâton poussé vers elle (`VISE.appui` au
+ * moins, à `VISE.cone` rad près). La rondelle hors de la zone, un coéquipier dedans, la lame ne la prend pas si la prendre
+ * la ramènerait dans la zone, hors-jeu : la lame encore dedans, ou la rondelle trop vite pour s'arrêter avant la ligne.
+ * Pour toi comme pour l'IA ; le corps, lui, la dévie toujours.
+ */
+const VISE = { appui: 0.5, cone: 1.0 };
+function viseLaRondelle(s, e, R) {
+  const m = e ? hyp(e.x || 0, e.y || 0) : 0;
+  if (m < VISE.appui) return false;
+  const dx = R.x - s.x, dy = R.y - s.y, d = hyp(dx, dy) || 1e-9;
+  return (e.x * dx + e.y * dy) / (m * d) > Math.cos(VISE.cone);
+}
+/* Toucher la rondelle, pour `s`, serait-il un hors-jeu ? 'differe' : le bras levé ; 'ramene' : sa lame la ramènerait dans la zone. */
+function prendraitHorsJeu(etat, s) {
+  const M = etat.match;
+  if (!M || !etat.regles.horsjeu || M.ronde) return null;
+  const a = etat.equipes[s.equipe].attaque, R = etat.rondelle;
+  if (M.horsJeuDiffere === s.equipe) return R.x * a > BLEUE ? 'differe' : null;
+  if (R.x * a > BLEUE) return null;
+  // Où la rondelle s'arrêtera sur sa lame : la lame, plus ce qu'elle glisse encore le temps que la lame l'amortisse.
+  const lm = lame(s), vx = R.vx - s.vx, vy = R.vy - s.vy, vr = hyp(vx, vy);
+  const fin = lm.x + vx * vr / (2 * BATON.maniement);
+  if (Math.max(lm.x * a, fin * a) <= BLEUE) return null;
+  return etat.patineurs.some(p => p.surGlace && p !== s && p.equipe === s.equipe && p.x * a > BLEUE + 0.25) ? 'ramene' : null;
+}
+
 function rondelle(etat, entrees, ev) {
   const R = etat.rondelle;
   const porteur = R.porteur ? parId(etat, R.porteur) : null;
@@ -675,6 +711,12 @@ function rondelle(etat, entrees, ev) {
     const passeAMoi = R.passeDe && R.passeDe !== s.id && parId(etat, R.passeDe) && parId(etat, R.passeDe).equipe === s.equipe;
     const passePourMoi = R.passeVers === s.id;
     if (dl < 1.0 || (dl < PATIN.portee && devant && (vrel < 6 || passeAMoi || passePourMoi))) {
+      // Le bâton levé : la toucher serait un hors-jeu, et il ne la vise pas ; elle passe (le corps la dévie encore).
+      const hj = prendraitHorsJeu(etat, s);
+      if (hj === 'ramene' || (hj === 'differe' && !viseLaRondelle(s, entrees[s.id], R))) {
+        if (R.z < 1.0 && contreCercle(R, RONDELLE.rayon, s.x, s.y, s.rayon, 0.3) > 0) bloquer(etat, s, vol, ev);
+        continue;
+      }
       if (vrel <= BATON.reception * (passeAMoi ? 1.5 : 1) && R.z < 0.35) {
         R.porteur = s.id; R.z = 0; R.vz = 0;
         toucher(etat, s, false);
@@ -711,7 +753,18 @@ function rondelle(etat, entrees, ev) {
         R.vx = Math.cos(vise) * vt; R.vy = Math.sin(vise) * vt; R.vz = Math.max(0, R.vz) * 0.5 + 0.5;
         toucher(etat, s, true);
         s.lachee = 0.2;
-        ev.push({ type: 'deviation', qui: s.id });
+        ev.push({ type: 'deviation', qui: s.id, voulue: true });
+        return;
+      }
+      // UN TIR QUI FRAPPE UNE LAME DEVANT LE FILET change de route au lieu de mourir : la déviation malgré soi. Celle d'un
+      // coéquipier lui revient (il l'a touchée en dernier) ; celle d'un adversaire reste au tireur.
+      const filetVise = d && etat.equipes[d.equipe] ? etat.equipes[d.equipe].attaque * LIGNE_BUT : null;
+      if (vol && d && d.tir && d.id !== s.id && R.z < 0.6 && filetVise != null && hyp(lm.x - filetVise, lm.y) < BATON.devant) {
+        const vt = hyp(R.vx, R.vy) * BATON.garde, ang = Math.atan2(R.vy, R.vx) + gauss(etat.de) * BATON.devie;
+        R.vx = Math.cos(ang) * vt; R.vy = Math.sin(ang) * vt; R.vz = Math.max(0, R.vz) * 0.5 + etat.de() * 1.5;
+        if (d.equipe === s.equipe) toucher(etat, s, true); else s.touche = etat.t;
+        s.lachee = 0.2;
+        ev.push({ type: 'deviation', qui: s.id, voulue: false });
         return;
       }
       // La lame sur la glace la dévie si elle rase le sol (une passe soulevée passe par-dessus) ; un lancer adverse, c'est un bloc.
@@ -737,11 +790,15 @@ function bloquer(etat, s, vol, ev) {
 
 /* Un tir compté : les tirs du match, le dernier tir, l'événement. */
 function tirer(etat, s, ev, part, uneTemps = false) {
+  // Lancée de hors de la zone d'attaque, c'est un lancer au fond (ou un dégagement) : pas un tir au but.
+  const fond = etat.rondelle.dernier.x * etat.equipes[s.equipe].attaque <= BLEUE;
+  etat.dernierTir = hyp(etat.rondelle.vx, etat.rondelle.vy);
+  const Gd = gardienDe(etat, autre(s.equipe));
+  ev.push({ type: 'tir', v: etat.dernierTir, charge: part, qui: s.id, uneTemps, fond, ecran: !fond && !Gd.retire && !!masque(etat, Gd) });
+  if (fond) return;
   etat.compte.tirs++;
   etat.rondelle.dernier.tir = true;   // un lancer au but, pas une passe : ce qu'un bloc arrête
   if (etat.match) { etat.match.tirs[s.equipe]++; s.stats.tirs++; }
-  etat.dernierTir = hyp(etat.rondelle.vx, etat.rondelle.vy);
-  ev.push({ type: 'tir', v: etat.dernierTir, charge: part, qui: s.id, uneTemps });
 }
 
 /* Le but : la rondelle entière passe la ligne, entre les poteaux, par devant — portée ou lancée. */
@@ -817,7 +874,7 @@ function degagement(etat, avantX, ev) {
  * continue — il tombe si tous les attaquants ressortent ou si la rondelle ressort, il siffle si un attaquant la
  * touche dans la zone pendant ce temps.
  */
-function horsJeu(etat, avantX, ev) {
+function horsJeu(etat, avantX, ev, avant = { dernier: etat.rondelle.dernier, porteur: etat.rondelle.porteur }) {
   if (!etat.regles.horsjeu || !etat.rondelle.dernier) return false;
   const R = etat.rondelle, M = etat.match;
   const siffler = (eq, fautif, genre) => {
@@ -836,13 +893,17 @@ function horsJeu(etat, avantX, ev) {
     if (touche) return siffler(eq, dedans[0], 'touche');
     return false;
   }
+  // Qui l'a fait entrer : portée, son porteur ; libre au début du pas, le dernier à l'avoir touchée AVANT la ligne (la
+  // rondelle qu'un adversaire envoie dans la zone et qu'un attaquant cueille au même instant n'est pas un hors-jeu).
+  const portee = !!R.porteur && R.porteur === avant.porteur;
+  const d = portee ? R.dernier : avant.dernier;
   for (const eq of ['A', 'B']) {
     const s = etat.equipes[eq].attaque;
     const entre = R.x * s > BLEUE && avantX * s <= BLEUE;
-    if (!entre || R.dernier.equipe !== eq) continue;
-    const fautif = etat.patineurs.find(p => p.surGlace && p.equipe === eq && p.id !== R.porteur && p.x * s > BLEUE + 0.25);
+    if (!entre || !d || d.equipe !== eq) continue;
+    const fautif = etat.patineurs.find(p => p.surGlace && p.equipe === eq && !(portee && p.id === R.porteur) && p.x * s > BLEUE + 0.25);
     if (!fautif) continue;
-    if (R.porteur && parId(etat, R.porteur).equipe === eq) return siffler(eq, fautif, 'porte');
+    if (portee && parId(etat, R.porteur).equipe === eq) return siffler(eq, fautif, 'porte');
     M.horsJeuDiffere = eq;
     ev.push({ type: 'horsjeuDiffere', equipe: eq, qui: fautif.id });
   }
@@ -861,6 +922,8 @@ function viseeAssistee(etat, s, vise, baton) {
   const sg = etat.equipes[s.equipe].attaque;
   const xb = sg * LIGNE_BUT;
   if ((xb - lm.x) * sg <= 0.5) return vise;   // on l'a déjà dépassé
+  // HORS DE LA ZONE D'ATTAQUE, le tir part où pointe le bâton : le lancer au fond, le dégagement le long de la bande.
+  if (lm.x * sg <= BLEUE) return vise;
   const dx = xb - lm.x, dy = 0 - lm.y, d = hyp(dx, dy) || 1e-9;
   // JP, 1er nov. : *tir toujours vers but* — le tir part toujours vers le filet, le bâton choisit le coin.
   const travers = baton ? clamp((-baton.x * dy + baton.y * dx) / d, -1, 1) : 0;
@@ -952,9 +1015,13 @@ function passer(etat, s, baton, vise, ev) {
 function gardien(etat, Gd, ev) {
   const R = etat.rondelle, s = Gd.sens;
   if (Gd.retire) return;   // au banc : le filet est désert
-  const n = Math.round(Gd.p.reaction / PAS);
+  Gd.masque = masque(etat, Gd);
+  const n = Math.round((Gd.p.reaction + (Gd.masque ? GARDIEN.ecran : 0)) / PAS);
   const vueDuJour = { x: R.x, y: R.y, vx: R.vx, vy: R.vy, libre: !R.porteur };
-  while (Gd.memoire.length < n) Gd.memoire.push(vueDuJour);
+  // Masqué, il garde la dernière image vue (la mémoire s'allonge par le bout le plus vieux) ; démasqué, il la retrouve
+  // à double vitesse, pas d'un coup : il lui faut le temps de la retrouver.
+  while (Gd.memoire.length < n) Gd.memoire.unshift(Gd.memoire[0] || vueDuJour);
+  if (Gd.memoire.length > n) Gd.memoire.shift();
   Gd.memoire.push(vueDuJour);
   Gd.memoire.shift();
   const vu = Gd.memoire[0];
@@ -1012,6 +1079,18 @@ function gardien(etat, Gd, ev) {
     R.vx = Math.cos(ang) * vt; R.vy = Math.sin(ang) * vt; R.vz = 0.5; R.z = Math.min(R.z, 0.3);
     ev.push({ type: 'arret', gele: false, equipe: Gd.equipe, haut: R.z > 0.6, cote: Math.sign((R.y - Gd.y) * s || 1) });
   }
+}
+/* L'écran : le patineur (pas le porteur) qui se tient sur la ligne de la rondelle au gardien, entre les deux. */
+function masque(etat, Gd) {
+  const R = etat.rondelle, dx = Gd.x - R.x, dy = Gd.y - R.y, d2 = dx * dx + dy * dy, d = Math.sqrt(d2);
+  if (d < GARDIEN.ecranLoin) return null;
+  for (const p of etat.patineurs) {
+    if (!p.surGlace || p.id === R.porteur || p.auSol > 0) continue;
+    const t = ((p.x - R.x) * dx + (p.y - R.y) * dy) / d2;
+    if (t <= 0 || (1 - t) * d < GARDIEN.ecranPres) continue;
+    if (hyp(p.x - (R.x + t * dx), p.y - (R.y + t * dy)) < p.rayon + GARDIEN.ecranLarge) return p.id;
+  }
+  return null;
 }
 /* La rondelle à couvrir : libre, lente, au sol, dans son demi-cercle, et aucun adversaire n'y est avant lui. */
 function rondelleACouvrir(etat, Gd, vu) {
@@ -1432,9 +1511,9 @@ function pas(etat, entrees, ev) {
   }
   collisions(etat, ev);
   for (const s of etat.patineurs) if (s.surGlace) { bander(s, s.rayon, PATIN.bande); patineurContreFilet(s); }
-  const avantX = etat.rondelle.x;
+  const avantX = etat.rondelle.x, avant = { dernier: etat.rondelle.dernier, porteur: etat.rondelle.porteur };
   rondelle(etat, toutes, ev);
-  if (M && !etat.arret && !M.ronde) horsJeu(etat, avantX, ev);
+  if (M && !etat.arret && !M.ronde) horsJeu(etat, avantX, ev, avant);
   for (const Gd of etat.gardiens) gardien(etat, Gd, ev);
   for (const s of etat.patineurs) {
     const e = toutes[s.id];
@@ -1516,6 +1595,8 @@ export function reglesDeLaGlace() {
     `Le hors-jeu se siffle à l'entrée de la zone quand on y porte la rondelle ; lancée ou passée dedans, il est différé, levé si les attaquants ressortent, sifflé s'ils la touchent ; le dégagement refusé quand la rondelle lancée de sa moitié passe la ligne de but sans être touchée (permis en désavantage) ; Trois périodes, puis ${MATCH.prolongation / 60} minutes à ${MATCH.surglaceOT} contre ${MATCH.surglaceOT}, puis ${MATCH.rondesFusillade} tirs de barrage et la mort subite ; en séries, la prolongation à cinq, autant qu'il en faut.`,
     `La mise en jeu : les deux centres face à face au point, personne d'autre dans le cercle (${dec(POINT.r, 2)} m de rayon), les ailiers sur ses traits, les défenseurs de l'attaque à ${dec(MEJ.bleue)} m en dedans de la bleue ; la rondelle tombe après ${dec(MEJ.chute)} s. Chaque centre vaut sa cote Jeu sur 20 × ${dec(MEJ.jeu)}, plus un dé × ${dec(MEJ.hasard)}, plus le bouton : +${dec(MEJ.timing, 2)} à la chute pile, moins à mesure qu'on s'en éloigne, rien à ${Math.round(MEJ.fenetre * 1000)} ms avant ou après ; seul le premier appui compte. Gagnée par plus de ${dec(MEJ.nette, 2)}, la rondelle part vers le coéquipier que le bâton pointe (au neutre, droit derrière : le défenseur) ; plus serrée, elle reste libre au point, à qui la prend.`,
     `La rondelle a une hauteur : le poignet monte à ${dec(BATON.hauteurMin)} m/s, le frappé chargé à ${dec(BATON.hauteurMax)} m/s (±${dec(BATON.ecartHauteur)}), la gravité la ramène, le sol lui rend ${Math.round(RONDELLE.rebondSol * 100)} % ; la barre est à ${dec(FILET.haut, 2)} m, la vitre à ${dec(RONDELLE.vitre)} m (par-dessus, hors jeu) ; une passe dont la ligne est barrée se soulève à ${dec(BATON.soulevee)} m/s ; au sol seulement, elle se prend. Le gardien laisse passer ${Math.round(GARDIEN.trous.haut * 100)} % des tirs dans le coin du haut, ${Math.round(GARDIEN.trous.cinq * 100)} % entre les jambières, ${Math.round(GARDIEN.trous.corps * 100)} % sur le corps.`,
+    `Le bras levé (le hors-jeu différé), un attaquant dans la zone ne prend la rondelle que s'il la vise : le bâton poussé vers elle, à ${Math.round(VISE.appui * 100)} % au moins, à ${Math.round(VISE.cone * 57.3)}° près. La rondelle hors de la zone et un coéquipier dedans, ta lame ne la ramène pas dans la zone : elle la prend dehors. Hors de la zone d'attaque, le tir part où pointe le bâton : le lancer au fond, le dégagement le long de la bande.`,
+    `Un patineur, de l'une ou l'autre équipe, sur la ligne de la rondelle au gardien (à ${dec(GARDIEN.ecranPres)} m de lui ou plus, la rondelle à ${GARDIEN.ecranLoin} m ou plus) fait l'écran : le gardien la voit ${Math.round(GARDIEN.ecran * 1000)} ms plus tard encore. Un tir qui frappe une lame à moins de ${BATON.devant} m du filet dévie (±${Math.round(BATON.devie * 57.3)}°, écart-type) et garde ${Math.round(BATON.garde * 100)} % de sa vitesse.`,
     `À reculons, la pointe et la poussée valent ${Math.round(PATIN.recul * 100)} % ; le turbo les monte à ${Math.round(PATIN.sprint * 100)} % et use les jambes ${PATIN.sprintJambes} fois plus vite ; en tournant à vitesse moyenne, les croisés poussent ${Math.round((PATIN.croise - 1) * 100)} % plus fort ; couper sec coûte ${Math.round(PATIN.virage * 100)} % de vitesse par radian ; un patineur plus léger que ${PATIN.masse} kg tourne un peu plus court (${Math.round(PATIN.agilite * 100)} % au plus), un plus lourd frappe plus fort sans patiner moins vite. Un harpon raté par-derrière sur le porteur l'accroche une fois sur ${Math.round(1 / HARPON.trebuche)} : deux minutes, ou un tir de punition sur une échappée. Le gardien se retire pour un sixième attaquant (l'IA, sous ${MATCH.retraitGardien} s, à un ou deux buts) ; une charge contre la bande pèse ${dec(CHUTE.bande)} fois ; une punition ne tombe que sur une charge voulue, le bouton pressé.`,
   ];
 }
