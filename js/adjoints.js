@@ -57,7 +57,9 @@ export const ADJOINTS = {
     effet: { volume: 1.18, finition: 0.9 }, adv: { volume: 1.06 } },
   lunette: { ico: '🔭', nom: 'Le tireur d\'élite', style: 'Choisir ses tirs', voie: 'rapaces',
     dit: 'Un bon tir vaut trois mauvais. On attend l\'ouverture, et on la prend.',
-    effet: { finition: 1.12, volume: 0.9 } },
+    // V23 : sa précision bute sur le plafond du jeu (`FINITION_MAX`) chez un club qui tire déjà bien ; son style se voit à
+    // ses tirs choisis, −12 % (−10 % avant), jusqu'au Phénomène qui en paie moins.
+    effet: { finition: 1.15, volume: 0.88 } },
   mur: { ico: '🧱', nom: 'Le mur', style: 'Fermer la zone', voie: 'tortue',
     dit: 'Personne ne traverse la ligne bleue debout. Le reste, c\'est du détail.',
     effet: { volume: 0.9 }, adv: { volume: 0.86 } },
@@ -69,14 +71,77 @@ export const ADJOINTS = {
     effet: { blessure: 0.65, energie: 0.85, volume: 0.95 } },
   moine: { ico: '🧘', nom: 'Le moine', style: 'La discipline', voie: 'choeur',
     dit: 'Les bâtons sur la glace, la bouche fermée. L\'arbitre ne nous verra pas de la soirée.',
-    effet: { discipline: 0.7, robustesse: -2, volume: 0.94 } },
+    // V23 : il perdait au Pilier (−0,4 V) et piégeait au Soutien (−1,1 V) : ses mises en échec perdues, −1,5 (−2 avant).
+    effet: { discipline: 0.7, robustesse: -1.5, volume: 0.94 } },
   rouleur: { ico: '🔁', nom: 'Le rouleur', style: 'Quatre trios', voie: 'profondeur',
     dit: 'Tout le monde joue, tout le monde est frais en troisième. C\'est là que ça se gagne.',
     effet: { F: [0.82, 1, 1.1, 1.2], blessure: 0.7 }, adv: { volume: 0.92 } },
   vedettiste: { ico: '🎤', nom: 'Le vedettiste', style: 'Le premier trio', voie: 'etoiles',
     dit: 'On paie des vedettes pour qu\'elles jouent. Mets-les sur la glace et laisse-les faire.',
     effet: { F: [1.2, 1, 0.92, 0.84], finition: 1.03, blessure: 1.3 }, adv: { volume: 1.08 } },
+  /*
+   * L'ANCIEN ARBITRE (V23 ; JP, 2 nov. : *a coach or assistant that was a ref, and pay them*). Hors des huit voies : il
+   * ne rejoint aucun coach, et il se paie (`salaire`, en jetons par match en poste, en plus de celui de son niveau).
+   */
+  arbitre: { ico: '🦓', nom: 'L\'ancien arbitre', style: 'Il connaît les arbitres', voie: null, salaire: 2,
+    dit: 'J\'ai sifflé vingt ans dans cette ligue. Je sais ce qu\'ils regardent, et ce qu\'ils ne regardent pas.',
+    effet: { discipline: 0.85 }, adv: { discipline: 1.1 } },
 };
+
+/*
+ * LE NIVEAU D'UN ADJOINT (V23, docs/refonte-v23.md § C ; JP, 2 nov. : *les coachs et adjoints doivent être comme les
+ * joueurs, de pas très bon à excellents*). Les mots des joueurs (js/niveaux.js) : Soutien, Régulier, Pilier, ★ Étoile,
+ * ★ Phénomène. Son style ne change pas — ses canaux, ce qu'il donne, ce qu'il coûte — : son niveau règle la FORCE de ce
+ * qu'il donne (`FORCE_NIV`) et le PRIX de ce qu'il coûte (`PRIX_NIV`, qui bouge moins que la force : un style reste un style, son prix se voit encore au Phénomène, et le Soutien est faible sans être un piège), écart par écart au match ordinaire. Un Phénomène
+ * donne plus et coûte moins ; un Soutien, l'inverse. Le Pilier, c'est la table telle quelle : une carte d'avant la V23,
+ * sans niveau, en est un (`NIV_DEFAUT`), et une vieille partie se rejoue au but près (`check_sauvegardes`). Sa borne
+ * suit son niveau comme une carte suit sa rareté (`RARETE_NIV`, `BORNE_NIV` : ±1 V à ±4 V) — `check_pouvoirs`.
+ */
+export const NOMS_NIV = ['Soutien', 'Régulier', 'Pilier', '★ Étoile', '★ Phénomène'];
+export const FORCE_NIV = [0.7, 0.85, 1, 1.15, 1.3];
+const PRIX_NIV = [1.05, 1.025, 1, 0.9, 0.8];
+export const RARETE_NIV = ['commune', 'commune', 'peu', 'rare', 'legendaire'];
+export const BORNE_NIV = [1, 1, 1.5, 2.5, 4];
+export const NIV_DEFAUT = 3;
+/*
+ * LE SALAIRE (V23 ; JP : *pay them*) : un adjoint en poste se paie, en jetons, chaque match — plus il est bon, plus il
+ * coûte (`SALAIRE_NIV` : rien au Soutien et au Régulier, 1, 2 puis 3 🪙 au Phénomène), plus le sien (`salaire`, l'ancien
+ * arbitre). Une carte d'avant la V23, sans niveau, ne coûte rien. La feuille le garde (`feuille.adjoints[].salaire`), la
+ * caisse le déduit (js/rogue.js `salairesDesAdjoints`) : le poster est un choix d'argent autant que de hockey.
+ */
+export const SALAIRE_NIV = [0, 0, 1, 2, 3];
+export const salaireDe = c => (c && ADJOINTS[c.cle] ? (c.niv ? SALAIRE_NIV[nivDe(c) - 1] : 0) + (ADJOINTS[c.cle].salaire || 0) : 0);
+export const nivDe = c => Math.min(5, Math.max(1, Math.round(Number(c && c.niv) || NIV_DEFAUT)));
+/* Ce qu'un canal fait de bon de ton côté (`effet`) ou de l'adversaire (`adv`) : plus de tirs à toi, moins des leurs… */
+const BON_SI_HAUT = { effet: new Set(['volume', 'finition', 'robustesse', 'F']), adv: new Set(['discipline']) };
+const echelle = (v, bon, niv) => 1 + (v - 1) * (bon ? FORCE_NIV : PRIX_NIV)[niv - 1];
+const canalAuNiveau = (cote, k, v, niv) => {
+  if (Array.isArray(v)) return v.map(x => echelle(x, x > 1, niv));
+  if (k === 'robustesse') return v * (v > 0 ? FORCE_NIV : PRIX_NIV)[niv - 1];
+  const haut = BON_SI_HAUT[cote].has(k);
+  return echelle(v, haut ? v > 1 : v < 1, niv);
+};
+/* Le style d'un adjoint à son niveau : `{ effet, adv }`, les canaux du moteur. Au Pilier, la table telle quelle. */
+export function styleAuNiveau(cle, niv = NIV_DEFAUT) {
+  const A = ADJOINTS[cle];
+  if (!A) return { effet: null, adv: null };
+  const n = nivDe({ niv });
+  const passe = (cote, o) => (o ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, n === NIV_DEFAUT ? v : canalAuNiveau(cote, k, v, n)])) : null);
+  return { effet: passe('effet', A.effet), adv: passe('adv', A.adv) };
+}
+/*
+ * LE NIVEAU D'UNE OFFRE, tiré de la graine (pur) : la plupart Régulier ou Pilier, l'Étoile une fois sur cinq, le
+ * Phénomène rare. Un moment plus fort (un gros match gagné, le verdict du proprio : `fort`) monte d'un cran, jusqu'au
+ * Phénomène. `cle` : le moment, `k` : l'adjoint.
+ */
+const TIRAGE_NIV = [[0.12, 1], [0.45, 2], [0.8, 3], [0.95, 4], [1, 5]];
+/* Les moments forts : le butin d'un gros match gagné (`r…`) et le verdict du proprio (`v…`) ; les paliers, les talents et les histoires, non. */
+export const momentFort = cle => /^[rv]\d/.test(String(cle));
+export function niveauOffert(graine, cle, k, fort = false) {
+  const u = hache(String(graine), 'niveau', cle, k);
+  const n = TIRAGE_NIV.find(([s]) => u < s)[1];
+  return Math.min(5, n + (fort ? 1 : 0));
+}
 
 /* Un canal, en mots, de ton côté : ce qu'il dit et s'il aide (`bon`). */
 const pct = v => `${v > 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)} %`;
@@ -92,10 +157,11 @@ const MOTS = {
 const MOTS_ADV = {
   volume: v => ({ txt: `Leurs tirs ${pct(v)}`, bon: v < 1 }),
   finition: v => ({ txt: `Leur précision ${pct(v)}`, bon: v < 1 }),
+  discipline: v => ({ txt: `Leurs punitions ${pct(v)}`, bon: v > 1 }),
 };
-/* CE QU'UN ADJOINT DIT : ses lignes vertes d'abord, puis ses rouges, chacune en vraies stats. */
-export function lignesDeLAdjoint(cle) {
-  const A = ADJOINTS[cle];
+/* CE QU'UN ADJOINT DIT, à son niveau : ses lignes vertes d'abord, puis ses rouges, chacune en vraies stats. */
+export function lignesDeLAdjoint(cle, niv = null) {
+  const A = ADJOINTS[cle] && styleAuNiveau(cle, niv || NIV_DEFAUT);
   if (!A) return [];
   const out = [];
   for (const [k, v] of Object.entries(A.effet || {})) {
@@ -105,6 +171,9 @@ export function lignesDeLAdjoint(cle) {
     } else if (MOTS[k]) out.push(MOTS[k](v));
   }
   for (const [k, v] of Object.entries(A.adv || {})) if (MOTS_ADV[k]) out.push(MOTS_ADV[k](v));
+  // V23 : son salaire est un prix comme un autre (une carte sans niveau ne paie que le sien).
+  const paye = salaireDe({ cle, niv });
+  if (paye) out.push({ txt: `Salaire : ${paye} 🪙 par match en poste`, bon: false });
   return [...out.filter(x => x.bon), ...out.filter(x => !x.bon)];
 }
 
@@ -143,12 +212,12 @@ export function quiPartDeLaMain(perso, games) {
   const main = mainDe(perso);
   return main.length >= MAIN_MAX ? (main.find(c => !enPoste(c, games, perso.cle)) || {}).cle || null : null;
 }
-/* Embaucher : la carte entre dans la main, neuve ; pleine, la plus ancienne hors poste part. Rend la main. */
-export function embaucher(perso, cle, games) {
+/* Embaucher : la carte entre dans la main, neuve, à son niveau (`niv`, le Pilier sans lui) ; pleine, la plus ancienne hors poste part. Rend la main. */
+export function embaucher(perso, cle, games, niv = null) {
   const main = mainDe(perso);
   if (!ADJOINTS[cle] || main.some(c => c.cle === cle)) return main;
   const part = quiPartDeLaMain(perso, games);
-  return [...main.filter(c => c.cle !== part), { cle, depuis: null, fin: null, sejours: [] }];
+  return [...main.filter(c => c.cle !== part), { cle, ...(niv ? { niv: nivDe({ niv }) } : {}), depuis: null, fin: null, sejours: [] }];
 }
 /* Poster : une carte prête, une case libre ; sinon la main ne bouge pas. Rend la main. */
 export function poster(perso, cle, games, niveau, fiche0 = null) {
@@ -167,7 +236,7 @@ export function finirLesSejours(perso, games, fiche) {
     const f0 = c.fiche0 || { W: 0, L: 0, OTL: 0 };
     const s = { debut: c.depuis, fin: games, v: (fiche.W || 0) - f0.W, d: (fiche.L || 0) - f0.L, dp: (fiche.OTL || 0) - f0.OTL };
     finis.push({ cle: c.cle, ...s });
-    return { cle: c.cle, depuis: null, fin: games, sejours: [...(c.sejours || []), s] };
+    return { cle: c.cle, ...(c.niv ? { niv: c.niv } : {}), depuis: null, fin: games, sejours: [...(c.sejours || []), s] };
   });
   return { main, finis };
 }

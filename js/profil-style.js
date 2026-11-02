@@ -21,6 +21,10 @@
 import { tirsTotal } from './sim.js';
 import { CARTES_MATCH } from './combat.js';
 import { virgule } from './util.js';
+import { POUVOIRS, NIVEAU_DES_POUVOIRS, niveauDuPerso } from './pouvoirs.js';
+import { ADJOINTS, NOMS_NIV, nivDe } from './adjoints.js';
+import { COACHS, REGLES_DU_COACH } from './coachs.js';
+import { chiffresDuSoirDe } from './rogue.js';
 
 /** Combien de derniers matchs le profil lit. */
 export const N_PROFIL = 10;
@@ -130,6 +134,41 @@ export function buildDuSoir(team, jour, feuille = null) {
   const unique = xs => [...new Set(xs)];
   const jouees = ((feuille && feuille.cartes && feuille.cartes.jouees) || []).filter(c => CARTES_MATCH[c]).map(c => nomIco(CARTES_MATCH[c]));
   return { pouvoirs, effets: unique(effets), jouees };
+}
+
+/**
+ * TON BANC CE SOIR (V23, docs/refonte-v23.md § A) : tes pouvoirs ouverts et tes adjoints en poste, chacun avec ce qu'il
+ * a fait ce soir-là. Un pouvoir « joue » s'il est à la feuille (`feuille.pouvoirs`), avec ses périodes ; un adjoint en
+ * poste joue son style chaque soir (`feuille.adjoints`), avec ce qui lui reste. Les pouvoirs ouverts qui n'ont pas joué
+ * restent au banc, éteints, leur condition à lire. Rien n'est deviné : la feuille fait foi, le niveau du coach ne sert
+ * qu'à nommer les pouvoirs éteints.
+ * La règle du coach vient d'abord (V23), allumée le soir où elle paie.
+ * Rend [{ genre: 'regle'|'pouvoir'|'adjoint', ico, nom, dit, joue, periodes: [k…], reste, salaire, jetons }].
+ */
+export function banc(team, feuille) {
+  if (!team || !feuille) return [];
+  const cote = feuille.B === team ? 'B' : 'A';
+  const perso = team.perso;
+  const notes = (feuille.pouvoirs || []).filter(x => x.cote === cote);
+  const arbre = (perso && POUVOIRS[perso.cle]) || [];
+  const niveau = perso ? niveauDuPerso({ ...perso, xpSaison: team.xpSaison || 0 }) : 0;
+  const ouverts = new Set(notes.map(x => x.p));
+  arbre.forEach((_, p) => { if (niveau >= NIVEAU_DES_POUVOIRS[p]) ouverts.add(p); });
+  const pouvoirs = [...ouverts].sort((a, b) => a - b).map(p => {
+    const P = arbre[p], miennes = notes.filter(x => x.p === p);
+    const n0 = miennes[0];
+    return {
+      genre: 'pouvoir', ico: (P && P.ico) || (n0 && n0.ico) || '', nom: (P && P.nom) || (n0 && n0.nom) || '',
+      dit: (P && P.dit) || '', joue: miennes.length > 0, periodes: [...new Set(miennes.map(x => x.k))].sort((a, b) => a - b),
+    };
+  });
+  const adjoints = (feuille.adjoints || []).filter(x => x.cote === cote).map(x => ({
+    genre: 'adjoint', ico: x.ico, nom: x.nom, dit: `${NOMS_NIV[nivDe(x) - 1]} · ${(ADJOINTS[x.cle] && ADJOINTS[x.cle].style) || ''}`, joue: true, periodes: [], reste: x.reste, salaire: x.salaire || 0,
+  }));
+  // V23 : la règle du coach (js/coachs.js `REGLES_DU_COACH`), allumée le soir où elle paie.
+  const R = perso && REGLES_DU_COACH[perso.cle];
+  const regle = R ? [{ genre: 'regle', ico: COACHS[perso.cle].ico, nom: R.dit, dit: `La règle ${COACHS[perso.cle].de} : +${R.jetons} 🪙 le soir où ton club la tient`, joue: R.lit(chiffresDuSoirDe(feuille, cote)), periodes: [], jetons: R.jetons }] : [];
+  return [...regle, ...pouvoirs, ...adjoints];
 }
 
 /** Le build du soir est-il vide ? */

@@ -55,7 +55,7 @@ import {
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
   batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup, PLANS,
 } from '../../js/sim.js';
-import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE } from '../../js/adjoints.js';
+import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, styleAuNiveau } from '../../js/adjoints.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, coachDuRobot } from './cartes_robot.mjs';
 import { niveauDuPerso, POUVOIRS, grandir, TALENT } from '../../js/pouvoirs.js';
@@ -67,7 +67,7 @@ import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, 
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, gardesDeLaDerniere, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
-  DEBLOCAGES, departDuClasseur, lotosDeSaison, lotoDeCase, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils,
+  DEBLOCAGES, departDuClasseur, lotosDeSaison, lotoDeCase, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils, primesDuCoach, salairesDesAdjoints,
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
   NIVEAUX_PLEINS, niveauDeLigue, habillerLaLigue, etapeDeLaRun,
   packsOuverts, monteeDesPacks,
@@ -263,8 +263,9 @@ const lireNet = R => avecHasardIsole('robot', () => {
  * (`chiffresDuSoirSous`, js/impact.js, les canaux du club et de l'adversaire), au prorata de son séjour : celui de la
  * voie de son coach joue plus longtemps (`SEJOUR_SYNERGIE`).
  */
-function fitDAdjoint(R, k, coach) {
-  const J = ADJOINTS[k];
+function fitDAdjoint(R, k, coach, niv) {
+  // V23 : le style à son niveau (`styleAuNiveau`) ; sans niveau, le Pilier, la table telle quelle.
+  const J = ADJOINTS[k] && { ...ADJOINTS[k], ...styleAuNiveau(k, niv) };
   if (!J) return -Infinity;
   const net = effets => avecHasardIsole('robot', () => {
     const t = createTeam('Lu', 'LU', R);
@@ -582,7 +583,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     const gros = (you.minisBoss || []).filter(mb => mb.gagne).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0);
     const B = baremeRogue(meta, exigence);
     // V3.6 : la prime des fils (le Cheechoo, le jalon…), comme au jeu (`resultatsRogue`, js/rogue-jeu.js).
-    return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total - depense;
+    return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total - salairesDesAdjoints(L.calendrier, you, L.jour).total - depense;
   };
   // V10 : le lundi du robot — la route, le dossier, la carte d'un palier (scripts/lib/cartes_robot.mjs).
   const etatCartes = { dossiers: [], paliers: new Set(), butins: new Set() };
@@ -590,7 +591,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   let planPose = 'match';
   while (!L.fini) {
     for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes,
-      fit: attentif && attentifFait('fit') ? k => fitDAdjoint(you.roster, k, etat.perso.cle) : null,
+      fit: attentif && attentifFait('fit') ? (k, niv) => fitDAdjoint(you.roster, k, etat.perso.cle, niv) : null,
       // Nov. 2026 : le joueur nommé d'une histoire, lu sur son club (`lireLeJoueur`), et le talent selon son coach (`valeurDuTalent`).
       lire: attentif ? { joueur: attentifFait('histoires') ? cle => lireLeJoueur(you.roster, cle) : null,
         talent: attentifFait('talent') ? valeurDuTalent : null, case: VALEUR_DE_LA_CASE } : null })) {

@@ -13,20 +13,27 @@ export async function chargerCoachs() {
   if (!DONNEES) DONNEES = await fetch('data/coachs.json').then(r => r.json());
   return DONNEES;
 }
-/* Le rang qui fait la maîtrise : premier ou deuxième de la ligue, puis dans les cinq premiers. */
-export const MAITRISE = [[2, 1.2], [5, 1.1]];
-export const maitriseDu = rang => (MAITRISE.find(([r]) => rang <= r) || [0, 1])[1];
+/*
+ * LE NIVEAU D'UN ENTRAÎNEUR (V23, docs/refonte-v23.md § C ; JP, 2 nov. : *les coachs et adjoints doivent être comme les
+ * joueurs, de pas très bon à excellents*). Son rang dans la lecture de sa philosophie fait son niveau, les mots des
+ * joueurs (js/adjoints.js `NOMS_NIV`) : premier de la ligue, ★ Phénomène ; dans les trois premiers, ★ Étoile ; les huit,
+ * Pilier ; les seize, Régulier ; plus bas, Soutien. Le niveau fait sa MAÎTRISE, la force de ses pouvoirs : de ×0,9 à
+ * ×1,3. Une carte prise avant la V23 garde la maîtrise écrite dans sa décision : la partie se rejoue pareil.
+ */
+export const MAITRISE = [[1, 1.3], [3, 1.2], [8, 1.1], [16, 1], [Infinity, 0.9]];
+export const niveauDuCoach = rang => MAITRISE.length - MAITRISE.findIndex(([r]) => rang <= r);
+export const maitriseDu = rang => MAITRISE[MAITRISE.length - niveauDuCoach(rang)][1];
 /* Ce que sa philosophie lit dans son club, en mots : « 1er aux tirs pour ». */
 const LECTURE = { essaim: 'aux tirs pour', tortue: 'aux tirs contre (le moins)', rapaces: 'au % de tir', rhinos: 'aux minutes de pénalité',
   choeur: 'à la discipline', souffle: 'à la santé du vestiaire', profondeur: 'à la profondeur', etoiles: 'au poids de ses vedettes' };
 export const motDuRang = (cle, rang) => `${rang}${rang === 1 ? 'er' : 'e'} ${LECTURE[cle] || ''}`.trim();
 
-/* Une carte de coach : { id, n, saison, tag, cle, rang, maitrise, fiche: { gp, v, d, n }, coupe, jack }. */
+/* Une carte de coach : { id, n, saison, tag, cle, rang, niv, maitrise, fiche: { gp, v, d, n }, coupe, jack }. */
 export function carteDuCoach(donnees, saison, tag) {
   const x = donnees && donnees[saison] && donnees[saison][tag];
   if (!x) return null;
   const [n, cle, rang, gp, v, d, nulles, coupe, jack] = x;
-  return { id: `${saison}_${tag}`, n, saison, tag, cle, rang, maitrise: maitriseDu(rang), fiche: { gp, v, d, n: nulles }, coupe: !!coupe, jack: !!jack };
+  return { id: `${saison}_${tag}`, n, saison, tag, cle, rang, niv: niveauDuCoach(rang), maitrise: maitriseDu(rang), fiche: { gp, v, d, n: nulles }, coupe: !!coupe, jack: !!jack };
 }
 /*
  * LE LOTO DE L'ENTRAÎNEUR : trois vraies cartes, de trois philosophies que le prestige ouvre (`ouverts`), tirées de la

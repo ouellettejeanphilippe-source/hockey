@@ -44,10 +44,11 @@ import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, CO
 import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, MANDAT_DE_LA_PREMIERE, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN, ETAPE_APRES_LA_PREMIERE } from '../js/rogue.js';
-import { COACHS } from '../js/coachs.js';
+import { COACHS, REGLES_DU_COACH } from '../js/coachs.js';
 import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT, NIVEAUX_TALENT } from '../js/pouvoirs.js';
 import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU, CASE_DE_PLUS } from '../js/adjoints.js';
 import { MAITRISE } from '../js/coachs-reels.js';
+import { FORCE_NIV, SALAIRE_NIV } from '../js/adjoints.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
@@ -187,7 +188,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // V17 : la page dit les six plans de match, chacun avec ses chiffres : 2 500 mots.
   // 31 oct. 2026 : la page dit la deuxième run plus dure (JP : *plus tough la deuxième run*), une phrase : 2 520 mots.
   // Nov. 2026 : la page dit le mandat de la première saison de la première run (`MANDAT_DE_LA_PREMIERE`), une phrase : 2 540 mots.
-  borne('la page des règles est courte', mots, 300, 2540, 'mots');
+  // V23 (2 nov.) : 2 600 (2 540 avant) — la règle du coach et le salaire des adjoints, deux mécaniques neuves, chacune en une phrase.
+  borne('la page des règles est courte', mots, 300, 2600, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -278,7 +280,12 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V21 : le coach, un personnage (js/pouvoirs.js) — son expérience, ses niveaux, ses pouvoirs, ses talents, ses adjoints.
     [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],
     [`une victoire ${XP.victoire} point, un gros match gagné ${XP.gros} de plus, une série gagnée ${XP.serie} ; ${SEUILS_NIVEAU.slice(1).map((x, i) => `${i ? '' : 'niveau '}${i + 2} à ${x}`).join(', ').replace(/, ([^,]*)$/, ', $1')} points`, 'l\'expérience du coach'],
-    [`premier ou deuxième de la ligue dans sa lecture, ses pouvoirs jouent ×${nombre(MAITRISE[0][1])} (×${nombre(MAITRISE[1][1])} dans les cinq premiers)`, 'la maîtrise de l\'entraîneur'],
+    // V23 : le niveau de l'entraîneur, de Soutien à ★ Phénomène, fait sa maîtrise (js/coachs-reels.js `MAITRISE`).
+    [`son rang dans cette lecture fait son niveau et la force de ses pouvoirs, de ×${nombre(MAITRISE.at(-1)[1])} au Soutien à ×${nombre(MAITRISE[0][1])} au ★ Phénomène`, 'la maîtrise de l\'entraîneur'],
+    [`un ★ Phénomène donne ${nombre(Math.round((FORCE_NIV[4] - 1) * 100))} % de plus qu'un Pilier, un Soutien ${nombre(Math.round((1 - FORCE_NIV[0]) * 100))} % de moins`, 'le niveau d\'un adjoint'],
+    // V23 : la règle du coach (js/coachs.js) et le salaire d'un adjoint (js/adjoints.js), dits par leurs constantes.
+    [`(🐝 ${REGLES_DU_COACH.essaim.dit} : +${REGLES_DU_COACH.essaim.jetons} 🪙)`, 'la règle du coach'],
+    [`en poste, il se paie, de ${SALAIRE_NIV[2]} 🪙 par match au Pilier à ${SALAIRE_NIV[4]} au ★ Phénomène`, 'le salaire d\'un adjoint'],
     [`Ses trois pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.slice(0, -1).join(', ')} et ${NIVEAU_DES_POUVOIRS.at(-1)}`, 'les pouvoirs'],
     [`fait grandir un pouvoir de ${nombre(TALENT * 100)} %`, 'le talent'],
     // Nov. 2026 : le premier talent peut ouvrir une case d'adjoint de plus, à chaque niveau dès le sien (`CASE_DE_PLUS`).

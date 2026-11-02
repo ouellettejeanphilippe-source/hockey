@@ -4858,6 +4858,26 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-build { margin-bottom: var(--esp-4); }
 .som-build p { margin: var(--esp-2) 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-build .ent-liste > div { min-height: 36px; }
+/* TON BANC CE SOIR (V23, docs/refonte-v23.md § A) : tes pouvoirs et tes adjoints en petites cartes sous le pointage.
+   Ce qui a joué s'allume, l'un après l'autre (--i), monte d'un cran et prend la lueur du club ; le reste dort au banc. */
+.banc { margin-bottom: var(--esp-4); }
+.banc-tete { display: flex; justify-content: space-between; margin-bottom: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+.banc-rang { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--esp-2); }
+.banc-carte { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; aspect-ratio: 5 / 6; padding: var(--esp-2) var(--esp-1); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); text-align: center; opacity: 0.45; filter: grayscale(0.8); }
+.banc-carte b { font: 700 var(--t-2)/1.1 var(--display); color: var(--encre); }
+.banc-carte small { font: 600 var(--t-1)/1.1 var(--display); letter-spacing: 0.04em; color: var(--encre-3); }
+.banc-ico { font-size: var(--t-5); line-height: 1; }
+.banc-carte.joue { opacity: 1; filter: none; border-color: var(--club-vif); background: linear-gradient(180deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); box-shadow: 0 0 14px color-mix(in srgb, var(--club-vif) 45%, transparent); animation: banc-allume 520ms var(--e-ressort) both; animation-delay: calc(var(--i, 0) * 120ms + 150ms); }
+.banc-carte.joue small { color: var(--club-vif); }
+.banc-adjoint.joue { border-color: var(--or); box-shadow: 0 0 12px color-mix(in srgb, var(--or) 35%, transparent); }
+.banc-adjoint.joue small { color: var(--or); }
+.banc-regle.joue { border-color: var(--bon); box-shadow: 0 0 12px color-mix(in srgb, var(--bon) 35%, transparent); }
+.banc-regle.joue small { color: var(--bon); }
+@keyframes banc-allume {
+  from { opacity: 0.45; filter: grayscale(0.8); transform: translateY(6px) scale(0.92); box-shadow: none; }
+  60% { transform: translateY(-4px) scale(1.06); }
+  to { opacity: 1; filter: none; transform: none; }
+}
 /* LES FAITS SAILLANTS : un segment de télé — la manchette en gros, le récit, puis la clé du match sous un filet d'or. */
 .som-saillants { margin-bottom: var(--esp-4); }
 .som-saillants p { margin: var(--esp-2) 0 0; font-size: var(--t-3); line-height: 1.5; color: var(--encre-2); }
