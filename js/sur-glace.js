@@ -25,7 +25,7 @@
  *   A, X, Start, le doigt                  passer la reprise d'un but ; fermer les alignements, l'entracte
  */
 import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, BANC, BAGARRE, GARDIEN, CELEBRATION } from './physique.js';
-import { decisionIA, STRATEGIES } from './glace-ia.js';
+import { decisionIA, STRATEGIES, styleDuClub } from './glace-ia.js';
 import { PATINEURS, DROITIERS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
 import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
 import { axes20, cote20 } from './niveaux.js';
@@ -224,9 +224,12 @@ async function accueil() {
     const c = choix[k];
     const codes = await clubsDe(c.saison);
     const b = ctxJeu.band(c.club);
+    // SON STYLE (le lot 6), lu dans ses vraies stats de la saison : ce que l'IA de ce club jouera.
+    const sh = await ctxJeu.shard(c.saison);
+    const style = styleDuClub(c.club, sh.players || Object.values(sh.byTeam).flat()).mots;
     return `<section class="sg-cote" data-cote="${k}">
       <div class="sg-cote-t">${k === 'A' ? 'Toi' : choix.deux ? 'Joueur 2' : 'Eux'}</div>
-      <div class="sg-bandeau" style="--eq-bg:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">${ctxJeu.logo(c.club, 40)}<b>${esc(ctxJeu.nom(c.club))}</b><small>${esc(c.saison)}</small></div>
+      <div class="sg-bandeau" style="--eq-bg:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">${ctxJeu.logo(c.club, 40)}<b>${esc(ctxJeu.nom(c.club))}</b><small>${esc(c.saison)}${style.length ? ` · ${style.join(', ')}` : ''}</small></div>
       <div class="sg-choix">
         <select class="opt-select" data-saison="${k}" aria-label="La saison">${ctxJeu.saisons.slice().reverse().map(x => `<option value="${x}"${x === c.saison ? ' selected' : ''}>${x}</option>`).join('')}</select>
         <select class="opt-select" data-club="${k}" aria-label="Le club">${codes.map(t => `<option value="${t}"${t === c.club ? ' selected' : ''}>${esc(ctxJeu.nom(t))}</option>`).join('')}</select>
@@ -306,7 +309,7 @@ async function club(cote) {
   }
   const g = roster[SLOTS.find(s => s.group === 'G' && s.unit === 0).i] || pool.find(p => p.p === 'G');
   const axg = g ? (axes20(g, tous) || {}) : {};
-  return { nom: ctxJeu.nom(code), tag: code, patineurs, gardien: g ? { nom: nomCourt(g.n), visage: g.id, p: parametresDuGardien({ arrets: axg.arrets || 10 }) } : { nom: 'le gardien', p: parametresDuGardien() } };
+  return { nom: ctxJeu.nom(code), tag: code, patineurs, style: styleDuClub(code, tous), gardien: g ? { nom: nomCourt(g.n), visage: g.id, p: parametresDuGardien({ arrets: axg.arrets || 10 }) } : { nom: 'le gardien', p: parametresDuGardien() } };
 }
 
 async function commencerLeMatch() {
@@ -324,8 +327,10 @@ async function commencerLeMatch() {
     graine: nouvelleGraine(), A, B, periode: choix.periode, humains: choix.deux ? ['A', 'B'] : ['A'], ia: decisionIA,
     regles: { horsjeu: choix.horsjeu, degagement: choix.degagement }, series: choix.series, difficulte: choix.difficulte,
   });
-  // Ta stratégie pour ton club (ses joueurs de l'IA la jouent) ; l'adversaire joue équilibré.
-  e.equipes.A.strategie = choix.strategie; e.equipes.B.strategie = 'equilibree';
+  // Ta stratégie pour ton club (ses joueurs de l'IA la jouent) ; l'adversaire joue celle de son style (le lot 6), et
+  // l'IA de chaque club tire et charge comme son club le faisait.
+  e.equipes.A.strategie = choix.strategie; e.equipes.B.strategie = B.style.strategie;
+  e.equipes.A.style = A.style; e.equipes.B.style = B.style;
   lancer(e);
 }
 function commencerLEntrainement() {
@@ -668,6 +673,7 @@ function boucle(now) {
     else if (v.type === 'harpon' && v.gardien) flash = { mot: `Le harpon de ${nomDe(v.qui)}`, reste: 0.9 };
     else if (v.type === 'jeuDuGardien') flash = { mot: v.vers ? `Remise à ${nomDe(v.vers)}` : 'Le gardien la dégage', reste: 0.9 };
     else if (v.type === 'mordu' && tonJoueur(v.sur)) flash = { mot: `${nomDe(v.qui)} a mordu !`, reste: 0.9 };
+    else if (v.type === 'feinteLue' && tonJoueur(v.sur)) flash = { mot: `${nomDe(v.qui)} a lu la feinte`, reste: 0.9 };
     else if (v.type === 'trio') flash = { mot: `Trio ${v.ligne + 1} · jambes ${v.jambes}`, reste: 1.2 };
     else if (v.type === 'volee' && etat.humains.includes(v.equipe) && v.entre && tonJoueur(v.entre)) flash = { mot: `${nomDe(v.entre)} saute sur la glace`, reste: 1.2 };
     else if (v.type === 'harpon' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'harpon');

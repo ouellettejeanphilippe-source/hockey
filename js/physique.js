@@ -137,10 +137,15 @@ export const REVERS = { angle: 1.3, cote: 0.1, tir: 0.82, ecart: 1.5, passe: 0.8
 export const PROTEGE = { vitesse: 5.5, pres: 2.6, cote: 0.75, avant: 0.55, marge: 0.15, harpon: 0.3 };
 /*
  * LA FEINTE (Y avec la rondelle) : la lame part d'`ecart` m de côté (le bâton dit lequel ; au neutre, vers le revers) le
- * temps de `duree` s, puis revient ; `repos` s avant la suivante ; pendant la feinte, on pousse à `pousse`. Un harpon
- * lancé pendant la feinte rate, une mise en échec lancée pendant la feinte ne renverse pas : ils ont mordu.
+ * temps de `duree` s, puis revient ; `repos` s avant la suivante ; pendant la feinte, on pousse à `pousse`. Un harpon,
+ * un bâton soulevé lancés pendant la feinte ratent, une mise en échec ne renverse pas : ils ont mordu. SAUF S'IL LA LIT
+ * (le lot 6 : elle passait à tout coup, 0 harpon sur 40) : un défenseur la lit `lit` fois les points de sa Défense sur 20
+ * au-dessus d'`aveugle` (à 8 et moins, il mord toujours ; à 18, quatre fois sur dix), et `relue` de plus quand le même
+ * porteur feintait déjà moins de `usee` s plus tôt. Lue, son geste se joue comme sans feinte.
  */
-export const FEINTE = { ecart: 1.0, duree: 0.3, repos: 1.0, pousse: 0.6 };
+export const FEINTE = { ecart: 1.0, duree: 0.3, repos: 1.0, pousse: 0.6, lit: 0.04, aveugle: 8, usee: 3, relue: 0.35 };
+/* Le défenseur `s` lit-il la feinte du porteur `p` ? Un dé, à sa Défense, plus si la feinte est répétée (`FEINTE`). */
+const litLaFeinte = (etat, s, p) => etat.de() < clamp(FEINTE.lit * (s.p.defense * 20 - FEINTE.aveugle), 0, 1) + (p.feinteUsee ? FEINTE.relue : 0);
 /*
  * LA PASSE LAISSÉE (A, le bâton tiré vers l'arrière, à plus de `arriere` rad du cap) : un coéquipier qui le suit —
  * derrière lui, à `cone` rad de l'arrière et `portee` m au plus, lancé dans le même sens à `suit` m/s au moins —, le
@@ -293,7 +298,7 @@ function patineur(id, equipe, x, y, cap, extra = {}) {
     x, y, vx: 0, vy: 0, cap, masse: p.masse, rayon: PATIN.rayon, p,
     auSol: 0, foulee: 0, pousse: 0, virage: 0, freine: false, charge: 0, lachee: 0, tenaitTir: false, tenaitPasse: false, tenaitEchec: false,
     harpon: 0, harponRepos: 0, elan: 0, elanRepos: 0, jambes: 100, surGlace: true, boxe: false, touche: -10, tamponPasse: -1, tamponTir: -1,
-    av: BATON.lame[0], lat: (p.main || -1) * BATON.cote, protege: false, feinte: 0, feinteRepos: 0, feinteCote: 0, tenaitFeinte: false, mordu: null,
+    av: BATON.lame[0], lat: (p.main || -1) * BATON.cote, protege: false, feinte: 0, feinteRepos: 0, feinteCote: 0, feinteT: -99, feinteUsee: false, tenaitFeinte: false, mordu: null,
     poste0: extra.poste0 || null, ia: null, stats: { buts: 0, aides: 0, tirs: 0, echecs: 0, blocs: 0, tg: 0 },
   };
 }
@@ -627,6 +632,7 @@ function manier(etat, s, e, ev) {
     if (e && e.feinte && !s.tenaitFeinte && s.feinteRepos <= 0 && s.charge <= 0) {
       const travers = -(e.x || 0) * n + (e.y || 0) * c;
       s.feinte = FEINTE.duree; s.feinteRepos = FEINTE.repos;
+      s.feinteUsee = etat.t - s.feinteT < FEINTE.usee; s.feinteT = etat.t;
       s.feinteCote = Math.abs(travers) > 0.3 ? Math.sign(travers) : -main;
       ev.push({ type: 'feinte', qui: s.id, cote: s.feinteCote });
     }
@@ -646,6 +652,12 @@ function manier(etat, s, e, ev) {
   const pas = BATON.lameVite * PAS;
   s.lat += clamp(lat - s.lat, -pas, pas);
   s.av += clamp(av - s.av, -pas, pas);
+}
+/* La feinte de `p` lue par `s` (`litLaFeinte`) : le geste se joue comme sans elle, et l'écran le dit. */
+function lue(etat, s, p, geste, ev) {
+  if (!litLaFeinte(etat, s, p)) return false;
+  ev.push({ type: 'feinteLue', qui: s.id, sur: p.id, geste });
+  return true;
 }
 /* Le corps du porteur entre le harponneur et la rondelle : la ligne de l'un à l'autre passe par lui. */
 function corpsEntre(h, p, R) {
@@ -759,7 +771,7 @@ function harponner(etat, s, ev) {
   if (dansLeCouloir(R.x, R.y) && R.z < 0.4 && (!porteur || porteur.equipe !== s.equipe) && !notrePasse) {
     // Le porteur qui feinte : le harpon va où la rondelle était, il a mordu. Le corps du porteur entre lui et la rondelle :
     // il protège, le harpon passe moins (`PROTEGE.harpon`).
-    const mordu = !!porteur && porteur.feinte > 0;
+    const mordu = !!porteur && porteur.feinte > 0 && !lue(etat, s, porteur, 'harpon', ev);
     const protege = !!porteur && corpsEntre(s, porteur, R);
     const chance = !porteur ? 1 : mordu ? 0 : duelDeBaton(s, porteur) * (protege ? PROTEGE.harpon : 1);
     if (mordu) ev.push({ type: 'mordu', qui: s.id, sur: porteur.id, geste: 'harpon' });
@@ -812,7 +824,7 @@ export function leveraitLeBaton(etat, s) {
 }
 function soulever(etat, s, p, ev) {
   const R = etat.rondelle;
-  const mordu = p.feinte > 0;
+  const mordu = p.feinte > 0 && !lue(etat, s, p, 'leve', ev);
   if (mordu) ev.push({ type: 'mordu', qui: s.id, sur: p.id, geste: 'leve' });
   const ok = !mordu && etat.de() < duelDeBaton(s, p) * LEVE.force;
   ev.push({ type: 'leve', qui: s.id, sur: p.id, ok });
@@ -1973,7 +1985,7 @@ function pas(etat, entrees, ev) {
         s.elanDos = etat.patineurs.filter(q => q.surGlace && q.equipe !== s.equipe && dosTourne(s, q)).map(q => q.id);
         // Lancé pendant la feinte du porteur adverse : il a mordu (`FEINTE`), la charge ne le renversera pas.
         const p = etat.rondelle.porteur ? parId(etat, etat.rondelle.porteur) : null;
-        s.mordu = p && p.equipe !== s.equipe && p.feinte > 0 ? p.id : null;
+        s.mordu = p && p.equipe !== s.equipe && p.feinte > 0 && !lue(etat, s, p, 'echec', ev) ? p.id : null;
       }
     }
     manier(etat, s, e, ev);
@@ -2128,7 +2140,7 @@ export function reglesDeLaGlace() {
     `Le bras levé (le hors-jeu différé), un attaquant dans la zone ne prend la rondelle que s'il la vise : le bâton poussé vers elle, à ${Math.round(VISE.appui * 100)} % au moins, à ${Math.round(VISE.cone * 57.3)}° près. La rondelle hors de la zone et un coéquipier dedans, ta lame ne la ramène pas dans la zone : elle la prend dehors. Hors de la zone d'attaque, le tir part où pointe le bâton : le lancer au fond, le dégagement le long de la bande.`,
     `Un patineur, de l'une ou l'autre équipe, sur la ligne de la rondelle au gardien (à ${dec(GARDIEN.ecranPres)} m de lui ou plus, la rondelle à ${GARDIEN.ecranLoin} m ou plus) fait l'écran : le gardien la voit ${Math.round(GARDIEN.ecran * 1000)} ms plus tard encore. Un tir qui frappe une lame à moins de ${BATON.devant} m du filet dévie (±${Math.round(BATON.devie * 57.3)}°, écart-type) et garde ${Math.round(BATON.garde * 100)} % de sa vitesse.`,
     `À reculons, la pointe et la poussée valent ${Math.round(PATIN.recul * 100)} % ; le turbo les monte à ${Math.round(PATIN.sprint * 100)} % et use les jambes ${PATIN.sprintJambes} fois plus vite ; en tournant à vitesse moyenne, les croisés poussent ${Math.round((PATIN.croise - 1) * 100)} % plus fort ; couper sec coûte ${Math.round(PATIN.virage * 100)} % de vitesse par radian ; un patineur plus léger que ${PATIN.masse} kg tourne un peu plus court (${Math.round(PATIN.agilite * 100)} % au plus), un plus lourd frappe plus fort sans patiner moins vite. Un harpon raté par-derrière sur le porteur l'accroche une fois sur ${Math.round(1 / HARPON.trebuche)} : deux minutes, ou un tir de punition sur une échappée. Le gardien se retire pour un sixième attaquant (l'IA, sous ${MATCH.retraitGardien} s, à un ou deux buts) ; une charge contre la bande pèse ${dec(CHUTE.bande)} fois ; une punition ne tombe que sur une charge voulue, le bouton pressé.`,
-    `La lame tient la rondelle du côté de la main du joueur, à ${Math.round(BATON.cote * 100)} cm (un gaucher à gauche, comme la LNH le dit). Le revers — la rondelle de l'autre côté du corps, ou lancée à plus de ${Math.round(REVERS.angle * 57.3)}° du cap vers ce côté — part à ${Math.round(REVERS.tir * 100)} % de la vitesse et ${dec(REVERS.ecart)} fois plus écarté (la passe, ${Math.round(REVERS.passe * 100)} % et ${dec(REVERS.ecartPasse)} fois) ; le tir sur réception ne part que du coup droit. Plus lent que ${kmh(PROTEGE.vitesse)} km/h, un adversaire à ${dec(PROTEGE.pres)} m, le porteur protège : sa lame passe de l'autre côté du corps, et un harpon qui doit passer par son corps réussit ${Math.round(PROTEGE.harpon * 100)} % aussi souvent. La feinte déporte la lame de ${dec(FEINTE.ecart)} m pendant ${dec(FEINTE.duree, 2)} s (${dec(FEINTE.repos)} s avant la suivante) : un harpon ou une charge lancés pendant ce temps ratent. La passe laissée, le bâton tiré vers l'arrière : un coéquipier qui te suit, à ${LAISSEE.portee} m au plus et lancé à ${kmh(LAISSEE.suit)} km/h, la trouve à ${dec(LAISSEE.vitesse)} m/s.`,
+    `La lame tient la rondelle du côté de la main du joueur, à ${Math.round(BATON.cote * 100)} cm (un gaucher à gauche, comme la LNH le dit). Le revers — la rondelle de l'autre côté du corps, ou lancée à plus de ${Math.round(REVERS.angle * 57.3)}° du cap vers ce côté — part à ${Math.round(REVERS.tir * 100)} % de la vitesse et ${dec(REVERS.ecart)} fois plus écarté (la passe, ${Math.round(REVERS.passe * 100)} % et ${dec(REVERS.ecartPasse)} fois) ; le tir sur réception ne part que du coup droit. Plus lent que ${kmh(PROTEGE.vitesse)} km/h, un adversaire à ${dec(PROTEGE.pres)} m, le porteur protège : sa lame passe de l'autre côté du corps, et un harpon qui doit passer par son corps réussit ${Math.round(PROTEGE.harpon * 100)} % aussi souvent. La feinte déporte la lame de ${dec(FEINTE.ecart)} m pendant ${dec(FEINTE.duree, 2)} s (${dec(FEINTE.repos)} s avant la suivante) : un harpon ou une charge lancés pendant ce temps ratent, sauf si le défenseur la lit : ${Math.round(FEINTE.lit * 100)} % par point de Défense sur 20 au-dessus de ${FEINTE.aveugle} (à 18, ${Math.round(FEINTE.lit * (18 - FEINTE.aveugle) * 100)} %), ${Math.round(FEINTE.relue * 100)} % de plus si tu feintais déjà moins de ${FEINTE.usee} s plus tôt. La passe laissée, le bâton tiré vers l'arrière : un coéquipier qui te suit, à ${LAISSEE.portee} m au plus et lancé à ${kmh(LAISSEE.suit)} km/h, la trouve à ${dec(LAISSEE.vitesse)} m/s.`,
     `Collé au porteur, de côté (ni devant lui ni dans son dos, à ${dec(LEVE.pres)} m au plus), X lui soulève le bâton et lui prend la rondelle : sans contact ni punition, ${Math.round(LEVE.force * 100)} % de ce qu'un harpon ouvert réussirait, qu'il protège ou non (le harpon, lui, passe par son corps ${Math.round(PROTEGE.harpon * 100)} % aussi souvent). Un harpon raté a ses fautes, deux minutes : par-derrière sur un porteur lancé à plus de ${kmh(FAUTES.rapide)} km/h, l'accrochage (${Math.round(FAUTES.accroche * 100)} %) ; en fonçant sur lui à plus de ${kmh(FAUTES.fonce)} km/h, le cinglage (${dec(FAUTES.cinglage * 100)} %) ; à travers son corps, le bâton élevé (${Math.round(FAUTES.eleve * 100)} %).`,
     `La bagarre : après une mise en échec de plus de ${Math.round(CHUTE.seuil * BAGARRE.gros)} kg·m/s ou une punition, deux joueurs de Robustesse ${BAGARRE.robuste + 1} ou plus sur 20 peuvent laisser tomber les gants, plus souvent s'ils passaient du temps au cachot à la LNH (jusqu'à ${BAGARRE.pimMax} fois pour ${BAGARRE.pimMax * BAGARRE.pim} minutes par match) ; une par joueur, jamais en prolongation. ${dec(BAGARRE.duree)} s de duel : martèle A ou X, chaque coup pèse ta Robustesse et ta masse ; l'IA frappe ${BAGARRE.cadence} fois par seconde. ${BAGARRE.minutes} minutes chacun, coïncidentes : les deux clubs restent à cinq.`,
     `À l'arrêt de jeu, Y choisit ton trio : il joue, quelles que soient ses jambes. À la volée, la rondelle loin, la ligne qui passe sous ${JAMBES.volee} jambes file à la porte de son banc, s'il y en a une à ${JAMBES.frais} au banc (l'IA comme tes coéquipiers ; toi, fatigué, tu y patines) ; à ${dec(BANC.porte)} m de la porte, l'un sort et le plus reposé entre, au même instant : jamais un patineur de trop. Les bancs sont à ${BANC.x} m du centre, chacun du côté de son filet de la première période : en deuxième, la présence est plus longue. Le gardien remis en jeu revient quand un patineur sort.`,

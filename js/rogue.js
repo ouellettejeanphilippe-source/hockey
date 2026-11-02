@@ -692,7 +692,10 @@ export const MANDATS = [
  * (check_profondeur) : le gérant attentif finissait sa première saison entre le 22e et le 26e rang, et la run finissait
  * là, trois runs de suite — le coach, ses talents et ses adjoints ne vivaient jamais une deuxième saison. Le proprio
  * de ta première run te laisse une saison pour bâtir : finir dans les `MANDAT_DE_LA_PREMIERE.top` premiers, séries ou
- * pas ; dès la deuxième saison, et dès la deuxième run, les mandats de toujours.
+ * pas ; dès la deuxième saison, et dès la deuxième run, les mandats de toujours. Lot 5 (nov. 2026, docs/decisions.md) :
+ * 27 a été essayé — l'attentif passait sa première saison une fois sur deux (14 graines sur 30), mais sa deuxième saison
+ * sautait du 27e rang au podium et gagnait la Coupe dès la run 1 (5 graines sur 30 ; check_profondeur : la première Coupe
+ * à la run 1). 24 reste ; la deuxième saison de la première run porte la marche de la ligue (`etapeDeLaRun`).
  */
 export const MANDAT_DE_LA_PREMIERE = { top: 24, sansSeries: true, mot: 'finir dans les vingt-quatre premiers' };
 /*
@@ -760,8 +763,12 @@ export const NIVEAUX_PLEINS = 2;
 export const ETAPES_PAR_CRAN = 2;
 export const ETAPE_APRES_LA_PREMIERE = 1;
 export const niveauDeLigue = (rang = 0, exigence = 0) => Math.max(0, (rang || 0) + ETAPES_PAR_CRAN * (exigence || 0));
-/* L'étape de plus que porte la ligue d'une run : aucune à la première, `ETAPE_APRES_LA_PREMIERE` ensuite. */
-export const etapeDeLaRun = (run = 1) => ((run || 1) > 1 ? ETAPE_APRES_LA_PREMIERE : 0);
+/*
+ * L'étape de plus que porte la ligue d'une run : aucune à la première saison de la première run, `ETAPE_APRES_LA_PREMIERE`
+ * ensuite — dès la deuxième run, et dès la deuxième saison de la première (lot 5, nov. 2026 : la première saison laisse
+ * bâtir, `MANDAT_DE_LA_PREMIERE` ; sans la marche, l'attentif qui la passait gagnait la Coupe dès la run 1).
+ */
+export const etapeDeLaRun = (run = 1, saison = 1) => ((run || 1) > 1 || (saison || 1) > 1 ? ETAPE_APRES_LA_PREMIERE : 0);
 /* L'étape des éditions d'un niveau de ligue, plus celle de la run. */
 export const ligueDe = (niveau, etapeDeRun = 0) => ({ etape: Math.max(0, (niveau || 0) - NIVEAUX_PLEINS) + (etapeDeRun || 0) });
 /* L'édition d'un adversaire, au rang `r` de son club (0 : son meilleur) sur `n` : un tiers de plus du club par étape. */
