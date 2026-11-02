@@ -3332,4 +3332,4 @@ JP (2 nov.) : *un Rogue plus complet, fun et équilibré* ; décisions délégu�
 
 **Les juges** (`check_profondeur` complet, 1 684 s) : six vérifications sur six au vert — l'attentif bat le robot d'avant de **+5,4 V** (± 1,2 ; +4,3 au lot 4), la première Coupe de l'attentif aux runs 5 et 5, regagnée 29 %, le distrait jamais ; **la run 1 de l'attentif dure quatre saisons dans la campagne 1** (`4·L0`, sans Coupe), une dans la campagne 2 ; le robot d'avant gagne sa première Coupe aux runs 7 et 5. L'ablation de la boutique sur les vrais clubs (`CAMPAGNES=0 GRAINES=4`) : +5,4 V en lisant, +4,5 V sans (`ROBOT_SAUF=boutique`, 404 s) : **+0,9 V** (± 1,2 ; 0 V au lot 4) — sur un vrai club, la lecture choisit mieux que l'ordre fixe, sur l'effectif d'une première run elle choisit moins bien. Sans le Pack Époque neuf (la même chose, l'Époque d'avant) : le juge des 5 V rouge (+4,5), la run 1 à `2·L0`, la première Coupe aux runs 4 et 4.
 
-Version 3.2.13 ; `VERSION_MOTEUR` ne monte pas (`check_empreinte` vert).
+Version 3.2.14 ; `VERSION_MOTEUR` ne monte pas (`check_empreinte` vert).
