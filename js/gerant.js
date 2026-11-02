@@ -477,11 +477,20 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
     mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, o.cadre || spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
   }
   const forme = formeDesMots(o, mots);
-  const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots, { sobre: !plein }))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
-  return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
+  // LE GROS CHIFFRE (V23, docs/refonte-v23.md § B ; JP : *une vraie expérience de card game*) : la première ligne verte qui
+  // porte un nombre (« +20 🪙 », « Ton coach : +5 d'expérience ») se lit en grand au cœur de la carte, et ne se redit pas dessous.
+  // Il se prend parmi les lignes déjà visibles : la carte n'en montre jamais plus que `LIGNES_MAX`, gros chiffre compris.
+  const plie = detailDe(mots, { sobre: !plein });
+  const gros = plein ? null : grosChiffre(mots.filter((m, i) => !plie(m, i)));
+  const ig = gros ? mots.indexOf(gros.mot) : -1;
+  const restants = ig >= 0 ? mots.filter((_, i) => i !== ig) : mots;
+  const plieRestant = (m, k) => plie(m, ig >= 0 && k >= ig ? k + 1 : k);
+  const pucesHtml = `${puces(restants.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), plieRestant)}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
+  return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${forme ? ` data-forme="${esc(FORME_CLE[forme] || 'autre')}"` : ''}${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
     ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
     <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
     ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
+    ${gros ? `<span class="choix-option-gros"><b>${esc(gros.chiffre)}</b>${gros.reste ? ` <small>${sub(gros.reste)}</small>` : ''}</span>` : ''}
     ${o.sous ? `<span class="choix-option-sous">${sub(o.sous)}</span>` : ''}
     ${pucesHtml ? `<span class="choix-puces">${pucesHtml}</span>` : ''}
     ${o.bon && !o.rien ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
@@ -490,6 +499,21 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
     ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
   </button>`;
 }
+/* La forme d'une option, en clé de style : la couleur du filet de sa carte (V23). */
+const FORME_CLE = { Cadeau: 'cadeau', 'Échange': 'echange', 'Moindre mal': 'moindre', Pari: 'pari' };
+/* Le gros chiffre d'une option : sa première ligne verte qui porte un nombre, coupée en { chiffre, reste, mot }. */
+function grosChiffre(mots) {
+  for (const m of mots || []) {
+    if (m.bon !== true) continue;
+    const t = String(m.txt), x = /[+−-]\s?\d[\d\s,]*(?:\s?(?:%|🪙))?/.exec(t);
+    if (!x) continue;
+    const reste = (t.slice(0, x.index) + t.slice(x.index + x[0].length)).replace(/\s*:\s*$/, '').replace(/^\s*:\s*/, '').trim();
+    return { chiffre: x[0].trim(), reste, mot: m };
+  }
+  return null;
+}
+/* Le temps d'une carte jouée, en millisecondes (style.css `choix-jouee`). */
+const CARTE_JOUEE_MS = 200;
 /* Le premier focus d'un choix : une option, ou la face d'une carte de jeu (la carte elle-même n'est plus un bouton). */
 const PREMIERE = 'button.choix-option:not([disabled]), button.tc-face';
 export function ouvrirChoix(spec) {
@@ -579,6 +603,7 @@ export function ouvrirChoix(spec) {
     };
   }
   // UNE VUE À LIRE (S74, « Mon deck ») : les cartes ne se prennent pas.
+  let envoyee = false;
   m.querySelectorAll('[data-choix]').forEach(b => {
     if (spec.lecture) { b.classList.add('lecture'); return; }
     const o = spec.options.find(x => String(x.cle) === b.dataset.choix);
@@ -594,7 +619,15 @@ export function ouvrirChoix(spec) {
         if (spec.onCoche) spec.onCoche(coches.map(c => spec.options.find(x => String(x.cle) === c).cle));
         return;
       }
-      fermer(true); spec.onChoix(b.dataset.choix);
+      // LA CARTE JOUÉE (V23) : elle s'envole le temps d'un geste, puis le choix part ; sous `prefers-reduced-motion`, tout de suite.
+      if (envoyee) return;
+      envoyee = true;
+      const vite = !b.classList.contains('choix-option') || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+      const partir = () => { fermer(true); spec.onChoix(b.dataset.choix); };
+      if (vite) { partir(); return; }
+      b.classList.add('jouee');
+      jouerSon('joue');
+      setTimeout(partir, CARTE_JOUEE_MS);
     };
   });
   // LA CARTE D'UN JOUEUR OFFERT se touche pour voir sa fiche (`apercu` de l'option), sans le choisir (S78).
