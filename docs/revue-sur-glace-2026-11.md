@@ -133,7 +133,7 @@ Une note sur le point de départ : le rapport du lot 1 disait 5,0 buts et 4,9 ho
 - **Le dégagement** ne va qu'à l'ailier : un dégagement vers la neutre glisse jusqu'au bout de la glace (la rondelle ne perd rien le long de la bande), un dégagement refusé presque chaque fois. Un frottement le long de la bande (§ 1, 🟡) le rendrait possible.
 - **À voir à la manette** : le lancer au fond (ta visée change hors de la zone : le tir part où tu pointes), la lame qui ne prend pas la rondelle le bras levé, l'écran vu de l'écran. Une capture d'une attaque en zone (Toronto chez les Golden Seals) a été faite, sans erreur dans la console ; l'écran en action, lui, n'a pas été vu à l'image.
 
-## 6. Le lot 3 : le porteur a des gestes, et on choisit ses lignes (version 3.2.7)
+## 6. Le lot 3 : le porteur a des gestes, et on choisit ses lignes (version 3.2.8)
 
 Les propositions 4 et 5 de la section 4. Chaque geste pousse le même bâton pour toi et pour l'IA ; chacun a son fait mis en scène dans `check_physique` (136 → 157 vérifications, toutes vertes) et sa ligne dans les règles de l'écran.
 
@@ -162,7 +162,7 @@ Le lot 2 voyait une possession en zone offensive de 0,1 s en médiane et pensait
 
 L'IA contre l'IA, 96 matchs de 3 × 2 minutes (les graines `postes-0` à `23`, `100` à `123`, `200` à `223`, `300` à `323`), le même harnais que le lot 2.
 
-| Par match de 6 min | 3.2.6 | 3.2.7 |
+| Par match de 6 min | 3.2.6 | 3.2.8 |
 |---|---|---|
 | Cycles (du coin, le long de la bande, au coéquipier en haut) | 1,1 | 4,0 |
 | Possession en zone offensive, % du jeu (deux clubs) | 8,5 % | 9,6 % |
