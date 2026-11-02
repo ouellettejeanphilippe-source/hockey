@@ -27,12 +27,16 @@
  *                 l'IA presse le même bouton ; la passe en route, la bleue qu'on ne dépasse pas (2 nov. 2026) ;
  *   le lot 2      la prise qui serait hors-jeu, l'IA qui tague la bleue, le lancer au fond, la sortie de zone, le
  *                 dégagement, le cycle, l'écran et la déviation, l'avant au filet ; des matchs de l'IA mesurés : le
- *                 hors-jeu, la passe, la sortie, l'enclave, les buts (2 nov. 2026).
+ *                 hors-jeu, la passe, la sortie, l'enclave, les buts (2 nov. 2026) ;
+ *   le lot 3      protéger la rondelle (le harpon qui passe moins, l'IA dans le coin), la feinte (le harpon et la
+ *                 charge qui mordent, l'IA qui feinte), le revers et la main du joueur, la passe laissée, le trio
+ *                 choisi à l'arrêt de jeu, le changement à la volée par la porte du banc, le gardien remis qui attend
+ *                 qu'un patineur sorte ; dans les matchs mesurés, le cycle et jamais un patineur de trop (2 nov. 2026).
  *
  *   node scripts/check_physique.mjs
  */
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ } from '../js/physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, porteDuBanc, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ, REVERS, PROTEGE, FEINTE, LAISSEE, BANC, JAMBES } from '../js/physique.js';
 import { decisionIA, ECART_D, SORTIE, ECRAN_D } from '../js/glace-ia.js';
 
 const t0 = Date.now();
@@ -773,7 +777,13 @@ const duel = (graine, point, appui, baton, clubs) => {
   const ev = jouer(e, {}, 0.8);
   exiger('… et un tir vers le filet désert entre', ev.some(x => x.type === 'but' && x.equipe === 'A') && e.match.pointage.A === 1, ev.map(x => x.type).join(' '));
   jouer(e, {}, 4);
-  exiger('… à l\'arrêt de jeu, le gardien remis revient dans son filet', (retirerGardien(e, 'B', false), !e.gardiens.find(g => g.equipe === 'B').retire && droitSurGlace(e, 'B') === 5), `${surGlace(e, 'B').length} B`);
+  // Remis en plein jeu, il attend qu'un patineur sorte par la porte du banc (le lot 3 : il revenait avec les six sur la glace).
+  const GdB = e.gardiens.find(g => g.equipe === 'B');
+  retirerGardien(e, 'B', false);
+  const attend = e.enJeu && GdB.retire && GdB.retour && surGlace(e, 'B').length === 6;
+  exiger('… remis en plein jeu, il attend qu\'un patineur sorte par la porte du banc : jamais six patineurs et lui', attend, `${surGlace(e, 'B').length} B, ${GdB.retire ? 'le filet désert' : 'au filet'}`);
+  for (let t = 0; t < 40 && GdB.retire && !e.mej; t += DT) avancer(e, {}, DT);
+  exiger('… à l\'arrêt de jeu, le gardien remis revient dans son filet', !GdB.retire && droitSurGlace(e, 'B') === 5 && surGlace(e, 'B').length <= 5, `${surGlace(e, 'B').length} B`);
 }
 {
   // LE TIR DE PUNITION : un harpon raté par-derrière accroche le porteur en échappée. Le dé décide ; sur une série
@@ -1022,7 +1032,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   // LES MATCHS DE L'IA CONTRE L'IA, mesurés (GLACE_MATCHS, 6 par défaut ; 24 pour le rapport) : le hors-jeu, la passe, la
   // sortie de zone, l'enclave, les buts.
   const N = +(process.env.GLACE_MATCHS || 6);
-  const S = { hj: 0, passes: 0, passesOk: 0, sortT: 0, sortOk: 0, oz: 0, ozFilet: 0, buts: 0, tirs: 0, fonds: 0, masques: 0 };
+  const S = { hj: 0, passes: 0, passesOk: 0, sortT: 0, sortOk: 0, oz: 0, ozFilet: 0, buts: 0, tirs: 0, fonds: 0, masques: 0, cycles: 0, trop: 0, revers: 0, volees: 0 };
   for (let g = 0; g < N; g++) {
     const e = nouveauMatch({ graine: `serie-${g}`, A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
     let passe = null, sortie = null, k = 0;
@@ -1031,7 +1041,15 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
       for (const v of avancer(e, {}, DT)) {
         if (v.type === 'horsjeu') S.hj++;
         if (v.type === 'tir') { if (v.fond) S.fonds++; else { S.tirs++; if (v.ecran) S.masques++; } }
-        if (v.type === 'passe') { S.passes++; passe = e.patineurs.find(p => p.id === v.qui).equipe; }
+        if (v.type === 'passe') {
+          S.passes++;
+          const s = e.patineurs.find(p => p.id === v.qui), r = v.vers && e.patineurs.find(p => p.id === v.vers), a = e.equipes[s.equipe].attaque;
+          passe = s.equipe;
+          // le cycle : du coin, le long de la bande, au coéquipier qui attend en haut
+          if (r && s.x * a > LIGNE_BUT - 6 && Math.abs(s.y) > 4.5 && Math.sign(r.y) === Math.sign(s.y) && Math.abs(r.y) > 5 && r.x * a < s.x * a - 2.5 && r.x * a > BLEUE) S.cycles++;
+        }
+        if (v.type === 'tir' && !v.fond && v.revers) S.revers++;
+        if (v.type === 'volee') S.volees++;
         if (v.type === 'prise') {
           const s = e.patineurs.find(p => p.id === v.qui);
           if (passe) { if (s.equipe === passe) S.passesOk++; passe = null; }
@@ -1042,6 +1060,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
         }
         if (['horsjeu', 'degagement', 'gel', 'but', 'vitre', 'punition', 'periode'].includes(v.type) && sortie) { if (!sortie.dehors) S.sortT--; else if (v.type !== 'degagement') S.sortOk++; sortie = null; }
       }
+      for (const eq of ['A', 'B']) if (surGlace(e, eq).length > MATCH.surglace + (e.gardiens.find(g => g.equipe === eq).retire ? 1 : 0)) S.trop++;
       if (!e.enJeu || e.mej || e.arret || e.match.ronde) continue;
       const R = e.rondelle;
       if (sortie && !sortie.dehors && R.x * e.equipes[sortie.eq].attaque > -BLEUE && R.dernier && R.dernier.equipe === sortie.eq) sortie.dehors = true;
@@ -1062,6 +1081,195 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   borne('la sortie de zone réussie : la rondelle sortie et reprise dehors (13 à 15 % avant)', S.sortOk / Math.max(1, S.sortT), 0.22, 0.6);
   borne('en zone offensive, un joueur dans l\'enclave (19 à 25 % du temps avant)', S.ozFilet / Math.max(1, S.oz), 0.28, 0.8);
   borne('… et des buts, mais pas une pluie (5 par match au plus, environ)', S.buts / N, 2, 7, ' par match');
+  informer('… les gestes du lot 3', `${(100 * S.revers / Math.max(1, S.tirs)).toFixed(0)} % des tirs du revers, ${(S.volees / N).toFixed(0)} changements à la volée par match`);
+  borne('le cycle vit : la rondelle remontée du coin le long de la bande (1,0 à 1,4 par match avant)', S.cycles / N, 1.5, 12, ' par match');
+  exiger('… et jamais un patineur de trop sur la glace (le gardien remis revenait avec six)', S.trop === 0, `${S.trop} images`);
+}
+
+/* ---------- le lot 3 (2 nov. 2026) : le porteur a des gestes, et on choisit ses lignes ---------- */
+/* Toi, la rondelle à la lame, immobile au milieu de la glace d'entraînement, le cap dit ; le plot loin. */
+const tonPorteur = (graine, cap, main = 'G') => {
+  const e = glaceVide(graine);
+  const [toi, plot] = e.patineurs;
+  toi.p = parametresDuPatineur({ main }); toi.lat = toi.p.main * BATON.cote;
+  Object.assign(toi, { x: 0, y: 0, vx: 0, vy: 0, cap });
+  const lm = lame(toi); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 0, vy: 0, porteur: 'toi' });
+  e.gardien.x = LIGNE_BUT + 4; e.gardien.y = 10;
+  return { e, toi, plot };
+};
+/* Le plot, à (x, y), harponne la rondelle (son bâton pointé vers elle) ; `avant` : ce que toi fais d'abord. Réussi ? */
+const harponDuPlot = (graine, cap, x, y, avant = null) => {
+  const { e, toi, plot } = tonPorteur(graine, cap);
+  Object.assign(plot, { x, y, vx: 0, vy: 0, poste0: null });
+  jouer(e, { toi: { x: 0, y: 0 }, plot: { x: 0, y: 0 } }, 0.3);   // la lame se place
+  if (avant) avancer(e, { toi: avant, plot: { x: 0, y: 0 } }, DT);
+  plot.cap = Math.atan2(e.rondelle.y - plot.y, e.rondelle.x - plot.x);
+  const protege = toi.protege, lat = toi.lat;
+  const ev = [...avancer(e, { toi: { x: 0, y: 0 }, plot: { x: 0, y: 0, tir: true } }, DT), ...jouer(e, { toi: { x: 0, y: 0 }, plot: { x: 0, y: 0 } }, 0.3)];
+  return { ok: ev.some(x => x.type === 'harpon' && x.qui === 'plot'), mordu: ev.some(x => x.type === 'mordu'), protege, lat, toi, e };
+};
+{
+  // PROTÉGER : le même harpon, du même mètre et demi, dans ton dos (ton corps entre lui et la rondelle) ou de face.
+  const N = 60;
+  let dos = 0, face = 0, protege = 0, cache = 0;
+  for (let i = 0; i < N; i++) {
+    const a = harponDuPlot(`protege-dos-${i}`, 0, -1.3, 0.3), b = harponDuPlot(`protege-face-${i}`, Math.PI, -1.3, 0.3);
+    if (a.ok) dos++; if (b.ok) face++;
+    if (a.protege) protege++;
+    // la lame de l'autre côté du corps : la rondelle à l'opposé du plot, en travers du cap
+    if (Math.sign(a.lat) === -Math.sign(0.3) && Math.abs(a.lat) > 0.9 * PROTEGE.cote) cache++;
+  }
+  exiger('protéger la rondelle : lent, un adversaire collé, le porteur passe sa lame de l\'autre côté de son corps, de lui-même', protege === N && cache === N, `${protege} fois sur ${N} il protège, la lame à ${PROTEGE.cote} m de l'autre côté`);
+  exiger('… et le harpon qui doit passer par son corps réussit moins (le dos tourné au poursuivant) que de face', dos / N < 0.6 * face / N && face / N > 0.3, `${dos} harpons réussis sur ${N} dans son dos, ${face} sur ${N} de face (× ${PROTEGE.harpon})`);
+}
+{
+  // L'IA PROTÈGE DANS LE COIN : pressé, sans passe, elle tourne le dos au poursuivant et file lentement le long de la bande.
+  const e = enScene('coin', null, -18);
+  const A = surGlace(e, 'A'), B = surGlace(e, 'B'), porteur = A.find(s => s.poste === 'AD');
+  Object.assign(porteur, { x: LIGNE_BUT - 2.5, y: 9, cap: 0, vx: 0, vy: 0 });
+  const lm = lame(porteur); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 0, vy: 0, porteur: porteur.id });
+  Object.assign(B[0], { x: LIGNE_BUT - 4, y: 8, cap: 0, vx: 0, vy: 0 });
+  for (const s of A) if (s !== porteur) Object.assign(s, { x: -2, y: -6 + A.indexOf(s) });
+  const dec = decisionIA(e, porteur);
+  const loin = (dec.x * (porteur.x - B[0].x) + dec.y * (porteur.y - B[0].y)) > 0;
+  let protegees = 0, images = 0, v = 0;
+  for (let t = 0; t < 0.5; t += DT) { avancer(e, { [B[0].id]: { x: 0, y: 0 } }, DT); images++; if (porteur.protege) protegees++; if (Math.hypot(porteur.x - B[0].x, porteur.y - B[0].y) < 3) v = Math.max(v, Math.hypot(porteur.vx, porteur.vy)); }
+  exiger('l\'IA protège dans le coin : pressée, sans passe, elle file lentement, dos au poursuivant, la lame cachée', loin && Math.hypot(dec.x, dec.y) < 0.5 && e.rondelle.porteur === porteur.id && protegees >= images / 2 && v < PROTEGE.vitesse, `le bâton à ${Math.hypot(dec.x, dec.y).toFixed(2)}, ${loin ? 'loin de lui' : 'vers lui'}, au plus ${(v * 3.6).toFixed(0)} km/h pressée, elle protège ${protegees} images sur ${images}`);
+}
+{
+  // LA FEINTE : le même harpon, de face, lancé pendant la feinte (Y) ou sans elle.
+  const N = 40;
+  let avec = 0, sans = 0, mordus = 0, ecart = 0;
+  for (let i = 0; i < N; i++) {
+    const a = harponDuPlot(`feinte-${i}`, Math.PI, -1.4, 0.2, { x: 0, y: 0, feinte: true }), b = harponDuPlot(`feinte-sans-${i}`, Math.PI, -1.4, 0.2);
+    if (a.ok) avec++; if (b.ok) sans++; if (a.mordu) mordus++;
+  }
+  { const { e, toi } = tonPorteur('feinte-lame', 0); const lat0 = toi.lat; jouer(e, { toi: { x: 0, y: 0, feinte: true } }, 0.15); ecart = Math.abs(toi.lat - lat0); }
+  exiger('la feinte (Y) déporte la lame d\'un mètre, un instant', ecart > 0.8 * FEINTE.ecart && ecart <= FEINTE.ecart + 0.01, `${ecart.toFixed(2)} m en 0,15 s (${FEINTE.ecart} m, ${FEINTE.duree} s)`);
+  exiger('… un harpon lancé pendant la feinte rate : il a mordu', avec === 0 && mordus === N && sans >= N * 0.3, `${avec} réussis sur ${N} pendant la feinte (${mordus} ont mordu), ${sans} sur ${N} sans elle`);
+  // La charge lancée pendant la feinte : le plot fonce sur toi, l'élan pressé, à 9 m/s.
+  const charge = feinte => {
+    const { e, toi, plot } = tonPorteur(`charge-${feinte}`, 0);
+    Object.assign(plot, { x: -3, y: 0, vx: 9, vy: 0, cap: 0, poste0: null });
+    if (feinte) avancer(e, { toi: { x: 0, y: 0, feinte: true } }, DT);
+    const ev = jouer(e, { toi: { x: 0, y: 0 }, plot: { x: 1, y: 0, echec: true } }, 0.4);
+    return { tombe: toi.auSol > 0, contact: ev.some(x => x.type === 'echec') };
+  };
+  const cs = charge(false), ca = charge(true);
+  exiger('… une mise en échec lancée pendant la feinte ne le renverse pas (sans elle, il tombe)', cs.tombe && !ca.tombe && ca.contact, `sans la feinte, ${cs.tombe ? 'il tombe' : 'il reste debout'} ; avec, ${ca.tombe ? 'il tombe' : 'il reste debout'}${ca.contact ? ' (le contact a eu lieu)' : ''}`);
+  // L'IA feinte parfois devant un défenseur seul.
+  const e = enScene('feinte-ia', null, 18);
+  const A = surGlace(e, 'A'), B = surGlace(e, 'B'), porteur = A.find(s => s.poste === 'C');
+  Object.assign(porteur, { x: 4, y: 0, cap: 0, vx: 6, vy: 0 });
+  const lm = lame(porteur); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 6, vy: 0, porteur: porteur.id });
+  Object.assign(B[0], { x: 6.7, y: 0.3, cap: Math.PI });
+  for (const s of A) if (s !== porteur) Object.assign(s, { x: -20, y: s.y });
+  let n = 0;
+  for (let k = 0; k < 60; k++) { porteur.memo = {}; if (decisionIA(e, porteur).feinte) n++; }
+  exiger('… et l\'IA feinte parfois devant un défenseur seul', n > 0 && n < 30, `${n} décisions sur 60`);
+}
+{
+  // LE REVERS ET LA MAIN : le même tir du poignet, du même point, le même cap, le filet à 86° à sa gauche : un droitier le
+  // lance du coup droit, un gaucher du revers.
+  const salve = main => {
+    const vit = [], ang = [];
+    let revers = 0;
+    for (let i = 0; i < 60; i++) {
+      const { e, toi } = tonPorteur(`revers-${main}-${i}`, -1.5, main);
+      Object.assign(toi, { x: LIGNE_BUT - 9, y: 0 });
+      const lm = lame(toi); Object.assign(e.rondelle, { x: lm.x, y: lm.y });
+      avancer(e, { toi: { x: 0, y: 0, tir: true } }, DT);
+      const ev = avancer(e, { toi: { x: 0, y: 0, tir: false } }, DT);
+      const t = ev.find(x => x.type === 'tir');
+      if (!t) continue;
+      if (t.revers) revers++;
+      vit.push(Math.hypot(e.rondelle.vx, e.rondelle.vy)); ang.push(Math.atan2(e.rondelle.vy, e.rondelle.vx));
+    }
+    const m = a => a.reduce((x, y) => x + y, 0) / a.length;
+    const ma = m(ang), sd = Math.sqrt(m(ang.map(a => (a - ma) ** 2)));
+    return { v: m(vit), sd, revers, n: vit.length };
+  };
+  const droit = salve('D'), gauche = salve('G');
+  exiger('la main du joueur : le filet sur sa gauche, un droitier tire du coup droit, un gaucher du revers', droit.revers === 0 && gauche.revers === gauche.n && gauche.n === 60, `${droit.revers} revers sur ${droit.n} pour le droitier, ${gauche.revers} sur ${gauche.n} pour le gaucher`);
+  exiger('… et le tir du revers part moins fort et moins précis', gauche.v < droit.v * (REVERS.tir + 0.05) && gauche.sd > droit.sd * 1.3, `${(droit.v * 3.6).toFixed(0)} km/h du coup droit, ${(gauche.v * 3.6).toFixed(0)} du revers ; un écart de ${(droit.sd * 57.3).toFixed(1)}° contre ${(gauche.sd * 57.3).toFixed(1)}°`);
+}
+{
+  // LA PASSE LAISSÉE : tu files à 7 m/s, un coéquipier te suit à 3 m ; A, le bâton tiré vers l'arrière.
+  const laisse = suit => {
+    const e = enScene(`laissee-${suit}`, 'A', 18);
+    const A = surGlace(e, 'A'), porteur = A.find(s => s.poste === 'C'), suiveur = A.find(s => s.poste === 'AG');
+    Object.assign(porteur, { x: -2, y: 0, cap: 0, vx: 7, vy: 0 });
+    const lm = lame(porteur); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 7, vy: 0, porteur: porteur.id });
+    Object.assign(suiveur, { x: -5, y: 0.4, cap: 0, vx: suit ? 7 : 0, vy: 0 });
+    for (const s of A) if (s !== porteur && s !== suiveur) Object.assign(s, { x: -18, y: s.y });
+    e.controles.A = porteur.id;
+    const ev = [...avancer(e, { [porteur.id]: { x: -1, y: 0, passe: true } }, DT), ...jouer(e, { [porteur.id]: { x: 1, y: 0 } }, 1.5)];
+    const p = ev.find(x => x.type === 'passe');
+    const prise = ev.find(x => x.type === 'prise');
+    return { p, prise, suiveur, porteur };
+  };
+  const a = laisse(true), b = laisse(false);
+  exiger('la passe laissée : A, le bâton vers l\'arrière, la rondelle reste derrière toi au coéquipier qui suit, qui la prend', !!a.p && a.p.laissee && !!a.prise && a.prise.qui === a.suiveur.id, a.p ? `${a.p.laissee ? 'laissée' : 'une passe'}, prise par ${a.prise ? (a.prise.qui === a.suiveur.id ? 'celui qui suit' : a.prise.qui) : 'personne'}` : 'aucune passe');
+  exiger('… personne ne te suit : c\'est une passe, pas une rondelle laissée', !!b.p && !b.p.laissee, b.p ? (b.p.laissee ? 'laissée' : 'une passe') : 'aucune passe');
+}
+{
+  // CHOISIR SON TRIO : à l'arrêt de jeu, Y passe au trio suivant ; il saute sur la glace, même fatigué.
+  const e = nouveauMatch({ graine: 'trio', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: 'A', ia: decisionIA });
+  const E = e.equipes.A;
+  for (const id of E.lignes.F[1]) e.patineurs.find(s => s.id === id).jambes = 40;
+  const y = on => ({ [e.controles.A]: { x: 0, y: 0, ligne: on } });
+  avancer(e, y(true), DT); avancer(e, y(false), DT);
+  for (let t = 0; t < 2 && !e.mej; t += DT) avancer(e, {}, DT);
+  const avants = () => surGlace(e, 'A').filter(s => s.poste !== 'D').map(s => s.id).sort().join(',');
+  const deux = avants() === E.lignes.F[1].slice().sort().join(',');
+  avancer(e, y(true), DT); avancer(e, y(false), DT);
+  const trois = avants() === E.lignes.F[2].slice().sort().join(',') && e.mej && e.mej.reste > MEJ.chute - 0.1;
+  exiger('choisir son trio : à l\'arrêt de jeu, Y, et le trio choisi est celui qui joue, même à 40 jambes', deux, `le trio 2 sur la glace : ${deux ? 'oui' : 'non'}`);
+  exiger('… encore Y pendant la mise en jeu : le trio suivant saute sur la glace, la mise en jeu se replace', trois, `le trio 3 : ${trois ? 'oui' : 'non'}`);
+}
+{
+  // LE CHANGEMENT À LA VOLÉE : les trois avants de A à 45 jambes, un trio frais au banc, la rondelle à leur défenseur
+  // au-delà du centre ; B se tient loin, immobile.
+  const e = enScene('volee', null, 16);
+  const A = surGlace(e, 'A'), E = e.equipes.A, d = A.find(s => s.poste === 'D');
+  const fatigues = A.filter(s => s.poste !== 'D');
+  for (const s of e.patineurs.filter(p => p.equipe === 'A')) s.jambes = 100;
+  for (const s of fatigues) Object.assign(s, { jambes: 45, x: 6, y: -6 + fatigues.indexOf(s) * 6 });
+  Object.assign(d, { x: 1, y: 0, cap: 0 });
+  const lm = lame(d); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 0, vy: 0, porteur: d.id });
+  const immobiles = { [d.id]: { x: 0, y: 0 } };
+  for (const s of surGlace(e, 'B')) immobiles[s.id] = { x: 0, y: 0 };
+  const porte = porteDuBanc('A');
+  let plus = 0, entrees = [], sorties = 0;
+  for (let t = 0; t < 8; t += DT) {
+    for (const x of avancer(e, immobiles, DT)) if (x.type === 'volee' && x.equipe === 'A') { sorties++; const r = e.patineurs.find(s => s.id === x.entre); entrees.push(Math.hypot(r.x - porte.x, r.y - porte.y)); }
+    plus = Math.max(plus, surGlace(e, 'A').length);
+  }
+  const frais = surGlace(e, 'A').filter(s => s.poste !== 'D');
+  const uneLigne = E.lignes.F.some(l => frais.every(s => l.includes(s.id))) && !frais.some(s => fatigues.includes(s));
+  exiger('le changement à la volée : la rondelle loin, les avants fatigués filent au banc et un trio frais saute sur la glace', sorties === 3 && uneLigne, `${sorties} changements, les avants : ${frais.map(s => s.nom).join(', ')}`);
+  exiger('… par la porte du banc, pas téléportés : chacun entre à la porte', entrees.length === 3 && entrees.every(x => x < 0.1), `à ${entrees.map(x => x.toFixed(2)).join(', ')} m de la porte`);
+  exiger('… jamais un patineur de trop sur la glace', plus <= 5, `au plus ${plus}`);
+  exiger('… et au banc, les jambes du trio qui sort remontent', fatigues.every(s => !s.surGlace && s.jambes > 45 + JAMBES.repos), fatigues.map(s => Math.round(s.jambes)).join(', ') + ` jambes (le banc en rend ${JAMBES.repos} par seconde)`);
+}
+{
+  // LE GARDIEN REMIS EN JEU attend qu'un patineur sorte par la porte : il revient alors, de la porte à son filet.
+  const e = enScene('retour', null, 16);
+  retirerGardien(e, 'A', true);
+  const d = surGlace(e, 'A').find(s => s.poste === 'D');
+  Object.assign(d, { x: 1, y: 0, cap: 0 });
+  const lm = lame(d); Object.assign(e.rondelle, { x: lm.x, y: lm.y, vx: 0, vy: 0, porteur: d.id });
+  const immobiles = { [d.id]: { x: 0, y: 0 } };
+  for (const s of surGlace(e, 'B')) immobiles[s.id] = { x: 0, y: 0 };
+  retirerGardien(e, 'A', false);
+  const Gd = e.gardiens.find(g => g.equipe === 'A');
+  let trop = false, revenu = null;
+  for (let t = 0; t < 10 && !revenu; t += DT) {
+    for (const x of avancer(e, immobiles, DT)) if (x.type === 'volee' && x.gardien) revenu = x;
+    if (surGlace(e, 'A').length + (Gd.retire ? 0 : 1) > 6) trop = true;
+  }
+  jouer(e, immobiles, 4);
+  exiger('le gardien remis en jeu : un patineur sort par la porte, et le gardien revient à son filet, jamais un de trop', !!revenu && !trop && !Gd.retire && surGlace(e, 'A').length === 5 && Math.abs(Gd.x) > LIGNE_BUT - 2, revenu ? `${surGlace(e, 'A').length} patineurs, le gardien à x ${Gd.x.toFixed(1)}` : 'il attend toujours');
 }
 
 /* ---------- les règles, écrites de là ---------- */

@@ -31,11 +31,17 @@
  *                         siens courent après (`FOND`) ; dans le coin, pressé, il la remonte le long de la bande au
  *                         coéquipier qui l'attend en haut (le cycle) ; un joueur fait l'écran devant le gardien, sur la
  *                         ligne du tir (`ECRAN_D`), et tient son bâton quand le tir part (la déviation)
+ *   les gestes            (2 nov. 2026, le lot 3) dans le coin, pressé et sans passe, le porteur tourne le dos au
+ *                         poursuivant et file lentement le long de la bande, la rondelle protégée, le temps que le cycle
+ *                         s'ouvre (`COIN`) ; devant un défenseur seul, il feinte parfois (`FEINTE_IA`)
+ *   les changements       (le lot 3) à la volée : la rondelle loin, la ligne dont les jambes baissent file à la porte
+ *                         de son banc s'il y a une ligne fraîche (`JAMBES.volee`, `JAMBES.frais`) ; le gardien
+ *                         remis en jeu, le patineur le plus près de la porte lui laisse sa place
  *
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
  * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler vit sur le patineur (`s.memo`).
  */
-import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, surGlace, autre, lame } from './physique.js';
+import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, surGlace, autre, lame, porteDuBanc } from './physique.js';
 
 const hyp = Math.hypot;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -185,6 +191,8 @@ export function decisionIA(etat, s) {
   }
   memo.tir = null;
 
+  const banc = porteur === s ? null : auBanc(etat, s, memo, a, miens, porteur);
+  if (banc) return banc;
   if (porteur === s) return avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M);
   // NOTRE TIR EN ROUTE : celui qui est au filet tient sa place, le bâton sur la glace (la déviation, le retour).
   const tirEnRoute = !porteur && R.dernier && R.dernier.equipe === eq && R.dernier.tir && hyp(R.vx, R.vy) > 12;
@@ -222,7 +230,50 @@ function miseEnJeu(etat, s, memo, a, miens) {
   return { x: memo.mejX, y: memo.mejY, passe: -M.reste >= memo.mejT };
 }
 
+/*
+ * LE CHANGEMENT À LA VOLÉE (le lot 3) : la rondelle loin (dans leur moitié, hors de leur zone, et pas à eux), un
+ * patineur sous `JAMBES.frais` dont le groupe (les avants, les défenseurs) passe en moyenne sous `JAMBES.volee` file
+ * à la porte de son banc, si une ligne de ce groupe y attend avec `JAMBES.frais` ; le moteur le fait sortir à la porte
+ * et entrer le remplaçant. Une fois parti, on y va, sauf si l'adversaire porte la rondelle chez nous. Le gardien remis
+ * en jeu attend à la porte : le patineur le plus près (pas celui que tu joues) lui laisse sa place.
+ */
+const VOLEE_IA = { attaque: 20 };   // la rondelle dans leur zone, on ne change qu'à `attaque` jambes sous le seuil : on y reste pour attaquer
+function auBanc(etat, s, memo, a, miens, porteur) {
+  const M = etat.match, R = etat.rondelle;
+  if (!M || M.ronde || !etat.enJeu || etat.mej) return null;
+  const porte = porteDuBanc(s.equipe), allerA = () => ({ ...vers(s, porte.x, porte.y, 0.6), banc: true });
+  const Gd = etat.gardiens.find(g => g.equipe === s.equipe);
+  if (Gd && Gd.retour) {
+    const toi = etat.controles[s.equipe];
+    const pres = miens.filter(m => m !== porteur && m.id !== toi).sort((p, q) => hyp(p.x - porte.x, p.y - porte.y) - hyp(q.x - porte.x, q.y - porte.y))[0];
+    return pres === s ? allerA() : null;
+  }
+  const danger = porteur && porteur.equipe !== s.equipe && porteur.x * a < 0;
+  if (memo.banc && (danger || s.jambes >= JAMBES.frais)) memo.banc = false;
+  if (!memo.banc) {
+    if (s.jambes >= JAMBES.frais || R.x * a <= 0 || (porteur && porteur.equipe !== s.equipe)) return null;
+    // La rondelle dans leur zone : on y reste (l'attaque, le retour), sauf à bout de jambes.
+    if (R.x * a > BLEUE && s.jambes > JAMBES.volee - VOLEE_IA.attaque) return null;
+    const d = s.poste === 'D', groupe = miens.filter(m => (m.poste === 'D') === d);
+    if (groupe.reduce((t, m) => t + m.jambes, 0) / Math.max(1, groupe.length) >= JAMBES.volee) return null;
+    const E = etat.equipes[s.equipe], boxe = new Set(M.penalites.map(p => p.id));
+    const par = id => etat.patineurs.find(p => p.id === id);
+    const fraiche = E.lignes[d ? 'D' : 'F'].some(l => l.length && l.every(id => !par(id).surGlace && !boxe.has(id)) && l.reduce((t, id) => t + par(id).jambes, 0) / l.length >= JAMBES.frais);
+    if (!fraiche) return null;
+    memo.banc = true;
+  }
+  return allerA();
+}
+
 /* ---------- le porteur ---------- */
+/*
+ * PROTÉGER DANS LE COIN (le lot 3 ; JP veut un cycle qui vit) : au coin, pressé à `pres` m, sans passe, il tourne le dos
+ * au poursuivant et file le long de la bande, lentement (le bâton à `lent` : sous `PROTEGE.vitesse`, la lame passe de
+ * l'autre côté de son corps), `duree` s au plus, le temps qu'un coéquipier s'ouvre en haut.
+ */
+const COIN = { pres: 3.2, lent: 0.3, duree: 1.6 };
+/* LA FEINTE de l'IA : un seul défenseur devant lui, entre `pres` et `loin` m, personne d'autre à `seul` m : `part` fois sur cent par décision. */
+const FEINTE_IA = { pres: 1.8, loin: 3.4, seul: 5, part: 0.12 };
 function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   const R = etat.rondelle;
   const dBut = hyp(but.x - s.x, but.y - s.y);
@@ -243,12 +294,15 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   const lateral = Math.abs(s.y);
   const angleFilet = Math.abs(Math.atan2(s.y, but.x - s.x));
   const bonTir = dBut < 11 && lateral < 8 && couloir && angleFilet < 0.9;
-  if (peutLancer && (bonTir || dBut < 6 || (pression < 2.2 && dBut < 17 && couloir && u(s.x) > BLEUE))) {
+  // Au coin, pressé, il ne lance pas de là (le lot 3) : il protège, le temps du cycle.
+  const enCoin = u(s.x) > LIGNE_BUT - 6 && Math.abs(s.y) > 4.5;
+  if (peutLancer && (bonTir || dBut < 6 || (pression < 2.2 && dBut < 17 && couloir && u(s.x) > BLEUE && !enCoin))) {
     const charge = clamp((dBut - 4) / 14, 0.05, 0.9);
     return charger(memo, s, but, a, charge, etat);
   }
   // DERRIÈRE LE FILET : chercher une passe devant (l'enclave, le devant du filet) ou ressortir de l'autre côté.
-  const derriere = u(s.x) > LIGNE_BUT - 2.5 && dBut > 4;
+  // (Pressé au coin, c'est le cycle et la protection d'en bas qui jouent.)
+  const derriere = u(s.x) > LIGNE_BUT - 2.5 && dBut > 4 && !(enCoin && pression < COIN.pres);
   if (derriere) {
     for (const m of miens) {
       if (m === s || m.auSol > 0) continue;
@@ -272,11 +326,34 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
     if (r) return r;
   }
   // LE CYCLE : dans le coin, pressé, sans tir, on la remonte le long de la bande au coéquipier qui attend en haut.
-  const enCoin = u(s.x) > LIGNE_BUT - 6 && Math.abs(s.y) > 4.5;
   if (enCoin && pression < 3.5) {
     const haut = miens.find(m => m !== s && m.auSol <= 0 && Math.sign(m.y) === Math.sign(s.y) && Math.abs(m.y) > 5 && u(m.x) < u(s.x) - 2.5 && u(m.x) > BLEUE + 1
       && Math.min(Infinity, ...adv.map(o => hyp(o.x - m.x, o.y - m.y))) > 2 && couloirOuvert(R.x, R.y, m.x, m.y, adv, 1.1));
     if (haut) return passerA(memo, s, haut);
+  }
+  // PROTÉGER : au coin, pressé, sans passe : dos au poursuivant, le long de la bande, lentement.
+  if (enCoin && pression < COIN.pres) {
+    if (!(memo.protegeDepuis > etat.t - 0.2 - COIN.duree)) memo.protegeDebut = etat.t;
+    memo.protegeDepuis = etat.t;
+    if (etat.t - memo.protegeDebut < COIN.duree) {
+      const o = adv.slice().sort((p, q) => hyp(p.x - s.x, p.y - s.y) - hyp(q.x - s.x, q.y - s.y))[0];
+      let ex = s.x - o.x, ey = s.y - o.y;
+      // le long de la bande : ce qui pousse dans la bande ne compte pas
+      if (Math.abs(s.y) > W / 2 - 2.5 && ey * Math.sign(s.y) > 0) ey = 0;
+      if (u(s.x) > LIGNE_BUT + 1.5 && ex * a > 0) ex = 0;
+      const m = hyp(ex, ey) || 1;
+      memo.dirX = ex / m; memo.dirY = ey / m;
+      return { x: ex / m * COIN.lent, y: ey / m * COIN.lent };
+    }
+  }
+  // LA FEINTE : un seul défenseur devant, à portée de son harpon.
+  if (s.feinteRepos <= 0 && u(s.x) > -BLEUE) {
+    const devant = adv.filter(o => { const dx = o.x - s.x, dy = o.y - s.y, d = hyp(dx, dy); return d < FEINTE_IA.seul && dx * Math.cos(s.cap) + dy * Math.sin(s.cap) > 0.5 * d; });
+    const proches = adv.filter(o => hyp(o.x - s.x, o.y - s.y) < FEINTE_IA.seul);
+    const d0 = devant.length ? hyp(devant[0].x - s.x, devant[0].y - s.y) : 0;
+    if (devant.length === 1 && proches.length === 1 && d0 > FEINTE_IA.pres && d0 < FEINTE_IA.loin && etat.de() < FEINTE_IA.part) {
+      return { x: Math.cos(s.cap), y: Math.sin(s.cap), feinte: true };
+    }
   }
   // PASSER ? La transversale pour le tir sur réception, un coéquipier ouvert et bien placé (de notre zone, la sortie
   // a déjà choisi : pas de passe forcée).
@@ -520,6 +597,13 @@ function posteEcran(etat, eq, a, R) {
   return { x: a * Math.min((gx + dx / d * ECRAN_D.distance) * a, LIGNE_BUT - ECRAN_D.prof), y: clamp(gy + dy / d * ECRAN_D.distance, -ECRAN_D.large, ECRAN_D.large) };
 }
 
+/* La rondelle derrière le corps du porteur, vue de `s` : la ligne de `s` à elle passe par lui (`PROTEGE`). */
+function corpsDevant(s, p, R) {
+  const dx = R.x - s.x, dy = R.y - s.y, d2 = dx * dx + dy * dy || 1e-9;
+  const t = ((p.x - s.x) * dx + (p.y - s.y) * dy) / d2;
+  return t > 0 && t < 1 && hyp(p.x - (s.x + t * dx), p.y - (s.y + t * dy)) < p.rayon + PROTEGE.marge;
+}
+
 /* ---------- l'équipe sans la rondelle ---------- */
 function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
   const R = etat.rondelle;
@@ -566,8 +650,10 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
       // Dans son dos et près de lui : on ne fonce pas (la charge par-derrière, c'est deux minutes), on se colle et on harponne.
       const dansSonDos = (dx * Math.cos(porteur.cap) + dy * Math.sin(porteur.cap)) > 0.3 * d;
       if (dansSonDos && d < 3.5) { e.x *= 0.25; e.y *= 0.25; }
-      // Le harpon à portée, de face ; la mise en échec de face, en fonçant — jamais par-derrière, c'est deux minutes.
-      if (d < HARPON.portee + 0.3 && devant && s.harponRepos <= 0 && etat.de() < 0.5) e.tir = true;
+      // Le harpon à portée, de face ; la mise en échec de face, en fonçant — jamais par-derrière, c'est deux minutes. La
+      // rondelle cachée derrière son corps (il protège, le lot 3), on ne harponne pas dans le dos : on le serre et on attend.
+      const cachee = corpsDevant(s, porteur, R);
+      if (d < HARPON.portee + 0.3 && devant && !cachee && s.harponRepos <= 0 && etat.de() < 0.5) e.tir = true;
       const vs = hyp(s.vx, s.vy) || 1e-9;
       // De face seulement : le porteur vient vers nous (son cap contre notre vitesse) ; de côté ou dans son dos, on ne fonce pas.
       const deFace = (s.vx * Math.cos(porteur.cap) + s.vy * Math.sin(porteur.cap)) / vs < -0.2;
