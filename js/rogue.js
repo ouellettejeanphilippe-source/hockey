@@ -687,14 +687,29 @@ export const MANDATS = [
   { top: 6, mot: 'finir dans les six premiers' },
   { top: 3, mot: 'finir dans les trois premiers' },
 ];
-/* Le mandat de la saison `n` (1 = la première de la run) ; « Le proprio impatient » (les exigences) l'avance. */
-export const mandatDe = (n, exigence = 0) => MANDATS[Math.max(0, Math.min(MANDATS.length, (n || 1) + exigencesDe(exigence).mandat) - 1)];
+/*
+ * LA PREMIÈRE SAISON DE LA PREMIÈRE RUN (nov. 2026, docs/revue-rogue-2026-11.md § 1 ; docs/decisions.md). Mesuré
+ * (check_profondeur) : le gérant attentif finissait sa première saison entre le 22e et le 26e rang, et la run finissait
+ * là, trois runs de suite — le coach, ses talents et ses adjoints ne vivaient jamais une deuxième saison. Le proprio
+ * de ta première run te laisse une saison pour bâtir : finir dans les `MANDAT_DE_LA_PREMIERE.top` premiers, séries ou
+ * pas ; dès la deuxième saison, et dès la deuxième run, les mandats de toujours. Lot 5 (nov. 2026, docs/decisions.md) :
+ * 27 a été essayé — l'attentif passait sa première saison une fois sur deux (14 graines sur 30), mais sa deuxième saison
+ * sautait du 27e rang au podium et gagnait la Coupe dès la run 1 (5 graines sur 30 ; check_profondeur : la première Coupe
+ * à la run 1). 24 reste ; la deuxième saison de la première run porte la marche de la ligue (`etapeDeLaRun`).
+ */
+export const MANDAT_DE_LA_PREMIERE = { top: 24, sansSeries: true, mot: 'finir dans les vingt-quatre premiers' };
+/*
+ * Le mandat de la saison `n` (1 = la première de la run) ; « Le proprio impatient » (les exigences) l'avance.
+ * `premiere` : la première run de la partie (`G.rogue.numero` 1).
+ */
+export const mandatDe = (n, exigence = 0, premiere = false) => (premiere && (n || 1) === 1 && !exigencesDe(exigence).mandat ? MANDAT_DE_LA_PREMIERE
+  : MANDATS[Math.max(0, Math.min(MANDATS.length, (n || 1) + exigencesDe(exigence).mandat) - 1)]);
 /* Le rang à atteindre pour le mandat `M` dans une ligue de `nEquipes` clubs (null : faire les séries). */
 export const rangDuMandat = (M, nEquipes = 32) => (M.top ? Math.min(M.top, nEquipes) : null);
 /* La saison a-t-elle rempli son mandat ? `series` : qualifiée ; `rang` : au classement ; `nEquipes` : la taille de la ligue. */
-export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32, exigence = 0 } = {}) => {
-  const seuil = rangDuMandat(mandatDe(n, exigence), nEquipes);
-  return !!series && (seuil == null || rang <= seuil);
+export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32, exigence = 0, premiere = false } = {}) => {
+  const M = mandatDe(n, exigence, premiere), seuil = rangDuMandat(M, nEquipes);
+  return (!!series || !!M.sansSeries) && (seuil == null || rang <= seuil);
 };
 
 /*
@@ -748,8 +763,12 @@ export const NIVEAUX_PLEINS = 2;
 export const ETAPES_PAR_CRAN = 2;
 export const ETAPE_APRES_LA_PREMIERE = 1;
 export const niveauDeLigue = (rang = 0, exigence = 0) => Math.max(0, (rang || 0) + ETAPES_PAR_CRAN * (exigence || 0));
-/* L'étape de plus que porte la ligue d'une run : aucune à la première, `ETAPE_APRES_LA_PREMIERE` ensuite. */
-export const etapeDeLaRun = (run = 1) => ((run || 1) > 1 ? ETAPE_APRES_LA_PREMIERE : 0);
+/*
+ * L'étape de plus que porte la ligue d'une run : aucune à la première saison de la première run, `ETAPE_APRES_LA_PREMIERE`
+ * ensuite — dès la deuxième run, et dès la deuxième saison de la première (lot 5, nov. 2026 : la première saison laisse
+ * bâtir, `MANDAT_DE_LA_PREMIERE` ; sans la marche, l'attentif qui la passait gagnait la Coupe dès la run 1).
+ */
+export const etapeDeLaRun = (run = 1, saison = 1) => ((run || 1) > 1 || (saison || 1) > 1 ? ETAPE_APRES_LA_PREMIERE : 0);
 /* L'étape des éditions d'un niveau de ligue, plus celle de la run. */
 export const ligueDe = (niveau, etapeDeRun = 0) => ({ etape: Math.max(0, (niveau || 0) - NIVEAUX_PLEINS) + (etapeDeRun || 0) });
 /* L'édition d'un adversaire, au rang `r` de son club (0 : son meilleur) sur `n` : un tiers de plus du club par étape. */

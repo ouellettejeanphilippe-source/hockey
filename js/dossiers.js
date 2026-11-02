@@ -84,7 +84,10 @@ export const DOSSIERS = {
     options: [
       { cle: 'defi', nom: 'Le mettre au défi devant les journalistes', bon: 'Si ça passe : il répond, plus de tirs et de précision', prix: 'Sinon : il force ses tirs, moins de précision',
         pari: { chance: 3 / 6, gagne: { duree: 8, lui: { lancers: 1.5, finition: 1.3 } }, perd: { duree: 8, lui: { lancers: 1.5, finition: 0.5 } } } },
-      { cle: 'repos', nom: 'Le reposer deux matchs', bon: 'Il revient la tête vidée', prix: 'Deux matchs sans lui', action: { absents: 2 } },
+      // 2 nov. 2026 (docs/revue-rogue-2026-11.md § 2.5 A) : le repos ne rapportait rien. Il revient la tête vidée : ses six
+      // matchs d'après (les deux premiers des huit, il est au vestiaire), plus de tirs et de précision, sans dé.
+      { cle: 'repos', nom: 'Le reposer deux matchs', bon: 'À son retour, la tête vidée : il tire plus, avec plus de précision', prix: 'Deux matchs sans lui', action: { absents: 2 },
+        duree: 8, lui: { lancers: 1.5, finition: 1.1 } },
     ],
   },
   // Le gardien battu au dernier match.
@@ -98,7 +101,10 @@ export const DOSSIERS = {
     options: [
       { cle: 'renvoyer', nom: 'Le renvoyer devant le filet', bon: 'Si ça passe : il se venge, moins de buts accordés', prix: 'Sinon : il coule encore, plus de buts accordés',
         pari: { chance: 3 / 6, gagne: { duree: 6, lui: { arrets: 0.78 } }, perd: { duree: 6, lui: { arrets: 1.22 } } } },
-      { cle: 'auxiliaire', nom: 'L\'auxiliaire deux soirs', bon: 'Ton partant souffle', prix: 'Deux soirs avec l\'auxiliaire', action: { gardienAux: 2 } },
+      // 2 nov. 2026 (§ 2.5 A) : deux soirs de l'auxiliaire coûtaient sans rien rendre. Il revient chaud : ses deux départs
+      // d'après (les deux premiers des quatre, il est au banc), moins de buts accordés, sans dé.
+      { cle: 'auxiliaire', nom: 'L\'auxiliaire deux soirs', bon: 'Ton partant souffle et revient chaud : plus d\'arrêts à son retour', prix: 'Deux soirs avec l\'auxiliaire', action: { gardienAux: 2 },
+        duree: 4, lui: { arrets: 0.78 } },
     ],
   },
   // Celui qui va au cachot.

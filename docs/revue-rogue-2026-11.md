@@ -21,6 +21,10 @@ Six vérifications sur six au vert. Trois chiffres comptent :
 | La première Coupe | attentif : runs 6 et 4 · robot d'avant : runs 6 et 4 · distrait : jamais | Sur une carrière, l'attentif et le robot d'avant arrivent **au même moment**. |
 | La longueur des premières runs | `1·L0 1·L0 1·L0` pour les trois robots | Les trois premières runs ne durent **qu'une saison** : congédié dès la première, trois fois de suite. |
 
+**Fait (2 nov., lot 4)** : la cause des runs d'une saison est le mandat de la saison 1 (« faire les séries ») ; l'attentif finissait sa première run entre le 23e et le 31e rang. La saison 1 de la run 1 demande maintenant les 24 premiers, séries ou pas (`MANDAT_DE_LA_PREMIERE`). Le robot attentif pèse les dés et ce qui va au joueur nommé (`lireLeJoueur`), et son talent selon son coach (`valeurDuTalent`). `check_profondeur` complet après (971 s) : **+4,3 V** (± 1,1) sur le robot d'avant, toujours sous le seuil de 5 ; la première Coupe de l'attentif aux runs 4 et 4, regagnée 25 %, le distrait jamais — et **la run 1 de l'attentif dure encore une saison dans les deux campagnes** : la mesure ne montre pas encore la run 1 plus longue. `RUNS=10 CAMPAGNES=2 check_rogue` : 38 sur 38.
+
+**Fait (2 nov., lot 5)** : sur 30 graines (la saison 1 de la run 1), l'attentif finit 11e à 32e, médiane 27-28, et passe le mandat de 24 sept fois sur 30 : la ligne `1·L0 1·L0` tenait aux deux graines des campagnes (27e et 27e). Le seuil de **27**, essayé : la run 1 dure deux saisons dans les deux campagnes, mais sa deuxième saison saute du 27e rang au podium et gagne la Coupe dès la run 1 (campagne 2 ; cinq graines sur 30) — retiré, 24 reste. Ce qui reste : la deuxième saison de la première run porte la marche de la ligue (`etapeDeLaRun(run, saison)`), et le Pack Époque neuf (§ 2.6). `check_profondeur` complet après (1 684 s), **six sur six au vert** : +5,4 V (± 1,2) sur le robot d'avant ; la première Coupe de l'attentif aux runs 5 et 5, regagnée 29 %, le distrait jamais ; **la run 1 de l'attentif dure quatre saisons dans la campagne 1** (`4·L0 1·L0`, sans Coupe). Le détail : docs/decisions.md (lot 5).
+
 Ailleurs : un club moyen bien mené finit premier 5 fois sur 16, un bon club mal mené rate les séries 3 fois sur 16, et après sa première Coupe l'attentif la regagne 29 % des runs (cible : 25 à 67 %).
 
 ## 2. Ce que la revue de design trouve
@@ -51,6 +55,8 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 - **A (recommandée)** : le bourdonnement ne joue que si tu mènes en 3e, donc jamais en même temps que la ruée (js/pouvoirs.js). La preuve : `COACHS=essaim N=600 node scripts/check_pouvoirs.mjs`, puis `check_profondeur` avec `ROBOT_COACH` pour chacune des trois voies du départ, à moins de 1,5 V l'une de l'autre.
 - **B** : un loto de trois voies tirées parmi les huit dès la première run ; le prestige ouvre autre chose (la maîtrise, les cartes du cartable). Touche la décision « le coach au prestige » (docs/decisions.md). La preuve : les campagnes de `check_profondeur`, la première Coupe toujours à la run 3 ou plus tard.
 
+**Fait (2 nov., A)** : le bourdonnement joue « en 3e, quand tu mènes » (« avec plus de tirs qu'eux » avant), jamais avec la ruée. `COACHS=essaim N=600 check_pouvoirs` vert : 47 → 45 % des soirs, +1,9 tir le soir où il joue, +1,2 → +1,7 V (borne 2,5) ; le Frelon complet +7,8 → +7,5 V. Les trois voies du départ (`ROBOT_COACH`, `CAMPAGNES=0 GRAINES=2`), l'attentif sur le robot d'avant, avant → après : 🐢 +2,8 → +2,9 · 🐝 +4,4 → +3,4 · 🦏 +4,4 → +4,6 V (± 2) ; l'écart 1,6 → 1,7 V, dans le bruit. Le +6,5 V du 31 oct. ne se retrouvait plus après la V22 (+4,4, à égalité avec le Rhino) : le Frelon ne dominait déjà plus, il est maintenant au milieu. B n'est pas fait. Le détail : docs/decisions.md (2 nov., le Frelon ne cumule plus).
+
 ### 2.3 Les adjoints : poser dès qu'une case se libère domine
 
 - **`SEJOUR = 12` et `REPOS = 12`** (js/adjoints.js) : deux cartes en alternance couvrent une case toute la saison. Une case vide est perdue, donc poser tout de suite domine ; c'est ce que fait le robot (`lundiDuRobot`).
@@ -72,6 +78,8 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 - **A (recommandée)** : couper l'écran du niveau 2 ; le talent s'applique seul et Hier soir le dit. Le vrai choix reste au niveau 4 (js/saison.js, cartes_robot.mjs). La preuve : `essai_rogue`, `check_verite`.
 - **B** : une vraie alternative au niveau 2 — « +50 % au pouvoir I » ou « une case d'adjoint tout de suite » (`CASES_PAR_NIVEAU` à `[1, 2, 2, 2, 3]`). La preuve : `check_pouvoirs`, le personnage complet sous 16 V.
 
+**Fait (2 nov., B)** : au premier talent, « Un adjoint de plus en poste » — une case de plus dès le niveau 2 et pour la run (`CASE_DE_PLUS`, js/adjoints.js : 1, 2, 3, 3, 4 cases), et une carte pour la remplir — contre le pouvoir I grandi de 50 %. La case seule au niveau 2 ne comptait qu'une trentaine de matchs ; seule pour la run, elle n'ajoutait que 6 matchs-cases occupés la première saison (`mesure_main`, `ROBOT_TALENT` : la main n'a souvent qu'une carte au niveau 2). Avec la carte : +19 matchs-cases la première saison, +35 ensuite, ≈ 0,3 puis 0,55 V par saison (0,5 V la carte, le poids du robot) ; le pouvoir I grandi, ≈ 0,4 puis 0,7 V en moyenne (de 0 pour le verrou de la Tortue à 1,15 V pour l'usure du Rhino). Le bon choix dépend du coach. `check_pouvoirs` (le personnage complet sous 16 V), `check_clarte`, `check_verite`, `check_sauvegardes` verts. Le détail : docs/decisions.md.
+
 ### 2.5 Les histoires : deux faux choix sur six
 
 - 🥶 **La disette** : le défi met ses lancers à ×1,5 dans les deux issues ; ses buts font ×1,95 si ça passe et ×0,75 sinon, ×1,35 en moyenne. « Le reposer » coûte deux matchs sans lui et ne rapporte rien. Son `bon` (« la tête vidée ») ne nomme aucune ligne, contre `check_mots`.
@@ -82,11 +90,17 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 - **A (recommandée)** : un vrai gain à l'option prudente — au retour du repos, ses lancers ×1,2 sur 6 matchs ; l'auxiliaire donne +20 de jambes au partant et un départ « chaud » au retour (js/dossiers.js). La preuve : `check_effets`, `check_mots`, et un script à écrire, `scripts/mesure_histoires.mjs`, qui pèse chaque réponse en V par `chiffresDuSoirSous` (comme `fitDAdjoint`) : les deux réponses à ±0,3 V l'une de l'autre, ou de nature opposée.
 - **B** : rendre le défi moins rentable (ses lancers à ×1,0, ou une chance de 2 sur 6).
 
+**Fait (2 nov., A)** : pesées par `check_effets` (`IDS=d: DETAIL=1 N=600`), plus deux poids mesurés en paires (un match de l'auxiliaire : −0,053 V ; un match sans le gros contrat : −0,059 V). Avant : 🥶 défi +0,14 V contre repos −0,12 V ; 🥅 renvoyer **−0,17 V** (×1,22 coûte plus que ×0,78 ne rapporte : il ne dominait pas) contre l'auxiliaire −0,11 V, un pur coût. Après : le repos rend, à son retour, tirs ×1,5 et précision ×1,1 sur six matchs (×1,2 seul ne se voyait pas) : **+0,07 V** contre +0,14 ; l'auxiliaire rend un départ chaud, buts accordés ×0,78 sur ses deux départs au retour (+20 de jambes n'aurait rien fait : un gardien les retrouve après un congé) : **−0,01 V** contre −0,17. Les deux paires à moins de 0,3 V, le sûr contre le dé. Leurs bons nomment leurs lignes ; `check_mots` lit maintenant ce qui va au joueur nommé. `check_effets`, `check_mots`, `check_dossiers` verts. `scripts/mesure_histoires.mjs` n'est pas écrit : `check_effets DETAIL=1` en tient lieu.
+
 ### 2.6 La boutique n'est pas mesurée comme un choix
 
 `packVoulu` (scripts/lib/rogue_sim.mjs) achète dans le même ordre pour les trois robots : l'ablation ne peut pas dire si choisir un pack compte. Avec un seul joueur signé par pack et des prix qui montent de 40 % par achat, un pack peut dominer sans que personne l'ait vu.
 
 **Option** : un attentif qui lit l'offre (la valeur attendue du meilleur joueur, sur le prix), avec `ROBOT_SAUF=boutique`. La preuve : `CAMPAGNES=0 GRAINES=4 FILS=2 node scripts/check_profondeur.mjs` (une vingtaine de minutes). Sous 0,5 V d'écart avec le robot d'avant, le choix de pack est faux : on coupe des rayons plutôt que d'en ajouter.
+
+**Fait (2 nov., lot 4)** : le Pack Époque vise aussi le poste de ton choix (avants, défenseurs, gardiens ; `poste`, js/packs.js) contre le Bronze moins cher, au hasard. L'ablation, refaite : avant, +3,9 V en lisant contre +4,4 V sans (−0,5) ; après, **+4,7 V avec comme sans (± 1,1) : 0 V**. Le choix de pack ne compte toujours pas pour le robot ; le poste est gardé pour le choix qu'il donne au joueur. À essayer : la mesure sur un effectif de bouche-trous de run (sur un vrai club de la LNH, un joueur de Bronze entre rarement), des packs plus distincts, ou couper un rayon.
+
+**Fait (2 nov., lot 5)** : mesuré sur l'effectif d'une première run (30 graines, la saison 1), l'attentif qui n'achète que le Bronze, que l'Époque ou qui lit la boutique finissait à 1,5 V près de l'ordre fixe du robot d'avant, dans le bruit : les deux packs se valaient. Le Pack Époque donne maintenant **un seul joueur, Pilier ou mieux**, de la décennie et du poste de ton choix, à 26 🪙 (trois joueurs au métal du Bronze, 20 🪙 avant) ; le Bronze, trois au hasard : le fort contre le large. Chaque rayon seul perd sur le mélange des deux : le Bronze 2,2 V (± 1,4), l'Époque 1,8 V (± 1,8) ; à 20 🪙, la Coupe tombait dès la run 1. Le robot lit la boutique comme il signe (`packLu`, les buts nets lus au moteur ; il achetait des gardiens qu'il ne signait jamais), mais sa lecture au jeton ne trouve pas le bon mélange : −2,0 V (± 1,2) contre l'ordre fixe ; sur les vrais clubs (`CAMPAGNES=0 GRAINES=4`), +5,4 V en lisant, +4,5 V sans : **+0,9 V** (0 V au lot 4). `check_packs` vert (88). Le détail : docs/decisions.md (lot 5).
 
 ## 3. Ce qui se fait sans toucher une règle
 
@@ -100,11 +114,11 @@ Un premier lot, chaque réglage seul et prouvé :
 
 1. Étaler les paliers des 9e, 18e et 26e matchs (2.1 A) ? — *fait le 2 nov. (délégué), aux 10e, 30e, 50e et 70e.*
 2. Une histoire peut-elle revenir dans la même saison (2.1 B) ? — *fait le 2 nov. (délégué) : après cinq semaines, sur un autre joueur, deux fois au plus ; et trois histoires de deuxième moitié.*
-3. Le coach du départ : empêcher le cumul du Frelon (2.2 A), et le loto parmi les huit voies dès la première run (2.2 B) ?
+3. Le coach du départ : empêcher le cumul du Frelon (2.2 A), et le loto parmi les huit voies dès la première run (2.2 B) ? — *A fait le 2 nov. (délégué) ; B non.*
 4. Les adjoints : `REPOS` à 20, et moins d'offres (2.3 A et B) ?
-5. Le talent du niveau 2 : couper l'écran (2.4 A) ou lui donner une vraie alternative (2.4 B) ?
-6. Les deux histoires à faux choix : relever l'option prudente (2.5 A) ou baisser le défi (2.5 B) ?
-7. Les trois premières runs d'une saison chacune : voulu, ou trop dur ?
+5. Le talent du niveau 2 : couper l'écran (2.4 A) ou lui donner une vraie alternative (2.4 B) ? — *B fait le 2 nov. (délégué) : une case d'adjoint de plus et sa carte.*
+6. Les deux histoires à faux choix : relever l'option prudente (2.5 A) ou baisser le défi (2.5 B) ? — *A fait le 2 nov. (délégué).*
+7. Les trois premières runs d'une saison chacune : voulu, ou trop dur ? — *le 2 nov. (délégué) : pas voulu ; la saison 1 de la run 1 demande les 24 premiers, séries ou pas. Lot 5 : 27 essayé, retiré (la Coupe dès la run 1) ; la deuxième saison de la run 1 porte la marche de la ligue, et la run 1 de l'attentif dure maintenant quatre saisons dans une campagne sur deux.*
 
 ## Comment ces chiffres ont été faits
 

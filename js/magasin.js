@@ -10,7 +10,7 @@
  * « Acheter ». L'achat est une décision (js/game.js) ; l'ouverture, le
  * paquet qui se déchire (js/gerant.js).
  */
-import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE, tierDuPack } from './packs.js';
+import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE, tierDuPack, POSTES_DU_PACK } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
@@ -66,7 +66,7 @@ export function ouvrirMagasin(ctx) {
     return `<button type="button" class="pk-tuile pk-${tier}${jour ? ' pk-jour' : ''}${verrou ? ' verrou' : ''}${manque ? ' pk-cher' : ''}" data-pack="${esc(cle)}"${verrou ? ` title="${esc(verrou)}"` : manque ? ` title="Il te manque ${manque} 🪙"` : ''}>
       <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[tier].nom)}</span></span>
       <span class="pk-nom">${esc(P.nom)}</span>
-      <span class="pk-n">${P.cartes ? `${n} joueurs · ${P.cartes} carte${P.cartes > 1 ? 's' : ''}` : `${n} carte${n > 1 ? 's' : ''}`}</span>
+      <span class="pk-n">${P.cartes ? `${n} joueur${n > 1 ? 's' : ''} · ${P.cartes} carte${P.cartes > 1 ? 's' : ''}` : `${n} carte${n > 1 ? 's' : ''}`}</span>
       <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) < 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
     </button>`;
   };
@@ -170,11 +170,13 @@ export function ouvrirMagasin(ctx) {
           ? `<label class="pk-choix">La franchise <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.franchises.map(f => `<option value="${esc(f.cle)}">${esc(f.nom)}</option>`).join('')}</select></label>`
           : P.choix === 'coach' && ctx.coachs
           ? `<label class="pk-choix">Le coach <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.coachs.map(c => `<option value="${esc(c.cle)}"${c.cle === ctx.coachRun ? ' selected' : ''}>${esc(c.nom)}</option>`).join('')}</select></label>` : '';
+    // Nov. 2026 : le poste que vise le pack (`P.poste`, le Pack Époque).
+    const poste = P.poste ? `<label class="pk-choix">Le poste <select id="pkPoste"><option value="">🎲 Au hasard</option>${Object.entries(POSTES_DU_PACK).map(([k, nom]) => `<option value="${k}">${esc(nom)}</option>`).join('')}</select></label>` : '';
     const peut = !verrou && ctx.jetons >= prix;
     const d = document.createElement('div');
     d.className = 'pk-fiche';
     d.innerHTML = `<div class="pk-fiche-carte pk-${P.sorte === 'cartes' ? 'cartes' : tierDuPack(cle, ctx.mods)}">
-      <div class="pk-fiche-tete"><span class="pk-ico">${P.ico}</span><div><div class="pk-fiche-nom">${esc(P.nom)}</div><div class="pk-fiche-sous">${cartesDuPack(cle, P.sorte === 'joueurs' ? ctx.mods : {})} cartes · ${prix} 🪙</div></div></div>
+      <div class="pk-fiche-tete"><span class="pk-ico">${P.ico}</span><div><div class="pk-fiche-nom">${esc(P.nom)}</div><div class="pk-fiche-sous">${(nc => `${nc} carte${nc > 1 ? 's' : ''}`)(cartesDuPack(cle, P.sorte === 'joueurs' ? ctx.mods : {}))} · ${prix} 🪙</div></div></div>
       <p class="pk-fiche-texte">${esc(P.texte)}</p>
       <div class="pk-detail"><h4>Les chances</h4>
       <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : x.niveau ? ' class="pk-niveau"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
@@ -185,6 +187,7 @@ export function ouvrirMagasin(ctx) {
       ${P.sorte === 'joueurs' ? `<p class="pk-num">Une Holo est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}.</p>` : ''}
       </div>
       ${choix}
+      ${poste}
       ${verrou ? `<p class="pk-verrou">🔒 ${esc(verrou)}</p>` : ''}
       <div class="pk-fiche-actions">
         <button type="button" class="btn pk-retour">Retour</button>
@@ -199,6 +202,8 @@ export function ouvrirMagasin(ctx) {
       if (!peut) return;
       const v = d.querySelector('#pkParam');
       const params = P.choix ? { [P.choix]: v && v.value ? v.value : null } : {};
+      const vp = d.querySelector('#pkPoste');
+      if (P.poste) params.poste = vp && vp.value ? vp.value : null;
       // La fiche part avec l'achat : dans une page, `fermer` laisse la boutique en place, et un « Acheter » resté
       // sous le doigt rachetait le même pack (oct., JP : *encore des doublons de packs achetés*).
       d.remove();

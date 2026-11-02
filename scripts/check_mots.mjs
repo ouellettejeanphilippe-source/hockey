@@ -7,6 +7,7 @@
  *      ligne sans couleur (la glace des trios) par l'un ou l'autre ;
  *   2. chaque mot de stat du bon ou du prix a sa ligne, de sa couleur, sur la plupart des clubs ;
  *   3. une réponse qui a des canaux se voit : jamais « à peine perceptible » seule ;
+ *   (nov. 2026) ce qui va au joueur nommé (`lui`) et les jambes d'un geste comptent comme des lignes ; le dé d'une audace se lit ailleurs.
  * Les dilemmes et les routes de la semaine sont partis (V20, docs/refonte-v20.md § 3) ; restent les dossiers. Le
  * personnel écrit ses mots à partir de ses lignes (js/rogue-jeu.js `motsDeLaPersonne`), il ne peut pas les contredire.
  *
@@ -74,15 +75,23 @@ function lignesTenues(effet, duree) {
 const MAX_FAUTES = Number(process.env.FAUTES || 12), DETAIL = !!process.env.DETAIL;
 const fautes = [], faute = t => { if (fautes.length < MAX_FAUTES) fautes.push(t); };
 let nOptions = 0;
+/*
+ * Ce qui va au joueur nommé (`lui`, nov. 2026) : ses lignes à lui, dans leur sens — ses tirs, sa précision, les buts
+ * qu'il accorde (un gardien : ses arrêts), ses blessures. Le dé d'une audace (`pari`) dit ses deux issues ailleurs
+ * (`motsDuPari`, js/gerant.js) : il ne se lit pas ici.
+ */
+const LIGNE_DU_JOUEUR = { lancers: ['tir', v => v > 1], finition: ['pctTir', v => v > 1], arrets: ['pctArr', v => v < 1], blessure: ['blessure', v => v < 1] };
 for (const [k, D] of Object.entries(DOSSIERS)) for (const o of D.options) {
-  if (o.rien) continue;
+  if (o.rien || o.pari) continue;
   const e = canauxDe(o);
-  if (!Object.keys(e).length) continue;
-  nOptions++;
-  const lignes = lignesTenues(e, o.duree);
   // Un geste sur les jambes (`action.energie`, `energieTous`) est une ligne de jambes, dite en mots par l'écran.
   const geste = o.action && (o.action.energieTous || o.action.energie);
+  const siennes = Object.entries(o.lui || {}).filter(([c, v]) => LIGNE_DU_JOUEUR[c] && v !== 1);
+  if (!Object.keys(e).length && !geste && !siennes.length) continue;
+  nOptions++;
+  const lignes = Object.keys(e).length ? lignesTenues(e, o.duree) : new Map();
   if (geste) lignes.set('jambes', geste > 0);
+  for (const [c, v] of siennes) lignes.set(LIGNE_DU_JOUEUR[c][0], LIGNE_DU_JOUEUR[c][1](v));
   const id = `${k}.${o.cle}`;
   if (DETAIL) informer(id, `${JSON.stringify(e)} → ${[...lignes].map(([c, b]) => `${b === true ? '🟢' : b === false ? '🔴' : '⚪'}${c}`).join(' ')} | + ${o.bon || ''} | − ${o.prix || ''}`);
   if (lignes.size === 1 && lignes.has('rien')) { faute(`${id} : ne se voit sur aucun club`); continue; }

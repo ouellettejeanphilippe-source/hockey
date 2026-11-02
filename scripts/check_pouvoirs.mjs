@@ -30,9 +30,9 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague } from '../js/sim.js';
-import { POUVOIRS, XP, SEUILS_NIVEAU, NIVEAU_MAX, niveauDe, pouvoirsOuverts, talentsDus, forceDuPouvoir } from '../js/pouvoirs.js';
+import { POUVOIRS, XP, SEUILS_NIVEAU, NIVEAU_MAX, niveauDe, pouvoirsOuverts, talentsDus, forceDuPouvoir, TALENT_CASE } from '../js/pouvoirs.js';
 import { MAITRISE, maitriseDu, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
-import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, REPOS, MAIN_MAX, CASES_PAR_NIVEAU, adjointsOfferts, lignesDeLAdjoint, mainDe, enPoste, auRepos, embaucher, poster, quiPartDeLaMain, casesDuNiveau } from '../js/adjoints.js';
+import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, REPOS, MAIN_MAX, CASES_PAR_NIVEAU, adjointsOfferts, lignesDeLAdjoint, mainDe, enPoste, auRepos, embaucher, poster, quiPartDeLaMain, casesDuNiveau, casesDuPerso, CASE_DE_PLUS } from '../js/adjoints.js';
 import fs from 'node:fs';
 import { COACHS } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
@@ -301,6 +301,17 @@ if (MESURE) {
   exiger(`chez son coach, le séjour fait ${SEJOUR_SYNERGIE} matchs`, nCan.length === SEJOUR_SYNERGIE, `${nCan.length}`);
   exiger('la carte revient dans la main avec sa fiche, et une pose au repos ne fait rien', !!mur && mur.depuis === null && mur.sejours.length === 1 && mur.sejours[0].v + mur.sejours[0].d + mur.sejours[0].dp === SEJOUR
     && (S.t[0].sejoursFinis || []).some(x => x.cle === 'mur' && x.v === mur.sejours[0].v) && main.length === 2, mur ? `${mur.sejours[0].v}-${mur.sejours[0].d}-${mur.sejours[0].dp}` : 'pas de mur');
+  // LA CASE DE PLUS (nov. 2026) : le premier talent pris en case, au niveau 2, deux cartes se postent le même jour ; sans lui, une.
+  const deux = talent => joue([{ jour: 0, equipe: 0, coach: { cle: 'tortue', xp: 0, talents: [] } }, { jour: 2, equipe: 0, xpCoach: SEUILS_NIVEAU[1] },
+    ...(talent ? [{ jour: 3, equipe: 0, talent: { p: TALENT_CASE } }] : []), { jour: 4, equipe: 0, embauche: { cle: 'mur' } }, { jour: 4, equipe: 0, embauche: { cle: 'lunette' } },
+    { jour: 20, equipe: 0, poste: { cle: 'mur' } }, { jour: 20, equipe: 0, poste: { cle: 'lunette' } }]);
+  const enPosteLe = (x, cle) => mainDe(x.t[0].perso).find(c => c.cle === cle).sejours.length;
+  const sans = deux(false), avecCase = deux(true);
+  exiger(`la case de plus du premier talent : ${[1, 2, 3, 4, 5].map(n => casesDuPerso({ talents: [TALENT_CASE] }, n)).join(', ')} cases ; au niveau 2, deux cartes postées le même jour (une sans elle)`,
+    [1, 2, 3, 4, 5].map(n => casesDuPerso({ talents: [TALENT_CASE] }, n) - casesDuNiveau(n)).join() === CASE_DE_PLUS.join() && CASE_DE_PLUS[0] === 0
+    && enPosteLe(avecCase, 'mur') === 1 && enPosteLe(avecCase, 'lunette') === 1 && enPosteLe(sans, 'mur') === 1 && enPosteLe(sans, 'lunette') === 0
+    && forceDuPouvoir({ talents: [TALENT_CASE] }, 0) === 1 && avecCase.t[0].perso.talents.join() === TALENT_CASE,
+    `avec : ${enPosteLe(avecCase, 'mur') + enPosteLe(avecCase, 'lunette')} séjours · sans : ${enPosteLe(sans, 'mur') + enPosteLe(sans, 'lunette')}`);
   exiger('le séjour change la saison, et la même graine le rejoue pareil', fiche(S) !== fiche(A) && fiche(joue(avec([{ jour: 10, equipe: 0, embauche: { cle: 'mur' } }, { jour: 20, equipe: 0, poste: { cle: 'mur' } }]))) !== fiche(A), `${fiche(S)} contre ${fiche(A)}`);
 }
 

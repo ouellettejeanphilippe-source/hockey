@@ -42,7 +42,7 @@ import {
 } from '../js/sim.js';
 import { CARTES_MATCH } from '../js/combat.js';
 import {
-  DEBLOCAGES, departDuClasseur, lotosDeSaison, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli, rangDuMandat,
+  DEBLOCAGES, departDuClasseur, lotosDeSaison, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, MANDAT_DE_LA_PREMIERE, mandatDe, mandatRempli, rangDuMandat,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, exigencesOuvertes,
   EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, gardesDeLaRun, GARDES_DE_SAISON, ESPACE_DE_DEPART, soutiensDuDepart,
   ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN, etapeDeLaRun, ETAPE_APRES_LA_PREMIERE,
@@ -222,6 +222,12 @@ if (!isMainThread) {
   exiger('le mandat du proprio monte de saison en saison', seuils[0] == null && seuils.slice(1).every((s, i) => i === 0 || s < seuils[i]) && mandatDe(9) === MANDATS[MANDATS.length - 1]
     && mandatRempli(1, { series: true, rang: 16 }) && !mandatRempli(2, { series: true, rang: 11 }) && mandatRempli(2, { series: true, rang: 10 }) && !mandatRempli(1, { series: false }) && mandatRempli(4, { series: true, rang: 3 }) && !mandatRempli(9, { series: true, rang: 4 }),
     MANDATS.map((m, i) => `saison ${i + 1}${i === MANDATS.length - 1 ? '+' : ''} : ${m.mot}`).join(' · '));
+  // Nov. 2026 : la première saison de la première run, le proprio laisse bâtir (`MANDAT_DE_LA_PREMIERE`) ; la deuxième saison, et la deuxième run, les mandats de toujours.
+  const P1 = MANDAT_DE_LA_PREMIERE.top;
+  exiger('la première saison de la première run : finir dans les premiers, séries ou pas', mandatDe(1, 0, true) === MANDAT_DE_LA_PREMIERE && mandatRempli(1, { series: false, rang: P1, premiere: true })
+    && !mandatRempli(1, { series: false, rang: P1 + 1, premiere: true }) && !mandatRempli(1, { series: false, rang: P1 }) && mandatDe(2, 0, true) === MANDATS[1] && !mandatRempli(2, { series: false, rang: 5, premiere: true })
+    && mandatDe(1, EXIGENCES.findIndex(x => x.mandat) + 1, true) !== MANDAT_DE_LA_PREMIERE,
+  `saison 1 de la run 1 : ${MANDAT_DE_LA_PREMIERE.mot} · puis ${mandatDe(2, 0, true).mot}`);
   {
     const m = { deblocages: [], jalons: {} };
     const a = jalonsAtteints(m, { series: true, rondes: 1, pts: 101, saisonDeLaRun: 1 }).map(J => J.cle);
@@ -286,8 +292,9 @@ if (!isMainThread) {
     exiger('un cran d\'exigence monte la ligue de ETAPES_PAR_CRAN niveaux, le prestige d\'un', niveauDeLigue(2, 0) === 2 && niveauDeLigue(4, 3) === 4 + 3 * ETAPES_PAR_CRAN && niveauDeLigue(0, 0) === 0,
       `Dynastie, cran 3 : niveau ${niveauDeLigue(4, 3)}`);
     // La deuxième run est plus dure (31 oct.) : une étape de plus dès la deuxième, la même à la dixième — une marche, pas une pente.
-    exiger('la première run joue sa ligue nue ; dès la deuxième, une étape d\'édition de plus, la même à toutes les suivantes',
-      etapeDeLaRun(1) === 0 && etapeDeLaRun(2) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(10) === ETAPE_APRES_LA_PREMIERE && ligueDe(0, etapeDeLaRun(2)).etape === ETAPE_APRES_LA_PREMIERE && ligueDe(3, etapeDeLaRun(2)).etape === 1 + ETAPE_APRES_LA_PREMIERE,
+    // Lot 5 (nov. 2026) : seule la première saison de la première run joue la ligue nue ; sa deuxième saison porte la marche.
+    exiger('la première saison de la première run joue sa ligue nue ; dès sa deuxième saison et dès la deuxième run, une étape d\'édition de plus, la même ensuite',
+      etapeDeLaRun(1) === 0 && etapeDeLaRun(1, 2) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(2, 1) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(2) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(10) === ETAPE_APRES_LA_PREMIERE && ligueDe(0, etapeDeLaRun(2)).etape === ETAPE_APRES_LA_PREMIERE && ligueDe(3, etapeDeLaRun(2)).etape === 1 + ETAPE_APRES_LA_PREMIERE,
       `run 2 au niveau 0 : étape ${ligueDe(0, etapeDeLaRun(2)).etape}`);
     const club = { roster: Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { n: `j${i}`, v: n - i, _carte: { rar: 'rare' } }])) };
     habillerLaLigue([club], 0, p => p.v);

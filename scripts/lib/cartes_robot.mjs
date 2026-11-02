@@ -15,8 +15,11 @@ import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, FENETR
 import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { joueurDuFait } from '../../js/vie-gm.js';
 import { COACHS } from '../../js/coachs.js';
-import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts } from '../../js/pouvoirs.js';
+import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts, TALENT_CASE } from '../../js/pouvoirs.js';
 import { ADJOINTS, adjointsOfferts, pretesDe, casesLibres } from '../../js/adjoints.js';
+
+/* MESURE seulement (jamais lu par le jeu) : ROBOT_TALENT=case ou pouvoir force le premier talent de l'attentif (scripts/mesure_main.mjs). */
+const TALENT_FORCE = process.env.ROBOT_TALENT || null;
 
 const JETON = 0.01;   // une victoire vaut une centaine de jetons, à la louche (le barème : 5 par victoire, les packs à 12 et plus)
 /* Ce que vaut une conséquence, grossièrement, en victoires : un adjoint, un point d'expérience, des jambes, un match d'infirmerie. */
@@ -88,10 +91,17 @@ function adjointDuRobot({ you, graine, cle, politique, clic, fit }) {
     : fit ? offre.reduce((a, b) => (fit(b) > fit(a) ? b : a)) : offre.reduce((a, b) => (rangDe(b, perso.cle) < rangDe(a, perso.cle) ? b : a));
   return { embauche: { cle: k } };
 }
-/* La valeur d'une réponse d'histoire, en conséquences concrètes, pour l'attentif. */
-function valeurDeReponse(o) {
+/*
+ * La valeur d'une réponse d'histoire, en conséquences concrètes, pour l'attentif. `lu` (nov. 2026, scripts/lib/rogue_sim.mjs
+ * `lireLeJoueur`) : le joueur nommé lu sur son club — ce qui va à lui, un dé à la moyenne de ses deux issues, ses matchs
+ * d'absence, les soirs de l'auxiliaire. Sans lecture (`ROBOT_SAUF=histoires`), la valeur d'avant : un dé ne valait rien.
+ */
+function valeurDeReponse(o, lu = null) {
   let v = (o.gain || 0) * JETON + (o.xp || 0) * VAUT.xp + (o.adjoint ? VAUT.adjoint : 0) + (o.soin || 0) * VAUT.soin;
-  if (o.action) v += (o.action.energieTous || 0) * VAUT.jambes - (o.action.absents || 0) * VAUT.absent + (o.action.energie || 0) * VAUT.jambes / 4;
+  if (o.action) v += (o.action.energieTous || 0) * VAUT.jambes + (o.action.energie || 0) * VAUT.jambes / 4
+    + (lu ? lu.absent(o.action.absents || 0) + lu.auxiliaire(o.action.gardienAux || 0) : -(o.action.absents || 0) * VAUT.absent);
+  if (lu && o.lui) v += lu.surLui(o.lui, o.duree);
+  if (lu && o.pari) v += o.pari.chance * lu.surLui(o.pari.gagne.lui, o.pari.gagne.duree) + (1 - o.pari.chance) * lu.surLui(o.pari.perd.lui, o.pari.perd.duree);
   return v;
 }
 
@@ -101,7 +111,7 @@ function valeurDeReponse(o) {
  * poste. Rend les décisions
  * à pousser au jour de la ligue. `etat` : ce que la saison retient (les dossiers ouverts, les paliers et les butins pris).
  */
-export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fit = null }) {
+export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fit = null, lire = null }) {
   const out = [];
   const auHasard = l => l[Math.floor(clic() * l.length)];
   const j = L.jour;
@@ -116,7 +126,9 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
       etat.dossiers.push({ cle, w, joueur: lui ? lui.cle : null });
       const perso = persoDe(you);
       const possibles = D.options.filter(o => !(o.gain < 0 && f.caisse < -o.gain));
-      const o = clic ? auHasard(possibles) : politique === 'defaut' ? possibles[0] : possibles.reduce((b, x) => (valeurDeReponse(x) > valeurDeReponse(b) ? x : b));
+      // L'attentif lit le joueur nommé sur son club (`lire.joueur`), une fois pour toutes les réponses.
+      const lu = !clic && politique !== 'defaut' && lui && lire && lire.joueur ? lire.joueur(lui.cle) : null;
+      const o = clic ? auHasard(possibles) : politique === 'defaut' ? possibles[0] : possibles.reduce((b, x) => (valeurDeReponse(x, lu) > valeurDeReponse(b, lu) ? x : b));
       const offert = o.adjoint && perso ? adjointsOfferts(perso, graine, `do:${w}`, 1)[0] || null : null;
       out.push({ jour: j, palier: `do:${w}`, moment: { famille: 'dossier', cle, choix: o.cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) },
         ...(o.gain ? { gain: o.gain } : {}), ...(o.xp ? { xpCoach: o.xp } : {}),
@@ -148,11 +160,24 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
     while (libres > 0 && pretes.length) { const k = clic ? pretes.splice(Math.floor(clic() * pretes.length), 1)[0] : pretes.shift(); out.push({ jour: j, poste: { cle: k } }); libres--; }
   }
   // LE TALENT (niveaux 2 et 4) : le pouvoir qui a le plus joué grandit ; le distrait, au hasard ; le robot d'avant, le premier.
+  // Au premier (nov. 2026), la case d'adjoint de plus et sa carte sont l'autre réponse (`TALENT_CASE`, la carte tirée comme à
+  // l'écran) : l'attentif la prend quand son pouvoir I a joué moins d'un match sur deux (grandi, il rendrait peu), le distrait
+  // au hasard, le robot d'avant jamais (le pouvoir est la première réponse).
+  // Nov. 2026 (`lire.talent`, scripts/lib/rogue_sim.mjs `valeurDuTalent`) : l'attentif lit ce que chaque pouvoir grandi
+  // rend à son club, en victoires par saison, contre la case (`lire.case`) ; sans lecture (`ROBOT_SAUF=talent`), la règle d'avant.
   const perso = persoDe(you);
   if (perso && talentsDus(niveauDuPerso(perso), perso.talents) > 0) {
-    const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), fois = foisDesPouvoirs(L, you);
-    const p = clic ? auHasard(ouverts) : politique === 'defaut' ? ouverts[0] : ouverts.reduce((a, b) => (fois[b] >= fois[a] ? b : a));
-    out.push({ jour: j, palier: `ta:${perso.talents.length}`, talent: { p } });
+    const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), fois = foisDesPouvoirs(L, you), premier = !perso.talents.length;
+    const soirs = new Set(feuillesDe(L, you).filter(({ f, cote }) => (f.pouvoirs || []).some(x => x.cote === cote && x.p === 0 && !x.contagion)).map(x => x.m)).size;
+    const reponses = premier ? [...ouverts, TALENT_CASE] : ouverts;
+    const forcee = premier && TALENT_FORCE && politique === 'attentif' ? (TALENT_FORCE === 'case' ? TALENT_CASE : 0) : null;
+    const lus = !clic && politique !== 'defaut' && lire && lire.talent ? new Map(ouverts.map(q => [q, lire.talent(perso, q)])) : null;
+    const meilleur = lus ? ouverts.reduce((a, b) => (lus.get(b) > lus.get(a) ? b : a)) : null;
+    const p = forcee !== null ? forcee : clic ? auHasard(reponses) : politique === 'defaut' ? ouverts[0]
+      : lus ? (premier && lire.case > lus.get(meilleur) ? TALENT_CASE : meilleur)
+      : premier && soirs * 2 < Math.max(1, you.games || 0) ? TALENT_CASE : ouverts.reduce((a, b) => (fois[b] >= fois[a] ? b : a));
+    const offert = p === TALENT_CASE ? adjointsOfferts(perso, graine, 'ta0', 1)[0] || null : null;
+    out.push({ jour: j, palier: `ta:${perso.talents.length}`, talent: { p }, ...(offert ? { embauche: { cle: offert } } : {}) });
   }
   return out;
 }

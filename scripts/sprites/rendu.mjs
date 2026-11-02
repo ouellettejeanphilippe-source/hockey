@@ -17,9 +17,12 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { LARGEUR, HAUTEUR, ANCRE, verifier, apercu } from './apercu.mjs';
+import { BATON, PROTEGE } from '../../js/physique.js';
 
 const PX = 14;               // pixels par mètre (PIXEL de js/sur-glace.js)
+const COS_JEU = Math.cos(0.45);   // la glace du jeu se tasse en long de ça (PLONGEE de js/sur-glace.js) : la lame y tombe où la rondelle est dessinée
 const GROS = 1.3;            // le joueur grossi, comme dans les jeux de 16 bits (la glace reste à l'échelle) : la lame, à quatorze pixels, est à 14 / (PX · GROS) m du modèle
 const EPAIS = 1.2;           // et trapu : les volumes épaissis
 const HAUTEUR_VUE = 0.8;     // la hauteur, raccourcie par la vue de trois quarts
@@ -87,10 +90,35 @@ const DEFAUT = {
   libre: null, libreD: null,   // une main qui lâche le bâton : où elle va
   gardien: false, poleGenou: null,   // le gardien : ses jambières, sa mitaine, son bloqueur, son masque ; où plient ses genoux (le papillon)
 };
-function modele(pose, face = 0) {
-  const P = { ...DEFAUT, ...pose };
-  // la lame posée sur la glace est écrite à un mètre devant : ramenée aux quatorze pixels du jeu
-  if (!P.gardien && P.talon[2] < 0.1) { const k = 14 / (PX * GROS * Math.hypot(Math.cos(face), PROFONDEUR * Math.sin(face))); P.talon = [P.talon[0] * k, P.talon[1] * k, P.talon[2]]; P.bout = [P.bout[0] * k, P.bout[1] * k, P.bout[2]]; }
+/*
+ * LA MAIN (le lot 5 ; le moteur la tient depuis le lot 3 : `BATON.cote`, `s.lat`). Les poses sont écrites pour un
+ * droitier : la main gauche au pommeau, la droite plus bas, la lame posée à `BATON.cote` m à sa droite. Le gaucher est
+ * le même corps en miroir (`miroir`) — rendu, pas retourné à l'écran : la lumière reste en haut à gauche.
+ */
+const mx = p => p && [-p[0], p[1], p[2]];
+function miroir(P) {
+  return {
+    ...P, gaucher: true, hanche: mx(P.hanche), lacet: -P.lacet, roulis: -P.roulis, tete: -P.tete,
+    pieds: [P.pieds[1], P.pieds[0]].map(([x, y, z, l]) => [-x, y, z, l]),
+    pommeau: mx(P.pommeau), talon: mx(P.talon), bout: mx(P.bout), libre: mx(P.libreD), libreD: mx(P.libre),
+  };
+}
+/* Un point de la glace écrit en mètres du jeu (x à sa droite, y devant) : où le modèle doit le poser pour que l'écran le
+   montre où le jeu dessine la glace (quatorze pixels par mètre, tassés en long de COS_JEU), dans la direction `face`. */
+function auSol(p, face) {
+  const f = [Math.cos(face), -Math.sin(face)], r = [f[1], -f[0]];
+  const wx = (p[0] * r[0] + p[1] * f[0]) * 14 / (PX * GROS), wy = (p[0] * r[1] + p[1] * f[1]) * 14 * COS_JEU / (PX * GROS * PROFONDEUR);
+  return [wx * r[0] + wy * r[1], wx * f[0] + wy * f[1], p[2]];
+}
+function modele(pose, face = 0, main = 1) {
+  let P = { ...DEFAUT, ...pose };
+  // la lame posée sur la glace est écrite à un mètre devant, au milieu : la main la met de son côté (la protection, elle,
+  // écrit déjà le sien), puis elle est ramenée où le jeu dessine la rondelle
+  if (!P.gardien && P.talon[2] < 0.1) {
+    if (!P.protege) { P.talon = [P.talon[0] + BATON.cote, P.talon[1], P.talon[2]]; P.bout = [P.bout[0] + BATON.cote, P.bout[1], P.bout[2]]; }
+    if (main < 0) P = miroir(P);
+    P.talon = auSol(P.talon, face); P.bout = auSol(P.bout, face);
+  } else if (!P.gardien && main < 0) P = miroir(P);
   const parts = [];
   let groupe = '';
   const pousser = parts.push.bind(parts);
@@ -155,8 +183,9 @@ function modele(pose, face = 0) {
     parts.push(cone(talon, bout, 0.03, 0.03, () => 'ruban'));
   }
   // les bras : la main du haut au pommeau, celle du bas plus bas sur le manche
-  const mainG = P.libre || add(pommeau, mul(norm(sub(talon, pommeau)), 0.06));
-  const mainD = P.libreD || lerp(pommeau, talon, P.basDeLaMain);
+  const mainHaut = add(pommeau, mul(norm(sub(talon, pommeau)), 0.06)), mainBas = lerp(pommeau, talon, P.basDeLaMain);
+  const mainG = P.libre || (P.gaucher ? mainBas : mainHaut);   // le gaucher tient le pommeau de la droite
+  const mainD = P.libreD || (P.gaucher ? mainHaut : mainBas);
   for (const [ep, main, cote] of [[epG, mainG, -1], [epD, mainD, 1]]) {
     groupe = `bras${cote}`;
     const coude = ik(ep, main, 0.29, 0.27, add(app(Rt, [cote * 0.8, -0.3, -0.4]), [0, 0, -0.2]));
@@ -216,6 +245,9 @@ const POSES = {
   tir: { hanche: [-0.05, 0.08, 0.72], tangage: 0.65, lacet: 0.45, tete: -0.3, pieds: [[-0.15, 0.25, 0.12, 0.2], [0.32, -0.42, 0.18, -0.6]], pommeau: [-0.32, 0.28, 0.95], talon: [-0.02, 1.12, 0.55], bout: [-0.16, 1.2, 0.6], basDeLaMain: 0.38 },
   // la passe : le balayage court, le bâton sur la glace devant, les bras tendus
   passe: { hanche: [0, 0.03, 0.76], tangage: 0.55, lacet: 0.3, tete: -0.2, pieds: [[-0.22, 0.08, 0.12, 0.3], [0.22, -0.06, 0.12, -0.3]], pommeau: [-0.2, 0.42, 0.82], talon: [-0.12, 1.02, 0.04], bout: [-0.3, 0.98, 0.04], basDeLaMain: 0.45 },
+  // protéger la rondelle (le lot 3, `PROTEGE` de js/physique.js) : bas sur ses patins, le dos rond, la lame loin de
+  // côté, là où le moteur tient la rondelle (`PROTEGE.cote` m de côté, `PROTEGE.avant` m devant)
+  protege: { protege: true, hanche: [0.06, 0, 0.68], tangage: 0.75, lacet: 0.45, roulis: 0.15, tete: -0.2, pieds: [[-0.28, 0.06, 0.12, -0.35], [0.26, -0.1, 0.12, -0.45]], pommeau: [0.1, 0.32, 0.8], talon: [PROTEGE.cote - 0.12, PROTEGE.avant - 0.06, 0.04], bout: [PROTEGE.cote + 0.1, PROTEGE.avant + 0.06, 0.04], basDeLaMain: 0.4 },
   // la mise en échec : l'épaule gauche devant, le tronc couché, les bras repliés, le bâton bas
   echec: { hanche: [0, 0.05, 0.7], tangage: 0.95, lacet: 0.6, roulis: 0.1, tete: -0.5, pieds: [[-0.2, 0.25, 0.12, 0.4], [0.32, -0.35, 0.12, -0.5]], pommeau: [0.12, 0.45, 0.62], talon: [0.32, 0.95, 0.04], bout: [0.18, 1.02, 0.04], basDeLaMain: 0.3 },
 };
@@ -235,8 +267,8 @@ const POSES_GARDIEN = {
 /* ---------- le rendu ---------- */
 const SEUILS = [0.84, 0.5];   // la lumière qui fait le ton clair, et sous laquelle on passe au sombre
 const transposee = M => [[M[0][0], M[1][0], M[2][0]], [M[0][1], M[1][1], M[2][1]], [M[0][2], M[1][2], M[2][2]]];
-function scene(pose, face, couche) {
-  const { parts } = modele(pose, face);
+function scene(pose, face, couche, main) {
+  const { parts } = modele(pose, face, main);
   // le corps vers le monde : `face` est l'angle à l'écran (0 = droite, sens horaire), le monde a y vers le HAUT de l'écran
   const f = [Math.cos(face), -Math.sin(face), 0], r = [f[1], -f[0], 0];
   const versCorps = transposee([r, f, [0, 0, 1]]);
@@ -272,8 +304,8 @@ function lancer(parts, o, dir, maxT) {
   }
   return null;
 }
-function image(pose, face, couche = false) {
-  const parts = scene(pose, face, couche);
+function image(pose, face, couche = false, main = 1) {
+  const parts = scene(pose, face, couche, main);
   const cases = [];
   for (let py = 0; py < HAUTEUR; py++) for (let px = 0; px < LARGEUR; px++) {
     const echant = [];
@@ -338,46 +370,50 @@ function image(pose, face, couche = false) {
   return lignes;
 }
 
-/* Les huit directions de l'écran, dans l'ordre de js/sur-glace.js (0 = vers la droite, puis dans le sens horaire). */
 /* Les directions de l'écran, dans l'ordre de js/sur-glace.js (0 = vers la droite, puis dans le sens horaire) : huit pour
-   le patineur, toutes rendues (le bâton reste dans la même main : pas de miroir), quatre pour le gardien. */
+   le patineur, toutes rendues, pour le gaucher et pour le droitier (pas de miroir à l'écran), quatre pour le gardien. */
 const HUIT = ['E', 'SE', 'S', 'SO', 'O', 'NO', 'N', 'NE'];
 const QUATRE = ['E', 'S', 'O', 'N'];
 const angleDe = dir => HUIT.indexOf(dir) * Math.PI / 4;
-function planche({ directions = HUIT, poses = [...Object.keys(POSES), 'chute'] } = {}) {
-  return Object.fromEntries(directions.map(dir => [dir, Object.fromEntries(poses.map(p => [p, p === 'chute' ? image(CHUTE, angleDe(dir), true) : image(POSES[p], angleDe(dir))]))]));
+function planche({ directions = HUIT, poses = [...Object.keys(POSES), 'chute'], main = -1 } = {}) {
+  return Object.fromEntries(directions.map(dir => [dir, Object.fromEntries(poses.map(p => [p, p === 'chute' ? image(CHUTE, angleDe(dir), true, main) : image(POSES[p], angleDe(dir), false, main)]))]));
 }
 function plancheGardien({ directions = QUATRE, poses = Object.keys(POSES_GARDIEN) } = {}) {
   return Object.fromEntries(directions.map(dir => [dir, Object.fromEntries(poses.map(p => [p, image(POSES_GARDIEN[p], angleDe(dir))]))]));
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
-  const ici = path.dirname(new URL(import.meta.url).pathname);
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const ici = path.dirname(fileURLToPath(import.meta.url));
   const [, , mode, sortieApercu] = process.argv;
   const liste = v => (process.env[v] ? process.env[v].split(',') : undefined);
   if (mode === '--apercu') {   // node scripts/sprites/rendu.mjs --apercu <png> ; DIRS=S,E POSES=repos,tir GARDIEN=1 pour en voir moins
-    const P = process.env.GARDIEN ? plancheGardien({ directions: liste('DIRS'), poses: liste('POSES') }) : planche({ directions: liste('DIRS'), poses: liste('POSES') });
+    const P = process.env.GARDIEN ? plancheGardien({ directions: liste('DIRS'), poses: liste('POSES') }) : planche({ directions: liste('DIRS'), poses: liste('POSES'), main: process.env.MAIN === 'D' ? 1 : -1 });
     apercu(P, sortieApercu, Number(process.env.ECHELLE || 5));
     console.log(sortieApercu);
   } else {
-    const patineurs = planche(), gardiens = plancheGardien();
-    const erreurs = [...verifier(patineurs), ...verifier(gardiens)];
+    // le droitier sans la chute ni l'épaule (sans la rondelle, la main ne s'y lit pas) : le jeu prend alors celles du gaucher
+    const patineurs = planche(), droitiers = planche({ main: 1, poses: Object.keys(POSES).filter(p => p !== 'echec') }), gardiens = plancheGardien();
+    const erreurs = [...verifier(patineurs), ...verifier(droitiers), ...verifier(gardiens)];
     if (erreurs.length) { console.error(erreurs.join('\n')); process.exit(1); }
-    // chaque ligne perd ses points de fin (le vide) : le fichier fond de moitié, et le jeu lit pareil
-    const court = P => Object.fromEntries(Object.entries(P).map(([d, poses]) => [d, Object.fromEntries(Object.entries(poses).map(([p, l]) => [p, l.map(x => x.replace(/\.+$/, ''))]))]));
+    // chaque ligne perd ses points de fin (le vide), et une suite de points au milieu s'écrit par son nombre (« 12 » pour
+    // douze) : le fichier fond des deux tiers, le jeu les déplie (`deplier`, js/sur-glace.js)
+    const court = P => Object.fromEntries(Object.entries(P).map(([d, poses]) => [d, Object.fromEntries(Object.entries(poses).map(([p, l]) => [p, l.map(x => x.replace(/\.+$/, '').replace(/\.{2,}/g, m => m.length))]))]));
     const bloc = obj => JSON.stringify(court(obj), null, 0).replace(/\],"/g, '],\n  "').replace(/^\{/, '{\n  ').replace(/\}$/, '\n}');
     const cible = mode || path.join(ici, '..', '..', 'js', 'sprites.js');
     fs.writeFileSync(cible, `/**
  * LES SPRITES DE SUR GLACE (1er nov. 2026 ; JP : *ya moyen d'avoir un vrai pixel art de qualité ?* ; *ça, c'est des
  * sprites*). Écrit par scripts/sprites/rendu.mjs, qui rastérise un joueur en volumes posé image par image : ne pas
- * éditer à la main. Chaque image fait ${LARGEUR} colonnes sur ${HAUTEUR} lignes (le vide de fin de ligne retiré), les patins à l'ancre (${ANCRE[0]}, ${ANCRE[1]}), la lame du bâton
+ * éditer à la main. Chaque image fait ${LARGEUR} colonnes sur ${HAUTEUR} lignes (le vide de fin de ligne retiré, une suite de vides écrite par son nombre), les patins à l'ancre (${ANCRE[0]}, ${ANCRE[1]}), la lame du bâton
  * quatorze pixels devant ; une lettre par matière, teinte aux couleurs du club par js/sur-glace.js : k contour · J j d
  * chandail · T bande · W masque · S s peau · H h casque · P p pantalon · G gants · K patin · L lame · B manche · b ruban
- * · Q q jambières · o l'ombre portée, tramée ; « . » vide. Le patineur en huit directions (${HUIT.join(', ')}), le gardien en
- * quatre (${QUATRE.join(', ')}), toutes rendues.
+ * · Q q jambières · o l'ombre portée, tramée ; « . » vide. Le patineur en huit directions (${HUIT.join(', ')}), la lame du
+ * côté de sa main : PATINEURS tient le gaucher (la lame à sa gauche), DROITIERS le droitier (sans
+ * la chute ni l'épaule : celles du gaucher servent) ; le gardien en quatre
+ * (${QUATRE.join(', ')}), toutes rendues.
  */
 export const LARGEUR = ${LARGEUR}, HAUTEUR = ${HAUTEUR}, ANCRE = [${ANCRE[0]}, ${ANCRE[1]}];
 export const PATINEURS = ${bloc(patineurs)};
+export const DROITIERS = ${bloc(droitiers)};
 export const GARDIENS = ${bloc(gardiens)};
 `);
     console.log(`${cible} : patineur ${Object.keys(patineurs).length} × ${Object.keys(patineurs.E).length}, gardien ${Object.keys(gardiens).length} × ${Object.keys(gardiens.E).length}`);

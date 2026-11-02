@@ -4,7 +4,7 @@
  *
  *   LE NIVEAU     de 1 à 5, gagné en jouant (`XP`, `SEUILS_NIVEAU`) ; il suit la run d'une saison à l'autre
  *   L'ARBRE       trois pouvoirs par coach, ouverts aux niveaux 1, 3 et 5 (`NIVEAU_DES_POUVOIRS`)
- *   LES TALENTS   aux niveaux 2 et 4, un pouvoir débloqué grandit de moitié (`TALENT`)
+ *   LES TALENTS   aux niveaux 2 et 4, un pouvoir débloqué grandit de moitié (`TALENT`) ; au 2, ou une case d'adjoint de plus
  *
  * UN POUVOIR SE JOUE PÉRIODE PAR PÉRIODE. Avant chaque période, il lit ce qui est déjà joué (`etat` : la période `k`,
  * le pointage, les tirs, la dernière période, le soir) et, s'il se déclenche, frappe la période qui vient sur les
@@ -25,6 +25,14 @@ export const TALENT = 0.5;
 export const pouvoirsOuverts = niveau => NIVEAU_DES_POUVOIRS.map((n, i) => (niveau >= n ? i : -1)).filter(i => i >= 0);
 /* Les talents dus à un niveau, moins ceux déjà pris. */
 export const talentsDus = (niveau, pris = []) => Math.max(0, NIVEAUX_TALENT.filter(n => niveau >= n).length - pris.length);
+/*
+ * LA CASE DE PLUS (2 nov. 2026 ; docs/revue-rogue-2026-11.md § 2.4 B). Au niveau 2, seul le pouvoir I est ouvert : l'écran
+ * du premier talent n'avait qu'une réponse. Il en a deux : le pouvoir I grandit de moitié, ou une case d'adjoint de plus,
+ * dès maintenant et pour la run (`TALENT_CASE` dans `talents`, js/adjoints.js `casesDuPerso`). Le second talent, au
+ * niveau 4, reste aux pouvoirs.
+ */
+export const TALENT_CASE = 'case';
+export const aLaCaseDePlus = perso => !!perso && (perso.talents || []).includes(TALENT_CASE);
 
 /* ---------- les pouvoirs ---------- */
 /*
@@ -46,7 +54,9 @@ const soirDe = (e, ...ms) => !!e.soir && ms.some(m => e.soir[m]);
 export const POUVOIRS = {
   essaim: [
     { cle: 'ruee', ico: '🐝', nom: 'La ruée', dit: 'En 3e période, à égalité ou derrière : +40 % de tirs.', quand: e => k3(e) && e.moi <= e.lui, effet: { volume: 1.4 } },
-    { cle: 'bourdon', ico: '🔊', nom: 'Le bourdonnement', dit: 'En 3e période, avec plus de tirs qu\'eux jusque-là : +25 % de tirs.', quand: e => k3(e) && e.tirsMoi > e.tirsLui, effet: { volume: 1.25 } },
+    // 2 nov. 2026 (docs/revue-rogue-2026-11.md § 2.2 A) : « avec plus de tirs qu'eux » jouait souvent la même 3e que la
+    // ruée (à égalité ou derrière) et s'y ajoutait ; il ne joue plus que si tu mènes, jamais avec elle.
+    { cle: 'bourdon', ico: '🔊', nom: 'Le bourdonnement', dit: 'En 3e période, quand tu mènes : +25 % de tirs.', quand: e => k3(e) && mene(e), effet: { volume: 1.25 } },
     { cle: 'essaim', ico: '🌪', nom: 'L\'essaim', dit: 'Derrière au pointage : +35 % de tirs, +5 % de précision.', quand: derriere, effet: { volume: 1.35, finition: 1.05 } },
   ],
   rapaces: [

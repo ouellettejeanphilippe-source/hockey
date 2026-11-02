@@ -27,6 +27,12 @@ Le devis : docs/propositions-coachs-cartes-evenements.md (le code : le modèle C
 
 **La règle d'écriture** (JP, 2 nov. 2026 : le journal court, archivé par mois). Une entrée, une ou deux lignes : `- AAAA-MM-JJ — **Ce qui a changé, en mots de joueur**` (JP : *sa demande, courte*), puis les fichiers, la valeur posée et le script qui le prouve. Le pourquoi long, ce qui a été essayé et mesuré, va dans `docs/decisions.md`. La même entrée, entière, va aussi en tête de `docs/journal/AAAA-MM.md` (le mois de sa date). Ici, on ne garde que les 20 plus récentes : la plus vieille sort quand une neuve entre, elle reste au journal du mois.
 
+- 2026-11-02 — **Le Rogue, cinquième lot : le Pack Époque donne un seul joueur, Pilier ou mieux, contre les trois au hasard du Bronze ; la deuxième saison de la première run porte la marche de la ligue** (`docs/journal/2026-11.md`)
+- 2026-11-02 — **Sur glace : la feinte qu'un bon défenseur lit, l'avantage numérique qui vaut quelque chose, le style d'un vrai club lu de ses vraies stats** (`docs/journal/2026-11.md`)
+- 2026-11-02 — **Sur glace : les punitions au rythme de la LNH, les tirs au but comptés comme la LNH, le bâton de la bonne main, le gardien qui joue la rondelle et le trapèze, la célébration d'un but** (`docs/journal/2026-11.md`)
+- 2026-11-02 — **Le Rogue, quatrième lot : le Pack Époque vise un poste, la première saison de la première run demande les 24 premiers, le robot pèse ses dés et son talent** (`docs/journal/2026-11.md`)
+- 2026-11-02 — **Sur glace : soulever le bâton, les fautes de bâton, la bagarre, la reprise d'un but, les partants et l'entracte** (`docs/journal/2026-11.md`)
+- 2026-11-02 — **Le Rogue, troisième lot : le Frelon ne cumule plus, le premier talent offre un adjoint de plus en poste, la disette et le gardien battu ont une réponse prudente qui rapporte** (`docs/journal/2026-11.md`)
 - 2026-11-02 — **Sur glace : le porteur a des gestes (protéger, feinter, le revers, la passe laissée), et on choisit ses lignes** (`docs/journal/2026-11.md`)
 - 2026-11-02 — **Le Rogue, deuxième lot : le rythme d'une saison — les paliers d'adjoints étalés, une histoire qui revient, trois histoires de deuxième moitié** (`docs/journal/2026-11.md`)
 - 2026-11-02 — **Sur glace : le hors-jeu des mêlées, la sortie de zone et l'attaque construites, l'écran et la déviation** (`docs/journal/2026-11.md`)
@@ -41,9 +47,3 @@ Le devis : docs/propositions-coachs-cartes-evenements.md (le code : le modèle C
 - 2026-11-01 — **Sur glace : la glace en 16 bits, la zone au complet, les défenseurs du bon côté** (`docs/journal/2026-11.md`)
 - 2026-11-01 — **Sur glace : l'haptique, le gardien, des vitesses proches, les patins muets** (`docs/journal/2026-11.md`)
 - 2026-11-01 — **La version Web prend toute seule ce qu'on publie, les parties gardées** (`docs/journal/2026-11.md`)
-- 2026-11-01 — **Le menu pause garde la session** (`docs/journal/2026-11.md`)
-- 2026-11-01 — **La mise à jour à même le menu** (`docs/journal/2026-11.md`)
-- 2026-11-01 — **Sur glace : patiner, pour vrai** (`docs/journal/2026-11.md`)
-- 2026-11-01 — **Sur glace : les sprites rendus en volumes, et la passe à celui qu'on pointe** (`docs/journal/2026-11.md`)
-- 2026-11-01 — **Sur glace : les sprites de l'atelier de graphistes** (`docs/journal/2026-11.md`)
-- 2026-11-01 — **Sur glace : la caméra de NHL 94, la foule, les sons, l'écusson, le disque** (`docs/journal/2026-11.md`)
