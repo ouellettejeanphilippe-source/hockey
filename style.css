@@ -4057,6 +4057,14 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-carte:empty { display: none; }
 .hub-volet { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
 .hub-volet > * { flex: none; }
+/* LA BANDE DE LA RUN (V23) : le mandat du proprio en une ligne, ton rang au bout, vert dans la cible, rouge dehors. */
+.bu-run { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--noir); color: var(--encre); text-align: left; cursor: pointer; animation: tele-balaie 380ms var(--e-sortie) both; }
+.bu-run-k { flex: none; padding: 2px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
+.bu-run b { flex: 1; min-width: 0; font: 700 var(--t-2)/1.2 var(--corps); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bu-run-rang { flex: none; font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; }
+.bu-run-rang small { font-size: var(--t-1); color: var(--encre-3); }
+.bu-run.dans .bu-run-rang { color: var(--bon); }
+.bu-run.hors .bu-run-rang { color: var(--mauvais); }
 /* LE PROCHAIN MATCH EN BANDEAU « VS » (V23 ; JP : *ça manque de juice* ; *entre ça et un look style EHM*) : les deux clubs à
    leurs couleurs, de chaque bord, l'écusson et le sigle ; « VS » au milieu ; dessous, le match, où, le gros match, et le
    face-à-face qu'il ouvre. Un aplat par club, pas un dégradé. */

@@ -2899,6 +2899,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * V23 (docs/refonte-v23.md, le Bureau ; JP : *ça manque de juice, trop de texte* ; *entre ça et un look style EHM*) : le
    * match en bandeau « VS », les deux clubs à leurs couleurs, l'écusson et le sigle ; dessous, quand, où, et le gros match.
    */
+  /*
+   * LA BANDE DE LA RUN (V23 ; JP : *go, quatre portes* — « en haut, toujours : la bande de la run »). Ce que le proprio exige
+   * cette saison, en une ligne, et où tu es : ton rang, vert dans la cible, rouge dehors. La toucher ouvre le Proprio.
+   */
+  const bandeDeLaRun = () => {
+    const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
+    if (!run) return '';
+    const cible = run.top ? Math.min(run.top, teams.length) : enSeries, r = rangDe(you);
+    const etat = !jour ? '' : r <= cible ? ' dans' : ' hors';
+    return `<button type="button" class="bu-run${etat}" aria-label="Le proprio : ${ctx.esc(run.mot)}"><span class="bu-run-k">Le proprio</span><b>${ctx.esc(run.mot)}</b><span class="bu-run-rang">${jour ? `${r}${r === 1 ? 'er' : 'e'}` : '—'}<small> / ${cible}</small></span></button>`;
+  };
   function prochainHtml(p, adv, quand, domicile, mb) {
     const G0 = mb && MINI_BOSS[mb.raison];
     const a = ctx.band(you.tag), b = ctx.band(adv.tag);
@@ -3038,7 +3049,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
          * (oct., JP : *Dépistage, je vais jamais sur cette page*) ; ton plan d'avant-match vient au Bureau, sous la ligne
          * du match (JP : *dans bureau ?*), plié : ses tuiles et leurs vraies stats se calculent quand il se déplie.
          */
-        carte.innerHTML = `${prochainHtml(p, adv, quand, domicile, mb)}${onDecision ? planDuBureauHtml(p) : ''}`;
+        carte.innerHTML = `${bandeDeLaRun()}${prochainHtml(p, adv, quand, domicile, mb)}${onDecision ? planDuBureauHtml(p) : ''}`;
+        const bande = carte.querySelector('.bu-run');
+        if (bande) bande.onclick = () => tabs.montrer('proprio');
         /*
          * LE FACE-À-FACE (oct., JP : *cliquer le match à venir devrait montrer les stats de confrontation, pas les
          * lignes*) : les deux clubs (leur fiche, leur rang, leur forme, leur meilleur buteur), leurs vraies stats par
