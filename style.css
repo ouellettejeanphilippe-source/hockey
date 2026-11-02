@@ -298,6 +298,10 @@ a { color: var(--bleu); text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+/* LE BALAYAGE DE TÉLÉ (V23 ; JP : *du juice, mais sport et dramatique, pas Brawl Stars — feel sports broadcast*) : un
+   graphique entre comme à la télé, essuyé de gauche à droite, jamais en rebondissant. Une fois, à son arrivée. */
+@keyframes tele-balaie { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes tele-monte { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 /* ---- Au téléphone (1.0, R2), les jetons baissent À LA SOURCE : les tailles et les espaces d'un bureau à 1440 px sont
    trop gros pour 390 px — tout paraissait zoomé et empilé. Rien sous 12 px, rien sous 44 px de cible. ---- */
 @media (max-width: 679.98px) {
@@ -4053,8 +4057,10 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .bu-prochain { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; width: 100%; margin-top: var(--esp-2); padding: 0; border: 1px solid var(--filet); border-radius: var(--r-1); overflow: hidden; background: var(--fond-2); color: var(--encre); text-align: left; cursor: pointer; box-shadow: 0 10px 22px -16px var(--noir-pur); }
 .bu-vs-eq { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; padding: var(--esp-3); }
 .bu-vs-eq b { font: 800 var(--t-5)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bu-vs-eq.toi { background: var(--a-band); color: var(--a-ink); }
-.bu-vs-eq.eux { justify-content: flex-end; background: var(--b-band); color: var(--b-ink); }
+.bu-vs-eq.toi { background: var(--a-band); color: var(--a-ink); clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%); margin-right: -14px; padding-right: calc(var(--esp-3) + 14px); }
+.bu-vs-eq.eux { justify-content: flex-end; background: var(--b-band); color: var(--b-ink); clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%); margin-left: -14px; padding-left: calc(var(--esp-3) + 14px); }
+.bu-prochain { animation: tele-balaie 520ms var(--e-sortie) both; }
+.bu-vs-mi { position: relative; z-index: 1; }
 .bu-vs-mi { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0 var(--esp-3); background: var(--noir); }
 .bu-vs-mi b { font: 800 var(--t-5)/1 var(--display); letter-spacing: 0.06em; }
 .bu-vs-mi small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
@@ -4321,8 +4327,9 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 /* LA SCÈNE (V23 ; JP : *que ça soit vraiment un jeu et pas un feel de courriel*) : la voix parle en grand, comme une ligne
    de dialogue, et le fait se lit dessous ; plus de barre de citation de courriel. */
 .scene { display: flex; flex-direction: column; gap: var(--esp-1); margin: 0; padding: 0; }
-.scene-de { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--or); }
-.scene-mot { margin: 0; font: 700 var(--t-4)/1.3 var(--corps); color: var(--encre); }
+/* La voix en bandeau de nom, comme une entrevue à la télé : sa plaque d'or, puis sa phrase qui monte. */
+.scene-de { align-self: flex-start; padding: 3px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; animation: tele-balaie 360ms var(--e-sortie) both; }
+.scene-mot { margin: 0; font: 700 var(--t-4)/1.3 var(--corps); color: var(--encre); animation: tele-monte 360ms 160ms var(--e-sortie) both; }
 .scene-fait { margin: 0; font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 /* Les plans du duel : le bouton `optionHtml`, serré, une colonne au téléphone. */
 .af-options { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
@@ -4396,9 +4403,9 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-titre::before { content: ""; flex: none; width: 3px; height: 12px; background: var(--club-vif); box-shadow: 0 0 8px var(--club-vif); }
 .hub-titre::after { content: ""; flex: 1; height: 1px; background: var(--filet); }
 .hub-titre:first-child { margin-top: 0; }
-.hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); transition: border-color var(--t-vite); }
-.hub-hier.v { border-left-color: var(--bon); background: color-mix(in srgb, var(--bon) 10%, var(--fond-2)); }
-.hub-hier.d { border-left-color: var(--mauvais); background: color-mix(in srgb, var(--mauvais) 9%, var(--fond-2)); }
+.hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-2) var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-top: 3px solid var(--filet); border-radius: var(--r-1); background: var(--noir); box-shadow: 0 12px 24px -18px var(--noir-pur); transition: border-color var(--t-vite); animation: tele-balaie 460ms var(--e-sortie) both; }
+.hub-hier.v { border-top-color: var(--bon); }
+.hub-hier.d { border-top-color: var(--mauvais); }
 .hub-hier.v.neuf .hub-hier-score { animation: score-pop 600ms var(--e-ressort) 150ms backwards; }
 .hub-hier[data-sommaire] { cursor: pointer; }
 .hub-hier[data-sommaire]:hover, .hub-hier[data-sommaire]:focus-visible { border-color: var(--encre-3); }
@@ -4409,10 +4416,11 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-hier-score { display: inline-flex; align-items: center; gap: var(--esp-3); font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; }
 .hub-hier-score i { font-style: normal; color: var(--encre-3); }
 .hub-hier-score small { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
-.hub-hier-eq { display: inline-flex; align-items: center; gap: var(--esp-2); }
+/* Le score bug : chaque club sur sa plaque de couleur, son pointage sur une ardoise noire collée à droite. */
+.hub-hier-eq { display: inline-flex; align-items: center; gap: var(--esp-2); padding-left: var(--esp-2); background: var(--eq-band); color: var(--eq-ink); }
 .hub-hier-eq b { font-size: var(--t-3); letter-spacing: 0.04em; }
-.hub-hier-eq em { font-style: normal; }
-.hub-hier-eq.toi b { color: var(--or); }
+.hub-hier-eq em { font-style: normal; min-width: 1.4em; padding: var(--esp-1) var(--esp-2); text-align: center; background: var(--noir-pur); color: var(--blanc); }
+.hub-hier-eq.toi b { color: inherit; }
 .hub-hier-recit { flex: 1 1 100%; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-2); }
 .hub-hier-voir { margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--or); }
 .hub-etat { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
@@ -4887,23 +4895,23 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-build .ent-liste > div { min-height: 36px; }
 /* TON BANC CE SOIR (V23, docs/refonte-v23.md § A) : tes pouvoirs et tes adjoints en petites cartes sous le pointage.
    Ce qui a joué s'allume, l'un après l'autre (--i), monte d'un cran et prend la lueur du club ; le reste dort au banc. */
-.banc { margin-bottom: var(--esp-4); }
+.banc { margin-bottom: var(--esp-4); padding: 0 var(--esp-1); }
 .banc-tete { display: flex; justify-content: space-between; margin-bottom: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
 .banc-rang { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: var(--esp-2); }
 .banc-carte { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; aspect-ratio: 5 / 6; padding: var(--esp-2) var(--esp-1); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); text-align: center; opacity: 0.45; filter: grayscale(0.8); }
 .banc-carte b { font: 700 var(--t-2)/1.1 var(--display); color: var(--encre); }
 .banc-carte small { font: 600 var(--t-1)/1.1 var(--display); letter-spacing: 0.04em; color: var(--encre-3); }
 .banc-ico { font-size: var(--t-5); line-height: 1; }
-.banc-carte.joue { opacity: 1; filter: none; border-color: var(--club-vif); background: linear-gradient(180deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); box-shadow: 0 0 14px color-mix(in srgb, var(--club-vif) 45%, transparent); animation: banc-allume 520ms var(--e-ressort) both; animation-delay: calc(var(--i, 0) * 120ms + 150ms); }
+.banc-carte.joue { opacity: 1; filter: none; border-color: var(--club-vif); background: linear-gradient(180deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); box-shadow: 0 0 14px color-mix(in srgb, var(--club-vif) 45%, transparent); animation: banc-allume 420ms var(--e-sortie) both; animation-delay: calc(var(--i, 0) * 140ms + 150ms); }
 .banc-carte.joue small { color: var(--club-vif); }
 .banc-adjoint.joue { border-color: var(--or); box-shadow: 0 0 12px color-mix(in srgb, var(--or) 35%, transparent); }
 .banc-adjoint.joue small { color: var(--or); }
 .banc-regle.joue { border-color: var(--bon); box-shadow: 0 0 12px color-mix(in srgb, var(--bon) 35%, transparent); }
 .banc-regle.joue small { color: var(--bon); }
 @keyframes banc-allume {
-  from { opacity: 0.45; filter: grayscale(0.8); transform: translateY(6px) scale(0.92); box-shadow: none; }
-  60% { transform: translateY(-4px) scale(1.06); }
-  to { opacity: 1; filter: none; transform: none; }
+  from { opacity: 0.45; filter: grayscale(0.8); box-shadow: none; clip-path: inset(0 100% 0 0); }
+  30% { opacity: 1; filter: none; }
+  to { opacity: 1; filter: none; clip-path: inset(0 0 0 0); }
 }
 /* LES FAITS SAILLANTS : un segment de télé — la manchette en gros, le récit, puis la clé du match sous un filet d'or. */
 .som-saillants { margin-bottom: var(--esp-4); }
@@ -5382,7 +5390,7 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 /* LE DUEL (V9) : leur intention, ton adjoint, la mise doublée. */
 /* LEUR INTENTION, UNE CARTE DE BOSS (V23 ; JP : *que les gros matchs, ça soit vraiment un jeu*) : leur jeu de la période,
    au centre, encadré de rouge, une lueur à son arrivée (une fois : le décor ne boucle pas) ; ton adjoint répond dessous avec ses cartes. */
-.duel-intention { display: flex; flex-direction: column; align-items: center; gap: var(--esp-2); padding: var(--esp-4) var(--esp-3); text-align: center; border-radius: var(--r-1); background: color-mix(in srgb, var(--mauvais) 12%, var(--fond-2)); border: 2px solid var(--mauvais); animation: boss-lueur 1.2s ease-out 1 both; }
+.duel-intention { display: flex; flex-direction: column; align-items: center; gap: var(--esp-2); padding: var(--esp-4) var(--esp-3); text-align: center; border-radius: var(--r-1); background: color-mix(in srgb, var(--mauvais) 12%, var(--fond-2)); border: 2px solid var(--mauvais); animation: tele-balaie 420ms var(--e-sortie) both, boss-lueur 1.2s 420ms ease-out 1 both; }
 .duel-intention .choix-puces { justify-content: center; }
 @keyframes boss-lueur { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mauvais) 45%, transparent); } 50% { box-shadow: 0 0 22px 2px color-mix(in srgb, var(--mauvais) 30%, transparent); } }
 .duel-fait { margin: 0; font: 800 var(--t-5)/1.15 var(--display); letter-spacing: 0.02em; color: var(--encre); }

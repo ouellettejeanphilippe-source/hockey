@@ -507,7 +507,9 @@ function grosChiffre(mots) {
     if (m.bon !== true) continue;
     const t = String(m.txt), x = /[+−-]\s?\d[\d\s,]*(?:\s?(?:%|🪙))?/.exec(t);
     if (!x) continue;
-    const reste = (t.slice(0, x.index) + t.slice(x.index + x[0].length)).replace(/\s*:\s*$/, '').replace(/^\s*:\s*/, '').trim();
+    // Le mot qui le nomme : ce qui suit le nombre (« +5 d'expérience »), sinon ce qui le précède (« Les jambes de tous : +10 »).
+    const apres = t.slice(x.index + x[0].length).trim(), avant = t.slice(0, x.index).replace(/\s*:\s*$/, '').trim();
+    const reste = apres || avant;
     return { chiffre: x[0].trim(), reste, mot: m };
   }
   return null;

@@ -2136,7 +2136,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const resultatHier = ({ j, k, m }) => {
     const v = gagne(m, you), but = butGagnant(m);
-    const eq = (t, buts) => `<span class="hub-hier-eq${t === you ? ' toi' : ''}">${ctx.logo(t.tag, 18)}<b>${ctx.esc(ctx.tagCourt(t))}</b><em>${buts}</em></span>`;
+    // V23 : un score bug de télé — chaque club sur sa plaque de couleur, son pointage sur l'ardoise (JP : *feel sports broadcast*).
+    const eq = (t, buts) => `<span class="hub-hier-eq${t === you ? ' toi' : ''}" style="${varsEquipe(ctx.band(t.tag))}">${ctx.logo(t.tag, 18)}<b>${ctx.esc(ctx.tagCourt(t))}</b><em>${buts}</em></span>`;
     const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
     // Le résultat neuf, lu au bureau plutôt qu'en plein écran (J2-8) : il s'anime une fois.
     const neuf = hierFrais === j + 1 && hierAnimer ? ' neuf' : '';
