@@ -4072,7 +4072,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-rangee::after { content: "›"; flex: none; margin-left: auto; font-size: var(--t-4); color: var(--or); }
 .hub-rangee-t { flex: none; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .hub-rangee b { flex: 1; min-width: 0; color: var(--encre); overflow-wrap: anywhere; }
-.bu-plan { margin-top: var(--esp-2); }
+.bu-plan { margin-top: -1px; border-radius: 0 0 var(--r-1) var(--r-1); }
 .bu-prochain.gros { border-color: var(--or); box-shadow: 0 0 0 1px var(--or), 0 10px 22px -16px var(--noir-pur); }
 .bu-prochain-gros { color: var(--or); }
 .bu-prochain-aller { margin-left: auto; color: var(--or); white-space: nowrap; }
@@ -4261,8 +4261,11 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-autour p { margin: 0; }
 .hub-nouvelles { display: grid; gap: var(--esp-2); margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--encre-3); font-size: var(--t-2); line-height: 1.4; }
 .hub-nouvelles .hub-une-t { color: var(--encre-3); }
-.hub-une { display: grid; gap: var(--esp-1); margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
-.hub-une-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--or); }
+/* LA UNE EN BANDEAU DE TÉLÉ (V23) : sa plaque d'or à gauche, la manchette en lettres de télé ; elle entre en balayage. */
+.hub-une { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--esp-3); row-gap: var(--esp-1); margin: 0 0 var(--esp-2); padding: 0 var(--esp-3) 0 0; border: 1px solid var(--filet); border-radius: var(--r-1); overflow: hidden; background: var(--noir); font-size: var(--t-2); line-height: 1.3; animation: tele-balaie 420ms 120ms var(--e-sortie) both; }
+.hub-une > :not(.hub-une-t) { grid-column: 2; }
+.hub-une > b { font: 800 var(--t-4)/1.15 var(--display); letter-spacing: 0.02em; padding: var(--esp-2) 0; }
+.hub-une-t { grid-row: 1 / span 3; align-self: stretch; display: flex; align-items: center; padding: 0 var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; writing-mode: vertical-rl; transform: rotate(180deg); }
 .hub-une-but { color: var(--encre-2); font-style: italic; }
 .hub-une-voix { color: var(--encre-2); }
 .hub-miniboss { margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--mauvais); background: color-mix(in srgb, var(--mauvais) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
@@ -4298,21 +4301,26 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 /* V23 (JP : *trop de texte dans les pages genre boîte*) : un choix est une carte à jouer, pas un courriel — sa voix (son
    icône ou le visage du joueur), son sujet, son état ; la réplique se lit dans le choix ouvert. Un relief, un filet
    rouge quand il presse, elle se soulève sous le doigt. */
-.hub-msgs { display: flex; flex-direction: column; gap: var(--esp-2); }
-.hub-msg { border: 1px solid var(--filet); border-top: 3px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 10px 20px -16px var(--noir-pur); transition: transform 160ms var(--e-sortie); }
+/* LA MAIN DU JOUR (V23, « faut vraiment revoir ») : les choix en cartes debout, côte à côte, comme une main ; chacune sa
+   maison en tête, la voix au cœur, le sujet dessous, son état au pied. Elles entrent en balayage, l'une après l'autre. */
+.hub-msgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--esp-2); }
+.hub-msgs > .af-maison { display: contents; }
+.hub-msgs .af-maison-tete { display: none; }
+.hub-msg { border: 1px solid var(--filet); border-top: 3px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 12px 22px -16px var(--noir-pur); transition: transform 160ms var(--e-sortie); animation: tele-balaie 380ms var(--e-sortie) both; }
 .hub-msg.bloque { border-top-color: var(--mauvais); }
-.hub-msg:hover { transform: translateY(-2px); }
-.hub-msg-tete { width: 100%; display: flex; align-items: center; gap: var(--esp-3); min-height: 60px; padding: var(--esp-2) var(--esp-3); border: 0; background: none; color: var(--encre); text-align: left; }
-.hub-msg-ico { flex: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: var(--fond-3); font-size: var(--t-4); line-height: 1; color: var(--encre); }
-.hub-msg-visage { width: 40px; height: 40px; }
-.hub-msg-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hub-msg:hover { transform: translateY(-3px); }
+.hub-msg-tete { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--esp-2); min-height: 150px; padding: var(--esp-2) var(--esp-2) var(--esp-3); border: 0; background: none; color: var(--encre); text-align: center; }
+.hub-msg-maison { align-self: stretch; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); text-align: left; }
+.hub-msg-ico { flex: none; display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; background: var(--fond-3); font-size: var(--t-5); line-height: 1; color: var(--encre); }
+.hub-msg-visage { width: 52px; height: 52px; }
+.hub-msg-txt { flex: 1; min-width: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .hub-msg-de { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-.hub-msg-sujet { font-size: var(--t-3); line-height: 1.25; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hub-msg-sujet { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.01em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .hub-msg-etat { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--or); }
 .hub-msg.bloque .hub-msg-etat { color: var(--mauvais); }
 /* Les rivaux cochés, avant le dernier, se lisent dans sa bande. */
 .hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.hub-msg-tete::after { content: "›"; flex: none; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); }
+.hub-msg-tete::after { content: none; }
 /* LES MAISONS DE LA BOÎTE (V12 — docs/refonte-v12.md) : ses lignes rangées sous la maison de leur sujet. */
 .af-maison + .af-maison { margin-top: var(--esp-3); }
 .af-maison-tete { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-1); color: var(--encre-2); }

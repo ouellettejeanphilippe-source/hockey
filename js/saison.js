@@ -44,7 +44,7 @@ import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, chiffre
 import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
-import { primesDesFils, primesDuCoach, salairesDesAdjoints, JETONS, lireMeta, aDebloque } from './rogue.js';
+import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { ADJOINTS, adjointsOfferts, lignesDeLAdjoint, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, reposDe, mainDe, auRepos, niveauOffert, momentFort, NOMS_NIV, RARETE_NIV } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, faitsDesSuites, faitsDuDernier, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
@@ -2294,13 +2294,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // V4.4 : le dernier fil de la semaine écoulée (le sommaire les a tous dits), pas seulement celui d'hier soir.
     if (!e || e.j < jour - SEMAINE) return '';
     const a = e.fils[0], x = messageDuFil(a);
-    // V4 : la voix du fil, sa prime (Rogue) et la lancée — avant, un courriel qui disparaissait le lendemain.
+    // V4 : la voix du fil, sa prime (Rogue) et la lancée — avant, un courriel qui disparaissait le lendemain. V23 : en Rogue,
+    // la une est un bandeau de télé, la manchette seule ; la voix se lit au sommaire de la semaine.
     const prime = ctx.rogue ? primesDesFils(calendrier, you, jour).parJour.get(e.j) : null;
     const etat = ctx.rogue ? lanceeAuJour(a.joueur) : null;
     const mots = [prime ? { txt: `${prime.mot} : +${prime.jetons} 🪙`, bon: true } : null,
       etat === 'lancee' ? { txt: 'Sur sa lancée', bon: true } : etat === 'vive' ? { txt: '☄ Lancée vive', bon: true } : etat === 'doute' ? { txt: 'Il doute', bon: false } : null].filter(Boolean);
     return `<div class="hub-une"><span class="hub-une-t">La une</span><b>${ctx.esc(a.texte)}</b>${a.but && a.but.marqueur ? `<span class="hub-une-but">${ctx.esc(recitDeBut(a.but))}</span>` : ''}
-      <span class="hub-une-voix">${x.de.ico} ${ctx.esc(x.de.nom)} : « ${ctx.esc(x.mot)} »</span>${mots.length ? `<span class="choix-puces">${puces(mots)}</span>` : ''}</div>`;
+      ${ctx.rogue ? '' : `<span class="hub-une-voix">${x.de.ico} ${ctx.esc(x.de.nom)} : « ${ctx.esc(x.mot)} »</span>`}${mots.length ? `<span class="choix-puces">${puces(mots)}</span>` : ''}</div>`;
   };
   /* Le drame d'hier soir, en une ligne : les bagarres, les coups marquants, les blessés (les événements physiques de la feuille). */
   const drameHtml = m => {
@@ -2384,12 +2385,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // gros match, la une, puis autour de la ligue. Un congé hier : la une de la semaine et la ligue seulement.
     // V9 : le lundi, la semaine passée pliée en tête du volet ; les nouvelles (ce qui arrive sans rien demander) après la une.
     // V12-2 : la route a son sous-onglet ; la une revient à Hier soir quand la presse part dans la boîte (V18-5).
-    // V23 : la règle du coach a payé hier soir, et ce que tes adjoints ont coûté (js/rogue.js `primesDuCoach`, `salairesDesAdjoints`).
-    const primeCoach = ctx.rogue && k >= 0 ? primesDuCoach(calendrier, you, jour).parJour.get(j) : null;
-    const salaire = ctx.rogue && k >= 0 ? salairesDesAdjoints(calendrier, you, jour).parJour.get(j) : null;
-    const caisse = primeCoach || salaire ? `<div class="som-l">${primeCoach ? `<span class="bon">${ctx.esc(primeCoach.mot)} : +${primeCoach.jetons} 🪙</span>` : ''}${primeCoach && salaire ? ' · ' : ''}${salaire ? `<span class="prix">Tes adjoints : −${salaire} 🪙</span>` : ''}</div>` : '';
-    const bouge = caisse + promessesQuiBougent().map(t => `<div class="som-l">${ctx.esc(t)}</div>`).join('');
-    if (soirEnVolet) return `${semainePasseeHtml()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${nouvellesHtml()}${autourHtml()}</section>`;
+    const bouge = promessesQuiBougent().map(t => `<div class="som-l">${ctx.esc(t)}</div>`).join('');
+    /*
+     * LE BUREAU DU ROGUE, EN QUATRE BLOCS (V23 ; JP : *ya trop d'éléments, pas clair, pas pensé, pas de juice* ; *faut vraiment
+     * revoir*). Hier soir n'est plus qu'un score bug et ton banc (la règle du coach et les salaires s'y lisent), le gros match
+     * en une ligne, la une, les nouvelles, ce qui bouge et le lundi, la semaine passée. Le drame, tes lignes à forces égales
+     * et le récit du gros match vivent au sommaire du soir (un toucher sur le score bug) ; « Autour de la ligue », à la Ligue.
+     */
+    if (soirEnVolet) {
+      const score = k >= 0 ? resultatHier({ j, k, m: matchs[k] }) : '';
+      const gros = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> · ${etatDuGros(ELAN)} ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> · ${etatDuGros(SONNE)} ${mbHier.duree || SONNE.duree} matchs`}</div>` : '';
+      return `<section class="hub-soir" aria-label="Hier soir">${score}${gros}${uneHtml()}${nouvellesHtml()}${bouge}${semainePasseeHtml()}</section>`;
+    }
     return `${cartesDuBureau()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
   };
 
@@ -3797,8 +3804,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const msgHtml = m => {
       // Un choix sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).
       const qui = m.joueur || null;
+      // V23 : une carte à jouer — sa maison en en-tête, la voix (ou le visage), le sujet ; « À choisir » en pied.
       return `<article class="hub-msg${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${m.maison}">
         <button type="button" class="hub-msg-tete" aria-haspopup="dialog">
+          <span class="hub-msg-maison">${MAISONS[m.maison] ? `${MAISONS[m.maison].ico} ${ctx.esc(MAISONS[m.maison].titre)}` : ''}</span>
           ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
           <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${prisHtml(m)}</span>
           <span class="hub-msg-etat">${etatDe(m)}</span>
