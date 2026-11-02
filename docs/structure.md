@@ -43,7 +43,7 @@ js/scenes.js          les scènes des choix du Rogue : qui demande, le fait déj
 js/vie-gm.js          les voix (`EXPEDITEURS`), le joueur du fait, les fils dits par quelqu'un, les choix des fils (`CHOIX_DES_FILS`, récrits à la V22 : deux réponses, un suivi) — `check_vie`
 js/arcs.js            les arcs d'un joueur et ses défis (`DEFIS`) : nés d'un fait du journal du club, suivis au Vestiaire ; la table `ARCS` est vide depuis la V22, le système reste — `check_arcs`
 js/verdicts.js        ta semaine : le verdict d'un choix à effet daté, le lundi d'après, en vraies stats — `check_verdicts`
-js/profil-style.js    le profil de style : la preuve que ton build joue, lue dans les feuilles — `check_profil`
+js/profil-style.js    le profil de style : la preuve que ton build joue, lue dans les feuilles — `check_profil` ; ton banc du soir, ce qui s'allume au sommaire (V23) — `check_banc`
 js/causes.js          ce qui a fait le match : les causes qui ont décidé d'un lancer, dites à ton club (sommaire, direct, bilan)
 js/entracte.js        le rapport d'entracte en cartons
 js/pronostic.js       le dépistage d'avant-match

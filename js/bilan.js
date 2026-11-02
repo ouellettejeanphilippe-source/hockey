@@ -18,7 +18,7 @@ import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ce
 import { apresMatch } from './apres-match.js';
 import { panelDe } from './panel-tv.js';
 import { deck, liste, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
-import { matchsJoues, profilDuClub, profilDeLigue, buildDuSoir, buildVide, ecartsDuSoir, dire } from './profil-style.js';
+import { matchsJoues, profilDuClub, profilDeLigue, buildDuSoir, buildVide, ecartsDuSoir, dire, banc } from './profil-style.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { nomDuClub, courtDuClub } from './club.js';
 import { ouvrirSeries, saisonDesFeuilles } from './saison.js';
@@ -1301,6 +1301,32 @@ function buildDuSoirHtml(f, A, B, jour) {
 }
 
 /*
+ * TON BANC CE SOIR (V23, docs/refonte-v23.md § A ; JP, 2 nov. : *une vraie expérience digne d'un roguelike ou card
+ * game*). Sous le pointage, tes pouvoirs ouverts et tes adjoints en poste en petites cartes : ce qui a joué s'allume,
+ * l'un après l'autre, avec ses périodes ; ce qui n'a pas joué reste au banc, éteint, sa condition à l'infobulle.
+ * La feuille fait foi (`banc`, js/profil-style.js) — `check_banc`.
+ */
+const PERIODE_COURTE = ['1re', '2e', '3e'];
+function bancHtml(f, A, B) {
+  const toi = A.isPlayer ? A : B.isPlayer ? B : null;
+  const cartes = banc(toi, f);
+  if (!cartes.length) return '';
+  let i = 0;
+  const carte = c => {
+    const pied = c.genre === 'adjoint'
+      ? (c.reste > 1 ? `encore ${c.reste - 1}` : 'dernier match')
+      : c.joue ? c.periodes.map(k => PERIODE_COURTE[k] || `${k + 1}e`).join(' · ') : 'au banc';
+    return `<div class="banc-carte banc-${c.genre}${c.joue ? ' joue' : ''}"${c.joue ? ` style="--i:${i++}"` : ''} title="${esc(`${c.nom} — ${c.dit}`)}">
+      <span class="banc-ico" aria-hidden="true">${c.ico}</span><b>${esc(c.nom)}</b><small>${esc(pied)}</small></div>`;
+  };
+  const allumes = cartes.filter(c => c.joue).length;
+  return `<div class="banc" role="group" aria-label="Ton banc ce soir : ${allumes} sur ${cartes.length} ont joué">
+    <div class="banc-tete"><span>Ton banc ce soir</span><span>${allumes} sur ${cartes.length}</span></div>
+    <div class="banc-rang">${cartes.map(carte).join('')}</div>
+  </div>`;
+}
+
+/*
  * LES FAITS SAILLANTS (JP, 23 oct. : *la section résumé, décidé, différences, plus en texte style SportsCenter*). Un
  * segment, comme à la télé : la manchette, le récit, puis la clé — ce qui a décidé (js/recit.js) sans redire le récit,
  * et ce que tes choix ont changé (js/causes.js : le pointage sans chacun de tes groupes, quand il l'aurait changé).
@@ -1476,6 +1502,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(A.tag))}"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
       <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(B.tag))}"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
     </div>
+    ${bancHtml(f, A, B)}
     ${apres}
     ${deck(etoiles, { cle: 'match' })}
     ${parPeriode}
