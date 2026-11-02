@@ -3871,7 +3871,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        */
       const enCartes = m.genre === 'dossier';
       const icoDe = o => (o.pari ? '🎲' : o.gain > 0 ? '🪙' : o.adjoint ? '📋' : C.ico || m.de.ico);
-      const options = enCartes ? C.options.map(o => ({ ...o, genreCarte: 'tactique', ico: icoDe(o), rarete: o.pari ? 'rare' : o.prix ? 'commune' : 'peu', motChoix: 'Jouer' })) : C.options;
+      // Son coin dit ce qu'elle rapporte, en grand, sans la retourner : des jetons, de l'expérience, une carte, ou le dé.
+      const coinDe = o => (o.gain ? `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙` : o.xp ? `+${o.xp} exp.` : o.adjoint ? '+1 carte' : o.pari ? `🎲 ${Math.round(o.pari.chance * 6)}/6` : '');
+      const options = enCartes ? C.options.map(o => ({ ...o, genreCarte: 'tactique', ico: icoDe(o), coin: coinDe(o), rarete: o.pari ? 'rare' : o.prix ? 'commune' : 'peu', motChoix: 'Jouer' })) : C.options;
       ouvrirChoix({
         ...C, options, ...(enCartes ? { cartes: true } : {}), de: m.de, ico: C.ico || m.de.ico, titre: m.sujet, cadre: cadreDuMatch(), ouDe: ctx.ouJoue, classeOption: 'af-option', boite: { msg: m.genre, maison: m.maison },
         recit: C.recitHtml ? '' : C.recit,

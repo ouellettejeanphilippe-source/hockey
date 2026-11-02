@@ -103,7 +103,13 @@ const verifClubSansBoutique = async etape => {
 // La boutique, le sous-onglet du Marché (V16, tranche 6 : « Tes cartes » est parti) : un toucher, sans liste.
 const versMarche = async quoi => {
   await page.click('#navbar .navtab[data-section="marche"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {}));
-  await page.waitForSelector(`#pageMarcheCorps .hub-page[data-genre="${quoi}"]`, { timeout: 10000 });
+  // Un échec dit ce qui couvrait l'écran : une capture, et ce qui est ouvert (une fenêtre de choix, la signature).
+  await page.waitForSelector(`#pageMarcheCorps .hub-page[data-genre="${quoi}"]`, { timeout: 10000 }).catch(async e => {
+    await page.screenshot({ path: `${DOSSIER}/rogue-marche-introuvable.png` }).catch(() => {});
+    const ouvert = await page.evaluate(() => ({ page: document.body.dataset.page, section: document.body.dataset.section, choix: !document.getElementById('choixModal')?.hidden, signature: !document.getElementById('signatureModal')?.hidden })).catch(() => ({}));
+    console.log(`   le Marché ne s'ouvre pas : ${JSON.stringify(ouvert)}`);
+    throw e;
+  });
 };
 const erreurs = [];
 const CLUBS_LISTE = RAYONS_CLUB.find(R => R.cle === 'club').liste;
