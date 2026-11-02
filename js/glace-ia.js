@@ -661,7 +661,11 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
       // De face seulement : le porteur vient vers nous (son cap contre notre vitesse) ; de côté ou dans son dos, on ne fonce pas.
       const deFace = (s.vx * Math.cos(porteur.cap) + s.vy * Math.sin(porteur.cap)) / vs < -0.2;
       const enFaceDeLui = (dx * Math.cos(porteur.cap) + dy * Math.sin(porteur.cap)) < -0.3 * d;
-      if (d < 2.6 && devant && deFace && enFaceDeLui && vs > 3 && s.elanRepos <= 0) e.echec = true;
+      // Un autre adversaire sur le chemin, qui nous tourne le dos : on ne s'élance pas (le lot 5 : c'est lui qu'on chargeait
+      // par-derrière, 0,35 punition par match).
+      const dosSurLeChemin = adv.some(q => q !== porteur && hyp(q.x - s.x, q.y - s.y) < d + 1 && Math.abs(plier(Math.atan2(q.y - s.y, q.x - s.x) - s.cap)) < 0.8
+        && ((q.x - s.x) * Math.cos(q.cap) + (q.y - s.y) * Math.sin(q.cap)) > 0);
+      if (d < 2.6 && devant && deFace && enFaceDeLui && vs > 3 && s.elanRepos <= 0 && !dosSurLeChemin) e.echec = true;
     } else {
       const t = tempsVers(s);
       cible = { x: R.x + R.vx * Math.min(t, 2), y: R.y + R.vy * Math.min(t, 2) };

@@ -10,7 +10,7 @@
  * « Acheter ». L'achat est une décision (js/game.js) ; l'ouverture, le
  * paquet qui se déchire (js/gerant.js).
  */
-import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE, tierDuPack } from './packs.js';
+import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE, tierDuPack, POSTES_DU_PACK } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
@@ -170,6 +170,8 @@ export function ouvrirMagasin(ctx) {
           ? `<label class="pk-choix">La franchise <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.franchises.map(f => `<option value="${esc(f.cle)}">${esc(f.nom)}</option>`).join('')}</select></label>`
           : P.choix === 'coach' && ctx.coachs
           ? `<label class="pk-choix">Le coach <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.coachs.map(c => `<option value="${esc(c.cle)}"${c.cle === ctx.coachRun ? ' selected' : ''}>${esc(c.nom)}</option>`).join('')}</select></label>` : '';
+    // Nov. 2026 : le poste que vise le pack (`P.poste`, le Pack Époque).
+    const poste = P.poste ? `<label class="pk-choix">Le poste <select id="pkPoste"><option value="">🎲 Au hasard</option>${Object.entries(POSTES_DU_PACK).map(([k, nom]) => `<option value="${k}">${esc(nom)}</option>`).join('')}</select></label>` : '';
     const peut = !verrou && ctx.jetons >= prix;
     const d = document.createElement('div');
     d.className = 'pk-fiche';
@@ -185,6 +187,7 @@ export function ouvrirMagasin(ctx) {
       ${P.sorte === 'joueurs' ? `<p class="pk-num">Une Holo est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}.</p>` : ''}
       </div>
       ${choix}
+      ${poste}
       ${verrou ? `<p class="pk-verrou">🔒 ${esc(verrou)}</p>` : ''}
       <div class="pk-fiche-actions">
         <button type="button" class="btn pk-retour">Retour</button>
@@ -199,6 +202,8 @@ export function ouvrirMagasin(ctx) {
       if (!peut) return;
       const v = d.querySelector('#pkParam');
       const params = P.choix ? { [P.choix]: v && v.value ? v.value : null } : {};
+      const vp = d.querySelector('#pkPoste');
+      if (P.poste) params.poste = vp && vp.value ? vp.value : null;
       // La fiche part avec l'achat : dans une page, `fermer` laisse la boutique en place, et un « Acheter » resté
       // sous le doigt rachetait le même pack (oct., JP : *encore des doublons de packs achetés*).
       d.remove();

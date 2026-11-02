@@ -24,9 +24,9 @@
  *   A ou X martelés                        la bagarre (les gants tombés : chaque appui, un coup)
  *   A, X, Start, le doigt                  passer la reprise d'un but ; fermer les alignements, l'entracte
  */
-import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, BANC, BAGARRE } from './physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, BANC, BAGARRE, GARDIEN, CELEBRATION } from './physique.js';
 import { decisionIA, STRATEGIES } from './glace-ia.js';
-import { PATINEURS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
+import { PATINEURS, DROITIERS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
 import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
 import { axes20, cote20 } from './niveaux.js';
 import { getTraits } from './traits.js';
@@ -46,10 +46,11 @@ const NOM = 1200;        // le nom du porteur se montre ça de temps à la prise
 /*
  * LA REPRISE D'UN BUT (le lot 4) : l'écran garde ce qu'il a dessiné des `duree` dernières secondes (un tampon : les
  * positions, les poses, la rondelle — le moteur, lui, ne se rejoue pas : son hasard ne se garde pas) ; `attente` s après
- * le but, le match s'arrête et les rejoue au ralenti (`vitesse`), jusqu'à `apres` s après le but. A, X, Start ou le doigt
+ * le but (la célébration du lot 5 : `CELEBRATION.duree`, les coéquipiers serrés sur le buteur, son bâton levé), le
+ * match s'arrête et les rejoue au ralenti (`vitesse`), jusqu'à `apres` s après le but. A, X, Start ou le doigt
  * la passent ; à deux, chacun le peut.
  */
-const REPRISE = { duree: 4, vitesse: 0.4, attente: 1.0, apres: 0.6 };
+const REPRISE = { duree: 4, vitesse: 0.4, attente: CELEBRATION.duree, apres: 0.6 };
 const COULEURS = {
   ligne: '#d0021b', bande: '#2b2f3a', noir: '#0a0b0e', reflet: '#5d6270',
   toi: '#f47b20', plot: '#8d939f', blanc: '#f4f4f4', encreBlanc: '#111', contour: '#1b1d24', ombre: 'rgba(0,0,0,0.25)',
@@ -95,14 +96,21 @@ function teintesDe(eq) {
 /* Les directions de l'écran (0 = vers la droite, puis dans le sens des aiguilles) : huit pour le patineur, quatre pour le gardien. */
 const HUIT = ['E', 'SE', 'S', 'SO', 'O', 'NO', 'N', 'NE'];
 const QUATRE = ['E', 'S', 'O', 'N'];
-/* Le sprite d'un club dans une pose et une direction, teint une fois et gardé. */
-function spriteDe(eq, genre, pose, dir) {
-  const cle = `${eq}:${genre}:${pose}:${dir}`;
+/* Une ligne de js/sprites.js dépliée : une suite de vides y est écrite par son nombre (« 12 » pour douze points). */
+const deplier = ligne => ligne.replace(/\d+/g, n => '.'.repeat(+n));
+/*
+ * Le sprite d'un club dans une pose et une direction, teint une fois et gardé. LA MAIN (le lot 5) : `cote` dit de quel
+ * côté du corps est la lame (+1 à sa droite : la planche du droitier ; -1 : celle du gaucher) ; une pose que le
+ * droitier n'a pas (la chute, l'épaule) prend celle du gaucher.
+ */
+function spriteDe(eq, genre, pose, dir, cote = -1) {
+  const nom = (genre === 'G' ? QUATRE : HUIT)[dir];
+  const droite = genre !== 'G' && cote > 0 && !!DROITIERS[nom][pose];
+  const cle = `${eq}:${genre}:${pose}:${dir}:${droite ? 'D' : 'G'}`;
   let im = sprites.get(cle);
   if (im) return im;
-  const nom = (genre === 'G' ? QUATRE : HUIT)[dir];
-  const planche = (genre === 'G' ? GARDIENS : PATINEURS)[nom];
-  const lignes = planche[pose] || planche.repos || planche.garde;
+  const planche = (genre === 'G' ? GARDIENS : droite ? DROITIERS : PATINEURS)[nom];
+  const lignes = (planche[pose] || planche.repos || planche.garde).map(deplier);
   const teintes = teintesDe(eq);
   im = document.createElement('canvas');
   im.width = LARGEUR; im.height = HAUTEUR;
@@ -658,6 +666,7 @@ function boucle(now) {
     else if (v.type === 'prise' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'prise');
     else if (v.type === 'passe' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'passe');
     else if (v.type === 'harpon' && v.gardien) flash = { mot: `Le harpon de ${nomDe(v.qui)}`, reste: 0.9 };
+    else if (v.type === 'jeuDuGardien') flash = { mot: v.vers ? `Remise à ${nomDe(v.vers)}` : 'Le gardien la dégage', reste: 0.9 };
     else if (v.type === 'mordu' && tonJoueur(v.sur)) flash = { mot: `${nomDe(v.qui)} a mordu !`, reste: 0.9 };
     else if (v.type === 'trio') flash = { mot: `Trio ${v.ligne + 1} · jambes ${v.jambes}`, reste: 1.2 };
     else if (v.type === 'volee' && etat.humains.includes(v.equipe) && v.entre && tonJoueur(v.entre)) flash = { mot: `${nomDe(v.entre)} saute sur la glace`, reste: 1.2 };
@@ -700,7 +709,7 @@ function boucle(now) {
 function sonner(v) {
   const M = etat.match;
   if (v.type === 'tir') { coupDeGlace('tir', 0, { v: v.v }); fouleReagit('tir'); }
-  else if (v.type === 'passe') coupDeGlace('passe');
+  else if (v.type === 'passe' || v.type === 'jeuDuGardien') coupDeGlace('passe');
   else if (v.type === 'prise' && v.passe) coupDeGlace('reception');
   else if (v.type === 'bande') coupDeGlace('bande', 0, { v: v.v });
   else if (v.type === 'vitre') { coupDeGlace('vitre'); coupDeGlace('sifflet', 0.4); }
@@ -719,6 +728,7 @@ function sonner(v) {
     const locaux = M && v.equipe === 'B';
     coupDeGlace('sirene', 0.4);
     if (locaux || !M) { coupDeGlace('clameur', 0.2); fouleReagit('butLocaux'); } else { coupDeGlace('ohhh', 0, { grave: true }); fouleReagit('butVisiteurs'); }
+    if (M && !M.fini && !M.ronde) coupDeGlace('ovation', 0.9, { fort: locaux });   // LA CÉLÉBRATION : la foule tape des mains
   }
   else if (v.type === 'periode') coupDeGlace('sifflet', 0, { duree: 1.2 });
   else if (v.type === 'fin') coupDeGlace('sifflet', 0, { duree: 0.5, coups: 3 });
@@ -937,6 +947,8 @@ function glaceDeHaut() {
       if (ax < 0.15) col = ax > 0.15 - px ? C.rougeSombre : C.rouge;
       if (Math.abs(ax - BLEUE) < 0.15) col = Math.abs(ax - BLEUE) > 0.15 - px ? C.bleuSombre : C.bleu;
       if (Math.abs(ax - LIGNE_BUT) < px && ay < Y - 0.4) col = C.rouge;
+      // LE TRAPÈZE derrière chaque filet (le lot 5, `GARDIEN.jouer.trapeze`) : hors de lui, le gardien ne joue pas la rondelle.
+      if (ax > LIGNE_BUT) { const [a, b] = GARDIEN.jouer.trapeze; if (Math.abs(ay - (a + (b - a) * (ax - LIGNE_BUT) / (X - LIGNE_BUT))) < px) col = C.rouge; }
       // Les cercles et les points (seulement près d'eux : la boucle passe sur chaque pixel).
       if (ax < POINT.r + 0.1 && ay < POINT.r + 0.1) { if (anneau(x, y, 0, 0, POINT.r, px)) col = C.bleu; if (Math.hypot(x, y) < 0.16) col = C.bleu; }
       if (ay > POINT.y - POINT.r - 0.7 && ay < POINT.y + POINT.r + 0.7 && (Math.abs(ax - POINT.x) < POINT.r + 0.7 || Math.abs(ax - POINT.neutre) < 0.4)) for (const sx of [1, -1]) for (const sy of [1, -1]) {
@@ -1196,8 +1208,8 @@ const angleEcran = cap => cap - Math.PI / 2;
 /* La direction d'un cap, en huitièmes de tour de l'écran (0 = vers la droite), ou en quarts pour le gardien. */
 const directionDe = (cap, n = DIRECTIONS) => ((Math.round(angleEcran(cap) / (2 * Math.PI) * n) % n) + n) % n;
 /* Le corps, en pixels d'écran : son sprite dans sa pose et sa direction, les patins au point du patineur, aligné sur la grille, sans lissage. */
-function corps(x, y, eq, genre, pose, dir) {
-  const im = spriteDe(eq, genre, pose, dir);
+function corps(x, y, eq, genre, pose, dir, cote) {
+  const im = spriteDe(eq, genre, pose, dir, cote);
   const S = echelle(), p = ecran(x, y);
   cx.imageSmoothingEnabled = false;
   cx.drawImage(im, Math.round(p.x) - ANCRE[0] * S, Math.round(p.y) - ANCRE[1] * S, LARGEUR * S, HAUTEUR * S);
@@ -1230,8 +1242,10 @@ function marques(s) {
 function patineur(s, now) {
   const v = Math.hypot(s.vx, s.vy);
   const dir = directionDe(s.auSol > 0 && v > 0.3 ? Math.atan2(s.vy, s.vx) : s.cap);
-  corps(s.x, s.y, s.equipe, 'P', s.pose || poseDe(s, now), dir);
+  corps(s.x, s.y, s.equipe, 'P', s.pose || poseDe(s, now), dir, s.cote ?? coteDeLame(s));
 }
+/* Le côté de sa lame, celui du moteur (`s.lat`, + à sa droite) : sa main, ou l'autre côté quand il protège ou feinte. */
+const coteDeLame = s => Math.sign(s.lat || (s.p && s.p.main) || -1);
 function poseDe(s, now) {
   const v = Math.hypot(s.vx, s.vy);
   const anim = s.anim || (s.anim = {});
@@ -1243,6 +1257,8 @@ function poseDe(s, now) {
   else if (s.charge > 0 && etat.rondelle.porteur === s.id) pose = 'charge';
   else if (anim.passe && now - anim.passe < 240) pose = 'passe';
   else if (s.elan > 0) pose = 'echec';
+  else if (etat.arret && etat.arret.fete && etat.arret.fete.qui === s.id) pose = 'charge';   // LA CÉLÉBRATION : le buteur lève son bâton
+  else if (s.protege) pose = 'protege';   // la lame loin de côté, là où le moteur tient la rondelle
   else if (s.freine && v > 1.5) pose = 'freinage';   // L'ARRÊT HOCKEY : les lames en travers
   else if (Math.abs(s.virage) > VIRAGE_PENCHE && v > VIRAGE_VITESSE) pose = s.virage > 0 ? 'virageD' : 'virageG';   // couché dans la courbe
   else if (s.pousse > 0.1 && v > 0.3) pose = `patin${1 + Math.floor(s.foulee * FOULEES) % FOULEES}`;   // LA FOULÉE : la phase du moteur, la jambe tendue au coup de patin
@@ -1292,7 +1308,7 @@ function garderImage(now) {
   images.push({
     t: etat.t, controles: { ...etat.controles },
     rondelle: { x: R.x, y: R.y, z: R.z, vx: R.vx, vy: R.vy, porteur: R.porteur },
-    patineurs: etat.patineurs.filter(s => s.surGlace).map(s => ({ id: s.id, equipe: s.equipe, nom: s.nom, x: s.x, y: s.y, vx: s.vx, vy: s.vy, cap: s.cap, auSol: s.auSol, rayon: s.rayon, surGlace: true, charge: 0, pose: poseDe(s, now) })),
+    patineurs: etat.patineurs.filter(s => s.surGlace).map(s => ({ id: s.id, equipe: s.equipe, nom: s.nom, x: s.x, y: s.y, vx: s.vx, vy: s.vy, cap: s.cap, auSol: s.auSol, rayon: s.rayon, surGlace: true, charge: 0, pose: poseDe(s, now), cote: coteDeLame(s) })),
     gardiens: etat.gardiens.map(g => ({ equipe: g.equipe, x: g.x, y: g.y, vx: g.vx, vy: g.vy, retire: g.retire, pose: poseDuGardien(g, now) })),
   });
   while (images.length && etat.t - images[0].t > REPRISE.duree + REPRISE.attente + 0.3) images.shift();

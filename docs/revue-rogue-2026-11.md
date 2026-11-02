@@ -21,6 +21,8 @@ Six vérifications sur six au vert. Trois chiffres comptent :
 | La première Coupe | attentif : runs 6 et 4 · robot d'avant : runs 6 et 4 · distrait : jamais | Sur une carrière, l'attentif et le robot d'avant arrivent **au même moment**. |
 | La longueur des premières runs | `1·L0 1·L0 1·L0` pour les trois robots | Les trois premières runs ne durent **qu'une saison** : congédié dès la première, trois fois de suite. |
 
+**Fait (2 nov., lot 4)** : la cause des runs d'une saison est le mandat de la saison 1 (« faire les séries ») ; l'attentif finissait sa première run entre le 23e et le 31e rang. La saison 1 de la run 1 demande maintenant les 24 premiers, séries ou pas (`MANDAT_DE_LA_PREMIERE`). Le robot attentif pèse les dés et ce qui va au joueur nommé (`lireLeJoueur`), et son talent selon son coach (`valeurDuTalent`). `check_profondeur` complet après (971 s) : **+4,3 V** (± 1,1) sur le robot d'avant, toujours sous le seuil de 5 ; la première Coupe de l'attentif aux runs 4 et 4, regagnée 25 %, le distrait jamais — et **la run 1 de l'attentif dure encore une saison dans les deux campagnes** : la mesure ne montre pas encore la run 1 plus longue. `RUNS=10 CAMPAGNES=2 check_rogue` : 38 sur 38.
+
 Ailleurs : un club moyen bien mené finit premier 5 fois sur 16, un bon club mal mené rate les séries 3 fois sur 16, et après sa première Coupe l'attentif la regagne 29 % des runs (cible : 25 à 67 %).
 
 ## 2. Ce que la revue de design trouve
@@ -94,6 +96,8 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 
 **Option** : un attentif qui lit l'offre (la valeur attendue du meilleur joueur, sur le prix), avec `ROBOT_SAUF=boutique`. La preuve : `CAMPAGNES=0 GRAINES=4 FILS=2 node scripts/check_profondeur.mjs` (une vingtaine de minutes). Sous 0,5 V d'écart avec le robot d'avant, le choix de pack est faux : on coupe des rayons plutôt que d'en ajouter.
 
+**Fait (2 nov., lot 4)** : le Pack Époque vise aussi le poste de ton choix (avants, défenseurs, gardiens ; `poste`, js/packs.js) contre le Bronze moins cher, au hasard. L'ablation, refaite : avant, +3,9 V en lisant contre +4,4 V sans (−0,5) ; après, **+4,7 V avec comme sans (± 1,1) : 0 V**. Le choix de pack ne compte toujours pas pour le robot ; le poste est gardé pour le choix qu'il donne au joueur. À essayer : la mesure sur un effectif de bouche-trous de run (sur un vrai club de la LNH, un joueur de Bronze entre rarement), des packs plus distincts, ou couper un rayon.
+
 ## 3. Ce qui se fait sans toucher une règle
 
 Un premier lot, chaque réglage seul et prouvé :
@@ -110,7 +114,7 @@ Un premier lot, chaque réglage seul et prouvé :
 4. Les adjoints : `REPOS` à 20, et moins d'offres (2.3 A et B) ?
 5. Le talent du niveau 2 : couper l'écran (2.4 A) ou lui donner une vraie alternative (2.4 B) ? — *B fait le 2 nov. (délégué) : une case d'adjoint de plus et sa carte.*
 6. Les deux histoires à faux choix : relever l'option prudente (2.5 A) ou baisser le défi (2.5 B) ? — *A fait le 2 nov. (délégué).*
-7. Les trois premières runs d'une saison chacune : voulu, ou trop dur ?
+7. Les trois premières runs d'une saison chacune : voulu, ou trop dur ? — *le 2 nov. (délégué) : pas voulu ; la saison 1 de la run 1 demande les 24 premiers, séries ou pas. La mesure ne montre pas encore la run 1 plus longue.*
 
 ## Comment ces chiffres ont été faits
 

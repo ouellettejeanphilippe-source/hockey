@@ -377,6 +377,11 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   const an = x => Number(String(x.p.s).slice(0, 4));
   const ep = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:epoque', n, { params: { decennie: 1980 } })))).flatMap(r => r.cartes);
   exiger('Pack Époque : la décennie choisie', ep.length >= 4 * PACKS_TOUS['j:epoque'].n - 2 && ep.every(x => an(x) >= 1980 && an(x) < 1990), `${ep.length} joueurs des années 80`);
+  // Nov. 2026 (docs/revue-rogue-2026-11.md § 2.6) : le poste choisi, avec ou sans décennie ; au hasard, tous les groupes.
+  for (const g of ['G', 'D']) {
+    const po = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:epoque', n, { params: { poste: g, ...(g === 'D' ? { decennie: 1990 } : {}) } })))).flatMap(r => r.cartes);
+    exiger(`Pack Époque : le poste choisi (${g})`, po.length >= 4 * PACKS_TOUS['j:epoque'].n - 2 && po.every(x => groupeDuJoueur(x.p) === g && (g !== 'D' || (an(x) >= 1990 && an(x) < 2000))), `${po.length} joueurs, ${po.filter(x => groupeDuJoueur(x.p) === g).length} du poste`);
+  }
   const sp = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:specialistes', n, { params: { skill: 'gardien' } })))).flatMap(r => r.cartes);
   exiger('Pack Spécialistes : le rôle choisi', sp.length >= 10 && sp.every(x => x.p.p === 'G'), `${sp.length} gardiens`);
   const permis = await Promise.all(Array.from({ length: 12 }, (_, n) => tirer('j:specialistes', n, { params: { permis: ['sniper', 'passeur'] } })));
