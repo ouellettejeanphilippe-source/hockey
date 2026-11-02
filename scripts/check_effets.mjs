@@ -10,8 +10,8 @@
  *      ±0,3 point, ±0,15 but ou ±1 tir (une récompense de toute la saison : quatre points sur sa durée). Les minutes (`F`, `D`) se recomptent ailleurs (check_dilemmes), l'argent aussi ;
  *   2. sa force reste sous la borne de sa rareté sur ses soirs (une commune ±1).
  * V21 : les pouvoirs du coach, le temps d'une période, se mesurent dans check_pouvoirs ; le personnel est parti.
- * `N` : matchs par club et par effet (200). `FILS` : processus (4). `IDS=d:,a:` quelques familles. Une vingtaine de
- * minutes : à la main.
+ * `N` : matchs par club et par effet (200). `FILS` : processus (4). `IDS=d:,a:` quelques familles. `DETAIL=1` : chaque
+ * effet et ce qu'il vaut sur ses soirs, en victoires. Une vingtaine de minutes : à la main.
  */
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -123,8 +123,10 @@ for (const id of toutes) {
     // Une récompense de toute une saison (un pari gagné, un fil relevé) se voit sur sa durée : quatre points de plus à sa ligne.
     soirs >= 40 ? (Math.abs(x.pj) * soirs) / 4 : 0);
   const ligne = `${C.nom} : ${soirs.toFixed(1).replace('.', ',')} soirs · par soir : tirs ${f1(x.tp)} / ${f1(x.tc)} · buts ${f2(x.gf)} / ${f2(x.ga)} · punitions ${f2(x.pun)} · mises en échec ${f1(x.coups)} · jambes ${f1(x.jambes)}${x.pj || x.tj ? ` · le joueur ${f2(x.pj)} pt, ${f1(x.tj)} tir` : ''}`;
-  if (R < 1) { invisibles.push(C.nom); informer(`✗ ${id}`, ligne); }
   const v = x.v * soirs, lim = BORNE_V[C.rarete || 'commune'];
+  if (R < 1) { invisibles.push(C.nom); informer(`✗ ${id}`, ligne); }
+  // DETAIL=1 : chaque effet, sa ligne et ce qu'il vaut sur ses soirs (nov. 2026 : peser les deux réponses d'une histoire).
+  else if (process.env.DETAIL) informer(id, `${ligne} · ${f2(v)} V`);
   // Une récompense de fil (un défi relevé, un pari gagné) dure la saison : c'est la récompense (CLAUDE.md, la run qui casse le jeu).
   if (Math.abs(v) > lim && !id.startsWith('f:')) tropForts.push(`${C.nom} ${f1(v)} V (borne ${String(lim).replace('.', ',')})`);
 }

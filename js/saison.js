@@ -3447,6 +3447,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // L'AUDACE (V20) : un pari sur le joueur nommé, au dé ; sa fenêtre, celle de ses deux issues.
         ...(o.pari ? { quand: fenetreDuChoix(miens.length, o.pari.gagne.duree) } : {}),
         mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...motsConcrets(o), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
+        // Ce qui va au joueur nommé se dit une fois, à son nom (ci-dessus) : la carte ne le redit pas en « Ton joueur ».
+        ...(o.lui && lui ? { lui: null } : {}),
         desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : null }));
       const decision = cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}),
         // V16 (tranche 6) : la masse salariale passe par sa décision (`plafond`) ; V21 : le coach, le soin, par les leurs.

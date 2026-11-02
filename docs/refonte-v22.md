@@ -66,8 +66,8 @@ Six histoires pour commencer (`DOSSIERS`, js/dossiers.js), une par fait lu dans 
 | Histoire | Voix | Le fait | Réponse 1 | Réponse 2 |
 |---|---|---|---|---|
 | 📸 Tout le monde veut la vedette | l'analyste | ton meilleur pointeur des dix derniers matchs, le rang du club | la tournée des médias : +20 🪙 | le garder pour la glace : +5 d'expérience au coach |
-| 🥶 La disette | l'entraîneur | un gros contrat à un point ou moins en huit matchs | le défi devant les journalistes : un dé sur lui (tirs ×1,5, précision ×1,3 ou ×0,5, 8 matchs) | le reposer deux matchs |
-| 🥅 Le gardien battu | l'entraîneur | cinq buts ou plus au dernier match | le renvoyer devant le filet : un dé sur lui (arrêts ×0,85 ou ×1,15, 6 matchs) | l'auxiliaire deux soirs |
+| 🥶 La disette | l'entraîneur | un gros contrat à un point ou moins en huit matchs | le défi devant les journalistes : un dé sur lui (tirs ×1,5, précision ×1,3 ou ×0,5, 8 matchs) | le reposer deux matchs (nov. 2026 : à son retour, tirs ×1,5 et précision ×1,1, six matchs) |
+| 🥅 Le gardien battu | l'entraîneur | cinq buts ou plus au dernier match | le renvoyer devant le filet : un dé sur lui (arrêts ×0,85 ou ×1,15, 6 matchs) | l'auxiliaire deux soirs (nov. 2026 : à son retour, buts accordés ×0,78, deux départs) |
 | 🥊 La chicane au vestiaire | le capitaine | quatre punitions ou plus en dix matchs | le suspendre deux matchs : +4 d'expérience | une amende : +8 🪙 |
 | 🧳 La semaine sur la route | le physio | trois matchs à l'étranger, le plus bas en jambes | le vol nolisé : −15 🪙, les jambes de tous +10 | l'autobus de nuit : +10 🪙, les jambes de tous −8 |
 | 📋 Un adjoint en vue | le DG | 50 🪙 ou plus en caisse | signer le chèque : −25 🪙, une carte d'adjoint dans ta main | garder l'argent |
