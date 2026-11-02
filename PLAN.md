@@ -1,6 +1,6 @@
 # Plan
 
-État au 31 octobre 2026 : version 2.9.2 (`sw.js`), moteur S136 (`js/game.js`), cotes v30 (`js/ratings.js`), refonte V21 (le coach, un personnage). **Le plan de travail courant est `LIVRAISON.md`**, avec son journal ; ce fichier ne garde que l'état court et les décisions. L'histoire de chaque décision est dans `docs/decisions.md`, les « À faire » d'avant la 1.0 dans `docs/plan-historique.md`, le journal par sprint (S7 à S80) dans `docs/journal/`.
+État au 31 octobre 2026 : version 2.9.2 (`sw.js`), moteur S136 (`js/game.js`), cotes v30 (`js/ratings.js`), refonte V21 (le coach, un personnage). **Le plan de travail courant est `LIVRAISON.md`**, avec son journal ; ce fichier ne garde que l'état court et les décisions. L'histoire de chaque décision est dans `docs/decisions.md`, les « À faire » d'avant la 1.0 dans `docs/plan-historique.md`, le journal par sprint (S7 à S80) et par mois dans `docs/journal/`, le plan de la 1.0 et ses jalons dans `docs/livraison-1.0.md`.
 
 ## Fait
 
