@@ -63,7 +63,7 @@ Deux réglages sont à juger à la main :
 
 ## 3. Ce qui n'est pas réglé
 
-- **Le hors-jeu reste trop fréquent** : 4,8 à 4,9 par match de 6 minutes. La cause est connue : dans les mêlées à la bleue, la prise de rondelle automatique (une portée de 2,9 m) fait toucher la rondelle aux joueurs malgré eux. Marqué 🟡 dans `docs/sur-glace.md`.
+- **Le hors-jeu reste trop fréquent** : 4,8 à 4,9 par match de 6 minutes. La cause est connue : dans les mêlées à la bleue, la prise de rondelle automatique (une portée de 2,9 m) fait toucher la rondelle aux joueurs malgré eux. Marqué 🟡 dans `docs/sur-glace.md`. *Réglé au lot 2 (section 5) : 0,9 par match.*
 
 ## 4. Les propositions, dans l'ordre
 
@@ -78,6 +78,61 @@ Tirées de l'inventaire (`docs/sur-glace.md`, ses ⬜ et ses 🟡), classées pa
 7. **La présentation** (§ 8) — la reprise d'un but, les alignements au départ, les stats d'entracte.
 8. **La passerelle avec le Rogue** (§ 8) — jouer un gros match du Rogue sur la glace. C'est le plus gros morceau, et c'est à JP de dire si le résultat compte pour la saison.
 
+## 5. Le lot 2 : que ça joue comme du hockey (version 3.2.6)
+
+Les propositions 1, 2 et 3 de la section 4. Chaque correction pousse le même bâton que la manette ; chaque comportement a son fait mis en scène dans `check_physique` (114 → 136 vérifications, toutes vertes).
+
+### Les chiffres, avant → après
+
+L'IA contre l'IA, 48 matchs de 3 × 2 minutes (les graines `postes-0` à `23` du lot 1, et `postes-100` à `123`), le même harnais avant et après.
+
+| Ce qui est mesuré, par match de 6 min | Avant (3.2.4) | Après (3.2.6) |
+|---|---|---|
+| Hors-jeu | 5,1 (4,3 et 5,9) | 0,9 |
+| Passes réussies | 64 % | 67 % |
+| Sorties de zone réussies (sortie, reprise dehors) | 14 % | 29 % |
+| … perdues dans sa zone | 73 % | 48 % |
+| Rondelle en zone offensive, à soi ou touchée en dernier | 31 % | 32 % |
+| En zone offensive, un joueur dans l'enclave | 22 % | 37 % |
+| Tirs au but | 98 | 84 |
+| Lancers au fond (de la neutre) | 18 | 14, repris 27 % |
+| Tirs masqués par un écran | — | 21 % |
+| Déviations | 0,55 | 12 |
+| % d'arrêts | 92 % | 89,5 % |
+| Buts | 3,85 | 3,7 |
+
+Une note sur le point de départ : le rapport du lot 1 disait 5,0 buts et 4,9 hors-jeu par match ; le même harnais sur la version livrée (3.2.4) donne 4,0 et 4,3 sur les mêmes 24 graines. Les chiffres du lot 1 venaient d'une version d'avant ses derniers réglages.
+
+### Le hors-jeu des mêlées
+
+- **La cause**, reproduite en Node (le fil de chaque hors-jeu, image par image) : trois mécanismes. La lame prenait d'elle-même la rondelle à sa portée, le bras levé ; un défenseur à la bleue, la lame dans la zone, cueillait une rondelle sortie et la ramenait dedans, ses avants encore au fond ; une passe d'une pointe à l'autre glissait hors de la zone, et la passe de retour y rentrait. Et un défaut de règle : une rondelle que l'adversaire envoyait dans la zone, cueillie au même pas par un attaquant, était un hors-jeu.
+- **La correction, dans le moteur** (`prendraitHorsJeu`, js/physique.js) : le bras levé, un attaquant dans la zone ne prend la rondelle que s'il la vise (le bâton poussé vers elle) ; la rondelle dehors et un coéquipier dedans, la lame ne la ramène pas dans la zone. L'entrée dans la zone se lit du dernier à l'avoir touchée avant la ligne. Les deux règles valent pour toi comme pour l'IA, et se lisent dans les règles de l'écran.
+- **Dans l'IA** : le bras levé, on attend dehors hors de portée (on « tague » la bleue) ; pas de passe dans la zone depuis l'extérieur ; les défenseurs tiennent la bleue en dedans.
+- **Le check** : « ne prend pas la rondelle qui passe à sa lame s'il ne la vise pas », « ne la ramène pas », « l'IA attend dehors hors de portée », et six matchs mesurés (au plus 1,5 hors-jeu par match, la passe au moins 60 %).
+
+### La sortie de zone et l'attaque construites
+
+- **La cause** : de sa zone, le porteur passait au premier coéquipier qui marquait des points, même couvert ; 73 % des reprises dans sa zone finissaient chez l'adversaire, la plupart sur une passe interceptée dans la demi-seconde.
+- **La correction** (`SORTIE`, `sortieDeZone`, js/glace-ia.js) : libre derrière son filet, le défenseur attend 0,8 s que les siens se placent (les ailiers sur la bande, le centre qui revient bas), puis passe à l'avant ouvert, le couloir libre dès sa lame ; pressé sans personne d'ouvert, il la dégage le long de la bande vers son ailier. Plus de passe forcée de sa zone.
+- **Le lancer au fond** : hors de la zone d'attaque, le tir part maintenant où pointe le bâton (la visée assistée ne vaut que dans la zone) — c'est la commande du dump, à la manette comme pour l'IA, et il ne compte plus comme un tir au but. L'IA la lance au fond quand deux adversaires bouchent la bleue, dans le coin le moins gardé, puis court après.
+- **Le cycle** : au coin et pressé, la rondelle remontée le long de la bande au coéquipier qui attend en haut.
+- **Le check** : « la sortie de zone » (elle attend, puis passe à un avant qui la reçoit), « il la dégage le long de la bande », « le lancer au fond » (au fond, et les siens entrent sans hors-jeu), « le cycle », « le tir part où pointe le bâton », et les sorties réussies (au moins 22 %).
+
+### L'écran et la déviation
+
+- **L'écran** (`GARDIEN.ecran`, `masque`) : un patineur de l'une ou l'autre équipe sur la ligne de la rondelle au gardien, le gardien la voit 120 ms plus tard ; démasqué, il la retrouve à double vitesse, pas d'un coup (d'un coup, l'écran ne changeait presque rien : au même tir, 79 % d'arrêts sans écran, 76 % avec ; ainsi, 63 %).
+- **La déviation malgré soi** (`BATON.devant`, `devie`, `garde`) : un tir qui frappe une lame à moins de 5 m du filet change de route (±20°) et garde 80 % de sa vitesse ; celle d'un adversaire reste au tireur.
+- **L'IA au filet** (`ECRAN_D`, `posteEcran`) : un avant se place sur la ligne du tir, à 1,9 m devant le gardien, le premier servi ; la rondelle libre à nous, l'avant le plus près y va au lieu de chasser ; il tient son bâton quand notre tir part.
+- **Le check** : « l'écran » (le même tir, du même point, à la même vitesse : 79 % d'arrêts sans écran, 63 % avec), « la déviation » (la route change), « l'IA envoie un avant au filet », « un joueur dans l'enclave » (au moins 28 % du temps en zone).
+- **L'équilibre** : le gardien perd 2,5 points d'arrêts, mais les tirs baissent (les lancers au fond ne comptent plus, l'attaque se construit) : les buts restent à ≈ 3,8 par match, sous la cible de 5 à 6. Rien à compenser.
+
+### Ce qui reste
+
+- **Le temps en zone offensive ne monte pas** (31 → 32 %) : la possession en zone dure 0,1 s en médiane (le harpon et la mise en échec arrivent vite). C'est aussi ce qui garde le cycle rare (≈ 1,2 par match). La suite naturelle : protéger la rondelle (la proposition 4).
+- **Les déviations sont nombreuses** (12 par match, dont la plupart sur un bâton adverse devant le filet). À sentir à la manette ; `BATON.devant` (5 m) ou `devie` se règlent si c'est trop.
+- **Le dégagement** ne va qu'à l'ailier : un dégagement vers la neutre glisse jusqu'au bout de la glace (la rondelle ne perd rien le long de la bande), un dégagement refusé presque chaque fois. Un frottement le long de la bande (§ 1, 🟡) le rendrait possible.
+- **À voir à la manette** : le lancer au fond (ta visée change hors de la zone : le tir part où tu pointes), la lame qui ne prend pas la rondelle le bras levé, l'écran vu de l'écran. Une capture d'une attaque en zone (Toronto chez les Golden Seals) a été faite, sans erreur dans la console ; l'écran en action, lui, n'a pas été vu à l'image.
+
 ## Comment ces chiffres ont été faits
 
-`node scripts/check_physique.mjs` (98 vérifications avant, 114 après, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
+`node scripts/check_physique.mjs` (98 vérifications avant le lot 1, 114 après, 136 après le lot 2, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
