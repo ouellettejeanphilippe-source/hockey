@@ -245,6 +245,69 @@ Trois réglages en route : le premier jet des fautes (un seul dé, 10 %, pour le
 - **À sentir à la manette** : soulever le bâton (est-ce que « collé de côté » se trouve sans y penser, ou faut-il un piton à part ?) ; les fautes (1,9 punition par match de 6 min, c'est près de cinq par match de 15 min : à voir si c'est trop) ; le duel de la bagarre (7,5 appuis par seconde battent un dur de l'IA ; un enfant au téléphone ?) ; la reprise (le ralenti à × 0,4 dure 11 s : la passer est-il assez évident ?).
 - **Les captures** (Chromium sans tête, 1280 × 720, aucune erreur dans la console) : les partants (`alignements.png`), une montée et son but repris au ralenti (`montee.png`, `reprise-0.png` à `reprise-5.png`), une bagarre (`bagarre.png`, `bagarre-fin.png`) et l'entracte (`entracte.png`).
 
+## 8. Le lot 5 : la finition et l'équilibre (version 3.2.11)
+
+Un lot de finition : ce que la section 7 laissait douteux (le rythme des punitions, le compte des tirs, la main des sprites) et deux ⬜ de l'inventaire (le gardien qui joue la rondelle, la célébration). Chaque comportement a son fait mis en scène dans `check_physique` (170 → 185 vérifications, toutes vertes).
+
+### Les punitions au rythme de la LNH
+
+- **La cause** : 1,88 punition par match de 6 min (IA contre IA), trois fois la LNH (≈ 3 par club par 60 min, ≈ 0,6 par 6 min pour deux clubs). Le gros n'était pas un dé : 0,81 venaient de **charges par-derrière**. Reproduit (24 matchs, chaque charge sifflée, son fil) : 20 sur 20 sur un joueur **sans la rondelle**, chargé de face par l'IA, qui venait de passer et se détournait pendant les 0,35 s de l'élan ; puis, ce défaut corrigé, des charges sur un **autre** adversaire, de dos sur le chemin du frappeur.
+- **La correction** : la charge par-derrière ne se siffle que si la victime montrait déjà le dos quand le frappeur s'est élancé (`elanDos`, `dosTourne`, js/physique.js ; la règle 43 de la LNH : celui qui se détourne au dernier instant se met lui-même en danger) ; l'IA ne s'élance pas avec un autre adversaire de dos sur son chemin (js/glace-ia.js). Les dés de `FAUTES` : l'accrochage 25 → 10 %, le cinglage 3,5 → 2,5 %, le bâton élevé 10 → 8 %. Une ligne de règle le dit.
+- **La preuve** : « la charge par-derrière ne se siffle que sur un dos déjà tourné » (le même coup que la punition du lot 1, la victime détournée pendant l'élan : le coup porte, pas de punition) ; les faits du lot 4 (le taux de chaque faute suit son dé) restent verts.
+
+### Le compte des tirs et des arrêts
+
+- **La cause** : `M.tirs` comptait chaque tir **tenté** de la zone (`tirer`) : à côté, sur le poteau, par-dessus la barre, bloqué. Le % d'arrêts, lui, comptait les arrêts et les buts. D'où CGY 2 tirs pour 1 but et le gardien de BUF à 0,0 % : un tir à côté, un but. Deux écarts de plus : le gardien comptait l'arrêt d'une rondelle venue de son propre club, et les arrêts des tirs de barrage (que le % excluait des buts).
+- **La correction** : un tir au but est un arrêt ou un but (`tirAuBut`) ; la déviation compte à qui l'a déviée ; ni la rondelle de son club ni les tirs de barrage. Les tirs du joueur (`stats.tirs`, la fin du match) suivent.
+- **La preuve** : trois faits (un tir arrêté : 1 tir, 1 arrêt ; un but : 1 tir ; à côté, au poteau, bloqué : 0) et, sur les matchs mesurés, pour chaque club, tirs = arrêts du gardien adverse + buts (192 clubs sur 192 dans le harnais, 12 sur 12 dans le check). Il y a ≈ 37 tirs au but par match pour ≈ 86 tirs tentés de la zone.
+
+### Les sprites tiennent le bâton de la bonne main
+
+- **La cause** : les poses posaient la lame au milieu, devant les patins ; le moteur la tient à 25 cm du côté de la main (le lot 3), à 75 cm quand on protège.
+- **La correction** (scripts/sprites/rendu.mjs, puis js/sprites.js) : la lame posée du côté de la main (`BATON.cote`, lu du moteur) et ramenée où le jeu dessine la rondelle (14 pixels par mètre, tassés par la plongée) ; le droitier est le même corps **en miroir, rendu** sous la même lumière (pas retourné à l'écran) ; une pose de plus, « protège » (la lame à `PROTEGE.cote`). `spriteDe` choisit la planche du côté de `s.lat` : la main, ou l'autre côté quand il protège ou feinte. Le garde du script (`fileURLToPath`) le fait aussi tourner sous Windows.
+- **Le poids** : rendre tout deux fois doublait le fichier (155 → 309 Ko, gzip 23 → 45). Le droitier n'a pas la chute ni l'épaule (sans la rondelle, la main ne s'y lit pas : celles du gaucher servent), et une suite de vides s'écrit par son nombre : **155 → 179 Ko, gzip 23 → 41 Ko**. js/sprites.js n'est chargé qu'à l'ouverture de Sur glace, pas au premier écran.
+- **La preuve** : « la lame dessinée est du côté de la lame du moteur » (56 images sur 56 où la lame se voit, les deux mains, quatre poses, huit directions ; à 2,4 pixels au plus de la rondelle). Les aperçus avant et après ont été lus ; la capture `mains.png` montre un gaucher et un droitier côte à côte.
+
+### Le gardien qui joue la rondelle, et le trapèze
+
+- **Le geste** (`GARDIEN.jouer`, `aJouer`, `jouerLaRondelle`) : une rondelle libre derrière sa ligne, plus lente que 18 km/h, dans le trapèze, et lui dessus 0,3 s avant tout adversaire (un coéquipier qui y est bien avant lui la prend) : il fait le tour du filet, la remet au coéquipier ouvert (un défenseur d'abord, aucun adversaire à 1,6 m du couloir), sinon la dégage le long de la bande, puis revient. Derrière sa ligne, il ne gèle plus rien.
+- **Le trapèze** (la règle de 2005, 18 pieds à la ligne des buts, 28 à la bande, dessiné sur la glace) : dehors, il ne va pas la chercher ; s'il la joue dehors — il l'a vue dedans, 170 ms plus tôt, et elle a glissé —, deux minutes, purgées par un patineur sur la glace.
+- **La preuve** : quatre faits (la remise au défenseur, sorti à 0,9 m derrière sa ligne ; le retour devant le filet ; la bande ; dehors, il ne bouge pas) et la punition du trapèze mise en scène. IA contre IA : **≈ 0,2 fois par match** de 6 min.
+
+### La célébration d'un but
+
+- **Le moteur** (`CELEBRATION`, `feter`) : le jeu arrêté, 2,5 s, les coéquipiers du buteur patinent à lui (5 m/s au plus) et s'y serrent sans s'empiler ; les autres freinent. La pause d'un but passe de 2,5 à 3,5 s ; la reprise commence à la fin de la célébration (`REPRISE.attente` lit `CELEBRATION.duree`).
+- **L'écran** : le buteur lève son bâton ; la foule tape des mains en cadence, trois fois trois coups (`ovation`, js/sons-glace.js), une poignée de partisans pour les visiteurs.
+- **La preuve** : « la célébration » (les coéquipiers de 11,2 à 2,0 m du buteur, ceux d'en face ne bougent pas), puis la mise en jeu au centre.
+
+### Les chiffres, avant → après
+
+L'IA contre l'IA, 96 matchs de 3 × 2 minutes, les graines du lot 3 et du lot 4, le même harnais.
+
+| Par match de 6 min | 3.2.10 | 3.2.11 |
+|---|---|---|
+| Punitions | 1,88 | 0,63 |
+| … la charge par-derrière, le cinglage, le bâton élevé, l'accrochage, le trébuchement | 0,81, 0,53, 0,23, 0,14, 0,14 | 0,00, 0,27, 0,16, 0,05, 0,10 |
+| Minutes de punition | 4,1 | 1,4 |
+| Buts | 4,03 | 3,95 |
+| % d'arrêts | 90,1 | 89,7 |
+| Hors-jeu | 0,98 | 1,08 |
+| Passes réussies | 66,8 % | 66,6 % |
+| Tirs au but (un arrêt ou un but) | — | 36,6 |
+| Clubs où tirs ≠ arrêts + buts | presque tous | 0 sur 192 |
+| Le gardien joue la rondelle | — | 0,2 |
+
+Deux réglages en route, pour l'équilibre. Le premier jet des dés (1,5 % de cinglage, 5 % de bâton élevé) donnait 0,59 punition, en bas de la cible : remontés à 2,5 et 8 %. Et moins de punitions, ce sont moins d'avantages numériques : les buts sont tombés de 4,03 à 3,6–3,8 (quatre mesures ; le bruit de 96 matchs est de ±0,2). Les trous du gardien entre les jambières et sur le corps sont passés de 0,2 et 0,03 à 0,25 et 0,04 : 3,95 buts, 89,7 % d'arrêts.
+
+### Ce qui reste
+
+- **Le gardien joue rarement la rondelle** (≈ 0,2 par match de 6 min, deux par soirée de 60 min) : derrière le filet, la rondelle lente a presque toujours un patineur plus près. Arrêter le dégagement qui fait le tour de la bande, pour son défenseur, serait la suite.
+- **La charge par-derrière ne se voit presque plus** entre deux IA (0,01 par match) : c'est toi qui peux la prendre. À sentir : celle qu'on t'inflige paraît-elle juste ?
+- **Les sprites** : la lame se voit peu de dos ; la pose « protège » de profil cache parfois la lame derrière le corps ; le droitier qui chute ou donne l'épaule prend un éclair le sprite du gaucher ; le gardien est toujours de la même main.
+- **La célébration** n'a pas de pose dédiée (pas d'accolade) : les joueurs se serrent, le buteur lève le bâton.
+- **À sentir à la manette** : 0,63 punition par match de 6 min, c'est ≈ 1,6 par match de 15 min — l'avantage numérique devient rare ; la célébration de 2,5 s avant la reprise ; le trapèze sur la glace se comprend-il ?
+- **Les captures** (Chromium sans tête, 1280 × 720, aucune erreur dans la console) : un gaucher et un droitier côte à côte, et un patineur qui protège (`mains.png`), le gardien derrière son filet (`gardien-sort.png`, `gardien-joue.png`, `gardien-revient.png`), la célébration (`fete-1.png`, `fete-2.png`).
+
 ## Comment ces chiffres ont été faits
 
-`node scripts/check_physique.mjs` (98 vérifications avant le lot 1, 114 après, 136 après le lot 2, 157 après le lot 3, 170 après le lot 4, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
+`node scripts/check_physique.mjs` (98 vérifications avant le lot 1, 114 après, 136 après le lot 2, 157 après le lot 3, 170 après le lot 4, 185 après le lot 5, toutes vertes), `node scripts/tout.mjs` (35 scripts) et `node scripts/check_mort.mjs`, verts. Les mesures du positionnement : l'IA contre l'IA, 24 matchs de 3 × 2 minutes. La capture : Chromium sans tête, 1280 × 720, aucune erreur dans la console.
