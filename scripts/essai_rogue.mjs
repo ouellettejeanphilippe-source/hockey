@@ -562,7 +562,9 @@ async function regler() {
         fait: ((el.querySelector('.choix-corps > .scene .scene-fait') || {}).textContent || '').trim(),
         de: ((el.querySelector('.choix-corps > .scene .scene-de, .choix-irl') || {}).textContent || '').trim(),
         boite: [...document.querySelectorAll('#hubModal .hub-msg-corps, #hubModal .hub-boite .choix-option')].length,
-        opts: [...el.querySelectorAll('.choix-options > .af-option:not([disabled])')].map(b => ({ cle: b.dataset.choix, on: b.classList.contains('on'), ouvre: b.classList.contains('ouvre'), pari: /Pari/.test((b.querySelector('.choix-forme') || {}).textContent || '') })) }));
+        // V23 : une histoire se joue en cartes de hockey (« Jouer » sous la carte, `.tc-prendre`) ; le dé est sa carte rare.
+        opts: [...[...el.querySelectorAll('.choix-options > .af-option:not([disabled])')].map(b => ({ cle: b.dataset.choix, on: b.classList.contains('on'), ouvre: b.classList.contains('ouvre'), pari: /Pari/.test((b.querySelector('.choix-forme') || {}).textContent || '') })),
+          ...[...el.querySelectorAll('.choix-options > .choix-option.tc:not([aria-disabled="true"]) .tc-prendre')].map(b => ({ cle: b.dataset.choix, on: false, ouvre: false, pari: b.closest('.choix-option').classList.contains('tc-rare') }))] }));
       afaire.genres.add(lu.genre); afaire.ouverts++; afaire.maisons.add(lu.maison);
       if (!lu.forme) afaire.formes.push(`${lu.genre} « ${lu.sujet} »`);
       if (lu.compris) erreurs.push(`« ${lu.sujet} » demande encore « Compris » dans À faire`);
@@ -583,7 +585,7 @@ async function regler() {
       if (o === pari) evenementsDe.push(lu.sujet.trim());
       const n0 = o.ouvre || o === pari ? null : (await decisionsDuCombat()).length;
       if (n0 !== null && !afaire.lots.length) await page.screenshot({ path: `${DOSSIER}/rogue-choix-touche.png` });
-      await boiteA.$(`.af-option[data-choix="${o.cle.replace(/"/g, '\\"')}"]`).then(b => b.click());
+      await boiteA.$(`:is(.af-option, .tc-prendre)[data-choix="${o.cle.replace(/"/g, '\\"')}"]`).then(b => b.click());
       await page.waitForTimeout(400);
       // Un rival coché avant le dernier attend les autres, sur place ; tout autre choix touché est parti.
       if (n0 !== null && !(await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg] .af-option.on'))) {

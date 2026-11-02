@@ -4315,7 +4315,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-msg { border: 1px solid var(--filet); border-top: 3px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 12px 22px -16px var(--noir-pur); transition: transform 160ms var(--e-sortie); animation: tele-balaie 380ms var(--e-sortie) both; }
 .hub-msg.bloque { border-top-color: var(--mauvais); }
 .hub-msg:hover { transform: translateY(-3px); }
-.hub-msg-tete { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--esp-2); min-height: 150px; padding: var(--esp-2) var(--esp-2) var(--esp-3); border: 0; background: none; color: var(--encre); text-align: center; }
+.hub-msg-tete { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--esp-1); min-height: 124px; padding: var(--esp-2) var(--esp-2) var(--esp-3); border: 0; background: none; color: var(--encre); text-align: center; }
 .hub-msg-maison { align-self: stretch; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); text-align: left; }
 .hub-msg-ico { flex: none; display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; background: var(--fond-3); font-size: var(--t-5); line-height: 1; color: var(--encre); }
 .hub-msg-visage { width: 52px; height: 52px; }
