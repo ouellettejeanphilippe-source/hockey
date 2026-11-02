@@ -29,10 +29,14 @@ const $ = id => document.getElementById(id);
 
 export const SEMAINE = 7;
 /*
- * LES PALIERS DE LA SAISON (S79 ; V9, tranche 5b) : aux matchs 9, 18 et 26, au verdict du proprio et au butin d'un gros
- * match gagné. V22 : les adjoints du staff sont partis.
+ * LES PALIERS DE LA SAISON (S79 ; V9, tranche 5b) : un adjoint parmi trois aux matchs de `PALIERS_PACK`, au verdict du
+ * proprio et au butin d'un gros match gagné. V22 : les adjoints du staff sont partis. Nov. 2026 (docs/revue-rogue-2026-11.md
+ * § 2.1) : aux 9e, 18e et 26e matchs, il ne se passait plus rien passé le 26e ; quatre paliers sur toute la saison, à
+ * mi-chemin des mains du deck (`PALIERS_CARTES`, js/sim.js : 20, 40, 60) — un moment fixe tous les dix matchs.
  */
-export const PALIERS_PACK = [9, 18, 26];
+export const PALIERS_PACK = [10, 30, 50, 70];
+/* Les paliers en mots, comme l'écran les dit (« 10e, 30e, 50e et 70e ») : chaque chiffre vient de la constante (check_clarte). */
+export const PALIERS_MOT = `${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e`;
 
 /*
  * LES CARTES DE LA PARTIE, pures : les cartes des packs achetés (`achat.cartes`), du report de la saison d'avant (`poche`), d'un

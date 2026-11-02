@@ -103,7 +103,7 @@ function ligue(seed, n = 12) {
   const inv = prose('inventaire.js');
   exiger('la main du deck se dit « du Ne match », pas « de la journée »', inv.some(s => /^Main du $/.test(s)) && !inv.some(s => /Main de la journée/.test(s)));
   const html = lire('index.html').replace(/<!--[\s\S]*?-->/g, '');
-  exiger('les règles disent les paliers en matchs', new RegExp(`${PALIERS_CARTES[0]}e, ${PALIERS_CARTES[1]}e et ${PALIERS_CARTES[2]}e matchs`).test(html) && new RegExp(`${PALIERS_PACK[0]}e, ${PALIERS_PACK[1]}e et ${PALIERS_PACK[2]}e matchs`).test(html));
+  exiger('les règles disent les paliers en matchs', new RegExp(`${PALIERS_CARTES[0]}e, ${PALIERS_CARTES[1]}e et ${PALIERS_CARTES[2]}e matchs`).test(html) && html.includes(`${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs`));
 }
 
 /* ---------- 5. le plafond effectif ---------- */

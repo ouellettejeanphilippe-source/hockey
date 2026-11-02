@@ -24,6 +24,7 @@ import { ajusterCartes, cartonDe, choisirSpeciale, lesCotes, pastilleNiveau, rar
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { poseesSur } from './banque.js';
 import { decisionsDeLaPartie } from './rogue-jeu.js';
+import { PALIERS_MOT } from './inventaire.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
 function ouvrirCarteDe(p) {
@@ -905,7 +906,7 @@ function mainHtml(perso, niveau) {
   const vides = Math.max(0, cases - postes.length);
   return `<div class="ej-case-l">En poste · ${postes.length} sur ${cases} · ta main · ${main.length} sur ${MAIN_MAX}${cases < 3 ? ` · une case de plus au niveau ${cases === 1 ? 3 : 5}` : ''}</div>
     <div class="adj-zone${main.length ? '' : ' sans'}" data-zone="main">${postes.map(carteAdj).join('')}${Array.from({ length: vides }, () => `<button type="button" class="adj-case vide" title="Glisse une carte de ta main ici">Case libre</button>`).join('')}${autres.map(carteAdj).join('')}</div>
-    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite">Touche une carte : son style, sa réplique.</p>' : '<p class="adj-note">Un adjoint arrive aux 9e, 18e et 26e matchs, après un gros match gagné et au verdict du proprio.</p>'}`;
+    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite">Touche une carte : son style, sa réplique.</p>' : `<p class="adj-note">Un adjoint arrive aux ${PALIERS_MOT} matchs, après un gros match gagné et au verdict du proprio.</p>`}`;
 }
 /* POSTER UNE CARTE : la décision du jour (`hub.decider`), puis on revient au Coach, où l'on était. */
 function posterLAdjoint(cle) {
