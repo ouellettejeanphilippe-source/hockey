@@ -66,7 +66,7 @@ export function ouvrirMagasin(ctx) {
     return `<button type="button" class="pk-tuile pk-${tier}${jour ? ' pk-jour' : ''}${verrou ? ' verrou' : ''}${manque ? ' pk-cher' : ''}" data-pack="${esc(cle)}"${verrou ? ` title="${esc(verrou)}"` : manque ? ` title="Il te manque ${manque} 🪙"` : ''}>
       <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[tier].nom)}</span></span>
       <span class="pk-nom">${esc(P.nom)}</span>
-      <span class="pk-n">${P.cartes ? `${n} joueurs · ${P.cartes} carte${P.cartes > 1 ? 's' : ''}` : `${n} carte${n > 1 ? 's' : ''}`}</span>
+      <span class="pk-n">${P.cartes ? `${n} joueur${n > 1 ? 's' : ''} · ${P.cartes} carte${P.cartes > 1 ? 's' : ''}` : `${n} carte${n > 1 ? 's' : ''}`}</span>
       <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) < 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
     </button>`;
   };
@@ -176,7 +176,7 @@ export function ouvrirMagasin(ctx) {
     const d = document.createElement('div');
     d.className = 'pk-fiche';
     d.innerHTML = `<div class="pk-fiche-carte pk-${P.sorte === 'cartes' ? 'cartes' : tierDuPack(cle, ctx.mods)}">
-      <div class="pk-fiche-tete"><span class="pk-ico">${P.ico}</span><div><div class="pk-fiche-nom">${esc(P.nom)}</div><div class="pk-fiche-sous">${cartesDuPack(cle, P.sorte === 'joueurs' ? ctx.mods : {})} cartes · ${prix} 🪙</div></div></div>
+      <div class="pk-fiche-tete"><span class="pk-ico">${P.ico}</span><div><div class="pk-fiche-nom">${esc(P.nom)}</div><div class="pk-fiche-sous">${(nc => `${nc} carte${nc > 1 ? 's' : ''}`)(cartesDuPack(cle, P.sorte === 'joueurs' ? ctx.mods : {}))} · ${prix} 🪙</div></div></div>
       <p class="pk-fiche-texte">${esc(P.texte)}</p>
       <div class="pk-detail"><h4>Les chances</h4>
       <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : x.niveau ? ' class="pk-niveau"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
