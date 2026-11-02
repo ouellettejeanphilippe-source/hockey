@@ -1964,7 +1964,8 @@ function etatDeLaPartie() {
   if (hub && N && j < N) {
     // Comme le prototype (oct.) : le jour, et ce qu'il est pour toi — un match ce soir ou un congé.
     const ceSoir = (L.calendrier[j] || []).some(m => m.A === L.you || m.B === L.you);
-    return `Journée ${j} sur ${N} · ${ceSoir ? 'match ce soir' : 'congé'}`;
+    // V23 (G1) : la journée d'aujourd'hui, comptée de 1 comme partout ailleurs (« Journée 0 sur 186 » au premier matin).
+    return `Journée ${j + 1} sur ${N} · ${ceSoir ? 'match ce soir' : 'congé'}`;
   }
   return hub ? 'Saison régulière · terminée' : 'La saison est jouée';
 }

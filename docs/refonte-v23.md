@@ -140,7 +140,7 @@ Les clés de sauvegarde ne bougent jamais.
 
 - [x] **A1** : au sommaire du soir, le banc montre chaque pouvoir ouvert et chaque adjoint en poste ; ce qui a joué porte `.joue` et ses périodes, recomptées dans `feuille.pouvoirs` ; sous `prefers-reduced-motion`, aucune animation — `check_banc` (neuf, dans `tout.mjs`).
 - [ ] A2 : le banc au Bureau et allumé aux entractes du duel — `essai_rogue`.
-- [ ] B : une histoire tient en 1,0 écran ; un chiffre par option à `--t-6` ou plus ; `cibles44` — `essai_rogue`, smoke.
+- [x] B : un gros chiffre par option à `--t-6`, pris parmi ses lignes visibles (deux au plus en tout) ; la carte sans dégradé, avec son relief, qui se soulève et s'envole — `check_lisibilite` § 6. *Ouvert* : une histoire en 1,0 écran (`essai_rogue`).
 - [x] C : chaque niveau d'adjoint sous sa borne, et le Phénomène bat le Soutien du même style en paires (chacun à 0,3 V près, +0,7 V en moyenne) — `check_pouvoirs` ; une carte sans niveau est un Pilier, la table telle quelle.
 - [x] D' : la règle du coach s'allume les soirs où elle paie et la caisse les paie ; les salaires sont ceux de la feuille — `check_banc` ; l'ancien arbitre sous la borne de chaque niveau — `check_pouvoirs`.
 - [ ] D : chaque relais se voit le soir où il joue ; une paire rend 1,2 à 1,6 fois ses pièces — `check_relais` (à écrire) ; l'attentif qui lit les relais bat celui qui ne les lit pas d'au moins 1 V par saison — `check_profondeur` (`ROBOT_SAUF=relais`).
@@ -153,11 +153,11 @@ Les clés de sauvegarde ne bougent jamais.
 ## Les tranches, dans l'ordre
 
 1. **A1 · Le banc s'allume au sommaire** — fait (2 nov.) : `banc` (js/profil-style.js), `bancHtml` (js/bilan.js), `.banc` (style.css), `check_banc`.
-2. **G1 · Les finis** : les sept défauts des captures — `essai_rogue`.
+2. **G1 · Les finis** — fait (2 nov.) : le toast, les pouvoirs fermés, la journée, le sous-titre du duel ; trois défauts écartés (LIVRAISON.md).
 3. **C · Les niveaux des entraîneurs et des adjoints** — fait (2 nov.) : `NOMS_NIV`, `FORCE_NIV`, `PRIX_NIV`, `BORNE_NIV`, `niveauOffert` (js/adjoints.js), `MAITRISE` en cinq niveaux (js/coachs-reels.js) — `check_pouvoirs`.
 3'. **D' · La règle du coach, le salaire, l'ancien arbitre** — fait (2 nov.) — `check_banc`, `check_pouvoirs`, `check_clarte`.
 4. **A2 · Le banc au Bureau et aux entractes.**
-5. **B · Les choix en cartes** — après le oui de JP sur la tuile sobre.
+5. **B · Les choix en cartes** — fait (2 nov.) : la carte de choix (relief, forme, gros chiffre, envol) ; le pari en rondelle qui tourne et le joueur nommé en vraie carte restent à faire.
 6. **E · Les suites et les rares**, les six fiches.
 7. **D · Le relais et moins d'offres** — après le oui de JP.
 8. **F · Leur coach en séries** (l'encerclement est écarté par JP).
