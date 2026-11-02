@@ -134,7 +134,7 @@ const JAMBES = { usure: 1.8, repos: 6, changement: 55, presence: 45 };   // la f
 const TAMPON = 0.10;   // le tampon d'entrée, s : un appui de passe ou de tir dans cette fenêtre avant la prise compte quand même
 export const MATCH = {
   periode: 180, prolongation: 120, surglace: 5, surglaceOT: 3, rondesFusillade: 3, retraitGardien: 90, tirDePunition: 12,
-  punition: 120, mej: 0.9, pauses: { but: 2.5, gel: 1.2, horsjeu: 1.2, degagement: 1.2, punition: 1.5, periode: 3, fin: 0 },
+  punition: 120, pauses: { but: 2.5, gel: 1.2, horsjeu: 1.2, degagement: 1.2, punition: 1.5, periode: 3, fin: 0 },
 };
 
 /* ---------- les outils ---------- */
@@ -177,6 +177,7 @@ export function parametresDuPatineur({ cote = 10, tir = 10, jeu = 10, defense = 
     tir: 0.8 + 0.02 * tir,                // × la vitesse du lancer
     precision: 1.4 - 0.04 * tir,          // × l'écart de la visée
     passe: 1.5 - 0.04 * jeu,              // × l'écart de la passe
+    mej: clamp(jeu, 1, 20) / 20,          // la mise en jeu : sa cote Jeu, sur 20 (`MEJ.jeu`)
     defense: defense / 20,                // le harpon
     masse,
     equilibre: 0.7 + 0.03 * robustesse,   // × le seuil de chute
@@ -272,6 +273,8 @@ export function nouveauMatch({ graine = 'match', A, B, periode = MATCH.periode, 
     etat.gardiens.push(gardienNeuf(eq, -attaque, { nom: club.gardien && club.gardien.nom, visage: club.gardien && club.gardien.visage, p: pg }));
   }
   for (const eq of ['A', 'B']) habiller(etat, eq);
+  // Placés dès le coup de sifflet du début (ils attendaient, les cinq empilés au même point, la première mise en jeu).
+  placerMiseEnJeu(etat, { x: 0, y: 0 }); etat.mej = null;
   arreter(etat, 'debut', { x: 0, y: 0 }, 0.5);
   return etat;
 }
@@ -1062,63 +1065,124 @@ function arreter(etat, genre, point, pause) {
 }
 
 /*
- * LA MISE EN JEU : tout le monde à sa place autour du point (les centres au point, les ailiers sur les traits, les
- * défenseurs derrière), la rondelle tombe après `MATCH.mej` ; chaque centre a sa chance (son Jeu, le hasard, et le
- * bouton pressé juste à la chute : +0,35), le gagnant la tire derrière lui, vers un défenseur.
+ * LA MISE EN JEU (JP, 2 nov. : *les défenseurs sont pas dans la zone à la mise au jeu, l'absence de mécanique de mise
+ * au jeu*). LE PLACEMENT, celui de la LNH, selon le point : les deux centres face à face au point (`MEJ.face` chacun de
+ * son côté), personne d'autre dans le cercle ; les ailiers sur les traits du cercle, chacun de son côté ; les défenseurs
+ * en deçà — au centre et en zone neutre, `MEJ.recul` derrière ; dans une zone, ceux de l'attaque à la bleue
+ * (`MEJ.bleue` en dedans), le fort à la pointe de son côté, l'autre au milieu, et ceux de la défense, l'un au bas du
+ * cercle derrière son centre, l'autre à côté du cercle, devant le filet. Le hors-jeu tient : personne dans sa zone d'attaque si le point
+ * n'y est pas, chacun dans sa moitié au centre.
  */
+export const MEJ = {
+  chute: 0.9,        // la rondelle tombe après ça, s
+  face: 0.6,         // chaque centre, à ça du point, de son côté, m
+  trait: 0.95,       // les ailiers, à ça du point en long, de leur côté, sur les traits du cercle (au rayon, plus `horsCercle`)
+  horsCercle: 0.35,  // m au-delà du cercle : personne d'autre que les centres dedans
+  recul: 6.5,        // les défenseurs au centre et en zone neutre, à ça derrière le point, m
+  bleue: 0.9,        // ceux de l'attaque, dans une zone : à ça en dedans de la bleue, m
+  pointe: 4,         // … le fort à ça de la bande, l'autre à `milieu` du centre de la glace, de l'autre côté, m
+  milieu: 1.5,
+  arriere: 2.8,      // ceux de la défense, dans leur zone : celui du milieu à ça du point vers leur but, à côté du cercle, m ;
+  fond: [4.7, 1.8],  // … celui de la bande au bas du cercle, derrière son centre : à ça vers le but, et ça vers la bande, m
+  // LE DUEL : chaque centre vaut sa cote Jeu sur 20 × `jeu`, plus un dé × `hasard`, plus le bouton : à la chute pile,
+  // `timing`, moins à mesure qu'on s'en éloigne, rien à `fenetre` de la chute, avant ou après. Seul le premier appui
+  // compte ; le bâton tenu à cet instant dit où il l'envoie. Le duel se joue quand les deux ont pressé, au plus tôt à la
+  // chute, ou `tard` après elle. Un écart sous `nette` : la rondelle reste libre au point, une petite bataille.
+  jeu: 0.25, hasard: 0.5, timing: 0.45, fenetre: 0.2, tard: 0.2, nette: 0.06,
+  // GAGNÉE NETTE : vers le coéquipier que le bâton pointe (à `cone` rad près ; le bâton au neutre, droit derrière),
+  // assez fort pour qu'elle lui arrive à `arrivee` m/s, `vitesse` au plus, à `ecart` rad près ; personne dans le cône,
+  // elle part dans le sens du bâton. Les bâtons des centres restent liés `lies` s ; le perdant, battu, `battu` s.
+  cone: 0.9, arrivee: 5, vitesse: 9, ecart: 0.1, lies: 0.6, battu: 0.6,
+  libre: 1.2,        // la rondelle libre glisse à ça, m/s, dans un sens au hasard
+};
 function placerMiseEnJeu(etat, point) {
   if (etat.match && !etat.match.ronde) for (const eq of ['A', 'B']) habiller(etat, eq);
   const R = etat.rondelle;
   R.x = point.x; R.y = point.y; R.z = 0; R.vx = 0; R.vy = 0; R.vz = 0; R.porteur = null; R.dernier = null;
   if (etat.match) { etat.match.touches.A = []; etat.match.touches.B = []; }
   const centres = {};
+  const auCentre = Math.abs(point.x) < 0.5;
+  const enZone = Math.abs(point.x) > BLEUE;
+  const bande = Math.sign(point.y) || 1;   // le côté de la bande la plus près
+  const rTrait = POINT.r + MEJ.horsCercle;
   for (const eq of ['A', 'B']) {
     const s = etat.equipes[eq].attaque;
     const sur = surGlace(etat, eq);
     const F = sur.filter(p => p.poste !== 'D'), D = sur.filter(p => p.poste === 'D');
     const centre = F.find(p => p.poste === 'C') || F[0] || D[0];
-    const ailiers = F.filter(p => p !== centre);
+    const ailiers = F.filter(p => p !== centre), defenseurs = D.filter(p => p !== centre);
     const place = (p, x, y) => {
       p.x = clamp(x, -(LIGNE_BUT - 1.2), LIGNE_BUT - 1.2); p.y = clamp(y, -(W / 2 - 1), W / 2 - 1);
       // Jamais dans le filet.
       if (Math.abs(p.x) > LIGNE_BUT - 1.2 && Math.abs(p.y) < FILET.large / 2 + 1) p.y = Math.sign(p.y || 1) * (FILET.large / 2 + 1.2);
       p.vx = 0; p.vy = 0; p.cap = s > 0 ? 0 : Math.PI; p.auSol = 0; p.charge = 0; p.lachee = 0; p.harpon = 0; p.elan = 0; p.ia = null;
     };
-    if (centre) place(centre, point.x - s * 0.75, point.y);
+    if (centre) place(centre, point.x - s * MEJ.face, point.y);
     // L'ailier gauche à gauche en regardant le filet attaqué (−y quand on attaque vers +x), le droit à droite.
-    ailiers.forEach((p, i) => place(p, point.x - s * 2.0, point.y + s * 4.8 * (p.poste === 'AG' ? -1 : p.poste === 'AD' ? 1 : (i === 0 ? -1 : 1))));
-    D.forEach((p, i) => place(p, point.x - s * 8, point.y + (i === 0 ? -3.5 : 3.5)));
+    ailiers.forEach((p, i) => {
+      const g = p.poste === 'AG' ? -1 : p.poste === 'AD' ? 1 : (i === 0 ? -1 : 1);
+      place(p, point.x - s * MEJ.trait, point.y + s * g * rTrait);
+    });
+    const attaque = enZone && point.x * s > 0, defense = enZone && point.x * s < 0;
+    // Le premier de la paire prend le côté de la bande (le même calcul chaque fois).
+    defenseurs.forEach((p, i) => {
+      const cote = i === 0 ? bande : -bande;
+      if (attaque) place(p, s * (BLEUE + MEJ.bleue), cote === bande ? bande * (W / 2 - MEJ.pointe) : -bande * MEJ.milieu);
+      else if (defense) { if (cote === bande) place(p, point.x - s * MEJ.fond[0], point.y + bande * MEJ.fond[1]); else place(p, point.x - s * MEJ.arriere, point.y - bande * (rTrait + 0.5)); }
+      else place(p, (auCentre ? 0 : point.x) - s * MEJ.recul, (auCentre ? 0 : point.y * 0.4) + (i === 0 ? -1 : 1) * 4);
+    });
     centres[eq] = centre ? centre.id : null;
     const Gd = gardienDe(etat, eq);
     if (!Gd.retire) Object.assign(Gd, { x: Gd.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [], harponRepos: 0 });
   }
   // Les joueurs hors glace : au banc, ou au cachot.
   for (const s of etat.patineurs) if (!s.surGlace) { s.x = (s.equipe === 'A' ? -1 : 1) * (s.boxe ? 3 : 8); s.y = (s.boxe ? -1 : 1) * (W / 2 + 1.2); s.vx = 0; s.vy = 0; }
-  etat.mej = { point, reste: MATCH.mej, centres, appuis: { A: null, B: null } };
+  etat.mej = { point, reste: MEJ.chute, centres, appuis: { A: null, B: null }, batons: {} };
   for (const eq of etat.humains) {
     const mien = surGlace(etat, eq);
     etat.controles[eq] = centres[eq] || (mien[0] && mien[0].id) || null;
   }
 }
+/* Le bonus du bouton : `MEJ.timing` à la chute pile, rien à `MEJ.fenetre` avant ou après ; sans appui, rien. */
+const bonusDeMej = appui => (appui ? MEJ.timing * Math.max(0, 1 - Math.abs(appui.t) / MEJ.fenetre) : 0);
+/* Le duel : le Jeu, le dé, le bouton ; net, la rondelle va où le bâton du gagnant pointe ; serré, elle reste libre. */
 function tomber(etat, ev) {
   const M = etat.mej, R = etat.rondelle;
   etat.mej = null;
   etat.enJeu = true;
-  const chances = {};
+  const score = {}, c = {};
   for (const eq of ['A', 'B']) {
-    const c = M.centres[eq] ? parId(etat, M.centres[eq]) : null;
-    const jeu = c ? (1.4 - c.p.passe) / 0.03 / 20 : 0.5;
-    const appui = M.appuis[eq];
-    const timing = appui != null && Math.abs(appui) < 0.15 ? 0.35 : 0;
-    chances[eq] = jeu * 0.5 + etat.de() * 0.5 + timing;
+    c[eq] = M.centres[eq] ? parId(etat, M.centres[eq]) : null;
+    score[eq] = MEJ.jeu * (c[eq] ? c[eq].p.mej : 0.5) + MEJ.hasard * etat.de() + bonusDeMej(M.appuis[eq]);
   }
-  const gagnant = chances.A >= chances.B ? 'A' : 'B';
-  const c = M.centres[gagnant] ? parId(etat, M.centres[gagnant]) : null;
-  const s = etat.equipes[gagnant].attaque;
-  R.vx = -s * 5; R.vy = (etat.de() < 0.5 ? -1 : 1) * 3;
-  if (c) { toucher(etat, c, false); c.lachee = 0.15; }
+  const gagnant = score.A >= score.B ? 'A' : 'B', perdant = autre(gagnant);
+  const timing = { A: M.appuis.A ? M.appuis.A.t : null, B: M.appuis.B ? M.appuis.B.t : null };
+  if (Math.abs(score.A - score.B) < MEJ.nette) {
+    const ang = etat.de() * 2 * Math.PI;
+    R.vx = Math.cos(ang) * MEJ.libre; R.vy = Math.sin(ang) * MEJ.libre;
+    for (const eq of ['A', 'B']) if (c[eq]) c[eq].lachee = MEJ.lies;
+    ev.push({ type: 'mej', equipe: null, libre: true, timing });
+    return;
+  }
+  const s = etat.equipes[gagnant].attaque, cg = c[gagnant];
+  // Le bâton du gagnant : tenu à l'appui (sans appui, le dernier poussé) ; au neutre, droit derrière lui.
+  const appui = M.appuis[gagnant], tenu = appui || M.batons[gagnant] || { x: 0, y: 0 };
+  const dir = hyp(tenu.x, tenu.y) < 0.3 ? (s > 0 ? Math.PI : 0) : Math.atan2(tenu.y, tenu.x);
+  let cible = null, mieux = MEJ.cone;
+  for (const m of surGlace(etat, gagnant)) {
+    if (m === cg) continue;
+    const ecart = Math.abs(plier(Math.atan2(m.y - R.y, m.x - R.x) - dir));
+    if (ecart < mieux) { mieux = ecart; cible = m; }
+  }
+  const d = cible ? hyp(cible.x - R.x, cible.y - R.y) : 6;
+  const vise = (cible ? Math.atan2(cible.y - R.y, cible.x - R.x) : dir) + gauss(etat.de) * MEJ.ecart;
+  const v = clamp(Math.sqrt(MEJ.arrivee ** 2 + 2 * RONDELLE.frottement * G * d), 2, MEJ.vitesse);
+  R.vx = Math.cos(vise) * v; R.vy = Math.sin(vise) * v;
+  // Une passe tirée au coéquipier : il la prend comme une passe, et les siens le savent.
+  if (cg) { toucher(etat, cg, false); cg.lachee = MEJ.lies; if (cible) { R.passeDe = cg.id; R.passeVers = cible.id; } }
+  if (c[perdant]) c[perdant].lachee = MEJ.battu;
   if (etat.match) etat.match.mej[gagnant]++;
-  ev.push({ type: 'mej', equipe: gagnant });
+  ev.push({ type: 'mej', equipe: gagnant, vers: cible ? cible.id : null, timing });
 }
 
 /* Une punition : deux minutes au cachot, tout de suite si son équipe a la rondelle (ou personne), en attente sinon. */
@@ -1292,15 +1356,20 @@ function pas(etat, entrees, ev) {
     return;
   }
   // La mise en jeu : tout le monde attend, les centres guettent la chute.
+  // Le premier appui de chaque centre se garde, avec son instant (par rapport à la chute) et son bâton : un bouton déjà
+  // tenu quand tout le monde se place ne compte pas, il faut presser.
   if (etat.mej) {
-    etat.mej.reste -= PAS;
+    const Mj = etat.mej;
+    Mj.reste -= PAS;
     for (const eq of ['A', 'B']) {
-      const c = etat.mej.centres[eq];
-      const e = c ? (entrees[c] || (etat.ia ? etat.ia(etat, parId(etat, c)) : null)) : null;
-      if (e && e.passe && etat.mej.appuis[eq] == null) etat.mej.appuis[eq] = etat.mej.reste;
+      const c = Mj.centres[eq], s = c ? parId(etat, c) : null;
+      const e = c ? (entrees[c] || (etat.ia ? etat.ia(etat, s) : null)) : null;
+      if (e && hyp(e.x || 0, e.y || 0) > 0.3) Mj.batons[eq] = { x: e.x, y: e.y };
+      if (e && e.passe && !s.tenaitPasse && Mj.appuis[eq] == null) Mj.appuis[eq] = { t: -Mj.reste, x: e.x || 0, y: e.y || 0 };
+      if (s) s.tenaitPasse = !!(e && e.passe);
     }
-    for (const s of etat.patineurs) if (s.surGlace) { const e = entrees[s.id]; s.tenaitPasse = !!(e && e.passe); s.tenaitTir = !!(e && e.tir); }
-    if (etat.mej.reste <= 0) tomber(etat, ev);
+    for (const s of etat.patineurs) if (s.surGlace && !Object.values(Mj.centres).includes(s.id)) { const e = entrees[s.id]; s.tenaitPasse = !!(e && e.passe); s.tenaitTir = !!(e && e.tir); }
+    if (Mj.reste <= -MEJ.tard || (Mj.reste <= 0 && Mj.appuis.A && Mj.appuis.B)) tomber(etat, ev);
     return;
   }
   // L'horloge.
@@ -1444,7 +1513,8 @@ export function reglesDeLaGlace() {
     `La passe part à ${kmh(BATON.passe)} km/h, plus ${dec(BATON.passeLoin)} m/s par mètre de plus, menée là où le coéquipier sera ; le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, le tir sur réception à ${Math.round(BATON.uneTemps * 100)} % du frappé sans charger ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (plus à pleine charge), et le tir part toujours vers le filet attaqué : le bâton choisit où (droit, le centre ; penché, le coin ; à fond de côté, ${Math.round(BATON.large * 100)} cm à côté du poteau).`,
     `Une mise en échec échange l'élan des deux corps (masse × vitesse) ; le moins lancé tombe ${dec(PATIN.sol)} s si l'écart dépasse ${CHUTE.seuil} kg·m/s (× son équilibre), et lâche la rondelle. L'élan du bouton pousse ${ECHEC.accel} fois plus fort pendant ${dec(ECHEC.duree, 2)} s. Frapper qui n'a pas la rondelle depuis ${dec(ECHEC.recent)} s, ou par-derrière : ${MATCH.punition / 60} minutes.`,
     `Le gardien de cote 10 voit la rondelle ${Math.round(GARDIEN.reaction * 1000)} ms en retard et couvre ${dec(GARDIEN.demi * 2, 2)} m des ${dec(FILET.large, 2)} m du filet (sa cote Arrêts le rend plus vif et plus large) ; il bouge à ${kmh(GARDIEN.vMax)} km/h au plus ; il gèle ${Math.round(GARDIEN.couvre * 100)} % de ses arrêts (${Math.round(GARDIEN.mitaine * 100)} % des tirs hauts, la mitaine), les autres rebondissent à ${Math.round(GARDIEN.rebond * 100)} % de la vitesse — de côté, vers le coin, selon sa cote Arrêts. À angle fermé, il colle au poteau ; une rondelle libre sous ${GARDIEN.lente} m/s à ${dec(GARDIEN.demiCercle)} m de son filet, il va la couvrir s'il y est le premier ; le porteur qui arrive à ${dec(GARDIEN.harpon.portee)} m de lui, il le harponne (une chance sur ${Math.round(1 / (GARDIEN.harpon.chance + GARDIEN.harpon.parArret * 10))} à une cote de 10).`,
-    `Le hors-jeu se siffle à l'entrée de la zone quand on y porte la rondelle ; lancée ou passée dedans, il est différé, levé si les attaquants ressortent, sifflé s'ils la touchent ; le dégagement refusé quand la rondelle lancée de sa moitié passe la ligne de but sans être touchée (permis en désavantage) ; la mise en jeu tombe après ${dec(MATCH.mej)} s, le bouton pressé juste à la chute vaut un bonus. Trois périodes, puis ${MATCH.prolongation / 60} minutes à ${MATCH.surglaceOT} contre ${MATCH.surglaceOT}, puis ${MATCH.rondesFusillade} tirs de barrage et la mort subite ; en séries, la prolongation à cinq, autant qu'il en faut.`,
+    `Le hors-jeu se siffle à l'entrée de la zone quand on y porte la rondelle ; lancée ou passée dedans, il est différé, levé si les attaquants ressortent, sifflé s'ils la touchent ; le dégagement refusé quand la rondelle lancée de sa moitié passe la ligne de but sans être touchée (permis en désavantage) ; Trois périodes, puis ${MATCH.prolongation / 60} minutes à ${MATCH.surglaceOT} contre ${MATCH.surglaceOT}, puis ${MATCH.rondesFusillade} tirs de barrage et la mort subite ; en séries, la prolongation à cinq, autant qu'il en faut.`,
+    `La mise en jeu : les deux centres face à face au point, personne d'autre dans le cercle (${dec(POINT.r, 2)} m de rayon), les ailiers sur ses traits, les défenseurs de l'attaque à ${dec(MEJ.bleue)} m en dedans de la bleue ; la rondelle tombe après ${dec(MEJ.chute)} s. Chaque centre vaut sa cote Jeu sur 20 × ${dec(MEJ.jeu)}, plus un dé × ${dec(MEJ.hasard)}, plus le bouton : +${dec(MEJ.timing, 2)} à la chute pile, moins à mesure qu'on s'en éloigne, rien à ${Math.round(MEJ.fenetre * 1000)} ms avant ou après ; seul le premier appui compte. Gagnée par plus de ${dec(MEJ.nette, 2)}, la rondelle part vers le coéquipier que le bâton pointe (au neutre, droit derrière : le défenseur) ; plus serrée, elle reste libre au point, à qui la prend.`,
     `La rondelle a une hauteur : le poignet monte à ${dec(BATON.hauteurMin)} m/s, le frappé chargé à ${dec(BATON.hauteurMax)} m/s (±${dec(BATON.ecartHauteur)}), la gravité la ramène, le sol lui rend ${Math.round(RONDELLE.rebondSol * 100)} % ; la barre est à ${dec(FILET.haut, 2)} m, la vitre à ${dec(RONDELLE.vitre)} m (par-dessus, hors jeu) ; une passe dont la ligne est barrée se soulève à ${dec(BATON.soulevee)} m/s ; au sol seulement, elle se prend. Le gardien laisse passer ${Math.round(GARDIEN.trous.haut * 100)} % des tirs dans le coin du haut, ${Math.round(GARDIEN.trous.cinq * 100)} % entre les jambières, ${Math.round(GARDIEN.trous.corps * 100)} % sur le corps.`,
     `À reculons, la pointe et la poussée valent ${Math.round(PATIN.recul * 100)} % ; le turbo les monte à ${Math.round(PATIN.sprint * 100)} % et use les jambes ${PATIN.sprintJambes} fois plus vite ; en tournant à vitesse moyenne, les croisés poussent ${Math.round((PATIN.croise - 1) * 100)} % plus fort ; couper sec coûte ${Math.round(PATIN.virage * 100)} % de vitesse par radian ; un patineur plus léger que ${PATIN.masse} kg tourne un peu plus court (${Math.round(PATIN.agilite * 100)} % au plus), un plus lourd frappe plus fort sans patiner moins vite. Un harpon raté par-derrière sur le porteur l'accroche une fois sur ${Math.round(1 / HARPON.trebuche)} : deux minutes, ou un tir de punition sur une échappée. Le gardien se retire pour un sixième attaquant (l'IA, sous ${MATCH.retraitGardien} s, à un ou deux buts) ; une charge contre la bande pèse ${dec(CHUTE.bande)} fois ; une punition ne tombe que sur une charge voulue, le bouton pressé.`,
   ];

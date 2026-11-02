@@ -10,13 +10,14 @@
  * LES MÊMES PITONS QUE LES NHL CLASSIQUES (JP, 1er nov. 2026) :
  *   le bâton gauche, les flèches ou WASD   patiner (le bâton à l'envers : freiner)
  *   A, Espace                              la passe ; sans la rondelle, changer de joueur ; à la mise en jeu, la chute
+ *                                          (le bâton tenu dit où elle part : derrière, le défenseur ; de côté, l'ailier)
  *   X ou RT tenu, Maj tenue                charger le tir ; lâché, il part ; sans la rondelle, le harpon
  *   B ou RB, Ctrl                          avec la rondelle, le turbo ; sans elle, l'élan d'une mise en échec
  *   Y, E                                   changer de joueur
  *   LB ou LT, Q                            patiner à reculons (le cap tenu vers le jeu)
  *   Start, Échap, ✕                        la pause : reprendre, retirer le gardien, les règles, quitter
  */
-import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, DIFFICULTES, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON } from './physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON } from './physique.js';
 import { decisionIA, STRATEGIES } from './glace-ia.js';
 import { PATINEURS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
 import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
@@ -102,7 +103,7 @@ const PLOT = 8459455, GARDIEN_VISAGE = 8451033;                             // P
 const mug = id => (id && ctxJeu && ctxJeu.mug ? `<span class="sg-mug">${ctxJeu.mug({ id })}</span>` : '');
 
 let el = null, canvas = null, cx = null, etat = null, raf = null, dernier = 0, ctxJeu = null;
-let cam = { x: 0, y: 0, k: 20 };
+let cam = { x: 0, y: 0, k: 20, vx: 0, vy: 0 };
 let touche = { haut: 0, bas: 0, gauche: 0, droite: 0, passe: false, tir: false, echec: false, changer: false, recul: false };
 let doigt = null;        // le bâton du doigt : { id, x0, y0, x, y }
 let boutons = { passe: false, tir: false, echec: false, changer: false };
@@ -342,7 +343,7 @@ function lancer(e) {
         <aside class="sg-regles" hidden>
           <h3>Ce que la glace fait</h3>
           <ul>${reglesDeLaGlace().map(r => `<li>${esc(r)}</li>`).join('')}</ul>
-          <p class="sg-regles-mot">Le bâton gauche, les flèches ou WASD patinent ; à l'envers, c'est le frein. A ou Espace passe, change de joueur sans la rondelle, et prend la mise en jeu à la chute. X, RT ou Maj tenue charge le tir (le bâton choisit le coin) ; sans la rondelle, c'est le harpon. B, RB ou Ctrl : le turbo avec la rondelle, la mise en échec sans elle. Y ou E change de joueur ; LB, LT ou Q patine à reculons. Start, Échap ou ॥ : la pause.</p>
+          <p class="sg-regles-mot">Le bâton gauche, les flèches ou WASD patinent ; à l'envers, c'est le frein. A ou Espace passe, change de joueur sans la rondelle, et prend la mise en jeu à la chute : le bâton tenu dit où tu l'envoies (vers l'arrière, ton défenseur ; de côté, ton ailier). X, RT ou Maj tenue charge le tir (le bâton choisit le coin) ; sans la rondelle, c'est le harpon. B, RB ou Ctrl : le turbo avec la rondelle, la mise en échec sans elle. Y ou E change de joueur ; LB, LT ou Q patine à reculons. Start, Échap ou ॥ : la pause.</p>
         </aside>
       </div>
     </div>
@@ -376,7 +377,7 @@ function lancer(e) {
   window.addEventListener('keyup', surTouche, true);
   window.addEventListener('resize', mesurer);
   mesurer();
-  cam = { x: etat.rondelle.x * COS, y: etat.rondelle.y, k: cam.k };
+  cam = { x: etat.rondelle.x * COS, y: etat.rondelle.y, k: cam.k, vx: 0, vy: 0 };
   dernier = performance.now();
   raf = requestAnimationFrame(boucle);
 }
@@ -390,12 +391,19 @@ function basculerPause() {
   else { const a = P.querySelector('.sg-regles'); if (a) a.hidden = true; dernier = performance.now(); }
 }
 
+/* Ton bouton à la mise en jeu, dit en millisecondes de la chute (JP : *une vraie mécanique de mise en jeu*). */
+function tonTiming(t) {
+  const eq = etat.humains[0];
+  if (!eq || !t) return '';
+  const ms = t[eq] == null ? null : Math.round(t[eq] * 1000);
+  return ms == null ? ' · trop tard' : Math.abs(ms) <= 40 ? ' · pile !' : ` · ${Math.abs(ms)} ms ${ms < 0 ? 'trop tôt' : 'trop tard'}`;
+}
 function invites() {
   const ctl = etat && etat.controles[etat.humains[0]];
   const porte = etat && etat.rondelle.porteur && etat.rondelle.porteur === ctl;
   const m = document.body.classList.contains('manette');
   const k = (pad, clav) => `<kbd>${m ? pad : clav}</kbd>`;
-  return `<span>${k('⬤', 'Flèches')} Patiner</span><span>${k('Ⓐ', 'Espace')} ${porte ? 'Passe' : etat && etat.mej ? 'Mise en jeu' : 'Changer'}</span><span>${k('Ⓧ', 'Maj')} ${porte ? 'Tir (tenir)' : 'Harpon'}</span><span>${k('Ⓑ', 'Ctrl')} ${porte ? 'Turbo' : 'Échec'}</span><span>${k('LB', 'Q')} Reculer</span><span>${k('Start', 'Échap')} Pause</span>`;
+  return `<span>${k('⬤', 'Flèches')} Patiner</span><span>${k('Ⓐ', 'Espace')} ${porte ? 'Passe' : etat && etat.mej ? 'À la chute (le bâton : où)' : 'Changer'}</span><span>${k('Ⓧ', 'Maj')} ${porte ? 'Tir (tenir)' : 'Harpon'}</span><span>${k('Ⓑ', 'Ctrl')} ${porte ? 'Turbo' : 'Échec'}</span><span>${k('LB', 'Q')} Reculer</span><span>${k('Start', 'Échap')} Pause</span>`;
 }
 
 /* ---------- les entrées ---------- */
@@ -579,7 +587,7 @@ function boucle(now) {
     else if (v.type === 'periode') flash = { mot: etat.match.prolongation ? (etat.match.series ? 'Prolongation' : 'Prolongation, 3 contre 3') : `Fin de la ${v.periode}${v.periode === 1 ? 're' : 'e'} période`, reste: 2.5 };
     else if (v.type === 'fusillade') flash = { mot: 'Tirs de barrage', reste: 2 };
     else if (v.type === 'ronde') flash = { mot: v.but ? `Compté, ${noms[v.equipe]}` : `Raté, ${noms[v.equipe]}`, reste: 1.5 };
-    else if (v.type === 'mej') flash = { mot: `Mise en jeu gagnée, ${noms[v.equipe]}`, reste: 0.9 };
+    else if (v.type === 'mej') flash = { mot: `${v.libre ? 'Rondelle libre !' : `Mise en jeu gagnée, ${noms[v.equipe]}`}${tonTiming(v.timing)}`, reste: 1.1 };
     else if (v.type === 'tir') { if (Object.values(etat.controles).includes(v.qui)) flash = { mot: `${Math.round(v.v * 3.6)} km/h${v.uneTemps ? ' · sur réception' : ''}`, reste: 1 }; if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'tir'); }
     else if (v.type === 'echec' && v.fort) { gel = GEL; secousse = { t0: now, dur: 200, amp: 3 }; if (tonJoueur(v.sur)) vibrer(equipeDe(v.sur), 'echecRecu'); if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'echecDonne'); }
     else if (v.type === 'prise' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'prise');
@@ -703,6 +711,13 @@ function mesurer() {
  */
 const DEVANCE = 5;      // le décalage maximal vers la direction du jeu, m
 const DEVANCE_V = 0.45; // le décalage par m/s de vitesse de la rondelle
+// … une vitesse LISSÉE (JP : *la caméra*) : une passe, un tir ou un coup de patin changent la vitesse de la rondelle d'un
+// coup, et le décalage sautait de plusieurs mètres d'une image à l'autre ; lissée sur `DEVANCE_T` s, la caméra glisse.
+const DEVANCE_T = 0.45;
+// LA MISE EN JEU, cadrée sur le cercle : le point, son cercle et tous les patineurs dedans, plus `MEJ_MARGE` m de glace
+// autour (et la hauteur d'un joueur au fond de l'écran), tant que la rondelle n'est pas tombée ; les défenseurs à la
+// bleue et les ailiers sur les traits restent à l'écran.
+const MEJ_MARGE = 1.2;
 /*
  * LA VUE EN LÉGÈRE PLONGÉE (JP, 2 nov. : *à angle léger, pas direct au-dessus*) : on regarde la glace du bout de
  * l'écran, penché de `PLONGEE` depuis la verticale. Une projection parallèle : un point (x, y, z) de la glace tombe à
@@ -740,13 +755,20 @@ function camera(dt) {
   const voit = long / k;
   // garder [a, b] à l'écran, au plus près de c ; trop court pour les deux bouts, le milieu
   const garder = (a, b, c) => { const bas = b - voit / 2, haut = a + voit / 2; return bas <= haut ? Math.max(bas, Math.min(haut, c)) : (a + b) / 2; };
-  const pr = (R.x + Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V))) * COS;
+  const fv = 1 - Math.exp(-dt / DEVANCE_T);
+  cam.vx += (R.vx - cam.vx) * fv; cam.vy += (R.vy - cam.vy) * fv;
+  const pr = (R.x + Math.max(-DEVANCE, Math.min(DEVANCE, cam.vx * DEVANCE_V))) * COS;
   const loin = garder(...ZONE_LOIN, pr), pres = garder(...ZONE_PRES, pr), neutre = garder(...NEUTRE, pr);
   const t = Math.max(-1, Math.min(1, R.x / BLEUE));   // −1 à la bleue de près, 1 à celle du fond
-  const cible = t >= 0 ? neutre + (loin - neutre) * t : neutre + (pres - neutre) * -t;
+  let cible = t >= 0 ? neutre + (loin - neutre) * t : neutre + (pres - neutre) * -t;
+  if (etat.mej) {
+    const P = etat.mej.point, xs = etat.patineurs.filter(s => s.surGlace).map(s => s.x);
+    const bas = Math.min(P.x - POINT.r, ...xs) * COS - MEJ_MARGE, haut = Math.max(P.x + POINT.r, ...xs) * COS + MEJ_MARGE + HAUT.vitre * SIN;
+    cible = garder(bas, haut, cible);   // le cadre de la zone (sa bleue, ses gradins) s'il les tient tous, sinon le moins loin de lui qui les tient
+  }
   cam.x += (cible - cam.x) * f;
   // toute la largeur tient dans l'écran : la glace reste centrée, elle ne glisse plus de côté
-  const ty = court / k >= W + 0.6 ? 0 : R.y + Math.max(-DEVANCE, Math.min(DEVANCE, R.vy * DEVANCE_V));
+  const ty = court / k >= W + 0.6 ? 0 : R.y + Math.max(-DEVANCE, Math.min(DEVANCE, cam.vy * DEVANCE_V));
   cam.y += (ty - cam.y) * f;
   cam.x = voit >= P_MAX - P_MIN ? (P_MAX + P_MIN) / 2 : Math.max(P_MIN + voit / 2, Math.min(P_MAX - voit / 2, cam.x));
   const demi = court / (2 * k), bout = W / 2 + GRADINS;
@@ -1199,7 +1221,7 @@ function dessiner(now) {
   cx.globalAlpha = 1;
   for (const s of etat.patineurs) if (s.surGlace || s.boxe) marques(s);
   // LA RONDELLE : à la mise en jeu, elle tombe ; en l'air, elle grossit et laisse son ombre au sol.
-  const chute = etat.mej ? Math.max(0, etat.mej.reste / 0.9) : 0;
+  const chute = etat.mej ? Math.max(0, etat.mej.reste / MEJ.chute) : 0;
   const z = Math.max(chute * 0.6, Math.min(1.5, R.z || 0));
   // En pixels de sprite, sur la grille : quatre de large, trois de haut, un reflet ; en l'air, elle grossit et son ombre reste au sol.
   cx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1280,7 +1302,8 @@ function radar() {
 }
 
 /* ---------- le tableau, la fin ---------- */
-const horloge = s => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.ceil(Math.max(0, s) % 60)).padStart(2, '0')}`;
+// les secondes arrondies vers le haut d'abord (2:59,99 se lit 3:00, jamais 2:60)
+const horloge = s => { const t = Math.ceil(Math.max(0, s)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
 function hud() {
   const M = etat.match;
   const T = el.querySelector('.sg-tableau');

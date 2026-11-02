@@ -21,12 +21,15 @@
  *   la hauteur    la rondelle retombe et rebondit, passe par-dessus la barre, sonne la barre, se soulève quand la
  *                 passe est barrée ; le patin recule, coupe à prix, sprinte ; les passes décisives, les trois
  *                 étoiles, le gardien retiré, le tir de punition, la prolongation des séries, deux humains, la
- *                 difficulté ; une collision de course n'est jamais punie (1er nov. 2026).
+ *                 difficulté ; une collision de course n'est jamais punie (1er nov. 2026) ;
+ *   la mise en jeu  le placement de la LNH à chaque point (personne dans le cercle, les défenseurs dans la zone, le
+ *                 hors-jeu tenu), un duel : le bouton à la chute, le bâton qui dit où, le Jeu, la rondelle libre ;
+ *                 l'IA presse le même bouton ; la passe en route, la bleue qu'on ne dépasse pas (2 nov. 2026).
  *
  *   node scripts/check_physique.mjs
  */
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH } from '../js/physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ } from '../js/physique.js';
 import { decisionIA, ECART_D } from '../js/glace-ia.js';
 
 const t0 = Date.now();
@@ -381,6 +384,133 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
   for (const s of e.patineurs) if (s.surGlace && s !== porteur && !D.includes(s)) Object.assign(s, { x: -aA * 20, y: s.y, vx: 0, vy: 0 });
   const recule = D.map(d => decisionIA(e, d)).map(r => r.x * aA);
   exiger('le porteur arrive à pleine vitesse : les défenseurs reculent avant d\'être dépassés', recule.every(v => v > 0.2), `${recule.map(v => v.toFixed(2)).join(' et ')} vers leur filet (l'écart : ${ECART_D.base} m + ${ECART_D.parVitesse} m par m/s)`);
+}
+
+/* ---------- la mise en jeu : le placement de la LNH (JP, 2 nov. : *les défenseurs sont pas dans la zone à la mise au jeu*) ---------- */
+/* Une mise en jeu au point dit : le sifflet tout juste fini, tout le monde placé, la rondelle pas encore tombée. */
+const auPoint = (graine, point, humain = null, clubs = {}) => {
+  const e = nouveauMatch({ graine, A: clubs.A || club('AAA', 100), B: clubs.B || club('BBB', 200), periode: 120, humain, ia: decisionIA });
+  jouer(e, {}, 0.6);
+  e.mej = null; e.enJeu = false; e.arret = { genre: 'essai', reste: 1e-6, point };
+  avancer(e, {}, 1 / 120);
+  return e;
+};
+{
+  const POINTS = [
+    ['le centre', { x: 0, y: 0 }, true],
+    ['la zone de B, à droite', { x: POINT.x, y: POINT.y }, true], ['la zone de B, à gauche', { x: POINT.x, y: -POINT.y }, true],
+    ['la zone de A, à droite', { x: -POINT.x, y: POINT.y }, true], ['la zone de A, à gauche', { x: -POINT.x, y: -POINT.y }, true],
+    ['la neutre, près de B', { x: POINT.neutre, y: POINT.y }, false], ['la neutre, près de A', { x: -POINT.neutre, y: -POINT.y }, false],
+  ];
+  const fautes = { centres: [], cercle: [], horsjeu: [], zone: [], deca: [], traits: [] };
+  for (const [nom, P, cercle] of POINTS) {
+    const e = auPoint(`placement-${nom}`, P);
+    for (const eq of ['A', 'B']) {
+      const s = e.equipes[eq].attaque, sur = surGlace(e, eq), c = sur.find(p => p.id === e.mej.centres[eq]);
+      if (!c || Math.abs(Math.hypot(c.x - P.x, c.y - P.y) - MEJ.face) > 0.01 || (P.x - c.x) * s <= 0) fautes.centres.push(`${nom} ${eq}`);
+      for (const p of sur) {
+        const d = Math.hypot(p.x - P.x, p.y - P.y);
+        if (p !== c && cercle && d < POINT.r) fautes.cercle.push(`${nom} ${eq} ${p.poste} à ${d.toFixed(2)} m`);
+        // le hors-jeu : jamais dans sa zone d'attaque si le point n'y est pas ; au centre, chacun dans sa moitié
+        const zoneAttaque = P.x * s > BLEUE;
+        if ((!zoneAttaque && p.x * s > BLEUE) || (Math.abs(P.x) < 0.5 && p.x * s > 0)) fautes.horsjeu.push(`${nom} ${eq} ${p.poste}`);
+        if (p.poste === 'D' && Math.abs(P.x) > BLEUE && !(p.x * Math.sign(P.x) > BLEUE)) fautes.zone.push(`${nom} ${eq} D à x ${p.x.toFixed(1)}`);
+        if (p.poste === 'D' && !(p.x * s < c.x * s)) fautes.deca.push(`${nom} ${eq}`);
+        if ((p.poste === 'AG' || p.poste === 'AD') && cercle && Math.abs(Math.abs(p.y - P.y) - (POINT.r + MEJ.horsCercle)) > 0.01) fautes.traits.push(`${nom} ${eq} ${p.poste}`);
+      }
+    }
+  }
+  exiger('à la mise en jeu, les deux centres face à face au point, chacun de son côté', !fautes.centres.length, fautes.centres.join(', ') || `${POINTS.length} points, à ${MEJ.face} m du point`);
+  exiger('… personne d\'autre dans le cercle', !fautes.cercle.length, fautes.cercle.join(', ') || `rayon ${POINT.r.toFixed(2)} m`);
+  exiger('… les ailiers sur les traits du cercle', !fautes.traits.length, fautes.traits.join(', ') || 'au rayon, de part et d\'autre');
+  exiger('… personne hors-jeu (sa zone d\'attaque seulement si le point y est ; au centre, sa moitié)', !fautes.horsjeu.length, fautes.horsjeu.join(', ') || 'aucun');
+  exiger('… dans une zone, les quatre défenseurs dedans — ceux de l\'attaque à la bleue', !fautes.zone.length, fautes.zone.join(', ') || `${MEJ.bleue} m en dedans de la bleue`);
+  exiger('… et chaque défenseur en deçà de son centre', !fautes.deca.length, fautes.deca.join(', ') || 'partout');
+}
+
+/* ---------- la mise en jeu : un duel (JP, 2 nov. : *l'absence de mécanique de mise au jeu*) ---------- */
+/*
+ * Toi au centre de A, contre l'IA : la rondelle tombe `MEJ.chute` s après le placement ; `appui` : quand tu presses,
+ * en s par rapport à la chute (null : jamais) ; `baton` : où tu le tiens. Rend la mise en jeu et la première prise.
+ */
+const duel = (graine, point, appui, baton, clubs) => {
+  const e = auPoint(graine, point, 'A', clubs);
+  const c = e.mej.centres.A;
+  let mej = null, prise = null;
+  for (let k = 0; k < 120 * 4 && !prise; k++) {
+    const t = e.mej ? MEJ.chute - e.mej.reste : 9;
+    const ev = avancer(e, { [c]: { x: baton.x, y: baton.y, passe: appui != null && t >= MEJ.chute + appui - 1e-9 } }, 1 / 120);
+    for (const v of ev) { if (v.type === 'mej') mej = v; else if (v.type === 'prise' && mej && !prise) prise = e.patineurs.find(p => p.id === v.qui); }
+  }
+  return { e, mej, prise };
+};
+{
+  const N = 60, DZ = { x: -POINT.x, y: -POINT.y };   // ta zone, à gauche : la bande est du côté des −y
+  const serie = (appui, baton, point = DZ, clubs) => Array.from({ length: N }, (_, k) => duel(`duel-${k}`, point, appui, baton, clubs));
+  const derriere = serie(0, { x: -1, y: 0 }), cote = serie(0, { x: 0, y: -1 }), sans = serie(null, { x: -1, y: 0 });
+  const gagne = r => r.mej && r.mej.equipe === 'A' && !r.mej.libre;
+  const part = (l, f) => l.filter(f).length / Math.max(1, l.length);
+  borne('la mise en jeu : le bouton à la chute pile, tu gagnes la plupart', part(derriere, gagne), 0.6, 0.95);
+  borne('… sans le bouton, beaucoup moins (le Jeu et le dé seuls contre l\'IA qui presse)', part(derriere, gagne) - part(sans, gagne), 0.25, 0.9, ' de moins');
+  const auD = derriere.filter(gagne);
+  borne('… gagnée le bâton vers l\'arrière, elle va à ton défenseur', part(auD, r => r.prise && r.prise.equipe === 'A' && r.prise.poste === 'D'), 0.8, 1);
+  const auAilier = cote.filter(gagne);
+  borne('… le bâton vers la bande, à ton ailier de ce côté', part(auAilier, r => r.prise && r.prise.equipe === 'A' && r.prise.poste === 'AG'), 0.7, 1);
+  const tous = [...derriere, ...cote, ...sans];
+  borne('… serrée, la rondelle reste libre au point : une petite bataille', part(tous, r => r.mej && r.mej.libre), 0.03, 0.3);
+  // Le Jeu : deux IA, le centre de A à 18, celui de B à 4 (le reste égal).
+  const fort = (tag, k0, jeu) => { const cl = club(tag, k0); cl.patineurs = cl.patineurs.map(j => (j.poste === 'C' ? { ...j, p: parametresDuPatineur({ cote: 10, jeu }) } : j)); return cl; };
+  let gA = 0, nettes = 0, appuisIA = 0, mises = 0;
+  for (let k = 0; k < N; k++) {
+    const e = auPoint(`jeu-${k}`, { x: 0, y: 0 }, null, { A: fort('AAA', 100, 18), B: fort('BBB', 200, 4) });
+    for (let i = 0; i < 240; i++) for (const v of avancer(e, {}, 1 / 120)) if (v.type === 'mej') { mises++; if (v.timing.A != null && v.timing.B != null) appuisIA++; if (!v.libre) { nettes++; if (v.equipe === 'A') gA++; } }
+  }
+  borne('… le Jeu du centre pèse : un 18 bat un 4', gA / Math.max(1, nettes), 0.6, 0.9);
+  exiger('… et l\'IA joue la même mise en jeu : elle presse le bouton, à son moment', appuisIA === mises && mises === N, `${appuisIA} appuis sur ${mises} mises en jeu`);
+}
+
+/* ---------- l'IA : le positionnement (JP, 2 nov. : *le positionnement des joueurs*) ---------- */
+{
+  // UNE PASSE EN ROUTE : les coéquipiers du receveur prennent leur poste, ils ne foncent pas tous sur la rondelle.
+  const e = nouveauMatch({ graine: 'en-route', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
+  jouer(e, {}, 0.6); e.mej = null; e.enJeu = true;
+  const A = surGlace(e, 'A'), B = surGlace(e, 'B');
+  for (const s of B) Object.assign(s, { x: -18, y: 10, vx: 0, vy: 0 });
+  const [passeur, receveur, voisin, ...autres] = A;
+  autres.forEach((s, i) => Object.assign(s, { x: -16, y: -8 + i * 4, vx: 0, vy: 0 }));
+  Object.assign(passeur, { x: -4, y: -5, vx: 0, vy: 0 }); Object.assign(receveur, { x: 8, y: -5, vx: 0, vy: 0 }); Object.assign(voisin, { x: 3, y: -1.5, vx: 0, vy: 0 });
+  Object.assign(e.rondelle, { x: 1, y: -5, vx: 14, vy: 0, z: 0, vz: 0, porteur: null, passeDe: passeur.id, passeVers: receveur.id, dernier: { equipe: 'A', id: passeur.id, t: e.t, x: 1, lance: false } });
+  const d = decisionIA(e, voisin);
+  // le couloir de la passe est à y = −5, sous lui : y foncer, c'est pousser le bâton vers les −y
+  exiger('une passe des siens en route : le coéquipier près du chemin ne fonce pas sur la rondelle, il prend son poste', d.y > -0.3, `${d.y.toFixed(2)} de son bâton vers le couloir de la passe`);
+}
+{
+  // LE HORS-JEU, sans la rondelle : elle vient de sortir de leur zone, l'avant de A qui y traîne en ressort.
+  const e = nouveauMatch({ graine: 'remise-en-jeu', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
+  jouer(e, {}, 0.6); e.mej = null; e.enJeu = true;
+  const A = surGlace(e, 'A'), B = surGlace(e, 'B');
+  const ailier = A.find(s => s.poste === 'AG'), chasseur = A.find(s => s.poste === 'C'), porteurB = B[0];
+  for (const s of [...A, ...B]) if (s !== ailier && s !== porteurB) Object.assign(s, { x: -16, y: 10, vx: 0, vy: 0 });
+  Object.assign(chasseur, { x: BLEUE - 3.5, y: -2 });   // le centre chasse le porteur ; l'ailier, lui, marque
+  B[1].x = BLEUE + 8; B[1].y = 4;   // un adversaire au fond de la zone, que l'ailier marquerait
+  Object.assign(ailier, { x: BLEUE + 3, y: 4, vx: 0, vy: 0, cap: 0 });
+  Object.assign(porteurB, { x: BLEUE - 1.5, y: -2, vx: -3, vy: 0, cap: Math.PI });
+  Object.assign(e.rondelle, { x: BLEUE - 2.5, y: -2, vx: -3, vy: 0, porteur: porteurB.id });
+  const d = decisionIA(e, ailier);
+  exiger('la rondelle sortie de leur zone : l\'avant qui y traîne en ressort, pour ne pas être hors-jeu', d.x < -0.3, `${d.x.toFixed(2)} vers sa bleue`);
+}
+{
+  // … et le porteur qui la reprend juste hors de la zone, un coéquipier encore dedans, ressort avec elle.
+  const e = nouveauMatch({ graine: 'ressort', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
+  jouer(e, {}, 0.6); e.mej = null; e.enJeu = true;
+  const A = surGlace(e, 'A'), B = surGlace(e, 'B');
+  const porteur = A[0], dedans = A[1];
+  for (const s of [...A, ...B]) if (s !== porteur && s !== dedans) Object.assign(s, { x: -18, y: s.equipe === 'A' ? -10 : 10, vx: 0, vy: 0 });
+  Object.assign(dedans, { x: BLEUE + 4, y: 6, vx: 0, vy: 0 });
+  Object.assign(porteur, { x: BLEUE + 0.4, y: -4, vx: 0, vy: 0, cap: Math.PI });
+  Object.assign(e.rondelle, { x: BLEUE - 0.6, y: -4, vx: 0, vy: 0, porteur: porteur.id });
+  const d = decisionIA(e, porteur);
+  exiger('… le porteur qui la reprend à la bleue, un coéquipier dedans, ressort avec elle au lieu d\'y rentrer', d.x < 0 && !d.tir, `${d.x.toFixed(2)} vers sa bleue${d.passe ? ', une passe' : ''}`);
 }
 
 {

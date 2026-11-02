@@ -27,6 +27,7 @@ Le devis : docs/propositions-coachs-cartes-evenements.md (le code : le modèle C
 
 **La règle d'écriture** (JP, 2 nov. 2026 : le journal court, archivé par mois). Une entrée, une ou deux lignes : `- AAAA-MM-JJ — **Ce qui a changé, en mots de joueur**` (JP : *sa demande, courte*), puis les fichiers, la valeur posée et le script qui le prouve. Le pourquoi long, ce qui a été essayé et mesuré, va dans `docs/decisions.md`. La même entrée, entière, va aussi en tête de `docs/journal/AAAA-MM.md` (le mois de sa date). Ici, on ne garde que les 20 plus récentes : la plus vieille sort quand une neuve entre, elle reste au journal du mois.
 
+- 2026-11-02 — **Sur glace : la mise en jeu placée et jouée, la passe en route, la caméra de la mise en jeu** (`docs/journal/2026-11.md`)
 - 2026-11-02 — **Le Rogue revu et mesuré : le rapport et les propositions** (`docs/journal/2026-11.md`)
 - 2026-11-02 — **Les instructions rangées par terrain, le journal court** (`docs/journal/2026-11.md`)
 - 2026-11-02 — **Sur glace : la plongée, les vrais buts, les baies vitrées, la bleue jusqu'aux gradins, les systèmes de jeu** (`docs/journal/2026-11.md`)
@@ -46,4 +47,3 @@ Le devis : docs/propositions-coachs-cartes-evenements.md (le code : le modèle C
 - 2026-11-01 — **Sur glace : graphiste 16 bits, et la caméra de la télé en mode large** (`docs/journal/2026-11.md`)
 - 2026-11-01 — **Sur glace : toutes les mécaniques, appliquées** (`docs/journal/2026-11.md`)
 - 2026-11-01 — **Sur glace : l'inventaire** (`docs/journal/2026-11.md`)
-- 2026-11-01 — **Le duo vedette des Étoiles sous sa borne** (`docs/journal/2026-11.md`)
