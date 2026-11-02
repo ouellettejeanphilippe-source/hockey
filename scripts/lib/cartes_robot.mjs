@@ -11,7 +11,7 @@
  * Le robot ne voit que ce que l'écran montre : les feuilles jouées, la cédule de la semaine, ses jambes, sa caisse.
  */
 import { dosADos, energieDe, SLOTS, rivalChoisi, getPlayerKey } from '../../js/sim.js';
-import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, FENETRE_JOUEUR, PUNITIONS_CHICANE } from '../../js/dossiers.js';
+import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, faitsDesSuites, faitsDuDernier, FENETRE_JOUEUR, PUNITIONS_CHICANE } from '../../js/dossiers.js';
 import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { joueurDuFait } from '../../js/vie-gm.js';
 import { COACHS } from '../../js/coachs.js';
@@ -27,7 +27,7 @@ const VAUT = { adjoint: 0.5, xp: 0.05, jambes: 0.02, absent: 0.15, soin: 0.1 };
 
 /* L'attentif préfère l'adjoint de la voie de son coach (la synergie : un séjour plus long), sinon le premier offert. */
 const rangDe = (k, coach = null) => (coach && ADJOINTS[k] && ADJOINTS[k].voie === coach ? -1 : Object.keys(ADJOINTS).indexOf(k));
-const feuillesDe = (L, you) => L.calendrier.slice(0, L.jour).flatMap(j => j.filter(m => (m.A === you || m.B === you) && m.feuille)).map(m => ({ m, f: m.feuille, cote: m.A === you ? 'A' : 'B' }));
+const feuillesDe = (L, you) => L.calendrier.slice(0, L.jour).flatMap((jour, j) => jour.filter(m => (m.A === you || m.B === you) && m.feuille).map(m => ({ j, m, f: m.feuille, cote: m.A === you ? 'A' : 'B' })));
 /* Combien de périodes chaque pouvoir a joué cette saison, lu dans les feuilles (`feuille.pouvoirs`). */
 function foisDesPouvoirs(L, you) {
   const n = [0, 0, 0];
@@ -37,7 +37,7 @@ function foisDesPouvoirs(L, you) {
 const persoDe = you => (you.perso ? { ...you.perso, xpSaison: you.xpSaison || 0 } : null);
 
 /* Les faits du lundi, comme l'écran les lit (js/saison.js `faitsDuLundi`), à partir de ce que la ligue a joué. */
-function faitsDuRobot(L, you, jetons) {
+function faitsDuRobot(L, you, jetons, deja = []) {
   const pats = SLOTS.filter(s => !s.scratch && s.group !== 'G').map(s => you.roster[s.i]).filter(Boolean).map(p => ({ n: p.n, cle: getPlayerKey(p), j: Math.round(energieDe(p)) }));
   const jours = [];
   for (let j = L.jour; j < Math.min(L.calendrier.length, L.jour + SEMAINE); j++) if (L.calendrier[j].some(m => m.A === you || m.B === you)) jours.push(j);
@@ -53,11 +53,13 @@ function faitsDuRobot(L, you, jetons) {
   for (let i = miens.length - 1; i >= 0; i--) { const { m } = miens[i], c = m.A === you; if ((c ? m.gfA : m.gfB) < (c ? m.gfB : m.gfA)) defaites++; else break; }
   const perso = persoDe(you), C = perso && COACHS[perso.cle];
   // Les faits d'un joueur (js/saison.js `faitsDesJoueurs`) : celui qui va au cachot, le gros contrat muet, lus dans SES feuilles.
-  const lus = SLOTS.filter(s => !s.scratch && s.group !== 'G').map(s => you.roster[s.i]).filter(Boolean).map(p => {
+  const lus = SLOTS.filter(s => !s.scratch && s.group !== 'G').filter(s => you.roster[s.i]).map(s => ({ s, p: you.roster[s.i] })).map(({ s: sl, p }) => {
     const siens = miens.filter(({ f, cote }) => (f.alignes?.[cote] || []).includes(p)).slice(-FENETRE_JOUEUR);
     const compte = (champ, ok) => siens.reduce((a, { f, cote }) => a + (f[champ] || []).filter(x => x.cote === cote && ok(x)).length, 0);
-    return { p, m: siens.length, pts: compte('buts', b => b.marqueur === p || (b.passeurs || []).includes(p)), pun: compte('punitions', x => x.joueur === p) };
+    return { sl, p, m: siens.length, pts: compte('buts', b => b.marqueur === p || (b.passeurs || []).includes(p)), pun: compte('punitions', x => x.joueur === p) };
   });
+  // V23 : le petit qui pousse (js/saison.js `faitsDesJoueurs`).
+  const pousse = lus.filter(x => x.sl.group === 'F' && x.sl.unit >= 2 && x.m >= 5 && x.pts >= 4).sort((a, b) => b.pts - a.pts)[0];
   const qui = x => ({ n: x.p.n, cle: getPlayerKey(x.p), m: x.m });
   const puni = lus.filter(x => x.pun >= PUNITIONS_CHICANE).sort((a, b) => b.pun / b.m - a.pun / a.m)[0];
   const muet = [...lus].sort((a, b) => (b.p.$ || 0) - (a.p.$ || 0)).slice(0, 3).filter(x => x.m >= FENETRE_JOUEUR - 2 && x.pts <= 1).sort((a, b) => a.pts - b.pts || (b.p.$ || 0) - (a.p.$ || 0))[0];
@@ -78,6 +80,10 @@ function faitsDuRobot(L, you, jetons) {
     coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso) } : null,
     puni: puni ? { ...qui(puni), pun: puni.pun } : null,
     muet: muet ? { ...qui(muet), sal: '', pts: muet.pts } : null,
+    pousse: pousse ? { ...qui(pousse), pts: pousse.pts, ou: `${pousse.sl.unit + 1}e trio` } : null,
+    // V23 (js/dossiers.js) : le dernier match, et les suites des histoires sorties.
+    ...faitsDuDernier(der && der.feuille, chez ? 'A' : 'B', you.roster[SLOTS.find(sl => sl.group === 'G').i] || null, getPlayerKey),
+    suites: faitsDesSuites(deja, miens.map(({ j, f, cote }) => ({ j, f, cote })), getPlayerKey),
   };
 }
 
@@ -119,18 +125,20 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
   const j = L.jour;
   const w = j / SEMAINE;
   const lundi = j % SEMAINE === 0 && j < L.calendrier.length;
-  const f = faitsDuRobot(L, you, jetons);
+  const f = faitsDuRobot(L, you, jetons, etat.dossiers);
   // L'histoire de la semaine.
   if (lundi && semaineAHistoire(graine, w)) {
     const cle = dossierDeLaSemaine(graine, w, f, etat.dossiers);
     if (cle) {
       const D = DOSSIERS[cle], lui = D.joueur ? D.joueur(f) : null;
-      etat.dossiers.push({ cle, w, joueur: lui ? lui.cle : null });
+      const entree = { cle, w, joueur: lui ? lui.cle : null, j };
+      etat.dossiers.push(entree);
       const perso = persoDe(you);
       const possibles = D.options.filter(o => !(o.gain < 0 && f.caisse < -o.gain));
       // L'attentif lit le joueur nommé sur son club (`lire.joueur`), une fois pour toutes les réponses.
       const lu = !clic && politique !== 'defaut' && lui && lire && lire.joueur ? lire.joueur(lui.cle) : null;
       const o = clic ? auHasard(possibles) : politique === 'defaut' ? possibles[0] : possibles.reduce((b, x) => (valeurDeReponse(x, lu) > valeurDeReponse(b, lu) ? x : b));
+      entree.choix = o.cle;
       const offert = o.adjoint && perso ? adjointsOfferts(perso, graine, `do:${w}`, 1)[0] || null : null;
       out.push({ jour: j, palier: `do:${w}`, moment: { famille: 'dossier', cle, choix: o.cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) },
         ...(o.gain ? { gain: o.gain } : {}), ...(o.xp ? { xpCoach: o.xp } : {}),

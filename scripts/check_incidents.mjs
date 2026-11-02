@@ -78,6 +78,9 @@ const lundiPlein = {
   boude: { n: 'Leboudeur', cle: 'bd', zone: 'Top 6', ou: '4e trio', pts: 2, m: 10 }, puni: { n: 'Lepuni', cle: 'pn', pun: 5, m: 10 }, muet: { n: 'Lemuet', cle: 'mt', sal: '7,5 M$', pts: 1, m: 10 },
   blesses: [{ n: 'Leblesse', m: 12, cle: 'bl' }, { n: 'Unautre', m: 4, cle: 'ua' }], soirs: 4, dos: 1, visiteur: 3, domicile: 1, rival: 'Rival', bete: 'Bête', caisse: 10,
   dernier: { pour: 0, contre: 5, adv: 'Eux' }, rang: 30, equipes: 32, retard: 9, avance: null, dosRoute: 1,
+  // V23 (js/dossiers.js) : le petit qui pousse, le dernier match, une suite du petit.
+  pousse: { n: 'Lepetit', cle: 'pt', pts: 5, m: 10, ou: '4e trio' }, chapeau: { n: 'Lechapeau', cle: 'ch', buts: 3 }, blanchissage: { n: 'Lauxiliaire', cle: 'ax' },
+  suites: [{ de: 'lePetit', choix: 'monter', joueur: { n: 'Lepetit', cle: 'pt' }, m: 8, pts: 5, resolue: false }],
   masse: { espace: 500_000, libre: '0,5 M$', lourd: { n: 'Legros', cle: 'gr', sal: '9,5 M$', dollars: 9_500_000 } },
   defaites: 5, coach: 'La Tortue', coachs: [{ cle: 'a', nom: 'Le Frelon', ico: '🐝' }, { cle: 'b', nom: "L'Aigle", ico: '🦅' }],
 };
