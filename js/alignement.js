@@ -10,7 +10,7 @@ import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, avecAVenir } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, specialesEnStats } from './impact.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
-import { primesDuCoach, PRIME_COACH_MAX } from './rogue.js';
+import { primesDuCoach } from './rogue.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
 import { MAITRISE } from './coachs-reels.js';
 import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, lignesDeLAdjoint, ficheDeLaCarte, casesLibres, nivDe, NOMS_NIV, RARETE_NIV } from './adjoints.js';
@@ -879,7 +879,7 @@ export function coachHtml() {
     <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(chef ? chef.n : C.nom)}</b><span class="ej-rang">Niveau ${niveau}</span><small>${chef ? `${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)} · ${esc(C.nom)}${(perso.maitrise || 1) !== 1 ? ` · ${esc(NOMS_NIV[NIV_DE_MAITRISE.indexOf(perso.maitrise)] || '')} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}` : esc(C.mot)}</small></div>
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
-    ${(R => (R ? (x => `<div class="ej-coach-l">${C.ico} Sa règle : ${esc(R.dit)}, +${R.jetons} 🪙 le soir · ${x.parJour.size} fois, ${x.total} 🪙 sur ${PRIME_COACH_MAX} cette saison</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
+    ${(R => (R ? (x => `<div class="ej-coach-l">${C.ico} Sa règle : ${esc(R.dit)} · +${R.jetons} 🪙 · ${x.parJour.size} fois cette saison</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
     ${POUVOIRS[perso.cle].map(carte).join('')}
     ${mainHtml(perso, niveau)}
   </div>`;
