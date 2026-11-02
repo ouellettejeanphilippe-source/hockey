@@ -78,7 +78,7 @@ Tirées de l'inventaire (`docs/sur-glace.md`, ses ⬜ et ses 🟡), classées pa
 7. **La présentation** (§ 8) — la reprise d'un but, les alignements au départ, les stats d'entracte.
 8. **La passerelle avec le Rogue** (§ 8) — jouer un gros match du Rogue sur la glace. C'est le plus gros morceau, et c'est à JP de dire si le résultat compte pour la saison.
 
-## 5. Le lot 2 : que ça joue comme du hockey (version 3.2.5)
+## 5. Le lot 2 : que ça joue comme du hockey (version 3.2.6)
 
 Les propositions 1, 2 et 3 de la section 4. Chaque correction pousse le même bâton que la manette ; chaque comportement a son fait mis en scène dans `check_physique` (114 → 136 vérifications, toutes vertes).
 
@@ -86,7 +86,7 @@ Les propositions 1, 2 et 3 de la section 4. Chaque correction pousse le même b�
 
 L'IA contre l'IA, 48 matchs de 3 × 2 minutes (les graines `postes-0` à `23` du lot 1, et `postes-100` à `123`), le même harnais avant et après.
 
-| Ce qui est mesuré, par match de 6 min | Avant (3.2.4) | Après (3.2.5) |
+| Ce qui est mesuré, par match de 6 min | Avant (3.2.4) | Après (3.2.6) |
 |---|---|---|
 | Hors-jeu | 5,1 (4,3 et 5,9) | 0,9 |
 | Passes réussies | 64 % | 67 % |
