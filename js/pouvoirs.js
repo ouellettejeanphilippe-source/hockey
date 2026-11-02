@@ -60,8 +60,8 @@ export const POUVOIRS = {
     { cle: 'forteresse', ico: '🏰', nom: 'La forteresse', dit: 'En 3e période, en avant ou à égalité : −30 % de buts contre, −20 % de leurs tirs.', quand: e => k3(e) && e.moi >= e.lui, effet: { defense: 0.7 }, adv: { volume: 0.8 } },
   ],
   rhinos: [
-    { cle: 'usure', ico: '🦏', nom: 'L\'usure', dit: 'En 3e période : plus de mises en échec, et leur précision −10 %.', quand: k3, effet: { robustesse: 2.5 }, adv: { finition: 0.9 } },
-    { cle: 'choc', ico: '💥', nom: 'Le choc', dit: 'En 1re période, à domicile : plus de mises en échec, et leur précision −12 %.', quand: e => e.k === 0 && soirDe(e, 'domicile'), effet: { robustesse: 2 }, adv: { finition: 0.88 } },
+    { cle: 'usure', ico: '🦏', nom: 'L\'usure', dit: 'En 3e période : plus de mises en échec, et leur précision −10 %.', quand: k3, effet: { robustesse: 3.1 }, adv: { finition: 0.9 } },
+    { cle: 'choc', ico: '💥', nom: 'Le choc', dit: 'En 1re période, à domicile : plus de mises en échec, et leur précision −12 %.', quand: e => e.k === 0 && soirDe(e, 'domicile'), effet: { robustesse: 3.1 }, adv: { finition: 0.88 } },
     { cle: 'charge', ico: '🐂', nom: 'La charge', dit: 'Derrière au pointage : +25 % de tirs, leur précision −12 %.', quand: derriere, effet: { volume: 1.25, robustesse: 1 }, adv: { finition: 0.88 } },
   ],
   souffle: [

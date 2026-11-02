@@ -88,9 +88,9 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 
 Un premier lot, chaque réglage seul et prouvé :
 
-1. **L'usure et le choc se voient** : leurs mises en échec montent au-dessus de +4 par soir où ils jouent (js/pouvoirs.js), sans passer leur borne en V — `N=600 node scripts/check_pouvoirs.mjs`, vert au complet.
-2. **`REPOS` à 20** (js/adjoints.js), si JP le veut (option 2.3 A) — `check_pouvoirs` et `mesure_main`.
-3. **Le robot de la boutique** (2.6) — une mesure, rien ne change dans le jeu.
+1. **L'usure et le choc se voient** — *fait (2 nov.)* : robustesse 2,5 et 2 → 3,1 (js/pouvoirs.js) ; +3,8 et +2,8 → +4,8 mises en échec le soir où ils jouent, +2,2 → +2,3 V et +1,6 → +2,0 V (borne 2,5) ; `N=600 node scripts/check_pouvoirs.mjs` vert au complet (31 sur 31).
+2. **`REPOS` à 20** — *fait (2 nov.)* : js/adjoints.js, la page des règles, la règle et le vocabulaire. `scripts/mesure_main.mjs` (neuf) : les cartes d'adjoint qui ne jouent jamais un séjour 12,6 → 10,7 % (cible : sous 25 %, déjà tenue avant), les cases occupées 81 → 73 %. Le constat de 2.3 était plus fort que la mesure : l'attentif faisait déjà jouer presque toutes ses cartes ; le repos plus long laisse la case vide un quart du temps, et le moment de poser compte. `check_pouvoirs` : chaque adjoint reste un style (−0,5 à +0,4 V sur 31 matchs).
+3. **Le robot de la boutique** — *fait (2 nov.)* : l'attentif lit l'offre (`packLu`, scripts/lib/rogue_sim.mjs), `ROBOT_SAUF=boutique` la lui retire. `CAMPAGNES=0 GRAINES=4 FILS=2 check_profondeur` : +6,2 V (± 1,1) sur le robot d'avant en lisant, +6,7 V (± 0,9) sans — l'écart, −0,5 V, est dans le bruit : le choix de pack ne compte pas. À ce niveau de déblocages, la boutique ne vend que le Bronze et l'Époque ; les campagnes, qui ouvrent les autres packs, ne sont pas mesurées. Rien n'est changé dans le jeu.
 
 ## 4. Ce que JP tranche
 
