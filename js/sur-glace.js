@@ -17,7 +17,7 @@
  *   Start, Échap, ✕                        la pause : reprendre, retirer le gardien, les règles, quitter
  */
 import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, DIFFICULTES, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON } from './physique.js';
-import { decisionIA } from './glace-ia.js';
+import { decisionIA, STRATEGIES } from './glace-ia.js';
 import { PATINEURS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
 import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
 import { axes20, cote20 } from './niveaux.js';
@@ -111,7 +111,7 @@ let trace = [];
 let vueEntiere = false;
 let taille = { w: 1, h: 1, dpr: 1, large: false };
 let tonVisage = VEDETTES[0];
-let choix = null;        // l'affiche : { A: { saison, club }, B: {…}, periode, horsjeu, degagement, series, deux, difficulte, vibration }
+let choix = null;        // l'affiche : { A: { saison, club }, B: {…}, periode, horsjeu, degagement, series, deux, difficulte, vibration, strategie }
 let couleurs = chandails({ bg: COULEURS.toi, ink: COULEURS.blanc, stripe: COULEURS.encreBlanc }, { bg: COULEURS.plot, ink: COULEURS.blanc });
 let anims = [];          // les animations en cours : { type, t0, dur, … }
 let noms = { A: 'Toi', B: 'Eux' };
@@ -141,6 +141,7 @@ export function ouvrirSurGlace(ctx) {
     A: valide(memo.A) ? memo.A : null, B: valide(memo.B) ? memo.B : null, periode: memo.periode || 180,
     horsjeu: memo.horsjeu !== false, degagement: memo.degagement !== false, series: !!memo.series, deux: !!memo.deux,
     difficulte: DIFFICULTES[memo.difficulte] ? memo.difficulte : 'normal', vibration: memo.vibration !== false,
+    strategie: STRATEGIES[memo.strategie] ? memo.strategie : 'equilibree',
   };
   accueil();
 }
@@ -185,6 +186,7 @@ async function tirer(cote) {
   }
 }
 const DIFFICULTE_MOTS = { facile: 'Facile', normal: 'Normale', difficile: 'Difficile' };
+const STRATEGIE_MOTS = { equilibree: 'Équilibrée', offensive: 'Offensive', defensive: 'Défensive' };
 async function accueil() {
   if (!el) return;
   if (!choix.A) await tirer('A');
@@ -212,6 +214,7 @@ async function accueil() {
     <div class="sg-affiche">${await cote('A')}<div class="sg-vs" aria-hidden="true">vs</div>${await cote('B')}</div>
     <div class="sg-options">
       <label>Périodes <select class="opt-select" data-periode>${[60, 120, 180, 300].map(s => `<option value="${s}"${s === choix.periode ? ' selected' : ''}>${s / 60} min</option>`).join('')}</select></label>
+      <label>Ta stratégie <select class="opt-select" data-strategie>${Object.keys(STRATEGIES).map(d => `<option value="${d}"${d === choix.strategie ? ' selected' : ''}>${STRATEGIE_MOTS[d]}</option>`).join('')}</select></label>
       <label>Difficulté <select class="opt-select" data-difficulte>${Object.keys(DIFFICULTES).map(d => `<option value="${d}"${d === choix.difficulte ? ' selected' : ''}>${DIFFICULTE_MOTS[d]}</option>`).join('')}</select></label>
       <label><input type="checkbox" data-regle="horsjeu"${choix.horsjeu ? ' checked' : ''}> Hors-jeu</label>
       <label><input type="checkbox" data-regle="degagement"${choix.degagement ? ' checked' : ''}> Dégagement refusé</label>
@@ -240,6 +243,8 @@ async function accueil() {
   el.querySelectorAll('[data-club]').forEach(s => { s.onchange = () => { choix[s.dataset.club].club = s.value; ecrire(choix); accueil(); }; });
   const per = el.querySelector('[data-periode]');
   if (per) per.onchange = () => { choix.periode = Number(per.value); ecrire(choix); };
+  const strat = el.querySelector('[data-strategie]');
+  if (strat) strat.onchange = () => { choix.strategie = strat.value; ecrire(choix); };
   const dif = el.querySelector('[data-difficulte]');
   if (dif) dif.onchange = () => { choix.difficulte = dif.value; ecrire(choix); };
   el.querySelectorAll('[data-regle]').forEach(c => { c.onchange = () => { choix[c.dataset.regle] = c.checked; ecrire(choix); if (c.dataset.regle === 'deux') accueil(); }; });
@@ -278,10 +283,18 @@ async function commencerLeMatch() {
   if (!el) return;
   couleurs = chandails(ctxJeu.band(choix.A.club), ctxJeu.band(choix.B.club));
   noms = { A: A.nom, B: B.nom };
+  // L'écusson des locaux, chargé avant la mise en jeu : la glace se dessine une fois, avec lui.
+  if (ctxJeu.logoLocal(B.tag) && (!ecusson || ecusson.code !== B.tag)) {
+    const im = new Image(); im.src = `img/logos/${B.tag}.svg`; ecusson = { code: B.tag, im };
+    try { await im.decode(); } catch { /* sans écusson, la glace se fait quand même */ }
+    if (!el) return;
+  }
   const e = nouveauMatch({
     graine: nouvelleGraine(), A, B, periode: choix.periode, humains: choix.deux ? ['A', 'B'] : ['A'], ia: decisionIA,
     regles: { horsjeu: choix.horsjeu, degagement: choix.degagement }, series: choix.series, difficulte: choix.difficulte,
   });
+  // Ta stratégie pour ton club (ses joueurs de l'IA la jouent) ; l'adversaire joue équilibré.
+  e.equipes.A.strategie = choix.strategie; e.equipes.B.strategie = 'equilibree';
   lancer(e);
 }
 function commencerLEntrainement() {
@@ -363,7 +376,7 @@ function lancer(e) {
   window.addEventListener('keyup', surTouche, true);
   window.addEventListener('resize', mesurer);
   mesurer();
-  cam = { x: etat.rondelle.x, y: etat.rondelle.y, k: cam.k };
+  cam = { x: etat.rondelle.x * COS, y: etat.rondelle.y, k: cam.k };
   dernier = performance.now();
   raf = requestAnimationFrame(boucle);
 }
@@ -690,39 +703,63 @@ function mesurer() {
  */
 const DEVANCE = 5;      // le décalage maximal vers la direction du jeu, m
 const DEVANCE_V = 0.45; // le décalage par m/s de vitesse de la rondelle
-/* L'ÉQUIVALENT D'UNE ZONE À L'ÉCRAN (JP, 1er et 2 nov. : *la zone offensive doit rentrer dans un écran 16:9 au complet,
-   presque pleine largeur* ; *caméra normale, pas snaps aux zones : ça doit afficher l'équivalent d'une zone*) : la
-   glace est taillée pour (js/physique.js) — sa largeur, plus `MARGE_VUE` de bande, en travers d'un écran 16:9 montre
-   en long la profondeur d'une zone. La caméra prend l'échelle exacte qui le fait, en pixels de l'appareil (un pixel de
-   sprite y fait deux pixels ou plus, la glace reste nette) ; sous 2,5, un nombre entier. Elle suit la rondelle, en
-   devançant le jeu, sans jamais montrer au-delà des gradins. */
-const MARGE_VUE = 1.4;               // m de plus que la largeur de la glace : la bande, la vitre, un rang de foule
-const MARGE_FOND = 0.6;              // m de plus que la zone, en long
-const ZONE = L / 2 - BLEUE;          // la profondeur d'une zone, de la bleue à la bande du fond
+/*
+ * LA VUE EN LÉGÈRE PLONGÉE (JP, 2 nov. : *à angle léger, pas direct au-dessus*) : on regarde la glace du bout de
+ * l'écran, penché de `PLONGEE` depuis la verticale. Une projection parallèle : un point (x, y, z) de la glace tombe à
+ * l'écran à y en travers, et en long à `x cos + z sin` (le « long » de l'écran, en mètres, `p`). La glace se tasse
+ * un peu en long ; la bande, les vitres, les buts et les gradins se lèvent. Rien que de l'image : le moteur joue
+ * toujours sur le plan de la glace.
+ */
+const PLONGEE = 0.45;                          // rad depuis la verticale (≈ 26°)
+const COS = Math.cos(PLONGEE), SIN = Math.sin(PLONGEE);
+const HAUT = { bande: 1.07, vitre: 2.3, gradins: 1.3, pente: 0.5, max: 2.7 };   // les hauteurs : la bande, le haut des baies vitrées, le premier rang, la pente des gradins (m par m), le plus haut
+const P_MAX = (L / 2 + GRADINS) * COS + HAUT.max * SIN, P_MIN = -(L / 2 + GRADINS) * COS;
+/*
+ * L'ÉQUIVALENT D'UNE ZONE (JP, 1er et 2 nov. : *la zone offensive doit rentrer dans un écran 16:9 au complet, presque
+ * pleine largeur* ; *caméra normale, pas snaps aux zones* ; *toujours voir de la bleue au gradin en zones off/def*) :
+ * la glace est taillée pour (js/physique.js). La caméra prend l'échelle exacte où la largeur de la glace, plus
+ * `MARGE_VUE`, tient en travers et une zone, de sa bleue jusqu'aux gradins derrière le but, en long — en pixels de
+ * l'appareil (un pixel de sprite y fait deux pixels ou plus) ; sous 2,5, un nombre entier. Elle glisse sans à-coup :
+ * la rondelle dans une zone, la bleue et les gradins du fond restent à l'écran ; en zone neutre, elle passe en douceur
+ * d'un cadre à l'autre, la rondelle toujours dedans.
+ */
+const MARGE_VUE = 1.4;                                              // m de plus que la largeur de la glace : la bande, la vitre, un rang de foule
+const ZONE_LOIN = [BLEUE * COS - 0.4, (L / 2) * COS + HAUT.vitre * SIN + 0.8];   // en long : de la bleue du fond aux gradins, la vitre et un rang
+const ZONE_PRES = [-(L / 2) * COS - 1.2, -BLEUE * COS + 0.4];                    // de la bande de près (et ses gradins) à la bleue
+const NEUTRE = [-BLEUE * COS - 0.4, BLEUE * COS + 0.4];
 function camera(dt) {
   const long = taille.h, court = taille.w, dpr = taille.dpr;
-  const kEntier = Math.min(long / (L + 2 * GRADINS), court / (W + 2 * GRADINS));
-  const kZone = Math.min(court / (W + MARGE_VUE), long / (ZONE + MARGE_FOND));
+  const besoin = Math.max(ZONE_LOIN[1] - ZONE_LOIN[0], ZONE_PRES[1] - ZONE_PRES[0]);
+  const kEntier = Math.min(long / (P_MAX - P_MIN), court / (W + 2 * GRADINS));
+  const kZone = Math.min(court / (W + MARGE_VUE), long / besoin);
   const sd = kZone * dpr * PIXEL;   // les pixels de l'appareil par pixel de sprite
   const k = vueEntiere ? kEntier : sd >= 2.5 ? kZone : Math.max(1, Math.floor(sd)) / (PIXEL * dpr);
   cam.k = k;
   const R = etat.rondelle;
   const f = 1 - Math.exp(-SUIVI * dt);
-  const borne = (c, demi, bout) => (demi >= bout ? 0 : Math.max(-bout + demi, Math.min(bout - demi, c)));
-  cam.x += (R.x + Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V)) - cam.x) * f;
+  const voit = long / k;
+  // garder [a, b] à l'écran, au plus près de c ; trop court pour les deux bouts, le milieu
+  const garder = (a, b, c) => { const bas = b - voit / 2, haut = a + voit / 2; return bas <= haut ? Math.max(bas, Math.min(haut, c)) : (a + b) / 2; };
+  const pr = (R.x + Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V))) * COS;
+  const loin = garder(...ZONE_LOIN, pr), pres = garder(...ZONE_PRES, pr), neutre = garder(...NEUTRE, pr);
+  const t = Math.max(-1, Math.min(1, R.x / BLEUE));   // −1 à la bleue de près, 1 à celle du fond
+  const cible = t >= 0 ? neutre + (loin - neutre) * t : neutre + (pres - neutre) * -t;
+  cam.x += (cible - cam.x) * f;
   // toute la largeur tient dans l'écran : la glace reste centrée, elle ne glisse plus de côté
   const ty = court / k >= W + 0.6 ? 0 : R.y + Math.max(-DEVANCE, Math.min(DEVANCE, R.vy * DEVANCE_V));
   cam.y += (ty - cam.y) * f;
-  cam.x = borne(cam.x, long / (2 * k), L / 2 + GRADINS);
-  cam.y = borne(cam.y, court / (2 * k), W / 2 + GRADINS);
+  cam.x = voit >= P_MAX - P_MIN ? (P_MAX + P_MIN) / 2 : Math.max(P_MIN + voit / 2, Math.min(P_MAX - voit / 2, cam.x));
+  const demi = court / (2 * k), bout = W / 2 + GRADINS;
+  cam.y = demi >= bout ? 0 : Math.max(-bout + demi, Math.min(bout - demi, cam.y));
 }
 /* L'origine de la glace à l'écran, arrondie au pixel : la glace et les sprites tombent sur la même grille, sans scintiller. */
 const origine = () => ({ e: Math.round(taille.w / 2 - cam.y * cam.k + tremble.x), f: Math.round(taille.h / 2 + cam.x * cam.k + tremble.y) });
-const ecran = (x, y) => { const o = origine(); return { x: o.e + y * cam.k, y: o.f - x * cam.k }; };
-/* Le repère de la glace sur le canevas : le centre de l'écran (et la secousse), le quart de tour, l'échelle, la caméra. */
+/* Un point de la glace (et sa hauteur) à l'écran, en pixels CSS. */
+const ecran = (x, y, z = 0) => { const o = origine(); return { x: o.e + y * cam.k, y: o.f - (x * COS + z * SIN) * cam.k }; };
+/* Le repère du plan de la glace sur le canevas : la projection, l'échelle, la caméra. */
 function repereGlace() {
   const o = origine(), k = cam.k * taille.dpr;
-  cx.setTransform(0, -k, k, 0, o.e * taille.dpr, o.f * taille.dpr);
+  cx.setTransform(0, -k * COS, k, 0, o.e * taille.dpr, o.f * taille.dpr);
 }
 
 /* ---------- le dessin ---------- */
@@ -744,28 +781,25 @@ const PAL = {
   enclave: '#8fc1ec', enclaveClair: '#a9d0f1',
   plinthe: '#e9bb1c', plintheSombre: '#a9850f', bande: '#f3f2ec', bandeOmbre: '#d7d6cf', lisse: '#24272f',
   vitre: '#a7c2d3', vitreSombre: '#86a3b6', banc: '#26304a', bancBois: '#5b3d22',
-  maille: '#f5f6f8', mailleSombre: '#c4cad3',
+  maille: '#f5f6f8', mailleSombre: '#c4cad3', vitreReflet: '#d8ecf8', montant: '#7d8c96',
   peau: ['#f0c8a0', '#c99268', '#8d5a3c'], fouleNeutre: ['#2c3140', '#4a4f5c', '#7a7466', '#b9b2a4', '#ddd6c8'],
 };
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + 0.5) / 16);
 const VITRE = { plinthe: 0.14, bande: 0.43, lisse: 0.57, vitre: 0.85 };   // de la glace vers les gradins, m
 const FOULE = { vide: 0.05, locaux: 0.62, visiteurs: 0.86, secondaire: 0.18 };   // les parts de la foule, cumulées : vides, locaux (dont leur deuxième couleur), visiteurs, puis les neutres
 const PUB = 4.5;   // la longueur d'un panneau sur la bande, m
-let fond = null;   // { cle, images: [assise, debout], nx, ny }
+let fond = null;   // { cle, images: [assise, debout], nx, ny }, vue de haut
+let fondPlonge = null;   // la même, vue en plongée : { cle, images, cols, rows }
 const hex = c => { const v = parseInt(c.slice(1), 16); return [v >> 16 & 255, v >> 8 & 255, v & 255]; };
 /* La distance signée au bord de la glace (le rectangle aux coins arrondis) : négative dedans. */
 function horsGlace(x, y) {
   const qx = Math.abs(x) - (L / 2 - COIN), qy = Math.abs(y) - (W / 2 - COIN);
   return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - COIN;
 }
-/* Un bruit doux semé (des valeurs sur une grille d'un mètre, interpolées) : la glace n'est jamais d'un seul ton. */
+/* Un hachage semé : la foule, et le bruit doux de la glace (des valeurs sur une grille, interpolées) qui n'est jamais d'un seul ton. */
 const hache = (i, j) => { let h = (i * 374761393 + j * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-function bruitDoux(x, y) {
-  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
-  const l = (a, b, t) => a + (b - a) * t * t * (3 - 2 * t);
-  return l(l(hache(i, j), hache(i + 1, j), fx), l(hache(i, j + 1), hache(i + 1, j + 1), fx), fy);
-}
-function fondDeGlace() {
+const anneau = (x, y, cx0, cy0, r, ep) => Math.abs(Math.hypot(x - cx0, y - cy0) - r) < ep;
+function glaceDeHaut() {
   const logo = ecusson && ecusson.im.complete && ecusson.im.naturalWidth ? ecusson.code : '';
   const cle = `${couleurs.A.tribune}|${couleurs.B.tribune}|${logo}`;
   if (fond && fond.cle === cle) return fond;
@@ -779,7 +813,16 @@ function fondDeGlace() {
   // Les marches des gradins, teintes à la couleur des locaux : l'aréna est la leur.
   C.gradin = hex(teinter(couleurs.B.tribune[0], -0.78)); C.gradinRang = hex(teinter(couleurs.B.tribune[0], -0.6));
   const pubs = [hex(couleurs.A.bg), hex(couleurs.B.club || couleurs.B.bg), hex('#1d2230'), hex('#f0c419')];
-  const X = L / 2, Y = W / 2, demi = FILET.large / 2;
+  const X = L / 2, Y = W / 2;
+  // le bruit doux, ses valeurs de grille calculées une fois (la boucle passe sur chaque pixel)
+  const gx = Math.ceil(X / 3) + 2, gy = Math.ceil(Y / 3) + 2, grille = new Float32Array((2 * gx + 1) * (2 * gy + 1));
+  for (let a = -gx; a <= gx; a++) for (let b = -gy; b <= gy; b++) grille[(a + gx) * (2 * gy + 1) + b + gy] = hache(a, b);
+  const g0 = (a, b) => grille[(a + gx) * (2 * gy + 1) + b + gy];
+  const bruit = (u, v) => {
+    const a = Math.floor(u), b = Math.floor(v), fu = u - a, fv = v - b, su = fu * fu * (3 - 2 * fu), sv = fv * fv * (3 - 2 * fv);
+    const h0 = g0(a, b) + (g0(a + 1, b) - g0(a, b)) * su, h1 = g0(a, b + 1) + (g0(a + 1, b + 1) - g0(a, b + 1)) * su;
+    return h0 + (h1 - h0) * sv;
+  };
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const x = (i + 0.5 - nx / 2) / n, y = (j + 0.5 - ny / 2) / n, bayer = BAYER[(j & 3) * 4 + (i & 3)];
     const h = horsGlace(x, y);
@@ -787,21 +830,19 @@ function fondDeGlace() {
     if (h < 0) {
       // LA GLACE : quatre tons tramés, un bruit doux, l'ombre de la bande sur le premier mètre.
       const ombre = Math.max(0, 1 + h / 0.9);
-      const t = clampN(0.35 + (bruitDoux(x / 3, y / 3) - 0.5) * 0.9 + ombre * 1.6, 0, 2.99);
+      const t = clampN(0.35 + (bruit(x / 3, y / 3) - 0.5) * 0.9 + ombre * 1.6, 0, 2.99);
       col = C.glace[Math.floor(t) + (t % 1 > bayer ? 1 : 0)] || C.glace[3];
       const ax = Math.abs(x), ay = Math.abs(y), px = 1 / n;
-      const anneau = (cx0, cy0, r, ep) => Math.abs(Math.hypot(x - cx0, y - cy0) - r) < ep;
       const dansEnclave = ax < LIGNE_BUT && ax > LIGNE_BUT - FILET.enclave && Math.hypot(ax - LIGNE_BUT, y) < FILET.enclave;
       if (dansEnclave) col = Math.hypot(ax - LIGNE_BUT, y) > FILET.enclave - 2 * px ? C.rouge : bayer < 0.3 ? C.enclaveClair : C.enclave;
       // Les lignes : la rouge du centre et les bleues (quatre pixels, bordées d'un pixel sombre), les lignes des buts.
       if (ax < 0.15) col = ax > 0.15 - px ? C.rougeSombre : C.rouge;
       if (Math.abs(ax - BLEUE) < 0.15) col = Math.abs(ax - BLEUE) > 0.15 - px ? C.bleuSombre : C.bleu;
       if (Math.abs(ax - LIGNE_BUT) < px && ay < Y - 0.4) col = C.rouge;
-      // Les cercles et les points.
-      if (anneau(0, 0, POINT.r, px)) col = C.bleu;
-      if (Math.hypot(x, y) < 0.16) col = C.bleu;
-      for (const sx of [1, -1]) for (const sy of [1, -1]) {
-        if (anneau(sx * POINT.x, sy * POINT.y, POINT.r, px)) col = C.rouge;
+      // Les cercles et les points (seulement près d'eux : la boucle passe sur chaque pixel).
+      if (ax < POINT.r + 0.1 && ay < POINT.r + 0.1) { if (anneau(x, y, 0, 0, POINT.r, px)) col = C.bleu; if (Math.hypot(x, y) < 0.16) col = C.bleu; }
+      if (ay > POINT.y - POINT.r - 0.7 && ay < POINT.y + POINT.r + 0.7 && (Math.abs(ax - POINT.x) < POINT.r + 0.7 || Math.abs(ax - POINT.neutre) < 0.4)) for (const sx of [1, -1]) for (const sy of [1, -1]) {
+        if (anneau(x, y, sx * POINT.x, sy * POINT.y, POINT.r, px)) col = C.rouge;
         // les traits de mise en jeu, de chaque côté du cercle
         const dx = Math.abs(x - sx * POINT.x), dy = Math.abs(y - sy * POINT.y);
         if (dx > 0.3 && dx < 0.3 + 2 * px && dy > POINT.r - 0.05 && dy < POINT.r + 0.6) col = C.rouge;
@@ -826,12 +867,6 @@ function fondDeGlace() {
       if (banc || cachot) col = h < VITRE.vitre + 0.5 ? C.bancBois : C.banc;
       if (rang > 6) col = C.gradin;
     }
-    // LES FILETS : la maille en damier, le cadre rouge, posés sur la ligne des buts.
-    const fx = Math.abs(x) - LIGNE_BUT;
-    if (fx > 0 && fx < FILET.profond && Math.abs(y) < demi) {
-      const bord = fx > FILET.profond - 2 / n || Math.abs(y) > demi - 2 / n;
-      col = bord ? C.rouge : ((i + j) & 1 ? C.maille : C.mailleSombre);
-    }
     const o = (j * nx + i) * 4;
     d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 255;
   }
@@ -846,10 +881,18 @@ function fondDeGlace() {
     g.translate(nx / 2, ny / 2); g.rotate(Math.PI / 2); g.drawImage(pt, -t / 2, -t / 2);
     g.restore();
   }
-  // LA FOULE, en têtes de quatre pixels : une image assise, une debout (les partisans du but se lèvent).
-  const images = [c0, document.createElement('canvas')];
-  images[1].width = nx; images[1].height = ny;
-  images[1].getContext('2d').drawImage(c0, 0, 0);
+  // LA FOULE, en têtes de quatre pixels : une image assise, une debout (les partisans du but se lèvent) — écrite à même
+  // les pixels, deux copies de la glace.
+  const base = g.getImageData(0, 0, nx, ny).data;
+  const datas = [new Uint8ClampedArray(base), new Uint8ClampedArray(base)];
+  const rect = (dd, x0, y0, w, h, c, a = 1) => {
+    for (let yy = Math.max(0, y0); yy < Math.min(ny, y0 + h); yy++) for (let xx = Math.max(0, x0); xx < Math.min(nx, x0 + w); xx++) {
+      const o = (yy * nx + xx) * 4;
+      dd[o] += (c[0] - dd[o]) * a; dd[o + 1] += (c[1] - dd[o + 1]) * a; dd[o + 2] += (c[2] - dd[o + 2]) * a;
+    }
+  };
+  const [Bp, Bs] = couleurs.B.tribune.map(hex), [Ap, As] = couleurs.A.tribune.map(hex);
+  const neutres = PAL.fouleNeutre.map(hex), peaux = PAL.peau.map(hex), noir = [0, 0, 0];
   const pas = 7;   // une place tous les demi-mètres
   for (let j = 0; j < ny; j += pas) for (let i = 0; i < nx; i += pas) {
     const x = (i + 3.5 - nx / 2) / n, y = (j + 3.5 - ny / 2) / n, h = horsGlace(x, y);
@@ -860,44 +903,154 @@ function fondDeGlace() {
     if (r < FOULE.vide) continue;   // un siège vide
     // LES COULEURS DES CLUBS (JP, 2 nov. : *gradins plus colorés des équipes*) : les locaux d'abord, au chandail du club
     // ou à sa deuxième couleur, puis les visiteurs ; quelques neutres.
-    const [Bp, Bs] = couleurs.B.tribune, [Ap, As] = couleurs.A.tribune;
     const locaux = r < FOULE.locaux;
-    const chandail = locaux ? (r < FOULE.locaux - FOULE.secondaire ? Bp : Bs) : r < FOULE.visiteurs ? (r < FOULE.visiteurs - FOULE.secondaire / 2 ? Ap : As) : PAL.fouleNeutre[Math.floor(hache(j, i) * PAL.fouleNeutre.length)];
-    const peau = PAL.peau[Math.floor(hache(i + 7, j) * PAL.peau.length)];
+    const chandail = locaux ? (r < FOULE.locaux - FOULE.secondaire ? Bp : Bs) : r < FOULE.visiteurs ? (r < FOULE.visiteurs - FOULE.secondaire / 2 ? Ap : As) : neutres[Math.floor(hache(j, i) * neutres.length)];
+    const peau = peaux[Math.floor(hache(i + 7, j) * peaux.length)];
     // vers la glace : l'axe le plus court jusqu'à elle
     const versX = Math.abs(x) - (L / 2 - COIN) > Math.abs(y) - (W / 2 - COIN) ? -Math.sign(x) : 0, versY = versX ? 0 : -Math.sign(y);
     for (let v = 0; v < 2; v++) {
-      const gg = images[v].getContext('2d');
+      const dd = datas[v];
       const leve = v === 1 && (locaux || r >= FOULE.visiteurs) ? 2 : 0;   // debout : les partisans des locaux (et les neutres) se lèvent
       const ox = i + 1 + versX * leve, oy = j + 1 + versY * leve;
       // le corps : un bloc de cinq pixels au chandail, son ombre d'un pixel ; la tête, plus petite, du côté de la glace
-      gg.fillStyle = chandail; gg.fillRect(ox - 1 - versX, oy - 1 - versY, 5, 5);
-      gg.fillStyle = 'rgba(0,0,0,0.3)'; gg.fillRect(ox - 1 - versX, oy + 3 - versY, 5, 1);
-      gg.fillStyle = peau; gg.fillRect(ox + 1 + versX * 2, oy + versY * 2, 1, 3); gg.fillRect(ox + versX * 2, oy + 1 + versY * 2, 3, 1);
-      if (r > FOULE.locaux - 0.04 && r < FOULE.locaux) { gg.fillStyle = Bs; gg.fillRect(ox - 2 + versX * 3, oy - 2 + versY * 3, 3, 2); }   // une serviette agitée
-      if (v === 1 && leve && hache(j, i + 3) > 0.6) { gg.fillStyle = peau; gg.fillRect(ox + versX * 4 + 1, oy + versY * 4 + 1, 1, 1); }   // un bras en l'air
+      rect(dd, ox - 1 - versX, oy - 1 - versY, 5, 5, chandail);
+      rect(dd, ox - 1 - versX, oy + 3 - versY, 5, 1, noir, 0.3);
+      rect(dd, ox + 1 + versX * 2, oy + versY * 2, 1, 3, peau); rect(dd, ox + versX * 2, oy + 1 + versY * 2, 3, 1, peau);
+      if (r > FOULE.locaux - 0.04 && r < FOULE.locaux) rect(dd, ox - 2 + versX * 3, oy - 2 + versY * 3, 3, 2, Bs);   // une serviette agitée
+      if (v === 1 && leve && hache(j, i + 3) > 0.6) rect(dd, ox + versX * 4 + 1, oy + versY * 4 + 1, 1, 1, peau);   // un bras en l'air
     }
   }
-  fond = { cle, images, nx, ny };
+  fond = { cle, datas, nx, ny };
   return fond;
 }
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+/* La hauteur de ce qui est debout autour de la glace : la bande et ses vitres, les gradins qui montent. Au bout de près,
+   tout est aplati (`debout`), comme dans les jeux de hockey : rien ne cache la glace, on y voit la bande de haut. */
+const debout = x => clampN((x + L / 2 - 1) / 5, 0, 1);
+function hauteurAutour(x, d) {
+  if (d < 0) return 0;
+  if (d < VITRE.vitre) return HAUT.bande * debout(x);
+  return (HAUT.gradins + (d - VITRE.vitre) * HAUT.pente) * debout(x);
+}
+/*
+ * LA GLACE EN PLONGÉE, une fois : chaque pixel de l'écran suit son rayon jusqu'à ce qu'il frappe quelque chose — la
+ * glace, le dessus ou la face de la bande (la plinthe, le blanc et ses panneaux, la lisse), un gradin —, et prend sa
+ * couleur dans la glace vue de haut. Les baies vitrées : le rayon qui les traverse prend leur teinte, leurs montants
+ * et leurs reflets. Puis les vrais buts, dessinés par-dessus.
+ */
+function fondDeGlace() {
+  const h0 = glaceDeHaut();
+  if (fondPlonge && fondPlonge.source === h0) return fondPlonge;
+  const n = Math.round(1 / PIXEL), { nx, ny } = h0;
+  const X = nx / (2 * n);
+  const rows = 2 * Math.ceil((P_MAX - P_MIN) * n / 2), cols = ny;
+  const srcs = h0.datas;
+  const outs = srcs.map(() => new ImageData(cols, rows));
+  const C = { plinthe: hex(PAL.plinthe), plintheSombre: hex(PAL.plintheSombre), bande: hex(PAL.bande), bandeOmbre: hex(PAL.bandeOmbre), lisse: hex(PAL.lisse), vitre: hex(PAL.vitreReflet), montant: hex(PAL.montant), noir: hex(COULEURS.noir) };
+  const pubs = [couleurs.A.tribune[0], couleurs.B.tribune[0], '#1d2230', couleurs.B.tribune[1]].map(hex);
+  const pas = 0.8 / n, dz = pas * COS / SIN;
+  for (let j = 0; j < cols; j++) {
+    const y = (j + 0.5 - ny / 2) / n;
+    for (let r = 0; r < rows; r++) {
+      const p = P_MAX - (r + 0.5) / n;
+      const xb = p / COS, xa = (p - HAUT.max * SIN) / COS;
+      let xh = xb, face = null, vitre = null;
+      if (!(horsGlace(xa, y) < 0 && horsGlace(xb, y) < 0)) {
+        for (let x = xa; x <= xb + 1e-9; x += pas) {
+          const z = (p - x * COS) / SIN, d = horsGlace(x, y);
+          if (!vitre && d >= VITRE.lisse && d < VITRE.vitre && z > HAUT.bande && z < HAUT.bande + (HAUT.vitre - HAUT.bande) * debout(x)) vitre = { z, le: Math.abs(x) > L / 2 - COIN ? y : x };
+          const h = hauteurAutour(x, d);
+          if (z <= h) { xh = x; if (h - z > dz * 1.05) face = { z, bande: d < VITRE.vitre }; break; }
+        }
+      }
+      const o = (r * cols + j) * 4;
+      const i = Math.floor(xh * n + nx / 2);
+      // la couleur du pixel : la face de la bande (la même pour la foule assise ou debout), ou la glace vue de haut
+      let fc = null, ombre = 1;
+      if (i < 0 || i >= nx) fc = C.noir;
+      else if (face && face.bande) {
+        // LA FACE DE LA BANDE : la plinthe jaune en bas, le blanc et ses panneaux, la lisse en haut.
+        const z = face.z;
+        if (z < 0.18) fc = z < 0.05 ? C.plintheSombre : C.plinthe;
+        else if (z > HAUT.bande - 0.1) fc = C.lisse;
+        else {
+          const k = Math.floor((y + 100) / PUB), u = (y + 100) % PUB;
+          fc = k % 2 === 0 && u > 0.5 && u < PUB - 0.5 && z > 0.3 && z < HAUT.bande - 0.22 ? pubs[(k >> 1) % pubs.length] : z < 0.24 ? C.bandeOmbre : C.bande;
+        }
+      } else if (face) ombre = 0.82;   // le devant d'un rang de gradins, dans l'ombre
+      // LES BAIES VITRÉES : une teinte, un montant tous les 1,8 m, un reflet en biais.
+      let vw = null, vt = 0;
+      if (vitre) {
+        const m = (vitre.le + 100) % 1.8 < 1.2 / n, reflet = ((y + vitre.z * 1.4 + 100) * n) % 26 < 2.2;
+        vt = m ? 0.6 : reflet ? 0.45 : 0.22; vw = m ? C.montant : C.vitre;
+      }
+      const q = (j * nx + i) * 4;
+      for (let v = 0; v < outs.length; v++) {
+        const d = outs[v].data, s0 = srcs[v];
+        let c0, c1, c2;
+        if (fc) { c0 = fc[0]; c1 = fc[1]; c2 = fc[2]; } else { c0 = s0[q] * ombre; c1 = s0[q + 1] * ombre; c2 = s0[q + 2] * ombre; }
+        if (vw) { c0 += (vw[0] - c0) * vt; c1 += (vw[1] - c1) * vt; c2 += (vw[2] - c2) * vt; }
+        d[o] = c0; d[o + 1] = c1; d[o + 2] = c2; d[o + 3] = 255;
+      }
+    }
+  }
+  const images = outs.map(img => { const c = document.createElement('canvas'); c.width = cols; c.height = rows; c.getContext('2d').putImageData(img, 0, 0); return c; });
+  const pt = (x, y, z) => [y * n + ny / 2, (P_MAX - (x * COS + z * SIN)) * n];
+  for (const c of images) for (const sg of [1, -1]) dessinerBut(c.getContext('2d'), pt, sg);
+  fondPlonge = { source: h0, images, cols, rows };
+  return fondPlonge;
+}
+/*
+ * LES VRAIS BUTS (JP, 2 nov. : *dessiner de vrais buts*) : deux poteaux et la barre, rouges ; le cadre du fond qui
+ * s'arrondit au sol, blanc ; la maille en damier sur les côtés, le toit et le fond. Celui du fond montre son
+ * ouverture, la maille derrière les poteaux ; celui de près montre son dos, la maille par-dessus le cadre.
+ */
+function dessinerBut(g, pt, sg) {
+  const xg = sg * LIGNE_BUT, D = FILET.profond, w = FILET.large / 2, H = FILET.haut;
+  const P = (x, y, z) => pt(xg + sg * x, y, z);
+  const poly = (pts, style) => { g.beginPath(); pts.forEach((q, k) => (k ? g.lineTo(...q) : g.moveTo(...q))); g.closePath(); g.fillStyle = style; g.fill(); };
+  const ligne = (pts, style, large) => { g.beginPath(); pts.forEach((q, k) => (k ? g.lineTo(...q) : g.moveTo(...q))); g.strokeStyle = style; g.lineWidth = large; g.lineJoin = 'round'; g.stroke(); };
+  const maille = (clair, sombre) => { const t = document.createElement('canvas'); t.width = 2; t.height = 2; const q = t.getContext('2d'); if (clair) { q.fillStyle = clair; q.fillRect(0, 0, 1, 1); q.fillRect(1, 1, 1, 1); } if (sombre) { q.fillStyle = sombre; q.fillRect(1, 0, 1, 1); q.fillRect(0, 1, 1, 1); } return g.createPattern(t, 'repeat'); };
+  // la base au sol : des poteaux, elle file droit, puis s'arrondit vers le fond
+  const base = s => [P(0, s * w, 0), P(D * 0.35, s * w, 0), P(D * 0.8, s * (w - 0.12), 0), P(D, s * (w - 0.4), 0), P(D, 0, 0)];
+  const haut = s => [P(0, s * w, H), P(D * 0.45, s * (w - 0.05), H * 0.9)];
+  const cote = s => [P(0, s * w, 0), P(0, s * w, H), haut(s)[1], P(D * 0.8, s * (w - 0.12), 0), P(D * 0.35, s * w, 0)];
+  const fond = [haut(-1)[1], haut(1)[1], P(D * 0.8, w - 0.12, 0), P(D, w - 0.4, 0), P(D, -(w - 0.4), 0), P(D * 0.8, -(w - 0.12), 0)];
+  const toit = [P(0, -w, H), P(0, w, H), haut(1)[1], haut(-1)[1]];
+  const cadre = () => {
+    ligne([...base(-1), ...base(1).reverse()], PAL.maille, 2);
+    ligne([haut(-1)[1], haut(1)[1]], PAL.maille, 1.5);
+    for (const s of [-1, 1]) ligne([P(0, s * w, H), haut(s)[1], P(D * 0.8, s * (w - 0.12), 0)], PAL.maille, 1.5);
+  };
+  const poteaux = () => ligne([P(0, -w, 0), P(0, -w, H), P(0, w, H), P(0, w, 0)], PAL.rouge, 2.5);
+  if (sg > 0) {
+    // le but du fond, de face : la maille au fond et aux côtés, l'intérieur dans l'ombre, puis le cadre et les poteaux
+    const m = maille(PAL.maille, PAL.mailleSombre);
+    poly(fond, m); poly(cote(-1), m); poly(cote(1), m); poly(toit, maille(PAL.mailleSombre, null));
+    cadre(); poteaux();
+  } else {
+    // le but de près, de dos : les poteaux, puis la maille par-dessus, et la barre en haut, devant tout
+    poteaux();
+    const m = maille(PAL.maille, PAL.mailleSombre);
+    poly(fond, m); poly(cote(-1), m); poly(cote(1), m); poly(toit, maille(PAL.maille, null));
+    cadre();
+    ligne([P(0, -w, H), P(0, w, H)], PAL.rouge, 2.5);
+  }
+}
 /* La glace À L'ÉCHELLE DE L'ÉCRAN : agrandie et tournée une fois (à chaque changement d'échelle), pour qu'une image ne
    fasse qu'une copie un pour un, en pixels de l'appareil — rien à agrandir soixante fois par seconde. */
 let fondEcran = null;   // { cle, images: [assise, debout], w, h }
 function glaceALEchelle() {
   const f = fondDeGlace(), n = Math.round(1 / PIXEL), kd = cam.k * taille.dpr;
-  const cle = `${f.cle}|${kd}`;
-  if (fondEcran && fondEcran.cle === cle && fondEcran.source === f) return fondEcran;
-  const w = Math.round(f.ny / n * kd), h = Math.round(f.nx / n * kd);
+  if (fondEcran && fondEcran.kd === kd && fondEcran.source === f) return fondEcran;
+  const w = Math.round(f.cols / n * kd), h = Math.round(f.rows / n * kd);
   const images = f.images.map(im => {
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-    g.setTransform(0, -kd, kd, 0, w / 2, h / 2);
-    g.drawImage(im, -f.nx / (2 * n), -f.ny / (2 * n), f.nx / n, f.ny / n);
+    g.drawImage(im, 0, 0, w, h);
     return c;
   });
-  fondEcran = { cle, source: f, images, w, h };
+  fondEcran = { kd, source: f, images, w, h };
   return fondEcran;
 }
 function patinoire() {
@@ -905,16 +1058,18 @@ function patinoire() {
   const but = anims.find(a => a.type === 'lumiere');
   const debout = but && Math.sin((performance.now() - but.t0) / 110) > 0;
   cx.setTransform(1, 0, 0, 1, 0, 0);
-  cx.drawImage(f.images[debout ? 1 : 0], Math.round(o.e * dpr - f.w / 2), Math.round(o.f * dpr - f.h / 2));
-  repereGlace();
-  // La lumière du but, derrière chaque filet : rouge et qui clignote après un but.
+  cx.drawImage(f.images[debout ? 1 : 0], Math.round(o.e * dpr - f.w / 2), Math.round((o.f - P_MAX * cam.k) * dpr));
+  // La lumière du but, sur la vitre derrière chaque filet : rouge et qui clignote après un but.
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const t = Math.max(3, Math.round(0.5 * cam.k));
   for (const s of [1, -1]) {
     const lum = anims.find(a => a.type === 'lumiere' && a.cote === s);
     const allumee = lum && Math.sin((performance.now() - lum.t0) / 90) > 0;
-    const x0 = s * (LIGNE_BUT + FILET.profond + 0.9);
-    cx.fillStyle = COULEURS.bande; cx.fillRect(x0 - 0.36, -0.36, 0.72, 0.72);
-    cx.fillStyle = allumee ? COULEURS.lumiere : COULEURS.lampe; cx.fillRect(x0 - 0.22, -0.22, 0.44, 0.44);
+    const q = ecran(s * (L / 2 + 0.7), 0, s > 0 ? HAUT.vitre + 0.2 : 0);   // sur la vitre du fond ; au bout de près, aplatie avec elle
+    cx.fillStyle = COULEURS.bande; cx.fillRect(Math.round(q.x - t * 0.7), Math.round(q.y - t * 0.7), Math.round(t * 1.4), Math.round(t * 1.4));
+    cx.fillStyle = allumee ? COULEURS.lumiere : COULEURS.lampe; cx.fillRect(Math.round(q.x - t * 0.45), Math.round(q.y - t * 0.45), Math.round(t * 0.9), Math.round(t * 0.9));
   }
+  repereGlace();
   ecussonDuCentre();
 }
 /* L'écusson des locaux se charge une fois ; la glace se refait quand il arrive. */
@@ -953,7 +1108,7 @@ function marques(s) {
   // l'équipe*) ; à plat comme le sol des sprites (`MARQUE`), et à moitié transparente : le joueur, lui, reste devant.
   if (toi) {
     const c = couleurs[s.equipe];
-    cx.beginPath(); cx.ellipse(s.x, s.y, MARQUE.rayon * MARQUE.sol, MARQUE.rayon, 0, 0, Math.PI * 2);
+    cx.beginPath(); cx.ellipse(s.x, s.y, MARQUE.rayon * MARQUE.sol / COS, MARQUE.rayon, 0, 0, Math.PI * 2);   // la plongée tasse déjà le long : l'ellipse garde son air
     cx.globalAlpha = 0.6; cx.fillStyle = c.club || c.bg; cx.fill();
     cx.globalAlpha = 1; cx.strokeStyle = COULEURS.contour; cx.lineWidth = 0.08; cx.stroke();
   }
@@ -1048,7 +1203,7 @@ function dessiner(now) {
   const z = Math.max(chute * 0.6, Math.min(1.5, R.z || 0));
   // En pixels de sprite, sur la grille : quatre de large, trois de haut, un reflet ; en l'air, elle grossit et son ombre reste au sol.
   cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const S = echelle(), sol = ecran(R.x, R.y), haut = ecran(R.x + z * 0.5, R.y);
+  const S = echelle(), sol = ecran(R.x, R.y), haut = ecran(R.x, R.y, z);
   const lw = S * (4 + Math.round(z * 2)), lh = S * (3 + Math.round(z * 2));
   if (z > 0) { cx.fillStyle = COULEURS.ombre; cx.fillRect(Math.round(sol.x - lw / 2), Math.round(sol.y - lh / 2), lw, lh); }
   cx.fillStyle = COULEURS.rondelle; cx.fillRect(Math.round(haut.x - lw / 2), Math.round(haut.y - lh / 2), lw, lh);

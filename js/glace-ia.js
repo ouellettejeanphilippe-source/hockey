@@ -9,9 +9,11 @@
  *   ses coéquipiers       des positions RELATIVES au porteur : en zone, un devant le filet (déviations), un dans l'enclave
  *                         opposée (le tir sur réception), un à la demi-bande ; le joueur qui vient de passer fonce au
  *                         filet (le give-and-go) ; en deçà de la bleue tant que la rondelle n'y est pas (le hors-jeu)
- *   l'équipe sans elle    en zone défensive, la COUVERTURE INDIVIDUELLE (chaque joueur couvre l'adversaire le plus proche,
- *                         entre lui et son filet) ; en zone neutre, le 1-2-2 avec conscience de l'adversaire ; dans leur
- *                         zone, l'échec avant structuré
+ *   l'équipe sans elle    en zone défensive, de vrais postes (l'essaim ou la boîte, selon la stratégie) et chacun
+ *                         glisse vers l'adversaire de sa zone ; en zone neutre, le 1-2-2 avec conscience de
+ *                         l'adversaire ; dans leur zone, l'échec avant de la stratégie (1-2-2, 2-1-2, la trappe 1-3-1)
+ *   les stratégies        `STRATEGIES` : équilibrée, offensive, défensive — l'échec avant, la défense de zone, l'attaque
+ *                         (la surcharge ou deux au filet), combien les défenseurs pincent
  *   la mise en jeu        le centre presse le bouton autour de la chute, à un hasard près
  *   les tirs de barrage   le tireur fonce et lance de l'enclave (le tir de punition pareil)
  *   l'avantage numérique  le parapluie ; en désavantage, la boîte
@@ -68,6 +70,19 @@ function couloirOuvert(x0, y0, x1, y1, adv, marge = 1.2, jusqua = 1) {
  * glisse aussi vers le couloir de cet attaquant. `marge` : la profondeur qu'il peut laisser de plus (pincer en zone).
  */
 export const ECART_D = { base: 3, parVitesse: 1.2, couloir: 0.5 };
+/*
+ * LES STRATÉGIES D'ÉQUIPE (JP, 2 nov. : *des joueurs qui se positionnent à de vrais endroits de systèmes défensifs, avec
+ * des stratégies à la NHL*) : trois réglages d'un club, comme dans les jeux de la LNH — l'échec avant (1-2-2, 2-1-2,
+ * la trappe 1-3-1), la défense de zone (l'essaim : le défenseur fort au coin, l'autre devant le filet, le centre bas,
+ * l'ailier fort à la pointe, le faible dans l'enclave haute ; la boîte : tout le monde serré devant le filet),
+ * l'attaque (la surcharge du côté de la rondelle, ou deux au filet), et combien les défenseurs pincent à la bleue.
+ */
+export const STRATEGIES = {
+  equilibree: { echecAvant: '2-1-2', zone: 'essaim', attaque: 'surcharge', pince: 3 },
+  offensive: { echecAvant: '2-1-2', zone: 'essaim', attaque: 'filet', pince: 6 },
+  defensive: { echecAvant: '1-2-2', zone: 'boite', attaque: 'surcharge', pince: 0.5 },
+};
+const strategieDe = (etat, eq) => STRATEGIES[etat.equipes[eq].strategie] || STRATEGIES.equilibree;
 const CONTENIR = { base: 1.4, parVitesse: 0.9, max: 10 };   // l'écart du défenseur qui contient le porteur, m (et par m/s du porteur)
 function duBonCote(cible, a, u, adv, marge = 0) {
   let plusLoin = null;
@@ -282,12 +297,18 @@ function soutenir(etat, s, a, but, u, miens, adv, porteur) {
     } else if (enZone) {
       // LES POSTES EN ZONE : RELATIFS AU PORTEUR — un devant le filet (déviations, rebonds), un dans l'enclave opposée
       // (le tir sur réception, la transversale), un à la demi-bande loin du porteur.
-      const cp = Math.sign(porteur.y || 1);
+      const cp = Math.sign(porteur.y || 1), st = strategieDe(etat, s.equipe);
       const derriereFilet = u(porteur.x) > LIGNE_BUT - 3;
+      // LA SURCHARGE : un au filet, un bas du côté de la rondelle, un dans l'enclave haute ; le défenseur fort à sa pointe,
+      // l'autre qui glisse vers le milieu de la bleue. AU FILET : deux devant le gardien, un haut, les défenseurs aux pointes.
       const postesF = derriereFilet
-        ? [{ x: but.x - a * 3.5, y: -cp * 2.5 }, { x: but.x - a * 7, y: cp * 1.5 }, { x: a * (BLEUE + 4), y: -cp * 5 }]
-        : [{ x: but.x - a * 2.5, y: -cp * 1.5 }, { x: but.x - a * 8, y: -porteur.y * 0.5 }, { x: a * (BLEUE + 5), y: -cp * 8 }];
-      const postesD = [{ x: a * (BLEUE + 2), y: -6.5 }, { x: a * (BLEUE + 2), y: 6.5 }];
+        ? [{ x: but.x - a * 3, y: -cp * 2 }, { x: but.x - a * 6.5, y: cp * 1.5 }, { x: a * (BLEUE + 3.5), y: -cp * 4 }]
+        : st.attaque === 'filet'
+          ? [{ x: but.x - a * 2, y: -1.2 }, { x: but.x - a * 2.2, y: 1.2 }, { x: but.x - a * 7, y: -cp * 1.5 }]
+          : [{ x: but.x - a * 2.2, y: -cp * 1 }, { x: but.x - a * 4, y: cp * 6 }, { x: but.x - a * 7.5, y: cp * 1.5 }];
+      const postesD = st.attaque === 'filet'
+        ? [{ x: a * (BLEUE + 1.2), y: -6.5 }, { x: a * (BLEUE + 1.2), y: 6.5 }]
+        : [{ x: a * (BLEUE + 1.5), y: cp * 6.5 }, { x: a * (BLEUE + 1.5), y: -cp * 2 }];
       cible = posteDe(s, miens.filter(m => m !== porteur && (m.poste === 'D') === (s.poste === 'D')), s.poste === 'D' ? postesD : postesF);
     } else if (notreZone) {
       // LA SORTIE DE ZONE : le centre haut, les ailiers aux demi-bandes.
@@ -308,7 +329,7 @@ function soutenir(etat, s, a, but, u, miens, adv, porteur) {
   if (s.poste === 'D') {
     const D = miens.filter(m => m.poste === 'D' && m !== porteur);
     const fort = D.slice().sort((p, q) => hyp(p.x - R.x, p.y - R.y) - hyp(q.x - R.x, q.y - R.y))[0] === s && D.length > 1;
-    cible = duBonCote(cible, a, u, adv, fort ? 5 : 1);
+    cible = duBonCote(cible, a, u, adv, fort ? strategieDe(etat, s.equipe).pince : 1);
   }
   if (s.poste !== 'D' && F.length <= 2 && s.poste === 'C' && enZone) cible = { x: but.x - a * 6, y: 0 };
   cible = dansLaGlace(cible.x, cible.y);
@@ -390,23 +411,36 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
     const chasseur = ordre[0];
     const miensSans = miens.filter(m => m !== chasseur && (porteur || m !== ordre[1]));
 
-    // LA COUVERTURE INDIVIDUELLE en zone défensive : chaque joueur couvre l'adversaire le plus proche,
-    // entre lui et le filet, décalé vers la rondelle — le système défensif logique.
-    if (notreZone && porteur) {
-      const adversaires = adv.filter(o => o !== porteur);
-      const marque = marqueDe(s, miensSans, adversaires);
-      if (marque) {
-        cible = { x: marque.x * 0.5 + monBut.x * 0.5, y: marque.y * 0.65 + monBut.y * 0.35 };
-        cible.y += clamp((R.y - cible.y) * 0.15, -1.5, 1.5);
-      } else {
-        const postes = [{ x: -a * (LIGNE_BUT - 2.5), y: c * 1.6 }, { x: -a * (LIGNE_BUT - 6.5), y: -c * 1.8 }, { x: -a * (BLEUE + 3), y: c * 6.5 }, { x: -a * (BLEUE + 3), y: -c * 6.5 }];
-        const D2 = miensSans.filter(m => m.poste === 'D'), F2 = miensSans.filter(m => m.poste !== 'D');
-        const bas = postes.slice(0, 2), hauts = postes.slice(2);
-        cible = s.poste === 'D' ? posteDe(s, D2, D2.length > bas.length ? [...bas, ...hauts] : bas) : posteDe(s, F2, F2.length > hauts.length ? [...hauts, ...bas] : hauts);
-      }
+    const st = strategieDe(etat, s.equipe);
+    if (notreZone) {
+      // LA DÉFENSE DE ZONE, à de vrais postes (le chasseur presse la rondelle). L'ESSAIM : le défenseur du côté fort au
+      // coin ou au poteau, l'autre devant le filet, le centre bas en soutien, l'ailier fort entre la rondelle et sa
+      // pointe, le faible dans l'enclave haute. LA BOÎTE : les deux défenseurs aux poteaux, les ailiers dans l'enclave
+      // haute, le centre au milieu. Chacun, de son poste, glisse vers l'adversaire le plus près qui est dans sa zone.
+      const cs = Math.sign(R.y || c), basse = -u(R.x) > LIGNE_BUT - 6;   // la rondelle sous les cercles, au coin
+      const prof = d => monBut.x + a * d;   // à d mètres devant notre ligne des buts
+      const haut = LIGNE_BUT - BLEUE;       // la profondeur de la zone, de la ligne des buts à la bleue
+      const postesD = st.zone === 'boite'
+        ? [{ x: prof(2.4), y: cs * 2.2 }, { x: prof(2.4), y: -cs * 2.2 }]
+        : [{ x: prof(basse ? 1.2 : 2.6), y: cs * (basse ? 3.5 : 2.4) }, { x: prof(1.8), y: -cs * 0.7 }];
+      const postesF = st.zone === 'boite'
+        ? [{ x: prof(5.5), y: 0 }, { x: prof(haut - 3.5), y: cs * 3.5 }, { x: prof(haut - 3.5), y: -cs * 3.5 }]
+        : [{ x: prof(basse ? 3.8 : 4.5), y: cs * 2.2 }, { x: prof(haut - 2.2), y: cs * 7.5 }, { x: prof(haut - 4), y: -cs * 3 }];
+      const D2 = miensSans.filter(m => m.poste === 'D'), F2 = miensSans.filter(m => m.poste !== 'D');
+      cible = s.poste === 'D' ? posteDe(s, D2, D2.length > postesD.length ? [...postesD, ...postesF] : postesD) : posteDe(s, F2, F2.length > postesF.length ? [...postesF, ...postesD] : postesF);
+      // de son poste, vers l'adversaire le plus près, s'il est dans sa zone : entre lui et notre filet
+      let proche = null;
+      for (const o of adv) { if (o === porteur) continue; const d = hyp(o.x - cible.x, o.y - cible.y); if (d < 4 && (!proche || d < proche.d)) proche = { o, d }; }
+      if (proche) { const o = proche.o, t = 0.45; cible = { x: cible.x + ((o.x * 0.7 + monBut.x * 0.3) - cible.x) * t, y: cible.y + ((o.y * 0.8) - cible.y) * t }; }
     } else if (leurZone) {
-      // L'ÉCHEC AVANT structuré : deux en haut pressent, un couvre la sortie ; les D à la bleue.
-      const postes = [{ x: a * (u(R.x) - 4), y: -c * 5 }, { x: a * (BLEUE + 2), y: R.y * 0.3 }, { x: a * (BLEUE - 7), y: -5.5 }, { x: a * (BLEUE - 7), y: 5.5 }];
+      // L'ÉCHEC AVANT. 1-2-2 : un presse, deux couvrent les bandes à leur bleue, les défenseurs au centre. 2-1-2 : deux
+      // pressent, un dans leur enclave haute, les défenseurs pincent à leur bleue. 1-3-1 (la trappe) : un presse
+      // doucement, trois en travers de la zone neutre, un défenseur loin derrière.
+      const postes = st.echecAvant === '2-1-2'
+        ? [{ x: a * (u(R.x) - 2.5), y: -c * 3.5 }, { x: a * (BLEUE + 3), y: 0 }, { x: a * (BLEUE - 0.8), y: -6 }, { x: a * (BLEUE - 0.8), y: 6 }]
+        : st.echecAvant === '1-3-1'
+          ? [{ x: a * 1.5, y: -7 }, { x: a * 1.5, y: 7 }, { x: a * 1, y: 0 }, { x: -a * (BLEUE - 1), y: 0 }]
+          : [{ x: a * (BLEUE + 1.5), y: -c * 6 }, { x: a * (BLEUE + 1.5), y: c * 6 }, { x: a * (BLEUE - 7), y: -5.5 }, { x: a * (BLEUE - 7), y: 5.5 }];
       const D2 = miensSans.filter(m => m.poste === 'D'), F2 = miensSans.filter(m => m.poste !== 'D');
       const hauts = postes.slice(0, 2), bas = postes.slice(2);
       cible = s.poste === 'D' ? posteDe(s, D2, D2.length > bas.length ? [...bas, ...hauts] : bas) : posteDe(s, F2, F2.length > hauts.length ? [...hauts, ...bas] : hauts);

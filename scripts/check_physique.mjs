@@ -673,9 +673,13 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
 }
 {
   // En séries, pas de trois contre trois ni de tirs de barrage : une prolongation à cinq, de la longueur d'une période.
-  const e = nouveauMatch({ graine: 'nul', A: club('AAA', 100), B: club('BBB', 200), periode: 8, prolongation: 8, humain: null, ia: decisionIA, series: true });
-  let pas = 0;
-  while (!e.match.prolongation && !e.match.fini && pas < 120 * 60) { avancer(e, {}, DT); pas++; }
+  // Un match nul après le temps réglementaire, cherché graine après graine (le pointage dépend de l'IA, pas la règle).
+  let e = null;
+  for (let g = 0; g < 30 && !(e && e.match.prolongation); g++) {
+    e = nouveauMatch({ graine: `nul${g}`, A: club('AAA', 100), B: club('BBB', 200), periode: 8, prolongation: 8, humain: null, ia: decisionIA, series: true });
+    let pas = 0;
+    while (!e.match.prolongation && !e.match.fini && pas < 120 * 60) { avancer(e, {}, DT); pas++; }
+  }
   const M = e.match;
   exiger('en séries, la prolongation se joue à cinq, une période entière, sans tirs de barrage', M.prolongation && !M.fusillade && M.series && M.reste <= 8 && M.reste > 7 && droitSurGlace(e, 'A') === 5, `${M.pointage.A}–${M.pointage.B}, P${M.periode}, ${M.reste.toFixed(1)} s, ${droitSurGlace(e, 'A')} sur la glace`);
 }
