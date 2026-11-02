@@ -10,7 +10,9 @@
  *   - une carte MORTE : une carte d'adjoint entrée dans la main (un palier, un butin, une histoire) qui n'y joue aucun
  *     séjour avant d'en partir (une main pleine la laisse partir) ou avant la fin de la mesure. Cible : moins de 25 % ;
  *   - l'OCCUPATION des cases : les matchs-cases où un adjoint est en poste (la feuille le nomme), sur les matchs-cases
- *     ouverts au niveau du coach ce soir-là (`casesDuNiveau`), en saison.
+ *     ouverts au niveau du coach ce soir-là (`casesDuPerso` : la case de plus du premier talent comprise), en saison.
+ *   - les MATCHS-CASES occupés par saison : ce qu'une case de plus rapporte. `ROBOT_TALENT=case` ou `pouvoir` force le
+ *     premier talent de l'attentif (nov. 2026 ; docs/revue-rogue-2026-11.md § 2.4 B), pour peser la case de plus.
  *
  *   node scripts/mesure_main.mjs                      (quelques minutes sur six fils)
  *   GRAINES=1 SAISONS=3 FILS=6 node scripts/mesure_main.mjs
@@ -19,7 +21,7 @@ import { Worker, isMainThread, parentPort, workerData } from 'node:worker_thread
 import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 import { autoRoster } from '../js/sim.js';
-import { SEJOUR, REPOS, casesDuNiveau } from '../js/adjoints.js';
+import { SEJOUR, REPOS, casesDuPerso } from '../js/adjoints.js';
 import { niveauDe } from '../js/pouvoirs.js';
 import { NIVEAUX_PLEINS } from '../js/rogue.js';
 import { jouerSaison, metaAuNiveau, shard, groupe } from './lib/rogue_sim.mjs';
@@ -49,7 +51,7 @@ function clubsDeLaSaison(s) {
  * ouverts et occupés. Le niveau du coach ce soir-là se recompte : son expérience d'avant, une victoire, un gros match
  * gagné, l'expérience d'une histoire (`xpCoach`) au jour dit (js/sim.js `gagnerXp`, `appliquerPerso`).
  */
-function relire(r, xp0) {
+function relire(r, xp0, talents0 = []) {
   const { L, you, decisions } = r;
   // Le match du club où chaque geste tombe : ses matchs joués avant ce jour-là.
   const avant = j => L.calendrier.slice(0, j).filter(jour => jour.some(x => (x.A === you || x.B === you) && x.feuille)).length;
@@ -57,14 +59,16 @@ function relire(r, xp0) {
   const grosGagnes = new Set((you.minisBoss || []).filter(mb => mb.gagne).map(mb => mb.jour));
   const xpDuJour = new Map();
   for (const d of decisions) if (Number(d.xpCoach)) xpDuJour.set(d.jour, (xpDuJour.get(d.jour) || 0) + Number(d.xpCoach));
+  const talents = [...talents0];
   let xp = xp0, ouverts = 0, occupes = 0, matchs = 0;
   L.calendrier.forEach((jour, j) => {
     xp += xpDuJour.get(j) || 0;
+    for (const d of decisions) if (d.jour === j && d.talent) talents.push(d.talent.p);
     const m = jour.find(x => x.A === you || x.B === you);
     if (!m || !m.feuille) return;
     const cote = m.A === you ? 'A' : 'B';
     matchs++;
-    ouverts += casesDuNiveau(niveauDe(xp));
+    ouverts += casesDuPerso({ talents }, niveauDe(xp));
     occupes += (m.feuille.adjoints || []).filter(a => a.cote === cote).length;
     const gagne = cote === 'A' ? m.gfA > m.gfB : m.gfB > m.gfA;
     if (gagne) xp += 1 + (grosGagnes.has(j) ? 2 : 0);
@@ -79,9 +83,9 @@ if (!isMainThread) {
   const etat = { roster: autoRoster(joueurs), variantes: new Map(), jetons: 0 };
   const saisons = [];
   for (let n = 1; n <= SAISONS; n++) {
-    const xp0 = etat.perso ? etat.perso.xp : 0;
+    const xp0 = etat.perso ? etat.perso.xp : 0, talents0 = etat.perso ? etat.perso.talents || [] : [];
     const r = jouerSaison(meta, etat, { graine: t.graine, saison: n, politique: 'attentif', ligue: NIVEAUX_PLEINS });
-    const lu = relire(r, xp0);
+    const lu = relire(r, xp0, talents0);
     saisons.push(lu);
     etat.roster = r.roster; etat.jetons = r.reste; etat.perso = r.perso;
   }
@@ -124,6 +128,9 @@ if (!isMainThread) {
   const part = mortes / Math.max(1, offertes);
   informer('les cartes mortes arrivées à la toute fin', `${tard} sur ${mortes} entrées à moins de ${SEJOUR} matchs de la fin de la dernière saison : la mesure s'arrête là, une run continuerait`);
   informer('l\'occupation des cases', `${Math.round(100 * occupes / Math.max(1, ouverts))} % des matchs-cases ouverts au niveau du coach (${occupes} sur ${ouverts})`);
+  const nSaisons = resultats.reduce((a, x) => a + x.saisons.length, 0);
+  const parRang = Array.from({ length: SAISONS }, (_, n) => resultats.reduce((a, x) => a + (x.saisons[n] ? x.saisons[n].occupes : 0), 0) / Math.max(1, resultats.length));
+  informer('les matchs-cases occupés par saison', `${(occupes / Math.max(1, nSaisons)).toFixed(1)} (${parRang.map((x, n) => `saison ${n + 1} : ${x.toFixed(1)}`).join(' · ')})${process.env.ROBOT_TALENT ? ` · le premier talent forcé : ${process.env.ROBOT_TALENT}` : ''}`);
   borne('les cartes d\'adjoint qui ne jouent jamais un séjour', part * 100, 0, MORTES_MAX * 100, ' %');
   informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s (${taches.length} clubs × ${SAISONS} saisons, ${FILS} fils)`);
   verdict('La main d\'adjoints');

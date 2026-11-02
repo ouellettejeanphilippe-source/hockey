@@ -45,8 +45,8 @@ import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN, ETAPE_APRES_LA_PREMIERE } from '../js/rogue.js';
 import { COACHS } from '../js/coachs.js';
-import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT } from '../js/pouvoirs.js';
-import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU } from '../js/adjoints.js';
+import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT, NIVEAUX_TALENT } from '../js/pouvoirs.js';
+import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU, CASE_DE_PLUS } from '../js/adjoints.js';
 import { MAITRISE } from '../js/coachs-reels.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
@@ -280,6 +280,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`premier ou deuxième de la ligue dans sa lecture, ses pouvoirs jouent ×${nombre(MAITRISE[0][1])} (×${nombre(MAITRISE[1][1])} dans les cinq premiers)`, 'la maîtrise de l\'entraîneur'],
     [`Ses trois pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.slice(0, -1).join(', ')} et ${NIVEAU_DES_POUVOIRS.at(-1)}`, 'les pouvoirs'],
     [`fait grandir un pouvoir de ${nombre(TALENT * 100)} %`, 'le talent'],
+    // Nov. 2026 : le premier talent peut ouvrir une case d'adjoint de plus, à chaque niveau dès le sien (`CASE_DE_PLUS`).
+    [`au niveau ${NIVEAUX_TALENT[0]}, il peut plutôt ouvrir ${CASE_DE_PLUS.slice(NIVEAUX_TALENT[0] - 1).every(x => x === 1) && CASE_DE_PLUS.slice(0, NIVEAUX_TALENT[0] - 1).every(x => !x) ? "une case d'adjoint de plus, pour la run" : '(la case de plus a changé)'}`, 'la case de plus du talent'],
     // V22 : la main d'adjoints, des séjours (js/adjoints.js).
     [`elle joue ${SEJOUR} matchs (${SEJOUR_SYNERGIE} si son style rejoint ton coach), revient dans ta main et se repose ${REPOS} matchs ; ta main en garde ${MAIN_MAX}, une case en poste au niveau 1, ${CASES_PAR_NIVEAU[2] === 2 ? 'deux' : CASES_PAR_NIVEAU[2]} au 3, ${CASES_PAR_NIVEAU[4] === 3 ? 'trois' : CASES_PAR_NIVEAU[4]} au 5`, 'la main et les séjours'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],

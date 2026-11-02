@@ -14,7 +14,7 @@ Choisi au départ de la run (le prestige en ouvre plus), il la fait au complet, 
 
 - **un niveau**, de 1 à 5, gagné en jouant : chaque victoire vaut un point d'expérience, un gros match gagné deux de plus, une série gagnée cinq (`XP`, `SEUILS_NIVEAU`, js/pouvoirs.js). L'expérience suit la run d'une saison à l'autre ;
 - **trois pouvoirs**, son arbre : le premier au niveau 1, le deuxième au niveau 3, l'ultime au niveau 5 ;
-- **deux talents** : aux niveaux 2 et 4, tu choisis lequel de tes pouvoirs grandit (+50 %).
+- **deux talents** : aux niveaux 2 et 4, tu choisis lequel de tes pouvoirs grandit (+50 %). *Nov. 2026 : au niveau 2, seul le premier est ouvert ; l'autre réponse est une case d'adjoint de plus pour la run, avec une carte (docs/revue-rogue-2026-11.md § 2.4).*
 
 **Un pouvoir se déclenche en match, période par période, et se voit.** Il lit ce qui est déjà joué (la période, le pointage, les tirs) et frappe la période qui vient, sur les canaux que le moteur connaît (tirs, précision, buts contre, punitions, mises en échec, glace des trios). La feuille le garde : « 🐝 La ruée · 3e période · 14 tirs ». Une soirée normale se joue alors en trois périodes, comme le duel.
 

@@ -15,8 +15,11 @@ import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, FENETR
 import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { joueurDuFait } from '../../js/vie-gm.js';
 import { COACHS } from '../../js/coachs.js';
-import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts } from '../../js/pouvoirs.js';
+import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts, TALENT_CASE } from '../../js/pouvoirs.js';
 import { ADJOINTS, adjointsOfferts, pretesDe, casesLibres } from '../../js/adjoints.js';
+
+/* MESURE seulement (jamais lu par le jeu) : ROBOT_TALENT=case ou pouvoir force le premier talent de l'attentif (scripts/mesure_main.mjs). */
+const TALENT_FORCE = process.env.ROBOT_TALENT || null;
 
 const JETON = 0.01;   // une victoire vaut une centaine de jetons, à la louche (le barème : 5 par victoire, les packs à 12 et plus)
 /* Ce que vaut une conséquence, grossièrement, en victoires : un adjoint, un point d'expérience, des jambes, un match d'infirmerie. */
@@ -148,11 +151,19 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
     while (libres > 0 && pretes.length) { const k = clic ? pretes.splice(Math.floor(clic() * pretes.length), 1)[0] : pretes.shift(); out.push({ jour: j, poste: { cle: k } }); libres--; }
   }
   // LE TALENT (niveaux 2 et 4) : le pouvoir qui a le plus joué grandit ; le distrait, au hasard ; le robot d'avant, le premier.
+  // Au premier (nov. 2026), la case d'adjoint de plus et sa carte sont l'autre réponse (`TALENT_CASE`, la carte tirée comme à
+  // l'écran) : l'attentif la prend quand son pouvoir I a joué moins d'un match sur deux (grandi, il rendrait peu), le distrait
+  // au hasard, le robot d'avant jamais (le pouvoir est la première réponse).
   const perso = persoDe(you);
   if (perso && talentsDus(niveauDuPerso(perso), perso.talents) > 0) {
-    const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), fois = foisDesPouvoirs(L, you);
-    const p = clic ? auHasard(ouverts) : politique === 'defaut' ? ouverts[0] : ouverts.reduce((a, b) => (fois[b] >= fois[a] ? b : a));
-    out.push({ jour: j, palier: `ta:${perso.talents.length}`, talent: { p } });
+    const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), fois = foisDesPouvoirs(L, you), premier = !perso.talents.length;
+    const soirs = new Set(feuillesDe(L, you).filter(({ f, cote }) => (f.pouvoirs || []).some(x => x.cote === cote && x.p === 0 && !x.contagion)).map(x => x.m)).size;
+    const reponses = premier ? [...ouverts, TALENT_CASE] : ouverts;
+    const forcee = premier && TALENT_FORCE && politique === 'attentif' ? (TALENT_FORCE === 'case' ? TALENT_CASE : 0) : null;
+    const p = forcee !== null ? forcee : clic ? auHasard(reponses) : politique === 'defaut' ? ouverts[0]
+      : premier && soirs * 2 < Math.max(1, you.games || 0) ? TALENT_CASE : ouverts.reduce((a, b) => (fois[b] >= fois[a] ? b : a));
+    const offert = p === TALENT_CASE ? adjointsOfferts(perso, graine, 'ta0', 1)[0] || null : null;
+    out.push({ jour: j, palier: `ta:${perso.talents.length}`, talent: { p }, ...(offert ? { embauche: { cle: offert } } : {}) });
   }
   return out;
 }

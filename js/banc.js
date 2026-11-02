@@ -10,7 +10,7 @@ import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { BANQUE } from './banque.js';
 import { COACHS } from './coachs.js';
-import { POUVOIRS } from './pouvoirs.js';
+import { POUVOIRS, TALENT_CASE } from './pouvoirs.js';
 import { ADJOINTS, sejourDe } from './adjoints.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
@@ -336,7 +336,9 @@ function confirmerDecision(d) {
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
   // V21 : un talent ou de l'expérience pour le coach de la run ; V22 : un adjoint qui entre dans ta main, ou posté.
   const perso = persoDuMatin(), Pv = p => (perso && POUVOIRS[perso.cle] ? POUVOIRS[perso.cle][p] : null);
-  if (d.embauche && ADJOINTS[d.embauche.cle]) mot = `${ADJOINTS[d.embauche.cle].ico} ${ADJOINTS[d.embauche.cle].nom} entre dans ta main : « ${ADJOINTS[d.embauche.cle].dit} » Poste-le au Coach.`;
+  // Nov. 2026 : la case de plus du premier talent arrive avec sa carte (une `embauche` dans la même décision).
+  if (d.talent && d.talent.p === TALENT_CASE) mot = `📋 Une case d'adjoint de plus, pour la run${d.embauche && ADJOINTS[d.embauche.cle] ? ` : ${ADJOINTS[d.embauche.cle].ico} ${ADJOINTS[d.embauche.cle].nom} entre dans ta main. Poste-le au Coach.` : '.'}`;
+  else if (d.embauche && ADJOINTS[d.embauche.cle]) mot = `${ADJOINTS[d.embauche.cle].ico} ${ADJOINTS[d.embauche.cle].nom} entre dans ta main : « ${ADJOINTS[d.embauche.cle].dit} » Poste-le au Coach.`;
   else if (d.poste && ADJOINTS[d.poste.cle]) mot = `${ADJOINTS[d.poste.cle].ico} ${ADJOINTS[d.poste.cle].nom} en poste pour ${sejourDe(d.poste.cle, perso ? perso.cle : null)} matchs.`;
   else if (d.talent && Pv(d.talent.p)) mot = `${Pv(d.talent.p).ico} ${Pv(d.talent.p).nom} grandit, pour la run.`;
   else if (Number(d.xpCoach) > 0 && perso && COACHS[perso.cle]) mot = `${COACHS[perso.cle].ico} ${COACHS[perso.cle].nom} : +${d.xpCoach} d'expérience.`;

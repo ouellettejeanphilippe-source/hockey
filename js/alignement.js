@@ -11,7 +11,7 @@ import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUn
 import { alignementAuMieux, unitesDuSoir, specialesEnStats } from './impact.js';
 import { COACHS } from './coachs.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
-import { ADJOINTS, MAIN_MAX, casesDuNiveau, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, lignesDeLAdjoint, ficheDeLaCarte, casesLibres } from './adjoints.js';
+import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, lignesDeLAdjoint, ficheDeLaCarte, casesLibres } from './adjoints.js';
 import { carteHtml } from './cartes.js';
 import { hubActif } from './coquille.js';
 import { glisserDeposer } from './deposer.js';
@@ -887,7 +887,9 @@ export function coachHtml() {
  */
 function mainHtml(perso, niveau) {
   const L = G.ligue, you = L && L.you, games = (you && you.games) || 0;
-  const main = mainDe(perso), cases = casesDuNiveau(niveau);
+  const main = mainDe(perso), cases = casesDuPerso(perso, niveau);
+  // Le prochain niveau qui ouvre une case (la case de plus du premier talent comprise), s'il y en a un.
+  const plusTard = [2, 3, 4, 5].find(n => n > niveau && casesDuPerso(perso, n) > cases);
   const postes = main.filter(c => enPoste(c, games, perso.cle)), autres = main.filter(c => !enPoste(c, games, perso.cle));
   const carteAdj = c => {
     const A = ADJOINTS[c.cle], l = lignesDeLAdjoint(c.cle), syn = motDeSynergie(c.cle, perso.cle), fiche = ficheDeLaCarte(c);
@@ -904,7 +906,7 @@ function mainHtml(perso, niveau) {
   };
   // UNE SEULE RANGÉE (l'onglet tient en un écran) : les cases en poste d'abord, puis la main ; quatre cartes de front au plus.
   const vides = Math.max(0, cases - postes.length);
-  return `<div class="ej-case-l">En poste · ${postes.length} sur ${cases} · ta main · ${main.length} sur ${MAIN_MAX}${cases < 3 ? ` · une case de plus au niveau ${cases === 1 ? 3 : 5}` : ''}</div>
+  return `<div class="ej-case-l">En poste · ${postes.length} sur ${cases} · ta main · ${main.length} sur ${MAIN_MAX}${plusTard ? ` · une case de plus au niveau ${plusTard}` : ''}</div>
     <div class="adj-zone${main.length ? '' : ' sans'}" data-zone="main">${postes.map(carteAdj).join('')}${Array.from({ length: vides }, () => `<button type="button" class="adj-case vide" title="Glisse une carte de ta main ici">Case libre</button>`).join('')}${autres.map(carteAdj).join('')}</div>
     ${main.length ? '<p class="adj-detail" role="status" aria-live="polite">Touche une carte : son style, sa réplique.</p>' : `<p class="adj-note">Un adjoint arrive aux ${PALIERS_MOT} matchs, après un gros match gagné et au verdict du proprio.</p>`}`;
 }

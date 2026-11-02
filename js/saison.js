@@ -38,7 +38,7 @@ import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessure
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
 import { PALIERS_PACK, SEMAINE } from './inventaire.js';
-import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT } from './pouvoirs.js';
+import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT, TALENT_CASE } from './pouvoirs.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, basculerChiffres, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
 import { mainAdverse, energieAdverse } from './combat.js';
@@ -3401,15 +3401,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     /*
      * LE TALENT DU COACH (V21) : aux niveaux 2 et 4, un de ses pouvoirs ouverts grandit de moitié. Il attend le lundi.
+     * Au niveau 2 (nov. 2026, docs/revue-rogue-2026-11.md § 2.4 B), seul le pouvoir I est ouvert : l'autre réponse est une
+     * case d'adjoint de plus, pour la run (`TALENT_CASE`, js/adjoints.js `casesDuPerso`), et une carte pour la remplir
+     * (la première tirée pour ce talent, nommée).
      */
     const perso = persoDuJour();
     const dus = perso ? talentsDus(niveauDuPerso(perso), perso.talents || []) : 0;
     if (dus > 0 && !pris.has(`ta:${(perso.talents || []).length}`)) {
       const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), nTal = (perso.talents || []).length;
+      const offert = nTal ? null : adjointsOfferts(perso, graine, 'ta0', 1)[0] || null;
       out.push({ id: `ta:${nTal}`, genre: 'talent', bloque: false, de: DE.coach, sujet: `Niveau ${NIVEAUX_TALENT[nTal]} : un talent`,
-        choix: { recit: `Un de ses pouvoirs grandit de ${Math.round(TALENT * 100)} %, pour la run.`,
-          options: ouverts.map(p => { const P = POUVOIRS[perso.cle][p]; return { cle: String(p), ico: P.ico, nom: P.nom, sous: P.dit }; }),
-          decision: cle => ({ palier: `ta:${nTal}`, talent: { p: Number(cle) } }) } });
+        choix: { recit: nTal ? `Un de ses pouvoirs grandit de ${Math.round(TALENT * 100)} %, pour la run.` : `Son pouvoir grandit de ${Math.round(TALENT * 100)} %, ou une case d'adjoint de plus : pour la run.`,
+          options: [...ouverts.map(p => { const P = POUVOIRS[perso.cle][p]; return { cle: String(p), ico: P.ico, nom: P.nom, sous: P.dit }; }),
+            ...(nTal ? [] : [{ cle: TALENT_CASE, ico: '📋', nom: 'Un adjoint de plus en poste', sous: "Une case d'adjoint de plus, dès maintenant et pour la run, et une carte pour la remplir.",
+              ...(offert ? { mots: [{ txt: `Dans ta main : ${ADJOINTS[offert].ico} ${ADJOINTS[offert].nom}, ${ADJOINTS[offert].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjoint(offert)] } : {}) }])],
+          decision: cle => ({ palier: `ta:${nTal}`, talent: { p: cle === TALENT_CASE ? TALENT_CASE : Number(cle) }, ...(cle === TALENT_CASE && offert ? { embauche: { cle: offert } } : {}) }) } });
     }
     /*
      * LE DOSSIER DE LA SEMAINE (V10, tranche 5) : sa voix et le fait (la scène), puis ses réponses. Une décision de

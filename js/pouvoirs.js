@@ -4,7 +4,7 @@
  *
  *   LE NIVEAU     de 1 à 5, gagné en jouant (`XP`, `SEUILS_NIVEAU`) ; il suit la run d'une saison à l'autre
  *   L'ARBRE       trois pouvoirs par coach, ouverts aux niveaux 1, 3 et 5 (`NIVEAU_DES_POUVOIRS`)
- *   LES TALENTS   aux niveaux 2 et 4, un pouvoir débloqué grandit de moitié (`TALENT`)
+ *   LES TALENTS   aux niveaux 2 et 4, un pouvoir débloqué grandit de moitié (`TALENT`) ; au 2, ou une case d'adjoint de plus
  *
  * UN POUVOIR SE JOUE PÉRIODE PAR PÉRIODE. Avant chaque période, il lit ce qui est déjà joué (`etat` : la période `k`,
  * le pointage, les tirs, la dernière période, le soir) et, s'il se déclenche, frappe la période qui vient sur les
@@ -25,6 +25,14 @@ export const TALENT = 0.5;
 export const pouvoirsOuverts = niveau => NIVEAU_DES_POUVOIRS.map((n, i) => (niveau >= n ? i : -1)).filter(i => i >= 0);
 /* Les talents dus à un niveau, moins ceux déjà pris. */
 export const talentsDus = (niveau, pris = []) => Math.max(0, NIVEAUX_TALENT.filter(n => niveau >= n).length - pris.length);
+/*
+ * LA CASE DE PLUS (2 nov. 2026 ; docs/revue-rogue-2026-11.md § 2.4 B). Au niveau 2, seul le pouvoir I est ouvert : l'écran
+ * du premier talent n'avait qu'une réponse. Il en a deux : le pouvoir I grandit de moitié, ou une case d'adjoint de plus,
+ * dès maintenant et pour la run (`TALENT_CASE` dans `talents`, js/adjoints.js `casesDuPerso`). Le second talent, au
+ * niveau 4, reste aux pouvoirs.
+ */
+export const TALENT_CASE = 'case';
+export const aLaCaseDePlus = perso => !!perso && (perso.talents || []).includes(TALENT_CASE);
 
 /* ---------- les pouvoirs ---------- */
 /*

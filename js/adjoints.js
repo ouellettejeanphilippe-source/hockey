@@ -6,7 +6,7 @@
  * de match — et un séjour, en matchs. Ta MAIN tient `MAIN_MAX` cartes, en poste comprises. Tu en POSTES une quand tu
  * veux (Bureau › Coach) : elle joue `SEJOUR` matchs, puis elle revient dans ta main et se repose `REPOS` matchs avant
  * de se rejouer. Les cases en poste suivent le niveau du coach (`CASES_PAR_NIVEAU`) : une au niveau 1, deux au 3,
- * trois au 5.
+ * trois au 5 ; le premier talent du coach peut en ouvrir une de plus (`CASE_DE_PLUS`, js/pouvoirs.js `TALENT_CASE`).
  *
  * IMPACTANT. Un échange permanent devait rester petit pour tenir sous sa borne sur 82 matchs ; un séjour de douze
  * matchs frappe bien plus fort chaque soir (±3 tirs, ±0,4 but) et reste sous ±1,5 V sur la saison : une carte ne joue
@@ -30,6 +30,7 @@
  */
 import { hache } from './util.js';
 import { COACHS } from './coachs.js';
+import { aLaCaseDePlus } from './pouvoirs.js';
 
 export const SEJOUR = 12;
 export const SEJOUR_SYNERGIE = 16;
@@ -38,6 +39,13 @@ export const MAIN_MAX = 4;
 /* Les cases en poste, par niveau du coach (1 à 5). */
 export const CASES_PAR_NIVEAU = [1, 1, 2, 2, 3];
 export const casesDuNiveau = n => CASES_PAR_NIVEAU[Math.min(CASES_PAR_NIVEAU.length, Math.max(1, n || 1)) - 1];
+/*
+ * LA CASE DE PLUS (2 nov. 2026 ; docs/revue-rogue-2026-11.md § 2.4 B) : le premier talent, pris au niveau 2 à la place
+ * du pouvoir I grandi, ouvre une case de plus, pour la run (`CASE_DE_PLUS`, par niveau). Les cases d'un personnage :
+ * celles de son niveau, plus la sienne.
+ */
+export const CASE_DE_PLUS = [0, 1, 1, 1, 1];
+export const casesDuPerso = (perso, n) => casesDuNiveau(n) + (aLaCaseDePlus(perso) ? CASE_DE_PLUS[Math.min(CASE_DE_PLUS.length, Math.max(1, n || 1)) - 1] : 0);
 
 /*
  * Huit styles, un par philosophie (`voie` : la clé du coach de js/coachs.js), pour que la synergie se lise d'un coup
@@ -118,7 +126,7 @@ export const reposDe = (c, games) => (auRepos(c, games) ? REPOS - (games - c.fin
 export const postesDe = (perso, games) => mainDe(perso).filter(c => enPoste(c, games, perso.cle));
 export const pretesDe = (perso, games) => mainDe(perso).filter(c => !enPoste(c, games, perso.cle) && !auRepos(c, games));
 /* Les cases libres, au niveau du coach. */
-export const casesLibres = (perso, games, niveau) => Math.max(0, casesDuNiveau(niveau) - postesDe(perso, games).length);
+export const casesLibres = (perso, games, niveau) => Math.max(0, casesDuPerso(perso, niveau) - postesDe(perso, games).length);
 
 /*
  * LES ADJOINTS OFFERTS (un parmi trois, gratuits, aux moments forts) : tirés de la graine parmi ceux qui ne sont pas
