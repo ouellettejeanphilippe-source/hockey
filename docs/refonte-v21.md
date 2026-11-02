@@ -20,7 +20,7 @@ Choisi au départ de la run (le prestige en ouvre plus), il la fait au complet, 
 
 | Coach | I (niveau 1) | II (niveau 3) | Ultime (niveau 5) |
 |---|---|---|---|
-| 🐝 Le Frelon | **La ruée** : en 3e, à égalité ou derrière, +40 % de tirs | **Le bourdonnement** : en 3e, avec plus de tirs qu'eux jusque-là, +25 % de tirs | **L'essaim** : derrière au pointage, +35 % de tirs et +5 % de précision |
+| 🐝 Le Frelon | **La ruée** : en 3e, à égalité ou derrière, +40 % de tirs | **Le bourdonnement** : en 3e, quand tu mènes, +25 % de tirs (avec plus de tirs qu'eux jusque-là avant le 2 nov. 2026 : il se cumulait à la ruée) | **L'essaim** : derrière au pointage, +35 % de tirs et +5 % de précision |
 | 🦅 L'Aigle | **La riposte** : après une période perdue aux tirs, sans mener, +28 % de précision | **Le tueur** : quand tu mènes, +17 % de précision | **Le tir parfait** : en 3e, à un but d'écart ou moins, +45 % de précision |
 | 🐢 La Tortue | **Le verrou** : quand tu mènes, −25 % de buts contre | **La tranchée** : en 1re, à l'étranger, −25 % de leurs tirs | **La forteresse** : en 3e, en avant ou à égalité, −30 % de buts contre et −20 % de leurs tirs |
 | 🦏 Le Rhino | **L'usure** : en 3e, plus de mises en échec et leur précision −10 % | **Le choc** : en 1re, à domicile, plus de mises en échec et leur précision −12 % | **La charge** : derrière, +25 % de tirs et leur précision −12 % |

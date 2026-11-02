@@ -46,7 +46,9 @@ const soirDe = (e, ...ms) => !!e.soir && ms.some(m => e.soir[m]);
 export const POUVOIRS = {
   essaim: [
     { cle: 'ruee', ico: '🐝', nom: 'La ruée', dit: 'En 3e période, à égalité ou derrière : +40 % de tirs.', quand: e => k3(e) && e.moi <= e.lui, effet: { volume: 1.4 } },
-    { cle: 'bourdon', ico: '🔊', nom: 'Le bourdonnement', dit: 'En 3e période, avec plus de tirs qu\'eux jusque-là : +25 % de tirs.', quand: e => k3(e) && e.tirsMoi > e.tirsLui, effet: { volume: 1.25 } },
+    // 2 nov. 2026 (docs/revue-rogue-2026-11.md § 2.2 A) : « avec plus de tirs qu'eux » jouait souvent la même 3e que la
+    // ruée (à égalité ou derrière) et s'y ajoutait ; il ne joue plus que si tu mènes, jamais avec elle.
+    { cle: 'bourdon', ico: '🔊', nom: 'Le bourdonnement', dit: 'En 3e période, quand tu mènes : +25 % de tirs.', quand: e => k3(e) && mene(e), effet: { volume: 1.25 } },
     { cle: 'essaim', ico: '🌪', nom: 'L\'essaim', dit: 'Derrière au pointage : +35 % de tirs, +5 % de précision.', quand: derriere, effet: { volume: 1.35, finition: 1.05 } },
   ],
   rapaces: [

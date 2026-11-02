@@ -305,7 +305,7 @@ function chancesDeGagner(lp, lc) {
 }
 /*
  * Ce que les pouvoirs d'une carte valent à ton club, en victoires par match : sur chaque état du match, ceux dont la
- * condition se lit jouent ENSEMBLE (la ruée et le bourdonnement du Frelon se cumulent en 3e ; la riposte et le tueur
+ * condition se lit jouent ENSEMBLE (la ruée et l'essaim du Frelon se cumulent derrière en 3e ; la riposte et le tueur
  * de l'Aigle s'excluent), chacun ouvert à la chance de son niveau (`CHANCE_DU_NIVEAU`) ; les buts que le cumul ajoute
  * (`pour`) et retire (`contre`) dans la période, lus par `delta(masque)`, pesés par ce qu'un but y change aux chances
  * de gagner. Mesuré (check_pouvoirs) : seul, chaque pouvoir vaut de 1 à 2,5 V ; le personnage complet, de 5 à 9 V
