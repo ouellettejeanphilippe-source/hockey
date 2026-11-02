@@ -676,9 +676,8 @@ function mesurer() {
   if (!canvas) return;
   const r = el.getBoundingClientRect();
   // OLD SCHOOL (JP : *feel plus old school*) : des sprites en pixels entiers sous des lignes de balayage (CSS .sg-crt).
-  // Le canevas est DEBOUT au téléphone (JP : *jeu vertical*), comme à la console, et COUCHÉ en mode large.
-  // En pixels CSS, un pour un : sur un téléphone, le navigateur agrandit sans lissage (.sg-canvas), et les sprites y font des pixels entiers.
-  const dpr = 1;
+  // La glace est DEBOUT partout (JP : *jeu vertical*), comme à la console.
+  const dpr = Math.min(2, window.devicePixelRatio || 1);   // en pixels de l'appareil (deux au plus : la vitesse) : l'échelle de la glace peut être exacte, les sprites restent nets
   taille = { w: r.width, h: r.height, dpr, large: r.width > r.height };
   canvas.width = Math.round(r.width * dpr);
   canvas.height = Math.round(r.height * dpr);
@@ -691,30 +690,33 @@ function mesurer() {
  */
 const DEVANCE = 5;      // le décalage maximal vers la direction du jeu, m
 const DEVANCE_V = 0.45; // le décalage par m/s de vitesse de la rondelle
-/* LA ZONE AU COMPLET (JP, 1er nov. : *la zone offensive doit rentrer dans un écran 16:9 au complet, presque pleine
-   largeur*) : l'échelle est la plus grande qui montre toute la largeur de la glace (et `MARGE_VUE` de bande et de
-   foule) en travers de l'écran, et toute une zone, de la bleue à la bande du fond, en long ; arrondie à un nombre
-   ENTIER de pixels d'écran par pixel de sprite (jamais de flou). Quand la rondelle est dans une zone, la caméra garde
-   la bleue et la bande du fond dans l'écran, comme NHL 94 ; ailleurs, elle suit la rondelle et devance le jeu. */
+/* LA ZONE QUI REMPLIT L'ÉCRAN (JP, 1er et 2 nov. : *la zone offensive doit rentrer dans un écran 16:9 au complet,
+   presque pleine largeur* ; *qu'en 16:9, la zone offensive ou défensive remplisse, et adapte la zone neutre aussi*) :
+   la glace est taillée pour (js/physique.js) — sa largeur, plus `MARGE_VUE` de bande, en travers d'un écran 16:9, montre
+   en long une zone entière ou toute la zone neutre. La caméra prend l'échelle exacte qui le fait, en pixels de
+   l'appareil (un pixel de sprite y fait deux pixels ou plus, la glace reste nette) ; sous 2,5, un nombre entier. Elle
+   cadre la zone où est la rondelle — la sienne, la neutre ou l'autre —, la bleue et la bande du fond dans l'écran, et
+   change de cadre une fois la bleue franchie d'un demi-mètre (sans va-et-vient sur la ligne). Un écran plus long que
+   ça (un téléphone debout) en montre plus, et suit la rondelle. */
 const MARGE_VUE = 1.4;               // m de plus que la largeur de la glace : la bande, la vitre, un rang de foule
+const MARGE_FOND = 0.6;              // m de plus que la zone, en long : la bande du fond
 const ZONE = L / 2 - BLEUE;          // la profondeur d'une zone, de la bleue à la bande du fond
 function camera(dt) {
-  const long = taille.h, court = taille.w;
+  const long = taille.h, court = taille.w, dpr = taille.dpr;
   const kEntier = Math.min(long / (L + 2 * GRADINS), court / (W + 2 * GRADINS));
-  const kZone = Math.min(court / (W + MARGE_VUE), long / (ZONE + 2 * MARGE_VUE));
-  const S = Math.max(1, Math.floor(kZone * PIXEL));
-  const k = vueEntiere ? kEntier : S / PIXEL;
+  const kZone = Math.min(court / (W + MARGE_VUE), long / (ZONE + MARGE_FOND));
+  const sd = kZone * dpr * PIXEL;   // les pixels de l'appareil par pixel de sprite
+  const k = vueEntiere ? kEntier : sd >= 2.5 ? kZone : Math.max(1, Math.floor(sd)) / (PIXEL * dpr);
   cam.k = k;
   const R = etat.rondelle;
   const f = 1 - Math.exp(-SUIVI * dt);
   const borne = (c, demi, bout) => (demi >= bout ? 0 : Math.max(-bout + demi, Math.min(bout - demi, c)));
-  let tx = R.x + Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V));
   const voit = long / k;
-  if (Math.abs(R.x) > BLEUE - 1 && voit >= ZONE + 2) {
-    // dans une zone : la bande du fond et la bleue restent à l'écran
-    const sg = Math.sign(R.x), bas = L / 2 + 0.6 - voit / 2, haut = BLEUE - 1 + voit / 2;
-    tx = sg * Math.max(bas, Math.min(haut, tx * sg));
-  }
+  // garder le segment [a, b] de la glace dans l'écran : le centre entre b − voit/2 et a + voit/2, sinon le milieu
+  const garder = (a, b, c) => { const bas = b - voit / 2, haut = a + voit / 2; return bas <= haut ? Math.max(bas, Math.min(haut, c)) : (a + b) / 2; };
+  if (R.x > BLEUE + 0.5) cam.zone = 1; else if (R.x < -BLEUE - 0.5) cam.zone = -1; else if (Math.abs(R.x) < BLEUE - 0.5 || cam.zone == null) cam.zone = 0;
+  const tx0 = R.x + Math.max(-DEVANCE, Math.min(DEVANCE, R.vx * DEVANCE_V));
+  const tx = cam.zone ? cam.zone * garder(BLEUE - 0.4, L / 2 + MARGE_FOND, tx0 * cam.zone) : garder(-(BLEUE + 0.4), BLEUE + 0.4, tx0);
   cam.x += (tx - cam.x) * f;
   // toute la largeur tient dans l'écran : la glace reste centrée, elle ne glisse plus de côté
   const ty = court / k >= W + 0.6 ? 0 : R.y + Math.max(-DEVANCE, Math.min(DEVANCE, R.vy * DEVANCE_V));
@@ -879,12 +881,31 @@ function fondDeGlace() {
   return fond;
 }
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
+/* La glace À L'ÉCHELLE DE L'ÉCRAN : agrandie et tournée une fois (à chaque changement d'échelle), pour qu'une image ne
+   fasse qu'une copie un pour un, en pixels de l'appareil — rien à agrandir soixante fois par seconde. */
+let fondEcran = null;   // { cle, images: [assise, debout], w, h }
+function glaceALEchelle() {
+  const f = fondDeGlace(), n = Math.round(1 / PIXEL), kd = cam.k * taille.dpr;
+  const cle = `${f.cle}|${kd}`;
+  if (fondEcran && fondEcran.cle === cle && fondEcran.source === f) return fondEcran;
+  const w = Math.round(f.ny / n * kd), h = Math.round(f.nx / n * kd);
+  const images = f.images.map(im => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    g.setTransform(0, -kd, kd, 0, w / 2, h / 2);
+    g.drawImage(im, -f.nx / (2 * n), -f.ny / (2 * n), f.nx / n, f.ny / n);
+    return c;
+  });
+  fondEcran = { cle, source: f, images, w, h };
+  return fondEcran;
+}
 function patinoire() {
-  const f = fondDeGlace(), n = Math.round(1 / PIXEL);
+  const f = glaceALEchelle(), o = origine(), dpr = taille.dpr;
   const but = anims.find(a => a.type === 'lumiere');
   const debout = but && Math.sin((performance.now() - but.t0) / 110) > 0;
-  cx.imageSmoothingEnabled = false;
-  cx.drawImage(f.images[debout ? 1 : 0], -f.nx / (2 * n), -f.ny / (2 * n), f.nx / n, f.ny / n);
+  cx.setTransform(1, 0, 0, 1, 0, 0);
+  cx.drawImage(f.images[debout ? 1 : 0], Math.round(o.e * dpr - f.w / 2), Math.round(o.f * dpr - f.h / 2));
+  repereGlace();
   // La lumière du but, derrière chaque filet : rouge et qui clignote après un but.
   for (const s of [1, -1]) {
     const lum = anims.find(a => a.type === 'lumiere' && a.cote === s);
@@ -904,7 +925,7 @@ function ecussonDuCentre() {
 }
 
 /* L'échelle d'un sprite à l'écran : un nombre entier de pixels par pixel de sprite. */
-const echelle = () => Math.max(1, Math.round(cam.k * PIXEL));
+const echelle = () => Math.max(1, Math.round(cam.k * PIXEL * taille.dpr)) / taille.dpr;
 /* L'angle d'un cap sur l'écran (y vers le bas) : debout, la glace est tournée d'un quart de tour. */
 const angleEcran = cap => cap - Math.PI / 2;
 /* La direction d'un cap, en huitièmes de tour de l'écran (0 = vers la droite), ou en quarts pour le gardien. */

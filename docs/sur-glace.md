@@ -8,7 +8,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 
 | Fonction | État | Où |
 |---|---|---|
-| La patinoire aux vraies mesures (200 × 85 pieds, la ligne de but à 11 pieds, les bleues à 25 du centre, les points et les cercles) | ✅ | `L`, `W`, `LIGNE_BUT`, `BLEUE`, `POINT` |
+| La patinoire rapetissée (JP, 2 nov. : *resize la patinoire, pour qu'en 16:9 la zone offensive ou défensive remplisse, et adapte la zone neutre aussi*) : la largeur de la LNH (85 pieds), 44,6 m de long au lieu de 61 — une zone de 14,8 m de la bleue à la bande, la neutre de 15 m ; les filets, les cercles, l'enclave, les coins et la ligne des buts aux vraies mesures | ✅ | `L`, `W`, `LIGNE_BUT`, `BLEUE`, `POINT` |
 | La bande, avec les coins en arc de 28 pieds, qui rend 55 % en travers et garde la vitesse le long | ✅ | `bander`, `RONDELLE.bande` — check « le rebond », « le coin » |
 | Le frottement de la rondelle sur la glace (≈ 1 m/s perdu par seconde) | ✅ | `RONDELLE.frottement` — check « v² / 2µg » |
 | **Le filet, un objet physique** : deux poteaux ronds qui rendent 70 %, les côtés et le fond en maille qui absorbent, ouvert devant ; la rondelle et les patineurs le contournent | ✅ | `contreFilet`, `patineurContreFilet`, `FILET` — check « le poteau se compte » |
@@ -155,7 +155,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Fonction | État | Où |
 |---|---|---|
 | Le pas de temps fixe séparé du rendu, le temps réel rattrapé par petits pas | ✅ | `avancer` |
-| La caméra qui suit la rondelle, deux zooms ; la zone au complet, la largeur de la glace presque bord à bord (JP : *la zone offensive doit rentrer dans un écran 16:9 au complet*), la bleue et la bande du fond gardées à l'écran quand la rondelle est dans une zone | ✅ | `camera`, `MARGE_VUE`, `ZONE`, `vueEntiere` |
+| La caméra, deux zooms : en 16:9, la largeur de la glace d'un bord à l'autre et une zone (ou la zone neutre) d'un bord à l'autre en long ; elle cadre la zone de la rondelle et change de cadre la bleue franchie d'un demi-mètre ; l'échelle exacte, en pixels de l'appareil (deux par pixel CSS au plus), la glace agrandie et tournée une fois par échelle | ✅ | `camera`, `MARGE_VUE`, `MARGE_FOND`, `ZONE`, `glaceALEchelle`, `vueEntiere` |
 | La glace en 16 bits (JP : *glace et cie plus 16-bit*) : la glace tramée (Bayer), les lignes, la bande jaune et blanche à panneaux aux couleurs des clubs, la lisse, la vitre, les gradins, la foule en têtes de quatre pixels (assise et debout), les filets en damier, l'écusson, rendus une fois à la résolution des sprites et agrandis d'un nombre entier | ✅ | `fondDeGlace`, `PAL`, `BAYER`, `VITRE`, `origine` (js/sur-glace.js) |
 | Le rendu old school (gros pixels, lignes de balayage, la police d'arcade) | ✅ | `RETRO`, `.sg-crt`, Bungee |
 | Les jetons à la vraie face, les locaux en blanc | ✅ | `jeton`, `chandails` |
