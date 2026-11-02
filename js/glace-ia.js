@@ -33,7 +33,8 @@
  *                         ligne du tir (`ECRAN_D`), et tient son bâton quand le tir part (la déviation)
  *   les gestes            (2 nov. 2026, le lot 3) dans le coin, pressé et sans passe, le porteur tourne le dos au
  *                         poursuivant et file lentement le long de la bande, la rondelle protégée, le temps que le cycle
- *                         s'ouvre (`COIN`) ; devant un défenseur seul, il feinte parfois (`FEINTE_IA`)
+ *                         s'ouvre (`COIN`) ; devant un défenseur seul, il feinte parfois (`FEINTE_IA`) ; (le lot 4)
+ *                         collé au porteur, de côté, le chasseur lui soulève le bâton, la rondelle cachée ou pas
  *   les changements       (le lot 3) à la volée : la rondelle loin, la ligne dont les jambes baissent file à la porte
  *                         de son banc s'il y a une ligne fraîche (`JAMBES.volee`, `JAMBES.frais`) ; le gardien
  *                         remis en jeu, le patineur le plus près de la porte lui laisse sa place
@@ -41,7 +42,7 @@
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
  * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler vit sur le patineur (`s.memo`).
  */
-import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, surGlace, autre, lame, porteDuBanc } from './physique.js';
+import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton } from './physique.js';
 
 const hyp = Math.hypot;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -278,7 +279,7 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   const R = etat.rondelle;
   const dBut = hyp(but.x - s.x, but.y - s.y);
   const pression = Math.min(Infinity, ...adv.map(o => hyp(o.x - s.x, o.y - s.y)));
-  const enDesavantage = M && M.penalites.filter(p => p.equipe === s.equipe).length > M.penalites.filter(p => p.equipe !== s.equipe).length;
+  const enDesavantage = M && penalisesDe(etat, s.equipe) > penalisesDe(etat, autre(s.equipe));
   const fusillade = M && M.ronde;
   const couloir = couloirOuvert(R.x, R.y, but.x, but.y, adv, 1.1, 0.75);
   // Les tirs de barrage, le tir de punition : foncer, lancer de l'enclave.
@@ -468,7 +469,7 @@ function sortieDeZone(etat, s, memo, a, u, miens, adv, pression) {
   const cote = Math.sign(s.y) || 1;
   const ailier = miens.find(m => m !== s && m.poste !== 'D' && Math.sign(m.y) === cote && Math.abs(m.y) > 4 && u(m.x) > u(s.x) + 2);
   if (ailier) return passerA(memo, s, ailier);
-  const M = etat.match, enDesavantage = M && M.penalites.filter(p => p.equipe === s.equipe).length > M.penalites.filter(p => p.equipe !== s.equipe).length;
+  const M = etat.match, enDesavantage = M && penalisesDe(etat, s.equipe) > penalisesDe(etat, autre(s.equipe));
   if (enDesavantage) return lancerVers(memo, s, { x: a * 1, y: cote * (W / 2 - 0.8) });
   return null;
 }
@@ -652,8 +653,10 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
       if (dansSonDos && d < 3.5) { e.x *= 0.25; e.y *= 0.25; }
       // Le harpon à portée, de face ; la mise en échec de face, en fonçant — jamais par-derrière, c'est deux minutes. La
       // rondelle cachée derrière son corps (il protège, le lot 3), on ne harponne pas dans le dos : on le serre et on attend.
+      // Collé à lui, de côté (le lot 4) : on lui soulève le bâton, caché ou pas — le même bouton que le harpon.
       const cachee = corpsDevant(s, porteur, R);
-      if (d < HARPON.portee + 0.3 && devant && !cachee && s.harponRepos <= 0 && etat.de() < 0.5) e.tir = true;
+      if (s.harponRepos <= 0 && leveraitLeBaton(etat, s)) { if (etat.de() < 0.5) e.tir = true; }
+      else if (d < HARPON.portee + 0.3 && devant && !cachee && s.harponRepos <= 0 && etat.de() < 0.5) e.tir = true;
       const vs = hyp(s.vx, s.vy) || 1e-9;
       // De face seulement : le porteur vient vers nous (son cap contre notre vitesse) ; de côté ou dans son dos, on ne fonce pas.
       const deFace = (s.vx * Math.cos(porteur.cap) + s.vy * Math.sin(porteur.cap)) / vs < -0.2;
