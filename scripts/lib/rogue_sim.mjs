@@ -58,7 +58,7 @@ import {
 import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE } from '../../js/adjoints.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, coachDuRobot } from './cartes_robot.mjs';
-import { niveauDuPerso, POUVOIRS, grandir } from '../../js/pouvoirs.js';
+import { niveauDuPerso, POUVOIRS, grandir, TALENT } from '../../js/pouvoirs.js';
 import { lotoDesCoachs } from '../../js/coachs-reels.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
 import { alignementAuMieux, chiffresDuSoir, chiffresDuSoirSous, planEnChiffres } from '../../js/impact.js';
@@ -186,6 +186,8 @@ function adversaires(rnd, exclus, n = 31, niveau = NIVEAUX_PLEINS, etapeDeRun = 
  */
 function tirerPack(rnd, cle, libre, role = null, meta = null) {
   const P = PACKS_JOUEURS[cle];
+  // Nov. 2026 : le poste choisi du Pack Époque (`poste`, js/packs.js), passé comme le rôle des Spécialistes.
+  const poste = P.poste ? role : null;
   // V10 : les crans du pack (js/rogue.js `monteeDesPacks`) — un joueur de plus, puis le métal du dessus.
   const mods = meta ? { montee: monteeDesPacks(meta), prestige: PRESTIGES[rangDePrestige(meta)] } : {};
   // LE NIVEAU D'ABORD, comme le vrai tirage (V10) : un pack au hasard, d'époque ou de club tire son niveau à ses taux
@@ -204,7 +206,7 @@ function tirerPack(rnd, cle, libre, role = null, meta = null) {
       const c = e.players.filter(p => (p.gp || 0) >= S.min && (!S.groupe || groupe(p) === S.groupe) && (!S.skaters || p.p !== 'G')).sort((a, b) => S.score(b) - S.score(a));
       pool = c.slice(0, Math.ceil(c.length / 4));
     } else if (P.famille === 'etoiles' || P.famille === 'legendes') pool = e.players.filter(p => estEtoile(p) && (P.famille !== 'legendes' || Number(p.s.slice(0, 4)) < 1995));
-    else if (taux) { const par = joueursParNiveau(e.players), k = niveauTire(); pool = (par[k] || []).length ? par[k] : par.slice(0, k).reverse().find(l => l && l.length) || []; }
+    else if (taux) { const par = joueursParNiveau(e.players).map(l => (l || []).filter(p => !poste || groupe(p) === poste)), k = niveauTire(); pool = (par[k] || []).length ? par[k] : par.slice(0, k).reverse().find(l => l && l.length) || []; }
     else pool = ['F', 'D', 'G'].flatMap(g => { const r = e.players.filter(p => groupe(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a)); return r.slice(0, Math.ceil(r.length / 2)); });
     pool = pool.filter(p => libre(p) && !out.some(x => getPersonKey(x.p) === getPersonKey(p)));
     if (!pool.length) continue;
@@ -234,7 +236,7 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
 
 export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
 /*
- * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi,fit,boutique —
+ * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi,fit,boutique,histoires,talent —
  * ce que l'attentif NE fait PAS dans cette mesure, pour trouver d'où vient son avance (ou son retard) sur le robot d'avant,
  * un geste à la fois, sur les mêmes dés. ROBOT_COACH=essaim force la philosophie du coach de l'attentif, pour mesurer ce
  * que chaque coach vaut à son club.
@@ -271,6 +273,64 @@ function fitDAdjoint(R, k, coach) {
   const fit = net({ effets: J.effet ? [{ source: 'adjoint', ...J.effet }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - net({});
   return fit * (J.voie === coach ? SEJOUR_SYNERGIE : SEJOUR) / SEJOUR;
 }
+/*
+ * CE QU'UNE RÉPONSE D'HISTOIRE FAIT AU JOUEUR NOMMÉ, LU SUR TON CLUB (nov. 2026, docs/revue-rogue-2026-11.md § 1 ;
+ * MESURE seulement, `ROBOT_SAUF=histoires` la retire). L'attentif ne pesait que les conséquences d'équipe (les jetons,
+ * l'expérience, une carte, des jambes) : un dé valait zéro, ce qui va au joueur nommé aussi, et il prenait le dé du
+ * gardien battu (−0,17 V, check_effets) contre l'auxiliaire (−0,01 V). Il lit maintenant, comme la revue les pèse :
+ *   - ce qui va au joueur nommé (`lui`, ses lancers, sa précision, ses arrêts), posé sur lui le temps de la lecture
+ *     (`_arcFx`, ce que le moteur lit d'un arc de joueur), sur sa durée ;
+ *   - un dé, la moyenne de ses deux issues à leur chance ;
+ *   - ses matchs d'absence (`absents`), lus sans lui ; les soirs de l'auxiliaire (`gardienAux`), lus avec lui.
+ * Les buts nets d'un soir (`chiffresDuSoirSous`) se comptent en victoires à `V_PAR_BUT` : à trois buts de chaque côté,
+ * un but de plus par match change d'un sixième les chances de le gagner (Pythagore au carré). Recoupé sur check_effets
+ * (IDS=d: DETAIL=1 N=600) : la docs/decisions.md du 2 nov. donne les chiffres.
+ */
+const V_PAR_BUT = 1 / 6;
+function lireLeJoueur(R, cle) {
+  const p = Object.values(R).find(x => x && getPlayerKey(x) === cle);
+  if (!p) return null;
+  const net = (nom, poser = () => {}, roster = R) => avecHasardIsole('robot', () => {
+    const t = createTeam(nom, 'LU', roster);
+    // Au jour 0 de la lecture : le moteur y lit les absents et ce qui est posé sur le gardien (sans jour, ni l'un ni l'autre).
+    t.courbe = true; t.jourCourant = 0;
+    poser(t);
+    const m = chiffresDuSoirSous(t, {});
+    return m.butsPour - m.butsContre;
+  });
+  const base = net(`Lu:${cle}`);
+  return {
+    // `fx` : ce qui va au joueur nommé, le temps de `duree` matchs.
+    surLui: (fx, duree) => {
+      if (!fx || !duree) return 0;
+      const avant = p._arcFx, pose = { ...(avant || {}) };
+      for (const [c, x] of Object.entries(fx)) if (typeof x === 'number') pose[c] = (pose[c] ?? 1) * x;
+      try { p._arcFx = pose; return (net(`Lu:${cle}:${JSON.stringify(pose)}`) - base) * duree * V_PAR_BUT; }
+      finally { if (avant) p._arcFx = avant; else delete p._arcFx; }
+    },
+    // Absent : le moteur le retire de l'alignement du soir et monte un réserviste (`activeLineup`, au jour 0 de la lecture).
+    absent: n => (n ? (net(`Lu:${cle}:sans`, t => { t.absents = new Map([[p, Infinity]]); }) - base) * n * V_PAR_BUT : 0),
+    // L'auxiliaire : les deux gardiens échangent leurs cases (la lecture ne lit pas `gardienAux`).
+    auxiliaire: n => {
+      const [g1, g2] = SLOTS.filter(sl => sl.group === 'G' && !sl.scratch).map(sl => sl.i);
+      if (!n || !R[g1] || !R[g2]) return 0;
+      return (net(`Lu:${cle}:aux`, () => {}, { ...R, [g1]: R[g2], [g2]: R[g1] }) - base) * n * V_PAR_BUT;
+    },
+  };
+}
+/*
+ * CE QUE LE TALENT RENDRAIT À TON CLUB, en victoires par saison (nov. 2026 ; MESURE seulement, `ROBOT_SAUF=talent`).
+ * L'attentif lisait « le pouvoir I a-t-il joué un soir sur deux ? » ; or le verrou de la Tortue joue un soir sur deux
+ * et ne rend rien. Il pèse maintenant le talent selon son coach, comme le lot 3 l'a pesé : un pouvoir grandi de moitié
+ * vaut la moitié de ce que ce pouvoir rend seul (`POUVOIR_SEUL_V`, `N=600 node scripts/check_pouvoirs.mjs` du 2 nov.,
+ * en paires, I et II ; à refaire si un pouvoir change), à la maîtrise de sa carte ; la case d'adjoint de plus et sa
+ * carte, 0,55 V par saison (`VALEUR_DE_LA_CASE`, mesure_main). Au premier talent, la case contre le pouvoir I ; au
+ * second, le pouvoir qui rend le plus. Lire le pouvoir au moteur (`valeurDesPouvoirs`) a été essayé : la lecture ne
+ * voit ni les mises en échec ni les blessures, et rangeait le verrou à 1 V.
+ */
+const VALEUR_DE_LA_CASE = 0.55;
+const POUVOIR_SEUL_V = { essaim: [1.5, 1.66], rapaces: [2.12, 2.06], tortue: [0.03, 2.37], rhinos: [2.26, 2.04], souffle: [1.26, 0.09], choeur: [1.73, 2.29], profondeur: [0.93, 1.24], etoiles: [1.69, 2.28] };
+const valeurDuTalent = (perso, p) => ((POUVOIR_SEUL_V[perso.cle] || [])[p] || 0) * TALENT * (perso.maitrise || 1);
 /*
  * LE COACH LU SUR TON CLUB (oct.). Mesuré (check_profondeur, quatre graines, huit clubs) : l'attentif qui prenait le
  * coach de la couleur de son effectif, sinon le plus haut en maîtrise, perdait 1,6 V par saison sur le robot d'avant,
@@ -425,7 +485,7 @@ function lireLaBoutique(meta, graine, saison, libre) {
   const rnd = generateur('rogue80-boutique', graine, saison), ouverts = packsOuverts(meta), lu = [];
   const roles = ['sniper', 'passeur', 'defensif', 'gardien'].filter(r => !VERROUS[r] || aDebloque(meta, VERROUS[r]));
   for (const cle of PACKS_DE_LA_BOUTIQUE.filter(k => ouverts[`j:${k}`] === true && PACKS_JOUEURS[k])) {
-    for (const role of cle === 'specialistes' ? roles : [null]) {
+    for (const role of cle === 'specialistes' ? roles : PACKS_JOUEURS[cle].poste ? [null, 'F', 'D', 'G'] : [null]) {
       lu.push({ cle, ...(role ? { role } : {}), tirages: Array.from({ length: ESSAIS_DE_PACK }, () => tirerPack(rnd, cle, libre, role, meta).map(x => x.p)) });
     }
   }
@@ -515,7 +575,10 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   let planPose = 'match';
   while (!L.fini) {
     for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes,
-      fit: attentif && attentifFait('fit') ? k => fitDAdjoint(you.roster, k, etat.perso.cle) : null })) {
+      fit: attentif && attentifFait('fit') ? k => fitDAdjoint(you.roster, k, etat.perso.cle) : null,
+      // Nov. 2026 : le joueur nommé d'une histoire, lu sur son club (`lireLeJoueur`), et le talent selon son coach (`valeurDuTalent`).
+      lire: attentif ? { joueur: attentifFait('histoires') ? cle => lireLeJoueur(you.roster, cle) : null,
+        talent: attentifFait('talent') ? valeurDuTalent : null, case: VALEUR_DE_LA_CASE } : null })) {
       decisions.push(d);
       depense -= d.gain || 0;
     }
@@ -676,7 +739,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     if (jalons) e += payerJalonsSim(meta, { ...r, saisonDeLaRun: n, cartes: classeur.length + entrees.length });
     e = Math.round(e);
     ecussons += e;
-    const mandat = mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32, exigence });
+    const mandat = mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32, exigence, premiere });
     saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length, valeur, mandat, coach: r.perso.cle, niveau: niveauDuPerso(r.perso), adjoints: (r.perso.main || []).length });
     // La Coupe (tranche 8) : elle compte, et le cran d'exigence gagné ouvre le suivant (js/rogue.js `payerEcussons`).
     if (r.coupe) { meta.coupes = (meta.coupes || 0) + 1; meta.exigence = Math.max(meta.exigence || 0, exigence); }
