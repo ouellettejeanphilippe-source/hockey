@@ -3429,7 +3429,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ...(o.adjoint && offert ? [{ txt: `Dans ta main : ${ADJOINTS[offert].ico} ${ADJOINTS[offert].nom}, ${ADJOINTS[offert].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjoint(offert)] : []),
         ...(o.action && o.action.energieTous ? [{ txt: `Les jambes de tous : ${o.action.energieTous > 0 ? '+' : '−'}${Math.abs(o.action.energieTous)}`, bon: o.action.energieTous > 0 }] : []),
         ...(o.action && o.action.energie && lui ? [{ txt: `Jambes de ${nomCourt(lui.n)} : ${o.action.energie > 0 ? '+' : '−'}${Math.abs(o.action.energie)}`, bon: o.action.energie > 0 }] : []),
-        ...(o.action && o.action.absents && lui ? [{ txt: `${nomCourt(lui.n)} manque ${o.action.absents} matchs`, bon: false }] : []),
+        ...(o.action && o.action.absents && lui ? [{ txt: `${nomCourt(lui.n)} manque ${o.action.absents} match${o.action.absents > 1 ? 's' : ''}`, bon: false }] : []),
         ...(o.action && o.action.gardienAux ? [{ txt: `L'auxiliaire garde le filet ${o.action.gardienAux} soir`, bon: null }] : []),
         ...(o.soin && lui ? [{ txt: `${nomCourt(lui.n)} : −${o.soin} matchs d'infirmerie`, bon: true }] : []),
       ];
