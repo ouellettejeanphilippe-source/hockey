@@ -8,7 +8,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 
 | Fonction | État | Où |
 |---|---|---|
-| La patinoire aux vraies mesures (200 × 85 pieds, la ligne de but à 11 pieds, les bleues à 25 du centre, les points et les cercles) | ✅ | `L`, `W`, `LIGNE_BUT`, `BLEUE`, `POINT` |
+| La patinoire rapetissée (JP, 2 nov. : *resize la patinoire, pour qu'en 16:9 la zone offensive ou défensive remplisse, et adapte la zone neutre aussi*) : la largeur de la LNH (85 pieds), 44,6 m de long au lieu de 61 — une zone de 14,8 m de la bleue à la bande, la neutre de 15 m ; les filets, les cercles, l'enclave, les coins et la ligne des buts aux vraies mesures | ✅ | `L`, `W`, `LIGNE_BUT`, `BLEUE`, `POINT` |
 | La bande, avec les coins en arc de 28 pieds, qui rend 55 % en travers et garde la vitesse le long | ✅ | `bander`, `RONDELLE.bande` — check « le rebond », « le coin » |
 | Le frottement de la rondelle sur la glace (≈ 1 m/s perdu par seconde) | ✅ | `RONDELLE.frottement` — check « v² / 2µg » |
 | **Le filet, un objet physique** : deux poteaux ronds qui rendent 70 %, les côtés et le fond en maille qui absorbent, ouvert devant ; la rondelle et les patineurs le contournent | ✅ | `contreFilet`, `patineurContreFilet`, `FILET` — check « le poteau se compte » |
@@ -34,8 +34,9 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Le prix d'un virage : couper sec coûte de la vitesse (les carres mordent, l'énergie part dans la glace) | ✅ | `PATIN.virage` (∝ vitesse angulaire × vitesse) — check « couper sec coûte » |
 | Les croisés : prendre de la vitesse DANS un virage (l'accélération du patineur qui croise, plus forte que la poussée droite) | ✅ | `PATIN.croise` : la poussée bonifiée quand le cap tourne à vitesse moyenne |
 | **Patiner à reculons** (le défenseur face au porteur, le cap à l'opposé de la vitesse) | ✅ | `PATIN.recul`, l'entrée `recul` (LB, LT, Q) ; l'IA des défenseurs recule face au porteur — check « à reculons » |
-| L'explosivité par joueur (le départ, les trois premières foulées) | 🟡 | la poussée suit la cote générale ; une vraie distinction départ / pointe (deux cotes) manque |
-| L'agilité par joueur (un petit patineur tourne plus court) | ✅ | `p.agilite`, du poids de la LNH : × l'adhérence et le pivot |
+| L'explosivité par joueur (le départ, les trois premières foulées) | 🟡 | la poussée suit la cote générale, à ±6 % (`PATIN.ecart` ; JP : *pas trop différents côté vitesse*) ; une vraie distinction départ / pointe (deux cotes) manque |
+| Des vitesses proches : un 1 et un 20 ne sont jamais loin, un défenseur lourd patine aussi vite qu'un avant | ✅ | `PATIN.ecart`, `PATIN.agilite` (±5 % de virage au poids) — check « leur pointe reste proche », « un défenseur plus lourd » |
+| L'agilité par joueur (un petit patineur tourne plus court) | ✅ | `p.agilite`, du poids de la LNH, bornée à ±5 % : × l'adhérence et le pivot |
 | Les jambes : une présence coûte, le banc rend, un patineur fatigué pousse moins | ✅ | `JAMBES`, `formeDe` — check « des patineurs sont fatigués » |
 | La masse du joueur (son poids à la LNH) | ✅ | `parametresDuPatineur`, `wgt` |
 | L'équilibre : qui tombe sous un coup, par sa Robustesse | ✅ | `CHUTE.seuil`, `p.equilibre` |
@@ -94,13 +95,14 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 
 | Fonction | État | Où |
 |---|---|---|
-| Se placer sur la ligne rondelle-filet, sortir selon la distance, coller au poteau derrière | ✅ | `gardien` |
+| Se placer sur la ligne rondelle-filet, sortir selon la distance, coller au poteau derrière et à angle fermé | ✅ | `gardien` — check « à angle fermé » |
+| Couvrir la rondelle libre et lente dans son demi-cercle, s'il y est le premier | ✅ | `rondelleACouvrir`, `GARDIEN.demiCercle`, `lente` — check « il va la couvrir » |
 | Voir la rondelle en retard (150 ms, moins par sa cote Arrêts) et aller là où le tir croisera sa ligne | ✅ | `GARDIEN.reaction`, `parametresDuGardien` — check « l'enclave », « la bleue » |
-| L'arrêt par sa largeur, le gel ou le retour | ✅ | `gardien`, `GARDIEN.couvre`, `rebond` |
+| L'arrêt par sa largeur, le gel ou le retour ; le retour contrôlé de côté, vers le coin (sa cote Arrêts), la mitaine qui gèle les tirs hauts | ✅ | `gardien`, `GARDIEN.couvre`, `rebond`, `coin`, `mitaine`, `p.controle` — check « un rebond contrôlé » |
 | Le papillon (visuel) sur un arrêt | ✅ | `gardien` (js/sur-glace.js) |
 | La mitaine, le bloqueur, les jambières : l'arrêt selon où le tir arrive (haut, bas, de chaque côté) | ✅ | `GARDIEN.trous` : le coin du haut, entre les jambières, le corps — ce qui passe quand même, lu de la hauteur et du côté |
 | Le gardien qui joue la rondelle (la sortir de derrière le filet, une passe) | ⬜ | une IA du gardien porteur, le trapèze |
-| Le harpon du gardien (sur une échappée) | ⬜ | |
+| Le harpon du gardien (le porteur qui arrive sur lui) | ✅ | `harponDuGardien`, `GARDIEN.harpon` — check « le gardien harponne » |
 | Le gardien retiré pour un sixième attaquant (en fin de match, à retardement) | ✅ | `retirerGardien`, `MATCH.retraitGardien` (l'IA sous 90 s, à un ou deux buts), le menu de pause pour toi — check « filet désert » |
 | Le gardien battu par un écran, la déviation, le mauvais rebond | 🟡 | le rebond existe ; l'écran et la déviation visée manquent |
 | L'obstruction sur le gardien, le but refusé | ⬜ | |
@@ -144,6 +146,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | L'écran devant le gardien, la déviation visée | ⬜ | (§ 3) |
 | Retirer le gardien en fin de match quand on tire de l'arrière | ✅ | le moteur le décide pour l'IA (`MATCH.retraitGardien`) |
 | Patiner à reculons en défense | ✅ | `defendre` : le défenseur recule face au porteur qui descend sur lui |
+| Les défenseurs du bon côté (JP : *éviter trop d'échappées*) : entre l'attaquant le plus avancé et leur filet, l'écart selon sa vitesse ; le chasseur contient un porteur lancé ; même à l'attaque, le défenseur du côté faible reste le dernier homme | ✅ | `duBonCote`, `ECART_D`, `CONTENIR` (js/glace-ia.js) — check « les défenseurs reculent » ; IA contre IA, 24 matchs de 3 × 3 min : 16,3 → 6,9 échappées par match |
 | Les niveaux de difficulté, le style d'un vrai club lu de ses vraies stats (un club qui frappe, un club qui lance) | 🟡 | `DIFFICULTES` (facile, normale, difficile : ×0,93 à ×1,07 sur la pointe, la poussée, le tir, la précision, la réaction du gardien du club de l'IA) ; le style lu des vraies stats manque |
 | L'IA qui tient compte des jambes (changer, ménager) | 🟡 | `habiller` change aux arrêts ; l'IA ne le demande pas |
 
@@ -152,15 +155,16 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Fonction | État | Où |
 |---|---|---|
 | Le pas de temps fixe séparé du rendu, le temps réel rattrapé par petits pas | ✅ | `avancer` |
-| La caméra qui suit la rondelle, la glace debout au téléphone et couchée en mode large comme à la télé, deux zooms | ✅ | `camera`, `VUE`, `debout`, `vueEntiere` |
+| La caméra, deux zooms : en 16:9, la largeur de la glace d'un bord à l'autre et une zone (ou la zone neutre) d'un bord à l'autre en long ; elle cadre la zone de la rondelle et change de cadre la bleue franchie d'un demi-mètre ; l'échelle exacte, en pixels de l'appareil (deux par pixel CSS au plus), la glace agrandie et tournée une fois par échelle | ✅ | `camera`, `MARGE_VUE`, `MARGE_FOND`, `ZONE`, `glaceALEchelle`, `vueEntiere` |
+| La glace en 16 bits (JP : *glace et cie plus 16-bit*) : la glace tramée (Bayer), les lignes, la bande jaune et blanche à panneaux aux couleurs des clubs, la lisse, la vitre, les gradins, la foule en têtes de quatre pixels (assise et debout), les filets en damier, l'écusson, rendus une fois à la résolution des sprites et agrandis d'un nombre entier | ✅ | `fondDeGlace`, `PAL`, `BAYER`, `VITRE`, `origine` (js/sur-glace.js) |
 | Le rendu old school (gros pixels, lignes de balayage, la police d'arcade) | ✅ | `RETRO`, `.sg-crt`, Bungee |
 | Les jetons à la vraie face, les locaux en blanc | ✅ | `jeton`, `chandails` |
 | Les animations procédurales (la foulée, le bâton, la chute, l'impact, le papillon, la lumière, la chute de la rondelle) | ✅ | `patineur`, `gardien`, `animer` |
-| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé) | ✅ | rendus par scripts/sprites/rendu.mjs (→ js/sprites.js) : un joueur en volumes posé image par image, vu de trois quarts, en trois tons, son contour et son ombre portée tramée ; huit directions et dix-huit poses du patineur (la foulée en huit images lues de la phase du moteur, `FOULEE` ; la glisse, l'arrêt hockey, le virage couché), le gardien en quatre poses et quatre directions, sans miroir, teints aux couleurs du club |
-| Les sons synthétisés (le tir, la passe, la bande, le but, le sifflet, l'échec) | ✅ | `SONS`, js/sons.js |
+| Des sprites dessinés (un patineur vu de haut avec chandail, casque et jambes, animé), dessinés 1,5 fois leur taille (`GROS` ; JP : *grossir les joueurs*) | ✅ | rendus par scripts/sprites/rendu.mjs (→ js/sprites.js) : un joueur en volumes posé image par image, vu de trois quarts, en trois tons, son contour et son ombre portée tramée ; huit directions et dix-huit poses du patineur (la foulée en huit images lues de la phase du moteur, `FOULEE` ; la glisse, l'arrêt hockey, le virage couché), le gardien en quatre poses et quatre directions, sans miroir, teints aux couleurs du club |
+| Les sons synthétisés (le tir, la passe, la bande, le but, le sifflet, l'échec) ; les patins muets (JP : *pas le bruit de patinage*) | ✅ | `SONS`, js/sons.js, js/sons-glace.js |
 | La foule (une rumeur qui monte, le « ohhh » du poteau, la clameur du but), l'annonceur | ✅ | js/sons-glace.js : la foule en cinq couches de bruit pilotée par une intensité, le ohhh, la clameur, les huées, la sirène ; l'annonceur manque |
 | La secousse de l'écran sur un gros coup et un but, l'arrêt sur image d'un impact (hit stop) | ✅ | `secousse`, `GEL` (l'arrêt sur image de 60 ms), js/sur-glace.js |
-| La vibration de la manette (haptique) | ✅ | `vibrer` : le tir, le coup reçu, le but |
+| L'haptique : la manette (dual-rumble) et le téléphone (`navigator.vibrate`, la permission VIBRATE de l'APK) | ✅ | `HAPTIQUE`, `vibrer` : la prise, la passe, le tir, le poteau, ton harpon, l'échec donné ou reçu, le but, le piton du doigt ; pour ton joueur seulement ; la case « Vibration » de l'affiche |
 | La reprise d'un but (le ralenti), la célébration | ⬜ | rejouer les 4 dernières secondes d'états gardés |
 | La mémoire d'un appui (le bouton pressé un peu trop tôt compte quand même) | ✅ | `TAMPON` (100 ms) : un appui de passe ou de tir juste avant la prise se joue à la prise ; le une-temps aussi |
 | L'indicateur du receveur de la passe (qui va la recevoir) | ✅ | `receveurDePasse` (js/physique.js), l'anneau jaune, pointillé si la ligne est barrée (`receveur`, js/sur-glace.js) |

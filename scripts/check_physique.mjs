@@ -12,7 +12,8 @@
  *   le filet      un but se compte quand la rondelle entière passe la ligne, le poteau se compte, le gardien gèle
  *                 ou rend un retour, et la remise suit ;
  *   le choc       l'élan se conserve, le plot tombe sous une vraie mise en échec et reste debout sous un frôlement ;
- *   le gardien    des tirs de l'enclave le battent parfois, des tirs de la bleue presque jamais ;
+ *   le gardien    des tirs de l'enclave le battent parfois, des tirs de la bleue presque jamais ; il colle au
+ *                 poteau à angle fermé, couvre la rondelle lente, envoie ses rebonds au coin, harponne le porteur ;
  *   le match      deux clubs joués par l'IA (js/glace-ia.js) vont au bout : trois périodes, des mises en jeu, des
  *                 tirs, des buts, des changements de ligne ; le hors-jeu, le dégagement refusé, la punition et son
  *                 avantage numérique se sifflent quand leur fait est là ; la prolongation à trois, les tirs de
@@ -26,18 +27,19 @@
  */
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH } from '../js/physique.js';
-import { decisionIA } from '../js/glace-ia.js';
+import { decisionIA, ECART_D } from '../js/glace-ia.js';
 
 const t0 = Date.now();
 const G = 9.81;
 const DT = 1 / 60;
 const v = o => Math.hypot(o.vx, o.vy);
+const BOUT = L / 2;   // la bande du fond : les positions des essais se disent à leur distance d'elle, quelle que soit la glace
 
 /* Une glace où personne ne gêne : toi et le plot loin dans le coin gauche, le plot sans poste. */
 function glaceVide(graine = 'mesure') {
   const e = nouvelleGlace(graine);
   const [toi, plot] = e.patineurs;
-  Object.assign(toi, { x: -24, y: 9 }); Object.assign(plot, { x: -26, y: -11, poste0: null });
+  Object.assign(toi, { x: -(BOUT - 6.5), y: 9 }); Object.assign(plot, { x: -(BOUT - 4.5), y: -10, poste0: null });
   return e;
 }
 /* Jouer `s` secondes avec les mêmes entrées, en ramassant les événements. */
@@ -50,15 +52,15 @@ function jouer(e, entrees, s) {
 /* ---------- la rondelle ---------- */
 {
   const e = glaceVide();
-  Object.assign(e.rondelle, { x: -28, y: 6, vx: 10, vy: 0 });
+  Object.assign(e.rondelle, { x: -(BOUT - 2.5), y: 6, vx: 10, vy: 0 });
   jouer(e, {}, 14);
-  const d = e.rondelle.x + 28;
+  const d = e.rondelle.x + (BOUT - 2.5);
   borne('une rondelle à 36 km/h glisse ce que le frottement dit (v² / 2µg)', d, 10 * 10 / (2 * RONDELLE.frottement * G) - 2, 10 * 10 / (2 * RONDELLE.frottement * G) + 2, ' m');
   exiger('… et elle finit immobile', v(e.rondelle) < 0.01, `${v(e.rondelle).toFixed(3)} m/s`);
 }
 {
   const e = glaceVide();
-  Object.assign(e.rondelle, { x: 0, y: 0, vx: 6, vy: 6 });
+  Object.assign(e.rondelle, { x: 0, y: 0, vx: 7, vy: 7 });
   let apres = null, avant = null;
   for (let t = 0; t < 4 && !apres; t += DT) {
     const juste = { vx: e.rondelle.vx, vy: e.rondelle.vy };
@@ -93,7 +95,7 @@ function jouer(e, entrees, s) {
 {
   const e = glaceVide();
   const toi = e.patineurs[0];
-  Object.assign(toi, { x: -27, y: 9, cap: 0 });
+  Object.assign(toi, { x: -(BOUT - 3.5), y: 9, cap: 0 });
   let vmax = 0, t95 = null, t = 0;
   for (; t < 4; t += DT) { avancer(e, { toi: { x: 1, y: 0 } }, DT); vmax = Math.max(vmax, v(toi)); if (t95 === null && v(toi) >= 0.95 * PATIN.vMax) t95 = t; }
   borne('la pointe d\'un patineur, en ligne droite', vmax * 3.6, 35, 40, ' km/h');
@@ -104,8 +106,8 @@ function jouer(e, entrees, s) {
   borne('le frein : de la pointe à l\'arrêt', e.t - tf, 0.4, 1.5, ' s');
   borne('… sur quelques mètres', toi.x - x0, 1.5, 8, ' m');
   // La roue libre : le bâton lâché à pleine vitesse, on s'arrête vite (JP : *ça glisse trop*).
-  Object.assign(toi, { x: -27, y: 9, cap: 0, vx: 0, vy: 0 });
-  jouer(e, { toi: { x: 1, y: 0 } }, 4);
+  Object.assign(toi, { x: -(BOUT - 3.5), y: 9, cap: 0, vx: 0, vy: 0 });
+  jouer(e, { toi: { x: 1, y: 0 } }, 3);   // trois secondes d'élan : la pointe est atteinte, la bande du fond encore loin
   const tr = e.t;
   while (v(toi) > 0.3 && e.t - tr < 8) avancer(e, { toi: { x: 0, y: 0 } }, DT);
   borne('la roue libre : le bâton lâché, l\'arrêt vient vite', e.t - tr, 1, 3.5, ' s');
@@ -115,7 +117,7 @@ function jouer(e, entrees, s) {
   // la vitesse y monte par à-coups, et la phase s'arrête quand on glisse.
   const e = glaceVide('foulee');
   const toi = e.patineurs[0];
-  Object.assign(toi, { x: -27, y: 9, cap: 0 });
+  Object.assign(toi, { x: -(BOUT - 3.5), y: 9, cap: 0 });
   let avant = 0;
   const acc = [];
   for (let t = 0; t < 2; t += DT) { avancer(e, { toi: { x: 1, y: 0 } }, DT); acc.push((v(toi) - avant) / DT); avant = v(toi); }
@@ -131,7 +133,7 @@ function jouer(e, entrees, s) {
 {
   const e = glaceVide();
   const toi = e.patineurs[0];
-  Object.assign(toi, { x: -27, y: -8, cap: 0 });
+  Object.assign(toi, { x: -(BOUT - 3.5), y: -8, cap: 0 });
   jouer(e, { toi: { x: 1, y: 0 } }, 4);
   const xv = toi.x, vv = v(toi);
   let maxX = -1e9;
@@ -142,7 +144,7 @@ function jouer(e, entrees, s) {
 {
   const e = glaceVide();
   const toi = e.patineurs[0];
-  Object.assign(toi, { x: -20, y: 0, cap: 0, vx: 0, vy: 0 });
+  Object.assign(toi, { x: -(BOUT - 8), y: 0, cap: 0, vx: 0, vy: 0 });
   let tPivot = null;
   for (let t = 0; t < 2; t += DT) { avancer(e, { toi: { x: -1, y: 0.01 } }, DT); if (tPivot === null && Math.abs(Math.abs(toi.cap) - Math.PI) < 0.3) tPivot = t; }
   exiger('à l\'arrêt, il pivote d\'un demi-tour en moins d\'une demi-seconde', tPivot !== null && tPivot < 0.5, tPivot === null ? 'jamais' : `${tPivot.toFixed(2)} s`);
@@ -152,8 +154,8 @@ function jouer(e, entrees, s) {
 {
   const e = glaceVide();
   const toi = e.patineurs[0];
-  Object.assign(toi, { x: -27, y: 9, cap: 0 });
-  Object.assign(e.rondelle, { x: -25.9, y: 9.3 });
+  Object.assign(toi, { x: -(BOUT - 3.5), y: 9, cap: 0 });
+  Object.assign(e.rondelle, { x: -(BOUT - 4.6), y: 9.3 });
   let gardee = true, loin = 0;
   for (let t = 0; t < 5; t += DT) {
     avancer(e, { toi: { x: 1, y: 0 } }, DT);
@@ -162,16 +164,16 @@ function jouer(e, entrees, s) {
   }
   exiger('en ligne droite, la rondelle reste à la lame', gardee && loin < PATIN.portee, `au plus ${loin.toFixed(2)} m de la lame`);
   const e2 = glaceVide();
-  Object.assign(e2.patineurs[0], { x: -20, y: 0, cap: 0 });
-  Object.assign(e2.rondelle, { x: -18.9, y: 0.3 });
+  Object.assign(e2.patineurs[0], { x: -(BOUT - 8), y: 0, cap: 0 });
+  Object.assign(e2.rondelle, { x: -(BOUT - 9.1), y: 0.3 });
   avancer(e2, { toi: { x: 0, y: 0 } }, DT);
   const evP = avancer(e2, { toi: { x: 0, y: 0, passe: true } }, DT);
   exiger('la passe part', evP.some(x => x.type === 'passe') && e2.rondelle.porteur === null, evP.map(x => x.type).join(' '));
   borne('… à la vitesse de la passe (sans coéquipier, un renvoi dans le bâton)', v(e2.rondelle), BATON.passe - 0.5, BATON.passe + 0.5, ' m/s');
   const tir = (charge) => {
     const g = glaceVide('tir');
-    Object.assign(g.patineurs[0], { x: -20, y: 0, cap: 0 });
-    Object.assign(g.rondelle, { x: -18.9, y: 0.3 });
+    Object.assign(g.patineurs[0], { x: -(BOUT - 8), y: 0, cap: 0 });
+    Object.assign(g.rondelle, { x: -(BOUT - 9.1), y: 0.3 });
     avancer(g, { toi: { x: 0, y: 0 } }, DT);
     jouer(g, { toi: { x: 0, y: 0, tir: true } }, charge);
     const ev = avancer(g, { toi: { x: 0, y: 0, tir: false } }, DT);
@@ -239,12 +241,69 @@ function jouer(e, entrees, s) {
     }
     return { buts, arrets, part: arrets / Math.max(1, buts + arrets) };
   };
-  const enclave = taux(8, 32, 120, 'enclave'), bleue = taux(18, 40, 120, 'bleue');
+  const aLaBleue = Math.round(LIGNE_BUT - BLEUE);   // la bleue, à son mètre près (la glace de Sur glace est plus courte que celle de la LNH)
+  const enclave = taux(8, 32, 120, 'enclave'), bleue = taux(aLaBleue, 40, 120, 'bleue');
   informer('les tirs de l\'enclave (8 m, 115 km/h)', `${enclave.buts} buts, ${enclave.arrets} arrêts`);
   borne('le gardien arrête la plupart des tirs de l\'enclave, pas tous', enclave.part, 0.55, 0.95);
-  informer('les tirs de la bleue (18 m, 144 km/h)', `${bleue.buts} buts, ${bleue.arrets} arrêts`);
+  informer(`les tirs de la bleue (${aLaBleue} m, 144 km/h)`, `${bleue.buts} buts, ${bleue.arrets} arrêts`);
   borne('… et presque tous ceux de la bleue', bleue.part, 0.85, 1);
   exiger('la bleue est plus facile à arrêter que l\'enclave', bleue.part > enclave.part, `${(bleue.part * 100).toFixed(0)} % contre ${(enclave.part * 100).toFixed(0)} %`);
+}
+
+/* ---------- le gardien, mieux (JP, 1er nov. : *améliorer comportement des gardiens*) ---------- */
+{
+  // À angle fermé, il colle au poteau : la rondelle portée sur la ligne des buts, de côté.
+  const e = glaceVide('angle');
+  const [toi] = e.patineurs;
+  Object.assign(toi, { x: LIGNE_BUT - 1, y: 7, cap: Math.PI / 2 });
+  Object.assign(e.rondelle, { x: LIGNE_BUT - 0.3, y: 7, porteur: 'toi' });
+  jouer(e, { toi: { x: 0, y: 0 } }, 1.5);
+  borne('à angle fermé, le gardien colle au poteau, sans le dépasser', e.gardien.y, FILET.large / 2 - 0.25, FILET.large / 2 + 0.05, ' m');
+}
+{
+  // La rondelle libre et lente dans son demi-cercle, personne autour : il va la couvrir.
+  const e = glaceVide('couvrir');
+  Object.assign(e.rondelle, { x: LIGNE_BUT - 1.3, y: 0.9, vx: 0.4, vy: 0, porteur: null });
+  const ev = jouer(e, {}, 1.5);
+  exiger('une rondelle libre et lente dans son demi-cercle, il va la couvrir', ev.some(x => x.type === 'gel') && !!e.arret, ev.map(x => x.type).join(' ') || 'rien');
+}
+{
+  // Le même rebond, contrôlé ou non : un gardien qui contrôle tout envoie ses rebonds de côté, vers le coin.
+  const angles = controle => {
+    const e = glaceVide('rebond');
+    e.gardien.p = { ...e.gardien.p, controle };
+    GARDIEN.couvre = 0; const mitaine = GARDIEN.mitaine; GARDIEN.mitaine = 0;
+    const L = [];
+    for (let i = 0; i < 60; i++) {
+      remise(e, 'but');
+      Object.assign(e.gardien, { x: LIGNE_BUT - 1, y: 0, vx: 0, vy: 0, memoire: [] });
+      Object.assign(e.rondelle, { x: LIGNE_BUT - 9, y: 0, z: 0, vz: 0, vx: 25, vy: 0, porteur: null });
+      for (let t = 0; t < 1; t += DT) if (avancer(e, {}, DT).some(x => x.type === 'arret')) { L.push(Math.abs(Math.atan2(e.rondelle.vy, -e.rondelle.vx))); break; }
+    }
+    GARDIEN.couvre = 0.5; GARDIEN.mitaine = mitaine;
+    return L.reduce((a, b) => a + b, 0) / Math.max(1, L.length);
+  };
+  const tout = angles(1), rien = angles(0);
+  exiger('un rebond contrôlé part de côté, vers le coin, loin de l\'enclave', tout >= GARDIEN.coin[0] && tout > rien + 0.3, `${tout.toFixed(2)} rad de l'axe, contre ${rien.toFixed(2)} sans contrôle`);
+}
+{
+  // Le harpon du gardien : le porteur qui arrive seul sur lui, à portée de son bâton.
+  const e = glaceVide('harpon');
+  e.gardien.p = { ...e.gardien.p, harpon: 1 };
+  const [toi] = e.patineurs;
+  Object.assign(toi, { x: LIGNE_BUT - 4, y: 0, cap: 0, vx: 3, vy: 0 });
+  Object.assign(e.rondelle, { x: LIGNE_BUT - 3, y: 0, porteur: 'toi' });
+  const ev = jouer(e, { toi: { x: 0.3, y: 0 } }, 1.5);
+  exiger('le gardien harponne le porteur qui arrive seul sur lui', ev.some(x => x.type === 'harpon' && x.gardien) && e.rondelle.porteur !== 'toi', ev.map(x => x.type).join(' ') || 'rien');
+}
+
+/* ---------- la vitesse : deux patineurs ne sont jamais loin (JP, 1er nov. : *pas trop différents côté vitesse*) ---------- */
+{
+  const lent = parametresDuPatineur({ cote: 1, poidsLb: 235 }), vite = parametresDuPatineur({ cote: 20, poidsLb: 165, vitesse: true });
+  borne('le plus vite et le plus lent : leur pointe reste proche', vite.vMax / lent.vMax, 1, 1 + 3 * PATIN.ecart, '×');
+  borne('… et leur virage aussi, le poids n\'y fait presque rien', vite.agilite / lent.agilite, 1, 1 + 2.2 * PATIN.agilite, '×');
+  const d = parametresDuPatineur({ cote: 10, poidsLb: 215 }), f = parametresDuPatineur({ cote: 10, poidsLb: 180 });
+  exiger('un défenseur plus lourd, à la même cote, patine aussi vite qu\'un avant, et frappe plus fort', d.vMax === f.vMax && d.accel === f.accel && d.masse > f.masse, `${(d.vMax * 3.6).toFixed(1)} et ${(f.vMax * 3.6).toFixed(1)} km/h, ${d.masse.toFixed(0)} et ${f.masse.toFixed(0)} kg`);
 }
 
 /* ---------- la mise en échec ---------- */
@@ -307,6 +366,23 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
   const ontJoue = e.patineurs.filter(s => s.stats.tg > 10).length;
   exiger('les jambes ont joué : les lignes ont changé, et personne n\'a joué seul tout le match', ontJoue > 10 && e.patineurs.some(s => s.jambes < 100), `${ontJoue} patineurs ont plus de 10 s de glace`);
 }
+/* ---------- l'IA : le défenseur ne se laisse pas déborder (JP, 1er nov. : *éviter trop d'échappées*) ---------- */
+{
+  const e = nouveauMatch({ graine: 'ecart', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
+  for (let t = 0; t < 10 && (e.mej || e.arret || !e.enJeu); t += DT) avancer(e, {}, DT);   // la rondelle tombe, le jeu commence
+  const aA = e.equipes.A.attaque;
+  const porteur = surGlace(e, 'A').find(s => s.poste === 'C');
+  const D = surGlace(e, 'B').filter(s => s.poste === 'D');
+  // Le porteur part du centre à pleine vitesse vers leur filet ; les deux défenseurs l'attendent à leur bleue, immobiles,
+  // les autres sont loin derrière lui.
+  Object.assign(porteur, { x: 0, y: 0, vx: aA * 11, vy: 0, cap: aA > 0 ? 0 : Math.PI });
+  Object.assign(e.rondelle, { x: aA * 1, y: 0, vx: 0, vy: 0, z: 0, porteur: porteur.id });
+  D.forEach((d, i) => Object.assign(d, { x: aA * (BLEUE + 1), y: i ? 4.5 : -4.5, vx: 0, vy: 0 }));
+  for (const s of e.patineurs) if (s.surGlace && s !== porteur && !D.includes(s)) Object.assign(s, { x: -aA * 20, y: s.y, vx: 0, vy: 0 });
+  const recule = D.map(d => decisionIA(e, d)).map(r => r.x * aA);
+  exiger('le porteur arrive à pleine vitesse : les défenseurs reculent avant d\'être dépassés', recule.every(v => v > 0.2), `${recule.map(v => v.toFixed(2)).join(' et ')} vers leur filet (l'écart : ${ECART_D.base} m + ${ECART_D.parVitesse} m par m/s)`);
+}
+
 {
   const e = nouveauMatch({ graine: 'cinq', A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
   jouer(e, {}, 0.6);
@@ -499,7 +575,7 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
 {
   const e = glaceVide('recul');
   const toi = e.patineurs[0];
-  Object.assign(toi, { x: -10, y: 9, cap: 0, vx: 0, vy: 0 });
+  Object.assign(toi, { x: BOUT - 12, y: 9, cap: 0, vx: 0, vy: 0 });
   jouer(e, { toi: { x: -1, y: 0, recul: true } }, 2);
   let somme = 0, n = 0;   // la vitesse bat au rythme des coups de patin : sa moyenne sur une demi-seconde
   for (let t = 0; t < 0.5; t += DT) { avancer(e, { toi: { x: -1, y: 0, recul: true } }, DT); somme -= toi.vx; n++; }
@@ -510,8 +586,8 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
   const vitesseApres = tourne => {
     const e = glaceVide('coupe');
     const toi = e.patineurs[0];
-    Object.assign(toi, { x: -27, y: 0, cap: 0, vx: 0, vy: 0 });
-    jouer(e, { toi: { x: 1, y: 0 } }, 4);
+    Object.assign(toi, { x: -(BOUT - 3.5), y: 6, cap: 0, vx: 0, vy: 0 });   // à côté du filet du fond
+    jouer(e, { toi: { x: 1, y: 0 } }, 3);
     jouer(e, { toi: tourne ? { x: 0, y: 1 } : { x: 1, y: 0 } }, 0.5);
     return v(toi);
   };
@@ -522,7 +598,7 @@ const matchComplet = (graine, periode = 120, prolongation = MATCH.prolongation) 
   const course = sprint => {
     const e = glaceVide('turbo');
     const toi = e.patineurs[0];
-    Object.assign(toi, { x: -27, y: 9, cap: 0, vx: 0, vy: 0, jambes: 100 });
+    Object.assign(toi, { x: -(BOUT - 3.5), y: 9, cap: 0, vx: 0, vy: 0, jambes: 100 });
     let vmax = 0;
     for (let t = 0; t < 3; t += DT) { avancer(e, { toi: { x: 1, y: 0, sprint } }, DT); vmax = Math.max(vmax, v(toi)); }
     return { vmax, jambes: toi.jambes };

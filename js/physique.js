@@ -33,16 +33,22 @@
  *
  * Le moteur de la saison (js/sim.js) reste le moteur des matchs du jeu : celui-ci joue UNE glace, à la main.
  */
-import { LONGUEUR, LARGEUR } from './glace.js';
 import { entierDeGraine } from './sim.js';
 
 const PIED = 0.3048;
-/* La patinoire, en mètres : 200 × 85 pieds, les coins arrondis à 28 pieds. */
-export const L = LONGUEUR * PIED;            // 60,96
-export const W = LARGEUR * PIED;             // 25,91
+/*
+ * LA PATINOIRE DE SUR GLACE (JP, 2 nov. 2026 : *resize la patinoire, pour qu'en 16:9 la zone offensive ou défensive
+ * remplisse, et adapte la zone neutre aussi* ; *rapetisser*). La largeur de la LNH (85 pieds), la longueur rapetissée
+ * (44,6 m au lieu de 61) : la largeur de la glace en travers d'un écran 16:9 montre en long une zone entière, de la
+ * bleue à la bande du fond, ou toute la zone neutre, d'une bleue à l'autre. Les filets, les cercles, l'enclave, les
+ * coins et la ligne des buts gardent leurs vraies mesures.
+ */
+export const W = 85 * PIED;                  // 25,91 : la largeur de la LNH
+export const BLEUE = 7.5;                    // la ligne bleue, de part et d'autre du centre (7,62 à la LNH) : la zone neutre fait 15 m
+const ZONE_GLACE = 14.8;                     // une zone, de la bleue à la bande du fond (22,9 m à la LNH)
+export const L = 2 * (BLEUE + ZONE_GLACE);   // 44,6 m (61 à la LNH)
 export const COIN = 28 * PIED;               // 8,53
-export const LIGNE_BUT = L / 2 - 11 * PIED;  // 27,13 : la ligne de but, à 3,35 m de la bande
-export const BLEUE = 25 * PIED;              // 7,62 : la ligne bleue, de part et d'autre du centre
+export const LIGNE_BUT = L / 2 - 11 * PIED;  // 18,95 : la ligne de but, à 3,35 m de la bande
 /* Les points de mise en jeu de la zone, ceux de la zone neutre, et le rayon des cercles. */
 export const POINT = { x: L / 2 - 31 * PIED, y: 22 * PIED, r: 15 * PIED, neutre: BLEUE - 5 * PIED };
 export const FILET = { large: 6 * PIED, profond: 44 / 12 * PIED, haut: 4 * PIED, poteau: 0.03, enclave: 6 * PIED };   // `haut` : la barre horizontale, 1,22 m
@@ -68,6 +74,13 @@ export const PATIN = {
   sprintJambes: 4,  // × l'usure des jambes pendant le turbo
   bande: 0.15,      // ce que le patineur rend sur la bande
   sol: 1.4,         // le temps au sol après une chute, s
+  // L'ÉCART ENTRE DEUX PATINEURS (JP, 1er nov. : *que les joueurs soient pas trop différents côté vitesse, pour éviter que
+  // ça soit injouable, les défenseurs étant naturellement plus gros*) : la cote ne bouge la pointe et la poussée que de
+  // ±`ecart` entre un 1 et un 20 (±17 % avant), le trait de vitesse en ajoute la moitié, et le poids ne change le virage
+  // que de ±`agilite` (un défenseur de 100 kg tournait 10 % moins court qu'un ailier de 75). Le poids reste la masse d'une
+  // mise en échec : un gros frappe plus fort, il ne patine pas moins vite.
+  ecart: 0.06,
+  agilite: 0.05,
 };
 /*
  * LA FOULÉE (1er nov. 2026 ; JP : *patin pas le fun, ça feel zéro comme patiner*). On ne pousse pas comme un moteur :
@@ -102,11 +115,17 @@ export const BATON = {
   deviation: 0.12,           // l'écart d'une déviation volontaire vers le filet, rad
 };
 export const GARDIEN = {
-  reaction: 0.15, vMax: 5, accel: 14, demi: 0.5, profondeur: 0.3,
+  reaction: 0.17, vMax: 5, accel: 14, profondeur: 0.3,   // `reaction` : le retard d'un gardien de cote 10 (sa cote Arrêts l'ôte ou l'ajoute)
+  demi: 0.58,        // la demi-largeur qu'il couvre, à une cote de 10, m (0,5 avant la glace courte : de la bleue, à 11 m, il ne reste que 0,28 s pour aller au coin)
   trous: { haut: 0.35, cinq: 0.2, corps: 0.03 },   // ce qui passe quand même : le coin du haut (la mitaine, le bloqueur), entre les jambières, sur le corps
   sortie: 1.1,       // à combien devant la ligne il défie, m
   couvre: 0.5,       // la part des arrêts gelés ; l'autre part rebondit
   rebond: 0.35,      // ce qu'un rebond garde de la vitesse
+  mitaine: 0.75,     // un tir haut arrêté se gèle aussi souvent que ça : la mitaine l'attrape
+  coin: [0.75, 1.3], // le rebond contrôlé part de côté, vers le coin, à cet angle de l'axe du filet, rad ; l'autre sort devant
+  demiCercle: 1.8,   // le demi-cercle : une rondelle libre plus lente que `lente` dedans, il va la couvrir, s'il y est le premier
+  lente: 3,          // m/s : plus lente que ça, la rondelle qui touche le gardien se gèle
+  harpon: { portee: 1.7, repos: 1.2, chance: 0.12, parArret: 0.012 },   // le harpon du gardien sur le porteur qui arrive seul devant lui
 };
 export const CHUTE = { seuil: 300, bande: 1.5 };   // l'écart d'élan, kg·m/s, au-delà duquel le moins lancé des deux tombe ; contre la bande, le coup pèse plus
 export const HARPON = { duree: 0.25, portee: 2.2, largeur: 0.55, repos: 0.7, pousse: 5, trebuche: 0.04 };   // le harponnage : un coup de bâton devant soi ; raté sur le porteur, un sur vingt-cinq l'accroche
@@ -148,24 +167,27 @@ export function lame(s) {
  * un patineur ordinaire (10).
  */
 export function parametresDuPatineur({ cote = 10, tir = 10, jeu = 10, defense = 10, robustesse = 10, poidsLb = null, vitesse = false } = {}) {
-  // Les cotes se sentent (JP, 1er nov. : *que les stats des joueurs aient un impact*) : ±17 % de pointe et de poussée entre un 1 et un 20, ±20 % de lancer.
-  const f = 0.84 + 0.018 * (cote - 1);
+  // Les cotes se sentent (JP, 1er nov. : *que les stats des joueurs aient un impact*) : ±20 % de lancer ; la pointe et la
+  // poussée, elles, restent proches (`PATIN.ecart`) : la vitesse ne doit pas rendre un club injouable.
+  const f = 1 + PATIN.ecart * (clamp(cote, 1, 20) - 10.5) / 9.5;
+  const masse = poidsLb ? poidsLb * 0.4536 : PATIN.masse;
   return {
-    vMax: PATIN.vMax * f * (vitesse ? 1.05 : 1),
+    vMax: PATIN.vMax * f * (vitesse ? 1 + PATIN.ecart / 2 : 1),
     accel: PATIN.accel * f,
     tir: 0.8 + 0.02 * tir,                // × la vitesse du lancer
     precision: 1.4 - 0.04 * tir,          // × l'écart de la visée
     passe: 1.5 - 0.04 * jeu,              // × l'écart de la passe
     defense: defense / 20,                // le harpon
-    masse: poidsLb ? poidsLb * 0.4536 : PATIN.masse,
+    masse,
     equilibre: 0.7 + 0.03 * robustesse,   // × le seuil de chute
-    agilite: 1 + (85 - (poidsLb ? poidsLb * 0.4536 : PATIN.masse)) / 150,   // un petit tourne plus court : × l'adhérence et le pivot
+    agilite: 1 + clamp((PATIN.masse - masse) / 300, -PATIN.agilite, PATIN.agilite),   // un petit tourne un peu plus court : × l'adhérence et le pivot
   };
 }
 /* La difficulté : ce que le club de l'IA vaut de plus ou de moins (JP : *toutes les mécaniques*). */
 export const DIFFICULTES = { facile: 0.93, normal: 1, difficile: 1.07 };
 export function parametresDuGardien({ arrets = 10 } = {}) {
-  return { reaction: 0.21 - 0.004 * arrets, demi: 0.42 + 0.005 * arrets, vMax: GARDIEN.vMax };
+  // `controle` : la part de ses rebonds qu'il envoie au coin, et sa chance au harpon, de sa cote Arrêts.
+  return { reaction: GARDIEN.reaction - 0.004 * (arrets - 10), demi: GARDIEN.demi + 0.005 * (arrets - 10), vMax: GARDIEN.vMax, controle: 0.25 + 0.025 * arrets, harpon: GARDIEN.harpon.chance + GARDIEN.harpon.parArret * arrets };
 }
 
 /* ---------- l'état ---------- */
@@ -181,7 +203,7 @@ function patineur(id, equipe, x, y, cap, extra = {}) {
 }
 function gardienNeuf(equipe, sens, extra = {}) {
   const p = extra.p || parametresDuGardien();
-  return { equipe, sens, nom: extra.nom || 'le gardien', visage: extra.visage || null, p, x: sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [], retire: false, arrets: 0 };
+  return { equipe, sens, nom: extra.nom || 'le gardien', visage: extra.visage || null, p, x: sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [], retire: false, arrets: 0, harponRepos: 0 };
 }
 
 /**
@@ -942,10 +964,14 @@ function gardien(etat, Gd, ev) {
     cible = { x: Gd.x, y: clamp(vu.y + vu.vy * t, -1.1, 1.1) };
   } else if (vu.x * s > LIGNE_BUT) {
     cible = { x: s * xMax, y: Math.sign(vu.y || 1) * 0.75 };
+  } else if (vu.libre && rondelleACouvrir(etat, Gd, vu)) {
+    // LA RONDELLE LIBRE DANS SON DEMI-CERCLE, lente, et lui le premier dessus : il va la couvrir.
+    cible = { x: s * clamp(Math.abs(vu.x), xMin - 0.6, xMax), y: clamp(vu.y, -1.6, 1.6) };
   } else {
     const cx = xb + s * 0.3, dx = vu.x - cx, dy = vu.y, d = hyp(dx, dy) || 1e-9;
     const sortie = 0.3 + GARDIEN.sortie * clamp(d / 12, 0.3, 1);
-    cible = { x: s * clamp(Math.abs(cx + dx / d * sortie), xMin, xMax), y: clamp(dy / d * sortie, -1.4, 1.4) };
+    // À ANGLE FERMÉ, il colle au poteau : jamais plus loin de côté que le poteau lui-même (au-delà, il ouvrait le haut du filet).
+    cible = { x: s * clamp(Math.abs(cx + dx / d * sortie), xMin, xMax), y: clamp(dy / d * sortie, -FILET.large / 2, FILET.large / 2) };
   }
   const k = 40, c = 2 * Math.sqrt(k);
   let ax = k * (cible.x - Gd.x) - c * Gd.vx, ay = k * (cible.y - Gd.y) - c * Gd.vy;
@@ -955,12 +981,14 @@ function gardien(etat, Gd, ev) {
   const v = hyp(Gd.vx, Gd.vy);
   if (v > Gd.p.vMax) { Gd.vx *= Gd.p.vMax / v; Gd.vy *= Gd.p.vMax / v; }
   Gd.x += Gd.vx * PAS; Gd.y += Gd.vy * PAS;
+  if (Gd.harponRepos > 0) Gd.harponRepos -= PAS;
+  if (R.porteur && !etat.arret) { harponDuGardien(etat, Gd, ev); return; }
   if (R.porteur || etat.arret) return;
   const dansY = Math.abs(R.y - Gd.y) < Gd.p.demi + RONDELLE.rayon;
   const dansX = Math.abs(R.x - Gd.x) < GARDIEN.profondeur + RONDELLE.rayon;
   if (!(dansY && dansX) || R.z > FILET.haut) return;
   const vr = hyp(R.vx, R.vy);
-  if (vr < 2 && R.z < 0.3) { geler(etat, Gd, ev); return; }
+  if (vr < GARDIEN.lente && R.z < 0.3) { geler(etat, Gd, ev); return; }
   if (R.vx * s <= 0) return;
   // LES TROUS : le coin du haut (la mitaine, le bloqueur), entre les jambières, le corps — ce qui passe quand même.
   const dy = Math.abs(R.y - Gd.y);
@@ -969,13 +997,47 @@ function gardien(etat, Gd, ev) {
   etat.compte.arrets++;
   Gd.arrets++;
   R.x = Gd.x - s * (GARDIEN.profondeur + RONDELLE.rayon + 0.02);
-  if (etat.de() < GARDIEN.couvre) { geler(etat, Gd, ev, true); }
+  const haut = R.z > 0.85;
+  if (etat.de() < (haut ? GARDIEN.mitaine : GARDIEN.couvre)) { geler(etat, Gd, ev, true); }
   else {
-    const ang = (s > 0 ? Math.PI : 0) + (etat.de() - 0.5) * 1.4;
-    const vt = vr * GARDIEN.rebond;
+    // LE REBOND : contrôlé (sa cote Arrêts), il part de côté vers le coin, loin de l'enclave ; sinon, il sort devant.
+    const cote = Math.sign(R.y - Gd.y) || (etat.de() < 0.5 ? -1 : 1);
+    const controle = etat.de() < (Gd.p.controle ?? 0.5);
+    const th = controle ? GARDIEN.coin[0] + etat.de() * (GARDIEN.coin[1] - GARDIEN.coin[0]) : (etat.de() - 0.5) * 1.4;
+    const ang = s > 0 ? Math.PI - cote * th : cote * th;
+    const vt = vr * GARDIEN.rebond * (controle ? 0.8 : 1);
     R.vx = Math.cos(ang) * vt; R.vy = Math.sin(ang) * vt; R.vz = 0.5; R.z = Math.min(R.z, 0.3);
     ev.push({ type: 'arret', gele: false, equipe: Gd.equipe, haut: R.z > 0.6, cote: Math.sign((R.y - Gd.y) * s || 1) });
   }
+}
+/* La rondelle à couvrir : libre, lente, au sol, dans son demi-cercle, et aucun adversaire n'y est avant lui. */
+function rondelleACouvrir(etat, Gd, vu) {
+  const R = etat.rondelle, s = Gd.sens;
+  if (R.z > 0.3 || hyp(vu.vx, vu.vy) > GARDIEN.lente) return false;
+  const dx = s * LIGNE_BUT - vu.x;
+  if (dx * s < 0 || hyp(dx, vu.y) > GARDIEN.demiCercle) return false;
+  const moi = hyp(vu.x - Gd.x, vu.y - Gd.y);
+  return !etat.patineurs.some(o => o.surGlace && !o.auSol && o.equipe !== Gd.equipe && hyp(lame(o).x - vu.x, lame(o).y - vu.y) < moi);
+}
+/*
+ * LE HARPON DU GARDIEN : le porteur adverse qui arrive devant lui, de face, à portée de son bâton — une chance (sa cote
+ * Arrêts) de lui sortir la rondelle vers le coin ; raté, il attend `repos` avant de retenter.
+ */
+function harponDuGardien(etat, Gd, ev) {
+  const R = etat.rondelle, s = Gd.sens;
+  if (Gd.harponRepos > 0) return;
+  const porteur = parId(etat, R.porteur);
+  if (!porteur || porteur.equipe === Gd.equipe) return;
+  const devant = (Gd.x - R.x) * s;   // la rondelle devant lui, côté glace
+  if (devant < 0.2 || hyp(R.x - Gd.x, R.y - Gd.y) > GARDIEN.harpon.portee) return;
+  Gd.harponRepos = GARDIEN.harpon.repos;
+  if (etat.de() >= (Gd.p.harpon ?? GARDIEN.harpon.chance)) return;
+  R.porteur = null; porteur.lachee = 0.4;
+  const cote = Math.sign(R.y - Gd.y) || 1;
+  R.vx = -s * 3 + (etat.de() - 0.5) * 2; R.vy = cote * 5 + (etat.de() - 0.5) * 2;
+  R.dernier = { equipe: Gd.equipe, id: `G:${Gd.equipe}`, t: etat.t, x: R.x, lance: false };
+  R.passeDe = null; R.passeVers = null;
+  ev.push({ type: 'harpon', qui: `G:${Gd.equipe}`, gardien: true });
 }
 function geler(etat, Gd, ev, arret = false) {
   const R = etat.rondelle;
@@ -1028,7 +1090,7 @@ function placerMiseEnJeu(etat, point) {
     D.forEach((p, i) => place(p, point.x - s * 8, point.y + (i === 0 ? -3.5 : 3.5)));
     centres[eq] = centre ? centre.id : null;
     const Gd = gardienDe(etat, eq);
-    if (!Gd.retire) Object.assign(Gd, { x: Gd.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [] });
+    if (!Gd.retire) Object.assign(Gd, { x: Gd.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [], harponRepos: 0 });
   }
   // Les joueurs hors glace : au banc, ou au cachot.
   for (const s of etat.patineurs) if (!s.surGlace) { s.x = (s.equipe === 'A' ? -1 : 1) * (s.boxe ? 3 : 8); s.y = (s.boxe ? -1 : 1) * (W / 2 + 1.2); s.vx = 0; s.vy = 0; }
@@ -1150,7 +1212,7 @@ function placerRonde(etat, eq, tireurId, genre) {
   for (const p of etat.patineurs) { p.surGlace = p.id === tireur.id; p.x = (p.equipe === 'A' ? -1 : 1) * 8; p.y = W / 2 + 1.2; p.vx = 0; p.vy = 0; p.auSol = 0; p.charge = 0; }
   tireur.x = -s * 2; tireur.y = 0; tireur.cap = s > 0 ? 0 : Math.PI; tireur.surGlace = true; tireur.lachee = 0; tireur.ia = null;
   R.x = 0; R.y = 0; R.z = 0; R.vx = 0; R.vy = 0; R.vz = 0; R.porteur = null; R.dernier = null;
-  for (const g of etat.gardiens) { g.retire = false; Object.assign(g, { x: g.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [] }); }
+  for (const g of etat.gardiens) { g.retire = false; Object.assign(g, { x: g.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [], harponRepos: 0 }); }
   etat.controles = { A: null, B: null };
   if (etat.humains.includes(eq)) etat.controles[eq] = tireur.id;
   M.ronde = { eq, tireur: tireur.id, genre, reste: MATCH.tirDePunition };
@@ -1202,7 +1264,7 @@ export function remise(etat, genre = 'but') {
   else { R.x = POINT.x; R.y = Math.sign(R.y || -1) * POINT.y; toi.x = POINT.x - 2.5; toi.y = R.y; }
   toi.vx = 0; toi.vy = 0; toi.cap = 0; toi.auSol = 0; toi.charge = 0; toi.lachee = 0;
   for (const p of etat.patineurs) if (p.poste0) { p.x = p.poste0.x; p.y = p.poste0.y; p.vx = 0; p.vy = 0; p.auSol = 0; }
-  for (const g of etat.gardiens) Object.assign(g, { x: g.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [] });
+  for (const g of etat.gardiens) Object.assign(g, { x: g.sens * (LIGNE_BUT - GARDIEN.sortie), y: 0, vx: 0, vy: 0, memoire: [], harponRepos: 0 });
   etat.arret = null;
   etat.enJeu = true;
 }
@@ -1372,18 +1434,18 @@ const dec = (v, n = 1) => v.toFixed(n).replace('.', ',');
 export function reglesDeLaGlace() {
   const arretDe = v => v * v / (2 * RONDELLE.frottement * G);
   return [
-    `La patinoire fait ${dec(L, 0)} m sur ${dec(W, 0)}, les coins sont des arcs de ${dec(COIN, 1)} m, la ligne de but est à ${dec(L / 2 - LIGNE_BUT, 2)} m de la bande.`,
+    `La patinoire fait ${dec(L, 1)} m sur ${dec(W, 1)} (${dec(200 * PIED, 0)} sur ${dec(W, 1)} à la LNH) : rapetissée pour qu'une zone, ${dec(L / 2 - BLEUE, 1)} m de la bleue à la bande, ou la zone neutre, ${dec(2 * BLEUE, 0)} m, remplisse un écran 16:9 ; les coins sont des arcs de ${dec(COIN, 1)} m, la ligne de but est à ${dec(L / 2 - LIGNE_BUT, 2)} m de la bande.`,
     `La rondelle pèse ${Math.round(RONDELLE.masse * 1000)} g et perd ≈ ${dec(RONDELLE.frottement * G, 1)} m/s par seconde : une passe à ${kmh(BATON.passe)} km/h meurt après ${Math.round(arretDe(BATON.passe))} m, un tir à ${kmh(BATON.tirMax)} km/h traverserait ${Math.round(arretDe(BATON.tirMax))} m.`,
     `La bande rend ${Math.round(RONDELLE.bande * 100)} % de la vitesse qui la frappe, le poteau ${Math.round(RONDELLE.poteau * 100)} %, la maille du filet ${Math.round(RONDELLE.filet * 100)} %.`,
-    `Un patineur ordinaire pèse ${PATIN.masse} kg (un vrai joueur, son poids à la LNH), pousse à ${dec(PATIN.accel)} m/s² jusqu'à ${kmh(PATIN.vMax)} km/h, freine à ${PATIN.frein} m/s² (le bâton à l'envers) et perd ${dec(PATIN.glisse)} m/s² en roue libre ; sa cote sur 20 fait sa pointe, ses cotes Tir, Jeu, Défense et Robustesse son lancer, sa passe, son harpon et son équilibre.`,
+    `Un patineur ordinaire pèse ${PATIN.masse} kg (un vrai joueur, son poids à la LNH), pousse à ${dec(PATIN.accel)} m/s² jusqu'à ${kmh(PATIN.vMax)} km/h, freine à ${PATIN.frein} m/s² (le bâton à l'envers) et perd ${dec(PATIN.glisse)} m/s² en roue libre ; sa cote sur 20 fait sa pointe, à ±${Math.round(PATIN.ecart * 100)} % d'un 1 à un 20 (deux patineurs ne sont jamais loin l'un de l'autre), ses cotes Tir, Jeu, Défense et Robustesse son lancer, sa passe, son harpon et son équilibre.`,
     `Il pousse par coups de patin, une jambe puis l'autre : ${dec(2 * FOULEE.cadence)} par seconde au départ, ${dec(2 * (FOULEE.cadence + FOULEE.parVitesse * PATIN.vMax))} à pleine vitesse ; le coup pousse ${Math.round(FOULEE.coup * 100)} % plus fort que la moyenne, et l'entre-deux d'autant moins.`,
     `Ses lames tiennent ${PATIN.adherence} m/s² de côté : à pleine vitesse, le virage le plus serré fait ${dec(PATIN.vMax ** 2 / PATIN.adherence, 0)} m de rayon ; à l'arrêt, il pivote à ${PATIN.pivot} rad/s. Une présence coûte ${dec(JAMBES.usure)} jambes par seconde à fond, le banc en rend ${JAMBES.repos} ; sous ${JAMBES.changement}, ou après ${JAMBES.presence} s, la ligne change à l'arrêt de jeu.`,
     `La lame tient la rondelle à ${dec(BATON.lame[0])} m devant ; plus loin que ${dec(PATIN.portee)} m, elle est perdue. Une rondelle qui arrive à plus de ${kmh(BATON.reception)} km/h ne se prend pas : elle dévie. Le harpon porte à ${dec(HARPON.portee)} m devant, ${dec(HARPON.duree, 2)} s, et repose ${dec(HARPON.repos)} s.`,
     `La passe part à ${kmh(BATON.passe)} km/h, plus ${dec(BATON.passeLoin)} m/s par mètre de plus, menée là où le coéquipier sera ; le tir du poignet à ${kmh(BATON.tirMin)} km/h, le lancer frappé chargé ${dec(BATON.charge, 2)} s à ${kmh(BATON.tirMax)} km/h, le tir sur réception à ${Math.round(BATON.uneTemps * 100)} % du frappé sans charger ; la visée s'écarte de ±${dec(BATON.ecart * 57.3)}° (plus à pleine charge), et le tir part toujours vers le filet attaqué : le bâton choisit où (droit, le centre ; penché, le coin ; à fond de côté, ${Math.round(BATON.large * 100)} cm à côté du poteau).`,
     `Une mise en échec échange l'élan des deux corps (masse × vitesse) ; le moins lancé tombe ${dec(PATIN.sol)} s si l'écart dépasse ${CHUTE.seuil} kg·m/s (× son équilibre), et lâche la rondelle. L'élan du bouton pousse ${ECHEC.accel} fois plus fort pendant ${dec(ECHEC.duree, 2)} s. Frapper qui n'a pas la rondelle depuis ${dec(ECHEC.recent)} s, ou par-derrière : ${MATCH.punition / 60} minutes.`,
-    `Le gardien voit la rondelle ${Math.round(GARDIEN.reaction * 1000)} ms en retard (sa cote Arrêts le raccourcit), bouge à ${kmh(GARDIEN.vMax)} km/h au plus, couvre ${dec(GARDIEN.demi * 2, 2)} m des ${dec(FILET.large, 2)} m du filet ; il gèle ${Math.round(GARDIEN.couvre * 100)} % de ses arrêts, les autres rebondissent à ${Math.round(GARDIEN.rebond * 100)} % de la vitesse.`,
+    `Le gardien de cote 10 voit la rondelle ${Math.round(GARDIEN.reaction * 1000)} ms en retard et couvre ${dec(GARDIEN.demi * 2, 2)} m des ${dec(FILET.large, 2)} m du filet (sa cote Arrêts le rend plus vif et plus large) ; il bouge à ${kmh(GARDIEN.vMax)} km/h au plus ; il gèle ${Math.round(GARDIEN.couvre * 100)} % de ses arrêts (${Math.round(GARDIEN.mitaine * 100)} % des tirs hauts, la mitaine), les autres rebondissent à ${Math.round(GARDIEN.rebond * 100)} % de la vitesse — de côté, vers le coin, selon sa cote Arrêts. À angle fermé, il colle au poteau ; une rondelle libre sous ${GARDIEN.lente} m/s à ${dec(GARDIEN.demiCercle)} m de son filet, il va la couvrir s'il y est le premier ; le porteur qui arrive à ${dec(GARDIEN.harpon.portee)} m de lui, il le harponne (une chance sur ${Math.round(1 / (GARDIEN.harpon.chance + GARDIEN.harpon.parArret * 10))} à une cote de 10).`,
     `Le hors-jeu se siffle à l'entrée de la zone quand on y porte la rondelle ; lancée ou passée dedans, il est différé, levé si les attaquants ressortent, sifflé s'ils la touchent ; le dégagement refusé quand la rondelle lancée de sa moitié passe la ligne de but sans être touchée (permis en désavantage) ; la mise en jeu tombe après ${dec(MATCH.mej)} s, le bouton pressé juste à la chute vaut un bonus. Trois périodes, puis ${MATCH.prolongation / 60} minutes à ${MATCH.surglaceOT} contre ${MATCH.surglaceOT}, puis ${MATCH.rondesFusillade} tirs de barrage et la mort subite ; en séries, la prolongation à cinq, autant qu'il en faut.`,
     `La rondelle a une hauteur : le poignet monte à ${dec(BATON.hauteurMin)} m/s, le frappé chargé à ${dec(BATON.hauteurMax)} m/s (±${dec(BATON.ecartHauteur)}), la gravité la ramène, le sol lui rend ${Math.round(RONDELLE.rebondSol * 100)} % ; la barre est à ${dec(FILET.haut, 2)} m, la vitre à ${dec(RONDELLE.vitre)} m (par-dessus, hors jeu) ; une passe dont la ligne est barrée se soulève à ${dec(BATON.soulevee)} m/s ; au sol seulement, elle se prend. Le gardien laisse passer ${Math.round(GARDIEN.trous.haut * 100)} % des tirs dans le coin du haut, ${Math.round(GARDIEN.trous.cinq * 100)} % entre les jambières, ${Math.round(GARDIEN.trous.corps * 100)} % sur le corps.`,
-    `À reculons, la pointe et la poussée valent ${Math.round(PATIN.recul * 100)} % ; le turbo les monte à ${Math.round(PATIN.sprint * 100)} % et use les jambes ${PATIN.sprintJambes} fois plus vite ; en tournant à vitesse moyenne, les croisés poussent ${Math.round((PATIN.croise - 1) * 100)} % plus fort ; couper sec coûte ${Math.round(PATIN.virage * 100)} % de vitesse par radian ; un patineur plus léger que ${PATIN.masse} kg tourne plus court. Un harpon raté par-derrière sur le porteur l'accroche une fois sur ${Math.round(1 / HARPON.trebuche)} : deux minutes, ou un tir de punition sur une échappée. Le gardien se retire pour un sixième attaquant (l'IA, sous ${MATCH.retraitGardien} s, à un ou deux buts) ; une charge contre la bande pèse ${dec(CHUTE.bande)} fois ; une punition ne tombe que sur une charge voulue, le bouton pressé.`,
+    `À reculons, la pointe et la poussée valent ${Math.round(PATIN.recul * 100)} % ; le turbo les monte à ${Math.round(PATIN.sprint * 100)} % et use les jambes ${PATIN.sprintJambes} fois plus vite ; en tournant à vitesse moyenne, les croisés poussent ${Math.round((PATIN.croise - 1) * 100)} % plus fort ; couper sec coûte ${Math.round(PATIN.virage * 100)} % de vitesse par radian ; un patineur plus léger que ${PATIN.masse} kg tourne un peu plus court (${Math.round(PATIN.agilite * 100)} % au plus), un plus lourd frappe plus fort sans patiner moins vite. Un harpon raté par-derrière sur le porteur l'accroche une fois sur ${Math.round(1 / HARPON.trebuche)} : deux minutes, ou un tir de punition sur une échappée. Le gardien se retire pour un sixième attaquant (l'IA, sous ${MATCH.retraitGardien} s, à un ou deux buts) ; une charge contre la bande pèse ${dec(CHUTE.bande)} fois ; une punition ne tombe que sur une charge voulue, le bouton pressé.`,
   ];
 }

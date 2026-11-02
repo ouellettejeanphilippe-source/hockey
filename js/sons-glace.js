@@ -15,7 +15,7 @@
  *   les coups     le tir (le frottement, le clic, le corps), la passe, la rondelle contre la bande (trois modes
  *                 inharmoniques, le bois), le poteau (la cloche), la mise en échec, la mise en jeu, le harpon
  *   l'arbitre     le sifflet (deux sinus qui battent, du souffle, du plastique), la sirène de but (deux cornes)
- *   les patins    le crissement de ton patineur, continu, qui suit sa vitesse ; la bouffée d'un frein
+ *   les patins    aucun son (JP, 1er nov. : *pas le bruit de patinage*) : le crissement, le coup de patin et le frein sont partis
  *
  * Tout passe par un compresseur de sortie : la foule et un coup de bande ne saturent jamais. Le hasard d'ici ne
  * touche pas au moteur : il ne fait que varier la hauteur et le gain d'un coup à l'autre.
@@ -25,7 +25,6 @@ import { contexte, souffle, filtre, enveloppe, bruit, note, sonsActifs } from '.
 const al = (p = 0.08) => 1 + (Math.random() * 2 - 1) * p;   // ±p autour de 1 : chaque coup un peu différent
 let maitre = null;        // { comp, gain, c }
 let foule = null;         // le graphe de la foule
-let patins = null;        // le crissement continu
 let voixEnCours = null;   // le « ohhh » ou les huées du moment
 let tamponRose = null, tamponBrun = null, tamponClaques = null;
 
@@ -239,15 +238,6 @@ const COUPS = {
     bruit(c, t, { gain: 0.25 * al(0.15), att: 0.001, dec: 0.018, type: 'highpass', freq: 2400 });
     note(c, t, { forme: 'triangle', freq: 1500 * al(), vers: 700, gain: 0.06, att: 0.001, dec: 0.03 });
   },
-  // le coup de patin : la carre qui mord la glace, court et sec (« tchk »), une jambe puis l'autre
-  coupDePatin(c, t, fort) {
-    bruit(c, t, { gain: 0.05 + 0.07 * fort, att: 0.004, dec: 0.09, freq: 5200, q: 1.6 });
-    bruit(c, t + 0.01, { gain: 0.03 + 0.03 * fort, att: 0.01, dec: 0.12, type: 'lowpass', freq: 1500 });
-  },
-  frein(c, t) {
-    bruit(c, t, { gain: 0.25, att: 0.01, dec: 0.25, freq: 1800, q: 2 });
-    bruit(c, t + 0.05, { gain: 0.12, att: 0.02, dec: 0.3, type: 'lowpass', freq: 1200 });
-  },
   ohhh(c, t, { double = false, grave = false } = {}) {
     voix(c, t + 0.15, grave ? { grave: 120, aigu: 180, formants: [[350, 6], [700, 5]], att: 0.3, tenue: 0.2, rel: 1.2, gain: 0.3 } : { montee: [400, 600, 350] });
     if (double) voix(c, t + 0.55, { montee: [450, 650, 350], gain: 0.45, att: 0.18, rel: 0.9 });
@@ -281,32 +271,9 @@ export function fouleReagit(quoi) {
     else if (quoi === 'punition') bosse(0.15, 3);
   } catch { /* rien */ }
 }
-/* ---------- le crissement de ton patineur ---------- */
-/** Chaque image : la vitesse (m/s) et le virage (rad/s) de ton patineur ; 0 et 0 quand il n'y en a pas. */
-export function crissement(v, virage, { coup = false, freine = false } = {}) {
-  if (!sonsActifs()) return;
-  try {
-    const c = contexte();
-    if (!c || c.state !== 'running') return;
-    if (!patins || patins.c !== c) {
-      const s = souffle(c); s.loop = true;
-      const ph = filtre(c, 'highpass', 2500), bp = filtre(c, 'bandpass', 4500, 3), g = c.createGain(); g.gain.value = 0;
-      s.connect(ph); ph.connect(bp); bp.connect(g); g.connect(sortie(c)); s.start();
-      patins = { c, g, bp, dernierFrein: 0 };
-    }
-    const t = c.currentTime;
-    // le chuintement de fond, plus bas qu'avant : ce sont les coups de patin qui font le son du patin
-    const gain = v < 1 ? 0 : Math.min(0.06, 0.06 * (v - 1) / 7);
-    patins.g.gain.setTargetAtTime(gain, t, 0.05);
-    patins.bp.frequency.setTargetAtTime(3000 + 375 * Math.min(8, v), t, 0.1);
-    if (coup && v > 0.8) COUPS.coupDePatin(c, t, Math.min(1, v / 8));
-    if ((freine || Math.abs(virage) > 2.2) && v > 3 && t - patins.dernierFrein > 0.45) { patins.dernierFrein = t; COUPS.frein(c, t); }
-  } catch { /* rien */ }
-}
-/** Au départ de l'écran : la foule se tait, les patins aussi. */
+/** Au départ de l'écran : la foule se tait. */
 export function couperLaGlace() {
   try {
     if (foule) { clearTimeout(foule.minuterie); foule.g.gain.setTargetAtTime(0.0001, foule.c.currentTime, 0.3); setTimeout(() => { try { foule.g.disconnect(); } catch { /* déjà */ } }, 1500); foule = null; }
-    if (patins) { patins.g.gain.setTargetAtTime(0, patins.c.currentTime, 0.05); patins = null; }
   } catch { /* rien */ }
 }
