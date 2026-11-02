@@ -23,6 +23,8 @@ Six vérifications sur six au vert. Trois chiffres comptent :
 
 **Fait (2 nov., lot 4)** : la cause des runs d'une saison est le mandat de la saison 1 (« faire les séries ») ; l'attentif finissait sa première run entre le 23e et le 31e rang. La saison 1 de la run 1 demande maintenant les 24 premiers, séries ou pas (`MANDAT_DE_LA_PREMIERE`). Le robot attentif pèse les dés et ce qui va au joueur nommé (`lireLeJoueur`), et son talent selon son coach (`valeurDuTalent`). `check_profondeur` complet après (971 s) : **+4,3 V** (± 1,1) sur le robot d'avant, toujours sous le seuil de 5 ; la première Coupe de l'attentif aux runs 4 et 4, regagnée 25 %, le distrait jamais — et **la run 1 de l'attentif dure encore une saison dans les deux campagnes** : la mesure ne montre pas encore la run 1 plus longue. `RUNS=10 CAMPAGNES=2 check_rogue` : 38 sur 38.
 
+**Fait (2 nov., lot 5)** : sur 30 graines (la saison 1 de la run 1), l'attentif finit 11e à 32e, médiane 27-28, et passe le mandat de 24 sept fois sur 30 : la ligne `1·L0 1·L0` tenait aux deux graines des campagnes (27e et 27e). Le seuil de **27**, essayé : la run 1 dure deux saisons dans les deux campagnes, mais sa deuxième saison saute du 27e rang au podium et gagne la Coupe dès la run 1 (campagne 2 ; cinq graines sur 30) — retiré, 24 reste. Ce qui reste : la deuxième saison de la première run porte la marche de la ligue (`etapeDeLaRun(run, saison)`), et le Pack Époque neuf (§ 2.6). `check_profondeur` complet après (1 684 s), **six sur six au vert** : +5,4 V (± 1,2) sur le robot d'avant ; la première Coupe de l'attentif aux runs 5 et 5, regagnée 29 %, le distrait jamais ; **la run 1 de l'attentif dure quatre saisons dans la campagne 1** (`4·L0 1·L0`, sans Coupe). Le détail : docs/decisions.md (lot 5).
+
 Ailleurs : un club moyen bien mené finit premier 5 fois sur 16, un bon club mal mené rate les séries 3 fois sur 16, et après sa première Coupe l'attentif la regagne 29 % des runs (cible : 25 à 67 %).
 
 ## 2. Ce que la revue de design trouve
@@ -98,6 +100,8 @@ Classé du plus payant au moins payant. Les chiffres en gras ont été relus dan
 
 **Fait (2 nov., lot 4)** : le Pack Époque vise aussi le poste de ton choix (avants, défenseurs, gardiens ; `poste`, js/packs.js) contre le Bronze moins cher, au hasard. L'ablation, refaite : avant, +3,9 V en lisant contre +4,4 V sans (−0,5) ; après, **+4,7 V avec comme sans (± 1,1) : 0 V**. Le choix de pack ne compte toujours pas pour le robot ; le poste est gardé pour le choix qu'il donne au joueur. À essayer : la mesure sur un effectif de bouche-trous de run (sur un vrai club de la LNH, un joueur de Bronze entre rarement), des packs plus distincts, ou couper un rayon.
 
+**Fait (2 nov., lot 5)** : mesuré sur l'effectif d'une première run (30 graines, la saison 1), l'attentif qui n'achète que le Bronze, que l'Époque ou qui lit la boutique finissait à 1,5 V près de l'ordre fixe du robot d'avant, dans le bruit : les deux packs se valaient. Le Pack Époque donne maintenant **un seul joueur, Pilier ou mieux**, de la décennie et du poste de ton choix, à 26 🪙 (trois joueurs au métal du Bronze, 20 🪙 avant) ; le Bronze, trois au hasard : le fort contre le large. Chaque rayon seul perd sur le mélange des deux : le Bronze 2,2 V (± 1,4), l'Époque 1,8 V (± 1,8) ; à 20 🪙, la Coupe tombait dès la run 1. Le robot lit la boutique comme il signe (`packLu`, les buts nets lus au moteur ; il achetait des gardiens qu'il ne signait jamais), mais sa lecture au jeton ne trouve pas le bon mélange : −2,0 V (± 1,2) contre l'ordre fixe ; sur les vrais clubs (`CAMPAGNES=0 GRAINES=4`), +5,4 V en lisant, +4,5 V sans : **+0,9 V** (0 V au lot 4). `check_packs` vert (88). Le détail : docs/decisions.md (lot 5).
+
 ## 3. Ce qui se fait sans toucher une règle
 
 Un premier lot, chaque réglage seul et prouvé :
@@ -114,7 +118,7 @@ Un premier lot, chaque réglage seul et prouvé :
 4. Les adjoints : `REPOS` à 20, et moins d'offres (2.3 A et B) ?
 5. Le talent du niveau 2 : couper l'écran (2.4 A) ou lui donner une vraie alternative (2.4 B) ? — *B fait le 2 nov. (délégué) : une case d'adjoint de plus et sa carte.*
 6. Les deux histoires à faux choix : relever l'option prudente (2.5 A) ou baisser le défi (2.5 B) ? — *A fait le 2 nov. (délégué).*
-7. Les trois premières runs d'une saison chacune : voulu, ou trop dur ? — *le 2 nov. (délégué) : pas voulu ; la saison 1 de la run 1 demande les 24 premiers, séries ou pas. La mesure ne montre pas encore la run 1 plus longue.*
+7. Les trois premières runs d'une saison chacune : voulu, ou trop dur ? — *le 2 nov. (délégué) : pas voulu ; la saison 1 de la run 1 demande les 24 premiers, séries ou pas. Lot 5 : 27 essayé, retiré (la Coupe dès la run 1) ; la deuxième saison de la run 1 porte la marche de la ligue, et la run 1 de l'attentif dure maintenant quatre saisons dans une campagne sur deux.*
 
 ## Comment ces chiffres ont été faits
 

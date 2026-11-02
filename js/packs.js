@@ -130,7 +130,11 @@ export const PACKS_JOUEURS = {
   // V10 : le pack à thème de la première run, au métal du Bronze ; ses crans le montent (js/rogue.js `CRANS_DE_PACK`).
   // Nov. 2026 (docs/revue-rogue-2026-11.md § 2.6) : il vise aussi le poste qui manque (`poste`, `POSTES_DU_PACK`) — le
   // Bronze reste le moins cher, au hasard ; l'Époque coûte plus et donne ce dont ton effectif a besoin.
-  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'bronze', choix: 'decennie', poste: true, joueurs: 3, cartes: 2, prix: 20, texte: 'Trois joueurs de la décennie et du poste de ton choix, et parfois une carte rare.' },
+  // Lot 5 (nov. 2026, docs/decisions.md) : UN joueur, Pilier ou mieux (`niveaux`), contre les trois au hasard du Bronze —
+  // le large contre le fort. À trois joueurs au métal du Bronze, les deux packs se valaient (le robot qui n'achète que
+  // l'un ou que l'autre finissait à 1,5 V près, dans le bruit). À 26 🪙 (20 donnait la Coupe dès la run 1), sur l'effectif
+  // d'une première run, le Bronze seul perd 2,2 V par saison et l'Époque seule 1,8 V sur le mélange des deux.
+  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'bronze', choix: 'decennie', poste: true, joueurs: 1, niveaux: { pilier: 85, etoile: 13, phenomene: 2 }, cartes: 2, prix: 26, texte: 'Un joueur de la décennie et du poste de ton choix, Pilier ou mieux, et parfois une carte rare.' },
   specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes de la famille de ton choix, le quart du haut à leurs points égaux, et parfois une carte rare.' },
   club: { famille: 'equipe', nom: 'Pack Club', ico: '🏟', tier: 'argent', choix: 'franchise', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois joueurs de la franchise de ton choix, toutes époques confondues, et parfois une carte rare.' },
   // V10 : le pack d'étoiles de la boutique, mixte comme les autres, que la Coupe ouvre (js/rogue.js `packsOuverts`).

@@ -244,6 +244,8 @@ export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
 const SAUF = new Set((process.env.ROBOT_SAUF || '').split(',').filter(Boolean));
 const attentifFait = quoi => !SAUF.has(quoi);
 const COACH_FORCE = process.env.ROBOT_COACH || null;
+/* ROBOT_PACK=bronze : l'attentif n'achète que ce pack (son poste lu, s'il en a un), pour mesurer ce que vaut chaque rayon seul. */
+const PACK_FORCE = process.env.ROBOT_PACK || null;
 /* L'attentif lit le moteur, l'affinité de ses lignes comprise (V18). */
 const auMieux = joueurs => alignementAuMieux(joueurs, { plan: true });
 /* Les buts nets par match d'un alignement, lus au moteur — sous un hasard à part : la saison ne bouge pas d'un dé. */
@@ -491,11 +493,24 @@ function lireLaBoutique(meta, graine, saison, libre) {
   }
   return lu;
 }
-function packLu(lu, roster, cap, jetons, n, exigence) {
-  const habilles = SLOTS.filter(sl => !sl.scratch && roster[sl.i]).map(sl => roster[sl.i]);
-  const masse = masseDe(roster);
-  const plusFaible = new Map(['F', 'D', 'G'].map(g => [g, habilles.filter(p => groupe(p) === g).reduce((b, p) => (!b || v(p) < v(b) ? p : b), null)]));
-  const gainDe = p => { const sort = plusFaible.get(groupe(p)); return !sort || masse - (sort.$ || 0) + (p.$ || 0) > cap ? 0 : Math.max(0, v(p) - v(sort)); };
+function packLu(lu, roster, cap, jetons, n, exigence, nRes = 0) {
+  /*
+   * Lot 5 : le gain d'une carte se lit comme l'attentif signe — les buts nets lus au moteur (`lireNet`) de l'alignement
+   * rangé avec elle (`ranger`), qui laisse sortir quelqu'un, sous le plafond. Lu en valeur contre « le plus faible
+   * habillé de son groupe », un gardien meilleur que l'auxiliaire comptait plein alors que le moteur n'en voulait pas :
+   * l'attentif achetait des packs de gardiens qu'il ne signait jamais (2,9 signés par saison au Pack Époque seul, contre 7,7).
+   */
+  const joueurs = Object.values(roster).filter(Boolean), masse = masseDe(roster), valeur0 = lireNet(ranger(joueurs, nRes));
+  const vus = new Map();
+  const gainDe = p => {
+    const k = getPersonKey(p);
+    if (!vus.has(k)) {
+      const avec = [...joueurs, p], r = ranger(avec, nRes), dedans = new Set(Object.values(r).map(getPersonKey));
+      const sort = avec.find(x => !dedans.has(getPersonKey(x))) || null;
+      vus.set(k, sort === p || masse - (sort ? sort.$ || 0 : 0) + (p.$ || 0) > cap ? 0 : Math.max(0, lireNet(r) - valeur0 - 0.01));
+    }
+    return vus.get(k);
+  };
   let meilleur = null;
   for (const o of lu) {
     const prix = prixAuAchat(o.cle, n, exigence);
@@ -554,7 +569,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
   // L'attentif lit la boutique au matin de la saison (`lireLaBoutique`) ; `ROBOT_SAUF=boutique`, l'ordre du robot d'avant.
-  const boutique = attentif && attentifFait('boutique') ? lireLaBoutique(meta, graine, saison, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p))) : null;
+  const boutique = attentif && (attentifFait('boutique') || PACK_FORCE) ? lireLaBoutique(meta, graine, saison, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p))) : null;
   const entrees = [];
   let depense = 0, achats = 0, signes = 0, serie = 0, serieMax = 0;
   const jetons = () => {
@@ -584,7 +599,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     }
     // La boutique, le matin : tant qu'il y a de quoi acheter.
     for (let garde = 0; garde < 4; garde++) {
-      const voulu = (boutique && packLu(boutique, you.roster, cap, jetons(), achats, exigence)) || packVoulu(meta, jetons(), achats, exigence);
+      const voulu = attentif && PACK_FORCE ? packLu(boutique.filter(o => o.cle === PACK_FORCE), you.roster, cap, jetons(), achats, exigence, nRes) || (jetons() >= prixAuAchat(PACK_FORCE, achats, exigence) ? { cle: PACK_FORCE } : null)
+        : (boutique && packLu(boutique, you.roster, cap, jetons(), achats, exigence, nRes)) || packVoulu(meta, jetons(), achats, exigence);
       if (!voulu) break;
       depense += prixAuAchat(voulu.cle, achats, exigence); achats++;
       const actuel = you.roster;
@@ -728,7 +744,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   for (let n = 1; n <= maxSaisons; n++) {
     // La valeur moyenne de l'équipe au départ de la saison (check_rogue : la saison 2 reste un défi).
     const valeur = (l => l.reduce((t, p) => t + v(p), 0) / (l.length || 1))(Object.values(etat.roster).filter(Boolean));
-    const r = jouerSaison(meta, etat, { graine, saison: n, mains, politique, exigence, ligue, etapeDeRun });
+    const r = jouerSaison(meta, etat, { graine, saison: n, mains, politique, exigence, ligue, etapeDeRun: premiere ? etapeDeLaRun(1, n) : etapeDeRun });
     entrees.push(...r.entrees);
     for (const g of r.galons) etat.galons.set(g.joueur, (etat.galons.get(g.joueur) || 0) + 1);
     let e = (ecussonsDeLaSaison(r.pts) + ecussonsDesSeries(r.rondes, r.coupe)) * exigencesDe(exigence).medailles;

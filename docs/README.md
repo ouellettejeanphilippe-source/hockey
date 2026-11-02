@@ -1,7 +1,7 @@
 # docs/ — l'historique et la référence
 
 - `decisions.md` — l'histoire de chaque décision, de S1 à la V21 (31 oct. 2026) : le pourquoi, ce qui a été essayé et écarté, ce qui a été mesuré ; un titre par décision. Les plus récentes en bas (la main d'adjoints, la Boîte en plein écran, le temps de glace inféré).
-- `nuit-2026-11-02.md` — la nuit du 2 nov. 2026, JP : *travaille les deux modes de jeu pour les rendre plus complets, fun et équilibrés* : les neuf PR (#329 à #337) dans l'ordre où les fusionner, Sur glace et le Rogue avant → après, ce qui reste rouge ou douteux, et quoi essayer en premier.
+- `nuit-2026-11-02.md` — la nuit du 2 nov. 2026, JP : *travaille les deux modes de jeu pour les rendre plus complets, fun et équilibrés* : les douze PR (#329 à #340) dans l'ordre où les fusionner, Sur glace et le Rogue avant → après, ce qui reste rouge ou douteux, et quoi essayer en premier.
 - `revue-sur-glace-2026-11.md` — Sur glace revu et corrigé (2 nov. 2026), JP : *ya ben des affaires wack* : la mise en jeu placée comme à la LNH et jouée en duel, la passe en route, la caméra ; ce qui reste à voir à la manette, le hors-jeu des mêlées, et les propositions dans l'ordre.
 - `revue-rogue-2026-11.md` — le Rogue revu et mesuré (2 nov. 2026), JP : *le roguelike, il est pas facile à rendre le fun et balancé* : `check_pouvoirs` à N=600 et `check_profondeur` complet, une revue de design (le creux après le 26e match, le coach du départ, les adjoints, le talent du niveau 2, deux histoires à faux choix, la boutique non mesurée), les options chiffrées et ce que JP tranche.
 - `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).

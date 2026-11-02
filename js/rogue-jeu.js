@@ -1661,6 +1661,8 @@ async function continuerRun(gardes = [], lotos = []) {
   G.roster = roster; poserCartes();
   G.rogue = {
     ...G.rogue, saison, series: null, report,
+    // Lot 5 (nov. 2026) : passé la première saison de la première run, la ligue porte son étape de plus (`etapeDeLaRun`).
+    etapeDeRun: etapeDeLaRun(G.rogue.numero || 1, saison),
     depart: jetonsDeDepart(meta) + reste, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigenceDeLaRun()), plafond: null,
   };
   // La saison neuve : ni ligue, ni séries, ni entrée d'historique — `runSeason` les refera.
