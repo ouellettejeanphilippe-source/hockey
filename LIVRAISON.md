@@ -8,16 +8,17 @@ Le plan de travail courant. Le plan de la 1.0 et ses jalons, tous livrés, sont 
 
 ## Refonte · V23, un vrai jeu de cartes (JP, 2 nov. : *les UI et les mécaniques font un peu « cheap »* ; *facile à prendre en main, dur à maîtriser* ; *les coachs et adjoints comme les joueurs, de pas très bon à excellents*)
 
-Le devis : docs/refonte-v23.md. Huit tranches, chacune son juge ; quatre attendent JP (ses six questions au bas du devis).
+Le devis : docs/refonte-v23.md. Huit tranches, chacune son juge ; JP a tranché ses six questions (au bas du devis).
 
 - [x] **A1 · Le banc s'allume au sommaire** — `banc` (js/profil-style.js), `bancHtml` (js/bilan.js), `.banc` (style.css) — `check_banc`.
 - [ ] **G1 · Les finis** : le toast sur l'en-tête, le bouton flottant sur La route, les pouvoirs tronqués, le 4e pack coupé, les silhouettes du classeur, « Journée 0 », le sous-titre du duel — `essai_rogue`.
-- [ ] **C · Les entraîneurs et les adjoints, de Soutien à ★ Phénomène** (attend JP : la borne d'un adjoint suit son niveau) — `check_pouvoirs`, `check_sauvegardes`.
+- [x] **C · Les entraîneurs et les adjoints, de Soutien à ★ Phénomène** (JP : oui) — `niveauOffert`, `styleAuNiveau`, `BORNE_NIV` (js/adjoints.js), `MAITRISE` en cinq niveaux (js/coachs-reels.js) — `check_pouvoirs`.
+- [x] **D' · La règle du coach, le salaire des adjoints, 🦓 l'ancien arbitre** (JP : *every coach should change how you play… a ref, and pay them*) — `REGLES_DU_COACH` (js/coachs.js), `primesDuCoach`, `salairesDesAdjoints` (js/rogue.js), `SALAIRE_NIV` (js/adjoints.js) — `check_banc`, `check_pouvoirs`.
 - [ ] **A2 · Le banc au Bureau et aux entractes du duel** — `essai_rogue`.
-- [ ] **B · Les choix en cartes** (attend JP : la tuile sobre V19 et les coins vifs) — `essai_rogue`, smoke.
+- [ ] **B · Les choix en cartes** (JP : oui) — `essai_rogue`, smoke.
 - [ ] **E · Les histoires : des suites et des rares**, six fiches — `check_dossiers`, `check_effets`, `check_mots`, `mesure_rythme`.
-- [ ] **D · Le relais des adjoints, et moins d'offres** (attend JP : la synergie en force) — `check_relais` (à écrire), `check_profondeur`.
-- [ ] **F · Le match encerclé, et leur coach en séries** (attend JP) — `check_encercle` (à écrire), `check_gros`, `check_robot`.
+- [ ] **D · Le relais des adjoints, et moins d'offres** (JP : oui, *l'adjoint peut être ce que tu veux*) — `check_relais` (à écrire), `check_profondeur`.
+- [ ] **F · Leur coach en séries** (JP : pas d'encerclement, *plus organique de pas choisir*) — `check_gros`, `check_robot`.
 
 ## Refonte · Coachs, personnel, cartes, incidents, décisions (JP, 27 oct. : *une refonte complète de tout ce qui touche aux coachs, adjoints, cartes, événements et choix, pour que ça fasse plus de sens* ; *plus simple, plus impactant et plus le fun à jouer* ; *je veux que le club se construise autour du coach*)
 
@@ -40,6 +41,7 @@ Le devis : docs/propositions-coachs-cartes-evenements.md (le code : le modèle C
 
 **La règle d'écriture** (JP, 2 nov. 2026 : le journal court, archivé par mois). Une entrée, une ou deux lignes : `- AAAA-MM-JJ — **Ce qui a changé, en mots de joueur**` (JP : *sa demande, courte*), puis les fichiers, la valeur posée et le script qui le prouve. Le pourquoi long, ce qui a été essayé et mesuré, va dans `docs/decisions.md`. La même entrée, entière, va aussi en tête de `docs/journal/AAAA-MM.md` (le mois de sa date). Ici, on ne garde que les 20 plus récentes : la plus vieille sort quand une neuve entre, elle reste au journal du mois.
 
+- 2026-11-02 — **Le Rogue, V23 : tes entraîneurs et tes adjoints ont un niveau, de Soutien à ★ Phénomène ; chaque coach a sa règle qui paie ; les adjoints se paient, et l'ancien arbitre arrive** (JP : *les coachs et adjoints comme les joueurs, de pas très bon à excellents* ; *every coach should change how you play… a ref, and pay them*). Un adjoint offert tire son niveau de la graine et s'ouvre comme un paquet ; son niveau règle sa force (×0,7 à ×1,3) et son prix, et son salaire (0 à 3 🪙 par match) ; l'entraîneur, ×0,9 à ×1,3 sur ses pouvoirs. La règle du coach paie 2 ou 3 🪙 le soir où ton club joue son hockey (🐝 35 tirs ou plus, 😇 deux punitions ou moins…), 50 au plus par saison, allumée au banc. js/adjoints.js, js/coachs.js, js/coachs-reels.js, js/rogue.js — `check_pouvoirs` (chaque adjoint à trois niveaux, sous sa borne), `check_banc`, `check_clarte`. Le juge de la maîtrise passe à la run (`check_profondeur`).
 - 2026-11-02 — **Le Rogue, V23 : le devis d'un vrai jeu de cartes, et le premier lot — ton banc s'allume au sommaire du soir** (JP : *les UI et les mécaniques font un peu « cheap », je veux une vraie expérience de roguelike ou de card game* ; *facile à prendre en main, dur à maîtriser* ; *les coachs et adjoints comme les joueurs, de pas très bon à excellents*). Le devis : docs/refonte-v23.md (six chantiers, huit tranches, six questions à JP), fait avec deux agents neufs, `rogue-ux` et `rogue-recit`, la commande `/revue-design` et le gabarit `docs/gabarits/devis.md`, adaptés de Claude-Code-Game-Studios (licence MIT). Le lot A1 : sous le pointage, tes pouvoirs ouverts et tes adjoints en poste en petites cartes, ce qui a joué s'allume l'un après l'autre avec ses périodes (`banc`, js/profil-style.js ; `bancHtml`, js/bilan.js ; `.banc`, style.css) — `check_banc` (neuf, dans `tout.mjs`).
 - 2026-11-02 — **Le Rogue, cinquième lot : le Pack Époque donne un seul joueur, Pilier ou mieux, contre les trois au hasard du Bronze ; la deuxième saison de la première run porte la marche de la ligue** (`docs/journal/2026-11.md`)
 - 2026-11-02 — **Sur glace : la feinte qu'un bon défenseur lit, l'avantage numérique qui vaut quelque chose, le style d'un vrai club lu de ses vraies stats** (`docs/journal/2026-11.md`)
@@ -59,4 +61,3 @@ Le devis : docs/propositions-coachs-cartes-evenements.md (le code : le modèle C
 - 2026-11-02 — **Sur glace : les joueurs plus gros que nature** (`docs/journal/2026-11.md`)
 - 2026-11-02 — **Sur glace : la patinoire rapetissée, une zone remplit l'écran** (`docs/journal/2026-11.md`)
 - 2026-11-01 — **Sur glace : la glace en 16 bits, la zone au complet, les défenseurs du bon côté** (`docs/journal/2026-11.md`)
-- 2026-11-01 — **Sur glace : l'haptique, le gardien, des vitesses proches, les patins muets** (`docs/journal/2026-11.md`)

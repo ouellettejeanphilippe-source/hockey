@@ -71,11 +71,12 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
   const pasStyle = Object.entries(ADJOINTS).filter(([k, A]) => {
     const l = lignesDeLAdjoint(k), canaux = [...Object.keys(A.effet || {}), ...Object.keys(A.adv || {})];
     return !A.ico || !A.nom || !A.style || !A.dit || /\d/.test(A.dit) || !l.some(x => x.bon) || !l.some(x => !x.bon) || canaux.some(c => !CANAUX.has(c))
-      || Object.keys(A.effet || {}).length > 3 || Object.keys(A.adv || {}).length > 1 || !COACHS[A.voie];
+      || Object.keys(A.effet || {}).length > 3 || Object.keys(A.adv || {}).length > 1 || (A.voie ? !COACHS[A.voie] : !(A.salaire > 0));
   }).map(([k]) => k);
-  const voies = Object.values(ADJOINTS).map(A => A.voie);
-  exiger(`${Object.keys(ADJOINTS).length} adjoints, chacun un style : un gain, un prix, une réplique sans chiffre, un par coach`, Object.keys(ADJOINTS).length >= 8 && !pasStyle.length && new Set(voies).size === Object.keys(COACHS).length,
-    pasStyle.join(', ') || Object.values(ADJOINTS).map(A => `${A.ico}${COACHS[A.voie].ico}`).join(' '));
+  // Un par coach ; V23 : ceux hors des voies (l'ancien arbitre) ne rejoignent personne et se paient un salaire.
+  const voies = Object.values(ADJOINTS).map(A => A.voie).filter(Boolean);
+  exiger(`${Object.keys(ADJOINTS).length} adjoints, chacun un style : un gain, un prix, une réplique sans chiffre, un par coach (les autres se paient)`, Object.keys(ADJOINTS).length >= 8 && !pasStyle.length && voies.length === Object.keys(COACHS).length && new Set(voies).size === voies.length,
+    pasStyle.join(', ') || Object.values(ADJOINTS).map(A => `${A.ico}${A.voie ? COACHS[A.voie].ico : `${A.salaire}🪙`}`).join(' '));
 }
 
 /* ---------- 2. le niveau et les talents ---------- */

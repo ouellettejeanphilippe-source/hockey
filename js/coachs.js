@@ -21,6 +21,25 @@ export const COACHS = {
   profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.', familles: { paie: ['defense'], coute: 'jeu' } },
   etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.', familles: { paie: ['jeu'], coute: 'defense' } },
 };
+/*
+ * LA RÈGLE DU COACH (V23, docs/refonte-v23.md § D ; JP, 2 nov. : *every coach should change how you play*). Chaque
+ * philosophie paie, en jetons, le soir où ton club joue SON hockey : une ligne, lue dans la feuille jouée (comme les
+ * victoires), jamais d'avance, et rien au moteur. Facile : une phrase. Dur : bâtir l'effectif qui la tient, sans perdre
+ * les matchs pour elle. Les seuils sont pris pour qu'un club qui joue ce style la touche à peu près un soir sur quatre
+ * (mesuré sur les clubs témoins : 35 tirs 22 %, 24 tirs contre 30 %, 13 % au tir 30 %, 28 mises en échec 25 %, deux
+ * punitions 18 %, le but gagnant en 3e 14 %, quatre buteurs 25 %, trois points d'un joueur 23 %) ; les plus rares
+ * paient 3. `lit(s)` : `s`, les chiffres de ton club ce soir-là (`chiffresDuSoirDe`, js/rogue.js).
+ */
+export const REGLES_DU_COACH = {
+  essaim: { jetons: 2, dit: '35 tirs ou plus', lit: s => s.tirs >= 35 },
+  tortue: { jetons: 2, dit: '24 tirs contre ou moins', lit: s => s.tirsContre <= 24 },
+  rapaces: { jetons: 2, dit: '13 % au tir ou mieux', lit: s => s.tirs > 0 && s.buts / s.tirs >= 0.13 },
+  rhinos: { jetons: 2, dit: '28 mises en échec ou plus', lit: s => s.coups >= 28 },
+  choeur: { jetons: 3, dit: 'deux punitions ou moins', lit: s => s.punitions <= 2 },
+  souffle: { jetons: 3, dit: 'le but gagnant en 3e ou en prolongation', lit: s => s.butGagnantTard },
+  profondeur: { jetons: 2, dit: 'quatre buteurs ou plus', lit: s => s.buteurs >= 4 },
+  etoiles: { jetons: 2, dit: 'un joueur à trois points ou plus', lit: s => s.pointsMax >= 3 },
+};
 /* Les huit voies d'une run, dans l'ordre où le prestige les ouvre (js/rogue.js `coachsOuverts`). */
 export const VOIES = ['tortue', 'essaim', 'rhinos', 'rapaces', 'souffle', 'choeur', 'profondeur', 'etoiles'];
 

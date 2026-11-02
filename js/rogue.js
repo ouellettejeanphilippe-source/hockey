@@ -30,7 +30,7 @@
  * packs. Seul le méta est un état, et il ne touche pas au moteur.
  */
 import { hache } from './util.js';
-import { VOIES } from './coachs.js';
+import { VOIES, REGLES_DU_COACH, COACHS } from './coachs.js';
 import { filsDeSaison } from './recit.js';
 import { EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PACKS_TOUS, BOUTIQUE } from './packs.js';
@@ -72,6 +72,56 @@ export function primesDesFils(calendrier, you, j = Infinity) {
     const n = Math.min(P.jetons, PRIME_FILS_MAX - total);
     total += n;
     parJour.set(e.j, { jetons: n, mot: P.mot });
+  }
+  return { total, parJour };
+}
+/*
+ * LES CHIFFRES D'UN SOIR, de ton côté, lus dans sa feuille (V23) : ce que la règle du coach lit. Les tirs de barrage ne
+ * comptent pas pour un buteur. Le but gagnant : celui qui met ton club un but devant le compte final de l'adversaire.
+ */
+export function chiffresDuSoirDe(f, cote) {
+  const autre = cote === 'A' ? 'B' : 'A';
+  const buts = (f.buts || []).filter(b => !b.fusillade);
+  const miens = buts.filter(b => b.cote === cote), contre = buts.length - miens.length;
+  const pts = new Map();
+  for (const b of miens) for (const p of [b.marqueur, ...(b.passeurs || [])]) if (p) pts.set(p, (pts.get(p) || 0) + 1);
+  const gagnant = miens.length > contre ? miens[contre] : null;
+  return {
+    tirs: (f.tirs[cote] || []).reduce((a, x) => a + x, 0), tirsContre: (f.tirs[autre] || []).reduce((a, x) => a + x, 0),
+    buts: miens.length, buteurs: new Set(miens.map(b => b.marqueur).filter(Boolean)).size, pointsMax: Math.max(0, ...pts.values()),
+    coups: (f.coups && f.coups[cote]) || 0, punitions: (f.punitions || []).filter(p => p.cote === cote).length,
+    butGagnantTard: !!gagnant && gagnant.instant >= 40,
+  };
+}
+/* Tes soirs joués avant la journée `j` : { j, f, cote }. */
+const tesSoirs = (calendrier, you, j) => (calendrier || []).slice(0, Math.max(0, Math.min(j, (calendrier || []).length)))
+  .flatMap((jour, i) => jour.filter(m => m.feuille && (m.A === you || m.B === you)).map(m => ({ j: i, f: m.feuille, cote: m.A === you ? 'A' : 'B' })));
+/*
+ * LA PRIME DU COACH (V23, js/coachs.js `REGLES_DU_COACH`) : le soir où ton club joue le hockey de ton coach, il paie.
+ * Jusqu'à la journée `j` (non comprise) : { total, parJour: Map(journée → { jetons, mot }) }. Plafonnée par saison
+ * (`PRIME_COACH_MAX`) pour qu'une saison parfaite ne fasse pas la caisse.
+ */
+export const PRIME_COACH_MAX = 50;
+export function primesDuCoach(calendrier, you, j = Infinity, cle = you && you.perso && you.perso.cle) {
+  const parJour = new Map();
+  let total = 0;
+  const R = cle && REGLES_DU_COACH[cle];
+  if (!R) return { total, parJour };
+  for (const x of tesSoirs(calendrier, you, j)) {
+    if (total >= PRIME_COACH_MAX || !R.lit(chiffresDuSoirDe(x.f, x.cote))) continue;
+    const n = Math.min(R.jetons, PRIME_COACH_MAX - total);
+    total += n;
+    parJour.set(x.j, { jetons: n, mot: `${COACHS[cle].ico} ${COACHS[cle].nom} : ${R.dit}` });
+  }
+  return { total, parJour };
+}
+/* LE SALAIRE DES ADJOINTS (V23, js/adjoints.js `salaireDe`) : ce que la feuille dit qu'ils ont coûté, jusqu'à la journée `j`. */
+export function salairesDesAdjoints(calendrier, you, j = Infinity) {
+  const parJour = new Map();
+  let total = 0;
+  for (const x of tesSoirs(calendrier, you, j)) {
+    const n = (x.f.adjoints || []).filter(a => a.cote === x.cote).reduce((a, b) => a + (b.salaire || 0), 0);
+    if (n) { total += n; parJour.set(x.j, n); }
   }
   return { total, parJour };
 }

@@ -5,12 +5,12 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, etapeDeLaRun, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
+import { lireMeta, etapeDeLaRun, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, primesDuCoach, salairesDesAdjoints, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
-import { COACHS, VOIES } from './coachs.js';
+import { COACHS, VOIES, REGLES_DU_COACH } from './coachs.js';
 import { chargerCoachs, lotoDesCoachs, motDuRang, niveauDuCoach } from './coachs-reels.js';
 import { NOMS_NIV } from './adjoints.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
@@ -89,7 +89,8 @@ function resultatsRogue(j) {
   // 1.0 (J1-C) : les rondes de séries gagnées (`finDesSeriesRogue` les pose) — la prime `JETONS.serie` se verse enfin.
   const series = (G.rogue && G.rogue.series && G.rogue.series.rondes) || 0;
   // V3.6 : la prime des fils (le Cheechoo, le jalon…), en Rogue seulement.
-  const primes = G.bonus === 'ROGUE' ? primesDesFils(L.calendrier, toi, j).total : 0;
+  // V23 : la règle du coach paie (`primesDuCoach`), les adjoints en poste se paient (`salairesDesAdjoints`).
+  const primes = G.bonus === 'ROGUE' ? primesDesFils(L.calendrier, toi, j).total + primesDuCoach(L.calendrier, toi, j).total - salairesDesAdjoints(L.calendrier, toi, j).total : 0;
   return { W, L: D, OTL: P, gros, objectifs, series, primes };
 }
 /*
@@ -1013,6 +1014,8 @@ async function choisirCoach() {
       return { cle: c.id, ico: C.ico, nom: c.n, sous: `${nomDuClubSaison(c.tag, c.saison)} · ${fiche(c)} · ${c.neuf ? 'nouvelle carte' : `📒 ton cartable, ${runs} run${runs > 1 ? 's' : ''}`}`,
         // V23 : son niveau, comme un joueur (`niveauDuCoach`), et la force qu'il donne à ses pouvoirs.
         mots: [{ txt: `${NOMS_NIV[niveauDuCoach(c.rang) - 1]} · ${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise !== 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: c.maitrise > 1 ? true : c.maitrise < 1 ? false : null },
+          // V23 : sa règle, ce qu'elle paie le soir où ton club joue son hockey (js/coachs.js `REGLES_DU_COACH`).
+          ...(REGLES_DU_COACH[c.cle] ? [{ txt: `Sa règle : ${REGLES_DU_COACH[c.cle].dit}, +${REGLES_DU_COACH[c.cle].jetons} 🪙 le soir`, bon: true }] : []),
           ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${P.dit}`, bon: null }))] };
     }),
     onChoix: id => resolve(loto.find(c => c.id === id) || null),

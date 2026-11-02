@@ -19,7 +19,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles } from './coachs.js';
 import { POUVOIRS, pouvoirsDeLaPeriode, XP, niveauDuPerso, TALENT_CASE } from './pouvoirs.js';
-import { ADJOINTS, mainDe, postesDe, embaucher, poster, finirLesSejours, resteDe, styleAuNiveau, nivDe } from './adjoints.js';
+import { ADJOINTS, mainDe, postesDe, embaucher, poster, finirLesSejours, resteDe, styleAuNiveau, nivDe, salaireDe } from './adjoints.js';
 import { DOSSIERS } from './dossiers.js';
 import { CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -8484,7 +8484,7 @@ function poserLesAdjoints(A, B, journal) {
       const J = ADJOINTS[c.cle], S = styleAuNiveau(c.cle, nivDe(c));
       if (S.effet) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...S.effet });
       if (S.adv) poser(O, { source: 'adjoint', nom: J.nom, ico: J.ico, ...S.adv });
-      if (journal) (journal.adjoints = journal.adjoints || []).push({ cote, cle: c.cle, nom: J.nom, ico: J.ico, niv: nivDe(c), reste: resteDe(c, T.games || 0, T.perso.cle) });
+      if (journal) (journal.adjoints = journal.adjoints || []).push({ cote, cle: c.cle, nom: J.nom, ico: J.ico, niv: nivDe(c), salaire: salaireDe(c), reste: resteDe(c, T.games || 0, T.perso.cle) });
     }
   }
   return () => { for (const r of retraits.reverse()) r(); };

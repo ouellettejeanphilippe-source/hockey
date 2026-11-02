@@ -67,7 +67,7 @@ import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, 
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, gardesDeLaDerniere, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
-  DEBLOCAGES, departDuClasseur, lotosDeSaison, lotoDeCase, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils,
+  DEBLOCAGES, departDuClasseur, lotosDeSaison, lotoDeCase, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils, primesDuCoach, salairesDesAdjoints,
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
   NIVEAUX_PLEINS, niveauDeLigue, habillerLaLigue, etapeDeLaRun,
   packsOuverts, monteeDesPacks,
@@ -583,7 +583,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     const gros = (you.minisBoss || []).filter(mb => mb.gagne).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0);
     const B = baremeRogue(meta, exigence);
     // V3.6 : la prime des fils (le Cheechoo, le jalon…), comme au jeu (`resultatsRogue`, js/rogue-jeu.js).
-    return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total - depense;
+    return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total - salairesDesAdjoints(L.calendrier, you, L.jour).total - depense;
   };
   // V10 : le lundi du robot — la route, le dossier, la carte d'un palier (scripts/lib/cartes_robot.mjs).
   const etatCartes = { dossiers: [], paliers: new Set(), butins: new Set() };

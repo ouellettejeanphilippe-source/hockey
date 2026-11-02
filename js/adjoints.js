@@ -79,6 +79,13 @@ export const ADJOINTS = {
   vedettiste: { ico: '🎤', nom: 'Le vedettiste', style: 'Le premier trio', voie: 'etoiles',
     dit: 'On paie des vedettes pour qu\'elles jouent. Mets-les sur la glace et laisse-les faire.',
     effet: { F: [1.2, 1, 0.92, 0.84], finition: 1.03, blessure: 1.3 }, adv: { volume: 1.08 } },
+  /*
+   * L'ANCIEN ARBITRE (V23 ; JP, 2 nov. : *a coach or assistant that was a ref, and pay them*). Hors des huit voies : il
+   * ne rejoint aucun coach, et il se paie (`salaire`, en jetons par match en poste, en plus de celui de son niveau).
+   */
+  arbitre: { ico: '🦓', nom: 'L\'ancien arbitre', style: 'Il connaît les arbitres', voie: null, salaire: 2,
+    dit: 'J\'ai sifflé vingt ans dans cette ligue. Je sais ce qu\'ils regardent, et ce qu\'ils ne regardent pas.',
+    effet: { discipline: 0.85 }, adv: { discipline: 1.1 } },
 };
 
 /*
@@ -92,13 +99,21 @@ export const ADJOINTS = {
  */
 export const NOMS_NIV = ['Soutien', 'Régulier', 'Pilier', '★ Étoile', '★ Phénomène'];
 export const FORCE_NIV = [0.7, 0.85, 1, 1.15, 1.3];
-export const PRIX_NIV = [1.05, 1.025, 1, 0.9, 0.8];
+const PRIX_NIV = [1.05, 1.025, 1, 0.9, 0.8];
 export const RARETE_NIV = ['commune', 'commune', 'peu', 'rare', 'legendaire'];
 export const BORNE_NIV = [1, 1, 1.5, 2.5, 4];
 export const NIV_DEFAUT = 3;
+/*
+ * LE SALAIRE (V23 ; JP : *pay them*) : un adjoint en poste se paie, en jetons, chaque match — plus il est bon, plus il
+ * coûte (`SALAIRE_NIV` : rien au Soutien et au Régulier, 1, 2 puis 3 🪙 au Phénomène), plus le sien (`salaire`, l'ancien
+ * arbitre). Une carte d'avant la V23, sans niveau, ne coûte rien. La feuille le garde (`feuille.adjoints[].salaire`), la
+ * caisse le déduit (js/rogue.js `salairesDesAdjoints`) : le poster est un choix d'argent autant que de hockey.
+ */
+export const SALAIRE_NIV = [0, 0, 1, 2, 3];
+export const salaireDe = c => (c && ADJOINTS[c.cle] ? (c.niv ? SALAIRE_NIV[nivDe(c) - 1] : 0) + (ADJOINTS[c.cle].salaire || 0) : 0);
 export const nivDe = c => Math.min(5, Math.max(1, Math.round(Number(c && c.niv) || NIV_DEFAUT)));
 /* Ce qu'un canal fait de bon de ton côté (`effet`) ou de l'adversaire (`adv`) : plus de tirs à toi, moins des leurs… */
-const BON_SI_HAUT = { effet: new Set(['volume', 'finition', 'robustesse', 'F']), adv: new Set() };
+const BON_SI_HAUT = { effet: new Set(['volume', 'finition', 'robustesse', 'F']), adv: new Set(['discipline']) };
 const echelle = (v, bon, niv) => 1 + (v - 1) * (bon ? FORCE_NIV : PRIX_NIV)[niv - 1];
 const canalAuNiveau = (cote, k, v, niv) => {
   if (Array.isArray(v)) return v.map(x => echelle(x, x > 1, niv));
@@ -142,10 +157,11 @@ const MOTS = {
 const MOTS_ADV = {
   volume: v => ({ txt: `Leurs tirs ${pct(v)}`, bon: v < 1 }),
   finition: v => ({ txt: `Leur précision ${pct(v)}`, bon: v < 1 }),
+  discipline: v => ({ txt: `Leurs punitions ${pct(v)}`, bon: v > 1 }),
 };
 /* CE QU'UN ADJOINT DIT, à son niveau : ses lignes vertes d'abord, puis ses rouges, chacune en vraies stats. */
-export function lignesDeLAdjoint(cle, niv = NIV_DEFAUT) {
-  const A = ADJOINTS[cle] && styleAuNiveau(cle, niv);
+export function lignesDeLAdjoint(cle, niv = null) {
+  const A = ADJOINTS[cle] && styleAuNiveau(cle, niv || NIV_DEFAUT);
   if (!A) return [];
   const out = [];
   for (const [k, v] of Object.entries(A.effet || {})) {
@@ -155,6 +171,9 @@ export function lignesDeLAdjoint(cle, niv = NIV_DEFAUT) {
     } else if (MOTS[k]) out.push(MOTS[k](v));
   }
   for (const [k, v] of Object.entries(A.adv || {})) if (MOTS_ADV[k]) out.push(MOTS_ADV[k](v));
+  // V23 : son salaire est un prix comme un autre (une carte sans niveau ne paie que le sien).
+  const paye = salaireDe({ cle, niv });
+  if (paye) out.push({ txt: `Salaire : ${paye} 🪙 par match en poste`, bon: false });
   return [...out.filter(x => x.bon), ...out.filter(x => !x.bon)];
 }
 

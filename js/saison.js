@@ -44,7 +44,7 @@ import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, chiffre
 import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
-import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
+import { primesDesFils, primesDuCoach, salairesDesAdjoints, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { ADJOINTS, adjointsOfferts, lignesDeLAdjoint, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, reposDe, mainDe, auRepos, niveauOffert, momentFort, NOMS_NIV, RARETE_NIV } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
@@ -2381,7 +2381,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // gros match, la une, puis autour de la ligue. Un congé hier : la une de la semaine et la ligue seulement.
     // V9 : le lundi, la semaine passée pliée en tête du volet ; les nouvelles (ce qui arrive sans rien demander) après la une.
     // V12-2 : la route a son sous-onglet ; la une revient à Hier soir quand la presse part dans la boîte (V18-5).
-    const bouge = promessesQuiBougent().map(t => `<div class="som-l">${ctx.esc(t)}</div>`).join('');
+    // V23 : la règle du coach a payé hier soir, et ce que tes adjoints ont coûté (js/rogue.js `primesDuCoach`, `salairesDesAdjoints`).
+    const primeCoach = ctx.rogue && k >= 0 ? primesDuCoach(calendrier, you, jour).parJour.get(j) : null;
+    const salaire = ctx.rogue && k >= 0 ? salairesDesAdjoints(calendrier, you, jour).parJour.get(j) : null;
+    const caisse = primeCoach || salaire ? `<div class="som-l">${primeCoach ? `<span class="bon">${ctx.esc(primeCoach.mot)} : +${primeCoach.jetons} 🪙</span>` : ''}${primeCoach && salaire ? ' · ' : ''}${salaire ? `<span class="prix">Tes adjoints : −${salaire} 🪙</span>` : ''}</div>` : '';
+    const bouge = caisse + promessesQuiBougent().map(t => `<div class="som-l">${ctx.esc(t)}</div>`).join('');
     if (soirEnVolet) return `${semainePasseeHtml()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${nouvellesHtml()}${autourHtml()}</section>`;
     return `${cartesDuBureau()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
   };

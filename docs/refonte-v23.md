@@ -61,6 +61,29 @@ Comme les joueurs, chaque **entraîneur** et chaque **adjoint** a un **niveau** 
 
 Chaque adjoint a, en plus de son style, un **signal** de hockey lu période par période comme un pouvoir : « quand un pouvoir de ton coach joue », « en 3e, à un but près », « quand le mur est aussi en poste ». Quand il se lit, l'adjoint **relaie** sur un de ses canaux, la période même (« 🏹 Le canonnier relaie 🐝 la ruée »). La chaîne s'arrête à deux maillons. Une paire rend 1,2 à 1,6 fois la somme de ses pièces, comme la lancée l'a fait (V16, `check_combo`). Avec C : un adjoint excellent relaie plus fort. Et **moins d'offres** (revue § 2.3 B) : le butin d'un gros match gagné donne des jetons ou de l'expérience, plus un adjoint ; sans ça, on tient toutes les cartes et le relais n'est plus un choix.
 
+### D'. Chaque coach change ta façon de jouer, et les adjoints se paient (JP, 2 nov. : *every coach should change how you play, you can be creative about it, like a coach or assistant that was a ref and pay them and stuff like that*)
+
+**La règle du coach** (`REGLES_DU_COACH`, js/coachs.js ; `primesDuCoach`, js/rogue.js). Chaque philosophie paie le soir où ton club joue SON hockey, lu dans la feuille : facile (une phrase), dur à maîtriser (bâtir l'effectif qui la tient sans perdre les matchs pour elle). Les seuils sont mesurés sur les clubs témoins, pour à peu près un soir sur quatre ; les plus rares paient 3 ; 50 🪙 au plus par saison (`PRIME_COACH_MAX`).
+
+| Coach | La règle | Paie | Un soir sur… |
+|---|---|---|---|
+| 🐝 Le Frelon | 35 tirs ou plus | 2 🪙 | 4,5 (22 %) |
+| 🐢 La Tortue | 24 tirs contre ou moins | 2 🪙 | 3,3 (30 %) |
+| 🦅 L'Aigle | 13 % au tir ou mieux | 2 🪙 | 3,3 (30 %) |
+| 🦏 Le Rhino | 28 mises en échec ou plus | 2 🪙 | 4 (25 %) |
+| 😇 L'Abbé | deux punitions ou moins | 3 🪙 | 5,5 (18 %) |
+| 🫁 Le Doc | le but gagnant en 3e ou en prolongation | 3 🪙 | 7 (14 %) |
+| 🪜 Le Contremaître | quatre buteurs ou plus | 2 🪙 | 4 (25 %) |
+| 🌠 Le Showman | un joueur à trois points ou plus | 2 🪙 | 4,3 (23 %) |
+
+Un club qui joue le style le tient plus souvent : la saison test de `check_banc` (le Frelon, ses pouvoirs) touche 35 tirs 46 soirs sur 82, et le plafond mord. La règle s'allume au banc du soir, se dit à Hier soir (« 🐝 Le Frelon : 35 tirs ou plus : +2 🪙 »), au choix de l'entraîneur et chez le coach (combien de fois, combien de jetons cette saison).
+
+**Le salaire** (`SALAIRE_NIV`, `salaireDe`, js/adjoints.js ; `salairesDesAdjoints`, js/rogue.js). En poste, un adjoint se paie chaque match : rien au Soutien et au Régulier, 1, 2 puis 3 🪙 du Pilier au ★ Phénomène. Le niveau devient un choix d'argent : le Phénomène coûte 36 🪙 sur un séjour de 12 matchs. Une carte d'avant la V23, sans niveau, ne coûte rien.
+
+**🦓 L'ancien arbitre** (JP : *an assistant that was a ref, and pay them*). Hors des huit voies : il ne rejoint aucun coach (12 matchs, jamais 16) et se paie 2 🪙 de plus par match. *« J'ai sifflé vingt ans dans cette ligue. Je sais ce qu'ils regardent, et ce qu'ils ne regardent pas. »* Tes punitions −15 %, les leurs +10 %. Mesuré (`check_pouvoirs`, N = 600) : +1,0 V au Soutien (borne ±1, au ras), +1,4 au Pilier (±1,5), +1,8 au Phénomène (±4) — le plus fort des adjoints au Pilier, et le plus cher : 3 🪙 par match au Pilier, 5 au Phénomène.
+
+À venir, dans le même esprit (l'adjoint libre, JP) : le relais (D), et d'autres adjoints hors des voies qui changent une règle plutôt qu'un canal — le dépisteur (une carte de plus aux offres), le comptable (la prime de victoire), le médecin (les retours de blessure).
+
 ### E. Les histoires : des suites et des rares
 
 Une réponse peut planter un **épisode 2** (`suite: { cle, apres, si }`), qui ne s'ouvre que si le fait de l'issue est vrai dans les feuilles jouées depuis (« il a fait 4 points pendant son défi »), et passe avant le tirage du lundi. Une histoire **rare** sort une fois par run au plus, sur un fait rare, avec un enjeu plus gros. Six fiches neuves, écrites par `rogue-recit` (les durées des dés à peser par `check_effets DETAIL=1`) :
@@ -93,7 +116,7 @@ Une sortie `cubic-bezier(.2,.8,.2,1)` pour tout déplacement, le ressort (`--e-r
 
 ## 5. Les cas limites
 
-Un coach sans pouvoir ouvert (niveau 0) : le banc montre l'adjoint seul, ou rien. Un adjoint dont le séjour finit ce soir : il s'allume une dernière fois, « dernier match ». Les séries : le banc joue pareil. Une vieille partie : un adjoint sans niveau est Régulier (`check_sauvegardes`), une histoire sans suite n'en a pas. L'APK hors ligne : aucun fichier neuf sans `sw.js` (`check_coquille`). Le clavier et la manette : chaque carte du banc a son infobulle et son focus.
+Un coach sans pouvoir ouvert (niveau 0) : le banc montre l'adjoint seul, ou rien. Un adjoint dont le séjour finit ce soir : il s'allume une dernière fois, « dernier match ». Les séries : le banc joue pareil. Une vieille partie : un adjoint sans niveau est un Pilier, la table d'avant, et ne se paie pas, une histoire sans suite n'en a pas. L'APK hors ligne : aucun fichier neuf sans `sw.js` (`check_coquille`). Le clavier et la manette : chaque carte du banc a son infobulle et son focus.
 
 ## 6. Ce qu'il touche
 
@@ -111,14 +134,15 @@ Les clés de sauvegarde ne bougent jamais.
 
 ## 7. Les réglages
 
-`NIVEAUX_ADJOINT` (force ×0,7 · ×0,85 · ×1 · ×1,15 · ×1,3 ; prix ×1,2 · ×1,1 · ×1 · ×0,85 · ×0,7), `MAITRISE` en cinq marches (×0,9 à ×1,3), le relais (une reprise de 0,3 à 0,6 fois le canal, deux maillons), `ECART_BANC` (120 ms entre deux cartes qui s'allument), l'enjeu du match encerclé (selon le rang de l'adversaire, borné par `BUTIN_RIVAL`).
+`FORCE_NIV` (×0,7 · ×0,85 · ×1 · ×1,15 · ×1,3), `PRIX_NIV` (×1,05 · ×1,025 · ×1 · ×0,9 · ×0,8 : le prix bouge moins que la force, pour qu'un style se voie encore au Phénomène et que le Soutien soit faible sans piéger), `SALAIRE_NIV` (0 · 0 · 1 · 2 · 3 🪙 par match), `MAITRISE` en cinq marches (×0,9 à ×1,3), `REGLES_DU_COACH` et `PRIME_COACH_MAX` (50 🪙 par saison), le relais (une reprise de 0,3 à 0,6 fois le canal, deux maillons), `ECART_BANC` (120 ms entre deux cartes qui s'allument), l'enjeu du match encerclé (selon le rang de l'adversaire, borné par `BUTIN_RIVAL`).
 
 ## 8. Les critères d'acceptation
 
 - [x] **A1** : au sommaire du soir, le banc montre chaque pouvoir ouvert et chaque adjoint en poste ; ce qui a joué porte `.joue` et ses périodes, recomptées dans `feuille.pouvoirs` ; sous `prefers-reduced-motion`, aucune animation — `check_banc` (neuf, dans `tout.mjs`).
 - [ ] A2 : le banc au Bureau et allumé aux entractes du duel — `essai_rogue`.
 - [ ] B : une histoire tient en 1,0 écran ; un chiffre par option à `--t-6` ou plus ; `cibles44` — `essai_rogue`, smoke.
-- [ ] C : chaque niveau d'adjoint sous sa borne, et le Phénomène bat le Soutien du même style en paires — `check_pouvoirs` ; les vieilles parties lisent un Régulier — `check_sauvegardes`.
+- [x] C : chaque niveau d'adjoint sous sa borne, et le Phénomène bat le Soutien du même style en paires (chacun à 0,3 V près, +0,7 V en moyenne) — `check_pouvoirs` ; une carte sans niveau est un Pilier, la table telle quelle.
+- [x] D' : la règle du coach s'allume les soirs où elle paie et la caisse les paie ; les salaires sont ceux de la feuille — `check_banc` ; l'ancien arbitre sous la borne de chaque niveau — `check_pouvoirs`.
 - [ ] D : chaque relais se voit le soir où il joue ; une paire rend 1,2 à 1,6 fois ses pièces — `check_relais` (à écrire) ; l'attentif qui lit les relais bat celui qui ne les lit pas d'au moins 1 V par saison — `check_profondeur` (`ROBOT_SAUF=relais`).
 - [ ] E : une suite ne s'ouvre que sur un fait vrai ; une rare au plus une fois par run ; les deux réponses à 0,3 V — `check_dossiers`, `check_effets DETAIL=1`, `check_mots`, `mesure_rythme`.
 - [ ] F (réduit, JP : pas d'encerclement) : leur coach en séries, son pouvoir neutre sur une saison — `check_gros`, `check_robot`.
@@ -130,7 +154,8 @@ Les clés de sauvegarde ne bougent jamais.
 
 1. **A1 · Le banc s'allume au sommaire** — fait (2 nov.) : `banc` (js/profil-style.js), `bancHtml` (js/bilan.js), `.banc` (style.css), `check_banc`.
 2. **G1 · Les finis** : les sept défauts des captures — `essai_rogue`.
-3. **C · Les niveaux des entraîneurs et des adjoints** — après le oui de JP sur la borne.
+3. **C · Les niveaux des entraîneurs et des adjoints** — fait (2 nov.) : `NOMS_NIV`, `FORCE_NIV`, `PRIX_NIV`, `BORNE_NIV`, `niveauOffert` (js/adjoints.js), `MAITRISE` en cinq niveaux (js/coachs-reels.js) — `check_pouvoirs`.
+3'. **D' · La règle du coach, le salaire, l'ancien arbitre** — fait (2 nov.) — `check_banc`, `check_pouvoirs`, `check_clarte`.
 4. **A2 · Le banc au Bureau et aux entractes.**
 5. **B · Les choix en cartes** — après le oui de JP sur la tuile sobre.
 6. **E · Les suites et les rares**, les six fiches.

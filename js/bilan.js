@@ -1313,8 +1313,8 @@ function bancHtml(f, A, B) {
   if (!cartes.length) return '';
   let i = 0;
   const carte = c => {
-    const pied = c.genre === 'adjoint'
-      ? (c.reste > 1 ? `encore ${c.reste - 1}` : 'dernier match')
+    const pied = c.genre === 'regle' ? (c.joue ? `+${c.jetons} 🪙` : 'pas ce soir')
+      : c.genre === 'adjoint' ? `${c.reste > 1 ? `encore ${c.reste - 1}` : 'dernier match'}${c.salaire ? ` · −${c.salaire} 🪙` : ''}`
       : c.joue ? c.periodes.map(k => PERIODE_COURTE[k] || `${k + 1}e`).join(' · ') : 'au banc';
     return `<div class="banc-carte banc-${c.genre}${c.joue ? ' joue' : ''}"${c.joue ? ` style="--i:${i++}"` : ''} title="${esc(`${c.nom} — ${c.dit}`)}">
       <span class="banc-ico" aria-hidden="true">${c.ico}</span><b>${esc(c.nom)}</b><small>${esc(pied)}</small></div>`;
