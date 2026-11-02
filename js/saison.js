@@ -57,6 +57,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { verdictsDeLaSemaine as verdictsDesChoix } from './verdicts.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
+import { bancDuSoirHtml } from './banc-du-soir.js';
 import { panelDe } from './panel-tv.js';
 import { EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, motDuSuiviEnCours, avecNoms, joueurDuFait } from './vie-gm.js';
 
@@ -2140,12 +2141,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Le résultat neuf, lu au bureau plutôt qu'en plein écran (J2-8) : il s'anime une fois.
     const neuf = hierFrais === j + 1 && hierAnimer ? ' neuf' : '';
     if (neuf) hierAnimer = false;
+    // V23 : le pointage en tableau indicateur, et ton banc du soir dessous — ce qui a joué s'allume (js/banc-du-soir.js).
     return `<div class="hub-hier ${v ? 'v' : 'd'}${neuf}"${somm}>
       <span class="hub-hier-quand">Journée ${j + 1} · <b>${v ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}</b></span>
       <span class="hub-hier-score">${eq(m.A, m.gfA)}<i>–</i>${eq(m.B, m.gfB)}${m.ot ? '<small>P</small>' : ''}</span>
       ${m.feuille ? '<span class="hub-hier-voir">Sommaire ›</span>' : ''}
       ${but && but.marqueur ? `<span class="hub-hier-recit">${ctx.esc(recitDeBut({ ...but, gagnant: true }))}</span>` : ''}
-    </div>`;
+    </div>${ctx.rogue && m.feuille ? bancDuSoirHtml(m.feuille, m.A, m.B, ctx.esc) : ''}`;
   };
   // LES RÉSULTATS DE LA JOURNÉE (S79) : ils font le classement, donc ils vivent avec lui.
   const resultatsDuJour = () => {
@@ -2885,13 +2887,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const P = PLANS[planEnForce(p.j)];
     return `<button type="button" class="hub-rangee bu-plan"><span class="hub-rangee-t">Ton plan</span><b>${P.ico} ${ctx.esc(P.mot)}</b></button>`;
   };
+  /*
+   * V23 (docs/refonte-v23.md, le Bureau ; JP : *ça manque de juice, trop de texte* ; *entre ça et un look style EHM*) : le
+   * match en bandeau « VS », les deux clubs à leurs couleurs, l'écusson et le sigle ; dessous, quand, où, et le gros match.
+   */
   function prochainHtml(p, adv, quand, domicile, mb) {
     const G0 = mb && MINI_BOSS[mb.raison];
-    return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}">
-      <span class="bu-prochain-logo" aria-hidden="true">${ctx.logo(adv.tag, 28)}</span>
-      <span class="bu-prochain-txt"><small>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : 'à l\'étranger'}</small>
-        <b>${ctx.esc(ctx.teamShort(adv))}</b>${G0 ? `<small class="bu-prochain-gros">${G0.ico} Gros match · ${ctx.esc(G0.nom)}</small>` : ''}</span>
-      <span class="bu-prochain-aller">Face à face ›</span>
+    const a = ctx.band(you.tag), b = ctx.band(adv.tag);
+    return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}" style="--a-band:${a.bg};--a-ink:${a.ink};--b-band:${b.bg};--b-ink:${b.ink}" aria-label="Face à face : ${ctx.esc(ctx.teamShort(adv))}">
+      <span class="bu-vs-eq toi">${ctx.logo(you.tag, 30)}<b>${ctx.esc(ctx.tagCourt(you))}</b></span>
+      <span class="bu-vs-mi"><b>VS</b><small>${ctx.esc(quand)}</small></span>
+      <span class="bu-vs-eq eux"><b>${ctx.esc(ctx.tagCourt(adv))}</b>${ctx.logo(adv.tag, 30)}</span>
+      <span class="bu-prochain-pied">Match ${miens.length + 1} · ${domicile ? 'chez toi' : 'chez eux'}${G0 ? ` · <span class="bu-prochain-gros">${G0.ico} ${ctx.esc(G0.nom)}</span>` : ''}<span class="bu-prochain-aller">Face à face ›</span></span>
     </button>`;
   }
 
@@ -3782,7 +3789,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     /*
      * UNE BOÎTE DE RÉCEPTION, PAS LES MESSAGES (V21 ; JP : *les événements et choix devraient être en plein écran, pas dans la
      * boîte*). La V18-5 réglait un choix sur place, déplié dans la boîte ; la boîte n'en garde plus que la ligne — la voix, le
-     * sujet, sa réplique, son état — et la toucher ouvre le choix en plein écran (`ouvrirChoix`) : la scène, le joueur, ce qui
+     * sujet, son état (V23 : sa réplique part, elle se lit dans le choix ; JP : *trop de texte dans la boîte*) — et la toucher ouvre le choix en plein écran (`ouvrirChoix`) : la scène, le joueur, ce qui
      * est déjà en jeu, les options. Une option touchée part ; « Plus tard » le laisse dans la boîte. Rien ne s'ouvre de soi-même.
      */
     const etatDe = m => (m.bloque ? (seCoche(m) ? 'À choisir' : 'À régler') : '');
@@ -3792,7 +3799,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `<article class="hub-msg${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${m.maison}">
         <button type="button" class="hub-msg-tete" aria-haspopup="dialog">
           ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
-          <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
+          <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${prisHtml(m)}</span>
           <span class="hub-msg-etat">${etatDe(m)}</span>
         </button>
       </article>`;
