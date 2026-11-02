@@ -14,7 +14,8 @@
  *                         l'adversaire ; dans leur zone, l'échec avant de la stratégie (1-2-2, 2-1-2, la trappe 1-3-1)
  *   les stratégies        `STRATEGIES` : équilibrée, offensive, défensive — l'échec avant, la défense de zone, l'attaque
  *                         (la surcharge ou deux au filet), combien les défenseurs pincent
- *   la mise en jeu        le centre presse le bouton autour de la chute, à un hasard près
+ *   la mise en jeu        le centre presse le bouton autour de la chute, à un hasard près (`MISE`), le bâton vers le
+ *                         coéquipier où il veut l'envoyer : son défenseur le plus souvent, sinon l'ailier de la bande
  *   les tirs de barrage   le tireur fonce et lance de l'enclave (le tir de punition pareil)
  *   l'avantage numérique  le parapluie ; en désavantage, la boîte
  *   les défenseurs        reculent face au porteur qui descend sur eux ; ne se laissent jamais déborder : entre
@@ -50,6 +51,14 @@ function espacer(s, miens, e, rayon = 2.2, adv = []) {
   const x = e.x + px * 0.8, y = e.y + py * 0.8, m = hyp(x, y);
   return m > 1 ? { x: x / m, y: y / m } : { x, y };
 }
+/*
+ * LA BLEUE SANS LA DÉPASSER (JP : *trop de hors-jeu*) : un patineur lancé vers la bleue ne s'arrête pas sur un dix
+ * cents. La limite qu'il vise recule de sa distance de freinage (sa vitesse vers la zone, au carré, sur deux fois
+ * `FREIN_BLEUE`, le frein que l'IA se donne, un peu sous celui des lames) : il freine à temps, sans entrer avant la rondelle.
+ */
+const FREIN_BLEUE = 12;   // m/s²
+const PASSE_VIVE = 3;     // m/s : plus lente, une passe est une rondelle libre, qu'on chasse
+const avantLaBleue = (s, a, marge) => BLEUE - marge - Math.max(0, s.vx * a) ** 2 / (2 * FREIN_BLEUE);
 const dansLaGlace = (x, y) => ({ x: clamp(x, -(LIGNE_BUT - 1), LIGNE_BUT - 1), y: clamp(y, -(W / 2 - 1.2), W / 2 - 1.2) });
 
 /* Le couloir d'un lancer ou d'une passe est-il ouvert ? Aucun adversaire à moins de `marge` de la ligne, passé le premier mètre. */
@@ -108,16 +117,20 @@ export function decisionIA(etat, s) {
 
   if (porteur === s) memo.dernierePossession = etat.t;
 
-  // LA MISE EN JEU : le centre presse autour de la chute ; les autres attendent.
+  // LA MISE EN JEU : le centre presse autour de la chute, le bâton vers où il l'envoie ; les autres attendent.
   if (etat.mej) {
     if (etat.mej.centres[eq] !== s.id) return { x: 0, y: 0 };
-    if (memo.mej == null || memo.mejPour !== etat.mej) { memo.mejPour = etat.mej; memo.mej = (etat.de() - 0.4) * 0.3; }
-    return { x: 0, y: 0, passe: etat.mej.reste <= memo.mej + 0.0001 };
+    return miseEnJeu(etat, s, memo, a, miens);
   }
 
   // LE HORS-JEU DIFFÉRÉ contre nous : on ressort de la zone, vite, et personne n'y entre tant que le bras est levé.
   if (M && M.horsJeuDiffere === eq && porteur !== s) {
-    if (u(s.x) > BLEUE - 0.6) return vers(s, a * (BLEUE - 2), s.y, 0.5);
+    // on ressort en contournant la rondelle : la toucher dedans, c'est le sifflet
+    if (u(s.x) > BLEUE - 0.6) {
+      const dx = s.x - R.x, dy = s.y - R.y, d = hyp(dx, dy) || 1, e = vers(s, a * (BLEUE - 2), s.y, 0.5);
+      if (d < 4) { e.x += dx / d * (4 - d) * 0.6; e.y += dy / d * (4 - d) * 0.6; const m = hyp(e.x, e.y); if (m > 1) { e.x /= m; e.y /= m; } }
+      return e;
+    }
     if (u(R.x) > BLEUE) return vers(s, a * (BLEUE - 1.5), clamp(R.y, -8, 8), 1);
   }
 
@@ -132,7 +145,36 @@ export function decisionIA(etat, s) {
 
   if (porteur === s) return avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M);
   if (porteur && porteur.equipe === eq) return soutenir(etat, s, a, but, u, miens, adv, porteur);
+  // UNE PASSE DES NÔTRES EN ROUTE : le receveur va la chercher ; les autres prennent déjà leur poste autour de lui, au
+  // lieu de foncer tous sur la rondelle (JP : *le positionnement des joueurs*). Ratée (elle file ailleurs ou meurt), on chasse.
+  const receveur = !porteur && R.passeVers ? miens.find(m => m.id === R.passeVers) : null;
+  const enRoute = receveur && hyp(R.vx, R.vy) > PASSE_VIVE && (receveur.x - R.x) * R.vx + (receveur.y - R.y) * R.vy > 0;
+  if (enRoute && receveur !== s) return soutenir(etat, s, a, but, u, miens, adv, receveur);
   return defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur);
+}
+
+/*
+ * LA MISE EN JEU de l'IA : la même que la tienne — le bouton A au moment qu'elle croit être la chute, à `ecart` s près
+ * (un dé, avant ou après), le bâton vers le coéquipier qu'elle vise : un défenseur derrière elle `versD` fois sur
+ * cent, sinon l'ailier du côté de la bande. Une fois par mise en jeu ; le moteur fait le reste (`MEJ`).
+ */
+const MISE = { ecart: 0.15, versD: 0.75 };
+function miseEnJeu(etat, s, memo, a, miens) {
+  const M = etat.mej, P = M.point;
+  if (memo.mejPour !== M) {
+    memo.mejPour = M;
+    memo.mejT = (2 * etat.de() - 1) * MISE.ecart;
+    const autres = miens.filter(m => m !== s);
+    const D = autres.filter(m => m.poste === 'D'), F = autres.filter(m => m.poste !== 'D');
+    const bande = Math.sign(P.y) || 1;
+    // le défenseur le plus près de l'axe derrière le point ; l'ailier le plus près de la bande
+    const derriere = m => Math.abs(m.y - P.y) - (P.x - m.x) * a * 0.5;
+    const versD = etat.de() < MISE.versD;
+    const cible = (versD && D.length ? D.slice().sort((p, q) => derriere(p) - derriere(q))[0] : F.slice().sort((p, q) => (q.y - p.y) * bande)[0]) || autres[0];
+    const dx = cible ? cible.x - P.x : -a, dy = cible ? cible.y - P.y : 0, d = hyp(dx, dy) || 1;
+    memo.mejX = dx / d; memo.mejY = dy / d;
+  }
+  return { x: memo.mejX, y: memo.mejY, passe: -M.reste >= memo.mejT };
 }
 
 /* ---------- le porteur ---------- */
@@ -212,9 +254,10 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   }
   // PATINER : vers le filet par le côté le plus libre ; derrière le filet, on ressort devant.
   let cible;
-  // Un coéquipier déjà dans la zone : on n'entre pas (le hors-jeu), on tient la bleue le long de la bande le temps qu'il ressorte.
-  const unDedans = u(s.x) < BLEUE && u(s.x) > BLEUE - 6 && miens.some(m => m !== s && u(m.x) > BLEUE + 0.25);
-  if (unDedans) cible = { x: a * (BLEUE - 1.5), y: Math.sign(s.y || 1) * 9 };
+  // Un coéquipier déjà dans la zone : on n'entre pas (le hors-jeu), on tient la bleue le long de la bande le temps qu'il
+  // ressorte. C'est la rondelle qui compte, pas le porteur : reprise juste hors de la zone, on ressort avec elle.
+  const unDedans = u(R.x) < BLEUE && u(R.x) > BLEUE - 6 && miens.some(m => m !== s && u(m.x) > BLEUE + 0.25);
+  if (unDedans) cible = { x: a * Math.min(BLEUE - 1.5, avantLaBleue(s, a, 1)), y: Math.sign(s.y || 1) * 9 };
   else if (u(s.x) > LIGNE_BUT - 1) cible = { x: but.x - a * 4, y: Math.sign(s.y || 1) * 5 };
   else if (u(s.x) < BLEUE) {
     if (memo.cote == null || etat.t - (memo.coteT || -9) > 2) {
@@ -323,7 +366,7 @@ function soutenir(etat, s, a, but, u, miens, adv, porteur) {
     }
   }
   // En deçà de la bleue tant que la rondelle n'y est pas : pas de hors-jeu.
-  if (!enZone && u(cible.x) > BLEUE - 0.8) cible.x = a * (BLEUE - 0.8);
+  if (!enZone) { const lim = avantLaBleue(s, a, 0.8); if (u(cible.x) > lim) cible.x = a * lim; }
   // LES DÉFENSEURS, même à l'attaque, restent du bon côté de l'adversaire qui traîne haut : celui du côté fort peut
   // pincer de quelques mètres, l'autre reste le dernier homme.
   if (s.poste === 'D') {
@@ -458,6 +501,9 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
       }
     }
   }
+  // LE HORS-JEU, aussi sans la rondelle : elle est sortie de leur zone, on en sort aussi (on se remet en jeu), pour
+  // pouvoir y revenir avec elle ; sinon, la reprendre à la bleue, c'est un hors-jeu.
+  if (u(R.x) <= BLEUE) { const lim = avantLaBleue(s, a, 0.8); if (u(cible.x) > lim) cible = { x: a * lim, y: cible.y }; }
   // LES DÉFENSEURS ne se laissent pas déborder : entre l'attaquant le plus avancé et notre filet, l'écart selon sa vitesse.
   if (iD >= 0 && !desavantage) cible = duBonCote(cible, a, u, adv);
   cible = dansLaGlace(cible.x, cible.y);
