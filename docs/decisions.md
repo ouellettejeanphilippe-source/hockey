@@ -3315,4 +3315,4 @@ Version 3.2.10 ; `VERSION_MOTEUR` ne monte pas (`check_empreinte` vert).
 
 **Le style d'un vrai club** (js/glace-ia.js `STYLE`, `styleDuClub` ; js/sur-glace.js). **Le pourquoi** : l'adversaire jouait toujours « équilibré », et deux clubs ne se distinguaient que par leurs cotes. **Le réglage** : les tirs, les mises en échec (avant 2005, les minutes de punition) par match de patineur et les tirs reçus par match de gardien, chacun à côté de la moyenne des clubs de sa saison, bornés à ±30 % ; ils déplacent les seuils de décision (la distance du tir, la charge) et choisissent la stratégie de l'adversaire, jamais une cote. Par match de patineur, pas par club : un joueur échangé en cours de saison n'est rangé qu'à un club. **Mesuré** (60 matchs, avec puis sans) : SJS 2011-12 tire 7,4 fois de plus de 11 m (1,6 sans), mais pas plus souvent en tout (41 tirs tentés) ; NYR 2011-12 réussit 13,0 mises en échec à l'élan (8,7 sans) ; CAR 2023-24 accorde 36,9 tirs tentés (41,6 sans).
 
-Version 3.2.14.
+Version 3.2.13.

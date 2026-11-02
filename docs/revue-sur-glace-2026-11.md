@@ -308,7 +308,7 @@ Deux réglages en route, pour l'équilibre. Le premier jet des dés (1,5 % de ci
 - **À sentir à la manette** : 0,63 punition par match de 6 min, c'est ≈ 1,6 par match de 15 min — l'avantage numérique devient rare ; la célébration de 2,5 s avant la reprise ; le trapèze sur la glace se comprend-il ?
 - **Les captures** (Chromium sans tête, 1280 × 720, aucune erreur dans la console) : un gaucher et un droitier côte à côte, et un patineur qui protège (`mains.png`), le gardien derrière son filet (`gardien-sort.png`, `gardien-joue.png`, `gardien-revient.png`), la célébration (`fete-1.png`, `fete-2.png`).
 
-## 9. Le lot 6 : la feinte, l'avantage numérique et le style d'un vrai club (version 3.2.14)
+## 9. Le lot 6 : la feinte, l'avantage numérique et le style d'un vrai club (version 3.2.13)
 
 Trois choses que les sections 6 à 8 laissaient douteuses. Chaque comportement a son fait mis en scène dans `check_physique` (185 → 193 vérifications, toutes vertes) ; l'IA pousse le même bâton ; le chiffre de la feinte dit à l'écran vient de `FEINTE`.
 
@@ -331,7 +331,7 @@ Trois choses que les sections 6 à 8 laissaient douteuses. Chaque comportement a
 - **La correction** (js/glace-ia.js `AVANTAGE`, sans toucher au moteur) : en désavantage, le porteur la dégage au fond de sa zone ou de la neutre (permis), sauf seul devant ; sans la rondelle hors de sa zone, pas d'échec avant : le plus près chasse la rondelle libre, les autres attendent dans leur zone, la boîte prête. En avantage, en zone, le porteur tient le tour de la zone au lieu de foncer dans la boîte, cherche la passe d'un côté à l'autre (elle part plus tôt) et lance de la pointe à travers l'écran.
 - **La preuve** : trois faits (le tir de la pointe : 21 décisions sur 40 en avantage avec l'écran, 0 sans écran, 0 à forces égales ; le dégagement du désavantage ; le plus avancé des quatre à −5,8 m quand l'autre la porte chez lui, à +15,6 m à cinq).
 
-| 500 matchs de 3 × 2 min | 3.2.12 | 3.2.14 |
+| 500 matchs de 3 × 2 min | 3.2.12 | 3.2.13 |
 |---|---|---|
 | Avantages | 306 | 269 |
 | Buts en avantage (conversion) | 115 (37,6 %) | 106 (39,4 %) |
