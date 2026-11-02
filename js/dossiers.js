@@ -42,6 +42,12 @@ import { hache } from './util.js';
 export const FENETRE_JOUEUR = 10, PUNITIONS_CHICANE = 4;
 /* LA DEUXIÈME MOITIÉ (nov. 2026) : trois histoires ne s'ouvrent qu'après MI_SAISON matchs ; la course est perdue à RETARD_FOND points des séries. */
 const MI_SAISON = 41, RETARD_FOND = 8;
+/* LES SUITES (V23) : l'épisode 2 du petit lit ses SUITE_PETIT matchs d'après, et sa barre de POINTS_PETIT points. Une rare
+   ne sort qu'aux lundis où son tirage passe sous CHANCE_RARE, une fois par saison. */
+const SUITE_PETIT = 8, POINTS_PETIT = 4;
+const CHANCE_RARE = 0.4;
+/* La suite d'une histoire dans les faits du lundi (`faits.suites`, `faitsDesSuites`) : { de, choix, joueur, m, pts, resolue }. */
+const suiteDe = (f, de) => (f.suites || []).find(x => x.de === de && !x.resolue) || null;
 /*
  * LA COURSE (nov. 2026), pure : le retard sur la dernière place des séries (0 si tu y es) et l'avance du premier sur le
  * 2e (null si tu n'es pas premier), lus au classement du matin — `points`, du premier au dernier ; `rang`, le tien.
@@ -177,6 +183,81 @@ export const DOSSIERS = {
       { cle: 'pedale', nom: 'La pédale au fond', bon: 'Les commanditaires suivent le premier', prix: 'Les jambes de tous paient', gain: 25, action: { energieTous: -5 } },
     ],
   },
+  /*
+   * LES SUITES ET LES RARES (V23, docs/refonte-v23.md § E ; JP : *tout ce qui rend le roguelike le fun*). Une réponse peut
+   * planter un épisode 2 (`suite`, en matchs) : il ne s'ouvre que si ce que le joueur nommé a fait DEPUIS se lit dans ses
+   * feuilles (`faitsDesSuites`), et passe avant le tirage du lundi. Une histoire `rare` ne sort qu'à certains lundis
+   * (`CHANCE_RARE`) et une fois par saison.
+   */
+  // Le petit qui pousse : un attaquant du bas de l'alignement qui produit.
+  lePetit: {
+    de: 'en', ico: '🐣', titre: 'Le petit qui pousse',
+    quand: f => !!f.pousse && f.n >= 5,
+    joueur: f => f.pousse,
+    fait: f => (f.pousse ? `${f.pousse.n} : ${f.pousse.pts} points en ${f.pousse.m} matchs, au ${f.pousse.ou}` : `${f.n} matchs`),
+    mots: ['Il frappe à la porte. Tu lui ouvres, ou tu le fais attendre ?',
+      'Le petit en veut. Donne-lui des minutes, on va voir de quoi il est fait.'],
+    options: [
+      { cle: 'monter', nom: 'Lui donner du temps de glace', bon: 'Si ça passe : il répond, plus de tirs et de précision', prix: 'Sinon : il force, moins de précision',
+        pari: { chance: 3 / 6, gagne: { duree: 8, lui: { lancers: 1.4, finition: 1.2 } }, perd: { duree: 8, lui: { finition: 0.6 } } }, suite: 8 },
+      { cle: 'murir', nom: 'Le laisser mûrir', bon: 'Ton coach prend son temps avec lui', xp: 4 },
+    ],
+  },
+  // L'épisode 2, s'il a répondu : quatre points ou plus depuis qu'il joue plus.
+  lePetitArrive: {
+    de: 'an', ico: '🌟', titre: 'Le petit est arrivé', suiteDe: 'lePetit',
+    quand: f => { const x = suiteDe(f, 'lePetit'); return !!x && !x.resolue && x.m >= SUITE_PETIT && x.pts >= POINTS_PETIT; },
+    joueur: f => (suiteDe(f, 'lePetit') || {}).joueur || null,
+    fait: f => { const x = suiteDe(f, 'lePetit'); return x ? `${x.joueur.n} : ${x.pts} points en ${x.m} matchs depuis qu'il joue plus` : `${f.n} matchs`; },
+    mots: ['Tout le monde parle de lui à la télé. Le petit est devenu quelqu\'un.',
+      'Les commanditaires appellent. Lui, il veut juste jouer.'],
+    options: [
+      { cle: 'une', nom: 'La une le réclame', bon: 'Les commanditaires paient', gain: 25 },
+      { cle: 'proteger', nom: 'Le protéger des caméras', bon: 'Une carte d\'adjoint dans ta main', adjoint: true },
+    ],
+  },
+  // L'épisode 2, s'il a forcé : moins de quatre points depuis.
+  lePetitDoute: {
+    de: 'ca', ico: '🌧', titre: 'Le petit doute', suiteDe: 'lePetit',
+    quand: f => { const x = suiteDe(f, 'lePetit'); return !!x && !x.resolue && x.m >= SUITE_PETIT && x.pts < POINTS_PETIT; },
+    joueur: f => (suiteDe(f, 'lePetit') || {}).joueur || null,
+    fait: f => { const x = suiteDe(f, 'lePetit'); return x ? `${x.joueur.n} : ${x.pts} point${x.pts > 1 ? 's' : ''} en ${x.m} matchs depuis qu'il joue plus` : `${f.n} matchs`; },
+    mots: ['Il ne dort plus, il regarde ses présences en boucle. Je peux le prendre sous mon aile.',
+      'On l\'a lancé trop vite. Il faut décider s\'il reste avec nous ou s\'il redescend.'],
+    options: [
+      { cle: 'aile', nom: 'Sous l\'aile du capitaine', bon: 'Il retrouve ses mains : il tire plus, avec plus de précision', prix: 'Il reste après chaque pratique : ses jambes paient',
+        duree: 6, lui: { lancers: 1.3, finition: 1.2 }, action: { energie: -15 } },
+      { cle: 'redescendre', nom: 'Le renvoyer en bas de l\'alignement', bon: 'Ton coach tranche', xp: 3 },
+    ],
+  },
+  // RARE : un tour du chapeau au dernier match.
+  lesChapeaux: {
+    de: 'eq', ico: '🎩', titre: 'Les chapeaux sur la glace', rare: true,
+    quand: f => !!f.chapeau,
+    joueur: f => f.chapeau,
+    fait: f => (f.chapeau ? `${f.chapeau.n} : ${f.chapeau.buts} buts au dernier match${f.dernier ? `, ${f.dernier.pour}–${f.dernier.contre} contre ${f.dernier.adv}` : ''}` : `${f.n} matchs`),
+    mots: ['J\'en ai ramassé une pleine poubelle. On en fait quoi ?',
+      'Les chapeaux pleuvent encore. Ça n\'arrive pas deux fois dans une saison.'],
+    options: [
+      { cle: 'encheres', nom: 'Les chapeaux aux enchères', bon: 'Les partisans paient pour un souvenir', gain: 30 },
+      { cle: 'chaud', nom: 'Il garde la rondelle chaude', bon: 'Si ça passe : il reste en feu, plus de tirs et de précision', prix: 'Sinon : il redescend, moins de précision',
+        pari: { chance: 4 / 6, gagne: { duree: 6, lui: { lancers: 1.4, finition: 1.2 } }, perd: { duree: 6, lui: { finition: 0.7 } } } },
+    ],
+  },
+  // Le blanchissage de l'auxiliaire au dernier match.
+  leBlanchissage: {
+    de: 'en', ico: '🧊', titre: 'Le blanchissage de l\'auxiliaire',
+    quand: f => !!f.blanchissage,
+    joueur: f => f.blanchissage,
+    fait: f => (f.blanchissage ? `${f.blanchissage.n} : un blanchissage${f.dernier ? `, ${f.dernier.pour}–0 contre ${f.dernier.adv}` : ''}` : `${f.n} matchs`),
+    mots: ['Le petit a fermé la porte. Le grand regarde du banc.',
+      'Un blanchissage, ça se récompense. Ou ça se range, et on revient à l\'ordre.'],
+    options: [
+      { cle: 'encore', nom: 'Encore le filet', bon: 'Si ça passe : il reste chaud, moins de buts accordés', prix: 'Sinon : il redescend, plus de buts accordés',
+        action: { gardienAux: 2 }, pari: { chance: 4 / 6, gagne: { duree: 4, lui: { arrets: 0.8 } }, perd: { duree: 4, lui: { arrets: 1.2 } } } },
+      { cle: 'partant', nom: 'Retour au partant', bon: 'Ton coach garde l\'ordre', xp: 3 },
+    ],
+  },
   // Le dos-à-dos : deux soirs de suite sur la route, et le plus bas en jambes.
   leDosADos: {
     de: 'en', ico: '🛫', titre: 'Deux soirs de suite sur la route',
@@ -219,6 +300,51 @@ const auRepos = (k, w, deja, faits) => {
  * (`deja` : ceux sortis cette saison, `{ cle, w, joueur }`), le plus haut de son tirage ; aucun vrai, aucun dossier (null).
  */
 export function dossierDeLaSemaine(graine, w, faits, deja = []) {
-  const vraies = Object.keys(DOSSIERS).filter(k => DOSSIERS[k].quand(faits) && !auRepos(k, w, deja, faits));
-  return vraies.length ? vraies.reduce((b, k) => (tirer(graine, w, k) > tirer(graine, w, b) ? k : b)) : null;
+  // V23 : une rare ne se tire qu'à ses lundis, une fois par saison ; une suite passe avant le tirage.
+  const rareOk = k => !DOSSIERS[k].rare || (tirer(graine, w, `rare:${k}`) < CHANCE_RARE && !deja.some(x => x.cle === k));
+  const vraies = Object.keys(DOSSIERS).filter(k => DOSSIERS[k].quand(faits) && !auRepos(k, w, deja, faits) && rareOk(k));
+  const suites = vraies.filter(k => DOSSIERS[k].suiteDe);
+  const pool = suites.length ? suites : vraies;
+  return pool.length ? pool.reduce((b, k) => (tirer(graine, w, k) > tirer(graine, w, b) ? k : b)) : null;
+}
+/*
+ * CE QUE LE DERNIER MATCH LAISSE (V23), pur : un tour du chapeau de ton club (`chapeau`, le premier à trois buts) et le
+ * blanchissage d'un gardien qui n'est pas ton partant (`blanchissage`). `f` : sa feuille ; `cote` : le tien ; `partant` :
+ * ton gardien n° 1 ; `cleDe` : la clé d'un joueur. Les tirs de barrage ne comptent pas.
+ */
+export function faitsDuDernier(f, cote, partant, cleDe) {
+  if (!f) return { chapeau: null, blanchissage: null };
+  const parBut = new Map();
+  for (const b of f.buts || []) if (b.cote === cote && !b.fusillade && b.marqueur) parBut.set(b.marqueur, (parBut.get(b.marqueur) || 0) + 1);
+  const [p, buts] = [...parBut.entries()].find(([, n]) => n >= 3) || [];
+  const contre = (f.buts || []).filter(b => b.cote !== cote && !b.fusillade).length;
+  const g = cote === 'A' ? f.gardienA : f.gardienB;
+  return {
+    chapeau: p ? { n: p.n, cle: cleDe(p), buts } : null,
+    blanchissage: g && contre === 0 && g !== partant ? { n: g.n, cle: cleDe(g) } : null,
+  };
+}
+/*
+ * LES FAITS DES SUITES (V23), purs : pour chaque réponse d'histoire qui plante une suite (`suite`), ce que son joueur a
+ * fait DEPUIS, lu dans ses feuilles — ses matchs habillé et ses points. `deja` : les histoires sorties ({ cle, choix,
+ * joueur, j }) ; `soirs` : tes matchs joués ({ f, cote, j }) ; `cleDe` : la clé d'un joueur (js/sim.js `getPlayerKey`).
+ * Une suite est `resolue` quand son épisode 2 est déjà sorti pour ce joueur.
+ */
+export function faitsDesSuites(deja, soirs, cleDe) {
+  const out = [];
+  for (const d of deja || []) {
+    const o = DOSSIERS[d.cle] && DOSSIERS[d.cle].options.find(x => x.cle === d.choix);
+    if (!o || !o.suite || !d.joueur || !Number.isFinite(d.j)) continue;
+    let m = 0, pts = 0, n = null;
+    for (const x of soirs || []) {
+      if (x.j < d.j) continue;
+      const lui = ((x.f.alignes && x.f.alignes[x.cote]) || []).find(p => p && cleDe(p) === d.joueur);
+      if (!lui) continue;
+      m++; n = lui.n;
+      pts += (x.f.buts || []).filter(b => b.cote === x.cote && !b.fusillade && [b.marqueur, ...(b.passeurs || [])].includes(lui)).length;
+    }
+    const resolue = (deja || []).some(y => DOSSIERS[y.cle] && DOSSIERS[y.cle].suiteDe === d.cle && y.joueur === d.joueur);
+    if (n) out.push({ de: d.cle, choix: d.choix, joueur: { n, cle: d.joueur }, m, pts, resolue });
+  }
+  return out;
 }

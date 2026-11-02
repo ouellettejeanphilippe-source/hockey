@@ -29,7 +29,7 @@ import { exiger, informer, verdict } from './verdict.mjs';
 
 /* ---------- 2. la forme ---------- */
 // V21 : les champs d'une conséquence concrète ; `duree` ne sert qu'à ce qui arrive au joueur nommé (`lui`).
-const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'duree', 'action', 'gain', 'xp', 'adjoint', 'perdAdjoint', 'soin', 'rien', 'lui', 'plafond', 'pari']);
+const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'duree', 'action', 'gain', 'xp', 'adjoint', 'perdAdjoint', 'soin', 'rien', 'lui', 'plafond', 'pari', 'suite']);
 const ACTIONS = new Set(['energieTous', 'gardienAux', 'energie', 'absents']);
 /* Ce qu'un joueur nommé porte (V11, tranche 4) : ses canaux à lui (`CANAUX_MUT`, js/sim.js). */
 const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets']);
@@ -92,7 +92,10 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
       rival: r() < 0.2 ? 'Rival' : null, bete: r() < 0.08 ? 'Bête' : null, caisse: pige([5, 40, 60, 120]),
       dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32, dosRoute: pige([0, 0, 1, 2]),
       masse: { espace: pige([-500_000, 800_000, 4_000_000, 9_000_000]), libre: '0,8 M$', lourd: { n: 'Lourd', cle: 'l', sal: '9,5 M$' } },
-      defaites: pige([0, 0, 1, 2, 4, 5]), coach: { cle: 'tortue', nom: 'La Tortue', ico: '🐢', niveau: 2, adjoints: 1 } };
+      defaites: pige([0, 0, 1, 2, 4, 5]), coach: { cle: 'tortue', nom: 'La Tortue', ico: '🐢', niveau: 2, adjoints: 1 },
+      // V23 : le petit qui pousse, le dernier match (un tour du chapeau, un blanchissage), une suite du petit (ses points depuis).
+      pousse: joueur(0.3, { pts: 5, ou: '3e trio' }), chapeau: joueur(0.15, { buts: 3 }), blanchissage: joueur(0.1, {}),
+      suites: r() < 0.3 ? [{ de: 'lePetit', choix: 'monter', joueur: { n: 'Untel', cle: pige(['u', 'v', 'w']) }, m: pige([4, 8, 10]), pts: pige([1, 3, 4, 6]), resolue: r() < 0.2 }] : [] };
   };
   // La course (nov. 2026) : lue sur un classement fabriqué, au rang du lundi (`faitsDeLaCourse`).
   const avecLaCourse = f => ({ ...f, ...faitsDeLaCourse(Array.from({ length: 32 }, (_, i) => 120 - i * pige([1, 2, 3])), f.rang) });

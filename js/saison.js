@@ -47,7 +47,7 @@ import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, primesDuCoach, salairesDesAdjoints, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { ADJOINTS, adjointsOfferts, lignesDeLAdjoint, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, reposDe, mainDe, auRepos, niveauOffert, momentFort, NOMS_NIV, RARETE_NIV } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
-import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
+import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, faitsDesSuites, faitsDuDernier, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE } from './banque.js';
 import { DEFIS, avanceDuDefi, motDuDefi } from './arcs.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
@@ -3223,9 +3223,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (!semaineAHistoire(graine, w) || pris.has(`do:${w}`)) return null;
     const faits = faitsDuLundi();
     // Une histoire revient après son repos (`REPOS_HISTOIRE`), sur un autre joueur : celles de la saison, leur semaine (`do:w`), leur joueur.
-    const cle = dossierDeLaSemaine(graine, w, faits, decs.filter(d => d.moment && d.moment.famille === 'dossier').map(d => ({ cle: d.moment.cle, w: Number(String(d.palier).slice(3)) || Math.floor(d.jour / SEMAINE), joueur: d.moment.joueur || null })));
+    const cle = dossierDeLaSemaine(graine, w, faits, histoiresSorties());
     return cle ? { w, cle, faits } : null;
   }
+  /* Les histoires sorties cette saison : { cle, w, choix, joueur, j } (V23 : la réponse et le jour, pour les suites). */
+  const histoiresSorties = () => decs.filter(d => d.moment && d.moment.famille === 'dossier')
+    .map(d => ({ cle: d.moment.cle, w: Number(String(d.palier).slice(3)) || Math.floor(d.jour / SEMAINE), choix: d.moment.choix, joueur: d.moment.joueur || null, j: d.jour }));
   /* Les mots d'une réponse de dossier, ses noms posés : le joueur qu'il nomme ({nom}), les coachs que le proprio nomme ({coach0}, {coach1}). */
   function motsDuDossier(o, f, lui) {
     // Le rachat dit les vrais montants (oct., JP : *c'est moi où y'a rien de cohérent ?*), plus « 17 % de moins ».
@@ -3263,6 +3266,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ...faitsDeLaCourse(classement().map(t => fiche.get(t).PTS), rangDe(you), enSeries),
       dosRoute: jours.filter(j => dosADos(you, j) && calendrier[j][indexMien(j)].B === you && indexMien(j - 1) >= 0 && calendrier[j - 1][indexMien(j - 1)].B === you).length,
       ...faitsDesJoueurs(), ...faitsDuProprio(),
+      // V23 (js/dossiers.js) : ce que le dernier match laisse (un tour du chapeau, un blanchissage de l'auxiliaire), et les suites.
+      ...faitsDuDernier(der && der.feuille, chez ? 'A' : 'B', you.roster[SLOTS.find(sl => sl.group === 'G').i] || null, getPlayerKey),
+      suites: faitsDesSuites(histoiresSorties(), miens.map(({ j, m }) => ({ j, f: m.feuille || {}, cote: m.A === you ? 'A' : 'B' })), getPlayerKey),
     };
   }
   /*
@@ -3298,11 +3304,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const puni = lus.filter(x => x.pun >= PUNITIONS_CHICANE).sort((a, b) => b.pun / b.m - a.pun / a.m)[0];
     const gros = [...lus].sort((a, b) => (b.p.$ || 0) - (a.p.$ || 0)).slice(0, 3);
     const muet = gros.filter(x => x.m >= FENETRE_JOUEUR - 2 && x.pts <= 1).sort((a, b) => a.pts - b.pts || (b.p.$ || 0) - (a.p.$ || 0))[0];
+    // V23 : le petit qui pousse — un attaquant du 3e ou du 4e trio, quatre points ou plus sur ses derniers matchs.
+    const pousse = lus.filter(x => x.sl.group === 'F' && x.sl.unit >= 2 && x.m >= 5 && x.pts >= 4).sort((a, b) => b.pts - a.pts)[0];
     const ou = sl => (sl.group === 'D' ? `${ordF(sl.unit + 1)} paire` : `${ord(sl.unit + 1)} trio`);
     return {
       boude: boude ? { ...qui(boude), zone: getLineZone(boude.p).short, ou: ou(boude.sl), pts: boude.pts } : null,
       puni: puni ? { ...qui(puni), pun: puni.pun } : null,
       muet: muet ? { ...qui(muet), sal: money(muet.p.$ || 0), pts: muet.pts } : null,
+      pousse: pousse ? { ...qui(pousse), pts: pousse.pts, ou: ou(pousse.sl) } : null,
     };
   }
   const titreDuChoix = spec => String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : ''));

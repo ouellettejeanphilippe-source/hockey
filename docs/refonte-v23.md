@@ -158,7 +158,7 @@ Les clés de sauvegarde ne bougent jamais.
 3'. **D' · La règle du coach, le salaire, l'ancien arbitre** — fait (2 nov.) — `check_banc`, `check_pouvoirs`, `check_clarte`.
 4. **A2 · Le banc au Bureau et aux entractes.**
 5. **B · Les choix en cartes** — fait (2 nov.) : la carte de choix (relief, forme, gros chiffre, envol) ; le pari en rondelle qui tourne et le joueur nommé en vraie carte restent à faire.
-6. **E · Les suites et les rares**, les six fiches.
+6. **E · Les suites et les rares** — fait (2 nov.) : le petit (trois épisodes), les chapeaux (rare), le blanchissage ; le retour à la maison et la promesse du capitaine restent à écrire.
 7. **D · Le relais et moins d'offres** — après le oui de JP.
 8. **F · Leur coach en séries** (l'encerclement est écarté par JP).
 
