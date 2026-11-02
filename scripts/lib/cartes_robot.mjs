@@ -11,7 +11,7 @@
  * Le robot ne voit que ce que l'écran montre : les feuilles jouées, la cédule de la semaine, ses jambes, sa caisse.
  */
 import { dosADos, energieDe, SLOTS, rivalChoisi, getPlayerKey } from '../../js/sim.js';
-import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, FENETRE_JOUEUR } from '../../js/dossiers.js';
+import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, FENETRE_JOUEUR, PUNITIONS_CHICANE } from '../../js/dossiers.js';
 import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { joueurDuFait } from '../../js/vie-gm.js';
 import { COACHS } from '../../js/coachs.js';
@@ -48,6 +48,15 @@ function faitsDuRobot(L, you, jetons) {
   let defaites = 0;
   for (let i = miens.length - 1; i >= 0; i--) { const { m } = miens[i], c = m.A === you; if ((c ? m.gfA : m.gfB) < (c ? m.gfB : m.gfA)) defaites++; else break; }
   const perso = persoDe(you), C = perso && COACHS[perso.cle];
+  // Les faits d'un joueur (js/saison.js `faitsDesJoueurs`) : celui qui va au cachot, le gros contrat muet, lus dans SES feuilles.
+  const lus = SLOTS.filter(s => !s.scratch && s.group !== 'G').map(s => you.roster[s.i]).filter(Boolean).map(p => {
+    const siens = miens.filter(({ f, cote }) => (f.alignes?.[cote] || []).includes(p)).slice(-FENETRE_JOUEUR);
+    const compte = (champ, ok) => siens.reduce((a, { f, cote }) => a + (f[champ] || []).filter(x => x.cote === cote && ok(x)).length, 0);
+    return { p, m: siens.length, pts: compte('buts', b => b.marqueur === p || (b.passeurs || []).includes(p)), pun: compte('punitions', x => x.joueur === p) };
+  });
+  const qui = x => ({ n: x.p.n, cle: getPlayerKey(x.p), m: x.m });
+  const puni = lus.filter(x => x.pun >= PUNITIONS_CHICANE).sort((a, b) => b.pun / b.m - a.pun / a.m)[0];
+  const muet = [...lus].sort((a, b) => (b.p.$ || 0) - (a.p.$ || 0)).slice(0, 3).filter(x => x.m >= FENETRE_JOUEUR - 2 && x.pts <= 1).sort((a, b) => a.pts - b.pts || (b.p.$ || 0) - (a.p.$ || 0))[0];
   return {
     n: miens.length,
     jambes: pats.length ? Math.round(pats.reduce((a, x) => a + x.j, 0) / pats.length) : 100,
@@ -61,6 +70,8 @@ function faitsDuRobot(L, you, jetons) {
     caisse: jetons, dernier: der ? { pour: chez ? der.gfA : der.gfB, contre: chez ? der.gfB : der.gfA, adv: 'eux' } : null,
     rang, equipes: L.teams.length, defaites,
     coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso) } : null,
+    puni: puni ? { ...qui(puni), pun: puni.pun } : null,
+    muet: muet ? { ...qui(muet), sal: '', pts: muet.pts } : null,
   };
 }
 

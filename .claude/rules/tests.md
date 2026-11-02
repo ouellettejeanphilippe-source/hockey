@@ -52,6 +52,8 @@ Depuis la V18 : `node scripts/check_affinite.mjs` (trois minutes : chaque badge 
 
 Depuis nov. 2026 : `node scripts/mesure_main.mjs` (une minute et demie sur huit fils ; `GRAINES`, `SAISONS`, `FILS`) — la main d'adjoints de l'attentif sur les clubs de check_profondeur, trois saisons de suite : la part des cartes d'adjoint entrées dans la main qui n'y jouent jamais un séjour (sous 25 %) et l'occupation des cases (docs/revue-rogue-2026-11.md § 2.3).
 
+Depuis nov. 2026 : `node scripts/mesure_rythme.mjs` (une minute et demie sur huit fils ; `GRAINES`, `SAISONS`, `FILS`) — le rythme d'une saison de l'attentif, sur les mêmes clubs : les matchs où la saison demande quelque chose (un palier, une histoire, un butin, un talent, un gros match, la main du deck, l'objectif du proprio ; les signatures à part), le plus long trou sans moment (10 matchs au plus en médiane, un quart des saisons au plus au-dessus) et un moment dans chaque quart de chaque saison (docs/revue-rogue-2026-11.md § 2.1). Le robot lit les faits du lundi comme l'écran, joueurs compris (le cachot, le gros contrat muet).
+
 Depuis oct. 2026 : `node scripts/check_suivis.mjs` (une demi-minute par ligue ; `GRAINES=83,85`) — chaque fil suivi a son état chaque matin, recompté dans les feuilles, et son retour ; un joueur parti fait tomber la promesse ; l'objectif du proprio se recompte et se lève si son joueur part.
 
 Depuis oct. 2026 : `node scripts/check_effets.mjs` (une vingtaine de minutes ; `N` matchs par club, 200 ; `IDS=q:,a:` quelques familles) — chaque effet du Rogue, en paires, se voit dans la feuille d'un soir où il joue, et sa force reste bornée (un adjoint : le style, pas la force).
