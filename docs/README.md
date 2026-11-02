@@ -1,6 +1,7 @@
 # docs/ — l'historique et la référence
 
 - `decisions.md` — l'histoire de chaque décision, de S1 à la V21 (31 oct. 2026) : le pourquoi, ce qui a été essayé et écarté, ce qui a été mesuré ; un titre par décision. Les plus récentes en bas (la main d'adjoints, la Boîte en plein écran, le temps de glace inféré).
+- `revue-rogue-2026-11.md` — le Rogue revu et mesuré (2 nov. 2026), JP : *le roguelike, il est pas facile à rendre le fun et balancé* : `check_pouvoirs` à N=600 et `check_profondeur` complet, une revue de design (le creux après le 26e match, le coach du départ, les adjoints, le talent du niveau 2, deux histoires à faux choix, la boutique non mesurée), les options chiffrées et ce que JP tranche.
 - `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).
 - `sur-glace.md` — Sur glace, toutes les fonctions d'un jeu de hockey 2D (1er nov. 2026), JP : *fais la liste de toutes les fonctions nécessaires, du game feel, au but objet physique, à la physique de changer de direction en patin* : par domaine, faite, partielle ou à faire, ce qui la porte, et l'ordre de travail (la hauteur de la rondelle d'abord).
 - `structure.md` — la structure du dépôt, une ligne par fichier (sortie de CLAUDE.md le 2 nov. 2026).
