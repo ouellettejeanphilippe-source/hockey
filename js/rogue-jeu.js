@@ -14,7 +14,7 @@ import { COACHS, VOIES, REGLES_DU_COACH } from './coachs.js';
 import { chargerCoachs, lotoDesCoachs, motDuRang, niveauDuCoach } from './coachs-reels.js';
 import { NOMS_NIV } from './adjoints.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
-import { motsDeMutationEnChiffres } from './impact.js';
+import { motsDeMutationEnChiffres, ditDuPouvoir } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE, POSTES_DU_PACK } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
@@ -1016,7 +1016,7 @@ async function choisirCoach() {
         mots: [{ txt: `${NOMS_NIV[niveauDuCoach(c.rang) - 1]} · ${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise !== 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: c.maitrise > 1 ? true : c.maitrise < 1 ? false : null },
           // V23 : sa règle, ce qu'elle paie le soir où ton club joue son hockey (js/coachs.js `REGLES_DU_COACH`).
           ...(REGLES_DU_COACH[c.cle] ? [{ txt: `Sa règle : ${REGLES_DU_COACH[c.cle].dit}, +${REGLES_DU_COACH[c.cle].jetons} 🪙 le soir`, bon: true }] : []),
-          ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${P.dit}`, bon: null }))] };
+          ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${ditDuPouvoir(P)}`, bon: null }))] };
     }),
     onChoix: id => resolve(loto.find(c => c.id === id) || null),
     onFerme: () => resolve(null),

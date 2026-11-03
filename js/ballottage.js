@@ -210,8 +210,10 @@ const reservistesPour = (roster, injured, sl) => SLOTS.filter(x => x.scratch && 
  * ballottage offre quelqu'un). Un gardien n'est jamais forcé : l'auxiliaire
  * prend le filet de lui-même. Un blessé déjà en réserve n'a pas de case.
  */
-export function etatDeBlessure({ roster, injured, b, rappel = false }) {
-  const sl = caseHabillee(roster, b.player);
+export function etatDeBlessure({ roster, injured, b, rappel = false, remplacants = null }) {
+  // Sa case confiée au remplaçant de la ligue (`remplacants`, js/sim.js) : elle est tenue, rien ne bloque.
+  const tenue = s => !!(s && remplacants && remplacants.get(s.i) === getPlayerKey(b.player));
+  const sl0 = caseHabillee(roster, b.player), sl = tenue(sl0) ? null : sl0;
   const reserves = sl ? reservistesPour(roster, injured, sl) : [];
   // `rappel` : un booléen, ou une fonction qu'on n'appelle que si aucun réserviste ne comble (le ballottage coûte).
   return { b, sl, reserves, forcer: !!sl && sl.group !== 'G' && (reserves.length > 0 || !!(typeof rappel === 'function' ? rappel(b) : rappel)) };
@@ -223,12 +225,12 @@ export function etatDeBlessure({ roster, injured, b, rappel = false }) {
  * offre quelqu'un), sinon la plus longue tout court — celle-là se dit, elle ne
  * bloque pas.
  */
-export function blessureOuverte({ roster, injured, journal, joues, peutRappeler = () => false }) {
+export function blessureOuverte({ roster, injured, journal, joues, peutRappeler = () => false, remplacants = null }) {
   const h = (journal || [])
     .filter(b => b.at <= joues && b.at + b.games > joues && b.games >= BLESSURE_MOMENT && b.player.p !== 'G')
     .sort((x, y) => y.games - x.games)
     .filter(b => caseHabillee(roster, b.player));
-  const etat = b => etatDeBlessure({ roster, injured, b, rappel: peutRappeler });
+  const etat = b => etatDeBlessure({ roster, injured, b, rappel: peutRappeler, remplacants });
   for (const b of h) { const x = etat(b); if (x.forcer) return x; }
   return h[0] ? etat(h[0]) : null;
 }

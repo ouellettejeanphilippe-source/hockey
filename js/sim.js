@@ -4518,8 +4518,12 @@ export function activeLineup(team) {
   for (const s of SLOTS) {
     if (s.scratch) continue;
     let p = team.roster[s.i];
+    // LE REMPLAÇANT DE LA LIGUE (nov. 2026 ; JP : *un "fake" bad player temporary called-up*) : la case d'un blessé
+    // pour qui tu l'as pris reste au remplaçant (la cote de rappel, `REPLACEMENT`) tant qu'il est à l'infirmerie ;
+    // aucun réserviste ne monte. Il revient : sa case est la sienne, rien n'a bougé.
+    const trou = p && team.injured.has(p) && team.remplacants && team.remplacants.get(s.i) === getPlayerKey(p);
     if (p && (team.injured.has(p) || absent(p))) p = null;
-    if (!p) {
+    if (!p && !trou) {
       const sub = reserves.find(r => !used.has(r) && fits(r, s));
       if (sub) { p = sub; used.add(sub); }
     }
@@ -5642,6 +5646,10 @@ function finirSejours(T) {
   for (const f of finis) (T.sejoursFinis = T.sejoursFinis || []).push({ jour: Number.isFinite(T.jourCourant) ? T.jourCourant : null, ...f });
 }
 
+/* La case d'un blessé confiée au remplaçant de la ligue (`activeLineup`), tant qu'il est à l'infirmerie. Idempotent. */
+function poserRemplacant(team, d) {
+  if (d.remplacant && Number.isFinite(d.remplacant.case) && d.remplacant.joueur) (team.remplacants = team.remplacants || new Map()).set(d.remplacant.case, d.remplacant.joueur);
+}
 function appliquerDecision(team, d, graine = 0) {
   // UNE CARTE EST UNE DÉCISION comme une autre : elle s'applique au jour où
   // elle a été prise et vaut pour le reste de la saison.
@@ -5690,6 +5698,7 @@ function appliquerDecision(team, d, graine = 0) {
   }
   // V9 (tranche 6) : le jouer blessé, ou le ramener plus tôt (`jouerBlesse`) ; les commotions des saisons d'avant de la run.
   if (d.blesse && d.blesse.joueur) jouerBlesse(team, d.blesse.joueur, d.jour);
+  poserRemplacant(team, d);
   if (d.commotions && typeof d.commotions === 'object') team.commotions = { ...d.commotions };
   // V9 (tranche 7) : les galons de la run (js/galons.js), un palier de badge chacun, lus par `badgesDe`.
   if (d.galons && typeof d.galons === 'object') for (const [k, n] of Object.entries(d.galons)) {
@@ -5790,9 +5799,11 @@ function appliquerAlignement(team, d) {
 export function poserAlignementDuJour(L) {
   if (!L || L.fini || !L.teams) return;
   for (const d of L.decisions || []) {
-    if (d.jour !== L.jour || !(d.ballottage || d.cases)) continue;
+    if (d.jour !== L.jour || !(d.ballottage || d.cases || d.remplacant)) continue;
     const t = L.teams[d.equipe || 0];
-    if (t) appliquerAlignement(t, d);
+    if (t && (d.ballottage || d.cases)) appliquerAlignement(t, d);
+    // Le remplaçant de la ligue est une part de l'alignement : posé dès la décision, l'écran le voit tout de suite.
+    if (t && d.remplacant) poserRemplacant(t, d);
   }
 }
 

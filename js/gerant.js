@@ -1302,6 +1302,7 @@ export function ouvrirDuel(spec) {
     const bloque = manque();
     const propositionsHtml = () => `<div class="duel-adjoint">
       ${D.scene ? sceneHtml(D.scene, { voix: true }) : ''}
+      <p class="duel-unite">Les chiffres de la période qui vient</p>
       <div class="af-options duel-props">${[...D.propositions, D.garder].map(o => optionHtml({ ...o, ...(bloque ? { desactive: bloque } : {}) }, {}, { mots: o.mots || [], classe: 'af-option duel-prop', attr: `data-prop="${esc(o.cle)}"` })).join('')}</div>
     </div>`;
     m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
@@ -1314,8 +1315,7 @@ export function ouvrirDuel(spec) {
         ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
         ${D.tete ? `<div class="duel-tete">${D.tete}</div>` : ''}
         <div class="duel-intention">
-          <span class="duel-ico" aria-hidden="true">${D.ico}</span>
-          ${etape('duel', `${esc(D.nom)} · leur jeu en ${D.periode}`)}
+          ${etape('duel', `${D.ico} ${esc(D.nom)} · leur jeu en ${D.periode}`)}
           <p class="duel-fait">${esc(D.fait)}</p>
           ${D.pourquoi ? `<p class="duel-pourquoi">${esc(D.pourquoi)}</p>` : ''}
           ${D.mots && D.mots.length ? `<div class="choix-puces">${pucesEnBref(D.mots)}</div>` : ''}
@@ -1405,7 +1405,7 @@ export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce =
   const tuile = x => {
     const PL = PLANS[x.cle];
     return { cle: x.cle, ico: PL.ico, nom: PL.nom, sous: PL.vedette && x.vedette && x.colle ? `${nom(x.colle)} suit ${nom(x.vedette)}` : '',
-      mots: motsDeStats(x.stats, 2), plan: { cle: x.cle, ...(x.vise ? { vise: x.vise } : {}) } };
+      mots: motsDeStats(x.stats, 2, { par: 'la période', dire: false }), plan: { cle: x.cle, ...(x.vise ? { vise: x.vise } : {}) } };
   };
   const PE = PLANS[enForce] || PLANS.match;
   return {

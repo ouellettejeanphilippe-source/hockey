@@ -33,7 +33,7 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuill
   familleDeMoment, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   nouvelleGraine, avecAVenir, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
-import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
+import { lignesDeLAdjointEnChiffres, ditDeLaFinition, motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
@@ -45,7 +45,7 @@ import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
-import { ADJOINTS, adjointsOfferts, lignesDeLAdjoint, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, reposDe, mainDe, auRepos, niveauOffert, momentFort, NOMS_NIV, RARETE_NIV } from './adjoints.js';
+import { ADJOINTS, adjointsOfferts, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, reposDe, mainDe, auRepos, niveauOffert, momentFort, NOMS_NIV, RARETE_NIV } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, faitsDesSuites, faitsDuDernier, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE } from './banque.js';
@@ -106,7 +106,7 @@ function tableEntracte(ctx, nomMoi, nomLui, lignes) {
  * `saison(c)` : { n, GF, GA, SF, PKO, CO } du club, ou null.
  */
 /* Ce qu'une précision de plus ou de moins vaut en buts, pour ton club. */
-const ditFinition = x => motsEnChiffres({ finition: x.finition }).filter(m => m.cle !== 'rien').map(m => m.txt).join(', ') || 'à peine perceptible';
+const ditFinition = x => ditDeLaFinition(x.finition);
 function lignesEntracte(f, cMoi, cLui, saison) {
   const tirs = c => ((f.tirs[c] || [])[1] || 0) + ((f.tirs[c] || [])[2] || 0);
   const buts = c => f.buts.filter(b => b.instant < 40 && b.cote === c).length;
@@ -1088,7 +1088,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const enjeu = cle => {
       const o = cle && av ? av.A.options.find(x => x.cle === cle) : null;
       return puces([{ txt: `Victoire : +${prime} 🪙 et un adjoint parmi trois`, bon: true },
-        { txt: `Défaite : ${SONNE.ico} sonnés ${SONNE.duree * (o && o.enjeu ? 2 : 1)} matchs`, bon: false }]);
+        { txt: `Défaite : ${SONNE.ico} sonnés ${SONNE.duree * (o && o.enjeu ? 2 : 1)} matchs (${ditFinition(SONNE)})`, bon: false }]);
     };
     ouvrirDuel({
       titre: `Contre ${ctx.teamShort(adv)}`, sousTitre: `Journée ${mo.p.j + 1}${MINI_BOSS[mo.mb.raison] ? ` · ${MINI_BOSS[mo.mb.raison].nom}` : ''}`,
@@ -1289,7 +1289,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
   function blessureOuverte() {
     if (!onDecision) return null;
-    const x = blessureAFaire({ roster: you.roster, injured: you.injured, journal: you.injuriesLog, joues: miens.length, peutRappeler: rappelPossible });
+    const x = blessureAFaire({ roster: you.roster, injured: you.injured, journal: you.injuriesLog, joues: miens.length, peutRappeler: rappelPossible, remplacants: you.remplacants });
     return x ? x.b : null;
   }
   /* L'alignement où le blessé et un autre échangent leurs cases. */
@@ -1671,7 +1671,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const options = Object.entries(PLANS).map(([k, P]) => ({
       cle: k, ico: P.ico, nom: P.nom,
       sous: k === 'match' ? P.bon : P.vedette && vedette && colle ? `${nomCourt(colle.n)} suit ${nomCourt(vedette.n)}` : '',
-      mots: k === 'match' ? [] : motsDeStats(planEnChiffres(you, null, adv, k).stats, 2),
+      mots: k === 'match' ? [] : motsDeStats(planEnChiffres(you, null, adv, k).stats, 2, { par: 'par match' }),
       ...(k === enForce ? { quand: 'En force' } : {}),
     }));
     ouvrirChoix({ ico: '🎯', titre: 'Ton plan', recit: `Journée ${p.j + 1} · ${ctx.teamShort(adv)}`, compact: true, fermable: true, motFermer: 'Retour', options,
@@ -1871,7 +1871,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (semaine) blocs.push(...verdictsDeLaSemaine(avant.jour));
     for (const mb of (you.minisBoss || []).filter(mb => mb.jour >= avant.jour && mb.jour < jour)) {
       const primeGros = mb.gagne && ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat().bareme.grosMatch : 0;
-      blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.duree || (mb.gagne ? ELAN.duree : SONNE.duree)} matchs${primeGros ? ` · +${primeGros} 🪙` : ''}</div>`);
+      blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.duree || (mb.gagne ? ELAN.duree : SONNE.duree)} matchs (${ditFinition(mb.gagne ? ELAN : SONNE)})${primeGros ? ` · +${primeGros} 🪙` : ''}</div>`);
     }
     // V5 : ce que la semaine a rapporté, et la caisse — la récompense se dit, elle ne se devine pas au Marché.
     if (ctx.rogue && ctx.rogue.jetons) {
@@ -2404,7 +2404,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      */
     if (soirEnVolet) {
       const score = k >= 0 ? resultatHier({ j, k, m: matchs[k] }) : '';
-      const gros = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> · ${etatDuGros(ELAN)} ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> · ${etatDuGros(SONNE)} ${mbHier.duree || SONNE.duree} matchs`}</div>` : '';
+      const gros = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> · ${etatDuGros(ELAN)} ${mbHier.duree || ELAN.duree} matchs <small>(${ctx.esc(ditFinition(ELAN))})</small>` : `<b>Gros match perdu</b> · ${etatDuGros(SONNE)} ${mbHier.duree || SONNE.duree} matchs <small>(${ctx.esc(ditFinition(SONNE))})</small>`}</div>` : '';
       return `<section class="hub-soir" aria-label="Hier soir">${score}${gros}${uneHtml()}${nouvellesHtml()}${semainePasseeHtml()}</section>`;
     }
     return `${cartesDuBureau()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
@@ -3155,14 +3155,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // V23 : chaque carte a son niveau, tiré de la graine (`niveauOffert`), plus haut à un moment fort ; sa rareté fait le paquet.
   const optionDAdjoint = (k, niv) => {
     const p = persoDuJour(), part = p ? quiPartDeLaMain(p, you.games || 0) : null, syn = p ? motDeSynergie(k, p.cle) : null;
-    return { cle: k, niv, rarete: RARETE_NIV[niv - 1], ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, sous: `${NOMS_NIV[niv - 1]} · ${ADJOINTS[k].style}`, mots: [...lignesDeLAdjoint(k, niv),
+    return { cle: k, niv, rarete: RARETE_NIV[niv - 1], ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, sous: `${NOMS_NIV[niv - 1]} · ${ADJOINTS[k].style}`, mots: [...lignesDeLAdjointEnChiffres(k, niv),
       ...(syn ? [{ txt: syn, bon: true }] : [{ txt: `Un séjour de ${sejourDe(k, p ? p.cle : null)} matchs`, bon: null }]),
       ...(part ? [{ txt: `Ta main est pleine : ${ADJOINTS[part].ico} ${ADJOINTS[part].nom} part`, bon: false }] : [])] };
   };
   const adjointsDuMoment = cle => (persoDuJour() ? adjointsOfferts(persoDuJour(), graine, cle, 3).map(k => optionDAdjoint(k, niveauOffert(graine, cle, k, momentFort(cle)))) : []);
   const decisionDeLAdjoint = (cle, moment) => ({ embauche: { cle, niv: niveauOffert(graine, moment, cle, momentFort(moment)) } });
   // La carte d'une offre unique (le talent, une histoire), nommée avec son niveau.
-  const motDeLOffert = (k, niv) => [{ txt: `Dans ta main : ${ADJOINTS[k].ico} ${ADJOINTS[k].nom}, ${NOMS_NIV[niv - 1]}, ${ADJOINTS[k].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjoint(k, niv)];
+  const motDeLOffert = (k, niv) => [{ txt: `Dans ta main : ${ADJOINTS[k].ico} ${ADJOINTS[k].nom}, ${NOMS_NIV[niv - 1]}, ${ADJOINTS[k].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjointEnChiffres(k, niv)];
   function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
     // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.
@@ -3537,10 +3537,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const cleBl = getPlayerKey(alerte.player), idB = `b:${alerte.at}:${cleBl}`;
       const n = restantDe(alerte);
       const sl = caseHabillee(you.roster, alerte.player);
+      // Sa case tenue par le remplaçant de la ligue : c'est réglé, le médecin n'a plus rien à demander.
+      const tenue = !!(sl && you.remplacants && you.remplacants.get(sl.i) === cleBl);
       const bal = sl && ctx.ballottage && !pris.has(idB) ? ctx.ballottage(alerte.player, alerte.at) : null;
       const ecole = sl && ctx.rappelEcole && !pris.has(idB) ? ctx.rappelEcole(alerte.player, alerte.at) : null;
       // `etatDeBlessure` (js/ballottage.js) : le même verdict que l'avance. Un gardien n'est jamais forcé (`gardiensDuSoir`).
-      const etat = etatDeBlessure({ roster: you.roster, injured: you.injured, b: alerte, rappel: !!(bal && bal.candidats.length) || !!ecole });
+      const etat = etatDeBlessure({ roster: you.roster, injured: you.injured, b: alerte, rappel: !!(bal && bal.candidats.length) || !!ecole, remplacants: you.remplacants });
       const reserves = sl ? etat.reserves : [];
       const forcer = !!sl && etat.forcer;
       const options = [
@@ -3549,15 +3551,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ecole && !reserves.length ? { cle: 'ecole', ico: '📟', nom: `Club-école : ${ecole.p.n}`, sous: 'Gratuit, hors plafond', ouvre: true } : null,
         onBanc && sl ? { cle: 'banc', nom: 'Remanier derrière le banc', sous: 'Tes lignes, la case à combler', ouvre: true } : null,
         // V9 (tranche 6) : il joue diminué le temps qu'il lui restait ; s'il se blesse encore, l'absence s'allonge.
+        // Le remplaçant de la ligue (nov. 2026 ; JP : *un "fake" bad player temporary called-up*) : gratuit, faible, le temps de l'absence.
+        sl ? { cle: 'remplacant', ico: '🧢', nom: 'Un remplaçant de la ligue', sous: `Faible et gratuit ; il tient sa case jusqu'au retour de ${alerte.player.n}` } : null,
         ctx.rogue && sl && peutJouerBlesse(alerte) ? { cle: 'blesse', ico: SITUATIONS.amoche.ico, nom: 'Le jouer blessé', bon: 'Il garde sa case', prix: `Diminué ${n} match${n > 1 ? 's' : ''} ; s'il se blesse encore, l'absence s'allonge` } : null,
       ].filter(Boolean);
       // LA SCÈNE (Jalon M, A4) : le médecin, sur l'absence, la case et le prochain adversaire ; la question du remplaçant reste au récit.
       const pr = prochain(), advB = pr ? (pr.m.A === you ? pr.m.B : pr.m.A) : null;
       const scene = sceneDeLaBlessure({ joueur: alerte.player.n, n, total: alerte.games, ou: caseDe(alerte.player) || '', adv: advB ? ctx.teamShort(advB) : '', graine: `${graine}|${alerte.at}` });
       const note = `${forcer ? 'Il sort de ton alignement : qui joue sa case ?' : cap(remplacant(alerte.player))}`;
-      out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, joueur: alerte.player, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, ecole, palierB: idB, sl, reserves,
+      if (!tenue) out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, joueur: alerte.player, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, ecole, palierB: idB, sl, reserves,
         choix: { scene, recit: note, options, agir: cle => soignerLeBlesse(out.find(m => m.id === idB), cle),
-          decision: () => ({ palier: idB, blesse: { joueur: cleBl } }) } });
+          decision: cle => (cle === 'remplacant' ? { palier: idB, remplacant: { case: sl.i, joueur: cleBl } } : { palier: idB, blesse: { joueur: cleBl } }) } });
     }
     /*
      * LE RETOUR : qui revient, d'où il part et où il va, qui lui cède sa case et où celui-là retourne — deux lignes,
@@ -3983,7 +3987,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const prime = Math.round(((run && run.bareme) || JETONS).grosMatch * (mb.butin || 1));
     // LA SCÈNE (Jalon M, A1) : le capitaine, sur le pointage contre le rival ; les chiffres de la mise au bouton.
     const mise = k === 2 ? { ...sceneDeLaMise({ moi, lui, rival: ctx.teamShort(adv), graine: `${graine}|${p.j}` }),
-      chiffres: `victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs` } : null;
+      chiffres: `victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs (${ditFinition(SONNE)})` } : null;
     const P = du.periodes[k];
     const D = duelDeLAdjoint(ctx, you, adv, P, { k, enForce: faites[k - 1].plan || 'match', pointage: { moi, lui }, mise, graine: `${graine}|${p.j}` });
     const tirs = c => [1, 2].slice(0, k).reduce((a, per) => a + ((f.tirs[c] || [])[per] || 0), 0);

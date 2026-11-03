@@ -432,7 +432,7 @@ async function regler() {
          * LEURS PUCES (V17) : leur intention se lit comme ton plan, en vraies stats de la période, le canal qui la définit
          * d'abord, ce qui est à eux sous « Eux : ». 🦂 : tes punitions ; ⛔ : tes tirs ; 🐗 : leurs tirs ; 🦈 et 🥷 : ton joueur visé.
          */
-        const pu = await page.$eval('#choixModal .duel-intention', e => ({ etape: `${(e.querySelector('.duel-ico') || {}).textContent || ''} ${(e.querySelector('.main-etape') || {}).textContent || ''}`, puces: [...e.querySelectorAll('.puce')].map(x => x.textContent.trim()) }));
+        const pu = await page.$eval('#choixModal .duel-intention', e => ({ etape: (e.querySelector('.main-etape') || {}).textContent || '', puces: [...e.querySelectorAll('.puce')].map(x => x.textContent.trim()) }));
         const DEF = { '🦂': /^≈ \+.* punitions? pour toi/, '⛔': /^≈ −.* tirs? pour toi/, '🐗': /^Eux : ≈ \+.* tirs?/, '🦈': /: moins de tirs, des coups/, '🥷': /: moins de tirs, moins de chances/ };
         const ico = Object.keys(DEF).find(k => pu.etape.includes(k));
         intentionsVues.add(ico || '?');
@@ -1050,7 +1050,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     if (await page.$('#hubModal details, #hubModal summary')) erreurs.push('le Bureau garde un accordéon (details / summary)');
     await page.click('#hubModal button.bu-plan').catch(() => {});
     await page.waitForTimeout(800);
-    const pl = await page.$$eval('#choixModal .choix-option[data-choix]', bs => bs.map(b => ({ cle: b.dataset.choix, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree)').length }))).catch(() => []);
+    const pl = await page.$$eval('#choixModal .choix-option[data-choix]', bs => bs.map(b => ({ cle: b.dataset.choix, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree), .choix-option-gros').length }))).catch(() => []);
     await page.screenshot({ path: `${DOSSIER}/rogue-plan.png` });
     const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
     const autre = pl.find(x => !x.on && x.cle !== 'match');

@@ -176,6 +176,29 @@ const CHEMINS = {
   },
 };
 
+/*
+ * LE REMPLAÇANT DE LA LIGUE (nov. 2026 ; JP : *un "fake" bad player temporary called-up*). La décision `remplacant`
+ * confie la case du blessé au remplaçant (la cote de rappel) : la blessure ne bloque plus, ni ce jour-là ni un
+ * rechargement ; aucun réserviste ne monte ; l'alignement ne bouge pas ; il revient, il rejoue sa case.
+ */
+function remplacant(groupe, S) {
+  const T = `${groupe} · remplaçant de la ligue`;
+  const decisions = [S.depart, { jour: S.jour, equipe: 0, sel: 's-remplacant', palier: `b:${S.at}:${S.cle}`, remplacant: { case: S.sl.i, joueur: S.cle } }];
+  const apres = etatAuJour(S.graine, decisions, S.jour);
+  const b = memeBlessure(apres.toi, S.b);
+  const e = etatDeBlessure({ roster: apres.toi.roster, injured: apres.toi.injured, b, rappel: true, remplacants: apres.toi.remplacants });
+  exiger(`${T} : sa case confiée au remplaçant, la blessure ne bloque plus`, !e.forcer, e.sl ? `encore ${e.sl.role}` : 'tenue');
+  const ouverte = blessureOuverte({ roster: apres.toi.roster, injured: apres.toi.injured, journal: apres.toi.injuriesLog, joues: apres.toi.games, peutRappeler: () => true, remplacants: apres.toi.remplacants });
+  exiger(`${T} : aucune blessure ne bloque`, !ouverte || !ouverte.forcer || cle(ouverte.b.player) !== S.cle, ouverte ? ouverte.b.player.n : 'aucune');
+  const l0 = activeLineup(apres.toi);
+  exiger(`${T} : le remplaçant tient la case, aucun réserviste ne monte`, l0[S.sl.i] === null && !S.reserves.some(r => Object.values(l0).includes(r.p)), l0[S.sl.i] ? l0[S.sl.i].n : 'le remplaçant');
+  exiger(`${T} : l'alignement ne bouge pas`, apres.toi.roster[S.sl.i] === b.player, '');
+  let L = apres.L, toi = apres.toi, retour = null;
+  const fin = S.b.at + S.b.games;
+  while (!L.fini && toi.games < fin + 2) { jouerJournee(L); if (!toi.injured.has(b.player) && retour === null) retour = activeLineup(toi)[S.sl.i]; }
+  exiger(`${T} : il revient, il rejoue sa case`, retour === b.player, retour ? retour.n : 'personne');
+}
+
 function essai(groupe, nom, S) {
   const rap = rappeles[groupe];
   connaitre(rap);
@@ -271,6 +294,7 @@ for (const groupe of ['F', 'D']) {
   const S = trouves[groupe];
   if (!S) continue;
   for (const nom of Object.keys(CHEMINS)) essai(groupe, nom, S);
+  remplacant(groupe, S);
 }
 
 /* ---------- les cas qui ne bloquent pas ---------- */

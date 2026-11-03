@@ -12,7 +12,8 @@
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
 import { RANGS_DE_GLACE, lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PLANS, cibleDuPlan } from './sim.js';
-import { virgule, pct3 } from './util.js';
+import { virgule } from './util.js';
+import { ADJOINTS, NIV_DEFAUT, styleAuNiveau, salaireDe, lignesDeLAdjoint } from './adjoints.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
 const N_BASE = 1600;    // les lancers lus pour le niveau absolu d'un soir (±1 % sur les buts)
@@ -30,24 +31,42 @@ export const statsDe = m => ({
 /** L'écart de stats de deux lectures du même genre (`a` moins `b`), dans la forme de `motsDeStats`. */
 export const statsEntre = (a, b) => { const x = statsDe(a), y = statsDe(b); return { tirs: x.tirs - y.tirs, pctTir: x.pctTir - y.pctTir, contre: x.contre - y.contre, pctArr: x.pctArr - y.pctArr }; };
 /* Le poids d'un écart, pour dire d'abord ce qui bouge le plus : un demi-tir vaut trois millièmes d'arrêts. */
-const PAS_STAT = { tirs: 0.5, pctTir: 0.002, contre: 0.5, pctArr: 0.003, punitions: 0.1 };
-const SEUIL_STAT = { tirs: 0.1, pctTir: 0.0005, contre: 0.1, pctArr: 0.0005, punitions: 0.03 };
+const PAS_STAT = { tirs: 0.5, pctTir: 0.002, contre: 0.5, pctArr: 0.003, punitions: 0.1, usure: 1 };
+const SEUIL_STAT = { tirs: 0.1, pctTir: 0.0005, contre: 0.1, pctArr: 0.0005, punitions: 0.03, usure: 0.1 };
+/*
+ * LE BRUIT D'UN CHOIX (nov. 2026 ; JP : *le texte et les effets sont pas toujours clairs*). Un plan dit ce qu'il fait par
+ * match, au duel par période ; et ce qui bouge moins qu'un tir, un demi-point ou un tiers de punition par match ne se dit
+ * pas (rogue.md, « une ligne sous le bruit ne se dit pas » ; les mêmes seuils que `lignesDe`) : il ne colore plus la
+ * carte ni son étiquette. Une période, c'est le tiers d'un match : ses seuils de compte le sont aussi.
+ */
+const BRUIT = { 'par match': { tirs: 1, pctTir: 0.005, contre: 1, pctArr: 0.005, punitions: 0.3, usure: 0.3 },
+  'la période': { tirs: 0.34, pctTir: 0.005, contre: 0.34, pctArr: 0.005, punitions: 0.1, usure: 0.1 } };
 const pts = x => virgule((Math.abs(x) * 100).toFixed(1));
-/** Un écart de stats en puces, le plus fort d'abord : [{ cle, txt, bon }]. `max` : combien au plus. */
-export function motsDeStats(d, max = 4) {
+/**
+ * Un écart de stats en puces, le plus fort d'abord : [{ cle, txt, bon }]. `max` : combien au plus. `par` (« par match »,
+ * « la période ») : l'unité dite au bout de chaque ligne, et les seuils du bruit qui vont avec ; `dire: false` la tait
+ * quand l'écran la dit une fois pour toutes (le duel : « Les chiffres de la période qui vient »).
+ */
+export function motsDeStats(d, max = 4, { par = '', dire = true } = {}) {
   if (!d) return [];
   const mots = {
     tirs: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')}`,
     pctTir: x => `${signeDe(x)}${pts(x)} pt de précision`,
     contre: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir contre', 'tirs contre')}`,
-    pctArr: x => `${signeDe(x)}${pct3(Math.abs(x))} au % d'arrêts`,
+    // Le % d'arrêts en points, comme la précision (« +0,7 pt d'arrêts ») : « +,007 au % d'arrêts » se lisait mal, sans zéro.
+    pctArr: x => `${signeDe(x)}${pts(x)} pt d'arrêts`,
     // Au duel (nov. 2026 ; JP : *c'est débile comme choix ?*) : « Rester discipliné » se paie en tirs, et ce qu'il donne — moins
     // de punitions pour toi — ne se lisait nulle part ; la carte ne montrait que son prix. Les punitions se disent quand on les lit.
     punitions: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'punition', 'punitions')} pour toi`,
+    usure: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'jambe', 'jambes')} d'usure`,
   };
-  return Object.keys(mots).filter(k => Math.abs(d[k]) >= SEUIL_STAT[k])
+  const seuils = BRUIT[par] || SEUIL_STAT;
+  const lus = Object.keys(mots).filter(k => Math.abs(d[k]) >= seuils[k]);
+  // Un plan dont tout bouge sous le bruit le dit, plutôt qu'une carte vide.
+  if (par && !lus.length) return [{ cle: 'rien', txt: 'à peine perceptible', bon: null }];
+  return lus
     .sort((a, b) => Math.abs(d[b]) / PAS_STAT[b] - Math.abs(d[a]) / PAS_STAT[a]).slice(0, max)
-    .map(k => ({ cle: k, txt: mots[k](d[k]), bon: k === 'contre' || k === 'punitions' ? d[k] < 0 : d[k] > 0 }));
+    .map(k => ({ cle: k, txt: `${mots[k](d[k])}${par && dire ? ` ${par}` : ''}`, bon: k === 'contre' || k === 'punitions' || k === 'usure' ? d[k] < 0 : d[k] > 0 }));
 }    // pour la différence : les deux lectures partagent leurs dés, le bruit s'en va
 
 /* Une fenêtre d'avantage de deux minutes : le premier but la ferme (un but = un arrêt du processus de lancers), donc sa durée moyenne est (1 − e^(−2λ)) / λ. */
@@ -353,7 +372,7 @@ const surLaPart = (d, part) => (part === 1 ? d : { ...d, tirsPour: d.tirsPour * 
  * matchs) : une blessure se dit alors sur cette durée plutôt que sur la saison.
  * → [{ txt: '≈ +2,1 tirs par match', bon: true, cle: 'tir' }, …] ; vide quand l'effet n'a aucun canal de match.
  */
-export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree = null, part = 1, par = 'par match', eux = false } = {}) {
+export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree = null, part = 1, par = 'par match', eux = false, vuDeToi = false } = {}) {
   if (!effet) return [];
   const e = {};
   for (const k of [...CANAUX_MATCH, 'blessure', 'energie', 'F', 'D']) {
@@ -362,7 +381,9 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
     e[k] = v;
   }
   if (!Object.keys(e).length) return [];
-  const sans = lire(team, lineup, adv, { n: N_EFFET }), avec = lire(team, lineup, adv, eux ? { effetsAdv: [e], n: N_EFFET } : { effets: [e], n: N_EFFET });
+  // `vuDeToi` (nov. 2026) : un effet posé sur EUX, mais dit de ton côté — leurs tirs sont tes tirs contre, leurs punitions les leurs.
+  const surEux = eux || vuDeToi;
+  const sans = lire(team, lineup, adv, { n: N_EFFET }), avec = lire(team, lineup, adv, surEux ? { effetsAdv: [e], n: N_EFFET } : { effets: [e], n: N_EFFET });
   let d = differences(avec, sans);
   // Un effet sur EUX se lit de leur côté : leurs tirs sont ceux qu'on accorde, leurs buts ceux qu'on encaisse.
   if (eux) d = { ...d, tirsPour: d.tirsContre, tirsContre: d.tirsPour, butsPour: d.butsContre, butsContre: d.butsPour, pctTir: -d.pctArr, pctArr: -d.pctTir, punitions: d.punitionsEux, coups: 0 };
@@ -370,13 +391,14 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
   // Les deux lectures vues de ton côté : de leur côté (`eux`), leurs tirs sont ceux qu'on te donne.
   const vu = m => { const x = statsDe(m); return eux ? { tirs: x.contre, contre: x.tirs, pctTir: 1 - x.pctArr, pctArr: 1 - x.pctTir, punitions: m.punitionsEux } : { ...x, punitions: m.punitions }; };
   if (CANAUX_MATCH.some(k => k in e)) out.push(...lignesDe(surLaPart(d, part), par, part, eux, { sans: vu(sans), avec: vu(avec) }));
+  if (vuDeToi && Math.abs(d.punitionsEux * part) >= SEUILS.punitions * part) out.push({ txt: `≈ ${signeDe(d.punitionsEux * part)}${nb(d.punitionsEux * part, 1)} ${mot(d.punitionsEux * part, 'punition', 'punitions')} pour eux ${par}`, bon: d.punitionsEux > 0, cle: 'punitionEux' });
   // Une blessure ou des jambes trop petites pour se compter ne prennent pas de puce (JP, 17 oct. : *encore beaucoup de
   // « à peine perceptible »*) ; un effet qui ne fait rien de lisible le dit une fois, plus bas.
-  if (e.blessure != null && !eux) {
+  if (e.blessure != null && !surEux) {
     const sur = duree || 82, n = d.blessures * sur;
     if (Math.abs(n) >= 0.1) out.push({ txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} ${duree ? `sur ${duree} match${duree > 1 ? 's' : ''}` : 'par saison'}`, bon: n < 0, cle: 'blessure' });
   }
-  if (e.energie != null) {
+  if (e.energie != null && !vuDeToi) {
     // Les jambes d'un club qu'on ne voit pas (eux) : l'usure d'un club comme le tien, sous le même effet.
     const usure = eux ? lire(team, lineup, adv, { effets: [{ energie: e.energie }], n: N_EFFET }).usure - sans.usure : d.usure;
     if (Math.abs(usure) >= 0.1) out.push({ txt: `≈ ${signeDe(usure)}${nb(usure, 1)} ${mot(usure, 'jambe', 'jambes')} d'usure ${par}`, bon: usure < 0, cle: 'jambes' });
@@ -385,7 +407,7 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
    * LA GLACE EN UNE PUCE (V6, phase 4 : une carte, une idée). Elle disait une rangée par trio et par paire touchés,
    * jusqu'à sept : son sens d'abord (« Le haut joue plus »), puis l'unité qui gagne le plus et celle qui perd le plus.
    */
-  const sens = !eux && sensDeLaGlace(e);
+  const sens = !surEux && sensDeLaGlace(e);
   if (sens) {
     // Chaque trio ou paire touché, d'où il part à où il arrive (« 4e trio 6,1 → 11,3 min »).
     const ecarts = ['F', 'D'].flatMap(g => (Array.isArray(e[g]) ? (d[g === 'F' ? 'glaceF' : 'glaceD'] || []).map((x, i) => ({ x, nom: RANGS_DE_GLACE[g][i], de: (sans[g === 'F' ? 'glaceF' : 'glaceD'] || [])[i] || 0 })) : []));
@@ -512,7 +534,8 @@ export function unitesDuSoir(team, lineup, adv) {
 export function planEnChiffres(team, lineup, adv, cle) {
   if (!team) return null;
   const avec = lire(team, lineup, adv, { plan: cle, n: N_EFFET }), sans = lire(team, lineup, adv, { plan: 'match', n: N_EFFET });
-  return { stats: statsEntre(avec, sans), net: (avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre) };
+  // Ses punitions et l'usure de tes jambes aussi (nov. 2026) : « Rester discipliné » et « Forechecker fort » ne montraient que la moitié d'eux-mêmes.
+  return { stats: { ...statsEntre(avec, sans), punitions: avec.punitions - sans.punitions, usure: avec.usure - sans.usure }, net: (avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre) };
 }
 
 /*
@@ -573,7 +596,7 @@ export function propositionsDuDuel(team, adv, { intention, plan = null, pointage
   const { vedette, colle } = cibleDuPlan(activeLineup(team), adv ? activeLineup(adv) : null);
   return idees.slice(0, IDEES_MAX).map(x => {
     const avec = lu(x.cle), d = statsEntre(avec, sans);
-    const stats = { tirs: d.tirs / 3, pctTir: d.pctTir, contre: d.contre / 3, pctArr: d.pctArr, punitions: (avec.punitions - sans.punitions) / 3 };
+    const stats = { tirs: d.tirs / 3, pctTir: d.pctTir, contre: d.contre / 3, pctArr: d.pctArr, punitions: (avec.punitions - sans.punitions) / 3, usure: (avec.usure - sans.usure) / 3 };
     return { ...x, stats, net: ((avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre)) / 3,
       ...(PLANS[x.cle].vedette && vedette ? { vise: getPlayerKey(vedette), vedette, colle } : {}) };
   });
@@ -668,6 +691,59 @@ let CLUB = null;
 export function poserClubLu(f) { CLUB = f; }
 /** Le club lu en ce moment : `{ team, lineup, adv }`, ou `null`. */
 export const clubLu = () => (CLUB && CLUB()) || null;
+/*
+ * LES ADJOINTS ET LES POUVOIRS EN VRAIES STATS (nov. 2026 ; JP : *adjoints and powers: real per-game stats*). Le canonnier
+ * disait « Tes tirs +18 % », le plan « +1,7 tir par match » : on ne pouvait pas les comparer. Un adjoint se lit sur ton
+ * club, par match ; un pouvoir, sur la période où il joue (le tiers d'un match), sa condition devant. Sans club lu (un
+ * menu, un essai), leurs mots d'avant, en %.
+ */
+// Court, pour une carte : sans « ≈ », sans « (27,4 → 28,7) » ; la glace, son sens seul (« Le haut joue plus »).
+const court = x => ({ ...x, txt: x.cle === 'glace' ? String(x.txt).split(' : ')[0].split(',')[0] : String(x.txt).replace(/^≈ /, '').replace(/ \([^)]*→[^)]*\)/g, '') });
+// Ce qu'un canal fait d'abord, dit d'abord : le verrou (`defense`) se lit en arrêts avant ses tirs de côté.
+const LIGNE_DU_CANAL = { volume: 'tir', finition: 'pctTir', defense: 'pctArr', discipline: 'punition', blessure: 'blessure', energie: 'jambes', F: 'glace', D: 'glace', robustesse: 'coup' };
+const LIGNE_DU_CANAL_EUX = { volume: 'tir accordé', finition: 'pctArr', defense: 'pctTir', discipline: 'punitionEux' };
+const lireEffets = (effet, adv, cadre, max = 3) => {
+  const c = clubLu();
+  if (!c || !c.team) return null;
+  try {
+    const premiers = new Set([...Object.keys(effet || {}).map(k => LIGNE_DU_CANAL[k]), ...Object.keys(adv || {}).map(k => LIGNE_DU_CANAL_EUX[k])].filter(Boolean));
+    const out = [...(effet ? effetEnChiffres(effet, c.team, c.lineup || null, c.adv || null, cadre) : []),
+      ...(adv ? effetEnChiffres(adv, c.team, c.lineup || null, c.adv || null, { ...cadre, vuDeToi: true }) : [])].filter(x => x.cle !== 'rien').map(court);
+    const tries = [...out.filter(x => premiers.has(x.cle)), ...out.filter(x => !premiers.has(x.cle))].slice(0, max);
+    return tries.length ? tries : null;
+  } catch { return null; }
+};
+/**
+ * La précision d'un état du gros match (😵 sonnés, ⬆ la lancée) sur ton club, par match, sans seuil de bruit : son
+ * nom le promet, le chiffre dit combien (nov. 2026 ; JP : *« Sonnés » : what makes more sense to you*). Sans club, en %.
+ */
+export function ditDeLaFinition(f) {
+  const c = clubLu();
+  if (!c || !c.team) return `${signeDe(f - 1)}${Math.round(Math.abs(f - 1) * 100)} % de précision`;
+  try {
+    const sans = lire(c.team, c.lineup || null, c.adv || null, { n: N_EFFET }), avec = lire(c.team, c.lineup || null, c.adv || null, { effets: [{ finition: f }], n: N_EFFET });
+    const d = statsEntre(avec, sans).pctTir;
+    return `${signeDe(d)}${pts(d)} pt de précision par match`;
+  } catch { return `${signeDe(f - 1)}${Math.round(Math.abs(f - 1) * 100)} % de précision`; }
+}
+/** Ce qu'un adjoint donne et coûte à ton club, par match, son salaire au bout : [{ txt, bon }], le bon d'abord. */
+export function lignesDeLAdjointEnChiffres(cle, niv = null) {
+  const A = ADJOINTS[cle] && styleAuNiveau(cle, niv || NIV_DEFAUT);
+  const lu = A && lireEffets(A.effet, A.adv, { par: 'par match' });
+  if (!lu) return lignesDeLAdjoint(cle, niv);
+  const paye = salaireDe({ cle, niv });
+  const out = [...lu, ...(paye ? [{ txt: `Salaire : ${paye} 🪙 par match en poste`, bon: false }] : [])];
+  return [...out.filter(x => x.bon !== false), ...out.filter(x => x.bon === false)];
+}
+/** Ce qu'un pouvoir fait, sa condition devant : « Quand tu mènes : −0,4 tir contre la période, +0,9 pt d'arrêts la période ». */
+export function ditDuPouvoir(P) {
+  if (!P) return '';
+  const toute = /toute la soirée/i.test(P.dit);
+  const lu = lireEffets(P.effet || null, P.adv || null, toute ? { par: 'par match' } : { part: 1 / 3, par: 'la période' }, 2);
+  if (!lu) return P.dit;
+  const condition = P.dit.includes(' : ') ? P.dit.slice(0, P.dit.indexOf(' : ')) : '';
+  return `${condition ? `${condition} : ` : ''}${lu.map(x => x.txt).join(', ')}.`;
+}
 /**
  * Un effet dit pour le club courant, avec ses autres mots (le changement de carte, la durée) : le remplaçant
  * de `motsDEffet` partout où un joueur lit ce qu'un choix fait au match. Sans club — ou si la lecture est
