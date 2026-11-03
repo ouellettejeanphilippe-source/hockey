@@ -30,8 +30,8 @@ export const statsDe = m => ({
 /** L'écart de stats de deux lectures du même genre (`a` moins `b`), dans la forme de `motsDeStats`. */
 export const statsEntre = (a, b) => { const x = statsDe(a), y = statsDe(b); return { tirs: x.tirs - y.tirs, pctTir: x.pctTir - y.pctTir, contre: x.contre - y.contre, pctArr: x.pctArr - y.pctArr }; };
 /* Le poids d'un écart, pour dire d'abord ce qui bouge le plus : un demi-tir vaut trois millièmes d'arrêts. */
-const PAS_STAT = { tirs: 0.5, pctTir: 0.002, contre: 0.5, pctArr: 0.003 };
-const SEUIL_STAT = { tirs: 0.1, pctTir: 0.0005, contre: 0.1, pctArr: 0.0005 };
+const PAS_STAT = { tirs: 0.5, pctTir: 0.002, contre: 0.5, pctArr: 0.003, punitions: 0.1 };
+const SEUIL_STAT = { tirs: 0.1, pctTir: 0.0005, contre: 0.1, pctArr: 0.0005, punitions: 0.03 };
 const pts = x => virgule((Math.abs(x) * 100).toFixed(1));
 /** Un écart de stats en puces, le plus fort d'abord : [{ cle, txt, bon }]. `max` : combien au plus. */
 export function motsDeStats(d, max = 4) {
@@ -41,10 +41,13 @@ export function motsDeStats(d, max = 4) {
     pctTir: x => `${signeDe(x)}${pts(x)} pt de précision`,
     contre: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir contre', 'tirs contre')}`,
     pctArr: x => `${signeDe(x)}${pct3(Math.abs(x))} au % d'arrêts`,
+    // Au duel (nov. 2026 ; JP : *c'est débile comme choix ?*) : « Rester discipliné » se paie en tirs, et ce qu'il donne — moins
+    // de punitions pour toi — ne se lisait nulle part ; la carte ne montrait que son prix. Les punitions se disent quand on les lit.
+    punitions: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'punition', 'punitions')} pour toi`,
   };
   return Object.keys(mots).filter(k => Math.abs(d[k]) >= SEUIL_STAT[k])
     .sort((a, b) => Math.abs(d[b]) / PAS_STAT[b] - Math.abs(d[a]) / PAS_STAT[a]).slice(0, max)
-    .map(k => ({ cle: k, txt: mots[k](d[k]), bon: k === 'contre' ? d[k] < 0 : d[k] > 0 }));
+    .map(k => ({ cle: k, txt: mots[k](d[k]), bon: k === 'contre' || k === 'punitions' ? d[k] < 0 : d[k] > 0 }));
 }    // pour la différence : les deux lectures partagent leurs dés, le bruit s'en va
 
 /* Une fenêtre d'avantage de deux minutes : le premier but la ferme (un but = un arrêt du processus de lancers), donc sa durée moyenne est (1 − e^(−2λ)) / λ. */
@@ -570,7 +573,7 @@ export function propositionsDuDuel(team, adv, { intention, plan = null, pointage
   const { vedette, colle } = cibleDuPlan(activeLineup(team), adv ? activeLineup(adv) : null);
   return idees.slice(0, IDEES_MAX).map(x => {
     const avec = lu(x.cle), d = statsEntre(avec, sans);
-    const stats = { tirs: d.tirs / 3, pctTir: d.pctTir, contre: d.contre / 3, pctArr: d.pctArr };
+    const stats = { tirs: d.tirs / 3, pctTir: d.pctTir, contre: d.contre / 3, pctArr: d.pctArr, punitions: (avec.punitions - sans.punitions) / 3 };
     return { ...x, stats, net: ((avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre)) / 3,
       ...(PLANS[x.cle].vedette && vedette ? { vise: getPlayerKey(vedette), vedette, colle } : {}) };
   });
