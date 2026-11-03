@@ -3832,8 +3832,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // LA MAIN (V23, la nouvelle interface) : les choix en éventail, chacun penché selon sa place.
     const ordreMain = [...new Set(msgs.map(m => m.maison))].flatMap(k => msgs.filter(m => m.maison === k));
     const placeDe = m => {
-      const i = ordreMain.indexOf(m), mi = (ordreMain.length - 1) / 2, d = i - mi;
-      return `--r:${(d * 3).toFixed(1)}deg;--y:${Math.round(Math.abs(d) * 6)}px;--i:${i}`;
+      // L'éventail s'ouvre de ±6° au plus : une grosse main penche moins, ses bords restent dans l'écran.
+      const i = ordreMain.indexOf(m), mi = (ordreMain.length - 1) / 2, d = i - mi, pas = mi ? Math.min(3, 6 / mi) : 0;
+      return `--r:${(d * pas).toFixed(1)}deg;--y:${Math.round(Math.abs(d) * pas * 2)}px;--i:${i}`;
     };
     const msgHtml = m => {
       // Un choix sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).

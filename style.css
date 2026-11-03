@@ -4345,12 +4345,12 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
    rouge quand il presse, elle se soulève sous le doigt. */
 /* LA MAIN DU JOUR (V23, « faut vraiment revoir ») : les choix en cartes debout, côte à côte, comme une main ; chacune sa
    maison en tête, la voix au cœur, le sujet dessous, son état au pied. Elles entrent en balayage, l'une après l'autre. */
-.hub-msgs { display: flex; justify-content: center; align-items: flex-start; padding: var(--esp-1) var(--esp-4) var(--esp-3); }
+.hub-msgs { display: flex; justify-content: center; align-items: flex-start; padding: var(--esp-1) var(--esp-5) var(--esp-3); }
 .hub-msgs > .af-maison { display: contents; }
 .hub-msgs .af-maison-tete, .hub-msgs .hub-msg-maison { display: none; }
 /* Une carte de la main : debout, au format d'une carte (5:7), penchée selon sa place dans l'éventail (`--r`, `--y`, posés par
    js/saison.js) ; elles se chevauchent quand la main est pleine ; sous le doigt, la carte se redresse et monte. */
-.hub-msg { position: relative; flex: 0 1 92px; min-width: 0; aspect-ratio: 5 / 7; margin: 0 -6px; border: 1px solid var(--filet); border-top: 4px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 18px 28px -16px var(--noir-pur); rotate: var(--r, 0deg); translate: 0 var(--y, 0); transform-origin: 50% 120%; transition: translate 160ms var(--e-sortie), rotate 160ms var(--e-sortie); animation: main-donne 320ms calc(var(--i, 0) * 60ms) var(--e-sortie) both; }
+.hub-msg { position: relative; flex: 0 1 92px; min-width: 0; aspect-ratio: 5 / 7; margin: 0 -6px; border: 1px solid var(--filet); border-top: 4px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 18px 28px -16px var(--noir-pur); rotate: var(--r, 0deg); translate: 0 var(--y, 0); transform-origin: 50% 50%; transition: translate 160ms var(--e-sortie), rotate 160ms var(--e-sortie); animation: main-donne 320ms calc(var(--i, 0) * 60ms) var(--e-sortie) both; }
 @keyframes main-donne { from { opacity: 0; translate: 0 60px; } }
 .hub-msg.bloque { border-top-color: var(--mauvais); }
 .hub-msg:hover, .hub-msg:focus-within { z-index: 2; rotate: 0deg; translate: 0 -12px; }
