@@ -4093,14 +4093,14 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 /* L'AFFICHE DU SOIR (V23, la nouvelle interface ; JP : *je veux une nouvelle interface, pour vrai*) : bord à bord, coupée
    en biais aux couleurs des deux clubs (deux aplats, un trait noir entre eux), les écussons en grand, le sigle, la fiche ;
    « VS » dans un losange noir au centre ; quand et où sur la bande du haut ; le face-à-face au pied. */
-.bu-prochain { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto 1fr auto; width: calc(100% + 2 * var(--esp-3)); min-height: 176px; margin: var(--esp-2) calc(-1 * var(--esp-3)) 0; padding: 0; border: 0; border-radius: 0; background: linear-gradient(100deg, var(--a-band) 0 49.4%, var(--noir-pur) 49.4% 50.6%, var(--b-band) 50.6%); color: var(--encre); text-align: center; cursor: pointer; animation: tele-balaie 520ms var(--e-sortie) both; }
+.bu-prochain { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto 1fr auto; width: calc(100% + 2 * var(--esp-3)); min-height: 150px; margin: var(--esp-2) calc(-1 * var(--esp-3)) 0; padding: 0; border: 0; border-radius: 0; background: linear-gradient(100deg, var(--a-band) 0 49.4%, var(--noir-pur) 49.4% 50.6%, var(--b-band) 50.6%); color: var(--encre); text-align: center; cursor: pointer; animation: tele-balaie 520ms var(--e-sortie) both; }
 .bu-prochain-k { grid-column: 1 / -1; display: flex; justify-content: center; gap: var(--esp-2); padding: var(--esp-1) var(--esp-3); background: var(--noir-pur); font: 800 var(--t-1)/1.4 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--encre-2); }
 .bu-prochain-gros { color: var(--or); }
 .bu-prochain.gros .bu-prochain-k { background: var(--or); color: var(--encre-sur-or); }
 .bu-prochain.gros .bu-prochain-gros { color: inherit; }
-.bu-vs-eq { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) var(--esp-4); animation: tele-monte 420ms 200ms var(--e-sortie) both; }
+.bu-vs-eq { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) var(--esp-4); animation: tele-monte 300ms var(--e-sortie) both; }
 .bu-vs-eq.toi { color: var(--a-ink); }
-.bu-vs-eq.eux { color: var(--b-ink); animation-delay: 300ms; }
+.bu-vs-eq.eux { color: var(--b-ink); }
 .bu-vs-eq b { max-width: 100%; font: 800 var(--t-7)/1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bu-vs-eq small { font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; opacity: 0.85; font-variant-numeric: tabular-nums; }
 .bu-vs-mi { position: absolute; left: 50%; top: 54%; z-index: 1; display: grid; place-items: center; width: 48px; height: 48px; translate: -50% -50%; rotate: 45deg; background: var(--noir-pur); box-shadow: 0 0 0 2px var(--blanc); }
@@ -4345,22 +4345,22 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
    rouge quand il presse, elle se soulève sous le doigt. */
 /* LA MAIN DU JOUR (V23, « faut vraiment revoir ») : les choix en cartes debout, côte à côte, comme une main ; chacune sa
    maison en tête, la voix au cœur, le sujet dessous, son état au pied. Elles entrent en balayage, l'une après l'autre. */
-.hub-msgs { display: flex; justify-content: center; align-items: flex-start; padding: var(--esp-1) var(--esp-3) var(--esp-3); }
+.hub-msgs { display: flex; justify-content: center; align-items: flex-start; padding: var(--esp-1) var(--esp-4) var(--esp-3); }
 .hub-msgs > .af-maison { display: contents; }
 .hub-msgs .af-maison-tete, .hub-msgs .hub-msg-maison { display: none; }
 /* Une carte de la main : debout, au format d'une carte (5:7), penchée selon sa place dans l'éventail (`--r`, `--y`, posés par
    js/saison.js) ; elles se chevauchent quand la main est pleine ; sous le doigt, la carte se redresse et monte. */
-.hub-msg { position: relative; flex: 0 1 104px; min-width: 0; aspect-ratio: 5 / 7; margin: 0 -6px; border: 1px solid var(--filet); border-top: 4px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 18px 28px -16px var(--noir-pur); rotate: var(--r, 0deg); translate: 0 var(--y, 0); transform-origin: 50% 120%; transition: translate 160ms var(--e-sortie), rotate 160ms var(--e-sortie); animation: main-donne 420ms calc(var(--i, 0) * 80ms + 150ms) var(--e-sortie) both; }
+.hub-msg { position: relative; flex: 0 1 92px; min-width: 0; aspect-ratio: 5 / 7; margin: 0 -6px; border: 1px solid var(--filet); border-top: 4px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 18px 28px -16px var(--noir-pur); rotate: var(--r, 0deg); translate: 0 var(--y, 0); transform-origin: 50% 120%; transition: translate 160ms var(--e-sortie), rotate 160ms var(--e-sortie); animation: main-donne 320ms calc(var(--i, 0) * 60ms) var(--e-sortie) both; }
 @keyframes main-donne { from { opacity: 0; translate: 0 60px; } }
 .hub-msg.bloque { border-top-color: var(--mauvais); }
 .hub-msg:hover, .hub-msg:focus-within { z-index: 2; rotate: 0deg; translate: 0 -12px; }
-.hub-msg-tete { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: var(--esp-1); padding: var(--esp-2) var(--esp-2) var(--esp-2); border: 0; background: none; color: var(--encre); text-align: center; }
+.hub-msg-tete { width: 100%; min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: var(--esp-1); padding: var(--esp-2) var(--esp-2) var(--esp-2); border: 0; background: none; color: var(--encre); text-align: center; }
 .hub-msg-maison { align-self: stretch; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-msg-ico { flex: none; display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; background: var(--fond-3); font-size: var(--t-5); line-height: 1; color: var(--encre); }
 .hub-msg-visage { width: 52px; height: 52px; }
 .hub-msg-txt { min-width: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .hub-msg-de { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-.hub-msg-sujet { font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.01em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.hub-msg-sujet { font: 800 var(--t-2)/1.1 var(--display); letter-spacing: 0.01em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 /* Son état, un tampon au pied : « À choisir » sur le rouge quand il presse. */
 .hub-msg-etat { flex: none; display: inline-flex; align-items: center; padding: 2px var(--esp-2); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; background: var(--or); color: var(--encre-sur-or); }
 .hub-msg-etat:empty { display: none; }
@@ -4471,6 +4471,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-hier-eq em { flex: none; min-width: 1.6em; padding: var(--esp-1) var(--esp-3); text-align: center; font-style: normal; font-size: var(--t-6); background: var(--noir-pur); color: var(--blanc); }
 .hub-hier-eq.perd { filter: saturate(0.35) brightness(0.7); }
 .hub-hier-pied { grid-column: 2; display: flex; justify-content: space-between; gap: var(--esp-2); padding: 0 var(--esp-2); font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-hier-recit { grid-column: 1 / -1; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-hier-voir { color: var(--or); }
 .hub-etat { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
@@ -4966,6 +4967,12 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .banc-adjoint.joue small { color: var(--or); }
 .banc-regle.joue { border-color: var(--bon); box-shadow: 0 0 12px color-mix(in srgb, var(--bon) 35%, transparent); }
 .banc-regle.joue small { color: var(--bon); }
+/* V23, la nouvelle interface : à Ce soir, ton banc en jetons d'une ligne — l'icône, le nom, ce qu'il a fait ; l'écran tient en un. */
+.hub-soir .banc { margin: 0; padding: 0; }
+.hub-soir .banc-tete { display: none; }
+.hub-soir .banc-rang { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
+.hub-soir .banc-carte { flex-direction: row; aspect-ratio: auto; gap: var(--esp-1); padding: var(--esp-1) var(--esp-2); }
+.hub-soir .banc-ico { font-size: var(--t-3); }
 @keyframes banc-allume {
   from { opacity: 0.45; filter: grayscale(0.8); box-shadow: none; clip-path: inset(0 100% 0 0); }
   30% { opacity: 1; filter: none; }
@@ -5470,10 +5477,10 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 /* LE DUEL (V9) : leur intention, ton adjoint, la mise doublée. */
 /* LEUR INTENTION, UNE CARTE DE BOSS (V23 ; JP : *que les gros matchs, ça soit vraiment un jeu*) : leur jeu de la période,
    au centre, encadré de rouge, une lueur à son arrivée (une fois : le décor ne boucle pas) ; ton adjoint répond dessous avec ses cartes. */
-.duel-intention { position: relative; align-self: center; width: min(100%, 320px); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: var(--esp-2); padding: var(--esp-3); text-align: center; border-radius: var(--r-2); background: color-mix(in srgb, var(--mauvais) 16%, var(--fond-1)); border: 2px solid var(--mauvais); box-shadow: var(--relief); animation: tele-balaie 420ms var(--e-sortie) both, boss-lueur 1.2s 420ms ease-out 1 both; }
+.duel-intention { position: relative; align-self: center; width: min(100%, 320px); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); text-align: center; border-radius: var(--r-2); background: color-mix(in srgb, var(--mauvais) 16%, var(--fond-1)); border: 2px solid var(--mauvais); box-shadow: var(--relief); animation: tele-balaie 420ms var(--e-sortie) both, boss-lueur 1.2s 420ms ease-out 1 both; }
 .duel-intention .main-etape { color: var(--mauvais); font-size: var(--t-1); letter-spacing: 0.16em; }
 .duel-intention .main-etape > b { display: none; }
-.duel-ico { font-size: var(--t-7); line-height: 1; }
+.duel-ico { font-size: var(--t-6); line-height: 1; }
 .duel-intention .choix-puces { flex-direction: column; align-items: center; gap: 2px; }
 .duel-intention .puce { font: 700 var(--t-2)/1.25 var(--corps); background: none; border: 0; padding: 0; }
 @keyframes boss-lueur { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mauvais) 45%, transparent); } 50% { box-shadow: 0 0 22px 2px color-mix(in srgb, var(--mauvais) 30%, transparent); } }
@@ -5487,7 +5494,7 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .duel-props { grid-template-columns: 1fr 1fr; }
 @media (min-width: 700px) { .duel-props { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* V23 : ses plans sont des cartes qu'il te tend, une à une, le gros chiffre au cœur ; « Garder » est la carte en creux. */
-.duel-props > .choix-option { min-height: 136px; text-align: center; align-items: center; animation: tele-monte 320ms var(--e-sortie) both; }
+.duel-props > .choix-option { min-height: 108px; text-align: center; align-items: center; animation: tele-monte 320ms var(--e-sortie) both; }
 .duel-props > .choix-option:nth-child(2) { animation-delay: 70ms; }
 .duel-props > .choix-option:nth-child(3) { animation-delay: 140ms; }
 .duel-props > .choix-option:nth-child(4) { animation-delay: 210ms; }
