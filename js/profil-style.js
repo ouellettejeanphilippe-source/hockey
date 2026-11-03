@@ -143,13 +143,15 @@ export function buildDuSoir(team, jour, feuille = null) {
  * restent au banc, éteints, leur condition à lire. Rien n'est deviné : la feuille fait foi, le niveau du coach ne sert
  * qu'à nommer les pouvoirs éteints.
  * La règle du coach vient d'abord (V23), allumée le soir où elle paie.
+ * `jusqua` (V23 A2, l'entracte du duel) : seulement les périodes déjà jouées (1 après la première, 2 après la deuxième) ;
+ * un pouvoir ne s'allume que pour elles, et la règle du coach, lue sur le match entier, attend la fin.
  * Rend [{ genre: 'regle'|'pouvoir'|'adjoint', ico, nom, dit, joue, periodes: [k…], reste, salaire, jetons }].
  */
-export function banc(team, feuille) {
+export function banc(team, feuille, { jusqua = null } = {}) {
   if (!team || !feuille) return [];
   const cote = feuille.B === team ? 'B' : 'A';
   const perso = team.perso;
-  const notes = (feuille.pouvoirs || []).filter(x => x.cote === cote);
+  const notes = (feuille.pouvoirs || []).filter(x => x.cote === cote && (jusqua == null || x.k < jusqua));
   const arbre = (perso && POUVOIRS[perso.cle]) || [];
   const niveau = perso ? niveauDuPerso({ ...perso, xpSaison: team.xpSaison || 0 }) : 0;
   const ouverts = new Set(notes.map(x => x.p));
@@ -166,7 +168,7 @@ export function banc(team, feuille) {
     genre: 'adjoint', ico: x.ico, nom: x.nom, dit: `${NOMS_NIV[nivDe(x) - 1]} · ${(ADJOINTS[x.cle] && ADJOINTS[x.cle].style) || ''}`, joue: true, periodes: [], reste: x.reste, salaire: x.salaire || 0,
   }));
   // V23 : la règle du coach (js/coachs.js `REGLES_DU_COACH`), allumée le soir où elle paie.
-  const R = perso && REGLES_DU_COACH[perso.cle];
+  const R = jusqua == null && perso && REGLES_DU_COACH[perso.cle];
   const regle = R ? [{ genre: 'regle', ico: COACHS[perso.cle].ico, nom: R.dit, dit: `La règle ${COACHS[perso.cle].de} : +${R.jetons} 🪙 le soir où ton club la tient`, joue: R.lit(chiffresDuSoirDe(feuille, cote)), periodes: [], jetons: R.jetons }] : [];
   return [...regle, ...pouvoirs, ...adjoints];
 }

@@ -145,3 +145,46 @@ function suivreChiffre(el) {
 if (typeof document !== 'undefined') {
   for (const el of document.querySelectorAll('[data-compte-suivi]')) suivreChiffre(el);
 }
+
+/*
+ * LES PALIERS DU JUS (V23 G, docs/refonte-v23.md § G ; JP : *du juice, mais sport et dramatique*). Trois paliers, et
+ * rien d'autre : l'ordinaire (un jour sans choix, un onglet) ne vibre jamais ; le notable (une carte jouée, le dé qui
+ * tombe, le banc qui s'allume) vibre un coup court ; le pic (la carte rare, le gros match gagné, le talent du coach,
+ * la Coupe, le congédiement) vibre trois coups, secoue l'écran de 4 px et lâche douze particules, jamais plus. Sous
+ * `prefers-reduced-motion`, rien ne bouge et rien ne vibre : l'état final tout de suite. Le DOM porte toujours le vrai
+ * chiffre : le jus se pose par-dessus, il ne remplace rien.
+ * Les durées sont celles de style.css (`--t-secousse`, `--t-eclat`) : le module ne fait que retirer ce qu'il a posé.
+ */
+const VIBRATION = { notable: [20], pic: [30, 40, 60] };
+const SECOUSSE_MS = 420, ECLAT_MS = 900, PARTICULES = 12;
+
+/* Vibre au palier (`notable`, `pic`) ; l'ordinaire et le mouvement réduit ne vibrent pas. */
+function vibrer(palier) {
+  if (reduit() || !VIBRATION[palier] || typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+  try { navigator.vibrate(VIBRATION[palier]); } catch { /* un téléphone qui refuse ne casse rien */ }
+}
+
+/** Le notable : un coup court, et c'est tout. */
+export const notable = () => vibrer('notable');
+
+/**
+ * Le pic : trois coups, la secousse de 4 px sur `el` (la feuille du choix, le hub), douze particules de la couleur du
+ * club qui partent de son centre. Un pic qui se répète ne s'empile pas : la secousse recommence.
+ */
+export function pic(el) {
+  vibrer('pic');
+  if (reduit() || !el || !el.isConnected) return;
+  el.classList.remove('secousse');
+  void el.offsetWidth;
+  el.classList.add('secousse');
+  setTimeout(() => el.classList.remove('secousse'), SECOUSSE_MS);
+  const r = el.getBoundingClientRect();
+  const p = document.createElement('span');
+  p.className = 'jus-particules';
+  p.setAttribute('aria-hidden', 'true');
+  p.style.left = `${r.left + r.width / 2}px`;
+  p.style.top = `${r.top + Math.min(r.height / 2, 160)}px`;
+  p.innerHTML = Array.from({ length: PARTICULES }, (_, k) => `<i style="--k:${k}"></i>`).join('');
+  document.body.appendChild(p);
+  setTimeout(() => p.remove(), ECLAT_MS);
+}

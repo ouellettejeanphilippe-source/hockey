@@ -28,6 +28,7 @@ import { artJoueur, photoAction, cadrePhoto, epoqueDe, serieDe, SERIES } from '.
 import { getTeamLogoHtml } from './logos.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
+import { pic } from './mouvement.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
 import { galonsDeLaSaison, grosGagnesDe, texteDuGalon, GALONS_MAX, ICO_GALON, GALONS } from './galons.js';
 import { sceneDuMandat, sceneDesGalons } from './scenes.js';
@@ -1481,6 +1482,8 @@ function montrerTaRun(sort, n, s) {
   saveGame();
   const ligne = (k, v) => `<div class="run-l"><span class="run-k">${esc(k)}</span><b class="run-v">${v}</b></div>`;
   if (sort === 'gagnee') { montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable); return; }
+  // V23 G : le congédiement est un pic, comme la Coupe — la porte claque.
+  setTimeout(() => pic(document.querySelector('.choix-sheet[data-genre="run"]')), 50);
   ouvrirChoix({
     ico: sort === 'gagnee' ? '🏆' : '🚪', titre: 'Ta run', genre: 'run', fermable: true, motFermer: 'Compris',
     irl: `Run ${d.numero} · ${n} saison${n > 1 ? 's' : ''}`,
@@ -1508,6 +1511,8 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
   const rang = (meta.vitrine || []).length;
   const C = COACHS[G.rogue.coach];
   jouerSon('coupe');
+  // V23 G : la Coupe est un pic — trois coups, la secousse et les particules sur sa scène, une fois ouverte.
+  setTimeout(() => pic(document.querySelector('.choix-sheet[data-genre="coupe"]')), 50);
   ouvrirChoix({
     ico: '🏆', titre: 'La Coupe Stanley', genre: 'coupe', fermable: true, motFermer: 'Soulever la Coupe',
     irl: `Run ${d.numero} gagnée · saison ${n}`,

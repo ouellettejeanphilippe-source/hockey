@@ -139,14 +139,14 @@ Les clés de sauvegarde ne bougent jamais.
 ## 8. Les critères d'acceptation
 
 - [x] **A1** : au sommaire du soir, le banc montre chaque pouvoir ouvert et chaque adjoint en poste ; ce qui a joué porte `.joue` et ses périodes, recomptées dans `feuille.pouvoirs` ; sous `prefers-reduced-motion`, aucune animation — `check_banc` (neuf, dans `tout.mjs`).
-- [ ] A2 : le banc au Bureau et allumé aux entractes du duel — `essai_rogue`.
+- [x] A2 (3 nov.) : le banc au Bureau (Hier soir) et allumé aux entractes du duel, en saison et en séries, avec les périodes déjà jouées seulement — `check_banc` § 7.
 - [x] B : un gros chiffre par option à `--t-6`, pris parmi ses lignes visibles (deux au plus en tout) ; la carte sans dégradé, avec son relief, qui se soulève et s'envole — `check_lisibilite` § 6. *Ouvert* : une histoire en 1,0 écran (`essai_rogue`).
 - [x] C : chaque niveau d'adjoint sous sa borne, et le Phénomène bat le Soutien du même style en paires (chacun à 0,3 V près, +0,7 V en moyenne) — `check_pouvoirs` ; une carte sans niveau est un Pilier, la table telle quelle.
 - [x] D' : la règle du coach s'allume les soirs où elle paie et la caisse les paie ; les salaires sont ceux de la feuille — `check_banc` ; l'ancien arbitre sous la borne de chaque niveau — `check_pouvoirs`.
 - [ ] D : chaque relais se voit le soir où il joue ; une paire rend 1,2 à 1,6 fois ses pièces — `check_relais` (à écrire) ; l'attentif qui lit les relais bat celui qui ne les lit pas d'au moins 1 V par saison — `check_profondeur` (`ROBOT_SAUF=relais`).
 - [ ] E : une suite ne s'ouvre que sur un fait vrai ; une rare au plus une fois par run ; les deux réponses à 0,3 V — `check_dossiers`, `check_effets DETAIL=1`, `check_mots`, `mesure_rythme`.
 - [ ] F (réduit, JP : pas d'encerclement) : leur coach en séries, son pouvoir neutre sur une saison — `check_gros`, `check_robot`.
-- [ ] G : sous `reducedMotion`, aucune animation active ; un jour ordinaire rend le Bureau stable en moins de 500 ms ; aucun toast sur l'en-tête, le bouton flottant ne couvre rien de touchable, aucun « … » dans une ligne de pouvoir — `essai_rogue` (`bords.mjs`).
+- [x] G (3 nov.) : les trois paliers (`notable`, `pic`, js/mouvement.js) ; sous `reducedMotion`, aucune animation ni vibration ; les finis du 2 nov. (aucun toast sur l'en-tête, aucun « … » dans une ligne de pouvoir) — `essai_rogue` (`bords.mjs`), `check_mort`, `check_css`. *Ouvert* : la mesure « un jour ordinaire rend le Bureau stable en moins de 500 ms ».
 - [ ] La maîtrise, jugée sur la run (JP) : la première Coupe de l'attentif à la run 3 ou plus tard, le distrait jamais — `check_profondeur` ; l'écart sur le robot du premier choix, en information.
 - [ ] À juger par JP à l'essai : le ton (« Mise au jeu ▶ » ou « Jour suivant »), les noms (le banc), la vibration par défaut.
 
@@ -156,11 +156,12 @@ Les clés de sauvegarde ne bougent jamais.
 2. **G1 · Les finis** — fait (2 nov.) : le toast, les pouvoirs fermés, la journée, le sous-titre du duel ; trois défauts écartés (LIVRAISON.md).
 3. **C · Les niveaux des entraîneurs et des adjoints** — fait (2 nov.) : `NOMS_NIV`, `FORCE_NIV`, `PRIX_NIV`, `BORNE_NIV`, `niveauOffert` (js/adjoints.js), `MAITRISE` en cinq niveaux (js/coachs-reels.js) — `check_pouvoirs`.
 3'. **D' · La règle du coach, le salaire, l'ancien arbitre** — fait (2 nov.) — `check_banc`, `check_pouvoirs`, `check_clarte`.
-4. **A2 · Le banc au Bureau et aux entractes.**
-5. **B · Les choix en cartes** — fait (2 nov.) : la carte de choix (relief, forme, gros chiffre, envol) ; le pari en rondelle qui tourne et le joueur nommé en vraie carte restent à faire.
+4. **A2 · Le banc au Bureau et aux entractes** — fait (3 nov.) : Hier soir (2 nov.), puis les entractes du duel (`jusqua`) — `check_banc` § 7.
+5. **B · Les choix en cartes** — fait (2 nov.) : la carte de choix (relief, forme, gros chiffre, envol) ; le pari en rondelle qui tourne, ses deux issues lisibles avant (3 nov.) ; le joueur nommé est sur la plaque de son club (3 nov.), pas en carte : la plaque le dit aussi bien, en un écran.
 6. **E · Les suites et les rares** — fait (2 nov.) : le petit (trois épisodes), les chapeaux (rare), le blanchissage ; le retour à la maison et la promesse du capitaine restent à écrire.
 7. **D · Le relais et moins d'offres** — après le oui de JP.
 8. **F · Leur coach en séries** (l'encerclement est écarté par JP).
+9. **G · Le jus en paliers** — fait (3 nov.) : `notable` et `pic` (js/mouvement.js), le bâton sur la bande et le klaxon (js/sons.js), la secousse et les particules (style.css).
 
 Pour chaque tranche de mécanique, le robot attentif apprend le geste avant la mesure ; sinon `ROBOT_SAUF` mesure zéro.
 

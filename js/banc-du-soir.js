@@ -11,22 +11,24 @@ const PERIODE_COURTE = ['1re', '2e', '3e'];
 /**
  * Le banc d'un soir : `f`, sa feuille ; `A`, `B`, ses deux clubs (le tien porte `isPlayer` ou un personnage) ; `esc`,
  * l'échappement. `joues` (V23, le Bureau) : seulement ce qui a joué — rien n'a joué, pas de banc ; le sommaire montre tout.
+ * `jusqua` (V23 A2, l'entracte du duel) : les périodes déjà jouées seulement ; ce qui n'a pas encore joué dit « pas encore ».
  */
-export function bancDuSoirHtml(f, A, B, esc, { joues = false } = {}) {
+export function bancDuSoirHtml(f, A, B, esc, { joues = false, jusqua = null } = {}) {
   const toi = A.isPlayer ? A : B.isPlayer ? B : A.perso ? A : B.perso ? B : null;
-  const cartes = banc(toi, f).filter(c => !joues || c.joue);
+  const cartes = banc(toi, f, { jusqua }).filter(c => !joues || c.joue);
   if (!cartes.length) return '';
   let i = 0;
   const carte = c => {
     const pied = c.genre === 'regle' ? (c.joue ? `+${c.jetons} 🪙` : 'pas ce soir')
       : c.genre === 'adjoint' ? `${c.reste > 1 ? `encore ${c.reste - 1}` : 'dernier match'}${c.salaire ? ` · −${c.salaire} 🪙` : ''}`
-      : c.joue ? c.periodes.map(k => PERIODE_COURTE[k] || `${k + 1}e`).join(' · ') : 'au banc';
+      : c.joue ? c.periodes.map(k => PERIODE_COURTE[k] || `${k + 1}e`).join(' · ') : jusqua ? 'pas encore' : 'au banc';
     return `<div class="banc-carte banc-${c.genre}${c.joue ? ' joue' : ''}"${c.joue ? ` style="--i:${i++}"` : ''} title="${esc(`${c.nom} — ${c.dit}`)}">
       <span class="banc-ico" aria-hidden="true">${c.ico}</span><b>${esc(c.nom)}</b><small>${esc(pied)}</small></div>`;
   };
   const allumes = cartes.filter(c => c.joue).length;
-  return `<div class="banc" role="group" aria-label="Ton banc ce soir : ${allumes} sur ${cartes.length} ont joué">
-    <div class="banc-tete"><span>Ton banc ce soir</span><span>${allumes} sur ${cartes.length}</span></div>
+  const titre = jusqua ? `Ton banc, après ${jusqua === 1 ? 'une période' : 'deux périodes'}` : 'Ton banc ce soir';
+  return `<div class="banc" role="group" aria-label="${titre} : ${allumes} sur ${cartes.length} ont joué">
+    <div class="banc-tete"><span>${titre}</span><span>${allumes} sur ${cartes.length}</span></div>
     <div class="banc-rang">${cartes.map(carte).join('')}</div>
   </div>`;
 }

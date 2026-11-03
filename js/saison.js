@@ -52,9 +52,9 @@ import { BANQUE } from './banque.js';
 import { DEFIS, avanceDuDefi, motDuDefi } from './arcs.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
-import { animerComptes } from './mouvement.js';
+import { animerComptes, notable, pic } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
-import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
+import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle, banc } from './profil-style.js';
 import { verdictsDeLaSemaine as verdictsDesChoix } from './verdicts.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
 import { bancDuSoirHtml } from './banc-du-soir.js';
@@ -3914,6 +3914,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // Son coin dit ce qu'elle rapporte, en grand, sans la retourner : des jetons, de l'expérience, une carte, ou le dé.
       const coinDe = o => (o.gain ? `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙` : o.xp ? `+${o.xp} exp.` : o.adjoint ? '+1 carte' : o.pari ? `🎲 ${Math.round(o.pari.chance * 6)}/6` : '');
       const options = enCartes ? C.options.map(o => ({ ...o, genreCarte: 'tactique', ico: icoDe(o), coin: coinDe(o), rarete: o.pari ? 'rare' : o.prix ? 'commune' : 'peu', motChoix: 'Jouer' })) : C.options;
+      // V23 G : le niveau du coach est un pic — le talent s'ouvre dans la secousse et les particules.
+      if (m.genre === 'talent') setTimeout(() => pic(document.querySelector('.choix-sheet[data-msg="talent"]')), 50);
       ouvrirChoix({
         ...C, options, ...(enCartes ? { cartes: true } : {}), de: m.de, ico: C.ico || m.de.ico, titre: m.sujet, cadre: cadreDuMatch(), ouDe: ctx.ouJoue, classeOption: 'af-option', boite: { msg: m.genre, maison: m.maison },
         recit: C.recitHtml ? '' : C.recit,
@@ -3998,7 +4000,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <div class="ent2-note">Après ${k === 1 ? 'une période' : 'deux périodes'} · tirs ${tirs(cMoi)}–${tirs(moiA ? 'B' : 'A')}</div>
       <ol class="ent2-periodes" aria-label="Les trois périodes">${[0, 1, 2].map(i => `<li class="${i < k ? 'faite' : i === k ? 'a-jouer' : ''}">${i ? `${i + 1}e` : '1re'}${i < k ? ` · ${faites[i].pointage.moi}–${faites[i].pointage.lui}` : i === k ? ' · à jouer' : ''}</li>`).join('')}</ol>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
+      ${ctx.rogue ? bancDuSoirHtml(f, p.m.A, p.m.B, ctx.esc, { jusqua: k }) : ''}
     </div>`;
+    // V23 A2 : le banc s'allume en direct à l'entracte — un coup court quand quelque chose a joué.
+    if (ctx.rogue && banc(you, f, { jusqua: k }).some(c => c.joue)) { notable(); jouerSon('baton'); }
     ouvrirDuel({
       titre: `${k === 1 ? 'Premier' : 'Deuxième'} entracte · ${moi}–${lui}`, sousTitre: `Contre ${ctx.teamShort(adv)}`,
       duel: D, couleurs: ctx.band(adv.tag),
@@ -4077,7 +4082,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       graine: (p.j + 1) * 100 + p.k, avant: compte, ctx,
       arret: attente ? (kDuel ? 20 * kDuel : 40) : null, onArret: attente ? () => { dessiner(); ouvrirEntracte(true); } : null, depuis,
       sansSortie: !!grosDuJour(p.j),
-      onTermine: () => { if (termine) return; avancer(1); dessiner(); tabs.suivre('journee'); apresAvance(avant, sem, true); },
+      onTermine: () => {
+        if (termine) return;
+        // V23 G : un gros match gagné est un pic — le klaxon, la secousse et les particules sur le Bureau qui revient.
+        const gagne = !!grosDuJour(p.j) && p.m.feuille.vainqueur === (p.m.A === you ? 'A' : 'B');
+        avancer(1); dessiner(); tabs.suivre('journee'); apresAvance(avant, sem, true);
+        if (gagne) { jouerSon('klaxon'); pic(modal); }
+      },
     });
     void apresA; void apresB;
   }
@@ -4374,7 +4385,9 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       ${scoreDuDuel(ctx, you, boss, moi, lui)}
       <div class="ent2-note">Match ${k + 1} · après ${p === 1 ? 'une période' : 'deux périodes'} · tirs ${tirs(cMoi)}–${tirs(moiA ? 'B' : 'A')} · série ${s.A === you ? wA : wB}-${s.A === you ? wB : wA}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
+      ${ctx.rogue ? bancDuSoirHtml(f, s.A, s.B, ctx.esc, { jusqua: p }) : ''}
     </div>`;
+    if (ctx.rogue && banc(you, f, { jusqua: p }).some(c => c.joue)) { notable(); jouerSon('baton'); }
     ouvrirDuel({
       titre: `${p === 1 ? 'Premier' : 'Deuxième'} entracte · ${moi}–${lui}`, sousTitre: `${nomRondeCourt(ronde)} · match ${k + 1} · contre ${ctx.teamShort(boss)}`,
       duel: D, couleurs: ctx.band(boss.tag),

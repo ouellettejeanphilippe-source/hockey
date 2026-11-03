@@ -210,6 +210,9 @@
   --t-vite: 0.12s;
   --t-lent: 0.24s;
   --t-compte: 400ms;
+  /* V23 G, les paliers du jus (js/mouvement.js `pic`) : la secousse d'un pic, et ses douze particules. */
+  --t-secousse: 420ms;
+  --t-eclat: 900ms;
   --e-sortie: cubic-bezier(0.2, 0.8, 0.2, 1);
   --e-ressort: cubic-bezier(0.34, 1.56, 0.64, 1);
   /* Les polices. */
@@ -304,6 +307,23 @@ a { color: var(--bleu); text-decoration: none; }
    graphique entre comme à la télé, essuyé de gauche à droite, jamais en rebondissant. Une fois, à son arrivée. */
 @keyframes tele-balaie { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes tele-monte { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* LES PICS (V23 G, docs/refonte-v23.md § G ; js/mouvement.js `pic`) : la carte rare, le gros match gagné, le talent du
+   coach, la Coupe, le congédiement. Une secousse de 4 px, jamais plus, et douze particules de la couleur du club qui
+   partent du centre de ce qui vient d'arriver ; le reste du temps, rien ne tremble. */
+.secousse { animation: secousse var(--t-secousse) var(--e-sortie) both; }
+@keyframes secousse {
+  10%, 50%, 90% { transform: translate(-4px, 1px); }
+  30%, 70% { transform: translate(4px, -1px); }
+  to { transform: none; }
+}
+.jus-particules { position: fixed; z-index: 1000; width: 0; height: 0; pointer-events: none; }
+.jus-particules i { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 50%; background: var(--club-vif, var(--or)); box-shadow: 0 0 8px var(--club-vif, var(--or)); transform: rotate(calc(var(--k) * 30deg)); animation: eclat var(--t-eclat) var(--e-sortie) both; animation-delay: calc(var(--k) * 12ms); }
+.jus-particules i:nth-child(odd) { background: var(--or); box-shadow: 0 0 8px var(--or); width: 7px; height: 7px; }
+@keyframes eclat {
+  from { opacity: 1; transform: rotate(calc(var(--k) * 30deg)) translateX(6px) scale(1.3); }
+  60% { opacity: 1; }
+  to { opacity: 0; transform: rotate(calc(var(--k) * 30deg)) translateX(110px) scale(0.4); }
+}
 /* ---- Au téléphone (1.0, R2), les jetons baissent À LA SOURCE : les tailles et les espaces d'un bureau à 1440 px sont
    trop gros pour 390 px — tout paraissait zoomé et empilé. Rien sous 12 px, rien sous 44 px de cible. ---- */
 @media (max-width: 679.98px) {
@@ -1121,14 +1141,16 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .de-choix { font: 800 var(--t-4)/1.15 var(--display); color: var(--encre); }
 .de-besoin { font: 700 var(--t-3)/1.2 var(--display); letter-spacing: 0.04em; color: var(--or); }
 .de-table { display: grid; place-items: center; width: 132px; height: 132px; }
-.de { display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 6px; width: 96px; height: 96px; padding: 14px; border-radius: var(--r-2); background: var(--encre); box-shadow: 0 8px 0 var(--encre-3); }
+/* V23 B (docs/refonte-v23.md) : le dé est une rondelle — un disque de caoutchouc noir, ses points blancs dessus, qui tourne
+   sur elle-même à chaque face et se pose ; ses deux issues se lisent dessous avant de la lancer (`.de-issue`). */
+.de { display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 6px; width: 104px; height: 104px; padding: 22px; border-radius: 50%; background: radial-gradient(circle at 38% 32%, var(--fond-3), var(--noir) 55%, var(--noir-pur)); box-shadow: 0 8px 0 var(--fond-3), 0 10px 0 1px var(--noir-pur), inset 0 0 0 3px color-mix(in srgb, var(--encre) 8%, transparent); }
 .de i { border-radius: 50%; }
-.de i.on { background: var(--noir); }
+.de i.on { background: var(--encre); }
 .de.roule { animation: de-roule 0.2s ease-out; }
 .de.pose { animation: de-pose 0.32s cubic-bezier(.2, 1.6, .4, 1); }
-.de.pose.gagne { box-shadow: 0 8px 0 var(--encre-3), 0 0 0 4px var(--bon), 0 0 28px var(--bon); }
-.de.pose.perd { box-shadow: 0 8px 0 var(--encre-3), 0 0 0 4px var(--live), 0 0 28px var(--live); }
-@keyframes de-roule { from { transform: rotate(-24deg) translateY(-14px) scale(.92); } to { transform: none; } }
+.de.pose.gagne { box-shadow: 0 8px 0 var(--fond-3), 0 0 0 4px var(--bon), 0 0 28px var(--bon); }
+.de.pose.perd { box-shadow: 0 8px 0 var(--fond-3), 0 0 0 4px var(--live), 0 0 28px var(--live); }
+@keyframes de-roule { from { transform: rotate(-150deg) translateY(-10px) scale(.94); } to { transform: none; } }
 @keyframes de-pose { from { transform: scale(1.25); } to { transform: none; } }
 .de-verdict { min-height: 1.4em; font: 800 var(--t-4)/1.2 var(--display); }
 .de-verdict b { font-size: 1.3em; }
@@ -4980,12 +5002,15 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .banc-adjoint.joue small { color: var(--or); }
 .banc-regle.joue { border-color: var(--bon); box-shadow: 0 0 12px color-mix(in srgb, var(--bon) 35%, transparent); }
 .banc-regle.joue small { color: var(--bon); }
-/* V23, la nouvelle interface : à Ce soir, ton banc en jetons d'une ligne — l'icône, le nom, ce qu'il a fait ; l'écran tient en un. */
-.hub-soir .banc { margin: 0; padding: 0; }
+/* V23, la nouvelle interface : à Ce soir, ton banc en jetons d'une ligne — l'icône, le nom, ce qu'il a fait ; l'écran tient en un.
+   À l'entracte du duel (V23 A2), la même ligne sous les périodes, son titre gardé : ce qui a joué jusque-là s'allume en direct. */
+.hub-soir .banc, .ent2 .banc { margin: 0; padding: 0; }
 .hub-soir .banc-tete { display: none; }
-.hub-soir .banc-rang { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
-.hub-soir .banc-carte { flex-direction: row; aspect-ratio: auto; gap: var(--esp-1); padding: var(--esp-1) var(--esp-2); }
-.hub-soir .banc-ico { font-size: var(--t-3); }
+.ent2 .banc { margin-top: var(--esp-2); }
+.ent2 .banc-tete { margin-bottom: var(--esp-1); }
+:is(.hub-soir, .ent2) .banc-rang { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
+:is(.hub-soir, .ent2) .banc-carte { flex-direction: row; aspect-ratio: auto; gap: var(--esp-1); padding: var(--esp-1) var(--esp-2); }
+:is(.hub-soir, .ent2) .banc-ico { font-size: var(--t-3); }
 @keyframes banc-allume {
   from { opacity: 0.45; filter: grayscale(0.8); box-shadow: none; clip-path: inset(0 100% 0 0); }
   30% { opacity: 1; filter: none; }
