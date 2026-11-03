@@ -33,7 +33,7 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuill
   familleDeMoment, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   nouvelleGraine, avecAVenir, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
-import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
+import { lignesDeLAdjointEnChiffres, motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
@@ -45,7 +45,7 @@ import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
-import { ADJOINTS, adjointsOfferts, lignesDeLAdjoint, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, reposDe, mainDe, auRepos, niveauOffert, momentFort, NOMS_NIV, RARETE_NIV } from './adjoints.js';
+import { ADJOINTS, adjointsOfferts, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, reposDe, mainDe, auRepos, niveauOffert, momentFort, NOMS_NIV, RARETE_NIV } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, faitsDesSuites, faitsDuDernier, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE } from './banque.js';
@@ -3155,14 +3155,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // V23 : chaque carte a son niveau, tiré de la graine (`niveauOffert`), plus haut à un moment fort ; sa rareté fait le paquet.
   const optionDAdjoint = (k, niv) => {
     const p = persoDuJour(), part = p ? quiPartDeLaMain(p, you.games || 0) : null, syn = p ? motDeSynergie(k, p.cle) : null;
-    return { cle: k, niv, rarete: RARETE_NIV[niv - 1], ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, sous: `${NOMS_NIV[niv - 1]} · ${ADJOINTS[k].style}`, mots: [...lignesDeLAdjoint(k, niv),
+    return { cle: k, niv, rarete: RARETE_NIV[niv - 1], ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, sous: `${NOMS_NIV[niv - 1]} · ${ADJOINTS[k].style}`, mots: [...lignesDeLAdjointEnChiffres(k, niv),
       ...(syn ? [{ txt: syn, bon: true }] : [{ txt: `Un séjour de ${sejourDe(k, p ? p.cle : null)} matchs`, bon: null }]),
       ...(part ? [{ txt: `Ta main est pleine : ${ADJOINTS[part].ico} ${ADJOINTS[part].nom} part`, bon: false }] : [])] };
   };
   const adjointsDuMoment = cle => (persoDuJour() ? adjointsOfferts(persoDuJour(), graine, cle, 3).map(k => optionDAdjoint(k, niveauOffert(graine, cle, k, momentFort(cle)))) : []);
   const decisionDeLAdjoint = (cle, moment) => ({ embauche: { cle, niv: niveauOffert(graine, moment, cle, momentFort(moment)) } });
   // La carte d'une offre unique (le talent, une histoire), nommée avec son niveau.
-  const motDeLOffert = (k, niv) => [{ txt: `Dans ta main : ${ADJOINTS[k].ico} ${ADJOINTS[k].nom}, ${NOMS_NIV[niv - 1]}, ${ADJOINTS[k].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjoint(k, niv)];
+  const motDeLOffert = (k, niv) => [{ txt: `Dans ta main : ${ADJOINTS[k].ico} ${ADJOINTS[k].nom}, ${NOMS_NIV[niv - 1]}, ${ADJOINTS[k].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjointEnChiffres(k, niv)];
   function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
     // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.

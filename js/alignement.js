@@ -8,12 +8,12 @@ import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, avecAVenir } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, specialesEnStats } from './impact.js';
+import { alignementAuMieux, unitesDuSoir, specialesEnStats, lignesDeLAdjointEnChiffres, ditDuPouvoir } from './impact.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
 import { primesDuCoach } from './rogue.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
 import { MAITRISE } from './coachs-reels.js';
-import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, lignesDeLAdjoint, ficheDeLaCarte, casesLibres, nivDe, NOMS_NIV, RARETE_NIV } from './adjoints.js';
+import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, ficheDeLaCarte, casesLibres, nivDe, NOMS_NIV, RARETE_NIV } from './adjoints.js';
 import { carteHtml } from './cartes.js';
 import { hubActif } from './coquille.js';
 import { glisserDeposer } from './deposer.js';
@@ -869,7 +869,7 @@ export function coachHtml() {
     const f = forceDuPouvoir(perso, p);
     return `<div class="pv${ouvert ? '' : ' ferme'}">
       <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${P.ico}</span><b>${esc(P.nom)}</b>${p === 2 ? '<small>Ultime</small>' : ''}<span class="pv-etat">${ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`}</span></div>
-      <p class="pv-dit">${esc(P.dit)}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}</p>
+      <p class="pv-dit">${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}</p>
     </div>`;
   };
   /*
@@ -902,7 +902,7 @@ function mainHtml(perso, niveau) {
   const postes = main.filter(c => enPoste(c, games, perso.cle)), autres = main.filter(c => !enPoste(c, games, perso.cle));
   const carteAdj = c => {
     // V23 : la carte à son niveau — ses lignes, sa rareté (le cadre de la série), son nom de niveau.
-    const niv = nivDe(c), A = ADJOINTS[c.cle], l = lignesDeLAdjoint(c.cle, c.niv), syn = motDeSynergie(c.cle, perso.cle), fiche = ficheDeLaCarte(c);
+    const niv = nivDe(c), A = ADJOINTS[c.cle], l = lignesDeLAdjointEnChiffres(c.cle, c.niv), syn = motDeSynergie(c.cle, perso.cle), fiche = ficheDeLaCarte(c);
     const etat = enPoste(c, games, perso.cle) ? 'poste' : auRepos(c, games) ? 'repos' : 'prete';
     const sous = etat === 'poste' ? `Encore ${resteDe(c, games, perso.cle)} match${resteDe(c, games, perso.cle) > 1 ? 's' : ''}` : etat === 'repos' ? `Au repos · ${reposDe(c, games)} match${reposDe(c, games) > 1 ? 's' : ''}` : `${sejourDe(c.cle, perso.cle)} matchs`;
     // Le verso, petit, dit le style seul ; la réplique, la synergie et la fiche se lisent dans la bande, au toucher (`.adj-detail`).
