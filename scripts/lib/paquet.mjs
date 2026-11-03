@@ -27,7 +27,9 @@ export async function traverserPaquet(page, { tout = false, delai = 120, surAnno
     if (await page.$('#choixModal .walkout')) {
       if (!annonce && surAnnonce && await page.waitForSelector('#choixModal .walkout[data-pas="3"]', { timeout: 2600 }).catch(() => null)) await surAnnonce();
       annonce = true;
-      await page.click('#choixModal .choix-tete');
+      // La capture de l'annonce prend du temps : le walkout a pu finir de lui-même, la carte est déjà sur la pile. Un
+      // toucher la passerait sans l'avoir vue (un pack d'une seule carte finissait vide) : on ne saute que l'annonce encore là.
+      if (await page.$('#choixModal .walkout')) await page.click('#choixModal .choix-tete');
       await page.waitForTimeout(delai);
       continue;
     }
