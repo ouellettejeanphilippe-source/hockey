@@ -456,6 +456,8 @@ body:not(.au-repechage) #capGauge { display: none; }
 :is(.soustab, .stat-tab, .inv-onglet, .ct-vue):hover { color: var(--encre); }
 :is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on { color: var(--noir); background: var(--encre); border-color: var(--encre); }
 :is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on span { color: var(--noir); }
+/* V23, la nouvelle interface : au Rogue, les onglets d'une porte se lisent comme ceux d'une télé — le mot, souligné à la couleur du club. */
+body.mode-rogue .soustab.on { background: none; border-color: transparent; border-radius: 0; color: var(--encre); box-shadow: inset 0 -3px 0 var(--club-vif); }
 
 /* ---- Les cinq portes : la barre au bas du téléphone, le rail à gauche dès 1000 px ---- */
 .navbar {
@@ -1021,7 +1023,7 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-chiffres { align-self: center; min-height: 44px; margin-top: var(--esp-2); padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: transparent; color: var(--encre-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
 .choix-chiffres[aria-pressed="true"] { border-color: var(--or); color: var(--or); }
 /* La tête de TOUTE fenêtre (Jalon U) : l'icône, le titre, sa sous-ligne, le ✕ au bout. */
-.choix-tete { flex: none; display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-4); border-bottom: 1px solid var(--filet); background: var(--fond-1); box-shadow: inset 0 3px 0 var(--or); }
+.choix-tete { flex: none; display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-4); border-bottom: 1px solid var(--filet); background: var(--noir-pur); box-shadow: inset 0 3px 0 var(--or); }
 .choix-ico { line-height: 1; font-size: var(--t-5); color: var(--or); }
 .choix-ico .ico { display: block; width: 24px; height: 24px; }
 .choix-titres { flex: 1; min-width: 0; }
@@ -3918,10 +3920,10 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .gl-resume { display: inline-flex; align-items: baseline; gap: 1px; margin-right: var(--esp-2); font-size: var(--t-3); }
 .gl-resume small { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 /* Le joueur d'une décision (`carteJoueur`) : son nom, son club, ses marques. */
-.gj-joueur { padding: var(--esp-3); border: 1px solid var(--filet); border-left: 4px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 10px 20px -16px var(--noir-pur); }
-.gj-joueur-nom { font: 800 var(--t-5)/1.05 var(--display); text-transform: uppercase; letter-spacing: 0.02em; }
-.gj-joueur-nom span { margin-left: var(--esp-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-.gj-joueur-nom .gj-ligne { color: var(--or); }
+.gj-joueur { padding: var(--esp-2) var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--eq-band, var(--fond-2)); color: var(--eq-ink, var(--encre)); box-shadow: inset 0 -3px 0 var(--eq-stripe, var(--or)); }
+.gj-joueur-nom { display: flex; align-items: center; flex-wrap: wrap; gap: 2px var(--esp-2); font: 800 var(--t-5)/1.05 var(--display); text-transform: uppercase; letter-spacing: 0.02em; }
+.gj-joueur-nom span { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; }
+.gj-joueur-nom .gj-ligne { padding: 2px var(--esp-1); background: var(--noir-pur); color: var(--or); opacity: 1; }
 .gj-marques { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); margin-top: var(--esp-2); }
 
 /* ---- Les points de rupture ---- */
@@ -4152,6 +4154,8 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: calc(var(--flottant-h) + 2 * var(--esp-3)); }
   /* V23, la nouvelle interface : au Rogue, hier soir se lit entre l'affiche et ta main, comme une émission d'avant-match. */
   body.mode-rogue.hub-docke .hub-sheet .hub-volet { order: 1; flex: 0 0 auto; padding-bottom: 0; }
+  /* Au Calendrier du Rogue, la route et le calendrier d'abord ; le rapport, la prévision et ton style après. */
+  body.mode-rogue .hub-sheet[data-vue="saison"] .hub-volet > :is(.hub-rangee, .hub-prev, .entracte) { order: 5; }
   body.mode-rogue.hub-docke .hub-sheet .hub-boite { flex: 1 0 auto; }
   /* Hors de « Match », le volet seul : l'affiche, la boîte et les boutons appartiennent au Bureau. */
   body.hub-docke .hub-sheet:not([data-vue="match"]) :is(.hub-carte, .hub-actions) { display: none; }
@@ -4379,10 +4383,11 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 /* LA SCÈNE (Jalon M) : la voix qui demande, sa réplique entre guillemets, le fait dessous — un filet d'or à gauche. */
 /* LA SCÈNE (V23 ; JP : *que ça soit vraiment un jeu et pas un feel de courriel*) : la voix parle en grand, comme une ligne
    de dialogue, et le fait se lit dessous ; plus de barre de citation de courriel. */
-.scene { display: flex; flex-direction: column; gap: var(--esp-1); margin: 0; padding: 0; }
+/* V23, la nouvelle interface : la scène est un bandeau de télé — la voix sur sa plaque d'or, sa réplique en grand sur une bande sombre, le fait dessous. */
+.scene { display: flex; flex-direction: column; gap: var(--esp-1); margin: 0; padding: var(--esp-3) var(--esp-3) var(--esp-2); border-radius: var(--r-1); background: var(--fond-1); box-shadow: inset 4px 0 0 var(--or); }
 /* La voix en bandeau de nom, comme une entrevue à la télé : sa plaque d'or, puis sa phrase qui monte. */
 .scene-de { align-self: flex-start; padding: 3px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; animation: tele-balaie 360ms var(--e-sortie) both; }
-.scene-mot { margin: 0; font: 700 var(--t-4)/1.3 var(--corps); color: var(--encre); animation: tele-monte 360ms 160ms var(--e-sortie) both; }
+.scene-mot { margin: 0; font: 800 var(--t-4)/1.25 var(--corps); color: var(--encre); animation: tele-monte 360ms 160ms var(--e-sortie) both; }
 .scene-fait { margin: 0; font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 /* Les plans du duel : le bouton `optionHtml`, serré, une colonne au téléphone. */
 .af-options { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
@@ -4532,7 +4537,9 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-volet .live-tableau tr.toi td:first-child { box-shadow: inset 3px 0 0 var(--club-vif); }
 .hub-volet .live-tableau tr.cut td { border-bottom: 2px solid var(--or); }
 /* V23, la nouvelle interface : le filet de couleur du club au bord de sa rangée ; la ligne des séries, dite en vert. */
-.hub-classement tbody tr[style] td:first-child { box-shadow: inset 4px 0 0 var(--eq-band); }
+.hub-classement tbody tr[style] td:first-child, .hub-table tbody tr[style] td:first-child { box-shadow: inset 4px 0 0 var(--eq-band); }
+/* Le podium des meneurs : les trois premiers rangs sur l'or. */
+.hub-table.meneurs tbody tr:nth-child(-n+3) td:first-child { color: var(--or); font: 800 var(--t-4)/1 var(--display); }
 .hub-classement td.nom > :is(.team-logo-img, .team-logo-inline) { vertical-align: middle; }
 .hub-volet .live-tableau tr.cut-ligne td { height: auto; padding: 2px var(--esp-2); background: var(--bon); color: var(--noir-pur); font: 800 var(--t-1)/1.4 var(--display); letter-spacing: 0.14em; text-transform: uppercase; text-align: center; }
 .hub-volet .live-tableau tr.cut:has(+ .cut-ligne) td { border-bottom: 0; }
@@ -4640,11 +4647,16 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 /* ---- Ton histoire : trois actes, une ligne par événement, la rivalité en tête ---- */
 .recit { display: flex; flex-direction: column; gap: var(--esp-2); }
 .recit-rival { padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
-.recit-acte { display: flex; flex-direction: column; gap: var(--esp-1); }
-.recit-acte-t { margin-top: var(--esp-2); padding-bottom: var(--esp-1); border-bottom: 1px solid var(--filet-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--or); }
-.recit-ev { display: flex; align-items: baseline; gap: var(--esp-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+/* V23, la nouvelle interface : ton histoire en ligne du temps — chaque acte sur sa bande d'or, chaque fait sur le fil,
+   un point à la couleur du club, sa journée devant. */
+.recit-acte { display: flex; flex-direction: column; gap: 0; }
+.recit-acte-t { align-self: flex-start; margin: var(--esp-2) 0 var(--esp-2); padding: 3px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.recit-ev { position: relative; display: flex; align-items: baseline; gap: var(--esp-2); padding: 0 0 var(--esp-3) var(--esp-5); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+.recit-ev::before { content: ""; position: absolute; left: 4px; top: 0.6em; bottom: 0; width: 2px; background: var(--filet); }
+.recit-ev:last-child::before { display: none; }
+.recit-ev::after { content: ""; position: absolute; left: 0; top: 0.35em; width: 10px; height: 10px; border-radius: 50%; background: var(--club-vif); box-shadow: 0 0 0 3px var(--noir-pur); }
 .recit-ev b { color: var(--encre); }
-.recit-j { flex: none; min-width: 34px; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
+.recit-j { flex: none; min-width: 34px; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
 /* La route de la saison : un filet, ce qui est fait en or, les moments dessus et dessous. */
 /* Une marque se centre sur sa journée : la ligne garde une marge où la première et la dernière tiennent entières. */
 .hub-route { position: relative; height: 40px; margin: var(--esp-1) var(--esp-4) var(--esp-2); }
@@ -6083,6 +6095,10 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-jambes.frais { color: var(--bon); }
 .jr-jambes.use { color: var(--mauvais); }
 .jr-pied { margin: var(--esp-2) 0 0; font-size: var(--t-1); color: var(--encre-3); }
+/* V23, la nouvelle interface : au Rogue, ton effectif comme une fiche de télé — sans cadre, sur le noir, les noms en capitales. */
+body.mode-rogue .jr-scroll { border: 0; border-radius: 0; background: none; }
+body.mode-rogue .jr-table th, body.mode-rogue .jr-table .jr-col-nom { background: var(--noir-pur); }
+body.mode-rogue .jr-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
 /* ---- Le cartable (js/cartable.js, #pageCartable) : une reliure, des feuilles de neuf pochettes ---- */
 .ct { display: flex; flex-direction: column; gap: var(--esp-3); height: 100%; min-height: 0; }
 .ct-tete { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); flex-wrap: wrap; }

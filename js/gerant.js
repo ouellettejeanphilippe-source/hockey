@@ -28,6 +28,7 @@ import { jouerSon } from './sons.js';
 import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, glyphe, varsEquipe, nom } from './util.js';
+import { getTeamBand, getTeamLogoHtml } from './logos.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -408,7 +409,8 @@ function enteteJoueur(p, ligne = '') {
   if (!p) return '';
   const barres = barresProfils(p);
   const marques = (p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="puce neutre">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
-  return `<div class="gj-joueur"><div class="gj-joueur-nom">${esc(p.n)} <span>${esc(p.p)} · ${esc(p.t)} ${esc(p.s)}</span>${ligne ? ` <span class="gj-ligne">${esc(ligne)}</span>` : ''}</div>${marques ? `<div class="gj-marques">${marques}</div>` : ''}${barres}</div>`;
+  // V23, la nouvelle interface : le joueur sur la plaque de son club, son écusson devant.
+  return `<div class="gj-joueur" style="${varsEquipe(getTeamBand(p.t))}"><div class="gj-joueur-nom">${getTeamLogoHtml(p.t, 28)}${esc(p.n)} <span>${esc(p.p)} · ${esc(p.t)} ${esc(p.s)}</span>${ligne ? ` <span class="gj-ligne">${esc(ligne)}</span>` : ''}</div>${marques ? `<div class="gj-marques">${marques}</div>` : ''}${barres}</div>`;
 }
 
 /* ======================================================================
