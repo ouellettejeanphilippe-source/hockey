@@ -2447,10 +2447,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // buts, et les deux colonnes qui disent la forme du moment — la séquence
     // en cours et les dix derniers matchs.
     const ouvre = t => (clubsAuClassement ? ` data-equipe="${ctx.esc(cleEquipe(t))}" data-club="1" role="button" tabindex="0" title="L'alignement de ${ctx.esc(ctx.teamLabel(t))} à ce jour"` : '');
-    const rangee = (t, i) => { const g = fiche.get(t); return `<tr class="${t === you ? 'toi' : ''}${i === enSeries - 1 ? ' cut' : ''}${clubsAuClassement ? ' a-club' : ''}"${ouvre(t)}><td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 14)} <span class="nom-long">${ctx.esc(ctx.teamShort(t))}</span><span class="nom-court">${ctx.esc(ctx.tagCourt(t))}</span></td><td>${g.W + g.L + g.OTL}</td><td>${g.W}</td><td>${g.L}</td><td>${g.OTL}</td><td class="heros">${g.PTS}</td><td>${g.GF}</td><td>${g.GA}</td><td>${g.GF - g.GA > 0 ? '+' : ''}${g.GF - g.GA}</td><td>${sequenceDe(t)}</td><td>${dixDerniers(t)}</td></tr>`; };
+    // V23, la nouvelle interface : chaque rangée porte le filet de couleur de son club, son écusson en plus grand ; sous la
+    // dernière place des séries, la ligne se dit (« Ligne des séries »), comme au tableau d'une télé.
+    const rangee = (t, i) => { const g = fiche.get(t); return `<tr class="${t === you ? 'toi' : ''}${i === enSeries - 1 ? ' cut' : ''}${clubsAuClassement ? ' a-club' : ''}" style="${varsEquipe(ctx.band(t.tag))}"${ouvre(t)}><td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 22)} <span class="nom-long">${ctx.esc(ctx.teamShort(t))}</span><span class="nom-court">${ctx.esc(ctx.tagCourt(t))}</span></td><td>${g.W + g.L + g.OTL}</td><td>${g.W}</td><td>${g.L}</td><td>${g.OTL}</td><td class="heros">${g.PTS}</td><td>${g.GF}</td><td>${g.GA}</td><td>${g.GF - g.GA > 0 ? '+' : ''}${g.GF - g.GA}</td><td>${sequenceDe(t)}</td><td>${dixDerniers(t)}</td></tr>`; };
     return `${resultatsDuJour()}<div class="live-tableau hub-classement"><div class="live-tableau-titre">Classement · journée ${jour} · les ${enSeries} premiers vont en séries</div>
       <table><thead><tr><th>#</th><th>Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th class="heros">PTS</th><th>BP</th><th>BC</th><th>Diff</th><th title="La séquence en cours">Séq.</th><th title="Les dix derniers matchs : V-D-DP">10 derniers</th></tr></thead>
-      <tbody>${classement().map(rangee).join('')}</tbody></table></div>`;
+      <tbody>${classement().map((t, i) => rangee(t, i) + (i === enSeries - 1 && ctx.rogue ? '<tr class="cut-ligne" aria-hidden="true"><td colspan="12">Ligne des séries</td></tr>' : '')).join('')}</tbody></table></div>`;
   };
 
   /*

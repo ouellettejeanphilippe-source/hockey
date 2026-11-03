@@ -4524,6 +4524,11 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-volet .live-tableau tr.toi td { background: color-mix(in srgb, var(--club-vif) 22%, var(--noir)); color: var(--encre); font-weight: 800; }
 .hub-volet .live-tableau tr.toi td:first-child { box-shadow: inset 3px 0 0 var(--club-vif); }
 .hub-volet .live-tableau tr.cut td { border-bottom: 2px solid var(--or); }
+/* V23, la nouvelle interface : le filet de couleur du club au bord de sa rangée ; la ligne des séries, dite en vert. */
+.hub-classement tbody tr[style] td:first-child { box-shadow: inset 4px 0 0 var(--eq-band); }
+.hub-classement td.nom > :is(.team-logo-img, .team-logo-inline) { vertical-align: middle; }
+.hub-volet .live-tableau tr.cut-ligne td { height: auto; padding: 2px var(--esp-2); background: var(--bon); color: var(--noir-pur); font: 800 var(--t-1)/1.4 var(--display); letter-spacing: 0.14em; text-transform: uppercase; text-align: center; }
+.hub-volet .live-tableau tr.cut:has(+ .cut-ligne) td { border-bottom: 0; }
 .hub-volet .live-tableau tr.blesse td.nom { color: var(--mauvais); }
 .hub-table tr.parti td { opacity: 0.55; }
 .hub-table tr.parti td.role { font-style: italic; }
