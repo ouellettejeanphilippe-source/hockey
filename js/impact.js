@@ -709,6 +709,19 @@ const lireEffets = (effet, adv, cadre, max = 3) => {
     return tries.length ? tries : null;
   } catch { return null; }
 };
+/**
+ * La précision d'un état du gros match (😵 sonnés, ⬆ la lancée) sur ton club, par match, sans seuil de bruit : son
+ * nom le promet, le chiffre dit combien (nov. 2026 ; JP : *« Sonnés » : what makes more sense to you*). Sans club, en %.
+ */
+export function ditDeLaFinition(f) {
+  const c = clubLu();
+  if (!c || !c.team) return `${signeDe(f - 1)}${Math.round(Math.abs(f - 1) * 100)} % de précision`;
+  try {
+    const sans = lire(c.team, c.lineup || null, c.adv || null, { n: N_EFFET }), avec = lire(c.team, c.lineup || null, c.adv || null, { effets: [{ finition: f }], n: N_EFFET });
+    const d = statsEntre(avec, sans).pctTir;
+    return `${signeDe(d)}${pts(d)} pt de précision par match`;
+  } catch { return `${signeDe(f - 1)}${Math.round(Math.abs(f - 1) * 100)} % de précision`; }
+}
 /** Ce qu'un adjoint donne et coûte à ton club, par match, son salaire au bout : [{ txt, bon }], le bon d'abord. */
 export function lignesDeLAdjointEnChiffres(cle, niv = null) {
   const A = ADJOINTS[cle] && styleAuNiveau(cle, niv || NIV_DEFAUT);

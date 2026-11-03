@@ -33,7 +33,7 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuill
   familleDeMoment, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   nouvelleGraine, avecAVenir, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
-import { lignesDeLAdjointEnChiffres, motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
+import { lignesDeLAdjointEnChiffres, ditDeLaFinition, motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
@@ -106,7 +106,7 @@ function tableEntracte(ctx, nomMoi, nomLui, lignes) {
  * `saison(c)` : { n, GF, GA, SF, PKO, CO } du club, ou null.
  */
 /* Ce qu'une précision de plus ou de moins vaut en buts, pour ton club. */
-const ditFinition = x => motsEnChiffres({ finition: x.finition }).filter(m => m.cle !== 'rien').map(m => m.txt).join(', ') || 'à peine perceptible';
+const ditFinition = x => ditDeLaFinition(x.finition);
 function lignesEntracte(f, cMoi, cLui, saison) {
   const tirs = c => ((f.tirs[c] || [])[1] || 0) + ((f.tirs[c] || [])[2] || 0);
   const buts = c => f.buts.filter(b => b.instant < 40 && b.cote === c).length;
@@ -1088,7 +1088,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const enjeu = cle => {
       const o = cle && av ? av.A.options.find(x => x.cle === cle) : null;
       return puces([{ txt: `Victoire : +${prime} 🪙 et un adjoint parmi trois`, bon: true },
-        { txt: `Défaite : ${SONNE.ico} sonnés ${SONNE.duree * (o && o.enjeu ? 2 : 1)} matchs`, bon: false }]);
+        { txt: `Défaite : ${SONNE.ico} sonnés ${SONNE.duree * (o && o.enjeu ? 2 : 1)} matchs (${ditFinition(SONNE)})`, bon: false }]);
     };
     ouvrirDuel({
       titre: `Contre ${ctx.teamShort(adv)}`, sousTitre: `Journée ${mo.p.j + 1}${MINI_BOSS[mo.mb.raison] ? ` · ${MINI_BOSS[mo.mb.raison].nom}` : ''}`,
@@ -1871,7 +1871,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (semaine) blocs.push(...verdictsDeLaSemaine(avant.jour));
     for (const mb of (you.minisBoss || []).filter(mb => mb.jour >= avant.jour && mb.jour < jour)) {
       const primeGros = mb.gagne && ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat().bareme.grosMatch : 0;
-      blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.duree || (mb.gagne ? ELAN.duree : SONNE.duree)} matchs${primeGros ? ` · +${primeGros} 🪙` : ''}</div>`);
+      blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.duree || (mb.gagne ? ELAN.duree : SONNE.duree)} matchs (${ditFinition(mb.gagne ? ELAN : SONNE)})${primeGros ? ` · +${primeGros} 🪙` : ''}</div>`);
     }
     // V5 : ce que la semaine a rapporté, et la caisse — la récompense se dit, elle ne se devine pas au Marché.
     if (ctx.rogue && ctx.rogue.jetons) {
@@ -2404,7 +2404,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      */
     if (soirEnVolet) {
       const score = k >= 0 ? resultatHier({ j, k, m: matchs[k] }) : '';
-      const gros = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> · ${etatDuGros(ELAN)} ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> · ${etatDuGros(SONNE)} ${mbHier.duree || SONNE.duree} matchs`}</div>` : '';
+      const gros = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> · ${etatDuGros(ELAN)} ${mbHier.duree || ELAN.duree} matchs <small>(${ctx.esc(ditFinition(ELAN))})</small>` : `<b>Gros match perdu</b> · ${etatDuGros(SONNE)} ${mbHier.duree || SONNE.duree} matchs <small>(${ctx.esc(ditFinition(SONNE))})</small>`}</div>` : '';
       return `<section class="hub-soir" aria-label="Hier soir">${score}${gros}${uneHtml()}${nouvellesHtml()}${semainePasseeHtml()}</section>`;
     }
     return `${cartesDuBureau()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
@@ -3987,7 +3987,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const prime = Math.round(((run && run.bareme) || JETONS).grosMatch * (mb.butin || 1));
     // LA SCÈNE (Jalon M, A1) : le capitaine, sur le pointage contre le rival ; les chiffres de la mise au bouton.
     const mise = k === 2 ? { ...sceneDeLaMise({ moi, lui, rival: ctx.teamShort(adv), graine: `${graine}|${p.j}` }),
-      chiffres: `victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs` } : null;
+      chiffres: `victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs (${ditFinition(SONNE)})` } : null;
     const P = du.periodes[k];
     const D = duelDeLAdjoint(ctx, you, adv, P, { k, enForce: faites[k - 1].plan || 'match', pointage: { moi, lui }, mise, graine: `${graine}|${p.j}` });
     const tirs = c => [1, 2].slice(0, k).reduce((a, per) => a + ((f.tirs[c] || [])[per] || 0), 0);
