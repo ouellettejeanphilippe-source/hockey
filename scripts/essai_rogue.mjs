@@ -432,7 +432,7 @@ async function regler() {
          * LEURS PUCES (V17) : leur intention se lit comme ton plan, en vraies stats de la période, le canal qui la définit
          * d'abord, ce qui est à eux sous « Eux : ». 🦂 : tes punitions ; ⛔ : tes tirs ; 🐗 : leurs tirs ; 🦈 et 🥷 : ton joueur visé.
          */
-        const pu = await page.$eval('#choixModal .duel-intention', e => ({ etape: `${(e.querySelector('.duel-ico') || {}).textContent || ''} ${(e.querySelector('.main-etape') || {}).textContent || ''}`, puces: [...e.querySelectorAll('.puce')].map(x => x.textContent.trim()) }));
+        const pu = await page.$eval('#choixModal .duel-intention', e => ({ etape: (e.querySelector('.main-etape') || {}).textContent || '', puces: [...e.querySelectorAll('.puce')].map(x => x.textContent.trim()) }));
         const DEF = { '🦂': /^≈ \+.* punitions? pour toi/, '⛔': /^≈ −.* tirs? pour toi/, '🐗': /^Eux : ≈ \+.* tirs?/, '🦈': /: moins de tirs, des coups/, '🥷': /: moins de tirs, moins de chances/ };
         const ico = Object.keys(DEF).find(k => pu.etape.includes(k));
         intentionsVues.add(ico || '?');

@@ -5492,7 +5492,6 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .duel-intention { position: relative; align-self: center; width: min(100%, 320px); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); text-align: center; border-radius: var(--r-2); background: color-mix(in srgb, var(--mauvais) 16%, var(--fond-1)); border: 2px solid var(--mauvais); box-shadow: var(--relief); animation: tele-balaie 420ms var(--e-sortie) both, boss-lueur 1.2s 420ms ease-out 1 both; }
 .duel-intention .main-etape { color: var(--mauvais); font-size: var(--t-1); letter-spacing: 0.16em; }
 .duel-intention .main-etape > b { display: none; }
-.duel-ico { font-size: var(--t-6); line-height: 1; }
 .duel-intention .choix-puces { flex-direction: column; align-items: center; gap: 2px; }
 .duel-intention .puce { font: 700 var(--t-2)/1.25 var(--corps); background: none; border: 0; padding: 0; }
 @keyframes boss-lueur { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mauvais) 45%, transparent); } 50% { box-shadow: 0 0 22px 2px color-mix(in srgb, var(--mauvais) 30%, transparent); } }

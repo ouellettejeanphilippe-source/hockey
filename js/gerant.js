@@ -1315,8 +1315,7 @@ export function ouvrirDuel(spec) {
         ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
         ${D.tete ? `<div class="duel-tete">${D.tete}</div>` : ''}
         <div class="duel-intention">
-          <span class="duel-ico" aria-hidden="true">${D.ico}</span>
-          ${etape('duel', `${esc(D.nom)} · leur jeu en ${D.periode}`)}
+          ${etape('duel', `${D.ico} ${esc(D.nom)} · leur jeu en ${D.periode}`)}
           <p class="duel-fait">${esc(D.fait)}</p>
           ${D.pourquoi ? `<p class="duel-pourquoi">${esc(D.pourquoi)}</p>` : ''}
           ${D.mots && D.mots.length ? `<div class="choix-puces">${pucesEnBref(D.mots)}</div>` : ''}
