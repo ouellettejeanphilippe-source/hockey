@@ -3207,7 +3207,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       specs.push({ de: DE.proprio, ico: '⚔', titre: multi > 1 ? `Tes ${multi} rivaux` : 'Ton dernier rival', multi,
         scene: sceneDesRivaux({ multi, offerts: ro.offre.length, graine }),
         recit: `Chacun de tes matchs contre ${multi > 1 ? 'eux' : 'lui'} sera un gros match, et tu le verras venir sur la route. Plus il est fort, plus il paie.`,
-        options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros match${matchsContre(x.team) > 1 ? 's' : ''}`,
+        options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), visage: ctx.logo(x.team.tag, 36), bande: varsEquipe(ctx.band(x.team.tag)), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros match${matchsContre(x.team) > 1 ? 's' : ''}`,
           mots: [{ txt: `+${Math.round(x.butin * primeDuGros())} 🪙 par gros match gagné`, bon: true }] })),
         decision: cles => [].concat(cles).map((cle, i) => ({ palier: `riv:${ro.k + i}`, rival: { cle, butin: ro.offre.find(y => y.cle === cle).butin } })) });
     }

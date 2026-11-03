@@ -5145,6 +5145,19 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 /* Un écusson en visage (Ton club, js/rogue-jeu.js) : le dessin entier, sans fond. */
 .choix-option-visage > svg { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); }
 .choix-option-visage:has(> svg) { background: transparent; }
+/* LA PLAQUE D'UN CLUB (V23, la nouvelle interface ; les rivaux) : le club à ses couleurs, son écusson, son nom ; ce qu'il paie
+   sur l'ardoise noire au bout, comme un tableau de télé. Choisi, un filet or tout autour. */
+.choix-option.eq { grid-template-columns: 40px minmax(0, 1fr) auto; min-height: 64px; padding: 0 0 0 var(--esp-3); border: 0; border-left: 4px solid var(--eq-stripe); border-radius: var(--r-1); overflow: hidden; background: var(--eq-band); color: var(--eq-ink); }
+.choix-option.eq > :not(.choix-option-visage, .choix-option-gros) { grid-column: 2; }
+.choix-option.eq .choix-option-visage { width: 40px; height: 40px; background: transparent; }
+.choix-option.eq .choix-option-nom { color: inherit; }
+.choix-option.eq :is(.choix-forme, .choix-puces) { display: none; }
+.choix-option.eq .choix-option-sous { color: inherit; opacity: 0.85; }
+.choix-option.eq .choix-option-gros b { font-size: var(--t-6); }
+.choix-option.eq .choix-option-gros { grid-column: 3; grid-row: 1 / span 4; align-self: stretch; flex-direction: column; justify-content: center; align-items: center; margin: 0; padding: 0 var(--esp-3); background: var(--noir-pur); color: var(--bon); }
+.choix-option.eq .choix-option-gros small { display: none; }
+.choix-option.eq .choix-option-sous { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.choix-option.eq.on { box-shadow: inset 0 0 0 3px var(--or); }
 
 /* ---- La carte de match (.tc) : le métal de sa rareté, une bannière de son genre, la gemme du coût, le dessin au trait ---- */
 :is(.tc, .main-adverse-carte).tc-commune { --tc-bord: var(--filet); }

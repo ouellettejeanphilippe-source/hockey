@@ -486,7 +486,8 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
   const restants = ig >= 0 ? mots.filter((_, i) => i !== ig) : mots;
   const plieRestant = (m, k) => plie(m, ig >= 0 && k >= ig ? k + 1 : k);
   const pucesHtml = `${puces(restants.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), plieRestant)}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
-  return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${forme ? ` data-forme="${esc(FORME_CLE[forme] || 'autre')}"` : ''}${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
+  // V23, la nouvelle interface : une option qui est un club (les rivaux) se dresse sur sa plaque, à ses couleurs (`o.bande`, `varsEquipe`).
+  return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${o.bande ? ' eq' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${o.bande ? ` style="${esc(o.bande)}"` : ''}${forme ? ` data-forme="${esc(FORME_CLE[forme] || 'autre')}"` : ''}${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
     ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
     <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
     ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
