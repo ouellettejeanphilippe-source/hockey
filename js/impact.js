@@ -44,9 +44,10 @@ const BRUIT = { 'par match': { tirs: 1, pctTir: 0.005, contre: 1, pctArr: 0.005,
 const pts = x => virgule((Math.abs(x) * 100).toFixed(1));
 /**
  * Un écart de stats en puces, le plus fort d'abord : [{ cle, txt, bon }]. `max` : combien au plus. `par` (« par match »,
- * « la période ») : l'unité dite au bout de chaque ligne, et les seuils du bruit qui vont avec.
+ * « la période ») : l'unité dite au bout de chaque ligne, et les seuils du bruit qui vont avec ; `dire: false` la tait
+ * quand l'écran la dit une fois pour toutes (le duel : « Les chiffres de la période qui vient »).
  */
-export function motsDeStats(d, max = 4, { par = '' } = {}) {
+export function motsDeStats(d, max = 4, { par = '', dire = true } = {}) {
   if (!d) return [];
   const mots = {
     tirs: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')}`,
@@ -62,7 +63,7 @@ export function motsDeStats(d, max = 4, { par = '' } = {}) {
   const seuils = BRUIT[par] || SEUIL_STAT;
   return Object.keys(mots).filter(k => Math.abs(d[k]) >= seuils[k])
     .sort((a, b) => Math.abs(d[b]) / PAS_STAT[b] - Math.abs(d[a]) / PAS_STAT[a]).slice(0, max)
-    .map(k => ({ cle: k, txt: `${mots[k](d[k])}${par ? ` ${par}` : ''}`, bon: k === 'contre' || k === 'punitions' || k === 'usure' ? d[k] < 0 : d[k] > 0 }));
+    .map(k => ({ cle: k, txt: `${mots[k](d[k])}${par && dire ? ` ${par}` : ''}`, bon: k === 'contre' || k === 'punitions' || k === 'usure' ? d[k] < 0 : d[k] > 0 }));
 }    // pour la différence : les deux lectures partagent leurs dés, le bruit s'en va
 
 /* Une fenêtre d'avantage de deux minutes : le premier but la ferme (un but = un arrêt du processus de lancers), donc sa durée moyenne est (1 − e^(−2λ)) / λ. */

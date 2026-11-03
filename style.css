@@ -5503,6 +5503,8 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
  * téléphone ; « Garder » est la dernière. Toucher une tuile joue la période.
  */
 .duel-adjoint { display: flex; flex-direction: column; gap: var(--esp-2); }
+/* L'unité des plans, dite une fois (nov. 2026) : la répéter au bout de chaque ligne les faisait passer sur deux. */
+.duel-unite { margin: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .duel-props { grid-template-columns: 1fr 1fr; }
 @media (min-width: 700px) { .duel-props { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* V23 : ses plans sont des cartes qu'il te tend, une à une, le gros chiffre au cœur ; « Garder » est la carte en creux. */
