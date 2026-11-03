@@ -2144,17 +2144,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const resultatHier = ({ j, k, m }) => {
     const v = gagne(m, you), but = butGagnant(m);
-    // V23 : un score bug de télé — chaque club sur sa plaque de couleur, son pointage sur l'ardoise (JP : *feel sports broadcast*).
-    const eq = (t, buts) => `<span class="hub-hier-eq${t === you ? ' toi' : ''}" style="${varsEquipe(ctx.band(t.tag))}">${ctx.logo(t.tag, 18)}<b>${ctx.esc(ctx.tagCourt(t))}</b><em>${buts}</em></span>`;
+    // V23, la nouvelle interface : le carton « final » d'une télé — l'issue à la verticale, verte ou rouge ; les deux clubs
+    // l'un sur l'autre, chacun sur sa plaque, son pointage sur l'ardoise ; le perdant s'éteint (JP : *feel sports broadcast*).
+    const eq = (t, buts, autre) => `<span class="hub-hier-eq${t === you ? ' toi' : ''}${buts < autre ? ' perd' : ''}" style="${varsEquipe(ctx.band(t.tag))}">${ctx.logo(t.tag, 22)}<b>${ctx.esc(ctx.teamShort(t))}</b><em>${buts}</em></span>`;
     const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
     // Le résultat neuf, lu au bureau plutôt qu'en plein écran (J2-8) : il s'anime une fois.
     const neuf = hierFrais === j + 1 && hierAnimer ? ' neuf' : '';
     if (neuf) hierAnimer = false;
-    // V23 : le pointage en tableau indicateur, et ton banc du soir dessous — ce qui a joué s'allume (js/banc-du-soir.js).
+    // Ton banc du soir dessous — ce qui a joué s'allume (js/banc-du-soir.js).
     return `<div class="hub-hier ${v ? 'v' : 'd'}${neuf}"${somm}>
-      <span class="hub-hier-quand">Journée ${j + 1} · <b>${v ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}</b></span>
-      <span class="hub-hier-score">${eq(m.A, m.gfA)}<i>–</i>${eq(m.B, m.gfB)}${m.ot ? '<small>P</small>' : ''}</span>
-      ${m.feuille ? '<span class="hub-hier-voir">Sommaire ›</span>' : ''}
+      <span class="hub-hier-quand">${v ? 'Victoire' : m.ot ? 'Déf. prol.' : 'Défaite'}</span>
+      <span class="hub-hier-score">${eq(m.A, m.gfA, m.gfB)}${eq(m.B, m.gfB, m.gfA)}</span>
+      <span class="hub-hier-pied"><span>Final${m.ot ? ' · prol.' : ''} · journée ${j + 1}</span>${m.feuille ? '<span class="hub-hier-voir">Sommaire ›</span>' : ''}</span>
       ${but && but.marqueur ? `<span class="hub-hier-recit">${ctx.esc(recitDeBut({ ...but, gagnant: true }))}</span>` : ''}
     </div>${ctx.rogue && m.feuille ? bancDuSoirHtml(m.feuille, m.A, m.B, ctx.esc, { joues: true }) : ''}`;
   };
@@ -2904,28 +2905,32 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return `<button type="button" class="hub-rangee bu-plan"><span class="hub-rangee-t">Ton plan</span><b>${P.ico} ${ctx.esc(P.mot)}</b></button>`;
   };
   /*
-   * V23 (docs/refonte-v23.md, le Bureau ; JP : *ça manque de juice, trop de texte* ; *entre ça et un look style EHM*) : le
-   * match en bandeau « VS », les deux clubs à leurs couleurs, l'écusson et le sigle ; dessous, quand, où, et le gros match.
-   */
-  /*
    * LA BANDE DE LA RUN (V23 ; JP : *go, quatre portes* — « en haut, toujours : la bande de la run »). Ce que le proprio exige
    * cette saison, en une ligne, et où tu es : ton rang, vert dans la cible, rouge dehors. La toucher ouvre le Proprio.
    */
   const bandeDeLaRun = () => {
     const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
     if (!run) return '';
-    const cible = run.top ? Math.min(run.top, teams.length) : enSeries, r = rangDe(you);
+    const n = teams.length, cible = run.top ? Math.min(run.top, n) : enSeries, r = rangDe(you);
     const etat = !jour ? '' : r <= cible ? ' dans' : ' hors';
-    return `<button type="button" class="bu-run${etat}" aria-label="Le proprio : ${ctx.esc(run.mot)}"><span class="bu-run-k">Le proprio</span><b>${ctx.esc(run.mot)}</b><span class="bu-run-rang">${jour ? `${r}${r === 1 ? 'er' : 'e'}` : '—'}<small> / ${cible}</small></span></button>`;
+    // La jauge (V23, la nouvelle interface) : la ligue de bas en haut, ta place en couleur, le trait de la cible du proprio.
+    const part = x => (n > 1 ? (n - x) / (n - 1) : 1);
+    return `<button type="button" class="bu-run${etat}" aria-label="Le proprio : ${ctx.esc(run.mot)}" style="--p:${jour ? part(r).toFixed(3) : 0};--c:${part(cible).toFixed(3)}"><span class="bu-run-k">Le proprio</span><b>${ctx.esc(run.mot)}</b><span class="bu-run-rang">${jour ? `${r}${r === 1 ? 'er' : 'e'}` : '—'}<small> / ${cible}</small></span><span class="bu-run-jauge" aria-hidden="true"><i></i></span></button>`;
   };
+  /*
+   * L'AFFICHE DU SOIR (V23, la nouvelle interface ; JP : *je veux une nouvelle interface, pour vrai* ; *feel sports
+   * broadcast*) : le match bord à bord, coupé en biais aux couleurs des deux clubs, leurs écussons en grand, leur sigle,
+   * leur fiche ; « VS » dans son losange au centre ; en tête, quand et où ; au pied, le face-à-face qu'elle ouvre.
+   */
   function prochainHtml(p, adv, quand, domicile, mb) {
     const G0 = mb && MINI_BOSS[mb.raison];
     const a = ctx.band(you.tag), b = ctx.band(adv.tag);
+    const pied = t => (jour ? `${ficheTexte(t)} · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'}` : t.season ? `saison ${t.season}` : '');
+    const eq = (t, cote) => `<span class="bu-vs-eq ${cote}">${ctx.logo(t.tag, 64)}<b>${ctx.esc(ctx.tagCourt(t))}</b><small>${ctx.esc(pied(t))}</small></span>`;
     return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}" style="--a-band:${a.bg};--a-ink:${a.ink};--b-band:${b.bg};--b-ink:${b.ink}" aria-label="Face à face : ${ctx.esc(ctx.teamShort(adv))}">
-      <span class="bu-vs-eq toi">${ctx.logo(you.tag, 30)}<b>${ctx.esc(ctx.tagCourt(you))}</b></span>
-      <span class="bu-vs-mi"><b>VS</b><small>${ctx.esc(quand)}</small></span>
-      <span class="bu-vs-eq eux"><b>${ctx.esc(ctx.tagCourt(adv))}</b>${ctx.logo(adv.tag, 30)}</span>
-      <span class="bu-prochain-pied">Match ${miens.length + 1} · ${domicile ? 'chez toi' : 'chez eux'}${G0 ? ` · <span class="bu-prochain-gros">${G0.ico} ${ctx.esc(G0.nom)}</span>` : ''}<span class="bu-prochain-aller">Face à face ›</span></span>
+      <span class="bu-prochain-k">${G0 ? `<span class="bu-prochain-gros">${G0.ico} ${ctx.esc(G0.nom)}</span>` : ''}<span>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'chez toi' : 'chez eux'}</span></span>
+      ${eq(you, 'toi')}<span class="bu-vs-mi" aria-hidden="true"><b>VS</b></span>${eq(adv, 'eux')}
+      <span class="bu-prochain-aller">Face à face ›</span>
     </button>`;
   }
 
@@ -3822,11 +3827,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      * est déjà en jeu, les options. Une option touchée part ; « Plus tard » le laisse dans la boîte. Rien ne s'ouvre de soi-même.
      */
     const etatDe = m => (m.bloque ? (seCoche(m) ? 'À choisir' : 'À régler') : '');
+    // LA MAIN (V23, la nouvelle interface) : les choix en éventail, chacun penché selon sa place.
+    const ordreMain = [...new Set(msgs.map(m => m.maison))].flatMap(k => msgs.filter(m => m.maison === k));
+    const placeDe = m => {
+      const i = ordreMain.indexOf(m), mi = (ordreMain.length - 1) / 2, d = i - mi;
+      return `--r:${(d * 4).toFixed(1)}deg;--y:${Math.round(Math.abs(d) * 6)}px;--i:${i}`;
+    };
     const msgHtml = m => {
       // Un choix sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).
       const qui = m.joueur || null;
       // V23 : une carte à jouer — sa maison en en-tête, la voix (ou le visage), le sujet ; « À choisir » en pied.
-      return `<article class="hub-msg${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${m.maison}">
+      return `<article class="hub-msg${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${m.maison}" style="${placeDe(m)}">
         <button type="button" class="hub-msg-tete" aria-haspopup="dialog">
           <span class="hub-msg-maison">${MAISONS[m.maison] ? `${MAISONS[m.maison].ico} ${ctx.esc(MAISONS[m.maison].titre)}` : ''}</span>
           ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
@@ -3843,7 +3854,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       </section>`;
     };
     const boiteHtml = `<section class="hub-boite${msgs.length ? '' : ' vide'}${chiffresOuverts() ? ' chiffres' : ''}" aria-label="À faire">
-      <div class="hub-boite-tete"><span class="hub-boite-titre">✅ À faire</span><span class="hub-boite-compte">${compteur}</span></div>
+      <div class="hub-boite-tete"><span class="hub-boite-titre">${ctx.rogue ? 'Ta main' : '✅ À faire'}</span><span class="hub-boite-compte">${compteur}</span></div>
       ${msgs.length ? `<div class="hub-msgs">${[...new Set(msgs.map(m => m.maison))].map(k => {
         const M = MAISONS[k], siens = msgs.filter(m => m.maison === k);
         return `<div class="af-maison" data-maison="${k}">
