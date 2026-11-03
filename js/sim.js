@@ -8436,7 +8436,11 @@ export const PLANS = {
     toi: { discipline: 0.7, robustesse: -0.4, volume: 0.97 } },
 };
 /* Une décision `plan` telle que l'équipe la garde : Ton match (ou un plan inconnu) la retire. */
-const planLu = x => (x && PLANS[x.cle] && x.cle !== 'match' ? { cle: x.cle, vise: x.vise || null } : null);
+/*
+ * `force` (nov. 2026 ; JP : *the duel with the assistants and coach, not random choices*) : au duel, un plan joue à la force
+ * de celui qui le propose — un adjoint à son niveau (`FORCE_NIV`, ×0,7 à ×1,3), le coach à sa maîtrise ; bornée là.
+ */
+const planLu = x => (x && PLANS[x.cle] && x.cle !== 'match' ? { cle: x.cle, vise: x.vise || null, ...(Number(x.force) > 0 ? { force: Math.min(1.3, Math.max(0.7, Number(x.force))) } : {}) } : null);
 /* Le plan d'un club ce soir : la décision posée (`team.plan`), sinon Ton match. */
 const planDe = team => { const x = team && (team._planMatch || team.plan); return x && PLANS[x.cle] ? x : null; };
 /* Leur vedette (leur meilleur marqueur habillé, ou celui que tu nommes) et ton attaquant qui la colle. */
@@ -8450,9 +8454,10 @@ export function cibleDuPlan(Ltoi, Ladv, vise = null) {
  * CE QU'UN PLAN POSE sur un match ou une période : les effets des deux clubs et les canaux des deux joueurs, dans les
  * formes que le moteur lit déjà (`_effetMatch`, `_duelFx`). Rien si le plan est Ton match.
  */
-function effetsDuPlan(plan, { Ltoi, Ladv }, f = 1) {
+function effetsDuPlan(plan, { Ltoi, Ladv }, f0 = 1) {
   const P = plan && PLANS[plan.cle];
   if (!P || plan.cle === 'match') return null;
+  const f = f0 * (plan.force || 1);
   const F = e => (f === 1 ? e : forcer(e, f));
   const eff = (e, ou) => (e ? [{ source: 'plan', cle: plan.cle, nom: P.nom, ico: P.ico, ...F(e), ...(ou ? { ou } : {}) }] : []);
   const { vedette, colle } = P.vedette || P.colle ? cibleDuPlan(Ltoi, Ladv, plan.vise) : {};
