@@ -29,6 +29,7 @@ js/util.js            les petits outils partagés (un seul exemplaire de chaque 
 js/saison.js          l'écran de saison et des séries : le Bureau (À faire, où les choix se règlent ; hier soir ; ton plan ; le journal), Ligue › Classement (un club s'y ouvre) et Calendrier
 js/gerant.js          les choix, le dépistage, l'écran du duel (`ouvrirDuel`, ce que ton adjoint propose)
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
+js/banc-du-soir.js    ton banc du soir (V23) : tes pouvoirs, tes adjoints et la règle du coach, allumés quand ils ont joué ; au sommaire et à Hier soir — `check_banc`
 js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
 js/pile.js            le retour, un niveau à la fois : Échap, bouton B, retour Android, « ‹ Retour »
 js/glisser.js         les gestes du doigt : balayer d'un onglet à l'autre (l'onglet où l'on va sort du bord), tirer une fenêtre vers le bas pour la fermer

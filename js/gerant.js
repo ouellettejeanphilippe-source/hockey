@@ -486,11 +486,12 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
   const restants = ig >= 0 ? mots.filter((_, i) => i !== ig) : mots;
   const plieRestant = (m, k) => plie(m, ig >= 0 && k >= ig ? k + 1 : k);
   const pucesHtml = `${puces(restants.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), plieRestant)}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
-  return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${forme ? ` data-forme="${esc(FORME_CLE[forme] || 'autre')}"` : ''}${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
+  // V23, la nouvelle interface : une option qui est un club (les rivaux) se dresse sur sa plaque, à ses couleurs (`o.bande`, `varsEquipe`).
+  return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${o.bande ? ' eq' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${o.bande ? ` style="${esc(o.bande)}"` : ''}${forme ? ` data-forme="${esc(FORME_CLE[forme] || 'autre')}"` : ''}${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
     ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
     <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
     ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
-    ${gros ? `<span class="choix-option-gros"><b>${esc(gros.chiffre)}</b>${gros.reste ? ` <small>${sub(gros.reste)}</small>` : ''}</span>` : ''}
+    ${gros ? `<span class="choix-option-gros${gros.prix ? ' prix' : ''}"><b>${esc(gros.chiffre)}</b>${gros.reste ? ` <small>${sub(gros.reste)}</small>` : ''}</span>` : ''}
     ${o.sous ? `<span class="choix-option-sous">${sub(o.sous)}</span>` : ''}
     ${pucesHtml ? `<span class="choix-puces">${pucesHtml}</span>` : ''}
     ${o.bon && !o.rien ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
@@ -501,14 +502,17 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
 }
 /* La forme d'une option, en clé de style : la couleur du filet de sa carte (V23). */
 const FORME_CLE = { Cadeau: 'cadeau', 'Échange': 'echange', 'Moindre mal': 'moindre', Pari: 'pari' };
-/* Le gros chiffre d'une option : sa première ligne verte qui porte un nombre, coupée en { chiffre, reste, mot }. */
+/* Le gros chiffre d'une option : sa première ligne verte qui porte un nombre (sinon sa première rouge), coupée en { chiffre, reste, mot, prix }. */
 function grosChiffre(mots) {
-  for (const m of mots || []) {
-    if (m.bon !== true) continue;
+  // Le gain d'abord ; sans gain, le coût (« −25 🪙 »), en rouge.
+  const ordre = [...(mots || []).filter(m => m.bon === true), ...(mots || []).filter(m => m.bon === false)];
+  for (const m of ordre) {
     const t = String(m.txt), x = /[+−-]\s?\d[\d\s,]*(?:\s?(?:%|🪙))?/.exec(t);
     if (!x) continue;
-    const reste = (t.slice(0, x.index) + t.slice(x.index + x[0].length)).replace(/\s*:\s*$/, '').replace(/^\s*:\s*/, '').trim();
-    return { chiffre: x[0].trim(), reste, mot: m };
+    // Le mot qui le nomme : ce qui suit le nombre (« +5 d'expérience »), sinon ce qui le précède (« Les jambes de tous : +10 »).
+    const apres = t.slice(x.index + x[0].length).trim(), avant = t.slice(0, x.index).replace(/\s*:\s*$/, '').trim();
+    const reste = apres || avant;
+    return { chiffre: x[0].trim(), reste, mot: m, prix: m.bon === false };
   }
   return null;
 }
@@ -1278,24 +1282,25 @@ export function ouvrirDuel(spec) {
     const etape = (k, txt) => `<div class="main-etape"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span></div>`;
     const pli = (k, txt) => `<button type="button" class="main-pli" data-deplier="${k}"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span><span class="main-pli-ouvrir" aria-hidden="true">›</span></button>`;
     const vestPris = V && vest && V.options.find(o => o.cle === vest);
+    // V23 (JP : *trop d'infos*) : la carte du vestiaire se joue en deux cartes face à face, le gros chiffre au cœur, le reste sous « Les chiffres ».
     const vestiaire = vestPris && !ouverts.has('vest') ? pli('vest', `${V.ico} ${esc(V.titre)} · ✓ ${nV.sub(vestPris.nom)}`) : V ? `<div class="main-vestiaire">
       ${etape('vest', `${V.ico} ${esc(V.titre)} · garde une carte`)}
       ${V.recit ? `<p class="main-vest-recit">${nV.sub(V.recit)}</p>` : ''}
       <div class="main-vest-rang">${V.options.map(o => {
         const { duree: _d, ...canaux } = o;
         const mv = [...motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, V.cadre), ...motsDeCarte(o, nV.noms)];
-        return optionHtml({ ...o, desactive: V.pris && V.pris !== o.cle ? 'L\'autre est gardée' : o.desactive }, V, { mots: mv, classe: 'main-vest', plein: true, attr: `data-vest="${esc(o.cle)}"`, on: vest === o.cle });
+        return optionHtml({ ...o, desactive: V.pris && V.pris !== o.cle ? 'L\'autre est gardée' : o.desactive }, V, { mots: mv, classe: 'main-vest', attr: `data-vest="${esc(o.cle)}"`, on: vest === o.cle });
       }).join('')}</div>
     </div>` : '';
     /*
      * CE QUE TON ADJOINT PROPOSE (V17). JP : *mon adjoint propose des ajustements à chaque période, j'en choisis un*.
-     * Sa scène (la voix, sa réplique, le fait), puis ses plans en tuiles à coins vifs, chacun en vraies stats de la
-     * période ; « Garder » laisse ton plan en force. Toucher une tuile joue la période.
+     * Sa scène (la voix, sa réplique), puis ses plans en cartes (V23), chacune son gros chiffre au cœur, en vraies stats
+     * de la période ; « Garder » laisse ton plan en force. Toucher une carte joue la période.
      */
     const bloque = manque();
     const propositionsHtml = () => `<div class="duel-adjoint">
       ${D.scene ? sceneHtml(D.scene, { voix: true }) : ''}
-      <div class="af-options duel-props">${[...D.propositions, D.garder].map(o => optionHtml({ ...o, ...(bloque ? { desactive: bloque } : {}) }, {}, { mots: o.mots || [], plein: true, classe: 'af-option duel-prop', attr: `data-prop="${esc(o.cle)}"` })).join('')}</div>
+      <div class="af-options duel-props">${[...D.propositions, D.garder].map(o => optionHtml({ ...o, ...(bloque ? { desactive: bloque } : {}) }, {}, { mots: o.mots || [], classe: 'af-option duel-prop', attr: `data-prop="${esc(o.cle)}"` })).join('')}</div>
     </div>`;
     m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
       <div class="choix-tete">
@@ -1307,7 +1312,8 @@ export function ouvrirDuel(spec) {
         ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
         ${D.tete ? `<div class="duel-tete">${D.tete}</div>` : ''}
         <div class="duel-intention">
-          ${etape('duel', `${D.ico} ${esc(D.nom)} · leur intention`)}
+          <span class="duel-ico" aria-hidden="true">${D.ico}</span>
+          ${etape('duel', `${esc(D.nom)} · leur jeu en ${D.periode}`)}
           <p class="duel-fait">${esc(D.fait)}</p>
           ${D.pourquoi ? `<p class="duel-pourquoi">${esc(D.pourquoi)}</p>` : ''}
           ${D.mots && D.mots.length ? `<div class="choix-puces">${pucesEnBref(D.mots)}</div>` : ''}

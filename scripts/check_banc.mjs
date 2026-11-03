@@ -95,7 +95,8 @@ exiger('4. un club sans coach-personnage n\'a pas de banc', !sansPerso || banc(s
 // 5. Branché au sommaire, et le mouvement s'éteint pour qui le demande.
 const bilan = fs.readFileSync(new URL('../js/bilan.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../style.css', import.meta.url), 'utf8');
-exiger('5. le sommaire du soir montre le banc sous le pointage', /\$\{bancHtml\(f, A, B\)\}\s*\$\{apres\}/.test(bilan));
+const saisonJs = fs.readFileSync(new URL('../js/saison.js', import.meta.url), 'utf8');
+exiger('5. le sommaire du soir montre le banc sous le pointage, et Hier soir au Bureau aussi', /\$\{bancDuSoirHtml\(f, A, B, esc\)\}\s*\$\{apres\}/.test(bilan) && /bancDuSoirHtml\(m\.feuille, m\.A, m\.B, ctx\.esc, \{ joues: true \}\)/.test(saisonJs));
 exiger('5. le banc s\'allume en animation, éteinte sous prefers-reduced-motion', /\.banc-carte\.joue \{[^}]*animation: banc-allume/.test(css)
   && /@media \(prefers-reduced-motion: reduce\) \{\s*\*, \*::before, \*::after \{ animation-duration: 0\.01ms !important/.test(css));
 
