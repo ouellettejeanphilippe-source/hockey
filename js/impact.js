@@ -61,7 +61,10 @@ export function motsDeStats(d, max = 4, { par = '', dire = true } = {}) {
     usure: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'jambe', 'jambes')} d'usure`,
   };
   const seuils = BRUIT[par] || SEUIL_STAT;
-  return Object.keys(mots).filter(k => Math.abs(d[k]) >= seuils[k])
+  const lus = Object.keys(mots).filter(k => Math.abs(d[k]) >= seuils[k]);
+  // Un plan dont tout bouge sous le bruit le dit, plutôt qu'une carte vide.
+  if (par && !lus.length) return [{ cle: 'rien', txt: 'à peine perceptible', bon: null }];
+  return lus
     .sort((a, b) => Math.abs(d[b]) / PAS_STAT[b] - Math.abs(d[a]) / PAS_STAT[a]).slice(0, max)
     .map(k => ({ cle: k, txt: `${mots[k](d[k])}${par && dire ? ` ${par}` : ''}`, bon: k === 'contre' || k === 'punitions' || k === 'usure' ? d[k] < 0 : d[k] > 0 }));
 }    // pour la différence : les deux lectures partagent leurs dés, le bruit s'en va

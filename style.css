@@ -5504,11 +5504,13 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
  */
 .duel-adjoint { display: flex; flex-direction: column; gap: var(--esp-2); }
 /* L'unité des plans, dite une fois (nov. 2026) : la répéter au bout de chaque ligne les faisait passer sur deux. */
+.duel-adjoint .scene { padding: var(--esp-2) var(--esp-3); }
+.duel-adjoint .scene-mot { font-size: var(--t-3); }
 .duel-unite { margin: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .duel-props { grid-template-columns: 1fr 1fr; }
 @media (min-width: 700px) { .duel-props { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* V23 : ses plans sont des cartes qu'il te tend, une à une, le gros chiffre au cœur ; « Garder » est la carte en creux. */
-.duel-props > .choix-option { min-height: 108px; text-align: center; align-items: center; animation: tele-monte 320ms var(--e-sortie) both; }
+.duel-props > .choix-option { min-height: 96px; text-align: center; align-items: center; animation: tele-monte 320ms var(--e-sortie) both; }
 .duel-props > .choix-option:nth-child(2) { animation-delay: 70ms; }
 .duel-props > .choix-option:nth-child(3) { animation-delay: 140ms; }
 .duel-props > .choix-option:nth-child(4) { animation-delay: 210ms; }
