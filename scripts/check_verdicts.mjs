@@ -138,7 +138,7 @@ const dits = c => [...parLundi].flatMap(([M, vs]) => vs.filter(v => v.palier ===
 {
   const tous = [...parLundi.values()].flat();
   const mots = tous.flatMap(v => v.mots);
-  const mauvais = mots.filter(m => !/(tir|précision|% d'arrêts)/.test(m.txt) || /victoire|défaite|note|but net|cote/i.test(m.txt));
+  const mauvais = mots.filter(m => !/(tir|précision|pt d'arrêts)/.test(m.txt) || /victoire|défaite|note|but net|cote/i.test(m.txt));
   exiger('la ligne ne dit que des tirs, de la précision, des tirs contre, des arrêts : jamais une victoire ni une note', tous.length >= 4 && !mauvais.length && mots.every(m => typeof m.bon === 'boolean'), mauvais.map(m => m.txt).join(' · ') || `${tous.length} verdicts, ${mots.length} stats (ex. « ${(mots[0] || {}).txt} »)`);
 }
 

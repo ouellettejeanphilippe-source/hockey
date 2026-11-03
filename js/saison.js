@@ -1671,7 +1671,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const options = Object.entries(PLANS).map(([k, P]) => ({
       cle: k, ico: P.ico, nom: P.nom,
       sous: k === 'match' ? P.bon : P.vedette && vedette && colle ? `${nomCourt(colle.n)} suit ${nomCourt(vedette.n)}` : '',
-      mots: k === 'match' ? [] : motsDeStats(planEnChiffres(you, null, adv, k).stats, 2),
+      mots: k === 'match' ? [] : motsDeStats(planEnChiffres(you, null, adv, k).stats, 2, { par: 'par match' }),
       ...(k === enForce ? { quand: 'En force' } : {}),
     }));
     ouvrirChoix({ ico: '🎯', titre: 'Ton plan', recit: `Journée ${p.j + 1} · ${ctx.teamShort(adv)}`, compact: true, fermable: true, motFermer: 'Retour', options,

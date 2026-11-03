@@ -1405,7 +1405,7 @@ export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce =
   const tuile = x => {
     const PL = PLANS[x.cle];
     return { cle: x.cle, ico: PL.ico, nom: PL.nom, sous: PL.vedette && x.vedette && x.colle ? `${nom(x.colle)} suit ${nom(x.vedette)}` : '',
-      mots: motsDeStats(x.stats, 2), plan: { cle: x.cle, ...(x.vise ? { vise: x.vise } : {}) } };
+      mots: motsDeStats(x.stats, 2, { par: 'la période' }), plan: { cle: x.cle, ...(x.vise ? { vise: x.vise } : {}) } };
   };
   const PE = PLANS[enForce] || PLANS.match;
   return {

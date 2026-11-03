@@ -12,7 +12,7 @@
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
 import { RANGS_DE_GLACE, lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PLANS, cibleDuPlan } from './sim.js';
-import { virgule, pct3 } from './util.js';
+import { virgule } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
 const N_BASE = 1600;    // les lancers lus pour le niveau absolu d'un soir (±1 % sur les buts)
@@ -30,24 +30,38 @@ export const statsDe = m => ({
 /** L'écart de stats de deux lectures du même genre (`a` moins `b`), dans la forme de `motsDeStats`. */
 export const statsEntre = (a, b) => { const x = statsDe(a), y = statsDe(b); return { tirs: x.tirs - y.tirs, pctTir: x.pctTir - y.pctTir, contre: x.contre - y.contre, pctArr: x.pctArr - y.pctArr }; };
 /* Le poids d'un écart, pour dire d'abord ce qui bouge le plus : un demi-tir vaut trois millièmes d'arrêts. */
-const PAS_STAT = { tirs: 0.5, pctTir: 0.002, contre: 0.5, pctArr: 0.003, punitions: 0.1 };
-const SEUIL_STAT = { tirs: 0.1, pctTir: 0.0005, contre: 0.1, pctArr: 0.0005, punitions: 0.03 };
+const PAS_STAT = { tirs: 0.5, pctTir: 0.002, contre: 0.5, pctArr: 0.003, punitions: 0.1, usure: 1 };
+const SEUIL_STAT = { tirs: 0.1, pctTir: 0.0005, contre: 0.1, pctArr: 0.0005, punitions: 0.03, usure: 0.1 };
+/*
+ * LE BRUIT D'UN CHOIX (nov. 2026 ; JP : *le texte et les effets sont pas toujours clairs*). Un plan dit ce qu'il fait par
+ * match, au duel par période ; et ce qui bouge moins qu'un tir, un demi-point ou un tiers de punition par match ne se dit
+ * pas (rogue.md, « une ligne sous le bruit ne se dit pas » ; les mêmes seuils que `lignesDe`) : il ne colore plus la
+ * carte ni son étiquette. Une période, c'est le tiers d'un match : ses seuils de compte le sont aussi.
+ */
+const BRUIT = { 'par match': { tirs: 1, pctTir: 0.005, contre: 1, pctArr: 0.005, punitions: 0.3, usure: 0.3 },
+  'la période': { tirs: 0.34, pctTir: 0.005, contre: 0.34, pctArr: 0.005, punitions: 0.1, usure: 0.1 } };
 const pts = x => virgule((Math.abs(x) * 100).toFixed(1));
-/** Un écart de stats en puces, le plus fort d'abord : [{ cle, txt, bon }]. `max` : combien au plus. */
-export function motsDeStats(d, max = 4) {
+/**
+ * Un écart de stats en puces, le plus fort d'abord : [{ cle, txt, bon }]. `max` : combien au plus. `par` (« par match »,
+ * « la période ») : l'unité dite au bout de chaque ligne, et les seuils du bruit qui vont avec.
+ */
+export function motsDeStats(d, max = 4, { par = '' } = {}) {
   if (!d) return [];
   const mots = {
     tirs: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')}`,
     pctTir: x => `${signeDe(x)}${pts(x)} pt de précision`,
     contre: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir contre', 'tirs contre')}`,
-    pctArr: x => `${signeDe(x)}${pct3(Math.abs(x))} au % d'arrêts`,
+    // Le % d'arrêts en points, comme la précision (« +0,7 pt d'arrêts ») : « +,007 au % d'arrêts » se lisait mal, sans zéro.
+    pctArr: x => `${signeDe(x)}${pts(x)} pt d'arrêts`,
     // Au duel (nov. 2026 ; JP : *c'est débile comme choix ?*) : « Rester discipliné » se paie en tirs, et ce qu'il donne — moins
     // de punitions pour toi — ne se lisait nulle part ; la carte ne montrait que son prix. Les punitions se disent quand on les lit.
     punitions: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'punition', 'punitions')} pour toi`,
+    usure: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'jambe', 'jambes')} d'usure`,
   };
-  return Object.keys(mots).filter(k => Math.abs(d[k]) >= SEUIL_STAT[k])
+  const seuils = BRUIT[par] || SEUIL_STAT;
+  return Object.keys(mots).filter(k => Math.abs(d[k]) >= seuils[k])
     .sort((a, b) => Math.abs(d[b]) / PAS_STAT[b] - Math.abs(d[a]) / PAS_STAT[a]).slice(0, max)
-    .map(k => ({ cle: k, txt: mots[k](d[k]), bon: k === 'contre' || k === 'punitions' ? d[k] < 0 : d[k] > 0 }));
+    .map(k => ({ cle: k, txt: `${mots[k](d[k])}${par ? ` ${par}` : ''}`, bon: k === 'contre' || k === 'punitions' || k === 'usure' ? d[k] < 0 : d[k] > 0 }));
 }    // pour la différence : les deux lectures partagent leurs dés, le bruit s'en va
 
 /* Une fenêtre d'avantage de deux minutes : le premier but la ferme (un but = un arrêt du processus de lancers), donc sa durée moyenne est (1 − e^(−2λ)) / λ. */
@@ -512,7 +526,8 @@ export function unitesDuSoir(team, lineup, adv) {
 export function planEnChiffres(team, lineup, adv, cle) {
   if (!team) return null;
   const avec = lire(team, lineup, adv, { plan: cle, n: N_EFFET }), sans = lire(team, lineup, adv, { plan: 'match', n: N_EFFET });
-  return { stats: statsEntre(avec, sans), net: (avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre) };
+  // Ses punitions et l'usure de tes jambes aussi (nov. 2026) : « Rester discipliné » et « Forechecker fort » ne montraient que la moitié d'eux-mêmes.
+  return { stats: { ...statsEntre(avec, sans), punitions: avec.punitions - sans.punitions, usure: avec.usure - sans.usure }, net: (avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre) };
 }
 
 /*
@@ -573,7 +588,7 @@ export function propositionsDuDuel(team, adv, { intention, plan = null, pointage
   const { vedette, colle } = cibleDuPlan(activeLineup(team), adv ? activeLineup(adv) : null);
   return idees.slice(0, IDEES_MAX).map(x => {
     const avec = lu(x.cle), d = statsEntre(avec, sans);
-    const stats = { tirs: d.tirs / 3, pctTir: d.pctTir, contre: d.contre / 3, pctArr: d.pctArr, punitions: (avec.punitions - sans.punitions) / 3 };
+    const stats = { tirs: d.tirs / 3, pctTir: d.pctTir, contre: d.contre / 3, pctArr: d.pctArr, punitions: (avec.punitions - sans.punitions) / 3, usure: (avec.usure - sans.usure) / 3 };
     return { ...x, stats, net: ((avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre)) / 3,
       ...(PLANS[x.cle].vedette && vedette ? { vise: getPlayerKey(vedette), vedette, colle } : {}) };
   });
