@@ -307,6 +307,34 @@ a { color: var(--bleu); text-decoration: none; }
    graphique entre comme à la télé, essuyé de gauche à droite, jamais en rebondissant. Une fois, à son arrivée. */
 @keyframes tele-balaie { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 @keyframes tele-monte { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* LE PLATEAU DE TÉLÉ (nov. 2026 ; JP : *you feel sports broadcast, neither the game itself*). Le Rogue entier parle la langue
+   d'une diffusion : un plateau noir où la couleur du club monte du haut ; chaque titre de bloc est un bandeau de bas d'écran
+   (le filet du club, le fond qui s'estompe, les capitales blanches) et non une étiquette grise ; les chiffres qui comptent en
+   gros ; un bandeau de résultats qu'on balaie du doigt (rien ne boucle dans le décor : il entre une fois, essuyé comme à la
+   télé) ; la vedette de chaque club en photo d'action sur l'affiche ; le bouton du soir avec son point rouge « en direct ». */
+body.mode-rogue .hub-volet, body.mode-rogue .hub-carte { background-image: radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--club-vif) 14%, transparent), transparent 70%); }
+body.mode-rogue :is(.hub-titre, .pr-k, .banc-tete, .live-tableau-titre, .vs-sec, .pk-rayon h3, .ej-case-l, .bu-route-t, .ct-set-tete, .hub-une-t, .hub-boite-titre) {
+  margin-bottom: var(--esp-1); padding: var(--esp-1) var(--esp-2) var(--esp-1) var(--esp-3); border: 0; border-left: 4px solid var(--club-vif);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 28%, var(--noir-pur)), transparent 88%);
+  font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--blanc);
+}
+body.mode-rogue .hub-titre::before, body.mode-rogue .hub-titre::after { display: none; }
+body.mode-rogue .banc-tete > span:last-child, body.mode-rogue .pk-rayon h3 .pk-rabais { color: var(--or); }
+body.mode-rogue .hub-une-t { writing-mode: horizontal-tb; rotate: none; padding: 2px var(--esp-2); }
+.tv-ticker { overflow-x: auto; scrollbar-width: none; width: calc(100% + 2 * var(--esp-3)); margin: 0 calc(-1 * var(--esp-3)); border-bottom: 1px solid var(--filet); background: var(--noir-pur); animation: tele-balaie 520ms var(--e-sortie) both; }
+.tv-ticker::-webkit-scrollbar { display: none; }
+.tv-ticker-piste { display: inline-flex; align-items: center; gap: var(--esp-4); padding: 5px var(--esp-3); white-space: nowrap; font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); font-variant-numeric: tabular-nums; }
+.tv-tete { padding: 1px var(--esp-2); background: var(--live); color: var(--blanc); letter-spacing: 0.14em; }
+.tv-item { display: inline-flex; gap: var(--esp-2); }
+.tv-item i { font-style: normal; }
+.tv-item i.g { color: var(--or); }
+.tv-item.toi i { color: var(--blanc); }
+.tv-item.toi i.g { color: var(--bon); }
+.tv-item small { font-size: 0.8em; color: var(--encre-3); }
+.bu-vs-eq.avec-photo::before { content: ""; position: absolute; inset: 0; background: var(--photo) center / cover no-repeat; background-position: calc(var(--fx, 0.5) * 100%) calc(var(--fy, 0.3) * 100%); opacity: 0.42; mix-blend-mode: luminosity; }
+.bu-vs-eq.avec-photo > * { position: relative; }
+.bu-vs-eq em { font: 700 var(--t-1)/1.2 var(--display); font-style: normal; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.btn.go.hub-jour::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: var(--esp-2); border-radius: 50%; background: var(--live); box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 35%, transparent); vertical-align: 1px; }
 /* LES PICS (V23 G, docs/refonte-v23.md § G ; js/mouvement.js `pic`) : la carte rare, le gros match gagné, le talent du
    coach, la Coupe, le congédiement. Une secousse de 4 px, jamais plus, et douze particules de la couleur du club qui
    partent du centre de ce qui vient d'arriver ; le reste du temps, rien ne tremble. */
@@ -4103,7 +4131,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
    eux la ligue en jauge : ta place remplie (verte dans la cible, rouge dehors), le trait blanc de la cible. */
 .bu-run { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-1) var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) 0; border: 0; background: none; color: var(--encre); text-align: left; cursor: pointer; animation: tele-balaie 380ms var(--e-sortie) both; }
 .bu-run-k { padding: 2px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
-.bu-run-rang { justify-self: end; font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
+.bu-run-rang { justify-self: end; font: 800 var(--t-7)/1 var(--display); font-variant-numeric: tabular-nums; }
 .bu-run-rang small { font-size: var(--t-1); color: var(--encre-3); }
 .bu-run.dans .bu-run-rang { color: var(--bon); }
 .bu-run.hors .bu-run-rang { color: var(--mauvais); }
@@ -4120,7 +4148,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .bu-prochain-gros { color: var(--or); }
 .bu-prochain.gros .bu-prochain-k { background: var(--or); color: var(--encre-sur-or); }
 .bu-prochain.gros .bu-prochain-gros { color: inherit; }
-.bu-vs-eq { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) var(--esp-4); animation: tele-monte 300ms var(--e-sortie) both; }
+.bu-vs-eq { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) var(--esp-4); overflow: hidden; animation: tele-monte 300ms var(--e-sortie) both; }
 .bu-vs-eq.toi { color: var(--a-ink); }
 .bu-vs-eq.eux { color: var(--b-ink); }
 .bu-vs-eq b { max-width: 100%; font: 800 var(--t-7)/1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

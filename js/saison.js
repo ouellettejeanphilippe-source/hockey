@@ -2966,18 +2966,34 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return `<button type="button" class="bu-run${etat}" aria-label="Le proprio : ${ctx.esc(run.mot)}" style="--p:${jour ? part(r).toFixed(3) : 0};--c:${part(cible).toFixed(3)}"><span class="bu-run-k">Le proprio</span><span class="bu-run-rang">${jour ? `${r}${r === 1 ? 'er' : 'e'}` : '—'}<small> / ${cible}</small></span><span class="bu-run-jauge" aria-hidden="true"><i></i></span></button>`;
   };
   /*
+   * LE BANDEAU DES RÉSULTATS (nov. 2026 ; JP : *feel sports broadcast*) : les scores d'hier dans toute la ligue défilent en
+   * tête de Ce soir, comme au bas d'une télé — le gagnant en or, ton match en blanc. Rien ne boucle dans le décor
+   * (`check_lisibilite`) : la piste se balaie du doigt, et entre une fois, essuyée.
+   */
+  const bandeauHtml = () => {
+    if (!jour) return '';
+    const matchs = (calendrier[jour - 1] || []).filter(m => m.gfA != null);
+    if (!matchs.length) return '';
+    const item = m => { const gA = m.gfA > m.gfB; return `<span class="tv-item${m.A === you || m.B === you ? ' toi' : ''}"><i class="${gA ? 'g' : ''}">${ctx.esc(ctx.tagCourt(m.A))} ${m.gfA}</i><i class="${gA ? '' : 'g'}">${m.gfB} ${ctx.esc(ctx.tagCourt(m.B))}</i>${m.ot ? '<small>P</small>' : ''}</span>`; };
+    const piste = `<span class="tv-tete">Hier</span>${matchs.map(item).join('')}`;
+    return `<div class="tv-ticker" aria-label="Les résultats d'hier dans la ligue"><div class="tv-ticker-piste">${piste}</div></div>`;
+  };
+  /*
    * L'AFFICHE DU SOIR (V23, la nouvelle interface ; JP : *je veux une nouvelle interface, pour vrai* ; *feel sports
    * broadcast*) : le match bord à bord, coupé en biais aux couleurs des deux clubs, leurs écussons en grand, leur sigle,
    * leur fiche ; « VS » dans son losange au centre ; en tête, quand et où ; au pied, le face-à-face qu'elle ouvre.
    */
-  function prochainHtml(p, adv, quand, domicile, mb) {
+  function prochainHtml(p, adv, quand, domicile, mb, vedettes = []) {
     const G0 = mb && MINI_BOSS[mb.raison];
     const a = ctx.band(you.tag), b = ctx.band(adv.tag);
     const pied = t => (jour ? `${ficheTexte(t)} · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'}` : t.season ? `saison ${t.season}` : '');
-    const eq = (t, cote) => `<span class="bu-vs-eq ${cote}">${ctx.logo(t.tag, 40)}<b>${ctx.esc(ctx.tagCourt(t))}</b><small>${ctx.esc(pied(t))}</small></span>`;
+    // LA TÉLÉ (nov. 2026 ; JP : *feel sports broadcast*) : la vedette de chaque club en photo d'action derrière sa moitié de
+    // l'affiche, fondue dans ses couleurs (js/actions.js), son nom et ses buts dessous. Sans photo, la moitié reste à sa couleur.
+    const photo = v => { const src = v && photoAction(v.p); if (!src) return ''; const c = cadrePhoto(v.p); return ` style="--photo:url('${src}')${c ? `;--fx:${c[0]};--fy:${c[1]}` : ''}"`; };
+    const eq = (t, cote, v) => `<span class="bu-vs-eq ${cote}${v && photoAction(v.p) ? ' avec-photo' : ''}"${photo(v)}>${ctx.logo(t.tag, 40)}<b>${ctx.esc(ctx.tagCourt(t))}</b><small>${ctx.esc(pied(t))}</small>${v ? `<em>${ctx.esc(nomCourt(v.p.n))} · ${v.c.g} B</em>` : ''}</span>`;
     return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}" style="--a-band:${a.bg};--a-ink:${a.ink};--b-band:${b.bg};--b-ink:${b.ink}" aria-label="Face à face : ${ctx.esc(ctx.teamShort(adv))}">
       <span class="bu-prochain-k">${G0 ? `<span class="bu-prochain-gros">${G0.ico} ${ctx.esc(G0.nom)}</span>` : ''}<span>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'chez toi' : 'chez eux'}</span></span>
-      ${eq(you, 'toi')}<span class="bu-vs-mi" aria-hidden="true"><b>VS</b></span>${eq(adv, 'eux')}
+      ${eq(you, 'toi', vedettes[p.m.A === you ? 0 : 1])}<span class="bu-vs-mi" aria-hidden="true"><b>VS</b></span>${eq(adv, 'eux', vedettes[p.m.A === you ? 1 : 0])}
       <span class="bu-prochain-aller">Face à face ›</span>
     </button>`;
   }
@@ -3113,7 +3129,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // L'état qui pèse ce soir (sonnés, la lancée, un dos-à-dos), sous l'affiche : c'est ce soir qu'il joue, pas hier.
         const etatSoir = [...enJeu.slice(0, 3), ...(soirEreintant(p.j, p.m.A, p.m.B) ? ['🥵 Dos-à-dos'] : [])];
         const etatSoirHtml = etatSoir.length ? `<div class="bu-etat" aria-label="Ce qui pèse ce soir">${etatSoir.map(x => `<span>${ctx.esc(x)}</span>`).join('')}</div>` : '';
-        carte.innerHTML = `${bandeDeLaRun()}${prochainHtml(p, adv, quand, domicile, mb)}${etatSoirHtml}${onDecision ? bancDuMatinHtml(p) : ''}`;
+        carte.innerHTML = `${bandeauHtml()}${bandeDeLaRun()}${prochainHtml(p, adv, quand, domicile, mb, vedettes)}${etatSoirHtml}${onDecision ? bancDuMatinHtml(p) : ''}`;
         const bande = carte.querySelector('.bu-run');
         if (bande) bande.onclick = () => tabs.montrer('proprio');
         /*
