@@ -872,15 +872,19 @@ export function coachHtml() {
       <p class="pv-dit">${esc(P.dit)}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}</p>
     </div>`;
   };
-  // La case de l'entraîneur, sa vraie carte de coach-saison, puis ses pouvoirs.
+  /*
+   * V23, LA NOUVELLE INTERFACE (JP : *je veux une nouvelle interface, pour vrai*) : l'entraîneur sur une plaque aux
+   * couleurs de son vrai club, son niveau en gros ; la jauge d'expérience ; sa règle ; ses trois pouvoirs en cartes de
+   * front, celles qu'il n'a pas encore ouvertes éteintes, avec le niveau qui les ouvre.
+   */
   const chef = perso.chef;
+  const maitrise = (perso.maitrise || 1) !== 1 ? `${NOMS_NIV[NIV_DE_MAITRISE.indexOf(perso.maitrise)] || ''} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : '';
   return `<div class="ej-coach">
-    <div class="ej-case-l">L'entraîneur</div>
-    <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(chef ? chef.n : C.nom)}</b><span class="ej-rang">Niveau ${niveau}</span><small>${chef ? `${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)} · ${esc(C.nom)}${(perso.maitrise || 1) !== 1 ? ` · ${esc(NOMS_NIV[NIV_DE_MAITRISE.indexOf(perso.maitrise)] || '')} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}` : esc(C.mot)}</small></div>
+    <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''}><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>L'entraîneur${chef ? ` · ${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)}` : ''}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau ${niveau}</span></div>
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
-    ${(R => (R ? (x => `<div class="ej-coach-l">${C.ico} Sa règle : ${esc(R.dit)} · +${R.jetons} 🪙 · ${x.parJour.size} fois cette saison</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
-    ${POUVOIRS[perso.cle].map(carte).join('')}
+    ${(R => (R ? (x => `<div class="ej-coach-l ej-regle">${C.ico} Sa règle : ${esc(R.dit)} · +${R.jetons} 🪙 · ${x.parJour.size} fois cette saison</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
+    <div class="pv-rang">${POUVOIRS[perso.cle].map(carte).join('')}</div>
     ${mainHtml(perso, niveau)}
   </div>`;
 }
