@@ -29,6 +29,8 @@ import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, glyphe, varsEquipe, nom } from './util.js';
 import { getTeamBand, getTeamLogoHtml } from './logos.js';
+import { ADJOINTS, NOMS_NIV } from './adjoints.js';
+import { COACHS } from './coachs.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -1404,8 +1406,12 @@ export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce =
   // Ses plans : le nom et l'icône du plan, qui suit qui pour 🥷, et ses vraies stats de la période.
   const tuile = x => {
     const PL = PLANS[x.cle];
-    return { cle: x.cle, ico: PL.ico, nom: PL.nom, sous: PL.vedette && x.vedette && x.colle ? `${nom(x.colle)} suit ${nom(x.vedette)}` : '',
-      mots: motsDeStats(x.stats, 2, { par: 'la période', dire: false }), plan: { cle: x.cle, ...(x.vise ? { vise: x.vise } : {}) } };
+    // Qui le propose (nov. 2026) : un adjoint en poste, à son niveau, ou ton coach ; sinon, une idée de la période.
+    const qui = x.qui && x.qui.genre === 'adjoint' && ADJOINTS[x.qui.cle] ? `${ADJOINTS[x.qui.cle].ico} ${ADJOINTS[x.qui.cle].nom} · ${NOMS_NIV[(x.qui.niv || 3) - 1]}`
+      : x.qui && x.qui.genre === 'coach' && COACHS[x.qui.cle] ? `${COACHS[x.qui.cle].ico} Ton coach` : '';
+    const suit = PL.vedette && x.vedette && x.colle ? `${nom(x.colle)} suit ${nom(x.vedette)}` : '';
+    return { cle: x.cle, ico: PL.ico, nom: PL.nom, sous: [qui, suit].filter(Boolean).join(' · '),
+      mots: motsDeStats(x.stats, 2, { par: 'la période', dire: false }), plan: { cle: x.cle, ...(x.vise ? { vise: x.vise } : {}), ...(x.force ? { force: x.force } : {}) } };
   };
   const PE = PLANS[enForce] || PLANS.match;
   return {

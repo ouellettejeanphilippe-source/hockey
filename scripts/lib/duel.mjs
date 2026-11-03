@@ -19,10 +19,10 @@ export function robotDuel(politique, clic = Math.random) {
   if (politique === 'rien') return () => ({});
   if (politique === 'distrait') return x => {
     const props = lirePropositions(x), i = Math.floor(clic() * (props.length + 1));
-    return { ...(props[i] ? { plan: { cle: props[i].cle, ...(props[i].vise ? { vise: props[i].vise } : {}) } } : {}), snap: x.k === 2 && !x.serie && clic() < 0.5 };
+    return { ...(props[i] ? { plan: { cle: props[i].cle, ...(props[i].vise ? { vise: props[i].vise } : {}), ...(props[i].force ? { force: props[i].force } : {}) } } : {}), snap: x.k === 2 && !x.serie && clic() < 0.5 };
   };
   return x => {
     const best = lirePropositions(x).sort((a, b) => b.net - a.net)[0];
-    return { ...(best && best.net > 0 ? { plan: { cle: best.cle, ...(best.vise ? { vise: best.vise } : {}) } } : {}), snap: x.k === 2 && !x.serie && x.pointage.moi > x.pointage.lui };
+    return { ...(best && best.net > 0 ? { plan: { cle: best.cle, ...(best.vise ? { vise: best.vise } : {}), ...(best.force ? { force: best.force } : {}) } } : {}), snap: x.k === 2 && !x.serie && x.pointage.moi > x.pointage.lui };
   };
 }
