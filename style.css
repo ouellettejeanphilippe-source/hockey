@@ -5058,11 +5058,11 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .banc-regle.joue { border-color: var(--bon); box-shadow: 0 0 12px color-mix(in srgb, var(--bon) 35%, transparent); }
 .banc-regle.joue small { color: var(--bon); }
 /* V23, la nouvelle interface : à Ce soir, ton banc en jetons d'une ligne — l'icône, le nom, ce qu'il a fait ; l'écran tient en un.
-   À l'entracte du duel (V23 A2), la même ligne sous les périodes, son titre gardé : ce qui a joué jusque-là s'allume en direct. */
+   À l'entracte du duel (V23 A2), la même ligne sous les périodes, sans titre (l'entracte tient sous 1,3 écran) : ce qui a joué
+   jusque-là s'allume en direct ; le titre reste dans l'aria-label. */
 .hub-soir .banc, .ent2 .banc { margin: 0; padding: 0; }
-.hub-soir .banc-tete { display: none; }
-.ent2 .banc { margin-top: var(--esp-2); }
-.ent2 .banc-tete { margin-bottom: var(--esp-1); }
+.hub-soir .banc-tete, .ent2 .banc-tete { display: none; }
+.ent2 .banc { margin-top: var(--esp-1); }
 :is(.hub-soir, .ent2) .banc-rang { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
 :is(.hub-soir, .ent2) .banc-carte { flex-direction: row; aspect-ratio: auto; gap: var(--esp-1); padding: var(--esp-1) var(--esp-2); }
 :is(.hub-soir, .ent2) .banc-ico { font-size: var(--t-3); }
