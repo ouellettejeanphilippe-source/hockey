@@ -4902,6 +4902,9 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .live-tableau td.nom { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 .live-tableau td.nom > .team-logo-img, .live-tableau td.nom > .team-logo-inline { vertical-align: -3px; margin-right: var(--esp-1); }
 .live-tableau td.eq { color: var(--encre-3); font-size: var(--t-1); }
+/* Nov. 2026 : le club ou la case sous le nom (six colonnes) ; le lien d'équipe garde son toucher. */
+.live-tableau td.nom small { display: block; margin-top: 1px; font: 600 var(--t-1)/1.1 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live-tableau td.nom small .lien-equipe { font: inherit; color: inherit; }
 .live-tableau .heros { color: var(--or); font-weight: 800; }
 .live-tableau tr.toi td { background: var(--club-sourd); color: var(--or); font-weight: 700; }
 .live-tableau tr.cut td { border-bottom: 2px solid var(--or); }
@@ -6130,17 +6133,18 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-barre .seg button { min-height: 36px; font-size: var(--t-1); }
 .jr-scroll { overflow-x: auto; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
 .jr-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.jr-table th, .jr-table td { padding: var(--esp-2); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--filet-2); }
+.jr-table th, .jr-table td { padding: var(--esp-2) var(--esp-1); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--filet-2); }
 .jr-table th { position: sticky; top: 0; z-index: 1; background: var(--fond-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); height: 44px; cursor: pointer; }
 .jr-table th.on { color: var(--or); }
-.jr-table td { font: 700 var(--t-3)/1.1 var(--display); }
+.jr-table td { font: 700 var(--t-2)/1.1 var(--display); }
 /* La colonne qui trie se lit en gros, comme les points du prototype : le chiffre qu'on cherche saute aux yeux. */
 .jr-table td.on { font-size: var(--t-4); font-weight: 800; color: var(--encre); }
-.jr-table .jr-col-nom { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--fond-1); max-width: 190px; }
+/* Nov. 2026 : six colonnes, jamais un glissement — la colonne du nom est bornée pour que le salaire reste à l'écran à 390 px. */
+.jr-table .jr-col-nom { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--fond-1); max-width: 150px; padding-left: var(--esp-2); }
 /* Le visage, à gauche du nom (le prototype, oct.). */
 .jr-qui { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; }
 .jr-qui-txt { min-width: 0; }
-.jr-visage { width: 40px; height: 40px; }
+.jr-visage { width: 34px; height: 34px; }
 .jr-table th.jr-col-nom { z-index: 3; background: var(--fond-2); }
 .jr-nom { display: block; max-width: 100%; padding: 13px 0; margin: -13px 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: 700 var(--t-3)/1.25 var(--corps); }
 .jr-sous { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 500 var(--t-1)/1.35 var(--corps); color: var(--encre-2); }

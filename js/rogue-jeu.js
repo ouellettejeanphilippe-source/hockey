@@ -1764,7 +1764,7 @@ export function palmaresDuClubHtml() {
   // cours d'abord, la porte des déblocages au pied ; ils vivaient dans la fenêtre des déblocages.
   const C0 = G.rogue && COACHS[G.rogue.coach];
   const enCoursHtml = enCours ? `<p class="vs-sec">▶ La run en cours${C0 ? ` · ${C0.ico} ${esc(C0.nom)}` : ''}</p><div class="vs-jalons">${enCours}</div>` : '';
-  return `${prestigeHtml(meta)}${enCoursHtml}${vitrine}${pantheon}${lesRuns}
+  return `${prestigeHtml(meta, { court: true })}${enCoursHtml}${vitrine}${pantheon}${lesRuns}
     <button type="button" class="hub-rangee vs-deblocages"><span class="hub-rangee-t">🏅 Les déblocages</span><b>${meta.ecussons || 0} médailles</b></button>`;
 }
 
@@ -1772,19 +1772,20 @@ export function palmaresDuClubHtml() {
  * LE PRESTIGE DU CLUB ET LES JALONS (v2, js/rogue.js) — l'échelle entière, ce qui est atteint et ce qu'il faut pour la suite.
  * Nov. 2026 (JP : *where the infos are*) : ils vivent au Palmarès, la maison du club, et la fenêtre des déblocages les redit.
  */
-function prestigeHtml(meta) {
+function prestigeHtml(meta, { court = false } = {}) {
   const rang = rangDePrestige(meta), vie = ecussonsAVie(meta);
   const jalonDe = k => (JALONS.find(J => J.cle === k) || {}).nom || k;
   // Les exigences (tranche 8) : le plus haut cran ouvert, une fois la première Coupe gagnée.
   const ouvertes = exigencesOuvertes(meta);
+  // Au Palmarès (`court`) : ton rang, et seulement la marche qui vient et le prochain jalon ; la fenêtre des déblocages dit l'échelle entière.
   const prestige = `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
-    <div class="vs-jalons">${PRESTIGES.map((P, k) => {
+    <div class="vs-jalons">${PRESTIGES.filter((P, k) => !court || k === rang + 1).map((P, k0) => { const k = court ? rang + 1 : k0;
       const fait = k <= rang;
       const quoi = `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${fait ? '✓' : k}</span><b>${esc(P.nom)}</b><span>${fait ? esc(quoi) : `${P.min} 🏅 à vie${P.jalon ? ` et « ${esc(jalonDe(P.jalon))} »` : ''} → ${esc(quoi)}`}</span></div>`;
     }).join('')}</div>`;
   return `${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
-    <div class="vs-jalons">${JALONS.map(J => {
+    <div class="vs-jalons">${(court ? JALONS.filter(J => !(meta.jalons || {})[J.cle]).slice(0, 1) : JALONS).map(J => {
       const fait = !!(meta.jalons || {})[J.cle];
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${J.ico}</span><b>${esc(J.nom)}</b><span>${fait ? '✓ Atteint' : `${esc(J.texte)} → ${esc(recompenseDe(meta, J).mot)}`}</span></div>`;
     }).join('')}</div>`;

@@ -502,11 +502,11 @@ function tableJoueurs(ctx, { titre, id, colonnes, lignes, tri, tete = 'eq', limi
   // Onze colonnes ne tiennent pas dans 390 px : le tableau défile en x dans
   // son propre conteneur, comme tous les tableaux du jeu.
   // V23 : aux meneurs, chaque rangée porte le filet de son club et le podium se lit sur l'or.
+  // Nov. 2026 : le club (ou la case) se lit sous le nom, pas dans une colonne — six colonnes à 390 px, jamais un glissement.
   return `<div class="live-tableau hub-table${tete === 'eq' ? ' meneurs' : ''}"><div class="live-tableau-titre">${ctx.esc(titre)}</div>
-    <div class="hub-scroll"><table><thead><tr><th>#</th><th>Joueur</th><th>${tete === 'eq' ? 'Éq.' : 'Profil'}</th>${colonnes.map(th).join('')}</tr></thead>
+    <div class="hub-scroll"><table><thead><tr><th>#</th><th>Joueur</th>${colonnes.map(th).join('')}</tr></thead>
     <tbody>${vues.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}${l.blesse ? ' blesse' : ''}${l.parti ? ' parti' : ''}"${tete === 'eq' && l.t ? ` style="${varsEquipe(ctx.band(l.t.tag))}"` : ''}>
-      <td>${i + 1}</td><td class="nom">${nomLie(ctx, l)}${l.blesse ? ` <span class="hub-bl" title="Blessé">🩹 ${l.blesse}</span>` : ''}</td>
-      <td class="${tete === 'eq' ? 'eq' : 'role'}">${tete === 'eq' ? versEquipe(ctx, l.t, l.eq) : ctx.esc(l.role)}</td>${cellules(l)}</tr>`).join('')}</tbody></table></div>
+      <td>${i + 1}</td><td class="nom">${nomLie(ctx, l)}${l.blesse ? ` <span class="hub-bl" title="Blessé">🩹 ${l.blesse}</span>` : ''}<small class="${tete === 'eq' ? 'eq' : 'role'}">${tete === 'eq' ? versEquipe(ctx, l.t, l.eq) : ctx.esc(l.role)}</small></td>${cellules(l)}</tr>`).join('')}</tbody></table></div>
     ${vues.length < rangs.length ? `<button type="button" class="hub-plus" data-plus="${id}">Voir les ${rangs.length - vues.length} autres</button>` : ''}
     ${note ? `<div class="hub-note hub-table-note">${note}</div>` : ''}</div>`;
 }
@@ -3844,7 +3844,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const PERMANENT = {
     proprio: () => `${proprioHtml()}${cartesIci('proprio')}`,
-    entraineur: () => `${ctx.coachHtml ? ctx.coachHtml() : ''}${cartesIci('entraineur')}${styleHtml()}`,
+    entraineur: () => `${ctx.coachHtml ? ctx.coachHtml() : ''}${cartesIci('entraineur')}${miens.length ? rangeeHtml('style', '📊 Ton style de jeu', 'tes derniers matchs contre la ligue', () => ({ ico: '📊', titre: 'Ton style de jeu', sousTitre: `Journée ${jour}`, html: styleHtml() })) : ''}`,
     vestiaire: () => `${suivisHtml()}${formeDuGroupeHtml()}${rapportRangee()}${miens.length ? recitHtml() : ''}`,
   };
   // V12-3 : les cartes d'un sujet se jouent dans sa maison (js/rogue-jeu.js `cartesDeLaMaison`) ; l'entraîneur a les siennes au personnel.
