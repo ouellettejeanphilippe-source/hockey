@@ -497,9 +497,10 @@ function tableJoueurs(ctx, { titre, id, colonnes, lignes, tri, tete = 'eq', limi
   }).join('');
   // Onze colonnes ne tiennent pas dans 390 px : le tableau défile en x dans
   // son propre conteneur, comme tous les tableaux du jeu.
-  return `<div class="live-tableau hub-table"><div class="live-tableau-titre">${ctx.esc(titre)}</div>
+  // V23 : aux meneurs, chaque rangée porte le filet de son club et le podium se lit sur l'or.
+  return `<div class="live-tableau hub-table${tete === 'eq' ? ' meneurs' : ''}"><div class="live-tableau-titre">${ctx.esc(titre)}</div>
     <div class="hub-scroll"><table><thead><tr><th>#</th><th>Joueur</th><th>${tete === 'eq' ? 'Éq.' : 'Profil'}</th>${colonnes.map(th).join('')}</tr></thead>
-    <tbody>${vues.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}${l.blesse ? ' blesse' : ''}${l.parti ? ' parti' : ''}">
+    <tbody>${vues.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}${l.blesse ? ' blesse' : ''}${l.parti ? ' parti' : ''}"${tete === 'eq' && l.t ? ` style="${varsEquipe(ctx.band(l.t.tag))}"` : ''}>
       <td>${i + 1}</td><td class="nom">${nomLie(ctx, l)}${l.blesse ? ` <span class="hub-bl" title="Blessé">🩹 ${l.blesse}</span>` : ''}</td>
       <td class="${tete === 'eq' ? 'eq' : 'role'}">${tete === 'eq' ? versEquipe(ctx, l.t, l.eq) : ctx.esc(l.role)}</td>${cellules(l)}</tr>`).join('')}</tbody></table></div>
     ${vues.length < rangs.length ? `<button type="button" class="hub-plus" data-plus="${id}">Voir les ${rangs.length - vues.length} autres</button>` : ''}
