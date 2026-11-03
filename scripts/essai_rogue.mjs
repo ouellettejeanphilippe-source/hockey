@@ -327,7 +327,8 @@ async function lireLeSuivi() {
   suivi.journee = journee;
   await page.click('#sousNav .soustab[data-page="proprio"]', { timeout: 2000 }).catch(() => {});
   await page.waitForTimeout(150);
-  const l = await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet[data-maison="proprio"] .hub-etat-v')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /\d+ \/ \d+/.test(t) && !/^Le proprio veut/.test(t)));
+  // Nov. 2026 : l'objectif en cours est un bloc du Proprio (`.pr-objectif`), son gros chiffre « 20 / 64 ».
+  const l = await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet[data-maison="proprio"] .pr-objectif')].map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(t => /\d+ \/ \d+/.test(t)));
   for (const t of l) suivi.pas.add(t);
   await page.click('#sousNav .soustab[data-page="match"]', { timeout: 2000 }).catch(() => {});
   await page.waitForTimeout(150);
@@ -662,16 +663,20 @@ const versLOnglet = async (sec, pg) => {
   await page.waitForTimeout(400);
 };
 await versLOnglet('bureau', 'proprio');
-const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .hub-etat-run').catch(() => '');
+// Nov. 2026 : le mandat en mots vit au Proprio (`.pr-mandat`), la bande de Ce soir n'en garde que ton rang.
+const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat').catch(() => '');
 console.log(`5. le proprio : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le mandat de la run');
-// LE CONTENU PERMANENT (V12-2) : la route dit les deux semaines qui viennent ; le Bureau ne les redit pas.
+// LE CONTENU PERMANENT (V12-2 ; nov. 2026 : la route des deux semaines est au Calendrier, plus chez le Coach) ; le Bureau ne la redit pas.
+await versLOnglet('ligue', 'saison');
+const routeOnglet = await page.$('#hubModal .hub-volet .bu-route');
 await versLOnglet('club', 'entraineur');
-const routeOnglet = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .bu-route');
+const routeCoach = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .bu-route');
 await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
 const routeBoite = await page.$('#hubModal .hub-volet:not(:has(.af-onglet)) .bu-route, #hubModal .hub-carte .hub-etat');
-console.log(`5v. les sous-onglets : la route ${routeOnglet ? 'chez l\'entraîneur' : 'absente'} · le Bureau ${routeBoite ? 'la redit' : 'ne la redit pas'}`);
-if (!routeOnglet) erreurs.push('le sous-onglet de l\'entraîneur ne montre pas les deux semaines qui viennent');
+console.log(`5v. les sous-onglets : la route ${routeOnglet ? 'au Calendrier' : 'absente'}${routeCoach ? ', et encore chez le Coach' : ''} · le Bureau ${routeBoite ? 'la redit' : 'ne la redit pas'}`);
+if (!routeOnglet) erreurs.push('le Calendrier ne montre pas les deux semaines qui viennent');
+if (routeCoach) erreurs.push('le Coach montre encore la route (elle est au Calendrier)');
 if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leur sous-onglet');
 {
   // TON COACH, UN PERSONNAGE (V21) : au sous-onglet de l'entraîneur (V12-2) — son niveau, son expérience, ses trois pouvoirs,
@@ -692,8 +697,8 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (!/^Niveau [1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
   if (pouvoirs.length !== 3 || pouvoirs[0].ferme || !pouvoirs.slice(1).every(x => x.ferme === /Niveau [35]/.test(x.etat))) erreurs.push(`le coach ne montre pas ses trois pouvoirs, le premier ouvert (${JSON.stringify(pouvoirs)})`);
 }
-if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
-if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
+if (!/le mandat/.test(run || '')) erreurs.push('le Proprio ne dit pas le mandat de la run');
+if (!/puis :/.test(run || '')) erreurs.push('le mandat au Proprio ne dit pas sa suite (« puis : … »)');
 /*
  * « SEMAINE SUIVANTE » (V4) remplace « Jusqu'à la prochaine décision » : elle joue les journées une à une jusqu'à
  * la fin de la semaine, et s'arrête avant sur ce qui demande le joueur. On attend qu'elle ait fini (le bouton se
@@ -814,11 +819,12 @@ await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tui
 await verifMarche('la boutique ouverte');
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
 const nPacks = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
-const espace = await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .inv-plafond').catch(() => '');
+// Nov. 2026 : la boutique ne dit que tes jetons et jusqu'où tu signes, dans son en-tête ; la masse salariale est au Proprio.
+const espace = ((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl').catch(() => '')) || '').match(/tu signes jusqu'à [^·]+/)?.[0] || '';
 // 1.0 (R5) : à la première run, quatre packs pour commencer, un bouton « Voir les N packs », et un pack impayable qui dit ce qui manque.
 const voirTout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
 console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}${voirTout ? ` · « ${(await voirTout.textContent()).trim()} »` : ''}`);
-if (!espace) erreurs.push('la boutique ne dit pas l\'espace sous le plafond');
+if (!espace) erreurs.push('la boutique ne dit pas jusqu\'où tu signes');
 if (nPacks !== 4 || !voirTout) erreurs.push(`la première run devrait ouvrir sur quatre packs et « Voir les N packs » : ${nPacks} packs, bouton ${voirTout ? 'présent' : 'absent'}`);
 else {
   await page.screenshot({ path: `${DOSSIER}/rogue-boutique-debut.png` });
@@ -1055,7 +1061,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // écrit la décision.
   {
     if (await page.$('#hubModal details, #hubModal summary')) erreurs.push('le Bureau garde un accordéon (details / summary)');
-    await page.click('#hubModal button.bu-plan').catch(() => {});
+    // Nov. 2026 : ton plan est la première carte de ton banc du matin ; la toucher ouvre les six plans.
+    await page.click('#hubModal .bu-banc .banc-plan').catch(() => {});
     await page.waitForTimeout(800);
     const pl = await page.$$eval('#choixModal .choix-option[data-choix]', bs => bs.map(b => ({ cle: b.dataset.choix, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree), .choix-option-gros').length }))).catch(() => []);
     await page.screenshot({ path: `${DOSSIER}/rogue-plan.png` });
@@ -1069,7 +1076,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
       ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
     } else await page.click('#choixModal .choix-fermer').catch(() => {});
     await auBureau();
-    const ligne = await page.$eval('#hubModal button.bu-plan', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
+    const ligne = await page.$eval('#hubModal .bu-banc .banc-plan', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
     console.log(`10d. ton plan : ${pl.length} tuiles · en force ${on.map(x => x.cle).join(', ') || 'aucune'} · 🥷 « ${ombre ? ombre.sous : ''} » · ${pl.filter(x => x.stats).length} en stats · touché ${autre ? autre.cle : '—'} → ${ecrit ? JSON.stringify(ecrit.plan) : 'rien d\'écrit'} · au Bureau « ${ligne.trim()} »`);
     if (pl.length !== 6) erreurs.push(`le plan du Bureau montre ${pl.length} plans, pas six`);
     if (on.length !== 1) erreurs.push(`le plan du Bureau marque ${on.length} plans en force, pas un`);
@@ -1232,7 +1239,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   else if (!revenu) erreurs.push('le retour, d\'un club ouvert, ne rend pas le classement');
   await versLOnglet('ligue', 'historique');
   const pal = ((await page.textContent('#leaderboardBody').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
-  if (/Aucune saison enregistrée|Ton album/.test(pal) || !/Tes runs/.test(pal)) erreurs.push(`le Palmarès du Rogue n'est pas celui du club : « ${pal.slice(0, 80)} »`);
+  // Nov. 2026 : le prestige du club et la run en cours y vivent dès la run 1.
+  if (/Aucune saison enregistrée|Ton album/.test(pal) || !/La run en cours|Tes runs/.test(pal) || !/prestige du club/.test(pal)) erreurs.push(`le Palmarès du Rogue n'est pas celui du club : « ${pal.slice(0, 80)} »`);
   console.log(`10l. la Ligue : ${sous.join(' · ')} · un club ouvert du classement ${club ? 'oui' : 'non'}, le retour ${revenu ? 'y revient' : 'non'} · le Palmarès « ${pal.slice(0, 70)} »`);
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
 }
