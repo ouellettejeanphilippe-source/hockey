@@ -4479,6 +4479,10 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-etat-run .hub-etat-k { color: var(--mauvais); }
 .hub-etat-v { min-width: 0; }
 .hub-etat-v b { font: 800 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; }
+/* V23, la nouvelle interface : le mandat du proprio se lit comme un contrat — ce qu'il veut en gros, la suite dessous. */
+.hub-etat-l.hub-etat-run { flex-direction: column; align-items: flex-start; gap: 0; }
+.hub-etat-run .hub-etat-v > b { display: block; margin: var(--esp-1) 0; font-size: var(--t-6); letter-spacing: 0.02em; text-transform: uppercase; }
+.hub-etat-run .hub-run-suite { display: block; }
 .hub-etat-l .tuile-jauge { flex: 1 1 80px; min-width: 60px; }
 .hub-etat-l small { font-size: var(--t-1); color: var(--encre-3); }
 .tuile-jauge { display: block; height: 4px; border-radius: var(--r-1); background: var(--noir); overflow: hidden; }
