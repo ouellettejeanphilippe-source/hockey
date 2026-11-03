@@ -3719,7 +3719,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .pv-ico { font-size: var(--t-6); line-height: 1; }
 .pv-etat { margin-top: auto; padding: 2px var(--esp-2); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; background: var(--fond-3); color: var(--encre-2); white-space: nowrap; }
 .pv:not(.ferme) .pv-etat { background: var(--or); color: var(--encre-sur-or); }
-.pv-dit { margin: 0; font-size: var(--t-1); line-height: 1.3; color: var(--encre-2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.pv-dit { margin: 0; font-size: var(--t-1); line-height: 1.3; color: var(--encre-2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
 .pv-dit .bon { color: var(--bon); }
 .pv-dit .mal { color: var(--mauvais); }
 /* TA MAIN D'ADJOINTS (V22, js/alignement.js `mainHtml`) : une seule rangée, les cases en poste puis la main, quatre cartes de
@@ -3737,7 +3737,6 @@ a.spin-club:hover { background: var(--fond-2); }
 .adj-case.survol { border-color: var(--or); color: var(--or); }
 /* Personne dans la main : les cases libres n'ont pas besoin de la hauteur d'une carte. */
 .adj-zone.sans .adj-case { aspect-ratio: auto; min-height: 56px; }
-.adj-note { margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-3); }
 /* Le verso d'une petite carte : son style seul, serré ; la réplique et la fiche vont dans la bande. */
 .adj-carte .tcv-corps { font-size: 9.5cqw; line-height: 1.2; gap: 2px; }
 .adj-carte .tcv-pied { display: none; }
@@ -4102,10 +4101,9 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-volet > * { flex: none; }
 /* LA JAUGE DU PROPRIO (V23, la nouvelle interface) : pas une boîte — une ligne de télé, le mandat et ton rang, et sous
    eux la ligue en jauge : ta place remplie (verte dans la cible, rouge dehors), le trait blanc de la cible. */
-.bu-run { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--esp-1) var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) 0; border: 0; background: none; color: var(--encre); text-align: left; cursor: pointer; animation: tele-balaie 380ms var(--e-sortie) both; }
+.bu-run { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-1) var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) 0; border: 0; background: none; color: var(--encre); text-align: left; cursor: pointer; animation: tele-balaie 380ms var(--e-sortie) both; }
 .bu-run-k { padding: 2px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
-.bu-run b { min-width: 0; font: 700 var(--t-2)/1.2 var(--corps); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bu-run-rang { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
+.bu-run-rang { justify-self: end; font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .bu-run-rang small { font-size: var(--t-1); color: var(--encre-3); }
 .bu-run.dans .bu-run-rang { color: var(--bon); }
 .bu-run.hors .bu-run-rang { color: var(--mauvais); }
@@ -4137,7 +4135,17 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-rangee-t { flex: none; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .hub-rangee b { flex: 1; min-width: 0; color: var(--encre); overflow-wrap: anywhere; }
 /* Ton plan, sous l'affiche : une bande pleine largeur elle aussi, sans cadre. */
-.bu-plan { width: calc(100% + 2 * var(--esp-3)); margin: 0 calc(-1 * var(--esp-3)); padding: var(--esp-1) var(--esp-4); border: 0; border-bottom: 1px solid var(--filet); background: var(--fond-1); }
+/* L'ÉTAT DU SOIR (nov. 2026 ; JP : *where the infos are*) : ce qui pèse ce soir — sonnés, la lancée, un dos-à-dos — en jetons sous l'affiche.
+   TON BANC CE SOIR, au matin : la même rangée que le banc d'Hier soir, éteinte ; ton plan en force en première carte. */
+.bu-etat { display: flex; flex-wrap: wrap; gap: var(--esp-1); padding: var(--esp-1) 0; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
+.bu-etat span { padding: 2px var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
+.bu-banc { margin: 0; padding: 0; }
+.bu-banc .banc-tete { margin-bottom: var(--esp-1); }
+.bu-banc .banc-rang { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
+.bu-banc .banc-carte { flex-direction: row; aspect-ratio: auto; gap: var(--esp-1); min-height: 44px; padding: var(--esp-1) var(--esp-2); opacity: 1; filter: none; cursor: pointer; font: inherit; }
+.bu-banc .banc-plan { border-color: var(--or); }
+.bu-banc .banc-plan small { color: var(--or); }
+.bu-banc .banc-ico { font-size: var(--t-3); }
 /* LA ROUTE (V8) : deux semaines, un arrêt par match, le gros match en or, le lundi, le pack gratuit. */
 .bu-route { padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
 .bu-route-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); margin-bottom: var(--esp-2); }
@@ -4445,11 +4453,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-rap-l.prix { color: var(--mauvais); }
 .hub-rap-lignes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px var(--esp-3); font-size: var(--t-2); color: var(--encre-2); }
 .hub-rap-lignes b { color: var(--encre); font-family: var(--display); }
-.pk-besoins { padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
-.pk-besoins h3 { margin: 0 0 var(--esp-1); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.pk-besoins ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: var(--t-1); }
-.pk-bareme-run { margin: 0 0 var(--esp-2); font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.03em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
-.hub-run-suite { color: var(--encre-2); }
 
 /* ---- La saison en calendrier (js/saison.js, calendrierFiche) : des semaines de sept journées, une case par jour ---- */
 .calj-grille { display: flex; flex-direction: column; gap: 3px; }
@@ -4502,16 +4505,35 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-hier-recit { grid-column: 1 / -1; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-hier-voir { color: var(--or); }
+/* LE PROPRIO (nov. 2026 ; JP : *where the infos are*) : des blocs, un chiffre en gros chacun — le mandat et ton rang, la prévision,
+   l'objectif, l'argent (la caisse, la masse, les salaires du banc), tes rivaux sur leur plaque, ses verdicts. */
+.pr { display: flex; flex-direction: column; gap: var(--esp-2); }
+.pr-bloc { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); }
+.pr-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+.pr-gros { font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+.pr-gros small { font-size: var(--t-2); color: var(--encre-3); letter-spacing: 0; }
+.pr-mandat.dans .pr-gros { color: var(--bon); }
+.pr-mandat.hors .pr-gros { color: var(--mauvais); }
+.pr-v { font: 700 var(--t-3)/1.2 var(--display); color: var(--encre); }
+.pr-suite { font-size: var(--t-1); color: var(--encre-3); }
+.pr-bloc .tuile-jauge { width: 100%; }
+.pr-bloc > small { font-size: var(--t-1); color: var(--encre-3); }
+.pr-chiffres { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-4); }
+.pr-chiffres span { display: flex; flex-direction: column; }
+.pr-chiffres b { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
+.pr-chiffres small { font-size: var(--t-1); color: var(--encre-3); }
+.pr-plaques { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
+.pr-rival { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 36px; padding: var(--esp-1) var(--esp-2); border-left: 4px solid var(--eq-band); border-radius: var(--r-1); background: color-mix(in srgb, var(--eq-band) 18%, var(--fond-2)); }
+.pr-rival b { font: 700 var(--t-2)/1.1 var(--display); }
+.pr-rival small { font: 600 var(--t-1)/1.1 var(--display); color: var(--encre-2); }
+.pr .hub-etat-l { font-size: var(--t-2); }
+.vs-forme .hub-etat-k { color: var(--or); }
 .hub-etat { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
 .hub-etat-l { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); min-width: 0; font-size: var(--t-2); }
 .hub-etat-k { flex: none; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-.hub-etat-run .hub-etat-k { color: var(--mauvais); }
 .hub-etat-v { min-width: 0; }
 .hub-etat-v b { font: 800 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; }
 /* V23, la nouvelle interface : le mandat du proprio se lit comme un contrat — ce qu'il veut en gros, la suite dessous. */
-.hub-etat-l.hub-etat-run { flex-direction: column; align-items: flex-start; gap: 0; }
-.hub-etat-run .hub-etat-v > b { display: block; margin: var(--esp-1) 0; font-size: var(--t-6); letter-spacing: 0.02em; text-transform: uppercase; }
-.hub-etat-run .hub-run-suite { display: block; }
 .hub-etat-l .tuile-jauge { flex: 1 1 80px; min-width: 60px; }
 .hub-etat-l small { font-size: var(--t-1); color: var(--encre-3); }
 .tuile-jauge { display: block; height: 4px; border-radius: var(--r-1); background: var(--noir); overflow: hidden; }
@@ -4581,6 +4603,13 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 /* Le classement au téléphone : le nom court sous 480 px, jamais coupé ; les deux premières colonnes collent. */
 .hub-classement td.nom { max-width: none; }
 .hub-classement td.nom .nom-court { display: none; }
+/* Nov. 2026 : six colonnes — la fiche V-D-DP sous le nom du club ; le club ouvert, sa fiche entière, ta fiche contre lui, ses meneurs. */
+.hub-classement td.nom .nom-fiche { display: block; margin-top: 1px; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; color: var(--encre-3); }
+.club-contre { margin: var(--esp-2) 0; }
+.club-meneurs { display: grid; gap: var(--esp-1); margin-bottom: var(--esp-2); }
+.club-meneur { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
+.club-meneur b { flex: 1; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.club-meneur em { font: 700 var(--t-1)/1 var(--display); font-style: normal; font-variant-numeric: tabular-nums; color: var(--or); }
 /* V18-5 (EHM) : en Rogue, un club se touche au Classement ; sa feuille s'ouvre à sa place, « ‹ Classement » y revient. */
 .hub-classement tr.a-club { cursor: pointer; }
 .hub-classement tr.a-club:hover td { background: var(--fond-2); }
@@ -4615,6 +4644,11 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-chips button.on { color: var(--encre); border-bottom-color: var(--or); }
 
 /* ---- Tes matchs, un par bande : la journée, le verdict, le pointage, l'adversaire ---- */
+/* Le calendrier se feuillette (nov. 2026) : quatre semaines, « ‹ › » dans son titre. */
+.calj-tete { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }
+.calj-nav-rang { display: inline-flex; align-items: center; gap: var(--esp-1); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); text-transform: none; }
+.calj-nav { min-width: 44px; min-height: 44px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 800 var(--t-4)/1 var(--display); cursor: pointer; }
+.calj-nav:disabled { opacity: 0.35; cursor: default; }
 .hub-jeux { display: flex; flex-direction: column; border-top: 1px solid var(--filet-2); }
 .hub-jeu { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-2); border-bottom: 1px solid var(--filet-2); border-left: 3px solid transparent; font-size: var(--t-2); cursor: pointer; transition: background var(--t-vite); }
 .hub-jeu:hover, .hub-jeu:focus-visible { background: var(--fond-1); }
@@ -4682,17 +4716,6 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .recit-j { flex: none; min-width: 34px; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
 /* La route de la saison : un filet, ce qui est fait en or, les moments dessus et dessous. */
 /* Une marque se centre sur sa journée : la ligne garde une marge où la première et la dernière tiennent entières. */
-.hub-route { position: relative; height: 40px; margin: var(--esp-1) var(--esp-4) var(--esp-2); }
-.hub-route::before { content: ""; position: absolute; left: 0; right: 0; top: 18px; height: 2px; background: var(--filet); }
-.hub-route-fait { position: absolute; left: 0; top: 18px; height: 2px; background: var(--or); }
-.hub-route-m { position: absolute; top: 0; transform: translateX(-50%); font-size: var(--t-3); line-height: 1; color: var(--encre-2); }
-.hub-route-m.haut { top: 0; }
-.hub-route-m.bas { top: 22px; }
-.hub-route-m.chemin { top: 7px; z-index: 1; border-radius: 50%; background: var(--noir); box-shadow: 0 0 0 2px var(--live); }
-.hub-route-m.passe { opacity: 0.35; }
-.hub-route-m.possible { opacity: 0.55; filter: grayscale(1); }
-.hub-route-ici { position: absolute; top: 13px; width: 12px; height: 12px; transform: translateX(-50%); border-radius: 50%; background: var(--or); box-shadow: 0 0 0 3px var(--noir); }
-.hub-route-legende { margin: 0 0 var(--esp-3); font-size: var(--t-1); line-height: 1.5; color: var(--encre-3); }
 
 /* ---- Le dépistage, plié sur l'affiche : chances, forces comparées (moi / lui), quoi faire ce soir ---- */
 .hub-dep-corps, .hub-dep-calc { display: flex; flex-direction: column; gap: var(--esp-3); }
@@ -4753,7 +4776,6 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-prev { margin-bottom: var(--esp-4); }
 .hub-prev-fin { font-size: var(--t-3); margin: var(--esp-1) 0; }
 .hub-prev-fin span { color: var(--encre-3); font-size: var(--t-2); }
-.hub-prev-joueurs th small { color: var(--encre-3); font-size: var(--t-1); }
 /* LES JAMBES (le volet de saison) : les plus usés d'abord, puis de quoi les ménager. */
 .ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
 .ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: var(--r-1); }
@@ -6104,7 +6126,8 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-inf-txt small { font-size: var(--t-1); color: var(--encre-2); }
 .jr-inf-reserve { margin: 0; font-size: var(--t-1); color: var(--encre-2); }
 .jr-barre { display: flex; flex-wrap: wrap; gap: var(--esp-2); margin-bottom: var(--esp-2); }
-.jr-barre .seg { flex: 1 1 auto; }
+.jr-barre .seg { flex: 0 1 auto; margin-left: auto; }
+.jr-barre .seg button { min-height: 36px; font-size: var(--t-1); }
 .jr-scroll { overflow-x: auto; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
 .jr-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .jr-table th, .jr-table td { padding: var(--esp-2); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--filet-2); }
@@ -6140,9 +6163,9 @@ body.mode-rogue .jr-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacin
 .ct-var { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; }
 .ct-var b { color: var(--encre); font-variant-numeric: tabular-nums; }
 .ct-var.v-num { color: var(--or); }
-.ct-mes-cartes { flex: none; }
-.ct-vues { flex: none; display: flex; gap: var(--esp-1); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--filet); }
-.ct-vues::-webkit-scrollbar { display: none; }
+/* Nov. 2026 : les vues de l'Album tiennent à 390 px (Coachs était coupé au bord), rien ne glisse. */
+.ct-vues { flex: none; display: flex; flex-wrap: wrap; gap: var(--esp-1); border-bottom: 1px solid var(--filet); }
+.vs-deblocages { margin-top: var(--esp-3); }
 .ct-nav { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }
 .ct-nav-btn { flex: none; width: 44px; height: 40px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 800 var(--t-4)/1 var(--display); }
 .ct-nav-btn:disabled { opacity: 0.35; }
@@ -6263,11 +6286,16 @@ body.mode-rogue .jr-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacin
 body.mode-rogue .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 .pk-corps > *, .inv-corps > *, .dp-corps > * { flex-shrink: 0; }
 .pk-mot { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
-.pk-garantie { margin: 0; padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); font-size: var(--t-2); line-height: 1.45; color: var(--encre); }
+.pk-garantie { border-left: 3px solid var(--or); padding-left: var(--esp-2); }
+.pr .pk-bareme-run { font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.03em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .pk-rayon h3 { display: flex; align-items: center; gap: var(--esp-2); margin: 0 0 var(--esp-2); padding-bottom: var(--esp-2); border-bottom: 1px solid var(--filet); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .pk-rabais { color: var(--or); }
 .pk-rangee { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); }
+/* Nov. 2026 : les quatre packs du début de front, deux par rangée, visibles sans défiler. */
+.pk-rayon-debut .pk-rangee { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pk-rayon-debut .pk-sachet { aspect-ratio: 5 / 3; }
 .pk-rayon-debut .pk-tout { width: 100%; margin-top: var(--esp-3); }
+.pk-club-ouvrir { margin-top: var(--esp-3); }
 /* Le rayon « Ton club » : l'écusson tient la place de la pochette. */
 .pk-club-ecu { display: block; width: 72%; aspect-ratio: 1; margin: var(--esp-1) auto var(--esp-2); filter: drop-shadow(0 6px 14px var(--noir)); }
 .pk-club-ecu > svg { width: 100%; height: 100%; }

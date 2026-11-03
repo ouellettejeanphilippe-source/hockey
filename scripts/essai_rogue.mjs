@@ -758,9 +758,9 @@ console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge
 if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne montre pas le plafond');
 // 1.0 (R4) ; V7 : le barème des jetons est écrit à la boutique, et ses chiffres sont ceux de la run (jamais tapés).
 {
-  // V7 : le barème est à la boutique, là où les jetons se dépensent.
-  await versMarche('boutique'); await page.waitForSelector('#pageMarche .pk-bareme-run', { timeout: 30000 }).catch(() => {});
-  const bareme = (await page.textContent('#pageMarche .pk-bareme-run').catch(() => '')) || '';
+  // Nov. 2026 : le barème est au Proprio, avec l'argent (il était à la boutique).
+  await versLOnglet('bureau', 'proprio'); await page.waitForSelector('#hubModal .pk-bareme-run', { timeout: 30000 }).catch(() => {});
+  const bareme = (await page.textContent('#hubModal .pk-bareme-run').catch(() => '')) || '';
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const svB = await lireSauvegarde();
   const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;
@@ -849,6 +849,9 @@ else {
   const tout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
   if (tout) { await tout.click(); await page.waitForTimeout(300); }
   const avantJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  // Nov. 2026 : le rayon du club se plie en une rangée ; la toucher l'ouvre.
+  const rangeeClub = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-club-ouvrir');
+  if (rangeeClub) { await rangeeClub.click(); await page.waitForTimeout(300); }
   // Le nuancier : l'onglet des couleurs en montre une par tuile, l'aplat et la seconde.
   await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon-club [data-onglet="palette"]');
   await page.waitForTimeout(300);
