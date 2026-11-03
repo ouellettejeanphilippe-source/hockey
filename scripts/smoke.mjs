@@ -1455,7 +1455,7 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
 
 /*
  * ALIGNER AU MIEUX (oct.). JP : *bouton best lines et best strategy pour éviter le gossage*. L'équipe complète, le
- * bouton de l'alignement offre ses styles ; « Offensif » réaligne sans perdre personne, et la saison reste lançable.
+ * bouton de l'alignement réaligne d'un toucher (nov. 2026 : plus de fenêtre) sans perdre personne, et la saison reste lançable.
  */
 if (await page.$eval('#mainBtn', b => !b.disabled)) {
   await aller('alignement');
@@ -1464,14 +1464,13 @@ if (await page.$eval('#mainBtn', b => !b.disabled)) {
   const avant = await signes();
   if (!(await page.$('#rosterBoard .ln-auto'))) errors.push('l\'alignement n\'offre pas « Aligner au mieux »');
   else {
+    // Nov. 2026 : le bouton agit sans fenêtre (il ouvrait une fenêtre à une seule option).
     await page.click('#rosterBoard .ln-auto');
-    await _wait('#choixModal:not([hidden]) [data-choix="equilibre"]', { timeout: 10000 });
-    const styles = await page.$$eval('#choixModal [data-choix]', e => e.map(x => x.dataset.choix));
-    await page.click('#choixModal [data-choix="equilibre"]');
     await page.waitForTimeout(400);
+    if (await page.$('#choixModal:not([hidden]) [data-choix]')) errors.push('« Aligner au mieux » ouvre encore une fenêtre');
     const apres = await signes();
     if (apres !== avant) errors.push(`« Aligner au mieux » perd des joueurs : ${avant} → ${apres}`);
-    console.log(`   aligner au mieux : ${styles.join(' · ')} — appliqué, ${apres} joueurs signés`);
+    console.log(`   aligner au mieux : appliqué d'un toucher, ${apres} joueurs signés`);
   }
   await aller('repechage');
   await page.waitForTimeout(300);
