@@ -365,6 +365,14 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 .tete-ch-l { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 /* Une info, une maison (JP : *le principe de GM Connected, c'est aussi de pas répéter les infos de page en page, genre le top bar*) : la fiche et le rang se lisent au Bureau, les jetons au Bureau et au Marché ; ailleurs l'en-tête n'est que l'identité du club et le menu. Au repêchage, il porte le plafond. */
 body:not([data-section="bureau"]):not([data-section="marche"]):not(.au-repechage) .tete-chiffres { display: none; }
+/* V23, la nouvelle interface : au Rogue, ta fiche et ton rang vivent sur l'affiche et la jauge du proprio ; l'en-tête ne garde que tes jetons, en une ligne. */
+body.mode-rogue :is(#teteFiche, #teteRang) { display: none; }
+body.mode-rogue #teteJetons { grid-template-columns: auto auto; align-items: baseline; column-gap: var(--esp-2); }
+body.mode-rogue #teteJetons .tete-ch-d { display: none; }
+/* Ce soir : tes jetons montent dans la ligne du club, à côté du menu ; la ligne des chiffres disparaît. */
+body.mode-rogue[data-section="bureau"] .topbar-inner { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "retour club chiffres menu"; }
+body.mode-rogue[data-section="bureau"] #teteJetons .tete-ch-l { display: none; }
+body.mode-rogue[data-section="bureau"] .tete-chiffres .tete-ch { border-left: 0; padding: 0; align-content: center; }
 body[data-section="marche"]:not(.au-repechage) :is(#teteFiche, #teteRang) { display: none; }
 .tete-ch-d { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tete-ch-d:empty { display: none; }
@@ -4069,19 +4077,19 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .bu-run.dans .bu-run-rang { color: var(--bon); }
 .bu-run.hors .bu-run-rang { color: var(--mauvais); }
 .bu-run-jauge { grid-column: 1 / -1; position: relative; height: 6px; background: var(--fond-3); }
-.bu-run-jauge i { position: absolute; inset: 0 auto 0 0; width: calc(var(--p) * 100%); background: var(--encre-3); transition: width 600ms var(--e-sortie); }
+.bu-run-jauge i { position: absolute; inset: 0 auto 0 0; width: max(6px, calc(var(--p) * 100%)); background: var(--encre-3); transition: width 600ms var(--e-sortie); }
 .bu-run.dans .bu-run-jauge i { background: var(--bon); }
 .bu-run.hors .bu-run-jauge i { background: var(--mauvais); }
 .bu-run-jauge::after { content: ""; position: absolute; top: -3px; bottom: -3px; left: calc(var(--c) * 100%); width: 2px; background: var(--blanc); }
 /* L'AFFICHE DU SOIR (V23, la nouvelle interface ; JP : *je veux une nouvelle interface, pour vrai*) : bord à bord, coupée
    en biais aux couleurs des deux clubs (deux aplats, un trait noir entre eux), les écussons en grand, le sigle, la fiche ;
    « VS » dans un losange noir au centre ; quand et où sur la bande du haut ; le face-à-face au pied. */
-.bu-prochain { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto 1fr auto; width: calc(100% + 2 * var(--esp-3)); min-height: 220px; margin: var(--esp-2) calc(-1 * var(--esp-3)) 0; padding: 0; border: 0; border-radius: 0; background: linear-gradient(100deg, var(--a-band) 0 49.4%, var(--noir-pur) 49.4% 50.6%, var(--b-band) 50.6%); color: var(--encre); text-align: center; cursor: pointer; animation: tele-balaie 520ms var(--e-sortie) both; }
+.bu-prochain { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto 1fr auto; width: calc(100% + 2 * var(--esp-3)); min-height: 176px; margin: var(--esp-2) calc(-1 * var(--esp-3)) 0; padding: 0; border: 0; border-radius: 0; background: linear-gradient(100deg, var(--a-band) 0 49.4%, var(--noir-pur) 49.4% 50.6%, var(--b-band) 50.6%); color: var(--encre); text-align: center; cursor: pointer; animation: tele-balaie 520ms var(--e-sortie) both; }
 .bu-prochain-k { grid-column: 1 / -1; display: flex; justify-content: center; gap: var(--esp-2); padding: var(--esp-1) var(--esp-3); background: var(--noir-pur); font: 800 var(--t-1)/1.4 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--encre-2); }
 .bu-prochain-gros { color: var(--or); }
 .bu-prochain.gros .bu-prochain-k { background: var(--or); color: var(--encre-sur-or); }
 .bu-prochain.gros .bu-prochain-gros { color: inherit; }
-.bu-vs-eq { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-width: 0; padding: var(--esp-3) var(--esp-4); animation: tele-monte 420ms 200ms var(--e-sortie) both; }
+.bu-vs-eq { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) var(--esp-4); animation: tele-monte 420ms 200ms var(--e-sortie) both; }
 .bu-vs-eq.toi { color: var(--a-ink); }
 .bu-vs-eq.eux { color: var(--b-ink); animation-delay: 300ms; }
 .bu-vs-eq b { max-width: 100%; font: 800 var(--t-7)/1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4133,6 +4141,9 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   .hub-barre .hub-actions-rang .btn { min-height: 44px; }
   /* Sous le volet, la place du bouton flottant (`.hub-flottant`) : défilé au bout, le dernier rang se lit. */
   body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: calc(var(--flottant-h) + 2 * var(--esp-3)); }
+  /* V23, la nouvelle interface : au Rogue, hier soir se lit entre l'affiche et ta main, comme une émission d'avant-match. */
+  body.mode-rogue.hub-docke .hub-sheet .hub-volet { order: 1; flex: 0 0 auto; padding-bottom: 0; }
+  body.mode-rogue.hub-docke .hub-sheet .hub-boite { flex: 1 0 auto; }
   /* Hors de « Match », le volet seul : l'affiche, la boîte et les boutons appartiennent au Bureau. */
   body.hub-docke .hub-sheet:not([data-vue="match"]) :is(.hub-carte, .hub-actions) { display: none; }
   body.hub-docke .hub-sheet .hub-actions { overflow: visible; min-height: auto; }
@@ -4325,12 +4336,12 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
    rouge quand il presse, elle se soulève sous le doigt. */
 /* LA MAIN DU JOUR (V23, « faut vraiment revoir ») : les choix en cartes debout, côte à côte, comme une main ; chacune sa
    maison en tête, la voix au cœur, le sujet dessous, son état au pied. Elles entrent en balayage, l'une après l'autre. */
-.hub-msgs { display: flex; justify-content: center; align-items: flex-start; padding: var(--esp-2) 0 var(--esp-3); }
+.hub-msgs { display: flex; justify-content: center; align-items: flex-start; padding: var(--esp-1) 0 var(--esp-3); }
 .hub-msgs > .af-maison { display: contents; }
 .hub-msgs .af-maison-tete, .hub-msgs .hub-msg-maison { display: none; }
 /* Une carte de la main : debout, au format d'une carte (5:7), penchée selon sa place dans l'éventail (`--r`, `--y`, posés par
    js/saison.js) ; elles se chevauchent quand la main est pleine ; sous le doigt, la carte se redresse et monte. */
-.hub-msg { position: relative; flex: 0 1 118px; min-width: 0; aspect-ratio: 5 / 7; margin: 0 -6px; border: 1px solid var(--filet); border-top: 4px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 18px 28px -16px var(--noir-pur); rotate: var(--r, 0deg); translate: 0 var(--y, 0); transform-origin: 50% 120%; transition: translate 160ms var(--e-sortie), rotate 160ms var(--e-sortie); animation: main-donne 420ms calc(var(--i, 0) * 80ms + 150ms) var(--e-sortie) both; }
+.hub-msg { position: relative; flex: 0 1 104px; min-width: 0; aspect-ratio: 5 / 7; margin: 0 -6px; border: 1px solid var(--filet); border-top: 4px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); box-shadow: 0 18px 28px -16px var(--noir-pur); rotate: var(--r, 0deg); translate: 0 var(--y, 0); transform-origin: 50% 120%; transition: translate 160ms var(--e-sortie), rotate 160ms var(--e-sortie); animation: main-donne 420ms calc(var(--i, 0) * 80ms + 150ms) var(--e-sortie) both; }
 @keyframes main-donne { from { opacity: 0; translate: 0 60px; } }
 .hub-msg.bloque { border-top-color: var(--mauvais); }
 .hub-msg:hover, .hub-msg:focus-within { z-index: 2; rotate: 0deg; translate: 0 -12px; }
@@ -4451,7 +4462,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-hier-eq em { flex: none; min-width: 1.6em; padding: var(--esp-1) var(--esp-3); text-align: center; font-style: normal; font-size: var(--t-6); background: var(--noir-pur); color: var(--blanc); }
 .hub-hier-eq.perd { filter: saturate(0.35) brightness(0.7); }
 .hub-hier-pied { grid-column: 2; display: flex; justify-content: space-between; gap: var(--esp-2); padding: 0 var(--esp-2); font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-.hub-hier-recit { grid-column: 1 / -1; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-2); }
+.hub-hier-recit { grid-column: 1 / -1; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-hier-voir { color: var(--or); }
 .hub-etat { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
 .hub-etat-l { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); min-width: 0; font-size: var(--t-2); }

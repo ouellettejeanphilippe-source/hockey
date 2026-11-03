@@ -2926,7 +2926,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const G0 = mb && MINI_BOSS[mb.raison];
     const a = ctx.band(you.tag), b = ctx.band(adv.tag);
     const pied = t => (jour ? `${ficheTexte(t)} · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'}` : t.season ? `saison ${t.season}` : '');
-    const eq = (t, cote) => `<span class="bu-vs-eq ${cote}">${ctx.logo(t.tag, 64)}<b>${ctx.esc(ctx.tagCourt(t))}</b><small>${ctx.esc(pied(t))}</small></span>`;
+    const eq = (t, cote) => `<span class="bu-vs-eq ${cote}">${ctx.logo(t.tag, 48)}<b>${ctx.esc(ctx.tagCourt(t))}</b><small>${ctx.esc(pied(t))}</small></span>`;
     return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}" style="--a-band:${a.bg};--a-ink:${a.ink};--b-band:${b.bg};--b-ink:${b.ink}" aria-label="Face à face : ${ctx.esc(ctx.teamShort(adv))}">
       <span class="bu-prochain-k">${G0 ? `<span class="bu-prochain-gros">${G0.ico} ${ctx.esc(G0.nom)}</span>` : ''}<span>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'chez toi' : 'chez eux'}</span></span>
       ${eq(you, 'toi')}<span class="bu-vs-mi" aria-hidden="true"><b>VS</b></span>${eq(adv, 'eux')}
