@@ -1289,7 +1289,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
   function blessureOuverte() {
     if (!onDecision) return null;
-    const x = blessureAFaire({ roster: you.roster, injured: you.injured, journal: you.injuriesLog, joues: miens.length, peutRappeler: rappelPossible });
+    const x = blessureAFaire({ roster: you.roster, injured: you.injured, journal: you.injuriesLog, joues: miens.length, peutRappeler: rappelPossible, remplacants: you.remplacants });
     return x ? x.b : null;
   }
   /* L'alignement où le blessé et un autre échangent leurs cases. */
@@ -3537,10 +3537,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const cleBl = getPlayerKey(alerte.player), idB = `b:${alerte.at}:${cleBl}`;
       const n = restantDe(alerte);
       const sl = caseHabillee(you.roster, alerte.player);
+      // Sa case tenue par le remplaçant de la ligue : c'est réglé, le médecin n'a plus rien à demander.
+      const tenue = !!(sl && you.remplacants && you.remplacants.get(sl.i) === cleBl);
       const bal = sl && ctx.ballottage && !pris.has(idB) ? ctx.ballottage(alerte.player, alerte.at) : null;
       const ecole = sl && ctx.rappelEcole && !pris.has(idB) ? ctx.rappelEcole(alerte.player, alerte.at) : null;
       // `etatDeBlessure` (js/ballottage.js) : le même verdict que l'avance. Un gardien n'est jamais forcé (`gardiensDuSoir`).
-      const etat = etatDeBlessure({ roster: you.roster, injured: you.injured, b: alerte, rappel: !!(bal && bal.candidats.length) || !!ecole });
+      const etat = etatDeBlessure({ roster: you.roster, injured: you.injured, b: alerte, rappel: !!(bal && bal.candidats.length) || !!ecole, remplacants: you.remplacants });
       const reserves = sl ? etat.reserves : [];
       const forcer = !!sl && etat.forcer;
       const options = [
@@ -3549,15 +3551,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ecole && !reserves.length ? { cle: 'ecole', ico: '📟', nom: `Club-école : ${ecole.p.n}`, sous: 'Gratuit, hors plafond', ouvre: true } : null,
         onBanc && sl ? { cle: 'banc', nom: 'Remanier derrière le banc', sous: 'Tes lignes, la case à combler', ouvre: true } : null,
         // V9 (tranche 6) : il joue diminué le temps qu'il lui restait ; s'il se blesse encore, l'absence s'allonge.
+        // Le remplaçant de la ligue (nov. 2026 ; JP : *un "fake" bad player temporary called-up*) : gratuit, faible, le temps de l'absence.
+        sl ? { cle: 'remplacant', ico: '🧢', nom: 'Un remplaçant de la ligue', sous: `Faible et gratuit ; il tient sa case jusqu'au retour de ${alerte.player.n}` } : null,
         ctx.rogue && sl && peutJouerBlesse(alerte) ? { cle: 'blesse', ico: SITUATIONS.amoche.ico, nom: 'Le jouer blessé', bon: 'Il garde sa case', prix: `Diminué ${n} match${n > 1 ? 's' : ''} ; s'il se blesse encore, l'absence s'allonge` } : null,
       ].filter(Boolean);
       // LA SCÈNE (Jalon M, A4) : le médecin, sur l'absence, la case et le prochain adversaire ; la question du remplaçant reste au récit.
       const pr = prochain(), advB = pr ? (pr.m.A === you ? pr.m.B : pr.m.A) : null;
       const scene = sceneDeLaBlessure({ joueur: alerte.player.n, n, total: alerte.games, ou: caseDe(alerte.player) || '', adv: advB ? ctx.teamShort(advB) : '', graine: `${graine}|${alerte.at}` });
       const note = `${forcer ? 'Il sort de ton alignement : qui joue sa case ?' : cap(remplacant(alerte.player))}`;
-      out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, joueur: alerte.player, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, ecole, palierB: idB, sl, reserves,
+      if (!tenue) out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, joueur: alerte.player, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, ecole, palierB: idB, sl, reserves,
         choix: { scene, recit: note, options, agir: cle => soignerLeBlesse(out.find(m => m.id === idB), cle),
-          decision: () => ({ palier: idB, blesse: { joueur: cleBl } }) } });
+          decision: cle => (cle === 'remplacant' ? { palier: idB, remplacant: { case: sl.i, joueur: cleBl } } : { palier: idB, blesse: { joueur: cleBl } }) } });
     }
     /*
      * LE RETOUR : qui revient, d'où il part et où il va, qui lui cède sa case et où celui-là retourne — deux lignes,
