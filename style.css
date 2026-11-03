@@ -733,6 +733,8 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .toast.bad { border-left-color: var(--mauvais); }
 @media (max-width: 1199.98px) {
   /* Au-dessus du bouton flottant (« Jour suivant », sa hauteur réservée) : le toast ne cache jamais ce qu'on touche. */
+  /* Au Bureau, la barre d'action est collée au bas (`--barre-h`, mesurée par js/saison.js) : le toast se pose au-dessus d'elle. */
+  body.hub-docke[data-section="bureau"] .toast { bottom: calc(var(--bas-coquille) + var(--barre-h, 0px) + var(--esp-4)); }
   .toast { left: 0; right: 0; top: auto; bottom: calc(var(--bas-coquille) + var(--flottant-h) + var(--esp-4)); max-width: none; border-radius: 0; border-left: 0; border-top: 2px solid var(--club-vif); transform: translateY(6px); text-align: left; }
   .toast.on { transform: none; }
   .toast.warn { border-top-color: var(--or); }

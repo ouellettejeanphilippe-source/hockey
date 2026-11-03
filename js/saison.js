@@ -3963,6 +3963,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${attente ? '' : `<button class="btn hub-semaine" title="Jusqu'au lundi ; seul un gros match ou un blessé à remplacer l'arrête">${ctx.rogue ? ctx.esc(motDeLaSemaine()) : 'Jusqu\'à lundi'}</button>`}
       </div></div>
       ${boiteHtml}`;
+    // La barre d'action collée au bas (nov. 2026) : sa hauteur, pour que le toast se pose au-dessus d'elle, jamais sur le bouton du soir.
+    requestAnimationFrame(() => { const b = actions.querySelector('.hub-barre'); document.documentElement.style.setProperty('--barre-h', b && b.isConnected ? `${Math.ceil(b.getBoundingClientRect().height)}px` : '0px'); });
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
     // ENVOYER UN CHOIX (`deciderMaintenant`, js/banc.js) : la saison se rejoue avec lui.
     const envoyer = (m, cles) => {
