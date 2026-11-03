@@ -282,15 +282,19 @@ async function guetterBords(ou) {
   for (const x of f) { const k = x.replace(/ à .*$/, ''); if (!bords.fautes.has(k)) { bords.fautes.set(k, `${x} — ${ou}`); neuve = true; console.log(`   ▸ au bord : ${x} — ${ou} (capture ${bords.fautes.size})`); } }
   if (neuve && bords.fautes.size <= 12) await page.screenshot({ path: `${DOSSIER}/rogue-bord-${bords.fautes.size}.png` }).catch(() => {});
 }
-/* Chaque section et chacun de ses sous-onglets, sauf les Lignes (elles mènent derrière le banc), mesurés au bord. */
+/* Chaque section et chacun de ses sous-onglets, sauf les Lignes (elles mènent derrière le banc), mesurés au bord.
+   V23 : les quatre portes du Rogue (Ce soir, Ton club, Marché, Ligue) ; `CAPTURES_PAGES=1` garde une capture de chaque page
+   (page-<quand>-<porte>-<page>.png), pour juger où vit chaque info. */
+const capturerPage = async nom => { if (process.env.CAPTURES_PAGES) await page.screenshot({ path: `${DOSSIER}/page-${nom.replace(/[^a-z0-9]+/gi, '-')}.png` }).catch(() => {}); };
 async function tourDesBords(quand) {
-  for (const sec of ['bureau', 'joueurs', 'marche', 'ligue']) {
+  for (const sec of ['bureau', 'club', 'marche', 'ligue']) {
     await page.click(`#navbar .navtab[data-section="${sec}"]`).catch(() => {}); await page.waitForTimeout(400);
     const pages = await page.$$eval('#sousNav:not([hidden]) .soustab', b => b.map(x => x.dataset.page)).catch(() => []);
-    if (!pages.length) await guetterBords(`${quand} · ${sec}`);
+    if (!pages.length) { await guetterBords(`${quand} · ${sec}`); await capturerPage(`${quand}-${sec}`); }
     for (const pg of pages.filter(x => x !== 'alignement')) {
       await page.click(`#sousNav .soustab[data-page="${pg}"]`).catch(() => {}); await page.waitForTimeout(400);
       await guetterBords(`${quand} · ${sec} › ${pg}`);
+      await capturerPage(`${quand}-${sec}-${pg}`);
     }
   }
   await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(300);
@@ -1175,6 +1179,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     if (restes.length) erreurs.push('le sous-onglet de l\'entraîneur montre encore du personnel ou ses échelons');
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
+  // Le même tour qu'au premier jour, en pleine saison : chaque page au bord, et capturée si on le demande.
+  await tourDesBords('la mi-saison');
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste
   // un écran. La boîte et les sous-onglets qui ont des choix se mesurent : leurs choix se plieront (V12-4b).
   // Le dépistage d'Effectif aussi, un soir de gros match compris.
