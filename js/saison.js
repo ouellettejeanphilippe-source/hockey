@@ -233,8 +233,8 @@ const vignette = (ctx, p) => (ctx.mug
  * toujours (`PERMANENT`) — `vide` dit ce qu'il montre avant qu'il y ait quelque chose. Le gros match et la signature
  * gardent leur écran, et la boîte en montre la porte.
  */
-/* Ton histoire (le vestiaire) montre ses derniers moments ; les autres se déplient (V12-4). */
-const RECIT_RECENTS = 8;
+/* Ton histoire (le vestiaire) montre ses cinq derniers moments, une ligne chacun ; les autres se déplient (V12-4 ; nov. 2026). */
+const RECIT_RECENTS = 5;
 const MAISONS = {
   proprio: { ico: '🏢', titre: 'Le bureau du proprio', vide: 'Son mandat arrive avec la saison.' },
   entraineur: { ico: '🧑‍🏫', titre: 'Le coach', vide: 'Ton coach arrive avec la saison.' },
@@ -486,8 +486,10 @@ const versEquipe = (ctx, t, texte) => (t
  * tableaux du même volet ne se marchent pas dessus ; `tete` est la colonne
  * de gauche — le code d'équipe aux meneurs, la case dans une équipe.
  */
-function tableJoueurs(ctx, { titre, id, colonnes, lignes, tri, tete = 'eq', limite = 0, note = '', depart = 0 }) {
-  if (!lignes.length) return `<div class="live-tableau"><div class="live-tableau-titre">${ctx.esc(titre)}</div><div class="live-vide">Aucun match joué encore.</div></div>`;
+function tableJoueurs(ctx, { titre = '', id, colonnes, lignes, tri, tete = 'eq', limite = 0, note = '', depart = 0 }) {
+  // Nov. 2026 : sans `titre`, pas de titre (les meneurs : le jeton Patineurs · Gardiens le dit déjà).
+  const entete = titre ? `<div class="live-tableau-titre">${ctx.esc(titre)}</div>` : '';
+  if (!lignes.length) return `<div class="live-tableau">${entete}<div class="live-vide">Aucun match joué encore.</div></div>`;
   const col = colonnes.find(c => c.cle === tri.cle) || colonnes[colonnes.length - 1];
   const rangs = lignes.slice().sort((x, y) => {
     const d = col.v(x.c) - col.v(y.c);
@@ -504,7 +506,7 @@ function tableJoueurs(ctx, { titre, id, colonnes, lignes, tri, tete = 'eq', limi
   // son propre conteneur, comme tous les tableaux du jeu.
   // V23 : aux meneurs, chaque rangée porte le filet de son club et le podium se lit sur l'or.
   // Nov. 2026 : le club (ou la case) se lit sous le nom, pas dans une colonne — six colonnes à 390 px, jamais un glissement.
-  return `<div class="live-tableau hub-table${tete === 'eq' ? ' meneurs' : ''}"><div class="live-tableau-titre">${ctx.esc(titre)}</div>
+  return `<div class="live-tableau hub-table${tete === 'eq' ? ' meneurs' : ''}">${entete}
     <div class="hub-scroll"><table><thead><tr><th>#</th><th>Joueur</th>${colonnes.map(th).join('')}</tr></thead>
     <tbody>${vues.map((l, i) => `<tr class="${l.toi ? 'toi' : ''}${l.blesse ? ' blesse' : ''}${l.parti ? ' parti' : ''}"${tete === 'eq' && l.t ? ` style="${varsEquipe(ctx.band(l.t.tag))}"` : ''}>
       <td>${i + 1 + depart}</td><td class="nom">${nomLie(ctx, l)}${l.blesse ? ` <span class="hub-bl" title="Blessé">🩹 ${l.blesse}</span>` : ''}<small class="${tete === 'eq' ? 'eq' : 'role'}">${tete === 'eq' ? versEquipe(ctx, l.t, l.eq) : ctx.esc(l.role)}</small></td>${cellules(l)}</tr>`).join('')}</tbody></table></div>
@@ -521,7 +523,7 @@ const chips = (liste, actif, attr) => `<div class="hub-chips">${liste.map(o =>
  * n'importe quelle colonne. `etat` garde la vue, le tri et la limite
  * d'affichage entre deux rendus — le volet se refait à chaque journée.
  */
-function meneursHtml(ctx, compte, equipeDe, you, titre, menu, minGardien = 1) {
+function meneursHtml(ctx, compte, equipeDe, you, menu, minGardien = 1) {
   const entrees = [...compte.entries()];
   if (!entrees.length) return '<div class="live-vide">Aucun match joué encore.</div>';
   const ligne = ([p, c]) => {
@@ -541,14 +543,15 @@ function meneursHtml(ctx, compte, equipeDe, you, titre, menu, minGardien = 1) {
   let podium = '';
   if (ctx.carton && lignes.length >= 3) {
     const tete = lignes.slice().sort((x, y) => { const d = col.v(x.c) - col.v(y.c); return (tri.asc ? d : -d) || (y.c.pts - x.c.pts) || (y.c.gp - x.c.gp); }).slice(0, 3);
-    const marche = (l, r) => carteLigne(ctx.carton(l.p), `${nomLie(ctx, l)} · ${versEquipe(ctx, l.t, l.eq)}`, { coins: coin(r, { cote: 'gauche' }) + coin(col.fmt ? col.fmt(col.v(l.c)) : col.v(l.c), { unite: col.t }), attrs: ` style="${varsEquipe(ctx.band(l.t.tag))}"` });
+    // Nov. 2026 (le contenu, de zéro) : rien sous la carte — elle écrit déjà le nom et porte l'écusson.
+    const marche = (l, r) => carteLigne(ctx.carton(l.p), '', { coins: coin(r, { cote: 'gauche' }) + coin(col.fmt ? col.fmt(col.v(l.c)) : col.v(l.c), { unite: col.t }), attrs: ` style="${varsEquipe(ctx.band(l.t.tag))}"` });
     podium = podiumHtml([marche(tete[0], 1), marche(tete[1], 2), marche(tete[2], 3)]);
     lignes = lignes.filter(l => !tete.includes(l));
   }
   return chips([{ cle: 'PAT', nom: 'Patineurs' }, { cle: 'GAR', nom: 'Gardiens' }], menu.vue, 'vue')
     + podium
     + tableJoueurs(ctx, {
-      titre: `${gardiens ? 'Gardiens' : 'Patineurs'} · ${titre}`, id: `meneurs${menu.vue}`,
+      id: `meneurs${menu.vue}`,
       colonnes, lignes, depart: podium ? 3 : 0,
       tri, limite: menu.limite,
     });
@@ -1408,15 +1411,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const parMatch = (t, k) => { const n = gpDe(t); return n >= 3 ? fiche.get(t)[k] / n : NaN; };
   const MESURES = {
-    attaque: { ico: '⚔', nom: 'Attaque', val: t => parMatch(t, 'GF'), mot: x => `${virgule(x, 2)} buts par match` },
+    attaque: { ico: '⚔', nom: 'Attaque', val: t => parMatch(t, 'GF'), mot: x => `${virgule(x, 2)} buts par match`, court: x => `${virgule(x)} b/m` },
     // LA DÉFENSE, CE SONT LES BUTS ACCORDÉS (1.0, oct.). JP : *c'est ma défense qui torche mais les stats disent l'inverse* —
     // elle se lisait aux TIRS accordés (31e), alors que son gardien en arrêtait ,969. Les mots de la puce « Buts contre ».
-    defense: { ico: '🚫', nom: 'Défense', bas: true, val: t => parMatch(t, 'GA'), mot: x => `${virgule(x, 2)} buts accordés par match` },
-    vitesse: { ico: '⏩', nom: 'Vitesse', val: t => parMatch(t, 'SF'), mot: x => `${virgule(x)} tirs par match` },
-    gardiens: { ico: '✋', nom: 'Devant le filet', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.SA ? 1 - g.GA / g.SA : NaN; }, mot: x => `${svMot(x)} d'arrêts` },
-    an: { ico: '➕', nom: 'Avantage numérique', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.PPO >= 5 ? g.PPG / g.PPO : NaN; }, mot: x => `${pctMot(x)} en avantage` },
-    inf: { ico: '➖', nom: 'Infériorité', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.PKO >= 5 ? 1 - g.PKGA / g.PKO : NaN; }, mot: x => `${pctMot(x)} des punitions tuées` },
-    discipline: { ico: '🟨', nom: 'Discipline', bas: true, val: t => parMatch(t, 'PKO'), mot: x => `${virgule(x)} punitions par match` },
+    defense: { ico: '🚫', nom: 'Défense', bas: true, val: t => parMatch(t, 'GA'), mot: x => `${virgule(x, 2)} buts accordés par match`, court: x => `${virgule(x)} b/m` },
+    vitesse: { ico: '⏩', nom: 'Vitesse', val: t => parMatch(t, 'SF'), mot: x => `${virgule(x)} tirs par match`, court: x => `${virgule(x, 0)} t/m` },
+    gardiens: { ico: '✋', nom: 'Devant le filet', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.SA ? 1 - g.GA / g.SA : NaN; }, mot: x => `${svMot(x)} d'arrêts`, court: x => svMot(x) },
+    an: { ico: '➕', nom: 'Avantage numérique', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.PPO >= 5 ? g.PPG / g.PPO : NaN; }, mot: x => `${pctMot(x)} en avantage`, court: x => pctMot(x) },
+    inf: { ico: '➖', nom: 'Infériorité', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.PKO >= 5 ? 1 - g.PKGA / g.PKO : NaN; }, mot: x => `${pctMot(x)} des punitions tuées`, court: x => pctMot(x) },
+    discipline: { ico: '🟨', nom: 'Discipline', bas: true, val: t => parMatch(t, 'PKO'), mot: x => `${virgule(x)} punitions par match`, court: x => `${virgule(x)} pun/m` },
   };
   const mesureDe = (t, k) => { const M = MESURES[k], v = M.val(t); return Number.isFinite(v) ? { v, ...(rangSur(t, M.val, M.bas) || {}) } : null; };
   const moyenneLigue = k => { const vs = teams.map(MESURES[k].val).filter(Number.isFinite); return vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : NaN; };
@@ -1742,7 +1745,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const m = mesureDe(you, k);
       if (!m || !m.sur) continue;
       const q = Math.ceil(m.sur / 4);
-      const l = { k, rang: m.rang, sur: m.sur, txt: `${MESURES[k].ico} ${MESURES[k].nom} : ${MESURES[k].mot(m.v)} — ${rangMot(m.rang)} sur ${m.sur}` };
+      // Nov. 2026 (le contenu, de zéro) : le chiffre et le rang, rien d'autre — « ⚔ Attaque 2,1 b/m · 28e ».
+      const l = { k, rang: m.rang, sur: m.sur, txt: `${MESURES[k].ico} ${MESURES[k].nom} ${MESURES[k].court(m.v)} · ${rangMot(m.rang)}` };
       if (m.rang <= q) forces.push(l); else if (m.rang > m.sur - q) faiblesses.push(l);
     }
     forces.sort((a, b) => a.rang - b.rang); faiblesses.sort((a, b) => b.rang - a.rang);
@@ -1763,14 +1767,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const n10 = Math.min(10, miens.length);
     const liste = (xs, cls) => xs.slice(0, 3).map(x => `<div class="hub-rap-l ${cls}">${ctx.esc(x.txt)}</div>`).join('');
     return `<div class="hub-rapport">
-      <div class="hub-rap-s">Ce qui marche</div>${forces.length ? liste(forces, 'bon') : '<div class="hub-rap-l">Rien ne sort du lot : tu es dans la moyenne partout.</div>'}
-      <div class="hub-rap-s">Ce qui coule</div>${faiblesses.length ? liste(faiblesses, 'prix') : '<div class="hub-rap-l">Pas de trou évident.</div>'}
+      <div class="hub-rap-s">Ce qui marche</div>${forces.length ? liste(forces, 'bon') : '<div class="hub-rap-l">Dans la moyenne</div>'}
+      <div class="hub-rap-s">Ce qui coule</div>${faiblesses.length ? liste(faiblesses, 'prix') : '<div class="hub-rap-l">Aucun trou</div>'}
       <div class="hub-rap-s">Tes lignes à forces égales</div>
-      <div class="hub-rap-lignes">${L.map((x, u) => `<span><b>${NOMS[u]}</b> ${x.b} but${x.b > 1 ? 's' : ''} · ${x.t} tirs</span>`).join('')}</div>
+      <div class="hub-rap-lignes">${L.map((x, u) => `<span><b>${NOMS[u]}</b> ${x.b} b · ${x.t} tirs</span>`).join('')}</div>
       <div class="hub-rap-s">Tes ${n10} derniers matchs</div>
-      ${chaud ? `<div class="hub-rap-l bon">🔥 ${ctx.esc(chaud.p.n)} : ${chaud.c.pts} point${chaud.c.pts > 1 ? 's' : ''} (${chaud.c.g} but${chaud.c.g > 1 ? 's' : ''})</div>` : ''}
-      ${froid ? `<div class="hub-rap-l prix">🥶 ${ctx.esc(froid.p.n)} : ${froid.d.pts} point en ${froid.d.gp} matchs, après ${froid.s.pts} cette saison</div>` : ''}
-      ${!chaud && !froid ? '<div class="hub-rap-l">Personne n\'est en feu, personne n\'est en panne.</div>' : ''}
+      ${chaud ? `<div class="hub-rap-l bon">🔥 ${ctx.esc(chaud.p.n)} · ${chaud.c.pts} pts · ${chaud.c.g} b</div>` : ''}
+      ${froid ? `<div class="hub-rap-l prix">🥶 ${ctx.esc(froid.p.n)} · ${froid.d.pts} pt en ${froid.d.gp} · ${froid.s.pts} pts la saison</div>` : ''}
+      ${!chaud && !froid ? '<div class="hub-rap-l">🔥 personne · 🥶 personne</div>' : ''}
     </div>`;
   }
 
@@ -2421,30 +2425,30 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * matchs (chez toi ou chez eux), le gros match contre un rival choisi ou ta bête noire, le lundi, le pack gratuit.
    * Ce qui naîtra en route (une blessure, un événement) n'y est pas : il arrivera dans À faire.
    */
-  const ROUTE_JOURS = 14;
   // EN PUCES (docs/ecrans-rogue.md, E4) : la route se lit d'un coup d'œil, de gauche à droite. D'où tu viens est parti au
   // Calendrier, qui dit tes matchs joués (V18-5).
+  // NOV. 2026 (le contenu, de zéro ; interface.md : jamais un glissement de côté) : tes TROIS prochains matchs, trois billets de
+  // front, sans rail — quand et où, l'écusson, le sigle, le rang et la fiche ; un gros match dit sa prime.
+  const ROUTE_MATCHS = 3;
   const routeDeuxSemaines = () => {
     if (!ctx.rogue || jour >= N) return '';
-    const fin = Math.min(N, jour + ROUTE_JOURS), arrets = [];
-    let n = miens.length;
-    for (let j = jour; j < fin; j++) {
-      if (j > jour && j % SEMAINE === 0) arrets.push('<li class="pl-billet pl-billet-lundi" aria-label="Lundi"><span class="pl-billet-i" aria-hidden="true">📅</span></li>');
+    const arrets = [];
+    let n = miens.length, nGros = 0, nPacks = 0;
+    for (let j = jour; j < N && arrets.length < ROUTE_MATCHS; j++) {
       const m = monMatch(j);
       if (!m) continue;
       n++;
       const adv = m.A === you ? m.B : m.A;
       const gros = grosDuJour(j) || (gros10(j) && (rivalChoisiDe(adv) ? { raison: 'choisi' } : you.beteNoire === adv ? { raison: 'nemesis' } : null));
       const pack = PALIERS_PACK.includes(n) ? '<span class="pl-coin pl-coin-droite rt-pack" title="Une carte parmi trois après ce match">🎁</span>' : '';
-      // LE PLATEAU (nov. 2026) : chaque arrêt est un BILLET — quand et où en tête, le club en gros, sa fiche et son rang au pied ;
-      // un gros match dit sa prime à la place.
-      const pied = gros && MINI_BOSS[gros.raison] ? `${MINI_BOSS[gros.raison].nom} · +${primeDuGros()} 🪙` : jour ? `${rangDe(adv)}${rangDe(adv) === 1 ? 'er' : 'e'} · ${ficheTexte(adv)}` : (adv.season ? `saison ${adv.season}` : '');
-      arrets.push(billet({ quand: `${j === jour ? 'Ce soir' : `J${j + 1}`} · ${m.A === you ? 'chez toi' : 'chez eux'}`, ico: gros && MINI_BOSS[gros.raison] ? MINI_BOSS[gros.raison].ico : ctx.logo(adv.tag, 22), nom: ctx.esc(ctx.teamShort(adv)), pied: ctx.esc(pied),
+      if (gros) nGros++;
+      if (pack) nPacks++;
+      const pied = gros && MINI_BOSS[gros.raison] ? `+${primeDuGros()} 🪙` : jour ? `${rangMot(rangDe(adv))} · ${ficheTexte(adv)}` : '';
+      arrets.push(billet({ quand: `${j === jour ? 'Ce soir' : `J${j + 1}`} · ${m.A === you ? 'chez toi' : 'chez eux'}`, ico: ctx.logo(adv.tag, 22), nom: ctx.esc(ctx.tagCourt(adv)), pied: ctx.esc(pied),
         cls: `${gros ? 'pl-billet-gros' : ''}${j === jour ? ' pl-billet-soir' : ''}`, attrs: gros && MINI_BOSS[gros.raison] ? ` title="Gros match · ${ctx.esc(MINI_BOSS[gros.raison].nom)}"` : '', coinHtml: pack }));
     }
-    const nGros = arrets.filter(a => a.includes('pl-billet-gros')).length, nPacks = arrets.filter(a => a.includes('rt-pack')).length;
-    const compte = [nGros ? `${nGros} gros match${nGros > 1 ? 's' : ''}` : '', nPacks ? `${nPacks} palier${nPacks > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
-    return arrets.length ? `<section class="bu-route" aria-label="La route">${bandeau('La route · deux semaines', ctx.esc(compte))}<ol class="pl-billets">${arrets.join('')}</ol></section>` : '';
+    const compte = [nGros ? `⚔ ${nGros}` : '', nPacks ? `🎁 ${nPacks}` : ''].filter(Boolean).join(' · ');
+    return arrets.length ? `<section class="bu-route" aria-label="La route">${bandeau('La route', compte)}<ol class="pl-billets">${arrets.join('')}</ol></section>` : '';
   };
   const voletJourneeSeul = () => {
     if (soirEnVolet && !jour) return '';
@@ -2520,13 +2524,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // quand elle serait sous le pli (le mandat se lit d'un coup d'œil), et dit où tu es par rapport à la ligne.
     const cl = classement(), pMatch = prochain(), advSoir = pMatch ? (pMatch.m.A === you ? pMatch.m.B : pMatch.m.A) : null;
     const rivaux = new Set((you.rivaux || []).map(x => x.cle));
-    const mot = (t, i) => [t === you ? 'toi' : '', rivaux.has(`${t.season}|${t.tag}`) ? 'ton rival' : '', t === advSoir ? 'ce soir' : '', t === you && ctx.rogue && i + 1 > enSeries ? `${i + 1 - enSeries} rang${i + 1 - enSeries > 1 ? 's' : ''} sous la ligne` : ''].filter(Boolean).map(x => ` · ${x}`).join('');
-    const rangee = (t, i, epingle = false) => { const g = fiche.get(t); return `<tr class="${t === you ? 'toi' : ''}${epingle ? ' epingle' : ''}${i === enSeries - 1 && !epingle ? ' cut' : ''}${clubsAuClassement ? ' a-club' : ''}" style="${varsEquipe(ctx.band(t.tag))}"${ouvre(t)}><td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 22)} <span class="nom-long">${ctx.esc(ctx.teamShort(t))}</span><span class="nom-court">${ctx.esc(ctx.tagCourt(t))}</span><small class="nom-fiche">${g.W}-${g.L}-${g.OTL}${ctx.esc(mot(t, i))}</small></td><td>${g.W + g.L + g.OTL}</td><td class="heros">${g.PTS}</td><td>${g.GF - g.GA > 0 ? '+' : ''}${g.GF - g.GA}</td><td>${dixDerniers(t)}</td></tr>`; };
+    // NOV. 2026 (le contenu, de zéro) : sous ton nom, l'écart à la ligne en chiffre (« 31e · −15 »), jamais tronqué ; sous les
+    // autres, la fiche, ton rival, ce soir. Le titre est le bandeau « La ligne à 16 » (la journée est en en-tête) ; PJ est parti,
+    // pour que « 10 derniers » tienne entier à 390 px : cinq colonnes.
+    const mot = t => [rivaux.has(`${t.season}|${t.tag}`) ? 'ton rival' : '', t === advSoir ? 'ce soir' : ''].filter(Boolean).map(x => ` · ${x}`).join('');
+    const ligne = cl[enSeries - 1] ? fiche.get(cl[enSeries - 1]).PTS : 0;
+    const sousMoi = i => { const e = fiche.get(you).PTS - ligne; return `${rangMot(i + 1)} · ${e > 0 ? '+' : e < 0 ? '−' : ''}${Math.abs(e)}`; };
+    const rangee = (t, i, epingle = false) => { const g = fiche.get(t); return `<tr class="${t === you ? 'toi' : ''}${epingle ? ' epingle' : ''}${i === enSeries - 1 && !epingle ? ' cut' : ''}${clubsAuClassement ? ' a-club' : ''}" style="${varsEquipe(ctx.band(t.tag))}"${ouvre(t)}><td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 22)} <span class="nom-long">${ctx.esc(ctx.teamShort(t))}</span><span class="nom-court">${ctx.esc(ctx.tagCourt(t))}</span><small class="nom-fiche">${t === you && ctx.rogue ? sousMoi(i) : `${g.W}-${g.L}-${g.OTL}${ctx.esc(mot(t))}`}</small></td><td class="heros">${g.PTS}</td><td>${g.GF - g.GA > 0 ? '+' : ''}${g.GF - g.GA}</td><td>${dixDerniers(t)}</td></tr>`; };
     const moi = cl.indexOf(you);
     const epingle = ctx.rogue && jour && moi >= 8 ? rangee(you, moi, true) : '';
-    return `<div class="live-tableau hub-classement"><div class="live-tableau-titre">Classement · journée ${jour} · les ${enSeries} premiers vont en séries</div>
-      <table><thead><tr><th>#</th><th>Équipe</th><th>PJ</th><th class="heros">PTS</th><th>Diff</th><th title="Les dix derniers matchs : V-D-DP">10 derniers</th></tr></thead>
-      <tbody>${epingle}${cl.map((t, i) => rangee(t, i) + (i === enSeries - 1 && ctx.rogue ? '<tr class="cut-ligne" aria-hidden="true"><td colspan="6">Ligne des séries</td></tr>' : '')).join('')}</tbody></table></div>${resultatsDuJour()}`;
+    return `<div class="live-tableau hub-classement">${ctx.rogue ? bandeau(`La ligne à ${enSeries}`) : `<div class="live-tableau-titre">Classement · journée ${jour} · les ${enSeries} premiers vont en séries</div>`}
+      <table><thead><tr><th>#</th><th>Équipe</th><th class="heros">PTS</th><th>Diff</th><th title="Les dix derniers matchs : V-D-DP">10 derniers</th></tr></thead>
+      <tbody>${epingle}${cl.map((t, i) => rangee(t, i) + (i === enSeries - 1 && ctx.rogue ? '<tr class="cut-ligne" aria-hidden="true"><td colspan="5">Ligne des séries</td></tr>' : '')).join('')}</tbody></table></div>${resultatsDuJour()}`;
   };
 
   /*
@@ -2538,48 +2547,58 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * matchs et leur issue, les séquences — rangé en trois actes. La rivalité
    * qui s'en dégage suit ta formation jusqu'aux séries.
    */
-  // Les actes commencent au 1er, au 29e et au 57e match (1.0, oct. : le jour de ce match, au vrai calendrier).
-  const ACTES = [[0, 'Acte I', "L'automne"], [28, 'Acte II', "L'hiver"], [56, 'Acte III', 'Le sprint']].map(([k, ...r]) => [k ? jEv(k) : 0, ...r]);
   const nomJoueur = cle => { const p = cle && Object.values(you.roster || {}).find(x => x && getPlayerKey(x) === cle); return p ? p.n : ''; };
   const scoreDe = (j, m) => { const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA; return `${pour}–${contre}${m.ot ? ' (P)' : ''}`; };
+  /*
+   * NOV. 2026 (le contenu, de zéro ; JP : *clair, informatif, plaisant, mais pas trop de texte*) : UNE ligne par moment, huit
+   * mots au plus — « J26 ⚔ Canucks '98 · perdu 1–8 », « J22 📺 La tournée des médias », « J29 📋 Ballottage ×2 » (un même
+   * moment répété le même jour se compte) ; les périodes d'un duel restent au sommaire du match. Les cinq derniers, puis
+   * « Plus tôt › » qui déplie le reste. Les trois actes sont partis avec leurs phrases.
+   */
+  const clubCourt = t => ctx.teamShort(t).replace(/ \d{4}-(\d{2})$/, " '$1");
   const recitHtml = () => {
     const ev = [];
+    const qui = cle => nomCourt(nomJoueur(cle) || 'un joueur');
     for (const d of decs) {
       if (d.jour == null || d.jour > jour) continue;
-      if (d.objectif && OBJECTIFS[d.objectif.cle]) ev.push({ j: d.jour, t: `🏢 Le proprio exige : <b>${ctx.esc(motsDeLObjectif(d.objectif.cle, d.objectif.quoi).nom)}</b>` });
-      else if (typeof d.palier === 'string' && d.palier.startsWith('r:') && d.place && BANQUE[d.place]) ev.push({ j: d.jour, t: `🎁 Butin d'une victoire : ${BANQUE[d.place].ico} <b>${ctx.esc(BANQUE[d.place].nom)}</b>` });
-      else if (typeof d.palier === 'string' && d.palier.startsWith('v:')) ev.push({ j: d.jour, t: d.place && BANQUE[d.place] ? `🏆 Objectif atteint — le proprio paie : ${BANQUE[d.place].ico} <b>${ctx.esc(BANQUE[d.place].nom)}</b>` : '😬 Objectif raté : le savon dans le bureau du proprio' });
+      if (d.objectif && OBJECTIFS[d.objectif.cle]) ev.push({ j: d.jour, t: `🏢 ${ctx.esc(motsDeLObjectif(d.objectif.cle, d.objectif.quoi).nom)}` });
+      else if (typeof d.palier === 'string' && d.palier.startsWith('r:') && d.place && BANQUE[d.place]) ev.push({ j: d.jour, t: `🎁 ${BANQUE[d.place].ico} ${ctx.esc(BANQUE[d.place].nom)}` });
+      else if (typeof d.palier === 'string' && d.palier.startsWith('v:')) ev.push({ j: d.jour, t: d.place && BANQUE[d.place] ? `🏆 Objectif atteint · ${BANQUE[d.place].ico} ${ctx.esc(BANQUE[d.place].nom)}` : '😬 Objectif raté' });
       else if (d.moment) {
         const cat = familleDeMoment(d.moment);
         if (!cat) continue;
-        const o = (cat.options || []).find(x => x.cle === d.moment.choix);
-        const titre = String(cat.titre).replace(/\{nom\}/g, nomJoueur(d.moment.joueur) || 'un joueur');
-        // « Un match à la galerie de presse pour {nom} » : l'option nomme son joueur, comme à l'écran du choix.
-        const choisi = o ? String(o.nom).replace(/\{nom\}/g, nomJoueur(d.moment.joueur) || 'lui').replace(/\{aux\}/g, 'l\'auxiliaire') : '';
-        ev.push({ j: d.jour, t: `${cat.ico} ${ctx.esc(titre)}${o ? ` — tu as choisi : <b>${ctx.esc(choisi)}</b>` : ''}` });
+        ev.push({ j: d.jour, t: `${cat.ico} ${ctx.esc(String(cat.titre).replace(/\{nom\}/g, qui(d.moment.joueur)))}` });
       } else if (d.deck && SORTES_DECK[d.deck]) {
         const S = SORTES_DECK[d.deck], M = d.mutation && MUTATIONS[d.mutation.cle];
-        const qui = d.deck === 'recrue' ? nomJoueur(d.ballottage && d.ballottage.entre) : d.mutation ? nomJoueur(d.mutation.joueur) : '';
         // S80 : la modif gardée au palier (`garde`, « joueur:affute ») attend dans l'inventaire.
         const MG = d.garde ? MUTATIONS[String(d.garde).split(':')[1]] : null;
-        const t = d.deck === 'recrue' ? `Recrue : <b>${ctx.esc(qui || 'un joueur')}</b> signé`
-          : MG ? `${MG.ico} <b>${ctx.esc(MG.nom)}</b> gardée dans tes cartes`
-          : M ? `${M.ico} ${ctx.esc(M.nom)} pour <b>${ctx.esc(qui || 'un joueur')}</b>` : ctx.esc(S.nom);
+        const t = d.deck === 'recrue' ? `Recrue · ${ctx.esc(qui(d.ballottage && d.ballottage.entre))}`
+          : MG ? `${MG.ico} ${ctx.esc(MG.nom)} gardée`
+          : M ? `${M.ico} ${ctx.esc(M.nom)} · ${ctx.esc(qui(d.mutation.joueur))}` : ctx.esc(S.nom);
         ev.push({ j: d.jour, t: `${S.ico} ${t}` });
-      } else if (d.joue && d.mutation && MUTATIONS[d.mutation.cle]) ev.push({ j: d.jour, t: `${MUTATIONS[d.mutation.cle].ico} ${ctx.esc(MUTATIONS[d.mutation.cle].nom)} posée au verso de <b>${ctx.esc(nomJoueur(d.mutation.joueur) || 'un joueur')}</b>` });
-      else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Un joueur réclamé au ballottage pour boucher un trou' });
+      } else if (d.joue && d.mutation && MUTATIONS[d.mutation.cle]) ev.push({ j: d.jour, t: `${MUTATIONS[d.mutation.cle].ico} ${ctx.esc(MUTATIONS[d.mutation.cle].nom)} · ${ctx.esc(qui(d.mutation.joueur))}` });
+      else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Ballottage' });
     }
-    for (const m of you.mutations || []) if (m.jour < jour && m.source !== 'choix' && MUTATIONS[m.cle]) ev.push({ j: m.jour, t: `${MUTATIONS[m.cle].ico} Le hasard s'en mêle : ${ctx.esc(m.p ? m.p.n : '')} — ${ctx.esc(MUTATIONS[m.cle].nom)}` });
-    for (const x of you.paris || []) if (x.jour != null && x.jour < jour) ev.push({ j: x.jour, t: `🎲 ${ctx.esc(x.titre)} — ${ctx.esc(x.choix || '')} : ${x.gagne ? '<b>le pari a payé</b>' : '<b>le pari a mal tourné</b>'}` });
+    for (const m of you.mutations || []) if (m.jour < jour && m.source !== 'choix' && MUTATIONS[m.cle]) ev.push({ j: m.jour, t: `${MUTATIONS[m.cle].ico} ${ctx.esc(MUTATIONS[m.cle].nom)} · ${ctx.esc(m.p ? nomCourt(m.p.n) : '')}` });
+    for (const x of you.paris || []) if (x.jour != null && x.jour < jour) ev.push({ j: x.jour, t: `🎲 ${ctx.esc(x.titre)} · ${x.gagne ? 'payé' : 'raté'}` });
     for (const mb of you.minisBoss || []) {
       if (mb.jour >= jour || !MINI_BOSS[mb.raison]) continue;
       const m = (calendrier[mb.jour] || []).find(x => x.A === you || x.B === you);
-      const Av = mb.avant && AVANT_GROS[mb.avant.cle];
-      const Ao = Av && Av.options.find(o => o.cle === mb.avant.choix);
-      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Gros match contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · événement : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}${mb.prepJuste === true ? ' · 🎯 préparation juste' : mb.prepJuste === false ? ' · 💥 préparation ratée' : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
+      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} ${ctx.esc(clubCourt(mb.adv))} · ${mb.gagne ? 'gagné' : 'perdu'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}` });
     }
-    // Les fils qui ont fait la une, quand ils pèsent (V3.2) : la course, le Cheechoo, le jalon, le duo.
-    for (const e of filsAuJour().journal) if (e.fils[0].poids >= FIL_MARQUANT) ev.push({ j: e.j, t: `<b>${ctx.esc(e.fils[0].texte)}</b>` });
+    // Les fils qui ont fait la une, quand ils pèsent (V3.2) : la course, le Cheechoo, le jalon, le duo — en chiffres, sans la phrase.
+    const motDuFil = f => {
+      const nc = nomCourt(f.joueur.n);
+      if (f.sorte === 'jalon') return `${nc} · ${f.seuil} ${f.unite}`;
+      if (f.sorte === 'sequence') return `${nc} · ${f.n} matchs de suite`;
+      if (f.sorte === 'disette') return `${nc} · ${f.n} matchs sans but`;
+      if (f.sorte === 'feu') return `${nc} · ${f.g} buts en ${f.n}`;
+      if (f.sorte === 'course') return `${nc} · rythme de ${f.rythme}`;
+      if (f.sorte === 'duo') return `${nc} + ${nomCourt(f.passeur.n)} · ${f.n} buts`;
+      if (f.sorte === 'recrue') return `${nc} · ${f.pts} pts en ${f.n}`;
+      return `${nc} · de retour`;
+    };
+    for (const e of filsAuJour().journal) if (e.fils[0].poids >= FIL_MARQUANT) ev.push({ j: e.j, t: `🗞 ${ctx.esc(motDuFil(e.fils[0]))}` });
     // Les séquences marquantes : cinq victoires de suite ou plus, cinq défaites.
     let run = 0, sens = null, debut = 0;
     const fermerRun = () => { if (run >= 5) ev.push({ j: debut, t: sens ? `📈 ${run} victoires de suite` : `🥶 ${run} défaites de suite` }); };
@@ -2587,14 +2606,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     fermerRun();
     if (!ev.length) return '';
     ev.sort((a, b) => a.j - b.j);
-    const actes = liste => ACTES.map(([d0, nom, sous], i) => {
-      const fin = ACTES[i + 1] ? ACTES[i + 1][0] : Infinity;
-      const ici = liste.filter(e => e.j >= d0 && e.j < fin);
-      return ici.length ? `<div class="recit-acte"><div class="recit-acte-t">${nom} · ${sous}</div>${ici.map(e => `<div class="recit-ev"><span class="recit-j">J${e.j + 1}</span><span>${e.t}</span></div>`).join('')}</div>` : '';
-    }).join('');
+    // Un même moment répété le même jour se compte : « 📋 Ballottage ×2 ».
+    const comptes = [];
+    for (const e of ev) { const d = comptes[comptes.length - 1]; if (d && d.j === e.j && d.t === e.t) d.n++; else comptes.push({ ...e, n: 1 }); }
+    const lignes = liste => liste.map(e => `<div class="recit-ev"><span class="recit-j">J${e.j + 1}</span><span>${e.t}${e.n > 1 ? ` ×${e.n}` : ''}</span></div>`).join('');
     // V12-4 : le sous-onglet tient en un écran — les derniers moments, le début de la saison plié au-dessus.
-    const avant = ev.slice(0, -RECIT_RECENTS), recents = ev.slice(-RECIT_RECENTS);
-    return `<div class="recit"><div class="hub-titre">📖 Ton histoire</div>${avant.length ? rangeeHtml('histoire-avant', 'Plus tôt', `${avant.length} moment${avant.length > 1 ? 's' : ''}`, () => ({ ico: '📖', titre: 'Ton histoire, plus tôt', html: `<div class="recit">${actes(avant)}</div>` })) : ''}${actes(recents)}</div>`;
+    const avant = comptes.slice(0, -RECIT_RECENTS), recents = comptes.slice(-RECIT_RECENTS);
+    return `<div class="recit">${bandeau('Ton histoire', `${comptes.length} moment${comptes.length > 1 ? 's' : ''}`)}${lignes(recents)}${avant.length ? rangeeHtml('histoire-avant', 'Plus tôt', `${avant.length}`, () => ({ ico: '📖', titre: 'Ton histoire, plus tôt', html: `<div class="recit">${lignes(avant)}</div>` })) : ''}</div>`;
   };
   /*
    * LA ROUTE DE LA SAISON (S66) quitte l'écran Match (S79) : quatre rangées
@@ -2660,7 +2678,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const nSem = Math.ceil(N / 7), s0 = semaineDuCalendrier();
     let semaines = '';
     for (let d = s0 * 7; d < Math.min(N, (s0 + CAL_SEMAINES) * 7); d += 7) semaines += `<div class="calj-sem"><span class="calj-s">S${d / 7 + 1}</span>${Array.from({ length: 7 }, (_, i) => (d + i < N ? cellule(d + i) : '<span></span>')).join('')}</div>`;
-    return `<div class="hub-titre calj-tete"><span>Le calendrier · journée ${jour} sur ${N}</span><span class="calj-nav-rang"><button type="button" class="calj-nav" data-cal="-1" aria-label="Les semaines d'avant"${s0 <= 0 ? ' disabled' : ''}>‹</button><span>S${s0 + 1} à S${Math.min(nSem, s0 + CAL_SEMAINES)}</span><button type="button" class="calj-nav" data-cal="1" aria-label="Les semaines d'après"${s0 + CAL_SEMAINES >= nSem ? ' disabled' : ''}>›</button></span></div><div class="calj-grille">${semaines}</div>`;
+    // Nov. 2026 (le contenu, de zéro) : le titre « Le calendrier · journée 28 sur 186 » est parti (la journée est en en-tête).
+    return `<div class="calj-nav-rang"><button type="button" class="calj-nav" data-cal="-1" aria-label="Les semaines d'avant"${s0 <= 0 ? ' disabled' : ''}>‹</button><span>S${s0 + 1} – S${Math.min(nSem, s0 + CAL_SEMAINES)}</span><button type="button" class="calj-nav" data-cal="1" aria-label="Les semaines d'après"${s0 + CAL_SEMAINES >= nSem ? ' disabled' : ''}>›</button></div><div class="calj-grille">${semaines}</div>`;
   };
   /* La première des quatre semaines montrées : celle d'aujourd'hui, ou celle qu'on a feuilletée (`menu.calSemaine`). */
   const CAL_SEMAINES = 4;
@@ -2760,7 +2779,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (MAISONS[cle]) return vueMaison ? vueMaison(cle) : '';
     if (cle === 'saison') return voletFiche();
     if (cle === 'classement') return voletClassement();
-    if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
+    if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, menu);
     if (cle === 'equipes') return equipesDuHub();
     return voletJournee();
   });
@@ -4872,7 +4891,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     return `<div class="live-tableau hub-classement"><div class="live-tableau-titre">Classement final · saison régulière</div>
       <div class="hub-scroll"><table><thead><tr><th>#</th><th>Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th class="heros">PTS</th><th>BP</th><th>BC</th><th>Diff</th></tr></thead>
       <tbody>${ts.map(rangee).join('')}</tbody></table></div></div>
-      ${meneursHtml(ctx, compteSaison, equipeDe, you, 'saison régulière', menu, 25)}`;
+      ${meneursHtml(ctx, compteSaison, equipeDe, you, menu, 25)}`;
   };
 
   const tabs = onglets(barre, volet, [
@@ -4885,7 +4904,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     if (cle === 'tableau') return `${voletTableau()}${compteSaison ? voletSaison() : ''}`;
     if (cle === 'serie') return voletSerie();
     if (cle === 'ronde') return voletRonde();
-    if (cle === 'meneurs') return meneursHtml(ctx, compterFeuilles(feuillesRevelees()), equipeDe, you, 'séries', menu, 1);
+    if (cle === 'meneurs') return meneursHtml(ctx, compterFeuilles(feuillesRevelees()), equipeDe, you, menu, 1);
     if (cle === 'equipes') return equipesHtml(ctx, {
       teams: clubs(), compte: compterFeuilles(feuillesRevelees()), you, menu,
       anciens: t => { const c = compterFeuilles(feuillesRevelees()); return t === you ? [...c.keys()].filter(p => !equipeDe.has(p) && (c.get(p).gp || 0) > 0) : []; },

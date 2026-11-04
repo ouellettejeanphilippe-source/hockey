@@ -14,8 +14,8 @@
  *   Joueurs     les filtres en jetons, le tri en jetons, une grille de trois vraies cartes avec leur coin ;
  *   Coach       le niveau en gros, trois pouvoirs en vraies cartes de jeu ;
  *   Boutique    quatre pochettes du début avec leur prix, « Ton club » en rangée de quatre ;
- *   Album       les vues en jetons, l'édition en coin sur chaque carte de l'équipe ;
- *   Classement  six colonnes ; Calendrier : la route en billets, la grille ;
+ *   Album       les vues en jetons, l'édition en coin sur chaque carte de l'équipe dès Cadre (jamais sur une Base), rien dessous ;
+ *   Classement  cinq colonnes (le contenu, de zéro : PJ est parti pour que « 10 derniers » tienne) ; Calendrier : trois billets de front, la grille ;
  *   Palmarès    l'échelle du prestige entière, une marche « tu es ici ».
  *
  * Une capture de chaque page va dans le dossier donné (le 3e argument ; scripts/ par défaut), pour l'œil.
@@ -106,12 +106,12 @@ const PAGES = [
   { porte: 'club', page: 'vestiaire', nom: 'Vestiaire', lire: () => ({ ok: !!document.querySelector('#hubModal .af-onglet[data-maison="vestiaire"]') }), juger: d => { exiger('Vestiaire · la page répond', d.ok); } },
   { porte: 'marche', page: 'marche', nom: 'Boutique', lire: () => ({ packs: [...document.querySelectorAll('#pageMarche .pk-rayon-debut .pk-tuile')].length, prix: [...document.querySelectorAll('#pageMarche .pk-rayon-debut .pk-tuile .pk-prix')].length, club: document.querySelectorAll('#pageMarche .pk-club-rangee .pk-club-mini').length }),
     juger: d => { exiger('Boutique · quatre pochettes du début avec leur prix, « Ton club » en rangée de quatre', d.packs === 4 && d.prix === 4 && d.club === 4, `${d.packs} pochettes, ${d.club} clubs`); } },
-  { porte: 'marche', page: 'cartable', nom: 'Album', lire: () => ({ vues: document.querySelectorAll('#pageCartable .ct-vue').length, coins: document.querySelectorAll('#pageCartable .ct-carte .pl-coin').length, cartes: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe]').length }),
-    juger: d => { exiger('Album · les vues, l\'édition en coin sur chaque carte de ton équipe', d.vues >= 3 && d.cartes > 0 && d.coins === d.cartes, `${d.coins} coins sur ${d.cartes} cartes`); } },
-  { porte: 'ligue', page: 'classement', nom: 'Classement', lire: () => ({ colonnes: document.querySelectorAll('#hubModal .hub-classement thead th').length, rangees: document.querySelectorAll('#hubModal .hub-classement tbody tr').length }),
-    juger: d => { exiger('Classement · six colonnes', d.colonnes === 6 && d.rangees >= 16, `${d.colonnes} colonnes, ${d.rangees} rangées`); } },
-  { porte: 'ligue', page: 'saison', nom: 'Calendrier', lire: () => ({ billets: document.querySelectorAll('#hubModal .pl-billets .pl-billet:not(.pl-billet-lundi)').length, grille: !!document.querySelector('#hubModal .calj-grille') }),
-    juger: d => { exiger('Calendrier · la route en billets, puis la grille', d.billets >= 3 && d.grille, `${d.billets} billets`); } },
+  { porte: 'marche', page: 'cartable', nom: 'Album', lire: () => ({ vues: document.querySelectorAll('#pageCartable .ct-vue').length, coins: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe]:not([data-edition="commune"]) .pl-coin-gauche').length, basesACoin: document.querySelectorAll('#pageCartable .ct-carte[data-edition="commune"] .pl-coin-gauche').length, editees: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe]:not([data-edition="commune"])').length, cartes: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe]').length, lignes: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe] .ct-stats').length }),
+    juger: d => { exiger('Album · les vues, l\'édition en coin sur chaque carte de ton équipe dès Cadre, jamais sur une Base, rien dessous', d.vues >= 3 && d.cartes > 0 && d.coins === d.editees && !d.basesACoin && !d.lignes, `${d.coins} coins sur ${d.editees} cartes éditées (${d.cartes} cartes), ${d.basesACoin} Base à coin, ${d.lignes} lignes dessous`); } },
+  { porte: 'ligue', page: 'classement', nom: 'Classement', lire: () => ({ colonnes: document.querySelectorAll('#hubModal .hub-classement thead th').length, rangees: document.querySelectorAll('#hubModal .hub-classement tbody tr').length, bandeau: !!document.querySelector('#hubModal .hub-classement .pl-bandeau') }),
+    juger: d => { exiger('Classement · le bandeau, cinq colonnes', d.bandeau && d.colonnes === 5 && d.rangees >= 16, `${d.colonnes} colonnes, ${d.rangees} rangées`); } },
+  { porte: 'ligue', page: 'saison', nom: 'Calendrier', lire: () => { const b = document.querySelector('#hubModal .pl-billets'); return { billets: document.querySelectorAll('#hubModal .pl-billets .pl-billet').length, rail: b ? ['auto', 'scroll'].includes(getComputedStyle(b).overflowX) : true, grille: !!document.querySelector('#hubModal .calj-grille') }; },
+    juger: d => { exiger('Calendrier · trois billets de front, sans rail, puis la grille', d.billets === 3 && !d.rail && d.grille, `${d.billets} billets${d.rail ? ', un rail' : ''}`); } },
   { porte: 'ligue', page: 'meneurs', nom: 'Meneurs', lire: () => ({ ok: !!document.querySelector('#hubModal .hub-chips, #hubModal .pl-jetons, #hubModal .live-vide') }), juger: d => { exiger('Meneurs · la page répond', d.ok); } },
   { porte: 'ligue', page: 'historique', nom: 'Palmarès', lire: () => ({ marches: document.querySelectorAll('#pageHistorique .pl-echelle .pl-marche').length, ici: document.querySelectorAll('#pageHistorique .pl-marche-ici').length }),
     juger: d => { exiger('Palmarès · l\'échelle du prestige entière, une marche « tu es ici »', d.marches === 5 && d.ici === 1, `${d.marches} marches`); } },
