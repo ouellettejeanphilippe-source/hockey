@@ -3365,7 +3365,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         recit: 'Le butin du soir : la caisse, ou ton coach.',
         options: [
           { cle: 'jetons', ico: '🪙', nom: `+${BUTIN_DU_GROS.jetons} 🪙`, sous: 'La prime du proprio', mots: [{ txt: `+${BUTIN_DU_GROS.jetons} 🪙 en caisse`, bon: true }] },
-          { cle: 'xp', ico: C ? C.ico : '🎓', nom: `+${BUTIN_DU_GROS.xp} d'expérience`, sous: C ? `${C.nom} apprend du match` : 'Ton coach apprend du match', mots: [{ txt: `+${BUTIN_DU_GROS.xp} d'expérience pour ton coach`, bon: true }] },
+          { cle: 'xp', ico: C ? C.ico : '📈', nom: `+${BUTIN_DU_GROS.xp} d'expérience`, sous: C ? `${C.nom} apprend du match` : 'Ton coach apprend du match', mots: [{ txt: `+${BUTIN_DU_GROS.xp} d'expérience pour ton coach`, bon: true }] },
         ],
         onChoix: cle => prendre(cle === 'xp' ? { xpCoach: BUTIN_DU_GROS.xp } : { gain: BUTIN_DU_GROS.jetons }),
         onFerme: () => prendre({}) });

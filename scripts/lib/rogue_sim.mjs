@@ -277,8 +277,8 @@ function fitDAdjoint(R, k, coach, niv) {
   const fit = net({ effets: J.effet ? [{ source: 'adjoint', ...J.effet }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - base;
   // V23 D (`ROBOT_SAUF=relais` la retire) : son relais, lu sur son effectif, pesé par la part de périodes où son signal se lit
   // (`signal.part` ; un signal qui lit les pouvoirs de ton coach, la part où un pouvoir joue, `PART_POUVOIR`).
-  const R = attentifFait('relais') ? effetDuRelais(k, niv) : null;
-  const relais = R ? (net(R.cote === 'adv' ? { effets: [], effetsAdv: [{ source: 'relais', [R.canal]: R.valeur }] } : { effets: [{ source: 'relais', [R.canal]: R.valeur }], effetsAdv: [] }) - base)
+  const X = attentifFait('relais') ? effetDuRelais(k, niv) : null;
+  const relais = X ? (net(X.cote === 'adv' ? { effets: [], effetsAdv: [{ source: 'relais', [X.canal]: X.valeur }] } : { effets: [{ source: 'relais', [X.canal]: X.valeur }], effetsAdv: [] }) - base)
     * (ADJOINTS[k].signal.sur === 'pouvoir' ? PART_POUVOIR : ADJOINTS[k].signal.part) / 3 : 0;
   return (fit + relais) * (J.voie === coach ? SEJOUR_SYNERGIE : SEJOUR) / SEJOUR;
 }
