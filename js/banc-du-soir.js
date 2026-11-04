@@ -27,7 +27,7 @@ export function bancDuSoirHtml(f, A, B, esc, { joues = false, jusqua = null } = 
   };
   const allumes = cartes.filter(c => c.joue).length;
   const titre = jusqua ? `Ton banc, après ${jusqua === 1 ? 'une période' : 'deux périodes'}` : 'Ton banc ce soir';
-  return `<div class="banc" role="group" aria-label="${titre} : ${allumes} sur ${cartes.length} ont joué">
+  return `<div class="banc-soir" role="group" aria-label="${titre} : ${allumes} sur ${cartes.length} ont joué">
     <div class="banc-tete"><span>${titre}</span><span>${allumes} sur ${cartes.length}</span></div>
     <div class="banc-rang">${cartes.map(carte).join('')}</div>
   </div>`;

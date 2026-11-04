@@ -44,6 +44,8 @@ Depuis la V9, tranche 6 : `node scripts/check_retours.mjs` (deux minutes ; `GRAI
 
 Depuis le Jalon P : `node scripts/check_arcs.mjs` (deux minutes) — chaque arc naît d'un fait relu dans le journal du club, joue son effet, se rejoue pareil ; sa valeur se mesure en blocs appariés (ses matchs avec et sans son effet, les mêmes dés), jamais en saisons appariées, qui divergent au moindre écart.
 
+Depuis le 4 nov. 2026 : `node scripts/check_plateau.mjs http://localhost:8000 [dossier]` (une minute, dans `verifier.yml` après les fumées) — une run du Rogue lancée à 390 × 844, les douze pages des cinq portes lues contre le contrat du plateau (`.claude/rules/interface.md` ; l'affiche-héros, la jauge sous elle, la main de vraies cartes, les trios debout, les grilles, les jetons, les coins, les billets, les marches, aucune pilule blanche, les cinq portes, l'en-tête sans filet), une capture de chaque page dans le dossier. C'est le juge qui manquait : les autres mesuraient que rien ne casse, jamais que l'écran ressemble à la maquette.
+
 `node scripts/essai_poids.mjs <adresse>` (une demi-minute) mesure le premier écran comme un téléphone le vit, processeur ×4 : les requêtes, les octets compressés, le temps du titre ; sur le www/ de l'APK (`mobile/assembler-www.mjs`, servi à part), les trois tiennent.
 
 `node scripts/essai_packs.mjs http://localhost:8000` (une vingtaine de minutes) signe des packs de joueurs tour après tour, avec « Aligner au mieux » un tour sur deux et « Plus tard » puis la boîte : chaque joueur signé reste dans l'alignement de l'écran, qui est celui du moteur.

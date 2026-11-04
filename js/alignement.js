@@ -15,6 +15,7 @@ import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, NIVEAUX_TALEN
 import { MAITRISE } from './coachs-reels.js';
 import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, ficheDeLaCarte, casesLibres, nivDe, NOMS_NIV, RARETE_NIV, salaireDe } from './adjoints.js';
 import { carteHtml } from './cartes.js';
+import { carteLigne, grille, coin } from './plateau-rogue.js';
 import { hubActif } from './coquille.js';
 import { glisserDeposer } from './deposer.js';
 import { jambesHtml, motDuBadge } from './gerant.js';
@@ -874,12 +875,10 @@ export function coachHtml() {
   const carte = (P, p) => {
     const ouvert = niveau >= NIVEAU_DES_POUVOIRS[p];
     const f = forceDuPouvoir(perso, p);
-    return `<div class="pv${ouvert ? '' : ' ferme'}">
-      <span class="pv-etat">${ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`}</span>
-      ${carteHtml({ cle: `pv${p}`, rarete: RARETE_POUVOIR[p], genreCarte: 'synergie', ico: P.ico, nomHtml: esc(P.nom), typeHtml: p === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][p]}`, statique: true,
-        texteHtml: `${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}` })}
-      <small class="pv-nom"><b>${esc(P.nom)}</b> · ${p === 2 ? 'ultime' : `pouvoir ${['I', 'II'][p]}`}</small>
-    </div>`;
+    return carteLigne(carteHtml({ cle: `pv${p}`, rarete: RARETE_POUVOIR[p], genreCarte: 'synergie', ico: P.ico, nomHtml: esc(P.nom), typeHtml: p === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][p]}`, statique: true,
+      texteHtml: `${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}` }),
+    `<span class="pv-nom"><b>${esc(P.nom)}</b> · ${p === 2 ? 'ultime' : `pouvoir ${['I', 'II'][p]}`}</span>`,
+    { cls: `pv${ouvert ? '' : ' ferme pl-carte-eteinte'}`, coins: coin(ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`, { ton: ouvert ? 'or' : 'gris', cls: 'pl-coin-petit pv-etat' }) });
   };
   /*
    * V23, LA NOUVELLE INTERFACE (JP : *je veux une nouvelle interface, pour vrai*) : l'entraîneur sur une plaque aux
@@ -893,7 +892,7 @@ export function coachHtml() {
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}${NIVEAUX_TALENT.includes(niveau + 1) ? ' · un talent' : ''}`}</div>
     ${(R => (R ? (x => `<div class="ej-coach-l ej-regle">${C.ico} Sa règle : ${esc(R.dit)} · +${R.jetons} 🪙 · ${x.parJour.size} fois cette saison</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
-    <div class="pv-rang">${POUVOIRS[perso.cle].map(carte).join('')}</div>
+    ${grille(POUVOIRS[perso.cle].map(carte), { cls: 'pv-rang' })}
     ${mainHtml(perso, niveau)}
   </div>`;
 }

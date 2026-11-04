@@ -29,6 +29,7 @@ js/util.js            les petits outils partagés (un seul exemplaire de chaque 
 js/saison.js          l'écran de saison et des séries : le Bureau (À faire, où les choix se règlent ; hier soir ; ton plan ; le journal), Ligue › Classement (un club s'y ouvre) et Calendrier
 js/gerant.js          les choix, le dépistage, l'écran du duel (`ouvrirDuel`, ce que ton adjoint propose)
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
+js/plateau-rogue.js   le plateau du Rogue (4 nov. 2026) : les composants de la maquette A écrits une fois (le bandeau, les jetons, la carte et sa ligne, le coin, les cellules, les visages, les billets, les marches, le podium), appelés par chaque page du Rogue — `check_plateau`
 js/banc-du-soir.js    ton banc du soir (V23) : tes pouvoirs, tes adjoints et la règle du coach, allumés quand ils ont joué ; au sommaire, à Hier soir et aux entractes du duel (`jusqua`) — `check_banc`
 js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
 js/pile.js            le retour, un niveau à la fois : Échap, bouton B, retour Android, « ‹ Retour »

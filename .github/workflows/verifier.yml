@@ -197,3 +197,8 @@ jobs:
 
       - name: Test de fumée du mode bonus « Sur table »
         run: node scripts/smoke_table.mjs http://localhost:8000
+
+      # Le plateau du Rogue (4 nov. 2026) : une run lancée, les douze pages lues contre le contrat de la maquette
+      # (l'affiche-héros, la main de cartes, les grilles, les jetons, aucune pilule blanche, les cinq portes). Une minute.
+      - name: Le plateau du Rogue, contre la maquette
+        run: node scripts/check_plateau.mjs http://localhost:8000
