@@ -39,6 +39,7 @@ import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronos
 import { artJoueur, photoAction, cadrePhoto, carteHtml } from './cartes.js';
 import { PALIERS_PACK, SEMAINE } from './inventaire.js';
 import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT, TALENT_CASE } from './pouvoirs.js';
+import { COACHS } from './coachs.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, basculerChiffres, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
 import { mainAdverse, energieAdverse } from './combat.js';
