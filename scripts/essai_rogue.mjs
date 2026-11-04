@@ -765,7 +765,8 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
 {
   // Nov. 2026 : le barème est au Proprio, avec l'argent (il était à la boutique).
   await versLOnglet('bureau', 'proprio'); await page.waitForSelector('#hubModal .pk-bareme-run', { timeout: 30000 }).catch(() => {});
-  const bareme = (await page.textContent('#hubModal .pk-bareme-run').catch(() => '')) || '';
+  // Le contenu de zéro (4 nov.) : le barème vit à l'infobulle du bloc de l'argent (`data-bareme`), plus en clair.
+  const bareme = (await page.getAttribute('#hubModal .pk-bareme-run', 'data-bareme').catch(() => '')) || '';
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const svB = await lireSauvegarde();
   const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;

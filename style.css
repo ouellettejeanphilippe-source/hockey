@@ -321,16 +321,6 @@ body.mode-rogue :is(.hub-titre, .pr-k, .banc-tete, .live-tableau-titre, .vs-sec,
 body.mode-rogue .hub-titre::before, body.mode-rogue .hub-titre::after { display: none; }
 body.mode-rogue .banc-tete > span:last-child, body.mode-rogue .pk-rayon h3 .pk-rabais { color: var(--or); }
 body.mode-rogue .hub-une-t { writing-mode: horizontal-tb; rotate: none; padding: 2px var(--esp-2); }
-.tv-ticker { overflow-x: auto; scrollbar-width: none; width: calc(100% + 2 * var(--esp-3)); margin: 0 calc(-1 * var(--esp-3)); border-bottom: 1px solid var(--filet); background: var(--noir-pur); animation: tele-balaie 520ms var(--e-sortie) both; }
-.tv-ticker::-webkit-scrollbar { display: none; }
-.tv-ticker-piste { display: inline-flex; align-items: center; gap: var(--esp-4); padding: 5px var(--esp-3); white-space: nowrap; font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); font-variant-numeric: tabular-nums; }
-.tv-tete { padding: 1px var(--esp-2); background: var(--live); color: var(--blanc); letter-spacing: 0.14em; }
-.tv-item { display: inline-flex; gap: var(--esp-2); }
-.tv-item i { font-style: normal; }
-.tv-item i.g { color: var(--or); }
-.tv-item.toi i { color: var(--blanc); }
-.tv-item.toi i.g { color: var(--bon); }
-.tv-item small { font-size: 0.8em; color: var(--encre-3); }
 /* L'HABILLAGE COMMUN DU PLATEAU (4 nov. 2026 ; JP : *pourquoi tu refais pas tout le UI au complet ?*). Une seule grammaire sur
    toutes les pages du Rogue, celle de la maquette A : l'en-tête sur le noir pur sans filet de couleur ; chaque segment, filtre ou
    onglet de page est un JETON — un petit bloc sombre en capitales, le choisi à la couleur du club, encre noire — jamais une pilule
@@ -4096,7 +4086,7 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
   body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes { flex: none; gap: 2px; font-size: var(--t-1); white-space: nowrap; }
   body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes :is(.jambes-k, i) { display: none; }
   body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes .jambes-mot { display: none; }
-  body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes::before { content: "· jambes"; }
+  body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes::before { content: "·"; }
   body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes b { font-size: var(--t-1); min-width: 0; color: var(--encre); }
   body.mode-rogue #rosterBoard.en-cartes .sc-ligne .tag { padding: 0 3px; font-size: var(--t-1); }
   /* La ligne ne garde que ce qui alerte (▲ ▼ ↔ 🩹) : la zone en mots, le ✓, les traits et les départs attendent la fiche et le grand écran. */
@@ -4386,8 +4376,8 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: calc(var(--flottant-h) + 2 * var(--esp-3)); }
   /* V23, la nouvelle interface : au Rogue, hier soir se lit entre l'affiche et ta main, comme une émission d'avant-match. */
   body.mode-rogue.hub-docke .hub-sheet .hub-volet { order: 1; flex: 0 0 auto; padding-bottom: 0; }
-  /* Au Calendrier du Rogue, la route et le calendrier d'abord ; le rapport, la prévision et ton style après. */
-  body.mode-rogue .hub-sheet[data-vue="saison"] .hub-volet > :is(.hub-rangee, .hub-prev, .entracte) { order: 5; }
+  /* Au Calendrier du Rogue, la route et le calendrier d'abord ; le rapport et ton style après. */
+  body.mode-rogue .hub-sheet[data-vue="saison"] .hub-volet > :is(.hub-rangee, .entracte) { order: 5; }
   body.mode-rogue.hub-docke .hub-sheet .hub-boite { flex: 1 0 auto; }
   /* Hors de « Match », le volet seul : l'affiche, la boîte et les boutons appartiennent au Bureau. */
   body.hub-docke .hub-sheet:not([data-vue="match"]) :is(.hub-carte, .hub-actions) { display: none; }
@@ -4724,7 +4714,6 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .pr-rang-txt { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
 .pr-rang-txt small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
 .pr-rang-txt .bu-run-jauge { grid-column: auto; }
-.pr-suite { color: var(--encre-3); }
 .pr-bloc .tuile-jauge { width: 100%; }
 .pr-bloc > small { font-size: var(--t-1); color: var(--encre-3); }
 .pr-plaques { display: grid; gap: var(--esp-1); }
@@ -4981,9 +4970,8 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .ent2-stats thead tr:first-child th { text-align: center; border-bottom: 1px solid var(--filet-2); }
 .ent2-stats .ent2-stats-saison, .ent2-stats td:last-child { color: var(--encre-3); }
 .ent2-stats .ent2-stats-saison { border-left: 1px solid var(--filet-2); }
-.hub-prev { margin-bottom: var(--esp-4); }
-.hub-prev-fin { font-size: var(--t-3); margin: var(--esp-1) 0; }
-.hub-prev-fin span { color: var(--encre-3); font-size: var(--t-2); }
+.hub-prev-fin { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
+.pr-rang-txt .hub-prev-lancer { align-self: flex-start; }
 /* LES JAMBES (le volet de saison) : les plus usés d'abord, puis de quoi les ménager. */
 .ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
 .ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: var(--r-1); }
@@ -5018,7 +5006,9 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .ff .hub-ereintant { align-self: flex-start; margin: 0; }
 .ff-rangs { display: flex; flex-direction: column; gap: 2px; }
 .ff-rang { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: var(--esp-2); padding: var(--esp-1) var(--esp-2); border-radius: var(--r-1); background: var(--fond-2); }
-.ff-rang b { font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); white-space: nowrap; }
+.ff-rang b { display: flex; flex-direction: column; gap: 2px; font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); white-space: nowrap; }
+.ff-rang b small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; color: var(--encre-3); }
+.ff-rang .ff-d { align-items: flex-end; }
 .ff-rang .ff-g { text-align: left; }
 .ff-rang .ff-d { text-align: right; }
 .ff-rang b.bon { color: var(--bon); }
@@ -5028,13 +5018,6 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .ff-barre em { display: block; height: 100%; background: var(--a-duel, var(--club-vif)); }
 .ff-mot { padding: 0 var(--esp-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 .ff-mot b { color: var(--encre); }
-.ff-duos { display: flex; flex-direction: column; gap: var(--esp-1); }
-.ff-duo { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: var(--esp-2); padding: var(--esp-2); border-radius: var(--r-1); background: var(--fond-2); }
-.ff-cote { display: grid; gap: 2px; min-width: 0; }
-.ff-cote b { font: 800 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; text-transform: uppercase; color: var(--encre); }
-.ff-cote small { font: 700 var(--t-1)/1.2 var(--display); color: var(--encre-2); }
-.ff-duo .ff-cote:last-child { text-align: right; }
-.ff-vs { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; font-style: italic; color: var(--or); }
 
 /* =====================================================================
    6b. LE MATCH — le direct, le sommaire, l'entracte, les tableaux d'un match

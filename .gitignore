@@ -6,3 +6,6 @@ server.log
 node_modules/
 package-lock.json
 package.json
+
+# Les worktrees des agents de Claude Code
+.claude/worktrees/

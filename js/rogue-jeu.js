@@ -19,7 +19,7 @@ import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirer
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
-import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, masseSalarialeHtml, SEMAINE } from './inventaire.js';
+import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi, coachAuCartable, coachsDuCartable } from './cartable.js';
 import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
@@ -702,7 +702,8 @@ export function cartesDeLaMaison(maison, j) {
   const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && maisonDeLaCarte(id) === maison);
   const partie = G.ligue ? cartesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison) : [];
   const n = conso.reduce((a, [, k]) => a + k, 0) + partie.length;
-  const masse = maison === 'proprio' ? masseSalarialeHtml(plafondPourInventaire(j)) : '';
+  // Le contenu, de zéro (4 nov. 2026) : la masse salariale ne s'affiche plus en jauge au Proprio — l'espace libre est une cellule de l'argent.
+  const masse = '';
   if (!n || !MAISONS_DES_CARTES[maison]) return masse;
   // Une rangée, une feuille (JP, 28 oct. : *j'hais les accordéons* ; chaque onglet tient en un écran) : les cartes s'ouvrent en feuille.
   const icones = [...partie.map(x => x.id), ...conso.map(([id]) => id)].map(id => (BANQUE[id] || {}).ico || '').join(' ');

@@ -61,6 +61,8 @@ export function remplirJoueurs() {
   if (!host) return;
   const L = G.ligue, jour = Math.min(G.journee || 0, L && L.calendrier ? L.calendrier.length : 0);
   const enSaison = !!(L && L.you && jour > 0);
+  // En Rogue (le contenu de zéro, 4 nov. 2026), la grille lit ta saison ; la vraie saison vit au verso de la carte et à la fiche.
+  if (G.bonus === 'ROGUE') etat.source = 'saison';
   const compte = enSaison && etat.source === 'saison' ? compteRevele('jour') : null;
   const energie = (G.banc && G.banc.energie) || (L && L.you && ((L.you.jourLignes || [])[jour] || {}).energie) || null;
   const blesses = new Map(enSaison ? blessesAuJour(jour).map(b => [b.p, b.reste]) : []);
@@ -93,8 +95,8 @@ export function remplirJoueurs() {
       ${enSaison && g !== 'B' ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
     </div>`;
   // LE PLATEAU : en Rogue, les filtres sont des jetons (js/plateau-rogue.js), les blessés sur le rouge ; la source aussi.
-  const barrePlateau = `<div class="jr-barre">${jetons(filtres.map(([k, t, n]) => ({ cle: k, mot: t, n, on: k === g, cls: k === 'B' ? 'pl-ton-rouge' : '' })), 'groupe')}
-      ${enSaison && g !== 'B' ? jetons([['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => ({ cle: k, mot: t, on: etat.source === k })), 'source', { role: 'button' }) : ''}</div>`;
+  // Le contenu, de zéro (4 nov. 2026) : une rangée de jetons, les filtres ; la vraie saison vit au verso de la carte et à la fiche.
+  const barrePlateau = `<div class="jr-barre">${jetons(filtres.map(([k, t, n]) => ({ cle: k, mot: t, n, on: k === g, cls: k === 'B' ? 'pl-ton-rouge' : '' })), 'groupe')}</div>`;
   const cartes = maison ? maison.html(g === 'B' ? 'infirmerie' : 'joueurs') : '';
   /*
    * LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu* ; *ça permet de mieux voir les cartes*) : en Rogue, ton
@@ -106,7 +108,8 @@ export function remplirJoueurs() {
     const TRIS = g === 'G' ? [['pctArr', '% arr.'], ['jambes', 'Jambes'], ['sal', '$']] : [['pts', 'Points'], ['jambes', 'Jambes'], ['sal', '$']];
     const triOk = TRIS.some(([k]) => k === cle) ? cle : TRIS[0][0];
     if (triOk !== cle) { etat.tri[g] = [triOk, triOk === 'moy']; remplirJoueurs(); return; }
-    const coinDe = r => { const v = r.st[cle]; if (cle === 'jambes' && v == null) return ''; const f = FORMAT[cle] ? FORMAT[cle](v, r.st) : v ?? '—'; return coin(cle === 'jambes' ? Math.round(v) : f, { unite: TRIS.find(([k]) => k === cle)[1], ton: blesses.has(r.p) ? 'rouge' : 'or' }); };
+    // Le coin porte le chiffre seul (le jeton du tri dit l'unité).
+    const coinDe = r => { const v = r.st[cle]; if (cle === 'jambes' && v == null) return ''; const f = FORMAT[cle] ? FORMAT[cle](v, r.st) : v ?? '—'; return coin(cle === 'jambes' ? Math.round(v) : f, { ton: blesses.has(r.p) ? 'rouge' : 'or' }); };
     const carte = r => {
       const [b, b2] = badgesDe(r.p), bl = blesses.get(r.p), j = r.st.jambes;
       return carteLigne(cartonDe(r.p), `${bl ? `🩹 ${bl} m. · ` : ''}${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}" title="${esc(`${b.nom} ${PALIERS[b.palier].nom}`)}">${b.ico}</i>` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}`,
@@ -114,9 +117,8 @@ export function remplirJoueurs() {
           barre: j != null ? { part: j / 100, cls: j >= 80 ? 'frais' : j < 60 ? 'use' : '' } : null });
     };
     host.innerHTML = `${barrePlateau}
-      <div class="jr-tri"><span>Trié par</span>${jetons(TRIS.map(([k, t]) => ({ cle: k, mot: t, on: k === cle })), 'tri', { role: 'button' })}</div>
-      ${grille(vues.map(carte))}
-      <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En sourdine : la réserve.' : ''} Touche une carte : sa fiche.</p>${cartes}`;
+      <div class="jr-tri">${jetons(TRIS.map(([k, t]) => ({ cle: k, mot: t, on: k === cle })), 'tri', { role: 'button' })}</div>
+      ${grille(vues.map(carte))}${cartes}`;
     host.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; remplirJoueurs(); }; });
     host.querySelectorAll('[data-source]').forEach(b => { b.onclick = () => { etat.source = b.dataset.source; remplirJoueurs(); }; });
     host.querySelectorAll('[data-tri]').forEach(b => { b.onclick = () => { etat.tri[g] = [b.dataset.tri, false]; remplirJoueurs(); }; });
