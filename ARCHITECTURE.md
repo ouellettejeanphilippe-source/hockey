@@ -18,9 +18,9 @@ Le chargeur (`js/data.js`) essaie dans l'ordre et s'arrête au premier succès :
 
 **1. Shards pré-bâtis** — `data/seasons/1981-82.json`, servis depuis la même origine que la page. Même origine veut dire zéro problème de CORS, ce qui est la raison principale de préférer cette voie. Une GitHub Action les régénère (`.github/workflows/build-data.yml`) : à la main (modes `full`, `bios`, `rerate`, `seed`), et chaque lundi pour la saison en cours seulement (`--refresh-current`). Une saison n'entre à l'index qu'à 41 matchs joués par ses clubs (`MATCHS_POUR_JOUER`) : avant, ses cartes se liraient fausses.
 
-**2. API LNH en direct** — `api.nhle.com/stats/rest`, appelée depuis le navigateur, cotes calculées à la volée. Aucune donnée sur le disque. La LNH n'envoie pas d'en-tête CORS : le chargeur le sonde une fois au démarrage (`probeLive`) et retient le résultat, donc cette voie ne sert que là où la requête passe (l'application Android, un navigateur sans la règle). Quand ça marche, c'est la meilleure source pour la saison en cours, qui bouge.
+**2. API LNH en direct** — `api.nhle.com/stats/rest`, appelée depuis le navigateur, cotes calculées à la volée. Aucune donnée sur le disque. La LNH n'envoie pas d'en-tête CORS : le chargeur le sonde une fois au démarrage (`probeLive`) et retient le résultat, donc cette voie ne sert que là où la requête passe (un navigateur sans la règle). Quand ça marche, c'est la meilleure source pour la saison en cours, qui bouge.
 
-**3. Seed** — `data/seed.json`, dix saisons marquantes commitées dans le dépôt (de 1970-71 à 2022-23, des franchises disparues comprises). Le filet du Web : le jeu démarre toujours, même hors ligne, même si l'API et les shards sautent tous les deux. L'APK ne l'emporte pas (`mobile/assembler-www.mjs`, `HORS_APK`) : il a les shards sur le disque.
+**3. Seed** — `data/seed.json`, dix saisons marquantes commitées dans le dépôt (de 1970-71 à 2022-23, des franchises disparues comprises). Le filet : le jeu démarre toujours, même hors ligne, même si l'API et les shards sautent tous les deux.
 
 ## Cache
 
@@ -42,7 +42,7 @@ Ce que l'écran montre vient d'un troisième calcul, dans le navigateur et pur :
 
 ## Ce qu'on ne fait pas
 
-**Pas de backend.** Un site statique : il se joue en local dans le navigateur, en APK (Capacitor, `mobile/`) ou en exe (Electron, `desktop/`). Aucun serveur à maintenir, aucun coût.
+**Pas de backend.** Un site statique, publié sur GitHub Pages depuis `main`, web seulement (4 nov. 2026 : l'application Android et l'exe Windows sont partis). Aucun serveur à maintenir, aucun coût.
 
 **Pas de sauvegarde équipe par équipe pendant qu'on joue.** L'idée était bonne — écrire au fur et à mesure — mais elle produit un cache partiel où certaines saisons ont des cotes et d'autres non, avec des z-scores calculés sur des bassins incomplets. Le shard de saison entière donne le même bénéfice sans le risque de corruption.
 

@@ -48,7 +48,7 @@ Depuis le 4 nov. 2026 (V23 D) : `node scripts/check_relais.mjs` (deux minutes su
 
 Depuis le 4 nov. 2026 : `node scripts/check_plateau.mjs http://localhost:8000 [dossier]` (une minute, dans `verifier.yml` après les fumées) — une run du Rogue lancée à 390 × 844, les douze pages des cinq portes lues contre le contrat du plateau (`.claude/rules/interface.md` ; l'affiche-héros, la jauge sous elle, la main de vraies cartes, les trios debout, les grilles, les jetons, les coins, les billets, les marches, aucune pilule blanche, les cinq portes, l'en-tête sans filet), une capture de chaque page dans le dossier. C'est le juge qui manquait : les autres mesuraient que rien ne casse, jamais que l'écran ressemble à la maquette.
 
-`node scripts/essai_poids.mjs <adresse>` (une demi-minute) mesure le premier écran comme un téléphone le vit, processeur ×4 : les requêtes, les octets compressés, le temps du titre ; sur le www/ de l'APK (`mobile/assembler-www.mjs`, servi à part), les trois tiennent.
+`node scripts/essai_poids.mjs <adresse>` (une demi-minute) mesure le premier écran comme un téléphone le vit, processeur ×4 : les requêtes, les octets compressés, le temps du titre.
 
 `node scripts/essai_packs.mjs http://localhost:8000` (une vingtaine de minutes) signe des packs de joueurs tour après tour, avec « Aligner au mieux » un tour sur deux et « Plus tard » puis la boîte : chaque joueur signé reste dans l'alignement de l'écran, qui est celui du moteur.
 
@@ -64,4 +64,4 @@ Depuis oct. 2026 : `node scripts/check_effets.mjs` (une vingtaine de minutes ; `
 
 Depuis la V19 : `node scripts/check_prolongation.mjs` (dans `tout.mjs`) — la prolongation, les tirs de barrage et la mort subite.
 
-Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (avec l'adresse du jeu en argument, il simule aussi l'application Android ; réseau requis). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
+Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (sans réseau ; l'application Android simulée est partie le 4 nov. 2026, web seulement). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.

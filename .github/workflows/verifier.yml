@@ -191,7 +191,7 @@ jobs:
 
       # Les photos d'action (1.0) : la liste versionnée, le recadrage 5:7 sur des
       # images de synthèse (dans Chromium), actionSrc sans les images. Sans
-      # réseau ; l'appareil simulé se lance à la main. Cinq secondes.
+      # réseau. Cinq secondes.
       - name: Les photos d'action
         run: node scripts/check_actions.mjs
 

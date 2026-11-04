@@ -1302,8 +1302,6 @@ body.menu-ouvert { overflow: hidden; }
 }
 .menu-lien small { flex: 1 1 auto; min-width: 0; font: 400 var(--t-2)/1.3 var(--corps); letter-spacing: 0; text-transform: none; color: var(--encre-2); }
 .menu-lien:hover { border-color: var(--or); }
-/* La mise à jour (js/mise-a-jour.js) : le même lien, à l'or, sous le titre, seulement quand une version attend. */
-.menu-maj { margin: 0 0 var(--esp-3); border-color: var(--or); color: var(--or); }
 .menu-version { flex-basis: 100%; text-align: center; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
 
 /* ---- Mes parties : une liste en bandes, rangée par mode ---- */
@@ -1321,7 +1319,7 @@ body.menu-ouvert { overflow: hidden; }
 .mp-etape { margin-top: 2px; color: var(--encre-2); font-size: var(--t-2); }
 .mp-actions { display: flex; flex-wrap: wrap; gap: var(--esp-2); margin-top: var(--esp-2); }
 .mp-actions .btn { min-height: 44px; min-width: 44px; }
-/* Le transfert : importer (et coller, sur l'appareil) ; le mot du dernier geste à côté. */
+/* Le transfert : importer ; le mot du dernier geste à côté. */
 .menu-transfert { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); margin-top: var(--esp-3); }
 .menu-transfert .btn { min-height: 44px; }
 .menu-transfert-mot { flex: 1 1 100%; color: var(--encre-2); font-size: var(--t-2); }

@@ -4,7 +4,7 @@ encore mieux*. Le recadrage d'une photo d'action (js/recadrage-action.js) trouve
 parfois (un arbitre, un filet, un bâton). Ce script trouve son VISAGE, une fois, à la fabrication : YuNet, le détecteur
 de visages d'OpenCV, sur chaque photo brute ; la face retenue est la plus grande, pondérée par sa confiance (le joueur
 de la photo est celui qu'on a cadré). Il écrit, dans data/actions.json, `visages` : { id → le centre de la face, en
-fraction de la largeur }. Le recadrage s'y centre (scripts/actions.mjs sur le Web, js/actions.js sur l'appareil) ;
+fraction de la largeur }. Le recadrage s'y centre (scripts/actions.mjs) ;
 une photo sans visage trouvé garde la netteté.
 
     pip install opencv-python-headless

@@ -37,11 +37,11 @@
  * la fabrication (scripts/visages_actions.py, `visages` de data/actions.json). Donné, la fenêtre s'y centre et la
  * netteté ne décide plus ; absent (aucun visage trouvé), la netteté choisit comme avant.
  *
- * UNE SEULE IMPLÉMENTATION pour deux usages, comme js/recadrage.js :
- * `scripts/actions.mjs` (la version Web, recadrée une fois à la fabrication)
- * et `js/actions.js` (l'application Android, qui télécharge et recadre sur
- * l'appareil). La fonction ne lit AUCUNE variable extérieure : le script
- * l'injecte dans Chromium par son texte (`recadrerAction.toString()`).
+ * La fonction ne lit AUCUNE variable extérieure, comme js/recadrage.js :
+ * `scripts/actions.mjs` (les photos recadrées une fois à la fabrication,
+ * img/actions) l'injecte dans Chromium par son texte
+ * (`recadrerAction.toString()`). Web seulement depuis le 4 nov. 2026 : seuls
+ * les scripts la lisent.
  */
 export async function recadrerAction(blob, { largeur = 400, hauteur = 560, qualite = 0.8, serre = 1, centre = null } = {}) {
   const img = await createImageBitmap(blob);

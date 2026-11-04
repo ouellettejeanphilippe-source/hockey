@@ -48,7 +48,7 @@
  * 7. data/actions.json, en forme compacte (le fichier se lit au démarrage) : `saisons` { id → { saison → [le
  *    fichier, son dossier sur upload.wikimedia.org (les deux premiers caractères du md5 de son nom), la largeur de
  *    la vignette (0 : l'original), l'auteur (index dans `auteurs`), la licence (index dans `licences`), le centre
- *    du visage dans la vignette (pour le recadrage de l'appareil, ou null), le centre de la face dans la photo
+ *    du visage dans la vignette (le recadrage s'y centrait sur l'appareil, ou null), le centre de la face dans la photo
  *    5:7 [x, y] (scripts/visages_actions.py --cadres, ou null)] } }. Le reste du fichier ne bouge pas.
  *
  * Le brut (les réponses, les vignettes) vit hors du dépôt, dans --brut.

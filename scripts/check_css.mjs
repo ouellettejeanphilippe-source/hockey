@@ -92,7 +92,7 @@ exiger(`le plateau : ${PLAFOND_TAILLES_PLATEAU} tailles bornées en px au plus (
  * 3. AUCUNE VARIABLE QUI N'EXISTE PAS (oct. 2026 : `var(--texte, inherit)` dans un `font:` annulait la déclaration entière —
  * un `inherit` en repli n'est pas valide dans un raccourci — et la valeur d'une barre tombait dans la police par défaut).
  * Chaque `var(--x)` de la feuille est défini dans la feuille, ou posé par le JS ou la page (`--part`, en ligne).
- * Les marges sûres d'Android viennent de l'application (Capacitor) : elles ont leur repli `env()`.
+ * Les marges sûres du téléphone (la barre d'état, la barre de gestes) se posent par-dessus leur repli `env()`.
  */
 const DE_L_APPAREIL = new Set(['--safe-area-inset-top', '--safe-area-inset-bottom']);
 const definies = new Set([...src.matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));
