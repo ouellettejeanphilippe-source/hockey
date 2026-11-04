@@ -1092,7 +1092,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     await ligneMatch.click(); await page.waitForTimeout(800);
     const face = await page.evaluate(() => {
       const pg = document.querySelector('#hubModal .hub-page[data-genre="face"]');
-      return { section: document.body.dataset.section, page: !!pg, stats: pg ? pg.querySelectorAll('.hub-duel tr').length : 0, clubs: pg ? pg.querySelectorAll('.hub-face').length : 0 };
+      return { section: document.body.dataset.section, page: !!pg, stats: pg ? pg.querySelectorAll('.hub-duel tr, .ff-stats .ff-rang').length : 0, clubs: pg ? pg.querySelectorAll('.hub-face').length : 0 };
     });
     console.log(`10e. le face-à-face : ${face.page ? `${face.stats} stats côte à côte` : 'absent'} · section ${face.section}`);
     if (!face.page || face.section !== 'bureau') erreurs.push(`la ligne du match, au Bureau, n'ouvre pas le face-à-face (section ${face.section})`);
