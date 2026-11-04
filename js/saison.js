@@ -44,7 +44,7 @@ import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, chiffre
 import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
-import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
+import { primesDesFils, JETONS, BUTIN_DU_GROS, lireMeta, aDebloque } from './rogue.js';
 import { ADJOINTS, adjointsOfferts, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, niveauOffert, momentFort, NOMS_NIV, RARETE_NIV, salaireDe, nivDe, casesDuPerso } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, faitsDesSuites, faitsDuDernier, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
@@ -1092,7 +1092,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const prime = Math.round(((run && run.bareme) || JETONS).grosMatch * (mo.mb.butin || 1));
     const enjeu = cle => {
       const o = cle && av ? av.A.options.find(x => x.cle === cle) : null;
-      return puces([{ txt: `Victoire : +${prime} 🪙 et un adjoint parmi trois`, bon: true },
+      return puces([{ txt: `Victoire : +${prime} 🪙, puis +${BUTIN_DU_GROS.jetons} 🪙 ou +${BUTIN_DU_GROS.xp} d'expérience`, bon: true },
         { txt: `Défaite : ${SONNE.ico} sonnés ${SONNE.duree * (o && o.enjeu ? 2 : 1)} matchs (${ditFinition(SONNE)})`, bon: false }]);
     };
     ouvrirDuel({
@@ -3329,10 +3329,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LA SCÈNE (Jalon M, A6) : l'entraîneur, sur le pointage de la feuille.
       const mR = calendrier[rc.jour][indexMien(rc.jour)], chezR = mR && mR.A === you;
       const scene = mR ? sceneDuButin({ pour: chezR ? mR.gfA : mR.gfB, contre: chezR ? mR.gfB : mR.gfA, adv: ctx.teamShort(rc.adv), graine: `${graine}|${rc.jour}` }) : null;
-      specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer', scene,
-        recit: 'Un adjoint parmi trois, pour la run : ce qu\'il donne, ce qu\'il coûte.',
-        options: adjointsDuMoment(`r${rc.jour}`),
-        onChoix: cle => prendre(decisionDeLAdjoint(cle, `r${rc.jour}`)),
+      // V23 D (moins d'offres) : des jetons de plus, ou de l'expérience pour ton coach — plus d'adjoint (`BUTIN_DU_GROS`).
+      const P = persoDuJour(), C = P && COACHS[P.cle];
+      specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Récompense', genre: 'recompense', fermable: true, motFermer: 'Passer', scene,
+        recit: 'Le butin du soir : la caisse, ou ton coach.',
+        options: [
+          { cle: 'jetons', ico: '🪙', nom: `+${BUTIN_DU_GROS.jetons} 🪙`, sous: 'La prime du proprio', mots: [{ txt: `+${BUTIN_DU_GROS.jetons} 🪙 en caisse`, bon: true }] },
+          { cle: 'xp', ico: C ? C.ico : '🎓', nom: `+${BUTIN_DU_GROS.xp} d'expérience`, sous: C ? `${C.nom} apprend du match` : 'Ton coach apprend du match', mots: [{ txt: `+${BUTIN_DU_GROS.xp} d'expérience pour ton coach`, bon: true }] },
+        ],
+        onChoix: cle => prendre(cle === 'xp' ? { xpCoach: BUTIN_DU_GROS.xp } : { gain: BUTIN_DU_GROS.jetons }),
         onFerme: () => prendre({}) });
     }
     if (ro) {
@@ -4533,6 +4538,20 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const rep = Math.max(-1, ...decsSerie.filter(d => d.ronde === ronde && d.reprise).map(d => d.match_no));
     return decsSerie.some(d => d.ronde === ronde && d.auto && d.match_no >= rep);
   };
+  /*
+   * LEUR COACH EN SÉRIES (V23 F, js/pouvoirs.js `persoAdverse`) : l'adversaire d'une série a un coach-personnage, un
+   * pouvoir visible qui joue sa condition et son ombre le reste du temps. On le dit avant le match ; à l'entracte, les
+   * périodes où il a joué (la feuille, `ombre` à faux).
+   */
+  const leurCoachMot = adv => {
+    const P = adv && adv.persoSeries, C = P && COACHS[P.cle], W = C && POUVOIRS[P.cle] && POUVOIRS[P.cle][0];
+    return W ? `Leur coach : ${C.ico} ${C.nom} · ${W.ico} ${W.nom} — ${W.dit} Hors de là, l'ombre : l'inverse, à moitié.` : '';
+  };
+  const leurCoachAJoue = (f, cAdv, p, adv) => {
+    const P = adv && adv.persoSeries, W = P && POUVOIRS[P.cle] && POUVOIRS[P.cle][0];
+    const ks = W ? [...new Set((f.pouvoirs || []).filter(x => x.cote === cAdv && !x.ombre && x.k < p).map(x => x.k))].sort((a, b) => a - b) : [];
+    return W ? ` · ${W.ico} ${W.nom}${ks.length ? ` a joué en ${ks.map(k => (k ? `${k + 1}e` : '1re')).join(' et ')}` : ' : l\'ombre, jusqu\'ici'}` : '';
+  };
   /* L'ENTRACTE D'UN DUEL DE SÉRIES (V9), comme en saison : leur intention de la période qui vient, ce que ton adjoint propose. */
   function ouvrirPeriodeSerie(s, direct) {
     const p = periodeSerieAttendue(s), k = revele.get(s);
@@ -4550,7 +4569,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const { wA, wB } = gains(s);
     D.tete = `<div class="ent2">
       ${scoreDuDuel(ctx, you, boss, moi, lui)}
-      <div class="ent2-note">Match ${k + 1} · après ${p === 1 ? 'une période' : 'deux périodes'} · tirs ${tirs(cMoi)}–${tirs(moiA ? 'B' : 'A')} · série ${s.A === you ? wA : wB}-${s.A === you ? wB : wA}</div>
+      <div class="ent2-note">Match ${k + 1} · après ${p === 1 ? 'une période' : 'deux périodes'} · tirs ${tirs(cMoi)}–${tirs(moiA ? 'B' : 'A')} · série ${s.A === you ? wA : wB}-${s.A === you ? wB : wA}${ctx.esc(leurCoachAJoue(f, moiA ? 'B' : 'A', p, boss))}</div>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
       ${ctx.rogue ? bancDuSoirHtml(f, s.A, s.B, ctx.esc, { jusqua: p }) : ''}
     </div>`;
@@ -4677,7 +4696,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       const ouvrirLaMain = () => ouvrirDuel({
         titre: `Avant le match ${k + 1}`,
         sousTitre: `${nomRondeCourt(ronde)} · match ${k + 1} · contre ${ctx.teamShort(boss)} · série ${moi}-${lui}`,
-        recit: `${resultatPrecedent(s, k)}${k === 0 ? '' : etat === 'derriere' ? 'Ta formation tire de l\'arrière. ' : etat === 'devant' ? 'Ta formation mène la série. ' : 'La série est à égalité. '}`,
+        recit: `${resultatPrecedent(s, k)}${k === 0 ? '' : etat === 'derriere' ? 'Ta formation tire de l\'arrière. ' : etat === 'devant' ? 'Ta formation mène la série. ' : 'La série est à égalité. '}${leurCoachMot(boss)}`,
         duel: D,
         stats: statsAvantGros(ctx, you, boss, t => saisonFeuilles.get(t) || null),
         ajustements: offres ? offres.map(c => ({ cle: c, ...AJUSTEMENTS[c] })) : null,

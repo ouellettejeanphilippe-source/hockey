@@ -18,8 +18,8 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles } from './coachs.js';
-import { POUVOIRS, pouvoirsDeLaPeriode, XP, niveauDuPerso, TALENT_CASE } from './pouvoirs.js';
-import { ADJOINTS, mainDe, postesDe, embaucher, poster, finirLesSejours, resteDe, styleAuNiveau, nivDe, salaireDe } from './adjoints.js';
+import { POUVOIRS, pouvoirsDeLaPeriode, XP, niveauDuPerso, TALENT_CASE, persoAdverse } from './pouvoirs.js';
+import { ADJOINTS, mainDe, postesDe, embaucher, poster, finirLesSejours, resteDe, styleAuNiveau, nivDe, salaireDe, relaisDeLaPeriode } from './adjoints.js';
 import { DOSSIERS } from './dossiers.js';
 import { CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -4893,6 +4893,10 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // récupération se fait au début de chaque journée (`simulateLeague`).
   if (series) { recupererEnergie(A); recupererEnergie(B); }
   const LA = activeLineup(A), LB = activeLineup(B);
+  // LEUR COACH EN SÉRIES (V23 F, js/pouvoirs.js `persoAdverse`) : un club sans personnage qui en porte un pour les
+  // séries (`persoSeries`, posé par `creerSeries`) le joue le temps du match, et le dépose après.
+  const pretes = [A, B].filter(T => series && !T.perso && T.persoSeries);
+  for (const T of pretes) T.perso = T.persoSeries;
   // LES MOMENTS DU SOIR (V3.4 ; V10, `MOMENTS_SI`) : ce qu'une carte d'un moment (`si`) lit, sur le club et sur ses
   // joueurs — le même objet, que le duel complète période après période. La feuille les garde (`check_moments_si`).
   for (const [T, Lx, chez, O] of [[A, LA, true, B], [B, LB, false, A]]) {
@@ -5094,6 +5098,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     for (const [T, w] of [[A, winA], [B, !winA]]) T._suite = w ? Math.max(1, (T._suite || 0) + 1) : Math.min(-1, (T._suite || 0) - 1);
   }
   retirerPlans(); retirerAdjoints();
+  for (const T of pretes) T.perso = null;
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
 
@@ -6530,7 +6535,8 @@ export function feuilleVierge() {
     glacePremier: { A: 0, B: 0 },                         // la part de glace du premier trio de chaque club (V19)
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
-    pouvoirs: [],                                         // V21 : { cote, k, p, cle, nom, ico, buts, contre }
+    pouvoirs: [],                                         // V21 : { cote, k, p, cle, nom, ico, buts, contre } ; V23 F : `ombre` (leur coach en séries, hors de sa condition)
+    relais: [],                                           // V23 D : { cote, k, cle, nom, ico, niv, sur: { genre, cle?, ico?, nom }, maillon }
     adjoints: [],                                         // V22 : { cote, cle, nom, ico, reste } — les adjoints en poste ce soir
     prolongation: false,
   };
@@ -7556,6 +7562,8 @@ export function creerSeries(qualifies, { ligue = null, graine = 0, decisions = [
     t.po = Object.fromEntries(CHAMPS_EQUIPE.map(k => [k, 0]));
     t.poJournal = []; t.poBlessures = [];
     for (const s of SLOTS) { const p = t.roster[s.i]; if (p) p.po = {}; }
+    // V23 F : en Rogue (`courbe`), chaque adversaire des séries a son coach-personnage, un pouvoir visible, pur (js/pouvoirs.js).
+    t.persoSeries = S.toi && S.toi.courbe && t !== S.toi && !t.perso ? persoAdverse(t) : null;
   }
   ouvrirRondeSeries(S, qualifies);
   return S;
@@ -8636,9 +8644,26 @@ function pouvoirsPoses(T, e, cote, journal) {
   for (const x of pouvoirsDeLaPeriode(perso, e)) {
     if (x.effet) out.toi.push({ source: 'pouvoir', nom: x.P.nom, ico: x.P.ico, ...x.effet });
     if (x.adv) out.adv.push({ source: 'pouvoir', nom: x.P.nom, ico: x.P.ico, ...x.adv });
-    const note = { cote, k: e.k, p: x.p, cle: x.P.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0 };
+    const note = { cote, k: e.k, p: x.p, cle: x.P.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0, ...(x.ombre ? { ombre: true } : {}) };
     out.notes.push(note);
     if (journal) journal.pouvoirs.push(note);
+  }
+  return out;
+}
+/*
+ * LES RELAIS D'UNE PÉRIODE pour le club `T` (V23 D, js/adjoints.js `relaisDeLaPeriode`) : les adjoints en poste dont le
+ * signal se lit — sur ce qu'un pouvoir lit, plus les pouvoirs de ton coach qui jouent la période (`pouvoirs`, leurs
+ * notes) —, posés en effets de la période sur le club (`toi`) ou sur l'adversaire (`adv`), et notés à la feuille
+ * (`journal.relais`). Rend { toi, adv, notes }.
+ */
+function relaisPoses(T, e, pouvoirs, cote, journal) {
+  const out = { toi: [], adv: [], notes: [] };
+  if (!T.perso) return out;
+  for (const x of relaisDeLaPeriode(T.perso, T.games || 0, { ...e, pouvoirs: pouvoirs.filter(n => !n.ombre) })) {
+    (x.cote === 'adv' ? out.adv : out.toi).push({ source: 'relais', nom: x.nom, ico: x.ico, [x.canal]: x.valeur });
+    const note = { cote, k: e.k, cle: x.cle, nom: x.nom, ico: x.ico, niv: x.niv, sur: x.sur, maillon: x.maillon };
+    out.notes.push(note);
+    if (journal) (journal.relais = journal.relais || []).push(note);
   }
   return out;
 }
@@ -8650,9 +8675,11 @@ function jouerEnPeriodes(A, B, LA, LB, pA, pB, gA, gB, chanceA, chanceB, heavy, 
   const avaitA = '_effetMatch' in A, baseA = A._effetMatch, avaitB = '_effetMatch' in B, baseB = B._effetMatch;
   let gfA = 0, gfB = 0, der = null, blA = 0, blB = 0;
   for (let k = 0; k < 3; k++) {
-    const xA = pouvoirsPoses(A, etatDuPouvoir(A, k, 'A', gfA, gfB, journal, series, false, der && der.A), 'A', journal);
-    const xB = pouvoirsPoses(B, etatDuPouvoir(B, k, 'B', gfB, gfA, journal, series, false, der && der.B), 'B', journal);
-    const fxA = [...xA.toi, ...xB.adv], fxB = [...xB.toi, ...xA.adv];
+    const eA = etatDuPouvoir(A, k, 'A', gfA, gfB, journal, series, false, der && der.A), eB = etatDuPouvoir(B, k, 'B', gfB, gfA, journal, series, false, der && der.B);
+    const xA = pouvoirsPoses(A, eA, 'A', journal), xB = pouvoirsPoses(B, eB, 'B', journal);
+    // V23 D : les relais des adjoints en poste, sur les pouvoirs de la période et le match.
+    const rA = relaisPoses(A, eA, xA.notes, 'A', journal), rB = relaisPoses(B, eB, xB.notes, 'B', journal);
+    const fxA = [...xA.toi, ...xB.adv, ...rA.toi, ...rB.adv], fxB = [...xB.toi, ...xA.adv, ...rB.toi, ...rA.adv];
     blA += blessureDesPouvoirs(fxA) / 3; blB += blessureDesPouvoirs(fxB) / 3;
     let qA = pA, qB = pB;
     if (fxA.length || fxB.length) {
@@ -8735,9 +8762,17 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     if (fxPlan) { effToi.push(...fxPlan.toi); effAdv.push(...fxPlan.adv); for (const [q, e] of fxPlan.joueurs) viser(q, e); }
     // LES POUVOIRS DU COACH (V21) : au duel aussi, période par période ; un duel est un gros match.
     const avantP = hist.length ? hist[hist.length - 1].pointage : null;
-    const xP = pouvoirsPoses(toi, etatDuPouvoir(toi, k, cote, toiA ? gfA : gfB, toiA ? gfB : gfA, journal, series, true, avantP), cote, journal);
+    const eP = etatDuPouvoir(toi, k, cote, toiA ? gfA : gfB, toiA ? gfB : gfA, journal, series, true, avantP);
+    const xP = pouvoirsPoses(toi, eP, cote, journal);
     effToi.push(...xP.toi); effAdv.push(...xP.adv);
-    blDuel += blessureDesPouvoirs(xP.toi) / PERIODES_DU_DUEL.length;
+    // V23 D : les relais de tes adjoints, au duel aussi.
+    const xR = relaisPoses(toi, eP, xP.notes, cote, journal);
+    effToi.push(...xR.toi); effAdv.push(...xR.adv);
+    // V23 F : leur coach en séries (`persoSeries`), son pouvoir ou son ombre, période par période — sur eux (`toi`), sur toi (`adv`).
+    const cAdv = toiA ? 'B' : 'A';
+    const xL = pouvoirsPoses(adv, etatDuPouvoir(adv, k, cAdv, toiA ? gfB : gfA, toiA ? gfA : gfB, journal, series, true, avantP && { moi: avantP.lui, lui: avantP.moi }), cAdv, journal);
+    effAdv.push(...xL.toi); effToi.push(...xL.adv);
+    blDuel += blessureDesPouvoirs([...xP.toi, ...xR.toi, ...xL.adv]) / PERIODES_DU_DUEL.length;
     toi._effetMatch = [...base, ...effToi];
     // Sur eux, une carte d'un moment joue TON moment (`siToi`).
     adv._effetMatch = [...baseAdv, ...effAdv].filter(e => !e.siToi || !!soir[e.siToi]);

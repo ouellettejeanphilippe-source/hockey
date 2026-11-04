@@ -43,10 +43,10 @@ import { RARETES } from '../js/cartes.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
 import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
-import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, MANDAT_DE_LA_PREMIERE, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN, ETAPE_APRES_LA_PREMIERE } from '../js/rogue.js';
+import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, MANDAT_DE_LA_PREMIERE, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN, ETAPE_APRES_LA_PREMIERE, BUTIN_DU_GROS } from '../js/rogue.js';
 import { COACHS, REGLES_DU_COACH } from '../js/coachs.js';
 import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT, NIVEAUX_TALENT } from '../js/pouvoirs.js';
-import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU, CASE_DE_PLUS } from '../js/adjoints.js';
+import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU, CASE_DE_PLUS, RELAIS_NIV, NIV_DEFAUT } from '../js/adjoints.js';
 import { MAITRISE } from '../js/coachs-reels.js';
 import { FORCE_NIV, SALAIRE_NIV } from '../js/adjoints.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
@@ -189,7 +189,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // 31 oct. 2026 : la page dit la deuxième run plus dure (JP : *plus tough la deuxième run*), une phrase : 2 520 mots.
   // Nov. 2026 : la page dit le mandat de la première saison de la première run (`MANDAT_DE_LA_PREMIERE`), une phrase : 2 540 mots.
   // V23 (2 nov.) : 2 600 (2 540 avant) — la règle du coach et le salaire des adjoints, deux mécaniques neuves, chacune en une phrase.
-  borne('la page des règles est courte', mots, 300, 2600, 'mots');
+  // 2 600 jusqu'au 4 nov. 2026 ; le relais, le butin du gros match et leur coach en séries (V23 D et F) valent leurs trois phrases.
+  borne('la page des règles est courte', mots, 300, 2650, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -260,7 +261,10 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
     // V9, tranche 5b, puis V16 : tes adjoints et les paliers de la saison.
-    [`Aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs, après un gros match gagné et au verdict du proprio, <strong>un adjoint parmi trois</strong>`, 'les paliers de la saison'],
+    [`Aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs et au verdict du proprio, <strong>un adjoint parmi trois</strong>`, 'les paliers de la saison'],
+    // V23 D : le relais à son niveau (`RELAIS_NIV`), et le butin d'un gros match gagné (`BUTIN_DU_GROS`).
+    [`rejoue la période, ${{ 1: 'une fois' }[RELAIS_NIV[NIV_DEFAUT - 1]] || `${RELAIS_NIV[NIV_DEFAUT - 1]} fois`} au Pilier, ${String(RELAIS_NIV[4]).replace('.', ',')} fois au ★ Phénomène`, 'le relais'],
+    [`Un gros match gagné paie ${BUTIN_DU_GROS.jetons} 🪙 de plus ou ${BUTIN_DU_GROS.xp} d'expérience`, 'le butin du gros match'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs.`, 'l\'objectif raté'],
     [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],

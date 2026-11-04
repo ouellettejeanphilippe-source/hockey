@@ -127,6 +127,12 @@ export function salairesDesAdjoints(calendrier, you, j = Infinity) {
 }
 export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, grosMatch: 20, objectif: 20, serie: 40 };
 /*
+ * LE BUTIN D'UN GROS MATCH GAGNÉ (V23 D, docs/refonte-v23.md § D ; docs/revue-rogue-2026-11.md § 2.3 B : moins d'offres,
+ * qui comptent) : des jetons de plus, ou de l'expérience pour ton coach — plus d'adjoint. Sans ça, on tenait toutes les
+ * cartes, et le relais n'était plus un choix. Une décision `palier: 'r:<jour>'` avec `gain` ou `xpCoach`.
+ */
+export const BUTIN_DU_GROS = { jetons: 15, xp: 4 };
+/*
  * Les jetons à un moment de la saison : ce que les résultats ont rapporté,
  * moins ce que la boutique a coûté. `res` : W, L, OTL (matchs révélés), les
  * gros matchs gagnés, les objectifs réussis, les séries gagnées.

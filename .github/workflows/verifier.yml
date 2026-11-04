@@ -161,6 +161,12 @@ jobs:
       - name: Les pouvoirs du coach
         run: MESURE=0 N=20 node scripts/check_pouvoirs.mjs
 
+      # Le relais des adjoints (V23 D, 4 nov. 2026) : chaque adjoint relaie exactement les périodes que son signal lit,
+      # à deux maillons, la feuille le garde et le banc l'allume. Sans les chiffres de valeur (deux minutes à N=400,
+      # à la main). Dix secondes.
+      - name: Le relais des adjoints
+        run: MESURE=0 N=20 node scripts/check_relais.mjs
+
       # Zéro code inutile (1.0, jalon 3) : aucune déclaration morte, aucun
       # `export` ni import de trop, aucune classe CSS sans élément. Cinq secondes.
       - name: Le code mort

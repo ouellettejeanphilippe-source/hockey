@@ -139,19 +139,6 @@ export const DOSSIERS = {
       { cle: 'autobus', nom: 'L\'autobus de nuit', bon: 'Des jetons d\'économie', prix: 'Les jambes de tous paient', gain: 10, action: { energieTous: -8 } },
     ],
   },
-  // Un adjoint en vue, quand la caisse le permet.
-  leRecruteur: {
-    de: 'dg', ico: '📋', titre: 'Un adjoint en vue',
-    quand: f => f.caisse !== null && f.caisse >= 50 && !!f.vedette,
-    joueur: f => f.vedette,
-    fait: f => `${f.caisse ?? 0} 🪙 en caisse · ${f.n} matchs, ${f.rang === 1 ? '1er' : `${f.rang}e`} sur ${f.equipes}${avec(f.vedette)}`,
-    mots: ['J\'ai un nom pour toi. Il coûte, mais il change la façon dont ce club joue.',
-      'La caisse est pleine et le téléphone sonne. Un adjoint de plus dans ta main, si tu signes le chèque.'],
-    options: [
-      { cle: 'signer', nom: 'Signer le chèque', bon: 'Une carte d\'adjoint dans ta main', prix: 'Son salaire', gain: -25, adjoint: true },
-      { cle: 'garder', nom: 'Garder l\'argent', bon: 'La caisse reste pleine', rien: true },
-    ],
-  },
   /*
    * LA DEUXIÈME MOITIÉ DE SAISON (nov. 2026 ; docs/revue-rogue-2026-11.md § 2.1) : passé le 26e match, il ne se passait
    * plus rien. Trois histoires lues au classement et à la cédule, après MI_SAISON matchs, sur le modèle des six.
