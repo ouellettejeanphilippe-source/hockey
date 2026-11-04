@@ -1607,7 +1607,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const RANGS = { Tirs: t => parMatch(t, 'SF'), Précision: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.SF ? g.GF / g.SF : NaN; }, 'Tirs contre': [t => parMatch(t, 'SA'), true],
         'Mises en échec': t => parMatch(t, 'CO'), '% d\'arrêts': MESURES.gardiens.val, 'Avantage num.': MESURES.an.val };
       const gardiens = [partantDe(mA), partantDe(mB)].map(g => (g ? nomCourt(g.n) : ''));
-      if (a && b && a.n >= 3 && b.n >= 3) lignes = [['Tirs', m.tirs, l.tirs, v1, 1], ['Précision', m.tir, l.tir, p1, 1], ['Tirs contre', m.contre, l.contre, v1, -1], ['Mises en échec', par(a.CO, a.n), par(b.CO, b.n), v1, 1], ['% d\'arrêts', m.arr, l.arr, pct3, 1], ['Avantage num.', m.an, l.an, p1, 1]];
+      if (a && b && a.n >= 3 && b.n >= 3) {
+        const de = x => ({ tirs: par(x.SF, x.n), tir: par(x.GF, x.SF), contre: par(x.SA, x.n), arr: x.SA ? 1 - x.GA / x.SA : null, an: par(x.ANB, x.ANO), coups: par(x.CO, x.n) });
+        const m = de(a), l = de(b);
+        lignes = [['Tirs', m.tirs, l.tirs, v1, 1], ['Précision', m.tir, l.tir, p1, 1], ['Tirs contre', m.contre, l.contre, v1, -1], ['Mises en échec', m.coups, l.coups, v1, 1], ['% d\'arrêts', m.arr, l.arr, pct3, 1], ['Avantage num.', m.an, l.an, p1, 1]];
+      }
       const rangee = ([k, x, y, f, sens]) => {
         const [g, d] = chezNous ? [x, y] : [y, x];
         const mieux = (p, q) => p != null && q != null && Math.abs(p - q) > 1e-9 && (sens > 0 ? p > q : p < q);
