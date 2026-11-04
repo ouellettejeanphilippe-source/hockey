@@ -694,11 +694,13 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.talents)) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec son expérience et ses talents');
   if (((sv0.partie || {}).decisions || []).some(x => x.patron)) erreurs.push('une décision de personnel (`patron`) reste dans la partie');
   console.log(`5f. ses pouvoirs : ${pouvoirs.map(x => `${x.nom} (${x.etat})`).join(' | ') || '(aucun)'}`);
-  if (!/^Niveau [1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
+  if (!/^Niveau\s?[1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
   if (pouvoirs.length !== 3 || pouvoirs[0].ferme || !pouvoirs.slice(1).every(x => x.ferme === /Niveau [35]/.test(x.etat))) erreurs.push(`le coach ne montre pas ses trois pouvoirs, le premier ouvert (${JSON.stringify(pouvoirs)})`);
 }
 if (!/le mandat/.test(run || '')) erreurs.push('le Proprio ne dit pas le mandat de la run');
-if (!/puis :/.test(run || '')) erreurs.push('le mandat au Proprio ne dit pas sa suite (« puis : … »)');
+// Le contenu, de zéro (4 nov. 2026) : la suite du mandat (« Puis : … ») vit à l'infobulle du bloc, pas dans le texte.
+const suiteDuMandat = await page.getAttribute('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat', 'title').catch(() => '');
+if (!/Puis :/.test(suiteDuMandat || '')) erreurs.push('le mandat au Proprio ne dit pas sa suite (« Puis : … », à l\'infobulle)');
 /*
  * « SEMAINE SUIVANTE » (V4) remplace « Jusqu'à la prochaine décision » : elle joue les journées une à une jusqu'à
  * la fin de la semaine, et s'arrête avant sur ce qui demande le joueur. On attend qu'elle ait fini (le bouton se
@@ -1112,7 +1114,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   await page.screenshot({ path: `${DOSSIER}/rogue-effectif.png`, fullPage: true });
   const marques = await page.$$eval('#pageJoueursCorps .jr-bl', e => e.length).catch(() => 0);
   if (await page.$('#sousNav .soustab[data-page="infirmerie"]')) erreurs.push('l\'infirmerie est encore un sous-onglet d\'Effectif');
-  await page.click('#pageJoueursCorps .inv-filtre[data-groupe="B"]', { timeout: 3000 }).catch(() => erreurs.push('Effectif › Joueurs n\'a pas de filtre 🩹'));
+  await page.click('#pageJoueursCorps [data-groupe="B"]', { timeout: 3000 }).catch(() => erreurs.push('Effectif › Joueurs n\'a pas de filtre 🩹'));
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${DOSSIER}/rogue-infirmerie.png` });
   // Un réserviste blessé n'a pas de case à remplir et se dit dans la ligne « En réserve » : on compte les blessés du titre.
@@ -1147,20 +1149,21 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     await page.waitForSelector(`#hubModal:not([hidden]) .af-onglet[data-maison="${k}"]`, { timeout: 15000 }).catch(() => erreurs.push(`le sous-onglet « ${k} » ne s'ouvre pas`));
     ici[k] = k === 'entraineur' ? idsDesCartes(await cartesDeLaMaison(`#hubModal .af-onglet[data-maison="${k}"]`, k)) : await page.$$eval(`#hubModal .af-onglet[data-maison="${k}"] .maison-jouer`, e => e.map(b => b.dataset.id)).catch(() => []);
     if (k === 'entraineur') await fermerLaFeuille();
-    // Le volet ne garde que le sous-onglet ouvert : la masse salariale se lit chez le proprio, pendant qu'on y est.
-    if (k === 'proprio') plafond = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .inv-plafond', { timeout: 3000 }).catch(() => '');
+    // Le volet ne garde que le sous-onglet ouvert : l'espace sous le plafond se lit chez le proprio, pendant qu'on y est (le contenu,
+    // de zéro, 4 nov. 2026 : la cellule « Libre » du bloc de l'argent, plus de jauge).
+    if (k === 'proprio') plafond = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .pr-argent', { timeout: 3000 }).catch(() => '');
   }
-  if (!plafond) erreurs.push('le proprio ne montre pas la masse salariale');
+  if (!/Libre/.test(plafond || '')) erreurs.push('le proprio ne montre pas l\'espace sous le plafond (la cellule « Libre »)');
   // Les cartes de joueur (une retouche, l'échange d'un doublon) vivent sous le tableau d'Effectif › Joueurs.
   {
     await versLOnglet('club', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
-    await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
+    await page.click('#pageJoueursCorps [data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
     ici.joueurs = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'joueurs')); await fermerLaFeuille();
     // Les soins, au filtre 🩹 (V18-5).
-    await page.click('#pageJoueursCorps .inv-filtre[data-groupe="B"]').catch(() => {}); await page.waitForTimeout(200);
+    await page.click('#pageJoueursCorps [data-groupe="B"]').catch(() => {}); await page.waitForTimeout(200);
     ici.infirmerie = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'infirmerie')); await fermerLaFeuille();
-    await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
+    await page.click('#pageJoueursCorps [data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   }
   if (!(ici.entraineur || []).includes('consommable:stage')) erreurs.push('« Le stage du coach » ne se joue pas chez l\'entraîneur');
   if (!(ici.joueurs || []).includes('consommable:echangeDoublon')) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif');
@@ -1277,7 +1280,7 @@ let posee = null, nomModif = '';
    */
   await versLEffectif();
   await deplierLesCartes('#pageJoueurs');
-  await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
+  await page.click('#pageJoueursCorps [data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   const clesJoueurs = await cartesDeLaMaison('#pageJoueurs', 'joueurs');
   const echange = clesJoueurs.includes('meta|consommable:echangeDoublon|') ? await page.$('#choixModal [data-choix="meta|consommable:echangeDoublon|"]') : null;
   if (!echange) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif (Effectif › Joueurs)');
