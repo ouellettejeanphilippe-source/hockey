@@ -959,10 +959,12 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
   Object.defineProperty(e, 'sources', { value: sources.filter(c => c && c.nom && ((c.finition ?? 1) !== 1 || (c.defense ?? 1) !== 1)).map(c => ({ nom: c.nom, ico: c.ico || '', finition: c.finition ?? 1, defense: c.defense ?? 1 })) });
   // V21 : la précision des POUVOIRS du coach (le temps d'une période), à part : elle passe par-dessus le plafond du jeu.
-  Object.defineProperty(e, 'pouvoir', { value: sources.reduce((a, c) => (c && c.source === 'pouvoir' ? a * (c.finition ?? 1) : a), 1) });
+  // V23 D : le relais d'un adjoint ne dure qu'une période, comme un pouvoir : il passe les plafonds du jeu de même.
+  const dUnePeriode = c => c && (c.source === 'pouvoir' || c.source === 'relais');
+  Object.defineProperty(e, 'pouvoir', { value: sources.reduce((a, c) => (dUnePeriode(c) ? a * (c.finition ?? 1) : a), 1) });
   // Leurs tirs et leurs punitions aussi (oct.) : « la ruée, +40 % de tirs » se jouait écrêtée sous PRESSION_MAX pour un bon
   // club, « le sang-froid, −45 % de punitions » sur DISCIPLINE_MIN.
-  const dePouvoir = k => sources.reduce((a, c) => (c && c.source === 'pouvoir' ? a * (c[k] ?? 1) : a), 1);
+  const dePouvoir = k => sources.reduce((a, c) => (dUnePeriode(c) ? a * (c[k] ?? 1) : a), 1);
   Object.defineProperty(e, 'pouvoirVolume', { value: dePouvoir('volume') });
   Object.defineProperty(e, 'pouvoirDiscipline', { value: dePouvoir('discipline') });
   for (const c of sources) {
