@@ -1525,6 +1525,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   function decideHtml(axes, nomMoi, nomLui) {
     const [att, def, gar] = axes;
     const dit = c => (c && c.mot && c.mot !== 'sur papier' ? `${c.mot}, ${rangMot(c.rang)}` : null);
+    // LE FACE-À-FACE DU ROGUE (4 nov. 2026 ; JP, sur sa capture : *cette page n'est pas très lisible*) : chaque duel
+    // en deux colonnes, qui contre qui en gros, le chiffre et le rang dessous — jamais une phrase de trois lignes.
+    if (ctx.rogue) {
+      const cote = (qui, quoi, c) => `<div class="ff-cote"><b>${ctx.esc(qui)} ${quoi}</b><small>${ctx.esc(c.mot)} · ${rangMot(c.rang)}</small></div>`;
+      const duos = [
+        dit(att.a) && dit(def.b) ? `<div class="ff-duo">${cote(nomMoi, 'en attaque', att.a)}<span class="ff-vs">contre</span>${cote(nomLui, 'en défense', def.b)}</div>` : '',
+        dit(att.b) && dit(def.a) ? `<div class="ff-duo">${cote(nomLui, 'en attaque', att.b)}<span class="ff-vs">contre</span>${cote(nomMoi, 'en défense', def.a)}</div>` : '',
+        gar.a && gar.b ? `<div class="ff-duo"><div class="ff-cote"><b>${ctx.esc(gar.a.mot.split(' · ')[0])}</b><small>${ctx.esc(gar.a.mot.split(' · ').slice(1).join(' · '))}</small></div><span class="ff-vs">contre</span><div class="ff-cote"><b>${ctx.esc(gar.b.mot.split(' · ')[0])}</b><small>${ctx.esc(gar.b.mot.split(' · ').slice(1).join(' · '))}</small></div></div>` : '',
+      ].filter(Boolean);
+      return duos.length ? `${bandeau('Ce qui devrait décider')}<div class="ff-duos">${duos.join('')}</div>` : '';
+    }
     const lignes = [
       dit(att.a) && dit(def.b) ? `⚔ ${nomMoi} en attaque (${dit(att.a)}) contre ${nomLui} en défense (${dit(def.b)})` : '',
       dit(att.b) && dit(def.a) ? `⚔ ${nomLui} en attaque (${dit(att.b)}) contre ${nomMoi} en défense (${dit(def.a)})` : '',
@@ -1545,7 +1556,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
     // V7 — L'AFFICHE EN VRAIES STATS : les deux clubs côte à côte (`duelHtml`) ; les rangs et la phrase vont au dépistage.
     const phraseHtml = `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>`;
-    // En Rogue, le tableau des rangs vit au face-à-face (V18-5, oct.).
+    // En Rogue, le tableau des rangs vit au face-à-face (V18-5, oct.) ; au plateau (4 nov.), une rangée par force, les
+    // deux rangs en gros, le nom écrit, celui qui a l'avantage allumé, et l'avantage dit en une ligne.
+    if (ctx.rogue && table) {
+      const rangee = (x, i) => `<div class="ff-rang"><b class="ff-g${av[i] === 'moi' ? ' bon' : ''}">${rang(x.a)}</b><span class="ff-k">${x.ico} ${ctx.esc(x.nom)}</span><b class="ff-d${av[i] === 'lui' ? ' mauvais' : ''}">${rang(x.b)}</b></div>`;
+      return { mot: duelHtml(adv), detail: `${bandeau(gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces · rang dans la ligue' : 'Forces sur papier · rang')}
+      <div class="ff-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>
+      <div class="ff-rangs">${axes.map(rangee).join('')}</div>${decideHtml(axes, nomMoi, nomLui)}` };
+    }
     return { mot: duelHtml(adv), detail: phraseHtml + `<div class="hub-forces">
       ${!table ? '' : `<table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
         <thead><tr><th></th>${axes.map(x => `<th scope="col" title="${ctx.esc(x.nom)}">${x.ico}</th>`).join('')}</tr></thead>
@@ -1588,6 +1606,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const cell = (x, y, f, sens, cote) => `<td class="${cote}${x != null && y != null && Math.abs(x - y) > 1e-9 && (sens > 0 ? x > y : x < y) ? ' mieux' : ''}"${barres ? barre(x, y) : ''}>${f(x)}</td>`;
     const chezNous = (prochain() || {}).m ? prochain().m.A === you : true;
     const mP = (prochain() || {}).m, couleurs = mP && barres ? ` style="--a-duel:${ctx.band(mP.A.tag).duel};--b-duel:${ctx.band(mP.B.tag).duel}"` : '';
+    // LE FACE-À-FACE DU ROGUE (4 nov. 2026) : une rangée par stat, les deux chiffres en gros, le meilleur allumé, et
+    // sous eux UNE barre à deux tons (la part du club à domicile, aux couleurs de l'affiche) — pas deux barres pâles.
+    if (ctx.rogue && complet && barres) {
+      const rangee = ([k, x, y, f, sens]) => {
+        const [g, d] = chezNous ? [x, y] : [y, x];
+        const mieux = (a, b) => a != null && b != null && Math.abs(a - b) > 1e-9 && (sens > 0 ? a > b : a < b);
+        const part = g != null && d != null && g + d > 0 ? Math.max(8, Math.min(92, 100 * (sens > 0 ? g / (g + d) : d / (g + d)))) : 50;
+        return `<div class="ff-rang"><b class="ff-g${mieux(g, d) ? ' bon' : ''}">${f(g)}</b><span class="ff-k">${k}</span><b class="ff-d${mieux(d, g) ? ' bon' : ''}">${f(d)}</b><i class="ff-barre"><em style="width:${part.toFixed(0)}%"></em></i></div>`;
+      };
+      return `${bandeau(titre)}<div class="ff-rangs ff-stats"${couleurs}>${lignes.map(rangee).join('')}</div>`;
+    }
     return `<div class="hub-duel-titre">${titre}</div><table class="hub-duel${barres ? ' barres' : ''}"${couleurs}><tbody>${lignes.map(([k, x, y, f, sens]) => (chezNous
       ? `<tr>${cell(x, y, f, sens, 'g')}<th scope="row">${k}</th>${cell(y, x, f, sens, 'd')}</tr>`
       : `<tr>${cell(y, x, f, sens, 'g')}<th scope="row">${k}</th>${cell(x, y, f, sens, 'd')}</tr>`)).join('')}</tbody></table>`;
@@ -3210,7 +3239,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const ligne = carte.querySelector('.bu-prochain');
         if (ligne) ligne.onclick = () => ui.ouvrirPage({ genre: 'face', ico: ctx.logo(adv.tag, 28), titre: 'Face à face',
           sousTitre: `Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}`,
-          html: `<div class="hub-match">${face}${duelHtml(adv, { complet: true, barres: true })}${ereintant}</div>${forcesHtml(adv, { table: true }).detail}<div class="hub-match-note">${dernierMot}</div>` });
+          html: ctx.rogue ? `<div class="ff">${face}${ereintant}${duelHtml(adv, { complet: true, barres: true })}${forcesHtml(adv, { table: true }).detail}<div class="ff-mot">${dernierMot}</div></div>`
+            : `<div class="hub-match">${face}${duelHtml(adv, { complet: true, barres: true })}${ereintant}</div>${forcesHtml(adv, { table: true }).detail}<div class="hub-match-note">${dernierMot}</div>` });
         carte.querySelectorAll('.bu-banc [data-banc]').forEach(b => {
           const ouvrir = () => { if (!actif()) return; if (b.dataset.banc === 'plan') ouvrirPlan(p, adv); else tabs.montrer('entraineur'); };
           b.onclick = ouvrir;

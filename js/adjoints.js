@@ -60,8 +60,6 @@ export const casesDuPerso = (perso, n) => casesDuNiveau(n) + (aLaCaseDePlus(pers
  * Huit styles, un par philosophie (`voie` : la clé du coach de js/coachs.js), pour que la synergie se lise d'un coup
  * d'œil. `effet` sur ton club, `adv` sur l'adversaire, le temps du match ; les canaux sont ceux du moteur.
  */
-/* Ce qu'un signal lit : la 3e période (`e.k`, comme un pouvoir, js/pouvoirs.js). */
-const k3 = e => e.k === 2;
 export const ADJOINTS = {
   canonnier: { ico: '🏹', nom: 'Le canonnier', style: 'Tirer de partout', voie: 'essaim',
     dit: 'Une rondelle sur la palette, c\'est une rondelle au filet. On comptera après.',

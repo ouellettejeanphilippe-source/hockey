@@ -114,7 +114,8 @@ function etatLu(f, moi, k, series) {
   const pouvoirs = f.pouvoirs.filter(x => x.cote === moi && x.k === k && !x.ombre);
   return { k, moi: buts(moi, 0, 20 * k), lui: buts(eux, 0, 20 * k), tirsMoi, tirsLui, der, series, gros: false, soir, pouvoirs };
 }
-const soirDuMatch = g => ({ visiteur: g % 2 === 1, soir: Math.floor(g / 2) % 4 === 1 ? 'dosADos' : null, series: Math.floor(g / 2) % 8 === 3, aux: Math.floor(g / 4) % 4 === 2 });
+/* Comme check_pouvoirs, plus l'infirmerie qui déborde un soir sur quatre (49 soirs sur 82 dans une vraie saison) : des clubs neufs n'ont pas de blessés. */
+const soirDuMatch = g => ({ visiteur: g % 2 === 1, soir: Math.floor(g / 2) % 4 === 1 ? 'dosADos' : Math.floor(g / 2) % 4 === 3 ? 'infirmerie' : null, series: Math.floor(g / 2) % 8 === 3, aux: Math.floor(g / 4) % 4 === 2 });
 const main = (cles, niv = NIV_DEFAUT) => cles.map(cle => ({ cle, niv, depuis: 0, fin: null, sejours: [] }));
 const coachDe = cle => Object.keys(COACHS).find(c => ADJOINTS[cle].voie === c) || 'essaim';
 /*

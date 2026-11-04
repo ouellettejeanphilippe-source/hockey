@@ -5010,6 +5010,32 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-onglets { flex: none; display: flex; background: var(--fond-1); border-top: 1px solid var(--filet); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--safe-bas); }
 .hub-onglets::-webkit-scrollbar { display: none; }
 .hub-onglets .navtab { flex: 1 1 0; min-width: 64px; }
+/* LE FACE-À-FACE DU ROGUE (4 nov. 2026 ; JP, sur sa capture : *cette page n'est pas très lisible*). L'affiche, puis une
+   rangée par stat ou par force : le chiffre de gauche, le nom au centre, le chiffre de droite, en gros, le meilleur allumé,
+   et sous les stats UNE barre à deux tons aux couleurs de l'affiche ; « ce qui devrait décider » en deux colonnes. */
+.ff { display: flex; flex-direction: column; gap: var(--esp-2); }
+.ff .hub-face { border-radius: var(--r-2); overflow: hidden; }
+.ff .hub-ereintant { align-self: flex-start; margin: 0; }
+.ff-rangs { display: flex; flex-direction: column; gap: 2px; }
+.ff-rang { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: var(--esp-2); padding: var(--esp-1) var(--esp-2); border-radius: var(--r-1); background: var(--fond-2); }
+.ff-rang b { font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); white-space: nowrap; }
+.ff-rang .ff-g { text-align: left; }
+.ff-rang .ff-d { text-align: right; }
+.ff-rang b.bon { color: var(--bon); }
+.ff-rang b.mauvais { color: var(--mauvais); }
+.ff-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); text-align: center; }
+.ff-barre { grid-column: 1 / -1; display: block; height: 6px; margin-top: 4px; border-radius: var(--r-1); background: var(--b-duel, var(--encre-3)); overflow: hidden; }
+.ff-barre em { display: block; height: 100%; background: var(--a-duel, var(--club-vif)); }
+.ff-mot { padding: 0 var(--esp-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+.ff-mot b { color: var(--encre); }
+.ff-duos { display: flex; flex-direction: column; gap: var(--esp-1); }
+.ff-duo { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: var(--esp-2); padding: var(--esp-2); border-radius: var(--r-1); background: var(--fond-2); }
+.ff-cote { display: grid; gap: 2px; min-width: 0; }
+.ff-cote b { font: 800 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; text-transform: uppercase; color: var(--encre); }
+.ff-cote small { font: 700 var(--t-1)/1.2 var(--display); color: var(--encre-2); }
+.ff-duo .ff-cote:last-child { text-align: right; }
+.ff-vs { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; font-style: italic; color: var(--or); }
+
 /* =====================================================================
    6b. LE MATCH — le direct, le sommaire, l'entracte, les tableaux d'un match
    =====================================================================
