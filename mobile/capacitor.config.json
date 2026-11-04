@@ -1,8 +1,0 @@
-{
-  "appId": "ca.local.cap82",
-  "appName": "Cap 82-0",
-  "webDir": "www",
-  "android": {
-    "webContentsDebuggingEnabled": false
-  }
-}

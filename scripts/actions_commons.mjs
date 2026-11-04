@@ -58,14 +58,14 @@
  *
  * 4. LE CADRAGE, comme scripts/actions.mjs : le centre du visage (YuNet,
  *    scripts/visages_actions.py --json), la fenêtre 5:7 de js/recadrage-action.js
- *    (le même code que l'appareil), un WebP 400 × 560 dans img/actions/{id}.webp.
+ *    un WebP 400 × 560 dans img/actions/{id}.webp.
  *    Un portrait posé (le visage à plus de 40 % de la largeur de la carte, 28 % en
  *    noir et blanc ou avant 1990) n'est pas une photo d'action : il est écarté.
  *    Le décodage et le WebP se font dans Chromium (Playwright), sans dépendance.
  *
  * 5. data/actions.json : `ids` gagne ces joueurs, `visages` leurs centres ;
  *    `commons` : { id → { f : le fichier, a : l'auteur, l : la licence, s : la
- *    vignette que l'appareil télécharge } } et `libres` : { id → { a, l, s,
+ *    vignette téléchargée à la fabrication } } et `libres` : { id → { a, l, s,
  *    p : la page de l'œuvre, o : la source (flickr…) } }. Une passe de
  *    scripts/actions.mjs les garde. Le brut vit hors du dépôt et s'efface à la
  *    fin (sauf --garder).

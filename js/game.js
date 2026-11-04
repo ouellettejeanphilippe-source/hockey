@@ -33,8 +33,7 @@ import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSu
 import { estD as isD, esc, money, pct3, pmMatch } from './util.js';
 import { getEraFactor, getEraSalary, getLineZone, nomDeFenetre, getArchetype } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
-import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
-import { actionsDisponibles, demarrerActions, photoDeFond } from './actions.js';
+import { actionsDisponibles, photoDeFond } from './actions.js';
 import { appliquerClub, nomDuClub } from './club.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { brancherBilan, teamLabel, teamShort, tagCourt } from './bilan.js';
@@ -1098,19 +1097,15 @@ async function chargerPortraits() {
 }
 
 /*
- * TOUT SUR L'APPAREIL, UNE FOIS (S78, 1.0). Sur le Web, la page demande au
- * travailleur de service de garder les visages et les écussons, en
- * arrière-plan, après le premier rendu ; `cap82_visages` retient le lot déjà
- * gardé, et un nouveau lot se complète tout seul. Les photos d'action
- * (img/actions, 1.0) suivent le même chemin. Dans l'application Android,
- * l'APK n'emporte ni les visages ni les photos : l'appareil les télécharge à
- * la LNH et les recadre lui-même (js/visages.js, puis js/actions.js, une fois
- * les visages gardés).
+ * TOUT SUR L'APPAREIL, UNE FOIS (S78, 1.0). La page demande au travailleur de
+ * service de garder les visages et les écussons, en arrière-plan, après le
+ * premier rendu ; `cap82_visages` retient le lot déjà gardé, et un nouveau
+ * lot se complète tout seul. Les photos d'action (img/actions, 1.0) suivent
+ * le même chemin.
  */
 async function prechargerVisages() {
   try {
     if (!PORTRAITS_LOCAUX) return;
-    if (surAppareil()) { demarrerVisages([...PORTRAITS_LOCAUX], { toast }).catch(() => {}).then(demarrerActions); return; }
     if (!navigator.serviceWorker || !location.protocol.startsWith('http')) return;
     const actions = await actionsDisponibles();
     // Le lot : le nombre de visages, d'écussons et de photos, et leur taille (S80 : 320 px) — des images neuves se regardent.
@@ -1134,7 +1129,7 @@ export function headshotHtml(p) {
   // La classe `visage` porte le cadrage commun (style.css) : aucun écran ne zoome à sa façon.
   // Sans photo à la LNH : sa silhouette générique, recadrée comme les autres — elle, toujours locale.
   if (PORTRAITS_LOCAUX) return PORTRAITS_LOCAUX.has(id)
-    ? `${fallback}${surAppareil() ? imgVisage(id) : `<img class="visage" src="img/mugs/${id}.webp" alt="" loading="lazy" onerror="this.remove()">`}`
+    ? `${fallback}<img class="visage" src="img/mugs/${id}.webp" alt="" loading="lazy" onerror="this.remove()">`
     : `${fallback}<img class="visage silhouette" src="img/mugs/silhouette.webp" alt="" loading="lazy" onerror="this.remove()">`;
   if (PORTRAITS_ABSENTS.has(id)) return fallback;
   return `${fallback}<img src="https://assets.nhle.com/mugs/nhl/latest/${id}.png" alt="" loading="lazy" onerror="this.remove();cap82.portraitAbsent(${id})">`;

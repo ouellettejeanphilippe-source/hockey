@@ -421,7 +421,7 @@ export function anneeDeCarte(saison) {
 /*
  * LA PHOTO D'ACTION. Le contrat : l'adresse d'une image au format carte
  * (portrait 5:7), ou rien. js/actions.js la fournit (les images, leur
- * liste, leur téléchargement sur l'appareil), `p.actionSrc` la force (les
+ * liste), `p.actionSrc` la force (les
  * planches) ; elle se branche ICI, et tous
  * les gabarits (le vestiaire, la carte mini, la fiche, `artJoueur`) la
  * reçoivent par ce seul endroit. Sans elle — ou si l'image manque au

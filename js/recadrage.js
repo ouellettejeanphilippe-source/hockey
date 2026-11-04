@@ -10,11 +10,11 @@
  * fasse toujours la même part du cadre, à la même hauteur ; une photo opaque,
  * déjà serrée sur le visage, garde son cadre.
  *
- * UNE SEULE IMPLÉMENTATION pour deux usages : `scripts/portraits.mjs` (la
- * version Web, recadrée une fois à la fabrication) et `js/visages.js`
- * (l'application Android, qui télécharge et recadre sur l'appareil). La
- * fonction ne lit AUCUNE variable extérieure : le script l'injecte dans
- * Chromium par son texte (`recadrer.toString()`).
+ * La fonction ne lit AUCUNE variable extérieure : `scripts/portraits.mjs`
+ * (les visages recadrés une fois à la fabrication, img/mugs) l'injecte dans
+ * Chromium par son texte (`recadrer.toString()`). Elle vit dans js/ depuis la
+ * 1.0, quand l'application Android recadrait sur l'appareil ; web seulement
+ * depuis le 4 nov. 2026, seul le script la lit.
  */
 export async function recadrer(blob, { taille = 320, qualite = 0.85, partTete = 0.46, margeHaut = 0.09 } = {}) {
   const img = await createImageBitmap(blob);

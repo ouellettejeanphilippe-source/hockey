@@ -19,19 +19,16 @@ index.html                  la page unique : l'en-tête du club, les sections (B
                             Rogue, Ligue), la roulette, le vestiaire, l'alignement, les modales
 style.css                   tous les styles, une seule feuille dans l'ordre des écrans (docs/refonte-ui.md), mobile
                             d'abord (390 px), le rail dès 1000 px
-sw.js                       travailleur de service : la coquille hors ligne (FICHIERS, réécrite par l'APK), les
+sw.js                       travailleur de service : la coquille hors ligne (FICHIERS), les
                             visages en cache ; les shards restent à IndexedDB ; VERSION = la version du jeu
 site.webmanifest, favicon.svg, icon-180/192/512.png   installation et icônes
 fonts/                      Barlow Condensed, Manrope, Noto Emoji (les émojis au trait) et les polices des séries
                             de cartes, toutes OFL (fonts/POLICES.txt), hébergées ici : aucune requête tierce
 img/logos                   les écussons des 44 franchises (scripts/logos.mjs ; les disparues sont dessinées,
                             js/logos.js)
-img/mugs                    les visages recadrés (scripts/portraits.mjs ; l'APK les télécharge sur l'appareil)
+img/mugs                    les visages recadrés (scripts/portraits.mjs)
 img/actions                 les photos de match recadrées en 5:7 (≈ 170 Mo), celles de la LNH, de Commons,
                             d'une saison, les couchées ; data/actions.json les liste
-mobile/                     l'APK (Capacitor) : fabriquer-apk.ps1, assembler-www.mjs (www/ minifié par esbuild,
-                            sans data/salaries ni data/seed.json)
-desktop/                    l'exe (Electron) ; seul le code est versionné
 CLAUDE.md, AGENTS.md        les consignes des agents ; AGENTS.md renvoie à CLAUDE.md
 README.md, ARCHITECTURE.md, MOTEUR.md, LIVRAISON.md, PLAN.md   voir docs/README.md
 ```
@@ -204,7 +201,7 @@ data/seasons/<saison>.json  un shard par saison : season, minGP, v (RATINGS_VERS
                             mises en échec ht, blocs bl, vols tk, revirements gv, depuis 2009-10 les punitions
                             tirées pd, depuis 2009-10 le type de tir ts)
 data/index.json             les saisons au jeu (41 matchs joués au moins) et les 44 équipes
-data/seed.json              le filet hors ligne du Web : dix saisons, hors de l'APK
+data/seed.json              le filet hors ligne : dix saisons
 data/salaries/<saison>.json salaires réels publiés (playerId → $ de l'époque), facultatif ; sources/ et README.md
 data/trophees.js            Selke, Norris, Vezina, Conn Smythe — gagnants et finalistes (les traits)
 data/reputations.js         les réputations curées

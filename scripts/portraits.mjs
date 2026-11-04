@@ -90,7 +90,7 @@ async function telecharger(id) {
 const navigateur = await chromium.launch();
 const page = await navigateur.newPage();
 await page.setContent('<body></body>');
-// Le recadrage vit dans js/recadrage.js (1.0) : le même code recadre ici et sur l'appareil Android.
+// Le recadrage vit dans js/recadrage.js (1.0) ; il ne lit aucune variable extérieure.
 // Il ne lit aucune variable extérieure, donc son texte suffit à le poser dans la page.
 await page.addScriptTag({ content: `window.recadrerBlob = ${recadrer.toString()};` });
 await page.evaluate(({ TAILLE, QUALITE, PART_TETE, MARGE_HAUT }) => {

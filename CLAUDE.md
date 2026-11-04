@@ -4,7 +4,7 @@
 
 Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (le jour à jour, le duel joué au plan que ton adjoint propose, ton coach-personnage et ses pouvoirs, la boutique, la run), **Sur table**, l'exhibition et **Sur glace** (un match 2D à la manette, à la physique crédible et aux règles complètes : deux vrais clubs, l'IA des neuf autres, la passe, le hors-jeu, les punitions, les tirs de barrage).
 
-Un site statique, joué en local, en APK (Capacitor) ou en exe (Electron) ; il n'est plus publié en ligne. Aucun backend, aucune dépendance npm, aucun framework.
+Un site statique, publié sur GitHub Pages depuis main, web seulement (JP, 4 nov. 2026 : *oublie APK et exe, on développe maintenant web only* ; l'application Android et l'exe Windows sont partis). Aucun backend, aucune dépendance npm, aucun framework.
 
 ## Où on travaille
 
@@ -57,10 +57,6 @@ scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs,
                       main (essai_*.mjs), calibration (calibrate_sim, mock_*, *_calibre, inferer_glace et inferer_gestes : ce que la ligue ne comptait pas),
                       verdict.mjs (le juge partagé), lib/ (mort.mjs la mesure du code mort, rogue_sim.mjs la run jouée par un robot…) ;
                       la liste complète : docs/structure-detaillee.md
-mobile/, desktop/     l'APK (Capacitor) et l'exe (Electron) ; seul leur code est versionné ; leur version est celle de sw.js (build.gradle la lit), et .github/workflows/publier.yml les fabrique et les publie en release à chaque version neuve sur main (l'APK signé par les secrets CAP82_KEYSTORE_B64 et CAP82_KEYPASS)
-mobile/assembler-www.mjs  www/ de l'APK : sans data/salaries ni data/seed.json, JS regroupé en lots et minifié,
-                      CSS minifié (esbuild, devDependency de mobile/ seulement ; --brut pour s'en passer),
-                      cartes de sources à côté dans www-cartes/ ; la liste hors ligne de sw.js est réécrite
 docs/                 l'historique et la référence (voir docs/README.md)
 ```
 

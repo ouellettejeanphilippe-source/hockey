@@ -30,7 +30,9 @@ Une ligne chacun. Ce qui est engagé vit dans `LIVRAISON.md` ; le reste attend l
 
 **Pas de scraping de hockey-reference ni hockeydb.** Conditions d'utilisation, et leur HTML change sans préavis.
 
-**Pas de backend.** Un site statique, joué en local, en APK (Capacitor) ou en exe (Electron) ; rien à maintenir.
+**Pas de backend.** Un site statique, publié sur GitHub Pages depuis `main` ; rien à maintenir.
+
+**Web seulement** (JP, 4 nov. 2026 : *oublie APK et exe, on développe maintenant web only*). L'application Android (Capacitor, `mobile/`), l'exe Windows (Electron, `desktop/`), leur release (`publier.yml`) et tout le code qui ne servait qu'à eux sont partis ; la version Web suit `main` toute seule (`js/mise-a-jour.js`). Le pourquoi : `docs/decisions.md`.
 
 **La valeur est relative à la saison, pas absolue.** Un rang statistique dans sa saison, à son poste, projeté sur la distribution historique ; un top-10 des marqueurs vaut la même chose en 1975 et en 2024. Une équipe exceptionnelle ou nulle peut encore déséquilibrer sa saison, c'est voulu : on équilibre les époques sans effacer la réalité. Mesuré par `scripts/check_ratings.mjs` (corrélation force ~ classement autour de 0,8).
 
