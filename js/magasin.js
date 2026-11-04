@@ -67,7 +67,7 @@ export function ouvrirMagasin(ctx) {
       <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[tier].nom)}</span></span>
       <span class="pk-nom">${esc(P.nom)}</span>
       <span class="pk-n">${P.cartes ? `${n} joueur${n > 1 ? 's' : ''} · ${P.cartes} carte${P.cartes > 1 ? 's' : ''}` : `${n} carte${n > 1 ? 's' : ''}`}</span>
-      <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) < 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
+      <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) !== 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
     </button>`;
   };
   // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; le reste attend « Voir les N packs ». V10 : les
@@ -127,15 +127,18 @@ export function ouvrirMagasin(ctx) {
      * NOV. 2026 (JP : *where the infos are*) : la boutique ne dit que ce qui décide un achat — tes jetons, jusqu'où tu signes.
      * Les absents sont à Joueurs › Blessés, la masse salariale et le barème au Proprio, la garantie d'une Or à la fiche du pack ;
      * les quatre packs du début tiennent de front, le club se plie en une rangée.
+     * LE CONTENU, DE ZÉRO (4 nov. 2026) : la tête en UNE ligne, « 26 🪙 · tu signes jusqu'à 2,4 M$ » ; « jetons », le rabais et
+     * « prix +10 % (1 pack cette saison) » sont partis — la hausse comme le rabais se lisent dans le prix barré de chaque pochette.
      */
     const signe = ctx.plafond ? ` · tu signes jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))}` : '';
     m.innerHTML = `<div class="choix-sheet pk-sheet" role="dialog" aria-modal="true" aria-label="La boutique">
       <div class="choix-tete">
         <span class="choix-ico">🛒</span>
-        <div class="choix-titres"><div class="choix-titre">La boutique</div><div class="choix-irl">🪙 ${ctx.jetons} jetons${signe}${ctx.mods.rabais && ctx.mods.rabais < 1 ? ` · rabais −${Math.round((1 - ctx.mods.rabais) * 100)} %` : ''}${achats() ? ` · prix +${Math.round((hausseDesPacks(achats()) - 1) * 100)} % (${achats()} pack${achats() > 1 ? 's' : ''} cette saison)` : ''}</div></div>
+        <div class="choix-titres"><div class="choix-titre">La boutique</div></div>
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       <div class="choix-corps pk-corps">
+        <div class="pk-tete">${ctx.jetons} 🪙${signe}</div>
         ${rayons}
         ${clubOuvert ? club : (ctx.club || []).length ? clubRangee() : ''}
         ${nScelles ? `<button type="button" class="hub-rangee pk-aller"><span class="hub-rangee-t">📦 Déjà à toi</span><b>${nScelles} pack${nScelles > 1 ? 's' : ''} scellé${nScelles > 1 ? 's' : ''} · ouvrir</b></button>` : ''}

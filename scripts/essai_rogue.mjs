@@ -756,7 +756,7 @@ for (let i = 0; i < 5; i++) {
 }
 await regler();
 await versMarche('boutique'); await page.waitForTimeout(200);
-const avant = (await page.textContent('#pageMarcheCorps .hub-page[data-genre="boutique"] .choix-irl')).replace(/\s+/g, ' ').trim();
+const avant = (await page.textContent('#pageMarcheCorps .hub-page[data-genre="boutique"] .pk-tete')).replace(/\s+/g, ' ').trim();
 await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(200);
 const jauge = async () => (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge()}`);
@@ -820,7 +820,7 @@ await verifMarche('la boutique ouverte');
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
 const nPacks = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
 // Nov. 2026 : la boutique ne dit que tes jetons et jusqu'où tu signes, dans son en-tête ; la masse salariale est au Proprio.
-const espace = ((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl').catch(() => '')) || '').match(/tu signes jusqu'à [^·]+/)?.[0] || '';
+const espace = ((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete').catch(() => '')) || '').match(/tu signes jusqu'à [^·]+/)?.[0] || '';
 // 1.0 (R5) : à la première run, quatre packs pour commencer, un bouton « Voir les N packs », et un pack impayable qui dit ce qui manque.
 const voirTout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
 console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}${voirTout ? ` · « ${(await voirTout.textContent()).trim()} »` : ''}`);
@@ -833,7 +833,7 @@ else {
   const nTout = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon:not(.pk-rayon-jour):not(.pk-rayon-club) .pk-tuile[data-pack]', e => e.length);
   const chers = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile.pk-cher .pk-manque', e => e.map(x => x.textContent.trim()));
   // Un pack coûte plus que la caisse ? Alors sa tuile doit le dire. (À 84 🪙, aucun pack n'est impayable : rien à exiger.)
-  const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   const prixMax = Math.max(...await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
   console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
   // Jalon P2 : la boutique vend ses packs, tous mixtes ; V10 (les packs qui montent) : huit, dont deux ouverts à la première run.
@@ -854,7 +854,7 @@ else {
 {
   const tout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
   if (tout) { await tout.click(); await page.waitForTimeout(300); }
-  const avantJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const avantJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   // Nov. 2026 : le rayon du club se plie en une rangée (le porté, deux clubs, « Et N › ») ; « Et N › » l'ouvre.
   const rangeeClub = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-club-plus[data-club-tout]');
   if (rangeeClub) { await rangeeClub.click(); await page.waitForTimeout(300); }
@@ -876,7 +876,7 @@ else {
   const mc = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}').club || {});
   const tete = await page.textContent('.tete-nom');
   await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-  const apresJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const apresJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   console.log(`7c. ton club à la boutique : les Harfangs · ${avantJ} → ${apresJ} 🪙 · porté : ${mc.club} · en-tête « ${tete} »`);
   if (mc.club !== 'harfangs' || tete !== 'Harfangs' || apresJ !== avantJ - PRIX_HARFANGS) erreurs.push(`les Harfangs achetés à la boutique (${avantJ} → ${apresJ} 🪙, méta ${mc.club}, en-tête « ${tete} »)`);
 }
@@ -1240,7 +1240,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   await versLOnglet('ligue', 'historique');
   const pal = ((await page.textContent('#leaderboardBody').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   // Nov. 2026 : le prestige du club et la run en cours y vivent dès la run 1.
-  if (/Aucune saison enregistrée|Ton album/.test(pal) || !/La run en cours|Tes runs/.test(pal) || !/prestige du club/.test(pal)) erreurs.push(`le Palmarès du Rogue n'est pas celui du club : « ${pal.slice(0, 80)} »`);
+  if (/Aucune saison enregistrée|Ton album/.test(pal) || !/Run \d+ · saison \d+|Tes runs/.test(pal) || !/prestige du club/.test(pal)) erreurs.push(`le Palmarès du Rogue n'est pas celui du club : « ${pal.slice(0, 80)} »`);
   console.log(`10l. la Ligue : ${sous.join(' · ')} · un club ouvert du classement ${club ? 'oui' : 'non'}, le retour ${revenu ? 'y revient' : 'non'} · le Palmarès « ${pal.slice(0, 70)} »`);
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
 }

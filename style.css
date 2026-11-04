@@ -4238,21 +4238,21 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-rangee-t small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-rangee-c { font: 900 var(--t-5)/1 var(--display); color: var(--pl-ton, var(--or)); font-variant-numeric: tabular-nums; }
 .pl-rangee-c small { font-size: var(--t-1); color: var(--encre-3); }
-/* Les billets de la route : quand et où, l'écusson, le club en gros, sa fiche ; encochés ; ce soir cerné de blanc, le gros match d'or. */
-.pl-billets { display: flex; gap: var(--esp-2); margin: 0; padding: 0 0 2px; list-style: none; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; }
-.pl-billet { position: relative; flex: none; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 2px; width: 122px; min-height: 104px; padding: var(--esp-2) var(--esp-2) var(--esp-2) var(--esp-3); border: 1px solid var(--filet-2); border-radius: var(--r-1); background: var(--fond-2); font: 800 var(--t-2)/1.1 var(--display); text-transform: uppercase; color: var(--encre); text-align: left; scroll-snap-align: start; }
+/* Les billets de la route : quand et où, l'écusson, le sigle, son rang et sa fiche ; encochés ; ce soir cerné de blanc, le gros match d'or.
+   Nov. 2026 (le contenu, de zéro ; interface.md : jamais un glissement de côté) : trois billets de front, sans rail. */
+.pl-billets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); margin: 0; padding: 0; list-style: none; }
+.pl-billet { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 2px; min-width: 0; min-height: 104px; padding: var(--esp-2) var(--esp-2) var(--esp-2) var(--esp-3); border: 1px solid var(--filet-2); border-radius: var(--r-1); background: var(--fond-2); font: 800 var(--t-2)/1.1 var(--display); text-transform: uppercase; color: var(--encre); text-align: left; }
 .pl-billet::before, .pl-billet::after { content: ""; position: absolute; top: 50%; left: -6px; width: 11px; height: 11px; margin-top: -6px; border-radius: 50%; background: var(--fond-1); box-shadow: inset 0 0 0 1px var(--filet-2); }
 .pl-billet::after { left: auto; right: -6px; }
 .pl-billet-soir { border-color: var(--encre-3); box-shadow: inset 0 0 0 1px var(--encre-3); }
 .pl-billet-gros { border-color: var(--or); }
 .pl-billet-gros :is(.pl-billet-q, .pl-billet-p) { color: var(--or); }
-.pl-billet-lundi { width: auto; min-height: 0; padding: 0 2px; border: 0; border-left: 1px dashed var(--filet); border-radius: 0; background: none; color: var(--encre-3); justify-content: center; }
-.pl-billet-lundi::before, .pl-billet-lundi::after { display: none; }
-.pl-billet-q { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; font-variant-numeric: tabular-nums; color: var(--encre-3); white-space: nowrap; }
+.pl-billet-q { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-billet-i { display: grid; place-items: center; }
 .pl-billet-n { max-width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-billet-p { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-.pl-billet .pl-coin { top: var(--esp-1); right: var(--esp-1); border: 0; padding: 0; background: none; }
+/* Le palier 🎁 au bas du billet, à droite du pied (en tête, il couvrait « Ce soir · chez eux »). */
+.pl-billet .pl-coin { top: auto; bottom: var(--esp-1); right: var(--esp-1); border: 0; padding: 0; background: none; }
 /* Les marches de l'échelle : les faites cochées, la tienne cernée d'or, la prochaine dit ce qui manque, les lointaines en sourdine. */
 .pl-echelle { display: grid; gap: var(--esp-1); }
 .pl-marche { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 40px; padding: 0 var(--esp-2); border-radius: var(--r-1); background: var(--fond-1); font: 800 var(--t-2)/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.02em; }
@@ -4262,9 +4262,16 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-marche-ici i { background: var(--or); color: var(--encre-sur-or); }
 .pl-marche-n { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-marche-n small, .pl-marche-b { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; color: var(--encre-3); }
-.pl-marche-suivant .pl-marche-b, .pl-marche-ici .pl-marche-n small { color: var(--or); }
+.pl-marche-n small::before { content: " · "; }
+/* La marche suivante dit ce qui manque sur sa propre ligne, sans mot coupé à 390 px (nov. 2026, le contenu, de zéro). */
+.pl-marche-suivant .pl-marche-n { white-space: normal; }
+.pl-marche-suivant .pl-marche-n small { display: block; }
+.pl-marche-suivant .pl-marche-n small::before { content: none; }
+.pl-marche-suivant .pl-marche-b, .pl-marche-suivant .pl-marche-n small, .pl-marche-ici .pl-marche-n small { color: var(--or); }
 .pl-marche-loin { opacity: 0.6; }
 /* Le podium : le premier au centre et plus haut, sur l'or. */
+/* La tête de la boutique, en une ligne : tes jetons, jusqu'où tu signes (nov. 2026, le contenu, de zéro). */
+.pk-tete { font: 800 var(--t-3)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--or); font-variant-numeric: tabular-nums; }
 .pl-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); align-items: end; margin: var(--esp-3) 0 var(--esp-2); padding: var(--esp-2) var(--esp-2) 0; }
 .pl-podium-2 { width: 92%; justify-self: end; }
 .pl-podium-3 { width: 88%; }
@@ -4550,7 +4557,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-une-voix { color: var(--encre-2); }
 .hub-miniboss { margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--mauvais); background: color-mix(in srgb, var(--mauvais) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .hub-miniboss.gagne { border-left-color: var(--bon); background: color-mix(in srgb, var(--bon) 10%, transparent); }
-.recit-detail { display: block; margin-top: 2px; font-size: var(--t-1); color: var(--encre-3); }
 
 /* ---- Les actions : « Journée suivante » pleine largeur, les seconds rôles en contour sur une rangée ---- */
 .hub-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--esp-2); padding: var(--esp-3); border-bottom: 1px solid var(--filet); flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -4828,10 +4834,8 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
   .hub-classement td.nom .nom-long { display: none; }
   .hub-classement td.nom .nom-court { display: inline; }
 }
-/* Au téléphone, le classement tient sans défiler : le rang, le club, PJ, V, D, DP, PTS et le différentiel ; les buts, la séquence
-   et les dix derniers matchs attendent le bureau (la page de l'équipe les dit). */
+/* Au téléphone, le classement tient sans défiler : cinq colonnes (nov. 2026 : PJ est parti, « 10 derniers » tient entier). */
 @media (max-width: 679.98px) {
-  .hub-classement :is(th, td):is(:nth-child(8), :nth-child(9), :nth-child(11), :nth-child(12)) { display: none; }
   .hub-volet .live-tableau th, .hub-volet .live-tableau td { height: 44px; padding: 0 var(--esp-2); }
 }
 @media (max-width: 1199.98px) {
@@ -4854,9 +4858,8 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-chips button.on { color: var(--encre); border-bottom-color: var(--or); }
 
 /* ---- Tes matchs, un par bande : la journée, le verdict, le pointage, l'adversaire ---- */
-/* Le calendrier se feuillette (nov. 2026) : quatre semaines, « ‹ › » dans son titre. */
-.calj-tete { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }
-.calj-nav-rang { display: inline-flex; align-items: center; gap: var(--esp-1); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); text-transform: none; }
+/* Le calendrier se feuillette (nov. 2026) : quatre semaines, « ‹ S5 – S8 › » seul en tête (le titre est parti, la journée est en en-tête). */
+.calj-nav-rang { display: flex; align-items: center; justify-content: center; gap: var(--esp-2); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.08em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .calj-nav { min-width: 44px; min-height: 44px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 800 var(--t-4)/1 var(--display); cursor: pointer; }
 .calj-nav:disabled { opacity: 0.35; cursor: default; }
 .hub-jeux { display: flex; flex-direction: column; border-top: 1px solid var(--filet-2); }
@@ -4911,19 +4914,17 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .boss-lignes small { color: var(--bon); }
 .boss .hub-lignes { padding: var(--esp-2) 0 0; border-top: 0; }
 
-/* ---- Ton histoire : trois actes, une ligne par événement, la rivalité en tête ---- */
-.recit { display: flex; flex-direction: column; gap: var(--esp-2); }
+/* ---- Ton histoire : une ligne par moment, sa journée devant, la rivalité en tête du gros match ---- */
+.recit { display: flex; flex-direction: column; gap: 0; }
 .recit-rival { padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
-/* V23, la nouvelle interface : ton histoire en ligne du temps — chaque acte sur sa bande d'or, chaque fait sur le fil,
-   un point à la couleur du club, sa journée devant. */
-.recit-acte { display: flex; flex-direction: column; gap: 0; }
-.recit-acte-t { align-self: flex-start; margin: var(--esp-2) 0 var(--esp-2); padding: 3px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
-.recit-ev { position: relative; display: flex; align-items: baseline; gap: var(--esp-2); padding: 0 0 var(--esp-3) var(--esp-5); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+/* V23, la nouvelle interface : ton histoire en ligne du temps — chaque fait sur le fil, un point à la couleur du club.
+   Nov. 2026 (le contenu, de zéro) : huit mots au plus, jamais une deuxième ligne ; les trois actes et leurs phrases sont partis. */
+.recit-ev { position: relative; display: flex; align-items: baseline; gap: var(--esp-2); padding: 0 0 var(--esp-2) var(--esp-5); font: 700 var(--t-2)/1.4 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
+.recit-ev > span:last-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .recit-ev::before { content: ""; position: absolute; left: 4px; top: 0.6em; bottom: 0; width: 2px; background: var(--filet); }
 .recit-ev:last-child::before { display: none; }
 .recit-ev::after { content: ""; position: absolute; left: 0; top: 0.35em; width: 10px; height: 10px; border-radius: 50%; background: var(--club-vif); box-shadow: 0 0 0 3px var(--noir-pur); }
-.recit-ev b { color: var(--encre); }
-.recit-j { flex: none; min-width: 34px; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
+.recit-j { flex: none; min-width: 34px; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); font-variant-numeric: tabular-nums; }
 /* La route de la saison : un filet, ce qui est fait en or, les moments dessus et dessous. */
 /* Une marque se centre sur sa journée : la ligne garde une marge où la première et la dernière tiennent entières. */
 
@@ -5931,6 +5932,11 @@ button.dep-piste:hover:not(:disabled) { border-color: var(--encre-3); }
 .vs-jalon span:last-child { color: var(--encre-3); }
 .vs-jalon.fait { border-color: color-mix(in srgb, var(--bon) 55%, transparent); }
 .vs-jalon.fait span:last-child { color: var(--bon); }
+/* Nov. 2026 (le contenu, de zéro) : un jalon et la run en cours tiennent en UNE ligne — l'icône, le nom, le chiffre au bout. */
+.vs-jalon-ligne { grid-template-columns: auto minmax(0, 1fr) auto; }
+.vs-jalon-ligne .vs-ico { grid-row: auto; font-size: var(--t-3); }
+.vs-jalon-ligne b { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vs-jalon-ligne span:last-child { white-space: nowrap; font: 700 var(--t-2)/1 var(--display); font-variant-numeric: tabular-nums; }
 /* LE PLATEAU (nov. 2026) : l'échelle du prestige au Palmarès, une marche par rang (js/plateau-rogue.js `marche`). */
 
 /* ---- Le mouvement s'éteint pour qui le demande ---- */
@@ -6465,11 +6471,15 @@ body.mode-rogue .jr-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacin
 .ct-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2); font: 700 var(--t-1)/1.3 var(--display); }
 /* L'édition d'une carte du cartable, en mots, et la barre de ses doublons vers la suivante (trois la montent). */
 .ct-ed { color: var(--encre-2); letter-spacing: 0.04em; text-transform: uppercase; }
-/* LE PLATEAU (nov. 2026) : l'édition d'une carte de ton équipe en coin de sa pochette (js/plateau-rogue.js `coin`) ; une ligne sous la carte. */
-.ct-carte .pl-coin { left: 2px; top: 2px; }
-.ct-carte[data-ct-equipe] .ct-vraie { display: none; }
+/* LE PLATEAU (nov. 2026) : l'édition d'une carte de ton équipe en coin de sa pochette dès Cadre, « ×2 » en coin pour un doublon
+   (js/plateau-rogue.js `coin`) ; rien sous la carte (le contenu, de zéro). */
+.ct-carte .pl-coin { top: 2px; }
+.ct-carte .pl-coin-gauche { left: 2px; }
+.ct-carte .pl-coin-droite { right: 2px; }
 body.mode-rogue .ct-vars { display: none; }
-body.mode-rogue .ct-vue { min-height: 40px; padding: 0 var(--esp-2); font-size: var(--t-1); }
+/* Nov. 2026 (le contenu, de zéro) : les quatre vues sur UNE rangée à 390 px — une colonne égale par vue, le mot qui se coupe avant la rangée. */
+body.mode-rogue .ct-vues { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+body.mode-rogue .ct-vues .ct-vue { min-width: 0; min-height: 40px; padding: 0 var(--esp-1); font-size: var(--t-1); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body.mode-rogue .ct-mot { display: none; }
 .ct-carte[data-ct-equipe] .cjm-ligne { display: none; }
 .ct-prog { position: relative; width: 28px; height: 4px; border-radius: var(--r-0); overflow: hidden; background: var(--filet); }
@@ -6484,10 +6494,10 @@ body.mode-rogue .ct-mot { display: none; }
 .ct-set-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: 0 var(--esp-2) var(--esp-3); }
 .ct-missions { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-1); box-shadow: inset 0 0 0 1px var(--filet); }
 .ct-missions-t { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-.ct-mission { display: grid; grid-template-columns: 1fr auto; gap: 0 var(--esp-2); align-items: baseline; }
-.ct-mission-nom { font: 800 var(--t-3)/1.2 var(--display); }
-.ct-mission-texte { grid-column: 1; font: 500 var(--t-1)/1.3 var(--corps); color: var(--encre-2); }
-.ct-mission-n { grid-column: 2; grid-row: 1; font: 700 var(--t-2)/1 var(--display); color: var(--encre-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Une mission en une ligne (nov. 2026) : le nom, où elle en est, ce qu'elle paie. */
+.ct-mission { display: flex; justify-content: space-between; gap: var(--esp-2); align-items: baseline; min-height: 28px; }
+.ct-mission-nom { min-width: 0; font: 800 var(--t-3)/1.2 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ct-mission-n { flex: none; font: 700 var(--t-2)/1 var(--display); color: var(--encre-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ct-mission.faite .ct-mission-nom, .ct-mission.faite .ct-mission-n { color: var(--or); }
 .ct-reliure > .ct-page-tete, .ct-reliure > .ct-vide { grid-column: 1 / -1; }
 .ct-page-tete { display: flex; align-items: center; gap: var(--esp-2); margin: 0; font-size: var(--t-2); }

@@ -1762,17 +1762,19 @@ export function palmaresDuClubHtml() {
   // LE PLATEAU (nov. 2026) : la run en cours dit sa fiche et ses médailles gagnées à ce jour.
   const you0 = G.ligue && G.ligue.you;
   const ficheRun = you0 && you0.W != null ? `${you0.W}-${you0.L}-${you0.OTL}` : '';
-  const enCours = G.rogue && G.rogue.numero && !G.rogue.taRunVue ? rangee('▶', `Run ${G.rogue.numero} · saison ${G.rogue.saison || 1}`, `En cours${ficheRun ? ` · ${ficheRun}` : ''}${G.rogue.ecussonsRun ? ` · 🏅 +${G.rogue.ecussonsRun}` : ''}`) : '';
+  // Nov. 2026 (le contenu, de zéro) : la run en cours en UNE ligne, « Run 1 · saison 1 · 2-11-0 · 🏅 +0 ».
+  const enCours = G.rogue && G.rogue.numero && !G.rogue.taRunVue ? ligneJalon('▶', `Run ${G.rogue.numero} · saison ${G.rogue.saison || 1}`, `${ficheRun ? `${ficheRun} · ` : ''}🏅 +${G.rogue.ecussonsRun || 0}`, true) : '';
   const lesRuns = runs.length ? `<p class="vs-sec">🗂 Tes runs · 🏆 ${meta.coupes || 0}</p>
     <div class="vs-jalons">${runs.map(d => rangee(d.coupe ? '🏆' : '🏁', `Run ${d.numero} · ${d.saisons} saison${d.saisons > 1 ? 's' : ''}${COACHS[d.coach] ? ` · ${COACHS[d.coach].ico} ${COACHS[d.coach].nom}` : ''}`,
       `${motDeRun(d)} · 🏅 +${d.ecussons || 0}`)).join('')}</div>` : '';
   // Nov. 2026 (JP : *where the infos are*) : le Palmarès n'est plus vide à la première run — le prestige du club et la run en
   // cours d'abord, la porte des déblocages au pied ; ils vivaient dans la fenêtre des déblocages.
-  const C0 = G.rogue && COACHS[G.rogue.coach];
-  const enCoursHtml = enCours ? `<p class="vs-sec">▶ La run en cours${C0 ? ` · ${C0.ico} ${esc(C0.nom)}` : ''}</p><div class="vs-jalons">${enCours}</div>` : '';
-  return `${prestigeHtml(meta, { court: true })}${enCoursHtml}${vitrine}${pantheon}${lesRuns}
-    <button type="button" class="hub-rangee vs-deblocages"><span class="hub-rangee-t">🏅 Les déblocages</span><b>${meta.ecussons || 0} médailles</b></button>`;
+  // « 455 à dépenser › » : un seul chiffre de médailles sur la page, celui qui s'achète (le titre du prestige ne redit plus celui à vie).
+  return `${prestigeHtml(meta, { court: true })}${enCours ? `<div class="vs-jalons">${enCours}</div>` : ''}${vitrine}${pantheon}${lesRuns}
+    <button type="button" class="hub-rangee vs-deblocages"><span class="hub-rangee-t">🏅 Les déblocages</span><b>${meta.ecussons || 0} à dépenser</b></button>`;
 }
+/* Une ligne d'une rangée de jalons : l'icône, le nom, le chiffre au bout — jamais une deuxième ligne. */
+const ligneJalon = (ico, nom, bout, fait = false) => `<div class="vs-jalon vs-jalon-ligne${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${ico}</span><b>${esc(nom)}</b><span>${esc(bout)}</span></div>`;
 
 /*
  * LE PRESTIGE DU CLUB ET LES JALONS (v2, js/rogue.js) — l'échelle entière, ce qui est atteint et ce qu'il faut pour la suite.
@@ -1785,23 +1787,27 @@ function prestigeHtml(meta, { court = false } = {}) {
   const ouvertes = exigencesOuvertes(meta);
   // Au Palmarès (`court`, LE PLATEAU, nov. 2026) : l'ÉCHELLE entière, du sommet au bas, une marche par rang — faite (✓), « tu es ici »,
   // ou ce qui manque pour y monter — et le prochain jalon seul ; la fenêtre des déblocages la redit en long.
+  // LE CONTENU, DE ZÉRO (4 nov. 2026) : une marche faite porte son nom seul (un « ×1 » ne dit rien), la tienne « tu es ici », la
+  // suivante ce qui manque et ce qu'elle donne (« ⛔ Gagner une ronde · Étoiles ×1,1 »), les autres leur prix en 🏅.
   const quoiDe = P => `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
   const prestige = court
-    ? `<p class="vs-sec">📈 Le prestige · ${esc(PRESTIGES[rang].nom)} <span class="hub-titre-d">🏅 ${vie} à vie${ouvertes ? ` · ${ICO_EXIGENCE} cran ${ouvertes}` : ''}</span></p>
+    ? `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)}${ouvertes ? ` <span class="hub-titre-d">${ICO_EXIGENCE} cran ${ouvertes}</span>` : ''}</p>
     <div class="pl-echelle">${PRESTIGES.map((P, k) => {
       const fait = k <= rang, ici = k === rang, suivant = k === rang + 1;
-      const manque = P.jalon && !(meta.jalons || {})[P.jalon] ? `il manque « ${jalonDe(P.jalon)} »` : vie < P.min ? `${P.min - vie} 🏅 à gagner` : '';
-      return marche({ num: fait ? '✓' : k, nom: P.nom, sous: ici ? 'tu es ici' : fait ? esc(quoiDe(P)) : esc(manque || `${P.min} 🏅 à vie`), bout: fait ? (ici ? `Étoiles ×${String(P.etoile).replace('.', ',')}` : '') : suivant ? 'Prochain' : `${P.min} 🏅`, etat: ici ? 'ici' : fait ? 'fait' : suivant ? 'suivant' : 'loin' });
+      const manque = P.jalon && !(meta.jalons || {})[P.jalon] ? `⛔ ${jalonDe(P.jalon)}` : vie < P.min ? `${P.min - vie} 🏅` : '';
+      return marche({ num: fait ? '✓' : k, nom: P.nom, sous: ici ? 'tu es ici' : suivant ? esc([manque, `Étoiles ×${String(P.etoile).replace('.', ',')}`].filter(Boolean).join(' · ')) : '', bout: fait || suivant ? '' : `${P.min} 🏅`, etat: ici ? 'ici' : fait ? 'fait' : suivant ? 'suivant' : 'loin' });
     }).reverse().join('')}</div>`
     : `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
     <div class="vs-jalons">${PRESTIGES.map((P, k) => {
       const fait = k <= rang;
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${fait ? '✓' : k}</span><b>${esc(P.nom)}</b><span>${fait ? esc(quoiDe(P)) : `${P.min} 🏅 à vie${P.jalon ? ` et « ${esc(jalonDe(P.jalon))} »` : ''} → ${esc(quoiDe(P))}`}</span></div>`;
     }).join('')}</div>`;
+  // Un jalon en une ligne, « 🎟 Faire les séries → +30 🏅 · Pack Argent » : la phrase qui redisait le nom est partie.
+  const paieDe = J => { const r = recompenseDe(meta, J); return `→ ${r.deblocage ? `${DEBLOCAGES[r.deblocage].ico} ${DEBLOCAGES[r.deblocage].nom}` : `+${r.ecussons} 🏅`}${J.pack && PACKS_TOUS[J.pack] ? ` · ${PACKS_TOUS[J.pack].nom}` : ''}`; };
   return `${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
     <div class="vs-jalons">${(court ? JALONS.filter(J => !(meta.jalons || {})[J.cle]).slice(0, 1) : JALONS).map(J => {
       const fait = !!(meta.jalons || {})[J.cle];
-      return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${J.ico}</span><b>${esc(J.nom)}</b><span>${fait ? '✓ Atteint' : `${esc(J.texte)} → ${esc(recompenseDe(meta, J).mot)}`}</span></div>`;
+      return ligneJalon(J.ico, J.nom, fait ? '✓' : paieDe(J), fait);
     }).join('')}</div>`;
 }
 
