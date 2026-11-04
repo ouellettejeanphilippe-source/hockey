@@ -2137,7 +2137,7 @@ function remplirCartable() {
   migrerHistorique(lireHistorique().flatMap(e => (e.alignement || []).filter(a => a && !a.r && a.k).map(a => a.k)));
   rendreCartable(host, {
     esc,
-    equipe: signes().map(p => ({ p, cle: getPlayerKey(p), mini: carteMiniHtml(p), saison: ligneDeSaison(p, statsDe(p)), vraie: ligneVraieSaison(p) })),
+    equipe: signes().map(p => ({ p, cle: getPlayerKey(p), mini: carteMiniHtml(p), edCle: rareteJoueur(p), saison: ligneDeSaison(p, statsDe(p)), vraie: ligneVraieSaison(p) })),
     titreSaison: !L ? 'La saison n\'a pas commencé.' : portee === 'jour' ? `Cette saison : jusqu'à la journée ${G.journee || 0}.` : 'Cette saison : les 82 matchs.',
     // Tes cartes de jeu, en lecture : la collection du personnel et de la banque (V16 : elles se jouent chez ce qu'elles montent).
     ficheEquipe: p => (L ? ouvrirFiche(p, L.you, portee === 'jour' ? 'jour' : 'saison') : showPlayerModal(p, { apercu: true })),

@@ -356,7 +356,8 @@ export function rendreCartable(host, ctx) {
   let corps = '';
   let nav = '';
   if (etat.vue === 'equipe') {
-    const cartes = ctx.equipe.map(x => `<button type="button" class="ct-carte" data-ct-equipe="${esc(x.cle)}">${x.mini}<span class="ct-stats"><span class="ct-ligne ct-sim"><i>Saison</i>${esc(x.saison)}</span><span class="ct-ligne ct-vraie"><i>Vraie</i>${esc(x.vraie)}</span></span></button>`);
+    // LE PLATEAU (nov. 2026) : son édition en coin de la pochette, sa saison chez toi en une ligne ; sa vraie saison attend la fiche.
+    const cartes = ctx.equipe.map(x => `<button type="button" class="ct-carte" data-ct-equipe="${esc(x.cle)}">${x.edCle && NOM_VARIANTE[x.edCle] ? `<span class="ct-coin v-${x.edCle}">${esc(NOM_VARIANTE[x.edCle])}</span>` : ''}${x.mini}<span class="ct-stats"><span class="ct-ligne ct-sim"><i>Saison</i>${esc(x.saison)}</span><span class="ct-ligne ct-vraie"><i>Vraie</i>${esc(x.vraie)}</span></span></button>`);
     const nPages = Math.ceil(cartes.length / PAR_FEUILLE);
     const clesEq = new Set(ctx.equipe.map(x => x.cle));
     const autres = Object.keys(c.joueurs).filter(cle => !clesEq.has(cle)).length;

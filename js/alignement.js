@@ -860,12 +860,20 @@ export function coachHtml() {
     const cote = m.A === you ? 'A' : 'B';
     for (const x of m.feuille.pouvoirs || []) if (x.cote === cote) fois[x.p]++;
   }
+  /*
+   * LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu* ; *faire les autres cartes dans un look similaire*) : chaque
+   * pouvoir est une VRAIE carte de jeu (`carteHtml`, le carton 5:7 de la glace), au genre des pouvoirs du coach ; son verso dit ce
+   * qu'il fait ; sur l'ardoise en coin, combien de fois il a joué, ou le niveau qui l'ouvre ; fermé, il s'éteint.
+   */
+  const RARETE_POUVOIR = ['peu', 'rare', 'legendaire'];
   const carte = (P, p) => {
     const ouvert = niveau >= NIVEAU_DES_POUVOIRS[p];
     const f = forceDuPouvoir(perso, p);
     return `<div class="pv${ouvert ? '' : ' ferme'}">
-      <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${P.ico}</span><b>${esc(P.nom)}</b>${p === 2 ? '<small>Ultime</small>' : ''}<span class="pv-etat">${ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`}</span></div>
-      <p class="pv-dit">${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}</p>
+      <span class="pv-etat">${ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`}</span>
+      ${carteHtml({ cle: `pv${p}`, rarete: RARETE_POUVOIR[p], genreCarte: 'synergie', ico: P.ico, nomHtml: esc(P.nom), typeHtml: p === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][p]}`, statique: true,
+        texteHtml: `${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}` })}
+      <small class="pv-nom"><b>${esc(P.nom)}</b> · ${p === 2 ? 'ultime' : `pouvoir ${['I', 'II'][p]}`}</small>
     </div>`;
   };
   /*

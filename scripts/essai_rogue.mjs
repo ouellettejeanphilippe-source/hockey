@@ -685,7 +685,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
   const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
-  const pouvoirs = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv:not(.adj)', e => e.map(x => ({ nom: (x.querySelector('.pv-tete b') || {}).textContent || '', ferme: x.classList.contains('ferme'), etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
+  const pouvoirs = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv:not(.adj)', e => e.map(x => ({ nom: (x.querySelector('.pv-nom b') || {}).textContent || '', ferme: x.classList.contains('ferme'), etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
   const jauge = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .ej-jauge');
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
@@ -855,8 +855,8 @@ else {
   const tout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
   if (tout) { await tout.click(); await page.waitForTimeout(300); }
   const avantJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
-  // Nov. 2026 : le rayon du club se plie en une rangée ; la toucher l'ouvre.
-  const rangeeClub = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-club-ouvrir');
+  // Nov. 2026 : le rayon du club se plie en une rangée (le porté, deux clubs, « Et N › ») ; « Et N › » l'ouvre.
+  const rangeeClub = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-club-plus[data-club-tout]');
   if (rangeeClub) { await rangeeClub.click(); await page.waitForTimeout(300); }
   // Le nuancier : l'onglet des couleurs en montre une par tuile, l'aplat et la seconde.
   await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon-club [data-onglet="palette"]');
