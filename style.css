@@ -4708,7 +4708,9 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-classement td.nom { max-width: none; }
 .hub-classement td.nom .nom-court { display: none; }
 /* Nov. 2026 : six colonnes — la fiche V-D-DP sous le nom du club ; le club ouvert, sa fiche entière, ta fiche contre lui, ses meneurs. */
-.hub-classement td.nom .nom-fiche { display: block; margin-top: 1px; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; color: var(--encre-3); }
+.hub-classement td.nom .nom-fiche { display: block; max-width: 100%; margin-top: 1px; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* LE PLATEAU (nov. 2026) : la fiche dit aussi ton rival, ce soir, ta place sous la ligne ; au téléphone, la colonne du club reste bornée pour que « 10 derniers » tienne à l'écran. */
+@media (max-width: 679.98px) { .hub-classement td.nom { max-width: 140px; } }
 .club-contre { margin: var(--esp-2) 0; }
 .club-meneurs { display: grid; gap: var(--esp-1); margin-bottom: var(--esp-2); }
 .club-meneur { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
