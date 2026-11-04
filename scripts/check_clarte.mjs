@@ -263,7 +263,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V9, tranche 5b, puis V16 : tes adjoints et les paliers de la saison.
     [`Aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs et au verdict du proprio, <strong>un adjoint parmi trois</strong>`, 'les paliers de la saison'],
     // V23 D : le relais à son niveau (`RELAIS_NIV`), et le butin d'un gros match gagné (`BUTIN_DU_GROS`).
-    [`rejoue la période, ${{ 1: 'une fois' }[RELAIS_NIV[NIV_DEFAUT - 1]] || `${RELAIS_NIV[NIV_DEFAUT - 1]} fois`} au Pilier, ${String(RELAIS_NIV[4]).replace('.', ',')} fois au ★ Phénomène`, 'le relais'],
+    [`rejoue la période, ${String(RELAIS_NIV[NIV_DEFAUT - 1]).replace('.', ',')} fois au Pilier, ${String(RELAIS_NIV[4]).replace('.', ',')} fois au ★ Phénomène`, 'le relais'],
     [`Un gros match gagné paie ${BUTIN_DU_GROS.jetons} 🪙 de plus ou ${BUTIN_DU_GROS.xp} d'expérience`, 'le butin du gros match'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs.`, 'l\'objectif raté'],

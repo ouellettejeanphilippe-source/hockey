@@ -134,7 +134,7 @@ Les clés de sauvegarde ne bougent jamais.
 
 ## 7. Les réglages
 
-`FORCE_NIV` (×0,7 · ×0,85 · ×1 · ×1,15 · ×1,3), `PRIX_NIV` (×1,05 · ×1,025 · ×1 · ×0,9 · ×0,8 : le prix bouge moins que la force, pour qu'un style se voie encore au Phénomène et que le Soutien soit faible sans piéger), `SALAIRE_NIV` (0 · 0 · 1 · 2 · 3 🪙 par match), `MAITRISE` en cinq marches (×0,9 à ×1,3), `REGLES_DU_COACH` et `PRIME_COACH_MAX` (50 🪙 par saison), le relais (`RELAIS_NIV` : le canal rejoue son écart ×0,7 au Soutien, ×1 au Pilier, ×1,3 au ★ Phénomène — à 0,3-0,6, mesuré, un relais ne se voyait pas dans la feuille ; deux maillons), `OMBRE` (0,5 : leur pouvoir en séries, à l'inverse hors de sa condition), `BUTIN_DU_GROS` (15 🪙 ou 4 d'expérience), `ECART_BANC` (120 ms entre deux cartes qui s'allument), l'enjeu du match encerclé (selon le rang de l'adversaire, borné par `BUTIN_RIVAL`).
+`FORCE_NIV` (×0,7 · ×0,85 · ×1 · ×1,15 · ×1,3), `PRIX_NIV` (×1,05 · ×1,025 · ×1 · ×0,9 · ×0,8 : le prix bouge moins que la force, pour qu'un style se voie encore au Phénomène et que le Soutien soit faible sans piéger), `SALAIRE_NIV` (0 · 0 · 1 · 2 · 3 🪙 par match), `MAITRISE` en cinq marches (×0,9 à ×1,3), `REGLES_DU_COACH` et `PRIME_COACH_MAX` (50 🪙 par saison), le relais (`RELAIS_NIV` : le canal rejoue son écart ×0,5 au Soutien, ×0,75 au Pilier, ×1,05 au ★ Phénomène — à 0,3-0,6, mesuré, un relais ne se voyait pas dans la feuille, à ×1 la paire rendait ×1,73 ; deux maillons), `OMBRE` (0,5 : leur pouvoir en séries, à l'inverse hors de sa condition), `BUTIN_DU_GROS` (15 🪙 ou 4 d'expérience), `ECART_BANC` (120 ms entre deux cartes qui s'allument), l'enjeu du match encerclé (selon le rang de l'adversaire, borné par `BUTIN_RIVAL`).
 
 ## 8. Les critères d'acceptation
 

@@ -124,8 +124,8 @@ const PRIX_NIV = [1.05, 1.025, 1, 0.9, 0.8];
 export const RARETE_NIV = ['commune', 'commune', 'peu', 'rare', 'legendaire'];
 export const BORNE_NIV = [1, 1, 1.5, 2.5, 4];
 export const NIV_DEFAUT = 3;
-/* LE RELAIS À SON NIVEAU (V23 D) : le canal relayé rejoue son écart, 0,7 fois au Soutien, une fois au Pilier, 1,3 au ★ Phénomène (mesuré : à 0,3-0,6, un relais ne se voyait pas dans la feuille, docs/decisions.md). */
-export const RELAIS_NIV = [0.7, 0.85, 1, 1.15, 1.3];
+/* LE RELAIS À SON NIVEAU (V23 D) : le canal relayé rejoue son écart, 0,5 fois au Soutien, 0,75 au Pilier, 1,05 au ★ Phénomène (mesuré, docs/decisions.md : à 0,3-0,6, un relais ne se voyait pas dans la feuille ; à 1, la paire rendait ×1,73 ses pièces, au-dessus de la bande). */
+export const RELAIS_NIV = [0.5, 0.6, 0.75, 0.9, 1.05];
 /*
  * LE SALAIRE (V23 ; JP : *pay them*) : un adjoint en poste se paie, en jetons, chaque match — plus il est bon, plus il
  * coûte (`SALAIRE_NIV` : rien au Soutien et au Régulier, 1, 2 puis 3 🪙 au Phénomène), plus le sien (`salaire`, l'ancien
