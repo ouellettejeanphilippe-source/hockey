@@ -34,6 +34,7 @@ import { galonsDeLaSaison, grosGagnesDe, texteDuGalon, GALONS_MAX, ICO_GALON, GA
 import { sceneDuMandat, sceneDesGalons } from './scenes.js';
 import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
+import { marche } from './plateau-rogue.js';
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
@@ -1787,10 +1788,10 @@ function prestigeHtml(meta, { court = false } = {}) {
   const quoiDe = P => `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
   const prestige = court
     ? `<p class="vs-sec">📈 Le prestige · ${esc(PRESTIGES[rang].nom)} <span class="hub-titre-d">🏅 ${vie} à vie${ouvertes ? ` · ${ICO_EXIGENCE} cran ${ouvertes}` : ''}</span></p>
-    <div class="vs-echelle">${PRESTIGES.map((P, k) => {
+    <div class="pl-echelle">${PRESTIGES.map((P, k) => {
       const fait = k <= rang, ici = k === rang, suivant = k === rang + 1;
       const manque = P.jalon && !(meta.jalons || {})[P.jalon] ? `il manque « ${jalonDe(P.jalon)} »` : vie < P.min ? `${P.min - vie} 🏅 à gagner` : '';
-      return `<div class="vs-marche${fait ? ' fait' : ''}${ici ? ' ici' : ''}${suivant ? ' suivant' : ''}"><i>${fait ? '✓' : k}</i><span class="vs-marche-nom">${esc(P.nom)}<small> · ${ici ? 'tu es ici' : fait ? esc(quoiDe(P)) : esc(manque || `${P.min} 🏅 à vie`)}</small></span><small class="vs-marche-d">${fait ? (ici ? `Étoiles ×${String(P.etoile).replace('.', ',')}` : '') : suivant ? 'Prochain' : `${P.min} 🏅`}</small></div>`;
+      return marche({ num: fait ? '✓' : k, nom: P.nom, sous: ici ? 'tu es ici' : fait ? esc(quoiDe(P)) : esc(manque || `${P.min} 🏅 à vie`), bout: fait ? (ici ? `Étoiles ×${String(P.etoile).replace('.', ',')}` : '') : suivant ? 'Prochain' : `${P.min} 🏅`, etat: ici ? 'ici' : fait ? 'fait' : suivant ? 'suivant' : 'loin' });
     }).reverse().join('')}</div>`
     : `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
     <div class="vs-jalons">${PRESTIGES.map((P, k) => {

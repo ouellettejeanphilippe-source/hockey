@@ -15,6 +15,7 @@ import { hubActif } from './coquille.js';
 import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { blessesAuJour } from './rogue-jeu.js';
 import { slotShort, cartonDe, varsEquipe } from './repechage.js';
+import { carteLigne, grille, jetons, coin } from './plateau-rogue.js';
 
 const GROUPES = [['F', 'Avants'], ['D', 'Défenseurs'], ['G', 'Gardiens']];
 const etat = { groupe: 'F', source: 'saison', tri: { F: ['pts', false], D: ['pts', false], G: ['pctArr', false], B: ['pts', false] } };
@@ -91,6 +92,9 @@ export function remplirJoueurs() {
       <div class="inv-filtres" role="tablist">${filtres.map(([k, t, n]) => `<button type="button" role="tab" data-groupe="${k}" class="inv-filtre${k === g ? ' on' : ''}" aria-selected="${k === g}">${t} <span>${n}</span></button>`).join('')}</div>
       ${enSaison && g !== 'B' ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
     </div>`;
+  // LE PLATEAU : en Rogue, les filtres sont des jetons (js/plateau-rogue.js), les blessés sur le rouge ; la source aussi.
+  const barrePlateau = `<div class="jr-barre">${jetons(filtres.map(([k, t, n]) => ({ cle: k, mot: t, n, on: k === g, cls: k === 'B' ? 'pl-ton-rouge' : '' })), 'groupe')}
+      ${enSaison && g !== 'B' ? jetons([['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => ({ cle: k, mot: t, on: etat.source === k })), 'source', { role: 'button' }) : ''}</div>`;
   const cartes = maison ? maison.html(g === 'B' ? 'infirmerie' : 'joueurs') : '';
   /*
    * LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu* ; *ça permet de mieux voir les cartes*) : en Rogue, ton
@@ -102,18 +106,16 @@ export function remplirJoueurs() {
     const TRIS = g === 'G' ? [['pctArr', '% arr.'], ['jambes', 'Jambes'], ['sal', '$']] : [['pts', 'Points'], ['jambes', 'Jambes'], ['sal', '$']];
     const triOk = TRIS.some(([k]) => k === cle) ? cle : TRIS[0][0];
     if (triOk !== cle) { etat.tri[g] = [triOk, triOk === 'moy']; remplirJoueurs(); return; }
-    const coin = r => { const v = r.st[cle]; if (cle === 'jambes' && v == null) return ''; const f = FORMAT[cle] ? FORMAT[cle](v, r.st) : v ?? '—'; return `<span class="jr-n">${cle === 'jambes' ? Math.round(v) : f}<small>${TRIS.find(([k]) => k === cle)[1]}</small></span>`; };
+    const coinDe = r => { const v = r.st[cle]; if (cle === 'jambes' && v == null) return ''; const f = FORMAT[cle] ? FORMAT[cle](v, r.st) : v ?? '—'; return coin(cle === 'jambes' ? Math.round(v) : f, { unite: TRIS.find(([k]) => k === cle)[1], ton: blesses.has(r.p) ? 'rouge' : 'or' }); };
     const carte = r => {
       const [b, b2] = badgesDe(r.p), bl = blesses.get(r.p), j = r.st.jambes;
-      return `<button type="button" class="jr-carte${r.s.scratch ? ' reserve' : ''}${bl ? ' blesse' : ''}" data-i="${r.s.i}" style="${varsEquipe(r.p)}" aria-label="La fiche de ${esc(r.p.n)}">
-        ${coin(r)}${cartonDe(r.p)}
-        ${j != null ? `<span class="jr-jb" aria-hidden="true"><i class="${j >= 80 ? 'frais' : j < 60 ? 'use' : ''}" style="width:${Math.round(j)}%"></i></span>` : ''}
-        <small class="jr-l">${bl ? `🩹 ${bl} m. · ` : ''}${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}" title="${esc(`${b.nom} ${PALIERS[b.palier].nom}`)}">${b.ico}</i>` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}</small>
-      </button>`;
+      return carteLigne(cartonDe(r.p), `${bl ? `🩹 ${bl} m. · ` : ''}${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}" title="${esc(`${b.nom} ${PALIERS[b.palier].nom}`)}">${b.ico}</i>` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}`,
+        { coins: coinDe(r), cls: `pl-carte-touche jr-carte${r.s.scratch ? ' pl-carte-reserve' : ''}${bl ? ' pl-carte-blesse' : ''}`, attrs: ` data-i="${r.s.i}" role="button" tabindex="0" style="${varsEquipe(r.p)}" aria-label="La fiche de ${esc(r.p.n)}"`,
+          barre: j != null ? { part: j / 100, cls: j >= 80 ? 'frais' : j < 60 ? 'use' : '' } : null });
     };
-    host.innerHTML = `${barre}
-      <div class="jr-tri"><span>Trié par</span><div class="seg">${TRIS.map(([k, t]) => `<button type="button" data-tri="${k}" class="${k === cle ? 'on' : ''}">${t}</button>`).join('')}</div></div>
-      <div class="jr-grille">${vues.map(carte).join('')}</div>
+    host.innerHTML = `${barrePlateau}
+      <div class="jr-tri"><span>Trié par</span>${jetons(TRIS.map(([k, t]) => ({ cle: k, mot: t, on: k === cle })), 'tri', { role: 'button' })}</div>
+      ${grille(vues.map(carte))}
       <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En sourdine : la réserve.' : ''} Touche une carte : sa fiche.</p>${cartes}`;
     host.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; remplirJoueurs(); }; });
     host.querySelectorAll('[data-source]').forEach(b => { b.onclick = () => { etat.source = b.dataset.source; remplirJoueurs(); }; });
@@ -122,11 +124,12 @@ export function remplirJoueurs() {
       b.onclick = () => maison.jouer({ src: b.dataset.src || 'partie', id: b.dataset.id, ref: b.dataset.ref, vendre: b.classList.contains('maison-vendre') }, () => { G.pageVoulue = 'joueurs'; });
     });
     host.querySelectorAll('.jr-carte').forEach(b => {
+      b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.click(); } };
       b.onclick = () => { const p = G.roster[Number(b.dataset.i)]; if (!p) return; if (L) ouvrirFiche(p, L.you, porteeRevele('saison') === 'jour' ? 'jour' : 'saison'); else showPlayerModal(p, {}); };
     });
     return;
   }
-  host.innerHTML = g === 'B' ? `${barre}${infirmerie() || '<p class="jr-pied">Personne à l\'infirmerie.</p>'}${cartes}` : `${barre}
+  host.innerHTML = g === 'B' ? `${G.bonus === 'ROGUE' ? barrePlateau : barre}${infirmerie() || '<p class="jr-pied">Personne à l\'infirmerie.</p>'}${cartes}` : `${barre}
     <div class="jr-scroll"><table class="jr-table">
       <thead><tr><th class="jr-col-nom">Joueur</th>${cols.map(([k, t]) => `<th data-tri="${k}" class="${k === cle ? 'on' : ''}" role="button" tabindex="0">${t}${k === cle ? (asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
       <tbody>${vues.map(r => `<tr class="${r.s.scratch ? 'reserve' : ''}${blesses.has(r.p) ? ' blesse' : ''}"><td class="jr-col-nom">${nom(r)}</td>${cols.map(([k]) => `<td${k === cle ? ' class="on"' : ''}>${FORMAT[k] ? FORMAT[k](r.st[k], r.st) : r.st[k] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>

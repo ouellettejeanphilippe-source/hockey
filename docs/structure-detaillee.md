@@ -117,6 +117,7 @@ check_prolongation      la prolongation, les tirs de barrage, la mort subite
 check_cotes             les cotes sur 20 : tranches, cloche, six axes, trois pour un gardien
 check_incidents         les incidents liés à des joueurs
 check_lisibilite        le décor calme, les cartes belles
+check_plateau           le plateau du Rogue contre la maquette (4 nov. 2026) : une run lancée dans Chromium, les douze pages lues contre le contrat (interface.md), aucune pilule blanche, les cinq portes ; une capture par page
 check_verdicts          le verdict du lundi d'après
 check_lexique           un mot par idée, une icône par sens
 check_verite            la vérité des chiffres : un tirage pur lit la graine par entierDeGraine

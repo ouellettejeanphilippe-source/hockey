@@ -21,6 +21,7 @@
  * (`cap82_rogue.collection`, S77) y entre une fois, en cartes de base.
  */
 import { NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
+import { coin } from './plateau-rogue.js';
 import { COACHS } from './coachs.js';
 
 const CLE_CARTABLE = 'cap82_cartable';
@@ -357,7 +358,7 @@ export function rendreCartable(host, ctx) {
   let nav = '';
   if (etat.vue === 'equipe') {
     // LE PLATEAU (nov. 2026) : son édition en coin de la pochette, sa saison chez toi en une ligne ; sa vraie saison attend la fiche.
-    const cartes = ctx.equipe.map(x => `<button type="button" class="ct-carte" data-ct-equipe="${esc(x.cle)}">${x.edCle && NOM_VARIANTE[x.edCle] ? `<span class="ct-coin v-${x.edCle}">${esc(NOM_VARIANTE[x.edCle])}</span>` : ''}${x.mini}<span class="ct-stats"><span class="ct-ligne ct-sim"><i>Saison</i>${esc(x.saison)}</span><span class="ct-ligne ct-vraie"><i>Vraie</i>${esc(x.vraie)}</span></span></button>`);
+    const cartes = ctx.equipe.map(x => `<button type="button" class="ct-carte" data-ct-equipe="${esc(x.cle)}">${x.edCle && NOM_VARIANTE[x.edCle] ? coin(esc(NOM_VARIANTE[x.edCle]), { cote: 'gauche', cls: 'pl-coin-petit' }) : ''}${x.mini}<span class="ct-stats"><span class="ct-ligne ct-sim"><i>Saison</i>${esc(x.saison)}</span><span class="ct-ligne ct-vraie"><i>Vraie</i>${esc(x.vraie)}</span></span></button>`);
     const nPages = Math.ceil(cartes.length / PAR_FEUILLE);
     const clesEq = new Set(ctx.equipe.map(x => x.cle));
     const autres = Object.keys(c.joueurs).filter(cle => !clesEq.has(cle)).length;
