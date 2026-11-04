@@ -11,9 +11,9 @@ Le devis : `$ARGUMENTS`. Un chemin se lit ; un sujet se cherche dans la dernièr
 
 Adapté de la commande `/design-review` de Claude-Code-Game-Studios (Donchitos, licence MIT : https://github.com/Donchitos/Claude-Code-Game-Studios), ramené au gabarit de ce dépôt (`docs/gabarits/devis.md`).
 
-## 1. Les huit parties
+## 1. Les neuf parties
 
-Un devis complet a ses huit parties (le gabarit les nomme) : **ce que JP a dit** (ses mots, en italique), **ce que le joueur ressent** (le fantasme, le pic visé), **les règles du jeu** (assez précises pour qu'un autre les code sans deviner), **les chiffres** (chaque formule avec ses variables, leur plage et un exemple fait), **les cas limites** (la main pleine, le joueur parti, la vieille partie, les séries), **ce qu'il touche** (les fichiers, les règles fermes de `.claude/rules/`, les clés de sauvegarde qui ne bougent pas), **les réglages** (les constantes, leur plage sûre) et **les critères d'acceptation**. Une partie manquante se nomme ; elle ne se devine pas.
+Un devis complet a ses neuf parties (le gabarit les nomme) : **ce que JP a dit** (ses mots, en italique), **ce que le joueur ressent** (le fantasme, le pic visé), **les règles du jeu** (assez précises pour qu'un autre les code sans deviner), **les chiffres** (chaque formule avec ses variables, leur plage et un exemple fait), **les cas limites** (la main pleine, le joueur parti, la vieille partie, les séries), **ce qu'il touche** (les fichiers, les règles fermes de `.claude/rules/`, les clés de sauvegarde qui ne bougent pas), **ce qui part** (chaque fonction, classe, bloc ou fichier remplacé, nommé en `code`, et ce qui reste avec sa raison), **les réglages** (les constantes, leur plage sûre) et **les critères d'acceptation**. Une partie manquante se nomme ; elle ne se devine pas. Un devis qui répond à un gros changement de JP (*refonte*, *de zéro*, *au complet*, *pas juste la peinture* ; CLAUDE.md, « Un gros changement ») avec « Ce qui part » vide ou sans nom en `code` est **À REFAIRE** : c'est le devis d'une retouche.
 
 ## 2. Les critères se prouvent
 
@@ -48,6 +48,7 @@ Selon le terrain, fais relire en parallèle (l'outil Agent, un message, plusieur
 **Ce qui casse** (des relecteurs, triés du plus grave) : …
 **Les règles fermes touchées** : <règle> — respectée / défaite (décision : …)
 **Les critères sans preuve** : …
+**Ce qui part** : <n> noms, ou vide (alors une retouche, pas une refonte) — `check_refonte`
 **À trancher par JP** : une ligne chacun
 ```
 

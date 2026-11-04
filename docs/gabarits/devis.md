@@ -24,18 +24,23 @@ La main pleine, le joueur parti ou blessé, l'histoire sans porteur, les séries
 
 ## 6. Ce qu'il touche
 
-Les fichiers ; les règles fermes de `.claude/rules/` (nommées : respectée ou défaite, avec la décision de `docs/decisions.md`) ; les clés de sauvegarde, qui ne bougent jamais ; ce qui part.
+Les fichiers ; les règles fermes de `.claude/rules/` (nommées : respectée ou défaite, avec la décision de `docs/decisions.md`) ; les clés de sauvegarde, qui ne bougent jamais.
 
-## 7. Les réglages
+## 7. Ce qui part
+
+La pièce maîtresse d'un gros changement (CLAUDE.md, « Un gros changement »). Chaque fonction, classe CSS, bloc, fichier, constante ou règle que le changement remplace, nommé en `code` — `check_refonte` vérifie qu'il est parti —, et ce qui le remplace. Puis **ce qui reste**, nommé, avec sa raison (les cartes du jeu, telles quelles). Le test du zéro : si le neuf s'écrit sans relire l'ancien ligne par ligne, c'est une refonte ; si chaque ligne du neuf répond à une ligne de l'ancien, c'est une retouche, et le devis le dit.
+
+## 8. Les réglages
 
 Les constantes, leur valeur, leur plage sûre, ce qui casse au-delà.
 
-## 8. Les critères d'acceptation
+## 9. Les critères d'acceptation
 
 Chacun vérifiable, avec le script qui le prouve, existant ou à écrire (nommé) :
 
 - [ ] … — `check_…`
 - [ ] … — `essai_rogue` (…)
+- [ ] Pas une couche de peinture : ce qui part est parti, le jeu retire autant qu'il ajoute — `check_refonte` (un gros changement)
 - [ ] À juger par JP à l'essai : … (seulement ce qui ne se mesure pas)
 
 ## Les tranches

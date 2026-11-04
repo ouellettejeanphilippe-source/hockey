@@ -118,6 +118,7 @@ check_relais            le relais des adjoints (V23 D, 4 nov. 2026) : en paires,
 check_plateau           le plateau du Rogue contre la maquette (4 nov. 2026) : une run lancée dans Chromium, les douze pages lues contre le contrat (interface.md), aucune pilule blanche, les cinq portes ; une capture par page
 check_verdicts          le verdict du lundi d'après
 check_lexique           un mot par idée, une icône par sens
+check_refonte           un gros changement se mesure à ce qui part (4 nov. 2026) : le diff de la branche contre main (le jeu retire au moins une ligne pour deux ajoutées, style.css sous la moitié), chaque nom de « Ce qui part » du devis parti, chaque fichier de « Ce qu'il touche » dans le diff ; à la main, avant la PR d'une refonte
 check_verite            la vérité des chiffres : un tirage pur lit la graine par entierDeGraine
 check_deck              le deck
 check_emojis            les émojis au trait
@@ -182,6 +183,7 @@ lib/mort.mjs                la mesure du code mort (check_mort) : déclarations,
 lib/chaines.mjs             les chaînes d'un module sans ses commentaires (un lecteur à états)
 lib/css.mjs                 un lecteur de feuille de style minimal (check_css)
 lib/bords.mjs               rien ne colle au bord : 8 px au moins à 390 px (essai_rogue)
+lib/gros.mjs                le hook UserPromptSubmit (.claude/settings.json) : quand la demande de JP porte les mots d'un gros changement (refonte, de zéro, au complet, pas juste la peinture…), il écrit la marche à suivre dans le contexte de la session (/refonte, le devis, check_refonte)
 lib/cibles.mjs              les cibles de 44 px (smoke)
 lib/emojis.mjs              les émojis du jeu et les polices qui les rendent au trait
 lib/rogue_sim.mjs           une run Rogue jouée par un robot (check_rogue, check_profondeur ; `politique`)
