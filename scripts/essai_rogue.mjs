@@ -665,6 +665,8 @@ const versLOnglet = async (sec, pg) => {
 await versLOnglet('bureau', 'proprio');
 // Nov. 2026 : le mandat en mots vit au Proprio (`.pr-mandat`), la bande de Ce soir n'en garde que ton rang.
 const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat').catch(() => '');
+// Le contenu, de zéro (4 nov. 2026) : la suite du mandat (« Puis : … ») vit à l'infobulle du bloc, pas dans le texte.
+const suiteDuMandat = await page.getAttribute('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat', 'title').catch(() => '');
 console.log(`5. le proprio : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le mandat de la run');
 // LE CONTENU PERMANENT (V12-2 ; nov. 2026 : la route des deux semaines est au Calendrier, plus chez le Coach) ; le Bureau ne la redit pas.
@@ -698,8 +700,6 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (pouvoirs.length !== 3 || pouvoirs[0].ferme || !pouvoirs.slice(1).every(x => x.ferme === /Niveau [35]/.test(x.etat))) erreurs.push(`le coach ne montre pas ses trois pouvoirs, le premier ouvert (${JSON.stringify(pouvoirs)})`);
 }
 if (!/le mandat/.test(run || '')) erreurs.push('le Proprio ne dit pas le mandat de la run');
-// Le contenu, de zéro (4 nov. 2026) : la suite du mandat (« Puis : … ») vit à l'infobulle du bloc, pas dans le texte.
-const suiteDuMandat = await page.getAttribute('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat', 'title').catch(() => '');
 if (!/Puis :/.test(suiteDuMandat || '')) erreurs.push('le mandat au Proprio ne dit pas sa suite (« Puis : … », à l\'infobulle)');
 /*
  * « SEMAINE SUIVANTE » (V4) remplace « Jusqu'à la prochaine décision » : elle joue les journées une à une jusqu'à
