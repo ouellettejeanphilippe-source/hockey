@@ -2159,6 +2159,25 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Le résultat neuf, lu au bureau plutôt qu'en plein écran (J2-8) : il s'anime une fois.
     const neuf = hierFrais === j + 1 && hierAnimer ? ' neuf' : '';
     if (neuf) hierAnimer = false;
+    /*
+     * LE PLATEAU (nov. 2026, la maquette A) : à Ce soir, hier tient en UNE LIGNE — « Hier » sur sa languette, le pointage en gros,
+     * ce que ton banc a fait (le premier qui a joué, ses périodes) ou le but gagnant, « Sommaire › ». Le carton et le banc
+     * allumé vivent au sommaire du soir.
+     */
+    if (ctx.rogue && soirEnVolet) {
+      const toi = m.A === you ? m.A : m.B;
+      const joue = m.feuille ? banc(toi, m.feuille).filter(c => c.joue) : [];
+      const PER = ['1re', '2e', '3e'];
+      const mot = joue.length ? `${joue[0].nom} a joué${joue[0].periodes && joue[0].periodes.length ? ` en ${joue[0].periodes.map(k => PER[k] || `${k + 1}e`).join(' · ')}` : ''}${joue.length > 1 ? ` · +${joue.length - 1}` : ''}`
+        : but && but.marqueur ? recitDeBut({ ...but, gagnant: true }) : '';
+      const moi = m.A === you ? [m.gfA, m.gfB] : [m.gfB, m.gfA], adv = m.A === you ? m.B : m.A;
+      return `<div class="hub-hier-ligne ${v ? 'v' : 'd'}${neuf}"${somm}>
+        <span class="hub-hier-quand">${gros ? 'Gros match' : 'Hier'}</span>
+        <span class="hub-hier-pointage"><span>${ctx.esc(ctx.tagCourt(you))}</span> ${moi[0]} – ${moi[1]} <span>${ctx.esc(ctx.tagCourt(adv))}</span>${m.ot ? '<small>P</small>' : ''}</span>
+        <span class="hub-hier-mot">${ctx.esc(mot)}</span>
+        ${m.feuille ? '<span class="hub-hier-voir">Sommaire ›</span>' : ''}
+      </div>`;
+    }
     // Ton banc du soir dessous — ce qui a joué s'allume (js/banc-du-soir.js).
     return `<div class="hub-hier ${v ? 'v' : 'd'}${neuf}"${somm}>
       <span class="hub-hier-quand">${gros ? `Gros match ${v ? 'gagné' : 'perdu'}` : v ? 'Victoire' : m.ot ? 'Déf. prol.' : 'Défaite'}</span>
@@ -3183,7 +3202,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // L'état qui pèse ce soir (sonnés, la lancée, un dos-à-dos), sous l'affiche : c'est ce soir qu'il joue, pas hier.
         const etatSoir = [...enJeu.slice(0, 3), ...(soirEreintant(p.j, p.m.A, p.m.B) ? ['🥵 Dos-à-dos'] : [])];
         const etatSoirHtml = etatSoir.length ? `<div class="bu-etat" aria-label="Ce qui pèse ce soir">${etatSoir.map(x => `<span>${ctx.esc(x)}</span>`).join('')}</div>` : '';
-        carte.innerHTML = `${bandeauHtml()}${bandeDeLaRun()}${prochainHtml(p, adv, quand, domicile, mb, vedettes)}${etatSoirHtml}${onDecision ? bancDuMatinHtml(p) : ''}`;
+        // LE PLATEAU (la maquette A) : le bandeau, l'affiche-héros, PUIS la jauge du proprio, l'état du soir, ton banc.
+        carte.innerHTML = `${bandeauHtml()}${prochainHtml(p, adv, quand, domicile, mb, vedettes)}${bandeDeLaRun()}${etatSoirHtml}${onDecision ? bancDuMatinHtml(p) : ''}`;
         const bande = carte.querySelector('.bu-run');
         if (bande) bande.onclick = () => tabs.montrer('proprio');
         /*

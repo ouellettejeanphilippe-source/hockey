@@ -246,7 +246,10 @@ function celluleJoueur(p, s, o) {
    de sa fiche, à un toucher (JP, 30 oct. : *que les infos sous la carte soient moins longues*). */
 function celluleCarte(p, s, o) {
   const x = piecesDuJoueur(p, s, o);
-  return `<div class="sc-qui">${x.role}${x.niveau}</div>
+  // LE PLATEAU (nov. 2026, la maquette A) : au téléphone, UNE ligne sous la carte — le poste, ses jambes, ses verdicts (style.css
+  // ne montre qu'elle sous 1000 px) ; le badge, le niveau, le chiffre clé et le mot des jambes restent pour le grand écran.
+  return `<div class="sc-ligne">${esc(positionLabel(p).split(' / ').join('/'))}${x.jambes}${x.verdicts}</div>
+        <div class="sc-qui">${x.role}${x.niveau}</div>
         <div class="sc-cle">${x.prod}${x.sec}</div>
         <div class="sc-verdicts">${x.verdicts}</div>
         ${x.jambes}`;
@@ -884,7 +887,7 @@ export function coachHtml() {
   const chef = perso.chef;
   const maitrise = (perso.maitrise || 1) !== 1 ? `${NOMS_NIV[NIV_DE_MAITRISE.indexOf(perso.maitrise)] || ''} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : '';
   return `<div class="ej-coach">
-    <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''}><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>L'entraîneur${chef ? ` · ${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)}` : ''}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau ${niveau}</span></div>
+    <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''}><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>L'entraîneur${chef ? ` · ${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)}` : ''}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau<b>${niveau}</b></span></div>
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}${NIVEAUX_TALENT.includes(niveau + 1) ? ' · un talent' : ''}`}</div>
     ${(R => (R ? (x => `<div class="ej-coach-l ej-regle">${C.ico} Sa règle : ${esc(R.dit)} · +${R.jetons} 🪙 · ${x.parJour.size} fois cette saison</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
