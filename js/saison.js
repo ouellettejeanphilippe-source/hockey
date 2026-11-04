@@ -3392,7 +3392,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           { cle: 'jetons', ico: '🪙', nom: `+${BUTIN_DU_GROS.jetons} 🪙`, sous: 'La prime du proprio', mots: [{ txt: `+${BUTIN_DU_GROS.jetons} 🪙 en caisse`, bon: true }] },
           { cle: 'xp', ico: C ? C.ico : '📈', nom: `+${BUTIN_DU_GROS.xp} d'expérience`, sous: C ? `${C.nom} apprend du match` : 'Ton coach apprend du match', mots: [{ txt: `+${BUTIN_DU_GROS.xp} d'expérience pour ton coach`, bon: true }] },
         ],
-        onChoix: cle => prendre(cle === 'xp' ? { xpCoach: BUTIN_DU_GROS.xp } : { gain: BUTIN_DU_GROS.jetons }),
+        // Une décision comme les autres (la boîte l'envoie par `decision`) : au soir du prochain match, avec son palier.
+        decision: cle => ({ jour: soirDuProchain(), palier: `r:${rc.jour}`, ...(cle === 'xp' ? { xpCoach: BUTIN_DU_GROS.xp } : { gain: BUTIN_DU_GROS.jetons }) }),
         onFerme: () => prendre({}) });
     }
     if (ro) {
