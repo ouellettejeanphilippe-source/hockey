@@ -9,7 +9,9 @@
  *   3. chaque adjoint en poste à la feuille est au banc, allumé, avec ce qui lui reste ; aucun autre ;
  *   4. la même graine rend le même banc ; un club sans coach-personnage n'a pas de banc ;
  *   5. le banc s'allume au sommaire (js/bilan.js), et le mouvement s'éteint pour qui le demande (style.css) ;
- *   6. la règle du coach (V23) s'allume les soirs où elle paie, la caisse les paie ; les salaires des adjoints sont ceux de la feuille.
+ *   6. la règle du coach (V23) s'allume les soirs où elle paie, la caisse les paie ; les salaires des adjoints sont ceux de la feuille ;
+ *   7. à l'entracte du duel (V23 A2, `jusqua`), le banc n'allume que les périodes déjà jouées, la règle du coach attend la fin,
+ *      et les deux entractes (saison, séries) le montrent sous les périodes.
  */
 import fs from 'node:fs';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague } from '../js/sim.js';
@@ -97,6 +99,31 @@ const bilan = fs.readFileSync(new URL('../js/bilan.js', import.meta.url), 'utf8'
 const css = fs.readFileSync(new URL('../style.css', import.meta.url), 'utf8');
 const saisonJs = fs.readFileSync(new URL('../js/saison.js', import.meta.url), 'utf8');
 exiger('5. le sommaire du soir montre le banc sous le pointage, et Hier soir au Bureau aussi', /\$\{bancDuSoirHtml\(f, A, B, esc\)\}\s*\$\{apres\}/.test(bilan) && /bancDuSoirHtml\(m\.feuille, m\.A, m\.B, ctx\.esc, \{ joues: true \}\)/.test(saisonJs));
+
+// 7. V23 A2 : à l'entracte du duel, le banc n'allume que ce qui a déjà joué — jamais une période à venir, jamais la règle.
+const fautes7 = [];
+let allumesAvant = 0, eteintsAvant = 0;
+soirs.forEach(({ f, cote }, n) => {
+  const notes = (f.pouvoirs || []).filter(x => x.cote === cote);
+  for (const k of [1, 2]) {
+    const b = banc(toi, f, { jusqua: k });
+    if (b.some(c => c.genre === 'regle')) fautes7.push(`soir ${n + 1} : la règle du coach au ${k}e entracte`);
+    for (const c of b.filter(x => x.genre === 'pouvoir')) {
+      if (c.periodes.some(x => x >= k)) fautes7.push(`soir ${n + 1} : ${c.nom} allumé pour une période à venir (${c.periodes.join('·')} au ${k}e entracte)`);
+      const p = POUVOIRS[toi.perso.cle].findIndex(P => P.nom === c.nom);
+      const vraies = [...new Set(notes.filter(x => x.p === p && x.k < k).map(x => x.k))].sort((a, z) => a - z);
+      if (c.periodes.join() !== vraies.join()) fautes7.push(`soir ${n + 1} : ${c.nom} ${c.periodes.join('·')} contre ${vraies.join('·')} au ${k}e entracte`);
+      if (c.joue) allumesAvant++;
+      else if (notes.some(x => x.p === p)) eteintsAvant++;
+    }
+    const plein = banc(toi, f).filter(x => x.genre === 'adjoint').map(x => x.nom).join();
+    if (b.filter(x => x.genre === 'adjoint').map(x => x.nom).join() !== plein) fautes7.push(`soir ${n + 1} : les adjoints ne sont pas les mêmes à l'entracte`);
+  }
+});
+exiger('7. à l\'entracte, le banc allume exactement les périodes déjà jouées, sans la règle du coach, les mêmes adjoints', !fautes7.length && allumesAvant > 0 && eteintsAvant > 0,
+  fautes7.slice(0, 3).join(' ; ') || `${allumesAvant} allumés avant l'entracte, ${eteintsAvant} qui attendaient encore leur période`);
+exiger('7. les deux entractes du duel (saison, séries) montrent le banc sous les périodes', /bancDuSoirHtml\(f, p\.m\.A, p\.m\.B, ctx\.esc, \{ jusqua: k \}\)/.test(saisonJs) && /bancDuSoirHtml\(f, s\.A, s\.B, ctx\.esc, \{ jusqua: p \}\)/.test(saisonJs)
+  && /\.ent2 \.banc \{/.test(css));
 exiger('5. le banc s\'allume en animation, éteinte sous prefers-reduced-motion', /\.banc-carte\.joue \{[^}]*animation: banc-allume/.test(css)
   && /@media \(prefers-reduced-motion: reduce\) \{\s*\*, \*::before, \*::after \{ animation-duration: 0\.01ms !important/.test(css));
 

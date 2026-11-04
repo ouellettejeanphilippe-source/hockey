@@ -1342,7 +1342,7 @@ export function renderSpin() {
  */
 const uniteNom = s => !s ? '' : s.scratch ? 'Réserve' : s.group === 'G' ? 'Gardiens'
   : s.group === 'D' ? UNIT_NAMES_D[s.unit] : UNIT_NAMES_F[s.unit];
-export const slotShort = s => s ? `${uniteNom(s)} · ${s.role}` : '—';
+export const slotShort = s => (s ? (uniteNom(s) === s.role ? s.role : `${uniteNom(s)} · ${s.role}`) : '—');
 /*
  * OÙ IL JOUE (S80). JP : *dire que x est sur la xième ligne*. Un joueur se
  * NOMME par ce qu'il est (`quiEst`), jamais par sa case ; mais on DIT où il

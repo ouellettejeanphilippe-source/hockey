@@ -40,6 +40,8 @@ const COLONNES = {
   F: [['jambes', 'Jambes'], ['pj', 'PJ'], ['tg', 'TG'], ['b', 'B'], ['a', 'A'], ['pts', 'PTS'], ['pm', '+/−'], ['tirs', 'Tirs'], ['pctTir', '% tir'], ['coups', 'MÉ'], ['blocs', 'BL'], ['sal', '$']],
   G: [['jambes', 'Jambes'], ['pj', 'PJ'], ['v', 'V'], ['d', 'D'], ['pctArr', '% arr.'], ['moy', 'Moy.'], ['dq', 'DQ'], ['sal', '$']],
 };
+/* Nov. 2026 (JP : *where the infos are*) : en Rogue, six colonnes, jamais un glissement — le reste vit à la fiche du joueur. */
+const COURTES = { F: ['jambes', 'pj', 'pts', 'pm', 'sal'], G: ['jambes', 'pj', 'pctArr', 'moy', 'sal'] };
 const FORMAT = {
   pm: x => (x > 0 ? `+${x}` : x < 0 ? `−${-x}` : '0'),
   pctTir: x => (x == null ? '—' : pct1(x)),
@@ -68,7 +70,7 @@ export function remplirJoueurs() {
   const groupeDe = r => (r.p.p === 'G' ? 'G' : r.p.p === 'D' ? 'D' : 'F');
   const g = etat.groupe;
   // Les départs de qualité se comptent dans tes feuilles : la vraie saison d'un gardien ne les a pas.
-  const cols = COLONNES[g === 'G' ? 'G' : 'F'].filter(([k]) => (k !== 'jambes' || energie) && (k !== 'dq' || compte));
+  const cols = COLONNES[g === 'G' ? 'G' : 'F'].filter(([k]) => (k !== 'jambes' || energie) && (k !== 'dq' || compte) && (G.bonus !== 'ROGUE' || COURTES[g === 'G' ? 'G' : 'F'].includes(k)));
   const [cle, asc] = etat.tri[g];
   const val = r => { const v = r.st[cle]; return v == null ? -Infinity : v; };
   const vues = rangees.filter(r => groupeDe(r) === g).sort((x, y) => (asc ? val(x) - val(y) : val(y) - val(x)) || x.s.i - y.s.i);

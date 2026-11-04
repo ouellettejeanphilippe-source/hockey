@@ -28,6 +28,7 @@ import { artJoueur, photoAction, cadrePhoto, epoqueDe, serieDe, SERIES } from '.
 import { getTeamLogoHtml } from './logos.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
+import { pic } from './mouvement.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
 import { galonsDeLaSaison, grosGagnesDe, texteDuGalon, GALONS_MAX, ICO_GALON, GALONS } from './galons.js';
 import { sceneDuMandat, sceneDesGalons } from './scenes.js';
@@ -199,10 +200,7 @@ export function ouvrirBoutique(j, decider, page) {
   ouvrirMagasin({
     ...(page || {}),
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts,
-    // V8 : ce qui manque à ton équipe, en tête du Marché — là où l'on décide quoi acheter.
-    besoins: G.bonus === 'ROGUE' ? blessesAuJour(j).map(b => `🩹 ${b.p.n} : absent ${b.reste} match${b.reste > 1 ? 's' : ''}`) : [],
-    // V7 : le barème des jetons vit où ils se dépensent (il était au bureau).
-    bareme: G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.bareme) || JETONS) : null,
+    // Nov. 2026 : les absents sont à Joueurs › Blessés, le barème des jetons au Proprio ; la boutique ne dit que ce qui décide un achat.
     mods: modsDesPacks(), achats: () => (G.bonus === 'ROGUE' ? achatsDePacks(decisionsDeLaPartie()) : 0), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
     duJour: packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique()),
@@ -1481,6 +1479,8 @@ function montrerTaRun(sort, n, s) {
   saveGame();
   const ligne = (k, v) => `<div class="run-l"><span class="run-k">${esc(k)}</span><b class="run-v">${v}</b></div>`;
   if (sort === 'gagnee') { montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable); return; }
+  // V23 G : le congédiement est un pic, comme la Coupe — la porte claque.
+  setTimeout(() => pic(document.querySelector('.choix-sheet[data-genre="run"]')), 50);
   ouvrirChoix({
     ico: sort === 'gagnee' ? '🏆' : '🚪', titre: 'Ta run', genre: 'run', fermable: true, motFermer: 'Compris',
     irl: `Run ${d.numero} · ${n} saison${n > 1 ? 's' : ''}`,
@@ -1508,6 +1508,8 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
   const rang = (meta.vitrine || []).length;
   const C = COACHS[G.rogue.coach];
   jouerSon('coupe');
+  // V23 G : la Coupe est un pic — trois coups, la secousse et les particules sur sa scène, une fois ouverte.
+  setTimeout(() => pic(document.querySelector('.choix-sheet[data-genre="coupe"]')), 50);
   ouvrirChoix({
     ico: '🏆', titre: 'La Coupe Stanley', genre: 'coupe', fermable: true, motFermer: 'Soulever la Coupe',
     irl: `Run ${d.numero} gagnée · saison ${n}`,
@@ -1755,31 +1757,43 @@ export function palmaresDuClubHtml() {
       ${P.trophees.slice().reverse().slice(0, 12).map(t => rangee('🏆', t.nom, `${t.joueur} · ${t.val} · ${quand(t)}`)).join('')}</div>` : '';
   const runs = Object.values(meta.lesRuns || (meta.derniereRun ? { 1: meta.derniereRun } : {})).sort((a, b) => b.numero - a.numero);
   const enCours = G.rogue && G.rogue.numero && !G.rogue.taRunVue ? rangee('▶', `Run ${G.rogue.numero} · saison ${G.rogue.saison || 1}`, 'En cours') : '';
-  const lesRuns = enCours || runs.length ? `<p class="vs-sec">🗂 Tes runs · 🏆 ${meta.coupes || 0}</p>
-    <div class="vs-jalons">${enCours}${runs.map(d => rangee(d.coupe ? '🏆' : '🏁', `Run ${d.numero} · ${d.saisons} saison${d.saisons > 1 ? 's' : ''}${COACHS[d.coach] ? ` · ${COACHS[d.coach].ico} ${COACHS[d.coach].nom}` : ''}`,
+  const lesRuns = runs.length ? `<p class="vs-sec">🗂 Tes runs · 🏆 ${meta.coupes || 0}</p>
+    <div class="vs-jalons">${runs.map(d => rangee(d.coupe ? '🏆' : '🏁', `Run ${d.numero} · ${d.saisons} saison${d.saisons > 1 ? 's' : ''}${COACHS[d.coach] ? ` · ${COACHS[d.coach].ico} ${COACHS[d.coach].nom}` : ''}`,
       `${motDeRun(d)} · 🏅 +${d.ecussons || 0}`)).join('')}</div>` : '';
-  return `${vitrine}${pantheon}${lesRuns}` || '<div class="empty-msg">Rien de gravé encore : tes Coupes, tes records et tes runs viendront ici.</div>';
+  // Nov. 2026 (JP : *where the infos are*) : le Palmarès n'est plus vide à la première run — le prestige du club et la run en
+  // cours d'abord, la porte des déblocages au pied ; ils vivaient dans la fenêtre des déblocages.
+  const C0 = G.rogue && COACHS[G.rogue.coach];
+  const enCoursHtml = enCours ? `<p class="vs-sec">▶ La run en cours${C0 ? ` · ${C0.ico} ${esc(C0.nom)}` : ''}</p><div class="vs-jalons">${enCours}</div>` : '';
+  return `${prestigeHtml(meta, { court: true })}${enCoursHtml}${vitrine}${pantheon}${lesRuns}
+    <button type="button" class="hub-rangee vs-deblocages"><span class="hub-rangee-t">🏅 Les déblocages</span><b>${meta.ecussons || 0} médailles</b></button>`;
 }
 
-export function ouvrirVestiaire(apres = null) {
-  const meta = lireMeta();
-  // v2 : LE PRESTIGE DU CLUB (js/rogue.js) — l'échelle entière, ce qui est atteint et ce qu'il faut pour la suite.
+/*
+ * LE PRESTIGE DU CLUB ET LES JALONS (v2, js/rogue.js) — l'échelle entière, ce qui est atteint et ce qu'il faut pour la suite.
+ * Nov. 2026 (JP : *where the infos are*) : ils vivent au Palmarès, la maison du club, et la fenêtre des déblocages les redit.
+ */
+function prestigeHtml(meta, { court = false } = {}) {
   const rang = rangDePrestige(meta), vie = ecussonsAVie(meta);
   const jalonDe = k => (JALONS.find(J => J.cle === k) || {}).nom || k;
   // Les exigences (tranche 8) : le plus haut cran ouvert, une fois la première Coupe gagnée.
   const ouvertes = exigencesOuvertes(meta);
+  // Au Palmarès (`court`) : ton rang, et seulement la marche qui vient et le prochain jalon ; la fenêtre des déblocages dit l'échelle entière.
   const prestige = `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
-    <div class="vs-jalons">${PRESTIGES.map((P, k) => {
+    <div class="vs-jalons">${PRESTIGES.filter((P, k) => !court || k === rang + 1).map((P, k0) => { const k = court ? rang + 1 : k0;
       const fait = k <= rang;
       const quoi = `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${fait ? '✓' : k}</span><b>${esc(P.nom)}</b><span>${fait ? esc(quoi) : `${P.min} 🏅 à vie${P.jalon ? ` et « ${esc(jalonDe(P.jalon))} »` : ''} → ${esc(quoi)}`}</span></div>`;
     }).join('')}</div>`;
-  const jalons = `${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
-    <div class="vs-jalons">${JALONS.map(J => {
+  return `${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
+    <div class="vs-jalons">${(court ? JALONS.filter(J => !(meta.jalons || {})[J.cle]).slice(0, 1) : JALONS).map(J => {
       const fait = !!(meta.jalons || {})[J.cle];
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${J.ico}</span><b>${esc(J.nom)}</b><span>${fait ? '✓ Atteint' : `${esc(J.texte)} → ${esc(recompenseDe(meta, J).mot)}`}</span></div>`;
-    }).join('')}</div>
-    <p class="vs-sec">🏅 Les déblocages</p>`;
+    }).join('')}</div>`;
+}
+
+export function ouvrirVestiaire(apres = null) {
+  const meta = lireMeta();
+  const jalons = `${prestigeHtml(meta)}<p class="vs-sec">🏅 Les déblocages</p>`;
   ouvrirChoix({
     ico: '🏅', titre: `Les déblocages · ${meta.ecussons || 0} médailles`, fermable: true, motFermer: 'Fermer',
     recit: `Tes médailles se gagnent à chaque saison : une par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs.`,

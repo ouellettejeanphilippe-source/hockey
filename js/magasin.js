@@ -14,7 +14,7 @@ import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cart
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
-import { esc, money as M, jaugePlafond } from './util.js';
+import { esc, money as M } from './util.js';
 import { COACHS } from './coachs.js';
 import { RAYONS_CLUB } from './club.js';
 
@@ -74,7 +74,7 @@ export function ouvrirMagasin(ctx) {
   // deux de départ, puis les deux premiers sous clé, qui disent leur jalon.
   const DEBUT = ['j:bronze', 'j:epoque', 'j:argent', 'j:or'];
   let tout = !ctx.debutant;
-  let ongletClub = 'club';
+  let ongletClub = 'club', clubOuvert = false;
   const dessiner = () => {
     const rayons = tout ? RAYONS.map(R => {
       if (R.cle === 'jour') return ctx.duJour ? `<section class="pk-rayon pk-rayon-jour"><h3>${R.ico} ${esc(ctx.mode === 'rogue' ? 'Le pack de la semaine' : R.nom)} <span class="pk-rabais">−${Math.round((1 - ctx.duJour.rabais) * 100)} % ${ctx.mode === 'rogue' ? 'cette semaine' : 'aujourd\'hui'}</span></h3><div class="pk-rangee">${tuile(ctx.duJour.pack, true)}</div></section>` : '';
@@ -110,30 +110,22 @@ export function ouvrirMagasin(ctx) {
         <span class="pk-prix">${o.verrou ? '🔒' : `${o.prix} 🪙`}</span>
       </button>`;
     }).join('') || '<p class="pk-mot">Tout est à toi.</p>'}</div></section>` : '';
-    // LE BARÈME (1.0, R4 ; V7 : à la boutique, là où les jetons se dépensent) : lu dans la run, jamais tapé.
-    const B = ctx.bareme;
-    const bareme = B ? `<p class="pk-bareme-run" title="Ce que chaque résultat rapporte, en jetons">🪙 ${[['Victoire', B.victoire], ['prolongation', B.prolongation], ['défaite', B.defaite], ['gros match', B.grosMatch, '+'], ['objectif', B.objectif, '+'], ['ronde de séries', B.serie, '+']]
-      .filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ')}</p>` : '';
-    const garantie = ctx.mode === 'rogue'
-      ? `<p class="pk-garantie">🛟 Une Or ou une Holo au plus tard au ${PITIE + 1}e pack de joueurs${ctx.sansHolo ? ` (tu en es à ${ctx.sansHolo} sans)` : ''}.</p>` : '';
-    // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
-    const plafond = ctx.plafond
-      ? jaugePlafond({ masse: ctx.plafond.cap - ctx.plafond.espace, cap: ctx.plafond.cap,
-        mot: `<span class="inv-pl-rien">${ctx.plafond.espace >= 0 ? `${M(ctx.plafond.espace)} sous le plafond` : `${M(-ctx.plafond.espace)} au-dessus du plafond`}${ctx.plafond.tordu ? ' ✦' : ''} : tu signes jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))}.</span>` }) : '';
+    /*
+     * NOV. 2026 (JP : *where the infos are*) : la boutique ne dit que ce qui décide un achat — tes jetons, jusqu'où tu signes.
+     * Les absents sont à Joueurs › Blessés, la masse salariale et le barème au Proprio, la garantie d'une Or à la fiche du pack ;
+     * les quatre packs du début tiennent de front, le club se plie en une rangée.
+     */
+    const signe = ctx.plafond ? ` · tu signes jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))}` : '';
     m.innerHTML = `<div class="choix-sheet pk-sheet" role="dialog" aria-modal="true" aria-label="La boutique">
       <div class="choix-tete">
         <span class="choix-ico">🛒</span>
-        <div class="choix-titres"><div class="choix-titre">La boutique</div><div class="choix-irl">🪙 ${ctx.jetons} jetons${ctx.mods.rabais && ctx.mods.rabais < 1 ? ` · rabais −${Math.round((1 - ctx.mods.rabais) * 100)} %` : ''}${achats() ? ` · prix +${Math.round((hausseDesPacks(achats()) - 1) * 100)} % (${achats()} pack${achats() > 1 ? 's' : ''} cette saison)` : ''}</div></div>
+        <div class="choix-titres"><div class="choix-titre">La boutique</div><div class="choix-irl">🪙 ${ctx.jetons} jetons${signe}${ctx.mods.rabais && ctx.mods.rabais < 1 ? ` · rabais −${Math.round((1 - ctx.mods.rabais) * 100)} %` : ''}${achats() ? ` · prix +${Math.round((hausseDesPacks(achats()) - 1) * 100)} % (${achats()} pack${achats() > 1 ? 's' : ''} cette saison)` : ''}</div></div>
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       <div class="choix-corps pk-corps">
         ${nScelles ? `<button type="button" class="btn small pk-aller">📦 ${nScelles} pack${nScelles > 1 ? 's' : ''} à ouvrir, en bas ↓</button>` : ''}
-        ${(ctx.besoins || []).length ? `<section class="pk-besoins" aria-label="Ce qui manque à ton équipe"><h3>Ce qui manque à ton équipe</h3><ul>${ctx.besoins.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
-        ${plafond}
-        ${bareme}
-        ${garantie}
         ${rayons}
-        ${tout ? club : ''}
+        ${clubOuvert ? club : (ctx.club || []).length ? `<button type="button" class="hub-rangee pk-club-ouvrir"><span class="hub-rangee-t">🏅 Ton club</span><b>${ctx.club.length} à débloquer</b></button>` : ''}
         ${scelles}
       </div>
     </div>`;
@@ -150,6 +142,8 @@ export function ouvrirMagasin(ctx) {
     if (aller) aller.onclick = () => m.querySelector('.pk-rayon-scelles').scrollIntoView({ behavior: 'smooth', block: 'start' });
     const voirTout = m.querySelector('.pk-tout');
     if (voirTout) voirTout.onclick = () => { tout = true; dessiner(); };
+    const ouvrirClub = m.querySelector('.pk-club-ouvrir');
+    if (ouvrirClub) ouvrirClub.onclick = () => { clubOuvert = true; dessiner(); m.querySelector('.pk-rayon-club')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   };
   const fiche = cle => {
     const P = PACKS_TOUS[cle];
@@ -182,6 +176,7 @@ export function ouvrirMagasin(ctx) {
       <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : x.niveau ? ' class="pk-niveau"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' && ctx.plafond ? `<p class="pk-num">💵 Tu signes jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} (ton espace, plus le plus gros contrat qu'une sortie libérerait) ; au-delà, la carte se montre, grisée.</p>` : ''}
       ${P.sorte === 'joueurs' ? niveauxHtml(cle, ctx.mods) : ''}
+      ${P.sorte === 'joueurs' && ctx.mode === 'rogue' ? `<p class="pk-num pk-garantie">🛟 Une Or ou une Holo au plus tard au ${PITIE + 1}e pack de joueurs${ctx.sansHolo ? ` (tu en es à ${ctx.sansHolo} sans)` : ''}.</p>` : ''}
       <h4>${P.sorte === 'joueurs' ? 'L\'édition d\'une carte' : 'Le barème d\'une carte'}</h4>
       <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${P.sorte !== 'joueurs' && RARETES[k] ? `${RARETES[k].gemme} ` : ''}${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' ? `<p class="pk-num">Une Holo est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}.</p>` : ''}

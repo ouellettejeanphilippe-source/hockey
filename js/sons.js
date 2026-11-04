@@ -216,6 +216,15 @@ const SONS = {
     [523, 659, 784].forEach(f => note(c, t + 1.7, { forme: 'triangle', freq: f, gain: 0.06, att: 0.02, dec: 1.4 }));
     bruit(c, t + 1.7, { gain: 0.06, att: 0.1, dec: 1.2, type: 'highpass', freq: 5000 });
   },
+  /* V23 G : le bâton sur la bande — deux coups de bois, le banc qui salue ce qui vient de jouer. */
+  baton(c, t) {
+    [0, 0.13].forEach((d, i) => { bruit(c, t + d, { gain: 0.16 - i * 0.03, dec: 0.05, type: 'lowpass', freq: 900 }); note(c, t + d, { forme: 'triangle', freq: 420, vers: 260, gain: 0.07, dec: 0.08 }); });
+  },
+  /* V23 G : le klaxon du gros match gagné — deux notes de corne de brume, une tierce, qui tiennent. */
+  klaxon(c, t) {
+    [[196, 0], [247, 0.02]].forEach(([f, d]) => note(c, t + d, { forme: 'sawtooth', freq: f, gain: 0.07, att: 0.03, dec: 0.9, passeBas: 1200 }));
+    bruit(c, t + 0.05, { gain: 0.04, att: 0.2, dec: 0.8, type: 'highpass', freq: 4000 });
+  },
   /* La récompense : un arpège qui brille. */
   recompense(c, t) {
     [523, 659, 784, 1047].forEach((f, i) => note(c, t + i * 0.07, { forme: 'triangle', freq: f, gain: 0.07, dec: 0.35 }));

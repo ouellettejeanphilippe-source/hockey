@@ -322,7 +322,7 @@ function pagesDe(cellules, titre, esc) {
 /*
  * LE CARTABLE, dans `host`. ctx :
  *   esc, equipe [{ p, cle, mini, saison, vraie }], titreSaison ('À la journée 20'…),
- *   ouvrirCartes(), fiche(cle, p), ficheEquipe(p),
+ *   fiche(cle, p), ficheEquipe(p),
  *   charger(saison) → Promise(entrée de shard : { players, byTeam }),
  *   mini(p, rar), cleDe(p), club(tag) → nom, logo(tag, px), band(tag) (tes coachs), vraie(p) → ligne de sa vraie saison,
  *   saisons (celles du jeu : les extensions et leur complétion).
@@ -348,7 +348,6 @@ export function rendreCartable(host, ctx) {
         <span class="ct-total"><b>${k.joueurs}</b> carte${k.joueurs > 1 ? 's' : ''} de joueur${k.doublons ? ` · <b>${k.doublons}</b> doublon${k.doublons > 1 ? 's' : ''}` : ''}</span>
         <span class="ct-vars">${VARIANTES.map(([r, nom]) => `<span class="ct-var v-${r}" title="${esc(sensDe(r))}">${esc(nom)} <b>${k.parVariante[r]}</b></span>`).join('')}${k.numerotees ? `<span class="ct-var v-num">№ Numérotées <b>${k.numerotees}</b></span>` : ''}</span>
       </div>
-      <button type="button" class="btn gold ct-mes-cartes" title="Tes cartes de jeu : les cartes rares">🎒 Tes cartes</button>
     </div>
     <div class="ct-vues" role="tablist">
       ${[['equipe', `Ton équipe · ${ctx.equipe.length}`], ['extensions', `Extensions · ${parDecennie.size}`], ['clubs', `Clubs · ${parClub.size}`], ...(nCoachs ? [['coachs', `Coachs · ${nCoachs}`]] : [])]
@@ -390,8 +389,6 @@ export function rendreCartable(host, ctx) {
   host.querySelectorAll('[data-vue]').forEach(b => { b.onclick = () => { etat.vue = b.dataset.vue; rendreCartable(host, ctx); }; });
   const autresBtn = host.querySelector('.ct-autres');
   if (autresBtn) autresBtn.onclick = () => { etat.vue = 'extensions'; rendreCartable(host, ctx); };
-  const mes = host.querySelector('.ct-mes-cartes');
-  if (mes) mes.onclick = () => ctx.ouvrirCartes();
   host.querySelectorAll('[data-ct-equipe]').forEach(b => {
     b.onclick = () => { const x = ctx.equipe.find(y => y.cle === b.dataset.ctEquipe); if (x) ctx.ficheEquipe(x.p); };
   });

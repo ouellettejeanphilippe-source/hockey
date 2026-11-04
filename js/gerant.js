@@ -25,6 +25,7 @@ import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN } from './combat.js';
 import { flechesDe, INTENTIONS, PLANS, MOMENTS_SI, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
+import { notable, pic } from './mouvement.js';
 import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, glyphe, varsEquipe, nom } from './util.js';
@@ -635,6 +636,7 @@ export function ouvrirChoix(spec) {
       if (vite) { partir(); return; }
       b.classList.add('jouee');
       jouerSon('joue');
+      notable();
       setTimeout(partir, CARTE_JOUEE_MS);
     };
   });
@@ -677,7 +679,7 @@ function sceneDuDe(m, spec, o, sub, fermer, autre = () => ouvrirChoix(spec)) {
     <div class="de-besoin">🎲 Ça passe ${facesMot(faces)}</div>
     <div class="de-table">${deHtml(6)}</div>
     <div class="de-verdict" role="status" aria-live="polite"></div>
-    <span class="choix-puces de-issue"></span>
+    <span class="choix-puces de-issue">${puces(motsDuPari(o.pari, spec.joueur ? spec.joueur.n : ''))}</span>
     <div class="de-boutons">
       <button type="button" class="btn de-autre">Autre réponse</button>
       <button type="button" class="btn go de-lancer">Lancer le dé</button>
@@ -696,6 +698,7 @@ function sceneDuDe(m, spec, o, sub, fermer, autre = () => ouvrirChoix(spec)) {
     verdict.classList.add(v.gagne ? 'gagne' : 'perd');
     corps.querySelector('.de-issue').innerHTML = puces(mots.length ? mots : [{ txt: 'Rien ne change', bon: null }]);
     jouerSon(v.gagne ? 'recompense' : 'rate');
+    notable();
     const b = corps.querySelector('.de-lancer');
     b.textContent = 'Continuer'; b.disabled = false; b.classList.add('de-suite');
     b.onclick = valider;
@@ -881,7 +884,10 @@ function brancherPaquet(m, ouvert, { walkout = null, scelle = true } = {}) {
     feuille.querySelector('.walkout')?.remove();
     etat = 'pile';
     poser();
-    jouerSon(cartes[cur].matches('.tc-meilleure, .tc-rare, .tc-legendaire') ? 'recompense' : 'tap');
+    const rare = cartes[cur].matches('.tc-meilleure, .tc-rare, .tc-legendaire');
+    jouerSon(rare ? 'recompense' : 'tap');
+    // V23 G : la carte rare est un pic — la secousse et les particules sur la feuille, trois coups au téléphone.
+    if (rare) pic(feuille);
   };
   const annoncer = () => {
     etat = 'walkout';

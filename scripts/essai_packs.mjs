@@ -174,7 +174,8 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   if (tour % 2 === 1) {
     await page.click('#navbar .navtab[data-section="club"]'); await page.waitForTimeout(1500);
     const am = await page.$('.ln-auto');
-    if (am) { await am.click(); await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 5000 }); await page.click('#choixModal:not([hidden]) .choix-option[data-choix="equilibre"]'); await page.waitForTimeout(800); }
+    // Nov. 2026 : « Aligner au mieux » agit d'un toucher, sans fenêtre.
+    if (am) { await am.click(); await page.waitForTimeout(800); }
     else log('   pas de bouton au mieux');
     await club(); await page.waitForTimeout(2500); await regler();
     const meme = await page.evaluate(() => window.cap82.G.roster === window.cap82.G.ligue.you.roster); if (!meme) { pb++; log('   ⚠ après « Aligner au mieux », l\'écran ne montre plus l\'alignement du moteur'); }

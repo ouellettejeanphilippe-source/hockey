@@ -11,13 +11,13 @@ import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUn
 import { alignementAuMieux, unitesDuSoir, specialesEnStats, lignesDeLAdjointEnChiffres, ditDuPouvoir } from './impact.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
 import { primesDuCoach } from './rogue.js';
-import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
+import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, NIVEAUX_TALENT, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
 import { MAITRISE } from './coachs-reels.js';
-import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, ficheDeLaCarte, casesLibres, nivDe, NOMS_NIV, RARETE_NIV } from './adjoints.js';
+import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, ficheDeLaCarte, casesLibres, nivDe, NOMS_NIV, RARETE_NIV, salaireDe } from './adjoints.js';
 import { carteHtml } from './cartes.js';
 import { hubActif } from './coquille.js';
 import { glisserDeposer } from './deposer.js';
-import { jambesHtml, motDuBadge, ouvrirChoix } from './gerant.js';
+import { jambesHtml, motDuBadge } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
@@ -26,7 +26,6 @@ import { ajusterCartes, cartonDe, choisirSpeciale, lesCotes, pastilleNiveau, rar
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { poseesSur } from './banque.js';
 import { decisionsDeLaPartie } from './rogue-jeu.js';
-import { PALIERS_MOT } from './inventaire.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
 function ouvrirCarteDe(p) {
@@ -681,12 +680,9 @@ function boutonAuMieux() {
   b.type = 'button';
   b.className = 'btn ln-auto';
   b.innerHTML = '🤖 Aligner au mieux';
-  b.onclick = () => ouvrirChoix({
-    ico: '🤖', titre: 'Aligner au mieux', fermable: true, motFermer: 'Retour',
-    recit: 'Poste, côté, zone et affinité, pesés ensemble. Tu peux tout retoucher après.',
-    options: [{ cle: 'equilibre', ico: '🤖', nom: 'Le meilleur alignement', sous: 'Chacun à son poste et dans sa zone, des lignes qui s\'accordent.' }],
-    onChoix: alignerAuMieux,
-  });
+  b.title = 'Poste, côté, zone et affinité, pesés ensemble. Tu peux tout retoucher après.';
+  // Nov. 2026 : le bouton agit (il ouvrait une fenêtre à une seule option : un toucher pour rien).
+  b.onclick = alignerAuMieux;
   return b;
 }
 
@@ -882,7 +878,7 @@ export function coachHtml() {
   return `<div class="ej-coach">
     <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''}><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>L'entraîneur${chef ? ` · ${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)}` : ''}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau ${niveau}</span></div>
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
-    <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
+    <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}${NIVEAUX_TALENT.includes(niveau + 1) ? ' · un talent' : ''}`}</div>
     ${(R => (R ? (x => `<div class="ej-coach-l ej-regle">${C.ico} Sa règle : ${esc(R.dit)} · +${R.jetons} 🪙 · ${x.parJour.size} fois cette saison</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
     <div class="pv-rang">${POUVOIRS[perso.cle].map(carte).join('')}</div>
     ${mainHtml(perso, niveau)}
@@ -904,7 +900,9 @@ function mainHtml(perso, niveau) {
     // V23 : la carte à son niveau — ses lignes, sa rareté (le cadre de la série), son nom de niveau.
     const niv = nivDe(c), A = ADJOINTS[c.cle], l = lignesDeLAdjointEnChiffres(c.cle, c.niv), syn = motDeSynergie(c.cle, perso.cle), fiche = ficheDeLaCarte(c);
     const etat = enPoste(c, games, perso.cle) ? 'poste' : auRepos(c, games) ? 'repos' : 'prete';
-    const sous = etat === 'poste' ? `Encore ${resteDe(c, games, perso.cle)} match${resteDe(c, games, perso.cle) > 1 ? 's' : ''}` : etat === 'repos' ? `Au repos · ${reposDe(c, games)} match${reposDe(c, games) > 1 ? 's' : ''}` : `${sejourDe(c.cle, perso.cle)} matchs`;
+    // Nov. 2026 : son salaire par match, sur la carte (il se lisait au banc du soir seulement).
+    const sal = salaireDe(c) ? ` · −${salaireDe(c)} 🪙/match` : '';
+    const sous = etat === 'poste' ? `Encore ${resteDe(c, games, perso.cle)} match${resteDe(c, games, perso.cle) > 1 ? 's' : ''}${sal}` : etat === 'repos' ? `Au repos · ${reposDe(c, games)} match${reposDe(c, games) > 1 ? 's' : ''}` : `${sejourDe(c.cle, perso.cle)} matchs`;
     // Le verso, petit, dit le style seul ; la réplique, la synergie et la fiche se lisent dans la bande, au toucher (`.adj-detail`).
     const detail = `<b>${esc(A.nom)}</b> · ${esc(NOMS_NIV[niv - 1])} · ${esc(A.style)} — « ${esc(A.dit)} »${syn ? ` · <b class="bon">${esc(syn)}</b>` : ''}${fiche ? ` · ${esc(fiche)}` : ''}`;
     return `<div class="adj-carte" data-adj="${c.cle}" data-etat="${etat}" data-detail="${esc(detail)}">
@@ -918,7 +916,7 @@ function mainHtml(perso, niveau) {
   const vides = Math.max(0, cases - postes.length);
   return `<div class="ej-case-l">En poste · ${postes.length} sur ${cases} · ta main · ${main.length} sur ${MAIN_MAX}${plusTard ? ` · une case de plus au niveau ${plusTard}` : ''}</div>
     <div class="adj-zone${main.length ? '' : ' sans'}" data-zone="main">${postes.map(carteAdj).join('')}${Array.from({ length: vides }, () => `<button type="button" class="adj-case vide" title="Glisse une carte de ta main ici">Case libre</button>`).join('')}${autres.map(carteAdj).join('')}</div>
-    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite">Touche une carte : son style, sa réplique.</p>' : `<p class="adj-note">Un adjoint arrive aux ${PALIERS_MOT} matchs, après un gros match gagné et au verdict du proprio.</p>`}`;
+    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite">Touche une carte : son style, sa réplique.</p>' : ''}`;
 }
 /* POSTER UNE CARTE : la décision du jour (`hub.decider`), puis on revient au Coach, où l'on était. */
 function posterLAdjoint(cle) {

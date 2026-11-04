@@ -2140,7 +2140,6 @@ function remplirCartable() {
     equipe: signes().map(p => ({ p, cle: getPlayerKey(p), mini: carteMiniHtml(p), saison: ligneDeSaison(p, statsDe(p)), vraie: ligneVraieSaison(p) })),
     titreSaison: !L ? 'La saison n\'a pas commencé.' : portee === 'jour' ? `Cette saison : jusqu'à la journée ${G.journee || 0}.` : 'Cette saison : les 82 matchs.',
     // Tes cartes de jeu, en lecture : la collection du personnel et de la banque (V16 : elles se jouent chez ce qu'elles montent).
-    ouvrirCartes: () => ouvrirInventaireJeu(null, null),
     ficheEquipe: p => (L ? ouvrirFiche(p, L.you, portee === 'jour' ? 'jour' : 'saison') : showPlayerModal(p, { apercu: true })),
     fiche: (cle, p) => showPlayerModal(p, { apercu: true }),
     charger: s => getShard(s),
@@ -2365,7 +2364,12 @@ function showLeaderboard() {
    * `palmaresDuClubHtml`) —, pas l'historique des saisons du 82-0, qu'une run ne remplit pas. Son album (S74) est parti :
    * il redisait l'Album du Marché, ton cartable.
    */
-  if (G.bonus === 'ROGUE') { body.innerHTML = palmaresDuClubHtml(); return; }
+  if (G.bonus === 'ROGUE') {
+    body.innerHTML = palmaresDuClubHtml();
+    const d = body.querySelector('.vs-deblocages');
+    if (d) d.onclick = () => ouvrirVestiaire();
+    return;
+  }
   if (!list.length) {
     body.innerHTML = `<div class="empty-msg">Aucune saison enregistrée.<br>Complète un alignement de 23 et simule pour apparaître ici.</div>`;
     return;
