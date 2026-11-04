@@ -577,6 +577,8 @@ function lineEl(title, slots, group, unit, cls = '') {
   // QUI EST CETTE UNITÉ (S79) : « Trio de snipers », « Paire classique » — les icônes sont dans les cases.
   const id = (group === 'F' || group === 'D') && !surTable() ? identiteUnite(G.roster, group, unit) : null;
   const idHtml = id ? `<span class="line-id" title="${esc(id.roles.join(' · '))}">${esc(id.nom)}</span>` : '';
+  // LE PLATEAU (la maquette A) : au téléphone, le nom du trio debout dans sa colonne dit son identité en un mot (« 1er · passeurs »).
+  const court = id ? `<span class="line-court">· ${esc(id.nom.replace(/^(Trio de |Trio |Paire de |Paire )/i, '').toLowerCase())}</span>` : '';
   // D'OÙ ILS VIENNENT (1.0) : la puce se voit même sans la carte, pour qu'on apprenne à bâtir pour elle ; la carte d'origine la paie.
   const orig = (group === 'F' || group === 'D') && !surTable() ? puceOrigine(origineUnite(G.roster, group, unit), group) : '';
   /*
@@ -598,7 +600,7 @@ function lineEl(title, slots, group, unit, cls = '') {
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
-  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${prodHtml}${orig}${chemHtml}</div>`;
+  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}${court}</span>${idHtml}${prodHtml}${orig}${chemHtml}</div>`;
   const row = document.createElement('div');
   row.className = 'line-slots' + (cls ? ' ' + cls : '');
   slots.forEach(s => row.appendChild(slotEl(s)));

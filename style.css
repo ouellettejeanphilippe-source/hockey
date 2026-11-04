@@ -313,7 +313,7 @@ a { color: var(--bleu); text-decoration: none; }
    gros ; un bandeau de résultats qu'on balaie du doigt (rien ne boucle dans le décor : il entre une fois, essuyé comme à la
    télé) ; la vedette de chaque club en photo d'action sur l'affiche ; le bouton du soir avec son point rouge « en direct ». */
 body.mode-rogue .hub-volet, body.mode-rogue .hub-carte { background-image: radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--club-vif) 14%, transparent), transparent 70%); }
-body.mode-rogue :is(.hub-titre, .pr-k, .banc-tete, .live-tableau-titre, .vs-sec, .pk-rayon h3, .ej-case-l, .bu-route-t, .ct-set-tete, .hub-une-t, .hub-boite-titre) {
+body.mode-rogue :is(.hub-titre, .pr-k, .banc-tete, .live-tableau-titre, .vs-sec, .pk-rayon h3, .ej-case-l, .bu-route-t, .ct-set-tete, .hub-une-t, .hub-boite-titre, .pm-tete) {
   margin-bottom: var(--esp-1); padding: var(--esp-1) var(--esp-2) var(--esp-1) var(--esp-3); border: 0; border-left: 4px solid var(--club-vif);
   background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 28%, var(--noir-pur)), transparent 88%);
   font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--blanc);
@@ -331,6 +331,20 @@ body.mode-rogue .hub-une-t { writing-mode: horizontal-tb; rotate: none; padding:
 .tv-item.toi i { color: var(--blanc); }
 .tv-item.toi i.g { color: var(--bon); }
 .tv-item small { font-size: 0.8em; color: var(--encre-3); }
+/* L'HABILLAGE COMMUN DU PLATEAU (4 nov. 2026 ; JP : *pourquoi tu refais pas tout le UI au complet ?*). Une seule grammaire sur
+   toutes les pages du Rogue, celle de la maquette A : l'en-tête sur le noir pur sans filet de couleur ; chaque segment, filtre ou
+   onglet de page est un JETON — un petit bloc sombre en capitales, le choisi à la couleur du club, encre noire — jamais une pilule
+   blanche ; les panneaux (le filet, les unités spéciales) perdent leur cadre et prennent un bandeau. */
+body.mode-rogue .topbar { background: var(--noir-pur); box-shadow: none; }
+body.mode-rogue :is(.seg, .inv-filtres, .stat-tabs, .ct-vues, .hub-chips) { gap: var(--esp-1); padding: 0; border: 0; background: none; }
+body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; box-shadow: none; animation: none; }
+body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) span { color: inherit; font-size: inherit; }
+body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button).on { background: var(--club-vif); color: var(--noir-pur); border-color: transparent; box-shadow: none; }
+body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button).on span { color: inherit; }
+body.mode-rogue .seg-effectif { width: 100%; }
+body.mode-rogue .seg-effectif button { flex: 1 1 0; }
+body.mode-rogue :is(.plan-match, .unites-speciales) { padding: 0; margin-bottom: var(--esp-2); border: 0; border-radius: 0; background: none; }
+body.mode-rogue .pm-tete span { color: var(--or); text-transform: none; letter-spacing: 0; font-size: var(--t-1); }
 .btn.go.hub-jour::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: var(--esp-2); border-radius: 50%; background: var(--live); box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 35%, transparent); vertical-align: 1px; }
 /* LES PICS (V23 G, docs/refonte-v23.md § G ; js/mouvement.js `pic`) : la carte rare, le gros match gagné, le talent du
    coach, la Coupe, le congédiement. Une secousse de 4 px, jamais plus, et douze particules de la couleur du club qui
@@ -4070,14 +4084,15 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
 /* LE PLATEAU (nov. 2026 ; JP : *refais tous les écrans* ; la direction A) : au téléphone, les cartes remplissent leur colonne
    et ce qui se lit dessous tient en deux lignes — la bande (le poste, le salaire), le badge et le niveau, les verdicts, les
    jambes en chiffre ; le chiffre clé et le mot des jambes attendent la fiche. Deux trios et demi par écran, pas un. */
-.sc-ligne { display: none; }
+.sc-ligne, .line-court { display: none; }
 @media (max-width: 999.98px) {
   /* Le trio : son nom debout dans une colonne de 22 px, à la couleur de son état (vert à sa place, rouge mal placé) ; trois
      cartes pleine colonne ; sous chacune, une seule ligne. Ce que l'en-tête disait d'autre et l'affinité attendent le grand écran. */
   body.mode-rogue #rosterBoard.en-cartes .line { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; border: 0; border-radius: 0; background: none; box-shadow: none; margin-bottom: var(--esp-2); }
   body.mode-rogue #rosterBoard.en-cartes .line-head { grid-row: 1 / span 3; align-self: stretch; display: grid; place-items: center; min-height: 0; padding: var(--esp-1) 0; border: 0; border-right: 2px solid var(--filet-2); writing-mode: vertical-rl; rotate: 180deg; }
   body.mode-rogue #rosterBoard.en-cartes .line-head > :not(.line-name) { display: none; }
-  body.mode-rogue #rosterBoard.en-cartes .line-name { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.16em; color: var(--encre-3); }
+  body.mode-rogue #rosterBoard.en-cartes .line-name { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; color: var(--encre-3); white-space: nowrap; }
+  body.mode-rogue #rosterBoard.en-cartes .line-court { display: inline; margin-left: 4px; font-weight: 700; letter-spacing: 0.08em; text-transform: none; }
   body.mode-rogue #rosterBoard.en-cartes .line.good .line-head { border-right-color: var(--bon); }
   body.mode-rogue #rosterBoard.en-cartes .line.good .line-name { color: var(--bon); }
   body.mode-rogue #rosterBoard.en-cartes .line.bad .line-head { border-right-color: var(--mauvais); }
@@ -4095,6 +4110,8 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
   body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes::before { content: "· jambes"; }
   body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes b { font-size: var(--t-1); min-width: 0; color: var(--encre); }
   body.mode-rogue #rosterBoard.en-cartes .sc-ligne .tag { padding: 0 3px; font-size: var(--t-1); }
+  /* La ligne ne garde que ce qui alerte (▲ ▼ ↔ 🩹) : la zone en mots, le ✓, les traits et les départs attendent la fiche et le grand écran. */
+  body.mode-rogue #rosterBoard.en-cartes .sc-ligne :is(.tag-zone, .cell-zone.ok, .cell-trait, .cell-departs) { display: none; }
   body.mode-rogue #rosterBoard.en-cartes .slot-remove { top: 0; right: 0; }
 }
 /* Les liens entre deux voisins : sur l'écart des deux cartes ; celui des ailiers, au haut de la carte du centre. */
