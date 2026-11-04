@@ -246,7 +246,10 @@ function celluleJoueur(p, s, o) {
    de sa fiche, à un toucher (JP, 30 oct. : *que les infos sous la carte soient moins longues*). */
 function celluleCarte(p, s, o) {
   const x = piecesDuJoueur(p, s, o);
-  return `<div class="sc-qui">${x.role}${x.niveau}</div>
+  // LE PLATEAU (nov. 2026, la maquette A) : au téléphone, UNE ligne sous la carte — le poste, ses jambes, ses verdicts (style.css
+  // ne montre qu'elle sous 1000 px) ; le badge, le niveau, le chiffre clé et le mot des jambes restent pour le grand écran.
+  return `<div class="sc-ligne">${esc(positionLabel(p).split(' / ').join('/'))}${x.jambes}${x.verdicts}</div>
+        <div class="sc-qui">${x.role}${x.niveau}</div>
         <div class="sc-cle">${x.prod}${x.sec}</div>
         <div class="sc-verdicts">${x.verdicts}</div>
         ${x.jambes}`;
@@ -574,6 +577,8 @@ function lineEl(title, slots, group, unit, cls = '') {
   // QUI EST CETTE UNITÉ (S79) : « Trio de snipers », « Paire classique » — les icônes sont dans les cases.
   const id = (group === 'F' || group === 'D') && !surTable() ? identiteUnite(G.roster, group, unit) : null;
   const idHtml = id ? `<span class="line-id" title="${esc(id.roles.join(' · '))}">${esc(id.nom)}</span>` : '';
+  // LE PLATEAU (la maquette A) : au téléphone, le nom du trio debout dans sa colonne dit son identité en un mot (« 1er · passeurs »).
+  const court = id ? `<span class="line-court">· ${esc(id.nom.replace(/^(Trio de |Trio |Paire de |Paire )/i, '').toLowerCase())}</span>` : '';
   // D'OÙ ILS VIENNENT (1.0) : la puce se voit même sans la carte, pour qu'on apprenne à bâtir pour elle ; la carte d'origine la paie.
   const orig = (group === 'F' || group === 'D') && !surTable() ? puceOrigine(origineUnite(G.roster, group, unit), group) : '';
   /*
@@ -595,7 +600,7 @@ function lineEl(title, slots, group, unit, cls = '') {
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
-  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${prodHtml}${orig}${chemHtml}</div>`;
+  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}${court}</span>${idHtml}${prodHtml}${orig}${chemHtml}</div>`;
   const row = document.createElement('div');
   row.className = 'line-slots' + (cls ? ' ' + cls : '');
   slots.forEach(s => row.appendChild(slotEl(s)));
@@ -860,12 +865,20 @@ export function coachHtml() {
     const cote = m.A === you ? 'A' : 'B';
     for (const x of m.feuille.pouvoirs || []) if (x.cote === cote) fois[x.p]++;
   }
+  /*
+   * LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu* ; *faire les autres cartes dans un look similaire*) : chaque
+   * pouvoir est une VRAIE carte de jeu (`carteHtml`, le carton 5:7 de la glace), au genre des pouvoirs du coach ; son verso dit ce
+   * qu'il fait ; sur l'ardoise en coin, combien de fois il a joué, ou le niveau qui l'ouvre ; fermé, il s'éteint.
+   */
+  const RARETE_POUVOIR = ['peu', 'rare', 'legendaire'];
   const carte = (P, p) => {
     const ouvert = niveau >= NIVEAU_DES_POUVOIRS[p];
     const f = forceDuPouvoir(perso, p);
     return `<div class="pv${ouvert ? '' : ' ferme'}">
-      <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${P.ico}</span><b>${esc(P.nom)}</b>${p === 2 ? '<small>Ultime</small>' : ''}<span class="pv-etat">${ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`}</span></div>
-      <p class="pv-dit">${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}</p>
+      <span class="pv-etat">${ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`}</span>
+      ${carteHtml({ cle: `pv${p}`, rarete: RARETE_POUVOIR[p], genreCarte: 'synergie', ico: P.ico, nomHtml: esc(P.nom), typeHtml: p === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][p]}`, statique: true,
+        texteHtml: `${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}` })}
+      <small class="pv-nom"><b>${esc(P.nom)}</b> · ${p === 2 ? 'ultime' : `pouvoir ${['I', 'II'][p]}`}</small>
     </div>`;
   };
   /*
@@ -876,7 +889,7 @@ export function coachHtml() {
   const chef = perso.chef;
   const maitrise = (perso.maitrise || 1) !== 1 ? `${NOMS_NIV[NIV_DE_MAITRISE.indexOf(perso.maitrise)] || ''} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : '';
   return `<div class="ej-coach">
-    <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''}><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>L'entraîneur${chef ? ` · ${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)}` : ''}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau ${niveau}</span></div>
+    <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''}><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>L'entraîneur${chef ? ` · ${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)}` : ''}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau<b>${niveau}</b></span></div>
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}${NIVEAUX_TALENT.includes(niveau + 1) ? ' · un talent' : ''}`}</div>
     ${(R => (R ? (x => `<div class="ej-coach-l ej-regle">${C.ico} Sa règle : ${esc(R.dit)} · +${R.jetons} 🪙 · ${x.parJour.size} fois cette saison</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}

@@ -99,6 +99,19 @@ export function ouvrirMagasin(ctx) {
      * aux couleurs que tu portes, une couleur en nuancier, l'aplat et la seconde.
      */
     const offres = (ctx.club || []).filter(o => o.sorte === ongletClub);
+    /*
+     * LE PLATEAU (nov. 2026) : « Ton club » en une rangée de quatre — le club que tu portes, les deux premiers clubs à
+     * débloquer avec leur prix, et « Et N › » qui ouvre le rayon entier (ses deux onglets, le nuancier).
+     */
+    const clubRangee = () => {
+      const clubs = (ctx.club || []).filter(o => o.sorte === 'club' && !o.verrou).slice(0, 2);
+      const tuileClub = (visuel, nom, mot, cls = '', data = '') => `<button type="button" class="pk-club-mini${cls}"${data}><span class="pk-club-mini-ecu" aria-hidden="true">${visuel}</span><b>${esc(nom)}</b><small>${esc(mot)}</small></button>`;
+      return `<section class="pk-rayon pk-rayon-club-rangee"><h3>🏅 Ton club <span class="pk-rabais">${ctx.club.length} à débloquer</span></h3><div class="pk-club-rangee">
+        ${ctx.clubPorte ? tuileClub(ctx.clubPorte.apercu, ctx.clubPorte.nom, 'Porté', ' porte', ' data-club-tout="1"') : ''}
+        ${clubs.map(o => tuileClub(o.apercu, o.nom, `${o.prix} 🪙`, '', ` data-club="${esc(o.cle)}"`)).join('')}
+        ${tuileClub('›', `Et ${Math.max(0, ctx.club.length - clubs.length)}`, 'Voir', ' pk-club-plus', ' data-club-tout="1"')}
+      </div></section>`;
+    };
     const club = (ctx.club || []).length ? `<section class="pk-rayon pk-rayon-club"><h3>🏅 Ton club · ${ctx.club.length} à débloquer</h3>
       <div class="stat-tabs" role="tablist">${RAYONS_CLUB.map(R => `<button type="button" role="tab" class="stat-tab${R.cle === ongletClub ? ' on' : ''}" aria-selected="${R.cle === ongletClub}" data-onglet="${R.cle}">${esc(R.titre)} · ${(ctx.club || []).filter(o => o.sorte === R.cle).length}</button>`).join('')}</div>
       <div class="pk-rangee${ongletClub === 'palette' ? ' pk-nuancier' : ''}">${offres.map(o => {
@@ -123,9 +136,9 @@ export function ouvrirMagasin(ctx) {
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       <div class="choix-corps pk-corps">
-        ${nScelles ? `<button type="button" class="btn small pk-aller">📦 ${nScelles} pack${nScelles > 1 ? 's' : ''} à ouvrir, en bas ↓</button>` : ''}
         ${rayons}
-        ${clubOuvert ? club : (ctx.club || []).length ? `<button type="button" class="hub-rangee pk-club-ouvrir"><span class="hub-rangee-t">🏅 Ton club</span><b>${ctx.club.length} à débloquer</b></button>` : ''}
+        ${clubOuvert ? club : (ctx.club || []).length ? clubRangee() : ''}
+        ${nScelles ? `<button type="button" class="hub-rangee pk-aller"><span class="hub-rangee-t">📦 Déjà à toi</span><b>${nScelles} pack${nScelles > 1 ? 's' : ''} scellé${nScelles > 1 ? 's' : ''} · ouvrir</b></button>` : ''}
         ${scelles}
       </div>
     </div>`;
@@ -142,8 +155,7 @@ export function ouvrirMagasin(ctx) {
     if (aller) aller.onclick = () => m.querySelector('.pk-rayon-scelles').scrollIntoView({ behavior: 'smooth', block: 'start' });
     const voirTout = m.querySelector('.pk-tout');
     if (voirTout) voirTout.onclick = () => { tout = true; dessiner(); };
-    const ouvrirClub = m.querySelector('.pk-club-ouvrir');
-    if (ouvrirClub) ouvrirClub.onclick = () => { clubOuvert = true; dessiner(); m.querySelector('.pk-rayon-club')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    m.querySelectorAll('[data-club-tout]').forEach(b => { b.onclick = () => { clubOuvert = true; dessiner(); m.querySelector('.pk-rayon-club')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }; });
   };
   const fiche = cle => {
     const P = PACKS_TOUS[cle];

@@ -283,11 +283,11 @@ async function guetterBords(ou) {
   if (neuve && bords.fautes.size <= 12) await page.screenshot({ path: `${DOSSIER}/rogue-bord-${bords.fautes.size}.png` }).catch(() => {});
 }
 /* Chaque section et chacun de ses sous-onglets, sauf les Lignes (elles mènent derrière le banc), mesurés au bord.
-   V23 : les quatre portes du Rogue (Ce soir, Ton club, Marché, Ligue) ; `CAPTURES_PAGES=1` garde une capture de chaque page
-   (page-<quand>-<porte>-<page>.png), pour juger où vit chaque info. */
+   V23 : les quatre portes du Rogue (Ce soir, Ton club, Marché, Ligue), cinq depuis le plateau (les Lignes ont la leur, 4 nov. 2026) ;
+   `CAPTURES_PAGES=1` garde une capture de chaque page (page-<quand>-<porte>-<page>.png), pour juger où vit chaque info. */
 const capturerPage = async nom => { if (process.env.CAPTURES_PAGES) await page.screenshot({ path: `${DOSSIER}/page-${nom.replace(/[^a-z0-9]+/gi, '-')}.png` }).catch(() => {}); };
 async function tourDesBords(quand) {
-  for (const sec of ['bureau', 'club', 'marche', 'ligue']) {
+  for (const sec of ['bureau', 'lignes', 'club', 'marche', 'ligue']) {
     await page.click(`#navbar .navtab[data-section="${sec}"]`).catch(() => {}); await page.waitForTimeout(400);
     const pages = await page.$$eval('#sousNav:not([hidden]) .soustab', b => b.map(x => x.dataset.page)).catch(() => []);
     if (!pages.length) { await guetterBords(`${quand} · ${sec}`); await capturerPage(`${quand}-${sec}`); }
@@ -685,7 +685,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
   const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
-  const pouvoirs = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv:not(.adj)', e => e.map(x => ({ nom: (x.querySelector('.pv-tete b') || {}).textContent || '', ferme: x.classList.contains('ferme'), etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
+  const pouvoirs = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv:not(.adj)', e => e.map(x => ({ nom: (x.querySelector('.pv-nom b') || {}).textContent || '', ferme: x.classList.contains('ferme'), etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
   const jauge = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .ej-jauge');
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
@@ -855,8 +855,8 @@ else {
   const tout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
   if (tout) { await tout.click(); await page.waitForTimeout(300); }
   const avantJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
-  // Nov. 2026 : le rayon du club se plie en une rangée ; la toucher l'ouvre.
-  const rangeeClub = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-club-ouvrir');
+  // Nov. 2026 : le rayon du club se plie en une rangée (le porté, deux clubs, « Et N › ») ; « Et N › » l'ouvre.
+  const rangeeClub = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-club-plus[data-club-tout]');
   if (rangeeClub) { await rangeeClub.click(); await page.waitForTimeout(300); }
   // Le nuancier : l'onglet des couleurs en montre une par tuile, l'aplat et la seconde.
   await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon-club [data-onglet="palette"]');
@@ -1021,7 +1021,7 @@ else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n
  * alignement jusque-là (`poserAlignementDuJour`, js/sim.js).
  */
 {
-  await versLOnglet('club', 'alignement');
+  await versLOnglet('lignes', 'alignement');
   await page.waitForTimeout(400);
   const noms = await page.$$eval('.slot .slot-carte', e => e.map(x => x.getAttribute('aria-label').replace(/^La carte de /, '')));
   const nom = nomSigne.split(' ').slice(-1)[0];
@@ -1055,7 +1055,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // CINQ PORTES EN BAS (oct., JP : *tu peux avoir cinq menus icons*) : Bureau, Joueurs, Lignes, Marché, Ligue ; l'Avant-match est parti.
   const portes = await page.$$eval('#navbar .navtab', e => e.filter(b => b.offsetParent).map(b => b.dataset.section)).catch(() => []);
   console.log(`10b. la barre : ${portes.join(' · ')}`);
-  if (portes.join() !== 'bureau,club,marche,ligue') erreurs.push(`la barre du bas n'a pas ses quatre portes (V23) : ${portes.join(' · ')}`);
+  if (portes.join() !== 'bureau,lignes,club,marche,ligue') erreurs.push(`la barre du bas n'a pas ses cinq portes (le plateau, 4 nov. 2026) : ${portes.join(' · ')}`);
   // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?* ; *j'hais les accordéons*) : une rangée
   // sous la ligne du match, qui ouvre une feuille des six plans, celui en force le dit, 🥷 nomme les deux joueurs ; en toucher un
   // écrit la décision.
@@ -1205,7 +1205,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
       await page.screenshot({ path: `${DOSSIER}/ecran-${k}.png` });
       await page.setViewportSize({ width: 390, height: 844 });
     }
-    await versLOnglet('club', 'alignement');
+    await versLOnglet('lignes', 'alignement');
     await page.waitForTimeout(400);
     for (const t of ['Attaque', 'Défense', 'Filet · réserve']) {
       await page.getByRole('button', { name: t, exact: true }).first().click().catch(() => {});

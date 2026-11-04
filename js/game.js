@@ -1662,8 +1662,11 @@ const SECTIONS = [
  *   Ligue     le classement, le calendrier, les meneurs, le palmarès
  * Le match, le duel et les séries s'ouvrent en plein écran par-dessus, comme une diffusion.
  */
+/* Le plateau (4 nov. 2026 ; JP : *t'as droit à cinq boutons en bas*) : les Lignes ont leur porte, entre Ce soir et Ton club —
+   c'est l'écran qu'on ouvre le plus, il vivait derrière un onglet et un « Retour ». */
 const SECTIONS_ROGUE = [
   { cle: 'bureau', ico: 'i-club', titre: 'Ce soir' },
+  { cle: 'lignes', ico: 'i-list', titre: 'Lignes' },
   { cle: 'club', ico: 'i-jersey', titre: 'Ton club' },
   { cle: 'marche', ico: 'i-marche', titre: 'Marché' },
   { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
@@ -1688,7 +1691,7 @@ const MAISONS_DU_BUREAU = ['proprio'];
 const MAISONS_DU_CLUB = ['entraineur', 'vestiaire'];
 const PAGES_DE = {
   bureau: () => ['match', ...(G.bonus === 'ROGUE' ? MAISONS_DU_BUREAU.filter(voletDeSaison) : [])],
-  club: () => ['alignement', 'joueurs', ...MAISONS_DU_CLUB.filter(voletDeSaison)],
+  club: () => ['joueurs', ...MAISONS_DU_CLUB.filter(voletDeSaison)],
   joueurs: () => [auVestiaire() ? 'repechage' : 'joueurs'],
   lignes: () => ['alignement'],
   // V16 (tranche 6) : « Tes cartes » est parti — chaque carte rare se joue chez ce qu'elle monte.
@@ -1976,7 +1979,9 @@ function etatDeLaPartie() {
     // Comme le prototype (oct.) : le jour, et ce qu'il est pour toi — un match ce soir ou un congé.
     const ceSoir = (L.calendrier[j] || []).some(m => m.A === L.you || m.B === L.you);
     // V23 (G1) : la journée d'aujourd'hui, comptée de 1 comme partout ailleurs (« Journée 0 sur 186 » au premier matin).
-    return `Journée ${j + 1} sur ${N} · ${ceSoir ? 'match ce soir' : 'congé'}`;
+    // LE PLATEAU (nov. 2026, la maquette A) : au Rogue, ta fiche et ton rang en tête, puis la journée — « 1-11-0 · 32e · journée 29 sur 186 ».
+    const fr = G.bonus === 'ROGUE' && j ? ficheEtRang() : null;
+    return fr ? `${fr.fiche} · ${fr.rang}${fr.rang === 1 ? 'er' : 'e'} · journée ${j + 1} sur ${N}` : `Journée ${j + 1} sur ${N} · ${ceSoir ? 'match ce soir' : 'congé'}`;
   }
   return hub ? 'Saison régulière · terminée' : 'La saison est jouée';
 }
@@ -2137,7 +2142,7 @@ function remplirCartable() {
   migrerHistorique(lireHistorique().flatMap(e => (e.alignement || []).filter(a => a && !a.r && a.k).map(a => a.k)));
   rendreCartable(host, {
     esc,
-    equipe: signes().map(p => ({ p, cle: getPlayerKey(p), mini: carteMiniHtml(p), saison: ligneDeSaison(p, statsDe(p)), vraie: ligneVraieSaison(p) })),
+    equipe: signes().map(p => ({ p, cle: getPlayerKey(p), mini: carteMiniHtml(p), edCle: rareteJoueur(p), saison: ligneDeSaison(p, statsDe(p)), vraie: ligneVraieSaison(p) })),
     titreSaison: !L ? 'La saison n\'a pas commencé.' : portee === 'jour' ? `Cette saison : jusqu'à la journée ${G.journee || 0}.` : 'Cette saison : les 82 matchs.',
     // Tes cartes de jeu, en lecture : la collection du personnel et de la banque (V16 : elles se jouent chez ce qu'elles montent).
     ficheEquipe: p => (L ? ouvrirFiche(p, L.you, portee === 'jour' ? 'jour' : 'saison') : showPlayerModal(p, { apercu: true })),

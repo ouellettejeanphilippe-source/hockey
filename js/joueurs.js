@@ -14,7 +14,7 @@ import { $, G, capHitDuJour, displayStats, headshotHtml } from './game.js';
 import { hubActif } from './coquille.js';
 import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { blessesAuJour } from './rogue-jeu.js';
-import { slotShort } from './repechage.js';
+import { slotShort, cartonDe, varsEquipe } from './repechage.js';
 
 const GROUPES = [['F', 'Avants'], ['D', 'Défenseurs'], ['G', 'Gardiens']];
 const etat = { groupe: 'F', source: 'saison', tri: { F: ['pts', false], D: ['pts', false], G: ['pctArr', false], B: ['pts', false] } };
@@ -92,6 +92,40 @@ export function remplirJoueurs() {
       ${enSaison && g !== 'B' ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
     </div>`;
   const cartes = maison ? maison.html(g === 'B' ? 'infirmerie' : 'joueurs') : '';
+  /*
+   * LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu* ; *ça permet de mieux voir les cartes*) : en Rogue, ton
+   * effectif est une grille de VRAIES cartes, trois de front (`cartonDe`, la même carte que les Lignes et l'Album), la stat du
+   * tri en coin, ses jambes en barre, sa case et ses badges en une ligne dessous ; toucher la carte ouvre sa fiche. Le tri se
+   * choisit en segment (les points, les jambes, le salaire ; le % d'arrêts aux gardiens). Hors du Rogue, le tableau.
+   */
+  if (G.bonus === 'ROGUE' && g !== 'B') {
+    const TRIS = g === 'G' ? [['pctArr', '% arr.'], ['jambes', 'Jambes'], ['sal', '$']] : [['pts', 'Points'], ['jambes', 'Jambes'], ['sal', '$']];
+    const triOk = TRIS.some(([k]) => k === cle) ? cle : TRIS[0][0];
+    if (triOk !== cle) { etat.tri[g] = [triOk, triOk === 'moy']; remplirJoueurs(); return; }
+    const coin = r => { const v = r.st[cle]; if (cle === 'jambes' && v == null) return ''; const f = FORMAT[cle] ? FORMAT[cle](v, r.st) : v ?? '—'; return `<span class="jr-n">${cle === 'jambes' ? Math.round(v) : f}<small>${TRIS.find(([k]) => k === cle)[1]}</small></span>`; };
+    const carte = r => {
+      const [b, b2] = badgesDe(r.p), bl = blesses.get(r.p), j = r.st.jambes;
+      return `<button type="button" class="jr-carte${r.s.scratch ? ' reserve' : ''}${bl ? ' blesse' : ''}" data-i="${r.s.i}" style="${varsEquipe(r.p)}" aria-label="La fiche de ${esc(r.p.n)}">
+        ${coin(r)}${cartonDe(r.p)}
+        ${j != null ? `<span class="jr-jb" aria-hidden="true"><i class="${j >= 80 ? 'frais' : j < 60 ? 'use' : ''}" style="width:${Math.round(j)}%"></i></span>` : ''}
+        <small class="jr-l">${bl ? `🩹 ${bl} m. · ` : ''}${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}" title="${esc(`${b.nom} ${PALIERS[b.palier].nom}`)}">${b.ico}</i>` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}</small>
+      </button>`;
+    };
+    host.innerHTML = `${barre}
+      <div class="jr-tri"><span>Trié par</span><div class="seg">${TRIS.map(([k, t]) => `<button type="button" data-tri="${k}" class="${k === cle ? 'on' : ''}">${t}</button>`).join('')}</div></div>
+      <div class="jr-grille">${vues.map(carte).join('')}</div>
+      <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En sourdine : la réserve.' : ''} Touche une carte : sa fiche.</p>${cartes}`;
+    host.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; remplirJoueurs(); }; });
+    host.querySelectorAll('[data-source]').forEach(b => { b.onclick = () => { etat.source = b.dataset.source; remplirJoueurs(); }; });
+    host.querySelectorAll('[data-tri]').forEach(b => { b.onclick = () => { etat.tri[g] = [b.dataset.tri, false]; remplirJoueurs(); }; });
+    host.querySelectorAll('.maison-jouer[data-id], .maison-vendre[data-id]').forEach(b => {
+      b.onclick = () => maison.jouer({ src: b.dataset.src || 'partie', id: b.dataset.id, ref: b.dataset.ref, vendre: b.classList.contains('maison-vendre') }, () => { G.pageVoulue = 'joueurs'; });
+    });
+    host.querySelectorAll('.jr-carte').forEach(b => {
+      b.onclick = () => { const p = G.roster[Number(b.dataset.i)]; if (!p) return; if (L) ouvrirFiche(p, L.you, porteeRevele('saison') === 'jour' ? 'jour' : 'saison'); else showPlayerModal(p, {}); };
+    });
+    return;
+  }
   host.innerHTML = g === 'B' ? `${barre}${infirmerie() || '<p class="jr-pied">Personne à l\'infirmerie.</p>'}${cartes}` : `${barre}
     <div class="jr-scroll"><table class="jr-table">
       <thead><tr><th class="jr-col-nom">Joueur</th>${cols.map(([k, t]) => `<th data-tri="${k}" class="${k === cle ? 'on' : ''}" role="button" tabindex="0">${t}${k === cle ? (asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>

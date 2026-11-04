@@ -19,7 +19,7 @@ import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue } from './rogue.js';
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
-import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
+import { apercuJoueur, carteAuCartable, carteMiniHtml, cartonDe, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort, varsEquipe } from './repechage.js';
 import { renderMain, coachHtml, persoDuMatin } from './alignement.js';
 import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, premiereRun, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
@@ -760,6 +760,9 @@ function ouvrirEcranSaison(depuis = 0) {
         ouJoue: p => ouJoue(p),
         // LA CARTE MINI (S78) : un joueur offert se voit en carte de joueur.
         carteMini: carteMiniHtml,
+        // LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu*) : le carton d'un joueur de la ligue, tel quel, pour le
+        // podium des meneurs ; ses couleurs de club posées dessus.
+        carton: p => `<span class="carton-seul" style="${varsEquipe(p)}">${cartonDe(p)}</span>`,
         // Sa fiche en aperçu, et « qui sort ? » quand il arrive (S78).
         apercu: apercuJoueur,
         // S79 : toute signature de la saison (ballottage, recrue) respecte le plafond effectif, et dit ce que libère chaque sortie.
