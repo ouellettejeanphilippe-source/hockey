@@ -20,11 +20,11 @@
  *      sont retenus) ;
  *   2. il découpe une fenêtre 5:7, toute la hauteur, centrée sur le visage du joueur
  *      (scripts/visages_actions.py, lancé avant) ou, sans visage trouvé, sur le joueur, trouvé par la
- *      netteté (js/recadrage-action.js, le même code que l'appareil Android) ;
+ *      netteté (js/recadrage-action.js) ;
  *   3. il écrit un WebP 400 × 560 (img/actions/{id}.webp, versionné depuis
  *      oct. 2026 : ≈ 50 Mo, que GitHub Pages sert) et la liste des photos qui existent
  *      (data/actions.json, versionnée) : le jeu ne demande jamais une photo
- *      absente, et l'appareil sait quoi télécharger.
+ *      absente.
  *
  * Le traitement se fait dans Chromium (Playwright) : le décodage JPEG, le
  * canevas et l'encodage WebP y sont natifs, sans dépendance de plus.
@@ -96,7 +96,7 @@ async function telecharger(id) {
 const navigateur = await chromium.launch();
 const page = await navigateur.newPage();
 await page.setContent('<body></body>');
-// Le même code recadre ici et sur l'appareil Android ; il ne lit aucune variable extérieure.
+// Le recadrage vit dans js/recadrage-action.js ; il ne lit aucune variable extérieure.
 await page.addScriptTag({ content: `window.recadrerActionBlob = ${recadrerAction.toString()};` });
 await page.evaluate(({ LARGEUR, HAUTEUR, QUALITE }) => {
   // L'empreinte d'une image (dHash 16 × 16) : deux images qui ne diffèrent que par leur encodage ont la même, à quelques bits près.
@@ -215,7 +215,7 @@ presents.splice(0, presents.length, ...presents.filter(id => !communes.has(id)))
 // Une photo écartée ne reste pas dans img/actions (une passe d'avant a pu l'écrire).
 for (const id of ecartees.keys()) if (!LIBRES[id]) fs.rmSync(path.join(SORTIE, `${id}.webp`), { force: true });
 
-// 3. La liste des photos présentes : le jeu la lit avant de demander une photo, l'appareil pour savoir quoi télécharger.
+// 3. La liste des photos présentes : le jeu la lit avant de demander une photo.
 presents.sort((a, b) => a - b);
 if (LIMITE === Infinity && !arg('ids', null)) {
   const lnh = new Set(presents);
@@ -234,7 +234,7 @@ console.log(`\n  ${presents.length} photos d'action écrites sur ${liste.length}
 console.log(`  ${ecartees.size} écartées, pas une photo du joueur : ${Object.entries(parRaison).map(([k, n]) => `${k} ${n}`).join(' · ')}`);
 console.log(`  ${generiquesEcartees} images génériques (le même fichier chez plusieurs joueurs, ${generiques.size} md5), retenues comme absentes`);
 console.log(`  ${(octets / 1048576).toFixed(1)} Mo en tout, ${(octets / Math.max(1, presents.length) / 1024).toFixed(1)} Ko en moyenne`);
-console.log(`  bruts : ${(brutsTotal / 1048576).toFixed(0)} Mo (${telecharges} téléchargés cette fois, ${(octetsBruts / 1048576).toFixed(0)} Mo) — ce que l'appareil téléchargerait`);
+console.log(`  bruts : ${(brutsTotal / 1048576).toFixed(0)} Mo (${telecharges} téléchargés cette fois, ${(octetsBruts / 1048576).toFixed(0)} Mo)`);
 console.log(`  ${Math.round((Date.now() - t0) / 1000)} s\n`);
 
 /* La planche : les photos recadrées, et leur fenêtre dans l'image entière, pour régler à l'œil. */

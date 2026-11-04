@@ -134,7 +134,7 @@ Les clés de sauvegarde ne bougent jamais.
 
 ## 7. Les réglages
 
-`FORCE_NIV` (×0,7 · ×0,85 · ×1 · ×1,15 · ×1,3), `PRIX_NIV` (×1,05 · ×1,025 · ×1 · ×0,9 · ×0,8 : le prix bouge moins que la force, pour qu'un style se voie encore au Phénomène et que le Soutien soit faible sans piéger), `SALAIRE_NIV` (0 · 0 · 1 · 2 · 3 🪙 par match), `MAITRISE` en cinq marches (×0,9 à ×1,3), `REGLES_DU_COACH` et `PRIME_COACH_MAX` (50 🪙 par saison), le relais (une reprise de 0,3 à 0,6 fois le canal, deux maillons), `ECART_BANC` (120 ms entre deux cartes qui s'allument), l'enjeu du match encerclé (selon le rang de l'adversaire, borné par `BUTIN_RIVAL`).
+`FORCE_NIV` (×0,7 · ×0,85 · ×1 · ×1,15 · ×1,3), `PRIX_NIV` (×1,05 · ×1,025 · ×1 · ×0,9 · ×0,8 : le prix bouge moins que la force, pour qu'un style se voie encore au Phénomène et que le Soutien soit faible sans piéger), `SALAIRE_NIV` (0 · 0 · 1 · 2 · 3 🪙 par match), `MAITRISE` en cinq marches (×0,9 à ×1,3), `REGLES_DU_COACH` et `PRIME_COACH_MAX` (50 🪙 par saison), le relais (`RELAIS_NIV` : le canal rejoue son écart ×0,5 au Soutien, ×0,75 au Pilier, ×1,05 au ★ Phénomène — à 0,3-0,6, mesuré, un relais ne se voyait pas dans la feuille, à ×1 la paire rendait ×1,73 ; deux maillons), `OMBRE` (0,5 : leur pouvoir en séries, à l'inverse hors de sa condition), `BUTIN_DU_GROS` (15 🪙 ou 4 d'expérience), `ECART_BANC` (120 ms entre deux cartes qui s'allument), l'enjeu du match encerclé (selon le rang de l'adversaire, borné par `BUTIN_RIVAL`).
 
 ## 8. Les critères d'acceptation
 
@@ -143,9 +143,9 @@ Les clés de sauvegarde ne bougent jamais.
 - [x] B : un gros chiffre par option à `--t-6`, pris parmi ses lignes visibles (deux au plus en tout) ; la carte sans dégradé, avec son relief, qui se soulève et s'envole — `check_lisibilite` § 6. *Ouvert* : une histoire en 1,0 écran (`essai_rogue`).
 - [x] C : chaque niveau d'adjoint sous sa borne, et le Phénomène bat le Soutien du même style en paires (chacun à 0,3 V près, +0,7 V en moyenne) — `check_pouvoirs` ; une carte sans niveau est un Pilier, la table telle quelle.
 - [x] D' : la règle du coach s'allume les soirs où elle paie et la caisse les paie ; les salaires sont ceux de la feuille — `check_banc` ; l'ancien arbitre sous la borne de chaque niveau — `check_pouvoirs`.
-- [ ] D : chaque relais se voit le soir où il joue ; une paire rend 1,2 à 1,6 fois ses pièces — `check_relais` (à écrire) ; l'attentif qui lit les relais bat celui qui ne les lit pas d'au moins 1 V par saison — `check_profondeur` (`ROBOT_SAUF=relais`).
+- [x] D (4 nov.) : chaque relais se voit le soir où il joue (au tiers d'un soir) ; la paire coach-adjoint rend 1,2 à 1,6 fois ses pièces sur les huit voies — `check_relais` (dans `verifier.yml`) ; l'attentif lit les relais (`fitDAdjoint`, `ROBOT_SAUF=relais`) — `check_profondeur` à relancer pour mesurer l'écart.
 - [ ] E : une suite ne s'ouvre que sur un fait vrai ; une rare au plus une fois par run ; les deux réponses à 0,3 V — `check_dossiers`, `check_effets DETAIL=1`, `check_mots`, `mesure_rythme`.
-- [ ] F (réduit, JP : pas d'encerclement) : leur coach en séries, son pouvoir neutre sur une saison — `check_gros`, `check_robot`.
+- [x] F (réduit, JP : pas d'encerclement ; 4 nov.) : leur coach en séries, un pouvoir et son ombre, neutre en V sur une saison (±1,5 V en paires) — `check_gros`.
 - [x] G (3 nov.) : les trois paliers (`notable`, `pic`, js/mouvement.js) ; sous `reducedMotion`, aucune animation ni vibration ; les finis du 2 nov. (aucun toast sur l'en-tête, aucun « … » dans une ligne de pouvoir) — `essai_rogue` (`bords.mjs`), `check_mort`, `check_css`. *Ouvert* : la mesure « un jour ordinaire rend le Bureau stable en moins de 500 ms ».
 - [ ] La maîtrise, jugée sur la run (JP) : la première Coupe de l'attentif à la run 3 ou plus tard, le distrait jamais — `check_profondeur` ; l'écart sur le robot du premier choix, en information.
 - [ ] À juger par JP à l'essai : le ton (« Mise au jeu ▶ » ou « Jour suivant »), les noms (le banc), la vibration par défaut.
@@ -159,8 +159,8 @@ Les clés de sauvegarde ne bougent jamais.
 4. **A2 · Le banc au Bureau et aux entractes** — fait (3 nov.) : Hier soir (2 nov.), puis les entractes du duel (`jusqua`) — `check_banc` § 7.
 5. **B · Les choix en cartes** — fait (2 nov.) : la carte de choix (relief, forme, gros chiffre, envol) ; le pari en rondelle qui tourne, ses deux issues lisibles avant (3 nov.) ; le joueur nommé est sur la plaque de son club (3 nov.), pas en carte : la plaque le dit aussi bien, en un écran.
 6. **E · Les suites et les rares** — fait (2 nov.) : le petit (trois épisodes), les chapeaux (rare), le blanchissage ; le retour à la maison et la promesse du capitaine restent à écrire.
-7. **D · Le relais et moins d'offres** — après le oui de JP.
-8. **F · Leur coach en séries** (l'encerclement est écarté par JP).
+7. **D · Le relais et moins d'offres** — fait (4 nov.) : `signal`, `relais`, `RELAIS_NIV`, `relaisDeLaPeriode` (js/adjoints.js), `relaisPoses` (js/sim.js), le banc, `BUTIN_DU_GROS` (js/rogue.js), 📋 « Un adjoint en vue » parti — `check_relais`.
+8. **F · Leur coach en séries** (l'encerclement est écarté par JP) — fait (4 nov.) : `persoAdverse`, `OMBRE` (js/pouvoirs.js), `persoSeries` (js/sim.js `creerSeries`, `playGame`, `jouerDuel`), l'écran des séries — `check_gros`.
 9. **G · Le jus en paliers** — fait (3 nov.) : `notable` et `pic` (js/mouvement.js), le bâton sur la bande et le klaxon (js/sons.js), la secousse et les particules (style.css).
 
 Pour chaque tranche de mécanique, le robot attentif apprend le geste avant la mesure ; sinon `ROBOT_SAUF` mesure zéro.

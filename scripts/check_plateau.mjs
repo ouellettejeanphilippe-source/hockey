@@ -14,8 +14,8 @@
  *   Joueurs     les filtres en jetons, le tri en jetons, une grille de trois vraies cartes avec leur coin ;
  *   Coach       le niveau en gros, trois pouvoirs en vraies cartes de jeu ;
  *   Boutique    quatre pochettes du début avec leur prix, « Ton club » en rangée de quatre ;
- *   Album       les vues en jetons, l'édition en coin sur chaque carte de l'équipe ;
- *   Classement  six colonnes ; Calendrier : la route en billets, la grille ;
+ *   Album       les vues en jetons, l'édition en coin sur chaque carte de l'équipe dès Cadre (jamais sur une Base), rien dessous ;
+ *   Classement  cinq colonnes (le contenu, de zéro : PJ est parti pour que « 10 derniers » tienne) ; Calendrier : trois billets de front, la grille ;
  *   Palmarès    l'échelle du prestige entière, une marche « tu es ici ».
  *
  * Une capture de chaque page va dans le dossier donné (le 3e argument ; scripts/ par défaut), pour l'œil.
@@ -81,6 +81,9 @@ const PAGES = [
     exiger('Ce soir · ton banc est une main de vraies cartes de jeu, quatre de front', d.main >= 2 && d.cartes >= 1, `${d.main} cartes, ${d.cartes} cartons`);
     exiger('Ce soir · tes choix sont là', d.boite === 1);
   } },
+  // Le face-à-face (4 nov. ; JP : *cette page n'est pas très lisible*) : l'affiche, une rangée par stat et par force à gros chiffres, aucun tableau.
+  { porte: 'bureau', page: 'match', nom: 'Face à face', ouvrir: '#hubModal .bu-prochain', lire: () => ({ ff: !!document.querySelector('#hubModal .ff'), affiche: !!document.querySelector('#hubModal .ff .hub-face'), rangs: document.querySelectorAll('#hubModal .ff .ff-rang').length, gros: [...document.querySelectorAll('#hubModal .ff .ff-rang b')].every(b => parseFloat(getComputedStyle(b).fontSize) >= 16), tableau: !!document.querySelector('#hubModal .ff table'), bandeaux: document.querySelectorAll('#hubModal .ff .pl-bandeau').length }),
+    juger: d => { exiger('Face à face · l\'affiche, puis une rangée par stat et par force, en gros chiffres, sous leurs bandeaux, aucun tableau', d.ff && d.affiche && d.rangs >= 6 && d.gros && !d.tableau && d.bandeaux >= 1, `${d.rangs} rangées, ${d.bandeaux} bandeaux`); } },
   { porte: 'bureau', page: 'proprio', nom: 'Proprio', lire: () => ({ cite: !!document.querySelector('#hubModal .pr-mandat .pr-cite'), rang: !!document.querySelector('#hubModal .pr-rang .bu-run-jauge'), cellules: document.querySelectorAll('#hubModal .pr-argent .pl-cellule').length }),
     juger: d => { exiger('Proprio · le mandat en citation, ton rang avec la jauge, l\'argent en cellules', d.cite && d.rang && d.cellules >= 2, `${d.cellules} cellules`); } },
   { porte: 'lignes', page: null, nom: 'Lignes', lire: () => {
@@ -103,12 +106,12 @@ const PAGES = [
   { porte: 'club', page: 'vestiaire', nom: 'Vestiaire', lire: () => ({ ok: !!document.querySelector('#hubModal .af-onglet[data-maison="vestiaire"]') }), juger: d => { exiger('Vestiaire · la page répond', d.ok); } },
   { porte: 'marche', page: 'marche', nom: 'Boutique', lire: () => ({ packs: [...document.querySelectorAll('#pageMarche .pk-rayon-debut .pk-tuile')].length, prix: [...document.querySelectorAll('#pageMarche .pk-rayon-debut .pk-tuile .pk-prix')].length, club: document.querySelectorAll('#pageMarche .pk-club-rangee .pk-club-mini').length }),
     juger: d => { exiger('Boutique · quatre pochettes du début avec leur prix, « Ton club » en rangée de quatre', d.packs === 4 && d.prix === 4 && d.club === 4, `${d.packs} pochettes, ${d.club} clubs`); } },
-  { porte: 'marche', page: 'cartable', nom: 'Album', lire: () => ({ vues: document.querySelectorAll('#pageCartable .ct-vue').length, coins: document.querySelectorAll('#pageCartable .ct-carte .pl-coin').length, cartes: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe]').length }),
-    juger: d => { exiger('Album · les vues, l\'édition en coin sur chaque carte de ton équipe', d.vues >= 3 && d.cartes > 0 && d.coins === d.cartes, `${d.coins} coins sur ${d.cartes} cartes`); } },
-  { porte: 'ligue', page: 'classement', nom: 'Classement', lire: () => ({ colonnes: document.querySelectorAll('#hubModal .hub-classement thead th').length, rangees: document.querySelectorAll('#hubModal .hub-classement tbody tr').length }),
-    juger: d => { exiger('Classement · six colonnes', d.colonnes === 6 && d.rangees >= 16, `${d.colonnes} colonnes, ${d.rangees} rangées`); } },
-  { porte: 'ligue', page: 'saison', nom: 'Calendrier', lire: () => ({ billets: document.querySelectorAll('#hubModal .pl-billets .pl-billet:not(.pl-billet-lundi)').length, grille: !!document.querySelector('#hubModal .calj-grille') }),
-    juger: d => { exiger('Calendrier · la route en billets, puis la grille', d.billets >= 3 && d.grille, `${d.billets} billets`); } },
+  { porte: 'marche', page: 'cartable', nom: 'Album', lire: () => ({ vues: document.querySelectorAll('#pageCartable .ct-vue').length, coins: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe]:not([data-edition="commune"]) .pl-coin-gauche').length, basesACoin: document.querySelectorAll('#pageCartable .ct-carte[data-edition="commune"] .pl-coin-gauche').length, editees: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe]:not([data-edition="commune"])').length, cartes: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe]').length, lignes: document.querySelectorAll('#pageCartable .ct-carte[data-ct-equipe] .ct-stats').length }),
+    juger: d => { exiger('Album · les vues, l\'édition en coin sur chaque carte de ton équipe dès Cadre, jamais sur une Base, rien dessous', d.vues >= 3 && d.cartes > 0 && d.coins === d.editees && !d.basesACoin && !d.lignes, `${d.coins} coins sur ${d.editees} cartes éditées (${d.cartes} cartes), ${d.basesACoin} Base à coin, ${d.lignes} lignes dessous`); } },
+  { porte: 'ligue', page: 'classement', nom: 'Classement', lire: () => ({ colonnes: document.querySelectorAll('#hubModal .hub-classement thead th').length, rangees: document.querySelectorAll('#hubModal .hub-classement tbody tr').length, bandeau: !!document.querySelector('#hubModal .hub-classement .pl-bandeau') }),
+    juger: d => { exiger('Classement · le bandeau, cinq colonnes', d.bandeau && d.colonnes === 5 && d.rangees >= 16, `${d.colonnes} colonnes, ${d.rangees} rangées`); } },
+  { porte: 'ligue', page: 'saison', nom: 'Calendrier', lire: () => { const b = document.querySelector('#hubModal .pl-billets'); return { billets: document.querySelectorAll('#hubModal .pl-billets .pl-billet').length, rail: b ? ['auto', 'scroll'].includes(getComputedStyle(b).overflowX) : true, grille: !!document.querySelector('#hubModal .calj-grille') }; },
+    juger: d => { exiger('Calendrier · trois billets de front, sans rail, puis la grille', d.billets === 3 && !d.rail && d.grille, `${d.billets} billets${d.rail ? ', un rail' : ''}`); } },
   { porte: 'ligue', page: 'meneurs', nom: 'Meneurs', lire: () => ({ ok: !!document.querySelector('#hubModal .hub-chips, #hubModal .pl-jetons, #hubModal .live-vide') }), juger: d => { exiger('Meneurs · la page répond', d.ok); } },
   { porte: 'ligue', page: 'historique', nom: 'Palmarès', lire: () => ({ marches: document.querySelectorAll('#pageHistorique .pl-echelle .pl-marche').length, ici: document.querySelectorAll('#pageHistorique .pl-marche-ici').length }),
     juger: d => { exiger('Palmarès · l\'échelle du prestige entière, une marche « tu es ici »', d.marches === 5 && d.ici === 1, `${d.marches} marches`); } },
@@ -130,6 +133,7 @@ for (const P of PAGES) {
   await page.click(`#navbar .navtab[data-section="${P.porte}"]`).catch(() => {}); await page.waitForTimeout(500);
   if (P.page) { await page.click(`#sousNav .soustab[data-page="${P.page}"]`, { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(500); }
   if (P.porte === 'lignes') { await page.click('.seg-effectif [data-val="F"]').catch(() => {}); await page.waitForTimeout(300); }
+  if (P.ouvrir) { await page.click(P.ouvrir, { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(600); }
   await page.screenshot({ path: `${DOSSIER}/plateau-${P.nom.toLowerCase().replace(/[^a-z]+/g, '-')}.png` }).catch(() => {});
   const d = await page.evaluate(P.lire).catch(e => ({ erreur: String(e) }));
   if (d.erreur) exiger(`${P.nom} · la page se lit`, false, d.erreur.slice(0, 80));

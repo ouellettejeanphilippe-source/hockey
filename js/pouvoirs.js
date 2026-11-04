@@ -11,6 +11,8 @@
  * canaux que le moteur connaît : `effet` sur ton club, `adv` sur l'adversaire. La feuille le garde.
  */
 
+import { hache } from './util.js';
+
 /* ---------- le niveau ---------- */
 export const XP = { victoire: 1, gros: 2, serie: 5 };
 export const SEUILS_NIVEAU = [0, 10, 25, 45, 70];
@@ -122,9 +124,27 @@ export function grandir(effet, f) {
   return out;
 }
 
-/* LES POUVOIRS D'UNE PÉRIODE : ceux du personnage qui se déclenchent avant la période `e.k`, chacun à sa force. Rend [{ p, P, effet, adv }]. */
+/*
+ * LEUR COACH EN SÉRIES (V23 F, docs/refonte-v23.md § F ; JP : *plus organique de pas choisir*). En séries, l'adversaire
+ * a un coach-personnage avec UN pouvoir visible, le premier de sa philosophie, lue sur le style du club (`t.style`,
+ * js/sim.js `poserStyles` : offensif, défensif, robuste) ou tirée pure de son nom. Neutre en V sur une saison : hors de
+ * sa condition, le pouvoir joue son OMBRE, l'écart inverse à `OMBRE` fois — une Tortue ferme quand elle mène, et
+ * s'ouvre quand elle court après le match. Ton adjoint et ton plan sont la réponse. Pur, jamais de main ni de talent.
+ */
+export const COACH_DU_STYLE = { offensif: 'essaim', defensif: 'tortue', robuste: 'rhinos' };
+const AUTRES_COACHS = ['rapaces', 'souffle', 'choeur', 'profondeur', 'etoiles'];
+export const OMBRE = 0.5;
+export function persoAdverse(team) {
+  const cle = COACH_DU_STYLE[team.style] || AUTRES_COACHS[Math.floor(hache(String(team.tag || ''), String(team.season || ''), 'leur coach') * AUTRES_COACHS.length)];
+  return { cle, xp: 0, talents: [], main: [], maitrise: 1, adverse: true };
+}
+/* LES POUVOIRS D'UNE PÉRIODE : ceux du personnage qui se déclenchent avant la période `e.k`, chacun à sa force. Rend [{ p, P, effet, adv }] ; leur coach (`adverse`) : son pouvoir, ou son ombre (`ombre`). */
 export function pouvoirsDeLaPeriode(perso, e) {
   if (!perso || !POUVOIRS[perso.cle]) return [];
+  if (perso.adverse) {
+    const P = POUVOIRS[perso.cle][0], joue = P.quand(e), f = (joue ? 1 : -OMBRE) * (perso.maitrise || 1);
+    return [{ p: 0, P, ombre: !joue, effet: grandir(P.effet, f), adv: grandir(P.adv, f) }];
+  }
   return pouvoirsOuverts(niveauDuPerso(perso)).filter(p => POUVOIRS[perso.cle][p].quand(e)).map(p => {
     const P = POUVOIRS[perso.cle][p], f = forceDuPouvoir(perso, p);
     return { p, P, effet: grandir(P.effet, f), adv: grandir(P.adv, f) };

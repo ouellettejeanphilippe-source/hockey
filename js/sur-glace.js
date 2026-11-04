@@ -585,7 +585,7 @@ function menuPause(p) {
 /*
  * L'HAPTIQUE (JP, 1er nov. : *ajouter haptics*) : ce que tes mains sentent du match. À la manette, le dual-rumble du
  * Gamepad API (le moteur fort pour les coups, le faible pour la rondelle) ; au doigt, le vibreur du téléphone
- * (`navigator.vibrate`, la permission VIBRATE de l'APK), des impulsions courtes, plus brèves qu'à la manette — un
+ * (`navigator.vibrate`), des impulsions courtes, plus brèves qu'à la manette — un
  * téléphone vibre fort. Chaque sensation : [fort, faible, durée à la manette (ms), motif au téléphone (ms)].
  */
 const HAPTIQUE = {

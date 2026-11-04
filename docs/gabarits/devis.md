@@ -20,7 +20,7 @@ Chaque formule : son nom, son expression, ses variables (symbole, plage, sens), 
 
 ## 5. Les cas limites
 
-La main pleine, le joueur parti ou blessé, l'histoire sans porteur, les séries, la fin de saison, la vieille partie (`check_sauvegardes`), l'APK hors ligne (`sw.js`), le clavier et la manette.
+La main pleine, le joueur parti ou blessé, l'histoire sans porteur, les séries, la fin de saison, la vieille partie (`check_sauvegardes`), le jeu hors ligne (`sw.js`), le clavier et la manette.
 
 ## 6. Ce qu'il touche
 

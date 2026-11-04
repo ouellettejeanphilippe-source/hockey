@@ -665,6 +665,8 @@ const versLOnglet = async (sec, pg) => {
 await versLOnglet('bureau', 'proprio');
 // Nov. 2026 : le mandat en mots vit au Proprio (`.pr-mandat`), la bande de Ce soir n'en garde que ton rang.
 const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat').catch(() => '');
+// Le contenu, de zéro (4 nov. 2026) : la suite du mandat (« Puis : … ») vit à l'infobulle du bloc, pas dans le texte.
+const suiteDuMandat = await page.getAttribute('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat', 'title').catch(() => '');
 console.log(`5. le proprio : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le mandat de la run');
 // LE CONTENU PERMANENT (V12-2 ; nov. 2026 : la route des deux semaines est au Calendrier, plus chez le Coach) ; le Bureau ne la redit pas.
@@ -694,11 +696,11 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.talents)) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec son expérience et ses talents');
   if (((sv0.partie || {}).decisions || []).some(x => x.patron)) erreurs.push('une décision de personnel (`patron`) reste dans la partie');
   console.log(`5f. ses pouvoirs : ${pouvoirs.map(x => `${x.nom} (${x.etat})`).join(' | ') || '(aucun)'}`);
-  if (!/^Niveau [1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
+  if (!/^Niveau\s?[1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
   if (pouvoirs.length !== 3 || pouvoirs[0].ferme || !pouvoirs.slice(1).every(x => x.ferme === /Niveau [35]/.test(x.etat))) erreurs.push(`le coach ne montre pas ses trois pouvoirs, le premier ouvert (${JSON.stringify(pouvoirs)})`);
 }
 if (!/le mandat/.test(run || '')) erreurs.push('le Proprio ne dit pas le mandat de la run');
-if (!/puis :/.test(run || '')) erreurs.push('le mandat au Proprio ne dit pas sa suite (« puis : … »)');
+if (!/Puis :/.test(suiteDuMandat || '')) erreurs.push('le mandat au Proprio ne dit pas sa suite (« Puis : … », à l\'infobulle)');
 /*
  * « SEMAINE SUIVANTE » (V4) remplace « Jusqu'à la prochaine décision » : elle joue les journées une à une jusqu'à
  * la fin de la semaine, et s'arrête avant sur ce qui demande le joueur. On attend qu'elle ait fini (le bouton se
@@ -756,7 +758,7 @@ for (let i = 0; i < 5; i++) {
 }
 await regler();
 await versMarche('boutique'); await page.waitForTimeout(200);
-const avant = (await page.textContent('#pageMarcheCorps .hub-page[data-genre="boutique"] .choix-irl')).replace(/\s+/g, ' ').trim();
+const avant = (await page.textContent('#pageMarcheCorps .hub-page[data-genre="boutique"] .pk-tete')).replace(/\s+/g, ' ').trim();
 await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(200);
 const jauge = async () => (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge()}`);
@@ -765,7 +767,8 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
 {
   // Nov. 2026 : le barème est au Proprio, avec l'argent (il était à la boutique).
   await versLOnglet('bureau', 'proprio'); await page.waitForSelector('#hubModal .pk-bareme-run', { timeout: 30000 }).catch(() => {});
-  const bareme = (await page.textContent('#hubModal .pk-bareme-run').catch(() => '')) || '';
+  // Le contenu de zéro (4 nov.) : le barème vit à l'infobulle du bloc de l'argent (`data-bareme`), plus en clair.
+  const bareme = (await page.getAttribute('#hubModal .pk-bareme-run', 'data-bareme').catch(() => '')) || '';
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const svB = await lireSauvegarde();
   const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;
@@ -820,7 +823,7 @@ await verifMarche('la boutique ouverte');
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
 const nPacks = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
 // Nov. 2026 : la boutique ne dit que tes jetons et jusqu'où tu signes, dans son en-tête ; la masse salariale est au Proprio.
-const espace = ((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl').catch(() => '')) || '').match(/tu signes jusqu'à [^·]+/)?.[0] || '';
+const espace = ((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete').catch(() => '')) || '').match(/tu signes jusqu'à [^·]+/)?.[0] || '';
 // 1.0 (R5) : à la première run, quatre packs pour commencer, un bouton « Voir les N packs », et un pack impayable qui dit ce qui manque.
 const voirTout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
 console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}${voirTout ? ` · « ${(await voirTout.textContent()).trim()} »` : ''}`);
@@ -833,7 +836,7 @@ else {
   const nTout = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon:not(.pk-rayon-jour):not(.pk-rayon-club) .pk-tuile[data-pack]', e => e.length);
   const chers = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile.pk-cher .pk-manque', e => e.map(x => x.textContent.trim()));
   // Un pack coûte plus que la caisse ? Alors sa tuile doit le dire. (À 84 🪙, aucun pack n'est impayable : rien à exiger.)
-  const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   const prixMax = Math.max(...await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
   console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
   // Jalon P2 : la boutique vend ses packs, tous mixtes ; V10 (les packs qui montent) : huit, dont deux ouverts à la première run.
@@ -854,7 +857,7 @@ else {
 {
   const tout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
   if (tout) { await tout.click(); await page.waitForTimeout(300); }
-  const avantJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const avantJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   // Nov. 2026 : le rayon du club se plie en une rangée (le porté, deux clubs, « Et N › ») ; « Et N › » l'ouvre.
   const rangeeClub = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-club-plus[data-club-tout]');
   if (rangeeClub) { await rangeeClub.click(); await page.waitForTimeout(300); }
@@ -876,7 +879,7 @@ else {
   const mc = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}').club || {});
   const tete = await page.textContent('.tete-nom');
   await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-  const apresJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const apresJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   console.log(`7c. ton club à la boutique : les Harfangs · ${avantJ} → ${apresJ} 🪙 · porté : ${mc.club} · en-tête « ${tete} »`);
   if (mc.club !== 'harfangs' || tete !== 'Harfangs' || apresJ !== avantJ - PRIX_HARFANGS) erreurs.push(`les Harfangs achetés à la boutique (${avantJ} → ${apresJ} 🪙, méta ${mc.club}, en-tête « ${tete} »)`);
 }
@@ -1091,7 +1094,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     await ligneMatch.click(); await page.waitForTimeout(800);
     const face = await page.evaluate(() => {
       const pg = document.querySelector('#hubModal .hub-page[data-genre="face"]');
-      return { section: document.body.dataset.section, page: !!pg, stats: pg ? pg.querySelectorAll('.hub-duel tr').length : 0, clubs: pg ? pg.querySelectorAll('.hub-face').length : 0 };
+      return { section: document.body.dataset.section, page: !!pg, stats: pg ? pg.querySelectorAll('.hub-duel tr, .ff-stats .ff-rang').length : 0, clubs: pg ? pg.querySelectorAll('.hub-face').length : 0 };
     });
     console.log(`10e. le face-à-face : ${face.page ? `${face.stats} stats côte à côte` : 'absent'} · section ${face.section}`);
     if (!face.page || face.section !== 'bureau') erreurs.push(`la ligne du match, au Bureau, n'ouvre pas le face-à-face (section ${face.section})`);
@@ -1111,7 +1114,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   await page.screenshot({ path: `${DOSSIER}/rogue-effectif.png`, fullPage: true });
   const marques = await page.$$eval('#pageJoueursCorps .jr-bl', e => e.length).catch(() => 0);
   if (await page.$('#sousNav .soustab[data-page="infirmerie"]')) erreurs.push('l\'infirmerie est encore un sous-onglet d\'Effectif');
-  await page.click('#pageJoueursCorps .inv-filtre[data-groupe="B"]', { timeout: 3000 }).catch(() => erreurs.push('Effectif › Joueurs n\'a pas de filtre 🩹'));
+  await page.click('#pageJoueursCorps [data-groupe="B"]', { timeout: 3000 }).catch(() => erreurs.push('Effectif › Joueurs n\'a pas de filtre 🩹'));
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${DOSSIER}/rogue-infirmerie.png` });
   // Un réserviste blessé n'a pas de case à remplir et se dit dans la ligne « En réserve » : on compte les blessés du titre.
@@ -1146,20 +1149,21 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     await page.waitForSelector(`#hubModal:not([hidden]) .af-onglet[data-maison="${k}"]`, { timeout: 15000 }).catch(() => erreurs.push(`le sous-onglet « ${k} » ne s'ouvre pas`));
     ici[k] = k === 'entraineur' ? idsDesCartes(await cartesDeLaMaison(`#hubModal .af-onglet[data-maison="${k}"]`, k)) : await page.$$eval(`#hubModal .af-onglet[data-maison="${k}"] .maison-jouer`, e => e.map(b => b.dataset.id)).catch(() => []);
     if (k === 'entraineur') await fermerLaFeuille();
-    // Le volet ne garde que le sous-onglet ouvert : la masse salariale se lit chez le proprio, pendant qu'on y est.
-    if (k === 'proprio') plafond = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .inv-plafond', { timeout: 3000 }).catch(() => '');
+    // Le volet ne garde que le sous-onglet ouvert : l'espace sous le plafond se lit chez le proprio, pendant qu'on y est (le contenu,
+    // de zéro, 4 nov. 2026 : la cellule « Libre » du bloc de l'argent, plus de jauge).
+    if (k === 'proprio') plafond = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .pr-argent', { timeout: 3000 }).catch(() => '');
   }
-  if (!plafond) erreurs.push('le proprio ne montre pas la masse salariale');
+  if (!/Libre/.test(plafond || '')) erreurs.push('le proprio ne montre pas l\'espace sous le plafond (la cellule « Libre »)');
   // Les cartes de joueur (une retouche, l'échange d'un doublon) vivent sous le tableau d'Effectif › Joueurs.
   {
     await versLOnglet('club', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
-    await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
+    await page.click('#pageJoueursCorps [data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
     ici.joueurs = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'joueurs')); await fermerLaFeuille();
     // Les soins, au filtre 🩹 (V18-5).
-    await page.click('#pageJoueursCorps .inv-filtre[data-groupe="B"]').catch(() => {}); await page.waitForTimeout(200);
+    await page.click('#pageJoueursCorps [data-groupe="B"]').catch(() => {}); await page.waitForTimeout(200);
     ici.infirmerie = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'infirmerie')); await fermerLaFeuille();
-    await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
+    await page.click('#pageJoueursCorps [data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   }
   if (!(ici.entraineur || []).includes('consommable:stage')) erreurs.push('« Le stage du coach » ne se joue pas chez l\'entraîneur');
   if (!(ici.joueurs || []).includes('consommable:echangeDoublon')) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif');
@@ -1240,7 +1244,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   await versLOnglet('ligue', 'historique');
   const pal = ((await page.textContent('#leaderboardBody').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   // Nov. 2026 : le prestige du club et la run en cours y vivent dès la run 1.
-  if (/Aucune saison enregistrée|Ton album/.test(pal) || !/La run en cours|Tes runs/.test(pal) || !/prestige du club/.test(pal)) erreurs.push(`le Palmarès du Rogue n'est pas celui du club : « ${pal.slice(0, 80)} »`);
+  if (/Aucune saison enregistrée|Ton album/.test(pal) || !/Run \d+ · saison \d+|Tes runs/.test(pal) || !/prestige du club/.test(pal)) erreurs.push(`le Palmarès du Rogue n'est pas celui du club : « ${pal.slice(0, 80)} »`);
   console.log(`10l. la Ligue : ${sous.join(' · ')} · un club ouvert du classement ${club ? 'oui' : 'non'}, le retour ${revenu ? 'y revient' : 'non'} · le Palmarès « ${pal.slice(0, 70)} »`);
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
 }
@@ -1276,7 +1280,7 @@ let posee = null, nomModif = '';
    */
   await versLEffectif();
   await deplierLesCartes('#pageJoueurs');
-  await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
+  await page.click('#pageJoueursCorps [data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   const clesJoueurs = await cartesDeLaMaison('#pageJoueurs', 'joueurs');
   const echange = clesJoueurs.includes('meta|consommable:echangeDoublon|') ? await page.$('#choixModal [data-choix="meta|consommable:echangeDoublon|"]') : null;
   if (!echange) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif (Effectif › Joueurs)');

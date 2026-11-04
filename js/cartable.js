@@ -260,22 +260,23 @@ const nomExtension = d => (d < 1980 ? `Vintage ${String(d).slice(2)}` : d < 2000
  * elles se lisent sur le cartable et les décennies que le jeu connaît.
  */
 const MISSIONS = [
-  { cle: 'holo', nom: 'La première Or', texte: 'Une carte en édition Or ou Holo.', medailles: 15, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && (x.v.rare || x.v.legendaire)).length },
-  { cle: 'feuille', nom: 'Une feuille de club', texte: 'Neuf cartes d\'un même club, la même saison.', medailles: 30, but: PAR_FEUILLE,
+  // Nov. 2026 (le contenu, de zéro) : le nom dit la mission, sa phrase est partie — « La première Or · 0 / 1 · 🏅 15 ».
+  { cle: 'holo', nom: 'La première Or', medailles: 15, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && (x.v.rare || x.v.legendaire)).length },
+  { cle: 'feuille', nom: 'Neuf d\'un club, une saison', medailles: 30, but: PAR_FEUILLE,
     compte: c => Math.max(0, ...[...ensembles(c).parSaison.values()].flatMap(m => [...m.values()].map(l => l.length))) },
-  { cle: 'cent', nom: 'Cent cartes', texte: 'Cent joueurs différents au cartable.', medailles: 40, but: 100, compte: c => Object.keys(c.joueurs).length },
-  { cle: 'or', nom: 'Une Holo', texte: 'Une carte en édition Holo, la plus haute.', medailles: 40, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && x.v.legendaire).length },
-  { cle: 'cinqHolo', nom: 'Cinq Or d\'une extension', texte: 'Cinq cartes Or ou Holo de la même décennie.', medailles: 60, but: 5,
+  { cle: 'cent', nom: 'Cent cartes', medailles: 40, but: 100, compte: c => Object.keys(c.joueurs).length },
+  { cle: 'or', nom: 'Une Holo', medailles: 40, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && x.v.legendaire).length },
+  { cle: 'cinqHolo', nom: 'Cinq Or d\'une extension', medailles: 60, but: 5,
     compte: c => { const n = {}; for (const [k, x] of Object.entries(c.joueurs)) if (x.v && (x.v.rare || x.v.legendaire)) { const d = decennieDe(partsDe(k).s); n[d] = (n[d] || 0) + 1; } return Math.max(0, ...Object.values(n)); } },
-  { cle: 'epoques', nom: 'Toutes les extensions', texte: 'Une carte de chaque décennie.', medailles: 80, but: d => d.length,
+  { cle: 'epoques', nom: 'Une carte par extension', medailles: 80, but: d => d.length,
     compte: (c, d) => new Set(Object.keys(c.joueurs).map(k => decennieDe(partsDe(k).s)).filter(x => d.includes(x))).size },
 ];
-/* Où en est chaque mission : { cle, nom, texte, medailles, but, n, fait }. `decennies` : celles des saisons du jeu. */
+/* Où en est chaque mission : { cle, nom, medailles, but, n, fait }. `decennies` : celles des saisons du jeu. */
 export function missionsDuCartable(c = lireCartable(), decennies = []) {
   return MISSIONS.map(M => {
     const but = typeof M.but === 'function' ? M.but(decennies) : M.but;
     const n = Math.min(but, M.compte(c, decennies));
-    return { cle: M.cle, nom: M.nom, texte: M.texte, medailles: M.medailles, but, n, fait: but > 0 && n >= but };
+    return { cle: M.cle, nom: M.nom, medailles: M.medailles, but, n, fait: but > 0 && n >= but };
   });
 }
 /* Les ensembles : saison → club → clés ; club → saison → clés. */
@@ -292,10 +293,10 @@ function ensembles(c = lireCartable()) {
   return { parSaison, parClub };
 }
 
-/* Les missions de collection, en tête des extensions : faites, ou ce qui manque. */
+/* Les missions de collection, en tête des extensions, une ligne chacune : le nom, où elle en est, ce qu'elle paie. */
 function missionsHtml(ms, esc) {
   return `<section class="ct-missions" aria-label="Missions de collection"><div class="ct-missions-t">Missions · ${ms.filter(m => m.fait).length} / ${ms.length}</div>
-    ${ms.map(m => `<div class="ct-mission${m.fait ? ' faite' : ''}"><span class="ct-mission-nom">${m.fait ? '✓ ' : ''}${esc(m.nom)}</span><span class="ct-mission-texte">${esc(m.texte)}</span><span class="ct-mission-n">${m.fait ? `🏅 ${m.medailles}` : `${m.n} / ${m.but} · 🏅 ${m.medailles}`}</span></div>`).join('')}</section>`;
+    ${ms.map(m => `<div class="ct-mission${m.fait ? ' faite' : ''}"><span class="ct-mission-nom">${m.fait ? '✓ ' : ''}${esc(m.nom)}</span><span class="ct-mission-n">${m.fait ? `🏅 ${m.medailles}` : `${m.n} / ${m.but} · 🏅 ${m.medailles}`}</span></div>`).join('')}</section>`;
 }
 
 /* ---------- la page ---------- */
@@ -322,7 +323,7 @@ function pagesDe(cellules, titre, esc) {
 }
 /*
  * LE CARTABLE, dans `host`. ctx :
- *   esc, equipe [{ p, cle, mini, saison, vraie }], titreSaison ('À la journée 20'…),
+ *   esc, equipe [{ p, cle, mini, edCle }], titreSaison ('À la journée 20'…),
  *   fiche(cle, p), ficheEquipe(p),
  *   charger(saison) → Promise(entrée de shard : { players, byTeam }),
  *   mini(p, rar), cleDe(p), club(tag) → nom, logo(tag, px), band(tag) (tes coachs), vraie(p) → ligne de sa vraie saison,
@@ -344,21 +345,24 @@ export function rendreCartable(host, ctx) {
     const b = meilleureVariante(x), suite = MONTE[b], n = Math.max(0, ((x && x.v && x.v[b]) || 1) - 1);
     return `<span class="ct-ed v-${b}">${esc(NOM_VARIANTE[b])}</span>${suite ? `<span class="ct-prog" title="${esc(`${n} doublon${n > 1 ? 's' : ''} sur ${FUSION} : la carte monte en ${NOM_VARIANTE[suite]}`)}"><i style="width:${Math.round((n / FUSION) * 100)}%"></i></span>` : ''}`;
   };
+  // Nov. 2026 (le contenu, de zéro) : les comptes en une ligne — le chiffre, l'unité une fois.
   const tete = `<div class="ct-tete">
       <div class="ct-comptes">
-        <span class="ct-total"><b>${k.joueurs}</b> carte${k.joueurs > 1 ? 's' : ''} de joueur${k.doublons ? ` · <b>${k.doublons}</b> doublon${k.doublons > 1 ? 's' : ''}` : ''}</span>
+        <span class="ct-total"><b>${k.joueurs}</b> carte${k.joueurs > 1 ? 's' : ''}${k.doublons ? ` · <b>${k.doublons}</b> doublon${k.doublons > 1 ? 's' : ''}` : ''}</span>
         <span class="ct-vars">${VARIANTES.map(([r, nom]) => `<span class="ct-var v-${r}" title="${esc(sensDe(r))}">${esc(nom)} <b>${k.parVariante[r]}</b></span>`).join('')}${k.numerotees ? `<span class="ct-var v-num">№ Numérotées <b>${k.numerotees}</b></span>` : ''}</span>
       </div>
     </div>
     <div class="ct-vues" role="tablist">
-      ${[['equipe', `Ton équipe · ${ctx.equipe.length}`], ['extensions', `Extensions · ${parDecennie.size}`], ['clubs', `Clubs · ${parClub.size}`], ...(nCoachs ? [['coachs', `Coachs · ${nCoachs}`]] : [])]
-        .map(([v, nom]) => `<button type="button" role="tab" class="ct-vue${etat.vue === v ? ' on' : ''}" data-vue="${v}" aria-selected="${etat.vue === v}">${esc(nom)}</button>`).join('')}
+      ${[['equipe', 'Ton équipe', ctx.equipe.length], ['extensions', 'Extensions', parDecennie.size], ['clubs', 'Clubs', parClub.size], ...(nCoachs ? [['coachs', 'Coachs', nCoachs]] : [])]
+        .map(([v, nom, n]) => `<button type="button" role="tab" class="ct-vue${etat.vue === v ? ' on' : ''}" data-vue="${v}" aria-selected="${etat.vue === v}">${esc(nom)} <span>${n}</span></button>`).join('')}
     </div>`;
   let corps = '';
   let nav = '';
   if (etat.vue === 'equipe') {
-    // LE PLATEAU (nov. 2026) : son édition en coin de la pochette, sa saison chez toi en une ligne ; sa vraie saison attend la fiche.
-    const cartes = ctx.equipe.map(x => `<button type="button" class="ct-carte" data-ct-equipe="${esc(x.cle)}">${x.edCle && NOM_VARIANTE[x.edCle] ? coin(esc(NOM_VARIANTE[x.edCle]), { cote: 'gauche', cls: 'pl-coin-petit' }) : ''}${x.mini}<span class="ct-stats"><span class="ct-ligne ct-sim"><i>Saison</i>${esc(x.saison)}</span><span class="ct-ligne ct-vraie"><i>Vraie</i>${esc(x.vraie)}</span></span></button>`);
+    // LE PLATEAU (nov. 2026) : son édition en coin de la pochette dès Cadre (jamais « Base »), « ×2 » en coin pour un doublon ;
+    // AUCUNE ligne sous la carte (sa saison chez toi vit à Joueurs et à la fiche — l'entorse à la carte des infos, assumée,
+    // docs/ecrans-rogue.md « Le contenu, de zéro »).
+    const cartes = ctx.equipe.map(x => { const n = (c.joueurs[x.cle] || {}).n || 1; return `<button type="button" class="ct-carte" data-ct-equipe="${esc(x.cle)}" data-edition="${esc(x.edCle || 'commune')}">${x.edCle && x.edCle !== 'commune' && NOM_VARIANTE[x.edCle] ? coin(esc(NOM_VARIANTE[x.edCle]), { cote: 'gauche', cls: 'pl-coin-petit' }) : ''}${n > 1 ? coin(`×${n}`, { cote: 'droite', cls: 'pl-coin-petit' }) : ''}${x.mini}</button>`; });
     const nPages = Math.ceil(cartes.length / PAR_FEUILLE);
     const clesEq = new Set(ctx.equipe.map(x => x.cle));
     const autres = Object.keys(c.joueurs).filter(cle => !clesEq.has(cle)).length;

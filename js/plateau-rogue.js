@@ -56,8 +56,8 @@ export const rangeeVisage = ({ mug = '', ico = '', titre, sous = '', chiffre = '
 /** Un billet de la route : quand et où, l'écusson, le club, sa fiche. `cls` : pl-billet-soir, pl-billet-gros. */
 export const billet = ({ quand, ico, nom, pied = '', cls = '', attrs = '', coinHtml = '' }) => `<li class="pl-billet${cls ? ` ${cls}` : ''}"${attrs}><span class="pl-billet-q">${quand}</span><span class="pl-billet-i" aria-hidden="true">${ico}</span><span class="pl-billet-n">${nom}</span>${pied ? `<span class="pl-billet-p">${pied}</span>` : ''}${coinHtml}</li>`;
 
-/** Une marche de l'échelle : son numéro ou ✓, son nom, ce qui manque ou ce qu'elle donne, un mot au bout. `etat` : fait, ici, suivant, loin. */
-export const marche = ({ num, nom, sous = '', bout = '', etat = 'loin' }) => `<div class="pl-marche pl-marche-${etat}"><i>${num}</i><span class="pl-marche-n">${esc(nom)}${sous ? `<small> · ${sous}</small>` : ''}</span><small class="pl-marche-b">${bout}</small></div>`;
+/** Une marche de l'échelle : son numéro ou ✓, son nom, ce qui manque ou ce qu'elle donne (la suivante le dit sur sa propre ligne), un mot au bout. `etat` : fait, ici, suivant, loin. */
+export const marche = ({ num, nom, sous = '', bout = '', etat = 'loin' }) => `<div class="pl-marche pl-marche-${etat}"><i>${num}</i><span class="pl-marche-n">${esc(nom)}${sous ? `<small>${sous}</small>` : ''}</span><small class="pl-marche-b">${bout}</small></div>`;
 
 /** Le podium : trois cartes de joueur (déjà en `carteLigne`), la première au centre et plus haute. */
 export const podium = ([un, deux, trois]) => `<div class="pl-podium" role="group" aria-label="Le podium"><div class="pl-podium-2">${deux}</div><div class="pl-podium-1">${un}</div><div class="pl-podium-3">${trois}</div></div>`;

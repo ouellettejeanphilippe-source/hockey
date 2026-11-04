@@ -55,7 +55,7 @@ import {
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
   batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup, PLANS,
 } from '../../js/sim.js';
-import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, styleAuNiveau } from '../../js/adjoints.js';
+import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, styleAuNiveau, effetDuRelais } from '../../js/adjoints.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, coachDuRobot } from './cartes_robot.mjs';
 import { niveauDuPerso, POUVOIRS, grandir, TALENT } from '../../js/pouvoirs.js';
@@ -236,7 +236,7 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
 
 export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
 /*
- * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi,fit,boutique,histoires,talent —
+ * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi,fit,boutique,histoires,talent,relais —
  * ce que l'attentif NE fait PAS dans cette mesure, pour trouver d'où vient son avance (ou son retard) sur le robot d'avant,
  * un geste à la fois, sur les mêmes dés. ROBOT_COACH=essaim force la philosophie du coach de l'attentif, pour mesurer ce
  * que chaque coach vaut à son club.
@@ -273,9 +273,17 @@ function fitDAdjoint(R, k, coach, niv) {
     const m = chiffresDuSoirSous(t, effets);
     return m.butsPour - m.butsContre;
   });
-  const fit = net({ effets: J.effet ? [{ source: 'adjoint', ...J.effet }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - net({});
-  return fit * (J.voie === coach ? SEJOUR_SYNERGIE : SEJOUR) / SEJOUR;
+  const base = net({});
+  const fit = net({ effets: J.effet ? [{ source: 'adjoint', ...J.effet }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - base;
+  // V23 D (`ROBOT_SAUF=relais` la retire) : son relais, lu sur son effectif, pesé par la part de périodes où son signal se lit
+  // (`signal.part` ; un signal qui lit les pouvoirs de ton coach, la part où un pouvoir joue, `PART_POUVOIR`).
+  const X = attentifFait('relais') ? effetDuRelais(k, niv) : null;
+  const relais = X ? (net(X.cote === 'adv' ? { effets: [], effetsAdv: [{ source: 'relais', [X.canal]: X.valeur }] } : { effets: [{ source: 'relais', [X.canal]: X.valeur }], effetsAdv: [] }) - base)
+    * (ADJOINTS[k].signal.sur === 'pouvoir' ? PART_POUVOIR : ADJOINTS[k].signal.part) / 3 : 0;
+  return (fit + relais) * (J.voie === coach ? SEJOUR_SYNERGIE : SEJOUR) / SEJOUR;
 }
+/* La part des périodes où un pouvoir de ton coach joue, à la louche (check_pouvoirs : un pouvoir joue à peu près un soir sur deux, une période). */
+const PART_POUVOIR = 0.4;
 /*
  * CE QU'UNE RÉPONSE D'HISTOIRE FAIT AU JOUEUR NOMMÉ, LU SUR TON CLUB (nov. 2026, docs/revue-rogue-2026-11.md § 1 ;
  * MESURE seulement, `ROBOT_SAUF=histoires` la retire). L'attentif ne pesait que les conséquences d'équipe (les jetons,

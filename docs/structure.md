@@ -72,17 +72,16 @@ js/club.js            ton club : les noms, les couleurs et les écussons qui se 
 js/depart.js          le départ d'une run (le classeur)
 js/cartable.js        le cartable des joueurs gagnés
 js/ballottage.js      le ballottage, en fonction pure (Node et navigateur)
-js/visages.js         l'application Android : télécharge et recadre les visages sur l'appareil
-js/recadrage.js       le recadrage d'un portrait (partagé par scripts/portraits.mjs et js/visages.js)
-js/actions.js         les photos d'action : actionSrc(id, saison, club) pour une carte, celle de sa saison d'abord ; l'appareil Android les télécharge et les recadre
-js/recadrage-action.js le recadrage 5:7 d'une photo de match (partagé par scripts/actions.mjs et js/actions.js)
+js/recadrage.js       le recadrage d'un portrait (scripts/portraits.mjs le lit)
+js/actions.js         les photos d'action : actionSrc(id, saison, club) pour une carte, celle de sa saison d'abord (img/actions)
+js/recadrage-action.js le recadrage 5:7 d'une photo de match (scripts/actions.mjs le lit)
 js/identites.js       l'identité de départ
 js/traits.js          les traits, tirés des votes de data/trophees.js
 js/roles_ref.js       la référence des rôles
 js/franchises.js      les franchises et leurs relocalisations
 js/logos.js, js/logos_locaux.js   couleurs et écussons des 44 franchises
 js/menu.js            l'écran titre, et le même écran en menu pause en pleine partie
-js/mise-a-jour.js     la mise à jour : la version Web (GitHub Pages) suit toute seule ce qu'on publie (`surveillerLaVersion` : le sw.js du serveur relu au démarrage, au retour dans l'application et toutes les 10 min ; plus récent, la coquille neuve et un rechargement au titre ou au retour), le stockage (les parties) jamais touché ; dans l'APK et l'exe, la dernière release GitHub (.github/workflows/publier.yml) offre son fichier — `check_maj`
+js/mise-a-jour.js     la mise à jour : la version Web (GitHub Pages) suit toute seule ce qu'on publie (`surveillerLaVersion` : le sw.js du serveur relu au démarrage, au retour dans l'application et toutes les 10 min ; plus récent, la coquille neuve et un rechargement au titre ou au retour), le stockage (les parties) jamais touché — `check_maj`
 js/version.js         la version du code qui tourne, la même que `VERSION` de sw.js : les deux montent ensemble — `check_maj`
 js/sauvegardes.js     les parties sauvegardées, et leur export en fichier transférable, importé au menu — `check_sauvegardes`
 js/mouvement.js       les chiffres qui se comptent, et les paliers du jus (V23 G : `notable`, `pic` — la vibration, la secousse, les particules)
@@ -102,9 +101,5 @@ scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs,
                       main (essai_*.mjs), calibration (calibrate_sim, mock_*, *_calibre, inferer_glace et inferer_gestes : ce que la ligue ne comptait pas),
                       verdict.mjs (le juge partagé), lib/ (mort.mjs la mesure du code mort, rogue_sim.mjs la run jouée par un robot…) ;
                       la liste complète : docs/structure-detaillee.md
-mobile/, desktop/     l'APK (Capacitor) et l'exe (Electron) ; seul leur code est versionné ; leur version est celle de sw.js (build.gradle la lit), et .github/workflows/publier.yml les fabrique et les publie en release à chaque version neuve sur main (l'APK signé par les secrets CAP82_KEYSTORE_B64 et CAP82_KEYPASS)
-mobile/assembler-www.mjs  www/ de l'APK : sans data/salaries ni data/seed.json, JS regroupé en lots et minifié,
-                      CSS minifié (esbuild, devDependency de mobile/ seulement ; --brut pour s'en passer),
-                      cartes de sources à côté dans www-cartes/ ; la liste hors ligne de sw.js est réécrite
 docs/                 l'historique et la référence (voir docs/README.md)
 ```

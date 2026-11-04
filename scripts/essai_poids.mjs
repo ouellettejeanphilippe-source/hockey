@@ -3,7 +3,6 @@
  * le vit : le processeur ralenti quatre fois (Chrome, `Emulation.setCPUThrottlingRate`), à 390 px.
  *
  *   node scripts/essai_poids.mjs http://localhost:8000    # la version locale, modules tels quels
- *   node scripts/essai_poids.mjs http://localhost:8002    # le www/ de l'APK (mobile/assembler-www.mjs), servi à part
  *
  * Trois chiffres jugés : les requêtes jusqu'au calme du réseau, les octets compressés (gzip, ce qu'un serveur
  * envoie ; les polices et les images comptent tels quels), et le temps jusqu'au menu du titre, médiane de trois.

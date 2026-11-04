@@ -53,19 +53,11 @@ node scripts/check_ratings.mjs      # distribution des cotes et cohérence avec 
 
 Les captures datent de la 1.0 (octobre 2026) ; le Rogue a changé depuis (V9 à V21, `docs/refonte-v*.md`).
 
-## Android et bureau
+## Web seulement
 
-Le jeu n'est plus publié en ligne : il se joue en local, dans le navigateur, sur Android (`mobile/`, Capacitor) ou sur Windows (`desktop/`, Electron).
-
-```powershell
-powershell -ExecutionPolicy Bypass -File mobile\fabriquer-apk.ps1   # l'APK signé, dans mobile\Cap-82-0.apk
-```
-
-`mobile/assembler-www.mjs` regroupe et minifie le jeu (esbuild, devDependency de `mobile/` seulement) ; les salaires et le filet `data/seed.json` restent hors de l'APK.
+Le jeu est un site statique publié sur GitHub Pages depuis `main`, et il se joue dans le navigateur, au téléphone comme à l'ordinateur ; le travailleur de service (`sw.js`) le garde hors ligne après une première visite, et la version Web suit toute seule ce qu'on publie (`js/mise-a-jour.js`), sans toucher aux parties. L'application Android (Capacitor) et l'exe Windows (Electron) sont partis le 4 novembre 2026 (JP : *oublie APK et exe, on développe maintenant web only*).
 
 La GitHub Action « Bâtir les données » existe encore pour régénérer les shards depuis l'API de la LNH (modes `full`, `bios`, `rerate`, `seed`) ; chaque lundi, elle rafraîchit la saison en cours. En local, `scripts/build_shards.py` fait la même chose.
-
-**L'application Android** (`mobile/fabriquer-apk.ps1`) n'emporte pas les 3 900 visages recadrés (57 Mo) : l'APK n'a que les écussons et la silhouette. Au premier lancement, en arrière-plan, l'appareil télécharge chaque portrait au site de la LNH, le recadre lui-même avec le code de `scripts/portraits.mjs` (`js/recadrage.js`) et le garde dans son cache (`js/visages.js`). En attendant, la photo brute de la LNH s'affiche ; hors ligne, la silhouette. Le jeu marche hors ligne dès que cette passe est faite.
 
 ## Comment les cotes sont calculées
 

@@ -760,9 +760,9 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
 /*
  * LA BARRE D'ÉTAT DU TÉLÉPHONE (S70). JP : *assure de laisser espace dans le
  * haut sinon barre de notif sur Android cache le new game et les settings*.
- * Capacitor 8 injecte `--safe-area-inset-top` sur la racine quand la
- * WebView passe sous la barre d'état : on le pose à la main, et rien de
- * cliquable ne doit commencer au-dessus — ni l'écran « Nouvelle partie », ni
+ * La feuille lit `--safe-top`, le plus grand de `env(safe-area-inset-top)`
+ * et de `--safe-area-inset-top` (style.css) : on pose le second à la main,
+ * et rien de cliquable ne doit commencer au-dessus — ni l'écran « Nouvelle partie », ni
  * les boutons de la barre du haut. Puis on l'enlève : sur ordinateur, rien ne
  * bouge.
  */
@@ -787,7 +787,7 @@ await page.waitForSelector('#partieModal', { state: 'visible', timeout: 30000 })
 }
 /*
  * LA BARRE DE GESTES (S78). JP : *ajouter espace protégé dans le bas sur
- * mobile aussi*. Même épreuve qu'en haut : Capacitor pose
+ * mobile aussi*. Même épreuve qu'en haut, avec
  * `--safe-area-inset-bottom` ; la barre d'onglets et le bas de l'écran
  * « Nouvelle partie » doivent s'arrêter au-dessus. Sans elle, rien ne bouge.
  */

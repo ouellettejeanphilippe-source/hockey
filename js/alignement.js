@@ -877,7 +877,7 @@ export function coachHtml() {
     const f = forceDuPouvoir(perso, p);
     return carteLigne(carteHtml({ cle: `pv${p}`, rarete: RARETE_POUVOIR[p], genreCarte: 'synergie', ico: P.ico, nomHtml: esc(P.nom), typeHtml: p === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][p]}`, statique: true,
       texteHtml: `${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}` }),
-    `<span class="pv-nom"><b>${esc(P.nom)}</b> · ${p === 2 ? 'ultime' : `pouvoir ${['I', 'II'][p]}`}</span>`,
+    `<span class="pv-nom">${esc(P.dit.split(' : ')[0])}</span>`,
     { cls: `pv${ouvert ? '' : ' ferme pl-carte-eteinte'}`, coins: coin(ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`, { ton: ouvert ? 'or' : 'gris', cls: 'pl-coin-petit pv-etat' }) });
   };
   /*
@@ -886,12 +886,14 @@ export function coachHtml() {
    * front, celles qu'il n'a pas encore ouvertes éteintes, avec le niveau qui les ouvre.
    */
   const chef = perso.chef;
-  const maitrise = (perso.maitrise || 1) !== 1 ? `${NOMS_NIV[NIV_DE_MAITRISE.indexOf(perso.maitrise)] || ''} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : '';
+  // Le contenu, de zéro (4 nov. 2026) : la plaque dit qui et quoi (le niveau de l'entraîneur ; sa maîtrise à l'infobulle), la jauge
+  // se termine en chiffres (« 4 → niv. 2 · talent »), la règle en flèche (« ≤ 24 tirs contre → +2 🪙 · 1 fois »).
+  const maitrise = (perso.maitrise || 1) !== 1 ? NOMS_NIV[NIV_DE_MAITRISE.indexOf(perso.maitrise)] || '' : '';
   return `<div class="ej-coach">
-    <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''}><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>L'entraîneur${chef ? ` · ${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)}` : ''}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau<b>${niveau}</b></span></div>
+    <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''} title="${esc(`${chef ? `${chef.n} · ${TEAMFULL[chef.tag] || chef.tag} ${chef.saison} · ` : ''}${C.nom}${maitrise ? ` · ${maitrise} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}`)}"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>${chef ? esc(`${chef.tag} ${chef.saison}`) : esc(C.nom)}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau<b>${niveau}</b></span></div>
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
-    <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}${NIVEAUX_TALENT.includes(niveau + 1) ? ' · un talent' : ''}`}</div>
-    ${(R => (R ? (x => `<div class="ej-coach-l ej-regle">${C.ico} Sa règle : ${esc(R.dit)} · +${R.jetons} 🪙 · ${x.parJour.size} fois cette saison</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
+    <div class="ej-coach-l">${xp} exp.${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · ${manque} → niv. ${niveau + 1}${NIVEAUX_TALENT.includes(niveau + 1) ? ' · talent' : ''}`}</div>
+    ${(R => (R ? (x => `<div class="ej-coach-l ej-regle" title="La règle ${esc(C.de)} : elle paie le soir où ton club joue son hockey">${C.ico} ${esc(R.dit)} → +${R.jetons} 🪙 · ${x.parJour.size} fois</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
     ${grille(POUVOIRS[perso.cle].map(carte), { cls: 'pv-rang' })}
     ${mainHtml(perso, niveau)}
   </div>`;
@@ -914,7 +916,7 @@ function mainHtml(perso, niveau) {
     const etat = enPoste(c, games, perso.cle) ? 'poste' : auRepos(c, games) ? 'repos' : 'prete';
     // Nov. 2026 : son salaire par match, sur la carte (il se lisait au banc du soir seulement).
     const sal = salaireDe(c) ? ` · −${salaireDe(c)} 🪙/match` : '';
-    const sous = etat === 'poste' ? `Encore ${resteDe(c, games, perso.cle)} match${resteDe(c, games, perso.cle) > 1 ? 's' : ''}${sal}` : etat === 'repos' ? `Au repos · ${reposDe(c, games)} match${reposDe(c, games) > 1 ? 's' : ''}` : `${sejourDe(c.cle, perso.cle)} matchs`;
+    const sous = etat === 'poste' ? `encore ${resteDe(c, games, perso.cle)} m${sal}` : etat === 'repos' ? `repos ${reposDe(c, games)}` : `${sejourDe(c.cle, perso.cle)} m`;
     // Le verso, petit, dit le style seul ; la réplique, la synergie et la fiche se lisent dans la bande, au toucher (`.adj-detail`).
     const detail = `<b>${esc(A.nom)}</b> · ${esc(NOMS_NIV[niv - 1])} · ${esc(A.style)} — « ${esc(A.dit)} »${syn ? ` · <b class="bon">${esc(syn)}</b>` : ''}${fiche ? ` · ${esc(fiche)}` : ''}`;
     return `<div class="adj-carte" data-adj="${c.cle}" data-etat="${etat}" data-detail="${esc(detail)}">
@@ -926,9 +928,9 @@ function mainHtml(perso, niveau) {
   };
   // UNE SEULE RANGÉE (l'onglet tient en un écran) : les cases en poste d'abord, puis la main ; quatre cartes de front au plus.
   const vides = Math.max(0, cases - postes.length);
-  return `<div class="ej-case-l">En poste · ${postes.length} sur ${cases} · ta main · ${main.length} sur ${MAIN_MAX}${plusTard ? ` · une case de plus au niveau ${plusTard}` : ''}</div>
+  return `<div class="ej-case-l" title="${plusTard ? `Une case de plus au niveau ${plusTard}` : 'Tes cases en poste, et ta main'}">En poste ${postes.length}/${cases} · Main ${main.length}/${MAIN_MAX}</div>
     <div class="adj-zone${main.length ? '' : ' sans'}" data-zone="main">${postes.map(carteAdj).join('')}${Array.from({ length: vides }, () => `<button type="button" class="adj-case vide" title="Glisse une carte de ta main ici">Case libre</button>`).join('')}${autres.map(carteAdj).join('')}</div>
-    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite">Touche une carte : son style, sa réplique.</p>' : ''}`;
+    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite"></p>' : ''}`;
 }
 /* POSTER UNE CARTE : la décision du jour (`hub.decider`), puis on revient au Coach, où l'on était. */
 function posterLAdjoint(cle) {

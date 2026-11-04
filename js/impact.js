@@ -13,7 +13,7 @@
  */
 import { RANGS_DE_GLACE, lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PLANS, cibleDuPlan } from './sim.js';
 import { virgule } from './util.js';
-import { ADJOINTS, NIV_DEFAUT, FORCE_NIV, styleAuNiveau, salaireDe, lignesDeLAdjoint, postesDe, nivDe } from './adjoints.js';
+import { ADJOINTS, NIV_DEFAUT, FORCE_NIV, styleAuNiveau, salaireDe, lignesDeLAdjoint, ligneDuRelais, postesDe, nivDe } from './adjoints.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
 const N_BASE = 1600;    // les lancers lus pour le niveau absolu d'un soir (±1 % sur les buts)
@@ -754,8 +754,8 @@ export function lignesDeLAdjointEnChiffres(cle, niv = null) {
   const A = ADJOINTS[cle] && styleAuNiveau(cle, niv || NIV_DEFAUT);
   const lu = A && lireEffets(A.effet, A.adv, { par: 'par match' });
   if (!lu) return lignesDeLAdjoint(cle, niv);
-  const paye = salaireDe({ cle, niv });
-  const out = [...lu, ...(paye ? [{ txt: `Salaire : ${paye} 🪙 par match en poste`, bon: false }] : [])];
+  const paye = salaireDe({ cle, niv }), relais = ligneDuRelais(cle, niv);
+  const out = [...lu, ...(relais ? [relais] : []), ...(paye ? [{ txt: `Salaire : ${paye} 🪙 par match en poste`, bon: false }] : [])];
   return [...out.filter(x => x.bon !== false), ...out.filter(x => x.bon === false)];
 }
 /** Ce qu'un pouvoir fait, sa condition devant : « Quand tu mènes : −0,4 tir contre la période, +0,9 pt d'arrêts la période ». */

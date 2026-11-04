@@ -98,7 +98,7 @@ let etat = { onglet: null, cat: 'tout', rar: 'tout' };
  * `cartesDeLaMaison`), une retouche au verso de son joueur.
  */
 /* LA MASSE SALARIALE (S79) : le plafond effectif, et ce qui le tord — les cartes 💵 jouées, le vestiaire, le DG. En Rogue, chez le proprio (V12-3). */
-export const masseSalarialeHtml = P => (P ? jaugePlafond({ masse: P.masse, cap: P.cap,
+const masseSalarialeHtml = P => (P ? jaugePlafond({ masse: P.masse, cap: P.cap,
   mot: P.lignes.length ? puces(P.lignes.map(l => ({ txt: l.joueur ? l.nom : `${l.nom} ${l.montant > 0 ? '+' : '−'}${M(Math.abs(l.montant))}`, bon: l.joueur ? true : l.montant > 0 }))) : `<span class="inv-pl-rien">Plafond de base : ${M(P.base)}. Les cartes 💵 le tordent.</span>` }) : '');
 
 export function ouvrirInventaire(ctx) {

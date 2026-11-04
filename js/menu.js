@@ -10,28 +10,19 @@
  * En run Rogue seulement : Inventaire et Vestiaire, deux liens.
  *
  * Parties : chaque partie s'exporte en fichier (à transférer sur un autre
- * appareil) et un tel fichier s'importe sous la liste.
+ * appareil, un téléphone ou un ordinateur) et un tel fichier s'importe sous
+ * la liste.
  */
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer, exporter, importer } from './sauvegardes.js';
 import { esc } from './util.js';
-import { surAppareil } from './visages.js';
-import { miseAJour, telecharger, appliquerAuTitre } from './mise-a-jour.js';
+import { appliquerAuTitre } from './mise-a-jour.js';
 import { VERSION } from './version.js';
 /*
- * LE FICHIER SORT (1.0). Sur le web, un lien `download` suffit. Dans
- * l'application Android, la WebView n'enregistre pas un tel lien : on passe
- * par la feuille de partage de l'appareil quand elle prend un fichier, sinon
- * le texte va dans le presse-papiers, à coller dans une note ou un message.
+ * LE FICHIER SORT (1.0) : un lien `download` ; le navigateur l'enregistre.
  * Rend le mot à afficher.
  */
-async function livrer(nom, texte) {
+function livrer(nom, texte) {
   const fichier = new File([texte], nom, { type: 'application/json' });
-  if (surAppareil()) {
-    if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
-      try { await navigator.share({ files: [fichier], title: nom }); return `${nom} partagé.`; } catch (e) { if (e && e.name === 'AbortError') return ''; }
-    }
-    try { await navigator.clipboard.writeText(texte); return 'Partie copiée : colle-la dans une note ou un message.'; } catch { return 'Impossible d\'exporter sur cet appareil.'; }
-  }
   const url = URL.createObjectURL(fichier);
   const a = document.createElement('a');
   a.href = url; a.download = nom;
@@ -39,7 +30,7 @@ async function livrer(nom, texte) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
   return `${nom} téléchargé.`;
 }
-/* Un fichier ou le presse-papiers entre : une partie de plus au menu, ou le mot qui dit pourquoi non. */
+/* Un fichier entre : une partie de plus au menu, ou le mot qui dit pourquoi non. */
 function recevoir(texte) {
   const id = importer(texte);
   return id ? 'Partie importée.' : 'Ce fichier n\'est pas une partie de Cap 82-0.';
@@ -135,7 +126,6 @@ function dessiner(m) {
 
   const transfert = `<div class="menu-transfert">
       <button type="button" class="btn small" data-menu="importer" title="Une partie exportée d'un autre appareil">📁 Importer une partie</button>
-      ${surAppareil() ? '<button type="button" class="btn small" data-menu="coller" title="Une partie copiée dans le presse-papiers">📋 Coller une partie</button>' : ''}
       <input type="file" class="menu-fichier" accept=".json,application/json" hidden>
       <span class="menu-transfert-mot" role="status"></span>
     </div>`;
@@ -186,7 +176,6 @@ function dessiner(m) {
           <div class="menu-logo">CAP <b>82-0</b></div>
           <div class="menu-sous">23 joueurs. Un plafond. La Coupe.</div>
         </header>
-        <div class="menu-maj-place"></div>
         ${heros ? `<button type="button" class="menu-continuer" data-menu="continuer">
           <span class="mc-mot">Continuer</span>
           ${active ? `<span class="mc-quoi">${GENRES[active.genre] ? GENRES[active.genre].ico : ''} ${esc(active.titre)} · ${esc(ligneResume(active) || quand(active.maj))}</span>` : ''}
@@ -199,15 +188,8 @@ function dessiner(m) {
       </div>`;
   }
 
-  // LA MISE À JOUR (js/mise-a-jour.js). La version Web : une version neuve déjà prise s'applique dès le titre. L'APK et
-  // l'exe : au menu principal seulement, quand une release plus récente attend à GitHub, le bouton se glisse sous le titre.
+  // LA MISE À JOUR (js/mise-a-jour.js) : une version neuve déjà prise s'applique dès le titre.
   if (!ctx.enJeu) appliquerAuTitre();
-  const place = m.querySelector('.menu-maj-place');
-  if (place) miseAJour().then(o => {
-    if (!o || !place.isConnected) return;
-    place.innerHTML = `<button type="button" class="menu-lien menu-maj">Mettre à jour <small>la version ${esc(o.version)} est prête</small> ›</button>`;
-    place.firstElementChild.onclick = () => telecharger(o.url);
-  });
   m.querySelectorAll('[data-menu]').forEach(b => {
     b.onclick = () => {
       const quoi = b.dataset.menu, id = b.dataset.id;
@@ -225,12 +207,8 @@ function dessiner(m) {
       else if (quoi === 'options') ctx.options();
       else if (quoi === 'regles') ctx.regles();
       else if (quoi === 'copier') { copier(id); dessiner(m); }
-      else if (quoi === 'exporter') { const f = exporter(id); if (f) livrer(f.nom, f.texte).then(mot => dire(m, mot)); }
+      else if (quoi === 'exporter') { const f = exporter(id); if (f) dire(m, livrer(f.nom, f.texte)); }
       else if (quoi === 'importer') { const inp = m.querySelector('.menu-fichier'); if (inp) inp.click(); }
-      else if (quoi === 'coller') {
-        navigator.clipboard.readText().then(t => { const mot = recevoir(t); dessiner(m); dire(m, mot); })
-          .catch(() => dire(m, 'Le presse-papiers n\'est pas lisible.'));
-      }
       else if (quoi === 'supprimer') {
         if (b.dataset.confirme !== '1') { b.dataset.confirme = '1'; b.textContent = 'Supprimer ?'; setTimeout(() => { if (b.isConnected) { b.dataset.confirme = ''; b.textContent = '✕'; } }, 2500); return; }
         supprimer(id); dessiner(m);

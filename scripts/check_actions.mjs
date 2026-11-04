@@ -2,7 +2,6 @@
  * LES PHOTOS D'ACTION (1.0) — scripts/actions.mjs, js/recadrage-action.js, js/actions.js.
  *
  *   node scripts/check_actions.mjs                          sans réseau
- *   node scripts/check_actions.mjs http://localhost:8000    plus l'appareil Android, simulé (réseau requis)
  *
  * 1. La liste (data/actions.json) : des joueurs du jeu, triés, sans doublon ;
  *    et si img/actions/ est là, une image par joueur listé, aucune en double.
@@ -10,7 +9,7 @@
  *    chacune listée, une licence permise (jamais ND), un auteur, une vignette
  *    https ; `creditPhoto` rend leur crédit, null pour une photo de la LNH.
  * 2. Le recadrage, dans Chromium, par le texte de la fonction (comme le script
- *    et l'appareil la reçoivent) : il rend du 400 × 560, et sa fenêtre suit un
+ *    la reçoit) : il rend du 400 × 560, et sa fenêtre suit un
  *    sujet net posé à droite, à gauche ou au centre d'un fond flou.
  * 3. `actionSrc` : null pour un joueur sans photo, null tant que les images
  *    ne répondent pas, `img/actions/{id}.webp` quand elles répondent.
@@ -21,13 +20,9 @@
  *    crédit et le cadre suivent la saison.
  *    LES PHOTOS COUCHÉES (scripts/actions_couchees.mjs, `couchees`) : des
  *    photos listées (générales ou de saison), chacune son WebP, aucune de trop.
- * 4. (avec l'adresse du jeu) L'APPAREIL, avec un faux Capacitor : son HTTP
- *    natif passe par Node et va chercher la vraie photo à la LNH. Rien ne
- *    part hors Wi-Fi ; au retour du Wi-Fi, la carte regardée passe d'abord ;
- *    chaque photo est recadrée sur l'appareil (400 × 560), gardée dans son
- *    tiroir, et `actionSrc` rend son adresse blob:. Une photo de saison ne
- *    part que regardée, jamais dans la file de fond ; une photo couchée,
- *    regardée, se recadre couchée (560 × 400) sous {id}-couchee.
+ *
+ * L'application Android simulée (un faux Capacitor, le point 4 d'avant) est
+ * partie avec elle : web seulement depuis le 4 nov. 2026.
  */
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -39,7 +34,6 @@ import { recadrerAction } from '../js/recadrage-action.js';
 import { actionSrc, vignetteCommons } from '../js/actions.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const URL_JEU = process.argv[2] || null;
 
 /* 1. La liste. */
 const liste = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'actions.json'), 'utf8'));
@@ -239,84 +233,6 @@ const charger = async (imagesLa) => {
 }
 
 globalThis.fetch = vraiFetch;
-
-/* 4. L'appareil, simulé. */
-if (URL_JEU) {
-  const ctx = await navigateur.newContext();
-  const p = await ctx.newPage();
-  const demandes = [];
-  // Le HTTP natif : Node va chercher la vraie photo (hors des règles CORS, comme Android).
-  const entetes = [];
-  await p.exposeFunction('httpNatif', async (url, headers) => {
-    demandes.push(url); entetes.push(headers || {});
-    const r = await fetch(url, { redirect: 'follow', headers: headers || {} });
-    const buf = Buffer.from(await r.arrayBuffer());
-    return { status: r.status, url: r.url, data: buf.toString('base64') };
-  });
-  await p.addInitScript(() => {
-    const connexion = { type: 'cellular', saveData: false, ecouteurs: [], addEventListener(t, f) { this.ecouteurs.push(f); } };
-    Object.defineProperty(navigator, 'connection', { get: () => connexion });
-    window.connexionTest = connexion;
-    window.Capacitor = { isNativePlatform: () => true, Plugins: { CapacitorHttp: { request: ({ url, headers }) => window.httpNatif(url, headers) } } };
-  });
-  // Une page vide à l'origine du jeu : les modules et data/actions.json se lisent comme dans l'application.
-  const base = URL_JEU.replace(/\/?$/, '/');
-  await p.route(`${base}sonde-actions.html`, r => r.fulfill({ contentType: 'text/html', body: '<!doctype html><meta charset="utf-8"><body></body>' }));
-  await p.goto(`${base}sonde-actions.html`);
-  await p.addScriptTag({ type: 'module', content: `import * as A from './js/actions.js'; window.A = A; window.evenements = []; addEventListener('cap82:action', e => evenements.push(e.detail.id));` });
-  await p.waitForFunction(() => window.A);
-  // Le plus vieux joueur : une photo libre, s'il y en a (Wikimedia exige qu'on se nomme).
-  const vieux = ids[0], recent = ids[ids.length - 1];
-  const libreDe = id => (liste.commons || {})[id] || (liste.libres || {})[id];
-  const sourceDe = id => libreDe(id) ? libreDe(id).s : `/${id}.jpg`;
-  // Une photo de saison : regardée, elle part ; jamais dans la file de fond.
-  const [idS, sS, eS] = deSaison[0] || [];
-  // Une photo couchée : regardée, elle part, et se recadre couchée sur l'appareil.
-  const idC = couchees.length ? Number(couchees[0][0]) : null;
-  const res = await p.evaluate(async ({ vieux, idS, sS, idC }) => {
-    const dispo = await A.actionsDisponibles();
-    if (idS) A.actionSrc(idS, sS);                         // une carte regarde une photo de saison
-    if (idC) A.actionCouchee(idC);                         // une carte couchée
-    const avant = A.actionSrc(vieux);                      // une carte regarde un vieux joueur
-    await A.demarrerActions();                            // hors Wi-Fi : rien ne part
-    await new Promise(r => setTimeout(r, 800));
-    return { dispo: dispo.length, avant };
-  }, { vieux, idS, sS, idC });
-  exiger('appareil : la liste se lit, rien avant le recadrage', res.dispo === ids.length && res.avant === null, `${res.dispo} photos à télécharger`);
-  exiger('appareil : rien ne part hors Wi-Fi', demandes.length === 0, `${demandes.length} téléchargements en données cellulaires`);
-  // Le Wi-Fi revient : on laisse partir quelques photos, puis on coupe.
-  await p.evaluate(() => { connexionTest.type = 'wifi'; connexionTest.ecouteurs.forEach(f => f()); });
-  await p.waitForFunction(cles => evenements.length >= 4 && cles.every(c => evenements.includes(c)), [idS ? `${idS}-${sS}` : null, idC ? `${idC}-couchee` : null].filter(Boolean), { timeout: 90000 });
-  await p.evaluate(() => { connexionTest.type = 'cellular'; });
-  await p.waitForTimeout(1500);
-  const fin = await p.evaluate(async ({ vieux, recent, idS, sS, idC }) => {
-    const t = await caches.open('cap82img-actions-visage');
-    const cles = await t.keys();
-    const taille = async k => { const b = await (await t.match(k)).blob(); const img = await createImageBitmap(b); return `${img.width}×${img.height} ${b.type} ${Math.round(b.size / 1024)} Ko`; };
-    const tailles = [];
-    for (const k of cles.filter(k => !k.url.endsWith('-couchee.webp')).slice(0, 4)) tailles.push(await taille(k));
-    const saison = idS ? { src: A.actionSrc(idS, sS), garde: !!(await t.match(`https://cap82.appareil/actions/${idS}-${sS}.webp`)) } : null;
-    const cleC = `https://cap82.appareil/actions/${idC}-couchee.webp`;
-    const couchee = idC ? { src: A.actionCouchee(idC), taille: (await t.match(cleC)) ? await taille(cleC) : '' } : null;
-    return { gardees: cles.length, tailles, src: A.actionSrc(vieux), srcRecent: A.actionSrc(recent), evenements: evenements.length, saison, couchee };
-  }, { vieux, recent, idS, sS, idC });
-  // Deux téléchargements à la fois : la carte regardée part la première, même si une autre finit avant elle.
-  exiger('appareil : la carte regardée passe en tête de file', demandes[0].includes(sourceDe(vieux)) && String(fin.src).startsWith('blob:'), `téléchargées dans l'ordre : ${demandes.slice(0, 3).map(u => u.split('/').pop()).join(', ')}`);
-  const nommees = demandes.map((u, k) => [u, entetes[k]]).filter(([u]) => !u.includes('assets.nhle.com'));
-  exiger('appareil : une photo libre se télécharge en se nommant (User-Agent)', nommees.every(([, h]) => /^Cap82-0\//.test(h['User-Agent'] || '')),
-    `${nommees.length} photos libres parmi ${demandes.length}${libreDe(vieux) ? ` (dont ${vieux}, ${libreDe(vieux).l})` : ''}`);
-  exiger('appareil : photos recadrées sur place et gardées', fin.gardees >= 4 && fin.tailles.every(t => t.startsWith('400×560 image/webp')), `${fin.gardees} dans le tiroir : ${fin.tailles.join(' · ')}`);
-  exiger('appareil : actionSrc rend une adresse blob:', String(fin.src).startsWith('blob:'), String(fin.src).slice(0, 40));
-  exiger('appareil : la file s\'arrête hors Wi-Fi', demandes.length <= fin.gardees + 2, `${demandes.length} téléchargements pour ${fin.gardees} gardées`);
-  if (idS) {
-    const url = vignetteCommons(eS), deSaisons = new Set(deSaison.map(([, , e]) => vignetteCommons(e)));
-    exiger('appareil : la photo de saison regardée se télécharge, se recadre et se garde sous {id}-{saison}', demandes.includes(url) && fin.saison.garde && String(fin.saison.src).startsWith('blob:'), `${idS}-${sS} : ${url.split('/').pop()}`);
-    exiger('appareil : aucune autre photo de saison dans la file de fond', demandes.filter(u => deSaisons.has(u)).length === 1, `${demandes.filter(u => deSaisons.has(u)).length} photos de saison téléchargées`);
-  }
-  if (idC) exiger('appareil : la photo couchée regardée se recadre couchée (560 × 400) et se garde sous {id}-couchee', fin.couchee.taille.startsWith('560×400 image/webp') && String(fin.couchee.src).startsWith('blob:'), `${idC} : ${fin.couchee.taille || 'absente'}`);
-  informer('appareil : ordre de la file', `la carte regardée (${vieux}), puis des plus récents aux plus anciens (${recent} d'abord : ${String(fin.srcRecent).slice(0, 5) || '—'})`);
-  await ctx.close();
-} else informer('appareil', 'donne l\'adresse du jeu (node scripts/check_actions.mjs http://localhost:8000) pour simuler l\'application Android (réseau requis)');
 
 await navigateur.close();
 verdict('Les photos d\'action');
