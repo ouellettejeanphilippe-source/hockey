@@ -808,7 +808,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
    * DANS `#game`, et rien ne cachait le repêchage : on finissait sa saison et
    * la roulette, le tableau de bord et le vestiaire restaient au-dessus. Le
    * bilan mesurait 4,2 écrans à 390 px — dont 2,8 de repêchage qu'on
-   * remontait pour revenir à rien. La classe suit le patron de `.banc`, qui
+   * remontait pour revenir à rien. La classe suit le patron de `.banc-soir`, qui
    * cache déjà la roulette quand on passe derrière le banc.
    */
   document.getElementById('game')?.classList.add('bilan');

@@ -123,7 +123,7 @@ soirs.forEach(({ f, cote }, n) => {
 exiger('7. à l\'entracte, le banc allume exactement les périodes déjà jouées, sans la règle du coach, les mêmes adjoints', !fautes7.length && allumesAvant > 0 && eteintsAvant > 0,
   fautes7.slice(0, 3).join(' ; ') || `${allumesAvant} allumés avant l'entracte, ${eteintsAvant} qui attendaient encore leur période`);
 exiger('7. les deux entractes du duel (saison, séries) montrent le banc sous les périodes', /bancDuSoirHtml\(f, p\.m\.A, p\.m\.B, ctx\.esc, \{ jusqua: k \}\)/.test(saisonJs) && /bancDuSoirHtml\(f, s\.A, s\.B, ctx\.esc, \{ jusqua: p \}\)/.test(saisonJs)
-  && /\.ent2 \.banc \{/.test(css));
+  && /\.ent2 \.banc-soir \{/.test(css));
 exiger('5. le banc s\'allume en animation, éteinte sous prefers-reduced-motion', /\.banc-carte\.joue \{[^}]*animation: banc-allume/.test(css)
   && /@media \(prefers-reduced-motion: reduce\) \{\s*\*, \*::before, \*::after \{ animation-duration: 0\.01ms !important/.test(css));
 
