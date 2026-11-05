@@ -77,7 +77,7 @@ function fenetre(volume, p) {
   return { long, tirs: r * long, buts: p * r * long };
 }
 
-/* Les moyennes d'un match, lues d'une lecture du moteur. Les mêmes formules que `jouerSoixanteMinutes`. */
+/* Les moyennes d'un match, lues d'une lecture du moteur. Les mêmes formules que `jouerPlage` (js/sim.js). */
 function moyennes(L) {
   const { A, B, occasions, p } = L;
   const nPour = occasions * B.discipline, nContre = occasions * A.discipline;   // les avantages que A prend, ceux que A donne
