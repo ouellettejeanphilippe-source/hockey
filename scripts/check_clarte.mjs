@@ -64,7 +64,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // Le lecteur lit vraiment : il trouve des chaînes connues, et il verrait un « énergie » glissé dans un gabarit.
   const sim = chainesDe(lire('js/sim.js')), ger = chainesDe(lire('js/gerant.js'));
   const temoin = chainesDe("// l'énergie\nconst a = `x ${b ? 'y' : `z`} énergie`; /* 'énergie' */ const r = /'/g;");
-  exiger('le lecteur de chaînes lit le code', sim.includes('Plombier') && ger.some(s => /d'élan/.test(s)) && temoin.filter(s => /énergie/.test(s)).length === 1,
+  exiger('le lecteur de chaînes lit le code', sim.includes('Plombier') && ger.some(s => /Toute l'équipe : jambes/.test(s)) && temoin.filter(s => /énergie/.test(s)).length === 1,
     `${sim.length} chaînes dans sim.js, ${ger.length} dans gerant.js`);
   const trouvés = [];
   for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'))) {
