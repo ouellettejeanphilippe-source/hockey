@@ -1117,7 +1117,7 @@ async function prechargerVisages() {
     navigator.serviceWorker.addEventListener('message', ev => {
       if (!ev.data || ev.data.visagesPrets !== cle) return;
       try { localStorage.setItem('cap82_visages', cle); } catch { /* stockage plein */ }
-      if (ev.data.nouveaux) toast(`📥 Les ${PORTRAITS_LOCAUX.size.toLocaleString('fr-CA')} visages et ${LOGOS_LOCAUX.size} écussons sont sur ton appareil : le jeu marche hors ligne.`);
+      if (ev.data.nouveaux) toast(`Le jeu marche hors ligne · ${PORTRAITS_LOCAUX.size.toLocaleString('fr-CA')} visages et ${LOGOS_LOCAUX.size} écussons sur ton appareil`);
     });
     reg.active.postMessage({ cle, precharger: [...[...LOGOS_LOCAUX].map(c => `img/logos/${c}.svg`), ...[...PORTRAITS_LOCAUX].map(id => `img/mugs/${id}.webp`), ...actions.map(id => `img/actions/${id}.webp`)] });
   } catch { /* pas de travailleur : les visages viendront à l'usage */ }

@@ -80,7 +80,7 @@ export function ouvrirMagasin(ctx) {
       if (R.cle === 'jour') return ctx.duJour ? `<section class="pk-rayon pk-rayon-jour"><h3>${R.ico} ${esc(ctx.mode === 'rogue' ? 'Le pack de la semaine' : R.nom)} <span class="pk-rabais">−${Math.round((1 - ctx.duJour.rabais) * 100)} % ${ctx.mode === 'rogue' ? 'cette semaine' : 'aujourd\'hui'}</span></h3><div class="pk-rangee">${tuile(ctx.duJour.pack, true)}</div></section>` : '';
       return `<section class="pk-rayon"><h3>${R.ico} ${esc(R.nom)}</h3><div class="pk-rangee">${R.packs.map(k => tuile(k)).join('')}</div></section>`;
     }).join('')
-      : `<section class="pk-rayon pk-rayon-debut"><h3>🎒 Pour commencer</h3><div class="pk-rangee">${DEBUT.filter(k => PACKS_TOUS[k]).map(k => tuile(k)).join('')}</div>
+      : `<section class="pk-rayon pk-rayon-debut"><h3>Pour commencer</h3><div class="pk-rangee">${DEBUT.filter(k => PACKS_TOUS[k]).map(k => tuile(k)).join('')}</div>
         <button type="button" class="btn pk-tout">Voir les ${BOUTIQUE.length} packs</button></section>`;
     /* TES PACKS (1.0, oct.) : achetés sans les ouvrir. JP : *séparer le marché des cartes déjà achetées, en bas*.
        Le haut de la boutique est le marché ; ce qui est déjà à toi vit à part, en bas, et une ligne en tête y mène. */
@@ -106,13 +106,13 @@ export function ouvrirMagasin(ctx) {
     const clubRangee = () => {
       const clubs = (ctx.club || []).filter(o => o.sorte === 'club' && !o.verrou).slice(0, 2);
       const tuileClub = (visuel, nom, mot, cls = '', data = '') => `<button type="button" class="pk-club-mini${cls}"${data}><span class="pk-club-mini-ecu" aria-hidden="true">${visuel}</span><b>${esc(nom)}</b><small>${esc(mot)}</small></button>`;
-      return `<section class="pk-rayon pk-rayon-club-rangee"><h3>🏅 Ton club <span class="pk-rabais">${ctx.club.length} à débloquer</span></h3><div class="pk-club-rangee">
+      return `<section class="pk-rayon pk-rayon-club-rangee"><h3>Ton club <span class="pk-rabais">${ctx.club.length} à débloquer</span></h3><div class="pk-club-rangee">
         ${ctx.clubPorte ? tuileClub(ctx.clubPorte.apercu, ctx.clubPorte.nom, 'Porté', ' porte', ' data-club-tout="1"') : ''}
         ${clubs.map(o => tuileClub(o.apercu, o.nom, `${o.prix} 🪙`, '', ` data-club="${esc(o.cle)}"`)).join('')}
         ${tuileClub('›', `Et ${Math.max(0, ctx.club.length - clubs.length)}`, 'Voir', ' pk-club-plus', ' data-club-tout="1"')}
       </div></section>`;
     };
-    const club = (ctx.club || []).length ? `<section class="pk-rayon pk-rayon-club"><h3>🏅 Ton club · ${ctx.club.length} à débloquer</h3>
+    const club = (ctx.club || []).length ? `<section class="pk-rayon pk-rayon-club"><h3>Ton club · ${ctx.club.length} à débloquer</h3>
       <div class="stat-tabs" role="tablist">${RAYONS_CLUB.map(R => `<button type="button" role="tab" class="stat-tab${R.cle === ongletClub ? ' on' : ''}" aria-selected="${R.cle === ongletClub}" data-onglet="${R.cle}">${esc(R.titre)} · ${(ctx.club || []).filter(o => o.sorte === R.cle).length}</button>`).join('')}</div>
       <div class="pk-rangee${ongletClub === 'palette' ? ' pk-nuancier' : ''}">${offres.map(o => {
       const manque = !o.verrou && ctx.jetons < o.prix ? o.prix - ctx.jetons : 0;

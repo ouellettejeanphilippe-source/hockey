@@ -56,3 +56,25 @@ Le test du gabarit : si on changeait le nom du jeu, l'écran tiendrait-il pour u
 - **Les majuscules** : la skill les bannit ; chez nous le bandeau est la signature. Proposition : la majuscule au bandeau seul.
 
 Les règles d'unslop qui recoupent les nôtres (une phrase n'a pas sa place dans le chrome, un chiffre une fois, le chrome calme et la richesse dans un ou deux moments) sont déjà dans `interface.md` ; sa checklist pourrait entrer dans `check_lisibilite` (la casse hors bandeau, l'accent compté, le rayon par taille) quand JP aura tranché.
+
+## Les onze autres pages (JP : *fais les onze autres pages*)
+
+Le même polish, aux mêmes décisions, sur les captures de `check_plateau` :
+
+| Page | Les signes trouvés | Ce qui a changé |
+|---|---|---|
+| Proprio | « 💀 Saison 1 · le mandat », « 💵 L'argent », « ⚔ Tes rivaux », « 🧾 Ses verdicts » (des emojis dans les titres de bloc) ; « — / 24 » ; « 🔮 Prévoir » ; Caisse / Libre en capitales | les titres sans emoji ; « 24 à atteindre » ; « Prévoir » ; les cellules en casse de phrase |
+| Face à face | le titre de page et les étiquettes de rangée (Tirs, Précision, Attaque…) en capitales espacées ; le VS avec une lueur | casse de phrase (600, 0,02 em) ; le VS reste or, sans lueur |
+| Lignes | « ‹ Retour » en pilule claire ; « 🤖 Aligner au mieux » ; les trios en capitales | le retour sur le fond sombre ; les jetons et boutons en casse de phrase |
+| Joueurs | les lignes sous les cartes (« 1er trio · C ») et le tri en capitales | casse de phrase ; le coin doré reste le chiffre qui compte |
+| Coach | les coins « Pas encore », « Niveau 3 » et les conditions sous les cartes en capitales ; « Case libre » | casse de phrase |
+| Vestiaire | « Ton histoire s'écrit match après match. » (une phrase, un point) | « Ton histoire commence ce soir » |
+| Boutique | « 80 🪙 · tu signes jusqu'à 14 M$ » en or et en capitales ; « 🎒 Pour commencer », « 🏅 Ton club » ; « Bronze », « Pack Bronze » en capitales espacées | la tête en encre, casse de phrase ; les titres sans emoji ; le prix reste le seul or |
+| Album | « 28 cartes · 2 doublons », « Feuille 1 / 3 », les variantes en capitales ; « Tes joueurs, dans le cartable. Touche une carte. » | casse de phrase ; « Tes joueurs » |
+| Classement | l'en-tête du tableau en capitales espacées | casse de phrase ; la colonne des points reste or |
+| Calendrier | les étiquettes des billets en capitales | casse de phrase ; la case du jour garde son filet or |
+| Meneurs | « Aucun match joué encore. » | sans point |
+| Palmarès | « 📈 Le prestige du club », « 🏅 Les déblocages » ; « ▲ cran 1 » en or à droite du bandeau ; les marches (Dynastie…) en capitales ; le podium avec une lueur or | les titres sans emoji ; la droite des bandeaux en encre ; casse de phrase ; le podium en filet |
+| Partout | le bouton flottant « … ▶ » ; le toast « 📥 Les 3 912 visages… hors ligne. » | sans flèche ; « Le jeu marche hors ligne · 3 912 visages et 45 écussons sur ton appareil » |
+
+Ce que le 82-0 partage avec ces pages (l'en-tête du hub, les lignes d'hier, les tableaux du volet, les messages) reçoit la casse de phrase par une surcharge `body.mode-rogue`, à côté de sa règle : les autres modes attendent le devis D2. Les titres de bloc gardent la capitale : `.pl-bandeau`, `.pr-k`, `.pk-rayon h3`, `.vs-sec`, `.hub-titre`, `.bu-prochain-k` (les jetons du héros), `.bu-vedette`.

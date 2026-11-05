@@ -1440,7 +1440,7 @@ export function majRunRogue() {
     <div class="rg-run-boutons">
       ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
       ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
-      <button type="button" class="btn rg-vestiaire">🏅 Les déblocages · ${lireMeta().ecussons || 0}</button>
+      <button type="button" class="btn rg-vestiaire">Les déblocages · ${lireMeta().ecussons || 0}</button>
     </div>${galonsHtml()}`;
   // 1.0 (R7) : la run finie ou gagnée s'ouvre UNE fois en plein écran, avant qu'on reparte.
   if ((sort === 'finie' || sort === 'gagnee') && G.rogue && !G.rogue.taRunVue) montrerTaRun(sort, n, s);
@@ -1775,7 +1775,7 @@ export function palmaresDuClubHtml() {
   // cours d'abord, la porte des déblocages au pied ; ils vivaient dans la fenêtre des déblocages.
   // « 455 à dépenser › » : un seul chiffre de médailles sur la page, celui qui s'achète (le titre du prestige ne redit plus celui à vie).
   return `${prestigeHtml(meta, { court: true })}${enCours ? `<div class="vs-jalons">${enCours}</div>` : ''}${vitrine}${pantheon}${lesRuns}
-    <button type="button" class="hub-rangee vs-deblocages"><span class="hub-rangee-t">🏅 Les déblocages</span><b>${meta.ecussons || 0} à dépenser</b></button>`;
+    <button type="button" class="hub-rangee vs-deblocages"><span class="hub-rangee-t">Les déblocages</span><b>${meta.ecussons || 0} à dépenser</b></button>`;
 }
 /* Une ligne d'une rangée de jalons : l'icône, le nom, le chiffre au bout — jamais une deuxième ligne. */
 const ligneJalon = (ico, nom, bout, fait = false) => `<div class="vs-jalon vs-jalon-ligne${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${ico}</span><b>${esc(nom)}</b><span>${esc(bout)}</span></div>`;
@@ -1795,13 +1795,13 @@ function prestigeHtml(meta, { court = false } = {}) {
   // suivante ce qui manque et ce qu'elle donne (« ⛔ Gagner une ronde · Étoiles ×1,1 »), les autres leur prix en 🏅.
   const quoiDe = P => `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
   const prestige = court
-    ? `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)}${ouvertes ? ` <span class="hub-titre-d">${ICO_EXIGENCE} cran ${ouvertes}</span>` : ''}</p>
+    ? `<p class="vs-sec">Le prestige du club · ${esc(PRESTIGES[rang].nom)}${ouvertes ? ` <span class="hub-titre-d">${ICO_EXIGENCE} cran ${ouvertes}</span>` : ''}</p>
     <div class="pl-echelle">${PRESTIGES.map((P, k) => {
       const fait = k <= rang, ici = k === rang, suivant = k === rang + 1;
       const manque = P.jalon && !(meta.jalons || {})[P.jalon] ? `⛔ ${jalonDe(P.jalon)}` : vie < P.min ? `${P.min - vie} 🏅` : '';
       return marche({ num: fait ? '✓' : k, nom: P.nom, sous: ici ? 'tu es ici' : suivant ? esc([manque, `Étoiles ×${String(P.etoile).replace('.', ',')}`].filter(Boolean).join(' · ')) : '', bout: fait || suivant ? '' : `${P.min} 🏅`, etat: ici ? 'ici' : fait ? 'fait' : suivant ? 'suivant' : 'loin' });
     }).reverse().join('')}</div>`
-    : `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
+    : `<p class="vs-sec">Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
     <div class="vs-jalons">${PRESTIGES.map((P, k) => {
       const fait = k <= rang;
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${fait ? '✓' : k}</span><b>${esc(P.nom)}</b><span>${fait ? esc(quoiDe(P)) : `${P.min} 🏅 à vie${P.jalon ? ` et « ${esc(jalonDe(P.jalon))} »` : ''} → ${esc(quoiDe(P))}`}</span></div>`;

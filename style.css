@@ -497,6 +497,7 @@ body:not(.au-repechage) #capGauge { display: none; }
 .retour-btn:hover { background: var(--fond-2); }
 .retour-btn:hover .ico { transform: translateX(-3px); }
 .retour-btn:active { transform: scale(0.96); }
+body.mode-rogue .retour-btn { background: var(--fond-2); color: var(--encre); }
 
 /* ---- LES ONGLETS (Jalon U : un seul dessin ; JP : *penser comme GM Connected*) : une rangée de mots, l'ouvert est un bloc plein et clair, texte noir ; les autres sont creux. Les sous-pages d'une section,
         les onglets d'une fenêtre (inventaire, boutique, bilan, statistiques) et les vues du cartable. ---- */
@@ -4164,14 +4165,14 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-jeton.pl-ton-rouge.on { background: var(--mauvais); color: var(--blanc); }
 /* Le chiffre en coin, sur l'ardoise noire : la stat du tri, « 19 fois », « Niveau 3 », l'édition. */
 .pl-coin { position: absolute; top: -7px; z-index: 5; display: inline-flex; align-items: baseline; gap: 2px; padding: 2px 6px; border: 1px solid var(--or); border-radius: var(--r-1); background: var(--noir-pur); color: var(--or); font: 900 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pl-coin small { font-size: 0.6em; letter-spacing: 0.08em; text-transform: uppercase; }
+.pl-coin small { font-size: 0.6em; letter-spacing: 0.02em; }
 .pl-coin-droite { right: -4px; }
 .pl-coin-gauche { left: -4px; }
 .pl-coin-rouge { border-color: var(--mauvais); color: var(--mauvais); }
 .pl-coin-vert { border-color: var(--bon); color: var(--bon); }
 .pl-coin-gris { border-color: var(--filet-2); color: var(--encre-2); }
 .pl-coin-bleu { border-color: var(--bleu); color: var(--bleu); }
-.pl-coin-petit { font-size: var(--t-1); letter-spacing: 0.1em; text-transform: uppercase; }
+.pl-coin-petit { font-size: var(--t-1); letter-spacing: 0.02em; }
 /* La carte et sa ligne : le carton tel quel, pleine colonne, sa ligne en capitales dessous ; ses jambes en barre. */
 .pl-carte { position: relative; display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 0; border: 0; background: none; color: inherit; text-align: center; transform-origin: bottom center; }
 .pl-carte .carton { width: 100%; }
@@ -4179,7 +4180,7 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-carte .tcv-corps { font-size: 9.5cqw; line-height: 1.2; gap: 2px; }
 .pl-carte .tcv-pied { display: none; }
 .pl-carte .tc-texte .bon { color: var(--bon); }
-.pl-carte-l { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
+.pl-carte-l { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 .pl-carte-l b { color: var(--encre); }
 .pl-carte-l .badge { font-style: normal; }
 .pl-carte-touche { cursor: pointer; }
@@ -4192,7 +4193,7 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-barre i { display: block; height: 100%; background: var(--attention); }
 .pl-barre i.frais { background: var(--bon); }
 .pl-barre i.use { background: var(--mauvais); }
-.pl-vide { display: grid; place-items: center; aspect-ratio: 5 / 7; border: 1px dashed var(--filet-2); border-radius: 4.5% / 3.2%; font: 800 var(--t-1)/1.3 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); text-align: center; }
+.pl-vide { display: grid; place-items: center; aspect-ratio: 5 / 7; border: 1px dashed var(--filet-2); border-radius: 4.5% / 3.2%; font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.02em; color: var(--encre-3); text-align: center; }
 .pl-carte-vide.pl-ton-rouge .pl-vide { border-color: var(--mauvais); color: var(--mauvais); }
 /* La grille : trois cartes de front, quatre pour la main (en éventail). */
 .pl-grille { display: grid; gap: var(--esp-4) var(--esp-2); padding-top: var(--esp-2); }
@@ -4208,13 +4209,13 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-cellule { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--esp-1) 0; text-align: center; }
 .pl-cellule + .pl-cellule { border-left: 1px solid var(--filet); }
 .pl-cellule b { font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; }
-.pl-cellule small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.pl-cellule small { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 /* Les visages : quatre de front, le filet du haut à la couleur de l'état. */
 .pl-visages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--esp-2); }
 .pl-visage { display: flex; flex-direction: column; align-items: center; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) var(--esp-1); border-top: 3px solid var(--filet-2); border-radius: var(--r-1); background: var(--fond-2); text-align: center; }
 .pl-visage .rond-visage { width: 52px; height: 52px; }
-.pl-visage b { max-width: 100%; font: 800 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-visage small { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+.pl-visage b { max-width: 100%; font: 600 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-visage small { font: 600 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 .pl-ton-feu { --pl-ton: var(--attention); }
 .pl-ton-doute { --pl-ton: var(--bleu); }
 .pl-ton-blesse, .pl-ton-rouge { --pl-ton: var(--mauvais); }
@@ -4228,8 +4229,8 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-rangee .rond-visage { width: 34px; height: 34px; }
 .pl-rangee-ico { display: grid; place-items: center; width: 34px; font-size: var(--t-4); line-height: 1; }
 .pl-rangee-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.pl-rangee-t b { font: 800 var(--t-2)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-rangee-t small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-rangee-t b { font: 600 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-rangee-t small { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-rangee-c { font: 900 var(--t-5)/1 var(--display); color: var(--pl-ton, var(--or)); font-variant-numeric: tabular-nums; }
 .pl-rangee-c small { font-size: var(--t-1); color: var(--encre-3); }
 /* Les billets de la route : quand et où, l'écusson, le sigle, son rang et sa fiche ; encochés ; ce soir cerné de blanc, le gros match d'or.
@@ -4249,7 +4250,7 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-billet .pl-coin { top: auto; bottom: var(--esp-1); right: var(--esp-1); border: 0; padding: 0; background: none; }
 /* Les marches de l'échelle : les faites cochées, la tienne cernée d'or, la prochaine dit ce qui manque, les lointaines en sourdine. */
 .pl-echelle { display: grid; gap: var(--esp-1); }
-.pl-marche { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 40px; padding: 0 var(--esp-2); border-radius: var(--r-1); background: var(--fond-1); font: 800 var(--t-2)/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.02em; }
+.pl-marche { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 40px; padding: 0 var(--esp-2); border-radius: var(--r-1); background: var(--fond-1); font: 600 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; }
 .pl-marche i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--fond-3); color: var(--encre-3); font: 800 var(--t-1)/1 var(--display); font-style: normal; }
 .pl-marche-fait i { background: var(--bon); color: var(--noir-pur); }
 .pl-marche-ici { outline: 1px solid var(--or); background: color-mix(in srgb, var(--or) 12%, var(--fond-1)); }
@@ -4265,11 +4266,11 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-marche-loin { opacity: 0.6; }
 /* Le podium : le premier au centre et plus haut, sur l'or. */
 /* La tête de la boutique, en une ligne : tes jetons, jusqu'où tu signes (nov. 2026, le contenu, de zéro). */
-.pk-tete { font: 800 var(--t-3)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--or); font-variant-numeric: tabular-nums; }
+.pk-tete { font: 600 var(--t-3)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .pl-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); align-items: end; margin: var(--esp-3) 0 var(--esp-2); padding: var(--esp-2) var(--esp-2) 0; }
 .pl-podium-2 { width: 92%; justify-self: end; }
 .pl-podium-3 { width: 88%; }
-.pl-podium-1 .carton { box-shadow: 0 0 18px color-mix(in srgb, var(--or) 45%, transparent); }
+.pl-podium-1 .carton { box-shadow: 0 0 0 1px color-mix(in srgb, var(--or) 60%, transparent); }
 .pl-podium .pl-coin-gauche { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; background: var(--encre-3); color: var(--noir-pur); font-size: var(--t-2); }
 .pl-podium-1 .pl-coin-gauche { background: var(--or); color: var(--encre-sur-or); }
 .pl-podium .pl-carte-l .lien-equipe { color: var(--encre-3); }
@@ -4339,6 +4340,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-rangee { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: 0; background: var(--fond-2); text-align: left; font: 700 var(--t-2)/1.2 var(--display); color: var(--encre-2); }
 .hub-rangee::after { content: "›"; flex: none; margin-left: auto; font-size: var(--t-4); color: var(--or); }
 .hub-rangee-t { flex: none; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-rangee-t { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-rangee b { flex: 1; min-width: 0; color: var(--encre); overflow-wrap: anywhere; }
 /* Ton plan, sous l'affiche : une bande pleine largeur elle aussi, sans cadre. */
 /* L'ÉTAT DU SOIR (nov. 2026 ; JP : *where the infos are*) : ce qui pèse ce soir — sonnés, la lancée, un dos-à-dos — en jetons sous l'affiche.
@@ -4358,7 +4360,9 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-hier-pointage > span { color: var(--encre-2); }
 .hub-hier-pointage small { margin-left: 2px; font-size: var(--t-1); color: var(--encre-3); }
 .hub-hier-mot { min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mode-rogue .hub-hier-mot { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-hier-ligne .hub-hier-voir { padding-right: var(--esp-3); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+body.mode-rogue .hub-hier-ligne .hub-hier-voir { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-hier-ligne.neuf { animation: hier-neuf 200ms var(--e-ressort) both; }
 /* LA ROUTE (V8) : deux semaines, un arrêt par match, le gros match en or, le lundi, le pack gratuit. */
 .bu-route { padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
@@ -4423,7 +4427,9 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-page-ico { flex: none; font-size: var(--t-4); line-height: 1; }
 .hub-page-titres { flex: 1 1 auto; min-width: 0; }
 .hub-page-titre { margin: 0; font: 800 var(--t-4)/1.05 var(--display); letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mode-rogue .hub-page-titre { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-page-sous { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
+body.mode-rogue .hub-page-sous { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-page-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
 .hub-page-corps > * { flex: none; }
 .hub-page-pied { position: sticky; bottom: 0; z-index: 3; padding-bottom: calc(var(--esp-3) + var(--safe-bas)); }
@@ -4475,6 +4481,7 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-eq-band { display: flex; align-items: center; gap: var(--esp-2); max-width: 100%; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .hub-eq.b .hub-eq-band { flex-direction: row-reverse; }
 .hub-eq-nom { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mode-rogue .hub-eq-nom { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-eq-nom .lien-equipe { color: inherit; max-width: 100%; }
 .hub-eq-fiche { max-width: 100%; margin-top: var(--esp-1); font: 700 var(--t-2)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* La forme : cinq lettres colorées sur UNE bande sombre sous les deux clubs, lisibles sur n'importe quelle couleur ;
@@ -4485,18 +4492,22 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .forme-p.v { color: var(--bon); }
 .forme-p.d { color: var(--mauvais); }
 .forme-p.dp { color: var(--attention); }
-.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 1px 3px color-mix(in srgb, var(--noir) 85%, transparent), 0 0 12px color-mix(in srgb, var(--noir) 60%, transparent); }
+.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); }
 .hub-forces { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); }
 .hub-forces table { width: 100%; border-collapse: collapse; table-layout: fixed; font: 700 var(--t-2)/1.3 var(--display); font-variant-numeric: tabular-nums; }
 .hub-forces caption { caption-side: top; padding-bottom: var(--esp-1); text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-forces caption { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-forces th, .hub-forces td { padding: 2px 0; text-align: center; color: var(--encre-2); }
 .hub-forces tbody th { width: 22%; text-align: left; letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mode-rogue .hub-forces tbody th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-forces td.av.moi { color: var(--bon); }
 .hub-forces td.av.lui { color: var(--mauvais); }
 /* Le duel du soir (V7) : ta colonne à gauche, la leur à droite, le libellé au centre ; le meilleur s'allume. */
 table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hub-duel-titre { padding: var(--esp-2) var(--esp-3) var(--esp-1); border-top: 1px solid var(--filet-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-duel-titre { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-duel th { padding: 6px var(--esp-2); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); text-align: center; }
+body.mode-rogue .hub-duel th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-duel td { width: 30%; padding: 6px var(--esp-3); font: 800 var(--t-3)/1 var(--display); color: var(--encre-2); }
 .hub-duel td.g { text-align: left; }
 .hub-duel td.d { text-align: right; }
@@ -4515,6 +4526,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 /* « Soir éreintant » : le seul badge, en or, parce qu'il change les règles du soir. */
 .hub-match-note.hub-ereintant { align-self: flex-start; margin: 0 var(--esp-3) var(--esp-2); padding: var(--esp-1) var(--esp-2); border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
 .hub-totaux { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2); padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); cursor: help; }
+body.mode-rogue .hub-totaux { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-totaux b { color: var(--encre); }
 .hub-encours { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 .hub-soir-gestes { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) var(--esp-3); }
@@ -4569,6 +4581,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 /* Le tournoi Sur table : le niveau de l'adversaire, une rangée à lui sous les boutons. */
 .hub-niveau { flex: 1 1 100%; display: flex; align-items: center; justify-content: center; gap: var(--esp-2); }
 .hub-niveau-t { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
+body.mode-rogue .hub-niveau-t { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-niveau .seg button { min-height: 44px; }
 
 /* ---- À faire (V9 ; V21, une boîte de réception) : une ligne par choix ; la toucher l'ouvre en plein écran ---- */
@@ -4578,6 +4591,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-boite-tete { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); }
 .hub-boite-titre { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-boite-compte { display: flex; gap: var(--esp-3); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+body.mode-rogue .hub-boite-compte { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-boite-compte .a-traiter { color: var(--mauvais); }
 .hub-boite-compte .a-jour { color: var(--encre-3); }
 /* V23 (JP : *trop de texte dans les pages genre boîte*) : un choix est une carte à jouer, pas un courriel — sa voix (son
@@ -4596,13 +4610,16 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-msg:hover, .hub-msg:focus-within { z-index: 2; rotate: 0deg; translate: 0 -12px; }
 .hub-msg-tete { width: 100%; min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: var(--esp-1); padding: var(--esp-2) var(--esp-2) var(--esp-2); border: 0; background: none; color: var(--encre); text-align: center; }
 .hub-msg-maison { align-self: stretch; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mode-rogue .hub-msg-maison { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-msg-ico { flex: none; display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; background: var(--fond-3); font-size: var(--t-5); line-height: 1; color: var(--encre); }
 .hub-msg-visage { width: 52px; height: 52px; }
 .hub-msg-txt { min-width: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .hub-msg-de { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-msg-de { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-msg-sujet { font: 800 var(--t-2)/1.1 var(--display); letter-spacing: 0.01em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 /* Son état, un tampon au pied : « À choisir » sur le rouge quand il presse. */
 .hub-msg-etat { flex: none; display: inline-flex; align-items: center; padding: 2px var(--esp-2); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; background: var(--or); color: var(--encre-sur-or); }
+body.mode-rogue .hub-msg-etat { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-msg-etat:empty { display: none; }
 .hub-msg.bloque .hub-msg-etat { background: var(--mauvais); color: var(--blanc); }
 .hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -4611,6 +4628,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .af-maison-tete { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-1); color: var(--encre-2); }
 .af-maison-ico { flex: none; font-size: var(--t-3); }
 .af-maison-titre { flex: 1; min-width: 0; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
+body.mode-rogue .af-maison-titre { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .af-maison-compte { flex: none; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 /* LE SOUS-ONGLET D'UNE MAISON : ce qu'il montre toujours (V12-2), sans tête — l'onglet le nomme déjà ; ses choix se règlent dans la boîte. */
 .af-onglet { display: flex; flex-direction: column; gap: var(--esp-3); }
@@ -4623,6 +4641,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .scene { display: flex; flex-direction: column; gap: var(--esp-1); margin: 0; padding: var(--esp-3) var(--esp-3) var(--esp-2); border-radius: var(--r-1); background: var(--fond-1); box-shadow: inset 4px 0 0 var(--or); }
 /* La voix en bandeau de nom, comme une entrevue à la télé : sa plaque d'or, puis sa phrase qui monte. */
 .scene-de { align-self: flex-start; padding: 3px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; animation: tele-balaie 360ms var(--e-sortie) both; }
+body.mode-rogue .scene-de { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .scene-mot { margin: 0; font: 800 var(--t-4)/1.25 var(--corps); color: var(--encre); animation: tele-monte 360ms 160ms var(--e-sortie) both; }
 .scene-fait { margin: 0; font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 /* Les plans du duel : le bouton `optionHtml`, serré, une colonne au téléphone. */
@@ -4653,6 +4672,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 /* Le rapport du dépisteur : vert ce qui marche, rouge ce qui coule. */
 .hub-rapport { display: flex; flex-direction: column; gap: var(--esp-1); }
 .hub-rap-s { margin-top: var(--esp-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-rap-s { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-rap-l { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 .hub-rap-l.bon { color: var(--bon); }
 .hub-rap-l.prix { color: var(--mauvais); }
@@ -4694,6 +4714,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-titre:first-child { margin-top: 0; }
 .hub-hier { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0; row-gap: var(--esp-1); padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
 .hub-hier-quand { grid-row: 1 / span 2; display: flex; align-items: center; justify-content: center; padding: var(--esp-2) 6px; writing-mode: vertical-rl; rotate: 180deg; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; background: var(--filet); color: var(--blanc); }
+body.mode-rogue .hub-hier-quand { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-hier.v .hub-hier-quand { background: var(--bon); color: var(--noir-pur); }
 .hub-hier.d .hub-hier-quand { background: var(--mauvais); }
 .hub-hier.v.neuf .hub-hier-score { animation: score-pop 600ms var(--e-ressort) 150ms backwards; }
@@ -4707,9 +4728,11 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-hier-eq em { flex: none; min-width: 1.6em; padding: var(--esp-1) var(--esp-3); text-align: center; font-style: normal; font-size: var(--t-6); background: var(--noir-pur); color: var(--blanc); }
 .hub-hier-eq.perd { filter: saturate(0.35) brightness(0.7); }
 .hub-hier-pied { grid-column: 2; display: flex; justify-content: space-between; gap: var(--esp-2); padding: 0 var(--esp-2); font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-hier-pied { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-hier-recit { grid-column: 1 / -1; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-hier-voir { color: var(--or); }
+body.mode-rogue .hub-hier-voir { color: var(--encre-2); }
 /* LE PROPRIO (nov. 2026 ; JP : *where the infos are*) : des blocs, un chiffre en gros chacun — le mandat et ton rang, la prévision,
    l'objectif, l'argent (la caisse, la masse, les salaires du banc), tes rivaux sur leur plaque, ses verdicts. */
 .pr { display: flex; flex-direction: column; gap: var(--esp-2); }
@@ -4726,18 +4749,22 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .pr-rang .pr-gros { font-size: var(--t-7); }
 .pr-rang-txt { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
 .pr-rang-txt small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .pr-rang-txt small { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .pr-rang-txt .bu-run-jauge { grid-column: auto; }
 .pr-bloc .tuile-jauge { width: 100%; }
 .pr-bloc > small { font-size: var(--t-1); color: var(--encre-3); }
 .pr-plaques { display: grid; gap: var(--esp-1); }
 .pr-rival { display: flex; align-items: center; gap: var(--esp-2); min-height: 40px; padding: var(--esp-1) var(--esp-2); border-left: 4px solid var(--eq-band); border-radius: var(--r-1); background: color-mix(in srgb, var(--eq-band) 18%, var(--fond-2)); }
 .pr-rival b { flex: 1; min-width: 0; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.mode-rogue .pr-rival b { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .pr-rival small { font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.04em; color: var(--or); font-variant-numeric: tabular-nums; }
 .pr .hub-etat-l { font-size: var(--t-2); }
 .hub-titre-d { margin-left: auto; color: var(--or); }
+body.mode-rogue .hub-titre-d { color: var(--encre-2); }
 .hub-etat { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
 .hub-etat-l { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); min-width: 0; font-size: var(--t-2); }
 .hub-etat-k { flex: none; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-etat-k { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-etat-v { min-width: 0; }
 .hub-etat-v b { font: 800 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; }
 /* V23, la nouvelle interface : le mandat du proprio se lit comme un contrat — ce qu'il veut en gros, la suite dessous. */
@@ -4777,6 +4804,7 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-volet .live-tableau table { width: 100%; border-collapse: collapse; font-size: var(--t-2); font-variant-numeric: tabular-nums; }
 .hub-volet .live-tableau th, .hub-volet .live-tableau td { height: 40px; padding: 0 var(--esp-2); text-align: right; white-space: nowrap; vertical-align: middle; }
 .hub-volet .live-tableau thead th { position: sticky; top: 0; z-index: 2; background: var(--noir); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-volet .live-tableau thead th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-volet .live-tableau tbody td { background: var(--noir); border-bottom: 1px solid var(--filet-2); }
 .hub-volet .live-tableau tbody tr:last-child td { border-bottom: 0; }
 .hub-volet .live-tableau tbody tr:hover td { background: var(--fond-1); }
@@ -4784,6 +4812,7 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-volet .live-tableau td.nom { text-align: left; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 .hub-volet .live-tableau td.nom > .team-logo-img, .hub-volet .live-tableau td.nom > .team-logo-inline { vertical-align: -3px; margin-right: 5px; }
 .hub-volet .live-tableau td.eq, .hub-volet .live-tableau td.role { font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .hub-volet .live-tableau td.eq, body.mode-rogue .hub-volet .live-tableau td.role { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-volet .live-tableau .heros { font: 800 var(--t-3)/1 var(--display); color: var(--or); }
 .hub-volet .live-tableau tr.toi td { background: color-mix(in srgb, var(--club-vif) 22%, var(--noir)); color: var(--encre); font-weight: 800; }
 .hub-volet .live-tableau tr.toi td:first-child { box-shadow: inset 3px 0 0 var(--club-vif); }
@@ -4848,6 +4877,7 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .hub-chips { display: flex; gap: var(--esp-1); overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .hub-chips::-webkit-scrollbar { display: none; }
 .hub-chips button { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; transition: color var(--t-vite), border-color var(--t-vite); }
+body.mode-rogue .hub-chips button { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-chips button:hover { color: var(--encre); }
 .hub-chips button.on { color: var(--encre); border-bottom-color: var(--or); }
 
@@ -4928,6 +4958,7 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 /* Le dépistage, une page du Club hors du Rogue : tes chances, puis le détail. */
 .dep2-chances { display: flex; flex-direction: column; gap: var(--esp-1); }
 .dep2-chances-mots { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); }
+body.mode-rogue .dep2-chances-mots { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .dep2-chances-mots b { font: 800 var(--t-5)/1 var(--display); color: var(--encre); font-variant-numeric: tabular-nums; }
 .dep2-prol { font: 600 var(--t-1)/1.2 var(--display); text-transform: none; text-align: center; color: var(--encre-3); }
 .dep2-barre { display: flex; height: 8px; border-radius: var(--r-1); overflow: hidden; background: var(--lui, var(--fond-3)); }
@@ -4936,10 +4967,13 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .dep2-note { font-size: var(--t-1); line-height: 1.35; color: var(--encre-3); }
 .dep3-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--t-2); }
 .dep3-table caption { caption-side: top; text-align: left; padding: 0 0 var(--esp-1); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .dep3-table caption { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .dep3-table thead th { padding: 0 var(--esp-1) var(--esp-1); font: 800 var(--t-1)/1.1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
+body.mode-rogue .dep3-table thead th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .dep3-table thead th:first-child { width: 34%; }
 .dep3-table thead th:nth-child(3) { width: 24px; }
 .dep3-table th[scope="row"] { padding: var(--esp-2) var(--esp-1) var(--esp-2) 0; text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); }
+body.mode-rogue .dep3-table th[scope="row"] { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .dep3-table td, .dep3-table th[scope="row"] { border-top: 1px solid var(--filet-2); vertical-align: middle; }
 .dep3-moi, .dep3-lui { padding: var(--esp-2) var(--esp-1); text-align: center; line-height: 1.1; }
 .dep3-table td b { display: block; font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; }
@@ -4989,6 +5023,7 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .rl-table th, .rl-table td { padding: var(--esp-2) var(--esp-1); text-align: right; border-bottom: 1px solid var(--filet-2); }
 .rl-table th:first-child, .rl-table td:first-child { text-align: left; }
 .rl-table th { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .rl-table th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 
 /* ---- Le tournoi Sur table au bureau : le prochain duel, la fin ---- */
 .hub-prochain { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
@@ -5020,6 +5055,7 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .ff-rang b.bon { color: var(--bon); }
 .ff-rang b.mauvais { color: var(--mauvais); }
 .ff-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); text-align: center; }
+body.mode-rogue .ff-k { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .ff-barre { grid-column: 1 / -1; display: block; height: 6px; margin-top: 4px; border-radius: var(--r-1); background: var(--b-duel, var(--encre-3)); overflow: hidden; }
 .ff-barre em { display: block; height: 100%; background: var(--a-duel, var(--club-vif)); }
 .ff-mot { padding: 0 var(--esp-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
@@ -6331,19 +6367,20 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 /* LE PLATEAU (nov. 2026 ; JP : *ça permet de mieux voir les cartes*) : en Rogue, l'effectif en grille de vraies cartes, trois de
    front ; la stat du tri en coin sur l'ardoise d'or, ses jambes en barre sous la carte, sa case et ses badges en une ligne. */
 .jr-tri { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); margin-bottom: var(--esp-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+body.mode-rogue .jr-tri { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .jr-tri .pl-jetons { margin: 0; }
 /* V23, la nouvelle interface : au Rogue, ton effectif comme une fiche de télé — sans cadre, sur le noir, les noms en capitales. */
 body.mode-rogue .jr-scroll { border: 0; border-radius: 0; background: none; }
 body.mode-rogue .jr-table th, body.mode-rogue .jr-table .jr-col-nom { background: var(--noir-pur); }
-body.mode-rogue .jr-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
+body.mode-rogue .jr-nom { font: 600 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; }
 /* ---- Le cartable (js/cartable.js, #pageCartable) : une reliure, des feuilles de neuf pochettes ---- */
 .ct { display: flex; flex-direction: column; gap: var(--esp-3); height: 100%; min-height: 0; }
 .ct-tete { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); flex-wrap: wrap; }
 .ct-comptes { display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; }
-.ct-total { font: 600 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); }
+.ct-total { font: 600 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .ct-total b { color: var(--encre); font: 800 var(--t-5)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .ct-vars { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); }
-.ct-var { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; }
+.ct-var { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.02em; color: var(--encre-2); white-space: nowrap; }
 .ct-var b { color: var(--encre); font-variant-numeric: tabular-nums; }
 .ct-var.v-num { color: var(--or); }
 /* Nov. 2026 : les vues de l'Album tiennent à 390 px (Coachs était coupé au bord), rien ne glisse. */
@@ -6352,7 +6389,7 @@ body.mode-rogue .jr-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacin
 .ct-nav { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }
 .ct-nav-btn { flex: none; width: 44px; height: 40px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 800 var(--t-4)/1 var(--display); }
 .ct-nav-btn:disabled { opacity: 0.35; }
-.ct-nav-mot { font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
+.ct-nav-mot { font: 600 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .ct-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-3); }
 .ct-corps > * { flex-shrink: 0; }
 .ct-mot { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
@@ -6415,7 +6452,7 @@ body.mode-rogue .jr-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacin
   background: color-mix(in srgb, var(--encre) 4%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--encre) 8%, transparent);
 }
-.ct-folio { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--esp-2); margin: var(--esp-2) 0 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+.ct-folio { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--esp-2); margin: var(--esp-2) 0 0; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 .ct-folio b { color: var(--encre-2); font-weight: 800; }
 .ct-folio span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ct-folio span:last-child { margin-left: auto; }
@@ -6423,12 +6460,12 @@ body.mode-rogue .jr-nom { font: 800 var(--t-3)/1.1 var(--display); letter-spacin
 .ct-autres:hover, .ct-autres:focus-visible { border-color: var(--or); color: var(--or); }
 .ct-stats { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--t-1); line-height: 1.3; font-variant-numeric: tabular-nums; }
 .ct-ligne { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.ct-ligne i { margin-right: var(--esp-1); font: 700 var(--t-1)/1.2 var(--display); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.ct-ligne i { margin-right: var(--esp-1); font: 600 var(--t-1)/1.2 var(--display); font-style: normal; letter-spacing: 0.02em; color: var(--encre-3); }
 .ct-sim { color: var(--encre); }
 .ct-vraie { color: var(--encre-2); }
 .ct-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2); font: 700 var(--t-1)/1.3 var(--display); }
 /* L'édition d'une carte du cartable, en mots, et la barre de ses doublons vers la suivante (trois la montent). */
-.ct-ed { color: var(--encre-2); letter-spacing: 0.04em; text-transform: uppercase; }
+.ct-ed { color: var(--encre-2); letter-spacing: 0.02em; }
 /* LE PLATEAU (nov. 2026) : l'édition d'une carte de ton équipe en coin de sa pochette dès Cadre, « ×2 » en coin pour un doublon
    (js/plateau-rogue.js `coin`) ; rien sous la carte (le contenu, de zéro). */
 .ct-carte .pl-coin { top: 2px; }
@@ -6447,11 +6484,11 @@ body.mode-rogue .ct-mot { display: none; }
 .ct-set { border-radius: var(--r-1); background: var(--fond-1); box-shadow: inset 0 0 0 1px var(--filet); }
 .ct-set-tete { display: flex; align-items: center; gap: var(--esp-3); min-height: 48px; padding: var(--esp-2) var(--esp-3); box-shadow: inset 3px 0 0 var(--or); }
 .ct-set-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
-.ct-set-sous { flex: 1; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+.ct-set-sous { flex: 1; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 .ct-set-n { font: 800 var(--t-4)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
 .ct-set-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: 0 var(--esp-2) var(--esp-3); }
 .ct-missions { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-1); box-shadow: inset 0 0 0 1px var(--filet); }
-.ct-missions-t { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+.ct-missions-t { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 /* Une mission en une ligne (nov. 2026) : le nom, où elle en est, ce qu'elle paie. */
 .ct-mission { display: flex; justify-content: space-between; gap: var(--esp-2); align-items: baseline; min-height: 28px; }
 .ct-mission-nom { min-width: 0; font: 800 var(--t-3)/1.2 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -6459,7 +6496,7 @@ body.mode-rogue .ct-mot { display: none; }
 .ct-mission.faite .ct-mission-nom, .ct-mission.faite .ct-mission-n { color: var(--or); }
 .ct-reliure > .ct-page-tete, .ct-reliure > .ct-vide { grid-column: 1 / -1; }
 .ct-page-tete { display: flex; align-items: center; gap: var(--esp-2); margin: 0; font-size: var(--t-2); }
-.ct-page-tete b { font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
+.ct-page-tete b { font: 600 var(--t-3)/1 var(--display); letter-spacing: 0.02em; }
 .ct-completion { font: 700 var(--t-2)/1 var(--display); color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .ct-completion.complet { color: var(--or); }
 .ct-barre { flex: 1; max-width: 160px; height: 4px; border-radius: var(--r-1); background: var(--fond-3); overflow: hidden; }
@@ -6507,8 +6544,8 @@ body.mode-rogue .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2
 .pk-club-mini.porte { border-color: var(--or); box-shadow: inset 0 0 0 1px var(--or); }
 .pk-club-mini-ecu { display: grid; place-items: center; width: 40px; height: 40px; font: 800 var(--t-6)/1 var(--display); color: var(--or); }
 .pk-club-mini-ecu > svg { width: 100%; height: 100%; }
-.pk-club-mini b { max-width: 100%; font: 800 var(--t-1)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pk-club-mini small { font: 700 var(--t-1)/1.1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+.pk-club-mini b { max-width: 100%; font: 600 var(--t-1)/1.1 var(--display); letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pk-club-mini small { font: 600 var(--t-1)/1.1 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 .pk-club-mini.porte small { color: var(--or); }
 .pk-club-mini.pk-club-plus small { color: var(--or); }
 /* Le rayon « Ton club » : l'écusson tient la place de la pochette. */
@@ -6543,8 +6580,8 @@ body.mode-rogue .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2
 .pk-sachet { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 5; border-radius: var(--r-1); overflow: hidden; background: linear-gradient(155deg, color-mix(in srgb, var(--pk-a) 45%, var(--noir-pur)) 0%, var(--pk-a) 36%, color-mix(in srgb, var(--pk-a) 45%, var(--blanc)) 50%, var(--pk-a) 64%, color-mix(in srgb, var(--pk-a) 40%, var(--noir-pur)) 100%); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--pk-a) 55%, var(--noir-pur)), 0 12px 20px -12px var(--noir-pur); }
 .pk-dent { position: absolute; top: 0; left: 0; right: 0; height: 7px; background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--noir-pur) 40%, transparent) 0 3px, transparent 3px 6px); }
 .pk-sachet .pk-ico { font-size: var(--t-6); line-height: 1; color: color-mix(in srgb, var(--noir-pur) 78%, var(--pk-a)); }
-.pk-tier { position: absolute; bottom: 0; left: 0; right: 0; padding: 3px 0; text-align: center; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; background: color-mix(in srgb, var(--noir-pur) 70%, transparent); color: var(--pk-a); }
-.pk-nom { font: 800 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; text-transform: uppercase; overflow-wrap: anywhere; }
+.pk-tier { position: absolute; bottom: 0; left: 0; right: 0; padding: 3px 0; text-align: center; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; background: color-mix(in srgb, var(--noir-pur) 70%, transparent); color: var(--pk-a); }
+.pk-nom { font: 600 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
 .pk-n { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.03em; color: var(--encre-2); overflow-wrap: anywhere; }
 .pk-prix { display: flex; flex-direction: column; gap: 2px; margin-top: auto; font: 800 var(--t-4)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
 .pk-prix s { color: var(--encre-3); font-weight: 600; font-size: var(--t-2); }
@@ -6571,7 +6608,7 @@ body.mode-rogue .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2
 .pk-chances tr.pk-niveau + tr:not(.pk-niveau) { border-top-width: 2px; }
 .pk-chances tr.pk-maudite th, .pk-chances tr.pk-maudite td { color: var(--mauvais); }
 .pk-num, .pk-verrou { margin: var(--esp-3) 0 0; font-size: var(--t-1); line-height: 1.45; color: var(--encre-3); }
-.pk-choix { display: flex; flex-direction: column; gap: var(--esp-1); margin-top: var(--esp-3); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+.pk-choix { display: flex; flex-direction: column; gap: var(--esp-1); margin-top: var(--esp-3); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 .pk-choix select { min-height: 44px; padding: 0 var(--esp-3); border-radius: var(--r-1); border: 1px solid transparent; background: var(--fond-2); color: var(--encre); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: none; }
 .pk-choix select:focus { border-color: var(--choisi); outline: none; }
 .pk-fiche-actions { display: flex; gap: var(--esp-2); margin-top: var(--esp-4); }
@@ -6609,17 +6646,17 @@ body.mode-rogue .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2
 .inv-onglets::-webkit-scrollbar { display: none; }
 .inv-corps { gap: var(--esp-3); }
 .inv-mot { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
-.inv-sec { margin: var(--esp-2) 0 0; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
+.inv-sec { margin: var(--esp-2) 0 0; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 .inv-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: var(--esp-2); }
 .inv-vide { grid-column: 1 / -1; }
-.inv-progres { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-4); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
+.inv-progres { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-4); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .inv-prog { display: flex; align-items: baseline; gap: var(--esp-1); }
 .inv-prog b { color: var(--encre); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }
 /* Tes coachs (v2) : un coach par rangée, sa jauge aux seuils 3, 6, 9, ce que sa confiance joue et la suivante. */
 /* La masse salariale : le montant, la barre, ce qui tord le plafond. */
 .inv-sheet > .ej-coach { margin: var(--esp-3) var(--esp-4) 0; }
 .inv-plafond { margin: var(--esp-3) var(--esp-4) 0; padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
-.inv-pl-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
+.inv-pl-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .inv-pl-tete b { color: var(--encre); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .inv-pl-barre { height: 4px; margin: var(--esp-2) 0; border-radius: var(--r-1); background: var(--fond-3); overflow: hidden; }
 .inv-pl-barre i { display: block; height: 100%; background: var(--bon); }
