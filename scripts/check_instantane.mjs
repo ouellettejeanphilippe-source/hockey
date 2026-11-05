@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, rembobiner, rembobinerSeries, creerSeries, jouerMatchSeries, bilanLigue, generateur, getPlayerKey } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, verdict } from './verdict.mjs';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');

@@ -13,8 +13,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, getPlayerKey, suivisEnCours,
-  OBJECTIFS, etatObjectif, joueurDeLObjectif, MATCHS_OBJECTIF } from '../js/sim.js';
+import {
+  autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, getPlayerKey, OBJECTIFS, etatObjectif, joueurDeLObjectif, MATCHS_OBJECTIF
+} from '../js/sim.js';
+import { suivisEnCours } from '../js/greffes.js';
 import { filsDeSaison } from '../js/recit.js';
 import { CHOIX_DES_FILS, motDuSuiviEnCours } from '../js/vie-gm.js';
 import { equipeReelle } from './lib/vestiaires.mjs';

@@ -25,6 +25,7 @@ import { COACHS } from '../js/coachs.js';
 import { banc } from '../js/profil-style.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const N = Number(process.env.N ?? 400);
 const MESURE = process.env.MESURE !== '0';

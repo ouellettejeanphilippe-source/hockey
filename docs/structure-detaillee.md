@@ -98,7 +98,7 @@ scripts/mock_prod_sim.mjs   maquette : la simulation par production réelle cont
 scripts/mock_zones.mjs      le malus de zone ferme-t-il l'empilement ?
 scripts/sonde_aptitudes.mjs l'échelle des profils sur 330 vraies équipes
 scripts/sonde_gros_matchs.mjs combien de gros matchs par saison
-scripts/mesure_prep.mjs, mesure_rogue.mjs, mesure_defilement.mjs   des mesures d'époque (S76-S77), gardées
+scripts/mesure_rogue.mjs, mesure_defilement.mjs   des mesures d'époque (S76-S77), gardées
 scripts/mesure_main.mjs   la main d'adjoints de l'attentif : les cartes qui ne jouent jamais un séjour, l'occupation des cases (nov. 2026)
 scripts/mesure_rythme.mjs le rythme d'une saison de l'attentif : les matchs où la saison demande quelque chose, le plus long trou, les quarts (nov. 2026)
 ```
@@ -152,7 +152,7 @@ Leur propre étape au CI : `check_coquille`, `check_graine`, `check_instantane`,
 À lancer à part (trop lents, ou rouges par construction tant qu'un item est ouvert) :
 
 ```
-check_packs (une demi-minute), check_gardiens, check_combat, check_jambes (une minute), check_chiffres (une minute),
+check_packs (une demi-minute), check_gardiens, check_jambes (une minute), check_chiffres (une minute),
 check_banque (une douzaine de minutes), check_affinite (trois minutes), check_duel (six minutes ; N),
 check_retours (deux minutes ; GRAINES), check_arcs (deux minutes), check_suivis, check_effets (vingt minutes ; N, IDS),
 check_pouvoirs sans MESURE=0 (cinq minutes sur quatre processus ; N, COACHS, FILS), check_cartes, check_paliers,

@@ -19,7 +19,6 @@
  */
 
 import { tirsTotal } from './sim.js';
-import { CARTES_MATCH } from './combat.js';
 import { virgule } from './util.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, niveauDuPerso } from './pouvoirs.js';
 import { ADJOINTS, NOMS_NIV, nivDe } from './adjoints.js';
@@ -122,9 +121,9 @@ export function motDeStyle(p, l) {
 export const dire = (x, d = 1) => (x == null ? '—' : virgule(x.toFixed(d)));
 
 /**
- * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les pouvoirs du coach qui ont joué (V21, la feuille les garde), les
- * effets en cours (événements, dilemmes, séquences, paris), les cartes de match jouées. Tout se relit des décisions, de
- * la feuille et des effets datés de l'équipe : rien n'est stocké, rien n'est deviné.
+ * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les pouvoirs du coach qui ont joué (V21, la feuille les garde) et les
+ * effets en cours (les histoires, les paris). Tout se relit de la feuille et des effets datés de l'équipe : rien n'est
+ * stocké, rien n'est deviné.
  */
 export function buildDuSoir(team, jour, feuille = null) {
   const nomIco = x => `${x.ico ? `${x.ico} ` : ''}${x.nom}`;
@@ -132,8 +131,7 @@ export function buildDuSoir(team, jour, feuille = null) {
   const pouvoirs = ((feuille && feuille.pouvoirs) || []).filter(x => x.cote === cote).map(x => `${nomIco(x)} (${x.k + 1}${x.k ? 'e' : 're'})`);
   const effets = ((team && team.effets) || []).filter(e => e.nom && e.source !== 'match' && jour >= e.debut && jour < e.fin).map(nomIco);
   const unique = xs => [...new Set(xs)];
-  const jouees = ((feuille && feuille.cartes && feuille.cartes.jouees) || []).filter(c => CARTES_MATCH[c]).map(c => nomIco(CARTES_MATCH[c]));
-  return { pouvoirs, effets: unique(effets), jouees };
+  return { pouvoirs, effets: unique(effets) };
 }
 
 /**

@@ -23,11 +23,11 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe, PLANS_ADV, BAGARRE_JAMBES, ELAN_DUREE, motDeBlessure, INTENTIONS, PLANS } from './sim.js';
-import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
+import { periodeDe, BAGARRE_JAMBES, ELAN_DUREE } from './sim.js';
+import { INTENTIONS, PLANS } from './greffes.js';
+import { tempsRestant, NOM_PERIODE, nomCourt, profil, motDeBlessure } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { causeDuBut } from './causes.js';
-import { CARTES_MATCH } from './combat.js';
 import { jouerSon } from './sons.js';
 import { ord, ordF, cap, nom, varsEquipe } from './util.js';
 import { creerGlace } from './glace.js';
@@ -218,13 +218,13 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  *   sansSortie un gros match : pas de ✕
  */
 /*
- * LE DEUXIÈME ENTRACTE D'UN GROS MATCH (S70). `arret` : la minute où le direct
+ * L'ENTRACTE D'UN DUEL (S70, V9 ; V25 : `pauses`, les fins de période où un gros match du 82-0 marque une pause). `arret` : la minute où le direct
  * s'arrête — 40, la fin de la deuxième période ; 20 aussi pour le duel (V9) — et
  * rend la main (`onArret`) sans révéler la suite : le choix rejoue la période
  * qui vient. `depuis` : le direct reprend à cette minute, ce qui précède posé
  * d'un coup dans le fil.
  */
-export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, arret = null, onArret = null, depuis = 0, sansSortie = false }) {
+export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, arret = null, onArret = null, depuis = 0, pauses = null, sansSortie = false }) {
   const modal = document.getElementById('liveModal');
   if (!modal || !f) { onTermine(); return; }
   const $ = id => modal.querySelector(id);
@@ -252,7 +252,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   let vitesse = Number(localStorage.getItem(CLE_VITESSE)) || 2;
   if (!VITESSES.includes(vitesse)) vitesse = 2;
 
-  let timer = null, termine = false, enPause = false, fini = false, enArret = false;
+  let timer = null, termine = false, enPause = false, fini = false, enArret = false, rapide = false, pauseDePeriode = false;
   const stop = () => { if (timer) { cancelAnimationFrame(timer); timer = null; } };
   const onglets = ongletsDePause(modal, [{ cle: 'fil', titre: 'Fil' }, { cle: 'stats', titre: 'Statistiques du match' }], () => statsDuMatch());
   const fermer = () => {
@@ -389,27 +389,6 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     return `⚔ <b>${['1re', '2e', '3e'][k]} période</b> · ${I.ico} ${ctx.esc(I.nom)}${h.intention.cible ? ` sur ${ctx.esc(nom(h.intention.cible))}` : ''} — ton plan : ${P.ico} ${ctx.esc(P.nom)}`;
   };
   if (du && du.periodes[0]) ligne('debut cartes', motPeriode(0));
-  // LES CARTES DU SOIR (S74) : ce que tu as joué se dit avant la mise au jeu, et ce qu'elles ont fait de leur plan.
-  const cartesDuSoir = !du && f.cartes && f.cartes.jouees ? f.cartes.jouees.filter(c => CARTES_MATCH[c]) : [];
-  if (cartesDuSoir.length) {
-    const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} 🎲 ${p.face ? `${p.face} : ` : ''}${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
-    const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', ...paris].filter(Boolean);
-    ligne('debut cartes', `🃏 <b>Tu joues</b> ${cartesDuSoir.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${suite.length ? ` — ${suite.join(', ')}` : ''}.`);
-  }
-  /*
-   * LEUR PLAN SE DÉVOILE À LA MISE AU JEU (S76). Avant le match on n'avait
-   * qu'un rapport de dépistage ; c'est ici qu'on apprend ce qu'ils jouent, et
-   * si ta préparation visait juste — ou si t'as chié ta préparation.
-   */
-  const Pl = f.cartes && f.cartes.plan ? PLANS_ADV[f.cartes.plan] : null;
-  if (Pl) {
-    const pj = f.cartes.prepJuste;
-    const mot = pj === true ? '🎯 <b>ta préparation vise juste</b> : leur plan tombe' : pj === false ? '💥 <b>t\'as chié ta préparation</b>' : '';
-    ligne(`debut cartes prep${pj === true ? ' juste' : pj === false ? ' ratee' : ''}`, `${Pl.ico} <b>Ils jouent ${ctx.esc(Pl.nom.toLowerCase())}</b>${mot ? ` — ${mot}` : ''}.`);
-  }
-  // LEUR MAIN (S74) : ce qu'ils ont joué, ou ce que ta main a annulé.
-  const leurs = f.cartes && f.cartes.adverses ? f.cartes.adverses.filter(c => CARTES_MATCH[c]) : [];
-  if (leurs.length) ligne('debut cartes eux', `🂠 <b>${f.cartes.annulee ? 'Leur main ne sert à rien' : 'Eux'}</b> ${leurs.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${f.cartes.annulee ? ' — tu connaissais leur cahier par cœur' : ''}.`);
 
   const statsDuMatch = () => {
     const per = [1, 2, 3, 4].filter(k => k < 4 || st.tirs.A[4] + st.tirs.B[4] > 0);
@@ -602,6 +581,8 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       ligne('periode', `${P.tete} <b>${gA}-${gB}</b> · tirs ${tA_} – ${tB_}. ${P.couleur}`);
       son('periode');
       if (arret != null && e.per === arret / 20 && onArret) { arreter(); return 0; }
+      // V25 : les périodes vues du gros match du 82-0 — une pause à la fin de la 1re et de la 2e, sans rien demander.
+      if (pauses && !rapide && pauses.includes(e.per * 20)) { entrePeriodes(e.per); return 0; }
       if (du && du.periodes[e.per]) ligne('periode cartes', motPeriode(e.per));
       return PAUSE_PERIODE;
     }
@@ -647,6 +628,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
 
   const jusquAuBout = () => {
     stop();
+    // « Passer à la fin » va au bout : les pauses de période (V25) ne retiennent que l'horloge qui tourne.
+    rapide = true;
+    if (pauseDePeriode) reprendreLaPeriode();
     enPause = false;
     modal.classList.remove('en-pause');
     onglets.fermer();
@@ -674,6 +658,32 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       onArret();
     };
   }
+  /*
+   * LES PÉRIODES VUES (V25 ; JP : *comme au devis, périodes vues sans choix*). Un gros match du 82-0 s'arrête à la fin de la
+   * 1re et de la 2e période (`pauses`) : le pointage et les onglets, puis une touche, et la période suivante part. Rien à
+   * décider, rien à rejouer : la feuille est jouée, l'horloge attend.
+   */
+  function entrePeriodes(per) {
+    pauseDePeriode = true; enArret = true; arret = per * 20;
+    stop();
+    onglets.ouvrir();
+    ligne('periode ent2-marque', `<b>🎬 Fin de la ${per === 1 ? '1re' : '2e'} période.</b> ${gA}-${gB} · tirs ${tA} – ${tB}.`);
+    // « Passer à la fin » reste là : il va au bout sans autre pause.
+    boutons(`<button class="btn gold live-periode">${per === 1 ? '2e' : '3e'} période ›</button><button class="btn live-fin">Passer à la fin</button>`);
+    controls.querySelector('.live-periode').onclick = () => {
+      if (termine) return;
+      reprendreLaPeriode();
+      controlesDuDirect();
+      dernier = performance.now();
+      timer = requestAnimationFrame(tick);
+    };
+    controls.querySelector('.live-fin').onclick = jusquAuBout;
+  }
+  /* La pause de période se lève : l'horloge repart où elle était. */
+  function reprendreLaPeriode() {
+    pauseDePeriode = false; enArret = false; arret = null;
+    onglets.fermer();
+  }
   /* LA PAUSE DANS LE MATCH. L'horloge s'arrête où elle est ; les onglets
      s'ouvrent au-dessus du fil, avec les statistiques du match à cet
      instant. Reprendre referme les onglets et repart l'horloge. */
@@ -694,18 +704,22 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     controls.querySelector('.live-suite').onclick = fermer;
   }
 
-  boutons(`<div class="seg live-vitesse" title="Minutes de jeu par seconde">${VITESSES.map(v => `<button data-v="${v}" class="${v === vitesse ? 'on' : ''}">${ETIQ_VITESSE[v]}</button>`).join('')}</div>
-    <button class="btn live-pause" aria-pressed="false" title="Arrêter l'horloge et lire les statistiques du match (barre d'espace)">Pause</button>
-    <button class="btn live-fin">Passer à la fin</button>`);
-  controls.querySelector('.live-pause').onclick = () => pauser(!enPause);
-  controls.querySelectorAll('.live-vitesse button').forEach(b => {
-    b.onclick = () => {
-      vitesse = Number(b.dataset.v);
-      localStorage.setItem(CLE_VITESSE, String(vitesse));
-      controls.querySelectorAll('.live-vitesse button').forEach(x => x.classList.toggle('on', x === b));
-    };
-  });
-  controls.querySelector('.live-fin').onclick = jusquAuBout;
+  /* Les commandes du direct : la vitesse, la pause, « Passer à la fin ». Posées au départ, et après une pause de période. */
+  function controlesDuDirect() {
+    boutons(`<div class="seg live-vitesse" title="Minutes de jeu par seconde">${VITESSES.map(v => `<button data-v="${v}" class="${v === vitesse ? 'on' : ''}">${ETIQ_VITESSE[v]}</button>`).join('')}</div>
+      <button class="btn live-pause" aria-pressed="false" title="Arrêter l'horloge et lire les statistiques du match (barre d'espace)">Pause</button>
+      <button class="btn live-fin">Passer à la fin</button>`);
+    controls.querySelector('.live-pause').onclick = () => pauser(!enPause);
+    controls.querySelectorAll('.live-vitesse button').forEach(b => {
+      b.onclick = () => {
+        vitesse = Number(b.dataset.v);
+        localStorage.setItem(CLE_VITESSE, String(vitesse));
+        controls.querySelectorAll('.live-vitesse button').forEach(x => x.classList.toggle('on', x === b));
+      };
+    });
+    controls.querySelector('.live-fin').onclick = jusquAuBout;
+  }
+  controlesDuDirect();
 
   // LA REPRISE APRÈS L'ENTRACTE : les deux premières périodes d'un coup, puis l'horloge.
   if (depuis > 0) {

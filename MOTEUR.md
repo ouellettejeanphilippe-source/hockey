@@ -209,7 +209,7 @@ la ligue simulée doit retomber sur le vrai nombre de buts de l'année.
 Un match n'est pas soixante minutes à cinq contre cinq. Chaque punition mineure
 donne deux minutes à l'adversaire — ou moins, s'il marque — et pendant ces deux
 minutes tout change. Le moteur joue donc chaque avantage comme **un petit match
-dans le match** (`jouerSoixanteMinutes`, js/sim.js), avec les mêmes lancers, les
+dans le match** (`jouerPlage`, js/sim.js : une tranche de vingt minutes, le match en joue trois, `jouerEnPeriodes`), avec les mêmes lancers, les
 mêmes gardiens et les mêmes égalités de feuille :
 
 ```

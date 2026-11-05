@@ -17,7 +17,8 @@
  */
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulerGrosMatch, apercuDuDuel, INTENTIONS, PERIODES_DU_DUEL, PLANS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulerGrosMatch } from '../js/sim.js';
+import { apercuDuDuel, INTENTIONS, PERIODES_DU_DUEL, PLANS } from '../js/greffes.js';
 import { propositionsDuDuel } from '../js/impact.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { robotDuel } from './lib/duel.mjs';

@@ -19,9 +19,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, getPlayerKey, SLOTS, MUTATIONS,
-  JOURS_SITUATIONS, effetDeMoment, matchsEntre, situationsDuJour,
+  autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, getPlayerKey, SLOTS, MUTATIONS, JOURS_SITUATIONS, matchsEntre, situationsDuJour
 } from '../js/sim.js';
+import { effetDeMoment } from '../js/greffes.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { CHOIX_DES_FILS, EXPEDITEURS, joueurDuFait } from '../js/vie-gm.js';
 import { fenetreDuChoix } from '../js/impact.js';

@@ -25,6 +25,7 @@ import { filsDeSaison } from '../js/recit.js';
 import { CHOIX_DES_FILS } from '../js/vie-gm.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
+import '../js/greffes.js';   // V25 : une ligue de run (courbe) joue avec les greffes du Rogue branchées
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');

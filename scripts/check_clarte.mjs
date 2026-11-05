@@ -28,14 +28,12 @@ import { fileURLToPath } from 'node:url';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
 import {
-  PROFILS, AGRESSIVITES, CAP, REROLLS, MODES, PART_UNITE, AFFINITES, SPEC_MULT,
-  ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
-  GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE,
-  INTENTIONS, PERIODES_DU_DUEL, MISE_DOUBLEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, K_ROB, ROB_ORDINAIRE, DISSUASION,
-  EFFET_ROLE, EFFET_PALIER, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
-  BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
-  POIDS_AN, POIDS_DN, PLANS,
+  PROFILS, AGRESSIVITES, CAP, REROLLS, MODES, PART_UNITE, AFFINITES, SPEC_MULT, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX,
+  PART_SANS_AUX, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE, MISE_DOUBLEE, ADAPT_MATCHS,
+  SLOTS, getPositionPenalty, K_ROB, ROB_ORDINAIRE, DISSUASION, EFFET_ROLE, EFFET_PALIER, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE,
+  BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE, BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE, POIDS_AN, POIDS_DN
 } from '../js/sim.js';
+import { INTENTIONS, PERIODES_DU_DUEL, PLANS } from '../js/greffes.js';
 import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
@@ -66,7 +64,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // Le lecteur lit vraiment : il trouve des chaînes connues, et il verrait un « énergie » glissé dans un gabarit.
   const sim = chainesDe(lire('js/sim.js')), ger = chainesDe(lire('js/gerant.js'));
   const temoin = chainesDe("// l'énergie\nconst a = `x ${b ? 'y' : `z`} énergie`; /* 'énergie' */ const r = /'/g;");
-  exiger('le lecteur de chaînes lit le code', sim.includes('Plombier') && ger.some(s => /d'élan/.test(s)) && temoin.filter(s => /énergie/.test(s)).length === 1,
+  exiger('le lecteur de chaînes lit le code', sim.includes('Plombier') && ger.some(s => /Toute l'équipe : jambes/.test(s)) && temoin.filter(s => /énergie/.test(s)).length === 1,
     `${sim.length} chaînes dans sim.js, ${ger.length} dans gerant.js`);
   const trouvés = [];
   for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'))) {

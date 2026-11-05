@@ -25,9 +25,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue,
-  totauxDuSoir, motsDesTotaux, profilMatch, activeLineup, effetDeMoment, effetsActifs, flechesDe, pariDeDecision } from '../js/sim.js';
-import { motsDuSoir, alignementDuSoir, PARTS_DU_SOIR } from '../js/impact.js';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue, totauxDuSoir, profilMatch, activeLineup, effetsActifs } from '../js/sim.js';
+import { effetDeMoment, pariDeDecision } from '../js/greffes.js';
+import { motsDuSoir, alignementDuSoir, PARTS_DU_SOIR, motsDesTotaux, flechesDe } from '../js/impact.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin } from './lib/temoins.mjs';

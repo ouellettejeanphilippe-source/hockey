@@ -1,7 +1,7 @@
 /*
  * LES ROBOTS DU DUEL (V9, tranche 5 — docs/refonte-v9.md § 6.3 ; V17, docs/refonte-v17.md). Ce qu'un robot fait,
  * période par période, quand son adjoint propose ses plans (`propositionsDuDuel`, js/impact.js) : `toi.robotDuel`
- * (js/sim.js, `jouerDuel`) les appelle quand aucune décision n'est prise.
+ * (js/sim.js, `jouerEnPeriodes`) les appelle quand aucune décision n'est prise.
  *   - 'attentif' : prend la proposition qui rend le plus de buts nets sur la période, garde son plan si aucune ne rend ;
  *     double la mise quand il mène après deux périodes ;
  *   - 'distrait' : prend une proposition au hasard, ou garde ; double la mise au hasard ;
@@ -11,6 +11,7 @@
  */
 import { propositionsDuDuel } from '../../js/impact.js';
 import { avecHasardIsole } from '../../js/sim.js';
+import '../../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 /* Les lancers que le robot lit par proposition : moins que l'écran, assez pour classer trois plans. */
 const LANCERS_LUS = Number(typeof process !== 'undefined' && process.env.LANCERS_LUS || 120);

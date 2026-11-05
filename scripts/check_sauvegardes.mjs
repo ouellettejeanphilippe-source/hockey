@@ -132,7 +132,8 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
  * si elles n'avaient pas été prises.
  */
 {
-  const { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey, effetDeMoment } = await import('../js/sim.js');
+  const { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey } = await import('../js/sim.js');
+  const { effetDeMoment } = await import('../js/greffes.js');   // V25 : les histoires sont une greffe du Rogue
   const { TEMOINS, equipeReelle } = await import('./lib/vestiaires.mjs');
   const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(ps), { season: sa }); };
   const ligue = () => TEMOINS.map(club);

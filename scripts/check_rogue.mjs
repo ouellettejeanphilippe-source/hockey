@@ -38,9 +38,8 @@ import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 import {
   SLOTS, CASES_DE_BASE, RESERVES_EN_PLUS, casesDuMode, autoRoster, activeLineup, createTeam, getPlayerKey, getPersonKey,
-  echelleTardive, grandirEffet, effetsDesCartes, JOURS_PAR_MATCH,
+  echelleTardive, grandirEffet, JOURS_PAR_MATCH,
 } from '../js/sim.js';
-import { CARTES_MATCH } from '../js/combat.js';
 import {
   DEBLOCAGES, departDuClasseur, lotosDeSaison, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, MANDAT_DE_LA_PREMIERE, mandatDe, mandatRempli, rangDuMandat,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, exigencesOuvertes,
@@ -54,6 +53,7 @@ import { VOIES } from '../js/coachs.js';
 import { PACKS_TOUS, PACKS_DE_SERIE } from '../js/packs.js';
 import { jouerRun, acheterDans, metaAuNiveau, coutDuNiveau, classeurSynthetique, ORDRE_DEBLOCAGES, shard, groupe } from './lib/rogue_sim.mjs';
 import { exiger, borne, monte, informer, verdict } from './verdict.mjs';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const RUNS = Number(process.env.RUNS ?? 10);
 const CAMPAGNES = Number(process.env.CAMPAGNES ?? 2);
@@ -146,20 +146,11 @@ if (!isMainThread) {
   exiger('l\'échelle de la fin de partie : ×0,5 au premier soir, ×1 à la mi-saison, ×1,5 au dernier, ×2 en finale', e0 === 0.5 && Math.abs(e81 - 1.5) < 1e-9 && eS[3] === 2 && Math.abs(e40 - 1) < 0.01,
     `jour 1 ×${e0.toFixed(2)} · jour 41 ×${e40.toFixed(2)} · jour 82 ×${e81.toFixed(2)} · séries ${eS.map(x => `×${x.toFixed(2)}`).join(' ')}`);
   monte('elle ne redescend jamais, de la saison aux séries', [e0, e40, e81, ...eS]);
-  // V10 (tranche 6) : les améliorations qui grandissaient avec la saison sont parties avec l'ancien jeu.
+  // V10 (tranche 6) : les améliorations qui grandissaient avec la saison sont parties avec l'ancien jeu ; V25 : les cartes de match aussi.
   {
-    const fx1 = effetsDesCartes(null, { jouees: ['provoquer'] }, 'x');
-    const fx2 = effetsDesCartes(null, { jouees: ['provoquer'] }, 'x', { echelle: 2 });
     const r = grandirEffet({ robustesse: 1.4, finition: 1.04, F: [1.3, 1, 0.9, 0.8] }, 2);
-    // Sa valeur se lit sur la carte (U17 : les cartes de match sont plus franches, `FRANCHISE_MATCH`) : à ×2, son écart à 1 double.
-    const d = CARTES_MATCH.provoquer.adv.discipline;
-    exiger('une carte qui vise l\'adversaire grandit ; la robustesse (une somme) et les minutes suivent', fx1.adv[0].discipline === d && Math.abs(fx2.adv[0].discipline - (1 + 2 * (d - 1))) < 1e-9
-      && Math.abs(r.robustesse - 2.8) < 1e-9 && Math.abs(r.finition - 1.08) < 1e-9 && Math.abs(r.F[0] - 1.6) < 1e-9, `« Les provoquer » : punitions +${Math.round((d - 1) * 100)} % → +${Math.round((fx2.adv[0].discipline - 1) * 100)} % en finale`);
-  }
-  {
-    // Une carte de trio ne grandit pas, par construction : la même main à ×0,5 et à ×2 fait les mêmes effets pour toi.
-    const a = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 0.5 }), b = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 2 });
-    exiger('une carte de trio du deck ne grandit pas : ses effets sont les mêmes à ×0,5 et à ×2', JSON.stringify(a.effets) === JSON.stringify(b.effets), `${a.effets.length} effet(s)`);
+    exiger('un effet qui vise l\'adversaire grandit ; la robustesse (une somme) et les minutes suivent',
+      Math.abs(r.robustesse - 2.8) < 1e-9 && Math.abs(r.finition - 1.08) < 1e-9 && Math.abs(r.F[0] - 1.6) < 1e-9, `×2 : robustesse ${r.robustesse}, finition ${r.finition}, F ${r.F.join('/')}`);
   }
   // JALON P1 : une série gagnée donne un pack de joueurs, pas une carte.
   exiger('une série gagnée donne un pack de joueurs (Argent, Or, Étoiles, puis Légendes avec la Coupe)',
@@ -380,7 +371,7 @@ if (!isMainThread) {
    * (`MUTATIONS` n'en a plus aucune de `source: 'amelioration'` : le bras appliquait une modif qui n'existe plus) ; les
    * deux autres bras se jouaient de la MAIN du duel, partie à la V13-2 (`simulerGrosMatch` d'une équipe `courbe` ne lit
    * plus ses `cartes`). Les trois rendaient zéro à chaque moment : rien, dans le duel du Rogue, ne grandit plus avec le
-   * soir. L'échelle elle-même reste jugée plus haut (1.), sur `echelleTardive`, `grandirEffet` et `effetsDesCartes`.
+   * soir. L'échelle elle-même reste jugée plus haut (1.), sur `echelleTardive` et `grandirEffet`.
    */
   informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s (${RUNS} runs par niveau, ${CAMPAGNES} campagne(s) de ${RUNS_CAMPAGNE} runs, ${SAISONS_MAIN} saisons pour le duel joué)`);
   verdict();

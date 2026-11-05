@@ -13,7 +13,6 @@
  *   cartes-fiche-1.png, -2.png   le carton à la taille de la fiche, une série chacune ;
  *   cartes-mini.png              la carte mini des choix (`carteMiniHtml`) ;
  *   cartes-verso.png             le dos de la fiche, cinq séries ;
- *   cartes-match.png             les cartes de match, par genre (js/combat.js) ;
  *   cartes-banque.png            les cartes de la banque, par catégorie (js/banque.js) ;
  *   cartes-actions.png           avec --actions : les séries modernes, en Cadre
  *                                (le portrait) puis en édition haute (la photo
@@ -172,26 +171,6 @@ await planche(page, 'verso', 5, 330, async p => {
   document.querySelector('#hockeyCardModal .close-btn, #hockeyCardModal [data-fermer]')?.click();
 });
 
-// 6 bis. Les cartes de match, une rangée par genre (et une carte sans genre au bout de la dernière).
-await planche(page, 'match', 6, 212, async p => {
-  const { CARTES_MATCH } = await import('/js/combat.js');
-  const { optionDeCarteMatch, puces } = await import('/js/gerant.js');
-  const { carteHtml } = await import('/js/cartes.js');
-  const esc = t => String(t).replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));
-  for (const genre of ['attaque', 'defense', 'tactique', 'synergie', 'malediction']) {
-    const cles = Object.keys(CARTES_MATCH).filter(k => !k.endsWith('+') && CARTES_MATCH[k].genre === genre);
-    const choix = ['commune', 'peu', 'rare', 'legendaire', 'maudite'].flatMap(r => cles.filter(k => CARTES_MATCH[k].rarete === r).slice(0, 2)).slice(0, 6);
-    for (const k of choix) {
-      const o = optionDeCarteMatch(k);
-      const d = document.createElement('div');
-      d.innerHTML = carteHtml({ cle: k, rarete: o.rarete, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(o.type), texteHtml: '<i class=\"tc-ambiance\">' + esc(o.texte) + '</i>', coinHtml: esc(o.coin), pucesHtml: puces(o.mots), genreCarte: o.genreCarte, dessin: o.dessin });
-      p.appendChild(d.firstElementChild);
-    }
-  }
-  const d = document.createElement('div');
-  d.innerHTML = carteHtml({ cle: 'x', rarete: 'peu', ico: '🧪', nomHtml: 'Une carte sans genre', typeHtml: 'Amélioration · au joueur de ton choix', texteHtml: 'Une modif, un événement, une identité : son icône sur un médaillon.', pucesHtml: puces([{ txt: 'Précision +3 %', bon: true }, { txt: 'Jambes −5', bon: false }]) });
-  p.appendChild(d.firstElementChild);
-});
 
 // 6 bis. Les cartes de la banque (V3) : une rangée par catégorie, de la commune à la légendaire, dans leur costume.
 await planche(page, 'banque', 6, 212, async p => {

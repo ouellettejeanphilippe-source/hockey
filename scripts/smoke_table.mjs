@@ -17,6 +17,7 @@
 
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const require = createRequire(import.meta.url);
 let pw;

@@ -4964,19 +4964,17 @@ body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
 .duel-tete .ent2-note { margin: 0; }
 /* Les buteurs se relisent au sommaire du match : la tête du duel reste un pointage. */
 .duel-tete .ent2-buts { display: none; }
+.hub-prev-fin { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
+.pr-rang-txt .hub-prev-lancer { align-self: flex-start; }
+/* LES JAMBES (le volet de saison) : les plus usés d'abord, puis de quoi les ménager. */
 .ent2-stats { width: 100%; border-collapse: collapse; margin-top: var(--esp-2); font-size: var(--t-2); }
 .ent2-stats th, .ent2-stats td { padding: 3px var(--esp-1); text-align: right; font-variant-numeric: tabular-nums; }
 .ent2-stats tbody th { text-align: left; font-weight: 400; color: var(--encre-2); }
 .ent2-stats thead th { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
 .ent2-stats thead tr:first-child th { text-align: center; border-bottom: 1px solid var(--filet-2); }
-.ent2-stats .ent2-stats-saison, .ent2-stats td:last-child { color: var(--encre-3); }
-.ent2-stats .ent2-stats-saison { border-left: 1px solid var(--filet-2); }
-.hub-prev-fin { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
-.pr-rang-txt .hub-prev-lancer { align-self: flex-start; }
-/* LES JAMBES (le volet de saison) : les plus usés d'abord, puis de quoi les ménager. */
+.ent2-stats td:last-child { color: var(--encre-3); }
 .ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
 .ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: var(--r-1); }
-.ent2-incident { margin: var(--esp-2) 0; padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .live-ligne.ent2-marque { background: color-mix(in srgb, var(--violet) 14%, transparent); }
 
 /* ---- Tes lignes à forces égales : un petit tableau, une rangée par ligne ---- */
@@ -5219,7 +5217,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-controls .btn { flex: 1 1 120px; }
 .live-vitesse { flex: none; }
 .live-vitesse button { min-width: 44px; }
-.live-controls .live-suite, .live-controls .live-entracte { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
+.live-controls .live-suite, .live-controls .live-entracte, .live-controls .live-periode { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
 /* En pause, « Reprendre » devient l'action : il passe à l'or. */
 #liveModal.en-pause .live-pause { background: var(--or); border-color: var(--or); color: var(--encre-sur-or); }
 
@@ -5466,10 +5464,10 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-option.eq.on { box-shadow: inset 0 0 0 3px var(--or); }
 
 /* ---- La carte de match (.tc) : le métal de sa rareté, une bannière de son genre, la gemme du coût, le dessin au trait ---- */
-:is(.tc, .main-adverse-carte).tc-commune { --tc-bord: var(--filet); }
-:is(.tc, .main-adverse-carte).tc-peu { --tc-bord: var(--bleu); }
-:is(.tc, .main-adverse-carte).tc-rare { --tc-bord: var(--choisi); }
-:is(.tc, .main-adverse-carte).tc-legendaire { --tc-bord: var(--or); }
+.tc.tc-commune { --tc-bord: var(--filet); }
+.tc.tc-peu { --tc-bord: var(--bleu); }
+.tc.tc-rare { --tc-bord: var(--choisi); }
+.tc.tc-legendaire { --tc-bord: var(--or); }
 /* Le genre : une couleur et son encre, dérivées des jetons ; sans genre (un événement, une modif, une identité), l'or. */
 .tc {
   --tc-genre: var(--or); --tc-genre-encre: var(--encre-sur-or);
@@ -5799,23 +5797,6 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .main-outils { display: flex; flex-wrap: wrap; gap: var(--esp-2); justify-content: center; }
 .main-outils .btn { min-height: 44px; padding: 0 var(--esp-3); font-size: var(--t-2); }
 /* Mon deck : une ligne par carte, le coût dans un rond d'or, la rareté au flanc ; une maudite, au flanc rouge. */
-/* Leur main : les intentions de l'adversaire, sous son plan. */
-.main-adverse { display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-2); }
-.main-adverse-cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--esp-2); }
-.main-adverse-carte .choix-puces { display: flex; flex-direction: column; gap: 2px; }
-.main-adverse-carte { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); border-left: 3px solid var(--tc-bord); font-size: var(--t-2); }
-.main-adverse-carte b { font: 800 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; }
-.main-adverse-fort { color: var(--live); text-transform: none; letter-spacing: 0.02em; }
-/* Le plan de l'adversaire : le rapport d'éclaireur, rouge tant qu'il n'est pas contré, vert quand il l'est. */
-.plan-adv { margin: var(--esp-2) 0; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); border-left: 3px solid var(--live); font-size: var(--t-2); line-height: 1.4; }
-.plan-adv.contre { border-left-color: var(--bon); }
-.plan-adv-t { font-size: var(--t-2); }
-.plan-adv-t small { color: var(--encre-2); margin-left: var(--esp-1); }
-.plan-adv-mot { color: var(--encre-2); margin: 2px 0 var(--esp-1); }
-.plan-adv-contre { margin-top: var(--esp-2); }
-.plan-adv-contre b { color: var(--live); }
-.plan-adv.contre .plan-adv-contre b, .plan-adv-contre.juste b { color: var(--bon); }
-.plan-adv-contre.ratee b { color: var(--mauvais); }
 /* Au bureau, la main tient sans défiler : cinq cartes sur une rangée, le récit sur deux lignes, les puces d'effet au-dessus des boutons (le smoke le mesure à 1440 × 900). */
 @media (min-width: 1000px) {
   .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--esp-2); padding-top: 0; }
@@ -5888,43 +5869,6 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .ech-q-nom small { color: var(--encre-3); white-space: nowrap; }
 .ech-q-chiffre, .ech-q-sal { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ech-q-sal { min-width: 56px; text-align: right; color: var(--encre-3); }
-
-/* ---- Le dépistage (depistageHtml) : trois pistes et leurs chances ; à choisir (.choisir), on touche celle pour laquelle on se prépare ---- */
-.depistage { margin: var(--esp-2) 0; padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); }
-.dep-pistes { display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-2); }
-.dep-piste {
-  display: grid; grid-template-columns: 28px minmax(0, 1fr) 64px auto; align-items: center; gap: var(--esp-2);
-  width: 100%; min-height: 44px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); border: 1px solid var(--filet);
-  text-align: left; color: var(--encre); font: inherit; transition: border-color var(--t-vite);
-}
-button.dep-piste { cursor: pointer; }
-button.dep-piste:hover:not(:disabled) { border-color: var(--encre-3); }
-.dep-piste.on { border-color: var(--or); }
-.dep-piste.ecarte { opacity: 0.45; }
-.dep-piste.ecarte .dep-nom b { text-decoration: line-through; }
-.dep-ico { font-size: var(--t-4); line-height: 1; text-align: center; }
-.dep-nom { min-width: 0; }
-.dep-nom b { display: block; font: 800 var(--t-3)/1.2 var(--display); letter-spacing: 0.02em; }
-.dep-nom small { display: block; color: var(--encre-3); font-size: var(--t-1); line-height: 1.3; }
-.dep-p { text-align: right; }
-.dep-p b { font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; }
-/* La barre des chances : --p, posé en ligne, en fait la largeur. */
-.dep-p i { position: relative; display: block; height: 4px; margin-top: var(--esp-1); border-radius: var(--r-1); background: var(--fond-3); overflow: hidden; }
-.dep-p i::after { content: ""; position: absolute; inset: 0; width: var(--p, 0%); background: var(--or); }
-.dep-prep { padding: var(--esp-2); border-radius: var(--r-1); border: 1px solid var(--filet); color: var(--encre-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
-.dep-piste.on .dep-prep { background: var(--or); border-color: var(--or); color: var(--encre-sur-or); }
-.dep-regle { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-3); margin-top: var(--esp-2); }
-.dep-suite { margin: 2px 0 var(--esp-2); font-size: var(--t-2); color: var(--encre-2); }
-@media (max-width: 440px) {
-  .dep-piste { grid-template-columns: 28px minmax(0, 1fr) 56px; }
-  .dep-prep { grid-column: 2 / -1; justify-self: start; }
-}
-/* Dans la main, au bureau, les trois pistes côte à côte : empilées, elles poussaient les cartes sous « Jouer » à 1440 × 900 (le smoke le mesure). */
-@media (min-width: 1000px) {
-  .main-sheet .dep-pistes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .main-sheet .dep-piste { grid-template-columns: 24px minmax(0, 1fr) 48px; align-content: start; }
-  .main-sheet .dep-prep { grid-column: 2 / -1; justify-self: start; }
-}
 
 /* ---- Les déblocages (ouvrirVestiaire) : les jalons en grille, une section par mot ---- */
 /* Ton club : l'écusson porté en grand, son nom en dessous. */

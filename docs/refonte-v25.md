@@ -179,7 +179,8 @@ La pièce maîtresse. Chaque nom ci-dessous disparaît du jeu (js/, index.html, 
 
 ### A. Le moteur
 
-- Les quatre chemins de playGame : `jouerSoixanteMinutes`, `jouerDuel`, `simulerGrosMatch`, `apres40De` ; un seul reste, le match en trois périodes avec ses greffes.
+- Les chemins de playGame : `jouerSoixanteMinutes`, `jouerDuel`, `apres40De` ; un seul reste, le match en trois périodes avec ses greffes (A1 : simulerGrosMatch reste, c'est un gros match isolé pour la mesure, pas un chemin).
+- Le plan adverse, le dépistage et la préparation du gros match du 82-0 : `PLANS_ADV`, `commentContrer`, `reglageDuPlan`, `planDeSerie`, `depistageDe`, `planDuDepistage`, `PREP_JUSTE`, `PREP_RATEE`, `poserPlanAdverse`, `poserPreparation`, `poserCartes`, `effetsDesCartes`, `planAdverseHtml`, `optionDeCarteMatch`, `regleDeCarte`, `motsDeCarteAdverse`, `entractesDu`, `incidentDuMatch`, `planDuMatchDeSerie`, `statsEntracte`, `tableEntracte`, `lignesEntracte`, `suiteDuPlan`, `originesDe`, `SENS_DES_CANAUX`, `scripts/mesure_prep.mjs` ; et leurs classes `.plan-adv`, `.depistage`, `.dep-piste`, `.main-adverse`, `.ent2-incident`.
 - Le gros match du 82-0 à choix : `js/combat.js`, `CARTES_MATCH`, `mainAdverse`, `energieAdverse`, `FRANCHISE_MATCH`, `mainAdverseHtml`, `depistageHtml`, `pistesDuRapport`, `FRANCHISE_ENTRACTE`, `ENTRACTES`, `INCIDENTS`, `entractesOfferts`, `effetEntracte`, `scripts/check_combat.mjs`.
 - Les doubles du hasard : `hacherMise` ; la mulberry32 et la gaussienne de js/physique.js (mêmes noms que celles qui restent, dans util.js : le juge les compte en lignes).
 - L'affichage qui vivait dans le moteur, parti de sim.js vers impact.js et recit.js (il bouge, § 8b).
@@ -211,7 +212,7 @@ La pièce maîtresse. Chaque nom ci-dessous disparaît du jeu (js/, index.html, 
 
 **Reste tel quel, et pourquoi** :
 - La carte de joueur : `cartonHtml`, `carteCouchee`, `dosDeCarton`, `cartonDe`, les 55 séries `.cs-*`, `EDITIONS`, `NOM_VARIANTE`, `VARIANTE_PALIERS` — JP, deux fois : *garder les cartes actuelles du jeu*.
-- Le noyau du lancer et ses juges : `profilMatch`, `jouerCote`, `facteurGardienDe`, `tirageDe`, `compterFeuilles`, `hasard`, `deDuJour`, `jouerEnPeriodes`, `teamStrength`, `pctTirRelDe`, `lancersRelDe`, `passesRelDe` — une seule source, prouvée (MOTEUR.md § 6, § 7) ; aucune cote neuve.
+- Le noyau du lancer et ses juges : `profilMatch`, `jouerCote`, `facteurGardienDe`, `tirageDe`, `compterFeuilles`, `hasard`, `deDuJour`, `jouerEnPeriodes`, `simulerGrosMatch` (un gros match isolé, pour la mesure), `teamStrength`, `pctTirRelDe`, `lancersRelDe`, `passesRelDe` — une seule source, prouvée (MOTEUR.md § 6, § 7) ; aucune cote neuve.
 - Le coach-personnage et sa main : `POUVOIRS`, `ADJOINTS`, `REGLES_DU_COACH`, le relais, `dit` — les idées qui ont fait du Rogue un jeu (V21 à V23) ; elles changent de grammaire d'effet, pas de règle, et les règles des adjoints sont celles que la V24 fixe.
 - Les galons : `js/galons.js`, `GALONS`, `GALONS_MAX`, `galonsDeLaSaison`, `CHANDAIL_GALONS`, `scripts/check_galons.mjs` — ils montent un badge pour la run et comptent pour le panthéon (JP, 5 nov.) ; seul leur écran part.
 - Les situations : `SITUATIONS`, `JOURS_SITUATIONS`, `situationsDuJour`, `effetDeSituation` — une mutation posée, pas un choix, calibrée à zéro en paires (`check_situations`) ; elles deviennent une greffe.

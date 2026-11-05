@@ -11,7 +11,8 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { RANGS_DE_GLACE, lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PLANS, cibleDuPlan } from './sim.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, MUTATIONS, joueurDeMutation, badgesDeMutation, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PROFILS, PART_UNITE, penaliteAdaptee } from './sim.js';
+import { PLANS, cibleDuPlan } from './greffes.js';
 import { virgule } from './util.js';
 import { ADJOINTS, NIV_DEFAUT, FORCE_NIV, styleAuNiveau, salaireDe, lignesDeLAdjoint, ligneDuRelais, postesDe, nivDe } from './adjoints.js';
 
@@ -77,7 +78,7 @@ function fenetre(volume, p) {
   return { long, tirs: r * long, buts: p * r * long };
 }
 
-/* Les moyennes d'un match, lues d'une lecture du moteur. Les mêmes formules que `jouerSoixanteMinutes`. */
+/* Les moyennes d'un match, lues d'une lecture du moteur. Les mêmes formules que `jouerPlage` (js/sim.js). */
 function moyennes(L) {
   const { A, B, occasions, p } = L;
   const nPour = occasions * B.discipline, nContre = occasions * A.discipline;   // les avantages que A prend, ceux que A donne
@@ -779,4 +780,175 @@ export function motsEnChiffres(effet, duree = null, cadre = null) {
   let chiffres;
   try { chiffres = effetEnChiffres(effet, c.team, c.lineup || null, c.adv || null, { duree, ...(cadre || {}) }); } catch { return motsDEffet(effet, duree); }
   return [...chiffres, ...(effet.mutation ? motsDEffet({ mutation: effet.mutation }) : []), ...(duree ? motsDEffet({}, duree) : [])];
+}
+
+/* =====================================================================
+   LES MOTS D'UN EFFET (V25 A1 : sortis de js/sim.js, qui ne parle plus à l'écran)
+
+   Ce qu'une carte, une mutation, un total du soir ou une pénalité de position
+   DIT, en mots et en pour cent, à partir de ce que le moteur joue. Le moteur
+   ne connaît que les canaux ; l'écran passe par ici, jamais par un chiffre
+   recopié.
+   ===================================================================== */
+/*
+ * LA PÉNALITÉ QUE L'ÉCRAN AFFICHE (1.0, J1-J) : celle que le moteur joue
+ * AUJOURD'HUI, arrondie au dixième — pas la pénalité de base, qui restait
+ * « −3 » au jour 40 d'un centre à l'aile qui jouait à −0,2. `matchs` dit
+ * depuis combien de matchs il s'adapte à cette case ; 999 reste la
+ * sentinelle d'`autoRoster` (une case interdite).
+ */
+export function penaliteAffichee(player, slot) {
+  const base = getPositionPenalty(player, slot);
+  if (!base) return { pen: 0, base: 0, matchs: 0 };
+  if (base >= 999) return { pen: 999, base, matchs: 0 };
+  const matchs = (player && player._adapt && player._adapt[slot.role]) || 0;
+  return { pen: Math.round(penaliteAdaptee(player, slot) * 10) / 10, base, matchs };
+}
+/* Le mot de la pénalité : « −3 », ou « −1,2 · s'adapte (9 m.) » une fois l'adaptation commencée. */
+export const motPenalite = a => (a.pen <= 0 ? '' : a.matchs > 0 ? `−${String(a.pen).replace('.', ',')} · s'adapte (${a.matchs} m.)` : `−${a.base}`);
+/*
+ * LA COURBE, À L'ÉCRAN (1.0, J2-16 et R6). Une carte qui grandit ne le dit
+ * qu'en Rogue — la saison et le tournoi n'ont pas de courbe, et « En Rogue,
+ * grandit » sur une carte de saison parlait d'un autre mode. Et elle le dit
+ * par une JAUGE à quatre crans (octobre ×0,5, janvier ×1, avril ×1,5, finale
+ * ×2), le cran d'aujourd'hui allumé, au lieu d'une phrase coupée au bord.
+ * Le contrôleur (js/game.js) branche les deux lectures : le mode, et
+ * l'échelle du jour (null avant la saison).
+ */
+export const AFFICHAGE_COURBE = { actif: () => false, echelle: () => null };
+const CRANS_COURBE = [0.5, 1, 1.5, 2];
+function motCourbe() {
+  if (!AFFICHAGE_COURBE.actif()) return null;
+  const e = AFFICHAGE_COURBE.echelle();
+  const fmt = x => String(Math.round(x * 100) / 100).replace('.', ',');
+  if (e == null) return { txt: '📈 Grandit : ×0,5 en octobre → ×2 en finale', bon: null };
+  let k = 0;
+  CRANS_COURBE.forEach((c, i) => { if (Math.abs(e - c) < Math.abs(e - CRANS_COURBE[k])) k = i; });
+  const jauge = CRANS_COURBE.map((c, i) => (i === k ? '▰' : '▱')).join('');
+  return { txt: `📈 Grandit ${jauge} ×${fmt(e)} ce soir · ×2 en finale`, bon: null };
+}
+
+/* Ce qu'une mutation fait, en mots : ce que la carte et le choix affichent. */
+function motsDeMutation(cle) {
+  const M = MUTATIONS[cle];
+  if (!M) return [];
+  // En chiffres, comme les effets (S76).
+  const pct = (x, mot, bon) => ({ txt: `${mot} ${flechesDe(x)}`, bon: bon ? x > 1 : x < 1 });
+  const out = [];
+  if (M.finition) out.push(pct(M.finition, 'Précision', true));
+  if (M.lancers) out.push(pct(M.lancers, 'Tirs', true));
+  if (M.creation) out.push(pct(M.creation, 'Création', true));
+  if (M.defense) out.push({ txt: `Précision adverse quand il est là ${flechesDe(M.defense)}`, bon: M.defense < 1 });
+  if (M.blessure) out.push({ txt: `Blessures ${flechesDe(M.blessure)}`, bon: M.blessure < 1 });
+  if (M.arrets) out.push({ txt: `Buts accordés ${flechesDe(M.arrets)}`, bon: M.arrets < 1 });
+  if (M.partout) out.push({ txt: 'Pénalité hors position : aucune', bon: true });
+  if (M.cran) out.push({ txt: `Trios possibles : +${M.cran} vers le haut`, bon: true });
+  if (M.enBas) out.push({ txt: '4e trio et 3e paire : pénalité de zone 0', bon: true });
+  if (M.ombre) out.push({ txt: `Leur meilleur joueur : précision ${flechesDe(M.ombre)}`, bon: true });
+  // En mots, pas en « % » : l'écran le dit tel quel, à côté de ses chiffres de match.
+  if (M.abri) out.push({ txt: `Il échappe à ${({ 0.25: 'un quart', 0.5: 'la moitié', 0.75: 'trois quarts', 1: 'tout' })[M.abri] || 'une part'} de leur étouffement`, bon: true });
+  if (M.physio) out.push({ txt: 'Ses malus de carte : effacés', bon: true });
+  if (M.lustre) out.push({ txt: 'Sa carte : une édition de plus', bon: true });
+  if (M.palier) out.push({ txt: 'Son badge monte au suivant', bon: true, cle: 'badge' });
+  if (M.mentor) out.push({ txt: 'Ses compagnons de ligne : leur badge monte au suivant', bon: true, cle: 'badge' });
+  // Le feu qui s'entretient (V3.6) : ce que la carte fait à sa lancée, en mots ; les chiffres sont dans les règles.
+  // Ses rôles bougent : le SENS, jamais les points (un « Défensif +25 » ne dit rien). Le badge qu'il y gagne se lit dans `badgesDeMutation`.
+  for (const [k, d] of Object.entries(M.profils || {})) {
+    const P = PROFILS.F[k] || PROFILS.D[k];
+    if (P) out.push({ txt: `${d > 0 ? 'Plus' : 'Moins'} ${P.ico} ${P.nom.toLowerCase()}`, bon: d > 0, cle: 'role' });
+  }
+  // LES DEUX COURBES (S80, `echelleTardive`) : l'amélioration grandit ; le style et l'atelier font fitter un trio, tout de suite.
+  const courbe = M.source === 'amelioration' ? motCourbe() : null;
+  if (courbe) out.push(courbe);
+  else if (M.source !== 'amelioration' && (M.source === 'style' || M.partout || M.cran || M.enBas)) out.push({ txt: '🔗 Carte de trio : pleine tout de suite, elle ne grandit pas', bon: null });
+  return out;
+}
+
+/*
+ * CE QU'UN EFFET FAIT, EN MOTS (S68). JP : *c'est pas clair l'impact des
+ * trucs*. Toutes les options — dilemmes, séquences, cartes, factions,
+ * importance du match, tactiques — passent par ici : un seul endroit qui dit
+ * « Finition +8 % », « Buts alloués −6 % », « 1er trio +25 % de glace »,
+ * pour que l'écran ne recopie jamais un chiffre qui finirait par mentir.
+ * Chaque mot dit s'il AIDE (`bon`) ; l'écran le colore.
+ */
+/*
+ * LES EFFETS SE LISENT EN CHIFFRES (S76). JP : *faudrait des maths plus
+ * claires sur les effets, comme dans un vrai deckbuilder* — et *j'aime les
+ * mécaniques, mais c'est pas très compréhensible pour le joueur*. Les flèches
+ * de S71 (↑, ↑↑, ↑↑↑) disaient « un peu, net, beaucoup » et laissaient
+ * deviner le reste : deux cartes à ↑ ne se comparaient pas. Un effet se lit
+ * maintenant comme dans Slay the Spire, en nombre entier : « Tirs +6 % »,
+ * « Précision adverse −5 % ». Le nom est resté (`flechesDe`) pour ne pas toucher
+ * tous ses appels ; `seuils` ne sert plus.
+ */
+function pctDe(x) {
+  const d = (x - 1) * 100;
+  if (Math.abs(d) < 0.5) return '±0 %';
+  const n = Math.abs(d) < 1 ? Math.abs(d).toFixed(1).replace('.', ',') : String(Math.round(Math.abs(d)));
+  return `${d > 0 ? '+' : '−'}${n} %`;
+}
+export function flechesDe(x, seuils = null) {
+  void seuils;
+  return pctDe(x);
+}
+/*
+ * LE SENS D'UN DÉPLACEMENT DE GLACE (V6) : les multiplicateurs F (trios) et D (paires) d'un effet, dits en une idée.
+ * La moitié du haut contre la moitié du bas, pondérée par l'écart de chaque rang à 1 : « Le haut joue plus »,
+ * « Le bas joue plus », ou « La glace se brasse » quand les deux bouts bougent pareil. Rend '' sans glace.
+ */
+/* Les noms des unités à forces égales, dans l'ordre de `PART_UNITE`. */
+const RANGS_DE_GLACE = { F: ['1er trio', '2e trio', '3e trio', '4e trio'], D: ['1re paire', '2e paire', '3e paire'] };
+/* Les minutes qu'un effet de glace déplace, unité par unité, sur un match de 60 : ses parts de base, multipliées puis
+   ramenées à 1. */
+function minutesDeLaGlace(e) {
+  return ['F', 'D'].flatMap(g => {
+    if (!Array.isArray(e[g])) return [];
+    const b = PART_UNITE[g], m = b.map((x, i) => x * (e[g][i] ?? 1));
+    const s = m.reduce((a, x) => a + x, 0), s0 = b.reduce((a, x) => a + x, 0);
+    return m.map((x, i) => ({ nom: RANGS_DE_GLACE[g][i], x: 60 * (x / s - b[i] / s0) }));
+  });
+}
+function sensDeLaGlace(e) {
+  let haut = 0, bas = 0, bouge = false;
+  for (const g of ['F', 'D']) {
+    if (!Array.isArray(e && e[g])) continue;
+    const n = e[g].length;
+    e[g].forEach((m, i) => { if (m === 1) return; bouge = true; if (i < n / 2) haut += m - 1; else bas += m - 1; });
+  }
+  if (!bouge) return '';
+  const net = haut - bas;
+  return Math.abs(net) < 0.05 ? 'La glace se brasse' : net > 0 ? 'Le haut joue plus' : 'Le bas joue plus';
+}
+function motsDEffet(e, duree = null) {
+  if (!e) return [];
+  const out = [];
+  const pct = x => flechesDe(x);
+  if (e.volume && e.volume !== 1) out.push({ txt: `Tirs ${pct(e.volume)}`, bon: e.volume > 1 });
+  if (e.finition && e.finition !== 1) out.push({ txt: `Précision ${pct(e.finition)}`, bon: e.finition > 1 });
+  if (e.defense && e.defense !== 1) out.push({ txt: `Précision adverse ${pct(e.defense)}`, bon: e.defense < 1 });
+  if (e.discipline && e.discipline !== 1) out.push({ txt: `Punitions ${pct(e.discipline)}`, bon: e.discipline < 1 });
+  if (e.blessure && e.blessure !== 1) out.push({ txt: `Blessures ${pct(e.blessure)}`, bon: e.blessure < 1 });
+  if (e.energie && e.energie !== 1) out.push({ txt: `Usure des jambes ${pct(e.energie)}`, bon: e.energie < 1 });
+  if (e.robustesse) out.push({ txt: `Robustesse ${e.robustesse > 0 ? '+' : '−'}${String(Math.abs(Math.round(e.robustesse * 10) / 10)).replace('.', ',')}`, bon: e.robustesse > 0 });
+  // LA GLACE EN UNE PUCE (V6, phase 4 : une carte, une idée) : son sens, puis l'unité qui gagne le plus et celle qui
+  // perd le plus, en minutes d'un match de 60 (les parts de base `PART_UNITE`, comme js/impact.js les mesure).
+  const sens = sensDeLaGlace(e);
+  if (sens) {
+    const ecarts = minutesDeLaGlace(e);
+    const plus = ecarts.reduce((a, b) => (b.x > a.x ? b : a), { x: 0 }), moins = ecarts.reduce((a, b) => (b.x < a.x ? b : a), { x: 0 });
+    const dit = x => `${x > 0 ? '+' : '−'}${String(Math.abs(Math.round(x * 10) / 10)).replace('.', ',')} min`;
+    const bouts = [plus, moins].filter(b => Math.abs(b.x) >= 0.1).map(b => `${b.nom} ≈ ${dit(b.x)}`);
+    out.push({ txt: bouts.length ? `${sens} : ${bouts.join(', ')} par match` : sens, bon: null, cle: 'glace' });
+  }
+  if (e.mutation && MUTATIONS[e.mutation]) out.push({ txt: `Change sa carte : ${MUTATIONS[e.mutation].ico} ${MUTATIONS[e.mutation].nom}`, bon: null });
+  if (duree) out.push({ txt: `${duree} match${duree > 1 ? 's' : ''}`, bon: null, duree: true });
+  return out;
+}
+/* Les mots des totaux : les quatre canaux, dans l'ordre, arrondis au pour cent (0 % se tait). */
+export function motsDesTotaux(t) {
+  if (!t) return [];
+  const e = {};
+  for (const k of ['volume', 'finition', 'defense', 'discipline']) if (Math.round((t[k] - 1) * 100) !== 0) e[k] = t[k];
+  return motsDEffet(e);
 }

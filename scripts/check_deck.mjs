@@ -116,7 +116,20 @@ console.log('\n  Le deck (S73)\n');
   simulateLeague(t2, 82, { graine: 'deck', decisions: decisions.map(d => ({ ...d })) });
   const fiche = x => `${x[0].W}-${x[0].L}-${x[0].OTL} ${x[0].GF}-${x[0].GA}`;
   exiger('la saison se rejoue à l\'identique avec ces cartes', fiche(t) === fiche(t2), `${fiche(t)} puis ${fiche(t2)}`);
-  borne('écart de victoires que le nouveau rôle a fait', t[0].W - base[0].W, -12, 12, '');
+  /*
+   * L'ÉCART DU RÔLE, SUR TROIS LIGUES (V25). Une ligue seule mesurait les dés plus que le rôle : la décision rejoue la saison
+   * depuis le 21e jour, et deux saisons divergent de dix victoires sans qu'une carte y soit pour rien (mesuré : −5 puis +16
+   * sur la même graine, avant et après un changement du moteur qui ne touchait pas ce rôle). Trois ligues, la moyenne.
+   */
+  const ecarts = [t[0].W - base[0].W];
+  for (const g of [7301, 7302]) {
+    const b0 = ligue(g), b1 = ligue(g);
+    simulateLeague(b0, 82, { graine: 'deck', decisions: [] });
+    const rr = rolesOfferts(b1[0], 'deck', J0)[0];
+    simulateLeague(b1, 82, { graine: 'deck', decisions: [{ jour: J0 + 1, equipe: 0, palier: 40, deck: 'profil', mutation: { cle: rr.cle, joueur: getPlayerKey(rr.p) } }] });
+    ecarts.push(b1[0].W - b0[0].W);
+  }
+  borne('écart de victoires que le nouveau rôle a fait, trois ligues', ecarts.reduce((a, x) => a + x, 0) / ecarts.length, -8, 8, ` (${ecarts.join(' · ')})`);
 
   /*
    * 7. UNE CARTE DE JOUEUR SE GARDE, ET SE POSE AU VERSO (S80 ; V16 : une retouche de l'atelier). JP : *je veux que

@@ -41,15 +41,27 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
 const saisons = fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sort();
 const LIGUES = Number(process.env.LIGUES ?? 1);
+/*
+ * `GRAINE=mot` (V25) : les 32 clubs de chaque ligue se tirent d'une suite semée, les mêmes d'une exécution à l'autre et
+ * d'une branche à l'autre — c'est ce qui permet de comparer le moteur AVANT et APRÈS un changement sur les mêmes ligues
+ * (appariées), au lieu de courir après le bruit du tirage. Sans graine, le hasard, comme avant.
+ */
+const GRAINE = process.env.GRAINE || '';
+const alea = (() => {
+  if (!GRAINE) return Math.random;
+  let x = 2166136261;
+  for (const ch of GRAINE) x = Math.imul(x ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return () => { x = (x * 1103515245 + 12345) & 0x7fffffff; return x / 0x7fffffff; };
+})();
 
 function batirLigue() {
 const equipes = [];
 const vus = new Set();
 while (equipes.length < 32) {
-  const f = saisons[Math.floor(Math.random() * saisons.length)];
+  const f = saisons[Math.floor(alea() * saisons.length)];
   const shard = JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, f), 'utf8'));
   const tags = [...new Set(shard.players.map(p => p.t))];
-  const tag = tags[Math.floor(Math.random() * tags.length)];
+  const tag = tags[Math.floor(alea() * tags.length)];
   const cle = `${shard.season}|${tag}`;
   if (vus.has(cle)) continue;
   let unites;
@@ -61,7 +73,8 @@ while (equipes.length < 32) {
   equipes.push(createTeam(`${tag} ${shard.season}`, tag, autoRoster(pool), { season: shard.season }));
 }
 
-  const ligue = simulateLeague(equipes);
+  // Avec une graine, la ligue aussi rejoue la même : avant et après se comparent sur les mêmes dés.
+  const ligue = simulateLeague(equipes, 82, GRAINE ? { graine: `${GRAINE}:${ligues.length}` } : {});
   equipes.feuilles = ligue.calendrier.flat().map(m => m.feuille);
   return equipes;
 }

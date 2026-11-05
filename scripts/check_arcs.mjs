@@ -27,6 +27,7 @@ import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua,
 import { ARCS, ARCS_PAR_SAISON, DEFIS, avanceDuDefi } from '../js/arcs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 /* LA BANQUE D'ESSAI : trois arcs, un par famille, aux canaux qui existent. */

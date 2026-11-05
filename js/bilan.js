@@ -10,11 +10,10 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, SITUATIONS,
-  motDeBlessure } from './sim.js';
+import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, SITUATIONS } from './sim.js';
 import { causesDuMatch, causeDuBut, causesDeSaison } from './causes.js';
 import { glaceDuMatchHtml } from './glace.js';
-import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
+import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT, nomCourt, motDeBlessure } from './recit.js';
 import { apresMatch } from './apres-match.js';
 import { panelDe } from './panel-tv.js';
 import { deck, liste, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
@@ -1291,7 +1290,7 @@ function buildDuSoirHtml(f, A, B, jour) {
   const matchs = matchsJoues(G.ligue.calendrier);
   const moi = profilDuClub(matchs, toi, { avant: jour }), lig = profilDeLigue(matchs, toi, { avant: jour });
   const b = buildDuSoir(toi, jour, f);
-  const groupes = [['Pouvoirs du coach', b.pouvoirs], ['Événements', b.effets], ['Cartes de match', b.jouees]]
+  const groupes = [['Pouvoirs du coach', b.pouvoirs], ['Événements', b.effets]]
     .filter(([, xs]) => xs.length).map(([k, xs]) => `<p><b>${k}</b> : ${xs.map(esc).join(' · ')}</p>`).join('');
   const lignes = ecartsDuSoir(f, A.isPlayer ? 'A' : 'B', moi, lig).map(r => ({
     k: r.nom, v: `${dire(r.soir, 0)}${r.moyenne != null ? ` · toi ${dire(r.moyenne)}` : ''}${r.ligue != null ? ` · ligue ${dire(r.ligue)}` : ''}`,

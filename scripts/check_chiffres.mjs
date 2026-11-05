@@ -28,8 +28,7 @@ import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouer
   grainerHasard, activeLineup, profilMatch, coupsAttendus, MUTATIONS } from '../js/sim.js';
 import { chiffresDuSoir, effetEnChiffres, motsDuSoir, motsEnChiffres, motsDeMutationEnChiffres, poserClubLu } from '../js/impact.js';
 import { BANQUE, reglesDe } from '../js/banque.js';
-import { CARTES_MATCH } from '../js/combat.js';
-import { optionDeCarteMatch, pucesDeFace, FACE_MAX } from '../js/gerant.js';
+import { pucesDeFace, FACE_MAX } from '../js/gerant.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { temoin, effetTemoin } from './lib/temoins.mjs';
@@ -184,15 +183,12 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
   for (const id of Object.keys(BANQUE)) {
     try { for (const m of reglesDe(id)) { lues++; if (/%/.test(m.txt) && !AUTRE.test(m.txt)) fautes.push(`${id} : ${m.txt}`); } } catch (e) { fautes.push(`${id} : ${e.message}`); }
   }
-  for (const k of Object.keys(CARTES_MATCH)) {
-    try { for (const m of optionDeCarteMatch(k).mots) { lues++; if (/%/.test(m.txt) && !AUTRE.test(m.txt)) fautes.push(`${k} : ${m.txt}`); } } catch (e) { fautes.push(`${k} : ${e.message}`); }
-  }
   // UNE CARTE, UNE IDÉE (V6, phase 4) : sa face dit au plus FACE_MAX choses, en mots ; le reste attend « Les chiffres ».
   const face = mots => (pucesDeFace(mots).match(/<span class="puce [^"]*">/g) || []).filter(x => !/detail|duree/.test(x));
   const deTrop = [], enChiffres = [];
   let pliees = 0;
   for (const [id, c] of Object.entries(BANQUE)) {
-    const mots = c.cat === 'match' ? optionDeCarteMatch(c.cle).mots : reglesDe(id);
+    const mots = reglesDe(id);
     const f = face(mots);
     if (f.length > FACE_MAX) deTrop.push(`${c.nom} (${f.length})`);
     if (mots.filter(m => !m.duree).length > FACE_MAX) pliees++;

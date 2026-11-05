@@ -232,10 +232,8 @@ function ajouterDecision(avant, d) {
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
     && !(d.plan && x.plan && x.jour === d.jour)
-    // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
-    // autre décision rejoue le match depuis le début : l'entracte déjà choisi
-    // ne vaut plus, il sera redemandé sur le nouveau pointage.
-    && !(d.avant && x.avant && x.jour === d.jour) && !(x.entracte && (d.entracte ? x.jour === d.jour : x.jour >= d.jour))
+    // LES GROS MATCHS (S70) : un avant-match par soir. Une vieille décision d'entracte (le 82-0 d'avant la V25) tombe.
+    && !(d.avant && x.avant && x.jour === d.jour) && !x.entracte
     // LE DUEL (V9) : la 2e et la 3e période se rejouent sur ce qui précède ; une décision du soir ou d'avant les défait,
     // une période les suivantes, jamais celles d'avant.
     && !(periodeDuDuel(x) > 0 && (periodeDuDuel(d) > 0 ? x.jour === d.jour && periodeDuDuel(x) >= periodeDuDuel(d) : x.jour >= d.jour)));
@@ -507,7 +505,7 @@ export async function deciderSerie(d) {
     || (periodeDuDuel(x) > 0 && !(periodeDuDuel(d) > 0 && periodeDuDuel(x) < periodeDuDuel(d)))
     // Reprendre la série retire ce que l'adjoint a posé pour ce match ; la lui redonner retire la reprise.
     || (d.reprise && x.auto) || (d.auto && x.reprise)
-    // S70 : un entracte par match, et toute autre décision pour ce match l'annule.
+    // Une vieille décision d'entracte (le 82-0 d'avant la V25) tombe.
     || !!x.entracte);
   // Une récompense de série ne touche que le deck, une reprise que l'écran : pas de dés neufs (S74).
   const avant = G.ligue.decisionsSeries || [];

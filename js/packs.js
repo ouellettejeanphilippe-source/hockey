@@ -59,7 +59,8 @@
 import { hache } from './util.js';
 import { BANQUE, idsDe } from './banque.js';
 import { COACHS, VOIES } from './coachs.js';
-import { getPlayerKey, getPersonKey, coachDuJoueur, badgesDe, famillesDe } from './sim.js';
+import { getPlayerKey, getPersonKey, badgesDe, famillesDe } from './sim.js';
+import { coachDuJoueur } from './greffes.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { ageAtSeason } from './ratings.js';
 import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau, joueursHorsNiveau } from './niveaux.js';
