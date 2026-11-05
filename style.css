@@ -334,7 +334,7 @@ body.mode-rogue .btn:is(.go, .gold) { font-weight: 700; letter-spacing: 0.02em; 
 body.mode-rogue .topbar { background: var(--noir-pur); box-shadow: none; }
 body.mode-rogue .navtab.on { background: var(--fond-2); color: var(--blanc); }
 body.mode-rogue :is(.seg, .inv-filtres, .stat-tabs, .ct-vues, .hub-chips) { gap: var(--esp-1); padding: 0; border: 0; background: none; }
-body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-2)/1 var(--display); letter-spacing: 0.02em; box-shadow: none; animation: none; }
+body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; box-shadow: none; animation: none; }
 body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) span { color: inherit; font-size: inherit; }
 body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button).on { background: var(--club-vif); color: var(--noir-pur); border-color: transparent; box-shadow: none; }
 body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button).on span { color: inherit; }
@@ -4158,7 +4158,7 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-bandeau-d { color: var(--encre-2); text-align: right; }
 /* Les jetons : une rangée de choix, le choisi à la couleur du club, encre noire — jamais une pilule blanche. */
 .pl-jetons { display: flex; flex-wrap: wrap; gap: var(--esp-1); margin-bottom: var(--esp-2); }
-.pl-jeton { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-2)/1 var(--display); letter-spacing: 0.02em; }
+.pl-jeton { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; }
 .pl-jeton span { margin-left: 2px; font-size: 0.9em; opacity: 0.8; }
 .pl-jeton.on { background: var(--club-vif); color: var(--noir-pur); }
 .pl-jeton.pl-ton-rouge { color: var(--mauvais); }
