@@ -6,6 +6,7 @@
  * sa MAÎTRISE, une force de plus sur ses pouvoirs (`NIVEAUX[k].maitrise`, js/niveaux.js). Pur : l'écran et les robots tirent les mêmes cartes.
  */
 import { hache } from './util.js';
+import { NIVEAUX } from './niveaux.js';
 
 let DONNEES = null;
 /* data/coachs.json, chargé une fois, au choix du coach (le Rogue seulement). */
