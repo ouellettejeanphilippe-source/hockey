@@ -1102,12 +1102,13 @@ async function choisirDuClasseur(gardes = [], exigence = 0) {
     }),
   });
 }
-/* Ce que le départ a donné, en une ligne : « Ton effectif : 20 Soutien et 3 Réguliers de ton cartable ». */
+/* Ce que le départ a donné, en comptes (jamais un zéro) : « Ton effectif : 3 Réguliers de ton cartable · 20 bouche-trous de la ligue ». */
 function motDuVestiaire(V) {
   if (V.quota == null) return 'Tes bouche-trous sont là';
   const s = V.tires.filter(x => estSoutien(x.niveau)).length, r = V.tires.length - s;
   const ligue = Object.values(V.roster).filter(Boolean).length - V.tires.length - V.nFixes;
-  return `Ton effectif : ${s} ${NIVEAUX[0].nom}${r ? ` et ${r} ${NIVEAUX[1].nom}${r > 1 ? 's' : ''}` : ''} de ton cartable${ligue > 0 ? `, ${ligue} bouche-trou${ligue > 1 ? 's' : ''} de la ligue` : ''}`;
+  const cartable = [s ? `${s} ${NIVEAUX[0].nom}` : '', r ? `${r} ${NIVEAUX[1].nom}${r > 1 ? 's' : ''}` : ''].filter(Boolean).join(' et ');
+  return `Ton effectif : ${[cartable ? `${cartable} de ton cartable` : '', ligue > 0 ? `${ligue} bouche-trou${ligue > 1 ? 's' : ''} de la ligue` : ''].filter(Boolean).join(' · ')}`;
 }
 async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = null, exigence = 0) {
   const meta = lireMeta();
@@ -1155,7 +1156,8 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
   saveGame(); syncOptionsUI(); render();
   setView('roster');
   const noms = [...gardes.map(p => p.n), ...tires.map(x => x.p.n)];
-  toast(`${motDuVestiaire(V)}${noms.length ? `, avec ${noms.join(', ')}` : ''}. Le proprio veut : ${mandatDe(1, exigence, m.runs === 1).mot}. Lance la saison quand tu veux.`);
+  // Une ligne de comptes, pas un paragraphe (5 nov. 2026, l'audit d'unslop) : le bouton dit déjà « Lance la saison ».
+  toast(`${motDuVestiaire(V)}${noms.length ? ` · ${noms.join(', ')}` : ''} · Le proprio veut : ${mandatDe(1, exigence, m.runs === 1).mot}`);
 }
 /*
  * LE PLAFOND D'UNE SAISON DE LA RUN : 82 M$, plus ce que le vestiaire a
@@ -1687,7 +1689,7 @@ async function continuerRun(gardes = [], lotos = []) {
   saveGame(); render();
   setView('roster');
   const motEquipe = `${motDuVestiaire(V).toLowerCase()}${gardes.length ? `, avec ${gardes.map(p => p.n).join(', ')}` : ''}${lotos.length ? `, ${lotos.length} carte${lotos.length > 1 ? 's' : ''} du loto` : ''}`;
-  toast(`Saison ${G.rogue.saison} de la run : ${motEquipe}, et 🪙 ${G.rogue.depart} jetons. Le proprio veut : ${mandatDe(G.rogue.saison, exigenceDeLaRun(), premiereRun()).mot}.`);
+  toast(`Saison ${G.rogue.saison} de la run : ${motEquipe} · 🪙 ${G.rogue.depart} jetons · Le proprio veut : ${mandatDe(G.rogue.saison, exigenceDeLaRun(), premiereRun()).mot}`);
 }
 /*
  * LE VESTIAIRE DES DÉBLOCAGES : ce que les écussons achètent, d'une run à

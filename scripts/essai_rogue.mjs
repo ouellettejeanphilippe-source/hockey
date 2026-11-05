@@ -626,9 +626,9 @@ async function regler() {
         await page.screenshot({ path: png }).catch(() => {});
         throw new Error(`« À régler » existe mais n'est pas visible. Boutons visibles : ${vus || 'aucun'} (capture : ${png})`);
       }
-      // « ⏳ Encore un choix · … » tient sur une ligne (Jalon M, B4) ; le toucher ouvre le choix en plein écran, ou l'écran d'un choix à une seule porte.
+      // « Encore un choix · … » tient sur une ligne (Jalon M, B4 ; le sablier est parti avec l'audit d'unslop, 5 nov. 2026) ; le toucher ouvre le choix en plein écran, ou l'écran d'un choix à une seule porte.
       const mot = await t.evaluate(b => ({ txt: b.textContent.trim(), h: b.getBoundingClientRect().height }));
-      if (!mot.txt.startsWith('⏳') || mot.h > 60) barreA.longs.push(`« ${mot.txt.slice(0, 40)} » (${Math.round(mot.h)} px)`);
+      if (mot.h > 60) barreA.longs.push(`« ${mot.txt.slice(0, 40)} » (${Math.round(mot.h)} px)`);
       await t.click({ timeout: 8000 }); await page.waitForTimeout(900);
       const ou = await page.evaluate(() => (document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden])') ? 'porte' : ''));
       if (ou) barreA.vus++;

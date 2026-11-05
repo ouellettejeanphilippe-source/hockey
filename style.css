@@ -323,12 +323,18 @@ body.mode-rogue .banc-tete > span:last-child, body.mode-rogue .pk-rayon h3 .pk-r
 body.mode-rogue .hub-une-t { writing-mode: horizontal-tb; rotate: none; padding: 2px var(--esp-2); }
 /* L'HABILLAGE COMMUN DU PLATEAU (4 nov. 2026 ; JP : *pourquoi tu refais pas tout le UI au complet ?*). Une seule grammaire sur
    toutes les pages du Rogue, celle de la maquette A : l'en-tête sur le noir pur sans filet de couleur ; chaque segment, filtre ou
-   onglet de page est un JETON — un petit bloc sombre en capitales, le choisi à la couleur du club, encre noire — jamais une pilule
-   blanche ; les panneaux (le filet, les unités spéciales) perdent leur cadre et prennent un bandeau. */
+   onglet de page est un JETON — un petit bloc sombre, le choisi à la couleur du club, encre noire — jamais une pilule
+   blanche ; les panneaux (le filet, les unités spéciales) perdent leur cadre et prennent un bandeau.
+   LA MAJUSCULE AU BANDEAU SEUL (5 nov. 2026, l'audit d'unslop ; JP : *au bandeau seul*) : le bandeau de bas d'écran est la
+   signature de la télé, le seul texte en capitales espacées ; onglets, portes, jetons, boutons, languettes et coins passent en
+   casse de phrase, interlettrage 0,02 em au plus, graisse 600. L'or ne sert que deux fois par écran : l'action primaire et le
+   chiffre qui compte ; aucune lueur colorée. */
+body.mode-rogue .navtab { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+body.mode-rogue .btn:is(.go, .gold) { font-weight: 700; letter-spacing: 0.02em; text-transform: none; }
 body.mode-rogue .topbar { background: var(--noir-pur); box-shadow: none; }
 body.mode-rogue .navtab.on { background: var(--fond-2); color: var(--blanc); }
 body.mode-rogue :is(.seg, .inv-filtres, .stat-tabs, .ct-vues, .hub-chips) { gap: var(--esp-1); padding: 0; border: 0; background: none; }
-body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; box-shadow: none; animation: none; }
+body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-2)/1 var(--display); letter-spacing: 0.02em; box-shadow: none; animation: none; }
 body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) span { color: inherit; font-size: inherit; }
 body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button).on { background: var(--club-vif); color: var(--noir-pur); border-color: transparent; box-shadow: none; }
 body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button).on span { color: inherit; }
@@ -4148,10 +4154,10 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
    ===================================================================== */
 /* Le bandeau : un titre de bloc en bas d'écran de télé — le filet du club, le fond qui s'estompe, les capitales blanches. */
 .pl-bandeau { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); margin-bottom: var(--esp-2); padding: var(--esp-1) var(--esp-2) var(--esp-1) var(--esp-3); border-left: 4px solid var(--club-vif); background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 28%, var(--noir-pur)), transparent 88%); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--blanc); }
-.pl-bandeau-d { color: var(--or); text-align: right; }
+.pl-bandeau-d { color: var(--encre-2); text-align: right; }
 /* Les jetons : une rangée de choix, le choisi à la couleur du club, encre noire — jamais une pilule blanche. */
 .pl-jetons { display: flex; flex-wrap: wrap; gap: var(--esp-1); margin-bottom: var(--esp-2); }
-.pl-jeton { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.pl-jeton { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-2)/1 var(--display); letter-spacing: 0.02em; }
 .pl-jeton span { margin-left: 2px; font-size: 0.9em; opacity: 0.8; }
 .pl-jeton.on { background: var(--club-vif); color: var(--noir-pur); }
 .pl-jeton.pl-ton-rouge { color: var(--mauvais); }
@@ -4178,7 +4184,7 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-carte-l .badge { font-style: normal; }
 .pl-carte-touche { cursor: pointer; }
 .pl-carte-touche:hover .carton, .pl-carte-touche:focus-visible .carton { transform: translateY(-3px); }
-.pl-carte-or .carton { box-shadow: 0 0 14px color-mix(in srgb, var(--or) 45%, transparent); }
+.pl-carte-or .carton { box-shadow: 0 0 0 1px color-mix(in srgb, var(--encre) 35%, transparent); }
 .pl-carte-eteinte :is(.carton, .tc) { opacity: 0.45; filter: grayscale(0.7); }
 .pl-carte-reserve .carton { opacity: 0.6; }
 .pl-carte-blesse .pl-carte-l { color: var(--mauvais); }
@@ -4288,7 +4294,8 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 /* LA JAUGE DU PROPRIO (V23, la nouvelle interface) : pas une boîte — une ligne de télé, le mandat et ton rang, et sous
    eux la ligue en jauge : ta place remplie (verte dans la cible, rouge dehors), le trait blanc de la cible. */
 .bu-run { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-1) var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) 0; border: 0; background: none; color: var(--encre); text-align: left; cursor: pointer; animation: tele-balaie 380ms var(--e-sortie) both; }
-.bu-run-k { padding: 2px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
+.bu-run-k { color: var(--encre-2); font: 600 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; }
+.bu-run:not(.dans):not(.hors) .bu-run-rang small { color: var(--or); }
 .bu-run-rang { justify-self: end; font: 800 var(--t-7)/1 var(--display); font-variant-numeric: tabular-nums; }
 .bu-run-rang small { font-size: var(--t-1); color: var(--encre-3); }
 .bu-run.dans .bu-run-rang { color: var(--bon); }
@@ -4304,7 +4311,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 /* LE PLATEAU (nov. 2026 ; la direction A choisie sur maquettes) : l'affiche est un HÉROS — leur vedette en photo d'action pleine
    largeur, en noir et blanc, fondue dans leurs couleurs ; deux jetons de bas d'écran en tête ; les deux plaques au pied, le sigle
    en gros, « VS » dans son losange entre elles ; le face-à-face au bout. */
-.bu-prochain { position: relative; display: flex; flex-direction: column; justify-content: flex-end; width: calc(100% + 2 * var(--esp-3)); min-height: 250px; margin: var(--esp-2) calc(-1 * var(--esp-3)) 0; padding: 0; border: 0; border-radius: 0; overflow: hidden; background: linear-gradient(160deg, color-mix(in srgb, var(--b-band) 70%, var(--noir-pur)), var(--noir-pur) 85%); color: var(--encre); text-align: center; cursor: pointer; isolation: isolate; animation: tele-balaie 520ms var(--e-sortie) both; }
+.bu-prochain { position: relative; display: flex; flex-direction: column; justify-content: flex-end; width: calc(100% + 2 * var(--esp-3)); min-height: 240px; margin: var(--esp-2) calc(-1 * var(--esp-3)) 0; padding: 0; border: 0; border-radius: 0; overflow: hidden; background: linear-gradient(160deg, color-mix(in srgb, var(--b-band) 70%, var(--noir-pur)), var(--noir-pur) 85%); color: var(--encre); text-align: center; cursor: pointer; isolation: isolate; animation: tele-balaie 520ms var(--e-sortie) both; }
 .bu-prochain.avec-photo::before { content: ""; position: absolute; inset: 0; z-index: -2; background: var(--photo) center / cover no-repeat; background-position: calc(var(--fx, 0.5) * 100%) calc(var(--fy, 0.25) * 100%); filter: grayscale(1) contrast(1.15); }
 .bu-prochain.avec-photo::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, color-mix(in srgb, var(--noir-pur) 25%, transparent), transparent 40%, color-mix(in srgb, var(--noir-pur) 85%, transparent)), var(--b-band); mix-blend-mode: multiply; opacity: 0.82; }
 /* Sans photo (le premier soir, un club sans vedette) : leur écusson en grand, en filigrane, au centre du héros. */
@@ -4323,10 +4330,10 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .bu-vs-eq.toi > :is(.team-logo-img, .team-logo-inline) { right: var(--esp-2); }
 .bu-vs-eq.eux > :is(.team-logo-img, .team-logo-inline) { left: var(--esp-2); }
 .bu-vs-eq b { max-width: 100%; font: 900 calc(var(--t-7) * 1.15)/0.95 var(--display); letter-spacing: 0.01em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bu-vs-eq small { font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.08em; opacity: 0.85; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bu-vs-eq small { font: 600 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; opacity: 0.85; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bu-vs-mi { display: grid; place-items: center; background: var(--noir-pur); }
 .bu-vs-mi b { font: 900 var(--t-5)/1 var(--display); letter-spacing: 0.06em; color: var(--blanc); }
-.bu-prochain-aller { padding: var(--esp-1) var(--esp-3); background: var(--noir-pur); font: 800 var(--t-1)/1.6 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); text-align: right; }
+.bu-prochain-aller { padding: var(--esp-1) var(--esp-3); background: var(--noir-pur); font: 600 var(--t-2)/1.6 var(--display); letter-spacing: 0.02em; color: var(--encre); text-align: right; }
 /* UNE RANGÉE QUI OUVRE UNE PAGE ou une feuille (js/saison.js `rangeeHtml` ; JP : *j'hais les accordéons*) : le titre, ce qu'elle dit, « › ».
    Ton plan, au Bureau, en est une (la feuille des six plans). Toujours visible, 44 px au moins, à coins vifs. */
 .hub-rangee { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: 0; background: var(--fond-2); text-align: left; font: 700 var(--t-2)/1.2 var(--display); color: var(--encre-2); }
@@ -4431,8 +4438,8 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 
 /* ---- La bande de tête : l'écusson, la saison, la journée en chiffre, ta fiche ---- */
 .hub-head { align-items: center; gap: var(--esp-1) var(--esp-3); }
-.hub-head .live-ronde, .hub-head .live-serie { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-2); font-variant-numeric: tabular-nums; }
-.hub-head .live-match { font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.hub-head .live-ronde, .hub-head .live-serie { font: 600 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
+.hub-head .live-match { font: 700 var(--t-4)/1 var(--display); letter-spacing: 0.01em; white-space: nowrap; }
 .hub-ecusson { display: inline-flex; flex: none; }
 .hub-ecusson > * { display: block; }
 .hub-head .hub-titre { margin: 0; font-size: var(--t-4); color: var(--encre); }
@@ -4682,7 +4689,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 
 /* ---- Le volet : les titres, hier soir, l'état de la saison, ce qui se plie ---- */
 .hub-titre { display: flex; align-items: center; gap: var(--esp-2); margin-top: var(--esp-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }
-.hub-titre::before { content: ""; flex: none; width: 3px; height: 12px; background: var(--club-vif); box-shadow: 0 0 8px var(--club-vif); }
+.hub-titre::before { content: ""; flex: none; width: 3px; height: 12px; background: var(--club-vif); }
 .hub-titre::after { content: ""; flex: 1; height: 1px; background: var(--filet); }
 .hub-titre:first-child { margin-top: 0; }
 .hub-hier { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0; row-gap: var(--esp-1); padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }

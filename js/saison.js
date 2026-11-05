@@ -3023,7 +3023,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Une case en poste encore libre : la place d'une carte, en pointillés ; toucher ouvre le Coach, où la main se pose.
     const libres = pA ? Math.max(0, casesDuPerso(pA, niveau) - postes.length) : 0;
     const vide = libres ? caseVide('Case<br>libre', `Ta main · <b>${libres}</b> libre${libres > 1 ? 's' : ''}`, { cls: 'pl-carte-touche', attrs: ' data-banc="coach" role="button" tabindex="0" aria-label="Une case d\'adjoint libre"' }) : '';
-    return `<div class="bu-banc" role="group" aria-label="Ton banc ce soir">${bandeau('Ton banc ce soir', 'Touche une carte')}${grille([plan, ...pouvoirs, ...adjoints, vide].filter(Boolean), { n: 4, cls: 'pl-eventail' })}</div>`;
+    return `<div class="bu-banc" role="group" aria-label="Ton banc ce soir">${bandeau('Ton banc ce soir')}${grille([plan, ...pouvoirs, ...adjoints, vide].filter(Boolean), { n: 4, cls: 'pl-eventail' })}</div>`;
   };
   /*
    * LA BANDE DE LA RUN (V23 ; JP : *go, quatre portes* — « en haut, toujours : la bande de la run »). Ce que le proprio exige
@@ -3037,7 +3037,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // La jauge (V23, la nouvelle interface) : la ligue de bas en haut, ta place en couleur, le trait de la cible du proprio.
     const part = x => (n > 1 ? (n - x) / (n - 1) : 1);
     // Les mots du mandat vivent au Proprio (nov. 2026, JP : *where the infos are*) : ici, le chiffre seul, et la jauge.
-    return `<button type="button" class="bu-run${etat}" aria-label="Le proprio : ${ctx.esc(run.mot)}" style="--p:${jour ? part(r).toFixed(3) : 0};--c:${part(cible).toFixed(3)}"><span class="bu-run-k">Le proprio</span><span class="bu-run-rang">${jour ? `${r}${r === 1 ? 'er' : 'e'}` : '—'}<small> / ${cible}</small></span><span class="bu-run-jauge" aria-hidden="true"><i></i></span></button>`;
+    return `<button type="button" class="bu-run${etat}" aria-label="Le proprio : ${ctx.esc(run.mot)}" style="--p:${jour ? part(r).toFixed(3) : 0};--c:${part(cible).toFixed(3)}"><span class="bu-run-k">Le proprio</span><span class="bu-run-rang">${jour ? `${r}${r === 1 ? 'er' : 'e'}<small> / ${cible}</small>` : `<small>${cible} à atteindre</small>`}</span><span class="bu-run-jauge" aria-hidden="true"><i></i></span></button>`;
   };
   // Le bandeau des scores d'hier est parti (4 nov. 2026, le contenu de zéro) : aucun choix du matin n'en dépendait, et le
   // Classement a les résultats de la journée.
@@ -4057,7 +4057,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mot = attente ? (manquants.length ? (manquants.length > 1 ? `Encore ${manquants.length} choix` : 'Encore un choix') : 'À régler') : '';
     const primaire = attente
         // B4 (audit mobile) : une ligne, le compte et le sujet coupé au besoin — le sujet entier se lit dans le choix.
-        ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend ce choix"><span class="hub-traiter-mot">⏳ ${mot} · ${ctx.esc(attente.sujet)}</span></button>`
+        ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend ce choix"><span class="hub-traiter-mot">${mot} · ${ctx.esc(attente.sujet)}</span></button>`
         // UN JOUR À LA FOIS (1.0, oct.). JP : *vraiment faire un jour par jour, pas de saut de jour*. V8 : l'avance dit où elle s'arrête.
         : `<button class="btn go hub-jour" title="Une journée ; ce qui se décide attend le lundi">${ctx.rogue ? ctx.esc(motDuJour()) : 'Jour suivant'}</button>`;
     // LA BARRE D'ACTION (1.0, R2) : le bouton et ses seconds rôles dans une barre, collée au bas du téléphone ; À faire à part.
