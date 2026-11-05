@@ -10,7 +10,8 @@ Le plan de travail courant. Le plan de la 1.0 et ses jalons, tous livrés, sont 
 
 Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et l'économie, les histoires et les choix, l'interface), « Ce qui part » nommé (154 noms), « Ce qui reste » avec sa raison (la carte de joueur, le noyau du lancer, le coach et sa main, l'économie, la coquille, les règles de Sur table et de Sur glace), neuf tranches, six questions au bas. Rien n'est codé tant que JP n'a pas tranché ; chaque tranche porte son extrait `docs/refonte-v25-<lettre>.md` et passe `check_refonte` dessus.
 
-- [ ] **JP tranche les six questions** (le gros match du 82-0 en périodes vues, les galons, le seuil de profondeur à 8 V, la vraie saison dans les histoires, les maquettes des autres modes, la possession) ; puis `/revue-design docs/refonte-v25.md`.
+- [x] **JP tranche les six questions** (5 nov. : le gros match du 82-0 en périodes vues sans choix ; les galons partent, leur trace au verso ; le seuil de profondeur à 8 V ; la vraie saison dite dans les histoires ; une seule direction de maquettes, la A ; la possession en dernier, si la mesure tient) — au bas de docs/refonte-v25.md.
+- [ ] **`/revue-design docs/refonte-v25.md`** avant A1.
 - [ ] **A1 · Le noyau et les greffes** — un chemin dans `playGame`, js/greffes.js, le contrat en trois fonctions, l'affichage sorti de sim.js, `VERSION_MOTEUR` S142 — `check_lancers`, `check_neutre`, `check_feuilles`, `check_gros`, `check_duel`, `check_pouvoirs`, `check_couches` (neuf).
 - [ ] **A2 · Une source pour trois modes** — le hasard et la force dans js/util.js et js/ratings.js, lus par table.js et physique.js — `check_table`, `check_physique`, `check_couches`.
 - [ ] **B1 · Une grammaire d'effet et une échelle** — js/effets.js, `motsDe`, `NIVEAUX` partout, `BORNE_V`, les raretés et les ponts partis — `check_effets`, `check_pouvoirs`, `check_relais`, `check_banc`, `check_mots`.

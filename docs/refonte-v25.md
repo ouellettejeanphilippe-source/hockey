@@ -263,9 +263,9 @@ Dans l'ordre. Chacune est une ou plusieurs petites PR, porte **son extrait du §
 8. **D2 · Les autres modes sur maquettes** — le 82-0, Sur table, l'exhibition, Sur glace : maquettes en deux directions, JP tranche, le code reproduit ; une navigation — smoke, `essai_rogue`, `check_coquille`.
 9. **A3 · La possession** — la dernière, la plus incertaine : mesurée en retenue avant d'être jouée ; ne se livre que si la défense se sépare du gardien et des attaquants (§ 5) — `mock_moteur`, `check_ratings`, `check_monotonie`, un `check_possession` à écrire.
 
-## Les questions à JP
+## Les questions à JP, et ses réponses (5 nov. 2026)
 
-Six, comme pour la V23. Chacune change une tranche.
+Six, comme pour la V23. Chacune change une tranche. **JP a tranché les six, le 5 novembre** : le gros match du 82-0 en périodes vues, sans choix (A1) ; les galons partent, leur trace au verso de la carte (B2) ; le seuil de profondeur à 8 V, et on ne le baisse pas (C2) ; la vraie saison dite dans les histoires (C1) ; les écrans des autres modes sur une seule direction, la A du Rogue, une maquette par écran que JP valide ou corrige (D2) ; la possession en dernier, livrée seulement si la mesure en retenue tient (A3). La suite : `/revue-design docs/refonte-v25.md`, puis A1.
 
 1. **Le gros match du 82-0 en trois périodes vues** (A1) : aujourd'hui le 82-0 regarde ses gros matchs avec un entracte à 40:00 et un choix ; avec un seul chemin, il les regarde période par période, sans choix (pas de carte au 82-0). Oui, ou garder l'entracte unique comme une greffe du 82-0 ?
 2. **Les galons partent** (B2), leur trace au verso de la carte du joueur. Oui ?
