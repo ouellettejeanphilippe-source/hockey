@@ -17,8 +17,17 @@
  *   3. La page charge js/greffes.js (depuis index.html, de proche en proche) :
  *      sans ça, une ligue du Rogue dans le navigateur tomberait sur
  *      `exigerGreffes`.
+ *
+ * Et, depuis A2 (une source pour trois modes) :
+ *
+ *   4. Le hasard et le hachage ont UNE définition, dans js/util.js :
+ *      `generateur`, `gauss`, `entierDeGraine`, `hache` ; aucune mulberry32,
+ *      aucun `hacherMise` ailleurs. Le moteur, Sur table (js/table.js), Sur
+ *      glace (js/physique.js) et le direct lisent le générateur de util.js.
+ *   5. Sur table et Sur glace lisent les cotes sur 20 de la fiche (`axes20`,
+ *      `cote20`, js/niveaux.js), jamais une conversion à eux.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { posix } from 'node:path';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -73,4 +82,23 @@ const html = lire('index.html');
 const racines = [...html.matchAll(/<script[^>]+type="module"[^>]+src="([^"]+)"/g)].map(m => normaliser(m[1]));
 exiger('la page charge js/greffes.js', atteints(racines).has('js/greffes.js'), `depuis ${racines.join(', ')}`);
 
-verdict('Les couches du moteur (V25 A1)');
+// 4. Une seule source du hasard.
+const JS = readdirSync(new URL('../js/', import.meta.url)).filter(f => f.endsWith('.js')).map(f => `js/${f}`);
+const sansCommentaires = s => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+const definitions = nom => JS.filter(f => new RegExp(`^(export )?(function|const|let) ${nom}\\b`, 'm').test(sansCommentaires(lire(f))));
+for (const nom of ['generateur', 'gauss', 'entierDeGraine', 'hache']) {
+  const ou = definitions(nom);
+  exiger(`\`${nom}\` n'a qu'une définition, dans js/util.js`, ou.length === 1 && ou[0] === 'js/util.js', ou.join(', ') || 'aucune');
+}
+const doubles = JS.filter(f => /0x6D2B79F5|hacherMise/i.test(sansCommentaires(lire(f))));
+exiger('aucune mulberry32, aucun hacherMise dans js/', !doubles.length, doubles.join(', ') || 'aucun');
+const importeDe = (f, module, nom) => new RegExp(`import \\{[^}]*\\b${nom}\\b[^}]*\\} from '\\./${module}'`).test(lire(f));
+for (const f of ['js/sim.js', 'js/table.js', 'js/physique.js', 'js/direct.js']) {
+  exiger(`${f} lit \`generateur\` dans js/util.js`, importeDe(f, 'util.js', 'generateur'), '');
+}
+// 5. Les cotes sur 20, la même source pour les trois modes.
+for (const f of ['js/table.js', 'js/sur-glace.js']) {
+  exiger(`${f} lit ses cotes dans js/niveaux.js (axes20)`, importeDe(f, 'niveaux.js', 'axes20'), '');
+}
+
+verdict('Les couches du moteur (V25 A1, A2)');

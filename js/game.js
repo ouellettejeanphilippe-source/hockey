@@ -554,7 +554,7 @@ export const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_S
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S142';  // S142 (nov. 2026, V25 A1) : un seul chemin de match — tout match se joue en trois périodes (`jouerEnPeriodes`, js/sim.js), le gros match du 82-0 en périodes vues sans choix ni main adverse, le duel fondu dans le même chemin ; l'historique des versions : docs/moteur-recalibrer.md.
+const VERSION_MOTEUR = 'S143';  // S143 (nov. 2026, V25 A2) : une seule source du hasard (js/util.js) — les tirages purs du Rogue (les offres, les paris, l'avant-match d'un gros match, les intentions) passent par `hache` au lieu de `hacherMise` et tombent autrement sur la même graine ; les matchs ordinaires ne bougent pas ; l'historique des versions : docs/moteur-recalibrer.md.
 export function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.

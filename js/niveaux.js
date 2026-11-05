@@ -54,7 +54,7 @@
  */
 
 import { mesuresDeSaison } from './ratings.js';
-import { famillesBrutes, FAMILLES, clesSpeciales } from './sim.js';
+import { famillesBrutes, FAMILLES, clesSpeciales, joueursDeLaSaison } from './sim.js';
 
 export const NIVEAUX = [
   { cle: 'soutien', nom: 'Soutien', haut: 1, rang: 'la moitié du bas' },
@@ -205,7 +205,8 @@ export const seuilDuNiveau = (joueurs, g, k) => saisonDe(joueurs).seuils[g][k];
 /* Les réguliers d'une saison rangés par niveau (une personne une fois). */
 export const joueursParNiveau = joueurs => saisonDe(joueurs).parNiveau;
 export const joueursHorsNiveau = joueurs => saisonDe(joueurs).horsNiveau;
-/* Ses cotes sur 20 (`AXES` : six pour un patineur, trois pour un gardien) dans SA saison, ou null (un joueur sans lecture). */
-export const axes20 = (p, joueurs) => (p && joueurs ? saisonDe(joueurs).axes(p) : null);
+/* Ses cotes sur 20 (`AXES` : six pour un patineur, trois pour un gardien) dans SA saison, ou null (un joueur sans lecture).
+   Sans liste, la saison est celle des joueurs enregistrés (`joueursDeLaSaison`, js/sim.js) : Sur table lit ainsi (V25 A2). */
+export const axes20 = (p, joueurs = joueursDeLaSaison(p && p.s)) => (p && joueurs ? saisonDe(joueurs).axes(p) : null);
 /* La cote sur 20 d'un joueur dans SA saison (1 à 20), ou null s'il n'est pas un régulier. Un appui à lire après le niveau, jamais un tri. */
-export const cote20 = (p, joueurs, auxPointsSeulement = false) => (p && joueurs ? saisonDe(joueurs).cote(p, auxPointsSeulement) : null);
+export const cote20 = (p, joueurs = joueursDeLaSaison(p && p.s), auxPointsSeulement = false) => (p && joueurs ? saisonDe(joueurs).cote(p, auxPointsSeulement) : null);

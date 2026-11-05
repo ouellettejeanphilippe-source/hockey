@@ -45,11 +45,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, generateur,
-  PART_UNITE, VOLUME_EXPOSANT, PASSE_D,
-  ecoleDe,
-} from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, PART_UNITE, VOLUME_EXPOSANT, PASSE_D, ecoleDe } from '../js/sim.js';
+import { generateur } from '../js/util.js';
 import { SEASON_LANCERS } from '../js/ratings.js';
 import { equipeReelle, saisonFinie } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';

@@ -24,9 +24,9 @@ import { DOSSIERS } from './dossiers.js';
 import { CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { episodesDuMatin } from './arcs.js';
 import { nomCourt } from './recit.js';
-import { estD } from './util.js';
+import { estD, hache } from './util.js';
 import {
-  brancherGreffes, SLOTS, getPlayerKey, famillesDe, profilsDe, badgeGardien, hacherMise, apresMatchs, CONNUS, DUREE_MOMENT,
+  brancherGreffes, SLOTS, getPlayerKey, famillesDe, profilsDe, badgeGardien, apresMatchs, CONNUS, DUREE_MOMENT,
   rendreJambes, grainerHasard, MOMENTS_SI, AVANT_GROS, deDuPari, cleDuPari, appliquerGestes, poserSurJoueur, effetsDesJoueurs,
   appliquerMutation, MUTATIONS, activeLineup, ENV_MESURE,
 } from './sim.js';
@@ -358,7 +358,7 @@ function intentionDuDuel({ toi, L, Ladv = null, k = 0, hist = [], graine = 0, cl
     score[c] = (score[c] || 0) + v;
     if (why && v > 0 && (!pourquoi[c] || v > pourquoi[c].v)) pourquoi[c] = { cle: why, v, ...extra };
   };
-  for (const c of Object.keys(INTENTIONS)) ajouter(c, 1 + 0.9 * hacherMise(graine, 'intention', cle, k, c));
+  for (const c of Object.keys(INTENTIONS)) ajouter(c, 1 + 0.9 * hache(graine, 'intention', cle, k, c));
   if (k === 0) {
     const p1 = ptsDe(vedette), p2 = F[1] ? ptsDe(F[1].p) : 0;
     ajouter('ombre', 1.5 * Math.min(1, Math.max(0, (p1 - p2) / Math.max(p2, 0.1))) + 0.3, 'vedette');

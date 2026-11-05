@@ -23,7 +23,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exiger, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
-import { entierDeGraine, objectifsOfferts, ajustementsOfferts, situationsDuJour, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
+import { entierDeGraine } from '../js/util.js';
+import { objectifsOfferts, ajustementsOfferts, situationsDuJour, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
   autoRoster, registerHiddenRatings, createTeam } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { COACHS, COACH_DU_ROLE } from '../js/coachs.js';

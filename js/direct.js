@@ -29,7 +29,7 @@ import { tempsRestant, NOM_PERIODE, nomCourt, profil, motDeBlessure } from './re
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { causeDuBut } from './causes.js';
 import { jouerSon } from './sons.js';
-import { ord, ordF, cap, nom, varsEquipe } from './util.js';
+import { ord, ordF, cap, nom, varsEquipe, generateur } from './util.js';
 import { creerGlace } from './glace.js';
 
 /*
@@ -43,17 +43,8 @@ import { creerGlace } from './glace.js';
 let otLongue = false;
 const tempsDeJeu = instant => tempsRestant(instant, otLongue);
 
-/* Une graine, un générateur : mulberry32, assez pour des instants de tirs. */
-function rng(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6D2B79F5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+/* Une graine, un générateur (celui de js/util.js, V25 A2), assez pour des instants de tirs. */
+const rng = generateur;
 
 const VITESSES = [0.5, 1, 2, 4, 8];  // minutes de jeu par seconde réelle
 const ETIQ_VITESSE = { 0.5: '×½', 1: '×1', 2: '×2', 4: '×4', 8: '×8' };

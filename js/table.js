@@ -42,16 +42,17 @@
  * 23 cases, le plafond, les cotes, les égalités de la feuille de match — rien
  * ne bouge. Ce fichier LIT un alignement et rend un pointage. Les quatre
  * nombres d'une pièce sont dérivés de formules qui existent déjà
- * (`pctTirRelDe`, `lancersRelDe`, `passesRelDe`, `facteurGardienDe`, `p.mr`) :
+ * (`axes20`, `lancersRelDe`, la sous-cote d'usure) :
  * aucune cote neuve n'est créée, donc rien à recalibrer.
  *
- * TOUT LE HASARD PASSE PAR `dTable()`, greffé sur `generateur()` de sim.js :
+ * TOUT LE HASARD PASSE PAR `dTable()`, greffé sur `generateur()` de js/util.js (V25 A2 : la même source que le moteur) :
  * même graine, même match. C'est la règle du dépôt, et c'est ce qui permet de
  * rejouer un tournoi.
  */
 
-import { generateur, getHiddenRatings, SLOTS } from './sim.js';
-import { pctTirRelDe, lancersRelDe, passesRelDe, facteurGardienDe } from './sim.js';
+import { getHiddenRatings, SLOTS, lancersRelDe, facteurPunitionsEpoque } from './sim.js';
+import { axes20 } from './niveaux.js';
+import { generateur } from './util.js';
 import { archetypeKey, GABARIT_PETIT, GABARIT_MOYEN, GABARIT_MATADOR } from './ratings.js';
 import { getTraits } from './traits.js';
 import { ordF as ordP, borne } from './util.js';
@@ -384,24 +385,27 @@ export const dist = (a, b) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c))
 
 const surSix = x => borne(Math.round(x), 1, 6);
 
-/** Le centile de robustesse mesuré, posé dans le shard (`mr`) ; 0,5 par défaut. */
-const robu = p => (typeof p?.mr === 'number' ? p.mr : 0.5);
+/*
+ * UNE COTE SUR 20 SUR UN DÉ (V25 A2) : les nombres d'une pièce viennent des cotes sur 20 de la fiche (`axes20`,
+ * js/niveaux.js : son rang dans sa saison, à son poste, en cloche), la même source que Sur glace, au lieu des cinq
+ * conversions que le plateau faisait lui-même sur les lectures du moteur. 1 → 1, 10 et 11 → 3 et 4, 20 → 6 ; sans
+ * lecture, 3.
+ */
+const surDe = a => (a ? surSix(1 + 5 * (a - 1) / 19) : 3);
 
 export function statsDeTable(p) {
   if (!p) return { PA: 3, MA: 3, TI: 3, FO: 3, SO: 3, AR: 3, gb: GABARIT_MOYEN, ts: 'P' };
+  const ax = axes20(p) || {};
   if (p.p === 'G') {
-    // facteurGardienDe : combien il laisse passer. Plus c'est bas, meilleur.
     const tg = new Set(getTraits(p).map(t => t.cle));
     const vole = tg.has('VEZINA') ? 'VEZINA' : tg.has('VOLEUR') ? 'VOLEUR' : null;
     return {
       PA: 2, MA: 3, TI: 1, FO: 3, DE: 3, SO: 9,
-      AR: surSix(8 - 4.2 * facteurGardienDe(p) + (vole ? 1 : 0)),
+      AR: surSix(surDe(ax.arrets) + (vole ? 1 : 0)),
       gb: gabaritDe(p), ts: 'P', traits: vole ? { AR: vole } : {},
     };
   }
-  const vol = lancersRelDe(p);        // 0,25 à 2,60 — son volume de rondelles
-  const fin = pctTirRelDe(p);         // 0,35 à 2,20 — sa finition
-  const pas = passesRelDe(p);         // 0,25 à 3,00 — ses passes
+  const vol = lancersRelDe(p);        // 0,25 à 2,60 — son volume de rondelles (le moteur) : le patin de qui va les chercher
   const traits = new Set(getTraits(p).map(t => t.cle));
   const estD = p.p === 'D' || p.p === 'LD' || p.p === 'RD';
 
@@ -468,7 +472,6 @@ export function statsDeTable(p) {
    * le majorent, puisque c'est de ça qu'ils parlent ; le Créateur reste au
    * maniement.
    */
-  const def = typeof p.md === 'number' ? p.md : 0.5;
   const bDE = majore('DE', 'SELKE', 'NORRIS', 'BIDIR');
   const bMA = majore('MA', 'CREATEUR');
   const bTI = majore('TI', 'TIR');
@@ -477,7 +480,7 @@ export function statsDeTable(p) {
   let PA = 4;
   if (majore('PA', 'VITESSE')) PA++;
   if (vol >= 1.35) PA++;
-  if (estD && robu(p) >= 0.85) PA--;
+  if (estD && (ax.robustesse || 10) >= 16) PA--;
   if (estD) PA--;
 
   /*
@@ -492,10 +495,10 @@ export function statsDeTable(p) {
 
   return {
     PA: borne(PA + (g === GABARIT_PETIT ? 1 : g === GABARIT_MATADOR ? -1 : 0), 2, 6),
-    MA: surSix(1.4 + 2.2 * pas + bMA),
-    TI: surSix(0.9 + 2.6 * vol * fin + bTI),
-    DE: surSix(1.2 + 5.0 * def + bDE),
-    FO: borne(surSix(1.5 + 4.0 * robu(p)) + (g === GABARIT_MATADOR ? 1 : g === GABARIT_PETIT ? -1 : 0) + bFO, 1, 6),
+    MA: surSix(surDe(ax.jeu) + bMA),
+    TI: surSix(surDe(ax.tir) + bTI),
+    DE: surSix(surDe(ax.defense) + bDE),
+    FO: borne(surDe(ax.robustesse) + (g === GABARIT_MATADOR ? 1 : g === GABARIT_PETIT ? -1 : 0) + bFO, 1, 6),
     SO: borne(Math.round(1.4 + 3.1 * (usure - 30) / 45) + (g === GABARIT_MOYEN ? 1 : g === GABARIT_PETIT ? -1 : 0), 2, 6),
     AR: 3,
     gb: g,
@@ -657,7 +660,7 @@ export function habileteDe(p) {
    geste ordinaire passe une fois sur deux, et c'est le modificateur qui fait
    toute la différence entre un joueur et un autre.
 
-   Tout passe par le générateur graine de sim.js : même graine, même match.
+   Tout passe par le générateur graine de js/util.js, celui du moteur : même graine, même match.
    ====================================================================== */
 
 /*
@@ -2889,11 +2892,15 @@ function remettreGardien(m, cote) {
  * différée jusqu'à la sortie d'un puni.
  */
 const PUNITIONS_MAX = 2;
+/* Un contact sorti sur un 1 passe devant l'arbitre : quatre fois sur six il siffle, au rythme de l'époque du fautif (V25 A2 :
+   `facteurPunitionsEpoque`, les chiffres du moteur ; sa saison est celle de sa carte). */
+const PUNITION_CHANCE = 4 / 6;
+const anneeDe = p => parseInt(String((p && p.s) || '').slice(0, 4), 10) || null;
 function punir(m, piece, jet) {
   if (jet.de !== 1 || piece.gardien) return false;
   const eq = eqDe(m, piece.eq);
   if (eq.penalites.length >= PUNITIONS_MAX) return false;
-  if (Math.floor(m.de() * 6) + 1 > 4) return false;
+  if (m.de() >= PUNITION_CHANCE * facteurPunitionsEpoque(anneeDe(piece.p))) return false;
   eq.punitions++;
   fiche(eq, piece.p).punitions++;
   eq.penalites.push({ role: piece.role, tours: PUNITION_TOURS, p: piece.p });

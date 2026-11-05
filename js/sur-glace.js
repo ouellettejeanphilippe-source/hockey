@@ -27,12 +27,12 @@
 import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, BANC, BAGARRE, GARDIEN, CELEBRATION } from './physique.js';
 import { decisionIA, STRATEGIES, styleDuClub } from './glace-ia.js';
 import { PATINEURS, DROITIERS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
-import { nouvelleGraine, entierDeGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
+import { nouvelleGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
 import { axes20, cote20 } from './niveaux.js';
 import { getTraits } from './traits.js';
 import { nomCourt } from './recit.js';
 import { coupDeGlace, fouleReagit, ambianceFoule, couperLaGlace } from './sons-glace.js';
-import { esc, estD } from './util.js';
+import { esc, estD, entierDeGraine, hache } from './util.js';
 
 const GRADINS = 3.2;     // les gradins autour de la glace, m : la caméra ne montre jamais au-delà
 const SUIVI = 6;         // la vitesse à laquelle elle rattrape la rondelle, par seconde
@@ -309,7 +309,7 @@ async function club(cote) {
   }
   const g = roster[SLOTS.find(s => s.group === 'G' && s.unit === 0).i] || pool.find(p => p.p === 'G');
   const axg = g ? (axes20(g, tous) || {}) : {};
-  return { nom: ctxJeu.nom(code), tag: code, patineurs, style: styleDuClub(code, tous), gardien: g ? { nom: nomCourt(g.n), visage: g.id, p: parametresDuGardien({ arrets: axg.arrets || 10 }) } : { nom: 'le gardien', p: parametresDuGardien() } };
+  return { nom: ctxJeu.nom(code), tag: code, annee: parseInt(saison, 10) || null, patineurs, style: styleDuClub(code, tous), gardien: g ? { nom: nomCourt(g.n), visage: g.id, p: parametresDuGardien({ arrets: axg.arrets || 10 }) } : { nom: 'le gardien', p: parametresDuGardien() } };
 }
 
 async function commencerLeMatch() {
@@ -910,8 +910,7 @@ function horsGlace(x, y) {
   const qx = Math.abs(x) - (L / 2 - COIN), qy = Math.abs(y) - (W / 2 - COIN);
   return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - COIN;
 }
-/* Un hachage semé : la foule, et le bruit doux de la glace (des valeurs sur une grille, interpolées) qui n'est jamais d'un seul ton. */
-const hache = (i, j) => { let h = (i * 374761393 + j * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+/* La foule et le bruit doux de la glace (des valeurs sur une grille, interpolées) tirent de `hache` (js/util.js), jamais d'un seul ton. */
 const anneau = (x, y, cx0, cy0, r, ep) => Math.abs(Math.hypot(x - cx0, y - cy0) - r) < ep;
 function glaceDeHaut() {
   const logo = ecusson && ecusson.im.complete && ecusson.im.naturalWidth ? ecusson.code : '';

@@ -14,7 +14,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, rembobiner, rembobinerSeries, creerSeries, jouerMatchSeries, bilanLigue, generateur, getPlayerKey } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, rembobiner, rembobinerSeries, creerSeries, jouerMatchSeries, bilanLigue, getPlayerKey } from '../js/sim.js';
+import { generateur } from '../js/util.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, verdict } from './verdict.mjs';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur

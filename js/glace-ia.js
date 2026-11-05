@@ -128,7 +128,7 @@ export const SORTIE = { attente: 0.8, attenteLibre: 5, ouvert: 3, largeBande: 7,
  * adversaires ou plus devant lui, à `couloir` m de son couloir, de `avant` m avant leur bleue à `dedans` m dedans —
  * personne des siens dans la zone : il la lance au fond, dans le coin le moins gardé, `part` fois sur cent par décision.
  */
-const FOND = { bouchee: 2, couloir: 7, avant: 3, dedans: 6, part: 0.35 };
+export const FOND = { bouchee: 2, couloir: 7, avant: 3, dedans: 6, part: 0.35 };
 /* L'ÉCRAN : le joueur au filet se tient sur la ligne de la rondelle au gardien, à `distance` m devant lui. */
 export const ECRAN_D = { distance: 1.9, prof: 1.1, large: 2.5 };
 const strategieDe = (etat, eq) => STRATEGIES[etat.equipes[eq].strategie] || STRATEGIES.equilibree;

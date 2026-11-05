@@ -14,7 +14,7 @@ import { franchiseDuCode } from './franchises.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
-import { estD, borne, hache } from './util.js';
+import { estD, borne, hache, generateur, gauss, entierDeGraine } from './util.js';
 
 /*
  * LES GREFFES (V25, docs/refonte-v25.md § A). Le moteur joue des matchs et une ligue ; ce que le Rogue y pose — le coach et
@@ -431,10 +431,27 @@ export function getPersonKey(p) {
   return p.id != null ? `${p.s}_${p.id}` : `${p.s}_${p.n}_${p.p}`;
 }
 
+/*
+ * LES JOUEURS D'UNE SAISON (V25 A2) : chaque joueur enregistré est rangé sous sa saison, pour que js/niveaux.js lise ses
+ * cotes sur 20 (`axes20`, `cote20`) sans qu'on lui passe la liste — Sur table et Sur glace lisent la même source que la
+ * fiche. La liste rendue est la même tant que personne de neuf n'arrive (le cache de niveaux.js la garde par identité).
+ */
+const JOUEURS_PAR_SAISON = new Map();
+export function joueursDeLaSaison(saison) {
+  const s = saison && JOUEURS_PAR_SAISON.get(saison);
+  if (!s) return null;
+  if (!s.liste) s.liste = [...s.vus];
+  return s.liste;
+}
 export function registerHiddenRatings(p) {
   if (!p) return;
   const key = getPlayerKey(p);
   p._rk = key;
+  if (p.s) {
+    let s = JOUEURS_PAR_SAISON.get(p.s);
+    if (!s) JOUEURS_PAR_SAISON.set(p.s, s = { vus: new Set(), liste: null });
+    if (!s.vus.has(p)) { s.vus.add(p); s.liste = null; }
+  }
   // `sp` est dans les shards mais aucune formule ne le lit : c'était du temps
   // de glace et du volume de tirs déguisés en vitesse (mesuré, Chára sortait
   // plus « rapide » que Gaudreau). On le retire de l'objet sans le garder.
@@ -659,37 +676,6 @@ const effStat = (player, slot, key) => {
    ====================================================================== */
 
 let hasard = Math.random;
-
-/** Hache un texte ou un nombre en 32 bits (cyrb53 tronqué, suffit ici). */
-function graineDe(x) {
-  const str = String(x);
-  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (h1 ^ h2) >>> 0;
-}
-
-/** Un générateur sfc32 sur une graine 32 bits, uniforme dans [0, 1). */
-export function generateur(graine) {
-  let a = 0x9e3779b9, b = 0x243f6a88, c = 0xb7e15162, d = graineDe(graine) | 0;
-  const suivant = () => {
-    a |= 0; b |= 0; c |= 0; d |= 0;
-    const t = (a + b | 0) + d | 0;
-    d = d + 1 | 0;
-    a = b ^ (b >>> 9);
-    b = c + (c << 3) | 0;
-    c = (c << 21) | (c >>> 11);
-    c = c + t | 0;
-    return (t >>> 0) / 4294967296;
-  };
-  for (let i = 0; i < 12; i++) suivant();   // on jette l'échauffement
-  return suivant;
-}
 
 /** Remplace le hasard du moteur par un générateur graine (ou le rend au vrai hasard). */
 export function grainerHasard(graine = null) {
@@ -1694,7 +1680,7 @@ function tirerPhysique(pA, pB, T0, T1, journal, track) {
     const a = weightedPick(libres('A'), p => Math.pow(scoreBagarreur(p), 3) + 0.02);
     const b = weightedPick(libres('B'), p => Math.pow(scoreBagarreur(p), 3) + 0.02);
     dejaBattus.add(a); dejaBattus.add(b);
-    const force = p => scoreBagarreur(p) + 0.6 * physiqueDe(p) + 0.2 * ((p.gb == null ? 1 : Number(p.gb)) - 1) + gauss() * 0.35;
+    const force = p => scoreBagarreur(p) + 0.6 * physiqueDe(p) + 0.2 * ((p.gb == null ? 1 : Number(p.gb)) - 1) + gauss(hasard) * 0.35;
     const fa = force(a), fb = force(b);
     const gagnant = Math.abs(fa - fb) < 0.15 ? null : fa > fb ? 'A' : 'B';
     for (const [cote, p] of [['A', a], ['B', b]]) {
@@ -2073,19 +2059,6 @@ export const DUREE_MOMENT = 10;
 
 
 /*
- * LA GRAINE EN ENTIER (refonte coachs-cartes-incidents, tranche 2, oct. 2026). Les tirages purs (`situationsDuJour`, `objectifsOfferts`, `ajustementsOfferts`) faisaient `Number(graine) >>> 0` : la graine d'une
- * partie est en base 36 (`nouvelleGraine`) et celle du matin `graine:dé`, donc NaN, donc 0 — toutes les runs tiraient
- * les mêmes dilemmes, situations et accidents aux mêmes jours. Un hachage de la chaîne (FNV-1a) : la même graine
- * tire pareil, une autre tire autrement — `check_verite`.
- */
-export function entierDeGraine(graine) {
-  let x = 2166136261;
-  for (const ch of String(graine)) x = Math.imul(x ^ ch.charCodeAt(0), 16777619) >>> 0;
-  x ^= x >>> 15; x = Math.imul(x, 0x2c1b3c6d) >>> 0; x ^= x >>> 12;
-  return x >>> 0;
-}
-
-/*
  * LES OBJECTIFS DU PROPRIO. Aux journées 0 et 41, trois défis pour tes vingt
  * prochains matchs ; on en prend un. Réussi, on pige une carte de plus — la
  * mécanique des paliers, rien de neuf. Raté, rien : le proprio a la mémoire
@@ -2211,16 +2184,16 @@ export const SORTES_DECK = {
   atelier: { ico: '🛠', nom: 'L\'atelier', mot: 'Édite un de tes joueurs : poste, trios, malus, carte' },
 };
 export function mainDuDeck(graine, jour) {
-  return Object.keys(SORTES_DECK).map(k => [k, hacherMise(graine, 'deck', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([sorte]) => ({ sorte }));
+  return Object.keys(SORTES_DECK).map(k => [k, hache(graine, 'deck', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([sorte]) => ({ sorte }));
 }
 /* L'atelier : trois éditions tirées de la graine ; le joueur, tu le choisis. */
 export function editionsDuJour(graine, jour) {
-  return MUTATIONS_ATELIER.map(k => [k, hacherMise(graine, 'atelier', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([k]) => k);
+  return MUTATIONS_ATELIER.map(k => [k, hache(graine, 'atelier', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([k]) => k);
 }
 /* Le nouveau rôle : trois (changement, joueur) possibles dans ton alignement, tirés de la graine. */
 export function rolesOfferts(team, graine, jour) {
   const choix = Object.keys(MUTATIONS).filter(k => MUTATIONS[k].source === 'choix')
-    .map(k => [k, hacherMise(graine, 'role', jour, k)]).sort((a, b) => a[1] - b[1]).map(([k]) => k);
+    .map(k => [k, hache(graine, 'role', jour, k)]).sort((a, b) => a[1] - b[1]).map(([k]) => k);
   const out = [], vus = new Set();
   for (const k of choix) {
     const p = cibleMutation(team, k);
@@ -2876,6 +2849,12 @@ function occasionsDe(p) {
   if (mesure > 0) return mesure;
   return occasionsEpoque(parseInt((p && p.s || '').slice(0, 4), 10) || null);
 }
+/*
+ * LE FACTEUR D'ÉPOQUE DES PUNITIONS (V25 A2) : ce que l'année siffle, rapporté à la médiane de la table — Sur table et Sur
+ * glace gardent leurs règles (leur `punir`), mais lisent ces chiffres-ci plutôt que les leurs. Sans année, 1.
+ */
+const OCCASIONS_MEDIANE = (() => { const v = AVANTAGES_EPOQUE.map(x => x[1]).sort((a, b) => a - b); return (v[v.length / 2 - 1] + v[v.length / 2]) / 2; })();
+export const facteurPunitionsEpoque = annee => (annee ? occasionsEpoque(annee) / OCCASIONS_MEDIANE : 1);
 function occasionsEpoque(annee) {
   const t = AVANTAGES_EPOQUE;
   if (!annee || annee <= t[0][0]) return t[0][1];
@@ -3140,7 +3119,6 @@ function noterDepart(team, g) {
 export const facteurGardienDe = facteurGardien;
 export const pctTirRelDe = pctTirRel;
 export const lancersRelDe = lancersRel;
-export const passesRelDe = passesRel;
 
 /** Propension à la passe : la part de points qu'un joueur récolte en passes. */
 /*
@@ -4241,13 +4219,6 @@ function bonusDeChimie(team, u, lineup = null) {
   return bonusChimie(c);
 }
 
-function gauss() {
-  let u = 0, v = 0;
-  while (u === 0) u = hasard();
-  while (v === 0) v = hasard();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
-
 const shuffle = a => {
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(hasard() * (i + 1));
@@ -4420,7 +4391,7 @@ export function createTeam(name, tag, roster, opts = {}) {
     togetherSig: new Map(),
     injuriesLog: [],         // { player, games, at, jour, avant (la photo des cases ce soir-là) }
     journal: [],             // un match par entrée : { n, adv, gf, ga, ot, win } — de quoi raconter la saison
-    luck: gauss() * LUCK_SEASON,   // retirée sous la graine par simulateLeague
+    luck: gauss(hasard) * LUCK_SEASON,   // retirée sous la graine par simulateLeague
     W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0, games: 0,
     strength: null,
   };
@@ -4847,8 +4818,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   pA.domicile = true; pB.domicile = false;
 
   // La chance est du PDO : elle porte sur la finition, pas sur le volume.
-  const chanceA = Math.exp(gauss() * LUCK_GAME + A.luck - B.luck);
-  const chanceB = Math.exp(gauss() * LUCK_GAME + B.luck - A.luck);
+  const chanceA = Math.exp(gauss(hasard) * LUCK_GAME + A.luck - B.luck);
+  const chanceB = Math.exp(gauss(hasard) * LUCK_GAME + B.luck - A.luck);
 
   // UN SEUL CHEMIN (V25, docs/refonte-v25.md § A) : tout match se joue en trois périodes, le duel du Rogue compris.
   const { gfA: g1, gfB: g2 } = jouerEnPeriodes(A, B, LA, LB, pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, ronde, gros);
@@ -5375,7 +5346,7 @@ export function simulate(roster, { graine = null } = {}) {
   if (graine === null || graine === undefined) graine = nouvelleGraine();
   grainerHasard(graine);
   const team = createTeam('Solo', 'YOU', roster);
-  team.luck = gauss() * LUCK_SEASON;
+  team.luck = gauss(hasard) * LUCK_SEASON;
   for (const s of SLOTS) if (roster[s.i]) initSimStats(roster[s.i]);
 
   const force = teamStrength(team);
@@ -5388,7 +5359,7 @@ export function simulate(roster, { graine = null } = {}) {
     const profil = profilMatch(team, lineup);
     profil.rob = force.rob;
 
-    const chance = Math.exp(gauss() * LUCK_GAME + team.luck);
+    const chance = Math.exp(gauss(hasard) * LUCK_GAME + team.luck);
     // V25 : trois périodes, comme tout match (`jouerEnPeriodes`) ; sans feuille ni adversaire, la plage suffit.
     let gf = 0, ga = 0;
     for (let k = 0; k < 3; k++) { const h = jouerPlage(profil, PROFIL_NEUTRE, gardien, null, chance, 1, heavy, true, false, null, lineup, null, 0, [20 * k, 20 * k + 20]); gf += h.gfA; ga += h.gfB; }
@@ -5825,7 +5796,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // La chance de saison est tirée ICI, sous la graine, et non à
       // `createTeam` : sinon deux saisons de même graine différaient déjà
       // avant le premier lancer (check_graine.mjs l'a attrapé).
-      t.luck = gauss() * LUCK_SEASON;
+      t.luck = gauss(hasard) * LUCK_SEASON;
       // Une ligue neuve part de zéro : les cartes, les situations, les cases
       // vides, les effets, les gestes réels, la chimie et l'énergie, les
       // changements de carte, les gros matchs.
@@ -7239,7 +7210,7 @@ function appliquerDecisionSerie(team, d, graine) {
     team.effetsSerie.push({ source: 'ajustement', nom, ico, ...canaux });
     if (gardienAux) team._gardienAuxMatch = true;
     if (pari) {
-      const { gagne, face } = deDeMise(hacherMise(graine, 'pari-serie', d.ronde, d.match_no, d.sel || ''), pari.chance);
+      const { gagne, face } = deDeMise(hache(graine, 'pari-serie', d.ronde, d.match_no, d.sel || ''), pari.chance);
       team.effetsSerie.push({ source: 'pari', nom, ico, ...(gagne ? pari.gagne : pari.perd) });
       (team.paris = team.paris || []).push({ ronde: d.ronde, match_no: d.match_no, titre: nom, gagne, face });
     }
@@ -7311,14 +7282,6 @@ export function ajustementsOfferts(graine, ronde, k, etat) {
    en trois périodes vues, sans choix : plus de plan adverse à dépister, plus de main adverse, plus d'entracte à 40:00
    (JP, 5 nov. 2026 : *comme au devis, périodes vues sans choix*). Aucun ne touche un match ordinaire.
    ===================================================================== */
-
-/* Un nombre pur tiré d'une chaîne : les tirages de la mise en scène ne consomment aucun hasard. */
-export function hacherMise(...parts) {
-  let x = 2166136261;
-  for (const ch of parts.join('|')) x = Math.imul(x ^ ch.charCodeAt(0), 16777619) >>> 0;
-  x ^= x >>> 15; x = Math.imul(x, 0x2c1b3c6d) >>> 0; x ^= x >>> 12;
-  return (x >>> 0) / 0x100000000;
-}
 
 /* Deux gros matchs sont séparés d'au moins autant de journées. */
 const ESPACEMENT_GROS = 4;
@@ -7444,7 +7407,7 @@ export function avantDuGros(graine, cle, deja = [], contexte = null) {
   const cles = libres.filter(c => !AVANT_GROS[c].faits || (contexte && AVANT_GROS[c].faits(contexte)));
   // Les douze joués (une longue saison de Rogue en annonce plus) : on refait le tour, jamais deux fois le même de suite.
   const pool = cles.length ? cles : libres.length ? libres : tous.filter(c => c !== deja[deja.length - 1]);
-  return pool[Math.floor(hacherMise(graine, 'avant', cle) * pool.length)];
+  return pool[Math.floor(hache(graine, 'avant', cle) * pool.length)];
 }
 
 /* L'effet d'une option d'avant-match, pour la journée du match. */
@@ -7573,7 +7536,7 @@ export function ciblesDe(team, sorte, graine = 0, jour = 0) {
   if (sorte === 'vedette') return pats.slice().sort((a, b) => (b.pt || 0) - (a.pt || 0)).slice(0, 1);
   if (sorte === 'dur') return pats.slice().sort((a, b) => (b.pim || 0) - (a.pim || 0)).slice(0, 1);
   if (sorte === 'trois') {
-    return pats.map(p => [p, hacherMise(graine, 'cible', jour, getPlayerKey(p))]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([p]) => p);
+    return pats.map(p => [p, hache(graine, 'cible', jour, getPlayerKey(p))]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([p]) => p);
   }
   return [];
 }
@@ -7635,7 +7598,7 @@ export function deDeMise(h, chance) {
   const faces = facesDuPari(chance), face = 6 - Math.floor(h * 6);
   return { face, faces, gagne: face > 6 - faces };
 }
-export const deDuPari = (graine, jour, cle, chance) => deDeMise(hacherMise(graine, 'pari', jour, cle), chance);
+export const deDuPari = (graine, jour, cle, chance) => deDeMise(hache(graine, 'pari', jour, cle), chance);
 // Le sel de la décision (1.0, oct.) : tiré au moment du choix, le pari n'est pas écrit dans la graine d'avance.
 export const cleDuPari = d => `${d.moment ? `${d.moment.cle}:${d.moment.choix}` : `avant:${d.avant.cle}:${d.avant.choix}`}${d.sel ? `:${d.sel}` : ''}`;
 

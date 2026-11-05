@@ -15,10 +15,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame,
-  feuilleVierge, generateur, photoAlignement, SITUATIONS, JOURS_SITUATIONS, connaitre, getPlayerKey, poserAlignementDuJour, batirLesClubs
-} from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame, feuilleVierge, photoAlignement, SITUATIONS, JOURS_SITUATIONS, connaitre, getPlayerKey, poserAlignementDuJour, batirLesClubs } from '../js/sim.js';
+import { generateur } from '../js/util.js';
 import { PLANS } from '../js/greffes.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin, TEMOINS_DE_SAISON } from './lib/temoins.mjs';
