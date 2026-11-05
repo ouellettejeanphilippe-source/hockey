@@ -85,7 +85,7 @@ function copieDuJour(t, { jourMatch, jourRevele, joues, connus }) {
   const copie = {
     ...t,
     injured, injuriesLog: [], trous: [], trouEnCours: false, journal: null,
-    luck: 0, _gros: null, _effetMatch: null, _entracte: null, _advGros: null, _dernierGros: null,
+    luck: 0, _gros: null, _effetMatch: null, _advGros: null, _dernierGros: null,
     games: joues, jourCourant: jourMatch,
     chimie: snap && snap.chimie ? snap.chimie.slice() : (t.chimie || [0, 0, 0, 0]).slice(),
     W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0,

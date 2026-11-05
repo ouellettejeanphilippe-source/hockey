@@ -3,23 +3,20 @@
  *
  *   node scripts/check_gros.mjs
  *
- * 1. Un match ordinaire ne change pas : une ligue SANS joueur ne voit aucun
- *    gros match, aucun plan, aucune coupure au deuxième entracte.
- * 2. Chaque plan adverse est un plan de match (V18 : `PLANS`, ou les minutes
- *    de leur premier trio), et le moteur le joue.
- * 3. Le choix du deuxième entracte ne touche pas aux deux premières périodes
- *    déjà vues ; des dés neufs donnent une autre troisième période.
- * 4. En séries, l'adversaire garde le plan qui a gagné et en change après
- *    une défaite.
- * 5. La saison en donne assez pour raconter, pas assez pour noyer.
+ * 1. Un match ordinaire ne change pas : une ligue SANS joueur ne voit aucun gros match.
+ * 2. Au 82-0 (V25, docs/refonte-v25.md § A ; JP : *périodes vues sans choix*), un gros match se joue en trois
+ *    périodes vues : la feuille garde leurs trois pointages, et il ne porte ni plan adverse, ni main adverse, ni
+ *    entracte à choix ; une vieille décision d'entracte ne change aucun match.
+ * 3. En séries, chaque match de ta série est un gros match en trois périodes.
+ * 4. La saison en donne assez pour raconter, pas assez pour noyer.
+ * 5. En Rogue, le duel (V9) et leur coach en séries (V23 F).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde, creerSeries, jouerMatchSeries,
-  PLANS_ADV, PLANS, planDeSerie, entractesOfferts, effetEntracte, reglageDuPlan, commentContrer, simulerGrosMatch,
-  AVANT_GROS, avantDuGros, ENTRACTES, entractesDu,
+  autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde, creerSeries, jouerMatchSeries, simulerGrosMatch,
+  AVANT_GROS, avantDuGros,
   activeLineup, SONNE, MISE_DOUBLEE, playGame, grainerHasard, feuilleVierge,
 } from '../js/sim.js';
 import { POUVOIRS, persoAdverse, COACH_DU_STYLE, OMBRE } from '../js/pouvoirs.js';
@@ -62,142 +59,51 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   exiger('une ligue sans joueur ne voit aucun gros match', teams.every(t => !(t.minisBoss || []).length));
 }
 
-/* ---------- 2. les plans : des plans de match, comme les tiens (S72, V18) ---------- */
-/*
- * JP : *que toutes les équipes ont les mêmes stratégies*. Un plan adverse n'est pas un paquet de bonus : c'est un des
- * plans de match que tu as aussi (`PLANS` : fermer le centre, forechecker fort, tirer de partout, coller ta vedette),
- * ou leur premier trio qui joue une éternité ; le moteur le joue comme n'importe quel plan.
- */
-for (const [cle, P] of Object.entries(PLANS_ADV)) {
-  const levier = (P.plan && PLANS[P.plan] && P.plan !== 'match') || (Array.isArray(P.F) && P.F.length === 4);
-  exiger(`${P.ico} ${P.nom} · un plan de match ou les minutes d'un trio, dits en mots`, levier && !P.force && !P.faiblesse && !!reglageDuPlan(cle) && !!commentContrer(cle));
-}
+/* ---------- 2. le gros match du 82-0 : trois périodes vues, rien d'autre (V25) ---------- */
 {
-  // Le plan joue : les mêmes gros matchs, mêmes dés, sous « Tirer de partout » puis sous « Fermer le centre ».
   const teams = ligue(9150);
   const [toi, adv] = [teams[0], teams[1]];
-  const tirsAdv = plan => {
-    let n = 0;
-    for (let k = 0; k < 120; k++) {
-      const r = simulerGrosMatch(toi, adv, { plan, graine: 'plan-joue', cle: `m${k}` });
-      n += r.feuille.lancers.filter(l => l.cote === 'B').length;
-    }
-    return n / 120;
-  };
-  const [canons, trappe] = [tirsAdv('canons'), tirsAdv('trappe')];
-  exiger('leur plan joue : « Tirer de partout » leur donne plus de tirs que « Fermer le centre »', canons > trappe * 1.1, `${canons.toFixed(1)} contre ${trappe.toFixed(1)} tirs par match`);
+  let n = 0, trois = 0, propres = 0;
+  for (let k = 0; k < 60; k++) {
+    const r = simulerGrosMatch(toi, adv, { graine: 'periodes-vues', cle: `m${k}` });
+    n++;
+    const per = r.feuille.periodes || [];
+    if (per.length === 3) trois++;
+    const sA = per.reduce((a, h) => a + h.gfA, 0), sB = per.reduce((a, h) => a + h.gfB, 0);
+    // La prolongation ou les tirs de barrage ajoutent un but au pointage, pas aux périodes.
+    if (sA + sB === r.gf + r.ga - (r.feuille.ot ? 1 : 0) && !r.feuille.cartes && !r.feuille.entracte && !r.gros.plan && !r.gros.depistage) propres++;
+  }
+  exiger('un gros match du 82-0 se joue en trois périodes vues', trois === n, `${trois}/${n}`);
+  exiger('ses trois pointages font le pointage ; ni main adverse, ni plan, ni entracte à choix', propres === n, `${propres}/${n}`);
 }
 
-/* ---------- 3. l'entracte : les deux premières périodes ne bougent pas ---------- */
+/* ---------- 3. une vieille décision d'entracte ne change rien (V25) ---------- */
 {
-  let essais = 0, p12 = 0, p3 = 0, vus = 0;
+  let essais = 0, memes = 0;
+  const texte = cal => cal.map(j => j.map(m => `${m.gfA}-${m.gfB}`).join(' ')).join('|');
   for (let L = 0; L < LIGUES; L++) {
     const graine = `gros-${L}`;
     const t0 = ligue(9200 + L);
-    simulateLeague(t0, 82, { graine, decisions: [] });
+    const r0 = simulateLeague(t0, 82, { graine, decisions: [] });
     const mb = (t0[0].minisBoss || [])[0];
     if (!mb) continue;
-    vus++;
-    const jourDe = (teams, cal) => cal[mb.jour].find(m => m.A === teams[0] || m.B === teams[0]);
-    const buts40 = m => m.feuille.buts.filter(b => b.instant < 40).map(b => `${b.cote}@${b.instant.toFixed(3)}`).join(',');
-    const buts3 = m => m.feuille.buts.filter(b => b.instant >= 40).map(b => `${b.cote}@${b.instant.toFixed(3)}`).join(',');
-    // La même saison, deux fois, avec un choix d'entracte et deux sels.
-    const jouer = sel => {
-      const teams = ligue(9200 + L);
-      const res = simulateLeague(teams, 82, { graine, decisions: [{ jour: mb.jour, entracte: { cle: 'garder' }, sel }] });
-      return { teams, cal: res.calendrier };
-    };
-    const base = (() => { const teams = ligue(9200 + L); const res = simulateLeague(teams, 82, { graine, decisions: [] }); return { teams, cal: res.calendrier }; })();
-    const a = jouer('a'), b = jouer('b');
-    const mBase = jourDe(base.teams, base.cal), mA = jourDe(a.teams, a.cal), mB = jourDe(b.teams, b.cal);
+    const t1 = ligue(9200 + L);
+    const r1 = simulateLeague(t1, 82, { graine, decisions: [{ jour: mb.jour, entracte: { cle: 'garder' }, sel: 'a' }] });
     essais++;
-    if (buts40(mBase) === buts40(mA) && buts40(mA) === buts40(mB)
-      && mBase.feuille.entracte && mA.feuille.entracte && mBase.feuille.entracte.gfA === mA.feuille.entracte.gfA) p12++;
-    if (buts3(mA) !== buts3(mB) || mA.gfA !== mB.gfA || mA.gfB !== mB.gfB) p3++;
-    // Les journées d'avant ne bougent pas.
-    const avant = cal => cal.slice(0, mb.jour).map(j => j.map(m => `${m.gfA}-${m.gfB}`).join(' ')).join('|');
-    exiger(`ligue ${L} : les journées d'avant l'entracte ne bougent pas`, avant(base.cal) === avant(a.cal));
+    if (texte(r0.calendrier) === texte(r1.calendrier)) memes++;
   }
-  exiger('le choix de l\'entracte laisse les deux premières périodes intactes', essais > 0 && p12 === essais, `${p12}/${essais} gros matchs`);
-  exiger('des dés neufs à l\'entracte donnent une autre troisième période', p3 >= Math.ceil(essais / 2), `${p3}/${essais}`);
-  informer('gros matchs sondés', `${vus} ligues`);
+  exiger('une vieille décision d\'entracte (le 82-0 d\'avant la V25) ne change aucun match', essais > 0 && memes === essais, `${memes}/${essais}`);
 }
 
-/* ---------- 3b. l'entracte d'un match de séries : la reprise garde les deux premières périodes ---------- */
-/*
- * JP : *sans regarder le direct, le score final change*. Le Rogue montre un match de séries pour son entracte
- * (`ouvrirEntracteSerie`, js/saison.js), puis le choix REJOUE tout (`deciderSerie`, js/banc.js) : la saison sur ses dés
- * gardés, les séries sur les leurs, avec la décision d'entracte et son sel. Ici, la même chose au moteur : le match 1
- * de ta série joué une fois sans choix, puis rejoué de zéro avec un choix — le pointage après deux périodes, l'heure de
- * chaque but et l'entracte annoncé doivent tenir.
- */
+/* ---------- 4. les avant-matchs ---------- */
 {
-  let essais = 0, p12 = 0, p3 = 0;
-  const buts = (f, dedans) => f.buts.filter(b => dedans(b.instant)).map(b => `${b.cote}@${b.instant.toFixed(3)}`).join(',');
-  for (let L = 0; L < LIGUES; L++) {
-    const graine = `gros-serie-${L}`;
-    const jouer = (des, decisions) => {
-      const teams = ligue(9300 + L);
-      const res = simulateLeague(teams, 82, { graine, decisions: [], des });
-      // Comme la section 5 : ton club entre aux séries même s'il finit 17e.
-      const top = teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W || (a.name < b.name ? -1 : 1)).slice(0, 16);
-      if (!top.includes(teams[0])) { top.pop(); top.push(teams[0]); }
-      const S = creerSeries(top, { ligue: res.ligue, graine, decisions, equipes: teams, des: des.series });
-      jouerMatchSeries(S);
-      const s = S.toutes.find(x => x.A === teams[0] || x.B === teams[0]);
-      return s && s.feuilles[0];
-    };
-    const des = { matins: [], soirs: [], series: {} };
-    const f0 = jouer(des, []);
-    if (!f0 || !f0.entracte) continue;
-    // Les dés gardés, comme une sauvegarde : la reprise les relit.
-    const garde = () => JSON.parse(JSON.stringify(des));
-    const fa = jouer(garde(), [{ ronde: 0, match_no: 0, entracte: { cle: 'garder' }, sel: 'a' }]);
-    const fb = jouer(garde(), [{ ronde: 0, match_no: 0, entracte: { cle: 'garder' }, sel: 'b' }]);
-    if (!fa || !fb) continue;
-    essais++;
-    const avant = f => buts(f, t => t < 40), apres = f => buts(f, t => t >= 40);
-    if (avant(f0) === avant(fa) && avant(fa) === avant(fb) && fa.entracte && f0.entracte.gfA === fa.entracte.gfA && f0.entracte.gfB === fa.entracte.gfB) p12++;
-    if (apres(fa) !== apres(fb)) p3++;
-  }
-  exiger('en séries, rejouer avec le choix de l\'entracte garde les deux premières périodes et le pointage annoncé', essais > 0 && p12 === essais, `${p12}/${essais} matchs de séries`);
-  informer('en séries, des dés neufs à l\'entracte changent la troisième période', `${p3}/${essais}`);
-}
-
-/* ---------- 4. les options d'entracte et d'avant-match ---------- */
-{
-  for (const etat of ['devant', 'derriere', 'egal']) {
-    const o = entractesOfferts('x', 5, etat);
-    exiger(`à l'entracte (${etat}), quatre options dont l'incident et garder le cap`, o.options.length === 4 && o.options.some(x => x.incident) && o.options.some(x => x.cle === 'garder'));
-    exiger(`à l'entracte (${etat}), chaque option a un effet lisible`, o.options.every(x => x.cle === 'garder' || effetEntracte({ cle: x.cle, incident: x.incident })));
-  }
-  /*
-   * DIX PAR POINTAGE, DEUX PAR SOIR (1.0, oct.). JP : *c'est toujours évident
-   * laquelle prendre*. Chaque pointage a dix gestes ; chacun a un prix (un
-   * canal qui empire : buts contre, moins de tirs ou de précision, des
-   * punitions, des blessures, des jambes) ; et vingt soirs n'offrent pas
-   * toujours la même paire.
-   */
-  const coute = o => (o.defense ?? 1) > 1 || (o.volume ?? 1) < 1 || (o.finition ?? 1) < 1 || (o.discipline ?? 1) > 1 || (o.blessure ?? 1) > 1 || (o.energie ?? 1) > 1 || o.changeGardien
-    || (Array.isArray(o.F) && o.F[0] < 1) || (Array.isArray(o.D) && o.D[0] < 1);
-  for (const etat of ['devant', 'derriere', 'egal']) {
-    const pool = entractesDu(etat);
-    exiger(`à l'entracte (${etat}), dix gestes en réserve`, pool.length === 10, `${pool.length}`);
-    const gratuits = pool.filter(c => !coute(ENTRACTES[c]));
-    exiger(`à l'entracte (${etat}), chaque geste a son prix`, gratuits.length === 0, gratuits.join(', ') || 'aucun gratuit');
-    const paires = new Set(Array.from({ length: 20 }, (_, k) => entractesOfferts('varie', k, etat).options.slice(0, 2).map(x => x.cle).sort().join('+')));
-    exiger(`à l'entracte (${etat}), vingt soirs offrent des paires variées`, paires.size >= 10, `${paires.size} paires différentes`);
-  }
   const vus = new Set(); let deja = [];
   for (let i = 0; i < Object.keys(AVANT_GROS).length; i++) { const c = avantDuGros('g', i, deja); vus.add(c); deja = [...deja, c]; }
   exiger('les avant-matchs ne se répètent pas dans une partie', vus.size === Object.keys(AVANT_GROS).length, `${vus.size}/${Object.keys(AVANT_GROS).length}`);
 }
 
-/* ---------- 5. les séries : l'adversaire s'adapte ---------- */
+/* ---------- 5. les séries : chaque match de ta série est un gros match en trois périodes ---------- */
 {
-  exiger('en séries, un plan gagnant est gardé', planDeSerie('g', 0, 2, 'trappe', false) === 'trappe');
-  exiger('en séries, un plan perdant change', planDeSerie('g', 0, 2, 'trappe', true) !== 'trappe');
-  let changes = 0, gardes = 0, n = 0;
   for (let L = 0; L < LIGUES; L++) {
     const teams = ligue(9300 + L);
     simulateLeague(teams, 82, { graine: `po-${L}`, decisions: [] });
@@ -207,15 +113,10 @@ for (const [cle, P] of Object.entries(PLANS_ADV)) {
     for (let i = 0; i < 8; i++) paires.push([top[i], top[15 - i]]);
     const series = playRonde(paires, 0, null, `po-${L}`);
     const s = series.find(x => x.A === teams[0] || x.B === teams[0]);
-    exiger(`ligue ${L} : chaque match de ta série a son plan`, s.plans.length === s.wA + s.wB && s.feuilles.every(f => f.entracte));
-    for (let k = 1; k < s.plans.length; k++) {
-      n++;
-      if (s.plans[k - 1].gagne) { if (s.plans[k].plan !== s.plans[k - 1].plan) changes++; }
-      else if (s.plans[k].plan === s.plans[k - 1].plan) gardes++;
-    }
+    exiger(`ligue ${L} : chaque match de ta série porte ses trois périodes`, s.plans.length === s.wA + s.wB
+      && s.plans.every(p => Array.isArray(p.periodes) && p.periodes.length === 3) && s.feuilles.every(f => f.periodes && f.periodes.length === 3));
     exiger(`ligue ${L} : les autres séries n'ont pas de plan`, series.every(x => x === s || !x.plans.length));
   }
-  informer('séries', `${n} enchaînements : ${changes} changements après une défaite de l'adversaire, ${gardes} plans gardés après une victoire`);
 }
 
 /* ---------- 6. la dose ---------- */
@@ -226,10 +127,10 @@ for (const [cle, P] of Object.entries(PLANS_ADV)) {
     simulateLeague(teams, 82, { graine: `dose-${L}`, decisions: [] });
     const mb = teams[0].minisBoss || [];
     n.push(mb.length); total += mb.length;
-    complets += mb.filter(x => PLANS_ADV[x.plan] && typeof x.contre === 'boolean' && x.apres40 && Number.isFinite(x.apres40.moi)).length;
+    complets += mb.filter(x => Array.isArray(x.periodes) && x.periodes.length === 3 && x.plan == null && !x.depistage && !x.apres40).length;
   }
   borne('gros matchs par saison', moy(n), 5, 14, '');
-  exiger('chaque gros match porte son plan, son contre et son pointage après deux périodes', complets === total, `${complets}/${total}`);
+  exiger('chaque gros match porte ses trois pointages de période, et ni plan ni dépistage', complets === total, `${complets}/${total}`);
 }
 
 /* Un blessé adverse ne figure jamais dans l'alignement que le hub lit (1.0, J1-N). */

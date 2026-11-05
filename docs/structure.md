@@ -51,7 +51,6 @@ js/entracte.js        le rapport d'entracte en cartons
 js/pronostic.js       le dépistage d'avant-match
 js/impact.js          l'impact en chiffres de match : ce que le moteur joue, dit pour ton club (« ≈ +1,2 tir par match »), jamais en « % » ; partagé navigateur + Node
 js/equipes.js         l'écran des équipes et leurs vraies statistiques
-js/combat.js          la main de l'adversaire d'un gros match qui n'est pas un duel (le 82-0) ; ta main est partie (V13-2)
 js/pouvoirs.js        le coach, un personnage (V21) : son niveau, ses trois pouvoirs par période, ses talents — `check_pouvoirs`
 js/coachs-reels.js    l'entraîneur, une vraie carte de coach-saison (V21) : data/coachs.json, sa philosophie lue des vraies stats de son club, sa maîtrise, le loto du départ (ton cartable d'abord)
 js/adjoints.js        sa main d'adjoints (V22) : des cartes, un style chacune (un gain, un prix), postées pour un séjour de 12 matchs puis au repos ; une main de quatre, les cases en poste au niveau du coach ; un parmi trois aux moments forts — `check_pouvoirs`

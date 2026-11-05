@@ -11,9 +11,9 @@ name: Vérifier
 #   check_blessures une blessure se règle (ça ne bloque plus une fois la case comblée,
 #                   même après rechargement) et son retour ne bouge que deux joueurs
 #                   (lancé par `tout.mjs`)
-#   check_gros      les gros matchs (S70) : une ligue sans joueur n'en a pas,
-#                   les plans sont neutres pas contrés et payants contrés, et
-#                   l'entracte ne touche pas aux deux premières périodes
+#   check_gros      les gros matchs (S70 ; V25) : une ligue sans joueur n'en a pas,
+#                   au 82-0 ils se jouent en trois périodes vues (ni plan, ni main
+#                   adverse, ni entracte à choix), en Rogue c'est le duel
 #   check_commentaire le commentateur (S70) : aucun gabarit oublié, un match
 #                   ne radote pas, la même graine redit la même chose
 #   check_feuilles  les quatre égalités de la feuille de match, sur une ligue

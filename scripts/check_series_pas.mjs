@@ -61,8 +61,8 @@ const photoSaison = a.teams.map(t => `${t.name} ${t.W}-${t.L}-${t.OTL} ${t.GF}-$
 const joueursSaison = a.teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => `${p.n}:${p.simGP}:${p.simPTS}`)).join('|');
 const S = creerSeries(a.top16, { ligue: a.L, graine: a.L.graine, equipes: a.teams });
 const maSerie = S.courante.find(s => s.A === a.toi || s.B === a.toi);
-dire(!!(maSerie && maSerie.plans[0] && maSerie.plans[0].aVenir && maSerie.plans[0].depistage && !maSerie.feuilles.length),
-  'ta série a le plan de son premier match posé d\'avance, sans match joué');
+dire(!!(maSerie && maSerie.plans[0] && maSerie.plans[0].aVenir && !maSerie.feuilles.length),
+  'ta série a son premier match marqué d\'avance, sans match joué');
 for (let i = 0; i < 3; i++) jouerMatchSeries(S);
 dire(S.ronde === 0 && S.toutes.length === 8 && S.toutes.every(s => s.feuilles.length === 3),
   `après trois matchs : la ronde 1 seulement, trois matchs par série (${S.toutes.length} séries)`);

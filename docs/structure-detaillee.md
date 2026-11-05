@@ -152,7 +152,7 @@ Leur propre étape au CI : `check_coquille`, `check_graine`, `check_instantane`,
 À lancer à part (trop lents, ou rouges par construction tant qu'un item est ouvert) :
 
 ```
-check_packs (une demi-minute), check_gardiens, check_combat, check_jambes (une minute), check_chiffres (une minute),
+check_packs (une demi-minute), check_gardiens, check_jambes (une minute), check_chiffres (une minute),
 check_banque (une douzaine de minutes), check_affinite (trois minutes), check_duel (six minutes ; N),
 check_retours (deux minutes ; GRAINES), check_arcs (deux minutes), check_suivis, check_effets (vingt minutes ; N, IDS),
 check_pouvoirs sans MESURE=0 (cinq minutes sur quatre processus ; N, COACHS, FILS), check_cartes, check_paliers,

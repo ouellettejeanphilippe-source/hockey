@@ -16,18 +16,16 @@
  */
 
 import {
-  badgesDe, PALIERS, motCourbe,
-  MUTATIONS, getPlayerKey, PLANS_ADV, commentContrer, reglageDuPlan,
+  badgesDe, PALIERS,
+  MUTATIONS, getPlayerKey,
   physiqueDe, accordsDeLigne, EDITIONS_REGLEMENT,
 } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
-import { CARTES_MATCH, ENERGIE_MAIN } from './combat.js';
-import { flechesDe, INTENTIONS, PLANS, MOMENTS_SI, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
+import { flechesDe, INTENTIONS, PLANS, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
 import { notable, pic } from './mouvement.js';
 import { TRAITS } from './traits.js';
-import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, glyphe, varsEquipe, nom } from './util.js';
 import { getTeamBand, getTeamLogoHtml } from './logos.js';
 import { ADJOINTS, NOMS_NIV } from './adjoints.js';
@@ -290,21 +288,6 @@ function motsDeCarte(o, noms = '') {
 }
 
 /*
- * LE PLAN DE L'ADVERSAIRE (S70, V18), tel que le rapport d'éclaireur le lit :
- * ce qu'il fait, et si ta préparation l'a fait tomber.
- */
-export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJuste } = {}) {
-  const P = PLANS_ADV[cle];
-  if (!P) return '';
-  return `<div class="plan-adv${contre ? ' contre' : ''}">
-    <div class="plan-adv-t">${P.ico} Leur plan : <b>${esc(P.nom)}</b>${suite ? ` <small>${esc(suite)}</small>` : ''}</div>
-    <div class="plan-adv-mot">${esc(P.mot)} <b>${esc(majuscule(reglageDuPlan(cle)))}</b>.</div>
-    ${prepJuste === undefined ? `<div class="plan-adv-contre"><b>${contre ? '✓ Tu le contres' : '✗ Pas contré'}</b> · pour le contrer : ${esc(commentContrer(cle))}.</div>`
-      : `<div class="plan-adv-contre ${prepJuste ? 'juste' : prepJuste === false ? 'ratee' : ''}"><b>${prepJuste ? '🎯 Ta préparation visait juste : leur plan est tombé' : prepJuste === false ? '💥 T\'as chié ta préparation' : 'Pas de préparation'}</b></div>`}
-  </div>`;
-}
-
-/*
  * CE QU'UN JOUEUR SAIT FAIRE, EN MOTS (S71). JP : *la carte des joueurs est
  * rendue trop complexe à lire* ; *pas besoin de stats chiffrées aussi
  * complexes*. Six barres chiffrées disaient tout et ne disaient rien : on
@@ -336,7 +319,6 @@ const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'ener
 const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
 /* Une forme, un mot : ce qu'on lit avant les chiffres. Un cadeau n'est pas un échange. */
 const CANAUX_FORME = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse'];
-const CARTES_REGLEMENT = new Set(['sixGlace', 'courbeIllegale', 'paragraphe', 'filetDesert', 'retardement']);
 const aideCanal = (k, v) => (k === 'robustesse' ? v > 0 : (k === 'defense' || k === 'discipline' || k === 'blessure' || k === 'energie' ? v < 1 : v > 1));
 function bitsDe(e, pourToi) {
   const out = [];
@@ -350,15 +332,6 @@ function bitsDe(e, pourToi) {
   }
   return out;
 }
-function formeDeCarte(C, cle) {
-  if (C.pari) return 'Pari';
-  if (C.effet && (Array.isArray(C.effet.F) || Array.isArray(C.effet.D))) return 'Minutes';
-  if (CARTES_REGLEMENT.has(String(cle || '').replace(/\+$/, ''))) return 'Règlement';
-  const bits = [...bitsDe(C.effet, true), ...bitsDe(C.adv, false)];
-  if (bits.length && bits.some(Boolean) && bits.some(b => !b)) return 'Échange';
-  if (bits.length && bits.every(b => !b)) return 'Moindre mal';
-  return '';
-}
 export function formeDe(o) {
   if (!o || typeof o !== 'object') return '';
   if (o.etiquette) return o.etiquette;
@@ -368,12 +341,7 @@ export function formeDe(o) {
   // Ne rien faire se dit une fois, par sa puce (« Rien ne change ») : ni étiquette, ni « + Rien ne change » de plus.
   if (o.rien) return '';
   if (o.trou || (o.mutation && EDITIONS_REGLEMENT.includes(o.mutation))) return 'Règlement';
-  if (!(o.genreCarte || o.dessin) && EDITIONS_REGLEMENT.includes(o.cle)) return 'Règlement';
-  if (o.genreCarte || o.dessin) {
-    const cle = o.dessin || o.cle;
-    const C = CARTES_MATCH[cle];
-    return C ? formeDeCarte(C, cle) : '';
-  }
+  if (EDITIONS_REGLEMENT.includes(o.cle)) return 'Règlement';
   const src = o.effet || o;
   if (Array.isArray(src.F) || Array.isArray(src.D)) return 'Minutes';
   // Ce qui va au joueur nommé (`lui`) compte aussi : sa précision qui monte aide, ses buts accordés qui montent coûtent.
@@ -1077,69 +1045,8 @@ export function resumeLignes(lineup, chimie) {
 }
 
 /* ======================================================================
-   LE DÉPISTAGE ET TA PRÉPARATION (S76)
-   ======================================================================
-   JP : *contrer, ça devrait être un scouting de leur stratégie potentielles
-   avec taux de succès, qui fait que parfois, t'as chié ta préparation*. Le
-   rapport montre trois pistes et leurs chances (`depistageDe`, js/sim.js) ;
-   on se prépare pour une. Les cartes de dépistage le resserrent : la vidéo
-   RAYE une piste fausse (jamais la bonne — la moins probable d'abord), la
-   filature dit la vraie. */
-export function pistesDuRapport(dep, { planReel = null, ecarte = 0, revele = false } = {}) {
-  if (!dep || !dep.length) return [];
-  if (revele && planReel) return dep.map(x => ({ ...x, p: x.plan === planReel ? 100 : 0, ecarte: x.plan !== planReel }));
-  const fausses = dep.filter(x => x.plan !== planReel).sort((a, b) => a.p - b.p);
-  const rayees = new Set(planReel ? fausses.slice(0, ecarte).map(x => x.plan) : []);
-  const tot = dep.filter(x => !rayees.has(x.plan)).reduce((a, x) => a + x.p, 0) || 1;
-  return dep.map(x => (rayees.has(x.plan) ? { ...x, p: 0, ecarte: true } : { ...x, p: Math.round(100 * x.p / tot) }));
-}
-export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = false, fx = null, etape = '' } = {}) {
-  if (!pistes || !pistes.length) return '';
-  const qui = nomAdv === 'Eux' ? '' : ' ' + esc(avecArticle('de', nomAdv));
-  const ligne = x => {
-    const P = PLANS_ADV[x.plan];
-    if (!P) return '';
-    const on = prep.includes(x.plan);
-    const corps = `<span class="dep-ico">${P.ico}</span><span class="dep-nom"><b>${esc(P.nom)}</b><small>${esc(reglageDuPlan(x.plan))}</small></span>
-      <span class="dep-p">${x.ecarte ? '<b>✗</b>' : `<b>${x.p} %</b>`}<i style="--p:${x.p}%"></i></span>`;
-    return choisir
-      ? `<button type="button" class="dep-piste${on ? ' on' : ''}${x.ecarte ? ' ecarte' : ''}" data-plan="${x.plan}"${x.ecarte ? ' disabled' : ''}>${corps}<span class="dep-prep">${x.ecarte ? 'Écarté' : on ? '🎯 Préparé' : 'Me préparer'}</span></button>`
-      : `<div class="dep-piste${x.ecarte ? ' ecarte' : ''}">${corps}</div>`;
-  };
-  // EN MOTS D'ABORD (V3) : ce que la préparation fait se dit en mots ; ses chiffres de match attendent « Les chiffres ».
-  const lu = e => enMotsEtChiffres(motsEnChiffres(e));
-  const mots = e => lu(e).filter(m => m.enMots).map(m => m.txt.charAt(0).toLowerCase() + m.txt.slice(1)).join(', ');
-  const chiffres = e => lu(e).filter(m => m.chiffre).map(m => m.txt).join(' · ');
-  const juste = `leur plan tombe${mots(PREP_JUSTE) ? ` : ${mots(PREP_JUSTE)}` : ''}${fx && fx.piege ? `, et le piège : ${mots(fx.piege)}` : ''}`;
-  const justeN = [chiffres(PREP_JUSTE), fx && fx.piege ? chiffres(fx.piege) : ''].filter(Boolean).join(' · ');
-  const rate = fx && fx.improvise ? `pas de malus, et l'improvisation : ${mots(fx.improvise)}` : mots(PREP_RATEE);
-  const rateN = chiffres(fx && fx.improvise ? fx.improvise : PREP_RATEE);
-  // `etape` (l'écran de combat) : le titre devient son étape ; la règle (vise juste, rate) reste visible sous les pistes.
-  const regle = `<div class="dep-regle"><span class="puce bon">🎯 Vise juste : ${esc(juste)}</span>${justeN ? `<span class="puce bon detail">${esc(justeN)}</span>` : ''}<span class="puce prix">💥 Rate : ${esc(rate)}</span>${rateN ? `<span class="puce prix detail">${esc(rateN)}</span>` : ''}<span class="puce neutre">Sans préparation : rien ne change</span></div>`;
-  return `<div class="depistage${choisir ? ' choisir' : ''}">
-    ${etape || `<div class="gl-k">🔎 Le dépistage${qui} : leur plan probable</div>`}
-    <div class="dep-pistes">${pistes.map(ligne).join('')}</div>
-    ${choisir ? regle : ''}
-  </div>`;
-}
-
-/* ======================================================================
-   LE DECK DE MATCH (S74) : la main, le deck, les cartes en options
+   CE QUI BOUGE CHEZ UN JOUEUR NOMMÉ (V11)
    ====================================================================== */
-const GENRES_CARTE = { attaque: 'Attaque', defense: 'Défense', tactique: 'Tactique', synergie: 'Synergie', malediction: 'Malédiction' };
-const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tactique', synergie: 'de synergie' };
-/*
- * LA RÈGLE D'UNE CARTE, EN CHIFFRES (S76). JP : *des maths plus claires sur
- * les effets, comme dans un vrai deckbuilder*. Tout ce qu'une carte fait se
- * lit ici, déduit de ses champs — jamais écrit deux fois : « Tirs +6 % »,
- * « Eux : punitions +25 % », « Pige 2 cartes », « Écarte 1 plan ». En vert ce
- * qui t'aide, en rouge ce qui coûte. `regle` n'est écrite à la main que pour
- * une carte qui lit ta formation.
- */
-/* Un effet de troisième période seulement : le tiers du match, dit « en 3e ». */
-const EN_3E = { part: 1 / 3, par: 'en 3e' };
-const QUI_DE_LA_CARTE = { vise: 'Le joueur qu\'ils visent', vedette: 'Ta vedette', brigadier: 'Ton meilleur défenseur' };
-const QUI_COURT = { vise: 'Le visé', vedette: 'Ta vedette', brigadier: 'Ton défenseur' };
 const MOTS_DU_JOUEUR = { lancers: ['ses tirs', true], finition: ['sa précision', true], creation: ['ses passes', true], defense: ['leur précision contre lui', false], blessure: ['ses blessures', false], arrets: ['les buts qu\'il accorde', false] };
 /* Sur la face, sans chiffre et court (une carte de la main a la largeur d'un pouce) : « Le visé : tire plus juste ». */
 const FACE_DU_JOUEUR = { lancers: ['tire plus', 'tire moins'], finition: ['tire plus juste', 'tire moins juste'], creation: ['passe plus', 'passe moins'],
@@ -1151,108 +1058,6 @@ const FACE_DU_JOUEUR = { lancers: ['tire plus', 'tire moins'], finition: ['tire 
 export const motsSurLeJoueur = (canaux, qui, quand = '', court = qui) => Object.entries(canaux).filter(([k]) => MOTS_DU_JOUEUR[k])
   .map(([k, v]) => ({ txt: `${qui} : ${MOTS_DU_JOUEUR[k][0]} ${flechesDe(v)}${quand ? `, ${quand}` : ''}`, bon: MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1,
     cle: 'surLui', mot: `${court} : ${FACE_DU_JOUEUR[k][v > 1 ? 0 : 1]}` }));
-function regleDeCarte(C) {
-  if (!C) return [];
-  const out = [];
-  /*
-   * SON MOMENT D'ABORD (V10, js/cahier.js) : une réponse contre son intention, le temps de la période ; un coup de 3e,
-   * en 3e ; une soirée, son soir. Hors de lui, elle ne fait rien. Ses chiffres se disent sur ce temps-là.
-   */
-  const M = C.si && MOMENTS_SI[C.si];
-  const cadre = !M ? null : INTENTIONS[C.si] ? { part: 1 / 3, par: 'la période' } : M.duel ? EN_3E : null;
-  if (M) out.push({ txt: INTENTIONS[C.si] ? `${M.mot} : elle la contre, le temps de la période` : `${M.mot} seulement`, bon: null });
-  const txt = e => motsEnChiffres(e).map(m => m.txt).join(', ');
-  // Ce qui s'ajoute à chaque carte (jouée, ou dans une main) : le chiffre de match d'un pas, dit « par carte … ».
-  // Un pas trop petit pour un chiffre se dit à trois cartes (JP, 17 oct. : *encore beaucoup de « à peine perceptible »*).
-  const fois = (e, n) => Object.fromEntries(Object.entries(e || {}).map(([k, v]) => [k, typeof v !== 'number' ? v : k === 'robustesse' ? v * n : v ** n]));
-  const parCarte = (e, quand) => {
-    const lu = (x, q) => motsEnChiffres(x, null, { par: q }).filter(y => y.cle !== 'rien').map(y => y.txt).join(', ');
-    return lu(e, quand) || lu(fois(e, 3), quand.replace(/^par carte/, 'pour 3 cartes')) || `à peine perceptible ${quand}`;
-  };
-  if (C.plein) {
-    // Une synergie : sa condition, puis ce qu'elle rapporte à son maximum, en chiffres de match pour ton club.
-    const m = motsEnChiffres(C.plein).filter(x => x.cle !== 'rien');
-    out.push({ txt: `${C.quand} : ${C.seuil ? '' : 'jusqu\'à '}${m.length ? m.map(x => x.txt).join(', ') : 'à peine perceptible'}`, bon: true });
-  } else if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
-  out.push(...motsEnChiffres(C.effet || null, null, cadre));
-  // Une carte sur un joueur (V11) : qui, et ce qui bouge chez lui, en flèches (ses chiffres sont aux règles).
-  if (C.joueur) {
-    const { qui, ...canaux } = C.joueur;
-    const quand = INTENTIONS[C.si] ? 'la période' : 'jusqu\'à la fin du match';
-    out.push(...motsSurLeJoueur(canaux, QUI_DE_LA_CARTE[qui], quand, QUI_COURT[qui]));
-  }
-  for (const m of motsEnChiffres(C.adv || null, null, { ...(cadre || {}), eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
-  /*
-   * LES DEUX COURBES (S80, js/sim.js `echelleTardive`) : une carte qui vise
-   * l'adversaire GRANDIT (×1,5 au dernier soir de la saison, ×2 en finale) ;
-   * une carte de trio — une synergie, les minutes des lignes — est pleine tout
-   * de suite et ne grandit pas.
-   */
-  const courbe = motCourbe();
-  if (courbe && C.adv) out.push(courbe);
-  else if (courbe && (C.synergie || (C.effet && (C.effet.F || C.effet.D)))) out.push({ txt: '🔗 Carte de trio : pleine tout de suite, elle ne grandit pas', bon: null });
-  if (C.pioche) out.push({ txt: `Pige ${C.pioche} carte${C.pioche > 1 ? 's' : ''}`, bon: true });
-  if (C.energiePlus) out.push({ txt: `+${C.energiePlus} élan`, bon: true });
-  if (C.energieTous) out.push({ txt: `Tes patineurs : jambes +${C.energieTous}`, bon: true });
-  if (C.lire) out.push({ txt: 'Leur plan tombe', bon: true });
-  if (C.annule) out.push({ txt: 'Leur main ne fait rien', bon: true });
-  if (C.ecarte) out.push({ txt: `🔎 Écarte ${C.ecarte} plan${C.ecarte > 1 ? 's' : ''} qu'ils ne joueront pas`, bon: true });
-  if (C.revele) out.push({ txt: '🔎 Tu sais leur plan : ta préparation vise juste', bon: true });
-  if (C.planB) out.push({ txt: '🎯 Tu te prépares pour 2 plans', bon: true });
-  if (C.improvise) out.push({ txt: `Si ta préparation rate : pas de malus, et ${txt(C.improvise)}`, bon: true });
-  if (C.piege) out.push({ txt: `Si ta préparation vise juste : ${txt(C.piege)} de plus`, bon: true });
-  if (C.parGenre) out.push({ txt: parCarte(C.parGenre.effet, `par carte ${DE_GENRE[C.parGenre.genre] || ''} jouée ce match`), bon: true });
-  if (C.selonLeurMain) out.push({ txt: parCarte(C.selonLeurMain.effet, `par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} dans leur main`), bon: true });
-  if (C.siVide) out.push({ txt: `Si tu dépenses tout ton élan : ${txt(C.siVide)}`, bon: true });
-  // 1.0 (J1-G) : un effet conditionnel au pointage après deux périodes — la carte dit sa condition.
-  if (C.apres40) {
-    for (const m of motsEnChiffres(C.apres40.siMene || null, null, EN_3E)) out.push({ ...m, txt: `Si tu mènes après deux périodes : ${m.txt}` });
-    for (const m of motsEnChiffres(C.apres40.sinon || null, null, EN_3E)) out.push({ ...m, txt: `Sinon : ${m.txt}` });
-  }
-  if (C.rabais) out.push({ txt: `Tes cartes ${DE_GENRE[C.rabais] || ''} coûtent 1 de moins ce match`, bon: true });
-  if (C.pari) out.push({ txt: `🎲 ${majuscule(facesMot(facesDuPari(C.pari.chance)))} : ${txt(C.pari.gagne)} — sinon : ${txt(C.pari.perd)}`, bon: null });
-  if (C.enMain) for (const m of motsEnChiffres(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
-  if (C.injouable) out.push({ txt: 'Injouable', bon: false });
-  if (C.epuise) out.push({ txt: '⌛ Épuisée : elle quitte ton deck après ce match', bon: null });
-  return out;
-}
-/* La règle d'une carte de match, en mots : la face d'une carte de leur main (`optionDeCarteMatch`). */
-const motsDeCarteMatch = regleDeCarte;
-/* Une carte de LEUR main, en puces de ton point de vue : ce qui les aide est rouge pour toi. */
-function motsDeCarteAdverse(C, echelle = 1) {
-  if (!C) return [];
-  const out = [];
-  for (const m of (motsEnChiffres(C.effet || null, null, { eux: true }))) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
-  // Ce qui te vise grandit avec le soir, pour eux aussi (S80).
-  for (const m of (motsEnChiffres(grandirEffet(C.adv || null, echelle)))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
-  if (C.pari) out.push({ txt: `🎲 Leur pari, ${facesMot(facesDuPari(C.pari.chance))}`, bon: null });
-  if (C.apres40) for (const m of motsEnChiffres(C.apres40.siMene || null, null, { ...EN_3E, eux: true })) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
-  if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
-  if (C.parGenre) for (const m of motsEnChiffres(C.parGenre.effet, null, { eux: true, par: `par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent` }).filter(x => x.cle !== 'rien')) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
-  if (C.selonLeurMain) for (const m of motsEnChiffres(C.selonLeurMain.effet, null, { eux: true, par: `par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} que TU joues` }).filter(x => x.cle !== 'rien')) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
-  if (C.energieTous) out.push({ txt: `Leurs patineurs : jambes +${C.energieTous}`, bon: false });
-  return out;
-}
-/*
- * LEUR MAIN (S74) : les « intentions » de Slay the Spire. On la connaît avant
- * de jouer la sienne — c'est tout le jeu : répondre.
- */
-export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN, echelle = 1 } = {}) {
-  if (!cartes || !cartes.length) return '';
-  return `<div class="main-adverse"><div class="gl-k">🂠 La main ${nomAdv === 'Eux' ? 'adverse' : esc(avecArticle('de', nomAdv))} ce soir${energie > ENERGIE_MAIN ? ` · <span class="main-adverse-fort" title="En fin de saison et dans les dernières rondes des séries, l'adversaire joue avec un élan de plus">⚡ ${energie} d'élan</span>` : ''}</div><div class="main-adverse-cartes">${cartes.map(c => {
-    const C = CARTES_MATCH[c];
-    return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C, echelle))}</span></span>` : '';
-  }).join('')}</div></div>`;
-}
-/* Une carte de match en option d'`ouvrirChoix` (une récompense, un retrait). */
-export function optionDeCarteMatch(cle) {
-  const C = CARTES_MATCH[cle];
-  return {
-    cle, rarete: C.maudite ? 'commune' : C.rarete, ico: C.ico, nom: C.nom,
-    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} élan`}`,
-    texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C), genreCarte: C.genre, dessin: cle,
-  };
-}
 /*
  * UNE CARTE DE LA BANQUE, HORS D'UN CHOIX (Jalon U : un seul dessin). JP : *pas plein de designs différents pour des
  * fonctions pareilles*. L'inventaire montre la même face qu'un pack ou une main (`carteHtml`) ; `cache` : une carte

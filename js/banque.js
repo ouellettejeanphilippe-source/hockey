@@ -184,8 +184,7 @@ export const VIES = {
 
 /*
  * LA RÈGLE EN CHIFFRES d'une carte : des mots \`{ txt, bon }\`, les mêmes que
- * partout (\`motsEnChiffres\`, \`motsDeMutationEnChiffres\`). Les cartes de match ont la leur
- * (\`optionDeCarteMatch\`, js/gerant.js) : l'écran la lit là.
+ * partout (\`motsEnChiffres\`, \`motsDeMutationEnChiffres\`).
  */
 /* `joueur` : le joueur qui la recevra (le verso d'une carte) — une modif se lit alors sur lui, pas sur sa cible par défaut. */
 export function reglesDe(id, { joueur = null } = {}) {

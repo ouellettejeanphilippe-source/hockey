@@ -482,7 +482,7 @@ export const UNIT_NAMES_D = ['1re paire', '2e paire', '3e paire'];
 
 /*
  * LA PUCE D'ORIGINE (1.0). Ce que l'unité a en commun, sans chiffre (la carte les porte) : au plus deux
- * mots, du plus rare au plus courant. Les icônes sont celles des cartes d'origine (js/combat.js).
+ * mots, du plus rare au plus courant.
  */
 function puceOrigine(o, group) {
   if (!o) return '';
