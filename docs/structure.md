@@ -57,8 +57,8 @@ js/coachs-reels.js    l'entraîneur, une vraie carte de coach-saison (V21) : dat
 js/adjoints.js        sa main d'adjoints (V22) : des cartes, un style chacune (un gain, un prix), postées pour un séjour de 12 matchs puis au repos ; une main de quatre, les cases en poste au niveau du coach ; un parmi trois aux moments forts — `check_pouvoirs`
 js/deposer.js         le glisser-déposer, souris et doigt (l'appui tenu) : une carte d'adjoint sur une case au Bureau › Coach, les cartes des Lignes (`permuter`)
 js/dossiers.js        les histoires de la semaine (V10 ; récrites à la V22, docs/refonte-v22.md) : ce qui arrive à ton club, dit par sa voix, un lundi sur deux, deux réponses concrètes — `check_dossiers`
-js/cartes.js          le gabarit des cartes (recto, verso, finitions)
-js/rarete.js          les variantes de carte et leur bonus
+js/cartes.js          le gabarit des cartes (recto, verso, finitions) ; une carte de jeu porte un niveau (V25 B1)
+js/rarete.js          les éditions d'une carte de joueur (Base → Holo) et leurs paliers
 js/lexique.js         le lexique : un mot par idée (coach, entraîneur, adjoint, vestiaire, classeur…) et les icônes réservées — `check_lexique`
 js/galons.js          les galons d'une saison de Rogue (40 buts, 50 passes…), lus dans le journal du club
 js/banque.js          la banque de cartes : les retouches et les cartes rares qui montent ou soignent

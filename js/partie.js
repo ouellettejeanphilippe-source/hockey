@@ -151,7 +151,7 @@ export function choisirIdentite() {
     ouvrirChoix({
       ico: '🧬', titre: 'Ton identité', cartes: true, genre: 'identite', fermable: true, motFermer: 'Pas de préférence',
       recit: 'Avant le premier tour, une carte qui colore tout ton repêchage : la roulette sortira plus souvent ce genre de joueurs — plus souvent, pas toujours. Touche celle que tu veux.',
-      options: identitesOffertes().map(k => ({ cle: k, rarete: IDENTITES[k].rarete, ico: IDENTITES[k].ico, nom: IDENTITES[k].nom,
+      options: identitesOffertes().map(k => ({ cle: k, niveau: IDENTITES[k].niveau, ico: IDENTITES[k].ico, nom: IDENTITES[k].nom,
         type: 'Identité · tout le repêchage', texte: IDENTITES[k].texte })),
       onChoix: k => resolve(k),
       onFerme: () => resolve(null),

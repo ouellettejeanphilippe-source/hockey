@@ -151,8 +151,8 @@ export const NOMS_SKILLS = { sniper: '🎯 Tir', passeur: '🪄 Jeu', defensif: 
 export const POSTES_DU_PACK = { F: 'Des avants', D: 'Des défenseurs', G: 'Des gardiens' };
 
 /* LES CARTES RARES D'UN PACK DE JOUEURS (js/banque.js) : gardées dans ton inventaire. V21 : le Pack Personnel est parti
-   avec le personnel ; les adjoints ne sont pas des cartes de pack. */
-const COTES_CARTES = { commune: 55, peu: 30, rare: 12, legendaire: 3 };
+   avec le personnel ; les adjoints ne sont pas des cartes de pack. V25 B1 : la carte se tire par NIVEAU, aux parts de
+   l'échelle (`NIVEAUX[k].tirage` : 55 · 30 · 12 · 3, le Soutien n'en sort pas). */
 
 /* Tous les packs, par clé : \`j:\` les joueurs. */
 export const PACKS_TOUS = Object.fromEntries(Object.entries(PACKS_JOUEURS).map(([k, P]) => [`j:${k}`, { ...P, sorte: 'joueurs', cle: k, n: P.joueurs || P.n || TIERS[P.tier].n + (P.famille === 'trio' ? -2 : 0) }]));
@@ -303,8 +303,6 @@ export function niveauxDuPack(cle, mods = {}) {
 }
 
 /* ---------- les tirages ---------- */
-/* Les raretés d'une carte de jeu ; une carte de joueur a ses cinq éditions (`EDITIONS`, js/rarete.js). */
-const ORDRE_VAR = ['commune', 'peu', 'rare', 'legendaire'];
 /* Une édition tirée aux cotes du pack, et son numéro si c'est une Holo. */
 function tirerVariante(cotes, ...parts) {
   let r = hache('pack-var', ...parts) * 100;
@@ -498,7 +496,7 @@ export const RARE_DU_PACK = 0.25;
 export function tirerCartesDuPack(cle, graine, n) {
   const P = PACKS_TOUS[cle];
   if (!P || !P.cartes) return [];
-  return hache(graine, 'pack-rare', cle, n) < RARE_DU_PACK ? tirerCartes({ n: 1, cats: CATS_RARES, cotes: COTES_CARTES }, `${cle}:outils`, graine, n) : [];
+  return hache(graine, 'pack-rare', cle, n) < RARE_DU_PACK ? tirerCartes({ n: 1, cats: CATS_RARES }, `${cle}:outils`, graine, n) : [];
 }
 function tirerCartes(P, cleCourte, graine, n) {
   const out = [];
@@ -507,12 +505,13 @@ function tirerCartes(P, cleCourte, graine, n) {
     const cat = cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * cats.length)];
     const pool = idsDe(cat);
     let r = hache(graine, 'pack-cartes', cleCourte, n, t) * 100;
-    let rar = 'commune';
-    for (const k of ORDRE_VAR) { r -= P.cotes[k] || 0; if (r < 0) { rar = k; break; } }
-    for (let i = ORDRE_VAR.indexOf(rar); i >= 0; i--) {
-      const c = pool.filter(id => BANQUE[id].rarete === ORDRE_VAR[i]);
+    let niv = 1;
+    for (let k = 0; k < NIVEAUX.length; k++) { r -= NIVEAUX[k].tirage; if (r < 0) { niv = k; break; } }
+    // Le niveau tiré, ou le plus proche en dessous qui a une carte dans cette famille.
+    for (let i = niv; i >= 0; i--) {
+      const c = pool.filter(id => BANQUE[id].niveau === i);
       if (!c.length) continue;
-      out.push(c[Math.floor(hache(graine, 'pack-carte', cleCourte, n, t, ORDRE_VAR[i]) * c.length)]);
+      out.push(c[Math.floor(hache(graine, 'pack-carte', cleCourte, n, t, NIVEAUX[i].cle) * c.length)]);
       break;
     }
   }

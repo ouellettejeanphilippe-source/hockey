@@ -31,14 +31,14 @@ import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessure
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto, carteHtml } from './cartes.js';
 import { PALIERS_PACK, SEMAINE } from './inventaire.js';
-import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT, TALENT_CASE } from './pouvoirs.js';
+import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT, TALENT_CASE, NIVEAU_POUVOIR } from './pouvoirs.js';
 import { COACHS } from './coachs.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, basculerChiffres, ouvrirDuel, specDuDuel } from './gerant.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, BUTIN_DU_GROS, lireMeta, aDebloque } from './rogue.js';
-import { ADJOINTS, adjointsOfferts, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, niveauOffert, momentFort, NOMS_NIV, RARETE_NIV, salaireDe, nivDe, casesDuPerso } from './adjoints.js';
+import { ADJOINTS, adjointsOfferts, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, niveauOffert, momentFort, salaireDe, nivDe, casesDuPerso } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, faitsDesSuites, faitsDuDernier, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE } from './banque.js';
@@ -54,6 +54,7 @@ import { bancDuSoirHtml } from './banc-du-soir.js';
 import { bandeau, carteLigne, caseVide, grille, cellules, visage, rangeeVisage, billet, podium as podiumHtml, coin } from './plateau-rogue.js';
 import { panelDe } from './panel-tv.js';
 import { EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, motDuSuiviEnCours, avecNoms, joueurDuFait } from './vie-gm.js';
+import { NIVEAUX, nomDuNiveau } from './niveaux.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -2840,7 +2841,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * la main » y ramène. Toutes finissent en UNE décision datée d'aujourd'hui,
    * portant son palier : c'est ce qui ferme la main.
    */
-  const RARETE_SORTE = { recrue: 'legendaire', profil: 'peu', atelier: 'rare' };
+  // Le carton de chaque sorte (V25 B1 : au niveau) : la recrue en ★ Phénomène, le rôle en Pilier, l'atelier en ★ Étoile.
+  const NIVEAU_SORTE = { recrue: 4, profil: 2, atelier: 3 };
   /*
    * UNE CARTE DU DECK SE DATE DU SOIR DU PROCHAIN MATCH (S74), pas d'aujourd'hui.
    * Son sel tire des dés neufs à partir de sa journée : datée d'aujourd'hui,
@@ -2858,14 +2860,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const recrues = ctx.recrues ? (ctx.recrues(p0) || []) : [];
     const roles = rolesOfferts(you, graine, p0);
     const options = main.map(c => {
-      const S = SORTES_DECK[c.sorte], rarete = RARETE_SORTE[c.sorte];
-      if (c.sorte === 'recrue') return { cle: 'recrue', rarete, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un vrai joueur',
+      const S = SORTES_DECK[c.sorte], niveau = NIVEAU_SORTE[c.sorte];
+      if (c.sorte === 'recrue') return { cle: 'recrue', niveau, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un vrai joueur',
         texte: `Trois vrais joueurs de clubs absents de ta ligue, ${(ctx.motRecrue && ctx.motRecrue()) || 'des Réguliers'} tirés au hasard : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.`,
         desactive: recrues.length ? '' : 'Personne ne rentre sous ton plafond' };
-      if (c.sorte === 'profil') return { cle: 'profil', rarete, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
+      if (c.sorte === 'profil') return { cle: 'profil', niveau, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
         texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
         desactive: roles.length ? '' : 'Personne à convertir' };
-      return { cle: 'atelier', rarete, ico: S.ico, nom: S.nom, type: `${S.nom} · se pose au verso`,
+      return { cle: 'atelier', niveau, ico: S.ico, nom: S.nom, type: `${S.nom} · se pose au verso`,
         texte: `Trois retouches : ${editionsDuJour(graine, p0).map(k => `${MUTATIONS[k].ico} ${MUTATIONS[k].nom}`).join(' · ')}. Tu en gardes une, et tu la poses au verso d'un joueur quand tu veux.` };
     });
     ouvrirChoix({
@@ -2905,7 +2907,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (sorte === 'atelier') {
       ouvrirChoix({ ...suite, ico: '🛠', titre: 'L\'atelier',
         recit: 'Trois retouches : touche celle que tu gardes. Elle va dans tes cartes, et tu la poses au verso d\'un joueur quand tu veux ; elle vaut pour le reste de la saison.',
-        options: editionsDuJour(graine, p0).map(k => ({ cle: k, rarete: 'rare', ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutationEnChiffres(k) })),
+        options: editionsDuJour(graine, p0).map(k => ({ cle: k, niveau: 3, ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutationEnChiffres(k) })),
         onChoix: k => deciderDeck(p0, { deck: 'atelier', garde: `joueur:${k}` }) });
       return;
     }
@@ -3013,13 +3015,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const niveau = pA ? niveauDuPerso(pA) : 1;
     const carte = (quoi, c, mot, pied) => carteLigne(carteHtml({ ...c, statique: true, lecture: true }), `<b>${ctx.esc(mot)}</b> · ${ctx.esc(pied)}`,
       { cls: `pl-carte-touche${quoi === 'plan' ? ' banc-plan pl-carte-or' : ''}`, attrs: ` data-banc="${quoi}" role="button" tabindex="0" aria-label="${ctx.esc(`${c.nomTexte} : ${pied}`)}"` });
-    const plan = carte('plan', { cle: 'plan', rarete: 'commune', genreCarte: 'tactique', ico: P.ico, nomHtml: ctx.esc(P.mot), nomTexte: P.mot, typeHtml: 'Ton plan' }, 'Ton plan', 'en force');
-    const RARETE_POUVOIR = ['peu', 'rare', 'legendaire'];
+    const plan = carte('plan', { cle: 'plan', niveau: 1, genreCarte: 'tactique', ico: P.ico, nomHtml: ctx.esc(P.mot), nomTexte: P.mot, typeHtml: 'Ton plan' }, 'Ton plan', 'en force');
     // Sous chaque carte, sa condition en quelques mots (le contenu de zéro, 4 nov.) : « En 3e, à égalité ou derrière », « encore 12 m ».
     const condition = dit => dit.split(' : ')[0].replace(/période/, '').replace(/\s+,/g, ',').trim();
-    const pouvoirs = pA && POUVOIRS[pA.cle] ? pouvoirsOuverts(niveau).map(i => { const V = POUVOIRS[pA.cle][i]; return carte('coach', { cle: `pv${i}`, rarete: RARETE_POUVOIR[i], genreCarte: 'synergie', ico: V.ico, nomHtml: ctx.esc(V.nom), nomTexte: V.nom, typeHtml: i === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][i]}` }, 'Pouvoir', condition(V.dit)); }) : [];
+    const pouvoirs = pA && POUVOIRS[pA.cle] ? pouvoirsOuverts(niveau).map(i => { const V = POUVOIRS[pA.cle][i]; return carte('coach', { cle: `pv${i}`, niveau: NIVEAU_POUVOIR[i], genreCarte: 'synergie', ico: V.ico, nomHtml: ctx.esc(V.nom), nomTexte: V.nom, typeHtml: i === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][i]}` }, 'Pouvoir', condition(V.dit)); }) : [];
     const postes = pA ? postesDe(pA, gA) : [];
-    const adjoints = postes.map(c => { const A = ADJOINTS[c.cle], niv = nivDe(c); return carte('coach', { cle: c.cle, rarete: RARETE_NIV[niv - 1], genreCarte: 'tactique', ico: A.ico, nomHtml: ctx.esc(A.nom), nomTexte: A.nom, typeHtml: ctx.esc(`${NOMS_NIV[niv - 1]} · ${A.style}`) }, 'Adjoint', `encore ${resteDe(c, gA, pA.cle)} m`); });
+    const adjoints = postes.map(c => { const A = ADJOINTS[c.cle], niv = nivDe(c); return carte('coach', { cle: c.cle, niveau: niv - 1, genreCarte: 'tactique', ico: A.ico, nomHtml: ctx.esc(A.nom), nomTexte: A.nom, typeHtml: ctx.esc(`${nomDuNiveau(niv - 1)} · ${A.style}`) }, 'Adjoint', `encore ${resteDe(c, gA, pA.cle)} m`); });
     // Une case en poste encore libre : la place d'une carte, en pointillés ; toucher ouvre le Coach, où la main se pose.
     const libres = pA ? Math.max(0, casesDuPerso(pA, niveau) - postes.length) : 0;
     const vide = libres ? caseVide('Case<br>libre', `Ta main · <b>${libres}</b> libre${libres > 1 ? 's' : ''}`, { cls: 'pl-carte-touche', attrs: ' data-banc="coach" role="button" tabindex="0" aria-label="Une case d\'adjoint libre"' }) : '';
@@ -3302,14 +3303,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // V23 : chaque carte a son niveau, tiré de la graine (`niveauOffert`), plus haut à un moment fort ; sa rareté fait le paquet.
   const optionDAdjoint = (k, niv) => {
     const p = persoDuJour(), part = p ? quiPartDeLaMain(p, you.games || 0) : null, syn = p ? motDeSynergie(k, p.cle) : null;
-    return { cle: k, niv, rarete: RARETE_NIV[niv - 1], ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, sous: `${NOMS_NIV[niv - 1]} · ${ADJOINTS[k].style}`, mots: [...lignesDeLAdjointEnChiffres(k, niv),
+    return { cle: k, niv, niveau: niv - 1, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, sous: `${nomDuNiveau(niv - 1)} · ${ADJOINTS[k].style}`, mots: [...lignesDeLAdjointEnChiffres(k, niv),
       ...(syn ? [{ txt: syn, bon: true }] : [{ txt: `Un séjour de ${sejourDe(k, p ? p.cle : null)} matchs`, bon: null }]),
       ...(part ? [{ txt: `Ta main est pleine : ${ADJOINTS[part].ico} ${ADJOINTS[part].nom} part`, bon: false }] : [])] };
   };
   const adjointsDuMoment = cle => (persoDuJour() ? adjointsOfferts(persoDuJour(), graine, cle, 3).map(k => optionDAdjoint(k, niveauOffert(graine, cle, k, momentFort(cle)))) : []);
   const decisionDeLAdjoint = (cle, moment) => ({ embauche: { cle, niv: niveauOffert(graine, moment, cle, momentFort(moment)) } });
   // La carte d'une offre unique (le talent, une histoire), nommée avec son niveau.
-  const motDeLOffert = (k, niv) => [{ txt: `Dans ta main : ${ADJOINTS[k].ico} ${ADJOINTS[k].nom}, ${NOMS_NIV[niv - 1]}, ${ADJOINTS[k].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjointEnChiffres(k, niv)];
+  const motDeLOffert = (k, niv) => [{ txt: `Dans ta main : ${ADJOINTS[k].ico} ${ADJOINTS[k].nom}, ${nomDuNiveau(niv - 1)}, ${ADJOINTS[k].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjointEnChiffres(k, niv)];
   function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
     // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.
@@ -3594,7 +3595,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pal = palierOuvert();
     if (pal !== undefined) {
       out.push({ id: `p:${pal}`, genre: 'palier', bloque: true, de: DE.dg, sujet: `La main de la journée ${pal} : trois cartes`, pal,
-        choix: { recitHtml: `<div class="hub-dos-rang" role="group" aria-label="Une main de trois cartes">${mainDuDeck(graine, pal).map(c => `<span class="hub-dos tc-${RARETE_SORTE[c.sorte]}" data-sorte="${c.sorte}" title="${ctx.esc(SORTES_DECK[c.sorte].nom)}">${SORTES_DECK[c.sorte].ico}</span>`).join('')}</div>`,
+        choix: { recitHtml: `<div class="hub-dos-rang" role="group" aria-label="Une main de trois cartes">${mainDuDeck(graine, pal).map(c => `<span class="hub-dos tc-${NIVEAUX[NIVEAU_SORTE[c.sorte]].cadre}" data-sorte="${c.sorte}" title="${ctx.esc(SORTES_DECK[c.sorte].nom)}">${SORTES_DECK[c.sorte].ico}</span>`).join('')}</div>`,
           options: [{ cle: 'voir', nom: 'Voir les trois cartes', sous: 'Tu en gardes une', ouvre: true }],
           agir: () => ouvrirMain(pal) } });
     }
@@ -4096,7 +4097,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const icoDe = o => (o.pari ? '🎲' : o.gain > 0 ? '🪙' : o.adjoint ? '📋' : C.ico || m.de.ico);
       // Son coin dit ce qu'elle rapporte, en grand, sans la retourner : des jetons, de l'expérience, une carte, ou le dé.
       const coinDe = o => (o.gain ? `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙` : o.xp ? `+${o.xp} exp.` : o.adjoint ? '+1 carte' : o.pari ? `🎲 ${Math.round(o.pari.chance * 6)}/6` : '');
-      const options = enCartes ? C.options.map(o => ({ ...o, genreCarte: 'tactique', ico: icoDe(o), coin: coinDe(o), rarete: o.pari ? 'rare' : o.prix ? 'commune' : 'peu', motChoix: 'Jouer' })) : C.options;
+      const options = enCartes ? C.options.map(o => ({ ...o, genreCarte: 'tactique', ico: icoDe(o), coin: coinDe(o), niveau: o.pari ? 3 : o.prix ? 1 : 2, motChoix: 'Jouer' })) : C.options;
       // V23 G : le niveau du coach est un pic — le talent s'ouvre dans la secousse et les particules.
       if (m.genre === 'talent') setTimeout(() => pic(document.querySelector('.choix-sheet[data-msg="talent"]')), 50);
       ouvrirChoix({

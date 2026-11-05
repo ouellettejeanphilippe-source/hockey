@@ -3,7 +3,7 @@
  * par saison*). Ton entraîneur est une carte : un vrai coach, une saison, son club (data/coachs.json, construit par
  * scripts/coachs.mjs depuis les records de la LNH). Sa philosophie — un des huit coachs de js/coachs.js, et ses trois
  * pouvoirs (js/pouvoirs.js) — se lit dans les vraies stats de son club cette saison-là ; son rang dans cette lecture fait
- * sa MAÎTRISE, une force de plus sur ses pouvoirs (`MAITRISE`). Pur : l'écran et les robots tirent les mêmes cartes.
+ * sa MAÎTRISE, une force de plus sur ses pouvoirs (`NIVEAUX[k].maitrise`, js/niveaux.js). Pur : l'écran et les robots tirent les mêmes cartes.
  */
 import { hache } from './util.js';
 
@@ -16,13 +16,15 @@ export async function chargerCoachs() {
 /*
  * LE NIVEAU D'UN ENTRAÎNEUR (V23, docs/refonte-v23.md § C ; JP, 2 nov. : *les coachs et adjoints doivent être comme les
  * joueurs, de pas très bon à excellents*). Son rang dans la lecture de sa philosophie fait son niveau, les mots des
- * joueurs (js/adjoints.js `NOMS_NIV`) : premier de la ligue, ★ Phénomène ; dans les trois premiers, ★ Étoile ; les huit,
+ * joueurs (js/niveaux.js `nomDuNiveau`) : premier de la ligue, ★ Phénomène ; dans les trois premiers, ★ Étoile ; les huit,
  * Pilier ; les seize, Régulier ; plus bas, Soutien. Le niveau fait sa MAÎTRISE, la force de ses pouvoirs : de ×0,9 à
  * ×1,3. Une carte prise avant la V23 garde la maîtrise écrite dans sa décision : la partie se rejoue pareil.
  */
-export const MAITRISE = [[1, 1.3], [3, 1.2], [8, 1.1], [16, 1], [Infinity, 0.9]];
-export const niveauDuCoach = rang => MAITRISE.length - MAITRISE.findIndex(([r]) => rang <= r);
-export const maitriseDu = rang => MAITRISE[MAITRISE.length - niveauDuCoach(rang)][1];
+/* Le rang qui fait chaque niveau, du ★ Phénomène (1er) au Régulier (16e) ; plus bas, Soutien. La maîtrise de chaque niveau vit
+   dans js/niveaux.js (`NIVEAUX[k].maitrise`, V25 B1 : une seule échelle). */
+const RANGS_DU_NIVEAU = [1, 3, 8, 16];
+export const niveauDuCoach = rang => { const k = RANGS_DU_NIVEAU.findIndex(r => rang <= r); return k < 0 ? 1 : NIVEAUX.length - k; };
+export const maitriseDu = rang => NIVEAUX[niveauDuCoach(rang) - 1].maitrise;
 /* Ce que sa philosophie lit dans son club, en mots : « 1er aux tirs pour ». */
 const LECTURE = { essaim: 'aux tirs pour', tortue: 'aux tirs contre (le moins)', rapaces: 'au % de tir', rhinos: 'aux minutes de pénalité',
   choeur: 'à la discipline', souffle: 'à la santé du vestiaire', profondeur: 'à la profondeur', etoiles: 'au poids de ses vedettes' };

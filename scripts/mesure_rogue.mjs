@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { rareteDeSalaire } from '../js/cartes.js';
+import { niveauDe } from '../js/niveaux.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -33,13 +33,13 @@ function plombiers() {
   }
   return pool;
 }
-/* Un joueur de pack : rareté selon les cotes du pack de base, puis un régulier de cette rareté. */
+/* Un joueur de pack : un niveau aux cotes du pack de base (V25 B1 : l'échelle des joueurs, plus un rang de salaire), puis un régulier de ce niveau. */
 function joueurDePack() {
-  const r = rnd() * 100, rarete = r < 62 ? 'commune' : r < 89 ? 'peu' : r < 98 ? 'rare' : 'legendaire';
+  const r = rnd() * 100, niveau = r < 62 ? 1 : r < 89 ? 2 : r < 98 ? 3 : 4;
   const sh = shard(SAISONS[Math.floor(rnd() * SAISONS.length)]);
   const reg = g => sh.players.filter(p => grp(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a));
   const bons = new Set(['F', 'D', 'G'].flatMap(g => { const r = reg(g); return r.slice(0, Math.ceil(r.length * Number(process.env.HAUT || 0.5))); }));
-  const c = [...bons].filter(p => p.$ > 0 && rareteDeSalaire(p, sh) === rarete);
+  const c = [...bons].filter(p => p.$ > 0 && niveauDe(p, sh.players) === niveau);
   return c.length ? { ...c[Math.floor(rnd() * c.length)] } : null;
 }
 function ligue(toi) {

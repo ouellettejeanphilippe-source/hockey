@@ -6,7 +6,7 @@
  * Toute modification des constantes doit être revalidée (voir PLAN.md, S3).
  */
 
-import { effetCarte, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE } from './rarete.js';
+import { VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
 import { getLineZone, seasonGames, seasonLancers, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour, archetypeKey } from './ratings.js';
@@ -652,8 +652,7 @@ export function penaliteAdaptee(player, slot) {
   const base = getPositionPenalty(player, slot);
   if (!base) return 0;
   const g = (player && player._adapt && player._adapt[slot.role]) || 0;
-  // Une carte « Polyvalent » (S78, js/rarete.js) fond une part de la pénalité d'entrée de jeu.
-  return base * Math.exp(-g / ADAPT_MATCHS) * effetCarte(player, 'horsPosition');
+  return base * Math.exp(-g / ADAPT_MATCHS);
 }
 const effStat = (player, slot, key) => {
   // La robustesse est sa carrure (V2.3), sur l'échelle des cotes : 50 au joueur moyen, 12 par écart réduit.
@@ -5213,7 +5212,7 @@ function causesDuLancer(x, pBrut, de) {
   // Ses modifs sur ce canal, en deux : les accidents de la saison (pas un choix à toi), et le reste — tes cartes.
   const cartesDe = (q, champ) => {
     const m = q._mut, a = q._amel && q._amel[champ];
-    return ((m && m[champ]) || 1) / accidentsDe(q, champ) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(q, champ) * siDe(q, champ);
+    return ((m && m[champ]) || 1) / accidentsDe(q, champ) * (a ? grandir(a, ECHELLE_SOIR) : 1) * siDe(q, champ);
   };
   // Un arc de joueur (js/arcs.js), le temps de ses matchs.
   const arcDe = (q, champ) => (q._arcFx && q._arcFx[champ]) || 1;
@@ -5828,7 +5827,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       /*
        * SES MATCHS AUSSI (1.0, oct.). Un joueur sorti de l'alignement (remplacé par une signature)
        * revient par une décision datée d'avant : il gardait les `sim*` de la saison jouée avant la
-       * reprise, et `effetCarte` lit `simGP` (la recrue qui progresse après 41 matchs). Deux reprises
+       * reprise, et le moteur lit `simGP`. Deux reprises
        * de la même partie lui donnaient le bonus à des soirs différents — le passé bougeait (smoke, graine 7).
        */
       remettreAZero(p);
@@ -6545,7 +6544,7 @@ function mutDe(p, champ) {
   const arc = (p && p._arcFx && p._arcFx[champ]) || 1;
   // Le duel (V9) : l'intention qui vise ce joueur, le temps de sa période (`_duelFx`), et la chasse jusqu'aux blessures du soir.
   const duel = ((p && p._duelFx && p._duelFx[champ]) || 1) * (champ === 'blessure' && p && p._duelBlessure ? p._duelBlessure : 1);
-  return duel * ((m && m[champ]) || 1) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(p, champ) * siDe(p, champ) * effetDesPaliersGagnes(p, champ) * arc;
+  return duel * ((m && m[champ]) || 1) * (a ? grandir(a, ECHELLE_SOIR) : 1) * siDe(p, champ) * effetDesPaliersGagnes(p, champ) * arc;
 }
 
 /*

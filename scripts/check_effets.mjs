@@ -8,7 +8,8 @@
  *   1. il se voit dans la feuille d'un soir où il joue : ±2 tirs (un bord ou le rythme), ±0,3 but des deux clubs,
  *      ±0,5 punition, ±4 mises en échec, ±3 blessures par saison, ±3 de jambes ; sur un joueur nommé, à sa ligne :
  *      ±0,3 point, ±0,15 but ou ±1 tir (une récompense de toute la saison : quatre points sur sa durée). Les minutes (`F`, `D`) se recomptent ailleurs (check_dilemmes), l'argent aussi ;
- *   2. sa force reste sous la borne de sa rareté sur ses soirs (une commune ±1).
+ *   2. sa force reste sous la borne de son niveau sur ses soirs (`NIVEAUX[k].borneV`, une réponse d'histoire est une Régulier : ±1) ;
+ *   3. le style ne se paie pas en force : au plus 0,5 V par seuil franchi (la règle de l'ancien check_cartes, parti à la V25 B1).
  * V21 : les pouvoirs du coach, le temps d'une période, se mesurent dans check_pouvoirs ; le personnel est parti.
  * `N` : matchs par club et par effet (200). `FILS` : processus (4). `IDS=d:,a:` quelques familles. `DETAIL=1` : chaque
  * effet et ce qu'il vaut sur ses soirs, en victoires. Une vingtaine de minutes : à la main.
@@ -22,6 +23,7 @@ import { CHOIX_DES_FILS } from '../js/vie-gm.js';
 import { ARCS } from '../js/arcs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
+import { NIVEAUX } from '../js/niveaux.js';
 
 const N = Number(process.env.N ?? 200), FILS = Number(process.env.FILS ?? 4), ICI = fileURLToPath(import.meta.url);
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
@@ -30,16 +32,16 @@ const prend = (o, ks) => Object.fromEntries(ks.filter(k => o && k in o && typeof
 function items() {
   const out = [];
   for (const [d, D] of Object.entries(DOSSIERS)) for (const O of D.options) for (const [suf, x] of [['', O], ...(O.pari ? [['+', O.pari.gagne], ['-', O.pari.perd]] : [])]) {
-    const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `d:${d}.${O.cle}${suf}`, nom: `${D.titre} : ${O.nom}`, rarete: 'commune', si: O.si || null, duree: x.duree, effet: e, joueur: x.lui || null });
+    const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `d:${d}.${O.cle}${suf}`, nom: `${D.titre} : ${O.nom}`, niveau: 1, si: O.si || null, duree: x.duree, effet: e, joueur: x.lui || null });
   }
   const fam = (pre, src) => { for (const [k, M] of Object.entries(src)) for (const O of M.options || []) {
-    const add = (suf, x, dur) => { const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `${pre}:${k}.${O.cle}${suf}`, nom: `${M.titre || k} : ${O.nom}`, rarete: 'commune', si: null, duree: dur ?? x.duree, effet: e, joueur: x.lui || null }); };
+    const add = (suf, x, dur) => { const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `${pre}:${k}.${O.cle}${suf}`, nom: `${M.titre || k} : ${O.nom}`, niveau: 1, si: null, duree: dur ?? x.duree, effet: e, joueur: x.lui || null }); };
     add('', O); if (O.pari) { add('+', O.pari.gagne); add('-', O.pari.perd); } if (O.ensuite) add('>', O.ensuite);
   } };
   fam('g', AVANT_GROS);
-  for (const [k, A] of Object.entries(ARCS)) (A.episodes || []).forEach((E, i) => { if (E.effet && Object.keys(E.effet).length && E.cible !== 'joueur') out.push({ id: `a:${k}.${i}`, nom: `${A.titre} (${i + 1})`, rarete: 'commune', si: null, duree: E.matchs, effet: prend(E.effet, CANAUX), contre: E.cible === 'contre' });
-    else if (E.effet && Object.keys(E.effet).length) out.push({ id: `a:${k}.${i}`, nom: `${A.titre} (${i + 1})`, rarete: 'commune', si: null, duree: E.matchs, effet: {}, joueur: prend(E.effet, CJ) }); });
-  for (const [k, F] of Object.entries(CHOIX_DES_FILS)) for (const O of F.options) if (O.suivi) for (const b of ['gagne', 'perd']) { const B = O.suivi[b]; if (B) out.push({ id: `f:${k}.${O.cle}.${b}`, nom: `${F.titre} : ${O.nom} (${b})`, rarete: 'commune', si: null, duree: B.duree, effet: {}, joueur: prend(B.effets[0], CJ) }); }
+  for (const [k, A] of Object.entries(ARCS)) (A.episodes || []).forEach((E, i) => { if (E.effet && Object.keys(E.effet).length && E.cible !== 'joueur') out.push({ id: `a:${k}.${i}`, nom: `${A.titre} (${i + 1})`, niveau: 1, si: null, duree: E.matchs, effet: prend(E.effet, CANAUX), contre: E.cible === 'contre' });
+    else if (E.effet && Object.keys(E.effet).length) out.push({ id: `a:${k}.${i}`, nom: `${A.titre} (${i + 1})`, niveau: 1, si: null, duree: E.matchs, effet: {}, joueur: prend(E.effet, CJ) }); });
+  for (const [k, F] of Object.entries(CHOIX_DES_FILS)) for (const O of F.options) if (O.suivi) for (const b of ['gagne', 'perd']) { const B = O.suivi[b]; if (B) out.push({ id: `f:${k}.${O.cle}.${b}`, nom: `${F.titre} : ${O.nom} (${b})`, niveau: 1, si: null, duree: B.duree, effet: {}, joueur: prend(B.effets[0], CJ) }); }
   return out;
 }
 const equipe = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
@@ -105,10 +107,13 @@ const lancer = l => new Promise((ok, ko) => { const p = spawn(process.execPath, 
 const lots = Array.from({ length: FILS }, (_, i) => toutes.filter((_, j) => j % FILS === i)).filter(l => l.length);
 const res = Object.assign({}, ...(await Promise.all(lots.map(lancer))));
 const meta = Object.fromEntries(items().map(x => [x.id, x]));
-const BORNE_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
+// La borne d'un effet suit le niveau de sa carte (V25 B1 : `NIVEAUX[k].borneV`, js/niveaux.js) ; une réponse d'histoire est une Régulier.
+// LE STYLE NE SE PAIE PAS EN FORCE (la règle de l'ancien check_cartes) : le net en victoires ne dépasse pas `V_PAR_SEUIL` par seuil
+// franchi dans la feuille (la somme des déplacements, chacun divisé par son seuil), avec un plancher d'une demi-victoire, le bruit.
+const V_PAR_SEUIL = 0.5;
 const f1 = x => (x >= 0 ? '+' : '') + x.toFixed(1).replace('.', ',');
 const f2 = x => (x >= 0 ? '+' : '') + x.toFixed(2).replace('.', ',');
-const invisibles = [], tropForts = [];
+const invisibles = [], tropForts = [], payants = [];
 let mesures = 0;
 for (const id of toutes) {
   const C = meta[id], m = res[id], x = Object.fromEntries(Object.entries(m).map(([k, v]) => [k, v / m.n]));
@@ -123,14 +128,16 @@ for (const id of toutes) {
     // Une récompense de toute une saison (un pari gagné, un fil relevé) se voit sur sa durée : quatre points de plus à sa ligne.
     soirs >= 40 ? (Math.abs(x.pj) * soirs) / 4 : 0);
   const ligne = `${C.nom} : ${soirs.toFixed(1).replace('.', ',')} soirs · par soir : tirs ${f1(x.tp)} / ${f1(x.tc)} · buts ${f2(x.gf)} / ${f2(x.ga)} · punitions ${f2(x.pun)} · mises en échec ${f1(x.coups)} · jambes ${f1(x.jambes)}${x.pj || x.tj ? ` · le joueur ${f2(x.pj)} pt, ${f1(x.tj)} tir` : ''}`;
-  const v = x.v * soirs, lim = BORNE_V[C.rarete || 'commune'];
+  const v = x.v * soirs, lim = NIVEAUX[C.niveau ?? 1].borneV;
   if (R < 1) { invisibles.push(C.nom); informer(`✗ ${id}`, ligne); }
   // DETAIL=1 : chaque effet, sa ligne et ce qu'il vaut sur ses soirs (nov. 2026 : peser les deux réponses d'une histoire).
   else if (process.env.DETAIL) informer(id, `${ligne} · ${f2(v)} V`);
   // Une récompense de fil (un défi relevé, un pari gagné) dure la saison : c'est la récompense (CLAUDE.md, la run qui casse le jeu).
   if (Math.abs(v) > lim && !id.startsWith('f:')) tropForts.push(`${C.nom} ${f1(v)} V (borne ${String(lim).replace('.', ',')})`);
+  if (Math.abs(v) > Math.max(0.5, V_PAR_SEUIL * R) && !id.startsWith('f:')) payants.push(`${C.nom} ${f1(v)} V pour ${R.toFixed(1).replace('.', ',')} seuil(s)`);
 }
 exiger('chaque effet se voit dans la feuille d\'un soir où il joue', !invisibles.length, invisibles.length ? `${invisibles.length} sur ${mesures} : ${invisibles.slice(0, 12).join(' · ')}` : `${mesures} effets`);
-exiger('chaque effet reste sous la borne de sa rareté', !tropForts.length, tropForts.join(' · ') || 'tous');
+exiger('chaque effet reste sous la borne de son niveau', !tropForts.length, tropForts.join(' · ') || 'tous');
+exiger('le style ne se paie pas en force : au plus 0,5 V par seuil franchi (une demi-victoire de bruit)', !payants.length, payants.join(' · ') || 'tous');
 if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify({ res, meta }));
 verdict('Chaque effet se voit');

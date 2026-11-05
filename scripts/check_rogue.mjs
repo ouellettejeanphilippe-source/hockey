@@ -184,7 +184,8 @@ if (!isMainThread) {
     globalThis.localStorage = { getItem: () => JSON.stringify({ deblocages: ['classeurTri', 'classeurChoix'], ecussons: 10, jalons: { coupe: true } }), setItem() {} };
     const vieux = lireMeta();
     globalThis.localStorage = stockage;
-    exiger('un méta qui avait « Le classeur ouvert » le perd et reprend ses 280 médailles', vieux.ecussons === 290 && vieux.deblocages.join() === 'classeurTri'
+    // V25 B1 : les remboursements des déblocages partis (`PARTIS`) ont fait leur temps ; un déblocage inconnu s'efface, sans rien rendre.
+    exiger('un méta qui avait un déblocage parti le perd, sans rien reprendre', vieux.ecussons === 10 && vieux.deblocages.join() === 'classeurTri'
       && JALONS.find(J => J.cle === 'coupe').recompense.deblocage === 'classeur4', `${vieux.ecussons} 🏅 · ${vieux.deblocages.join()}`);
     const cles = ['1985-86_EDM_1', '2001-02_DET_2', '1970-71_BOS_3', '2019-20_TBL_4'];
     const a = tirageDuClasseur(cles, 'g:3'), b = tirageDuClasseur(cles.slice().reverse(), 'g:3'), c = tirageDuClasseur(cles, 'g:4');

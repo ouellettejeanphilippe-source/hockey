@@ -12,7 +12,6 @@
  */
 import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE, tierDuPack, POSTES_DU_PACK } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
-import { RARETES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { esc, money as M } from './util.js';
 import { COACHS } from './coachs.js';
@@ -165,9 +164,9 @@ export function ouvrirMagasin(ctx) {
     const verrou = ctx.ouverts[cle] === true ? '' : (ctx.ouverts[cle] || 'Verrouillé');
     const prix = prixDe(cle, rabaisDe(cle));
     const ch = chancesDe(cle, P.sorte === 'joueurs' ? ctx.mods : {});
-    const cotes = P.sorte === 'joueurs' ? cotesDuPack(cle, ctx.mods) : P.cotes;
+    const cotes = cotesDuPack(cle, ctx.mods);
     const tot = Object.values(cotes).reduce((a, b) => a + b, 0) || 100;
-    const noms = P.sorte === 'joueurs' ? { ...NOM_VARIANTE, legendaire: 'Holo numérotée' } : { commune: 'Commune', peu: 'Peu commune', rare: 'Rare', legendaire: 'Légendaire' };
+    const noms = { ...NOM_VARIANTE, legendaire: 'Holo numérotée' };
     // Jalon P2 : la décennie et le rôle ; une option que les déblocages ferment se voit, grisée, avec sa raison.
     const verrous = (ctx.verrousChoix || {})[P.choix] || {};
     const option = (cle, nom) => `<option value="${esc(cle)}"${verrous[cle] ? ` disabled title="${esc(verrous[cle])}"` : ''}>${esc(nom)}${verrous[cle] ? ' 🔒' : ''}</option>`;
@@ -193,7 +192,7 @@ export function ouvrirMagasin(ctx) {
       ${P.sorte === 'joueurs' ? niveauxHtml(cle, ctx.mods) : ''}
       ${P.sorte === 'joueurs' && ctx.mode === 'rogue' ? `<p class="pk-num pk-garantie">🛟 Une Or ou une Holo au plus tard au ${PITIE + 1}e pack de joueurs${ctx.sansHolo ? ` (tu en es à ${ctx.sansHolo} sans)` : ''}.</p>` : ''}
       <h4>${P.sorte === 'joueurs' ? 'L\'édition d\'une carte' : 'Le barème d\'une carte'}</h4>
-      <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${P.sorte !== 'joueurs' && RARETES[k] ? `${RARETES[k].gemme} ` : ''}${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
+      <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' ? `<p class="pk-num">Une Holo est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}.</p>` : ''}
       </div>
       ${choix}

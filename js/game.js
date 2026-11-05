@@ -554,7 +554,7 @@ export const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_S
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S143';  // S143 (nov. 2026, V25 A2) : une seule source du hasard (js/util.js) — les tirages purs du Rogue (les offres, les paris, l'avant-match d'un gros match, les intentions) passent par `hache` au lieu de `hacherMise` et tombent autrement sur la même graine ; les matchs ordinaires ne bougent pas ; l'historique des versions : docs/moteur-recalibrer.md.
+const VERSION_MOTEUR = 'S144';  // S144 (nov. 2026, V25 B1) : la recrue ne progresse plus par sa carte (`effetCarte`, +1 % de précision après 41 matchs, est parti : une seule échelle, aucun effet isolé) ; une saison avec une recrue signée se rejoue autrement ; l'historique des versions : docs/moteur-recalibrer.md.
 export function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
@@ -1384,11 +1384,11 @@ function setupEvents() {
     ico: '❓', titre: 'Comment on joue', cartes: true, lecture: true, genre: 'aide', fermable: true, motFermer: 'Compris !',
     recit: 'Cap 82-0, c\'est bâtir une équipe de vrais joueurs et aller chercher la Coupe. Balaie les cartes.',
     options: [
-      { cle: 'a1', rarete: 'commune', ico: '🎰', nom: '1. Repêche', type: 'La roulette', texte: 'Elle sort une saison et un vrai club de la LNH. Dans son vestiaire, tu piges un joueur.' },
-      { cle: 'a2', rarete: 'peu', ico: '💰', nom: '2. Le plafond', type: '23 joueurs', texte: 'Signe-les tous sous le plafond salarial : trouver les aubaines, c\'est le métier.' },
-      { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'L\'alignement', texte: 'Chaque joueur à sa case. Les badges qui s\'accordent font une ligne qui joue ensemble ; un joueur mal placé rend moins.' },
-      { cle: 'a4', rarete: 'rare', ico: '⏩', nom: '4. La saison', type: '82 matchs', texte: 'Elle se joue d\'un coup. Ton classement dit si ton équipe tient.' },
-      { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: 'Les séries se regardent match par match. La Coupe est le vrai but ; le 82-0, le Graal.' },
+      { cle: 'a1', niveau: 1, ico: '🎰', nom: '1. Repêche', type: 'La roulette', texte: 'Elle sort une saison et un vrai club de la LNH. Dans son vestiaire, tu piges un joueur.' },
+      { cle: 'a2', niveau: 2, ico: '💰', nom: '2. Le plafond', type: '23 joueurs', texte: 'Signe-les tous sous le plafond salarial : trouver les aubaines, c\'est le métier.' },
+      { cle: 'a3', niveau: 2, ico: '🏒', nom: '3. Tes lignes', type: 'L\'alignement', texte: 'Chaque joueur à sa case. Les badges qui s\'accordent font une ligne qui joue ensemble ; un joueur mal placé rend moins.' },
+      { cle: 'a4', niveau: 3, ico: '⏩', nom: '4. La saison', type: '82 matchs', texte: 'Elle se joue d\'un coup. Ton classement dit si ton équipe tient.' },
+      { cle: 'a5', niveau: 4, ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: 'Les séries se regardent match par match. La Coupe est le vrai but ; le 82-0, le Graal.' },
     ],
     onChoix: () => {},
   });

@@ -538,22 +538,17 @@ export const convertirAuJeuNeuf = m => {
 };
 const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: [], runs: 0, saisons: 0, coupes: 0, meilleur: null, derniereEquipe: [], recompenses: {}, inventaire: {}, recus: {}, jalons: {}, sel: null });
 /*
- * Les déblocages partis : leurs médailles reviennent (une fois : écrit, le méta ne l'a plus). V13-2 : « Un deck
- * aiguisé », avec le deck de match. 24 oct. : « Le classeur ouvert », avec le choix dans tout le classeur ; acheté
- * ou offert par la Coupe (le méta ne le dit pas), il rend son prix.
- */
-const PARTIS = { deckPlus: 50, classeurChoix: 280, dgFlexible: 70 };
-/*
- * Les cartes parties de la banque (V16, tranche 6 : la masse salariale, les soins de trop, le congédiement, les
- * rappels) : chacune qu'un inventaire gardait rend `REMBOURSEMENT_CARTE` médailles, une fois.
+ * Un méta d'avant : un déblocage que le jeu ne connaît plus s'efface (V25 B1 : les remboursements des déblocages partis,
+ * `PARTIS`, ont fait leur temps — écrits une fois au méta, ils n'avaient plus rien à rendre) ; une carte partie de la
+ * banque (V16, tranche 6) rend encore `REMBOURSEMENT_CARTE` médailles, une fois.
  */
 const REMBOURSEMENT_CARTE = 3;
 function rembourserLesPartis(m) {
-  const partis = (m.deblocages || []).filter(k => PARTIS[k]);
+  const inconnus = (m.deblocages || []).filter(k => !DEBLOCAGES[k]);
   const cartes = Object.entries(m.inventaire || {}).filter(([id]) => !BANQUE[id]);
-  if (!partis.length && !cartes.length) return m;
-  return { ...m, deblocages: (m.deblocages || []).filter(k => !PARTIS[k]), inventaire: Object.fromEntries(Object.entries(m.inventaire || {}).filter(([id]) => BANQUE[id])),
-    ecussons: (m.ecussons || 0) + partis.reduce((a, k) => a + PARTIS[k], 0) + cartes.reduce((a, [, n]) => a + (n || 0), 0) * REMBOURSEMENT_CARTE };
+  if (!inconnus.length && !cartes.length) return m;
+  return { ...m, deblocages: (m.deblocages || []).filter(k => DEBLOCAGES[k]), inventaire: Object.fromEntries(Object.entries(m.inventaire || {}).filter(([id]) => BANQUE[id])),
+    ecussons: (m.ecussons || 0) + cartes.reduce((a, n) => a + (n[1] || 0), 0) * REMBOURSEMENT_CARTE };
 }
 export function lireMeta() {
   try { return rembourserLesPartis({ ...META_VIDE(), ...(JSON.parse(localStorage.getItem(CLE_META) || 'null') || {}) }); } catch { return META_VIDE(); }

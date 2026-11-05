@@ -11,9 +11,8 @@ import { badgesDe, getPlayerKey, MUTATIONS, SLOTS, fits, getUnitSynergy, identit
 import { alignementAuMieux, unitesDuSoir, specialesEnStats, lignesDeLAdjointEnChiffres, ditDuPouvoir, penaliteAffichee } from './impact.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
 import { primesDuCoach } from './rogue.js';
-import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, NIVEAUX_TALENT, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';
-import { MAITRISE } from './coachs-reels.js';
-import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, ficheDeLaCarte, casesLibres, nivDe, NOMS_NIV, RARETE_NIV, salaireDe } from './adjoints.js';
+import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, NIVEAUX_TALENT, niveauDuPerso, xpAvantProchain, forceDuPouvoir, NIVEAU_POUVOIR } from './pouvoirs.js';
+import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, ficheDeLaCarte, casesLibres, nivDe, salaireDe } from './adjoints.js';
 import { carteHtml } from './cartes.js';
 import { carteLigne, grille, coin } from './plateau-rogue.js';
 import { hubActif } from './coquille.js';
@@ -27,6 +26,7 @@ import { ajusterCartes, cartonDe, choisirSpeciale, lesCotes, pastilleNiveau, rar
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { poseesSur } from './banque.js';
 import { decisionsDeLaPartie } from './rogue-jeu.js';
+import { NIVEAUX, nomDuNiveau } from './niveaux.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
 function ouvrirCarteDe(p) {
@@ -847,8 +847,6 @@ export function persoDuMatin() {
  * cette saison (lu dans tes feuilles). Puis sa main d'adjoints (V22, `mainHtml`).
  * Le personnage est celui que la ligue rejouée porte.
  */
-/* La maîtrise de chaque niveau d'entraîneur, de Soutien à ★ Phénomène (V23, js/coachs-reels.js `MAITRISE`). */
-const NIV_DE_MAITRISE = MAITRISE.map(([, m]) => m).reverse();
 export function coachHtml() {
   if (G.bonus !== 'ROGUE' || !G.rogue) return '';
   const L = G.ligue, you = L && L.you;
@@ -871,11 +869,10 @@ export function coachHtml() {
    * pouvoir est une VRAIE carte de jeu (`carteHtml`, le carton 5:7 de la glace), au genre des pouvoirs du coach ; son verso dit ce
    * qu'il fait ; sur l'ardoise en coin, combien de fois il a joué, ou le niveau qui l'ouvre ; fermé, il s'éteint.
    */
-  const RARETE_POUVOIR = ['peu', 'rare', 'legendaire'];
   const carte = (P, p) => {
     const ouvert = niveau >= NIVEAU_DES_POUVOIRS[p];
     const f = forceDuPouvoir(perso, p);
-    return carteLigne(carteHtml({ cle: `pv${p}`, rarete: RARETE_POUVOIR[p], genreCarte: 'synergie', ico: P.ico, nomHtml: esc(P.nom), typeHtml: p === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][p]}`, statique: true,
+    return carteLigne(carteHtml({ cle: `pv${p}`, niveau: NIVEAU_POUVOIR[p], genreCarte: 'synergie', ico: P.ico, nomHtml: esc(P.nom), typeHtml: p === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][p]}`, statique: true,
       texteHtml: `${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}` }),
     `<span class="pv-nom">${esc(P.dit.split(' : ')[0])}</span>`,
     { cls: `pv${ouvert ? '' : ' ferme pl-carte-eteinte'}`, coins: coin(ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`, { ton: ouvert ? 'or' : 'gris', cls: 'pl-coin-petit pv-etat' }) });
@@ -888,7 +885,9 @@ export function coachHtml() {
   const chef = perso.chef;
   // Le contenu, de zéro (4 nov. 2026) : la plaque dit qui et quoi (le niveau de l'entraîneur ; sa maîtrise à l'infobulle), la jauge
   // se termine en chiffres (« 4 → niv. 2 · talent »), la règle en flèche (« ≤ 24 tirs contre → +2 🪙 · 1 fois »).
-  const maitrise = (perso.maitrise || 1) !== 1 ? NOMS_NIV[NIV_DE_MAITRISE.indexOf(perso.maitrise)] || '' : '';
+  // Le niveau de l'entraîneur se lit sur sa maîtrise (V25 B1 : `NIVEAUX[k].maitrise`, js/niveaux.js).
+  const kMaitrise = NIVEAUX.findIndex(N => N.maitrise === (perso.maitrise || 1));
+  const maitrise = (perso.maitrise || 1) !== 1 && kMaitrise >= 0 ? nomDuNiveau(kMaitrise) : '';
   return `<div class="ej-coach">
     <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''} title="${esc(`${chef ? `${chef.n} · ${TEAMFULL[chef.tag] || chef.tag} ${chef.saison} · ` : ''}${C.nom}${maitrise ? ` · ${maitrise} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}`)}"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>${chef ? esc(`${chef.tag} ${chef.saison}`) : esc(C.nom)}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau<b>${niveau}</b></span></div>
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
@@ -918,9 +917,9 @@ function mainHtml(perso, niveau) {
     const sal = salaireDe(c) ? ` · −${salaireDe(c)} 🪙/match` : '';
     const sous = etat === 'poste' ? `encore ${resteDe(c, games, perso.cle)} m${sal}` : etat === 'repos' ? `repos ${reposDe(c, games)}` : `${sejourDe(c.cle, perso.cle)} m`;
     // Le verso, petit, dit le style seul ; la réplique, la synergie et la fiche se lisent dans la bande, au toucher (`.adj-detail`).
-    const detail = `<b>${esc(A.nom)}</b> · ${esc(NOMS_NIV[niv - 1])} · ${esc(A.style)} — « ${esc(A.dit)} »${syn ? ` · <b class="bon">${esc(syn)}</b>` : ''}${fiche ? ` · ${esc(fiche)}` : ''}`;
+    const detail = `<b>${esc(A.nom)}</b> · ${esc(nomDuNiveau(niv - 1))} · ${esc(A.style)} — « ${esc(A.dit)} »${syn ? ` · <b class="bon">${esc(syn)}</b>` : ''}${fiche ? ` · ${esc(fiche)}` : ''}`;
     return `<div class="adj-carte" data-adj="${c.cle}" data-etat="${etat}" data-detail="${esc(detail)}">
-      ${carteHtml({ cle: c.cle, rarete: RARETE_NIV[niv - 1], genreCarte: 'tactique', ico: A.ico, nomHtml: esc(A.nom), typeHtml: esc(`${NOMS_NIV[niv - 1]} · ${A.style}`), statique: true,
+      ${carteHtml({ cle: c.cle, niveau: niv - 1, genreCarte: 'tactique', ico: A.ico, nomHtml: esc(A.nom), typeHtml: esc(`${nomDuNiveau(niv - 1)} · ${A.style}`), statique: true,
         bonHtml: l.filter(x => x.bon).map(x => esc(x.txt)).join('<br>'), prixHtml: l.filter(x => !x.bon).map(x => esc(x.txt)).join('<br>') })}
       <span class="adj-sous">${sous}</span>
       ${etat === 'prete' && casesLibres(perso, games, niveau) ? `<button type="button" class="btn-sign adj-poster" data-poste="${c.cle}">Poster</button>` : ''}

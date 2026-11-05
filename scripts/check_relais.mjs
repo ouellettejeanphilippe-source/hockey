@@ -20,7 +20,8 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague } from '../js/sim.js';
 import { POUVOIRS, SEUILS_NIVEAU } from '../js/pouvoirs.js';
-import { ADJOINTS, RELAIS_NIV, NIV_DEFAUT, NOMS_NIV, effetDuRelais, relaisDeLaPeriode, styleAuNiveau } from '../js/adjoints.js';
+import { ADJOINTS, RELAIS_NIV, NIV_DEFAUT, effetDuRelais, relaisDeLaPeriode, styleAuNiveau } from '../js/adjoints.js';
+import { nomDuNiveau } from '../js/niveaux.js';
 import { COACHS } from '../js/coachs.js';
 import { banc } from '../js/profil-style.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
@@ -81,7 +82,7 @@ const f1 = (v, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
   const phenomene = relaisDeLaPeriode({ cle: 'essaim', main: [{ cle: 'canonnier', niv: 5, depuis: 0, fin: null }] }, 3, { ...e0, pouvoirs: [{ cle: 'ruee', nom: 'La ruée', ico: '🐝' }] })[0];
   const soutien = relaisDeLaPeriode({ cle: 'essaim', main: [{ cle: 'canonnier', niv: 1, depuis: 0, fin: null }] }, 3, { ...e0, pouvoirs: [{ cle: 'ruee', nom: 'La ruée', ico: '🐝' }] })[0];
   exiger('un adjoint excellent relaie plus fort', phenomene && soutien && phenomene.valeur > soutien.valeur && phenomene.valeur > 1 && soutien.valeur > 1,
-    `${NOMS_NIV[0]} ×${soutien ? soutien.valeur.toFixed(3) : '?'} · ${NOMS_NIV[4]} ×${phenomene ? phenomene.valeur.toFixed(3) : '?'}`);
+    `${nomDuNiveau(0)} ×${soutien ? soutien.valeur.toFixed(3) : '?'} · ${nomDuNiveau(4)} ×${phenomene ? phenomene.valeur.toFixed(3) : '?'}`);
 }
 
 /* ---------- 3 et 4. en paires ---------- */

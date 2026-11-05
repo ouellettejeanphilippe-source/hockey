@@ -361,7 +361,7 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id));
   // V10 : les cartes de saison sont parties ; V13-2, les malédictions aussi ; V16, les places, l'équipement, les clauses et
   // le feu. Ce qui n'en sort pas ne compte pas au dénominateur.
-  exiger('ce qui se gagne en jouant ne compte pas au dénominateur', horsPack.every(id => BANQUE[id].rarete === 'maudite'), `${horsPack.length} carte(s) hors pack`);
+  exiger('ce qui se gagne en jouant ne compte pas au dénominateur', horsPack.every(id => BANQUE[id].niveau == null), `${horsPack.length} carte(s) hors pack`);
   const jamais = Object.keys(BANQUE).filter(id => sortDUnPack(id) && !tirees.has(id));
   informer('cartes comptées qu\'on n\'a pas encore vu sortir', `${jamais.length} sur ${Object.keys(BANQUE).filter(sortDUnPack).length} (1 500 ouvertures par pack)`);
 }
@@ -407,8 +407,9 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   // L'économie ne fuit pas : les cartes d'un pack mixte, revendues, valent au plus 40 % de son prix (majoré, la famille la plus chère).
   const fuites = BOUTIQUE.filter(k => {
     const P = PACKS_TOUS[k];
-    const parRarete = r => Math.max(0, ...Object.keys(BANQUE).filter(id => BANQUE[id].rarete === r).map(valeurDe));
-    return P.cartes * Object.entries({ commune: 55, peu: 30, rare: 12, legendaire: 3 }).reduce((a, [r, c]) => a + (c / 100) * parRarete(r), 0) > 0.4 * P.prix;
+    // V25 B1 : la carte rare se tire par niveau, aux parts de l'échelle (`NIVEAUX[k].tirage`).
+    const parNiveau = k => Math.max(0, ...Object.keys(BANQUE).filter(id => BANQUE[id].niveau === k).map(valeurDe));
+    return P.cartes * NIVEAUX.reduce((a, N, k) => a + (N.tirage / 100) * parNiveau(k), 0) > 0.4 * P.prix;
   });
   exiger('les cartes d\'un pack mixte ne se revendent pas plus de 40 % de son prix', !fuites.length, fuites.join(', ') || 'aucune fuite');
 }
