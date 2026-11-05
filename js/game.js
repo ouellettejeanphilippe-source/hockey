@@ -21,7 +21,8 @@
  * lui-même le brouillard de guerre dans les options.
  */
 
-import { REROLLS, MODES, AFFICHAGE_COURBE, batirLesClubs, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, positionsAvant, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES, matchsDeSaSaison } from './sim.js';
+import { REROLLS, MODES, batirLesClubs, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, positionsAvant, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES, matchsDeSaSaison } from './sim.js';
+import { coachDuJoueur } from './greffes.js';
 import { COACHS } from './coachs.js';
 import { PLAFOND_ROGUE, lireMeta, ecrireMeta, mandatDe, convertirAuJeuNeuf } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
@@ -46,7 +47,7 @@ import { afficherMenu, fermerMenu } from './menu.js';
 import { surveillerLaVersion } from './mise-a-jour.js';
 import { MT, chargerTable } from './charge-table.js';
 import { ouvrirChoix, titreDuBadge, motDuBadge } from './gerant.js';
-import { poserClubLu } from './impact.js';
+import { poserClubLu, AFFICHAGE_COURBE } from './impact.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { brancherEntractes } from './entracte.js';
 import { migrerHistorique, rendreCartable, ajouterAuCartable, marquerJouees } from './cartable.js';

@@ -23,15 +23,8 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
-  OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, suivisEnCours, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
-  getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
-  MUTATIONS,
-  AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
-  AVANT_GROS, avantDuGros,
-  mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
-  familleDeMoment, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  nouvelleGraine, avecAVenir, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
+import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries, OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe, MUTATIONS, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, AVANT_GROS, avantDuGros, mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty, nouvelleGraine, avecAVenir, rivauxOfferts, rivalChoisi, RIVAUX, MISE_DOUBLEE, MOMENTS_SI } from './sim.js';
+import { suivisEnCours, familleDeMoment, pariDeDecision, apercuDuDuel, INTENTIONS, PLANS, cibleDuPlan } from './greffes.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
 import { lignesDeLAdjointEnChiffres, ditDeLaFinition, motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
@@ -50,7 +43,7 @@ import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneD
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, faitsDesSuites, faitsDuDernier, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE } from './banque.js';
 import { DEFIS, avanceDuDefi, motDuDefi } from './arcs.js';
-import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
+import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt, motsDeLObjectif, motDeBlessure } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes, notable, pic } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
@@ -3140,8 +3133,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       /*
        * AU TÉLÉPHONE, UNE LIGNE (S78). JP : *page trop longue, ça fait qu'on
        * perd parfois l'info*. Le gros match s'annonce en une ligne sur
-       * l'affiche ; ce qu'on en sait (leurs pistes, leur main, l'enjeu) vit
-       * dans le dépistage, qui s'ouvre au toucher.
+       * l'affiche ; ce qu'on en sait (le pourquoi, l'enjeu) vit dans le
+       * dépistage, qui s'ouvre au toucher.
        */
       // V12-4 : le gros match tient en une ligne ; son pourquoi et l'événement pris vont au dépistage.
       const grosPourquoi = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Gros match · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b>${soirEnVolet ? '' : ` — ${ctx.esc(MINI_BOSS[mb.raison].mot)}`}</div>` : '';

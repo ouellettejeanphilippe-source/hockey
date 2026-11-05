@@ -21,7 +21,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, pariDeDecision } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua } from '../js/sim.js';
+import { pariDeDecision } from '../js/greffes.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { CHOIX_DES_FILS } from '../js/vie-gm.js';
 import { motsDeStats } from '../js/impact.js';

@@ -11,6 +11,7 @@
  */
 import { propositionsDuDuel } from '../../js/impact.js';
 import { avecHasardIsole } from '../../js/sim.js';
+import '../../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 /* Les lancers que le robot lit par proposition : moins que l'écran, assez pour classer trois plans. */
 const LANCERS_LUS = Number(typeof process !== 'undefined' && process.env.LANCERS_LUS || 120);

@@ -16,6 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 // Le cartable et le méta vivent dans localStorage : une mémoire de Node le remplace.
 const memoire = new Map();

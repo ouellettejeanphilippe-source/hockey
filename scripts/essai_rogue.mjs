@@ -11,7 +11,8 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
-import { BUTIN_RIVAL, PLANS } from '../js/sim.js';
+import { BUTIN_RIVAL } from '../js/sim.js';
+import { PLANS } from '../js/greffes.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 import { collesAuBord, MARGE } from './lib/bords.mjs';

@@ -31,11 +31,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPersonKey,
-         SITUATIONS, JOURS_SITUATIONS, situationsDuJour, SLOTS, CARTES, mainDeCartes,
-         penaliteAffichee, getPositionPenalty, penaliteAdaptee, motPenalite, fits } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPersonKey, SITUATIONS, JOURS_SITUATIONS, situationsDuJour, SLOTS, CARTES, mainDeCartes, getPositionPenalty, penaliteAdaptee, fits } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
+import { penaliteAffichee, motPenalite } from '../js/impact.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');

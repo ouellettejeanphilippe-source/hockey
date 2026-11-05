@@ -31,6 +31,7 @@ import { POUVOIRS, NIVEAU_DES_POUVOIRS } from '../js/pouvoirs.js';
 import { adjointsOfferts } from '../js/adjoints.js';
 import { PITIE, packsSansHolo } from '../js/packs.js';
 import { PALIERS_PACK } from '../js/inventaire.js';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');

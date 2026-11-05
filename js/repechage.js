@@ -6,9 +6,9 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3, jaugePlafond } from './util.js';
-import { registerHiddenRatings, retenirMatchsDuShard, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, echelleTardive } from './sim.js';
+import { registerHiddenRatings, retenirMatchsDuShard, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, SLOTS, fits, getPositionPenalty, badgesDe, PALIERS, echelleTardive } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
-import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
+import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats, flechesDe, penaliteAffichee } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
 import { niveauDe, niveauParDefense, axes20, AXES, groupeDuJoueur, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';

@@ -7,8 +7,8 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getPlayerKey, MUTATIONS, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, avecAVenir } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, specialesEnStats, lignesDeLAdjointEnChiffres, ditDuPouvoir } from './impact.js';
+import { badgesDe, getPlayerKey, MUTATIONS, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, avecAVenir } from './sim.js';
+import { alignementAuMieux, unitesDuSoir, specialesEnStats, lignesDeLAdjointEnChiffres, ditDuPouvoir, penaliteAffichee } from './impact.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
 import { primesDuCoach } from './rogue.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, NIVEAUX_TALENT, niveauDuPerso, xpAvantProchain, forceDuPouvoir } from './pouvoirs.js';

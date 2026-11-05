@@ -11,7 +11,8 @@
  *   2. une option qui ne fait QUE coûter (« Moindre mal », sans rien d'autre).
  * La forme est celle de l'écran (`formeDe`, js/gerant.js).
  */
-import { AVANT_GROS, pariDeDecision, facesDuPari, deDeMise, AJUSTEMENTS } from '../js/sim.js';
+import { AVANT_GROS, facesDuPari, deDeMise, AJUSTEMENTS } from '../js/sim.js';
+import { pariDeDecision } from '../js/greffes.js';
 import fs from 'node:fs';
 import { DOSSIERS } from '../js/dossiers.js';
 import { formeDe } from '../js/gerant.js';

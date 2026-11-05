@@ -51,10 +51,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  SLOTS, autoRoster, registerHiddenRatings, retenirMatchsDuShard, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
-  createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
-  batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup, PLANS,
+  SLOTS, autoRoster, registerHiddenRatings, retenirMatchsDuShard, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJournee,
+  bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup
 } from '../../js/sim.js';
+import { PLANS } from '../../js/greffes.js';
 import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, styleAuNiveau, effetDuRelais } from '../../js/adjoints.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, coachDuRobot } from './cartes_robot.mjs';

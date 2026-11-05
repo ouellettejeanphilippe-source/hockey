@@ -20,9 +20,10 @@ import {
   MUTATIONS, getPlayerKey,
   physiqueDe, accordsDeLigne, EDITIONS_REGLEMENT,
 } from './sim.js';
-import { motsEnChiffres, motsDeMutationEnChiffres, motsDeStats } from './impact.js';
+import { motsEnChiffres, motsDeMutationEnChiffres, motsDeStats, flechesDe } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
-import { flechesDe, INTENTIONS, PLANS, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
+import { facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
+import { INTENTIONS, PLANS } from './greffes.js';
 import { jouerSon } from './sons.js';
 import { notable, pic } from './mouvement.js';
 import { TRAITS } from './traits.js';

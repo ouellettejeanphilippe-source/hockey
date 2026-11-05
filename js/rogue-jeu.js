@@ -7,7 +7,8 @@
 
 import { lireMeta, etapeDeLaRun, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, primesDuCoach, salairesDesAdjoints, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
+import { coachDuJoueur } from './greffes.js';
 import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
 import { COACHS, VOIES, REGLES_DU_COACH } from './coachs.js';

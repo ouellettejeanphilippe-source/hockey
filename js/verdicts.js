@@ -13,7 +13,8 @@
  *
  * Pur : aucun DOM, aucun `hasard()` ; partagé navigateur + Node (`scripts/check_verdicts.mjs`).
  */
-import { familleDeMoment, effetDeMoment, pariDeDecision, getPlayerKey } from './sim.js';
+import { getPlayerKey } from './sim.js';
+import { familleDeMoment, effetDeMoment, pariDeDecision } from './greffes.js';
 import { statsEntre, motsDeStats } from './impact.js';
 import { chiffresDuMatch } from './profil-style.js';
 

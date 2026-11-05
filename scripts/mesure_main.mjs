@@ -26,6 +26,7 @@ import { niveauDe } from '../js/pouvoirs.js';
 import { NIVEAUX_PLEINS } from '../js/rogue.js';
 import { jouerSaison, metaAuNiveau, shard, groupe } from './lib/rogue_sim.mjs';
 import { borne, informer, verdict } from './verdict.mjs';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const GRAINES = Number(process.env.GRAINES ?? 1);
 const SAISONS = Number(process.env.SAISONS ?? 3);

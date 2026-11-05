@@ -27,10 +27,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, SLOTS, getPlayerKey,
-  jambesGardien, usureGardien, facteurGardienDe, badgeGardien, netBadgeGardien, suiteLibreDe, coachDuJoueur, BADGES_G, EFFET_GARDIEN, BADGE_LIGUE_G,
-  attenduDeCote, LANCERS_BASE, appliquerMutation, plafondGardien, gainBrutGardien, GAIN_GARDIEN_MAX,
-  GARDIEN_SUITE_LIBRE } from '../js/sim.js';
+import {
+  autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, SLOTS, getPlayerKey, jambesGardien, usureGardien, facteurGardienDe, badgeGardien,
+  netBadgeGardien, suiteLibreDe, BADGES_G, EFFET_GARDIEN, BADGE_LIGUE_G, attenduDeCote, LANCERS_BASE, appliquerMutation, plafondGardien, gainBrutGardien,
+  GAIN_GARDIEN_MAX, GARDIEN_SUITE_LIBRE
+} from '../js/sim.js';
+import { coachDuJoueur } from '../js/greffes.js';
 import { lectureDuMatch, MUTATIONS } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';

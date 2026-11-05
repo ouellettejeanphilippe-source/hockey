@@ -22,7 +22,8 @@ js/partie.js          l'écran « Nouvelle partie » (le brouillon)
 js/rogue-jeu.js       le Rogue à l'écran : jetons, boutique, packs, inventaire, départ, la run
 js/modes-table.js     le tournoi Sur table, ses règles, son bilan, le match d'exhibition au plateau
 js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, plateau) : MT.nom, chargerTable()
-js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard()
+js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard() ; il n'importe aucun module du Rogue
+js/greffes.js         les greffes du Rogue sur le moteur (V25) : le coach et ses pouvoirs, les adjoints et leurs relais, le duel, les histoires appliquées, les suivis, l'expérience, les séjours — branchées par `brancherGreffes`
 js/ratings.js         les cotes (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
 js/util.js            les petits outils partagés (un seul exemplaire de chaque : `esc`, `money`, `virgule`, `ordF`…)
@@ -38,7 +39,7 @@ js/manette.js         la manette et le clavier : le focus au voisin, l'anneau lu
 js/direct.js          un match en direct, rejoué depuis sa feuille
 js/glace.js           la patinoire où les tirs apparaissent : la position d'un tir (illustrative) lue de la feuille — le danger, les icônes du tireur, l'accord de son trio, le texte du sommaire — `check_glace`
 js/commentaire.js     le commentateur du direct
-js/recit.js           les mots du sommaire d'un match
+js/recit.js           les mots du sommaire d'un match, de l'objectif et d'une blessure (V25 A1 : sortis de sim.js)
 js/apres-match.js     le récit d'après-match, comme à la télé : le fil du match, sobre et précis
 js/panel-tv.js        le panel : l'univers médiatique de la saison, les mêmes visages qui reviennent
 js/scenes.js          les scènes des choix du Rogue : qui demande, le fait déjà joué, sa réplique sans chiffre — `check_clarte` § 5
@@ -49,7 +50,7 @@ js/profil-style.js    le profil de style : la preuve que ton build joue, lue dan
 js/causes.js          ce qui a fait le match : les causes qui ont décidé d'un lancer, dites à ton club (sommaire, direct, bilan)
 js/entracte.js        le rapport d'entracte en cartons
 js/pronostic.js       le dépistage d'avant-match
-js/impact.js          l'impact en chiffres de match : ce que le moteur joue, dit pour ton club (« ≈ +1,2 tir par match »), jamais en « % » ; partagé navigateur + Node
+js/impact.js          l'impact en chiffres de match : ce que le moteur joue, dit pour ton club (« ≈ +1,2 tir par match »), jamais en « % » ; les mots d'un effet, d'une mutation, des totaux et de la pénalité de position (V25 A1 : sortis de sim.js) ; partagé navigateur + Node
 js/equipes.js         l'écran des équipes et leurs vraies statistiques
 js/pouvoirs.js        le coach, un personnage (V21) : son niveau, ses trois pouvoirs par période, ses talents — `check_pouvoirs`
 js/coachs-reels.js    l'entraîneur, une vraie carte de coach-saison (V21) : data/coachs.json, sa philosophie lue des vraies stats de son club, sa maîtrise, le loto du départ (ton cartable d'abord)

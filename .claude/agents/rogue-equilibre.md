@@ -43,4 +43,4 @@ Un repère décimal se juge sur la médiane de plusieurs graines (`GRAINES=1,2,3
 3. **Propose un réglage** : la constante (fichier et nom), sa valeur d'avant et d'après, l'effet attendu en V, et le juge qui le confirmera. Un seul réglage à la fois, sinon on ne sait plus lequel a joué.
 4. **Applique-le seulement si on te le demande.** Après un réglage du moteur, `VERSION_MOTEUR` monte dans `js/game.js` et `EMPREINTE=ecrire node scripts/check_empreinte.mjs` réécrit l'empreinte ; une formule de cote fait monter `RATINGS_VERSION`. Relance le juge, puis `node scripts/tout.mjs` et `node scripts/check_mort.mjs`.
 
-Aucune mécanique neuve, aucune cote neuve : un effet passe par les canaux qui existent (`check_combat`, `check_traits`). Si l'équilibre demande une mécanique neuve, ce n'est plus un réglage : renvoie la question à `rogue-design` et à JP.
+Aucune mécanique neuve, aucune cote neuve : un effet passe par les canaux qui existent (`check_pouvoirs`, `check_traits`). Si l'équilibre demande une mécanique neuve, ce n'est plus un réglage : renvoie la question à `rogue-design` et à JP.

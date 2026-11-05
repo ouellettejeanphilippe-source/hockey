@@ -23,6 +23,7 @@ import { POUVOIRS, persoAdverse, COACH_DU_STYLE, OMBRE } from '../js/pouvoirs.js
 import { COACHS } from '../js/coachs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');

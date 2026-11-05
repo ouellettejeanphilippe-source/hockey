@@ -10,11 +10,10 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, SITUATIONS,
-  motDeBlessure } from './sim.js';
+import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, SITUATIONS } from './sim.js';
 import { causesDuMatch, causeDuBut, causesDeSaison } from './causes.js';
 import { glaceDuMatchHtml } from './glace.js';
-import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
+import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT, nomCourt, motDeBlessure } from './recit.js';
 import { apresMatch } from './apres-match.js';
 import { panelDe } from './panel-tv.js';
 import { deck, liste, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';

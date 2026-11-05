@@ -26,7 +26,7 @@ Depuis le 4 nov. 2026 : `node scripts/check_refonte.mjs <devis>` (une seconde ; 
 
 **Avant de pousser** : la marche à suivre est dans `CLAUDE.md` (« Avant de pousser »).
 
-`node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (une douzaine de minutes) se lancent à part.
+`node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune ; `check_couches` y est : le moteur n'importe aucun module du Rogue, les greffes posent chaque crochet que `sim.js` lit, V25 A1) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (une douzaine de minutes) se lancent à part.
 
 Depuis la V21 : `node scripts/check_pouvoirs.mjs` (cinq minutes sur quatre processus ; `N` matchs par club et par pouvoir, 600 ; `COACHS=a,b` quelques coachs ; `MESURE=0 N=20` en CI, dix secondes) — chaque pouvoir, en paires contre un coach muet joué lui aussi en trois périodes : il joue exactement les périodes que sa condition lit dans la feuille, ne change rien hors d'elles, se voit le soir où il joue, reste sous sa borne et n'est jamais un piège ; le personnage complet ; chaque adjoint en poste, en paires (nommé à la feuille chaque soir, il se voit, et reste un style — ±1,5 V ramené à ce qu'une carte joue sur une saison) ; l'expérience, et un séjour qui joue exactement ses matchs, revient dans la main avec sa fiche et se repose, sur une saison.
 

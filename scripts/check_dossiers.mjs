@@ -18,7 +18,7 @@
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, REPOS_HISTOIRE, SORTIES_MAX } from '../js/dossiers.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
 import { BANQUE, ORDRE_CATEGORIES } from '../js/banque.js';
-import { effetDeMoment } from '../js/sim.js';
+import { effetDeMoment } from '../js/greffes.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 /* ---------- 1. les événements sont partis ---------- */

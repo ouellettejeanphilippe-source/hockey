@@ -23,8 +23,9 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe, BAGARRE_JAMBES, ELAN_DUREE, motDeBlessure, INTENTIONS, PLANS } from './sim.js';
-import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
+import { periodeDe, BAGARRE_JAMBES, ELAN_DUREE } from './sim.js';
+import { INTENTIONS, PLANS } from './greffes.js';
+import { tempsRestant, NOM_PERIODE, nomCourt, profil, motDeBlessure } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { causeDuBut } from './causes.js';
 import { jouerSon } from './sons.js';

@@ -22,6 +22,7 @@ import { positionDuTir, zoneDuTexte, coteDuTexte, evenementsDeFeuille as eveneme
 import { recitDeBut, GESTES } from '../js/recit.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
+import '../js/greffes.js';   // V25 : la ligue de run (courbe) joue avec les greffes du Rogue branchées
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');

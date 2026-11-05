@@ -53,6 +53,7 @@ import { VOIES } from '../js/coachs.js';
 import { PACKS_TOUS, PACKS_DE_SERIE } from '../js/packs.js';
 import { jouerRun, acheterDans, metaAuNiveau, coutDuNiveau, classeurSynthetique, ORDRE_DEBLOCAGES, shard, groupe } from './lib/rogue_sim.mjs';
 import { exiger, borne, monte, informer, verdict } from './verdict.mjs';
+import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const RUNS = Number(process.env.RUNS ?? 10);
 const CAMPAGNES = Number(process.env.CAMPAGNES ?? 2);
