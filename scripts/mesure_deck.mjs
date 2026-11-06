@@ -39,7 +39,8 @@ function clubs(n) {
   }
   return out;
 }
-const equipe = ({ sh, tag, un }) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(`${tag} ${sh.season}`, tag, autoRoster(p), { season: sh.season }); };
+/* Le même club à chaque copie : l'alignement automatique tire dans le hasard global, on le sème avant de bâtir (comme check_effets). */
+const equipe = ({ sh, tag, un }, role = 'toi') => { grainerHasard(`deck:${tag}:${role}`); const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(`${tag} ${sh.season}`, tag, autoRoster(p), { season: sh.season }); };
 function match(toi, adv, graine, visiteur) {
   for (const t of [toi, adv]) { for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) p.energie = 100; } if (t.injured) t.injured.clear(); t.jourCourant = 0; }
   grainerHasard(graine);
@@ -66,9 +67,11 @@ console.log(`\n  La main du deck, pesée (N=${N} matchs par club et par carte, $
 for (const T of TEMOINS) {
   // Un adversaire PAR variante : il joue exactement la même suite de matchs contre chacune (sinon sa rotation de gardiens
   // et ses compteurs décalent le match de base de ceux des variantes, et toutes les variantes d'un club penchent du même bord).
-  const sans = equipe(T), adv = equipe(T);
+  const sans = equipe(T), adv = equipe(T, 'eux');
   const joueurs = T.sh.players;
   const cas = [];
+  // Le témoin à zéro : la même équipe, sans rien ; ce qu'il mesure est le bruit du harnais (il doit tomber à 0 V).
+  cas.push({ sorte: 'temoin', nom: 'témoin · rien', t: equipe(T) });
   // Le nouveau rôle : les trois offerts, chacun à part (le joueur en prend un).
   const roles = rolesOfferts(equipe(T), 'mesure', J0);
   roles.forEach((r, k) => {
@@ -89,14 +92,14 @@ for (const T of TEMOINS) {
     t.roster[faible.sl.i] = r;
     cas.push({ sorte: 'recrue', nom: `recrue · ${mot} ${r.n} (${(cote20(r, joueurs) || 0).toFixed(1)}) pour ${faible.p.n} (${faible.cote.toFixed(1)})`, t });
   }
-  for (const c of cas) { c.dv = 0; c.dnet = 0; c.adv = equipe(T); }
+  for (const c of cas) { c.dv = 0; c.dnet = 0; c.adv = equipe(T, 'eux'); }
   for (let i = 0; i < N; i++) {
-    const g = `deck:${T.tag}:${i}`, visiteur = i % 2 === 1;
+    const g = `${process.env.GRAINE || 'deck'}:${T.tag}:${i}`, visiteur = i % 2 === 1;
     const base = match(sans, adv, g, visiteur);
     for (const c of cas) { const m = match(c.t, c.adv, g, visiteur); c.dv += m.v - base.v; c.dnet += m.net - base.net; }
   }
   for (const c of cas) {
-    const V = (c.dv / N) * SOIRS, lim = NIVEAUX[NIVEAU_SORTE[c.sorte]].borneV;
+    const V = (c.dv / N) * SOIRS, lim = c.sorte === 'temoin' ? 0.5 : NIVEAUX[NIVEAU_SORTE[c.sorte]].borneV;
     variantes.push({ ...c, V, lim, club: sans.name });
     informer(`${sans.name} · ${c.nom}`, `${f2(c.dnet / N)} but net par soir · ${f2(V)} V sur ${SOIRS} soirs (borne ${String(lim).replace('.', ',')} V)${Math.abs(V) > lim ? ' ▲' : ''}`);
   }
