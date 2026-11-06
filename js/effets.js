@@ -50,7 +50,7 @@ function motsDesGestes(g, qui = 'Le joueur visé', { offert = null } = {}) {
   if (g.absents) out.push({ txt: `${qui} manque ${plur(g.absents, 'match')}`, bon: false });
   if (g.energie) out.push({ txt: `${qui} : jambes ${signe(g.energie)}`, bon: g.energie > 0 });
   if (g.energieTous) out.push({ txt: `Toute l'équipe : jambes ${signe(g.energieTous)}`, bon: g.energieTous > 0 });
-  if (g.gardienAux) out.push({ txt: `L'auxiliaire garde le filet ${plur(g.gardienAux, 'match')}`, bon: null });
+  if (g.gardienAux) out.push({ txt: `L'auxiliaire au filet ${plur(g.gardienAux, 'match')}`, bon: null });
   if (g.adjoint) out.push(...(offert || [{ txt: 'Une carte d\'adjoint dans ta main', bon: true }]));
   if (g.echange) out.push({ txt: `Ton doublon le plus fourni part : ${plur(g.offres || 1, 'joueur')} de son époque, un signé`, bon: true });
   return out;
