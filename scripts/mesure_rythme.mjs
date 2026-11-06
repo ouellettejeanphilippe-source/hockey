@@ -16,7 +16,10 @@
  *
  *   - le TROU : le plus long passage, en matchs, entre deux moments (du premier match au 82e) ; cible : 10 au plus ;
  *   - les QUARTS : les moments de chaque quart de saison (les matchs 1-20, 21-41, 42-61, 62-82) ; cible : un au moins
- *     dans chaque quart de chaque saison.
+ *     dans chaque quart de chaque saison ;
+ *   - LES HISTOIRES (V25 C2, docs/refonte-v25.md § 5 ; le robot lit la banque aux trois moments, `lundiDuRobot`,
+ *     `rondeDuRobot`) : une au moins dans chaque quart de chaque saison (au lundi ou au matin d'un gros match), et, dans la
+ *     run de `SAISONS` saisons d'un club, jamais la même histoire deux fois sur le même joueur (`memoireDeLaRun`).
  *
  *   node scripts/mesure_rythme.mjs                    (une minute et demie sur huit fils)
  *   GRAINES=2 SAISONS=3 FILS=6 node scripts/mesure_rythme.mjs
@@ -28,6 +31,7 @@ import { autoRoster, PALIERS_CARTES, JOURS_OBJECTIFS } from '../js/sim.js';
 import { PALIERS_PACK } from '../js/inventaire.js';
 import { NIVEAUX_PLEINS } from '../js/rogue.js';
 import { jouerSaison, metaAuNiveau, shard, groupe } from './lib/rogue_sim.mjs';
+import { HISTOIRES, MOMENTS } from '../js/histoires.js';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
@@ -63,13 +67,15 @@ function relire(r) {
   for (const d of decisions) {
     const p = String(d.palier || '');
     const sorte = p.startsWith('pp:') ? 'palier' : p.startsWith('h:') ? 'histoire' : p.startsWith('r:') ? 'butin' : p.startsWith('ta:') ? 'talent' : d.ballottage ? 'signature' : null;
-    if (sorte) out.push({ sorte, m: avant(d.jour), ...(sorte === 'histoire' ? { cle: d.moment.cle, xp: Number(d.xpCoach) || 0, gain: Number(d.gain) || 0, adjoint: !!d.embauche } : {}) });
+    if (sorte) out.push({ sorte, m: avant(d.jour), ...(sorte === 'histoire' ? { cle: d.moment.cle, joueur: d.moment.joueur || null, xp: Number(d.xpCoach) || 0, gain: Number(d.gain) || 0, adjoint: !!d.embauche } : {}) });
   }
+  // L'histoire d'une ronde se joue après la saison : elle ne compte pas au rythme des 82 matchs, mais à la run.
+  const rondes = (r.decisionsSeries || []).filter(d => d.moment && d.moment.famille === 'histoire').map(d => ({ cle: d.moment.cle, joueur: d.moment.joueur || null, xp: Number(d.xpCoach) || 0, gain: Number(d.gain) || 0 }));
   for (const mb of you.minisBoss || []) out.push({ sorte: 'gros', m: avant(mb.jour) });
   const n = joue.filter(Boolean).length;
   for (const k of PALIERS_CARTES) if (k < n) out.push({ sorte: 'main', m: k });
   for (const k of JOURS_OBJECTIFS) if (k < n) out.push({ sorte: 'objectif', m: k });
-  return { moments: out, matchs: n };
+  return { moments: out, matchs: n, rondes };
 }
 
 if (!isMainThread) {
@@ -81,7 +87,7 @@ if (!isMainThread) {
   for (let n = 1; n <= SAISONS; n++) {
     const r = jouerSaison(meta, etat, { graine: t.graine, saison: n, politique: 'attentif', ligue: NIVEAUX_PLEINS });
     saisons.push(relire(r));
-    etat.roster = r.roster; etat.jetons = r.reste; etat.perso = r.perso;
+    etat.roster = r.roster; etat.jetons = r.reste; etat.perso = r.perso; etat.histoires = r.histoires;
   }
   parentPort.postMessage({ cle: t.cle, saisons });
 } else {
@@ -101,8 +107,19 @@ if (!isMainThread) {
   }));
 
   const trous = [], parQuart = [0, 0, 0, 0], parSorte = {}, histoires = new Map(), rapporte = { xp: 0, gain: 0, adjoint: 0 };
-  let quartsVides = 0, nSaisons = 0, signatures = 0;
+  let quartsVides = 0, nSaisons = 0, signatures = 0, quartsSansHistoire = 0;
+  const parMoment = Object.fromEntries(MOMENTS.map(m => [m, 0])), revues = [];
   for (const { cle, saisons } of resultats) {
+    // LA RUN D'UN CLUB : chaque histoire et son joueur, sur ses SAISONS saisons ; une paire vue deux fois est une redite.
+    const vues = new Map();
+    for (const [i, { moments, rondes }] of saisons.entries()) for (const x of [...moments.filter(y => y.sorte === 'histoire'), ...rondes]) {
+      parMoment[HISTOIRES[x.cle].moment]++;
+      if (rondes.includes(x)) { histoires.set(x.cle, (histoires.get(x.cle) || 0) + 1); rapporte.xp += x.xp; rapporte.gain += x.gain; }
+      if (!x.joueur) continue;
+      const k = `${x.cle}:${x.joueur}`;
+      if (vues.has(k)) revues.push(`${cle} : ${x.cle} sur ${x.joueur}, saisons ${vues.get(k) + 1} et ${i + 1}`);
+      else vues.set(k, i);
+    }
     const lignes = saisons.map(({ moments, matchs }) => {
       nSaisons++;
       const vrais = moments.filter(x => x.sorte !== 'signature');
@@ -117,7 +134,10 @@ if (!isMainThread) {
       const q = [0, 0, 0, 0];
       for (const x of vrais) q[quartDe(x.m)]++;
       q.forEach((v, i) => { parQuart[i] += v; if (!v) quartsVides++; });
-      return `trou ${trou} (${ou}) · quarts ${q.join('/')}`;
+      const qh = [0, 0, 0, 0];
+      for (const x of vrais.filter(y => y.sorte === 'histoire')) qh[quartDe(x.m)]++;
+      quartsSansHistoire += qh.filter(v => !v).length;
+      return `trou ${trou} (${ou}) · quarts ${q.join('/')} · histoires ${qh.join('/')}`;
     });
     informer(cle, lignes.join(' ; '));
   }
@@ -131,6 +151,10 @@ if (!isMainThread) {
   borne('le plus long trou sans moment, en médiane des saisons', tries[Math.floor(tries.length / 2)], 0, TROU_MAX, ' matchs');
   borne('les saisons qui ont un trou de plus de 10 matchs', 100 * trous.filter(x => x > TROU_MAX).length / nSaisons, 0, 25, ' %');
   exiger('un moment au moins dans chaque quart de chaque saison', quartsVides === 0, `${quartsVides} quarts vides sur ${4 * nSaisons}`);
+  // V25 C2 : les histoires aux trois moments, lues par le robot ; une par quart ; jamais revue sur le même joueur dans la run.
+  informer('les histoires, par moment (par saison)', MOMENTS.map(m => `${m} ${(parMoment[m] / nSaisons).toFixed(1)}`).join(' · '));
+  exiger('une histoire au moins dans chaque quart de chaque saison', quartsSansHistoire === 0, `${quartsSansHistoire} quarts sans histoire sur ${4 * nSaisons}`);
+  exiger(`aucune histoire revue sur le même joueur dans une run de ${SAISONS} saisons`, !revues.length, revues.slice(0, 3).join(' · ') || `${resultats.length} runs`);
   informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s (${taches.length} clubs × ${SAISONS} saisons, ${FILS} fils)`);
   verdict('Le rythme d\'une saison');
 }

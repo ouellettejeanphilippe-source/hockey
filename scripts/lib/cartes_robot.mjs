@@ -38,10 +38,10 @@ function foisDesPouvoirs(L, you) {
 const persoDe = you => (you.perso ? { ...you.perso, xpSaison: you.xpSaison || 0 } : null);
 
 /* Les faits du matin, comme l'écran les lit (js/faits.js `faitsDe`), sur ce que la ligue a joué ; la run : la caisse, le coach, les histoires sorties. */
-function faitsDuRobot(L, you, jetons, sorties = []) {
+function faitsDuRobot(L, you, jetons, sorties = [], series = null) {
   const perso = persoDe(you), C = perso && COACHS[perso.cle];
-  return faitsDe({ ligue: L, you, jour: L.jour, run: { jetons, sorties, places: 16, club: t => t.name || t.tag,
-    coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso) } : null } });
+  return faitsDe({ ligue: L, you, jour: series ? L.calendrier.length : L.jour, run: { jetons, sorties, places: 16, club: t => t.name || t.tag,
+    coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso) } : null }, series });
 }
 
 /* L'ADJOINT D'UN MOMENT FORT (js/saison.js `adjointsDuMoment`) : un parmi trois, tirés de la graine. Rend la décision. */
@@ -60,47 +60,65 @@ function adjointDuRobot({ you, graine, cle, politique, clic, fit }) {
  * La valeur d'une réponse d'histoire, en conséquences concrètes, pour l'attentif. `lu` (nov. 2026, scripts/lib/rogue_sim.mjs
  * `lireLeJoueur`) : le joueur nommé lu sur son club — ce qui va à lui, un dé à la moyenne de ses deux issues, ses matchs
  * d'absence, les soirs de l'auxiliaire. Sans lecture (`ROBOT_SAUF=histoires`), la valeur d'avant : un dé ne valait rien.
+ * V25 C2 : les canaux du club d'un gros match ou d'une ronde (`canaux`, `lireCanaux`), lus sur son club le temps de leur durée.
  */
-function valeurDeReponse(o, lu = null) {
+function valeurDeReponse(o, lu = null, lireCanaux = null) {
   const g = o.gestes || {};
   let v = (o.jetons || 0) * JETON + (o.xp || 0) * VAUT.xp + (g.adjoint ? VAUT.adjoint : 0) + (g.soin || 0) * VAUT.soin;
   if (o.gestes) v += (g.energieTous || 0) * VAUT.jambes + (g.energie || 0) * VAUT.jambes / 4
     + (lu ? lu.absent(g.absents || 0) + lu.auxiliaire(g.gardienAux || 0) : -(g.absents || 0) * VAUT.absent);
   if (lu && o.lui) v += lu.surLui(o.lui, o.duree);
   if (lu && o.pari) v += o.pari.chance * lu.surLui(o.pari.gagne.lui, o.pari.gagne.duree) + (1 - o.pari.chance) * lu.surLui(o.pari.perd.lui, o.pari.perd.duree);
+  if (lireCanaux && o.canaux) v += lireCanaux(o.canaux, o.duree || 1);
   return v;
+}
+/*
+ * UNE HISTOIRE, LUE ET RÉPONDUE (V25 C2) : le même tirage que l'écran (`tirer`, sur les sorties de la saison et la mémoire de
+ * la run), une réponse — le distrait au hasard, le robot d'avant la première, l'attentif celle qui rend le plus — et la
+ * décision que la porte joue (js/greffes.js `appliquerChoix`), comme l'écran l'écrit (js/saison.js `decisionDHistoire`).
+ * L'échange d'un joueur nommé reste au gérant : le robot ne signe personne. Rend la décision, ou null.
+ */
+function histoireDuRobot({ moment, id, f, j = f.jour, graine, politique, clic, etat, you, lire }) {
+  const cle = tirer(graine, moment, f, [...(etat.avant || []), ...etat.histoires]);
+  if (!cle) return null;
+  const H = HISTOIRES[cle], lui = H.joueur(f), joueurs = H.joueurs ? H.joueurs(f) : lui ? [lui] : [];
+  const possibles = H.options.filter(o => !(o.jetons < 0 && f.caisse != null && f.caisse < -o.jetons) && !(o.gestes && o.gestes.echange));
+  if (!possibles.length) return null;
+  const entree = { cle, choix: null, joueur: lui ? lui.cle : null, joueurs: joueurs.map(x => x.cle), j };
+  etat.histoires.push(entree);
+  // L'attentif lit le joueur nommé sur son club (`lire.joueur`), une fois pour toutes les réponses, et les canaux du club.
+  const lit = !clic && politique !== 'defaut' && lire;
+  const lu = lit && lui && lire.joueur ? lire.joueur(lui.cle) : null;
+  const canaux = lit && lire.canaux ? lire.canaux : null;
+  const o = clic ? possibles[Math.floor(clic() * possibles.length)] : politique === 'defaut' ? possibles[0]
+    : possibles.reduce((b, x) => (valeurDeReponse(x, lu, canaux) > valeurDeReponse(b, lu, canaux) ? x : b));
+  entree.choix = o.cle;
+  const perso = persoDe(you);
+  const offert = o.gestes && o.gestes.adjoint && perso ? adjointsOfferts(perso, graine, id, 1)[0] || null : null;
+  return { palier: id, moment: { famille: 'histoire', cle, choix: o.cle, ...(lui ? { joueur: lui.cle, joueurs: joueurs.map(x => x.cle) } : {}) },
+    ...(o.jetons ? { gain: o.jetons } : {}), ...(o.xp ? { xpCoach: o.xp } : {}),
+    ...(offert ? { embauche: { cle: offert, niv: niveauOffert(graine, id, offert) } } : {}) };
 }
 
 /*
- * LE LUNDI DU ROBOT : l'histoire du lundi (un lundi tiré de la graine, V20 ; V25 C1 : js/histoires.js), l'adjoint d'un palier (quand le
- * compte de matchs le franchit), celui d'un gros match gagné, le talent quand le niveau le donne, et les cartes qu'il
- * poste. Rend les décisions
- * à pousser au jour de la ligue. `etat` : ce que la saison retient (les histoires sorties, les paliers et les butins pris).
+ * LE LUNDI DU ROBOT : l'histoire du lundi (un lundi tiré de la graine, V20 ; V25 C1 : js/histoires.js) et celle du matin d'un
+ * gros match (V25 C2 : le jour même, jamais la veille, comme l'écran), l'adjoint d'un palier (quand le compte de matchs le
+ * franchit), le butin d'un gros match gagné, le talent quand le niveau le donne, et les cartes qu'il poste. Rend les
+ * décisions à pousser au jour de la ligue. `etat` : ce que la saison retient (les histoires sorties, la mémoire de la run,
+ * les paliers et les butins pris).
  */
 export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fit = null, lire = null }) {
   const out = [];
   const auHasard = l => l[Math.floor(clic() * l.length)];
   const j = L.jour;
-  const w = j / SEMAINE;
   const lundi = j % SEMAINE === 0 && j < L.calendrier.length;
   const f = faitsDuRobot(L, you, jetons, etat.histoires);
-  // L'HISTOIRE DU LUNDI (V25 C1, js/histoires.js) : le même tirage que l'écran ; la porte (js/greffes.js) joue la décision.
-  // C2 lui apprendra le gros match et la ronde ; l'échange d'un joueur nommé reste au gérant (il ne signe personne).
-  const cle = lundi ? tirer(graine, 'lundi', f, etat.histoires) : null;
-  if (cle) {
-    const H = HISTOIRES[cle], lui = H.joueur(f), joueurs = H.joueurs ? H.joueurs(f) : lui ? [lui] : [];
-    const id = `h:lundi:${j}`, entree = { cle, choix: null, joueur: lui ? lui.cle : null, joueurs: joueurs.map(x => x.cle), j };
-    etat.histoires.push(entree);
-    const perso = persoDe(you);
-    const possibles = H.options.filter(o => !(o.jetons < 0 && f.caisse < -o.jetons) && !(o.gestes && o.gestes.echange));
-    // L'attentif lit le joueur nommé sur son club (`lire.joueur`), une fois pour toutes les réponses.
-    const lu = !clic && politique !== 'defaut' && lui && lire && lire.joueur ? lire.joueur(lui.cle) : null;
-    const o = clic ? auHasard(possibles) : politique === 'defaut' ? possibles[0] : possibles.reduce((b, x) => (valeurDeReponse(x, lu) > valeurDeReponse(b, lu) ? x : b));
-    entree.choix = o.cle;
-    const offert = o.gestes && o.gestes.adjoint && perso ? adjointsOfferts(perso, graine, id, 1)[0] || null : null;
-    out.push({ jour: j, palier: id, moment: { famille: 'histoire', cle, choix: o.cle, ...(lui ? { joueur: lui.cle, joueurs: joueurs.map(x => x.cle) } : {}) },
-      ...(o.jetons ? { gain: o.jetons } : {}), ...(o.xp ? { xpCoach: o.xp } : {}),
-      ...(offert ? { embauche: { cle: offert, niv: niveauOffert(graine, id, offert) } } : {}) });
+  // L'HISTOIRE DU LUNDI, puis celle du matin d'un gros match (annoncé la veille, `grosAnnonces` ; js/saison.js `histoireOuverte`).
+  const joueCeSoir = (L.calendrier[j] || []).some(m => m.A === you || m.B === you);
+  const moments = [...(lundi ? ['lundi'] : []), ...(joueCeSoir && L.grosAnnonces && L.grosAnnonces[j] ? ['gros'] : [])];
+  for (const moment of moments) {
+    const d = histoireDuRobot({ moment, id: `h:${moment}:${j}`, f: moment === 'lundi' ? f : faitsDuRobot(L, you, jetons, etat.histoires), graine, politique, clic, etat, you, lire });
+    if (d) out.push({ jour: j, ...d });
   }
   // LE PALIER (`PALIERS_PACK`, js/inventaire.js) : un adjoint parmi trois.
   const pp = PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));
@@ -149,6 +167,21 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
     out.push({ jour: j, palier: `ta:${perso.talents.length}`, talent: { p }, ...(offert ? { embauche: { cle: offert, niv: niveauOffert(graine, 'ta0', offert) } } : {}) });
   }
   return out;
+}
+
+/*
+ * LA RONDE DU ROBOT (V25 C2) : le matin du premier match d'une ronde de séries (`S.k` à 0, sa série en cours), l'histoire de
+ * la ronde comme l'écran la tire (js/saison.js `histoireDeRonde` : les faits au jour des séries, la ronde, sa série et celle
+ * d'avant). Rend la décision de la ronde (`h:po{r}`, `match_no` 0), ou null ; une seule par ronde.
+ */
+export function rondeDuRobot({ S, L, you, graine, politique, clic, jetons, etat, lire = null }) {
+  const r = S.ronde, s = S.k === 0 ? S.courante.find(x => (x.A === you || x.B === you) && x.wA < 4 && x.wB < 4) : null;
+  if (!s || etat.rondes.has(r)) return null;
+  etat.rondes.add(r);
+  const precedente = r > 0 ? S.toutes.find(x => x.ronde === r - 1 && (x.A === you || x.B === you)) || null : null;
+  const f = faitsDuRobot(L, you, jetons, etat.histoires, { k: r + 1, s, precedente });
+  const d = histoireDuRobot({ moment: 'ronde', id: `h:po${r}`, f, j: L.calendrier.length + r, graine, politique, clic, etat, you, lire });
+  return d ? { ronde: r, match_no: 0, ...d } : null;
 }
 
 /*

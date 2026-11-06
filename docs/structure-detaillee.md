@@ -188,7 +188,7 @@ lib/gros.mjs                le hook UserPromptSubmit (.claude/settings.json) : q
 lib/cibles.mjs              les cibles de 44 px (smoke)
 lib/emojis.mjs              les émojis du jeu et les polices qui les rendent au trait
 lib/rogue_sim.mjs           une run Rogue jouée par un robot (check_rogue, check_profondeur ; `politique`)
-lib/cartes_robot.mjs        ce que les robots font du coach-personnage (talents, adjoints, histoires)
+lib/cartes_robot.mjs        ce que les robots font du coach-personnage (talents, adjoints) et des histoires aux trois moments (V25 C2)
 lib/duel.mjs                les robots du duel : l'attentif, « Garder »
 lib/temoins.mjs             des effets témoins pour les juges, au chiffre connu
 lib/vestiaires.mjs          les vestiaires que les scripts d'analyse se partagent (equipeReelle)

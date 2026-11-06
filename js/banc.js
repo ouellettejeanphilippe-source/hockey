@@ -783,7 +783,9 @@ function ouvrirEcranSaison(depuis = 0) {
           masse: j => masseDuLundi(j), coachs: j => coachsDuLundi(j),
           // V25 C1 (js/faits.js) : la vraie saison d'un joueur lit son shard déjà chargé (ses doublons, le compte de son club) ;
           // le nom d'un club par son code ; l'échange d'une histoire (la date limite : il part, un joueur de son époque signé).
-          shard: s => G.shards.get(s) || null, nom: code => TEAMFULL[code] || code, echange: o => echangeDHistoire(o) } : null,
+          shard: s => G.shards.get(s) || null, nom: code => TEAMFULL[code] || code, echange: o => echangeDHistoire(o),
+          // V25 C2 : les histoires des saisons d'avant de la run — une run ne revoit jamais la même sur le même joueur.
+          histoires: () => (G.rogue && G.rogue.histoires) || [] } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         // Chacune s'ouvre dans une page du Marché (js/game.js) : `page` = { dans, fermer }.
         boutique: { ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },

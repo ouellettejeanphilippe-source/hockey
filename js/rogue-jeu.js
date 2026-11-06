@@ -32,6 +32,7 @@ import { pic } from './mouvement.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
 import { galonsDeLaSaison, grosGagnesDe, GALONS_MAX, ICO_GALON } from './galons.js';
 import { sceneDuMandat } from './scenes.js';
+import { sortiesDe, memoireDeLaRun } from './histoires.js';
 import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { marche } from './plateau-rogue.js';
@@ -1689,6 +1690,8 @@ async function continuerRun(gardes = [], lotos = []) {
   G.roster = roster; poserCartes();
   G.rogue = {
     ...G.rogue, saison, series: null, report,
+    // V25 C2 : la mémoire des histoires de la run (js/histoires.js `memoireDeLaRun`) — jamais la même sur le même joueur.
+    histoires: memoireDeLaRun(G.rogue.histoires, sortiesDe(decsSaison)),
     // Lot 5 (nov. 2026) : passé la première saison de la première run, la ligue porte son étape de plus (`etapeDeLaRun`).
     etapeDeRun: etapeDeLaRun(G.rogue.numero || 1, saison),
     depart: jetonsDeDepart(meta) + reste, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigenceDeLaRun()), plafond: null,

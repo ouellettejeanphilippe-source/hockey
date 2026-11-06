@@ -482,20 +482,40 @@ export const MOMENTS = ['lundi', 'gros', 'ronde'];
 
 /* Le sel d'un tirage : le lundi et le gros match par les matchs joués, la ronde par son rang (l'écran et le robot tirent pareil). */
 const instantDe = (moment, f) => (moment === 'ronde' ? `ronde:${f.ronde ? f.ronde.k : 0}` : `${moment}:${f.n}`);
-/* LES LUNDIS D'UNE HISTOIRE (V20) : tirés de la graine et de la semaine, `CHANCE_HISTOIRE` en moyenne, jamais la première. */
-export const lundiAHistoire = (graine, w) => w >= 1 && hache(String(graine), 'histoire', String(w)) < CHANCE_HISTOIRE;
+/*
+ * LES LUNDIS D'UNE HISTOIRE (V20) : tirés de la graine et de la semaine, `CHANCE_HISTOIRE` en moyenne, jamais la première.
+ * V25 C2 : jamais plus de `DISETTE_MAX` lundis de suite sans histoire — le suivant en a une (mesuré, `mesure_rythme` : six
+ * lundis vides de suite, une saison sur cent, laissaient le premier quart sans histoire). Le tirage ne fait qu'en ajouter.
+ */
+export const DISETTE_MAX = 3;
+export function lundiAHistoire(graine, w) {
+  if (w < 1) return false;
+  for (let k = 1, sans = 0; ; k++) {
+    const oui = sans >= DISETTE_MAX || hache(String(graine), 'histoire', String(k)) < CHANCE_HISTOIRE;
+    if (k === w) return oui;
+    sans = oui ? 0 : sans + 1;
+  }
+}
 /*
  * UNE HISTOIRE SE REPOSE (nov. 2026) : sortie, `REPOS_HISTOIRE` semaines avant de revenir, sur un AUTRE joueur que celui
  * qu'elle a déjà nommé (une run ne revoit jamais la même histoire sur le même joueur), `SORTIES_MAX` fois par saison ; un
- * gros match et une ronde ne revoient jamais la même ; une rare, une fois par saison. `sorties` : celles de la saison (et des
- * saisons d'avant de la run pour le joueur), { cle, joueur, j }.
+ * gros match et une ronde ne revoient jamais la même ; une rare, une fois par saison. `sorties` : celles de la saison, { cle, joueur, j },
+ * et celles des saisons d'avant de la run, `{ cle, joueur, avant: true }` (`memoireDeLaRun`), lues pour le joueur seulement.
  */
 function auRepos(k, f, sorties) {
-  const H = HISTOIRES[k], lui = H.joueur(f), siennes = sorties.filter(x => x.cle === k);
-  if (H.moment !== 'lundi' && siennes.length) return true;
-  if (siennes.length >= SORTIES_MAX || siennes.some(x => f.jour - x.j <= REPOS_HISTOIRE * SEMAINE)) return true;
+  const H = HISTOIRES[k], lui = H.joueur(f), siennes = sorties.filter(x => x.cle === k), cetteSaison = siennes.filter(x => !x.avant);
+  if (H.moment !== 'lundi' && cetteSaison.length) return true;
+  if (cetteSaison.length >= SORTIES_MAX || cetteSaison.some(x => f.jour - x.j <= REPOS_HISTOIRE * SEMAINE)) return true;
   return !!lui && siennes.some(x => x.joueur === lui.cle);
 }
+/*
+ * LES SORTIES D'UNE SAISON (V25 C2), lues dans ses décisions : une histoire du lundi ou d'un gros match à son jour, celle
+ * d'une ronde après la saison (`N` + la ronde). L'écran, ses séries et les robots les lisent pareil.
+ */
+export const sortiesDe = (decisions, N = 0) => decisions.filter(d => d && d.moment && d.moment.famille === 'histoire')
+  .map(d => ({ cle: d.moment.cle, choix: d.moment.choix, joueur: d.moment.joueur || null, joueurs: d.moment.joueurs || [], j: Number.isFinite(d.jour) ? d.jour : N + (d.ronde || 0) }));
+/* LA MÉMOIRE D'UNE RUN (V25 C2) : les histoires des saisons d'avant ne comptent que pour « jamais la même sur le même joueur ». */
+export const memoireDeLaRun = (avant = [], sorties = []) => [...avant, ...sorties.filter(x => x.joueur).map(x => ({ cle: x.cle, joueur: x.joueur, avant: true }))];
 /*
  * LE TIRAGE, PUR : la graine, le moment, les faits et les sorties de la saison. Parmi les vraies de ce moment qui ne se reposent
  * pas, le plus haut de son tirage ; une suite passe avant ; une rare ne se tire qu'à certains instants (`CHANCE_RARE`), une par
@@ -504,7 +524,7 @@ function auRepos(k, f, sorties) {
 export function tirer(graine, moment, f, sorties = []) {
   if (moment === 'lundi' && !lundiAHistoire(graine, Math.floor(f.jour / SEMAINE))) return null;
   const instant = instantDe(moment, f);
-  const rareOk = k => !HISTOIRES[k].rare || (hache(String(graine), 'rare', instant) < CHANCE_RARE && !sorties.some(x => HISTOIRES[x.cle] && HISTOIRES[x.cle].rare));
+  const rareOk = k => !HISTOIRES[k].rare || (hache(String(graine), 'rare', instant) < CHANCE_RARE && !sorties.some(x => !x.avant && HISTOIRES[x.cle] && HISTOIRES[x.cle].rare));
   const vraies = Object.keys(HISTOIRES).filter(k => HISTOIRES[k].moment === moment && HISTOIRES[k].quand(f) && !!HISTOIRES[k].joueur(f) && !auRepos(k, f, sorties) && rareOk(k));
   const suites = vraies.filter(k => HISTOIRES[k].suiteDe);
   const pool = suites.length ? suites : vraies;

@@ -26,7 +26,7 @@
 import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries, OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, getPlayerKey, effetsEnCours, OBJECTIF_RATE, periodeDe, MUTATIONS, MINI_BOSS, ELAN, SONNE, mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty, nouvelleGraine, avecAVenir, rivauxOfferts, rivalChoisi, RIVAUX, MISE_DOUBLEE } from './sim.js';
 import { suivisEnCours, lignePromesse, deDuChoix, apercuDuDuel, INTENTIONS, PLANS, cibleDuPlan } from './greffes.js';
 import { faitsDe } from './faits.js';
-import { HISTOIRES, tirer, sceneDe, nomDOption } from './histoires.js';
+import { HISTOIRES, tirer, sceneDe, nomDOption, sortiesDe } from './histoires.js';
 import { seasonLancers } from './ratings.js';
 import { lignesDeLAdjointEnChiffres, ditDeLaFinition, motsDuSoir, alignementDuSoir, chiffresDuSoir, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
@@ -3293,8 +3293,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * séries, plus bas). Les faits se lisent d'un seul module, `faitsDe`, sur ce qui est déjà joué et la cédule connue ; la
    * run y ajoute ce que le moteur ne porte pas (la caisse, la masse, le mandat, les joueurs partis, les histoires sorties).
    */
-  const sorties = () => decs.filter(d => d.moment && d.moment.famille === 'histoire')
-    .map(d => ({ cle: d.moment.cle, choix: d.moment.choix, joueur: d.moment.joueur || null, joueurs: d.moment.joueurs || [], j: d.jour }));
+  const sorties = () => sortiesDe(decs);
+  // V25 C2 : les histoires des saisons d'avant de la run (`G.rogue.histoires`) — jamais la même sur le même joueur.
+  const avantDeLaRun = () => (ctx.rogue && ctx.rogue.histoires ? ctx.rogue.histoires() : []);
   const anciens = () => {
     const out = new Set(decs.filter(d => (d.equipe == null || d.equipe === 0) && d.cases).flatMap(d => Object.values(d.cases)));
     for (const p of Object.values(you.roster)) if (p) out.delete(getPlayerKey(p));
@@ -3317,7 +3318,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const id = `h:${moment}:${jour}`;
     if (pris.has(id)) return null;
     const f = faitsDuJour();
-    const cle = tirer(graine, moment, f, sorties());
+    const cle = tirer(graine, moment, f, [...avantDeLaRun(), ...sorties()]);
     return cle ? { id, cle, f } : null;
   }
   /*
@@ -4111,7 +4112,7 @@ function decisionDHistoire(h, H, cle, lui, joueurs, extras = {}) {
   return { palier: h.id, moment: { famille: 'histoire', cle: h.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: joueurs.map(x => x.cle) } : {}) },
     ...(o && o.jetons ? { gain: o.jetons } : {}), ...(o && o.xp ? { xpCoach: o.xp } : {}), ...(o && o.gestes && o.gestes.adjoint ? extras : {}) };
 }
-export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null, graine = 0, decisions = [], onDecision = null, onBanc = null, decisionsSaison = [] }) {
+export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null, graine = 0, decisions = [], onDecision = null, onBanc = null, decisionsSaison = [], histoiresDeLaRun = [] }) {
   const ui = coquille('Les séries');
   if (!ui || !series.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -4326,13 +4327,12 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
   function histoireDeRonde(s) {
     if (!onDecision || !you.courbe || decsSerie.some(d => d.ronde === ronde && d.palier === `h:po${ronde}`)) return false;
     const N = ((saison && saison.calendrier) || []).length;
-    // Les histoires sorties : celles de la saison et celles des rondes d'avant (datées après la saison, une par ronde).
-    const toutes = [...decisionsSaison, ...decsSerie].filter(d => d.moment && d.moment.famille === 'histoire')
-      .map(d => ({ cle: d.moment.cle, choix: d.moment.choix, joueur: d.moment.joueur || null, joueurs: d.moment.joueurs || [], j: Number.isFinite(d.jour) ? d.jour : N + (d.ronde || 0) }));
+    // Les histoires sorties : celles de la saison et des rondes d'avant (datées après la saison, une par ronde) ; celles des saisons d'avant de la run (V25 C2).
+    const toutes = sortiesDe([...decisionsSaison, ...decsSerie], N);
     const R = ctx.rogue || {};
     const f = faitsDe({ ligue: saison, you, jour: N, run: { club: ctx.teamShort, nomDuClub: R.nom || null, shard: R.shard || null, sorties: toutes, places: saison ? saison.enSeries : 16 },
       series: { k: ronde + 1, s, precedente: ronde > 0 ? maSerie(ronde - 1) : null } });
-    const cle = tirer(graine, 'ronde', f, toutes);
+    const cle = tirer(graine, 'ronde', f, [...histoiresDeLaRun, ...toutes]);
     if (!cle) return false;
     const H = HISTOIRES[cle], lui = H.joueur(f), joueurs = H.joueurs ? H.joueurs(f) : lui ? [lui] : [];
     const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
