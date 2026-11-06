@@ -1,6 +1,6 @@
 /*
  * LES MOTS D'UN CHOIX SONT SES LIGNES (oct. 2026 ; V25 B1b). JP, captures à l'appui : *tous les events et cie, ça a vraiment
- * aucun sens* ; *le texte fitte pas totalement avec les stats des choix*. Une réponse d'histoire (js/dossiers.js) est un
+ * aucun sens* ; *le texte fitte pas totalement avec les stats des choix*. Une réponse d'histoire (js/histoires.js) est un
  * effet de la grammaire (js/effets.js) : ses lignes se DÉRIVENT de ce que le moteur joue (`motsDe`, js/impact.js
  * `effetEnChiffres`), plus aucun `bon` ni `prix` écrit à côté qui pourrait les contredire. Ce qui reste à exiger :
  *   1. chaque réponse qui touche le match se VOIT : sur plusieurs vrais clubs, ses canaux, ce qui va au joueur nommé
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam } from '../js/sim.js';
 import { effetEnChiffres } from '../js/impact.js';
 import { CANAUX, motsDe } from '../js/effets.js';
-import { DOSSIERS } from '../js/dossiers.js';
+import { HISTOIRES } from '../js/histoires.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -64,7 +64,7 @@ const fautes = [], faute = t => { if (fautes.length < MAX_FAUTES) fautes.push(t)
 const LIGNE_DU_JOUEUR = { lancers: ['tir', v => v > 1], finition: ['pctTir', v => v > 1], arrets: ['pctArr', v => v < 1], blessure: ['blessure', v => v < 1] };
 let nOptions = 0, nLignes = 0;
 const versees = [], issues = [];
-for (const [k, D] of Object.entries(DOSSIERS)) for (const o of D.options) {
+for (const [k, D] of Object.entries(HISTOIRES)) for (const o of D.options) {
   const id = `${k}.${o.cle}`;
   // 3. Les jetons et l'expérience, une fois, à la décision.
   if (o.quand && (o.jetons || o.xp)) versees.push(`${id} : sous un quand`);
@@ -94,7 +94,6 @@ for (const [k, D] of Object.entries(DOSSIERS)) for (const o of D.options) {
   if (!lignes.size || (lignes.size === 1 && lignes.has('rien'))) faute(`${id} : ne se voit sur aucun club`);
 }
 informer('les clubs lus', TEAMS.map(t => t.name).join(' · '));
-if (!nOptions) informer('les dossiers : banque vide (V22, phase 4)', 'aucune réponse à lire');
 exiger('chaque réponse qui touche le match se voit sur la plupart des clubs, et chacune se dit en lignes dérivées', !fautes.length, fautes.join(' · ') || `${nOptions} réponses qui touchent le match, ${nLignes} lignes`);
 exiger('une audace dit ses deux issues au nom du joueur', !issues.length, issues.join(' · ') || 'chaque dé');
 exiger('les jetons et l\'expérience se versent une fois, à la décision : jamais sous un quand ni dans une issue', !versees.length, versees.join(' · ') || 'aucun');

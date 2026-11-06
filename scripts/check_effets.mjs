@@ -1,14 +1,13 @@
 /*
  * CHAQUE EFFET SE VOIT (25 oct. 2026 ; JP : *0,4 pt, ça va fuck all faire* ; *recheck tous les effets*). Tout ce qui
- * touche ton club en Rogue — les réponses des dossiers (ce qui va au joueur nommé, leurs paris),
- * l'avant-match, les arcs, les retours des fils (la banque d'événements est vide, V22, phase 4 : seuls l'avant-match
- * se mesure aujourd'hui, le reste dès que la banque neuve y entre) — se mesure EN
+ * touche ton club en Rogue — les réponses des histoires (V25 C1, js/histoires.js : ce qui va au joueur nommé, leurs
+ * paris, les canaux du club au gros match et à la ronde) — se mesure EN
  * PAIRES (CLAUDE.md), match par match, comme check_places : deux copies d'un même vrai club, les mêmes dés, une fois
  * sans l'effet, une fois avec, son moment posé. Un effet partagé (un paquet de réponses) se mesure une fois.
  *   1. il se voit dans la feuille d'un soir où il joue : ±2 tirs (un bord ou le rythme), ±0,3 but des deux clubs,
  *      ±0,5 punition, ±4 mises en échec, ±3 blessures par saison, ±3 de jambes ; sur un joueur nommé, à sa ligne :
  *      ±0,3 point, ±0,15 but ou ±1 tir (une récompense de toute la saison : quatre points sur sa durée). Les minutes (`F`, `D`) se recomptent ailleurs (check_dilemmes), l'argent aussi ;
- *   2. sa force reste sous la borne de son niveau sur ses soirs (`NIVEAUX[k].borneV`, une réponse d'histoire est une Régulier : ±1) ;
+ *   2. sa force reste sous la borne de son niveau sur ses soirs (`NIVEAUX[k].borneV` : Soutien et Régulier ±1, Pilier ±1,5 ; rien au-dessus, C0 q. 9) ;
  *   3. le style ne se paie pas en force : au plus 0,5 V par seuil franchi (la règle de l'ancien check_cartes, parti à la V25 B1).
  * V21 : les pouvoirs du coach, le temps d'une période, se mesurent dans check_pouvoirs ; le personnel est parti.
  * `N` : matchs par club et par effet (200). `FILS` : processus (4). `IDS=d:,a:` quelques familles. `DETAIL=1` : chaque
@@ -17,10 +16,8 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
-import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, activeLineup, effetsDesJoueurs, getPlayerKey, depenserEnergie, AVANT_GROS } from '../js/sim.js';
-import { DOSSIERS } from '../js/dossiers.js';
-import { CHOIX_DES_FILS } from '../js/vie-gm.js';
-import { ARCS } from '../js/arcs.js';
+import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, activeLineup, effetsDesJoueurs, getPlayerKey, depenserEnergie } from '../js/sim.js';
+import { HISTOIRES } from '../js/histoires.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 import { NIVEAUX } from '../js/niveaux.js';
@@ -31,17 +28,9 @@ const CJ = ['finition', 'lancers', 'creation', 'defense', 'blessure', 'arrets'];
 const prend = (o, ks) => Object.fromEntries(ks.filter(k => o && k in o && typeof o[k] !== 'object' || (o && (k === 'F' || k === 'D') && Array.isArray(o[k]))).map(k => [k, o[k]]));
 function items() {
   const out = [];
-  for (const [d, D] of Object.entries(DOSSIERS)) for (const O of D.options) for (const [suf, x] of [['', O], ...(O.pari ? [['+', O.pari.gagne], ['-', O.pari.perd]] : [])]) {
-    const e = x.canaux || {}; if (Object.keys(e).length || x.lui) out.push({ id: `d:${d}.${O.cle}${suf}`, nom: `${D.titre} : ${O.nom}`, niveau: 1, si: O.quand || null, duree: x.duree, effet: e, joueur: x.lui || null });
+  for (const [d, D] of Object.entries(HISTOIRES)) for (const O of D.options) for (const [suf, x] of [['', O], ...(O.pari ? [['+', O.pari.gagne], ['-', O.pari.perd]] : [])]) {
+    const e = x.canaux || {}; if (Object.keys(e).length || x.lui) out.push({ id: `d:${d}.${O.cle}${suf}`, nom: `${D.titre} : ${O.nom}`, niveau: O.niveau, si: null, duree: x.duree, effet: e, joueur: x.lui || null });
   }
-  const fam = (pre, src) => { for (const [k, M] of Object.entries(src)) for (const O of M.options || []) {
-    const add = (suf, x, dur) => { const e = x.canaux || {}; if (Object.keys(e).length || x.lui) out.push({ id: `${pre}:${k}.${O.cle}${suf}`, nom: `${M.titre || k} : ${O.nom}`, niveau: 1, si: null, duree: dur ?? x.duree, effet: e, joueur: x.lui || null }); };
-    add('', O); if (O.pari) { add('+', O.pari.gagne); add('-', O.pari.perd); }
-  } };
-  fam('g', AVANT_GROS);
-  for (const [k, A] of Object.entries(ARCS)) (A.episodes || []).forEach((E, i) => { if (E.effet && Object.keys(E.effet).length && E.cible !== 'joueur') out.push({ id: `a:${k}.${i}`, nom: `${A.titre} (${i + 1})`, niveau: 1, si: null, duree: E.matchs, effet: prend(E.effet, CANAUX), contre: E.cible === 'contre' });
-    else if (E.effet && Object.keys(E.effet).length) out.push({ id: `a:${k}.${i}`, nom: `${A.titre} (${i + 1})`, niveau: 1, si: null, duree: E.matchs, effet: {}, joueur: prend(E.effet, CJ) }); });
-  for (const [k, F] of Object.entries(CHOIX_DES_FILS)) for (const O of F.options) if (O.suivi) for (const b of ['gagne', 'perd']) { const B = O.suivi[b]; if (B) out.push({ id: `f:${k}.${O.cle}.${b}`, nom: `${F.titre} : ${O.nom} (${b})`, niveau: 1, si: null, duree: B.duree, effet: {}, joueur: prend(B.effets[0], CJ) }); }
   return out;
 }
 const equipe = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };

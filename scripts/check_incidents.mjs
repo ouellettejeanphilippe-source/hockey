@@ -1,13 +1,10 @@
 /*
  * LES INCIDENTS (V19, tranche 5 ; JP : *les incidents, ça devrait être liés à des joueurs tout le temps* ; *plus « randoms »*).
- * Les sources d'incidents du Rogue — les dossiers de la semaine, les choix des fils, les situations et les accidents —
- * ont une seule forme : une voix, un titre, des options qui disent leurs lignes. La banque est vide (V22, phase 4 : les
- * dilemmes, les séquences, la presse et les courriels sont partis) : ce qui tient du contenu s'informe « banque vide »
- * au lieu d'échouer, et se juge dès qu'une banque neuve y entre. Ce que le script tient :
+ * Les sources d'incidents du Rogue — les histoires (V25 C1, js/histoires.js), les situations et les accidents — ont une
+ * seule forme : une voix, un titre, des options qui disent leurs lignes. Ce que le script tient :
  *   1. chaque incident a une voix de `EXPEDITEURS`, un titre et au moins une option ;
- *   2. QUI : un incident dont le fait porte sur un joueur le nomme, une vraie personne de ton effectif, lue dans les feuilles
- *      jouées (`joueurDuFait`, les situations). Ce qui ne peut pas nommer personne est dans une liste blanche écrite ici,
- *      avec sa raison (`BLANCHE`) ;
+ *   2. QUI : chaque histoire nomme un joueur, une vraie personne de ton effectif, lue dans les feuilles jouées (`joueurDuFait`,
+ *      les situations), et son fait le dit ; aucune liste blanche (le maire s'accroche à ta vedette, C0 q. 6) ;
  *   3. QUAND : chaque effet dit sa durée en matchs, écrite dans l'option (jamais un défaut tacite), la fenêtre « Du 31e
  *      au 38e match » (`fenetreDuChoix`) est celle que le calendrier du club compte, et les matchs de la fenêtre sont
  *      joués dans les feuilles d'après.
@@ -21,9 +18,9 @@ import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, getPlayerKey, SLOTS, MUTATIONS, JOURS_SITUATIONS, matchsEntre, situationsDuJour
 } from '../js/sim.js';
-import { effetDeMoment } from '../js/greffes.js';
-import { DOSSIERS } from '../js/dossiers.js';
-import { CHOIX_DES_FILS, EXPEDITEURS, joueurDuFait } from '../js/vie-gm.js';
+import { appliquerChoix } from '../js/greffes.js';
+import { HISTOIRES } from '../js/histoires.js';
+import { EXPEDITEURS, joueurDuFait } from '../js/vie-gm.js';
 import { fenetreDuChoix } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -58,53 +55,54 @@ function ligue(seed, n = 12) {
 }
 const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.joue && (m.A === you || m.B === you)).map(m => ({ j, m })));
 
-/* LA LISTE BLANCHE : ce qui ne nomme personne, et pourquoi. Tout le reste nomme un joueur. La banque est vide : rien n'y figure. */
-const BLANCHE = { dossiers: {} };
-
-const sources = [['dossiers', DOSSIERS], ['choix des fils', CHOIX_DES_FILS]];
 /* ---------- 1. la forme ---------- */
-for (const [nom, S] of sources) {
-  const mal = Object.entries(S).filter(([, x]) => !x.titre || !Array.isArray(x.options) || x.options.length < 1).map(([k]) => k);
-  exiger(`${nom} : chacun a un titre et des options`, mal.length === 0, mal.join(' · ') || `${Object.keys(S).length}`);
-  if (!Object.keys(S).length) informer(`${nom} : banque vide (V22, phase 4)`, 'rien à juger');
+{
+  const mal = Object.entries(HISTOIRES).filter(([, x]) => !x.titre || !Array.isArray(x.options) || x.options.length < 1).map(([k]) => k);
+  exiger('histoires : chacune a un titre et des options', mal.length === 0, mal.join(' · ') || `${Object.keys(HISTOIRES).length}`);
+  const sansVoix = Object.entries(HISTOIRES).filter(([, x]) => !EXPEDITEURS[x.de]).map(([k]) => k);
+  exiger('chaque voix existe (`EXPEDITEURS`)', sansVoix.length === 0, sansVoix.join(' · ') || 'toutes');
 }
-const sansVoix = Object.entries(DOSSIERS).filter(([, x]) => x.de && !EXPEDITEURS[x.de]).map(([k]) => k);
-exiger('chaque voix existe (`EXPEDITEURS`)', sansVoix.length === 0, sansVoix.join(' · ') || 'toutes');
 
-/* ---------- 2. qui : le catalogue ---------- */
+/* ---------- 2. qui : le catalogue, sur des faits pleins où chaque histoire est vraie (check_histoires les varie) ---------- */
+const J = (n, cle, x = {}) => ({ n, cle, ...x });
 const lundiPlein = {
-  n: 20, jambes: 88, pire: { n: 'Lebas', cle: 'lb', j: 70 }, vedette: { n: 'Lavedette', cle: 'lv', fait: 'Lavedette : 9 points en 10 matchs' },
-  gardien: { n: 'Legardien', cle: 'lg', fait: 'Legardien : 6 buts sur 31 tirs ce soir-là' },
-  boude: { n: 'Leboudeur', cle: 'bd', zone: 'Top 6', ou: '4e trio', pts: 2, m: 10 }, puni: { n: 'Lepuni', cle: 'pn', pun: 5, m: 10 }, muet: { n: 'Lemuet', cle: 'mt', sal: '7,5 M$', pts: 1, m: 10 },
-  blesses: [{ n: 'Leblesse', m: 12, cle: 'bl' }, { n: 'Unautre', m: 4, cle: 'ua' }], soirs: 4, dos: 1, visiteur: 3, domicile: 1, rival: 'Rival', bete: 'Bête', caisse: 10,
-  dernier: { pour: 0, contre: 5, adv: 'Eux' }, rang: 30, equipes: 32, retard: 9, avance: null, dosRoute: 1,
-  // V23 (js/dossiers.js) : le petit qui pousse, le dernier match, une suite du petit.
-  pousse: { n: 'Lepetit', cle: 'pt', pts: 5, m: 10, ou: '4e trio' }, chapeau: { n: 'Lechapeau', cle: 'ch', buts: 3 }, blanchissage: { n: 'Lauxiliaire', cle: 'ax' },
-  suites: [{ de: 'lePetit', choix: 'monter', joueur: { n: 'Lepetit', cle: 'pt' }, m: 8, pts: 5, resolue: false }],
-  masse: { espace: 500_000, libre: '0,5 M$', lourd: { n: 'Legros', cle: 'gr', sal: '9,5 M$', dollars: 9_500_000 } },
-  defaites: 5, coach: 'La Tortue', coachs: [{ cle: 'a', nom: 'Le Frelon', ico: '🐝' }, { cle: 'b', nom: "L'Aigle", ico: '🦅' }],
+  jour: 70, n: 55, jambes: 84, pire: J('Lebas', 'lb', { j: 66 }), vedette: J('Lavedette', 'lv', { fait: 'Lavedette : 14 points en 10 matchs', pts: 14, m: 10, sal: '3,0 M$' }),
+  gardien: J('Legardien', 'lg', { fait: 'Legardien : 6 buts sur 31 tirs ce soir-là', m: 10, contre: 6 }), puni: J('Lepuni', 'pn', { pun: 5, m: 9 }), muet: J('Lemuet', 'mt', { sal: '7,5 M$', pts: 1, m: 10 }),
+  pousse: J('Lepetit', 'pt', { pts: 5, m: 7, ou: '3e trio' }), blesses: [J('Leblesse', 'bl', { m: 9, total: 14, genre: 'commotion', deja: 1 }), J('Unautre', 'ua', { m: 4, total: 9, genre: 'aine', deja: 0 })],
+  soirs: 4, dos: 1, visiteur: 3, domicile: 1, rival: 'Rival', bete: 'Bête', caisse: 60, dernier: { pour: 2, contre: 6, adv: 'Eux' }, rang: 13, equipes: 32, retard: 0, avance: 6, dosRoute: 1,
+  masse: { espace: 400_000, libre: '0,4 M$', cap: 60_000_000, lourd: J('Legros', 'gr', { sal: '9,5 M$' }) }, defaites: 0, serie: 6, coach: null, chapeau: J('Lechapeau', 'ch', { buts: 3 }), blanchissage: J('Lauxiliaire', 'ax'),
+  suites: [{ de: 'lePetit', choix: 'monter', joueur: J('Lepetit', 'pt'), m: 8, pts: 5, butsDuo: 0, resolue: false }, { de: 'leDuo', choix: 'souder', joueur: J('Lemarqueur', 'mq'), m: 10, pts: 12, butsDuo: 7, resolue: false }],
+  jalon: J('Lejalon', 'ja', { quoi: 'buts', total: 20, m: 38, sal: '4,2 M$' }), duo: { marqueur: J('Lemarqueur', 'mq'), passeur: J('Lepasseur', 'pa'), buts: 6, m: 10 },
+  recrue: J('Larecrue', 'rk', { pts: 9, m: 12 }), veteran: J('Levieux', 'vx', { age: 41, pts: 7, m: 10 }), murEnVue: J('Legardien', 'lg', { v: 28, departs: 46 }), coup: J('Lepuni', 'pn', { min: 5, adv: 'Eux' }),
+  sejourFini: { cle: 'canonnier', nom: 'Le canonnier', ico: '🏹', v: 8, d: 3, dp: 1, matchs: 12 }, mandat: { mot: 'finir dans les dix premiers', rang: 10 },
+  gros: { adv: 'Eux', sorte: 'nemesis', domicile: true, fiche: { v: 0, d: 2 }, dernier: { pour: 1, contre: 3 }, ancien: J('Lancien', 'an', { pts: 9, m: 12, vraie: null }), leurVedette: { n: 'Leurgars', pts: 21, m: 10, vraie: null },
+    monMur: J('Lemur', 'mu', { pm: 6 }), lancee: 4, malades: [J('Malade1', 'm1', { j: 58 }), J('Malade2', 'm2', { j: 62 }), J('Malade3', 'm3', { j: 64 })], partant: J('Legardien', 'lg', { j: 72, dosADos: true }) },
+  ronde: { k: 1, adv: 'Eux', domicile: true, leurCoach: { nom: 'Le Frelon', ico: '🐝', pouvoir: 'La ruée' }, ficheSaison: { v: 1, d: 3 }, precedente: { matchs: 7 }, meneur: J('Lavedette', 'lv', { pts: 11, m: 6, vraie: null }), gardien: J('Legardien', 'lg', { pctArr: 0.931, departs: 5 }) },
+  vraie: () => null,
 };
 {
   const fautes = [];
-  for (const [k, D] of Object.entries(DOSSIERS)) {
-    if (BLANCHE.dossiers[k]) { if (D.joueur) fautes.push(`${k} : sur la liste blanche, mais il nomme un joueur`); continue; }
-    const j = D.joueur ? D.joueur(lundiPlein) : null;
+  let n = 0;
+  for (const [k, D] of Object.entries(HISTOIRES)) {
+    if (!D.quand(lundiPlein)) continue;
+    n++;
+    const j = D.joueur(lundiPlein);
     if (!j || !j.n || !j.cle) { fautes.push(`${k} : aucun joueur`); continue; }
     const fait = D.fait(lundiPlein);
     if (!fait.includes(j.n)) fautes.push(`${k} : le fait ne dit pas ${j.n} (« ${fait} »)`);
-    // Au début d'une saison, personne n'a encore de feuille : le fait se dit sans lui, sans planter.
-    const vide = { ...lundiPlein, vedette: null, gardien: null };
-    try { const f = D.fait(vide); if (typeof f !== 'string' || /undefined|null/.test(f)) fautes.push(`${k} : « ${f} » sans feuille`); D.joueur && D.joueur(vide); } catch (e) { fautes.push(`${k} : plante sans feuille (${e.message})`); }
   }
-  const noms = Object.keys(DOSSIERS).filter(k => !BLANCHE.dossiers[k]);
-  exiger('chaque dossier nomme un joueur et le dit dans son fait (hors liste blanche)', !fautes.length && Object.keys(BLANCHE.dossiers).every(k => DOSSIERS[k]), fautes.slice(0, 4).join(' · ') || `${noms.length} sur ${Object.keys(DOSSIERS).length} ; hors : ${Object.keys(BLANCHE.dossiers).join(', ') || 'aucun'}`);
-  if (!noms.length) informer('dossiers : banque vide (V22, phase 4)', 'aucun dossier à nommer');
+  exiger('chaque histoire nomme un joueur et le dit dans son fait', !fautes.length && n >= 30, fautes.slice(0, 4).join(' · ') || `${n} histoires vraies sur les faits pleins`);
+  // Au début d'une saison, personne n'a encore de feuille : aucune histoire ne plante, et aucune ne nomme personne.
+  const vide = { ...lundiPlein, n: 0, vedette: null, gardien: null, puni: null, muet: null, pousse: null, blesses: [], suites: [], jalon: null, duo: null, recrue: null, veteran: null, murEnVue: null, coup: null, sejourFini: null, chapeau: null, blanchissage: null, dernier: null, gros: null, ronde: null, serie: 0, dosRoute: 0, visiteur: 0 };
+  const plantes = [];
+  for (const [k, D] of Object.entries(HISTOIRES)) { try { if (D.quand(vide) && D.joueur(vide)) plantes.push(`${k} : vraie sans feuille`); } catch (e) { plantes.push(`${k} : plante sans feuille (${e.message})`); } }
+  exiger('sans feuille jouée, aucune histoire ne sort ni ne plante', !plantes.length, plantes.slice(0, 4).join(' · ') || `${Object.keys(HISTOIRES).length} histoires`);
 }
-informer('les fils, les situations et les accidents', `${Object.keys(CHOIX_DES_FILS).length} fils : le joueur du fil · situations : un porté et un pesé de l'effectif · accidents : un patineur de l'effectif (${Object.values(MUTATIONS).filter(m => m.source === 'accident').length} sortes)`);
+informer('les situations et les accidents', `situations : un porté et un pesé de l'effectif · accidents : un patineur de l'effectif (${Object.values(MUTATIONS).filter(m => m.source === 'accident').length} accidents)`);
 
 /* ---------- 3. qui : sur de vraies ligues, des vraies personnes de ton effectif ---------- */
 // Les lundis où l'on lit le club (les faits d'équipe `porteurs` sont partis avec la banque : V22).
-const JOURS_LECTURE = [8, 14, 25, 33, 42, 51, 60, 70];
+const JOURS_LECTURE = [8, 14, 25, 33, 42, 51, 60, 70];   // les lundis où l'on lit le club
 {
   const fautes = [];
   const faute = t => { if (fautes.length < 8) fautes.push(t); };
@@ -118,7 +116,7 @@ const JOURS_LECTURE = [8, 14, 25, 33, 42, 51, 60, 70];
       jouerJusqua(L, jEv);
       const av = tes(L, you).filter(x => x.j < jEv);
       const cote = m => (m.A === you ? 'A' : 'B'), fe = m => m.feuille || { buts: [], lancers: [], punitions: [], alignes: {} };
-      // La vedette et le gardien du lundi (`joueurDuFait`, js/saison.js `faitsDuLundi`) : de l'effectif, et leur fait se recompte.
+      // La vedette et le gardien du lundi (`joueurDuFait`, js/faits.js `faitsDe`) : de l'effectif, et leur fait se recompte.
       const feuilles = av.slice(-10).map(({ m }) => ({ f: fe(m), cote: cote(m) }));
       const habilles = new Set(SLOTS.filter(s => !s.scratch).map(s => you.roster[s.i]).filter(Boolean));
       if (feuilles.length >= 5) {
@@ -147,24 +145,15 @@ const JOURS_LECTURE = [8, 14, 25, 33, 42, 51, 60, 70];
 
 /* ---------- 4. quand : chaque effet dit sa durée en matchs ---------- */
 const CANAUX = ['volume', 'finition', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
-const durees = [['dossiers', DOSSIERS]];
 {
   const fautes = [];
   let n = 0;
   const entier = d => Number.isInteger(d) && d >= 1;
-  for (const [nom, S] of durees) for (const [k, M] of Object.entries(S)) for (const o of M.options) {
-    if (CANAUX.some(c => c in o) || o.lui) { n++; if (!entier(o.duree)) fautes.push(`${nom}.${k}.${o.cle} : un effet sans durée écrite`); }
-    if (o.ensuite && !entier(o.ensuite.duree)) fautes.push(`${nom}.${k}.${o.cle} : « ensuite » sans durée`);
-    if (o.pari) for (const z of ['gagne', 'perd']) if (!entier(o.pari[z].duree)) fautes.push(`${nom}.${k}.${o.cle} : le pari (${z}) sans durée`);
+  for (const [k, M] of Object.entries(HISTOIRES)) for (const o of M.options) {
+    if ((o.canaux && CANAUX.some(c => c in o.canaux)) || o.lui) { n++; if (!entier(o.duree)) fautes.push(`${k}.${o.cle} : un effet sans durée écrite`); }
+    if (o.pari) for (const z of ['gagne', 'perd']) if (!entier(o.pari[z].duree)) fautes.push(`${k}.${o.cle} : le pari (${z}) sans durée`);
   }
-  for (const [k, M] of Object.entries(CHOIX_DES_FILS)) for (const o of M.options) {
-    if (!o.suivi) continue;
-    n++;
-    for (const z of ['gagne', 'perd']) if (o.suivi[z] && !entier(o.suivi[z].duree)) fautes.push(`fils.${k}.${o.cle} : ${z} sans durée`);
-    if (!entier(o.suivi.apres)) fautes.push(`fils.${k}.${o.cle} : aucune échéance en matchs`);
-  }
-  exiger('chaque effet (et chaque suite, pari ou suivi) dit sa durée en matchs, écrite dans l\'option', !fautes.length, fautes.slice(0, 5).join(' · ') || `${n} options`);
-  if (!n) informer('durées : banque vide (V22, phase 4)', 'aucune option à juger');
+  exiger('chaque effet (et chaque issue de pari) dit sa durée en matchs, écrite dans l\'option', !fautes.length && n > 0, fautes.slice(0, 5).join(' · ') || `${n} options`);
   const cas = [[0, 3, 'Du 1er au 3e match'], [30, 8, 'Du 31e au 38e match'], [5, 1, 'Au 6e match'], [0, 1, 'Au 1er match'], [12, 0, '']];
   const mal = cas.filter(([j, d, att]) => fenetreDuChoix(j, d) !== att).map(([j, d, att]) => `${j}/${d} → « ${fenetreDuChoix(j, d)} », attendu « ${att} »`);
   exiger('la fenêtre d\'un choix se dit en rangs de matchs', !mal.length, mal.join(' · ') || `${cas.length} cas`);
@@ -179,25 +168,24 @@ const durees = [['dossiers', DOSSIERS]];
   const J0 = 12, dejaJoues = matchsEntre(you, 0, J0);
   jouerJusqua(L, L.calendrier.length);
   const siens = tes(L, you);
-  const familles = [['dossier', DOSSIERS]];
-  for (const [famille, S] of familles) for (const [cle, M] of Object.entries(S)) for (const o of M.options) {
-    if (!o.duree || o.rien || o.mutation || !(o.canaux && CANAUX.some(c => c in o.canaux))) continue;
+  // Les canaux du club d'une histoire (le gros match, la ronde) posés par la porte au jour J0, comme la décision les pose.
+  for (const [cle, M] of Object.entries(HISTOIRES)) for (const o of M.options) {
+    if (!o.duree || !(o.canaux && CANAUX.some(c => c in o.canaux))) continue;
     candidats++;
-    const e = effetDeMoment({ jour: J0, moment: { famille, cle, choix: o.cle } }, you);
-    if (!e) { fautes.push(`${famille}.${cle}.${o.cle} : aucun effet posé`); continue; }
+    const avant = (you.effets || []).length;
+    appliquerChoix(you, { jour: J0, moment: { famille: 'histoire', cle, choix: o.cle, joueurs: [] } }, 'g');
+    const e = (you.effets || []).slice(avant).find(x => x.source === 'histoire');
+    if (!e) { fautes.push(`${cle}.${o.cle} : aucun effet posé`); continue; }
     const premier = matchsEntre(you, 0, e.debut) + 1, dernier = matchsEntre(you, 0, e.fin);
-    // Une durée qui dépasse la saison (le contrat de télé, 82 matchs) court jusqu'à son dernier match.
-    if (dejaJoues + o.duree > siens.length) { if (dernier !== siens.length) fautes.push(`${famille}.${cle}.${o.cle} : finit au ${dernier}e match, la saison en compte ${siens.length}`); continue; }
     comptes++;
-    if (e.debut !== J0 || premier !== dejaJoues + 1 || dernier - premier + 1 !== o.duree) { fautes.push(`${famille}.${cle}.${o.cle} : du ${premier}e au ${dernier}e match, ${o.duree} dits`); continue; }
-    if (fenetreDuChoix(dejaJoues, o.duree) !== (o.duree === 1 ? `Au ${premier}e match` : `Du ${premier === 1 ? '1er' : `${premier}e`} au ${dernier}e match`)) fautes.push(`${famille}.${cle}.${o.cle} : la fenêtre dite n'est pas celle du calendrier`);
+    if (e.debut !== J0 || premier !== dejaJoues + 1 || dernier - premier + 1 !== o.duree) { fautes.push(`${cle}.${o.cle} : du ${premier}e au ${dernier}e match, ${o.duree} dits`); continue; }
+    if (fenetreDuChoix(dejaJoues, o.duree) !== (o.duree === 1 ? `Au ${premier}e match` : `Du ${premier === 1 ? '1er' : `${premier}e`} au ${dernier}e match`)) fautes.push(`${cle}.${o.cle} : la fenêtre dite n'est pas celle du calendrier`);
     // Les feuilles d'après : les matchs de la fenêtre sont ceux qui ont été joués, ni un de plus ni un de moins.
     const dedans = siens.filter(x => x.j >= e.debut && x.j < e.fin && x.m.feuille);
-    if (e.fin <= L.calendrier.length) { joues++; if (dedans.length !== o.duree) fautes.push(`${famille}.${cle}.${o.cle} : ${dedans.length} feuilles dans la fenêtre, ${o.duree} dits`); }
+    if (e.fin <= L.calendrier.length) { joues++; if (dedans.length !== o.duree) fautes.push(`${cle}.${o.cle} : ${dedans.length} feuilles dans la fenêtre, ${o.duree} dits`); }
   }
   exiger('la fenêtre dite (« Du 13e au 20e match ») est celle du calendrier du club, et ses matchs sont joués dans les feuilles d\'après', !fautes.length && (!candidats || (comptes > 0 && joues > 0)),
     fautes.slice(0, 4).join(' · ') || `${comptes} options, ${joues} fenêtres recomptées dans les feuilles`);
-  if (!candidats) informer('fenêtres : banque vide (V22, phase 4)', 'aucune option à durée à recompter');
 }
 
 verdict('Les incidents');

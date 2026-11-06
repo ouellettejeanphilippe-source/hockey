@@ -1,11 +1,13 @@
 /*
- * CE QUI COURT SE SUIT (oct. 2026). JP : *j'ai pogné un « si x joueur fait x points en x matchs », ça le confirme bon,
- * mais aucun suivi de ça*. Un choix du Rogue qui promet pour plus tard a un état lisible chaque matin de sa durée et un
- * verdict à sa fin, dont les chiffres se recomptent dans les feuilles. De vraies ligues de 32 vestiaires, ton club en Rogue :
- *   1. le fil suivi (js/vie-gm.js `CHOIX_DES_FILS`) : chaque matin de sa durée, `suivisEnCours` le montre, avec ses
- *      matchs joués et son chiffre recomptés dans les feuilles ; le matin qui suit son dernier match, il n'y est plus et
- *      son retour arrive, au même chiffre ;
- *   2. le fil dont le joueur part (échangé, relâché) : le lendemain, la promesse tombe et ça se dit, sans effet ;
+ * CE QUI COURT SE SUIT (oct. 2026 ; V25 C1 : la promesse d'une histoire). JP : *j'ai pogné un « si x joueur fait x points
+ * en x matchs », ça le confirme bon, mais aucun suivi de ça*. Un choix du Rogue qui promet pour plus tard a un état lisible
+ * chaque matin de sa durée et un verdict à sa fin, dont les chiffres se recomptent dans les feuilles. De vraies ligues de
+ * 32 vestiaires, ton club en Rogue :
+ *   1. la promesse d'une histoire (js/greffes.js `promettre` : chaque option qui touche un joueur, `lui` ou `pari`) : chaque
+ *      matin de sa durée, `suivisEnCours` la montre, avec ses matchs joués et sa mesure (ses buts et ses tirs, ses passes,
+ *      ses buts accordés et son efficacité) recomptés dans les feuilles ; le lundi d'après son dernier match, elle n'y est
+ *      plus et son verdict arrive, de la même voix, aux mêmes chiffres, contre ses dix matchs d'avant ;
+ *   2. la promesse dont le joueur part (échangé, relâché) : le lendemain, elle tombe et ça se dit ;
  *   3. l'objectif du proprio (`etatObjectif`) : son chiffre et son meneur se recomptent à chaque match, il finit au
  *      20e match (ou dès qu'il est acquis) ; celui qui nomme un joueur parti se lève, ni réussi ni raté.
  * `GRAINES` : les ligues (83,85 par défaut).
@@ -14,11 +16,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, getPlayerKey, OBJECTIFS, etatObjectif, joueurDeLObjectif, MATCHS_OBJECTIF
+  autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, getPlayerKey, SLOTS, OBJECTIFS, etatObjectif, joueurDeLObjectif, MATCHS_OBJECTIF
 } from '../js/sim.js';
-import { suivisEnCours } from '../js/greffes.js';
-import { filsDeSaison } from '../js/recit.js';
-import { CHOIX_DES_FILS, motDuSuiviEnCours } from '../js/vie-gm.js';
+import { suivisEnCours, lignePromesse } from '../js/greffes.js';
+import { HISTOIRES } from '../js/histoires.js';
+import { SEMAINE } from '../js/inventaire.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -53,15 +55,20 @@ const saison = (seed, decisions = []) => {
   return { L: creerLigue(teams, 82, { graine: `suivis-${seed}`, decisions, courbe: true }), you: teams[0] };
 };
 const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.joue && (m.A === you || m.B === you)).map(m => ({ j, m })));
-/* Le chiffre d'un suivi, recompté à la main dans ses feuilles. */
-function recompte(mesure, p, passeur, feuilles) {
-  let n = 0;
-  for (const f of feuilles) for (const b of f.buts || []) {
-    const passe = (b.passeurs || []).includes(p);
-    if (mesure === 'buts' ? b.marqueur === p : mesure === 'points' ? b.marqueur === p || passe : b.marqueur === p && passeur && (b.passeurs || []).includes(passeur)) n++;
+/* La mesure d'une promesse, recomptée à la main dans les entrées du journal du club : ses buts et ses tirs (habillé), ses passes, ses buts accordés et ses tirs reçus (gardien). */
+function recompte(p, entrees) {
+  const out = { m: 0, buts: 0, tirs: 0, passes: 0, departs: 0, accordes: 0, lancers: 0 };
+  for (const e of entrees) {
+    const f = e.feuille, cote = (f.alignes.A || []).includes(p) ? 'A' : (f.alignes.B || []).includes(p) ? 'B' : null;
+    if (cote) { out.m++; for (const b of f.buts) if (b.cote === cote && !b.fusillade) { if (b.marqueur === p) out.buts++; else if ((b.passeurs || []).includes(p)) out.passes++; } out.tirs += (f.lancers || []).filter(l => l.tireur === p).length; }
+    if (e.gardien === p) { out.departs++; out.accordes += e.ga || 0; out.lancers += (f.lancers || []).filter(l => l.gardien === p).length; }
   }
-  return n;
+  return out;
 }
+const meme = (a, b) => ['m', 'buts', 'tirs', 'passes', 'departs', 'accordes', 'lancers'].every(k => a[k] === b[k]);
+// Trois promesses : la disette (« Le reposer deux matchs », ses tirs et ses buts), l'agent (ses tirs et ses passes), le gardien battu (l'auxiliaire, ses arrêts).
+const PROMESSES = [['leMuet', 'repos', 'F'], ['lAgent', 'donner', 'F'], ['leGardienBattu', 'auxiliaire', 'G']];
+const premier = (you, g) => SLOTS.filter(sl => !sl.scratch && sl.group === g).map(sl => you.roster[sl.i]).find(Boolean);
 
 console.log('\n  CE QUI COURT SE SUIT (oct. 2026)\n');
 const t0 = Date.now();
@@ -72,49 +79,47 @@ const faute = t => { if (fautes.length < 10) fautes.push(t); };
 for (const seed of GRAINES) {
   const base = saison(seed);
   jouerJusqua(base.L, Infinity);
-  const fils = filsDeSaison(base.L.calendrier, base.you);
-  for (const sorte of Object.keys(CHOIX_DES_FILS)) {
-    const e = fils.journal.find(x => x.fils.some(a => a.sorte === sorte && !a.fini));
-    const o = CHOIX_DES_FILS[sorte].options.find(x => x.suivi && !x.monte);
-    if (!e || !o) continue;
-    const a = e.fils.find(x => x.sorte === sorte && !x.fini);
-    const J = e.j + 1, cle = getPlayerKey(a.joueur);
-    const d = { jour: J, palier: `fil:${sorte}`, sel: `suivi-${sorte}`, moment: { famille: 'fil', cle: sorte, choix: o.cle, joueur: cle, joueurs: [cle], ...(a.passeur ? { passeur: getPlayerKey(a.passeur) } : {}) } };
-    // 1. Matin par matin : l'état se lit, et se recompte.
+  for (const [cle, choix, groupe] of PROMESSES) {
+    const H = HISTOIRES[cle], o = H.options.find(x => x.cle === choix), p0 = premier(base.you, groupe);
+    const J = 2 * SEMAINE, k = getPlayerKey(p0);
+    const d = { jour: J, palier: `h:lundi:${J}`, sel: `suivi-${cle}`, moment: { famille: 'histoire', cle, choix, joueur: k, joueurs: [k] } };
+    // 1. Matin par matin : l'état se lit, et se recompte ; le verdict arrive un lundi, après le dernier match.
     suivis++;
     const r = saison(seed, [d]);
-    let vu = false, fini = false;
+    const p = Object.values(r.you.roster).find(x => x && getPlayerKey(x) === k);
+    let vu = false, fini = false, matchs0 = null;
     for (let j = J + 1; j <= r.L.calendrier.length && !fini; j++) {
       jouerJusqua(r.L, j);
-      const x = suivisEnCours(r.you).find(s => s.cle === sorte);
-      const miens = tes(r.L, r.you).filter(m => m.j >= J);
-      const R = (r.you.retours || []).find(z => z.cle === sorte);
+      const x = suivisEnCours(r.you).find(s => s.cle === cle);
+      const R = (r.you.retours || []).find(z => z.cle === cle);
       if (x) {
-        vu = true; matins++;
-        const f = miens.slice(0, o.suivi.apres).map(m => m.m.feuille);
-        const n = recompte(o.suivi.mesure, x.joueur, x.passeur, f);
-        if (x.joues === f.length && x.n === n && !R) matinsOk++; else faute(`${sorte} J${j} : l'état dit ${x.n} en ${x.joues}, les feuilles ${n} en ${f.length}`);
-        if (exemples.length < 3 && x.joues === 3 && !exemples.includes(motDuSuiviEnCours(x))) exemples.push(motDuSuiviEnCours(x));
+        vu = true; matins++; matchs0 = x.matchs0;
+        const f = r.you.journal.slice(x.matchs0, x.matchs0 + o.duree), n = recompte(p, f);
+        if (x.joues === f.length && meme(x.n, n) && !R && x.duree === o.duree) matinsOk++; else faute(`${cle} J${j} : l'état dit ${JSON.stringify(x.n)} en ${x.joues}, les feuilles ${JSON.stringify(n)} en ${f.length}`);
+        if (exemples.length < 3 && x.joues === 3) exemples.push(lignePromesse(x));
       } else if (R) {
         fini = true; finis++;
-        const f = miens.slice(0, o.suivi.apres).map(m => m.m.feuille);
-        const n = recompte(o.suivi.mesure, R.joueur, a.passeur ? Object.values(r.you.roster).find(p => p && getPlayerKey(p) === getPlayerKey(a.passeur)) : null, f);
-        if (vu && f.length === o.suivi.apres && R.n === n && R.texte.includes(String(n))) finisOk++; else faute(`${sorte} : le retour dit ${R.n} (« ${R.texte} »), les feuilles ${n} en ${f.length}`);
-      } else if (vu) { faute(`${sorte} J${j} : ni état ni retour`); break; }
+        const f = r.you.journal.slice(matchs0, matchs0 + o.duree), n = recompte(p, f);
+        const chiffres = x => (x.departs ? [x.accordes, x.departs] : o.lui.creation && !o.lui.lancers ? [x.passes, x.m] : [x.buts, x.tirs, x.m]);
+        const apresDernier = r.you.journal[matchs0 + o.duree - 1];
+        if (vu && f.length === o.duree && R.jour % SEMAINE === 0 && R.jour > apresDernier.jour && R.de === H.de && chiffres(n).every(c => R.texte.includes(String(c)))) finisOk++;
+        else faute(`${cle} : le verdict (J${R.jour}, ${R.de}) dit « ${R.texte} », les feuilles ${JSON.stringify(n)} en ${f.length}`);
+        if (exemples.length < 6) exemples.push(R.texte);
+      } else if (vu) { faute(`${cle} J${j} : ni état ni verdict`); break; }
     }
-    if (!fini) faute(`${sorte} : aucun retour à la fin`);
-    // 2. Le joueur part au 3e match du suivi : la promesse tombe le lendemain.
+    if (!fini) faute(`${cle} : aucun verdict à la fin`);
+    // 2. Le joueur part au 3e match de la promesse : elle tombe le lendemain.
     partis++;
     const q = saison(seed, [d]);
     let m3 = null;
     for (let j = J + 1; j <= q.L.calendrier.length; j++) { jouerJusqua(q.L, j); if (tes(q.L, q.you).filter(m => m.j >= J).length >= 3) { m3 = j; break; } }
-    const slot = Object.entries(q.you.roster).find(([, p]) => p && getPlayerKey(p) === cle);
-    if (!m3 || !slot) { faute(`${sorte} : impossible de le faire partir`); continue; }
+    const slot = Object.entries(q.you.roster).find(([, x]) => x && getPlayerKey(x) === k);
+    if (!m3 || !slot) { faute(`${cle} : impossible de le faire partir`); continue; }
     delete q.you.roster[slot[0]];
     jouerJusqua(q.L, m3 + 1);
-    const Rp = (q.you.retours || []).find(z => z.cle === sorte);
-    if (Rp && Rp.parti && !Object.keys(Rp.effet).length && /n'est plus dans ton effectif/.test(Rp.texte) && !suivisEnCours(q.you).some(s => s.cle === sorte)) partisOk++;
-    else faute(`${sorte} : parti, la promesse ne tombe pas (${Rp ? Rp.texte : 'aucun retour'})`);
+    const Rp = (q.you.retours || []).find(z => z.cle === cle);
+    if (Rp && Rp.parti && /n'est plus dans ton effectif/.test(Rp.texte) && !suivisEnCours(q.you).some(s => s.cle === cle)) partisOk++;
+    else faute(`${cle} : parti, la promesse ne tombe pas (${Rp ? Rp.texte : 'aucun verdict'})`);
   }
   // 3. L'objectif du proprio, au jour 0, sur tes 20 premiers matchs.
   const miens = tes(base.L, base.you);
@@ -144,11 +149,10 @@ for (const seed of GRAINES) {
   }
 }
 
-informer('exemples d\'états', exemples.join(' · ') || 'aucun');
-if (!Object.keys(CHOIX_DES_FILS).length) informer('fils suivis : banque vide (V22, phase 4)', 'la partie 1 et la partie 2 (le joueur parti) n\'ont rien à relire ; l\'objectif du proprio se juge toujours');
-exiger('chaque fil suivi a un état chaque matin, recompté dans les feuilles', matinsOk === matins, `${matinsOk}/${matins} matins, ${suivis} fils`);
-exiger('chaque fil suivi finit par un retour au chiffre des feuilles', finis === suivis && finisOk === finis, `${finisOk}/${suivis}`);
-exiger('un fil dont le joueur part : la promesse tombe le lendemain, sans effet', partisOk === partis, `${partisOk}/${partis}`);
+informer('exemples d\'états et de verdicts', exemples.join(' · ') || 'aucun');
+exiger('chaque promesse a un état chaque matin, recompté dans les feuilles', matins > 0 && matinsOk === matins, `${matinsOk}/${matins} matins, ${suivis} promesses`);
+exiger('chaque promesse finit par un verdict de sa voix, un lundi, aux chiffres des feuilles', finis === suivis && finisOk === finis, `${finisOk}/${suivis}`);
+exiger('une promesse dont le joueur part tombe le lendemain, et ça se dit', partisOk === partis, `${partisOk}/${partis}`);
 exiger('l\'objectif du proprio se recompte à chaque match et finit', objectifs > 0 && objOk === objectifs, `${objOk}/${objectifs}`);
 exiger('l\'objectif d\'un joueur parti se lève', leves > 0 && levesOk === leves, `${levesOk}/${leves}`);
 for (const f of fautes) informer('faute', f);

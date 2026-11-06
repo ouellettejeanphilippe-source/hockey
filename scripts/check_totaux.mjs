@@ -25,10 +25,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue, totauxDuSoir, profilMatch, activeLineup, effetsActifs } from '../js/sim.js';
-import { effetDeMoment, pariDeDecision } from '../js/greffes.js';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue, totauxDuSoir, profilMatch, activeLineup, effetsActifs, SLOTS, getPlayerKey } from '../js/sim.js';
+import { deDuChoix } from '../js/greffes.js';
 import { motsDuSoir, alignementDuSoir, PARTS_DU_SOIR, motsDesTotaux, flechesDe } from '../js/impact.js';
-import { DOSSIERS } from '../js/dossiers.js';
+import { HISTOIRES } from '../js/histoires.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin } from './lib/temoins.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -100,7 +100,7 @@ const decisions = [
 
   // 1. Le produit des sources.
   const soirs = aVenir.filter(d => d.effet).map(() => ({ debut: JOUR, fin: JOUR + 1, ...SOIR }));
-  const sources = [...effetsActifs(t), ...aVenir.map(effetDeMoment).filter(Boolean), ...soirs];
+  const sources = [...effetsActifs(t), ...soirs];
   const nb = (t.effets || []).length + aVenir.length;
   exiger('l\'équipe porte au moins trois effets à la fois', nb >= 3, `${nb} effets : ${(t.effets || []).map(p => p.nom).join(', ')} · un soir chaud`);
   const produit = Object.fromEntries(CANAUX.map(k => [k, sources.reduce((a, s) => a * ((s && s[k]) ?? 1), 1)]));
@@ -108,7 +108,7 @@ const decisions = [
     CANAUX.every(k => pres(T.brut[k], produit[k])), CANAUX.map(k => `${k} ${produit[k].toFixed(4)}`).join(' · '));
 
   // 2. Le total affiché est celui que le moteur joue.
-  const R = rapportDuMoteur(t, [...aVenir.map(effetDeMoment).filter(Boolean), ...soirs]);
+  const R = rapportDuMoteur(t, soirs);
   exiger('le total affiché égale le rapport du profil du moteur, canal par canal',
     CANAUX.every(k => pres(T[k], R[k])), CANAUX.map(k => `${k} ${T[k].toFixed(4)} = ${R[k].toFixed(4)}`).join(' · '));
 
@@ -187,21 +187,21 @@ const decisions = [
 }
 
 /*
- * LE PARI SE DIT DÈS LE CHOIX. L'écran tranche un pari avec `pariDeDecision`
- * avant que sa journée se joue ; le moteur le tranche en la jouant. Les deux
+ * LE PARI SE DIT DÈS LE CHOIX. L'écran tranche un pari avec `deDuChoix` (js/greffes.js)
+ * avant que sa journée se joue ; la porte le tranche en la jouant. Les deux
  * doivent tomber pareil, pari par pari.
  */
 {
   const teams = ligue(11);
-  // La banque est vide (V22, phase 4) : un dossier d'essai, dont la réponse est un pari sur l'équipe.
-  DOSSIERS.essaiPari = { titre: 'Un dossier d\'essai', options: [{ cle: 'laisser', nom: 'Laisser aller', pari: { chance: 3 / 6, gagne: { duree: 4, finition: 1.1 }, perd: { duree: 4, finition: 0.9 } } }] };
+  // Une vraie histoire au dé (V25 C1) : la disette, « Le mettre au défi », sur ton premier avant.
+  const k = getPlayerKey(SLOTS.filter(sl => !sl.scratch && sl.group === 'F').map(sl => teams[0].roster[sl.i]).find(Boolean));
   const paris = [];
-  for (let j = 2; j < 60; j += 3) paris.push({ jour: j, equipe: 0, moment: { famille: 'dossier', cle: 'essaiPari', choix: 'laisser', joueurs: [] } });
-  const L = creerLigue(teams, 82, { graine: 'paris', decisions: paris });
-  const dits = paris.map(d => pariDeDecision(d, L.graine));
+  for (let j = 2; j < 60; j += 3) paris.push({ jour: j, equipe: 0, palier: `h:lundi:${j}`, moment: { famille: 'histoire', cle: 'leMuet', choix: 'defi', joueur: k, joueurs: [k] }, sel: `s${j}` });
+  const L = creerLigue(teams, 82, { graine: 'paris', decisions: paris, courbe: true });
+  const dits = paris.map(d => deDuChoix(d, L.graine));
   jouerJusqua(L, 62);
   const joues = teams[0].paris || [];
-  const accord = dits.filter((x, i) => joues[i] && joues[i].jour === x.jour && joues[i].gagne === x.gagne).length;
+  const accord = dits.filter((x, i) => joues[i] && joues[i].jour === paris[i].jour && joues[i].gagne === x.gagne).length;
   const gagnes = dits.filter(x => x.gagne).length;
   exiger('le pari dit au choix est celui que le moteur joue', accord === paris.length && joues.length === paris.length,
     `${accord}/${paris.length} d'accord · ${gagnes} payés, ${paris.length - gagnes} ratés`);

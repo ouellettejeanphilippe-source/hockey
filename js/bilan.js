@@ -720,11 +720,11 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
    * (`filsDeSaison`, js/recit.js ; check_fils). Les six plus lourds.
    */
   const fils = filsDeSaison(calendrier, you).fils.filter(a => a.poids >= FIL_MARQUANT).slice(0, 6);
-  // Les arcs de ta saison (Jalon P, E, js/arcs.js) : nés de ses faits, joués par le moteur, épisode par épisode.
-  const arcs = you.arcs || [];
-  const histoire = fils.length || arcs.length
+  // V25 C1 : les verdicts des promesses de la saison (js/greffes.js `verdictsDuMatin`), après les fils.
+  const retours = you.retours || [];
+  const histoire = fils.length || retours.length
     ? `<div class="result-section" data-bl="histoire"><h3>L'histoire de ta saison</h3>
-        <ul class="inj-list">${fils.map(a => `<li>${esc(a.texte)}</li>`).join('')}${arcs.map(a => `<li><strong>${esc(a.titre)}</strong> — ${esc(a.texte)}</li>`).join('')}</ul>
+        <ul class="inj-list">${fils.map(a => `<li>${esc(a.texte)}</li>`).join('')}${retours.map(a => `<li><strong>${esc(a.titre)}</strong> — ${esc(a.texte)}</li>`).join('')}</ul>
       </div>`
     : '';
 

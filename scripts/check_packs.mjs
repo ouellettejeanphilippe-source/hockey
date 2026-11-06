@@ -398,7 +398,7 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
     const joueurs = r.flatMap(x => x.cartes);
     exiger(`Pack du coach ${COACHS[coach].nom} : ses joueurs de sa couleur`, joueurs.length >= 6 && joueurs.every(x => coachDuJoueur(x.p) === coach), `${joueurs.length} joueurs`);
   }
-  // Les événements ont quitté la banque pour les histoires d'À faire (js/dossiers.js) : aucun pack n'en donne.
+  // Les événements ont quitté la banque pour les histoires (js/histoires.js) : aucun pack n'en donne.
   const apres = new Set();
   for (const cle of BOUTIQUE) for (let n = 0; n < 6000; n++) for (const id of tirerCartesDuPack(cle, `fusion-${cle}`, n)) apres.add(id);
   exiger('aucun pack ne donne un événement', ![...apres].some(id => BANQUE[id].cat === 'evenement'), `${apres.size} cartes sorties des packs`);

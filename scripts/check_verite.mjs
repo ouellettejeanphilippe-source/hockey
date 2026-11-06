@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { exiger, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
 import { entierDeGraine } from '../js/util.js';
-import { objectifsOfferts, ajustementsOfferts, situationsDuJour, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
+import { objectifsOfferts, situationsDuJour, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
   autoRoster, registerHiddenRatings, createTeam } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { COACHS, COACH_DU_ROLE } from '../js/coachs.js';
@@ -72,7 +72,6 @@ function ligue(seed, n = 12) {
   const sa = situationsDuJour(you, a, JOURS_SITUATIONS[0], 0), sb = situationsDuJour(you, b, JOURS_SITUATIONS[0], 0);
   const cle = x => (x ? `${x.porte && x.porte.p ? x.porte.p.n : ''}|${x.pese && x.pese.p ? x.pese.p.n : ''}|${x.nom || x.cle || ''}` : '');
   exiger('deux graines, deux situations du vestiaire', !!sa && !!sb && JSON.stringify(sa) !== JSON.stringify(sb), `${cle(sa)} / ${cle(sb)}`);
-  exiger('deux graines, deux ajustements offerts', ajustementsOfferts(a, 0, 0, 'egal').join() !== ajustementsOfferts(b, 0, 0, 'egal').join());
 }
 
 /* ---------- 2. le coach ---------- */

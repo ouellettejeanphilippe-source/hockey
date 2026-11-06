@@ -263,8 +263,8 @@ const veilles = [];   // V17 : un gros match ouvert avant son matin
 const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le plan pris (V17)
 const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée une fois, et sa scène
 // LES SCÈNES (Jalon M) : les choix d'À faire mis en scène citent leur voix ; on garde la première de chaque genre.
-// V10 (tranche 5) : les dossiers de la semaine, la blessure (A4) ; la route (A3) se juge à son bloc.
-const SCENES = ['cartes', 'dossier', 'blessure'];
+// V10 (tranche 5) : les histoires (V25 C1 : js/histoires.js), la blessure (A4) ; la route (A3) se juge à son bloc.
+const SCENES = ['cartes', 'histoire', 'blessure'];
 const scenes = new Map();
 const barreA = { vus: 0, longs: [] };   // « À régler » touché : le choix ouvert en plein écran (B4 ; V21)
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
@@ -588,8 +588,8 @@ async function regler() {
         if (!scenes.has(lu.genre)) scenes.set(lu.genre, `${lu.de} ${lu.scene} — ${lu.fait}`);
       }
       if (!afaire.vu) { afaire.vu = true; await page.screenshot({ path: `${DOSSIER}/rogue-afaire.png` }); }
-      // V20 : l'histoire de la semaine (un dossier), la seule source du lundi.
-      if (lu.genre === 'dossier' && !afaire.histoire) { afaire.histoire = lu.sujet; await page.screenshot({ path: `${DOSSIER}/rogue-histoire.png` }); }
+      // V20 : l'histoire du lundi, la seule source du lundi (V25 C1 : js/histoires.js).
+      if (lu.genre === 'histoire' && !afaire.histoire) { afaire.histoire = lu.sujet; await page.screenshot({ path: `${DOSSIER}/rogue-histoire.png` }); }
       const libres = lu.opts.filter(o => !o.on);
       const pari = libres.find(o => o.pari);
       // La case vide : « tes lignes » ouvre les Lignes, qu'aucun cas plus haut ne règle ; on prend une option qui part.
@@ -779,11 +779,11 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
   if (!bareme) erreurs.push('la boutique n\'écrit pas le barème des jetons de la run');
   else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème à la boutique (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
 }
-// V20 : LES HISTOIRES — une seule source le lundi (les dossiers, `semaineAHistoire`) ; plus de route, de dilemme, de séquence ni de courriel.
+// V20 : LES HISTOIRES — une seule source le lundi (js/histoires.js `tirer`) ; plus de route, de dilemme, de séquence ni de courriel.
 {
   const decs = ((await lireSauvegarde()).partie || {}).decisions || [];
   const vieilles = decs.filter(d => d && (/^(n|m|s|vie):/.test(d.palier || '')));
-  const histoires = decs.filter(d => d && d.moment && d.moment.famille === 'dossier');
+  const histoires = decs.filter(d => d && d.moment && d.moment.famille === 'histoire');
   console.log(`6n. les histoires prises : ${histoires.map(d => `${d.palier} ${d.moment.cle}`).join(' · ') || 'aucune'} · routes, dilemmes, séquences, courriels : ${vieilles.length}`);
   if (vieilles.length) erreurs.push(`une source partie a encore écrit une décision : ${vieilles.map(d => d.palier).join(', ')}`);
 }
@@ -1581,7 +1581,7 @@ console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afai
 if (!afaire.vu) erreurs.push('À faire n\'a jamais porté de choix');
 if (afaire.vu && !afaire.lots.length) erreurs.push('aucun choix touché n\'a été envoyé');
 if (afaire.formes.length) erreurs.push(`des choix d'À faire n'ont pas la forme commune (options \`optionHtml\`) : ${afaire.formes.slice(0, 4).join(' · ')}`);
-if (!afaire.histoire) erreurs.push('aucune histoire (un dossier) n\'a été offerte dans À faire');
+if (!afaire.histoire) erreurs.push('aucune histoire n\'a été offerte dans la boîte');
 // V12 : chaque chose à régler ouvre sa page ; la boîte n'en règle aucune sur place.
 console.log(`20m. les maisons réglées dans la boîte : ${[...afaire.maisons].join(' · ') || 'aucune'} · ${afaire.pages} retour(s) à la boîte`);
 if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni le choix ni son écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);

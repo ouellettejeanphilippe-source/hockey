@@ -11,7 +11,6 @@
  *   { de, mot, fait }   de : la voix ; mot : sa réplique ; fait : la ligne de chiffres sous la citation
  */
 import { EXPEDITEURS } from './vie-gm.js';
-import { DOSSIERS } from './dossiers.js';
 import { hache } from './util.js';
 
 /** La réplique d'une scène, pigée sur la graine du jeu et son moment : la même partie redit la même phrase. */
@@ -135,16 +134,6 @@ export function sceneDuPalier({ n, fiche, rang, equipes = 32, mandat = '', grain
     mot: piger(MOTS_DES_SCENES.palier[sit], graine, 'palier', n),
     fait: `${fiche.V}-${fiche.D}-${fiche.DP} après ${n} matchs · ${rangMot(rang)}${mandat ? ` · le mandat : ${mandat}` : ''}`,
   };
-}
-
-/*
- * LES DOSSIERS DE LA SEMAINE (V10, tranche 5 — js/dossiers.js ; V20 : l'histoire de la semaine, la seule source du
- * lundi). La voix du dossier, une de ses répliques, et le fait lu dans les faits du lundi.
- *   cle   le dossier ; faits : ceux du lundi (js/saison.js `faitsDuLundi`) ; graine : la partie et la semaine
- */
-export function sceneDuDossier(cle, faits, graine = '') {
-  const D = DOSSIERS[cle];
-  return { de: EXPEDITEURS[D.de], mot: piger(D.mots, graine, 'dossier', cle), fait: D.fait(faits) };
 }
 
 /*

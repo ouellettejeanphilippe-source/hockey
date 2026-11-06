@@ -727,6 +727,19 @@ const dosDeLEpoque = saison => {
   const an = Number(String(saison || '').slice(0, 4)) || 2010;
   return `dos-${String(Math.min(2010, Math.max(1970, an - an % 10))).slice(2)}`;
 };
+/*
+ * LES ANECDOTES (V25 C1) : les faits vrais que les avant-matchs du gros match racontaient (`AVANT_GROS`, parti) vont au verso
+ * de la carte du joueur qui les a vécus — Messier 1994 chez Messier, pas chez un club de 1975. Par identifiant de la LNH ;
+ * `s`, la saison de la carte qui le porte (sans elle, toutes ses cartes).
+ */
+const ANECDOTES = {
+  8449573: [{ s: '1993-94', texte: 'Mai 1994 : il garantit une victoire au 6e match contre les Devils, puis marque trois buts en troisième.' }],
+  8451033: [{ texte: 'Il parlait à ses poteaux pendant les matchs ; il disait qu\'ils étaient ses amis.' },
+    { s: '1995-96', texte: 'À Jeremy Roenick, en séries : « Je ne l\'entends pas, j\'ai mes deux bagues de la Coupe dans les oreilles. »' }],
+  8450978: [{ s: '1995-96', texte: 'En séries, il dit que Patrick Roy n\'arrêterait pas une échappée ; Roy répond qu\'il ne l\'entend pas, ses bagues dans les oreilles.' }],
+  8449545: [{ s: '1995-96', texte: 'Il tue un rat d\'un coup de bâton dans le vestiaire, marque deux buts — le « rat trick » — et les partisans en lancent des centaines en plastique.' }],
+};
+const anecdotesDe = p => (ANECDOTES[p.id] || []).filter(a => !a.s || a.s === p.s).map(a => a.texte);
 function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
   const prim = positionLabel(p).split(' / ')[0];
   const vit = [];
@@ -735,7 +748,7 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
   if (p.bd) { const [a, m, j] = String(p.bd).split('-').map(Number); if (a && m && j) vit.push(['Naissance', `${String(j).padStart(2, '0')}-${String(m).padStart(2, '0')}-${a}`]); }
   const age = ageAtSeason(p.bd, p.s);
   if (age) vit.push(['Âge', `${age} ans`]);
-  const faits = [rangDansLaLigue(p)].filter(Boolean);
+  const faits = [rangDansLaLigue(p), ...anecdotesDe(p)].filter(Boolean);
   if (p.x) faits.push('Échangé en cours de saison : deux chandails cette année-là.');
   // Le tirage d'une Holo se lit au pied, à droite, comme le numéro estampé d'une vraie carte numérotée.
   const tirage = rarete === 'legendaire' ? tirageLimite(getPlayerKey(p), num || (G.variantes.numeros || {})[getPlayerKey(p)] || '/99') : '';

@@ -128,12 +128,12 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
 /*
  * UNE PARTIE D'AVANT LA V22 (docs/refonte-v22.md ; la banque d'événements est partie, le système reste) : ses décisions
  * nomment un dilemme (`m:`), une séquence (`s:`), un courriel ou un point de presse (`vie:`), un fil et un dossier dont
- * la clé n'existe plus. `effetDeMoment` n'en pose aucun effet, et la saison se rejoue sans planter, au but près, comme
+ * la clé n'existe plus. La porte (`appliquerChoix`, js/greffes.js) n'en pose aucun effet, et la saison se rejoue sans planter, au but près, comme
  * si elles n'avaient pas été prises.
  */
 {
   const { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey } = await import('../js/sim.js');
-  const { effetDeMoment } = await import('../js/greffes.js');   // V25 : les histoires sont une greffe du Rogue
+  const { appliquerChoix } = await import('../js/greffes.js');   // V25 : les histoires sont une greffe du Rogue
   const { TEMOINS, equipeReelle } = await import('./lib/vestiaires.mjs');
   const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(ps), { season: sa }); };
   const ligue = () => TEMOINS.map(club);
@@ -146,7 +146,8 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
     { jour: 51, equipe: 0, palier: 'do:7', moment: { famille: 'dossier', cle: 'laPratique', choix: 'systeme', joueur: k, joueurs: [k] } },
   ];
   const equipe = ligue()[0];
-  exiger('une partie d\'avant la V22 : un moment, une séquence, un courriel, un fil et un dossier inconnus ne posent aucun effet', vieilles.every(d => effetDeMoment(d, equipe) === null), vieilles.map(d => d.moment.famille).join(', '));
+  const rienPose = d => { const a = (equipe.effets || []).length, b = (equipe.effetsCibles || []).length, c = (equipe.suivis || []).length; appliquerChoix(equipe, d, 'g'); return (equipe.effets || []).length === a && (equipe.effetsCibles || []).length === b && (equipe.suivis || []).length === c; };
+  exiger('une partie d\'avant la V22 : un moment, une séquence, un courriel, un fil et un dossier inconnus ne posent aucun effet (V25 C1 : la porte les ignore)', vieilles.every(rienPose), vieilles.map(d => d.moment.famille).join(', '));
   const fiche = decisions => { const t = ligue(); simulateLeague(t, 82, { graine: 'reprise-v22', decisions: decisions.map(d => ({ ...d, moment: d.moment && { ...d.moment } })) }); return t.map(x => `${x.W}-${x.L}-${x.OTL} ${x.GF}-${x.GA}`).join(' '); };
   const a = fiche(vieilles), b = fiche(vieilles), sans = fiche([]);
   exiger('elle se rejoue au but près, deux passes identiques', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);

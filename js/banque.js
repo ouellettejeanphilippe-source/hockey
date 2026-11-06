@@ -83,7 +83,7 @@ const SOURCES_MOD = ['atelier'];
  * le feu et les modifs d'un moment sont devenus des adjoints, partis à leur tour (V21, V22). */
 /* Le niveau de chaque retouche (V25 B1 : l'échelle des joueurs ; c'était une rareté). */
 const NIVEAU_MOD = { pinceau: 1, fenetre: 2, dorure: 3, lustre: 4, mentorTrio: 3 };
-// Le mentor (`mentorTrio`) n'est pas une carte : il vient du choix d'un fil (js/vie-gm.js `CHOIX_DES_FILS`).
+// Le mentor (`mentorTrio`) n'est pas une carte : il venait du choix d'un fil (V9, parti en V25 C1) ; une vieille partie le relit.
 const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source) && !MUTATIONS[k].mentor);
 
 /*

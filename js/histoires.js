@@ -27,7 +27,7 @@ import { EXPEDITEURS } from './vie-gm.js';
 import { nomCourt } from './recit.js';
 import { SEMAINE } from './inventaire.js';
 import { vraieMot } from './faits.js';
-import { hache } from './util.js';
+import { hache, pct3 } from './util.js';
 
 /* LE RYTHME (V20, nov. 2026, V23) : un lundi sur deux environ, le repos d'une histoire sortie, ses sorties par saison, la chance d'une rare. */
 export const CHANCE_HISTOIRE = 0.55, REPOS_HISTOIRE = 5, SORTIES_MAX = 2, CHANCE_RARE = 0.4;
@@ -291,7 +291,7 @@ export const HISTOIRES = {
   leDuo: {
     de: 'ad', ico: '🔗', titre: 'Le duo', moment: 'lundi', famille: 'vestiaire',
     quand: f => !!f.duo && f.n >= 10, joueur: f => f.duo.marqueur, joueurs: f => [f.duo.marqueur, f.duo.passeur],
-    fait: f => `${nomCourt(f.duo.passeur.n)} → ${nomCourt(f.duo.marqueur.n)} : ${f.duo.buts} buts ensemble en ${f.duo.m} matchs`,
+    fait: f => `${f.duo.passeur.n} → ${f.duo.marqueur.n} : ${f.duo.buts} buts ensemble en ${f.duo.m} matchs`,
     mots: (f, j) => `${court(j)} et ${nomCourt(f.duo.passeur.n)} : ${f.duo.buts} buts ensemble en ${f.duo.m} matchs, un sur passe de l'autre. Ces deux-là se trouvent sans se regarder. Je les soude pour la saison, ou je garde la liberté de brasser les trios ?`,
     options: [
       { cle: 'souder', nom: 'Les garder ensemble', niveau: 2,
@@ -375,7 +375,7 @@ export const HISTOIRES = {
   leVirus: {
     de: 'me', ico: '🦠', titre: 'Le virus dans le vestiaire', moment: 'gros', famille: 'blessure',
     quand: f => !!f.gros && f.gros.malades.length >= 3, joueur: f => f.gros.malades[0],
-    fait: f => `${f.gros.malades.slice(0, 3).map(x => `${nomCourt(x.n)} ${x.j}`).join(' · ')} de jambes · gros match contre ${f.gros.adv}`,
+    fait: f => `${f.gros.malades.slice(0, 3).map(x => `${x.n} ${x.j}`).join(' · ')} de jambes · gros match contre ${f.gros.adv}`,
     mots: (f, j) => `${f.gros.malades.slice(0, 3).map(x => nomCourt(x.n)).join(', ')} ont passé la nuit malades ; ${court(j)} est à ${f.gros.malades[0].j}. Ils peuvent jouer, « à peu près ». Aucun bon choix : lequel fait le moins mal ?`,
     options: [
       { cle: 'jouer', nom: 'Il joue quand même', niveau: 1, duree: 1, lui: { lancers: 0.8 }, gestes: { energie: -20 } },
@@ -410,7 +410,7 @@ export const HISTOIRES = {
     options: [
       { cle: 'garantir', nom: 'Il garantit la victoire', niveau: 2,
         pari: { chance: 3 / 6, gagne: { duree: 1, lui: { lancers: 1.6, finition: 1.4 } }, perd: { duree: 4, lui: { finition: 0.6 } } } },
-      { cle: 'glace', nom: 'Un match à la fois', niveau: 1, duree: 1, canaux: { defense: 0.96 } },
+      { cle: 'glace', nom: 'Un match à la fois', niveau: 1, duree: 1, canaux: { defense: 0.94 } },
     ],
   },
 
@@ -428,7 +428,7 @@ export const HISTOIRES = {
   leurCoach: {
     de: 'dp', ico: '🔎', titre: 'Leur coach', moment: 'ronde', famille: 'series',
     quand: f => !!f.ronde && !!f.ronde.leurCoach && !!f.ronde.gardien, joueur: f => f.ronde.gardien,
-    fait: f => `${ronde(f)} · leur coach : ${f.ronde.leurCoach.ico} ${f.ronde.leurCoach.nom}, ${f.ronde.leurCoach.pouvoir}${f.ronde.gardien.pctArr != null ? ` · ${f.ronde.gardien.n} : ${String(f.ronde.gardien.pctArr.toFixed(3)).replace(/^0/, '')} en ${f.ronde.gardien.departs} départ${s(f.ronde.gardien.departs)} de séries` : ''}`,
+    fait: f => `${ronde(f)} · leur coach : ${f.ronde.leurCoach.ico} ${f.ronde.leurCoach.nom}, ${f.ronde.leurCoach.pouvoir}${f.ronde.gardien.pctArr != null ? ` · ${f.ronde.gardien.n} : ${pct3(f.ronde.gardien.pctArr)} en ${f.ronde.gardien.departs} départ${s(f.ronde.gardien.departs)} de séries` : ''}`,
     mots: (f, j) => `Leur banc, c'est ${f.ronde.leurCoach.ico} ${f.ronde.leurCoach.nom}, et il joue ${f.ronde.leurCoach.pouvoir} chaque fois qu'il peut. J'ai la vidéo de leurs vingt derniers matchs. ${court(j)} la regarde avec moi toute la nuit, ou il dort et on lui raconte.`,
     options: [
       { cle: 'video', nom: 'La vidéo toute la nuit', niveau: 2, duree: 7, lui: { arrets: 0.9 }, gestes: { energie: -15 } },
@@ -485,15 +485,16 @@ const instantDe = (moment, f) => (moment === 'ronde' ? `ronde:${f.ronde ? f.rond
 /* LES LUNDIS D'UNE HISTOIRE (V20) : tirés de la graine et de la semaine, `CHANCE_HISTOIRE` en moyenne, jamais la première. */
 export const lundiAHistoire = (graine, w) => w >= 1 && hache(String(graine), 'histoire', String(w)) < CHANCE_HISTOIRE;
 /*
- * UNE HISTOIRE SE REPOSE (nov. 2026) : sortie, `REPOS_HISTOIRE` semaines avant de revenir, sur un AUTRE joueur, `SORTIES_MAX`
- * fois par saison ; un joueur nommé ne l'est plus de la saison, par aucune histoire (son épisode 2 excepté) ; un gros match et
- * une ronde ne revoient jamais la même ; une rare, une fois par saison. `sorties` : celles de la saison, { cle, joueur, j }.
+ * UNE HISTOIRE SE REPOSE (nov. 2026) : sortie, `REPOS_HISTOIRE` semaines avant de revenir, sur un AUTRE joueur que celui
+ * qu'elle a déjà nommé (une run ne revoit jamais la même histoire sur le même joueur), `SORTIES_MAX` fois par saison ; un
+ * gros match et une ronde ne revoient jamais la même ; une rare, une fois par saison. `sorties` : celles de la saison (et des
+ * saisons d'avant de la run pour le joueur), { cle, joueur, j }.
  */
 function auRepos(k, f, sorties) {
   const H = HISTOIRES[k], lui = H.joueur(f), siennes = sorties.filter(x => x.cle === k);
   if (H.moment !== 'lundi' && siennes.length) return true;
   if (siennes.length >= SORTIES_MAX || siennes.some(x => f.jour - x.j <= REPOS_HISTOIRE * SEMAINE)) return true;
-  return !!lui && sorties.some(x => x.joueur === lui.cle && !(H.suiteDe && x.cle === H.suiteDe));
+  return !!lui && siennes.some(x => x.joueur === lui.cle);
 }
 /*
  * LE TIRAGE, PUR : la graine, le moment, les faits et les sorties de la saison. Parmi les vraies de ce moment qui ne se reposent

@@ -18,10 +18,10 @@ import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue } from './rogue.js';
-import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
+import { $, G, MODE, TEAMFULL, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, cartonDe, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort, varsEquipe } from './repechage.js';
 import { renderMain, coachHtml, persoDuMatin } from './alignement.js';
-import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, premiereRun, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
+import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, premiereRun, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi, echangeDHistoire } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 import { niveauDe, REGULIER, PILIER } from './niveaux.js';
@@ -780,7 +780,10 @@ function ouvrirEcranSaison(depuis = 0) {
           // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
           jetons: j => jetonsRogue(j),
           // V16 (tranche 6) : ce que le proprio lit le lundi, pour la masse salariale et la tête du coach.
-          masse: j => masseDuLundi(j), coachs: j => coachsDuLundi(j) } : null,
+          masse: j => masseDuLundi(j), coachs: j => coachsDuLundi(j),
+          // V25 C1 (js/faits.js) : la vraie saison d'un joueur lit son shard déjà chargé (ses doublons, le compte de son club) ;
+          // le nom d'un club par son code ; l'échange d'une histoire (la date limite : il part, un joueur de son époque signé).
+          shard: s => G.shards.get(s) || null, nom: code => TEAMFULL[code] || code, echange: o => echangeDHistoire(o) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         // Chacune s'ouvre dans une page du Marché (js/game.js) : `page` = { dans, fermer }.
         boutique: { ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },

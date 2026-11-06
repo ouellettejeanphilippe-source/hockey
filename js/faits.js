@@ -18,7 +18,7 @@
  *
  * `run` : ce que la run sait et que le moteur ne porte pas — { jetons, masse, coach, mandat: { mot, top }, anciens (un Set
  * des clés laissées partir), sorties (les histoires sorties, { cle, choix, joueur, joueurs, j }), places (16), club(t),
- * shard(saison) } ; `series` : { k (la ronde, 1 = la première), s (ta série, { A, B, feuilles }), precedente } le matin du
+ * nomDuClub(code), shard(saison) } ; `series` : { k (la ronde, 1 = la première), s (ta série, { A, B, feuilles }), precedente } le matin du
  * premier match d'une ronde. Un joueur absent des faits : null.
  */
 import { SLOTS, getPlayerKey, energieDe, jambesGardien, dosADos, rivalChoisi, joueursDeLaSaison } from './sim.js';
@@ -29,7 +29,7 @@ import { ADJOINTS } from './adjoints.js';
 import { COACHS } from './coachs.js';
 import { POUVOIRS } from './pouvoirs.js';
 import { SEMAINE } from './inventaire.js';
-import { money, ord, ordF } from './util.js';
+import { money, ord, ordF, pct3 } from './util.js';
 
 /* Les faits d'un joueur se lisent sur ses FENETRE_JOUEUR derniers matchs ; la chicane, à PUNITIONS_CHICANE punitions. */
 export const FENETRE_JOUEUR = 10, PUNITIONS_CHICANE = 4;
@@ -47,24 +47,24 @@ const classer = teams => teams.slice().sort((a, b) => (b.PTS || 0) - (a.PTS || 0
   || String(`${a.tag}${a.season || ''}`).localeCompare(String(`${b.tag}${b.season || ''}`)));
 
 /* La vraie saison d'un joueur, bornée : jamais un chiffre d'une autre époque, jamais « a fini ». */
-function vraieDe(p, shard) {
+function vraieDe(p, shard, nomDuClub = null) {
   if (!p) return null;
   const sh = shard ? shard(p.s) : null;
   const memes = sh ? sh.players.filter(x => x.id != null && x.id === p.id) : (joueursDeLaSaison(p.s) || []).filter(x => x.id != null && x.id === p.id);
   const matchsDeSaSaison = seasonGames(p.s), club = sh && sh.an && sh.an[p.t];
   return {
     buts: p.p === 'G' ? null : p.g || 0, passes: p.p === 'G' ? null : p.a || 0, gp: p.gp || 0, matchsDeSaSaison,
-    clubs: Math.max(1, memes.length), club: p.t || null, enCours: !!(club && club.gp < matchsDeSaSaison),
+    clubs: Math.max(1, memes.length), club: p.t ? (nomDuClub ? nomDuClub(p.t) : p.t) : null, enCours: !!(club && club.gp < matchsDeSaSaison),
     victoires: p.p === 'G' ? p.w || 0 : null, arrets: p.p === 'G' && p.sv ? p.sv : null,
   };
 }
 /* Elle se dit d'un seul gabarit : « cette année-là, 34 buts en 47 matchs avec Boston », « jusqu'ici, ,931 en 40 matchs ». */
-export function vraieMot(v, nomDuClub = null) {
+export function vraieMot(v) {
   if (!v || !v.gp) return '';
-  const avec = v.clubs === 1 && v.club ? ` avec ${nomDuClub ? nomDuClub(v.club) : v.club}` : '';
+  const avec = v.clubs === 1 && v.club ? ` avec ${v.club}` : '';
   const quand = v.enCours ? 'jusqu\'ici' : 'cette année-là';
   if (v.victoires != null) {
-    const pct = v.arrets ? `, ${String(v.arrets.toFixed(3)).replace(/^0/, '')} d'efficacité` : '';
+    const pct = v.arrets ? `, ${pct3(v.arrets)} d'efficacité` : '';
     return `${quand}, ${v.victoires} victoire${v.victoires > 1 ? 's' : ''} en ${v.gp} matchs${pct}${avec}`;
   }
   return `${quand}, ${v.buts} but${v.buts > 1 ? 's' : ''} en ${v.gp} matchs${avec}`;
@@ -186,8 +186,8 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
   // LA FIN D'UN SÉJOUR (V22) de la semaine : la carte, sa fiche.
   const sej = (you.sejoursFinis || []).filter(x => Number.isFinite(x.jour) && x.jour < jour && x.jour >= jour - SEMAINE).at(-1) || null;
   const sejourFini = sej && ADJOINTS[sej.cle] ? { cle: sej.cle, nom: ADJOINTS[sej.cle].nom, ico: ADJOINTS[sej.cle].ico, v: sej.v, d: sej.d, dp: sej.dp, matchs: sej.fin - sej.debut } : null;
-  const shard = run.shard || null;
-  const vraie = k => vraieDe(parCle.get(k) || (gros0 && gros0.adv && Object.values(gros0.adv.roster || {}).find(p => p && cle(p) === k)) || null, shard);
+  const shard = run.shard || null, nomDuClub = run.nomDuClub || null;
+  const vraie = k => vraieDe(parCle.get(k) || (gros0 && gros0.adv && Object.values(gros0.adv.roster || {}).find(p => p && cle(p) === k)) || null, shard, nomDuClub);
   // LE GROS MATCH DE CE MATIN (jamais la veille) : joué, il est dans `minisBoss` ; à venir, le moteur l'a annoncé (`grosAnnonces`).
   const gros0 = (you.minisBoss || []).find(x => x.jour === jour) || (ligue && ligue.grosAnnonces && ligue.grosAnnonces[jour]) || null;
   let gros = null;
@@ -203,8 +203,8 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
       adv: club(adv), sorte: gros0.raison || null, domicile: monSoir(jour).A === you,
       fiche: { v: contre.filter(x => x.e.win).length, d: contre.filter(x => !x.e.win).length },
       dernier: contre.length ? { pour: contre.at(-1).e.gf, contre: contre.at(-1).e.ga } : null,
-      ancien: ancienP ? { n: ancienP.n, cle: cle(ancienP), pts: ancienPts.reduce((a, x) => a + points(x, ancienP), 0), m: ancienPts.length, vraie: vraieDe(ancienP, shard) } : null,
-      leurVedette: lv ? { n: lv.p.n, pts: lv.pts, m: leurs.length, vraie: vraieDe(lv.p, shard) } : null,
+      ancien: ancienP ? { n: ancienP.n, cle: cle(ancienP), pts: ancienPts.reduce((a, x) => a + points(x, ancienP), 0), m: ancienPts.length, vraie: vraieDe(ancienP, shard, nomDuClub) } : null,
+      leurVedette: lv ? { n: lv.p.n, pts: lv.pts, m: leurs.length, vraie: vraieDe(lv.p, shard, nomDuClub) } : null,
       monMur: defenseurs[0] ? { ...qui(defenseurs[0]), pm: defenseurs[0].simPM || 0 } : null,
       lancee: deSuite(e => e.win),
       malades: pats.filter(x => x.j < MALADE).sort((a, b) => a.j - b.j),
@@ -224,7 +224,7 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
       leurCoach: perso && COACHS[perso.cle] ? { nom: COACHS[perso.cle].nom, ico: COACHS[perso.cle].ico, pouvoir: P ? P.nom : '' } : null,
       ficheSaison: { v: contre.filter(x => x.e.win).length, d: contre.filter(x => !x.e.win).length },
       precedente: series.precedente ? { matchs: (series.precedente.feuilles || []).length } : null,
-      meneur: meneur ? { ...qui(meneur), pts: po(meneur).PTS || 0, m: po(meneur).GP || 0, vraie: vraieDe(meneur, shard) } : null,
+      meneur: meneur ? { ...qui(meneur), pts: po(meneur).PTS || 0, m: po(meneur).GP || 0, vraie: vraieDe(meneur, shard, nomDuClub) } : null,
       gardien: partant ? { ...qui(partant), pctArr: po(partant).SA ? 1 - (po(partant).GA || 0) / po(partant).SA : null, departs: po(partant).GP || 0 } : null,
     };
   }

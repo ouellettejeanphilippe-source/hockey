@@ -118,7 +118,6 @@ check_lisibilite        le décor calme, les cartes belles
 check_relais            le relais des adjoints (V23 D, 4 nov. 2026) : en paires, chaque adjoint relaie exactement les périodes que son signal lit, à deux maillons, se voit le soir où il relaie, la paire coach-adjoint rend 1,2 à 1,6 fois ses pièces ; MESURE=0 N=20 en CI
 check_plateau           le plateau du Rogue contre la maquette (4 nov. 2026) : une run lancée dans Chromium, les douze pages lues contre le contrat (interface.md), aucune pilule blanche, les cinq portes ; une capture par page
 check_hauteur           un choix tient en un écran (V25 B2, 6 nov. 2026) : à 390 × 844, une scène, un joueur nommé et trois cartes de jeu de front, chaque nom lisible, la carte retournée qui se rapproche ; une capture
-check_verdicts          le verdict du lundi d'après
 check_lexique           un mot par idée, une icône par sens
 check_refonte           un gros changement se mesure à ce qui part (4 nov. 2026) : le diff de la branche contre main (le jeu retire au moins une ligne pour deux ajoutées, style.css sous la moitié), chaque nom de « Ce qui part » du devis parti, chaque fichier de « Ce qu'il touche » dans le diff ; à la main, avant la PR d'une refonte
 check_verite            la vérité des chiffres : un tirage pur lit la graine par entierDeGraine
@@ -126,7 +125,7 @@ check_deck              le deck
 check_emojis            les émojis au trait
 check_speciales         les unités spéciales (AN 1-2, DN 1-2)
 check_fils              les fils de la saison citent des feuilles réelles
-check_dossiers          les histoires du lundi
+check_histoires         les histoires (V25 C1) : la banque, la réplique qui nomme, le tirage pur, chacune s'ouvre
 check_mots              les mots d'une réponse disent ses lignes
 check_au_mieux          « Aligner au mieux » fait ce qu'il dit
 check_identite          l'identité de départ
@@ -156,7 +155,7 @@ Leur propre étape au CI : `check_coquille`, `check_graine`, `check_instantane`,
 ```
 check_packs (une demi-minute), check_gardiens, check_jambes (une minute), check_chiffres (une minute),
 check_banque (une douzaine de minutes), check_affinite (trois minutes), check_duel (six minutes ; N),
-check_retours (deux minutes ; GRAINES), check_arcs (deux minutes), check_suivis, check_effets (vingt minutes ; N, IDS),
+check_retours (deux minutes ; GRAINES), check_suivis, check_effets (vingt minutes ; N, IDS),
 check_pouvoirs sans MESURE=0 (cinq minutes sur quatre processus ; N, COACHS, FILS), check_paliers,
 check_moments (S66, en paires), check_situations, check_series_pas (S79), check_plan_de_match (V17),
 check_force (la fiche suit la force), check_robot (le robot « premier Signer », 40 saisons ; BALLOTTAGE, MODE=rogue),
