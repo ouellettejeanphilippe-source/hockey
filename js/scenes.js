@@ -86,13 +86,6 @@ export const MOTS_DES_SCENES = {
     coupe: ['La Coupe. Je n\'ai plus rien à vous demander, sauf de recommencer.',
       'Vous l\'avez ramenée. Je vais m\'en souvenir longtemps.'],
   },
-  // LES GALONS DE LA SAISON (A8) : le capitaine, qui les a vus se gagner.
-  galons: {
-    un: ['On va s\'en souvenir dans le vestiaire.',
-      'Celui-là, il l\'a gagné soir après soir.'],
-    plusieurs: ['On va s\'en souvenir dans le vestiaire.',
-      'Des saisons comme ça, on les raconte aux recrues.'],
-  },
   // LE BUTIN D'UN GROS MATCH GAGNÉ (A6) : l'entraîneur veut une page de plus, ton adjoint trouve le cahier épais.
   butin: {
     serre: ['On l\'a arraché. Prends quelqu\'un pour les prochains soirs, on en aura besoin.',
@@ -203,15 +196,3 @@ export function sceneDuMandat({ sort, fiche, rang, equipes = 32, mandat = '', gr
   };
 }
 
-/*
- * A8 · LES GALONS DE LA SAISON. Le capitaine. Le fait : combien de galons, et à qui.
- *   noms   les joueurs galonnés, dans l'ordre où leurs galons sont tombés (un nom par galon)
- */
-export function sceneDesGalons({ noms, graine = '' }) {
-  const n = noms.length, uniques = [...new Set(noms)];
-  return {
-    de: EXPEDITEURS.ca,
-    mot: piger(MOTS_DES_SCENES.galons[n > 1 ? 'plusieurs' : 'un'], graine, 'galons', n),
-    fait: `${n} galon${n > 1 ? 's' : ''} cette saison · ${uniques.join(', ')}`,
-  };
-}

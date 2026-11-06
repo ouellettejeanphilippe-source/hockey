@@ -204,7 +204,7 @@ async function prendrePalier() {
   for (let k = 0; k < 3; k++) {
     await page.waitForTimeout(350);
     if (await page.$('#choixModal:not([hidden]) .choix-sheet:is([data-genre="alignement"], [data-genre="echange"])')) { await sortirDansAlignement(); continue; }
-    if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, .tc-prendre, button.choix-option:not([disabled]))'))) break;
+    if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, .tc-prendre, button.tc-prendre:not([disabled]))'))) break;
   }
   // Après la carte : le hub, ou un autre plein écran (un sommaire, un choix, la main suivante).
   await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-suite, #choixModal:not([hidden]) .choix-sheet, .result .score', { timeout: 120000 });
@@ -243,7 +243,7 @@ async function ouvrirLaMain() {
   await versLaBoite();
   if (await page.$('#hubModal .hub-main-ouvrir')) { await _click('#hubModal .hub-main-ouvrir'); return; }
   await versSaPage('palier');
-  await _click(`${SA_PAGE('palier')} .af-option`);
+  await _click(`${SA_PAGE('palier')} .tc-prendre`);
 }
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
@@ -253,7 +253,7 @@ async function debloquer() {
     if (await page.$('#hubModal .hub-msg.bloque[data-msg="trou"]')) {
       await versSaPage('trou');
       if (guetterTrouHook) await guetterTrouHook();
-      await toucher(`${SA_PAGE('trou')} .af-option:not([disabled]):not(.ouvre)`);
+      await toucher(`${SA_PAGE('trou')} .choix-option:not([aria-disabled="true"]):not(.ouvre) .tc-prendre`);
       continue;
     }
     if (await page.$('#hubModal .hub-msg.bloque[data-msg="palier"]')) {
@@ -265,7 +265,7 @@ async function debloquer() {
     const avantBal = ballottage.fait;
     await guetterBallottage();
     if (ballottage.fait !== avantBal) continue;
-    if (await toucher('#choixModal:not([hidden]) .choix-sheet[data-msg] .af-option:not([disabled]):not(.on)')) continue;
+    if (await toucher('#choixModal:not([hidden]) .choix-sheet[data-msg] .choix-option:not([aria-disabled="true"]):not(.on) .tc-prendre')) continue;
     // Le choix qui attend est plié : « Encore un choix » l'ouvre.
     await toucher('#hubModal .hub-traiter');
   }
@@ -274,7 +274,7 @@ async function guetterBallottage() {
   if (ballottage.fait) return;
   if (!(await page.$('#hubModal .hub-msg[data-msg="blessure"]'))) return;
   await versSaPage('blessure');
-  const ouvrir = await page.$(`${SA_PAGE('blessure')} .af-option[data-choix="rappel"]`);
+  const ouvrir = await page.$(`${SA_PAGE('blessure')} .tc-prendre[data-choix="rappel"]`);
   if (!ouvrir || !(await ouvrir.isVisible())) return;
   // Un choix forcé — ou n'importe quel plein écran, le sommaire de la journée compris (S78) — passe devant.
   const force = await page.$('#choixModal:not([hidden]) .choix-sheet:not([data-msg="blessure"])');
@@ -304,9 +304,9 @@ async function guetterBallottage() {
  */
 const paquetsVus = [];
 async function ouvrirPaquet() {
-  const p = await page.$('#choixModal:not([hidden]) .paquet');
+  const p = await page.$('#choixModal:not([hidden]) .pochette');
   if (!p || !(await p.isVisible())) return false;
-  const annonce = Number(((await page.textContent('#choixModal .paquet-n')) || '').replace(/\D/g, '')) || 0;
+  const annonce = Number(((await page.textContent('#choixModal .pochette-n')) || '').replace(/\D/g, '')) || 0;
   const pile = await traverserPaquet(page);
   const lu = await page.evaluate(() => ({
     cartes: document.querySelectorAll('#choixModal .choix-main > .choix-option.tc').length,
@@ -329,7 +329,7 @@ async function ouvrirPaquet() {
  */
 const ecranPret = (timeout = 120000) => page.waitForFunction(() => {
   // L'alignement aussi (1.0, oct.), et l'échange (qui sort, oct.) : ses lignes ne sont pas des `.choix-option`.
-  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .aln-choisir, #choixModal:not([hidden]) .ech-q, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
+  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .aln-choisir, #choixModal:not([hidden]) .ech-q, #choixModal:not([hidden]) .pochette, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
   return [...document.querySelectorAll(sel)].some(el => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return false;
@@ -357,7 +357,7 @@ async function repondreAuxChoix() {
     }
     // QUI SORT, DANS L'ÉCHANGE (oct.) : ses lignes ne sont pas des `.choix-option`.
     if (await page.$('#choixModal:not([hidden]) .choix-sheet:is([data-genre="alignement"], [data-genre="echange"])')) { await sortirDansAlignement(); await page.waitForTimeout(350); continue; }
-    const opt = await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])');
+    const opt = await page.$('#choixModal:not([hidden]) :is(button.tc-prendre, .tc-prendre):not([disabled])');
     if (!opt || !(await opt.isVisible())) {
       /*
        * UN CHOIX EN ATTENTE SE ROUVRE COMME UN JOUEUR LE ROUVRE (S77). Une
@@ -379,7 +379,7 @@ async function repondreAuxChoix() {
       // Un message qui bloque la journée (S78) : on le règle, puis on repasse.
       if (await page.$('#hubModal .hub-traiter')) {
         await debloquer();
-        if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled]), #hubModal .hub-page[data-genre="sommaire"]')) continue;
+        if (await page.$('#choixModal:not([hidden]) :is(button.tc-prendre, .tc-prendre):not([disabled]), #hubModal .hub-page[data-genre="sommaire"]')) continue;
       }
       return;
     }
@@ -400,17 +400,18 @@ async function repondreAuxChoix() {
         await _click('#choixModal .main-aj');
       }
       // L'ÉCRAN DE COMBAT (V5) : un gros match offre deux cartes de vestiaire ; on garde celle qui n'est pas un pari (le dé ferait attendre la décision).
-      const vests = await page.$$('#choixModal .main-vest:not([disabled])');
+      // V25 B2 : la carte de vestiaire est une carte de jeu ; sa forme se lit dans son type (`.carton-club-nom`), « Garder » dessous la garde.
+      const vests = await page.$$('#choixModal .main-vest:not([aria-disabled="true"])');
       if (vests.length) {
-        if (!(await page.$('#choixModal .duel-prop:disabled'))) errors.push('le combat laisse jouer sans garder de carte de vestiaire');
-        const formes = await Promise.all(vests.map(v => v.$eval('.choix-forme', e => e.textContent).catch(() => '')));
-        await vests[Math.max(0, formes.findIndex(f => !/Pari/.test(f)))].click();
+        if (!(await page.$('#choixModal .duel-prop[aria-disabled="true"]'))) errors.push('le combat laisse jouer sans garder de carte de vestiaire');
+        const formes = await Promise.all(vests.map(v => v.$eval('.carton-club-nom', e => e.textContent).catch(() => '')));
+        await vests[Math.max(0, formes.findIndex(f => !/Pari/.test(f)))].$eval('.tc-prendre', b => b.click());
       }
       // V17 : ton adjoint propose deux ou trois plans, et « Garder » ; on prend sa première idée.
       const idees = await page.$$eval('#choixModal .duel-prop', e => e.map(b => b.dataset.prop).filter(k => k !== 'garder'));
       if (idees.length < 2 || idees.length > 3) errors.push(`l'adjoint propose ${idees.length} plan(s) au duel au lieu de deux ou trois`);
       const motJouer = idees[0] || 'garder';
-      await _click(`#choixModal .duel-prop[data-prop="${motJouer}"]`);
+      await _click(`#choixModal .duel-prop[data-prop="${motJouer}"] .tc-prendre`);
       await ecranPret();
       await page.waitForTimeout(350);
       const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
@@ -435,7 +436,7 @@ async function repondreAuxChoix() {
     if (sansPuce && genre !== 'hub-proprio') errors.push(`le choix « ${titre} » a ${sansPuce} option(s) sans effet chiffré`);
     choixVus.set(genre, [...(choixVus.get(genre) || []), titre]);
     // UN PARI SE TRANCHE AU CHOIX : la boîte dit tout de suite comment il a tourné.
-    const pari = /Pari/.test(await opt.$eval('.choix-forme', e => e.textContent).catch(() => ''));
+    const pari = /Pari/.test(await opt.evaluate(b => ((b.closest('.choix-option') || b).querySelector('.carton-club-nom') || {}).textContent || '').catch(() => ''));
     await opt.click();
     /*
      * LE LANCER DE DÉ (1.0, oct.). Une réponse risquée ouvre le dé : ce qu'il faut (« sur 4, 5 ou 6 »),

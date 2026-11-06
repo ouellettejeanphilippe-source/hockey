@@ -1117,61 +1117,16 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-recit { font-size: var(--t-3); line-height: 1.5; color: var(--encre-2); margin: 0; }
 .choix-encours { font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); padding: var(--esp-2) var(--esp-3); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .choix-encours b { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); margin-right: var(--esp-1); }
-.choix-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--esp-3); }
-.choix-sheet[data-genre="evenement"] .choix-options:not(.choix-main) { grid-template-columns: 1fr; }
-.choix-sheet[data-genre="evenement"] .choix-option { min-height: 0; }
-/* DEUX RÉPONSES, FACE À FACE (V23) : une histoire ou un choix à deux réponses se joue comme deux cartes côte à côte,
-   le gros chiffre au centre ; à trois et plus (les plans du duel, les rivaux), la liste. */
-.choix-options:has(> .choix-option:first-child:nth-last-child(2)) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }
-.choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option { min-height: 200px; padding: var(--esp-3); text-align: center; align-items: center; }
-.choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option .choix-option-gros { flex-direction: column; align-items: center; margin: auto 0; }
-.choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option .choix-puces { justify-content: center; }
-/* Face à face, une carte se lit d'un coup d'œil : son nom, son gros chiffre, son prix. Le bon côté redit le gros chiffre et
-   les gestes en mots se lisent dans « Les chiffres » : ils se taisent ici (V23 ; JP : *trop de texte*). */
-.choix-sheet:not(.chiffres) .choix-options:has(> .choix-option:first-child:nth-last-child(2)) > .choix-option:has(.choix-option-gros) :is(.choix-option-bon, .puce.neutre:not(.duree)) { display: none; }
-.choix-options.compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--esp-2); }
-.choix-options.compact .choix-option { min-height: 0; padding: var(--esp-2) var(--esp-3); gap: 2px; }
-.choix-options.compact .choix-option-nom { font-size: var(--t-3); }
-/* UNE CARTE DE CHOIX (V23, docs/refonte-v23.md § B ; JP, 2 nov. : *une vraie expérience digne d'un roguelike ou card
-   game* — oui à défaire la tuile sobre de la V19 et ses coins vifs). Un aplat, sans dégradé (les surfaces restent plates),
-   mais une carte qu'on tient : son relief, le filet du haut à la couleur de sa forme (un cadeau vert, un échange or, un
-   moindre mal rouge, un pari violet), et elle se soulève sous le doigt. Touchée, elle s'envole (`.jouee`), puis le choix part. */
-.choix-option {
-  --forme-c: var(--filet);
-  display: flex; flex-direction: column; gap: var(--esp-2); text-align: left; cursor: pointer;
-  padding: var(--esp-4); min-height: 120px; color: var(--encre);
-  background: var(--fond-2); border: 1px solid var(--filet); border-top: 3px solid var(--forme-c); border-radius: var(--r-1);
-  box-shadow: 0 10px 22px -14px var(--noir-pur), 0 1px 0 var(--filet);
-  transition: border-color var(--t-vite), transform 160ms var(--e-sortie), box-shadow 160ms var(--e-sortie);
-  animation: panneau-monte 200ms var(--e-sortie) backwards;
-}
-.choix-option[data-forme="cadeau"] { --forme-c: var(--bon); }
-.choix-option[data-forme="echange"] { --forme-c: var(--or); }
-.choix-option[data-forme="moindre"] { --forme-c: var(--mauvais); }
-.choix-option[data-forme="pari"] { --forme-c: var(--violet); }
-.choix-option:hover:not([disabled]), .choix-option:focus-visible { border-color: var(--or); border-top-color: var(--forme-c); outline: none; transform: translateY(-3px); box-shadow: 0 16px 28px -14px var(--noir-pur), 0 0 0 1px color-mix(in srgb, var(--forme-c) 40%, transparent); }
-.choix-option:active:not([disabled]) { transform: translateY(-1px) scale(0.985); }
+/* IL N'Y A QU'UNE CARTE DE JEU (V25 B2 ; JP, 5 nov. : *trois petites côte à côte*) : les options d'un choix sont la main de
+   cartes `.choix-main` (plus bas, § 06c) ; `.compact` (une liste : tes cartes en main, Ton club, Ton plan) les range en grille de trois. */
+.choix-main.compact { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; margin: 0; padding-inline: 0; scroll-snap-type: none; }
+.choix-main.compact > .tc { flex: none; min-width: 0; }
 .choix-option.jouee { animation: choix-jouee 200ms var(--e-sortie) forwards; pointer-events: none; }
 @keyframes choix-jouee { to { opacity: 0; transform: translateY(-28px) scale(1.04); } }
-.choix-option[disabled] { opacity: 0.45; cursor: not-allowed; }
-/* Une option choisie sans fermer l'écran (la carte de vestiaire, les choix de la semaine) : le filet d'or, et son crochet. */
-.choix-option.on { border-color: var(--or); }
-.choix-option.on .choix-option-nom::after { content: " ✓"; color: var(--or); }
-/* Une option › ouvre son écran (le combat, le paquet, une liste) au lieu de partir. */
-.choix-option.ouvre .choix-option-nom::after { content: " ›"; color: var(--or); }
-/* LE GROS CHIFFRE : ce que la carte rapporte d'abord, en grand (« +20 🪙 »), le mot qui le nomme en petit. */
-.choix-option-gros { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); color: var(--bon); }
-.choix-option-gros.prix { color: var(--mauvais); }
-.choix-option-gros b { font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
-.choix-option-gros small { font: 650 var(--t-2)/1.3 var(--corps); color: var(--encre-2); }
-/* Dans un écran qui en porte plusieurs (le gros match, la semaine) : la même option, serrée. */
-:is(.main-vest, .af-option).choix-option { min-height: 0; padding: var(--esp-3); gap: var(--esp-1); }
-.choix-option-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
-.choix-forme { align-self: flex-start; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); }
-.choix-option-sous { font-size: var(--t-2); color: var(--encre-2); line-height: 1.4; }
-.choix-option-bon { font: 650 var(--t-2)/1.35 var(--corps); color: var(--bon); }
-.choix-option-prix { font: 650 var(--t-2)/1.35 var(--corps); color: var(--live); }
-.choix-option-mut { font-size: var(--t-2); color: var(--encre-2); line-height: 1.35; font-style: italic; }
+/* Une carte gardée sans fermer l'écran (la carte de vestiaire, les rivaux cochés) : un filet d'or autour de son carton. */
+.choix-option.on > .tc-face { box-shadow: 0 0 0 3px var(--or); }
+/* Une carte › ouvre son écran (le paquet, une liste) au lieu de partir. */
+.choix-option.ouvre .tc-prendre::after { content: " ›"; }
 .choix-option-non { font-size: var(--t-1); color: var(--encre-3); }
 .choix-suite { display: block; width: 100%; min-height: 48px; margin-top: var(--esp-3); }
 .choix-autres { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
@@ -3729,16 +3684,12 @@ a.spin-club:hover { background: var(--fond-2); }
 :is(.ej-soir, .hub-rangee) .mauvais { color: var(--mauvais); }
 .ej-detail { grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
 .ej-coach { display: flex; flex-direction: column; gap: var(--esp-1); }
-/* V23, la nouvelle interface : l'entraîneur sur la plaque de son vrai club — son écusson de philosophie, son nom en gros, son
-   club et sa saison au-dessus, sa maîtrise dessous ; son niveau sur l'ardoise noire au bout. */
-.ej-coach-tete { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--esp-3); padding: 0 0 0 var(--esp-3); border-radius: var(--r-1); overflow: hidden; background: var(--team-band, var(--fond-2)); color: var(--team-ink, var(--encre)); box-shadow: inset 0 -3px 0 var(--team-stripe, var(--or)); animation: tele-balaie 420ms var(--e-sortie) both; }
-.ej-coach-qui { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--esp-2) 0; }
-.ej-coach-qui b { font: 800 var(--t-5)/1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ej-coach-qui small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ej-coach-ico { font-size: var(--t-6); line-height: 1; }
-.ej-rang { align-self: stretch; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; padding: 0 var(--esp-3); background: var(--noir-pur); color: var(--or); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
-/* LE PLATEAU (la maquette A) : son niveau en gros chiffre sur l'ardoise. */
-.ej-rang b { font-size: var(--t-7); letter-spacing: 0; line-height: 1; }
+/* LE COACH EST UNE CARTE (V25 B2) : l'entraîneur sur une vraie carte de jeu aux couleurs de son vrai club, son niveau de
+   personnage en coin ; à côté, la jauge d'expérience, ses chiffres et sa règle. */
+.ej-coach-haut { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr); gap: var(--esp-3); align-items: center; padding: var(--esp-2) var(--esp-1) 0; }
+.ej-coach-cote { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
+.ej-coach-cote .ej-jauge { margin: 0 0 var(--esp-2); }
+.ej-rang b { font-size: var(--t-3); line-height: 1; margin-left: 2px; }
 .ej-jauge { position: relative; height: 6px; margin: var(--esp-2) var(--esp-3) var(--esp-3); border-radius: var(--r-1); background: var(--fond-3); }
 .ej-jauge i { display: block; height: 100%; border-radius: var(--r-1); background: var(--or); }
 .ej-jauge em { position: absolute; top: -2px; width: 2px; height: 10px; margin-left: -1px; background: var(--encre-3); }
@@ -4644,9 +4595,6 @@ body.mode-rogue .af-maison-titre { font-weight: 600; letter-spacing: 0.02em; tex
 body.mode-rogue .scene-de { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .scene-mot { margin: 0; font: 800 var(--t-4)/1.25 var(--corps); color: var(--encre); animation: tele-monte 360ms 160ms var(--e-sortie) both; }
 .scene-fait { margin: 0; font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); font-variant-numeric: tabular-nums; }
-/* Les plans du duel : le bouton `optionHtml`, serré, une colonne au téléphone. */
-.af-options { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
-@media (min-width: 700px) { .af-options { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); } }
 .af-chiffres { align-self: center; }
 /* Une nouvelle d'Hier soir : la carte qui change, le vestiaire, les mouvements de l'alignement. */
 .hub-situ, .hub-mouvements { display: flex; flex-direction: column; gap: var(--esp-2); }
@@ -5454,9 +5402,9 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 @media (min-width: 1200px) {
   .ent-carte { flex-basis: calc(33.333% - 8px); }
 }
-/* == 06c. LES CARTES DE MATCH ET LES CHOIX — la carte .tc, la main d'un match, le deck, le paquet, « qui sort ? », le dépistage à choisir, les déblocages == */
+/* == 06c. LES CARTES DE MATCH ET LES CHOIX — la carte .tc, la main d'un match, le deck, la pochette, « qui sort ? », le dépistage à choisir, les déblocages == */
 
-/* ---- La bande de cartes (.choix-main) : au téléphone elle se balaie, une carte lisible à la fois ; dès 640 px, côte à côte ---- */
+/* ---- La main de cartes (.choix-main) : jusqu'à trois de front, au-delà elle se balaie au téléphone ; dès 640 px, côte à côte ---- */
 .choix-main {
   flex: none; display: flex; justify-content: flex-start; gap: var(--esp-3);
   margin: 0 calc(-1 * var(--esp-4)); padding: var(--esp-2) var(--esp-4) var(--esp-3);
@@ -5464,10 +5412,21 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 }
 .choix-main::-webkit-scrollbar { display: none; }
 .choix-main > .tc { flex: 0 0 min(72vw, 270px); scroll-snap-align: start; }
-/* V23 : deux cartes (une histoire, deux réponses) se font face, côte à côte, sans se balayer : rien de coupé au bord. */
-.choix-main:has(> .tc:first-child:nth-last-child(2)) { overflow-x: visible; margin: 0; padding-inline: 0; }
-.choix-main > .tc:first-child:nth-last-child(2), .choix-main > .tc:first-child:nth-last-child(2) + .tc { flex: 1 1 0; min-width: 0; }
 .main-sheet .choix-main > .tc { flex-basis: min(64vw, 240px); }
+/* V25 B2 (JP, 5 nov. : *trois petites côte à côte*) : jusqu'à trois cartes tiennent de front, sans se balayer ni rien de coupé au
+   bord ; à deux, elles se font face ; à quatre et plus, la main se balaie. Une petite carte retournée se RAPPROCHE pour se
+   lire : son verso grossit par-dessus ses voisines, depuis son coin du côté du bord. */
+.choix-main:has(> .tc:first-child:nth-last-child(-n+3)) { overflow: visible; margin: 0; padding-inline: 0; scroll-snap-type: none; }
+.choix-main:has(> .tc:first-child:nth-last-child(-n+3)) > .tc { flex: 1 1 0; min-width: 0; }
+/* Une carte seule (le départ d'une run, un pack à signer) : de la largeur d'une carte qu'on tient, au centre. */
+.choix-sheet:not(.paquet-pile) .choix-main > .tc:only-child { flex: none; width: min(60vw, 240px); max-width: 100%; margin-inline: auto; }
+.choix-main.compact > .tc:only-child { grid-column: 2; width: auto; margin-inline: 0; }
+.choix-main > .tc > .tc-face { transition: transform var(--t-lent) var(--e-sortie); transform-origin: 50% 0; }
+.choix-sheet:not(.paquet-pile) .choix-main > .tc:has(> .tc-face.au-verso) { z-index: 9; }
+.choix-sheet:not(.paquet-pile) .choix-main:has(> .tc:first-child:nth-last-child(3)) > .tc > .tc-face.au-verso { transform: scale(2.2); }
+.choix-sheet:not(.paquet-pile) .choix-main:has(> .tc:first-child:nth-last-child(2)) > .tc > .tc-face.au-verso { transform: scale(1.45); }
+.choix-sheet:not(.paquet-pile) .choix-main:has(> .tc:first-child:nth-last-child(-n+3)) > .tc:first-child > .tc-face { transform-origin: 0 0; }
+.choix-sheet:not(.paquet-pile) .choix-main:has(> .tc:first-child:nth-last-child(-n+3)) > .tc:last-child > .tc-face { transform-origin: 100% 0; }
 /* Un joueur dans la bande : sa carte en grand, de la largeur de sa place (JP, oct. : « quand ouverture de pack, mettre
    cartes en gros, pas en miniature »). Les joueurs se balaient comme les autres cartes, un à la fois au téléphone. */
 .choix-main > .tc-joueur > .tcj-carte { align-self: stretch; }
@@ -5481,31 +5440,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
   .choix-main > .tc, .main-sheet .choix-main > .tc { flex: none; }
   .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(160px, 180px)); gap: var(--esp-3); }
 }
-@media (min-width: 900px) { .choix-sheet[data-genre="entracte"] .choix-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-
-/* ---- Une option avec un visage (qui sort ?, un choix de joueur) ---- */
-.choix-option.avec-visage { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: var(--esp-3); align-items: center; }
-.choix-option.avec-visage > :not(.choix-option-visage) { grid-column: 2; }
-.choix-option-visage { grid-row: 1 / span 4; position: relative; width: 44px; height: 44px; border-radius: var(--r-1); overflow: hidden; background: var(--fond-2); }
-.choix-option-visage > img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.choix-option-visage > .headshot-fallback { position: absolute; inset: 0; font-size: var(--t-4); opacity: 0.4; }
-/* Un écusson en visage (Ton club, js/rogue-jeu.js) : le dessin entier, sans fond. */
-.choix-option-visage > svg { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); }
-.choix-option-visage:has(> svg) { background: transparent; }
-/* LA PLAQUE D'UN CLUB (V23, la nouvelle interface ; les rivaux) : le club à ses couleurs, son écusson, son nom ; ce qu'il paie
-   sur l'ardoise noire au bout, comme un tableau de télé. Choisi, un filet or tout autour. */
-.choix-option.eq { grid-template-columns: 40px minmax(0, 1fr) auto; min-height: 64px; padding: 0 0 0 var(--esp-3); border: 0; border-left: 4px solid var(--eq-stripe); border-radius: var(--r-1); overflow: hidden; background: var(--eq-band); color: var(--eq-ink); }
-.choix-option.eq > :not(.choix-option-visage, .choix-option-gros) { grid-column: 2; }
-.choix-option.eq .choix-option-visage { width: 40px; height: 40px; background: transparent; }
-.choix-option.eq .choix-option-nom { color: inherit; }
-.choix-option.eq :is(.choix-forme, .choix-puces) { display: none; }
-.choix-option.eq .choix-option-sous { color: inherit; opacity: 0.85; }
-.choix-option.eq .choix-option-gros b { font-size: var(--t-6); }
-.choix-option.eq .choix-option-gros { grid-column: 3; grid-row: 1 / span 4; align-self: stretch; flex-direction: column; justify-content: center; align-items: center; margin: 0; padding: 0 var(--esp-3); background: var(--noir-pur); color: var(--bon); }
-.choix-option.eq .choix-option-gros small { display: none; }
-.choix-option.eq .choix-option-sous { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.choix-option.eq.on { box-shadow: inset 0 0 0 3px var(--or); }
-
 /* ---- La carte de match (.tc) : le métal de sa rareté, une bannière de son genre, la gemme du coût, le dessin au trait ---- */
 .tc.tc-commune { --tc-bord: var(--filet); }
 .tc.tc-peu { --tc-bord: var(--bleu); }
@@ -5558,7 +5492,8 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .carton.cs-jeu:is(.tc-rare, .tc-legendaire) .carton-photo { inset: auto 7cqw 36cqw; height: 92cqw; border-radius: 0; }
 .cs-jeu .carton-club .tc-dessin { width: 100%; height: 100%; color: color-mix(in srgb, var(--band) 75%, black); filter: none; }
 .tcj-ico { font-size: 11cqw; line-height: 1; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
-.cs-jeu .carton-nom .lname { font-size: min(var(--nom-max, 11cqw), calc(var(--nom-l, 58cqw) / var(--n, 8) * 2.1)); }
+/* Le nom d'une carte de jeu : jamais sous 8cqw (il se lit sur une carte d'un pouce, V25 B2 `check_hauteur`) ; long, il passe sur deux lignes. */
+.cs-jeu .carton-nom .lname { font-size: max(8cqw, min(var(--nom-max, 11cqw), calc(var(--nom-l, 58cqw) / var(--n, 8) * 2.1))); white-space: normal; line-height: 0.95; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 /*
  * LA CARTE ET « PRENDRE » (JP : *mettre les stats derrière la carte*). La face (`.tc-face`) porte le carton et, dans son
  * dos, ce que la carte fait (`.tc-verso`) : un toucher la retourne (js/cartes.js, `cj-tourne-1/2`). Pas de panneau autour.
@@ -5670,50 +5605,50 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
   .main-sheet .choix-main > .tc .tc-texte { display: none; }
 }
 
-/* ---- Le paquet (paquetHtml, brancherPaquet) : posé PAR-DESSUS la bande, qui garde sa place, invisible et intouchable ---- */
-.paquet-scene { display: none; }
+/* ---- La pochette de récompense (pochetteHtml, brancherPaquet) : posée PAR-DESSUS la bande, qui garde sa place, invisible et intouchable ---- */
+.pochette-scene { display: none; }
 .paquet-ferme .choix-corps, .paquet-dechire .choix-corps { position: relative; }
-.paquet-ferme .paquet-scene, .paquet-dechire .paquet-scene { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 40px 0 54px; pointer-events: none; }
-.paquet-ferme .paquet, .paquet-dechire .paquet { pointer-events: auto; }
+.paquet-ferme .pochette-scene, .paquet-dechire .pochette-scene { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 40px 0 54px; pointer-events: none; }
+.paquet-ferme .pochette, .paquet-dechire .pochette { pointer-events: auto; }
 .paquet-ferme :is(.choix-main, .choix-points, .choix-autres), .paquet-dechire :is(.choix-main, .choix-points, .choix-autres) { opacity: 0; pointer-events: none; }
 .paquet-ferme .tc-dos, .paquet-dechire .tc-dos { opacity: 1; }
-.paquet {
+.pochette {
   --lueur-c: color-mix(in srgb, var(--encre) 16%, transparent);
   position: relative; display: flex; flex-direction: column; align-items: center; width: min(56vw, 200px); aspect-ratio: 5 / 7;
   padding: 0; border: 0; background: none; color: inherit; cursor: pointer; animation: paquet-flotte 2.8s ease-in-out infinite;
 }
-.paquet:focus-visible { outline: 2px solid var(--choisi); outline-offset: 6px; border-radius: var(--r-2); }
+.pochette:focus-visible { outline: 2px solid var(--choisi); outline-offset: 6px; border-radius: var(--r-2); }
 /* La lueur dit la meilleure carte : bleu pour une peu commune, blanc pour une rare, or pour une légendaire. */
-.paquet-peu { --lueur-c: color-mix(in srgb, var(--bleu) 35%, transparent); }
-.paquet-rare { --lueur-c: color-mix(in srgb, var(--choisi) 40%, transparent); }
-.paquet-legendaire { --lueur-c: color-mix(in srgb, var(--or) 55%, transparent); }
-.paquet-lueur { position: absolute; inset: -14% -22%; z-index: 0; border-radius: 50%; pointer-events: none; background: var(--lueur-c); animation: paquet-pouls 1.9s ease-in-out infinite; }
-.paquet-corps { position: relative; z-index: 1; display: flex; flex-direction: column; width: 100%; height: 100%; box-shadow: var(--ombre); }
+.pochette-peu { --lueur-c: color-mix(in srgb, var(--bleu) 35%, transparent); }
+.pochette-rare { --lueur-c: color-mix(in srgb, var(--choisi) 40%, transparent); }
+.pochette-legendaire { --lueur-c: color-mix(in srgb, var(--or) 55%, transparent); }
+.pochette-lueur { position: absolute; inset: -14% -22%; z-index: 0; border-radius: 50%; pointer-events: none; background: var(--lueur-c); animation: paquet-pouls 1.9s ease-in-out infinite; }
+.pochette-corps { position: relative; z-index: 1; display: flex; flex-direction: column; width: 100%; height: 100%; box-shadow: var(--ombre); }
 /* Les deux rabats sertis, du papier d'argent pincé en dents de scie. */
-.paquet-rabat { flex: none; height: 16px; background: var(--encre-2); }
-.paquet-haut { clip-path: polygon(0 0, 100% 0, 100% 70%, 95% 100%, 90% 70%, 85% 100%, 80% 70%, 75% 100%, 70% 70%, 65% 100%, 60% 70%, 55% 100%, 50% 70%, 45% 100%, 40% 70%, 35% 100%, 30% 70%, 25% 100%, 20% 70%, 15% 100%, 10% 70%, 5% 100%, 0 70%); border-radius: var(--r-1) var(--r-1) 0 0; transform-origin: 90% 100%; }
-.paquet-bas { clip-path: polygon(0 30%, 5% 0, 10% 30%, 15% 0, 20% 30%, 25% 0, 30% 30%, 35% 0, 40% 30%, 45% 0, 50% 30%, 55% 0, 60% 30%, 65% 0, 70% 30%, 75% 0, 80% 30%, 85% 0, 90% 30%, 95% 0, 100% 30%, 100% 100%, 0 100%); border-radius: 0 0 var(--r-1) var(--r-1); }
+.pochette-rabat { flex: none; height: 16px; background: var(--encre-2); }
+.pochette-haut { clip-path: polygon(0 0, 100% 0, 100% 70%, 95% 100%, 90% 70%, 85% 100%, 80% 70%, 75% 100%, 70% 70%, 65% 100%, 60% 70%, 55% 100%, 50% 70%, 45% 100%, 40% 70%, 35% 100%, 30% 70%, 25% 100%, 20% 70%, 15% 100%, 10% 70%, 5% 100%, 0 70%); border-radius: var(--r-1) var(--r-1) 0 0; transform-origin: 90% 100%; }
+.pochette-bas { clip-path: polygon(0 30%, 5% 0, 10% 30%, 15% 0, 20% 30%, 25% 0, 30% 30%, 35% 0, 40% 30%, 45% 0, 50% 30%, 55% 0, 60% 30%, 65% 0, 70% 30%, 75% 0, 80% 30%, 85% 0, 90% 30%, 95% 0, 100% 30%, 100% 100%, 0 100%); border-radius: 0 0 var(--r-1) var(--r-1); }
 /* La face : du papier bleu nuit, la patinoire en filigrane, la marque ; un reflet qui passe. */
-.paquet-face { position: relative; flex: 1; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-2); background: color-mix(in srgb, var(--bleu) 28%, var(--noir)); border: 2px solid color-mix(in srgb, var(--encre) 25%, transparent); }
-.paquet-legendaire .paquet-face { background: color-mix(in srgb, var(--violet) 32%, var(--noir)); }
-.paquet-face::after { content: ""; position: absolute; top: -10%; bottom: -10%; left: -60%; width: 34%; pointer-events: none; background: color-mix(in srgb, var(--encre) 22%, transparent); transform: skewX(-16deg); animation: paquet-reflet 3.2s ease-in-out infinite; }
-.paquet-glace { position: absolute; inset: 10% 8%; border-radius: var(--r-2); border: 2px solid color-mix(in srgb, var(--bleu) 70%, transparent); opacity: 0.4; pointer-events: none; }
-.paquet-glace::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; background: var(--live); }
-.paquet-glace::after { content: ""; position: absolute; left: 50%; top: 50%; width: 30%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; border: 2px solid var(--bleu); }
-.paquet-marque { position: relative; display: flex; flex-direction: column; align-items: center; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.34em; text-transform: uppercase; color: var(--encre); }
-.paquet-marque b { font-size: var(--t-6); letter-spacing: 0.02em; color: var(--or); }
-.paquet-serie { position: relative; max-width: 90%; padding: 3px 10px; border-radius: var(--r-1); background: var(--live); color: var(--encre); font: 800 var(--t-1)/1.1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; text-align: center; }
-.paquet-n { position: relative; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--encre-2); }
-.paquet-mot { position: absolute; left: 50%; bottom: -30px; transform: translateX(-50%); white-space: nowrap; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--or); animation: paquet-pouls 1.9s ease-in-out infinite; }
-.paquet-ferme .paquet-scene { padding-bottom: 42px; }
+.pochette-face { position: relative; flex: 1; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-2); background: color-mix(in srgb, var(--bleu) 28%, var(--noir)); border: 2px solid color-mix(in srgb, var(--encre) 25%, transparent); }
+.pochette-legendaire .pochette-face { background: color-mix(in srgb, var(--violet) 32%, var(--noir)); }
+.pochette-face::after { content: ""; position: absolute; top: -10%; bottom: -10%; left: -60%; width: 34%; pointer-events: none; background: color-mix(in srgb, var(--encre) 22%, transparent); transform: skewX(-16deg); animation: paquet-reflet 3.2s ease-in-out infinite; }
+.pochette-glace { position: absolute; inset: 10% 8%; border-radius: var(--r-2); border: 2px solid color-mix(in srgb, var(--bleu) 70%, transparent); opacity: 0.4; pointer-events: none; }
+.pochette-glace::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; background: var(--live); }
+.pochette-glace::after { content: ""; position: absolute; left: 50%; top: 50%; width: 30%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; border: 2px solid var(--bleu); }
+.pochette-marque { position: relative; display: flex; flex-direction: column; align-items: center; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.34em; text-transform: uppercase; color: var(--encre); }
+.pochette-marque b { font-size: var(--t-6); letter-spacing: 0.02em; color: var(--or); }
+.pochette-serie { position: relative; max-width: 90%; padding: 3px 10px; border-radius: var(--r-1); background: var(--live); color: var(--encre); font: 800 var(--t-1)/1.1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; text-align: center; }
+.pochette-n { position: relative; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--encre-2); }
+.pochette-mot { position: absolute; left: 50%; bottom: -30px; transform: translateX(-50%); white-space: nowrap; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--or); animation: paquet-pouls 1.9s ease-in-out infinite; }
+.paquet-ferme .pochette-scene { padding-bottom: 42px; }
 @keyframes paquet-flotte { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-8px) rotate(1.5deg); } }
 @keyframes paquet-pouls { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 @keyframes paquet-reflet { 0%, 55% { transform: translateX(0) skewX(-16deg); } 100% { transform: translateX(480%) skewX(-16deg); } }
 /* On déchire (460 ms, DECHIRE dans js/gerant.js) : le paquet tremble, le rabat part, la lueur éclate, le paquet tombe. */
-.paquet-dechire .paquet { animation: paquet-secoue 0.46s ease-in forwards; }
-.paquet-dechire .paquet-haut { animation: paquet-rabat 0.34s cubic-bezier(0.3, 0.7, 0.4, 1) forwards; }
-.paquet-dechire .paquet-lueur { animation: paquet-eclat 0.46s ease-out forwards; }
-.paquet-dechire .paquet-mot { opacity: 0; animation: none; }
+.paquet-dechire .pochette { animation: paquet-secoue 0.46s ease-in forwards; }
+.paquet-dechire .pochette-haut { animation: paquet-rabat 0.34s cubic-bezier(0.3, 0.7, 0.4, 1) forwards; }
+.paquet-dechire .pochette-lueur { animation: paquet-eclat 0.46s ease-out forwards; }
+.paquet-dechire .pochette-mot { opacity: 0; animation: none; }
 @keyframes paquet-secoue {
   0% { transform: none; opacity: 1; } 12% { transform: rotate(-4deg); } 24% { transform: rotate(4deg); } 36% { transform: rotate(-2deg); }
   55% { transform: translateY(0) scale(1.03); opacity: 1; } 100% { transform: translateY(70px) scale(0.86); opacity: 0; }
@@ -5792,12 +5727,6 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .duel-adjoint .scene-fait { display: none; }
 .main-vestiaire { display: flex; flex-direction: column; gap: var(--esp-2); }
 .main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-/* V23 : deux cartes face à face, comme une histoire ; le gros chiffre au cœur, les noms et les gestes sous « Les chiffres ». */
-.main-vest-rang { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }
-.main-vest-rang > .choix-option { min-height: 150px; text-align: center; align-items: center; }
-.main-vest-rang > .choix-option .choix-option-gros { flex-direction: column; align-items: center; margin: auto 0; }
-.main-sheet:not(.chiffres) .main-vest-rang > .choix-option:has(.choix-option-gros) :is(.choix-option-bon, .choix-option-prix, .puce.neutre:not(.duree)) { display: none; }
-@media (min-width: 700px) { .main-vest-rang { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* LE DUEL (V9) : leur intention, ton adjoint, la mise doublée. */
 /* LEUR INTENTION, UNE CARTE DE BOSS (V23 ; JP : *que les gros matchs, ça soit vraiment un jeu*) : leur jeu de la période,
    au centre, encadré de rouge, une lueur à son arrivée (une fois : le décor ne boucle pas) ; ton adjoint répond dessous avec ses cartes. */
@@ -5810,23 +5739,19 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .duel-fait { margin: 0; font: 800 var(--t-5)/1.15 var(--display); letter-spacing: 0.02em; color: var(--encre); }
 .duel-pourquoi { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
 /*
- * TON ADJOINT À L'ENTRACTE (V17, à la EHM) : sa scène, puis ses plans en tuiles à coins vifs, deux par rangée au
- * téléphone ; « Garder » est la dernière. Toucher une tuile joue la période.
+ * TON ADJOINT À L'ENTRACTE (V17, à la EHM) : sa scène, puis ses plans en cartes de jeu (V25 B2), deux ou trois de front au
+ * téléphone ; « Garder » est la dernière. « Jouer » sous une carte joue la période.
  */
 .duel-adjoint { display: flex; flex-direction: column; gap: var(--esp-2); }
 /* L'unité des plans, dite une fois (nov. 2026) : la répéter au bout de chaque ligne les faisait passer sur deux. */
 .duel-adjoint .scene { padding: var(--esp-2) var(--esp-3); }
 .duel-adjoint .scene-mot { font-size: var(--t-3); }
 .duel-unite { margin: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-.duel-props { grid-template-columns: 1fr 1fr; }
-@media (min-width: 700px) { .duel-props { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-/* V23 : ses plans sont des cartes qu'il te tend, une à une, le gros chiffre au cœur ; « Garder » est la carte en creux. */
-.duel-props > .choix-option { min-height: 96px; text-align: center; align-items: center; animation: tele-monte 320ms var(--e-sortie) both; }
+/* V25 B2 : ses plans sont des cartes de jeu qu'il te tend, une à une (`tele-monte`) ; la main se balaie à quatre. */
+.duel-props > .choix-option { animation: tele-monte 320ms var(--e-sortie) both; }
 .duel-props > .choix-option:nth-child(2) { animation-delay: 70ms; }
 .duel-props > .choix-option:nth-child(3) { animation-delay: 140ms; }
 .duel-props > .choix-option:nth-child(4) { animation-delay: 210ms; }
-.duel-props > .choix-option .choix-option-gros { flex-direction: column; align-items: center; margin: auto 0; }
-.duel-props > .choix-option[data-prop="garder"] { justify-content: center; background: transparent; box-shadow: none; border-style: dashed; }
 .duel-snap { align-self: flex-start; }
 .btn.duel-snap.on { background: var(--or); color: var(--encre-sur-or); border-color: var(--or); }
 .duel-avant { font-size: var(--t-2); line-height: 1.35; color: var(--encre); }
@@ -5935,7 +5860,7 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 
 /* ---- Le mouvement s'éteint pour qui le demande ---- */
 @media (prefers-reduced-motion: reduce) {
-  .choix-main.donne > .choix-option.tc, .choix-option.tc.pige, .paquet, .paquet-lueur, .paquet-face::after, .paquet-mot { animation: none; }
+  .choix-main.donne > .choix-option.tc, .choix-option.tc.pige, .pochette, .pochette-lueur, .pochette-face::after, .pochette-mot { animation: none; }
   .choix-option.tc { transition: none; }
   .paquet-pile .choix-main > .choix-option.tc[data-pile], .paquet-pile .choix-main > .choix-option.tc > .tc-dos { animation: none; transition: none; }
 }
@@ -6200,11 +6125,6 @@ a.bk-serie:hover, a.bk-serie:focus-visible { box-shadow: inset 0 0 0 1px var(--c
 .run-l { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); min-height: 40px; padding: var(--esp-2) var(--esp-3); background: var(--fond-2); }
 .run-k { font-size: var(--t-2); color: var(--encre-2); }
 .run-v { text-align: right; font: 800 var(--t-3)/1.2 var(--display); font-variant-numeric: tabular-nums; }
-/* Les galons de la saison (Jalon M, A8) : sous le mot du capitaine, un par ligne, avec son match et son adversaire. */
-.run-galons { display: flex; flex-direction: column; gap: var(--esp-2); margin: var(--esp-2) 0; }
-.run-galons-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--filet); border: 1px solid var(--filet); border-radius: var(--r-1); overflow: hidden; }
-.run-galons-l li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--fond-2); font-size: var(--t-2); }
-.run-galons-l small { flex-basis: 100%; font-size: var(--t-2); color: var(--encre-2); }
 /* La Coupe (1.0) : l'écran de la run gagnée — l'or du trophée sur le noir, le trophée qui se lève une fois. */
 .choix-sheet[data-genre="coupe"] { box-shadow: inset 0 3px 0 var(--or), 0 0 0 1px color-mix(in srgb, var(--or) 45%, transparent); }
 .choix-sheet[data-genre="coupe"] .choix-titre { color: var(--or); }
@@ -6528,10 +6448,11 @@ body.mode-rogue .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 /* LE PLATEAU (nov. 2026 ; la direction A) : au Rogue, une pochette du début est une plaque de métal — la feuille du tier couvre la
    tuile, le tier en haut à gauche, le nom et le contenu au pied, le PRIX en gros. */
 body.mode-rogue .pk-rayon-debut .pk-tuile { position: relative; justify-content: flex-end; min-height: 168px; padding: var(--esp-3); border: 0; isolation: isolate; overflow: hidden; }
-body.mode-rogue .pk-rayon-debut .pk-sachet { position: absolute; inset: 0; z-index: -1; display: block; aspect-ratio: auto; border-radius: var(--r-2); opacity: 0.92; }
-body.mode-rogue .pk-rayon-debut .pk-sachet::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--noir-pur) 82%, transparent)); }
-body.mode-rogue .pk-rayon-debut .pk-sachet .pk-ico { position: absolute; right: var(--esp-3); top: var(--esp-4); font-size: var(--t-5); color: color-mix(in srgb, var(--noir-pur) 60%, var(--pk-a)); }
-body.mode-rogue .pk-rayon-debut .pk-tier { top: var(--esp-4); bottom: auto; left: var(--esp-3); right: auto; padding: 2px var(--esp-2); border-radius: var(--r-1); letter-spacing: 0.2em; }
+body.mode-rogue .pk-rayon-debut .pochette-scellee { position: absolute; inset: 0; z-index: -1; display: block; aspect-ratio: auto; opacity: 0.92; }
+body.mode-rogue .pk-rayon-debut .pochette-scellee .pochette-corps { height: 100%; border-radius: var(--r-2); }
+body.mode-rogue .pk-rayon-debut .pochette-scellee .pochette-face::after { content: ""; display: block; position: absolute; inset: 0; transform: none; animation: none; background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--noir-pur) 82%, transparent)); }
+body.mode-rogue .pk-rayon-debut .pochette-ico { position: absolute; right: var(--esp-3); top: var(--esp-4); font-size: var(--t-5); color: color-mix(in srgb, var(--noir-pur) 60%, var(--pk-a)); }
+body.mode-rogue .pk-rayon-debut .pochette-scellee .pochette-serie { top: var(--esp-4); bottom: auto; left: var(--esp-3); right: auto; padding: 2px var(--esp-2); border-radius: var(--r-1); letter-spacing: 0.2em; }
 body.mode-rogue .pk-rayon-debut .pk-nom { font-size: var(--t-4); color: var(--blanc); }
 body.mode-rogue .pk-rayon-debut .pk-n { color: var(--encre-2); }
 body.mode-rogue .pk-rayon-debut .pk-prix { flex-direction: row; align-items: baseline; gap: var(--esp-1); margin-top: var(--esp-1); font-size: var(--t-6); color: var(--blanc); }
@@ -6577,10 +6498,15 @@ body.mode-rogue .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2
 .pk-tuile.pk-cher .pk-prix { color: var(--encre-3); }
 /* V23, la nouvelle interface : une vraie pochette — le métal du tier en feuille, un reflet en biais, le haut serti, le tier
    sur sa bande noire au pied. */
-.pk-sachet { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 5; border-radius: var(--r-1); overflow: hidden; background: linear-gradient(155deg, color-mix(in srgb, var(--pk-a) 45%, var(--noir-pur)) 0%, var(--pk-a) 36%, color-mix(in srgb, var(--pk-a) 45%, var(--blanc)) 50%, var(--pk-a) 64%, color-mix(in srgb, var(--pk-a) 40%, var(--noir-pur)) 100%); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--pk-a) 55%, var(--noir-pur)), 0 12px 20px -12px var(--noir-pur); }
-.pk-dent { position: absolute; top: 0; left: 0; right: 0; height: 7px; background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--noir-pur) 40%, transparent) 0 3px, transparent 3px 6px); }
-.pk-sachet .pk-ico { font-size: var(--t-6); line-height: 1; color: color-mix(in srgb, var(--noir-pur) 78%, var(--pk-a)); }
-.pk-tier { position: absolute; bottom: 0; left: 0; right: 0; padding: 3px 0; text-align: center; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; background: color-mix(in srgb, var(--noir-pur) 70%, transparent); color: var(--pk-a); }
+/* LA POCHETTE SCELLÉE (V25 B2, js/cartes.js `pochetteHtml`) : la même pochette que la récompense, en plaque de métal au métal de
+   son pack (--pk-a), sans lueur ni mot ; son icône au centre, son métal ou « Scellé » au pied. */
+.pochette-scellee { display: block; width: 100%; aspect-ratio: 4 / 5; animation: none; }
+.pochette-scellee .pochette-corps { border-radius: var(--r-1); overflow: hidden; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--pk-a) 55%, var(--noir-pur)), 0 12px 20px -12px var(--noir-pur); }
+.pochette-scellee .pochette-rabat { height: 7px; background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--noir-pur) 40%, transparent) 0 3px, transparent 3px 6px), color-mix(in srgb, var(--pk-a) 45%, var(--noir-pur)); clip-path: none; }
+.pochette-scellee .pochette-face { background: linear-gradient(155deg, color-mix(in srgb, var(--pk-a) 45%, var(--noir-pur)) 0%, var(--pk-a) 36%, color-mix(in srgb, var(--pk-a) 45%, var(--blanc)) 50%, var(--pk-a) 64%, color-mix(in srgb, var(--pk-a) 40%, var(--noir-pur)) 100%); }
+.pochette-scellee .pochette-face::after, .pochette-scellee .pochette-glace { display: none; }
+.pochette-ico { position: relative; font-size: var(--t-6); line-height: 1; color: color-mix(in srgb, var(--noir-pur) 78%, var(--pk-a)); }
+.pochette-scellee .pochette-serie { position: absolute; bottom: 0; left: 0; right: 0; max-width: none; padding: 3px 0; border-radius: 0; text-align: center; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; background: color-mix(in srgb, var(--noir-pur) 70%, transparent); color: var(--pk-a); }
 .pk-nom { font: 600 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
 .pk-n { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.03em; color: var(--encre-2); overflow-wrap: anywhere; }
 .pk-prix { display: flex; flex-direction: column; gap: 2px; margin-top: auto; font: 800 var(--t-4)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
@@ -6615,7 +6541,7 @@ body.mode-rogue .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2
 .pk-fiche-actions .btn { flex: 1; min-height: 48px; }
 @media (min-width: 640px) {
   .pk-rangee { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--esp-3); }
-  .pk-sachet { aspect-ratio: 3 / 4; }
+  .pochette-scellee { aspect-ratio: 3 / 4; }
   .pk-fiche { align-items: center; }
   .pk-fiche-carte { border-radius: var(--r-2); }
 }
@@ -6623,7 +6549,7 @@ body.mode-rogue .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2
 @media (max-width: 639.98px) {
   .pk-rayon-jour .pk-rangee { grid-template-columns: minmax(0, 1fr); }
   .pk-rayon-jour .pk-tuile { flex-direction: row; align-items: center; gap: var(--esp-3); }
-  .pk-rayon-jour .pk-sachet { width: 84px; flex: none; }
+  .pk-rayon-jour .pochette-scellee { width: 84px; flex: none; }
 }
 
 /* ---- Les cartes de la banque (js/inventaire.js) : la face d'un pack (`.tc`, Jalon U), son compte, ses boutons dessous ---- */

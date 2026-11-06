@@ -117,6 +117,7 @@ check_incidents         les incidents liés à des joueurs
 check_lisibilite        le décor calme, les cartes belles
 check_relais            le relais des adjoints (V23 D, 4 nov. 2026) : en paires, chaque adjoint relaie exactement les périodes que son signal lit, à deux maillons, se voit le soir où il relaie, la paire coach-adjoint rend 1,2 à 1,6 fois ses pièces ; MESURE=0 N=20 en CI
 check_plateau           le plateau du Rogue contre la maquette (4 nov. 2026) : une run lancée dans Chromium, les douze pages lues contre le contrat (interface.md), aucune pilule blanche, les cinq portes ; une capture par page
+check_hauteur           un choix tient en un écran (V25 B2, 6 nov. 2026) : à 390 × 844, une scène, un joueur nommé et trois cartes de jeu de front, chaque nom lisible, la carte retournée qui se rapproche ; une capture
 check_verdicts          le verdict du lundi d'après
 check_lexique           un mot par idée, une icône par sens
 check_refonte           un gros changement se mesure à ce qui part (4 nov. 2026) : le diff de la branche contre main (le jeu retire au moins une ligne pour deux ajoutées, style.css sous la moitié), chaque nom de « Ce qui part » du devis parti, chaque fichier de « Ce qu'il touche » dans le diff ; à la main, avant la PR d'une refonte

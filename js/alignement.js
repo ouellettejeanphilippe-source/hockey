@@ -6,7 +6,7 @@
 
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
+import { esc, estD as isD, glyphe, money, pct3, varsCarton } from './util.js';
 import { badgesDe, getPlayerKey, MUTATIONS, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, avecAVenir } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, specialesEnStats, lignesDeLAdjointEnChiffres, ditDuPouvoir, penaliteAffichee } from './impact.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
@@ -17,7 +17,7 @@ import { carteHtml } from './cartes.js';
 import { carteLigne, grille, coin } from './plateau-rogue.js';
 import { hubActif } from './coquille.js';
 import { glisserDeposer } from './deposer.js';
-import { jambesHtml, motDuBadge } from './gerant.js';
+import { jambesHtml, motDuBadge, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
@@ -878,21 +878,24 @@ export function coachHtml() {
     { cls: `pv${ouvert ? '' : ' ferme pl-carte-eteinte'}`, coins: coin(ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`, { ton: ouvert ? 'or' : 'gris', cls: 'pl-coin-petit pv-etat' }) });
   };
   /*
-   * V23, LA NOUVELLE INTERFACE (JP : *je veux une nouvelle interface, pour vrai*) : l'entraîneur sur une plaque aux
-   * couleurs de son vrai club, son niveau en gros ; la jauge d'expérience ; sa règle ; ses trois pouvoirs en cartes de
-   * front, celles qu'il n'a pas encore ouvertes éteintes, avec le niveau qui les ouvre.
+   * LE COACH EST UNE CARTE (V25 B2, docs/refonte-v25.md § 4 B) : l'entraîneur sur une vraie carte de jeu, au genre des pouvoirs,
+   * aux couleurs de son vrai club (`varsCarton`), son niveau d'entraîneur en cadre (V25 B1 : `NIVEAUX[k].maitrise`), son club et
+   * sa saison en type, sa philosophie et sa maîtrise au verso ; le niveau du personnage en coin (l'ardoise), la jauge
+   * d'expérience et sa règle à côté, en chiffres (« 4 → niv. 2 · talent », « ≤ 24 tirs contre → +2 🪙 · 1 fois »).
    */
   const chef = perso.chef;
-  // Le contenu, de zéro (4 nov. 2026) : la plaque dit qui et quoi (le niveau de l'entraîneur ; sa maîtrise à l'infobulle), la jauge
-  // se termine en chiffres (« 4 → niv. 2 · talent »), la règle en flèche (« ≤ 24 tirs contre → +2 🪙 · 1 fois »).
-  // Le niveau de l'entraîneur se lit sur sa maîtrise (V25 B1 : `NIVEAUX[k].maitrise`, js/niveaux.js).
   const kMaitrise = NIVEAUX.findIndex(N => N.maitrise === (perso.maitrise || 1));
   const maitrise = (perso.maitrise || 1) !== 1 && kMaitrise >= 0 ? nomDuNiveau(kMaitrise) : '';
+  const carteCoach = carteLigne(carteHtml({ cle: 'coach', niveau: kMaitrise >= 0 ? kMaitrise : undefined, genreCarte: 'synergie', ico: C.ico, nomHtml: esc(chef ? chef.n : C.nom),
+    typeHtml: esc(chef ? `${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}` : C.nom), statique: true, style: chef ? varsCarton(getTeamBand(chef.tag)) : '',
+    texteHtml: `${C.ico} ${esc(C.nom)}${maitrise ? `<br>${esc(maitrise)} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}` }),
+  `<span class="pv-nom">${esc(C.nom)}</span>`, { cls: 'ej-coach-carte', coins: coin(`Niveau <b>${niveau}</b>`, { cls: 'ej-rang', cote: 'gauche' }) });
   return `<div class="ej-coach">
-    <div class="ej-coach-tete"${chef ? ` style="${varsEquipe({ t: chef.tag })}"` : ''} title="${esc(`${chef ? `${chef.n} · ${TEAMFULL[chef.tag] || chef.tag} ${chef.saison} · ` : ''}${C.nom}${maitrise ? ` · ${maitrise} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}`)}"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><span class="ej-coach-qui"><small>${chef ? esc(`${chef.tag} ${chef.saison}`) : esc(C.nom)}</small><b>${esc(chef ? chef.n : C.nom)}</b><small>${esc(C.nom)}${maitrise ? ` · ${esc(maitrise)}` : ''}</small></span><span class="ej-rang">Niveau<b>${niveau}</b></span></div>
+    <div class="ej-coach-haut">${carteCoach}<div class="ej-coach-cote">
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} exp.${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · ${manque} → niv. ${niveau + 1}${NIVEAUX_TALENT.includes(niveau + 1) ? ' · talent' : ''}`}</div>
     ${(R => (R ? (x => `<div class="ej-coach-l ej-regle" title="La règle ${esc(C.de)} : elle paie le soir où ton club joue son hockey">${C.ico} ${esc(R.dit)} → +${R.jetons} 🪙 · ${x.parJour.size} fois</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
+    </div></div>
     ${grille(POUVOIRS[perso.cle].map(carte), { cls: 'pv-rang' })}
     ${mainHtml(perso, niveau)}
   </div>`;
@@ -920,7 +923,7 @@ function mainHtml(perso, niveau) {
     const detail = `<b>${esc(A.nom)}</b> · ${esc(nomDuNiveau(niv - 1))} · ${esc(A.style)} — « ${esc(A.dit)} »${syn ? ` · <b class="bon">${esc(syn)}</b>` : ''}${fiche ? ` · ${esc(fiche)}` : ''}`;
     return `<div class="adj-carte" data-adj="${c.cle}" data-etat="${etat}" data-detail="${esc(detail)}">
       ${carteHtml({ cle: c.cle, niveau: niv - 1, genreCarte: 'tactique', ico: A.ico, nomHtml: esc(A.nom), typeHtml: esc(`${nomDuNiveau(niv - 1)} · ${A.style}`), statique: true,
-        bonHtml: l.filter(x => x.bon).map(x => esc(x.txt)).join('<br>'), prixHtml: l.filter(x => !x.bon).map(x => esc(x.txt)).join('<br>') })}
+        pucesHtml: puces(l) })}
       <span class="adj-sous">${sous}</span>
       ${etat === 'prete' && casesLibres(perso, games, niveau) ? `<button type="button" class="btn-sign adj-poster" data-poste="${c.cle}">Poster</button>` : ''}
     </div>`;

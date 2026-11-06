@@ -173,10 +173,10 @@ export function carteHtml(c) {
    * se TOUCHE pour voir la fiche (`data-apercu`) ; le bouton « Signer » (ou
    * « Garder », « Choisir ») est le seul qui choisit (`data-choix`).
    */
-  if (c.joueurHtml) return `<div class="choix-option tc tc-${edition(c.edition)} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-apercu="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' aria-disabled="true"' : ''}>
+  if (c.joueurHtml) return `<div class="choix-option tc tc-${edition(c.edition)} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}${c.classe ? ` ${c.classe}` : ''}${c.on ? ' on' : ''}" data-apercu="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' aria-disabled="true"' : ''}${c.attrs || ''}>
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
     <span class="tcj-carte" role="button" tabindex="0" title="Voir sa fiche">${c.joueurHtml}</span>
-    ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tcj-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
+    ${c.texteHtml ? `<span class="tcj-texte"><span class="tc-quoi">${c.texteHtml}</span></span>` : ''}
     ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
     ${c.vue ? '' : c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : `<button type="button" class="btn-sign tcj-signer" data-choix="${c.cle}">${c.motChoixHtml || 'Signer'}</button>`}
   </div>`;
@@ -195,9 +195,10 @@ export function carteHtml(c) {
    * la toucher la retourne (`brancherInclinaison`). Toucher ne prend plus : « Prendre », dessous, prend. Le verso est le
    * dos du même carton : la glace, le métal de son niveau, la bande de son genre en tête et l'imprimé au pied.
    */
-  const verso = `${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}`;
+  const verso = `${c.texteHtml ? `<span class="tc-texte"><span class="tc-quoi">${c.texteHtml}</span></span>` : ''}${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}`;
   const face = verso ? 'button type="button" class="tc-face" aria-pressed="false" title="Toucher pour la retourner"' : 'span class="tc-face"';
-  return `<div class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${famille ? ` tc-f-${famille}` : ''}${c.meilleure ? ' tc-meilleure' : ''}${c.lecture ? ' lecture' : ''}" data-carte="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive && !c.statique ? ' aria-disabled="true"' : ''}>
+  // `classe`, `attrs`, `on` (V25 B2) : l'écran qui la pose la branche (`data-vest`, `data-prop`) et l'allume quand elle est gardée ; `style` : ses couleurs de club.
+  return `<div class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${famille ? ` tc-f-${famille}` : ''}${c.meilleure ? ' tc-meilleure' : ''}${c.lecture ? ' lecture' : ''}${c.classe ? ` ${c.classe}` : ''}${c.on ? ' on' : ''}" data-carte="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}${c.style ? `;${c.style}` : ''}"${c.desactive && !c.statique ? ' aria-disabled="true"' : ''}${c.attrs || ''}>
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
     <${face}>
     ${rectoDeJeu(c)}
@@ -541,30 +542,32 @@ function carteCouchee(c, serie, r) {
 const aPlat = carte => `<span class="carton-a-plat"><span class="carton-pivot">${carte}</span></span>`;
 
 /*
- * LE PAQUET (S77) : une récompense s'ouvre comme un paquet de cartes. JP :
- * *rends ça plus dynamique et beau*. Le paquet est du papier métallisé en CSS
- * pur — le rabat serti du haut, celui du bas, la marque, le nombre de cartes —
- * et il LUIT de la couleur de la meilleure carte qu'il contient avant qu'on
- * l'ouvre (argent pour une rare, or pour une légendaire), comme la lumière
- * d'une ouverture de paquet dans les jeux de sport : la tension avant le
- * contenu. Le contenu, lui, est déjà décidé (la graine) : ce n'est
- * que la façon de le montrer.
+ * LA POCHETTE (V25 B2 ; le paquet de la S77 et le sachet de la boutique fusionnés). JP : *rends ça plus dynamique et
+ * beau*. Un seul objet, deux états nommés :
+ *   scellee     achetée, elle attend dans « Déjà à toi » (js/magasin.js) jusqu'à sa date limite ; une plaque de métal
+ *               au métal de son pack, son icône, son mot (le métal, « Scellé ») ;
+ *   recompense  une série, un jalon, un palier : du papier métallisé en CSS pur — le rabat serti du haut, celui du bas,
+ *               la marque, le nombre de cartes — qui LUIT de la couleur de la meilleure carte qu'elle contient avant
+ *               qu'on l'ouvre (argent pour une rare, or pour une légendaire), comme la lumière d'une ouverture de paquet
+ *               dans les jeux de sport : la tension avant le contenu. Le contenu, lui, est déjà décidé (la graine).
  */
-export function paquetHtml({ n = 3, meilleure = 'commune', serie = 'Récompense' } = {}) {
-  serie = String(serie).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  return `<button type="button" class="paquet paquet-${CADRES.includes(meilleure) ? meilleure : 'commune'}" aria-label="Ouvrir le paquet">
-    <span class="paquet-lueur" aria-hidden="true"></span>
-    <span class="paquet-corps" aria-hidden="true">
-      <span class="paquet-rabat paquet-haut"></span>
-      <span class="paquet-face">
-        <span class="paquet-glace"></span>
-        <span class="paquet-marque">Cap<b>82-0</b></span>
-        <span class="paquet-serie">${serie}</span>
-        <span class="paquet-n">${n} cartes</span>
+export function pochetteHtml({ etat = 'recompense', n = 3, meilleure = 'commune', serie = 'Récompense', ico = '', mot = '' } = {}) {
+  const e = x => String(x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const corps = `<span class="pochette-corps" aria-hidden="true">
+      <span class="pochette-rabat pochette-haut"></span>
+      <span class="pochette-face">
+        <span class="pochette-glace"></span>
+        ${ico ? `<span class="pochette-ico">${ico}</span>` : '<span class="pochette-marque">Cap<b>82-0</b></span>'}
+        <span class="pochette-serie">${e(etat === 'scellee' ? mot : serie)}</span>
+        ${etat === 'scellee' ? '' : `<span class="pochette-n">${n} cartes</span>`}
       </span>
-      <span class="paquet-rabat paquet-bas"></span>
-    </span>
-    <span class="paquet-mot">Touche pour ouvrir</span>
+      <span class="pochette-rabat pochette-bas"></span>
+    </span>`;
+  if (etat === 'scellee') return `<span class="pochette pochette-scellee" aria-hidden="true">${corps}</span>`;
+  return `<button type="button" class="pochette pochette-recompense pochette-${CADRES.includes(meilleure) ? meilleure : 'commune'}" aria-label="Ouvrir la pochette">
+    <span class="pochette-lueur" aria-hidden="true"></span>
+    ${corps}
+    <span class="pochette-mot">Touche pour ouvrir</span>
   </button>`;
 }
 

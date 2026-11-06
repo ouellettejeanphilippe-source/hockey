@@ -31,6 +31,8 @@ export const nom = p => (p && p.n) || '';
 export const virgule = x => String(x).replace('.', ',');
 /* Les vraies couleurs d'un club (js/logos.js `getTeamBand`) en variables CSS : un but les porte partout (`.but-eq`). */
 export const varsEquipe = b => `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`;
+/* Les mêmes couleurs posées sur un carton (`.carton` lit --team-*) : une carte de jeu aux couleurs d'un vrai club (V25 B2). */
+export const varsCarton = b => `--team-band:${b.bg};--team-ink:${b.ink};--team-stripe:${b.stripe}`;
 export const signe = n => (n > 0 ? `+${n}` : `${n}`);
 
 /**

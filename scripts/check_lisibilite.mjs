@@ -14,12 +14,11 @@
  *   5. DES SURFACES PLATES (JP : *penser comme GM Connected*) : la surface de base (`--panneau`, `--relief`) est un aplat sans
  *      ombre, et ni les onglets, ni la barre, ni les boutons, ni les choix ne portent de dégradé ; l'onglet ouvert est un bloc
  *      plein et clair, texte noir, le même partout.
- *   6. LES TUILES DE CHOIX SONT SOBRES (tranche 6, la décision unifiée ; JP : *un verbe, au plus deux lignes de stats,
- *      trois options au plus, la recommandée marquée par sa place*). Lu sur le code et les données, sur de vrais clubs :
- *      aucune fenêtre de choix n'offre plus de trois options, aucune option (avant-match, dossier, fil ; la banque
- *      d'événements est vide : V22, phase 4) ne montre plus de deux lignes de stats vertes ou rouges (`LIGNES_MAX`) — les autres
- *      se plient sous « Les chiffres », sans rien perdre —, et l'option est une carte (V23) : sans dégradé, avec son relief
- *      et le filet de sa forme, qui se soulève sous le doigt et s'envole jouée.
+ *   6. LES CARTES DE CHOIX SONT SOBRES (tranche 6 ; V25 B2 : une option est une carte de jeu, `carteHtml`). Lu sur le code et
+ *      les données, sur de vrais clubs : aucune fenêtre de choix n'offre plus de trois options, le verso d'aucune option
+ *      (avant-match, dossier, fil) ne montre plus de `FACE_MAX` lignes de mots vertes ou rouges — ses stats en barres, le
+ *      reste plié sous « Les chiffres », sans rien perdre —, et la carte de choix est un carton de la glace (`.cs-jeu`) : sans
+ *      dégradé sur sa racine, qui se soulève sous le doigt et s'envole jouée.
  *      La recommandée n'a pas de macaron : elle est la PREMIÈRE de la liste (le rang dit la recommandation).
  *   7. AUCUN ACCORDÉON (JP, 28 oct. : *j'hais les accordéons*). Aucun `<details>` ni `<summary>` dans AUCUN fichier de js/
  *      (`SANS_PLI` les lit tous, y compris ceux qu'on écrira) ni dans index.html. Une info courte est un bloc toujours visible ;
@@ -33,7 +32,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, AVANT_GROS } from '../js/sim.js';
 import { poserClubLu } from '../js/impact.js';
-import { optionHtml, LIGNES_MAX } from '../js/gerant.js';
+import { pucesDeFace, FACE_MAX } from '../js/gerant.js';
+import { motsDe } from '../js/effets.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { CHOIX_DES_FILS } from '../js/vie-gm.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -103,7 +103,7 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
   const decl = nom => (racine.match(new RegExp(`${nom}:\\s*([^;]+);`)) || [])[1] || '';
   exiger('la surface de base est un aplat : --panneau sans dégradé', !/gradient\(/.test(decl('--panneau')) && decl('--panneau') !== '', decl('--panneau'));
   exiger('la surface de base est sans ombre : --relief ne porte ni flou ni décalage', /^0 0 0 0 /.test(decl('--relief').trim()), decl('--relief'));
-  const DECOR = [/^\.navtab/, /^\.navbar/, /^\.btn\.(go|gold)\b/, /^\.choix-option(\.on)?$/, /^\.hub-hier/, /^:is\(\.soustab/];
+  const DECOR = [/^\.navtab/, /^\.navbar/, /^\.btn\.(go|gold)\b/, /^\.choix-option\.tc$/, /^\.hub-hier/, /^:is\(\.soustab/];
   const fautes = regles.filter(r => DECOR.some(d => d.test(r.sel)) && /gradient\(/.test(r.corps)).map(r => r.sel);
   exiger('ni les onglets, ni la barre, ni les boutons, ni les choix ne portent de dégradé', !fautes.length, fautes.join(' · ') || 'aucun');
   const actif = regles.find(r => /^:is\(\.soustab[^)]*\)\.on$/.test(r.sel));
@@ -122,7 +122,8 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
   for (const [cat, liste] of FAMILLES) for (const [cle, ev] of Object.entries(liste)) { nFenetres++; if ((ev.options || []).length > OPTIONS_MAX) trop.push(`${cat} ${cle} : ${ev.options.length}`); }
   exiger(`une fenêtre de choix offre trois options au plus (${nFenetres} fenêtres)`, !trop.length, trop.join(' · ') || `au plus ${Math.max(...FAMILLES.flatMap(([, l]) => Object.values(l).map(e => (e.options || []).length)))}`);
 
-  // Les lignes de stats : la tuile telle que l'écran la dessine (`optionHtml`), sur des clubs de plusieurs époques.
+  // Les lignes d'une carte : son verso tel que l'écran le dessine (`pucesDeFace`, les lignes dérivées de la grammaire et, jusqu'à la
+  // tranche C, le bon et le prix écrits), sur des clubs de plusieurs époques.
   const DIR = path.join(ROOT, 'data', 'seasons');
   const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
   const clubs = [];
@@ -136,48 +137,48 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
       break;
     }
   }
-  // V23 : le gros chiffre d'une carte (`choix-option-gros`) est une ligne visible prise à la liste, verte (ou rouge, `prix`, sans gain).
+  // Ce qui se voit : les barres (une par stat) et les puces vertes ou rouges hors `.detail` ; tout : avec les pliées.
   const lignes = html => {
-    const puces = [...html.matchAll(/<span class="puce ([^"]*)"/g)].map(m => m[1]);
-    const colorees = puces.filter(c => /\b(bon|prix)\b/.test(c));
-    const gros = (html.match(/class="choix-option-gros( prix)?"/g) || []).length;
-    return { vues: colorees.filter(c => !/\bdetail\b/.test(c)).length + gros, toutes: colorees.length + gros };
+    const puces = [...html.matchAll(/<span class="puce ([^"]*)"/g)].map(m => m[1]).filter(c => /\b(bon|prix)\b/.test(c));
+    const barres = (html.match(/class="impact-l (bon|prix)"/g) || []).length;
+    const dansLesBarres = [...html.matchAll(/class="impact-v puce detail">([^<]*)</g)].reduce((n, m) => n + m[1].split(', ').length, 0);
+    return { mots: puces.filter(c => !/\bdetail\b/.test(c)).length, barres, toutes: puces.length + dansLesBarres };
   };
-  const tuiles = [];
-  for (const [cat, liste] of FAMILLES) for (const [cle, ev] of Object.entries(liste)) for (const o of ev.options || []) tuiles.push({ id: `${cat} ${cle}.${o.cle}`, o });
+  const cartes = [];
+  for (const [cat, liste] of FAMILLES) for (const [cle, ev] of Object.entries(liste)) for (const o of ev.options || []) cartes.push({ id: `${cat} ${cle}.${o.cle}`, o });
   const debordent = [], perdent = [];
   let maxVues = 0;
   for (const club of clubs) {
     poserClubLu(() => ({ team: club }));
-    const lire = (id, o, mots) => {
-      const sobre = lignes(optionHtml(o, {}, mots ? { mots } : {})), plein = lignes(optionHtml(o, {}, { ...(mots ? { mots } : {}), plein: true }));
-      maxVues = Math.max(maxVues, sobre.vues);
-      if (sobre.vues > LIGNES_MAX) debordent.push(`${id} (${club.name}) : ${sobre.vues}`);
-      if (sobre.toutes !== plein.toutes) perdent.push(`${id} (${club.name})`);
-    };
-    for (const { id, o } of tuiles) lire(id, o, null);
+    for (const { id, o } of cartes) {
+      const mots = [...motsDe(o, { qui: 'Lui' }), ...(o.bon && !o.rien ? [{ txt: o.bon, bon: true }] : []), ...(o.prix ? [{ txt: o.prix, bon: false }] : [])];
+      const lu = lignes(pucesDeFace(mots));
+      maxVues = Math.max(maxVues, lu.mots);
+      if (lu.mots > FACE_MAX) debordent.push(`${id} (${club.name}) : ${lu.mots}`);
+      if (lu.toutes < mots.filter(m => m.bon === true || m.bon === false).length) perdent.push(`${id} (${club.name})`);
+    }
   }
   poserClubLu(null);
   informer('les clubs lus', clubs.map(c => c.name).join(' · '));
-  exiger(`une option montre ${LIGNES_MAX} lignes de stats vertes ou rouges au plus (${tuiles.length} options, sur ${clubs.length} clubs)`, !debordent.length, debordent.slice(0, 6).join(' · ') || `au plus ${maxVues}`);
+  exiger(`une carte montre ${FACE_MAX} lignes de mots vertes ou rouges au plus, ses stats en barres (${cartes.length} options, sur ${clubs.length} clubs)`, !debordent.length, debordent.slice(0, 6).join(' · ') || `au plus ${maxVues}`);
   exiger('plier une ligne de trop ne la perd pas : elle reste sous « Les chiffres »', !perdent.length, perdent.slice(0, 6).join(' · ') || 'rien ne disparaît');
 
-  // LA CARTE DE CHOIX (V23, docs/refonte-v23.md § B ; JP : oui à défaire la tuile sobre de la V19) : une seule règle de base,
-  // sans dégradé (les surfaces restent plates) mais avec son relief ; le filet du haut à la couleur de sa forme ; elle se
-  // soulève sous le doigt et s'envole jouée (`choix-jouee`), et le mouvement s'éteint pour qui le demande (le geste part
-  // tout de suite : `prefers-reduced-motion`, js/gerant.js).
-  const base = regles.filter(r => r.sel === '.choix-option');
-  const survol = regles.filter(r => /^\.choix-option:hover/.test(r.sel.split(',')[0].trim()));
+  // LA CARTE DE CHOIX (V25 B2 ; V23 : JP, oui à défaire la tuile sobre de la V19) : une carte de jeu, le carton de la glace
+  // (`.cs-jeu`), une seule règle de base `.choix-option.tc` sans dégradé ; elle se soulève sous le doigt et s'envole jouée
+  // (`choix-jouee`), et le mouvement s'éteint pour qui le demande (le geste part tout de suite : `prefers-reduced-motion`, js/gerant.js).
+  // La règle de base (celle de prefers-reduced-motion, qui ne fait qu'éteindre la transition, ne compte pas).
+  const base = regles.filter(r => r.sel === '.choix-option.tc' && !/^\s*transition: none;?\s*$/.test(r.corps));
+  const survol = regles.filter(r => /^\.choix-option\.tc:hover/.test(r.sel.split(',')[0].trim()));
   const jouee = regles.filter(r => r.sel === '.choix-option.jouee');
   const fautes = [
     ...(base.length !== 1 ? [`${base.length} règles de base`] : []),
     ...base.filter(r => /gradient/.test(r.corps)).map(() => 'la carte de base a un dégradé'),
-    ...base.filter(r => !/box-shadow/.test(r.corps) || !/--forme-c/.test(r.corps)).map(() => 'la carte de base n\'a pas son relief ou son filet de forme'),
+    ...(regles.some(r => r.sel === '.cs-jeu') ? [] : ['le carton de la glace (.cs-jeu) manque']),
     ...(survol.some(r => /translateY\(-/.test(r.corps)) ? [] : ['elle ne se soulève pas sous le doigt']),
     ...(jouee.some(r => /choix-jouee/.test(r.corps)) && /@keyframes choix-jouee/.test(css) ? [] : ['elle ne s\'envole pas jouée']),
     ...(/matchMedia\('\(prefers-reduced-motion: reduce\)'\)/.test(fs.readFileSync(path.join(ROOT, 'js', 'gerant.js'), 'utf8')) ? [] : ['le geste attend même sous prefers-reduced-motion']),
   ];
-  exiger('la carte de choix : sans dégradé, son relief et sa forme, elle se soulève et s\'envole jouée', !fautes.length, fautes.join(' · ') || `${survol.length} état soulevé`);
+  exiger('la carte de choix est un carton de la glace : sans dégradé, elle se soulève et s\'envole jouée', !fautes.length, fautes.join(' · ') || `${survol.length} état soulevé`);
 }
 
 /* 7. Aucun accordéon. */
