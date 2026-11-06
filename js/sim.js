@@ -6696,25 +6696,25 @@ export const MUTATIONS = {
   // ---- par choix ----
   tir_gun: { nom: 'Précision au gun', ico: '🎯', cible: 'plombier', source: 'choix',
     quoi: 'Il a passé ses soirées à tirer du gun : il vise, maintenant.',
-    profils: { sniper: 25, power: -5 }, finition: 1.22, lancers: 1.088 },
+    profils: { sniper: 25, power: -5 }, finition: 1.44, lancers: 1.176 },
   lame: { nom: 'Converti en défensif', ico: '🧊', cible: 'franc', source: 'choix',
     quoi: 'Sa lame ne se fabrique plus : il ne sent plus sa rondelle, et on en fait un joueur défensif.',
-    profils: { deuxsens: 15, checker: 15, sniper: -20 }, finition: 0.85, defense: 0.915 },
+    profils: { deuxsens: 15, checker: 15, sniper: -20 }, finition: 0.7, defense: 0.83 },
   gym: { nom: 'Dix livres de muscle', ico: '🦍', cible: 'rapide', source: 'choix',
     quoi: 'Un été au gym : plus lourd, plus solide, un peu moins vif.',
-    profils: { power: 25, energie: -15 }, blessure: 0.7, lancers: 0.934 },
+    profils: { power: 25, energie: -15 }, blessure: 0.4, lancers: 0.868 },
   patin: { nom: 'École de patinage', ico: '⚡', cible: 'lent', source: 'choix',
     quoi: 'Un entraîneur de patinage l\'a pris en main : il arrive avant la rondelle.',
-    profils: { energie: 25 }, lancers: 1.132 },
+    profils: { energie: 25 }, lancers: 1.264 },
   video: { nom: 'Les cassettes de Gretzky', ico: '🪄', cible: 'passeur', source: 'choix',
     quoi: 'Il étudie les vieilles cassettes : il voit le jeu une passe d\'avance.',
-    profils: { passeur: 25 }, creation: 1.22, finition: 0.934 },
+    profils: { passeur: 25 }, creation: 1.44, finition: 0.868 },
   pointe: { nom: 'La pointe de l\'avantage', ico: '💣', cible: 'pointe', source: 'choix',
     quoi: 'On lui donne la ligne bleue : il décoche à la moindre ouverture.',
-    profils: { offensif: 25 }, lancers: 1.176 },
+    profils: { offensif: 25 }, lancers: 1.352 },
   dur: { nom: 'L\'école du vétéran', ico: '🧱', cible: 'mou', source: 'choix',
     quoi: 'Un vétéran lui apprend à défendre : il ne monte plus, il bloque.',
-    profils: { defensif: 25, offensif: -10 }, defense: 0.898, creation: 0.89 },
+    profils: { defensif: 25, offensif: -10 }, defense: 0.796, creation: 0.78 },
   // ---- par accident ----
   prudent: { nom: 'Joue prudent', ico: '🤕', cible: 'hasard', source: 'accident',
     quoi: 'Depuis sa commotion, il évite les contacts.',
@@ -6799,7 +6799,11 @@ function cibleMutation(team, cle) {
   const C = M && CIBLES[M.cible];
   if (!C) return null;
   const deja = new Set((team.mutations || []).filter(x => x.cle === cle).map(x => x.joueur));
-  const js = SLOTS.filter(s => !s.scratch && s.group === C.g).map(s => team.roster[s.i])
+  // LE RÔLE SE POSE SUR UN BON JOUEUR (6 nov. 2026 ; JP : *les cartes des matchs vingt ne sont pas balancées*) : mesuré en paires
+  // (scripts/mesure_deck.mjs), un rôle posé sur un plombier du 4e trio ne valait rien (≈ 0 V sur 62 soirs) ; sur un de tes six
+  // meilleurs avants (les deux premiers trios) ou quatre meilleurs défenseurs (les deux premières paires), avec ses écarts
+  // doublés, il vaut quelque chose (≈ +0,4 V en moyenne sur quatre clubs, jusqu'à +2 sur un bon tireur ; la borne du Pilier, 1,5, est un maximum).
+  const js = SLOTS.filter(s => !s.scratch && s.group === C.g && s.unit <= 1).map(s => team.roster[s.i])
     .filter(p => p && p.p !== 'G' && !deja.has(getPlayerKey(p)));
   js.sort((a, b) => C.s(profilsBase(b)) - C.s(profilsBase(a)) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1));
   return js[0] || null;

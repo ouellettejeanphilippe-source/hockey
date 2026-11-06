@@ -554,7 +554,7 @@ export const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_S
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S144';  // S144 (nov. 2026, V25 B1) : la recrue ne progresse plus par sa carte (`effetCarte`, +1 % de précision après 41 matchs, est parti : une seule échelle, aucun effet isolé) ; une saison avec une recrue signée se rejoue autrement ; l'historique des versions : docs/moteur-recalibrer.md.
+const VERSION_MOTEUR = 'S145';  // S145 (6 nov. 2026) : le nouveau rôle du deck se pose sur un de tes six meilleurs avants ou quatre meilleurs défenseurs, ses écarts doublés (`cibleMutation`, `MUTATIONS` de source `choix`) : une saison avec un rôle pris se rejoue autrement. S144 (nov. 2026, V25 B1) : la recrue ne progresse plus par sa carte (`effetCarte`, +1 % de précision après 41 matchs, est parti : une seule échelle, aucun effet isolé) ; une saison avec une recrue signée se rejoue autrement ; l'historique des versions : docs/moteur-recalibrer.md.
 export function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.

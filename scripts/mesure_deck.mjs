@@ -5,12 +5,14 @@
  * retouche d'édition : la carte monte d'une édition, son second badge avec). Chacune se pèse comme une carte
  * (check_effets) : en paires, les mêmes dés avec et sans, N matchs par club contre une copie du même club, et le net en
  * victoires ramené aux soirs qui restent (62 depuis le 20e match). La borne : celle du niveau que la carte affiche
- * (js/saison.js `NIVEAU_SORTE` : la recrue en ★ Phénomène, 4 V ; le rôle en Pilier, 1,5 V ; l'atelier en ★ Étoile, 2,5 V).
+ * (js/saison.js `NIVEAU_SORTE` ; depuis le 6 nov. 2026 : la recrue en ★ Étoile, 2,5 V ; le rôle en Pilier, 1,5 V ; l'atelier en Pilier,
+ * 1,5 V). Le même jour, le rôle du jeu se pose sur un de tes six meilleurs avants ou quatre meilleurs défenseurs, ses écarts doublés
+ * (js/sim.js `cibleMutation`, `MUTATIONS`) : avant, posé sur un plombier du 4e trio, il valait ≈ 0 V.
  *
  *   node scripts/mesure_deck.mjs            (N=120 matchs par club et par carte, quatre clubs : quatre minutes)
  *   N=3000 CLUB=0 … CLUB=3                  (un club par processus : σ ≈ 0,8 V ; à N=120 le bruit fait ±3 V)
  *   PLEIN=1                                 (aussi : la retouche en Hors-cadre et en Or, la recrue à la place du 9e avant)
- *   ROLE_X=2 ROLE_HAUT=1                    (les écarts des rôles doublés ; le rôle posé sur ta vedette plutôt que sur la cible du jeu)
+ *   ROLE_X=2 ROLE_HAUT=1                    (les écarts des rôles doublés encore ; le rôle posé sur ta vedette plutôt que sur la cible du jeu)
  *   GRAINE=b                                (d'autres dés)
  */
 import fs from 'node:fs';
@@ -26,7 +28,7 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
 const N = Number(process.env.N || 120), N_CLUBS = Number(process.env.CLUBS || 4), J0 = Number(process.env.JOUR || 20), SOIRS = 82 - J0;
-const NIVEAU_SORTE = { recrue: 4, profil: 2, atelier: 3 };
+const NIVEAU_SORTE = { recrue: 3, profil: 2, atelier: 2 };
 
 /* Des clubs de plusieurs époques, avec leur shard (le loto de la recrue y pige). */
 function clubs(n) {

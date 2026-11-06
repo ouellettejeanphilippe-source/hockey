@@ -514,3 +514,19 @@ Le moment « ronde » se lit le matin du premier match d'une ronde, sur `f.ronde
 8. **Le vétéran par l'âge** (26 : 35 ans dans sa saison, `ageAtSeason`) ou par ses saisons chez toi (le cartable, `graverLaSaison`) ? L'âge existe partout ; les saisons chez toi racontent la run.
 9. **Les niveaux des cartes d'option** : Soutien et Régulier pour presque tout, Pilier pour la carte d'adjoint, les vingt matchs et la série, aucune ★ Étoile ni ★ Phénomène. D'accord, ou une histoire rare mérite une ★ Étoile (la garantie, 34) ?
 10. **Le robot** : `lundiDuRobot` pèse aujourd'hui jetons, xp, adjoint et quelques paris. Il doit apprendre `lui` et `gestes` de ces quarante avant que `mesure_rythme` et `check_profondeur` jugent (C2) — c'est dans le devis, je le rappelle parce que trois fiches (19, 9, 18) ne se pèsent qu'avec la carte d'adjoint ou l'échange.
+
+## 5. Ce que JP a tranché (6 nov. 2026)
+
+Les neuf, posées une à une, toutes dans le sens proposé :
+1. **La réplique dit le chiffre du fait** — le même que la ligne sous elle, jamais une stat du moteur ; `check_clarte` § 5 se réécrit ainsi (la règle « une réplique sans chiffre » de rogue.md devient « jamais un chiffre du moteur »).
+2. **Les voix changent de main** : le petit au dépisteur, le dos-à-dos à ton adjoint.
+3. **Le geste neuf `echange: 'lui'`** pour la date limite des échanges.
+4. **Les canaux du club permis au gros match et à la ronde seulement**, bornés par `check_effets` ; jamais au lundi.
+5. **La vraie saison d'un gardien** gagne ses victoires et son % d'arrêts.
+6. **Le maire reste**, en rare.
+7. **Six rares** (11, 17, 18, 25, 26, 27) ; la course perdue (6), la première place (7) et le mandat (21) suivent `SORTIES_MAX` sur un autre joueur.
+8. **Le vétéran par l'âge** (35 ans dans sa saison).
+9. **Rien au-dessus de Pilier.**
+
+C1 les code.
+
