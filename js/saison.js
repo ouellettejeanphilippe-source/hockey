@@ -2842,8 +2842,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * la main » y ramène. Toutes finissent en UNE décision datée d'aujourd'hui,
    * portant son palier : c'est ce qui ferme la main.
    */
-  // Le carton de chaque sorte (V25 B1 : au niveau) : la recrue en ★ Phénomène, le rôle en Pilier, l'atelier en ★ Étoile.
-  const NIVEAU_SORTE = { recrue: 4, profil: 2, atelier: 3 };
+  // Le carton de chaque sorte (V25 B1 : au niveau), au niveau que la carte VAUT (6 nov. 2026, scripts/mesure_deck.mjs, en paires sur
+  // 62 soirs : la recrue ≈ 1 V et jusqu'à 3,4 à la place du 9e avant, le rôle ≈ 1 V, la retouche de Cadre ≈ 0,4 V, d'Or ≈ 1,2) :
+  // la recrue en ★ Étoile, le rôle en Pilier, l'atelier en Pilier.
+  const NIVEAU_SORTE = { recrue: 3, profil: 2, atelier: 2 };
   /*
    * UNE CARTE DU DECK SE DATE DU SOIR DU PROCHAIN MATCH (S74), pas d'aujourd'hui.
    * Son sel tire des dés neufs à partir de sa journée : datée d'aujourd'hui,

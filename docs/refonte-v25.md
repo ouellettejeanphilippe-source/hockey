@@ -292,4 +292,6 @@ Après la V25 : **D2, les autres modes**, avec son devis (la V26).
 7. **La vraie saison** : *avec ses bornes* (les matchs joués, le club tu si deux clubs, « jusqu'ici » si en cours, jamais « a fini », jamais face à une autre époque).
 8. **Le texte des cartes** : *les chiffres dérivés, la réplique écrite*.
 
+**Les neuf de C0 (6 nov. 2026, docs/histoires-v25.md § 4 et § 5)** : la réplique dit le chiffre du fait (jamais une stat du moteur) ; le petit au dépisteur, le dos-à-dos à ton adjoint ; un geste neuf `echange: 'lui'` ; les canaux du club au gros match et à la ronde seulement ; la vraie saison d'un gardien avec ses victoires et son % d'arrêts ; le maire reste, en rare ; six rares ; le vétéran par l'âge ; rien au-dessus de Pilier. Et la main du deck (20e, 40e, 60e, `mesure_deck`) : les trois réglages — le rôle sur un de tes six meilleurs avants ou quatre meilleurs défenseurs avec des écarts doublés, l'atelier à Pilier, la recrue à ★ Étoile.
+
 La suite : A1.
