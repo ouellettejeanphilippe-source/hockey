@@ -19,6 +19,7 @@ Rien de neuf à l'écran, sauf une promesse enfin tenue : à la troisième saiso
 
 ## 4. Les chiffres
 
+- Les lundis : `CHANCE_HISTOIRE` 0,55 comme avant, et jamais plus de `DISETTE_MAX` (3) lundis de suite sans histoire, le suivant en a une (53 % des lundis au lieu de 50 % ; six lundis vides de suite laissaient un premier quart sans histoire une saison sur cent).
 - Le rythme (`mesure_rythme`, l'attentif, huit clubs, trois saisons de suite) : aucun trou de plus de 10 matchs en médiane, un quart des saisons au plus au-dessus, un moment par quart ; **neuf** : une histoire au moins dans chaque quart de chaque saison, et aucune histoire revue sur le même joueur dans la run de trois saisons d'un club ; les histoires par moment se disent.
 - La profondeur (`check_profondeur`) : **neuf**, la médiane des premières Coupes du robot d'avant moins celle de l'attentif, au moins `AVANCE_RUNS` (2 ; plage sûre 1 à 3, § 9 du devis) ; la première Coupe de l'attentif entre la run 3 et la run 8, comme avant.
 - Aucun match ne change : le moteur, la banque et le tirage d'une saison sans mémoire rendent la même chose (`check_histoires`, `check_empreinte`).
@@ -33,7 +34,7 @@ Rien de neuf à l'écran, sauf une promesse enfin tenue : à la troisième saiso
 
 ## 6. Ce qu'il touche
 
-- Le jeu : `js/histoires.js`, `js/saison.js`, `js/rogue-jeu.js`, `js/banc.js`, `js/bilan.js`.
+- Le jeu : `js/histoires.js` (et `DISETTE_MAX`, la disette de lundis bornée), `js/saison.js`, `js/rogue-jeu.js`, `js/banc.js`, `js/bilan.js`.
 - Les robots et les juges : `scripts/lib/cartes_robot.mjs`, `scripts/lib/rogue_sim.mjs`, `scripts/mesure_rythme.mjs`, `scripts/check_profondeur.mjs`, `scripts/check_histoires.mjs`.
 - Les règles et les docs : `.claude/rules/rogue.md`, `.claude/rules/tests.md`, `docs/structure-detaillee.md`, `LIVRAISON.md`, `docs/journal/2026-11.md`, `docs/decisions.md`.
 - Les règles fermes : rogue.md « ne revient jamais sur le même joueur » devient « de toute la run » (c'était la promesse du commentaire de `auRepos`, que le jeu ne tenait pas) ; rien n'est défait. Les clés de sauvegarde ne bougent jamais : `histoires` est une clé neuve de `G.rogue`.
@@ -52,10 +53,12 @@ Presque rien, et c'est dit : C2 est la tranche de mesure du devis, pas une refon
 | Constante | Valeur | Plage sûre | Au-delà |
 |---|---|---|---|
 | `AVANCE_RUNS` (check_profondeur) | 2 | 1 à 3 | sous 1, lire ses choix ne change pas la carrière ; au-dessus de 3, le robot d'avant ne gagne jamais |
+| `DISETTE_MAX` (js/histoires.js) | 3 lundis | 2 à 4 | au-dessus, un quart peut passer sans histoire ; en dessous, le lundi sans histoire n'existe plus |
 | Le trou du rythme (`TROU_MAX`) | 10 matchs | 8 à 12 | au-dessus, la saison est un couloir ; en dessous, le soir ordinaire n'existe plus |
 
 ## 9. Les critères d'acceptation
 
 - [x] La run ne revoit jamais une histoire sur le même joueur d'une saison à l'autre, et la mémoire ne bloque que le joueur — `check_histoires` § 3b.
-- [ ] Le rythme : aucun trou de plus de 10 matchs, une histoire par quart, aucune histoire revue sur le même joueur en trois saisons — `mesure_rythme` (étendu).
-- [ ] La profondeur : la première Coupe de l'attentif deux runs avant celle du robot d'avant, à la run 3 ou plus tard ; le robot lit la banque — `check_profondeur` (le critère de run).
+- [x] Le rythme : aucun trou de plus de 10 matchs, une histoire par quart, aucune histoire revue sur le même joueur en trois saisons — `mesure_rythme` (étendu) : trou médian 8, 0 quart sans histoire sur 96, aucune redite.
+- [x] Jamais plus de `DISETTE_MAX` (3) lundis de suite sans histoire — `check_histoires`.
+- [ ] La profondeur : la première Coupe de l'attentif deux runs avant celle du robot d'avant, à la run 3 ou plus tard ; le robot lit la banque — `check_profondeur` (le critère de run). **Rouge** au 6 nov. : les deux robots gagnent leur première Coupe aux runs 1 et 4 ; le robot lit la banque, le juge est posé, l'équilibrage reste à trancher.
