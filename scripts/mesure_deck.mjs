@@ -64,6 +64,8 @@ const variantes = [];
 const TEMOINS = process.env.CLUB != null ? [clubs(N_CLUBS)[Number(process.env.CLUB)]].filter(Boolean) : clubs(N_CLUBS);
 console.log(`\n  La main du deck, pesée (N=${N} matchs par club et par carte, ${TEMOINS.length} clubs, depuis le ${J0}e match : ${SOIRS} soirs)\n`);
 for (const T of TEMOINS) {
+  // Un adversaire PAR variante : il joue exactement la même suite de matchs contre chacune (sinon sa rotation de gardiens
+  // et ses compteurs décalent le match de base de ceux des variantes, et toutes les variantes d'un club penchent du même bord).
   const sans = equipe(T), adv = equipe(T);
   const joueurs = T.sh.players;
   const cas = [];
@@ -87,11 +89,11 @@ for (const T of TEMOINS) {
     t.roster[faible.sl.i] = r;
     cas.push({ sorte: 'recrue', nom: `recrue · ${mot} ${r.n} (${(cote20(r, joueurs) || 0).toFixed(1)}) pour ${faible.p.n} (${faible.cote.toFixed(1)})`, t });
   }
-  for (const c of cas) { c.dv = 0; c.dnet = 0; }
+  for (const c of cas) { c.dv = 0; c.dnet = 0; c.adv = equipe(T); }
   for (let i = 0; i < N; i++) {
     const g = `deck:${T.tag}:${i}`, visiteur = i % 2 === 1;
     const base = match(sans, adv, g, visiteur);
-    for (const c of cas) { const m = match(c.t, adv, g, visiteur); c.dv += m.v - base.v; c.dnet += m.net - base.net; }
+    for (const c of cas) { const m = match(c.t, c.adv, g, visiteur); c.dv += m.v - base.v; c.dnet += m.net - base.net; }
   }
   for (const c of cas) {
     const V = (c.dv / N) * SOIRS, lim = NIVEAUX[NIVEAU_SORTE[c.sorte]].borneV;
