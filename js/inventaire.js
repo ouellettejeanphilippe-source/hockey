@@ -71,15 +71,16 @@ export function cartesDeLaPartie({ decisions = [], rogue = false } = {}) {
  * pack, vie courte) ; le reste vaut 1,24 🪙 en moyenne, soit au plus le tiers
  * du prix d'un pack. scripts/check_packs.mjs le mesure pour chaque pack.
  */
-export const VENTE = { commune: 1, peu: 1, hors: 1, rare: 2, legendaire: 5, maudite: 0 };
-export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'consommable' ? 0 : (VENTE[c.rarete] ?? 1); };
+/* V25 B1 : par niveau (js/niveaux.js, 0 à 4), les mêmes valeurs qu'aux raretés d'avant : 1 · 1 · 1 · 2 · 5. */
+export const VENTE = [1, 1, 1, 2, 5];
+export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'consommable' ? 0 : (VENTE[c.niveau] ?? 1); };
 
 /* Une carte de la banque en option de carte (`ouvrirChoix`, `carteDeBanqueHtml`) : sa famille, sa vie, sa règle. */
 export function optionDeBanque(id, vie = null) {
   const c = BANQUE[id];
   const etiquette = etiquetteBanque(id);
   return { cle: id, niveau: c.niveau, ico: c.ico, nom: c.nom,
-    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[vie || c.vie] || VIES.saison).nom}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
+    type: `${CATEGORIES[c.cat].un} · ${(VIES[vie || c.vie] || VIES.saison).nom}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
 }
 
 /* ---------- la carte de la banque : la face d'un pack (Jalon U), son compte, ses boutons ---------- */

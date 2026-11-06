@@ -274,7 +274,7 @@ function fitDAdjoint(R, k, coach, niv) {
     return m.butsPour - m.butsContre;
   });
   const base = net({});
-  const fit = net({ effets: J.effet ? [{ source: 'adjoint', ...J.effet }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - base;
+  const fit = net({ effets: J.canaux ? [{ source: 'adjoint', ...J.canaux }] : [], effetsAdv: J.adv ? [{ source: 'adjoint', ...J.adv }] : [] }) - base;
   // V23 D (`ROBOT_SAUF=relais` la retire) : son relais, lu sur son effectif, pesé par la part de périodes où son signal se lit
   // (`signal.part` ; un signal qui lit les pouvoirs de ton coach, la part où un pouvoir joue, `PART_POUVOIR`).
   const X = attentifFait('relais') ? effetDuRelais(k, niv) : null;
@@ -422,7 +422,7 @@ function fitDeCoach(R, carte) {
   const delta = masque => {
     if (!lus.has(masque)) {
       const effets = [], effetsAdv = [];
-      Ps.forEach((P, p) => { if (!(masque & (1 << p))) return; if (P.effet) effets.push({ source: 'pouvoir', ...grandir(P.effet, f) }); if (P.adv) effetsAdv.push({ source: 'pouvoir', ...grandir(P.adv, f) }); });
+      Ps.forEach((P, p) => { if (!(masque & (1 << p))) return; if (P.canaux) effets.push({ source: 'pouvoir', ...grandir(P.canaux, f) }); if (P.adv) effetsAdv.push({ source: 'pouvoir', ...grandir(P.adv, f) }); });
       const m = lire({ effets, effetsAdv });
       lus.set(masque, { pour: m.butsPour - base.butsPour, contre: m.butsContre - base.butsContre });
     }

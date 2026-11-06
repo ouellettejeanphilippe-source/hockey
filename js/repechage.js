@@ -173,7 +173,7 @@ export function cartonDe(p, o = {}) {
   const cle = getPlayerKey(p);
   const mots = String(p.n || '').trim().split(' ');
   return cartonHtml({
-    serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p), cadre: cadrePhoto(p),
+    serie: serieDe(p.s), edition: rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p), cadre: cadrePhoto(p),
     couchee: photoCouchee(p), cadreCouche: cadrePhotoCouchee(p), debout: o.debout,
     pos: esc(positionLabel(p)), posClasse: positionClass(p),
     gemmeHtml: gemmeJoueur(rarete, traits), rubanHtml: rubanDe(p),

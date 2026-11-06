@@ -54,16 +54,14 @@ export function effetDeMoment(d, team = null) {
   const o = fam && fam.options.find(x => x.cle === m.choix);
   if (!o) return null;
   const duree = o.duree || DUREE_MOMENT;
-  // Un dossier (V10) paie ou coûte des jetons (`gain`) : la caisse les lit sur la décision, pas l'effet ; son plafond
-  // (`plafond`) aussi, et ses conséquences concrètes (V21 : l'expérience du coach, un soin).
-  // Ce qui va au joueur nommé (`lui`, V11) n'est pas un effet d'équipe : `appliquerDecision` le pose sur lui.
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, plafond: _pl, xp: _x, adjoint: _b, soin: _so, suite: _su, ...canaux } = o;
-  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l; void _pl; void _x; void _b; void _so;
-  if (!Object.keys(canaux).length) return null;
+  // Les jetons, l'expérience et le plafond d'une réponse, la caisse les lit sur la décision, pas l'effet ; ce qui va au
+  // joueur nommé (`lui`), `appliquerDecision` le pose sur lui. Ici, ses canaux d'équipe (js/effets.js).
+  const canaux = o.canaux;
+  if (!canaux || !Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
   // Le nom de l'option nomme son joueur (« … pour {nom} »), comme à l'écran du choix : « Ce qui court » le relit tel quel.
-  const choix = String(nom || '').replace(/\{nom\}/g, (CONNUS.get(m.joueur) || {}).n || 'lui').replace(/\{aux\}/g, 'l\'auxiliaire');
-  return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix, ...canaux, ...(_t ? { regle: true } : {}) };
+  const choix = String(o.nom || '').replace(/\{nom\}/g, (CONNUS.get(m.joueur) || {}).n || 'lui').replace(/\{aux\}/g, 'l\'auxiliaire');
+  return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix, ...canaux, ...(o.trou ? { regle: true } : {}) };
 }
 
 function gagnerXp(T, bonus = 0) {
@@ -308,7 +306,7 @@ function poserLesAdjoints(A, B, journal) {
     for (const c of postesDe(T.perso, T.games || 0)) {
       // V23 : à son niveau (`styleAuNiveau`, js/adjoints.js ; le Pilier sans niveau, la table telle quelle).
       const J = ADJOINTS[c.cle], S = styleAuNiveau(c.cle, nivDe(c));
-      if (S.effet) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...S.effet });
+      if (S.canaux) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...S.canaux });
       if (S.adv) poser(O, { source: 'adjoint', nom: J.nom, ico: J.ico, ...S.adv });
       if (journal) (journal.adjoints = journal.adjoints || []).push({ cote, cle: c.cle, nom: J.nom, ico: J.ico, niv: nivDe(c), salaire: salaireDe(c), reste: resteDe(c, T.games || 0, T.perso.cle) });
     }
@@ -439,7 +437,7 @@ function pouvoirsPoses(T, e, cote, journal) {
   if (!T.perso) return out;
   const perso = { ...T.perso, xpSaison: T.xpSaison || 0 };
   for (const x of pouvoirsDeLaPeriode(perso, e)) {
-    if (x.effet) out.toi.push({ source: 'pouvoir', nom: x.P.nom, ico: x.P.ico, ...x.effet });
+    if (x.canaux) out.toi.push({ source: 'pouvoir', nom: x.P.nom, ico: x.P.ico, ...x.canaux });
     if (x.adv) out.adv.push({ source: 'pouvoir', nom: x.P.nom, ico: x.P.ico, ...x.adv });
     const note = { cote, k: e.k, p: x.p, cle: x.P.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0, ...(x.ombre ? { ombre: true } : {}) };
     out.notes.push(note);
@@ -626,7 +624,7 @@ function decision(team, d, graine) {
     if (o) appliquerGestes(team, o, d.jour, d.moment.joueurs, graine, cleDuPari(d), fam.titre);
     if (o && o.suivi && d.moment.famille === 'fil') engagerSuivi(team, d, o, fam);
     // V11 (tranche 4) : un dossier qui nomme un joueur pose le gros de sa réponse sur lui.
-    if (o && o.lui && d.moment.joueurs && d.moment.joueurs[0]) poserSurJoueur(team, d.jour, { joueur: d.moment.joueurs[0], nom: fam.titre, ico: fam.ico, duree: o.duree, ...(o.si ? { si: o.si } : {}), ...o.lui });
+    if (o && o.lui && d.moment.joueurs && d.moment.joueurs[0]) poserSurJoueur(team, d.jour, { joueur: d.moment.joueurs[0], nom: fam.titre, ico: fam.ico, duree: o.duree, ...(o.quand ? { si: o.quand } : {}), ...o.lui });
   }
   appliquerPerso(team, d);
   return { mutation };

@@ -34,12 +34,13 @@ import { PALIERS_PACK, SEMAINE } from './inventaire.js';
 import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT, TALENT_CASE, NIVEAU_POUVOIR } from './pouvoirs.js';
 import { COACHS } from './coachs.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
-import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, basculerChiffres, ouvrirDuel, specDuDuel } from './gerant.js';
+import { ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, basculerChiffres, ouvrirDuel, specDuDuel } from './gerant.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, BUTIN_DU_GROS, lireMeta, aDebloque } from './rogue.js';
 import { ADJOINTS, adjointsOfferts, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, niveauOffert, momentFort, salaireDe, nivDe, casesDuPerso } from './adjoints.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
+import { motsDe } from './effets.js';
 import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, faitsDesSuites, faitsDuDernier, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE } from './banque.js';
 import { DEFIS, avanceDuDefi, motDuDefi } from './arcs.js';
@@ -1673,7 +1674,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       cle: k, ico: P.ico, nom: P.nom,
       sous: k === 'match' ? P.bon : P.vedette && vedette && colle ? `${nomCourt(colle.n)} suit ${nomCourt(vedette.n)}` : '',
       mots: k === 'match' ? [] : motsDeStats(planEnChiffres(you, null, adv, k).stats, 2, { par: 'par match' }),
-      ...(k === enForce ? { quand: 'En force' } : {}),
+      ...(k === enForce ? { fenetre: 'En force' } : {}),
     }));
     ouvrirChoix({ ico: '🎯', titre: 'Ton plan', recit: `Journée ${p.j + 1} · ${ctx.teamShort(adv)}`, compact: true, fermable: true, motFermer: 'Retour', options,
       onChoix: k => {
@@ -3432,7 +3433,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Le rachat dit les vrais montants (oct., JP : *c'est moi où y'a rien de cohérent ?*), plus « 17 % de moins ».
     const apres = lui && lui.dollars && o.plafond && o.plafond.facteur ? money(lui.dollars * o.plafond.facteur) : '';
     const poser = t => String(t).replace('{nom}', lui ? lui.n : '').replace('{sal}', lui && lui.sal ? lui.sal : '').replace('{apres}', apres);
-    return Object.fromEntries(['nom', 'bon', 'prix'].filter(k => o[k]).map(k => [k, poser(o[k])]));
+    return o.nom ? { nom: poser(o.nom) } : {};
   }
   /* LES FAITS DU LUNDI : ce qui est déjà joué (les jambes du matin, l'infirmerie, le dernier match, le rang) et la cédule de la semaine, déjà connue. */
   function faitsDuLundi() {
@@ -3642,34 +3643,24 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const lui = D.joueur ? D.joueur(dossier.faits) : null;
       const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
       // LES CONSÉQUENCES CONCRÈTES (V21 ; V22 : la carte d'adjoint offerte est nommée, la première tirée pour cette histoire).
+      // V25 B1b : chaque réponse est un effet de la grammaire (js/effets.js) ; ses lignes se dérivent à l'écran (`motsDe`).
       const persoDo = persoDuJour();
       const offert = persoDo ? adjointsOfferts(persoDo, graine, `do:${dossier.w}`, 1)[0] || null : null;
-      const motsConcrets = o => [
-        ...(o.xp ? [{ txt: `Ton coach : ${o.xp > 0 ? '+' : '−'}${Math.abs(o.xp)} d'expérience`, bon: o.xp > 0 }] : []),
-        ...(o.adjoint && offert ? motDeLOffert(offert, niveauOffert(graine, `do:${dossier.w}`, offert)) : []),
-        ...(o.action && o.action.energieTous ? [{ txt: `Les jambes de tous : ${o.action.energieTous > 0 ? '+' : '−'}${Math.abs(o.action.energieTous)}`, bon: o.action.energieTous > 0 }] : []),
-        ...(o.action && o.action.energie && lui ? [{ txt: `Jambes de ${nomCourt(lui.n)} : ${o.action.energie > 0 ? '+' : '−'}${Math.abs(o.action.energie)}`, bon: o.action.energie > 0 }] : []),
-        ...(o.action && o.action.absents && lui ? [{ txt: `${nomCourt(lui.n)} manque ${o.action.absents} match${o.action.absents > 1 ? 's' : ''}`, bon: false }] : []),
-        ...(o.action && o.action.gardienAux ? [{ txt: `L'auxiliaire garde le filet ${o.action.gardienAux} soir`, bon: null }] : []),
-        ...(o.soin && lui ? [{ txt: `${nomCourt(lui.n)} : −${o.soin} matchs d'infirmerie`, bon: true }] : []),
-      ];
-      const options = D.options.map(o => ({ ...o, ...motsDuDossier(o, dossier.faits, lui), duree: o.rien || o.si || o.pari ? null : o.duree || null,
-        ...(!o.si && o.duree && !o.rien ? { quand: fenetreDuChoix(miens.length, o.duree) } : {}),
+      const offertMots = offert ? motDeLOffert(offert, niveauOffert(graine, `do:${dossier.w}`, offert)) : null;
+      const options = D.options.map(o => ({ ...o, ...motsDuDossier(o, dossier.faits, lui), duree: o.quand || o.pari ? null : o.duree || null, offert: offertMots,
+        ...(!o.quand && o.duree ? { fenetre: fenetreDuChoix(miens.length, o.duree) } : {}),
         // UNE RÉPONSE D'UN MOMENT se dit sur ses soirs : « −0,4 pt de précision par soir · Un soir de dos-à-dos : ≈ 15 soirs cette
         // saison », plus « par match · 82 matchs » à côté de « seulement » (oct., JP : *rien de cohérent*).
-        ...(o.si ? { cadre: { part: 1, par: 'par soir' }, quand: `${MOMENTS_SI[o.si].mot} : ≈ ${Math.max(1, Math.round(MOMENTS_SI[o.si].parSaison * Math.min(o.duree || 82, 82 - miens.length) / 82))} soirs${(o.duree || 82) >= 82 ? ' d\'ici la fin de la saison' : ` sur ${o.duree} matchs`}` } : {}),
+        ...(o.quand ? { cadre: { part: 1, par: 'par soir' }, fenetre: `${MOMENTS_SI[o.quand].mot} : ≈ ${Math.max(1, Math.round(MOMENTS_SI[o.quand].parSaison * Math.min(o.duree || 82, 82 - miens.length) / 82))} soirs${(o.duree || 82) >= 82 ? ' d\'ici la fin de la saison' : ` sur ${o.duree} matchs`}` } : {}),
         // L'AUDACE (V20) : un pari sur le joueur nommé, au dé ; sa fenêtre, celle de ses deux issues.
-        ...(o.pari ? { quand: fenetreDuChoix(miens.length, o.pari.gagne.duree) } : {}),
-        mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...motsConcrets(o), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
-        // Ce qui va au joueur nommé se dit une fois, à son nom (ci-dessus) : la carte ne le redit pas en « Ton joueur ».
-        ...(o.lui && lui ? { lui: null } : {}),
-        desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : null }));
-      const decision = cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}),
+        ...(o.pari ? { fenetre: fenetreDuChoix(miens.length, o.pari.gagne.duree) } : {}),
+        desactive: o.jetons < 0 && caisse !== null && caisse < -o.jetons ? 'Pas assez de jetons en caisse' : null }));
+      const decision = cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.jetons ? { gain: o.jetons } : {}),
         // V16 (tranche 6) : la masse salariale passe par sa décision (`plafond`) ; V21 : le coach, le soin, par les leurs.
         ...(o.plafond ? { plafond: { cle: `${dossier.cle}.${cle}`, nom: motsDuDossier(o, dossier.faits, lui).nom, ...o.plafond, ...(o.plafond.facteur && lui ? { joueur: lui.cle } : {}) } } : {}),
         ...(o.xp ? { xpCoach: o.xp } : {}),
-        ...(o.adjoint && offert ? decisionDeLAdjoint(offert, `do:${dossier.w}`) : {}),
-        ...(o.soin && lui ? { gestes: { soin: o.soin, joueurs: [lui.cle] } } : {}) }; };
+        ...(o.gestes && o.gestes.adjoint && offert ? decisionDeLAdjoint(offert, `do:${dossier.w}`) : {}),
+        ...(o.gestes && o.gestes.soin && lui ? { gestes: { soin: o.gestes.soin, joueurs: [lui.cle] } } : {}) }; };
       const scene = sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`);
       // L'AUDACE SE JOUE AU DÉ (V20 ; js/gerant.js `sceneDuDe`) : le sel se tire au lancer, le dé montre ce que le moteur en fera.
       const deciderIci = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); };
@@ -3740,7 +3731,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       out.push({ id: `fil:${a.sorte}`, genre: 'fil', bloque: true, de: x.de, sujet: a.texte, joueur: a.joueur,
         choix: { recit: `« ${x.mot} » ${C.question}`, joueur: a.joueur,
           options: C.options.filter(o => (!o.monte || cases) && (!o.mentor || fo.mentor)).map(o => ({ cle: o.cle, nom: avecNoms(o.nom, noms), bon: avecNoms(o.bon, noms), prix: avecNoms(o.prix, noms),
-            ...(o.action ? { action: o.action } : {}), ...(o.rien ? { rien: true } : {}), ...(o.suivi ? { sous: motDuSuivi(o.suivi, noms) } : {}) })),
+            ...(o.gestes ? { gestes: o.gestes } : {}), ...(o.rien ? { rien: true } : {}), ...(o.suivi ? { sous: motDuSuivi(o.suivi, noms) } : {}) })),
           decision: k => ({ palier: `fil:${a.sorte}`, moment: { famille: 'fil', cle: a.sorte, choix: k, joueur: cle, joueurs: [cle],
             ...(fo.deplace ? { deplace: getPlayerKey(fo.deplace) } : {}), ...(a.passeur ? { passeur: getPlayerKey(a.passeur) } : {}) },
             ...(C.options.find(o => o.cle === k)?.monte && cases ? { cases } : {}),
@@ -4094,10 +4085,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * nom sur la plaque ; la toucher la retourne, son verso dit ce qu'elle fait ; « Prendre », dessous, la joue.
        */
       const enCartes = m.genre === 'dossier';
-      const icoDe = o => (o.pari ? '🎲' : o.gain > 0 ? '🪙' : o.adjoint ? '📋' : C.ico || m.de.ico);
+      const icoDe = o => (o.pari ? '🎲' : o.jetons > 0 ? '🪙' : o.gestes && o.gestes.adjoint ? '📋' : C.ico || m.de.ico);
       // Son coin dit ce qu'elle rapporte, en grand, sans la retourner : des jetons, de l'expérience, une carte, ou le dé.
-      const coinDe = o => (o.gain ? `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙` : o.xp ? `+${o.xp} exp.` : o.adjoint ? '+1 carte' : o.pari ? `🎲 ${Math.round(o.pari.chance * 6)}/6` : '');
-      const options = enCartes ? C.options.map(o => ({ ...o, genreCarte: 'tactique', ico: icoDe(o), coin: coinDe(o), niveau: o.pari ? 3 : o.prix ? 1 : 2, motChoix: 'Jouer' })) : C.options;
+      const coinDe = o => (o.jetons ? `${o.jetons > 0 ? '+' : '−'}${Math.abs(o.jetons)} 🪙` : o.xp ? `+${o.xp} exp.` : o.gestes && o.gestes.adjoint ? '+1 carte' : o.pari ? `🎲 ${Math.round(o.pari.chance * 6)}/6` : '');
+      const options = enCartes ? C.options.map(o => ({ ...o, genreCarte: 'tactique', ico: icoDe(o), coin: coinDe(o), niveau: o.pari ? 3 : motsDe(o, { qui: o.offert ? '' : 'Ton joueur' }).some(x => x.bon === false) ? 1 : 2, motChoix: 'Jouer' })) : C.options;
       // V23 G : le niveau du coach est un pic — le talent s'ouvre dans la secousse et les particules.
       if (m.genre === 'talent') setTimeout(() => pic(document.querySelector('.choix-sheet[data-msg="talent"]')), 50);
       ouvrirChoix({
@@ -4579,7 +4570,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       const offres = dejaAjuste ? null : ajustementsOfferts(graine, ronde, k, etat);
       // L'ADJOINT JOUE CETTE SÉRIE (1.0, J2-13) : un ajustement sans pari, et il garde ton plan, période après période.
       const parLAdjoint = () => {
-        const ajustement = offres ? offres.find(c => !AJUSTEMENTS[c].pari && !AJUSTEMENTS[c].gardienAux) || offres[0] : null;
+        const ajustement = offres ? offres.find(c => !AJUSTEMENTS[c].pari && !(AJUSTEMENTS[c].gestes || {}).gardienAux) || offres[0] : null;
         quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees: [] }, duel: { p: 0 }, auto: true }));
       };
       const ap = apercuDuDuel(you, boss, { graine, cle: `po${ronde}:${k}` });

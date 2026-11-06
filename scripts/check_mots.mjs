@@ -1,15 +1,14 @@
 /*
- * LES MOTS D'UN CHOIX DISENT SES LIGNES (oct. 2026). JP, captures à l'appui : *tous les events et cie, ça a vraiment
- * aucun sens* ; *le texte fitte pas totalement avec les stats des choix*. Une option est écrite en mots (son bon, son
- * prix) et en canaux ; le moteur la relit en lignes de stats (js/impact.js `effetEnChiffres`), avec les contrecoups
- * que les mots n'avaient pas promis. Ici, sur plusieurs vrais clubs, pour chaque réponse d'un dossier (js/dossiers.js) :
- *   1. chaque ligne verte est nommée par son bon (ou son nom), chaque ligne rouge par son prix (ou son nom), et une
- *      ligne sans couleur (la glace des trios) par l'un ou l'autre ;
- *   2. chaque mot de stat du bon ou du prix a sa ligne, de sa couleur, sur la plupart des clubs ;
- *   3. une réponse qui a des canaux se voit : jamais « à peine perceptible » seule ;
- *   (nov. 2026) ce qui va au joueur nommé (`lui`) et les jambes d'un geste comptent comme des lignes ; le dé d'une audace se lit ailleurs.
- * Les dilemmes et les routes de la semaine sont partis (V20, docs/refonte-v20.md § 3) ; restent les dossiers. Le
- * personnel écrit ses mots à partir de ses lignes (js/rogue-jeu.js `motsDeLaPersonne`), il ne peut pas les contredire.
+ * LES MOTS D'UN CHOIX SONT SES LIGNES (oct. 2026 ; V25 B1b). JP, captures à l'appui : *tous les events et cie, ça a vraiment
+ * aucun sens* ; *le texte fitte pas totalement avec les stats des choix*. Une réponse d'histoire (js/dossiers.js) est un
+ * effet de la grammaire (js/effets.js) : ses lignes se DÉRIVENT de ce que le moteur joue (`motsDe`, js/impact.js
+ * `effetEnChiffres`), plus aucun `bon` ni `prix` écrit à côté qui pourrait les contredire. Ce qui reste à exiger :
+ *   1. chaque réponse qui touche le match se VOIT : sur plusieurs vrais clubs, ses canaux, ce qui va au joueur nommé
+ *      (`lui`) ou les jambes d'un geste donnent au moins une ligne ; jamais « à peine perceptible » seule ;
+ *   2. chaque réponse se DIT : `motsDe` rend au moins une ligne, chacune verte, rouge ou grise, sans accolade oubliée,
+ *      et une issue de pari se dit à son nom ;
+ *   3. les jetons et l'expérience se versent une fois, à la décision : jamais sous un `quand`, jamais dans une issue de
+ *      pari (la caisse reste recomptée des décisions, `check_rogue`, `check_verite`).
  *
  *   node scripts/check_mots.mjs            (une dizaine de secondes ; CLUBS=6 en lit plus)
  */
@@ -18,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam } from '../js/sim.js';
 import { effetEnChiffres } from '../js/impact.js';
+import { CANAUX, motsDe } from '../js/effets.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -45,20 +45,7 @@ function clubs(n) {
 }
 const TEAMS = clubs(N_CLUBS);
 
-/* Le mot de chaque ligne, tel qu'un bon ou un prix doit le dire. */
-const MOTS = {
-  tir: /\btirs?\b(?! contre)|\btire\b|\btirent\b|\blance\b|\bbombarde\b|\brondelles?\b/i,
-  'tir accordé': /\btirs? contre\b|\bchances contre\b/i,
-  pctTir: /\bprécision\b|\bvise\b|\bvisent\b/i,
-  pctArr: /\barrêts?\b/i,
-  punition: /\bpunitions?\b|\bcachot\b/i,
-  coup: /\bmises? en échec\b|\bfrappe\b/i,
-  blessure: /\bblessures?\b|\bblessés?\b/i,
-  jambes: /\bjambes\b/i,
-  glace: /\btrios?\b|\bvedettes\b/i,
-};
-const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
-const canauxDe = o => Object.fromEntries(Object.entries(o).filter(([k]) => CANAUX.includes(k)));
+const canauxDe = e => Object.fromEntries(Object.entries(e || {}).filter(([k]) => CANAUX.includes(k)));
 /* Les lignes d'un effet sur chaque club, puis celles qui tiennent sur la plupart : { cle → bon }. */
 function lignesTenues(effet, duree) {
   const compte = new Map();
@@ -74,45 +61,41 @@ function lignesTenues(effet, duree) {
 }
 const MAX_FAUTES = Number(process.env.FAUTES || 12), DETAIL = !!process.env.DETAIL;
 const fautes = [], faute = t => { if (fautes.length < MAX_FAUTES) fautes.push(t); };
-let nOptions = 0;
-/*
- * Ce qui va au joueur nommé (`lui`, nov. 2026) : ses lignes à lui, dans leur sens — ses tirs, sa précision, les buts
- * qu'il accorde (un gardien : ses arrêts), ses blessures. Le dé d'une audace (`pari`) dit ses deux issues ailleurs
- * (`motsDuPari`, js/gerant.js) : il ne se lit pas ici.
- */
 const LIGNE_DU_JOUEUR = { lancers: ['tir', v => v > 1], finition: ['pctTir', v => v > 1], arrets: ['pctArr', v => v < 1], blessure: ['blessure', v => v < 1] };
+let nOptions = 0, nLignes = 0;
+const versees = [], issues = [];
 for (const [k, D] of Object.entries(DOSSIERS)) for (const o of D.options) {
-  if (o.rien || o.pari) continue;
-  const e = canauxDe(o);
-  // Un geste sur les jambes (`action.energie`, `energieTous`) est une ligne de jambes, dite en mots par l'écran.
-  const geste = o.action && (o.action.energieTous || o.action.energie);
+  const id = `${k}.${o.cle}`;
+  // 3. Les jetons et l'expérience, une fois, à la décision.
+  if (o.quand && (o.jetons || o.xp)) versees.push(`${id} : sous un quand`);
+  if (o.pari) for (const b of ['gagne', 'perd']) { const e = o.pari[b] || {}; if (e.jetons || e.xp) versees.push(`${id} : dans l'issue ${b}`); }
+  // 2. Chaque réponse se dit.
+  const mots = motsDe(o, { qui: 'Lui' });
+  if (!mots.length) faute(`${id} : aucune ligne`);
+  for (const m of mots) {
+    nLignes++;
+    if (!m.txt || /[{}]/.test(m.txt) || ![true, false, null].includes(m.bon)) faute(`${id} : la ligne « ${m.txt} »`);
+  }
+  if (o.pari) {
+    const dit = mots.filter(m => /^🎲/.test(m.txt));
+    if (dit.length !== 2 || !dit.every(m => /Lui/.test(m.txt) || /rien ne change/.test(m.txt))) issues.push(id);
+  }
+  // 1. Chaque réponse qui touche le match se voit.
+  if (o.pari) continue;
+  const e = canauxDe(o.canaux), g = o.gestes || {};
+  const geste = g.energieTous || g.energie;
   const siennes = Object.entries(o.lui || {}).filter(([c, v]) => LIGNE_DU_JOUEUR[c] && v !== 1);
   if (!Object.keys(e).length && !geste && !siennes.length) continue;
   nOptions++;
   const lignes = Object.keys(e).length ? lignesTenues(e, o.duree) : new Map();
   if (geste) lignes.set('jambes', geste > 0);
   for (const [c, v] of siennes) lignes.set(LIGNE_DU_JOUEUR[c][0], LIGNE_DU_JOUEUR[c][1](v));
-  const id = `${k}.${o.cle}`;
-  if (DETAIL) informer(id, `${JSON.stringify(e)} → ${[...lignes].map(([c, b]) => `${b === true ? '🟢' : b === false ? '🔴' : '⚪'}${c}`).join(' ')} | + ${o.bon || ''} | − ${o.prix || ''}`);
-  if (lignes.size === 1 && lignes.has('rien')) { faute(`${id} : ne se voit sur aucun club`); continue; }
-  const bon = `${o.nom} ${o.bon || ''}`, prix = `${o.nom} ${o.prix || ''}`;
-  for (const [cle, b] of lignes) {
-    if (cle === 'rien') continue;
-    const M = MOTS[cle];
-    if (!M) { faute(`${id} : une ligne « ${cle} » sans mot connu`); continue; }
-    const ou = b === true ? bon : b === false ? prix : `${bon} ${prix}`;
-    if (!M.test(ou)) faute(`${id} : la ligne ${cle} (${b === true ? 'verte' : b === false ? 'rouge' : 'grise'}) n'est pas dite ${b === true ? 'au bon' : b === false ? 'au prix' : ''}`);
-  }
-  for (const [cle, M] of Object.entries(MOTS)) {
-    const ditBon = M.test(o.bon || ''), ditPrix = M.test(o.prix || '');
-    if (!ditBon && !ditPrix) continue;
-    const b = lignes.get(cle);
-    if (b === undefined) faute(`${id} : « ${(o.bon || '') + ' / ' + (o.prix || '')} » promet ${cle}, sans ligne`);
-    else if (ditBon && b === false) faute(`${id} : le bon dit ${cle}, la ligne est rouge`);
-    else if (ditPrix && b === true) faute(`${id} : le prix dit ${cle}, la ligne est verte`);
-  }
+  if (DETAIL) informer(id, `${JSON.stringify(e)} → ${[...lignes].map(([c, b]) => `${b === true ? '🟢' : b === false ? '🔴' : '⚪'}${c}`).join(' ')} | ${mots.map(m => m.txt).join(' · ')}`);
+  if (!lignes.size || (lignes.size === 1 && lignes.has('rien'))) faute(`${id} : ne se voit sur aucun club`);
 }
 informer('les clubs lus', TEAMS.map(t => t.name).join(' · '));
 if (!nOptions) informer('les dossiers : banque vide (V22, phase 4)', 'aucune réponse à lire');
-exiger('chaque réponse d\'un dossier dit ses lignes : le vert au bon, le rouge au prix, rien de promis sans ligne', !fautes.length, fautes.join(' · ') || `${nOptions} réponses`);
-verdict('Les mots d\'un choix disent ses lignes');
+exiger('chaque réponse qui touche le match se voit sur la plupart des clubs, et chacune se dit en lignes dérivées', !fautes.length, fautes.join(' · ') || `${nOptions} réponses qui touchent le match, ${nLignes} lignes`);
+exiger('une audace dit ses deux issues au nom du joueur', !issues.length, issues.join(' · ') || 'chaque dé');
+exiger('les jetons et l\'expérience se versent une fois, à la décision : jamais sous un quand ni dans une issue', !versees.length, versees.join(' · ') || 'aucun');
+verdict('Les mots d\'un choix sont ses lignes');

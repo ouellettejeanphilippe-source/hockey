@@ -60,13 +60,13 @@ informer('la ligue lue', `${teams.map(t => t.name).join(' · ')} — ${miens.len
 
 /* Les choix à lire : une banque d'essai, à des jours de la saison. */
 DOSSIERS.essai = { titre: 'Un dossier d\'essai', options: [
-  { cle: 'effet', nom: 'Plus de tirs', bon: 'Plus de tirs', prix: 'Plus de punitions', volume: 1.095, discipline: 1.213, duree: 10 },
-  { cle: 'action', nom: 'Le vol nolisé', action: { energieTous: 10 }, gain: -15 },
+  { cle: 'effet', nom: 'Plus de tirs', canaux: { volume: 1.095, discipline: 1.213 }, duree: 10 },
+  { cle: 'action', nom: 'Le vol nolisé', gestes: { energieTous: 10 }, jetons: -15 },
   { cle: 'pari', nom: 'Le pari', pari: { chance: 3 / 6, gagne: { duree: 8, lui: { lancers: 1.45, finition: 1.3 } }, perd: { duree: 8, lui: { lancers: 0.6, finition: 0.75 } } } },
   { cle: 'rien', nom: 'Rien ne change', rien: true },
-  { cle: 'jetons', nom: 'Des jetons seuls', gain: 10 },
+  { cle: 'jetons', nom: 'Des jetons seuls', jetons: 10 },
 ] };
-CHOIX_DES_FILS.essai = { titre: 'Un fil d\'essai', options: [{ cle: 'geste', nom: 'Un geste', action: { energieTous: 6 } }] };
+CHOIX_DES_FILS.essai = { titre: 'Un fil d\'essai', options: [{ cle: 'geste', nom: 'Un geste', gestes: { energieTous: 6 } }] };
 const mom = (famille, cle, choix) => ({ famille, cle, choix });
 const choix = [
   { id: 'dossier (un effet de match)', J: 28, moment: mom('dossier', 'essai', 'effet'), duree: 10, doit: true },

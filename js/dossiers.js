@@ -75,8 +75,8 @@ export const DOSSIERS = {
     mots: ['Les commanditaires se l\'arrachent. Une soirée avec lui, et le compte du club respire.',
       'Il porte l\'équipe. On peut le vendre aux caméras, ou le garder pour la glace.'],
     options: [
-      { cle: 'medias', nom: 'La tournée des médias', bon: 'Les commanditaires paient', gain: 20 },
-      { cle: 'glace', nom: 'Le garder pour la glace', bon: 'Ton coach bâtit autour de lui', xp: 5 },
+      { cle: 'medias', nom: 'La tournée des médias', jetons: 20 },
+      { cle: 'glace', nom: 'Le garder pour la glace', xp: 5 },
     ],
   },
   // Le gros contrat qui ne produit pas.
@@ -88,11 +88,11 @@ export const DOSSIERS = {
     mots: ['Il ne touche plus la rondelle. Moi, je le brasserais devant les journalistes ; toi, tu signes.',
       'Payé comme un marqueur, il joue comme un passager. Il faut faire quelque chose cette semaine.'],
     options: [
-      { cle: 'defi', nom: 'Le mettre au défi devant les journalistes', bon: 'Si ça passe : il répond, plus de tirs et de précision', prix: 'Sinon : il force ses tirs, moins de précision',
+      { cle: 'defi', nom: 'Le mettre au défi devant les journalistes',
         pari: { chance: 3 / 6, gagne: { duree: 8, lui: { lancers: 1.5, finition: 1.3 } }, perd: { duree: 8, lui: { lancers: 1.5, finition: 0.5 } } } },
       // 2 nov. 2026 (docs/revue-rogue-2026-11.md § 2.5 A) : le repos ne rapportait rien. Il revient la tête vidée : ses six
       // matchs d'après (les deux premiers des huit, il est au vestiaire), plus de tirs et de précision, sans dé.
-      { cle: 'repos', nom: 'Le reposer deux matchs', bon: 'À son retour, la tête vidée : il tire plus, avec plus de précision', prix: 'Deux matchs sans lui', action: { absents: 2 },
+      { cle: 'repos', nom: 'Le reposer deux matchs', gestes: { absents: 2 },
         duree: 8, lui: { lancers: 1.5, finition: 1.1 } },
     ],
   },
@@ -105,11 +105,11 @@ export const DOSSIERS = {
     mots: ['Il en a mangé une. Tu le renvoies devant le filet, ou tu lui donnes deux soirs pour y repenser.',
       'Cinq buts, ça laisse des traces. Le prochain départ décide s\'il rebondit ou s\'il coule.'],
     options: [
-      { cle: 'renvoyer', nom: 'Le renvoyer devant le filet', bon: 'Si ça passe : il se venge, moins de buts accordés', prix: 'Sinon : il coule encore, plus de buts accordés',
+      { cle: 'renvoyer', nom: 'Le renvoyer devant le filet',
         pari: { chance: 3 / 6, gagne: { duree: 6, lui: { arrets: 0.78 } }, perd: { duree: 6, lui: { arrets: 1.22 } } } },
       // 2 nov. 2026 (§ 2.5 A) : deux soirs de l'auxiliaire coûtaient sans rien rendre. Il revient chaud : ses deux départs
       // d'après (les deux premiers des quatre, il est au banc), moins de buts accordés, sans dé.
-      { cle: 'auxiliaire', nom: 'L\'auxiliaire deux soirs', bon: 'Ton partant souffle et revient chaud : plus d\'arrêts à son retour', prix: 'Deux soirs avec l\'auxiliaire', action: { gardienAux: 2 },
+      { cle: 'auxiliaire', nom: 'L\'auxiliaire deux soirs', gestes: { gardienAux: 2 },
         duree: 4, lui: { arrets: 0.78 } },
     ],
   },
@@ -122,8 +122,8 @@ export const DOSSIERS = {
     mots: ['Il nous coûte des avantages numériques, et les gars commencent à le lui dire en face.',
       'Ça a brassé après le match. Il faut que quelqu\'un tranche, et ce n\'est pas moi.'],
     options: [
-      { cle: 'suspendre', nom: 'Le suspendre deux matchs', bon: 'Ton coach montre qui mène', prix: 'Il manque deux matchs', action: { absents: 2 }, xp: 4 },
-      { cle: 'amende', nom: 'Une amende', bon: 'L\'amende va à la caisse', gain: 8 },
+      { cle: 'suspendre', nom: 'Le suspendre deux matchs', gestes: { absents: 2 }, xp: 4 },
+      { cle: 'amende', nom: 'Une amende', jetons: 8 },
     ],
   },
   // Trois soirs sur la route.
@@ -135,8 +135,8 @@ export const DOSSIERS = {
     mots: ['Les valises sont faites, les jambes, pas encore. Un vol nolisé, et je te les rends frais.',
       'L\'autobus, l\'avion, l\'hôtel. Si on ne fait rien, on arrive au troisième soir sur les genoux.'],
     options: [
-      { cle: 'nolise', nom: 'Le vol nolisé', bon: 'Les jambes de tous reviennent', prix: 'Le vol se paie', gain: -15, action: { energieTous: 10 } },
-      { cle: 'autobus', nom: 'L\'autobus de nuit', bon: 'Des jetons d\'économie', prix: 'Les jambes de tous paient', gain: 10, action: { energieTous: -8 } },
+      { cle: 'nolise', nom: 'Le vol nolisé', jetons: -15, gestes: { energieTous: 10 } },
+      { cle: 'autobus', nom: 'L\'autobus de nuit', jetons: 10, gestes: { energieTous: -8 } },
     ],
   },
   /*
@@ -152,8 +152,8 @@ export const DOSSIERS = {
     mots: ['Les séries s\'éloignent, et les billets ne se vendent plus. Vous vendez la fin de saison, ou vous la jouez autour de lui ?',
       'Je ne paie pas pour regarder couler mon club. Dites-moi si on se bat encore.'],
     options: [
-      { cle: 'vendre', nom: 'Vendre la fin de saison', bon: 'Le proprio garde l\'argent des séries', gain: 20 },
-      { cle: 'battre', nom: 'Se battre jusqu\'au bout', bon: 'Si ça passe : il porte le club, plus de tirs et de précision', prix: 'Sinon : il force, moins de précision',
+      { cle: 'vendre', nom: 'Vendre la fin de saison', jetons: 20 },
+      { cle: 'battre', nom: 'Se battre jusqu\'au bout',
         pari: { chance: 4 / 6, gagne: { duree: 10, lui: { lancers: 1.5, finition: 1.3 } }, perd: { duree: 10, lui: { finition: 0.6 } } } },
     ],
   },
@@ -166,8 +166,8 @@ export const DOSSIERS = {
     mots: ['Tout le monde veut nous battre, maintenant. Les gars veulent écraser la ligue ; moi, je garderais des jambes pour avril.',
       'Premier, ça se défend chaque soir. On met la pédale au fond, ou on lève le pied avant les séries ?'],
     options: [
-      { cle: 'menager', nom: 'Ménager les jambes pour les séries', bon: 'Les jambes de tous reviennent', action: { energieTous: 10 } },
-      { cle: 'pedale', nom: 'La pédale au fond', bon: 'Les commanditaires suivent le premier', prix: 'Les jambes de tous paient', gain: 25, action: { energieTous: -5 } },
+      { cle: 'menager', nom: 'Ménager les jambes pour les séries', gestes: { energieTous: 10 } },
+      { cle: 'pedale', nom: 'La pédale au fond', jetons: 25, gestes: { energieTous: -5 } },
     ],
   },
   /*
@@ -185,9 +185,9 @@ export const DOSSIERS = {
     mots: ['Il frappe à la porte. Tu lui ouvres, ou tu le fais attendre ?',
       'Le petit en veut. Donne-lui des minutes, on va voir de quoi il est fait.'],
     options: [
-      { cle: 'monter', nom: 'Lui donner du temps de glace', bon: 'Si ça passe : il répond, plus de tirs et de précision', prix: 'Sinon : il force, moins de précision',
+      { cle: 'monter', nom: 'Lui donner du temps de glace',
         pari: { chance: 3 / 6, gagne: { duree: 8, lui: { lancers: 1.4, finition: 1.2 } }, perd: { duree: 8, lui: { finition: 0.6 } } }, suite: 8 },
-      { cle: 'murir', nom: 'Le laisser mûrir', bon: 'Ton coach prend son temps avec lui', xp: 4 },
+      { cle: 'murir', nom: 'Le laisser mûrir', xp: 4 },
     ],
   },
   // L'épisode 2, s'il a répondu : quatre points ou plus depuis qu'il joue plus.
@@ -199,8 +199,8 @@ export const DOSSIERS = {
     mots: ['Tout le monde parle de lui à la télé. Le petit est devenu quelqu\'un.',
       'Les commanditaires appellent. Lui, il veut juste jouer.'],
     options: [
-      { cle: 'une', nom: 'La une le réclame', bon: 'Les commanditaires paient', gain: 25 },
-      { cle: 'proteger', nom: 'Le protéger des caméras', bon: 'Une carte d\'adjoint dans ta main', adjoint: true },
+      { cle: 'une', nom: 'La une le réclame', jetons: 25 },
+      { cle: 'proteger', nom: 'Le protéger des caméras', gestes: { adjoint: true } },
     ],
   },
   // L'épisode 2, s'il a forcé : moins de quatre points depuis.
@@ -212,9 +212,9 @@ export const DOSSIERS = {
     mots: ['Il ne dort plus, il regarde ses présences en boucle. Je peux le prendre sous mon aile.',
       'On l\'a lancé trop vite. Il faut décider s\'il reste avec nous ou s\'il redescend.'],
     options: [
-      { cle: 'aile', nom: 'Sous l\'aile du capitaine', bon: 'Il retrouve ses mains : il tire plus, avec plus de précision', prix: 'Il reste après chaque pratique : ses jambes paient',
-        duree: 6, lui: { lancers: 1.3, finition: 1.2 }, action: { energie: -15 } },
-      { cle: 'redescendre', nom: 'Le renvoyer en bas de l\'alignement', bon: 'Ton coach tranche', xp: 3 },
+      { cle: 'aile', nom: 'Sous l\'aile du capitaine',
+        duree: 6, lui: { lancers: 1.3, finition: 1.2 }, gestes: { energie: -15 } },
+      { cle: 'redescendre', nom: 'Le renvoyer en bas de l\'alignement', xp: 3 },
     ],
   },
   // RARE : un tour du chapeau au dernier match.
@@ -226,8 +226,8 @@ export const DOSSIERS = {
     mots: ['J\'en ai ramassé une pleine poubelle. On en fait quoi ?',
       'Les chapeaux pleuvent encore. Ça n\'arrive pas deux fois dans une saison.'],
     options: [
-      { cle: 'encheres', nom: 'Les chapeaux aux enchères', bon: 'Les partisans paient pour un souvenir', gain: 30 },
-      { cle: 'chaud', nom: 'Il garde la rondelle chaude', bon: 'Si ça passe : il reste en feu, plus de tirs et de précision', prix: 'Sinon : il redescend, moins de précision',
+      { cle: 'encheres', nom: 'Les chapeaux aux enchères', jetons: 30 },
+      { cle: 'chaud', nom: 'Il garde la rondelle chaude',
         pari: { chance: 4 / 6, gagne: { duree: 6, lui: { lancers: 1.4, finition: 1.2 } }, perd: { duree: 6, lui: { finition: 0.7 } } } },
     ],
   },
@@ -240,9 +240,9 @@ export const DOSSIERS = {
     mots: ['Le petit a fermé la porte. Le grand regarde du banc.',
       'Un blanchissage, ça se récompense. Ou ça se range, et on revient à l\'ordre.'],
     options: [
-      { cle: 'encore', nom: 'Encore le filet', bon: 'Si ça passe : il reste chaud, moins de buts accordés', prix: 'Sinon : il redescend, plus de buts accordés',
-        action: { gardienAux: 2 }, pari: { chance: 4 / 6, gagne: { duree: 4, lui: { arrets: 0.8 } }, perd: { duree: 4, lui: { arrets: 1.2 } } } },
-      { cle: 'partant', nom: 'Retour au partant', bon: 'Ton coach garde l\'ordre', xp: 3 },
+      { cle: 'encore', nom: 'Encore le filet',
+        gestes: { gardienAux: 2 }, pari: { chance: 4 / 6, gagne: { duree: 4, lui: { arrets: 0.8 } }, perd: { duree: 4, lui: { arrets: 1.2 } } } },
+      { cle: 'partant', nom: 'Retour au partant', xp: 3 },
     ],
   },
   // Le dos-à-dos : deux soirs de suite sur la route, et le plus bas en jambes.
@@ -254,8 +254,8 @@ export const DOSSIERS = {
     mots: ['Deux villes, deux soirs, et lui qui traîne déjà la patte. Je le laisse à l\'hôtel un soir, ou il embarque ?',
       'Le deuxième soir, c\'est là que les jambes lâchent. Lui, surtout.'],
     options: [
-      { cle: 'hotel', nom: 'Le laisser souffler un soir', bon: 'Ses jambes reviennent', prix: 'Il manque un match', action: { absents: 1, energie: 35 } },
-      { cle: 'embarque', nom: 'Il joue les deux soirs', bon: 'Si ça passe : il tient, plus de tirs et de précision', prix: 'Sinon : il s\'use, moins de précision',
+      { cle: 'hotel', nom: 'Le laisser souffler un soir', gestes: { absents: 1, energie: 35 } },
+      { cle: 'embarque', nom: 'Il joue les deux soirs',
         pari: { chance: 3 / 6, gagne: { duree: 6, lui: { lancers: 1.5, finition: 1.15 } }, perd: { duree: 6, lui: { finition: 0.6 } } } },
     ],
   },

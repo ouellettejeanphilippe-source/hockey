@@ -20,11 +20,11 @@ import { exiger, informer, verdict } from './verdict.mjs';
 
 
 const CANAUX = ['volume', 'finition', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D', 'creation', 'lancers'];
-const aDesEffets = o => !!(o.mutation || o.trou || o.lui || CANAUX.some(k => o[k] != null && o[k] !== 1));
-const vide = o => !!o.rien || (!aDesEffets(o) && !o.pari && !o.action && !o.ensuite && !o.enjeu);
-const gratuite = o => !o.rien && !o.prix && !o.pari && !o.action && !o.ensuite && !o.enjeu && aDesEffets(o)
+const aDesEffets = o => !!(o.mutation || o.trou || o.lui || (o.canaux && CANAUX.some(k => o.canaux[k] != null && o.canaux[k] !== 1)));
+const vide = o => !!o.rien || (!aDesEffets(o) && !o.pari && !o.gestes && !o.enjeu);
+const gratuite = o => !o.rien && !o.prix && !o.pari && !o.gestes && !o.enjeu && aDesEffets(o)
   && ['Cadeau', ''].includes(formeDe(o));
-const queDuCout = o => formeDe(o) === 'Moindre mal' && !o.mutation && !o.pari && !o.action && !o.ensuite && !o.enjeu;
+const queDuCout = o => formeDe(o) === 'Moindre mal' && !o.mutation && !o.pari && !o.gestes && !o.enjeu;
 
 console.log('\n  TOUS LES CHOIX EN SONT\n');
 
@@ -53,9 +53,9 @@ for (const [cat, liste] of [['avant-match', AVANT_GROS], ['dossier', DOSSIERS]])
  * geste ou un changement de carte ne se comparent pas : on les laisse.
  */
 const PLUS = ['volume', 'finition', 'creation', 'lancers'], MOINS = ['defense', 'discipline', 'blessure', 'energie'];
-const comparable = o => !o.rien && !o.pari && !o.action && !o.ensuite && !o.enjeu && !o.mutation && !o.changeGardien && !o.F && !o.D && !o.incident;
+const comparable = o => !o.rien && !o.pari && !o.gestes && !o.enjeu && !o.mutation && !(o.canaux && (o.canaux.F || o.canaux.D)) && !o.incident;
 // Ce qui va au joueur nommé (`lui`) compte comme ses canaux à lui : sa précision, ses tirs, ses passes ; sa défense, ses blessures, les buts qu'il accorde.
-const vecteur = o => [...PLUS.map(k => o[k] ?? 1), ...MOINS.map(k => -(o[k] ?? 1)), o.robustesse ?? 0, o.trou ? -1 : 0,
+const vecteur = o => [...PLUS.map(k => (o.canaux || {})[k] ?? 1), ...MOINS.map(k => -((o.canaux || {})[k] ?? 1)), (o.canaux || {}).robustesse ?? 0, o.trou ? -1 : 0,
   ...['lancers', 'finition', 'creation'].map(k => (o.lui || {})[k] ?? 1), ...['defense', 'blessure', 'arrets'].map(k => -((o.lui || {})[k] ?? 1))];
 const domine = (y, x) => { const a = vecteur(y), b = vecteur(x); return a.every((v, i) => v >= b[i] - 1e-9) && a.some((v, i) => v > b[i] + 1e-9); };
 const battues = [];
@@ -115,8 +115,9 @@ exiger('sur mille sels, la part gagnante tombe sur ses faces', ecartMax < 0.05, 
   let accord = 0;
   for (let k = 0; k < 1000; k++) { const h = (k + 0.5) / 1000; if (deDeMise(h, 0.5).gagne === (h < 0.5) && deDeMise(h, 2 / 6).gagne === (h < 2 / 6)) accord++; }
   exiger('la face du dé tombe comme la mise : rien ne bouge pour une chance de k/6', accord === 1000, `${accord}/1000`);
-  const g = fs.readFileSync(new URL('../js/gerant.js', import.meta.url), 'utf8');
-  exiger('l\'écran dit tout pari en faces, d\'une seule façon (`motsDuPari`), jamais en « 🎲 50 % » ni en « 🎲 Pari » muet', !/🎲 \$\{Math\.round\(C\.pari\.chance \* 100\)\} %/.test(g) && !/'🎲 Pari'/.test(g) && (g.match(/facesMot\(facesDuPari\(/g) || []).length >= 1 && (g.match(/motsDuPari\(/g) || []).length >= 3);
+  // V25 B1b : les mots d'un pari vivent dans la grammaire (js/effets.js) ; l'écran (js/gerant.js) les appelle, jamais les siens.
+  const g = fs.readFileSync(new URL('../js/gerant.js', import.meta.url), 'utf8'), e = fs.readFileSync(new URL('../js/effets.js', import.meta.url), 'utf8');
+  exiger('l\'écran dit tout pari en faces, d\'une seule façon (`motsDuPari`), jamais en « 🎲 50 % » ni en « 🎲 Pari » muet', !/🎲 \$\{Math\.round\(C\.pari\.chance \* 100\)\} %/.test(g + e) && !/'🎲 Pari'/.test(g + e) && (e.match(/facesMot\(facesDuPari\(/g) || []).length >= 1 && ((g + e).match(/motsDuPari\(/g) || []).length >= 3);
 }
 
 verdict();

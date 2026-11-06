@@ -32,11 +32,11 @@ const prend = (o, ks) => Object.fromEntries(ks.filter(k => o && k in o && typeof
 function items() {
   const out = [];
   for (const [d, D] of Object.entries(DOSSIERS)) for (const O of D.options) for (const [suf, x] of [['', O], ...(O.pari ? [['+', O.pari.gagne], ['-', O.pari.perd]] : [])]) {
-    const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `d:${d}.${O.cle}${suf}`, nom: `${D.titre} : ${O.nom}`, niveau: 1, si: O.si || null, duree: x.duree, effet: e, joueur: x.lui || null });
+    const e = x.canaux || {}; if (Object.keys(e).length || x.lui) out.push({ id: `d:${d}.${O.cle}${suf}`, nom: `${D.titre} : ${O.nom}`, niveau: 1, si: O.quand || null, duree: x.duree, effet: e, joueur: x.lui || null });
   }
   const fam = (pre, src) => { for (const [k, M] of Object.entries(src)) for (const O of M.options || []) {
-    const add = (suf, x, dur) => { const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `${pre}:${k}.${O.cle}${suf}`, nom: `${M.titre || k} : ${O.nom}`, niveau: 1, si: null, duree: dur ?? x.duree, effet: e, joueur: x.lui || null }); };
-    add('', O); if (O.pari) { add('+', O.pari.gagne); add('-', O.pari.perd); } if (O.ensuite) add('>', O.ensuite);
+    const add = (suf, x, dur) => { const e = x.canaux || {}; if (Object.keys(e).length || x.lui) out.push({ id: `${pre}:${k}.${O.cle}${suf}`, nom: `${M.titre || k} : ${O.nom}`, niveau: 1, si: null, duree: dur ?? x.duree, effet: e, joueur: x.lui || null }); };
+    add('', O); if (O.pari) { add('+', O.pari.gagne); add('-', O.pari.perd); }
   } };
   fam('g', AVANT_GROS);
   for (const [k, A] of Object.entries(ARCS)) (A.episodes || []).forEach((E, i) => { if (E.effet && Object.keys(E.effet).length && E.cible !== 'joueur') out.push({ id: `a:${k}.${i}`, nom: `${A.titre} (${i + 1})`, niveau: 1, si: null, duree: E.matchs, effet: prend(E.effet, CANAUX), contre: E.cible === 'contre' });
