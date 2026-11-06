@@ -7,6 +7,7 @@
  *   1. il se voit dans la feuille d'un soir où il joue : ±2 tirs (un bord ou le rythme), ±0,3 but des deux clubs,
  *      ±0,5 punition, ±4 mises en échec, ±3 blessures par saison, ±3 de jambes ; sur un joueur nommé, à sa ligne :
  *      ±0,3 point, ±0,15 but ou ±1 tir (une récompense de toute la saison : quatre points sur sa durée). Les minutes (`F`, `D`) se recomptent ailleurs (check_dilemmes), l'argent aussi ;
+ *      une PROTECTION (rien que la blessure du joueur nommé, V25 C1) se lit à l'infirmerie, pas dans la feuille : son facteur suffit ;
  *   2. sa force reste sous la borne de son niveau sur ses soirs (`NIVEAUX[k].borneV` : Soutien et Régulier ±1, Pilier ±1,5 ; rien au-dessus, C0 q. 9) ;
  *   3. le style ne se paie pas en force : au plus 0,5 V par seuil franchi (la règle de l'ancien check_cartes, parti à la V25 B1).
  * V21 : les pouvoirs du coach, le temps d'une période, se mesurent dans check_pouvoirs ; le personnel est parti.
@@ -109,6 +110,10 @@ for (const id of toutes) {
   // Les minutes seules, ou rien que le moteur lise ce soir (l'argent) : elles se prouvent ailleurs.
   const canaux = Object.keys(C.effet || {}).filter(k => k !== 'F' && k !== 'D');
   if (!canaux.length && !(C.joueur && Object.keys(C.joueur).length)) continue;
+  // UNE PROTECTION (V25 C1 : le protocole d'une commotion, le blessé qu'on laisse guérir) ne touche que la blessure du joueur nommé :
+  // elle se lit à l'infirmerie le soir qu'elle évite, jamais dans la feuille d'un soir ordinaire ; elle se prouve ici par son facteur.
+  const protection = !canaux.length && C.joueur && Object.keys(C.joueur).every(k => k === 'blessure');
+  if (protection) { exiger(`une protection sur le joueur nommé : ${C.nom}`, C.joueur.blessure !== 1 && C.joueur.blessure > 0, `blessures ×${C.joueur.blessure}`); continue; }
   mesures++;
   // Un arc contre un club ne joue que ses matchs contre lui : trois d'une saison, à peu près.
   const soirs = C.contre ? 3 : (C.duree || 5) * (C.si ? MOMENTS_SI[C.si].parSaison / 82 : 1);

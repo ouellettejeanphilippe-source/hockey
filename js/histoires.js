@@ -166,7 +166,7 @@ export const HISTOIRES = {
     options: [
       { cle: 'encheres', nom: 'Les chapeaux aux enchères', niveau: 1, jetons: 30 },
       { cle: 'chaud', nom: 'Il garde la rondelle chaude', niveau: 1,
-        pari: { chance: 4 / 6, gagne: { duree: 6, lui: { lancers: 1.5, finition: 1.3 } }, perd: { duree: 6, lui: { finition: 0.7 } } } },
+        pari: { chance: 4 / 6, gagne: { duree: 6, lui: { lancers: 1.5, finition: 1.3 } }, perd: { duree: 6, lui: { finition: 0.6 } } } },
     ],
   },
   leBlanchissage: {
@@ -176,7 +176,7 @@ export const HISTOIRES = {
     mots: (f, j) => `${court(j)} a fermé la porte, ${f.dernier.pour}–0 contre ${f.dernier.adv}, et le grand regarde du banc. Un blanchissage, ça se récompense ; ou ça se range, et on revient à l'ordre.`,
     options: [
       { cle: 'encore', nom: 'Encore le filet', niveau: 1, gestes: { gardienAux: 1 },
-        pari: { chance: 4 / 6, gagne: { duree: 3, lui: { arrets: 0.8 } }, perd: { duree: 3, lui: { arrets: 1.1 } } } },
+        pari: { chance: 4 / 6, gagne: { duree: 3, lui: { arrets: 0.8 } }, perd: { duree: 3, lui: { arrets: 1.15 } } } },
       { cle: 'partant', nom: 'Retour au partant', niveau: 0, xp: 3 },
     ],
   },
@@ -199,7 +199,7 @@ export const HISTOIRES = {
     options: [
       { cle: 'protocole', nom: 'Le protocole au complet', niveau: 2, duree: 20, lui: { blessure: 0.5 } },
       { cle: 'tests', nom: 'Dès qu\'il passe les tests', niveau: 1, gestes: { soin: 3 },
-        pari: { chance: 4 / 6, gagne: { duree: 8, lui: { lancers: 1.2 } }, perd: { duree: 8, lui: { blessure: 2, finition: 0.8 } } } },
+        pari: { chance: 4 / 6, gagne: { duree: 8, lui: { lancers: 1.7 } }, perd: { duree: 8, lui: { blessure: 2, finition: 0.6 } } } },
     ],
   },
   leRetourDevance: {
@@ -221,7 +221,7 @@ export const HISTOIRES = {
     options: [
       { cle: 'payer', nom: 'La payer rubis sur l\'ongle', niveau: 1, jetons: -15, duree: 10, lui: { lancers: 1.3, finition: 1.15 } },
       { cle: 'etaler', nom: 'L\'étaler jusqu\'en avril', niveau: 1,
-        pari: { chance: 3 / 6, gagne: { duree: 10, lui: { finition: 1.2 } }, perd: { duree: 10, lui: { finition: 0.8, lancers: 0.85 } } } },
+        pari: { chance: 3 / 6, gagne: { duree: 10, lui: { finition: 1.4 } }, perd: { duree: 10, lui: { finition: 0.7, lancers: 0.6 } } } },
     ],
   },
   lAgent: {
@@ -230,9 +230,9 @@ export const HISTOIRES = {
     fait: f => `${f.vedette.fait} · ${f.vedette.sal}${vraieMot(f.vraie(f.vedette.cle)) ? ` · ${vraieMot(f.vraie(f.vedette.cle))}` : ''}`,
     mots: (f, j) => `Mon client, ${court(j)} : ${pts(f.vedette.pts, f.vedette.m)} chez vous. ${avecVraie(f, j, '. ') || ''}Il veut qu'on en parle avant le printemps, et il préfère qu'on en parle maintenant.`,
     options: [
-      { cle: 'donner', nom: 'Lui donner ce qu\'il demande', niveau: 1, jetons: -20, duree: 12, lui: { lancers: 1.3, creation: 1.2 } },
+      { cle: 'donner', nom: 'Lui donner ce qu\'il demande', niveau: 1, jetons: -20, duree: 8, lui: { lancers: 1.7, creation: 1.2 } },
       { cle: 'gagner', nom: 'Qu\'il le gagne sur la glace', niveau: 1,
-        pari: { chance: 3 / 6, gagne: { duree: 12, lui: { lancers: 1.3, finition: 1.3 } }, perd: { duree: 12, lui: { finition: 0.75, creation: 0.8 } } } },
+        pari: { chance: 3 / 6, gagne: { duree: 12, lui: { lancers: 1.3, finition: 1.3 } }, perd: { duree: 12, lui: { finition: 0.6, creation: 0.7 } } } },
     ],
   },
   laDateLimite: {
@@ -243,7 +243,7 @@ export const HISTOIRES = {
     mots: (f, j) => `La date limite est vendredi, et on est à ${f.masse.libre} du plafond. J'ai une offre pour ${court(j)} : ${f.masse.lourd.sal}. ${avecVraie(f, j, '. ') || ''}Je l'écoute ou je raccroche ?`,
     options: [
       { cle: 'echanger', nom: 'L\'échanger', niveau: 2, gestes: { echange: 'lui', offres: 2 } },
-      { cle: 'garder', nom: 'On garde le groupe', niveau: 1, xp: 4, duree: 10, lui: { lancers: 1.25 } },
+      { cle: 'garder', nom: 'On garde le groupe', niveau: 1, xp: 4, duree: 10, lui: { lancers: 1.5 } },
     ],
   },
   leSejourGagnant: {
@@ -295,7 +295,7 @@ export const HISTOIRES = {
     mots: (f, j) => `${court(j)} et ${nomCourt(f.duo.passeur.n)} : ${f.duo.buts} buts ensemble en ${f.duo.m} matchs, un sur passe de l'autre. Ces deux-là se trouvent sans se regarder. Je les soude pour la saison, ou je garde la liberté de brasser les trios ?`,
     options: [
       { cle: 'souder', nom: 'Les garder ensemble', niveau: 2,
-        pari: { chance: 4 / 6, gagne: { duree: 20, lui: { finition: 1.3, creation: 1.15 } }, perd: { duree: 8, lui: { finition: 0.7 } } }, suite: SUITE_DUO },
+        pari: { chance: 4 / 6, gagne: { duree: 20, lui: { finition: 1.4, creation: 1.3 } }, perd: { duree: 8, lui: { finition: 0.7 } } }, suite: SUITE_DUO },
       { cle: 'libre', nom: 'Garder les trios libres', niveau: 0, xp: 5 },
     ],
   },
@@ -307,7 +307,7 @@ export const HISTOIRES = {
     mots: (f, j) => { const x = suiteDe(f, 'leDuo', 'souder'); return `${court(j)} et son passeur, ${x.butsDuo} buts ensemble en ${x.m} matchs depuis qu'on les a soudés. Les partisans leur ont trouvé un nom, et je peux l'imprimer sur des chandails d'ici vendredi.`; },
     options: [
       { cle: 'chandails', nom: 'Les chandails du duo', niveau: 1, jetons: 30 },
-      { cle: 'glace', nom: 'Loin des caméras, sur la glace', niveau: 2, xp: 3, duree: 12, lui: { creation: 1.25 } },
+      { cle: 'glace', nom: 'Loin des caméras, sur la glace', niveau: 2, xp: 3, duree: 12, lui: { creation: 1.4, lancers: 1.7 } },
     ],
   },
   laRecrue: {
@@ -317,7 +317,7 @@ export const HISTOIRES = {
     mots: (f, j) => `${court(j)}, ${pts(f.recrue.pts, f.recrue.m)}, à son âge. ${avecVraie(f, j, '. ') || ''}Le réseau veut le match des recrues, les commanditaires veulent sa face. Tu le laisses dans le cirque, ou tu fermes la porte ?`,
     options: [
       { cle: 'cirque', nom: 'Le match des recrues à la télé', niveau: 1, jetons: 20 },
-      { cle: 'porte', nom: 'Fermer la porte aux caméras', niveau: 1, duree: 10, lui: { lancers: 1.2, creation: 1.2 } },
+      { cle: 'porte', nom: 'Fermer la porte aux caméras', niveau: 1, duree: 10, lui: { lancers: 1.5, creation: 1.2 } },
     ],
   },
   leVieux: {
@@ -347,7 +347,7 @@ export const HISTOIRES = {
     mots: (f, j) => `La ligue a revu le geste de ${court(j)} contre ${f.coup.adv}, ${f.coup.min} minutes au cachot. Deux matchs, ou vous plaidez sa cause par téléphone et il joue mercredi.`,
     options: [
       { cle: 'accepter', nom: 'Accepter la suspension', niveau: 0, gestes: { absents: 2 }, xp: 4 },
-      { cle: 'plaider', nom: 'Plaider sa cause', niveau: 1, jetons: -8, duree: 6, lui: { lancers: 1.3 } },
+      { cle: 'plaider', nom: 'Plaider sa cause', niveau: 1, jetons: -8, duree: 6, lui: { lancers: 1.5 } },
     ],
   },
 
@@ -378,7 +378,7 @@ export const HISTOIRES = {
     fait: f => `${f.gros.malades.slice(0, 3).map(x => `${x.n} ${x.j}`).join(' · ')} de jambes · gros match contre ${f.gros.adv}`,
     mots: (f, j) => `${f.gros.malades.slice(0, 3).map(x => nomCourt(x.n)).join(', ')} ont passé la nuit malades ; ${court(j)} est à ${f.gros.malades[0].j}. Ils peuvent jouer, « à peu près ». Aucun bon choix : lequel fait le moins mal ?`,
     options: [
-      { cle: 'jouer', nom: 'Il joue quand même', niveau: 1, duree: 1, lui: { lancers: 0.8 }, gestes: { energie: -20 } },
+      { cle: 'jouer', nom: 'Il joue quand même', niveau: 1, duree: 1, lui: { lancers: 0.5 }, gestes: { energie: -20 } },
       { cle: 'lit', nom: 'Au lit, le remplaçant de la ligue', niveau: 0, gestes: { absents: 1, energie: 30 } },
     ],
   },
@@ -389,7 +389,7 @@ export const HISTOIRES = {
     mots: (f, j) => { const v = vraieMot(f.gros.leurVedette.vraie); return `Leur gars, c'est ${nomCourt(f.gros.leurVedette.n)} : ${pts(f.gros.leurVedette.pts, f.gros.leurVedette.m)}. ${v ? `${v[0].toUpperCase()}${v.slice(1)}. ` : ''}Je mets ${court(j)} dans ses culottes toute la soirée, ou on joue notre jeu et on le laisse venir.`; },
     options: [
       { cle: 'ombre', nom: 'L\'ombre sur leur vedette', niveau: 1, duree: 1, canaux: { defense: 0.93, volume: 0.97 }, lui: { blessure: 1.3 } },
-      { cle: 'notre', nom: 'On joue notre jeu', niveau: 1, duree: 1, canaux: { finition: 1.06 } },
+      { cle: 'notre', nom: 'On joue notre jeu', niveau: 1, duree: 1, canaux: { finition: 1.3 } },
     ],
   },
   lesGradins: {
@@ -399,7 +399,7 @@ export const HISTOIRES = {
     mots: (f, j) => `${f.gros.lancee} de suite, et c'est plein jusqu'au plafond ce soir. On veut voir ${court(j)} tirer de partout. Le show, ou le plan de match ?`,
     options: [
       { cle: 'show', nom: 'Donner le show', niveau: 1, duree: 1, canaux: { volume: 1.09, defense: 1.08 } },
-      { cle: 'plan', nom: 'Jouer notre hockey', niveau: 1, duree: 1, canaux: { defense: 0.96 }, lui: { lancers: 1.3 } },
+      { cle: 'plan', nom: 'Jouer notre hockey', niveau: 1, duree: 1, canaux: { defense: 0.94 }, lui: { lancers: 1.5 } },
     ],
   },
   laGarantie: {
@@ -432,7 +432,7 @@ export const HISTOIRES = {
     mots: (f, j) => `Leur banc, c'est ${f.ronde.leurCoach.ico} ${f.ronde.leurCoach.nom}, et il joue ${f.ronde.leurCoach.pouvoir} chaque fois qu'il peut. J'ai la vidéo de leurs vingt derniers matchs. ${court(j)} la regarde avec moi toute la nuit, ou il dort et on lui raconte.`,
     options: [
       { cle: 'video', nom: 'La vidéo toute la nuit', niveau: 2, duree: 7, lui: { arrets: 0.9 }, gestes: { energie: -15 } },
-      { cle: 'dort', nom: 'Il dort, on lui raconte', niveau: 1, duree: 7, canaux: { defense: 0.95 } },
+      { cle: 'dort', nom: 'Il dort, on lui raconte', niveau: 1, duree: 7, canaux: { defense: 0.9 } },
     ],
   },
   laRevanche: {
@@ -452,7 +452,7 @@ export const HISTOIRES = {
     fait: f => { const b = blesse(f, x => x.m >= 2 && x.m <= 7 && !GRAVES.includes(x.genre)); return `${ronde(f)} · ${b.n} : ${b.m} matchs encore (${b.total} en tout)`; },
     mots: (f, j) => { const b = blesse(f, x => x.m >= 2 && x.m <= 7 && !GRAVES.includes(x.genre)); return `${court(j)} a ${b.m} matchs à faire, et la série en a sept au plus. Il peut jouer à l'infiltration dès le premier ; je ne garantis pas le deuxième. Ou il regarde celle-là du haut et il revient entier pour la suivante.`; },
     options: [
-      { cle: 'infiltration', nom: 'Il joue à l\'infiltration', niveau: 2, gestes: { soin: 4 }, duree: 7, lui: { finition: 0.85, blessure: 1.8 } },
+      { cle: 'infiltration', nom: 'Il joue à l\'infiltration', niveau: 2, gestes: { soin: 4 }, duree: 7, lui: { finition: 0.5, blessure: 1.8 } },
       { cle: 'haut', nom: 'Il regarde du haut', niveau: 1, duree: 14, lui: { blessure: 0.6 } },
     ],
   },
@@ -474,7 +474,7 @@ export const HISTOIRES = {
     mots: (f, j) => { const v = vraieMot(f.ronde.meneur.vraie); return `${court(j)}, ${pts(f.ronde.meneur.pts, f.ronde.meneur.m)} de séries. ${v ? `${v[0].toUpperCase()}${v.slice(1)}. ` : ''}Le pays entier veut l'entendre entre les matchs ; lui, il voudrait qu'on le laisse jouer.`; },
     options: [
       { cle: 'cameras', nom: 'Les caméras le suivent', niveau: 1, jetons: 20 },
-      { cle: 'silence', nom: 'Il ne parle à personne avant la Coupe', niveau: 2, duree: 7, lui: { finition: 1.2, lancers: 1.15 } },
+      { cle: 'silence', nom: 'Il ne parle à personne avant la Coupe', niveau: 2, duree: 7, lui: { finition: 1.2, lancers: 1.5 } },
     ],
   },
 };
