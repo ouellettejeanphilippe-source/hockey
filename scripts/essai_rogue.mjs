@@ -117,7 +117,7 @@ const CLUBS_LISTE = RAYONS_CLUB.find(R => R.cle === 'club').liste;
 const NB_CLUBS = Object.keys(CLUBS_LISTE).length, PRIX_HARFANGS = CLUBS_LISTE.harfangs.prix;
 page.on('pageerror', e => { erreurs.push(e.message); console.log('PAGEERR', e.stack); });
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) erreurs.push(m.text()); });
-const choix = async (sel = ':is(button.choix-option, .tc-prendre):not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 60000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
+const choix = async (sel = ':is(button.tc-prendre, .tc-prendre):not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 60000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
 /*
  * UN MÉTA ET UN CARTABLE DE DÉPART (S80) : quatre cartes au cartable, et
  * trois Réguliers que la case Régulier du classeur tirera (24 oct.), assez d'écussons pour un déblocage, et une case de
@@ -148,10 +148,10 @@ await page.screenshot({ path: `${DOSSIER}/rogue-intro.png` });
 const intro = (await page.textContent('#choixModal .choix-sheet')).replace(/\s+/g, ' ');
 if (!/proprio/.test(intro) || !/classeur/.test(intro)) erreurs.push('l\'écran de la run ne dit ni le mandat du proprio ni le classeur');
 // LES EXIGENCES (V9, tranche 8) : une Coupe au méta ouvre le premier cran, offert à côté du départ ordinaire.
-const crans = await page.$$eval('#choixModal .choix-option[data-choix^="e"]', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+const crans = await page.$$eval('#choixModal .choix-option[data-carte^="e"]', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
 console.log(`0. les exigences : ${crans.length} cran(s) offert(s) · ${crans.map(t => t.slice(0, 60)).join(' | ')}`);
 if (crans.length !== 1 || !/Exigence 1/.test(crans[0]) || !/médailles/.test(crans[0])) erreurs.push(`le départ d'une run offre ${crans.length} cran(s) d'exigence après une Coupe (attendu : 1, avec sa prime de médailles)`);
-await choix('.choix-option[data-choix="go"]');
+await choix('.tc-prendre[data-choix="go"]');
 /*
  * TON ENTRAÎNEUR (V21, js/coachs-reels.js) : un loto de trois vraies cartes de coach-saison, de trois philosophies que
  * le prestige ouvre (ce méta est un Club de quartier, donc quatre) ; chacune dit son club et sa saison, et ses trois
@@ -361,7 +361,7 @@ async function regler() {
     }
     // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on passe la pile, carte par carte. Elle passe
     // devant le sommaire de la journée, qu'elle couvre : un joueur ouvre d'abord ce qui est sur le dessus.
-    const pq = await page.$('#choixModal:not([hidden]) .paquet');
+    const pq = await page.$('#choixModal:not([hidden]) .pochette');
     if (pq && await pq.isVisible()) { await passerLaPile(); continue; }
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau » — une fois réglé ce qui le couvre.
     if (await page.$('#hubModal .hub-page[data-genre="sommaire"]') && !(await page.$('#choixModal:not([hidden])'))) {
@@ -386,7 +386,7 @@ async function regler() {
        * (les vrais chiffres de la run) et offre deux cartes de vestiaire ; on garde la première, et les plans de ton adjoint
        * attendent ce choix (V17). Le plan touché émet l'avant-match puis la période, au même soir, dans cet ordre.
        */
-      const vest = await page.$$('#choixModal .main-vest:not([disabled])');
+      const vest = await page.$$('#choixModal .main-vest:not([aria-disabled="true"])');
       // LE JOUR DU GROS MATCH, PAS LA VEILLE (V17) : l'écran s'ouvre le matin où il se joue.
       const journeeOuverte = ((await lireSauvegarde()).partie || {}).journee;
       const enjeu = ((await page.textContent('#choixModal .main-enjeu').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
@@ -397,7 +397,7 @@ async function regler() {
         if (B && !primes.some(x => enjeu.includes(`Victoire : +${x} 🪙`))) erreurs.push(`l'enjeu du combat (« ${enjeu} ») ne dit ni la prime de la run (+${B.grosMatch} 🪙) ni le butin d'un rival`);
         if (!/Défaite : 😵 sonnés \d+ matchs/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas la défaite (« ${enjeu} »)`);
         if (vest.length && vest.length !== 2) erreurs.push(`le combat offre ${vest.length} carte(s) de vestiaire au lieu de deux`);
-        if (vest.length && !(await page.$('#choixModal .duel-prop:disabled'))) erreurs.push('les plans de l\'adjoint ne demandent pas de garder une carte de vestiaire');
+        if (vest.length && !(await page.$('#choixModal .duel-prop[aria-disabled="true"]'))) erreurs.push('les plans de l\'adjoint ne demandent pas de garder une carte de vestiaire');
         // Le premier combat, photographié deux fois : l'intention en haut, puis la carte de vestiaire gardée.
         const premierCombat = !captures.combat++;
         if (premierCombat) {
@@ -405,7 +405,8 @@ async function regler() {
           await page.evaluate(() => document.querySelectorAll('#choixModal, #choixModal .choix-sheet, #choixModal .choix-corps').forEach(e => { e.scrollTop = 0; }));
           await page.screenshot({ path: `${DOSSIER}/rogue-combat.png` });
         }
-        if (vest.length) { await vest[0].click({ timeout: 10000 }).catch(async e => { console.log(`la carte de vestiaire bouge :\n${await sonde(vest[0])}`); await page.screenshot({ path: `${DOSSIER}/rogue-vest-bouge.png` }); throw e; }); await page.waitForTimeout(250); }
+        // V25 B2 : la carte se garde par « Garder » dessous (toucher la carte la retourne).
+        if (vest.length) { await (await vest[0].$('.tc-prendre')).click({ timeout: 10000 }).catch(async e => { console.log(`la carte de vestiaire bouge :\n${await sonde(vest[0])}`); await page.screenshot({ path: `${DOSSIER}/rogue-vest-bouge.png` }); throw e; }); await page.waitForTimeout(250); }
         if (premierCombat) await page.screenshot({ path: `${DOSSIER}/rogue-combat-vestiaire.png` });
       }
       /*
@@ -426,7 +427,7 @@ async function regler() {
         if (!fait) erreurs.push('le duel n\'annonce pas leur intention');
         const lu = await page.$eval('#choixModal', m => ({
           voix: (m.querySelector('.duel-adjoint .scene-de') || {}).textContent || '', mot: ((m.querySelector('.duel-adjoint .scene-mot') || {}).textContent || '').trim(),
-          props: [...m.querySelectorAll('.duel-prop')].map(b => ({ cle: b.dataset.prop, puces: b.querySelectorAll('.puce, .choix-option-gros').length, on: b.disabled })),
+          props: [...m.querySelectorAll('.duel-prop')].map(b => ({ cle: b.dataset.prop, puces: b.querySelectorAll('.puce, .impact-l').length, on: b.getAttribute('aria-disabled') === 'true' })),
           tableau: !!m.querySelector('.duel-tableau, .duel-tab-s, .duel-geste, .duel-verdict'),
         }));
         if (!/adjoint/i.test(lu.voix) || !/^«.+»$/.test(lu.mot)) erreurs.push(`l'adjoint ne parle pas au duel (« ${lu.voix} ${lu.mot} »)`);
@@ -488,7 +489,7 @@ async function regler() {
         if (await page.$('#choixModal .duel-snap.on')) erreurs.push('la mise doublée touchée deux fois reste doublée');
       }
       const avantJouer = await decisionsDuCombat(), mains0 = avantJouer.filter(d => d.main).length;
-      await page.click(`#choixModal .duel-prop[data-prop="${pris || 'garder'}"]`); await page.waitForTimeout(1500);
+      await page.click(`#choixModal .duel-prop[data-prop="${pris || 'garder'}"] .tc-prendre`); await page.waitForTimeout(1500);
       // Un dé à lancer d'abord : la décision s'écrit après lui.
       if (!(await page.$('#choixModal:not([hidden]) .de-scene'))) await attendreDecisions(avantJouer.length);
       if (duel && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
@@ -548,17 +549,17 @@ async function regler() {
       continue;
     }
     // Un événement qui offre une réponse risquée : on la prend, pour lancer le dé (et vérifier que la boîte se vide).
-    const risquee = await page.$$eval('#choixModal:not([hidden]) .choix-sheet[data-genre="evenement"] button.choix-option:not([disabled])',
-      bs => bs.map(b => b.dataset.choix).filter((c, i) => /Pari/.test((bs[i].querySelector('.choix-forme') || {}).textContent || ''))[0] || null).catch(() => null);
+    const risquee = await page.$$eval('#choixModal:not([hidden]) .choix-sheet[data-genre="evenement"] .choix-option:not([aria-disabled="true"])',
+      bs => bs.map(b => b.dataset.carte).filter((c, i) => /Pari/.test((bs[i].querySelector('.carton-club-nom') || {}).textContent || ''))[0] || null).catch(() => null);
     if (risquee) {
       const titreDe = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
-      await page.click(`#choixModal:not([hidden]) button.choix-option[data-choix="${risquee}"]`); await page.waitForTimeout(300);
+      await page.click(`#choixModal:not([hidden]) .choix-option[data-carte="${risquee}"] .tc-prendre`); await page.waitForTimeout(300);
       evenementsDe.push(titreDe);
       continue;
     }
     /*
      * À FAIRE (V9, tranche 1 ; JP : *tous les choix au même endroit, même UI et UX*). Chaque choix a la même forme : sa
-     * voix, son fait, puis ses options `optionHtml`. On règle le choix ouvert comme un joueur pressé : une réponse risquée
+     * voix, son fait, puis ses options en cartes de jeu (`carteHtml`). On règle le choix ouvert comme un joueur pressé : une réponse risquée
      * tant que le dé n'a pas roulé cinq fois, sinon la première option ; une option › ouvre son écran (le combat, le paquet,
      * la main, une liste), que les cas plus haut règlent. Toucher une option l'envoie : une décision par choix (les rivaux,
      * au dernier coché). Photographié une fois.
@@ -569,15 +570,14 @@ async function regler() {
     const boiteA = await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg]');
     if (boiteA) {
       const lu = await boiteA.evaluate(el => ({ genre: el.dataset.msg, maison: el.dataset.maison, sujet: (el.querySelector('.choix-titre') || {}).textContent || '',
-        forme: !!el.querySelector('.choix-options > .choix-option:is(.af-option, .tc)'),
+        forme: !!el.querySelector('.choix-options > .choix-option.tc'),
         compris: [...el.querySelectorAll('button')].some(b => /^\s*Compris\s*$/.test(b.textContent)),
         scene: ((el.querySelector('.choix-corps > .scene .scene-mot') || {}).textContent || '').trim(),
         fait: ((el.querySelector('.choix-corps > .scene .scene-fait') || {}).textContent || '').trim(),
         de: ((el.querySelector('.choix-corps > .scene .scene-de, .choix-irl') || {}).textContent || '').trim(),
         boite: [...document.querySelectorAll('#hubModal .hub-msg-corps, #hubModal .hub-boite .choix-option')].length,
-        // V23 : une histoire se joue en cartes de hockey (« Jouer » sous la carte, `.tc-prendre`) ; le dé est sa carte rare.
-        opts: [...[...el.querySelectorAll('.choix-options > .af-option:not([disabled])')].map(b => ({ cle: b.dataset.choix, on: b.classList.contains('on'), ouvre: b.classList.contains('ouvre'), pari: /Pari/.test((b.querySelector('.choix-forme') || {}).textContent || '') })),
-          ...[...el.querySelectorAll('.choix-options > .choix-option.tc:not([aria-disabled="true"]) .tc-prendre')].map(b => ({ cle: b.dataset.choix, on: false, ouvre: false, pari: b.closest('.choix-option').classList.contains('tc-rare') }))] }));
+        // V25 B2 : chaque option est une carte de jeu (« Prendre » dessous, `.tc-prendre`) ; sa forme (Pari) se lit dans son type.
+        opts: [...el.querySelectorAll('.choix-options > .choix-option.tc:not([aria-disabled="true"]) .tc-prendre')].map(b => { const c = b.closest('.choix-option'); return { cle: b.dataset.choix, on: c.classList.contains('on'), ouvre: c.classList.contains('ouvre'), pari: /Pari/.test((c.querySelector('.carton-club-nom') || {}).textContent || '') }; }) }));
       afaire.genres.add(lu.genre); afaire.ouverts++; afaire.maisons.add(lu.maison);
       if (!lu.forme) afaire.formes.push(`${lu.genre} « ${lu.sujet} »`);
       if (lu.compris) erreurs.push(`« ${lu.sujet} » demande encore « Compris » dans À faire`);
@@ -598,10 +598,10 @@ async function regler() {
       if (o === pari) evenementsDe.push(lu.sujet.trim());
       const n0 = o.ouvre || o === pari ? null : (await decisionsDuCombat()).length;
       if (n0 !== null && !afaire.lots.length) await page.screenshot({ path: `${DOSSIER}/rogue-choix-touche.png` });
-      await boiteA.$(`:is(.af-option, .tc-prendre)[data-choix="${o.cle.replace(/"/g, '\\"')}"]`).then(b => b.click());
+      await boiteA.$(`.tc-prendre[data-choix="${o.cle.replace(/"/g, '\\"')}"]`).then(b => b.click());
       await page.waitForTimeout(400);
       // Un rival coché avant le dernier attend les autres, sur place ; tout autre choix touché est parti.
-      if (n0 !== null && !(await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg] .af-option.on'))) {
+      if (n0 !== null && !(await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg] .choix-option.on'))) {
         await attendreDecisions(n0);
         const pris = (await decisionsDuCombat()).length - n0;
         afaire.lots.push(`${lu.genre}→${pris}`);
@@ -609,7 +609,7 @@ async function regler() {
       }
       continue;
     }
-    if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])')) { await choix(); continue; }
+    if (await page.$('#choixModal:not([hidden]) :is(button.tc-prendre, .tc-prendre):not([disabled])')) { await choix(); continue; }
     // Un sous-onglet à l'écran : aucun choix n'y vit (V18-5), et le Bureau rend la boîte.
     const onglet = await page.evaluate(() => { const o = [...document.querySelectorAll('#hubModal .af-onglet')].find(x => x.checkVisibility()); return o ? { k: o.dataset.maison, choix: o.querySelectorAll('.hub-msg, .af-option').length } : null; });
     if (onglet) {
@@ -686,7 +686,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   // le premier ouvert, les deux autres au niveau qui les ouvre.
   await versLOnglet('club', 'entraineur');
   await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
-  const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-carte .carton:not(.tc-verso)').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
   const pouvoirs = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv:not(.adj)', e => e.map(x => ({ nom: (x.querySelector('.pv-nom b') || {}).textContent || '', ferme: x.classList.contains('ferme'), etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
   const jauge = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .ej-jauge');
@@ -794,7 +794,7 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
  */
 const decisions = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 const dechirer = async () => {
-  const paquet = await page.waitForSelector('#choixModal:not([hidden]) .paquet', { timeout: 60000 }).catch(() => null);
+  const paquet = await page.waitForSelector('#choixModal:not([hidden]) .pochette', { timeout: 60000 }).catch(() => null);
   if (paquet) await passerLaPile();
   await page.waitForTimeout(600);
 };
@@ -1068,14 +1068,14 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     // Nov. 2026 : ton plan est la première carte de ton banc du matin ; la toucher ouvre les six plans.
     await page.click('#hubModal .bu-banc .banc-plan').catch(() => {});
     await page.waitForTimeout(800);
-    const pl = await page.$$eval('#choixModal .choix-option[data-choix]', bs => bs.map(b => ({ cle: b.dataset.choix, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree), .choix-option-gros').length }))).catch(() => []);
+    const pl = await page.$$eval('#choixModal .choix-option[data-carte]', bs => bs.map(b => ({ cle: b.dataset.carte, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.tc-quoi') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree), .impact-l').length }))).catch(() => []);
     await page.screenshot({ path: `${DOSSIER}/rogue-plan.png` });
     const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
     const autre = pl.find(x => !x.on && x.cle !== 'match');
     let ecrit = null;
     if (autre) {
       const n0 = (await decisionsDuCombat()).length;
-      await page.click(`#choixModal .choix-option[data-choix="${autre.cle}"]`).catch(() => {});
+      await page.click(`#choixModal .tc-prendre[data-choix="${autre.cle}"]`).catch(() => {});
       await page.waitForTimeout(600); await attendreDecisions(n0);
       ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
     } else await page.click('#choixModal .choix-fermer').catch(() => {});
@@ -1462,13 +1462,12 @@ await page.waitForTimeout(2500);
   const finie = /Mandat manqué|run est gagnée/.test(sort);
   const metaR = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
   console.log(`12c. « Ta run » : ${ecranRun ? 'ouvert' : 'fermé'} · run ${finie ? 'finie' : 'en cours'} · dernière run au méta : ${metaR.derniereRun ? JSON.stringify(metaR.derniereRun) : '(aucune)'}`);
-  // LES GALONS AU BILAN (Jalon M, A8 et B8) : ceux que le cartable a gravés pour cette saison, un par ligne, sous le capitaine.
+  // LES GALONS GARDENT LEUR EFFET ET PERDENT LEUR ÉCRAN (V25 B2) : le cartable les grave, la carte du joueur les dit (« Gravé sur sa carte »,
+  // js/fiche.js) ; le bilan et « Ta run » ne les listent plus.
   const nGalons = await page.evaluate(() => Object.values((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {})
     .flatMap(x => (x.chez || []).filter(e => e.run === 1 && e.s === 1)).reduce((a, e) => a + (e.galons || []).length, 0));
-  const auBilan = await page.$$eval('#resultHost .rg-run .run-galons-l li', ls => ls.length);
-  console.log(`12d. les galons au bilan : ${auBilan} ligne(s) pour ${nGalons} galon(s) gravé(s)`);
-  if (auBilan !== nGalons) erreurs.push(`le bilan montre ${auBilan} galon(s), le cartable en a gravé ${nGalons}`);
-  if (nGalons && !/Le capitaine/.test(await page.textContent('#resultHost .rg-run .run-galons').catch(() => ''))) erreurs.push('les galons du bilan ne disent pas la voix du capitaine');
+  console.log(`12d. les galons gravés au cartable : ${nGalons}`);
+  if (await page.$('#resultHost .rg-run .run-galons')) erreurs.push('le bilan liste encore les galons (ils se lisent au verso de la carte du joueur)');
   if (finie && !ecranRun) erreurs.push('la run est finie et l\'écran « Ta run » ne s\'est pas ouvert');
   if (!finie && ecranRun) erreurs.push('la run continue et l\'écran « Ta run » s\'est ouvert quand même');
   if (ecranRun) {
@@ -1476,8 +1475,6 @@ await page.waitForTimeout(2500);
     const txt = (await ecranRun.textContent()).replace(/\s+/g, ' ');
     const d = metaR.derniereRun || {};
     if (/Mandat manqué/.test(sort) && !/Le proprio\s*« [^»]+ »/.test(txt)) erreurs.push(`« Ta run » ne cite pas le proprio : ${txt.slice(0, 160)}`);
-    const galonsRun = await ecranRun.$$eval('.run-galons-l li', ls => ls.length);
-    if (galonsRun !== nGalons) erreurs.push(`« Ta run » montre ${galonsRun} galon(s), le cartable en a gravé ${nGalons}`);
     if (!new RegExp(`${d.saisons}\\s*saison`).test(txt) || !txt.includes(`+${d.ecussons}`) || !txt.includes(`🏅 ${metaR.ecussons}`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
     if (!(svR.partie && svR.partie.rogue && svR.partie.rogue.taRunVue) && !(svR.rogue && svR.rogue.taRunVue)) erreurs.push('« Ta run » vu n\'est pas dans la sauvegarde (il se rouvrirait au rechargement)');
     await page.click('#choixModal:not([hidden]) .choix-fermer');
@@ -1529,15 +1526,15 @@ await page.click('[data-menu="vestiaire"]');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 10000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-vestiaire.png` });
 const nJalons = await page.$$eval('#choixModal .vs-jalon', e => e.length);
-const ouverts = await page.$$eval('#choixModal .choix-option:not([disabled])', e => e.map(x => x.dataset.choix));
+const ouverts = await page.$$eval('#choixModal .choix-option:not([aria-disabled="true"])', e => e.map(x => x.dataset.carte));
 console.log(`16. le vestiaire : ${nJalons} jalons · ${ouverts.length} déblocage(s) achetable(s) : ${ouverts.join(', ')}`);
 if (!nJalons) erreurs.push('le vestiaire ne montre pas les jalons');
 const achat = ['classeur1', 'classeurTri', 'banc2'].find(k => ouverts.includes(k));
 if (achat) {
-  await page.click(`#choixModal:not([hidden]) .choix-option[data-choix="${achat}"]`);
+  await page.click(`#choixModal:not([hidden]) .tc-prendre[data-choix="${achat}"]`);
   await page.waitForTimeout(600);
   const m2 = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
-  const opt = await page.$(`#choixModal:not([hidden]) .choix-option[data-choix="${achat}"]`);
+  const opt = await page.$(`#choixModal:not([hidden]) .choix-option[data-carte="${achat}"]`);
   if (opt) await opt.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${DOSSIER}/rogue-deblocage.png` });
   console.log(`17. débloqué : ${achat} · ${meta.ecussons} → ${m2.ecussons} écussons · ${(m2.deblocages || []).join(', ')}`);
@@ -1547,8 +1544,8 @@ if (achat) {
  * TON CLUB (1.0, oct.) : au vestiaire, on porte ce qu'on a acheté à la boutique. On remet les NHL Stars :
  * le méta le garde, et l'en-tête le dit.
  */
-await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="club"]', { timeout: 10000 });
-await page.click('#choixModal:not([hidden]) .choix-option[data-choix="club"]');
+await page.waitForSelector('#choixModal:not([hidden]) .tc-prendre[data-choix="club"]', { timeout: 10000 });
+await page.click('#choixModal:not([hidden]) .tc-prendre[data-choix="club"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
 const nClub = await page.$$eval("#choixModal .choix-option", e => e.length);
 // Deux onglets (Jalon U) : les clubs (un nom et son écusson, ensemble) et cinquante et une couleurs — les gratuits compris.
@@ -1559,7 +1556,7 @@ for (const o of ['palette', 'club']) {
   parOnglet[o] = await page.$$eval('#choixModal .choix-option', e => e.length);
 }
 if (parOnglet.club !== NB_CLUBS || parOnglet.palette !== 51) erreurs.push(`les onglets du club : ${JSON.stringify(parOnglet)}, il faut ${NB_CLUBS} et 51`);
-await page.click('#choixModal:not([hidden]) .choix-option[data-choix="club:stars"]');
+await page.click('#choixModal:not([hidden]) .tc-prendre[data-choix="club:stars"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
 await page.waitForTimeout(700);
 await page.screenshot({ path: `${DOSSIER}/rogue-club.png` });

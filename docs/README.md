@@ -1,5 +1,6 @@
 # docs/ — l'historique et la référence
 
+- `histoires-v25.md` — les quarante fiches d'histoires de la V25 (tranche C0, 6 nov. 2026), à lire par JP avant C1 : la voix, le moment (le lundi, le gros match, la ronde), le fait lu, le joueur nommé, la réplique, les options en cartes de jeu, l'issue, le juge ; neuf questions à trancher.
 - `decisions.md` — l'histoire de chaque décision, de S1 à la V21 (31 oct. 2026) : le pourquoi, ce qui a été essayé et écarté, ce qui a été mesuré ; un titre par décision. Les plus récentes en bas (la main d'adjoints, la Boîte en plein écran, le temps de glace inféré).
 - `nuit-2026-11-02.md` — la nuit du 2 nov. 2026, JP : *travaille les deux modes de jeu pour les rendre plus complets, fun et équilibrés* : les douze PR (#329 à #340) dans l'ordre où les fusionner, Sur glace et le Rogue avant → après, ce qui reste rouge ou douteux, et quoi essayer en premier.
 - `revue-sur-glace-2026-11.md` — Sur glace revu et corrigé (2 nov. 2026), JP : *ya ben des affaires wack* : la mise en jeu placée comme à la LNH et jouée en duel, la passe en route, la caméra ; ce qui reste à voir à la manette, le hors-jeu des mêlées, et les propositions dans l'ordre.

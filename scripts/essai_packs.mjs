@@ -45,11 +45,11 @@ await page.addInitScript(() => {
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForSelector('#menuDepart');
 await page.click('.menu-mode[data-genre="rogue"] [data-menu="nouvelle"]');
-const choix = async (sel = ':is(button.choix-option, .tc-prendre):not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 8000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
+const choix = async (sel = ':is(button.tc-prendre, .tc-prendre):not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 8000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
 // Le départ d'une run, quel qu'en soit l'ordre : les choix (les exigences, ton coach), ton joueur de concession, le classeur.
 for (let i = 0; i < 12 && !(await page.$('#departModal:not([hidden])')); i++) {
   if (await page.$('#signatureModal:not([hidden]) .sig-liste .btn-sign:not([disabled])')) await page.click('#signatureModal .sig-liste .btn-sign:not([disabled])');
-  else if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])')) await choix();
+  else if (await page.$('#choixModal:not([hidden]) :is(button.tc-prendre, .tc-prendre):not([disabled])')) await choix();
   await page.waitForTimeout(1500);
 }
 // Le classeur, s'il y a une case à tirer ; sinon la run part sans lui.
@@ -88,16 +88,16 @@ async function regler(max = 40) {
       await page.waitForTimeout(600); continue;
     }
     if (e.choix) {
-      if (await page.$('#choixModal:not([hidden]) .paquet')) { await passerLaPile({ tout: true }); await page.waitForTimeout(800); const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) await f.click(); continue; }
+      if (await page.$('#choixModal:not([hidden]) .pochette')) { await passerLaPile({ tout: true }); await page.waitForTimeout(800); const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) await f.click(); continue; }
       // L'écran de combat (V5) : une carte de vestiaire à garder avant « Jouer » (la première ; un pari passe par le dé, plus bas).
-      if (await page.$('#choixModal:not([hidden]) .duel-prop')) { const v = await page.$('#choixModal .main-vest:not([disabled])'); if (v && await page.$('#choixModal .duel-prop:disabled')) { await v.click(); await page.waitForTimeout(200); } await page.click('#choixModal .duel-prop[data-prop="garder"]'); await page.waitForTimeout(1200); continue; }
+      if (await page.$('#choixModal:not([hidden]) .duel-prop')) { const v = await page.$('#choixModal .main-vest:not([aria-disabled="true"]) .tc-prendre'); if (v && await page.$('#choixModal .duel-prop[aria-disabled="true"]')) { await v.click(); await page.waitForTimeout(200); } await page.click('#choixModal .duel-prop[data-prop="garder"] .tc-prendre'); await page.waitForTimeout(1200); continue; }
       const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc [data-choix]'); if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .de-lancer:not([disabled]):not(.de-suite)')) { await page.focus('#choixModal .de-lancer'); await page.keyboard.press('Enter'); await page.waitForTimeout(2500); await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .tcj-signer') && e.choix === 'ballottage') { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
       // L'échange (oct.) : la sortie proposée touchée d'avance, sinon le premier qui peut sortir ; « Signer ».
       if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="echange"]')) { if (await page.$('#choixModal .ech-signer[disabled]')) await page.click('#choixModal .ech-q:not([disabled])').catch(() => {}); await page.click('#choixModal .ech-signer:not([disabled])').catch(() => {}); await page.waitForTimeout(600); continue; }
       if (await page.$('#choixModal:not([hidden]) [data-mode="choix"] .aln-ligne .aln-choisir:not([disabled])')) { await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])'); await page.waitForTimeout(600); continue; }
-      if (await page.$('#choixModal:not([hidden]) :is(button.choix-option:not(.on), .tc-prendre):not([disabled])')) { await page.click('#choixModal:not([hidden]) :is(button.choix-option:not(.on), .tc-prendre):not([disabled])'); await page.waitForTimeout(400); continue; }
+      if (await page.$('#choixModal:not([hidden]) .choix-option:not(.on):not([aria-disabled="true"]) .tc-prendre')) { await page.click('#choixModal:not([hidden]) .choix-option:not(.on):not([aria-disabled="true"]) .tc-prendre'); await page.waitForTimeout(400); continue; }
       const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) { await f.click(); await page.waitForTimeout(300); continue; }
       return 'coince';
     }
@@ -131,7 +131,12 @@ const club = async () => { await page.click('#navbar .navtab[data-section="burea
 const versBoutique = async () => {
   // La boutique est un sous-onglet des Cartes : un toucher, sans liste.
   await page.click('#navbar .navtab[data-section="marche"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(300);
-  await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+  // La boutique qui ne vient pas : on dit où l'écran en est (une fenêtre ouverte, le direct, la page) avant de tomber.
+  await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 }).catch(async e => {
+    console.log(`la boutique ne vient pas : ${JSON.stringify(await etat())} · direct : ${await page.evaluate(() => { const m = document.getElementById('liveModal'); return !!m && m.style.display === 'flex'; })} · page : ${await page.evaluate(() => (document.querySelector('#pageMarche .page-corps') || {}).dataset?.rendu || '(aucune)')} · section : ${await page.evaluate(() => (document.querySelector('#navbar .navtab.on') || {}).dataset?.section || '?')}`);
+    await page.screenshot({ path: `${process.env.CAPTURES || 'scripts'}/packs-boutique.png` });
+    throw e;
+  });
 };
 // Signe dans la fenêtre d'offre ouverte ; rend la clé signée.
 // U18 : « Signer » demande qui part dès que quelqu'un sort. L'échange (oct., à la Yahoo Fantasy) : la sortie proposée,
@@ -198,7 +203,7 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   const ok = await page.$('#pageMarche .pk-acheter:not([disabled])');
   if (!ok) { log('pas achetable', pack); await page.click('#pageMarche .pk-retour'); continue; }
   await ok.click();
-  const pq = await page.waitForSelector('#choixModal:not([hidden]) .paquet', { timeout: 60000 }).catch(() => null);
+  const pq = await page.waitForSelector('#choixModal:not([hidden]) .pochette', { timeout: 60000 }).catch(() => null);
   if (pq) { await passerLaPile(); await page.waitForTimeout(600); }
   let cle;
   const plusTard = rnd() < 0.35;
@@ -210,7 +215,7 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
       // Le pack attend dans À faire (V9) : son option « Signer un joueur › » rouvre l'offre.
       const pk = await page.$('#hubModal .hub-msg[data-msg="pack"] .hub-msg-tete');
       if (pk) { await pk.click(); await page.waitForTimeout(400); }
-      const rouvrir = await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg="pack"] .choix-option[data-choix="signer"]'); if (rouvrir) await rouvrir.click();
+      const rouvrir = await page.$('#choixModal:not([hidden]) .choix-sheet[data-msg="pack"] .tc-prendre[data-choix="signer"]'); if (rouvrir) await rouvrir.click();
       await page.waitForTimeout(1500);
     }
     else { log('   ⚠ pas de message de pack après « Plus tard »'); pb++; continue; }

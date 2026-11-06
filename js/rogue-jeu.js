@@ -30,8 +30,8 @@ import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
 import { pic } from './mouvement.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
-import { galonsDeLaSaison, grosGagnesDe, texteDuGalon, GALONS_MAX, ICO_GALON, GALONS } from './galons.js';
-import { sceneDuMandat, sceneDesGalons } from './scenes.js';
+import { galonsDeLaSaison, grosGagnesDe, GALONS_MAX, ICO_GALON } from './galons.js';
+import { sceneDuMandat } from './scenes.js';
 import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { marche } from './plateau-rogue.js';
@@ -593,7 +593,7 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
   // Rien à prendre (Jalon U) : la liste s'ouvre quand même et le dit (`vide`) ; les toasts restent aux confirmations.
   const listeJoueurs = (titre, recit, liste, choisir, mots = null, vide = '') => ouvrirListeJoueurs({
     ico: c.ico, titre, motFermer: 'Retour', recit, motBouton: 'Choisir', vide,
-    contexte: mots ? `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(mots)}</div>` : '',
+    contexte: mots ? `${etiquetteBanque(item.id) ? `<span class="puce neutre">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(mots)}</div>` : '',
     joueurs: liste, onChoix: choisir, onFerme: retour,
   });
   // S80 : une modif de joueur se pose AU VERSO, choisie dans l'alignement.
@@ -1320,7 +1320,7 @@ function graverLaSaisonRogue(t) {
     const stats = p.p === 'G' ? { gp: p.simGP || 0, w: p.simW || 0, so: p.simSO || 0 } : { gp: p.simGP || 0, g: p.simG || 0, a: p.simA || 0, pts: p.simPTS || 0 };
     return { cle: k, stats: { ...stats, ...(gros.get(k) ? { gros: gros.get(k) } : {}) }, galons: galons.filter(g => g.joueur === k).map(({ cle, n, match, adv }) => ({ cle, n, match, adv })) };
   });
-  // Les galons se lisent au bilan, dans la run (`galonsHtml`) : en toasts, ils s'écrasaient l'un l'autre (B8).
+  // Les galons se lisent au verso de la carte du joueur (« Gravé sur sa carte », js/fiche.js ; V25 B2) : en toasts, ils s'écrasaient l'un l'autre (B8).
   const { montees } = graverLaSaison(lignes, run, saison);
   for (const m of montees) setTimeout(() => toast(`✨ ${motDeMontee(m, nomDe(m.cle))}`, '', { attendre: true }), 3200);
   const L = G.ligue, stats = leagueStats(L.teams || [t]);
@@ -1329,23 +1329,6 @@ function graverLaSaisonRogue(t) {
     joueurs: lignes.map(l => ({ cle: l.cle, nom: nomDe(l.cle), gardien: !!joueurs.find(p => getPlayerKey(p) === l.cle && p.p === 'G'), ...l.stats, galonsCarriere: galonsDe(l.cle).length })) });
   const mots = [...neuf.records.map(k => (k === 'club' ? 'un record de points du club' : `le record : ${RECORDS[k].nom.toLowerCase()}`)), ...neuf.trophees.map(x => `${x.nom} (${x.joueur})`), ...neuf.chandails.map(x => `le chandail de ${x.nom} est retiré`)];
   if (mots.length) setTimeout(() => toast(`Au panthéon : ${mots.join(' · ')}.`, '', { attendre: true }), 3600);
-}
-/*
- * LES GALONS DE LA SAISON, AU BILAN (Jalon M, A8 et B8) : relus dans l'histoire de chacun chez toi (le cartable), dans
- * l'ordre où ils sont tombés, sous le mot du capitaine. Une saison rechargée relit les mêmes : rien à retenir de plus.
- */
-function galonsDeCetteSaison() {
-  const run = (G.rogue && G.rogue.numero) || 0, saison = numeroDeSaison();
-  return Object.values((G.ligue && G.ligue.you && G.ligue.you.roster) || {}).filter(Boolean)
-    .flatMap(p => histoireChezToi(getPlayerKey(p)).filter(e => e.run === run && e.s === saison).flatMap(e => e.galons || []).map(g => ({ nom: p.n, g })))
-    .sort((a, b) => a.g.match - b.g.match);
-}
-function galonsHtml() {
-  const gs = galonsDeCetteSaison();
-  if (!gs.length) return '';
-  const sc = sceneDesGalons({ noms: gs.map(x => x.nom), graine: `${(G.ligue && G.ligue.graine) || ''}|${numeroDeSaison()}` });
-  return `<div class="run-galons"><div class="section-label">${ICO_GALON} Les galons de la saison</div>${sceneHtml(sc, { voix: true })}
-    <ul class="run-galons-l">${gs.map(({ nom, g }) => `<li><b>${esc(nom)}</b> · ${esc(GALONS[g.cle].nom)} <small>${esc(texteDuGalon(g))}</small></li>`).join('')}</ul></div>`;
 }
 const nomDe = cle => ((Object.values((G.ligue && G.ligue.you && G.ligue.you.roster) || {}).find(p => p && getPlayerKey(p) === cle)) || {}).n || cle;
 /* Son histoire chez toi, en une ligne, avant de trancher qui reste (V9, tranche 7) : ses saisons, ses chiffres, ses galons. */
@@ -1440,7 +1423,7 @@ export function majRunRogue() {
       ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
       ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
       <button type="button" class="btn rg-vestiaire">Les déblocages · ${lireMeta().ecussons || 0}</button>
-    </div>${galonsHtml()}`;
+    </div>`;
   // 1.0 (R7) : la run finie ou gagnée s'ouvre UNE fois en plein écran, avant qu'on reparte.
   if ((sort === 'finie' || sort === 'gagnee') && G.rogue && !G.rogue.taRunVue) montrerTaRun(sort, n, s);
   const b1 = bloc.querySelector('.rg-suivante');
@@ -1492,7 +1475,6 @@ function montrerTaRun(sort, n, s) {
     irl: `Run ${d.numero} · ${n} saison${n > 1 ? 's' : ''}`,
     recit: `Mandat manqué : il fallait ${esc(M.mot)}.`,
     contexte: `${sceneHtml(sceneDuMandat({ sort: 'rate', fiche: { V: G.ligue.you.W || 0, D: G.ligue.you.L || 0, DP: G.ligue.you.OTL || 0 }, rang: f.rang, equipes: (G.ligue.teams || []).length, mandat: M.mot, graine: `${G.ligue.graine}|${n}` }), { voix: true })}
-      ${galonsHtml()}
       <div class="run-bilan">
       ${ligne('Saisons jouées', n)}
       ${ligne('Le sort', esc(motDeRun(d)))}
@@ -1521,7 +1503,6 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
     irl: `Run ${d.numero} gagnée · saison ${n}`,
     recit: `Ta run est gagnée. ${rang === 1 ? 'Ta première Coupe entre dans ta vitrine.' : `Ta ${rang}e Coupe entre dans ta vitrine.`}`,
     contexte: `<div class="coupe-scene" aria-hidden="true"><span class="coupe-trophee">🏆</span></div>
-      ${galonsHtml()}
       ${vedettes.length ? `<div class="dp-grille coupe-vedettes">${vedettes.map(p => `<div class="dp-carte">${carteMiniHtml(p)}<span class="dp-qui">${esc(quiEst(p))}</span></div>`).join('')}</div>` : ''}
       <div class="run-bilan">
       ${ligne('Saisons jouées', n)}

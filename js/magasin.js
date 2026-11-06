@@ -14,6 +14,7 @@ import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cart
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { esc, money as M } from './util.js';
+import { pochetteHtml } from './cartes.js';
 import { COACHS } from './coachs.js';
 import { RAYONS_CLUB } from './club.js';
 
@@ -63,7 +64,7 @@ export function ouvrirMagasin(ctx) {
     // 1.0 (R5) : un pack impayable se grise et dit ce qui manque ; il s'ouvre encore (sa fiche explique).
     const manque = !verrou && ctx.jetons < prix ? prix - ctx.jetons : 0;
     return `<button type="button" class="pk-tuile pk-${tier}${jour ? ' pk-jour' : ''}${verrou ? ' verrou' : ''}${manque ? ' pk-cher' : ''}" data-pack="${esc(cle)}"${verrou ? ` title="${esc(verrou)}"` : manque ? ` title="Il te manque ${manque} 🪙"` : ''}>
-      <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[tier].nom)}</span></span>
+      ${pochetteHtml({ etat: 'scellee', ico: P.ico, mot: tier === 'cartes' ? 'Cartes' : TIERS[tier].nom })}
       <span class="pk-nom">${esc(P.nom)}</span>
       <span class="pk-n">${P.cartes ? `${n} joueur${n > 1 ? 's' : ''} · ${P.cartes} carte${P.cartes > 1 ? 's' : ''}` : `${n} carte${n > 1 ? 's' : ''}`}</span>
       <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) !== 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
@@ -87,7 +88,7 @@ export function ouvrirMagasin(ctx) {
     const scelles = nScelles ? `<section class="pk-rayon pk-rayon-scelles"><h3>📦 Déjà à toi · ${nScelles} à ouvrir</h3><div class="pk-rangee">${ctx.scelles.map(x => {
       const P = PACKS_TOUS[x.cle];
       return `<button type="button" class="pk-tuile pk-${P.sorte === 'cartes' ? 'cartes' : P.tier}${x.verrou ? ' verrou' : ''}" data-scelle="${esc(x.palier)}"${x.verrou ? ` title="${esc(x.verrou)}"` : ''}>
-        <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">Scellé</span></span>
+        ${pochetteHtml({ etat: 'scellee', ico: P.ico, mot: 'Scellé' })}
         <span class="pk-nom">${esc(P.nom)}</span>
         <span class="pk-prix">${x.verrou ? `🔒 ${esc(x.verrou)}` : 'Ouvrir'}</span>
       </button>`;

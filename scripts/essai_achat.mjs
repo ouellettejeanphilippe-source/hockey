@@ -23,7 +23,7 @@ const erreurs = [];
 page.on('pageerror', e => erreurs.push(e.message));
 // Le paquet se déchire, puis sa pile se passe carte par carte jusqu'à la bande des choix (scripts/lib/paquet.mjs ; essai_depart pareil).
 const dechirer = async () => {
-  if (!(await page.$('#choixModal:not([hidden]) .paquet'))) return;
+  if (!(await page.$('#choixModal:not([hidden]) .pochette'))) return;
   for (const f of fautesDePile(await traverserPaquet(page), page.viewportSize().width)) erreurs.push(f);
 };
 const titre = () => page.evaluate(() => (document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || '');
@@ -31,13 +31,18 @@ const titre = () => page.evaluate(() => (document.querySelector('#choixModal:not
 // La première run : l'intro, le coach, les trois packs de départ, puis « Lancer la saison ».
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.click('.menu-mode[data-genre="rogue"] [data-menu="nouvelle"]');
-await page.waitForSelector('#choixModal:not([hidden]) .choix-option:not([disabled])');
-await page.click('#choixModal:not([hidden]) .choix-option:not([disabled])');
-await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''));
-await page.click('#choixModal:not([hidden]) .choix-option:not([disabled])');
+await page.waitForSelector('#choixModal:not([hidden]) .choix-option:not([aria-disabled="true"]) .tc-prendre');
+await page.click('#choixModal:not([hidden]) .choix-option:not([aria-disabled="true"]) .tc-prendre');
+await page.waitForFunction(() => /Ton entraîneur/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''));
+await page.click('#choixModal:not([hidden]) .choix-option:not([aria-disabled="true"]) .tc-prendre');
+// Ton joueur de concession (1.0) : la liste de signature, le premier offert.
+await page.waitForFunction(() => /Ton joueur de concession/.test((document.querySelector('#signatureModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
+await page.click('#signatureModal .sig-liste .btn-sign');
 for (let i = 0; i < 5; i++) {
   await page.waitForFunction(() => /Pack de départ/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || '')
-    || document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #mainBtn:not([disabled])'), null, { timeout: 120000 });
+    || document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #mainBtn:not([disabled]), #departModal:not([hidden]) .pcard'), null, { timeout: 120000 });
+  // Le classeur, s'il y a une case à tirer (V9) : on prend, « Commencer ».
+  if (await page.$('#departModal:not([hidden])')) { const pr = await page.$('#departModal [data-prendre]:not([disabled])'); if (pr) await pr.click(); await page.waitForTimeout(200); await page.click('#departModal .dp-commencer'); await page.waitForTimeout(800); continue; }
   if (!/Pack de départ/.test(await titre())) break;
   await dechirer();
   await page.click('#choixModal:not([hidden]) .choix-fermer');
@@ -50,7 +55,7 @@ if (await page.$('#mainBtn:not([disabled])')) {
   await page.waitForTimeout(800);
 }
 for (let i = 0; i < 10 && !(await page.$('#choixModal[hidden]')); i++) {
-  const o = await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])');
+  const o = await page.$('#choixModal:not([hidden]) .choix-option:not(.on):not([aria-disabled="true"]) .tc-prendre');
   if (o) await o.click(); else await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {});
   await page.waitForTimeout(400);
 }
@@ -122,15 +127,13 @@ const restent = await enAttente();
 
 // DERRIÈRE LE BANC, en pleine saison, « Aligner au mieux » est là (JP : *le bouton de ligne automatique n'est pas
 // toujours là ?* — il se cachait dès la saison lancée, c'est-à-dire là où l'alignement se règle en Rogue).
-await page.click('#navbar .navtab[data-section="club"]');
+// Les cinq portes (4 nov. 2026) : les Lignes ont leur porte.
+await page.click('#navbar .navtab[data-section="lignes"]');
 await page.waitForFunction(() => window.cap82.G.banc, null, { timeout: 60000 });
 await page.waitForTimeout(800);
 const auBanc = !!(await page.$('#rosterBoard .ln-auto'));
-if (auBanc) {
-  await page.click('#rosterBoard .ln-auto');
-  await page.click('#choixModal:not([hidden]) .choix-option[data-choix="equilibre"]');
-  await page.waitForTimeout(500);
-}
+// Nov. 2026 : « Aligner au mieux » agit d'un toucher, sans fenêtre.
+if (auBanc) { await page.click('#rosterBoard .ln-auto'); await page.waitForTimeout(800); }
 informer('achats enregistrés', achats.join(' · '));
 exiger('« Acheter » ferme la fiche du pack', !ficheRestee);
 exiger('un second toucher n\'ouvre pas le même pack', !second);

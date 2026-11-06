@@ -44,7 +44,7 @@ for (let i = 0; i < 5; i++) {
   const t = await titre();
   if (!/Pack de départ/.test(t)) break;
   // Le paquet se déchire, puis sa pile se passe carte par carte (le premier) ou d'un coup, « Tout voir » (scripts/lib/paquet.mjs).
-  if (await page.$('#choixModal:not([hidden]) .paquet')) {
+  if (await page.$('#choixModal:not([hidden]) .pochette')) {
     for (const f of fautesDePile(await traverserPaquet(page, { tout: packs.length > 0, delai: 60 }), page.viewportSize().width)) erreurs.push(f);
   }
   const n = (await page.$$('#choixModal .choix-options [data-apercu]')).length;

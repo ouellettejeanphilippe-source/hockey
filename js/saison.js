@@ -50,7 +50,7 @@ import { animerComptes, notable, pic } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle, banc } from './profil-style.js';
 import { verdictsDeLaSemaine as verdictsDesChoix } from './verdicts.js';
-import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
+import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, varsCarton, pageDuClub, money } from './util.js';
 import { bancDuSoirHtml } from './banc-du-soir.js';
 import { bandeau, carteLigne, caseVide, grille, cellules, visage, rangeeVisage, billet, podium as podiumHtml, coin } from './plateau-rogue.js';
 import { panelDe } from './panel-tv.js';
@@ -3365,7 +3365,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       specs.push({ de: DE.proprio, ico: '⚔', titre: multi > 1 ? `Tes ${multi} rivaux` : 'Ton dernier rival', multi,
         scene: sceneDesRivaux({ multi, offerts: ro.offre.length, graine }),
         recit: `Chacun de tes matchs contre ${multi > 1 ? 'eux' : 'lui'} sera un gros match, et tu le verras venir sur la route. Plus il est fort, plus il paie.`,
-        options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), visage: ctx.logo(x.team.tag, 36), bande: varsEquipe(ctx.band(x.team.tag)), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros match${matchsContre(x.team) > 1 ? 's' : ''}`,
+        options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), visage: ctx.logo(x.team.tag, 96), couleurs: varsCarton(ctx.band(x.team.tag)), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros match${matchsContre(x.team) > 1 ? 's' : ''}`,
           mots: [{ txt: `+${Math.round(x.butin * primeDuGros())} 🪙 par gros match gagné`, bon: true }] })),
         decision: cles => [].concat(cles).map((cle, i) => ({ palier: `riv:${ro.k + i}`, rival: { cle, butin: ro.offre.find(y => y.cle === cle).butin } })) });
     }
@@ -3537,7 +3537,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const base = { id: `c:${spec.titre}`, genre: 'choix', bloque: true, de: spec.de, sujet: titreDuChoix(spec), spec, joueur: spec.joueur || null };
       // Le combat et le butin gardent leur écran (le combat ; le paquet qui se déchire) : leur choix en est la porte.
       if (spec.ouvrir) out.push({ ...base, choix: { ...spec, recit: '', options: [{ cle: 'ouvrir', ico: spec.ico, nom: 'Préparer le combat', sous: spec.recit, ouvre: true }], agir: () => spec.ouvrir() } });
-      else if (spec.cartes) out.push({ ...base, choix: { ...spec, options: [{ cle: 'ouvrir', ico: spec.ico, nom: 'Ouvrir le paquet', sous: 'Un adjoint parmi trois', ouvre: true }], agir: () => ouvrirChoix(spec) } });
+      else if (spec.cartes) out.push({ ...base, choix: { ...spec, options: [{ cle: 'ouvrir', ico: spec.ico, nom: 'Ouvrir la pochette', sous: 'Un adjoint parmi trois', ouvre: true }], agir: () => ouvrirChoix(spec) } });
       else out.push({ ...base, choix: { ...spec, contexte: sansDejaEnJeu(spec.contexte) } });
     }
     /*
@@ -4092,7 +4092,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // V23 G : le niveau du coach est un pic — le talent s'ouvre dans la secousse et les particules.
       if (m.genre === 'talent') setTimeout(() => pic(document.querySelector('.choix-sheet[data-msg="talent"]')), 50);
       ouvrirChoix({
-        ...C, options, ...(enCartes ? { cartes: true } : {}), de: m.de, ico: C.ico || m.de.ico, titre: m.sujet, cadre: cadreDuMatch(), ouDe: ctx.ouJoue, classeOption: 'af-option', boite: { msg: m.genre, maison: m.maison },
+        ...C, options, ...(enCartes ? { cartes: true } : {}), de: m.de, ico: C.ico || m.de.ico, titre: m.sujet, cadre: cadreDuMatch(), ouDe: ctx.ouJoue, boite: { msg: m.genre, maison: m.maison },
         recit: C.recitHtml ? '' : C.recit,
         contexte: `${C.recitHtml || ''}${m.genre === 'choix' || m.genre === 'courriel' ? dejaEnJeu(vises) : ''}${C.contexte || ''}`,
         lancer: m.spec && typeof m.spec.lancer === 'function' ? m.spec.lancer : null,

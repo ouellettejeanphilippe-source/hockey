@@ -12,9 +12,9 @@
 const DESSUS = '#choixModal .choix-sheet.paquet-pile .choix-main > [data-pile="0"]';
 const GESTES = ['glisse', 'touche', 'clavier'];
 export async function traverserPaquet(page, { tout = false, delai = 120, surAnnonce = null, surCarte = null } = {}) {
-  const p = await page.$('#choixModal:not([hidden]) .paquet');
+  const p = await page.$('#choixModal:not([hidden]) .pochette');
   const ouvert = !!(p && await p.isVisible());
-  if (ouvert) await page.click('#choixModal .paquet', { force: true });
+  if (ouvert) await page.click('#choixModal .pochette', { force: true });
   const etat = () => page.evaluate(() => {
     const f = document.querySelector('#choixModal:not([hidden]) .choix-sheet');
     return !f ? 'aucun' : f.classList.contains('paquet-fini') ? 'fini' : f.classList.contains('paquet-pile') ? 'pile' : 'autre';

@@ -208,3 +208,8 @@ jobs:
       # (l'affiche-héros, la main de cartes, les grilles, les jetons, aucune pilule blanche, les cinq portes). Une minute.
       - name: Le plateau du Rogue, contre la maquette
         run: node scripts/check_plateau.mjs http://localhost:8000
+
+      # Un choix tient en un écran (V25 B2, 6 nov. 2026) : une scène, un joueur nommé et trois cartes de jeu de front à 390 × 844,
+      # chaque nom lisible, la carte retournée qui se rapproche. Une vingtaine de secondes.
+      - name: Un choix tient en un écran
+        run: node scripts/check_hauteur.mjs http://localhost:8000
