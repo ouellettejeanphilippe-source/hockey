@@ -8,7 +8,10 @@
  * (js/saison.js `NIVEAU_SORTE` : la recrue en ★ Phénomène, 4 V ; le rôle en Pilier, 1,5 V ; l'atelier en ★ Étoile, 2,5 V).
  *
  *   node scripts/mesure_deck.mjs            (N=120 matchs par club et par carte, quatre clubs : quatre minutes)
- *   N=1500 CLUB=0 … CLUB=3                  (le plein, un club par processus : σ ≈ 0,8 V ; à N=120 le bruit fait ±3 V)
+ *   N=3000 CLUB=0 … CLUB=3                  (un club par processus : σ ≈ 0,8 V ; à N=120 le bruit fait ±3 V)
+ *   PLEIN=1                                 (aussi : la retouche en Hors-cadre et en Or, la recrue à la place du 9e avant)
+ *   ROLE_X=2 ROLE_HAUT=1                    (les écarts des rôles doublés ; le rôle posé sur ta vedette plutôt que sur la cible du jeu)
+ *   GRAINE=b                                (d'autres dés)
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -72,25 +75,37 @@ for (const T of TEMOINS) {
   const cas = [];
   // Le témoin à zéro : la même équipe, sans rien ; ce qu'il mesure est le bruit du harnais (il doit tomber à 0 V).
   cas.push({ sorte: 'temoin', nom: 'témoin · rien', t: equipe(T) });
-  // Le nouveau rôle : les trois offerts, chacun à part (le joueur en prend un).
+  // Le nouveau rôle : les trois offerts, chacun à part (le joueur en prend un). ROLE_X=2 double les écarts de ses canaux
+  // (les profils restent) ; ROLE_HAUT=1 le pose sur ta vedette (ou ton meilleur défenseur) au lieu de la cible du jeu.
   const roles = rolesOfferts(equipe(T), 'mesure', J0);
+  const X = Number(process.env.ROLE_X || 1), haut = process.env.ROLE_HAUT === '1';
+  const CANAUX_ROLE = ['finition', 'lancers', 'creation', 'defense', 'blessure', 'arrets'];
   roles.forEach((r, k) => {
-    const t = equipe(T), p = Object.values(t.roster).find(x => x && getPlayerKey(x) === getPlayerKey(r.p));
+    const t = equipe(T), M = MUTATIONS[r.cle], sauve = Object.fromEntries(CANAUX_ROLE.filter(c => M[c]).map(c => [c, M[c]]));
+    const al = avantsAlignes(t, joueurs), defs = SLOTS.filter(sl => !sl.scratch && sl.group === 'D').map(sl => t.roster[sl.i]).filter(Boolean)
+      .map(p => ({ p, cote: cote20(p, joueurs) || 0 })).sort((a, b) => b.cote - a.cote);
+    const p = haut ? (r.p.p === 'D' || r.p.p === 'LD' || r.p.p === 'RD' ? defs[0].p : al[0].p) : Object.values(t.roster).find(x => x && getPlayerKey(x) === getPlayerKey(r.p));
+    for (const c of Object.keys(sauve)) M[c] = 1 + (sauve[c] - 1) * X;
     appliquerMutation(t, p, r.cle, J0, 'choix');
-    cas.push({ sorte: 'profil', nom: `rôle ${k + 1} · ${MUTATIONS[r.cle].nom} → ${p.n}`, t });
+    Object.assign(M, sauve);
+    cas.push({ sorte: 'profil', nom: `rôle ${k + 1} · ${M.nom} → ${p.n}${X !== 1 ? ` ×${X}` : ''}`, t });
   });
   // L'atelier : la retouche monte la carte d'UNE édition (Base → Cadre : le second badge monte d'un) ; sur ta vedette.
-  { const t = equipe(T), [star] = avantsAlignes(t, joueurs);
-    appliquerMutation(t, star.p, 'pinceau', J0, 'atelier', { carte: { rar: 'peu' } });
-    cas.push({ sorte: 'atelier', nom: `retouche · Cadre sur ${star.p.n} (${star.cote.toFixed(1)})`, t }); }
+  for (const [rar, mot] of [['peu', 'Cadre'], ['hors', 'Hors-cadre'], ['rare', 'Or']]) {
+    if (rar !== 'peu' && !process.env.PLEIN) continue;
+    const t = equipe(T), [star] = avantsAlignes(t, joueurs);
+    appliquerMutation(t, star.p, 'pinceau', J0, 'atelier', { carte: { rar } });
+    cas.push({ sorte: 'atelier', nom: `retouche · ${mot} sur ${star.p.n} (${star.cote.toFixed(1)})`, t });
+  }
   // La recrue : un vrai Régulier, puis un vrai Pilier, à la place de ton avant aligné le plus faible (le plafond ignoré : la borne haute).
-  for (const [niv, mot] of [[REGULIER, 'Régulier'], [PILIER, 'Pilier']]) {
-    const t = equipe(T), al = avantsAlignes(t, joueurs), faible = al[al.length - 1];
+  for (const [niv, mot, neuf] of [[REGULIER, 'Régulier', false], [PILIER, 'Pilier', false], [REGULIER, 'Régulier', true], [PILIER, 'Pilier', true]]) {
+    if (neuf && !process.env.PLEIN) continue;
+    const t = equipe(T), al = avantsAlignes(t, joueurs), faible = neuf ? al.slice(0, 9)[8] : al[al.length - 1];
     const q = recrue(T.sh, T.tag, niv, new Set(Object.values(t.roster).filter(Boolean).map(getPlayerKey)));
     if (!q) continue;
     const r = { ...q }; registerHiddenRatings(r);
     t.roster[faible.sl.i] = r;
-    cas.push({ sorte: 'recrue', nom: `recrue · ${mot} ${r.n} (${(cote20(r, joueurs) || 0).toFixed(1)}) pour ${faible.p.n} (${faible.cote.toFixed(1)})`, t });
+    cas.push({ sorte: 'recrue', nom: `recrue · ${mot} ${r.n} (${(cote20(r, joueurs) || 0).toFixed(1)}) pour ${faible.p.n} (${faible.cote.toFixed(1)}${neuf ? ', 9e avant' : ''})`, t });
   }
   for (const c of cas) { c.dv = 0; c.dnet = 0; c.adv = equipe(T, 'eux'); }
   for (let i = 0; i < N; i++) {
