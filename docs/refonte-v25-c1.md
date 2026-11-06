@@ -1,0 +1,65 @@
+# V25 · C1 — Les faits et la banque : l'extrait du devis
+
+L'extrait de `docs/refonte-v25.md` (§ 4 C, § 8 C, la tranche 6) pour **C1** (6 nov. 2026 ; JP : *continue*, les neuf questions de C0 tranchées, docs/histoires-v25.md § 5). C0 a livré les quarante fiches ; C1 les code : un module de faits, une seule banque à trois moments, une porte, une promesse. C2 apprendra la banque au robot et étendra `mesure_rythme`.
+
+    node scripts/check_refonte.mjs docs/refonte-v25-c1.md
+
+## 1. Ce que JP a dit
+
+JP (5 nov.) : *la vraie saison dite dans les histoires, avec ses bornes* ; *les chiffres dérivés, la réplique écrite* ; (6 nov., C0) : la réplique **dit le chiffre du fait** ; le petit au dépisteur, le dos-à-dos à ton adjoint ; un geste neuf, l'échange du joueur nommé ; les canaux du club **au gros match et à la ronde seulement** ; la vraie saison d'un gardien avec ses victoires et son % d'arrêts ; le maire reste, en rare ; six rares ; le vétéran par l'âge ; rien au-dessus de Pilier. Avant (V22) : *supprimer la banque d'événements, pas le système* ; (V19) *les incidents, toujours liés à des joueurs*.
+
+## 2. Ce que le joueur ressent
+
+Un lundi, le jour d'un gros match ou la veille d'une ronde, quelqu'un du club vient me parler de QUELQU'UN de mon vestiaire, avec son nom, son vrai chiffre et sa vraie saison (« Bure, 1 point en 10 matchs ; cette année-là, 60 buts en 63 matchs ») ; je réponds par une carte ; le lundi d'après, la même voix me dit ce que ça a donné, en chiffres recomptés. Le pic : une suite qui s'ouvre parce que mon petit a produit ; le jour ordinaire : rien ne s'ouvre quand rien n'est vrai.
+
+## 3. Les règles du jeu
+
+- **Une seule banque**, `js/histoires.js` : `HISTOIRES`, quarante entrées `{ de, moment, quand(f), joueur(f), fait(f), mots(f, j), options, suite, rare, famille }` (docs/histoires-v25.md, telles quelles). Trois **moments** : `lundi` (28), `gros` (6, le matin du duel, jamais la veille), `ronde` (6, le matin du premier match d'une ronde). Un seul tirage, `tirer(graine, moment, faits, sorties)`, pur : parmi les vraies qui ne se reposent pas, le plus haut de son tirage ; une suite passe avant ; le repos de `REPOS_HISTOIRE` semaines, `SORTIES_MAX` sorties par saison, jamais deux fois le même joueur, une rare par saison (`CHANCE_RARE`) ; chaque moment a son pool (la ronde ne vide pas le lundi). `sceneDe(cle, faits, graine)` : la voix, la réplique qui NOMME (`mots(f, j)` : le nom, le chiffre du fait, la vraie saison), le fait sous elle.
+- **Les faits sortent de l'écran**, `js/faits.js` : `faitsDe({ ligue, you, jour, run })`, un objet lu dans les feuilles jouées, le journal du club, le classement du matin et la cédule connue, rien d'avance — tout ce que `faitsDuLundi`, `faitsDesJoueurs`, `faitsDuProprio`, `faitsDeLaCourse`, `faitsDuDernier`, `faitsDesSuites` lisaient, plus les champs des fiches : `blesses[i].genre` et `deja`, `sejourFini`, `mandat`, `serie`, `jalon`, `duo` (et `suites[i].butsDuo`), `recrue`, `veteran` (35 ans dans sa saison, `ageAtSeason`), `murEnVue`, `coup`, `masse.cap`, `gros { adv, sorte, domicile, fiche, dernier, ancien, leurVedette, monMur, lancee, malades, partant }`, `ronde { k, adv, leurCoach, domicile, ficheSaison, precedente, meneur, gardien }`. **La vraie saison avec ses bornes** : `f.vraie(cle)` → `{ buts, passes, gp, matchsDeSaSaison, clubs, enCours, victoires, arrets }` (un gardien : ses victoires et son % d'arrêts) ; `vraieMot(v)` la dit : « cette année-là, 34 buts en 47 matchs », « avec Boston » si `clubs === 1` seulement, « jusqu'ici » si `enCours`, jamais « a fini », jamais face à un chiffre d'une autre époque.
+- **Une porte**, `appliquerChoix(team, d, graine)` (js/greffes.js) : la décision d'une histoire `{ moment: { famille: 'histoire', cle, choix, joueur, joueurs } }` pose, dans cet ordre, les gestes (`gestes` : soin, absents, jambes, l'auxiliaire, une carte d'adjoint, l'échange du joueur nommé — `echange: 'lui'`, neuf), ce qui va au joueur nommé (`lui`), le dé (`pari`, `deDuPari`), les canaux du club (`canaux`, permis aux moments `gros` et `ronde` seulement, `duree` 1 ou 7), la suite (`suite`, en matchs), et **la promesse**. Les jetons et l'expérience restent à la décision (`gain`, `xpCoach`), la caisse les lit. Une vieille décision `dossier`, `fil`, `avant` ou `ajustement` ne joue plus rien (`VERSION_MOTEUR` S146 : la partie en cours se rejoue avec les nouvelles règles, et le jeu le dit).
+- **Une promesse** : chaque option qui touche un joueur (`lui` ou `pari`) engage un **suivi** (`team.suivis`, généralisé de celui des fils) : sa mesure se lit de l'effet (ses tirs et ses points si l'effet est sur ses tirs, sa précision ou ses passes ; ses buts accordés et son % d'arrêts pour un gardien ; ses matchs joués sans rechute pour une blessure), sur la durée de l'effet ; le lundi d'après sa fin, le **verdict** arrive comme un message de la même voix, en vrais chiffres recomptés (« Bure : 4 buts en 8 matchs depuis le défi ; 1 en 10 avant »), et « Ce qui court » le montre chaque matin. Un joueur parti fait tomber la promesse, et ça se dit. js/verdicts.js (le verdict d'équipe en tirs et précision) part : la promesse est au joueur.
+- **Les trois chemins pour un seul** : le choix d'un fil (`CHOIX_DES_FILS`) et l'avant-match (`AVANT_GROS`) partent ; les trois avant-matchs qui lisaient un fait (l'ancien, les poteaux, le virus) sont les histoires 29 à 31 du moment `gros` ; les neuf autres partent, et leurs faits vrais (`irl`) vont au verso de la carte du joueur qui les a vécus (`ANECDOTES`, js/fiche.js). Les ajustements de séries (`AJUSTEMENTS`) partent : au moment `ronde`, les histoires 35 à 40 ; avant chaque match, le duel seul.
+- **Les arcs partent** (`ARCS = {}` depuis la V22) : `episodesDuMatin` et `faitsDuMatin` ne tournent plus chaque matin ; un défi devient une suite d'histoire (8 → 9, 23 → 24).
+- **Le robot** (scripts/lib/cartes_robot.mjs `lundiDuRobot`) lit la banque neuve par `tirer` et prend sa première option, comme aujourd'hui ; C2 lui apprend à choisir.
+
+## 4. Les chiffres
+
+- Les bornes d'une option : le niveau de sa carte (`NIVEAUX[k].borneV`), rien au-dessus de Pilier (1,5 V sur ses soirs) ; les deux options d'une histoire à moins de 0,3 V l'une de l'autre ; aucune n'est un piège — `check_effets` (en paires), le poids estimé de chaque fiche en § 2 de docs/histoires-v25.md.
+- Le rythme ne change pas : `CHANCE_HISTOIRE` 0,55 par lundi, `REPOS_HISTOIRE` 5, `SORTIES_MAX` 2, `CHANCE_RARE` 0,4 ; aucun trou de plus de dix matchs (`mesure_rythme`, étendu en C2).
+- La vraie saison : `matchsDeSaSaison` = `seasonGames(s)` (82, 48, 56, 70) ; `enCours` quand le club a moins de matchs que sa saison en compte ; `clubs` = les entrées du joueur dans sa saison (84 doublons en 1994-95).
+
+## 5. Les cas limites
+
+- Une histoire sans porteur : `quand(f)` faux, elle ne sort pas ; la liste blanche de `check_incidents` ne garde que le maire (27) et les billets de séries (35), qui s'accrochent à ta vedette.
+- Le joueur parti (échangé, relâché, réclamé) fait tomber la promesse et la suite, et ça se dit — `check_suivis`.
+- Le joueur échangé dans sa vraie saison, la saison écourtée, la saison en cours : `clubs > 1` tait le club, `enCours` dit « jusqu'ici », les matchs joués se disent toujours — `check_vie`.
+- La vieille partie : les clés de sauvegarde ne bougent pas ; une décision `dossier`, `fil`, `avant`, `ajustement` d'avant la C1 se relit sans rien jouer — `check_sauvegardes`.
+- Les séries : le duel seul avant chaque match ; les histoires de ronde s'ouvrent le matin du premier match, dans la boîte.
+- Hors ligne : sw.js liste `js/faits.js` et `js/histoires.js`, oublie `js/dossiers.js`, `js/arcs.js`, `js/verdicts.js` — `check_coquille`.
+
+## 6. Ce qu'il touche
+
+- La banque et les faits : `js/histoires.js` (neuf), `js/faits.js` (neuf), `js/dossiers.js`, `js/arcs.js`, `js/verdicts.js`, `js/vie-gm.js`, `js/scenes.js`, `js/greffes.js`, `js/sim.js`, `js/saison.js`, `js/gerant.js`, `js/fiche.js`, `js/game.js`, `sw.js`.
+- Les juges : `scripts/check_histoires.mjs` (neuf, ce que `check_dossiers` devient), `scripts/check_dossiers.mjs`, `scripts/check_arcs.mjs`, `scripts/check_verdicts.mjs`, `scripts/check_incidents.mjs`, `scripts/check_suivis.mjs`, `scripts/check_vie.mjs`, `scripts/check_clarte.mjs`, `scripts/check_mots.mjs`, `scripts/check_choix.mjs`, `scripts/check_effets.mjs`, `scripts/check_lisibilite.mjs`, `scripts/check_retours.mjs`, `scripts/check_totaux.mjs`, `scripts/check_banque.mjs`, `scripts/check_sauvegardes.mjs`, `scripts/mesure_rythme.mjs`, `scripts/lib/cartes_robot.mjs`, `scripts/tout.mjs`, `.github/workflows/verifier.yml`.
+- Les règles et les docs : `.claude/rules/rogue.md`, `.claude/rules/vocabulaire.md`, `.claude/rules/tests.md`, `docs/structure.md`, `docs/structure-detaillee.md`, `docs/moteur-recalibrer.md`, `LIVRAISON.md`, `docs/journal/2026-11.md`, `docs/decisions.md`.
+- Les règles fermes : rogue.md « une réplique sans chiffre » (`check_clarte` § 5) est **réécrite** : la réplique dit le chiffre du fait, jamais une stat du moteur (JP, C0 q. 1) ; « une réponse de dossier peut ne jouer que dans son moment (`quand`) » tient (`check_moments_si`) ; « V22 : la banque neuve commence à six histoires… » devient « quarante, trois moments » ; vocabulaire.md : « dossier » devient « histoire » (le mot du code aussi : `famille: 'histoire'`), « fil » garde la une, perd son choix ; « défi » part avec les arcs. Les clés de sauvegarde ne bougent jamais.
+
+## 7. Ce qui part
+
+Chaque nom disparaît du jeu (js/, index.html, style.css, sw.js) ; `check_refonte` le vérifie.
+
+- La banque et son tirage d'aujourd'hui : `js/dossiers.js`, `DOSSIERS`, `dossierDeLaSemaine`, `semaineAHistoire`, `sceneDuDossier`, `dossierOuvert`, `motsDuDossier`, `histoiresSorties`, `faitsDesSuites`, `faitsDuDernier`, `faitsDeLaCourse`.
+- La deuxième banque de sim.js : `AVANT_GROS`, `avantDuGros`, `avantDuCombat`, `ciblesDe`, `AJUSTEMENTS`, `ajustementsOfferts`, `AMPLEUR_CHOIX`, `appliquerGestes` (la porte est `appliquerChoix`).
+- Les faits écrits dans l'écran : `faitsDuLundi`, `faitsDesJoueurs`, `faitsDuProprio`.
+- Les trois chemins pour un seul : `CHOIX_DES_FILS`, `filOuvert`, `motDuSuivi`, `motDuSuiviEnCours`, `texteDuRetour`, `voixDuFil`, `avecNoms`, `pariDeDecision`, `familleDeMoment`, `effetDeMoment`, `engagerSuivi` (refait pour toute option qui touche un joueur), `retoursDuMatin`.
+- La promesse en double : `js/verdicts.js`, `verdictsDeLaSemaine`, `verdictsDesChoix`, `bougeLeMatch`, `MATCHS_MIN`, `AVANT_MIN`, `PLANCHER`.
+- La machine d'arcs vide : `js/arcs.js`, `ARCS`, `episodesDuMatin`, `faitsDuMatin`, `ordreDesArcs`, `ARCS_PAR_SAISON`, `DEFIS`, `avanceDuDefi`, `motDuDefi`, `defisEnCours`, `motDuDefiEnCours`, `motsDeLArc`, `arcsDeLaSemaine`, `scripts/check_arcs.mjs`, `scripts/check_verdicts.mjs`, `scripts/check_dossiers.mjs`.
+- Au duel : la carte de vestiaire (`vestiaire`, `main-vest`, `.main-vestiaire`, `.main-vest-recit`, `.main-vest-rang`) et la rangée des ajustements (`ajustements`, `.main-ajuste`, `.main-ajuste-rang`, `.main-aj`) : le duel ne porte plus que l'intention, les plans de l'adjoint et la mise.
+
+## 7b. Ce qui reste
+
+- `EXPEDITEURS`, `joueurDuFait` (js/vie-gm.js) : les voix et le joueur du fait, lus par faits.js ; `VOIX_DES_FILS`, `messageDuFil` : la une dit un fil par sa voix (`check_fils`) — le devis les nommait avec les chemins de choix par erreur, ils n'ouvrent aucun choix.
+- `SITUATIONS`, `MOMENTS_SI`, `DUREE_MOMENT`, `deDuPari`, `cleDuPari`, `facesDuPari`, `poserSurJoueur` : le moteur ; les histoires y passent par la porte.
+- `scenes.js` et ses scènes (la mise, le palier, la blessure, les rivaux, le butin, le mandat, l'adjoint) : les autres voix du Rogue ; `sceneDe` des histoires vit dans histoires.js.
+- Le duel (`ouvrirDuel`, `PLANS`, `propositionsDuDuel`, l'intention, la mise doublée), le butin, les paliers, l'objectif du proprio : les autres moments de la run.
+- `t.arcs`, `t.retours`, `t.suivis` dans une sauvegarde : les clés restent, `suivis` porte la promesse neuve, les deux autres ne se lisent plus que pour la une d'une vieille partie.
