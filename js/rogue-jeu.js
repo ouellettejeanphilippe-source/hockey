@@ -35,7 +35,7 @@ import { sceneDuMandat } from './scenes.js';
 import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { marche } from './plateau-rogue.js';
-import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement, rareteJoueur } from './repechage.js';
+import { apercuJoueur, carteAuCartable, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
 import { afficherMenu } from './menu.js';
@@ -553,7 +553,7 @@ function plafondPourInventaire(j) {
   };
 }
 /*
- * CE QUE LE PROPRIO LIT LE LUNDI (V16, tranche 6 — les faits du lundi, js/saison.js `faitsDuProprio`). L'espace sous ton plafond et ton
+ * CE QUE LE PROPRIO LIT LE LUNDI (V16, tranche 6 ; V25 C1 : lu par js/faits.js `faitsDe`, `f.masse`). L'espace sous ton plafond et ton
  * contrat le plus lourd que rien ne retouche encore ; ton coach en poste et ceux que le prestige ouvre.
  */
 export function masseDuLundi(j) {
@@ -561,9 +561,9 @@ export function masseDuLundi(j) {
   if (pl.cap >= 1e11 || !signes().length) return null;
   const lourd = signes().filter(p => !pl.facteurs.has(getPlayerKey(p))).sort((a, b) => capHit(b, pl) - capHit(a, pl))[0];
   const espace = pl.cap - capUsed(pl);
-  return { espace, libre: money(Math.max(0, espace)), lourd: lourd ? { n: lourd.n, cle: getPlayerKey(lourd), sal: money(capHit(lourd, pl)), dollars: capHit(lourd, pl) } : null };
+  return { espace, cap: pl.cap, libre: money(Math.max(0, espace)), lourd: lourd ? { n: lourd.n, cle: getPlayerKey(lourd), sal: money(capHit(lourd, pl)), dollars: capHit(lourd, pl) } : null };
 }
-/* Le coach de la run (V21) : son nom et son niveau, ce que les faits du lundi lisent (js/saison.js `faitsDuLundi`). */
+/* Le coach de la run (V21) : son nom et son niveau, ce que les faits lisent (js/faits.js `faitsDe`, `f.coach`). */
 export function coachsDuLundi() {
   const you = G.ligue && G.ligue.you, perso = you && you.perso;
   if (!perso || !COACHS[perso.cle]) return null;
@@ -744,25 +744,59 @@ async function offresDEchange(C, graine, c, dansLaLigue, max) {
   for (const d of doublons) {
     const q = await joueurDeCle(d);
     if (!q) continue;
-    const epoque = epoqueDe(q.s);
-    const saisons = tirageDuClasseur(state.index.seasons.filter(s => epoqueDe(s) === epoque), `${graine}:saisons`);
-    const out = [];
-    for (const s of saisons) {
-      if (out.length >= C.gestes.offres) break;
-      const joueurs = (await getShard(s)).players;
-      for (const k of tirageDuClasseur(joueurs.map(getPlayerKey), `${graine}:${s}`)) {
-        const p = joueurs.find(x => getPlayerKey(x) === k);
-        if (!p || c.joueurs[k] || !(p.$ > 0) || p.$ > max || dansLaLigue.has(getPersonKey(p)) || dejaChezToi(p) || out.some(x => getPersonKey(x.p) === getPersonKey(p))) continue;
-        const niveau = niveauDe(p, joueurs);
-        if (niveau > C.niveauMax) continue;
-        // Un joueur par saison : l'échange montre la série, pas un seul vestiaire.
-        out.push({ p, rar: 'commune', niveau, num: null, donne: d, donneNom: q.n, saison: q.s });
-        break;
-      }
-    }
-    if (out.length) return out;
+    const out = await offresDeLEpoque(q, C.gestes.offres, graine, (p, k, niveau) => !c.joueurs[k] && p.$ <= max && !dansLaLigue.has(getPersonKey(p)) && niveau <= C.niveauMax);
+    if (out.length) return out.map(x => ({ ...x, donne: d, donneNom: q.n, saison: q.s }));
   }
   return [];
+}
+/*
+ * LES JOUEURS DE SON ÉPOQUE (Jalon P3 ; V25 C1) : `n` joueurs des saisons de la même époque que `q`, un par saison, dans
+ * l'ordre pur de la graine, qui passent `ok(p, cle, niveau)` ; jamais déjà chez toi. Rend [{ p, rar, niveau, num }].
+ */
+async function offresDeLEpoque(q, n, graine, ok) {
+  const epoque = epoqueDe(q.s);
+  const saisons = tirageDuClasseur(state.index.seasons.filter(s => epoqueDe(s) === epoque), `${graine}:saisons`);
+  const out = [];
+  for (const s of saisons) {
+    if (out.length >= n) break;
+    const joueurs = (await getShard(s)).players;
+    for (const k of tirageDuClasseur(joueurs.map(getPlayerKey), `${graine}:${s}`)) {
+      const p = joueurs.find(x => getPlayerKey(x) === k);
+      if (!p || !(p.$ > 0) || dejaChezToi(p) || out.some(x => getPersonKey(x.p) === getPersonKey(p))) continue;
+      if (!ok(p, k, niveauDe(p, joueurs))) continue;
+      // Un joueur par saison : l'échange montre la série, pas un seul vestiaire.
+      out.push({ p, rar: 'commune', niveau: niveauDe(p, joueurs), num: null });
+      break;
+    }
+  }
+  return out;
+}
+/*
+ * L'ÉCHANGE D'UNE HISTOIRE (V25 C1, la date limite des échanges ; le geste `echange: 'lui'`, JP, C0 q. 3) : le joueur
+ * nommé part, `n` joueurs de son époque s'offrent — de son niveau au plus, sous le plafond une fois son contrat libéré —,
+ * et tu en signes un à sa case : Signer, c'est l'échange. La décision porte l'histoire (`base`) et la signature.
+ */
+export async function echangeDHistoire({ j, cle, n, graine, base, decider }) {
+  const q = Object.values(G.roster || {}).find(p => p && getPlayerKey(p) === cle);
+  const sl = q && SLOTS.find(x => G.roster[x.i] === q);
+  if (!q || !sl) return;
+  const dansLaLigue = new Set();
+  for (const t of (G.ligue && G.ligue.teams) || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
+  const niveauQ = niveauDe(q, (await getShard(q.s)).players);
+  const offres = await sousVoile('On appelle les autres clubs…', () => offresDeLEpoque(q, n, graine, (p, k, niveau) => !dansLaLigue.has(getPersonKey(p)) && niveau <= niveauQ && !bloqueParLePlafond(p, q)));
+  ouvrirListeSignature({
+    ico: '⏳', titre: `L'échange de ${q.n}`, motFermer: 'Retour',
+    recit: `${q.n} part. ${offres.length} joueur${offres.length > 1 ? 's' : ''} de son époque, de son niveau au plus, sous le plafond une fois son contrat libéré ; tu en signes un à sa case.`,
+    joueurs: offres, roster: G.roster, bloque: bloqueParLePlafond, vide: 'Personne de son époque ne tient sous le plafond : il reste.',
+    destination: () => ({ sortie: { i: sl.i, sort: cle }, mot: `${ouJoue(q)}, à la place de ${q.n}` }),
+    onSigne: (x, sortie) => {
+      const k = getPlayerKey(x.p);
+      G.variantes.cartes[k] = x.rar;
+      carteAuCartable(cle);
+      decider({ jour: j, ...base, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar } });
+    },
+    onFerme: () => {},
+  });
 }
 /* Un joueur retrouvé par sa clé (« saison_club_id ») : ceux qu'on garde d'une run à l'autre. */
 async function joueurDeCle(cle) {
@@ -1537,7 +1571,7 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
  * améliorations, styles, contrats et éditions de l'atelier. Le physio soigne
  * une fois ; le lustre passe par la variante de la carte.
  */
-// Oct. : la retouche d'un défi relevé (js/arcs.js `DEFIS`) reste sur sa carte, comme une amélioration.
+// Oct. : la retouche d'un défi relevé (les défis sont partis en V25 C1) reste sur sa carte, comme une amélioration.
 const SOURCES_DURABLES = new Set(['amelioration', 'style', 'atelier', 'contrat', 'defi']);
 function modsAuCartable() {
   const you = G.ligue && G.ligue.you;

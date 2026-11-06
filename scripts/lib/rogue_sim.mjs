@@ -593,8 +593,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     // V3.6 : la prime des fils (le Cheechoo, le jalon…), comme au jeu (`resultatsRogue`, js/rogue-jeu.js).
     return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total - salairesDesAdjoints(L.calendrier, you, L.jour).total - depense;
   };
-  // V10 : le lundi du robot — la route, le dossier, la carte d'un palier (scripts/lib/cartes_robot.mjs).
-  const etatCartes = { dossiers: [], paliers: new Set(), butins: new Set() };
+  // V10 : le lundi du robot — l'histoire, la carte d'un palier (scripts/lib/cartes_robot.mjs).
+  const etatCartes = { histoires: [], paliers: new Set(), butins: new Set() };
   const plans = new Map();
   let planPose = 'match';
   while (!L.fini) {

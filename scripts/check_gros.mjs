@@ -16,7 +16,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde, creerSeries, jouerMatchSeries, simulerGrosMatch,
-  AVANT_GROS, avantDuGros,
   activeLineup, SONNE, MISE_DOUBLEE, playGame, grainerHasard, feuilleVierge,
 } from '../js/sim.js';
 import { POUVOIRS, persoAdverse, COACH_DU_STYLE, OMBRE } from '../js/pouvoirs.js';
@@ -94,13 +93,6 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
     if (texte(r0.calendrier) === texte(r1.calendrier)) memes++;
   }
   exiger('une vieille décision d\'entracte (le 82-0 d\'avant la V25) ne change aucun match', essais > 0 && memes === essais, `${memes}/${essais}`);
-}
-
-/* ---------- 4. les avant-matchs ---------- */
-{
-  const vus = new Set(); let deja = [];
-  for (let i = 0; i < Object.keys(AVANT_GROS).length; i++) { const c = avantDuGros('g', i, deja); vus.add(c); deja = [...deja, c]; }
-  exiger('les avant-matchs ne se répètent pas dans une partie', vus.size === Object.keys(AVANT_GROS).length, `${vus.size}/${Object.keys(AVANT_GROS).length}`);
 }
 
 /* ---------- 5. les séries : chaque match de ta série est un gros match en trois périodes ---------- */

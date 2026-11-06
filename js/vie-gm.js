@@ -6,12 +6,14 @@
  *   EXPEDITEURS     qui écrit dans la boîte : une seule distribution de voix
  *   joueurDuFait    le joueur qu'un fait vise, lu dans les feuilles déjà jouées
  *   VOIX_DES_FILS   les fils de la saison, dits par quelqu'un (la une, la boîte)
- *   CHOIX_DES_FILS  le choix qu'un fil fort ouvre, deux réponses, un suivi (V22)
+ *
+ * V25 C1 : le choix qu'un fil fort ouvrait (`CHOIX_DES_FILS`, V9) est parti ; les histoires de js/histoires.js lisent les
+ * mêmes faits (le duo, la recrue, la disette) et passent par la porte de js/greffes.js.
  *
  * Tout est PUR : le même contexte et la même graine redonnent le même tirage, sans `hasard()`.
  */
 
-import { nomCourt, deNom } from './recit.js';
+import { nomCourt } from './recit.js';
 
 /** Hachage stable d'une chaîne (le même que js/recit.js), pour tirer sans hasard vivant. */
 function graine(str) {
@@ -52,7 +54,7 @@ export const EXPEDITEURS = {
  * lui*. La question vise celui dont le fait vient, lu dans les feuilles qu'elle raconte (`feuilles` : [{ f, cote }],
  * dans l'ordre) : le gardien qui a reçu les tirs du dernier soir, le meilleur pointeur, celui qui a pris le plus de
  * punitions — parmi `habilles` (un Set). Personne dans les feuilles : null, et la question garde sa cible d'avant
- * (`ciblesDe`, js/sim.js). Rend { p, fait }, le fait en vrais chiffres. Pur.
+ * (js/faits.js `faitsDe` le lit pour les histoires). Rend { p, fait }, le fait en vrais chiffres. Pur.
  */
 export function joueurDuFait(sorte, feuilles, habilles) {
   const compter = (liste, f) => { const n = new Map(); for (const x of liste) { const p = f(x); if (p && habilles.has(p)) n.set(p, (n.get(p) || 0) + 1); } return [...n].sort((a, b) => b[1] - a[1])[0] || null; };
@@ -91,81 +93,6 @@ const VOIX_DES_FILS = {
   recrue: { de: 'ca', mots: ['Le petit n\'a peur de rien. On l\'aime bien dans le vestiaire.', 'Il pose des questions et il écoute les réponses. Ça paraît.', 'Il joue comme s\'il avait dix ans dans la ligue.'] },
   retour: { de: 'ph', mots: ['Le corps a tenu. On le surveille encore quelques jours.', 'Il a fait tout ce qu\'on lui demandait pendant son absence. Ça paie.'] },
 };
-
-/*
- * LES FILS QUI REVIENNENT (V9, tranche 6 — docs/refonte-v9.md § 6.7). En Rogue, un fil fort ouvre un choix dans
- * À faire, dit par sa voix (`VOIX_DES_FILS`) : le Cheechoo, la disette, le duo, la recrue. Chaque option passe par les
- * canaux qui existent (une `action` sur le joueur nommé, un déplacement de cases, `monte`) et, souvent, engage un
- * SUIVI : `apres` matchs plus tard, le moteur relit les feuilles (`mesure` : ses buts, ses points, les buts du duo) et
- * pose ce que le seuil décide — `gagne` ou `perd`, des effets de quelques matchs sur le joueur nommé (`sur`), jamais
- * un dé (js/sim.js `retoursDuMatin`). Le retour se lit à la une, avec ses vrais chiffres (`texteDuRetour`).
- * Les mots : `{nom}` le joueur du fil, `{deplace}` celui qu'il déloge, `{passeur}` son passeur, `{vieux}` le vétéran mentor.
- */
-/*
- * LE CHOIX D'UN FIL (V22, docs/refonte-v22.md, phase 4 ; JP : *simple, impactant, le fun, marquant*). Un fil fort — le
- * Cheechoo, la disette, le duo, la recrue — ouvre un choix à deux réponses : une qui ENGAGE (un suivi, `suivi` : dans
- * `apres` matchs, le moteur relit les feuilles du joueur nommé — ses buts, ses points, les buts du duo — et le seuil
- * décide, `gagne` ou `perd`, des effets forts et courts sur lui, jamais un dé), une qui ne promet rien ou qui fait un
- * geste concret (`gestes`, `monte`, `mentor`). Le retour se lit à la une avec ses vrais chiffres (`texteDuRetour`).
- * Les mots : `{nom}` le joueur du fil, `{deplace}` celui qu'il déloge, `{passeur}` son passeur, `{vieux}` le vétéran mentor.
- */
-export const CHOIX_DES_FILS = {
-  feu: { ico: '🔥', titre: 'Le Cheechoo', question: 'Il brûle. Tu le montes ?',
-    options: [
-      { cle: 'monter', nom: 'Le monter au 1er trio', bon: 'Plus de glace au gars en feu', prix: '{deplace} descend à sa place', monte: true,
-        suivi: { apres: 10, mesure: 'buts', seuil: 4, depuis: 'qu\'il est monté',
-          gagne: { mot: 'il a pris le trio pour de bon', duree: 12, effets: [{ sur: 'joueur', finition: 1.5, lancers: 1.2 }] },
-          perd: { mot: '{deplace} veut sa place, et il la reprend', duree: 8, effets: [{ sur: 'joueur', finition: 0.6 }, { sur: 'deplace', finition: 1.3 }] } } },
-      { cle: 'laisser', nom: 'Ne rien changer', bon: 'On ne touche pas à ce qui brûle', rien: true },
-    ] },
-  disette: { ico: '🥶', titre: 'La disette', question: 'Il ne marque plus. Tu fais quoi de lui ?',
-    options: [
-      { cle: 'parler', nom: 'Lui parler, seul à seul', bon: 'Il sait que tu crois en lui', prix: 'S\'il ne marque toujours pas, le doute s\'installe',
-        suivi: { apres: 8, mesure: 'buts', seuil: 2, depuis: 'votre discussion',
-          gagne: { mot: 'il respire, la rondelle rentre', duree: 10, effets: [{ sur: 'joueur', finition: 1.5 }] },
-          perd: { mot: 'le doute s\'installe', duree: 8, effets: [{ sur: 'joueur', finition: 0.55 }] } } },
-      { cle: 'reposer', nom: 'Le reposer deux matchs', bon: 'Il revient la tête vidée', prix: 'Deux matchs sans lui', gestes: { absents: 2 } },
-    ] },
-  duo: { ico: '🤝', titre: 'Le duo', question: 'Ces deux-là se trouvent. Tu les soudes ?',
-    options: [
-      { cle: 'souder', nom: 'Les garder ensemble', bon: 'Un duo qu\'on nomme, pour la saison', prix: 'S\'ils s\'essoufflent, ils se tapent sur les nerfs',
-        suivi: { apres: 10, mesure: 'duo', seuil: 3, depuis: 'qu\'on les garde ensemble',
-          gagne: { mot: 'leur lien est nommé, pour la saison', duree: 82, effets: [{ sur: 'joueur', finition: 1.4 }, { sur: 'passeur', creation: 1.2 }] },
-          perd: { mot: 'ils se lassent l\'un de l\'autre', duree: 6, effets: [{ sur: 'joueur', finition: 0.6 }, { sur: 'passeur', creation: 0.8 }] } } },
-      { cle: 'laisser', nom: 'Ne rien promettre', bon: 'Chacun son jeu', rien: true },
-    ] },
-  recrue: { ico: '🐣', titre: 'La recrue', question: 'Le petit produit. Tu lui fais confiance ?',
-    options: [
-      { cle: 'confiance', nom: 'Lui faire confiance', bon: 'S\'il produit, il s\'impose pour la saison', prix: 'S\'il cale, un trou de mémoire',
-        suivi: { apres: 10, mesure: 'points', seuil: 6, depuis: 'qu\'on lui fait confiance',
-          gagne: { mot: 'il s\'impose pour de bon', duree: 82, effets: [{ sur: 'joueur', finition: 1.3, creation: 1.3 }] },
-          perd: { mot: 'un trou de mémoire', duree: 6, effets: [{ sur: 'joueur', finition: 0.55, creation: 0.55 }] } } },
-      // Le vétéran mentor (`mentorTrio`, js/sim.js), le temps de la saison, sur la ligne de la recrue.
-      { cle: 'mentor', nom: 'Le confier à {vieux}', bon: 'Sur la ligne du vétéran, son badge monte d\'un métal', prix: 'Il change de ligne', mentor: true },
-    ] },
-};
-const UNITES_DU_SUIVI = { buts: 'but', points: 'point', duo: 'but' };
-export const avecNoms = (t, x) => String(t || '').replace(/\{nom\}/g, x.nom || '').replace(/\{deplace\}/g, x.deplace || 'son remplaçant').replace(/\{passeur\}/g, x.passeur || 'son passeur').replace(/\{vieux\}/g, x.vieux || 'un vétéran');
-/** L'engagement d'une option, en mots : « Dans 10 matchs, 4 buts : il garde le feu ; sinon, X demande à jouer. » */
-export function motDuSuivi(s, x = {}) {
-  if (!s) return '';
-  const u = UNITES_DU_SUIVI[s.mesure], quoi = `${s.seuil} ${u}${s.seuil > 1 ? 's' : ''}${s.mesure === 'duo' ? ' sur ses passes' : ''}`;
-  return avecNoms(`Dans ${s.apres} matchs, ${quoi} : ${s.gagne ? s.gagne.mot : 'rien de plus'}${s.perd ? ` ; sinon, ${s.perd.mot}` : ''}`, x);
-}
-/** Le retour, dit avec ses vrais chiffres, lus dans les feuilles : « Kudelski : 5 buts en 10 matchs depuis qu'il est monté. Il garde le feu. » */
-export function texteDuRetour(s, gagne, n, x = {}) {
-  const u = UNITES_DU_SUIVI[s.mesure], b = gagne ? s.gagne : s.perd;
-  const quoi = `${n} ${u}${n > 1 ? 's' : ''}${s.mesure === 'duo' ? ` sur des passes ${x.passeur ? deNom(x.passeur) : 'de son passeur'}` : ''}`;
-  const mot = b ? avecNoms(b.mot, x) : '';
-  return `${x.nom} : ${quoi} en ${s.apres} matchs depuis ${s.depuis}.${mot ? ` ${mot[0].toUpperCase()}${mot.slice(1)}.` : ''}`;
-}
-/** Un suivi en cours, en une ligne de vrais chiffres : « 🐣 La recrue · Demitra : 3 / 6 points · 4/10 matchs ». */
-export function motDuSuiviEnCours(x) {
-  const u = UNITES_DU_SUIVI[x.suivi.mesure];
-  return `${x.ico} ${x.titre} · ${nomCourt(x.joueur.n)} : ${x.n} / ${x.suivi.seuil} ${u}${x.suivi.seuil > 1 ? 's' : ''} · ${x.joues}/${x.suivi.apres} matchs`;
-}
-/** La voix qui raconte le retour d'un fil : celle du fil. */
-export const voixDuFil = sorte => (VOIX_DES_FILS[sorte] || {}).de || 'an';
 
 /** Le message d'un fil : { de, sujet, mot } — `sujet` est le fait du fil, `mot` ce qu'en dit sa voix. */
 export function messageDuFil(a) {

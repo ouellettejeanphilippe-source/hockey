@@ -441,7 +441,7 @@ async function repondreAuxChoix() {
     /*
      * LE LANCER DE DÉ (1.0, oct.). Une réponse risquée ouvre le dé : ce qu'il faut (« sur 4, 5 ou 6 »),
      * Entrée lance, le dé tombe. Ce qui se vérifie ne dépend pas de la face tirée : la face dit le
-     * verdict, et la boîte, qui lit le moteur (`pariDeDecision` sur la décision sauvée), dit le même.
+     * verdict, et la boîte, qui lit le moteur (`deDuChoix` sur la décision sauvée), dit le même.
      */
     let de = null;
     if (pari) {

@@ -48,8 +48,9 @@ import { FORCE_NIV, SALAIRE_NIV } from '../js/adjoints.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDeLAdjoint } from '../js/scenes.js';
-import { DOSSIERS } from '../js/dossiers.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDeLAdjoint } from '../js/scenes.js';
+import { HISTOIRES, sceneDe } from '../js/histoires.js';
+import { nomCourt } from '../js/recit.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -367,31 +368,36 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     }
   }
   /*
-   * LES DOSSIERS (V10, tranche 5) : sur des faits fabriqués, chacun aux nombres distincts, le fait d'un dossier ne dit que
-   * des nombres reçus, et il en dit au moins un — ou le club nommé.
+   * LES HISTOIRES (V25 C1, js/histoires.js ; JP, C0 q. 1 : la réplique dit le chiffre du fait, jamais une stat du moteur) : sur
+   * des faits fabriqués aux nombres distincts, la réplique NOMME le joueur et ne dit que des nombres reçus ; le fait aussi, et
+   * il en dit au moins un. Une histoire fausse sur ces faits ne se juge pas ici (check_histoires les ouvre toutes).
    */
-  const F = { n: 24, jambes: 91, pire: { n: 'Doug Gilmour', cle: 'g', j: 74 },
-    boude: { n: 'Radek Bonk', cle: 'b', zone: 'Top 6', ou: '4e trio', pts: 3, m: 10 }, puni: { n: 'Tie Domi', cle: 'd', pun: 5, m: 8 },
-    muet: { n: 'Alexei Yashin', cle: 'y', sal: '7,6 M$', pts: 1, m: 10 }, blesses: [{ n: 'Al Secord', m: 9 }, { n: 'Tie Domi', m: 5 }, { n: 'Rob Ray', m: 2 }],
-    soirs: 4, dos: 1, visiteur: 3, domicile: 3, rival: 'Bruins 1995-96', bete: 'Wild 2010-11', caisse: 18,
-    dernier: { pour: 0, contre: 6, adv: 'Kings 1993-94' }, rang: 30, equipes: 32,
-    masse: { espace: 800_000, libre: '0,8 M$', lourd: { n: 'Alexei Yashin', cle: 'y', sal: '7,6 M$' } }, defaites: 5, coach: 'La Tortue',
-    coachs: [{ cle: 'essaim', nom: 'Le Frelon', ico: '🐝' }, { cle: 'aigle', nom: 'L\'Aigle', ico: '🦅' }] };
-  const recus = new Set(JSON.stringify(F).match(/\d+/g));
-  for (let g = 0; g < 40; g++) for (const cle of Object.keys(DOSSIERS)) {
-    const sc = sceneDuDossier(cle, F, g);
-    juger(`le dossier ${cle}`, sc, []);
+  const V = { buts: 60, passes: 50, gp: 63, matchsDeSaSaison: 82, clubs: 1, club: 'Vancouver', enCours: false, victoires: null, arrets: null };
+  const F = { jour: 70, n: 24, jambes: 91, pire: { n: 'Doug Gilmour', cle: 'g', j: 74 }, vedette: { n: 'Pavel Bure', cle: 'y', fait: 'Pavel Bure : 14 points en 10 matchs', pts: 14, m: 10, sal: '7,6 M$' },
+    gardien: { n: 'Felix Potvin', cle: 'fp', fait: 'Felix Potvin : 6 buts sur 31 tirs ce soir-là', m: 10, contre: 6 }, puni: { n: 'Tie Domi', cle: 'd', pun: 5, m: 8 },
+    muet: { n: 'Alexei Yashin', cle: 'ay', sal: '7,6 M$', pts: 1, m: 10 }, blesses: [{ n: 'Al Secord', cle: 'as', m: 9, total: 12, genre: 'commotion', deja: 0 }, { n: 'Rob Ray', cle: 'rr', m: 4, total: 7, genre: 'aine', deja: 0 }],
+    soirs: 4, dos: 1, visiteur: 3, domicile: 3, rival: 'Bruins 1995-96', bete: 'Wild 2010-11', caisse: 18, dernier: { pour: 2, contre: 6, adv: 'Kings 1993-94' }, rang: 30, equipes: 32, retard: 11, avance: null, dosRoute: 1,
+    masse: { espace: 400000, libre: '0,4 M$', cap: 60000000, lourd: { n: 'Alexei Yashin', cle: 'ay', sal: '7,6 M$' } }, defaites: 5, serie: 0, coach: null, pousse: { n: 'Mats Sundin', cle: 'ms', pts: 5, m: 7, ou: '3e trio' },
+    chapeau: { n: 'Mike Bossy', cle: 'mb', buts: 3 }, blanchissage: { n: 'Jeff Hackett', cle: 'jh' }, suites: [], jalon: { n: 'Jari Kurri', cle: 'jk', quoi: 'buts', total: 20, m: 38, sal: '4,2 M$' },
+    duo: { marqueur: { n: 'Brett Hull', cle: 'bh' }, passeur: { n: 'Adam Oates', cle: 'ao' }, buts: 6, m: 10 }, recrue: { n: 'Teemu Selänne', cle: 'ts', pts: 9, m: 12 }, veteran: { n: 'Gordie Howe', cle: 'gh', age: 41, pts: 7, m: 10 },
+    murEnVue: { n: 'Felix Potvin', cle: 'fp', v: 28, departs: 46 }, coup: { n: 'Tie Domi', cle: 'd', min: 5, adv: 'Kings 1993-94' }, sejourFini: { cle: 'canonnier', nom: 'Le canonnier', ico: '🏹', v: 8, d: 3, dp: 1, matchs: 12 },
+    mandat: { mot: 'faire les séries', rang: null }, gros: null, ronde: null, vraie: () => V };
+  const recus = new Set([...JSON.stringify({ F, V }).match(/\d+/g), '30']);
+  for (const [cle, H] of Object.entries(HISTOIRES)) {
+    if (!H.quand(F)) continue;
+    const sc = sceneDe(cle, F), j = H.joueur(F);
+    if (!voix.has(sc.de)) fautes.push(`l'histoire ${cle} : la voix`);
+    if (!sc.mot || /\{/.test(sc.mot) || !sc.mot.includes(nomCourt(j.n))) fautes.push(`l'histoire ${cle} : « ${sc.mot} » ne nomme pas ${nomCourt(j.n)}`);
+    for (const x of sc.mot.match(/\d+/g) || []) if (!recus.has(x)) fautes.push(`l'histoire ${cle} : la réplique dit ${x}, un nombre qu'elle n'a pas reçu`);
     const nombres = sc.fait.match(/\d+/g) || [];
-    if (nombres.some(x => !recus.has(x))) fautes.push(`le dossier ${cle} : « ${sc.fait} » dit un nombre qu'il n'a pas reçu`);
-    if (!nombres.length && !/Bruins|Wild|Kings/.test(sc.fait)) fautes.push(`le dossier ${cle} : « ${sc.fait} » ne dit aucun fait`);
+    if (nombres.some(x => !recus.has(x))) fautes.push(`l'histoire ${cle} : « ${sc.fait} » dit un nombre qu'il n'a pas reçu`);
+    if (!nombres.length) fautes.push(`l'histoire ${cle} : « ${sc.fait} » ne dit aucun fait`);
     n++;
   }
-  if (!Object.keys(DOSSIERS).length) informer('les dossiers : banque vide (V22, phase 4)', 'aucune scène de dossier à juger');
-  const repliques = [...Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m]))),
-    ...Object.entries(DOSSIERS).flatMap(([cle, D]) => D.mots.map(m => [`dossier/${cle}`, m]))];
+  const repliques = Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m])));
   for (const [ou, m] of repliques) if (!m || /\d|\{/.test(m)) fautes.push(`${ou} : « ${m} »`);
   informer('les scènes', `${n} scènes jouées, ${repliques.length} répliques écrites`);
-  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers, les dilemmes');
+  exiger('chaque choix dit qui le demande : une voix, une réplique qui nomme et ne dit que le chiffre du fait, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers, les dilemmes');
 }
 
 verdict('La clarté');

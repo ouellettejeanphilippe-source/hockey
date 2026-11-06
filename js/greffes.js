@@ -1,7 +1,7 @@
 /*
  * LES GREFFES DU ROGUE (V25, docs/refonte-v25.md § A). Ce que le Rogue pose sur un match, un soir, un matin ou une
  * décision : le coach-personnage et ses pouvoirs (V21), les adjoints en poste et leurs relais (V22, V23 D), leur coach
- * en séries (V23 F), le duel en trois périodes (V9, V17), les histoires appliquées et les suivis des fils (V9, V22),
+ * en séries (V23 F), le duel en trois périodes (V9, V17), les histoires par leur porte et leurs promesses (V25 C1),
  * l'expérience et les séjours. Le moteur (js/sim.js) n'importe rien de tout ça : ce module se branche sur lui au
  * chargement (`brancherGreffes`) par un contrat de huit fonctions, et le 82-0 n'y pose rien.
  *
@@ -9,59 +9,94 @@
  *   avantMatch(A, B, LA, LB, journal, { series, gros })   ce qui se pose avant le match ; rend la fonction qui le retire
  *   match(A, B, LA, LB, { gros, journal, series })          la soirée : `periode(k, etat)` rend les effets des deux clubs,
  *                                                            `apres(k, h, cumul)` note ce qui a joué, `fin()` écrit le duel
- *   apresMatch(A, B)                                         après le match (les séjours finis)
+ *   apresMatch(A, B)                                         après le match (les séjours finis ; en séries, les verdicts)
  *   xp(T, quoi)                                              l'expérience du coach : 'victoire', 'gros', 'serie'
- *   matin(L, toi, jour)                                      le matin de ton club : les arcs, les retours des fils
- *   decision(team, d, graine)                                une décision prise à l'écran ; rend la mutation qu'elle porte
+ *   matin(L, toi, jour)                                      le matin de ton club : les verdicts des promesses, les effets de tes joueurs
+ *   decision(team, d, graine)                                une décision prise à l'écran : le plan, l'histoire par sa porte, le coach
  *   coachDeSeries(S, t)                                      leur coach-personnage pour les séries, ou null
  *   lecture(team, adv, lu, { plan, intention, duel })        un plan et une intention posés le temps d'une lecture
- *   aVenir(team, d, { serie })                               ce qu'une décision à venir a de pur, posé le temps d'une lecture
+ *   aVenir(team, d)                                          ce qu'une décision à venir a de pur, posé le temps d'une lecture
  */
 import { POUVOIRS, pouvoirsDeLaPeriode, XP, niveauDuPerso, TALENT_CASE, persoAdverse } from './pouvoirs.js';
 import { ADJOINTS, mainDe, postesDe, embaucher, poster, finirLesSejours, resteDe, styleAuNiveau, nivDe, salaireDe, relaisDeLaPeriode } from './adjoints.js';
 import { COACHS, coachDesRoles } from './coachs.js';
-import { DOSSIERS } from './dossiers.js';
-import { CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
-import { episodesDuMatin } from './arcs.js';
+import { HISTOIRES, nomDOption } from './histoires.js';
+import { FENETRE_JOUEUR } from './faits.js';
+import { SEMAINE } from './inventaire.js';
 import { nomCourt } from './recit.js';
+import { pct3 } from './util.js';
 import { estD, hache } from './util.js';
 import {
-  brancherGreffes, SLOTS, getPlayerKey, famillesDe, profilsDe, badgeGardien, apresMatchs, CONNUS, DUREE_MOMENT,
-  rendreJambes, grainerHasard, MOMENTS_SI, AVANT_GROS, deDuPari, cleDuPari, appliquerGestes, poserSurJoueur, effetsDesJoueurs,
-  appliquerMutation, MUTATIONS, activeLineup, ENV_MESURE,
+  brancherGreffes, SLOTS, getPlayerKey, famillesDe, profilsDe, badgeGardien, apresMatchs, JOUR_SERIES, jourDeSerie,
+  rendreJambes, grainerHasard, MOMENTS_SI, deDuPari, cleDuPari, effetsDesJoueurs, activeLineup, ENV_MESURE,
 } from './sim.js';
 
 /* LA COULEUR D'UN JOUEUR (v2, js/coachs.js) : le coach de son meilleur rôle maîtrisé ; elle oriente les packs du coach. */
 export const coachDuJoueur = p => (!p ? null : p.p === 'G' ? ((badgeGardien(p) || {}).coach || null) : coachDesRoles(profilsDe(p), estD(p) ? 'D' : 'F'));
 
 /*
- * LA FAMILLE D'UNE DÉCISION DE MOMENT (V22) : le choix d'un fil (`fil`, js/vie-gm.js) ou un dossier de la semaine
- * (`dossier`, js/dossiers.js). Les dilemmes, les séquences et les réponses de courriel sont partis avec leur banque ; une
- * vieille décision de ces familles ne trouve plus rien et ne joue rien. Même forme { ico, titre, options } pour toutes :
- * `effetDeMoment`, `appliquerGestes`, `pariDeDecision`.
+ * LA PORTE (V25 C1, docs/refonte-v25.md § 4 C ; docs/refonte-v25-c1.md § 3). Une histoire répondue est une décision
+ * `{ moment: { famille: 'histoire', cle, choix, joueur, joueurs } }` ; `appliquerChoix` pose, dans cet ordre, ce que sa
+ * carte dit : les gestes d'aujourd'hui (le soin, les absents, les jambes, l'auxiliaire ; la carte d'adjoint et l'échange
+ * du joueur nommé passent par la décision, `embauche` et l'alignement), ce qui va au joueur nommé (`lui`), le dé (`pari`,
+ * tiré de la graine, du jour et du sel : l'écran l'a montré, le moteur le rejoue pareil), les canaux du club (permis aux
+ * moments `gros` et `ronde` seulement, JP, C0 q. 4 ; `duree` 1 ou 7), et la promesse (`promettre`). Les jetons et
+ * l'expérience restent à la décision (`gain`, `xpCoach`) : la caisse les lit. Une vieille décision `dossier`, `fil`,
+ * `avant` ou `ajustement` (d'avant la C1) ne trouve plus rien et ne joue rien. En séries, le club est au jour `Infinity` :
+ * ce qui dure se date en matchs de séries (`jourDeSerie`, js/sim.js).
  */
-export const familleDeMoment = m => (m.famille === 'fil' ? CHOIX_DES_FILS[m.cle] : m.famille === 'dossier' ? DOSSIERS[m.cle] : undefined);
-
+const optionDe = m => { const H = m && m.famille === 'histoire' && HISTOIRES[m.cle]; const o = H && H.options.find(x => x.cle === m.choix); return o ? { H, o } : null; };
+const auClub = (team, k) => (k ? Object.values(team.roster || {}).find(x => x && getPlayerKey(x) === k) || null : null);
+const enSeries = team => team.jourCourant === Infinity;
+/* Le jour où une décision joue : le sien en saison, le match qui vient en séries. */
+const jourDe = (team, d) => (Number.isFinite(d.jour) ? d.jour : jourDeSerie(team));
+const finDe = (team, j0, duree) => (j0 >= JOUR_SERIES ? j0 + (duree || 1) : apresMatchs(team, j0, duree || 1));
+export function appliquerChoix(team, d, graine) {
+  const x = optionDe(d.moment);
+  if (!x) return;
+  const { H, o } = x, j0 = jourDe(team, d);
+  const cles = d.moment.joueurs || (d.moment.joueur ? [d.moment.joueur] : []);
+  const joueurs = cles.map(k => auClub(team, k)).filter(Boolean), lui = joueurs[0] || null;
+  const titre = H.titre, ico = H.ico, choix = nomDOption(o, lui);
+  // 1. LES GESTES D'AUJOURD'HUI (js/effets.js `GESTES`).
+  const g = o.gestes || {};
+  if (g.soin && lui && team.injured && team.injured.get(lui)) { const n = team.injured.get(lui); if (n <= g.soin) team.injured.delete(lui); else team.injured.set(lui, n - g.soin); }
+  if (g.absents && lui) team.absents.set(lui, Math.max(team.absents.get(lui) || 0, finDe(team, j0, g.absents)));
+  if (g.energie && lui) rendreJambes(lui, g.energie);
+  if (g.energieTous) for (const sl of SLOTS) { const p = team.roster[sl.i]; if (p && p.p !== 'G') rendreJambes(p, g.energieTous); }
+  if (g.gardienAux) { if (enSeries(team)) team._gardienAuxMatch = true; else team.gardienAux = Math.max(team.gardienAux || 0, finDe(team, j0, g.gardienAux)); }
+  // 2. CE QUI VA AU JOUEUR NOMMÉ, le temps de ses matchs (`effetsCibles`, lu par `effetsDesJoueurs`).
+  const surLui = (e, duree) => { if (e && lui) (team.effetsCibles = team.effetsCibles || []).push({ debut: j0, fin: finDe(team, j0, duree), source: 'decision', nom: titre, ico, joueur: lui, ...(o.quand ? { si: o.quand } : {}), ...e }); };
+  surLui(o.lui, o.duree);
+  // 3. LE DÉ : chaque issue est un effet de la même grammaire, sur le joueur nommé ; le club garde comment il a tourné.
+  if (o.pari) {
+    const { gagne, face } = deDuPari(graine, Number.isFinite(d.jour) ? d.jour : `po${d.ronde}`, cleDuPari(d), o.pari.chance);
+    (team.paris = team.paris || []).push({ jour: j0, titre, choix, gagne, face });
+    const e = gagne ? o.pari.gagne : o.pari.perd;
+    surLui(e.lui, e.duree);
+  }
+  // 4. LES CANAUX DU CLUB, au gros match et à la ronde seulement, pour le soir ou la série.
+  if (o.canaux && H.moment !== 'lundi') (team.effets = team.effets || []).push({ debut: j0, fin: finDe(team, j0, o.duree), source: 'histoire', nom: titre, ico, choix, ...o.canaux });
+  // 5. LA PROMESSE.
+  promettre(team, d, H, o, lui, j0);
+  effetsDesJoueurs(team, j0);
+}
+/* L'effet de club d'une histoire à venir, le temps d'une lecture (`aVenir`) : ses canaux, datés comme la porte les date. */
+function effetDuChoix(team, d) {
+  const x = optionDe(d.moment);
+  if (!x || !x.o.canaux || x.H.moment === 'lundi') return null;
+  const j0 = jourDe(team, d);
+  return { debut: j0, fin: finDe(team, j0, x.o.duree), source: 'histoire', nom: x.H.titre, ico: x.H.ico, ...x.o.canaux };
+}
 /*
- * LA DÉCISION D'UN MOMENT → l'effet posé sur l'équipe. Un seul endroit
- * traduit, pour que le moteur, l'écran et la mesure lisent la même chose.
+ * LE DÉ D'UN CHOIX, TRANCHÉ D'AVANCE : l'écran le montre au lancer (js/gerant.js `sceneDuDe`), et c'est exactement ce que
+ * la porte rejouera — le tirage ne dépend que de la graine, du jour, du choix et du sel tiré à la décision.
  */
-export function effetDeMoment(d, team = null) {
-  // V18 : la consigne du match (`d.match`) est partie ; une vieille décision qui la porte ne joue plus rien.
-  const m = d.moment;
-  if (!m) return null;
-  const fam = familleDeMoment(m);
-  const o = fam && fam.options.find(x => x.cle === m.choix);
-  if (!o) return null;
-  const duree = o.duree || DUREE_MOMENT;
-  // Les jetons, l'expérience et le plafond d'une réponse, la caisse les lit sur la décision, pas l'effet ; ce qui va au
-  // joueur nommé (`lui`), `appliquerDecision` le pose sur lui. Ici, ses canaux d'équipe (js/effets.js).
-  const canaux = o.canaux;
-  if (!canaux || !Object.keys(canaux).length) return null;
-  // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
-  // Le nom de l'option nomme son joueur (« … pour {nom} »), comme à l'écran du choix : « Ce qui court » le relit tel quel.
-  const choix = String(o.nom || '').replace(/\{nom\}/g, (CONNUS.get(m.joueur) || {}).n || 'lui').replace(/\{aux\}/g, 'l\'auxiliaire');
-  return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix, ...canaux, ...(o.trou ? { regle: true } : {}) };
+export function deDuChoix(d, graine) {
+  const x = d && optionDe(d.moment);
+  if (!x || !x.o.pari) return null;
+  const { face, faces, gagne } = deDuPari(graine, Number.isFinite(d.jour) ? d.jour : `po${d.ronde}`, cleDuPari(d), x.o.pari.chance);
+  return { gagne, face, faces, effet: gagne ? x.o.pari.gagne : x.o.pari.perd };
 }
 
 function gagnerXp(T, bonus = 0) {
@@ -106,70 +141,87 @@ function finirSejours(T) {
 }
 
 /*
- * LES FILS QUI REVIENNENT (V9, tranche 6 — docs/refonte-v9.md § 6.7, js/vie-gm.js `CHOIX_DES_FILS`). Le choix d'un fil
- * engage un SUIVI, à partir du nombre de matchs déjà au journal du club ; `apres` matchs plus tard, `retoursDuMatin`
- * relit ces feuilles-là, et seulement elles : les buts du joueur nommé, ses points, ou les buts du duo. Le seuil
- * décide de ce qui arrive (`gagne`, `perd`), posé sur les joueurs nommés, le temps de ses matchs. Aucun dé : la
- * saison rejouée relit les mêmes feuilles. `t.retours` garde ce qui est arrivé, pour la une.
+ * LA PROMESSE (V25 C1 ; oct. 2026, JP : *ça le confirme bon, mais aucun suivi de ça*). Chaque option qui touche un joueur
+ * (`lui` ou `pari`) engage un SUIVI (`team.suivis`, généralisé de celui des fils de la V9) : sa MESURE se lit de l'effet —
+ * ses tirs et ses buts quand l'effet est sur ses tirs ou sa précision, ses passes quand il est sur ses passes, ses buts
+ * accordés et son % d'arrêts pour un gardien, ses matchs joués sans rechute pour une blessure —, sur la DURÉE de l'effet
+ * (celle de l'issue la plus longue d'un dé). Le lundi d'après sa fin (en séries, le lendemain), le VERDICT arrive comme un
+ * message de la même voix, en vrais chiffres recomptés dans ses feuilles, contre ses dix matchs d'avant (`team.retours`,
+ * la une) ; « Ce qui court » le montre chaque matin (`suivisEnCours`). Un joueur parti fait tomber la promesse, et ça se
+ * dit. Aucun dé, aucun seuil : la saison rejouée relit les mêmes feuilles.
  */
-function engagerSuivi(team, d, o, fam) {
-  const qui = k => (k ? Object.values(team.roster || {}).find(x => x && getPlayerKey(x) === k) || CONNUS.get(k) || null : null);
-  const joueur = qui(d.moment.joueur);
-  if (!joueur) return;
-  (team.suivis = team.suivis || []).push({ cle: d.moment.cle, choix: o.cle, titre: fam.titre, ico: fam.ico, jour: d.jour, matchs0: (team.journal || []).length,
-    joueur, deplace: qui(d.moment.deplace), passeur: qui(d.moment.passeur), suivi: o.suivi, fait: false });
+const mesureDeLEffet = e => (!e ? null : e.lancers || e.finition ? 'tirs' : e.creation ? 'passes' : e.arrets ? 'arrets' : e.blessure ? 'sante' : null);
+function promettre(team, d, H, o, lui, j0) {
+  if (!lui) return;
+  const effets = [o.lui, ...(o.pari ? [o.pari.gagne.lui, o.pari.perd.lui] : [])].filter(Boolean);
+  const mesure = effets.map(mesureDeLEffet).find(Boolean);
+  if (!mesure) return;
+  const duree = Math.max(o.duree || 0, ...(o.pari ? [o.pari.gagne.duree || 0, o.pari.perd.duree || 0] : []));
+  (team.suivis = team.suivis || []).push({ cle: d.moment.cle, choix: o.cle, titre: H.titre, ico: H.ico, de: H.de, jour: j0, matchs0: feuillesDuClub(team).length,
+    joueur: lui, mesure, duree, fait: false });
 }
-/* Ce que les feuilles d'un suivi disent : ses buts, ses points, ou les buts du duo. */
-function mesureDuSuivi(s, feuilles) {
-  let n = 0;
-  for (const f of feuilles) for (const b of (f && f.buts) || []) {
-    const passe = (b.passeurs || []).includes(s.joueur);
-    if (s.suivi.mesure === 'buts' && b.marqueur === s.joueur) n++;
-    else if (s.suivi.mesure === 'points' && (b.marqueur === s.joueur || passe)) n++;
-    else if (s.suivi.mesure === 'duo' && b.marqueur === s.joueur && s.passeur && (b.passeurs || []).includes(s.passeur)) n++;
+/* Les feuilles du club dans l'ordre : la saison, puis les séries (le moteur les range à part, `poJournal`). */
+const feuillesDuClub = t => [...(t.journal || []), ...(t.poJournal || [])];
+/* Ce que les feuilles d'un suivi disent de son joueur : ses matchs habillé, puis sa mesure. */
+function mesureDuSuivi(s, entrees) {
+  const p = s.joueur, out = { m: 0, buts: 0, tirs: 0, passes: 0, departs: 0, accordes: 0, lancers: 0 };
+  for (const e of entrees) {
+    const f = e && e.feuille;
+    if (!f) continue;
+    const cote = (f.alignes && (f.alignes.A || []).includes(p)) ? 'A' : (f.alignes && (f.alignes.B || []).includes(p)) ? 'B' : null;
+    if (cote) {
+      out.m++;
+      for (const b of f.buts || []) { if (b.cote === cote && !b.fusillade) { if (b.marqueur === p) out.buts++; else if ((b.passeurs || []).includes(p)) out.passes++; } }
+      out.tirs += (f.lancers || []).filter(l => l.tireur === p).length;
+    }
+    if (e.gardien === p) { out.departs++; out.accordes += e.ga || 0; out.lancers += (f.lancers || []).filter(l => l.gardien === p).length; }
   }
-  return n;
+  return out;
+}
+/* La mesure en mots, selon ce que la promesse suit : « 4 buts, 31 tirs en 8 matchs », « ,921 sur 6 départs », « 8 matchs sans rechute ». */
+function motDeMesure(s, x, reblesse = false) {
+  const m = `${x.m} match${x.m > 1 ? 's' : ''}`;
+  if (s.mesure === 'tirs') return `${x.buts} but${x.buts > 1 ? 's' : ''}, ${x.tirs} tir${x.tirs > 1 ? 's' : ''} en ${m}`;
+  if (s.mesure === 'passes') return `${x.passes} passe${x.passes > 1 ? 's' : ''} en ${m}`;
+  if (s.mesure === 'arrets') return x.lancers ? `${pct3(1 - x.accordes / x.lancers)}, ${x.accordes} but${x.accordes > 1 ? 's' : ''} accordé${x.accordes > 1 ? 's' : ''} sur ${x.departs} départ${x.departs > 1 ? 's' : ''}` : 'aucun départ';
+  return reblesse ? `reblessé après ${m}` : `${m} sans rechute`;
+}
+const reblesseDepuis = (t, s, jusqua) => (t.injuriesLog || []).some(b => b.player === s.joueur && b.at > s.matchs0 && b.at <= jusqua);
+/* Le texte du verdict : le nom, la mesure depuis le choix, celle d'avant — les vrais chiffres, rien d'autre. */
+function texteDuVerdict(t, s, depuis, avant) {
+  const x = mesureDuSuivi(s, depuis), y = mesureDuSuivi(s, avant);
+  const apres = motDeMesure(s, x, reblesseDepuis(t, s, s.matchs0 + depuis.length));
+  const unite = s.mesure === 'arrets' ? 'départ' : 'match';
+  return `${nomCourt(s.joueur.n)} : ${apres} depuis « ${nomDOption(HISTOIRES[s.cle].options.find(o => o.cle === s.choix) || { nom: s.choix }, s.joueur)} » ; ${s.mesure === 'sante' ? `${y.m} ${unite}${y.m > 1 ? 's' : ''} joués avant` : `${motDeMesure(s, y)} avant`}.`;
 }
 /*
- * OÙ EN EST UN SUIVI (oct. 2026, JP : *ça le confirme bon, mais aucun suivi de ça*). Ses matchs joués depuis le choix,
- * et ce que leurs feuilles disent déjà (`n`), avec ce qu'elles disaient avant le dernier (`avant`) : l'écran le dit
- * chaque matin, à sa maison, et Hier soir quand il bouge. Pur : rien n'est tiré.
+ * OÙ EN EST UNE PROMESSE (oct. 2026) : ses matchs joués depuis le choix et ce que leurs feuilles disent déjà (`n`), avec ce
+ * qu'elles disaient avant le dernier (`avant`, et `bouge` quand la ligne change) : l'écran le dit chaque matin, à sa maison,
+ * et Hier soir quand il bouge. Pur.
  */
 export function suivisEnCours(team) {
-  const j = team.journal || [];
+  const j = feuillesDuClub(team);
   return (team.suivis || []).filter(s => !s.fait).map(s => {
-    const f = j.slice(s.matchs0, s.matchs0 + s.suivi.apres).map(e => e.feuille);
-    return { ...s, n: mesureDuSuivi(s, f), avant: mesureDuSuivi(s, f.slice(0, -1)), joues: f.length };
+    const f = j.slice(s.matchs0, s.matchs0 + s.duree);
+    const n = mesureDuSuivi(s, f), avant = mesureDuSuivi(s, f.slice(0, -1));
+    return { ...s, n, avant, joues: f.length, bouge: motDeMesure(s, n) !== motDeMesure(s, avant) };
   });
 }
-/* Le joueur d'un suivi est-il encore à toi ? Échangé, relâché, réclamé : la promesse ne peut plus se tenir. */
+/* Une promesse en une ligne de vrais chiffres : « 🥶 La disette · Bure : 2 buts, 15 tirs en 4 matchs · 4/8 matchs ». */
+export const lignePromesse = x => `${x.ico} ${x.titre} · ${nomCourt(x.joueur.n)} : ${motDeMesure(x, x.n)} · ${x.joues}/${x.duree} matchs`;
+/* Le joueur d'une promesse est-il encore à toi ? Échangé, relâché, réclamé : la promesse ne peut plus se tenir. */
 const encoreChezToi = (t, p) => Object.values(t.roster || {}).some(x => x && getPlayerKey(x) === getPlayerKey(p));
-function retoursDuMatin(t, jour) {
-  const j = t.journal || [];
+/* Le verdict de chaque promesse finie, le lundi (en séries, le lendemain) : un message de la même voix, dans `t.retours`. */
+function verdictsDuMatin(t, jour) {
+  const j = feuillesDuClub(t), lundi = jour >= JOUR_SERIES || jour % SEMAINE === 0;
   for (const s of t.suivis || []) {
     if (s.fait) continue;
+    const base = { cle: s.cle, choix: s.choix, jour, titre: `${s.ico} ${s.titre} : le verdict`, de: s.de, joueur: s.joueur, debut: s.jour, matchs0: s.matchs0 };
     // Parti avant la fin : la promesse tombe, sans gain ni prix, et ça se dit.
-    if (!encoreChezToi(t, s.joueur)) {
-      s.fait = true;
-      (t.retours = t.retours || []).push({ cle: s.cle, choix: s.choix, jour, titre: `${s.ico} ${s.titre} : le retour`, de: voixDuFil(s.cle),
-        texte: `${nomCourt(s.joueur.n)} n'est plus dans ton effectif : la promesse tombe.`, effet: {}, matchs: 0, cible: 'equipe', pour: null,
-        joueur: s.joueur, n: mesureDuSuivi(s, j.slice(s.matchs0).map(e => e.feuille)), gagne: null, parti: true, debut: s.jour, matchs0: s.matchs0 });
-      continue;
-    }
-    if (j.length - s.matchs0 < s.suivi.apres) continue;
+    if (!encoreChezToi(t, s.joueur)) { s.fait = true; (t.retours = t.retours || []).push({ ...base, texte: `${nomCourt(s.joueur.n)} n'est plus dans ton effectif : la promesse tombe.`, parti: true }); continue; }
+    if (j.length - s.matchs0 < s.duree || !lundi) continue;
     s.fait = true;
-    const n = mesureDuSuivi(s, j.slice(s.matchs0, s.matchs0 + s.suivi.apres).map(e => e.feuille));
-    const gagne = n >= s.suivi.seuil, B = gagne ? s.suivi.gagne : s.suivi.perd;
-    const noms = { nom: nomCourt(s.joueur.n), deplace: s.deplace ? nomCourt(s.deplace.n) : '', passeur: s.passeur ? nomCourt(s.passeur.n) : '' };
-    const effet = {};
-    if (B) for (const e of B.effets || []) {
-      const { sur, ...canaux } = e, cible = s[sur];
-      if (!cible) continue;
-      (t.effetsCibles = t.effetsCibles || []).push({ debut: jour, fin: apresMatchs(t, jour, B.duree), source: 'fil', nom: s.titre, joueur: cible, ...canaux });
-      Object.assign(effet, canaux);
-    }
-    (t.retours = t.retours || []).push({ cle: s.cle, choix: s.choix, jour, titre: `${s.ico} ${s.titre} : le retour`, de: voixDuFil(s.cle), texte: texteDuRetour(s.suivi, gagne, n, noms),
-      effet, matchs: B ? B.duree : 0, cible: B ? 'joueur' : 'equipe', pour: B ? noms.nom : null, joueur: s.joueur, n, gagne, debut: s.jour, matchs0: s.matchs0 });
+    (t.retours = t.retours || []).push({ ...base, texte: texteDuVerdict(t, s, j.slice(s.matchs0, s.matchs0 + s.duree), j.slice(Math.max(0, s.matchs0 - FENETRE_JOUEUR), s.matchs0)) });
   }
 }
 
@@ -469,16 +521,6 @@ export function apercuDuDuel(toi, adv, { graine = 0, cle = '' } = {}) {
   return { intention: intentionDuDuel({ toi, L, Ladv, k: 0, hist: [], graine, cle }) };
 }
 
-export function pariDeDecision(d, graine, team = null) {
-  if (!d || !Number.isFinite(d.jour)) return null;
-  const fam = d.moment ? familleDeMoment(d.moment) : d.avant ? AVANT_GROS[d.avant.cle] : null;
-  const o = fam && fam.options.find(x => x.cle === (d.moment ? d.moment.choix : d.avant.choix));
-  if (!o || !o.pari) return null;
-  const { face, faces, gagne } = deDuPari(graine, d.jour, cleDuPari(d), o.pari.chance);
-  const effet = gagne ? o.pari.gagne : o.pari.perd;
-  return { jour: d.jour, titre: fam.titre, choix: o.nom, gagne, face, faces, effet, fin: apresMatchs(team, d.jour, effet.duree || DUREE_MOMENT) };
-}
-
 /* =====================================================================
    LE CONTRAT (V25) : ce que le moteur appelle, et rien d'autre.
    ===================================================================== */
@@ -493,10 +535,12 @@ function avantMatch(A, B, LA, LB, journal, { series = false, gros = null } = {})
   const retirerPlans = gros && gros.duel ? () => {} : poserLesPlans(A, B, LA, LB);
   // LES ADJOINTS EN POSTE (V22) : leur style, le temps du match, le duel compris ; la feuille les nomme.
   const retirerAdjoints = poserLesAdjoints(A, B, journal);
+  // EN SÉRIES (V25 C1) : ce qu'une histoire de ronde a posé sur tes joueurs se lit au jour des séries (le match qui vient).
+  if (series) for (const T of [A, B]) if (T.isPlayer) effetsDesJoueurs(T, jourDeSerie(T));
   return () => { retirerPlans(); retirerAdjoints(); for (const T of pretes) T.perso = null; };
 }
-/* APRÈS LE MATCH : les séjours finis reviennent dans la main. */
-function apresMatch(A, B) { finirSejours(A); finirSejours(B); }
+/* APRÈS LE MATCH : les séjours finis reviennent dans la main ; en séries, les verdicts des promesses (aucun lundi n'y passe). */
+function apresMatch(A, B) { finirSejours(A); finirSejours(B); for (const T of [A, B]) if (T.isPlayer && T.jourCourant === Infinity) verdictsDuMatin(T, jourDeSerie(T)); }
 /*
  * LA SOIRÉE, PÉRIODE PAR PÉRIODE. Au duel (`gros.duel`) : la décision de la période (ses dés neufs), leur intention
  * (`intentionDuDuel`), tes moments (`MOMENTS_SI`), ton plan (`effetsDuPlan`) ; pour tous : les pouvoirs du coach et les
@@ -590,44 +634,19 @@ function xp(T, quoi) {
   if (quoi === 'serie') gagnerXp(T, XP.serie - XP.victoire);
   else gagnerXp(T, quoi === 'gros' ? XP.gros : 0);
 }
-/*
- * LE MATIN DE TON CLUB. LES ARCS (Jalon P, E, js/arcs.js) : nés des faits de TON club (ses matchs joués, ses blessés, son
- * calendrier), sans hasard ; chaque épisode pose son effet de quelques matchs, comme un moment. Sa cible : l'équipe
- * (`effets`), un joueur ou un adversaire (`effetsCibles`, lus par `mutDe` et `effetsDeSaison`). Puis les retours des fils.
- */
+/* LE MATIN DE TON CLUB : les verdicts des promesses finies (le lundi), puis ce qui est posé sur tes joueurs ce jour-là. */
 function matin(L, toi, r) {
-  if (!L.arcs) return;
-  for (const e of episodesDuMatin(toi, r, L.graine)) {
-    const x = { debut: r, fin: apresMatchs(toi, r, e.matchs), source: 'arc', nom: e.titre, ...e.effet };
-    if (e.cible === 'equipe') toi.effets.push(x);
-    else (toi.effetsCibles = toi.effetsCibles || []).push({ ...x, joueur: e.joueur, contre: e.contre });
-    // UN DÉFI RELEVÉ (oct., js/arcs.js `DEFIS`) : sa retouche, au verso de sa carte, pour de bon.
-    if (e.recompense && e.joueur && MUTATIONS[e.recompense]) appliquerMutation(toi, e.joueur, e.recompense, r, 'defi');
-  }
-  retoursDuMatin(toi, r);
+  verdictsDuMatin(toi, r);
   effetsDesJoueurs(toi, r);
 }
 /*
- * UNE DÉCISION DU ROGUE : le plan de match (V17 : il dure jusqu'au suivant, Ton match le retire), l'effet d'une histoire
- * sur l'équipe (`effetDeMoment`), ses gestes réels sur les joueurs nommés, son pari, le suivi d'un fil, ce qui va au
- * joueur nommé (`lui`), et le coach : son expérience, ses talents, ses adjoints. Rend la mutation que l'option porte.
+ * UNE DÉCISION DU ROGUE : le plan de match (V17 : il dure jusqu'au suivant, Ton match le retire), une histoire par sa
+ * porte (`appliquerChoix`), et le coach : son expérience, ses talents, ses adjoints.
  */
 function decision(team, d, graine) {
   if ('plan' in d) team.plan = planLu(d.plan);
-  let mutation = null;
-  if (d.moment) {
-    const fam = familleDeMoment(d.moment);
-    const o = fam && fam.options.find(x => x.cle === d.moment.choix);
-    if (o && o.mutation && d.moment.joueur) mutation = { cle: o.mutation, joueur: d.moment.joueur };
-    const eff = effetDeMoment(d, team);
-    if (eff) (team.effets = team.effets || []).push(eff);
-    if (o) appliquerGestes(team, o, d.jour, d.moment.joueurs, graine, cleDuPari(d), fam.titre);
-    if (o && o.suivi && d.moment.famille === 'fil') engagerSuivi(team, d, o, fam);
-    // V11 (tranche 4) : un dossier qui nomme un joueur pose le gros de sa réponse sur lui.
-    if (o && o.lui && d.moment.joueurs && d.moment.joueurs[0]) poserSurJoueur(team, d.jour, { joueur: d.moment.joueurs[0], nom: fam.titre, ico: fam.ico, duree: o.duree, ...(o.quand ? { si: o.quand } : {}), ...o.lui });
-  }
+  if (d.moment) appliquerChoix(team, d, graine);
   appliquerPerso(team, d);
-  return { mutation };
 }
 /* LEUR COACH EN SÉRIES (V23 F) : en Rogue, chaque adversaire des séries porte un coach-personnage pur. */
 function coachDeSeries(S, t) {
@@ -649,12 +668,12 @@ function lecture(team, adv, lu, { plan = null, intention = null, duel = false } 
 }
 
 /*
- * UNE DÉCISION À VENIR, LE TEMPS D'UNE LECTURE (`poserAVenir`, js/sim.js) : son plan, l'effet d'une histoire (rendu, le
- * moteur l'ajoute aux effets datés ; en séries, aucun), le coach et ses adjoints.
+ * UNE DÉCISION À VENIR, LE TEMPS D'UNE LECTURE (`poserAVenir`, js/sim.js) : son plan, l'effet de club d'une histoire (rendu,
+ * le moteur l'ajoute aux effets du jour ou du match de séries qui vient), le coach et ses adjoints.
  */
-function aVenir(team, d, { serie = false } = {}) {
+function aVenir(team, d) {
   if ('plan' in d) team.plan = planLu(d.plan);
-  const effet = serie ? null : effetDeMoment(d, team);
+  const effet = d.moment ? effetDuChoix(team, d) : null;
   appliquerPerso(team, d);
   return { effet };
 }

@@ -955,55 +955,33 @@ export const carteDeBanqueHtml = (o, { cache = false } = {}) => carteHtml({
 });
 /*
  * LE DUEL (V9), en plein écran : l'enjeu, leur intention de la période et CE QUE TON ADJOINT PROPOSE (V17,
- * docs/refonte-v17.md) — deux ou trois plans nets, chacun en vraies stats de la période, et « Garder » ; la carte de
- * vestiaire dont on garde une, l'ajustement entre deux matchs de séries, la mise doublée avant la 3e. Toucher un plan
- * l'envoie : `onJouer` reçoit ta réponse (`{ plan, snap }` : le plan pris, ou null pour garder le tien ; la mise),
- * l'ajustement et la carte de vestiaire. Une carte de vestiaire qui est un pari se joue au dé d'abord (`sceneDuDe`).
+ * docs/refonte-v17.md) — deux ou trois plans nets, chacun en vraies stats de la période, et « Garder » ; la mise doublée
+ * avant la 3e. Toucher un plan l'envoie : `onJouer` reçoit ta réponse (`{ plan, snap }` : le plan pris, ou null pour
+ * garder le tien ; la mise). V25 C1 : la carte de vestiaire et l'ajustement de séries sont partis ; les histoires du matin
+ * d'un gros match et d'une ronde vivent dans js/histoires.js et se règlent avant le duel.
  *
- * spec : { titre, sousTitre, recit, duel (specDuDuel), ajustements (séries : [{ cle, ico, nom, bon, prix, canaux, … }] ou null),
- *          enjeu(vestiaire) → html, vestiaire : { ico, titre, recit, joueurs, ouDe, cadre, options, pris,
- *          lancer(cle, args) → le dé d'un pari }, stats, couleurs, onAdjoint, onJouer(reponse, ajustement, vestiaire) }
+ * spec : { titre, sousTitre, recit, duel (specDuDuel), enjeu (html), stats, couleurs, onAdjoint, onJouer(reponse) }
  */
 export function ouvrirDuel(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
   if (fermerChoixCourant) fermerChoixCourant(true);
   const D = spec.duel;
-  let snap = false, aj = null;
-  // UNE LIGNE, UNE FOIS RÉPONDU (Jalon M, B3) : la carte de vestiaire se plie dès qu'on y a répondu ; la toucher la rouvre.
-  const ouverts = new Set();
-  const V = spec.vestiaire || null, nV = V ? nommer(V) : null;
-  let vest = V ? V.pris || null : null;
-  const manque = () => (spec.ajustements && !aj ? 'Choisis ton ajustement' : V && !vest ? 'Choisis ta carte de vestiaire' : '');
+  let snap = false;
   const dessiner = () => {
     // L'ÉCRAN NE REMONTE PAS quand on règle quelque chose (S80) : on reste où on lisait.
     const hauts = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].map(e => (e ? e.scrollTop : 0));
-    const etapes = ['duel', V && 'vest', spec.ajustements && 'aj'].filter(Boolean);
-    const etape = (k, txt) => `<div class="main-etape"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span></div>`;
-    const pli = (k, txt) => `<button type="button" class="main-pli" data-deplier="${k}"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span><span class="main-pli-ouvrir" aria-hidden="true">›</span></button>`;
-    const vestPris = V && vest && V.options.find(o => o.cle === vest);
-    // V25 B2 : la carte du vestiaire se joue en deux cartes de jeu face à face ; la gardée s'allume.
-    const vestiaire = vestPris && !ouverts.has('vest') ? pli('vest', `${V.ico} ${esc(V.titre)} · ✓ ${nV.sub(vestPris.nom)}`) : V ? `<div class="main-vestiaire">
-      ${etape('vest', `${V.ico} ${esc(V.titre)} · garde une carte`)}
-      ${V.recit ? `<p class="main-vest-recit">${nV.sub(V.recit)}</p>` : ''}
-      <div class="choix-main main-vest-rang">${V.options.map((o, i) => {
-        const mv = lignesDe(o, { qui: nV.noms || 'Le joueur visé', cadre: V.cadre });
-        return carteHtml({ cle: esc(o.cle), niveau: o.niveau, i, ico: o.ico, nomHtml: nV.sub(o.nom), typeHtml: esc(typeAvecForme(o.type || '', formeDesMots(o, mv))), texteHtml: versoDe(o, nV.sub),
-          pucesHtml: pucesDeFace(mv), desactive: V.pris && V.pris !== o.cle ? 'L\'autre est gardée' : o.desactive ? esc(o.desactive) : '', genreCarte: o.genreCarte,
-          classe: 'main-vest', attrs: ` data-vest="${esc(o.cle)}"`, on: vest === o.cle, motChoixHtml: 'Garder' });
-      }).join('')}</div>
-    </div>` : '';
+    const etape = txt => `<div class="main-etape"><span>${txt}</span></div>`;
     /*
      * CE QUE TON ADJOINT PROPOSE (V17). JP : *mon adjoint propose des ajustements à chaque période, j'en choisis un*.
      * Sa scène (la voix, sa réplique), puis ses plans en cartes de jeu (V25 B2), chacune ses lignes au verso, en vraies
      * stats de la période ; « Garder » laisse ton plan en force. « Jouer » sous une carte joue la période.
      */
-    const bloque = manque();
     const propositionsHtml = () => `<div class="duel-adjoint">
       ${D.scene ? sceneHtml(D.scene, { voix: true }) : ''}
       <p class="duel-unite">Les chiffres de la période qui vient</p>
       <div class="choix-main duel-props">${[...D.propositions, D.garder].map((o, i) => carteHtml({ cle: esc(o.cle), i, ico: o.ico, nomHtml: esc(o.nom), texteHtml: versoDe(o, esc), pucesHtml: pucesDeFace(o.mots || []),
-        desactive: bloque ? esc(bloque) : o.desactive ? esc(o.desactive) : '', genreCarte: 'tactique', classe: 'duel-prop', attrs: ` data-prop="${esc(o.cle)}"`, motChoixHtml: 'Jouer' })).join('')}</div>
+        desactive: o.desactive ? esc(o.desactive) : '', genreCarte: 'tactique', classe: 'duel-prop', attrs: ` data-prop="${esc(o.cle)}"`, motChoixHtml: 'Jouer' })).join('')}</div>
     </div>`;
     m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
       <div class="choix-tete">
@@ -1012,20 +990,15 @@ export function ouvrirDuel(spec) {
       </div>
       <div class="choix-corps">
         ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
-        ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
+        ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu}</div>` : ''}
         ${D.tete ? `<div class="duel-tete">${D.tete}</div>` : ''}
         <div class="duel-intention">
-          ${etape('duel', `${D.ico} ${esc(D.nom)} · leur jeu en ${D.periode}`)}
+          ${etape(`${D.ico} ${esc(D.nom)} · leur jeu en ${D.periode}`)}
           <p class="duel-fait">${esc(D.fait)}</p>
           ${D.pourquoi ? `<p class="duel-pourquoi">${esc(D.pourquoi)}</p>` : ''}
           ${D.mots && D.mots.length ? `<div class="choix-puces">${pucesEnBref(D.mots)}</div>` : ''}
         </div>
         ${D.mise ? `<div class="duel-mise">${sceneHtml(D.mise, { voix: true })}<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${snap ? '✓ Mise doublée' : 'Doubler la mise'} · ${esc(D.mise.chiffres)}</button></div>` : ''}
-        ${vestiaire}
-        ${spec.ajustements ? `<div class="main-ajuste">${etape('aj', 'Ton ajustement pour ce match')}<div class="main-ajuste-rang">${spec.ajustements.map(o => {
-          const mots = motsDe(o);
-          return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
-        }).join('')}</div></div>` : ''}
         ${propositionsHtml()}
         ${spec.stats ? `<div class="main-stats"><div class="gl-k">📊 Les deux clubs, par match</div>${spec.stats}</div>` : ''}
         <div class="main-outils">
@@ -1037,18 +1010,10 @@ export function ouvrirDuel(spec) {
     [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].forEach((e, i) => { if (e && hauts[i]) e.scrollTop = hauts[i]; });
     pointsDeBande(m);
     m.querySelectorAll('.duel-prop[data-prop] .tc-prendre').forEach(b => { b.onclick = () => {
-      if (manque()) return;
       const o = [...D.propositions, D.garder].find(x => x.cle === b.closest('.duel-prop').dataset.prop);
-      const reponse = { plan: o && o.plan ? o.plan : null, snap };
-      // Une carte de vestiaire neuve qui est un pari : le dé d'abord, puis tout part ensemble.
-      const ov = V && !V.pris && V.options.find(x => x.cle === vest);
-      if (ov && ov.pari && typeof V.lancer === 'function') { sceneDuDe(m, { lancer: c => V.lancer(c, [reponse, aj]), onChoix: c => spec.onJouer(reponse, aj, c) }, ov, nV.sub, fermer, dessiner); return; }
       fermer(true);
-      spec.onJouer(reponse, aj, V && !V.pris ? vest : null);
+      spec.onJouer({ plan: o && o.plan ? o.plan : null, snap });
     }; });
-    m.querySelectorAll('.main-vest[data-vest] .tc-prendre').forEach(b => { b.onclick = () => { vest = b.closest('.main-vest').dataset.vest; ouverts.delete('vest'); jouerSon('joue'); dessiner(); }; });
-    m.querySelectorAll('.main-pli[data-deplier]').forEach(b => { b.onclick = () => { ouverts.add(b.dataset.deplier); dessiner(); }; });
-    m.querySelectorAll('.main-aj').forEach(b => { b.onclick = () => { aj = b.dataset.aj; jouerSon('joue'); dessiner(); }; });
     const bs = m.querySelector('.duel-snap');
     if (bs) bs.onclick = () => { snap = !snap; jouerSon('joue'); dessiner(); };
     // LES CHIFFRES (V3) : la préparation se lit en mots ; ses chiffres se déplient, comme dans un choix.
@@ -1057,7 +1022,7 @@ export function ouvrirDuel(spec) {
     const adj = m.querySelector('.main-adjoint');
     if (adj) adj.onclick = () => { fermer(true); spec.onAdjoint(); };
     // Le focus reste DANS le duel : le clavier ne tombe jamais sur la page dessous.
-    const f0 = m.querySelector('.main-vest:not([aria-disabled="true"]) .tc-prendre, .main-aj') || m.querySelector('.duel-prop:not([aria-disabled="true"]) .tc-prendre') || m.querySelector('.choix-sheet');
+    const f0 = m.querySelector('.duel-prop:not([aria-disabled="true"]) .tc-prendre') || m.querySelector('.choix-sheet');
     if (f0) f0.focus({ preventScroll: true });
   };
   const fermer = () => {

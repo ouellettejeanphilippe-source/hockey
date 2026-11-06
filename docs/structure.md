@@ -23,7 +23,7 @@ js/rogue-jeu.js       le Rogue à l'écran : jetons, boutique, packs, inventaire
 js/modes-table.js     le tournoi Sur table, ses règles, son bilan, le match d'exhibition au plateau
 js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, plateau) : MT.nom, chargerTable()
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard() ; il n'importe aucun module du Rogue
-js/greffes.js         les greffes du Rogue sur le moteur (V25) : le coach et ses pouvoirs, les adjoints et leurs relais, le duel, les histoires appliquées, les suivis, l'expérience, les séjours — branchées par `brancherGreffes`
+js/greffes.js         les greffes du Rogue sur le moteur (V25) : le coach et ses pouvoirs, les adjoints et leurs relais, le duel, la porte des histoires (`appliquerChoix`) et leurs promesses (`promettre`, `verdictsDuMatin`), l'expérience, les séjours — branchées par `brancherGreffes`
 js/ratings.js         les cotes (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
 js/util.js            les petits outils partagés (un seul exemplaire de chaque : `esc`, `money`, `virgule`, `ordF`…) et la seule source du hasard (V25 A2 : `generateur`, `gauss`, `entierDeGraine`, `hache`)
@@ -42,10 +42,8 @@ js/commentaire.js     le commentateur du direct
 js/recit.js           les mots du sommaire d'un match, de l'objectif et d'une blessure (V25 A1 : sortis de sim.js)
 js/apres-match.js     le récit d'après-match, comme à la télé : le fil du match, sobre et précis
 js/panel-tv.js        le panel : l'univers médiatique de la saison, les mêmes visages qui reviennent
-js/scenes.js          les scènes des choix du Rogue : qui demande, le fait déjà joué, sa réplique sans chiffre — `check_clarte` § 5
-js/vie-gm.js          les voix (`EXPEDITEURS`), le joueur du fait, les fils dits par quelqu'un, les choix des fils (`CHOIX_DES_FILS`, récrits à la V22 : deux réponses, un suivi) — `check_vie`
-js/arcs.js            les arcs d'un joueur et ses défis (`DEFIS`) : nés d'un fait du journal du club, suivis au Vestiaire ; la table `ARCS` est vide depuis la V22, le système reste — `check_arcs`
-js/verdicts.js        ta semaine : le verdict d'un choix à effet daté, le lundi d'après, en vraies stats — `check_verdicts`
+js/scenes.js          les scènes des choix du Rogue (la mise, le palier, la blessure, les rivaux, le butin, le mandat, l'adjoint) : qui demande, le fait déjà joué, sa réplique sans chiffre — `check_clarte` § 5
+js/vie-gm.js          les voix (`EXPEDITEURS`), le joueur du fait, les fils dits par quelqu'un (la une) — `check_vie`
 js/profil-style.js    le profil de style : la preuve que ton build joue, lue dans les feuilles — `check_profil` ; ton banc du soir, ce qui s'allume au sommaire (V23) — `check_banc`
 js/causes.js          ce qui a fait le match : les causes qui ont décidé d'un lancer, dites à ton club (sommaire, direct, bilan)
 js/entracte.js        le rapport d'entracte en cartons
@@ -56,7 +54,8 @@ js/pouvoirs.js        le coach, un personnage (V21) : son niveau, ses trois pouv
 js/coachs-reels.js    l'entraîneur, une vraie carte de coach-saison (V21) : data/coachs.json, sa philosophie lue des vraies stats de son club, sa maîtrise, le loto du départ (ton cartable d'abord)
 js/adjoints.js        sa main d'adjoints (V22) : des cartes, un style chacune (un gain, un prix), postées pour un séjour de 12 matchs puis au repos ; une main de quatre, les cases en poste au niveau du coach ; un parmi trois aux moments forts — `check_pouvoirs`
 js/deposer.js         le glisser-déposer, souris et doigt (l'appui tenu) : une carte d'adjoint sur une case au Bureau › Coach, les cartes des Lignes (`permuter`)
-js/dossiers.js        les histoires de la semaine (V10 ; récrites à la V22, docs/refonte-v22.md) : ce qui arrive à ton club, dit par sa voix, un lundi sur deux, deux réponses concrètes — `check_dossiers`
+js/histoires.js       la banque des histoires (V25 C1, docs/refonte-v25-c1.md) : quarante, à trois moments (le lundi, le gros match, la ronde), un tirage pur (`tirer`), la scène qui nomme (`sceneDe`) — `check_histoires`
+js/faits.js           les faits (V25 C1) : `faitsDe`, une seule lecture pure des feuilles jouées, du journal du club, du classement et de la cédule connue, pour l'écran, le moteur et les robots ; la vraie saison avec ses bornes (`vraie`, `vraieMot`) — `check_vie`
 js/cartes.js          le gabarit des cartes (recto, verso, finitions) ; une carte de jeu porte un niveau (V25 B1) ; la pochette, scellée ou récompense (V25 B2)
 js/effets.js          la grammaire d'un effet (V25 B1b) : dix cases, et `motsDe` qui dérive les lignes d'une carte de ce que le moteur joue
 js/rarete.js          les éditions d'une carte de joueur (Base → Holo) et leurs paliers

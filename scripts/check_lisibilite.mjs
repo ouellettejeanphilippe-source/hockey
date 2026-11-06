@@ -30,12 +30,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, AVANT_GROS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam } from '../js/sim.js';
 import { poserClubLu } from '../js/impact.js';
 import { pucesDeFace, FACE_MAX } from '../js/gerant.js';
 import { motsDe } from '../js/effets.js';
-import { DOSSIERS } from '../js/dossiers.js';
-import { CHOIX_DES_FILS } from '../js/vie-gm.js';
+import { HISTOIRES } from '../js/histoires.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -114,8 +113,7 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
 /* 6. Les tuiles de choix, sobres. */
 {
   const OPTIONS_MAX = 3;
-  const FAMILLES = [['avant-match', AVANT_GROS], ['dossier', DOSSIERS], ['choix de fil', CHOIX_DES_FILS]];
-  if (!Object.keys(DOSSIERS).length || !Object.keys(CHOIX_DES_FILS).length) informer('dossiers et choix de fil : banque vide (V22, phase 4)', 'seuls les avant-matchs sont lus');
+  const FAMILLES = [['histoire', HISTOIRES]];
   // Le nombre d'options : les fenêtres de ces familles.
   const trop = [];
   let nFenetres = 0;

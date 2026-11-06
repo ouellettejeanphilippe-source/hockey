@@ -1,7 +1,7 @@
 /*
  * MESURE — LE RYTHME D'UNE SAISON (nov. 2026 ; docs/revue-rogue-2026-11.md § 2.1). Passé le 26e match, il ne se passait
  * presque plus rien : les paliers d'adjoints tombaient aux 9e, 18e et 26e matchs (`PALIERS_PACK`, js/inventaire.js) et
- * les histoires ne s'ouvraient qu'une fois par saison (js/dossiers.js). On le mesure sur l'attentif
+ * les histoires ne s'ouvraient qu'une fois par saison (js/histoires.js). On le mesure sur l'attentif
  * (scripts/lib/rogue_sim.mjs) : les clubs de check_profondeur (le meilleur et celui du milieu de quatre saisons),
  * `SAISONS` saisons de suite chacun, comme scripts/mesure_main.mjs.
  *
@@ -62,7 +62,7 @@ function relire(r) {
   const out = [];
   for (const d of decisions) {
     const p = String(d.palier || '');
-    const sorte = p.startsWith('pp:') ? 'palier' : p.startsWith('do:') ? 'histoire' : p.startsWith('r:') ? 'butin' : p.startsWith('ta:') ? 'talent' : d.ballottage ? 'signature' : null;
+    const sorte = p.startsWith('pp:') ? 'palier' : p.startsWith('h:') ? 'histoire' : p.startsWith('r:') ? 'butin' : p.startsWith('ta:') ? 'talent' : d.ballottage ? 'signature' : null;
     if (sorte) out.push({ sorte, m: avant(d.jour), ...(sorte === 'histoire' ? { cle: d.moment.cle, xp: Number(d.xpCoach) || 0, gain: Number(d.gain) || 0, adjoint: !!d.embauche } : {}) });
   }
   for (const mb of you.minisBoss || []) out.push({ sorte: 'gros', m: avant(mb.jour) });

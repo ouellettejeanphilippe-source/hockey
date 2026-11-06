@@ -13,15 +13,15 @@
  *   3. le moteur : le stage monte l'expérience du coach, une histoire aussi, et un SOIN raccourcit vraiment une
  *      blessure ; une histoire sur un joueur tient sur lui ;
  *   4. la saison se rejoue au but près avec ces décisions.
- * La banque de dossiers est vide (V22, phase 4) : ce qu'elle prêtait à ce script (le dossier du proprio, un dossier sur un
- * joueur) est ici écrit en valeurs d'essai, qui font jouer le même système (`plafondDe`, la réponse posée sur le joueur nommé).
+ * Le rachat du dossier du proprio (V16) est parti avec sa banque (V22) : ses valeurs d'essai font jouer le même canal (`plafondDe`) ;
+ * l'histoire sur un joueur est une vraie histoire de js/histoires.js (V25 C1).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey } from '../js/sim.js';
 import { BANQUE, ORDRE_CATEGORIES, compteParCategorie, reglesDe, payloadDe, plafondDe } from '../js/banque.js';
-import { DOSSIERS } from '../js/dossiers.js';
+import { HISTOIRES } from '../js/histoires.js';
 import { PACKS_TOUS, TIERS, chancesDe, tirerCartesDuPack, BOUTIQUE } from '../js/packs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -106,20 +106,20 @@ informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}
 /* 3. Le moteur. */
 const t0 = ligue(79, 16), moi = t0[0];
 const avant = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => moi.roster[s.i]).find(Boolean);
-// Un dossier d'essai sur un joueur : sa réponse se pose sur lui (V11, tranche 4), pas sur l'équipe.
-DOSSIERS.ilBoude = { titre: 'Il boude', ico: '😒', options: [{ cle: 'parler', nom: 'Lui parler', gain: -6, duree: 8, lui: { lancers: 1.43, finition: 1.17 } }] };
+// Une histoire sur un joueur (V25 C1 : l'agent appelle, « Lui donner ce qu'il demande » : −20 🪙, ses tirs et ses passes sur 12 matchs) : sa réponse se pose sur lui, pas sur l'équipe.
+const AGENT = HISTOIRES.lAgent.options.find(o => o.cle === 'donner');
 const decs = [
   { jour: 0, equipe: 0, coach: { cle: 'tortue', xp: 0, talents: [], adjoints: [] } },
   { jour: 5, equipe: 0, ...payloadDe('consommable:stage', {}) },
   { jour: 10, equipe: 0, xpCoach: 2 },
-  { jour: 20, equipe: 0, moment: { famille: 'dossier', cle: 'ilBoude', choix: 'parler', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] }, gain: -6 },
+  { jour: 20, equipe: 0, palier: 'h:lundi:20', moment: { famille: 'histoire', cle: 'lAgent', choix: 'donner', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] }, gain: AGENT.jetons },
 ];
 simulateLeague(t0, 82, { graine: 'banque', decisions: decs });
 exiger('le stage et une histoire montent l\'expérience du coach', moi.perso && moi.perso.xp === payloadDe('consommable:stage', {}).xpCoach + 2, moi.perso ? `${moi.perso.xp} points d'avant, ${moi.xpSaison} de la saison` : 'pas de coach');
-exiger('une histoire ne pose plus d\'effet sur l\'équipe', !(moi.effets || []).some(e => e.source === 'dossier'), `${(moi.effets || []).length} effet(s)`);
+exiger('une histoire du lundi ne pose aucun effet sur l\'équipe', !(moi.effets || []).some(e => e.source === 'histoire'), `${(moi.effets || []).length} effet(s)`);
 // V11 (tranche 4) : un dossier qui nomme un joueur pose sa réponse sur lui.
-const boude = (moi.effetsCibles || []).find(e => e.nom === 'Il boude');
-exiger('une histoire sur un joueur tient sur le joueur nommé', !!boude && getPlayerKey(boude.joueur) === getPlayerKey(avant) && boude.lancers > 1,
+const boude = (moi.effetsCibles || []).find(e => e.nom === HISTOIRES.lAgent.titre);
+exiger('une histoire sur un joueur tient sur le joueur nommé, et engage sa promesse', !!boude && getPlayerKey(boude.joueur) === getPlayerKey(avant) && boude.lancers === AGENT.lui.lancers && (moi.suivis || []).some(s => s.cle === 'lAgent' && s.joueur === avant),
   boude ? `${boude.joueur.n} : tirs ×${boude.lancers}, ${boude.fin - boude.debut} jours` : 'absent');
 
 // UN SOIN RACCOURCIT UNE BLESSURE : une première saison dit qui se blesse et quand ; la même, avec un soin le lendemain, doit le rendre plus tôt.
