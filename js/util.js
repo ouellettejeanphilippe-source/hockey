@@ -105,6 +105,64 @@ export function pageDuClub({ genre, retour, ico = '', titre, sous = '', haut = '
 }
 
 
+/* ======================================================================
+   LE HASARD ET LE HACHAGE (V25 A2) : une seule source pour les trois modes — le moteur de la saison (js/sim.js), Sur
+   table (js/table.js) et Sur glace (js/physique.js) tirent du même générateur, de la même gaussienne et du même hachage.
+   La mulberry32 et la gaussienne de Sur glace, et `hacherMise` du moteur, sont parties ; `hache` (plus bas) reste le
+   nombre pur tiré de mots.
+   ====================================================================== */
+/** Hache un texte ou un nombre en 32 bits (cyrb53 tronqué, suffit ici). */
+function graineDe(x) {
+  const str = String(x);
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h1 ^ h2) >>> 0;
+}
+
+/** Un générateur sfc32 sur une graine 32 bits, uniforme dans [0, 1). */
+export function generateur(graine) {
+  let a = 0x9e3779b9, b = 0x243f6a88, c = 0xb7e15162, d = graineDe(graine) | 0;
+  const suivant = () => {
+    a |= 0; b |= 0; c |= 0; d |= 0;
+    const t = (a + b | 0) + d | 0;
+    d = d + 1 | 0;
+    a = b ^ (b >>> 9);
+    b = c + (c << 3) | 0;
+    c = (c << 21) | (c >>> 11);
+    c = c + t | 0;
+    return (t >>> 0) / 4294967296;
+  };
+  for (let i = 0; i < 12; i++) suivant();   // on jette l'échauffement
+  return suivant;
+}
+
+/** La gaussienne (Box-Muller) sur un générateur `de` uniforme dans [0, 1). */
+export function gauss(de) {
+  let u = 0, v = 0;
+  while (u === 0) u = de();
+  while (v === 0) v = de();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+/*
+ * LA GRAINE EN ENTIER (refonte coachs-cartes-incidents, tranche 2, oct. 2026). Les tirages purs (`situationsDuJour`, `objectifsOfferts`, `ajustementsOfferts`) faisaient `Number(graine) >>> 0` : la graine d'une
+ * partie est en base 36 (`nouvelleGraine`) et celle du matin `graine:dé`, donc NaN, donc 0 — toutes les runs tiraient
+ * les mêmes dilemmes, situations et accidents aux mêmes jours. Un hachage de la chaîne (FNV-1a) : la même graine
+ * tire pareil, une autre tire autrement — `check_verite`.
+ */
+export function entierDeGraine(graine) {
+  let x = 2166136261;
+  for (const ch of String(graine)) x = Math.imul(x ^ ch.charCodeAt(0), 16777619) >>> 0;
+  x ^= x >>> 15; x = Math.imul(x, 0x2c1b3c6d) >>> 0; x ^= x >>> 12;
+  return x >>> 0;
+}
+
+
 /** Un nombre de 0 à 1 tiré de mots : la même entrée, le même nombre (le hasard pur des packs, des variantes, du deck). */
 export function hache(...parts) {
   let h = 2166136261 >>> 0;

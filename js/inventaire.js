@@ -21,7 +21,7 @@
  */
 import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, VIES, reglesDe, carteBanque, idsDe, etiquetteBanque } from './banque.js';
 import { sortDUnPack } from './packs.js';
-import { RARETES } from './cartes.js';
+import { NIVEAUX, nomDuNiveau } from './niveaux.js';
 import { puces, chiffresOuverts, basculerChiffres, carteDeBanqueHtml } from './gerant.js';
 import { esc, money as M, jaugePlafond } from './util.js';
 
@@ -78,7 +78,7 @@ export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'co
 export function optionDeBanque(id, vie = null) {
   const c = BANQUE[id];
   const etiquette = etiquetteBanque(id);
-  return { cle: id, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
+  return { cle: id, niveau: c.niveau, ico: c.ico, nom: c.nom,
     type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[vie || c.vie] || VIES.saison).nom}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
 }
 
@@ -90,7 +90,7 @@ function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = n
 }
 
 /* ---------- l'écran ---------- */
-let etat = { onglet: null, cat: 'tout', rar: 'tout' };
+let etat = { onglet: null, cat: 'tout', niv: 'tout' };
 /*
  * ctx : { titre, mode ('rogue' | 'saison'), enSaison, jetons, meta: [{id, n}],
  *         possedees: Set(ids), joueursCollection: n, jouer(item), onFerme() }
@@ -114,10 +114,12 @@ export function ouvrirInventaire(ctx) {
     const filtres = (cats) => `<div class="inv-filtres" role="group" aria-label="Filtrer">
       ${['tout', ...cats].map(c => `<button type="button" class="inv-filtre${etat.cat === c ? ' on' : ''}" data-cat="${c}">${c === 'tout' ? 'Tout' : `${CATEGORIES[c].ico} ${CATEGORIES[c].nom}`}</button>`).join('')}
     </div>`;
-    const rars = `<div class="inv-filtres inv-rar" role="group" aria-label="Rareté">
-      ${['tout', 'commune', 'peu', 'rare', 'legendaire'].map(r => `<button type="button" class="inv-filtre${etat.rar === r ? ' on' : ''}" data-rar="${r}">${r === 'tout' ? 'Toutes' : `${RARETES[r].gemme} ${RARETES[r].nom}`}</button>`).join('')}
+    // Le niveau (V25 B1 : l'échelle des joueurs) : ceux que la banque a.
+    const nivs = [...new Set(Object.keys(BANQUE).map(id => BANQUE[id].niveau).filter(k => NIVEAUX[k]))].sort();
+    const rars = `<div class="inv-filtres inv-rar" role="group" aria-label="Niveau">
+      ${['tout', ...nivs].map(k => `<button type="button" class="inv-filtre${String(etat.niv) === String(k) ? ' on' : ''}" data-niv="${k}">${k === 'tout' ? 'Tous' : nomDuNiveau(k)}</button>`).join('')}
     </div>`;
-    const garde = id => (etat.cat === 'tout' || BANQUE[id].cat === etat.cat) && (etat.rar === 'tout' || BANQUE[id].rarete === etat.rar);
+    const garde = id => (etat.cat === 'tout' || BANQUE[id].cat === etat.cat) && (etat.niv === 'tout' || BANQUE[id].niveau === Number(etat.niv));
     const vide = mot => `<p class="inv-vide">${mot}</p>`;
     let corps = '';
     if (etat.onglet === 'permanent') {
@@ -156,7 +158,7 @@ export function ouvrirInventaire(ctx) {
     m.querySelector('.choix-fermer').onclick = fermer;
     m.querySelectorAll('[data-onglet]').forEach(b => { b.onclick = () => { etat.onglet = b.dataset.onglet; etat.cat = 'tout'; dessiner(); }; });
     m.querySelectorAll('[data-cat]').forEach(b => { b.onclick = () => { etat.cat = b.dataset.cat; dessiner(); }; });
-    m.querySelectorAll('[data-rar]').forEach(b => { b.onclick = () => { etat.rar = b.dataset.rar; dessiner(); }; });
+    m.querySelectorAll('[data-niv]').forEach(b => { b.onclick = () => { etat.niv = b.dataset.niv === 'tout' ? 'tout' : Number(b.dataset.niv); dessiner(); }; });
     m.querySelectorAll('.inv-jouer-meta').forEach(b => { b.onclick = () => { fermer(true); ctx.jouer({ src: 'meta', id: b.dataset.id }); }; });
   };
   const fermer = (silencieux = false) => {

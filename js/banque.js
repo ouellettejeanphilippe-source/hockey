@@ -67,20 +67,21 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
  * ou rien.
  */
 export const CONSOMMABLES = {
-  glace: { nom: 'Glace et compression', ico: '🧊', rarete: 'commune', vie: 'usage', cible: 'blesse', gestes: { soin: 2 }, texte: 'Vingt minutes, trois fois par jour.' },
-  physio: { nom: 'La séance de physio', ico: '💆', rarete: 'peu', vie: 'usage', cible: 'blesse', gestes: { soin: 5 }, texte: 'Des ultrasons et de la patience.' },
-  chirurgie: { nom: 'La chirurgie éclair', ico: '🏥', rarete: 'rare', vie: 'permanent', cible: 'blesse', gestes: { soin: 12 }, effet: { blessure: 1.56 }, duree: 5, texte: 'Le meilleur chirurgien a une plage libre. Le retour presse, et les corps le paient.' },
+  glace: { nom: 'Glace et compression', ico: '🧊', niveau: 1, vie: 'usage', cible: 'blesse', gestes: { soin: 2 }, texte: 'Vingt minutes, trois fois par jour.' },
+  physio: { nom: 'La séance de physio', ico: '💆', niveau: 2, vie: 'usage', cible: 'blesse', gestes: { soin: 5 }, texte: 'Des ultrasons et de la patience.' },
+  chirurgie: { nom: 'La chirurgie éclair', ico: '🏥', niveau: 3, vie: 'permanent', cible: 'blesse', gestes: { soin: 12 }, effet: { blessure: 1.56 }, duree: 5, texte: 'Le meilleur chirurgien a une plage libre. Le retour presse, et les corps le paient.' },
   // L'échange d'un doublon (P3) : ton doublon le plus fourni part ; trois joueurs de son époque, hors de ton cartable (`echange`).
-  echangeDoublon: { nom: 'L\'échange d\'un doublon', ico: '📟', rarete: 'peu', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, echange: true, texte: 'Un doublon de trop, contre un joueur de son époque.' },
+  echangeDoublon: { nom: 'L\'échange d\'un doublon', ico: '📟', niveau: 2, vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, echange: true, texte: 'Un doublon de trop, contre un joueur de son époque.' },
   // Le stage (V21) : de l'expérience au coach de la run (js/pouvoirs.js `XP`), tout de suite.
-  stage: { nom: 'Le stage du coach', ico: '🎞', rarete: 'rare', vie: 'permanent', cible: 'coach', xp: 8, texte: 'Une semaine de vidéo chez les meilleurs. Il revient avec un cahier neuf.' },
+  stage: { nom: 'Le stage du coach', ico: '🎞', niveau: 3, vie: 'permanent', cible: 'coach', xp: 8, texte: 'Une semaine de vidéo chez les meilleurs. Il revient avec un cahier neuf.' },
 };
 
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
 const SOURCES_MOD = ['atelier'];
 /* V16 (docs/refonte-v16.md) : de l'atelier, seules les retouches d'édition restent des cartes ; l'équipement, les clauses,
  * le feu et les modifs d'un moment sont devenus des adjoints, partis à leur tour (V21, V22). */
-const RARETE_MOD = { pinceau: 'commune', fenetre: 'peu', dorure: 'rare', lustre: 'legendaire', mentorTrio: 'rare' };
+/* Le niveau de chaque retouche (V25 B1 : l'échelle des joueurs ; c'était une rareté). */
+const NIVEAU_MOD = { pinceau: 1, fenetre: 2, dorure: 3, lustre: 4, mentorTrio: 3 };
 // Le mentor (`mentorTrio`) n'est pas une carte : il vient du choix d'un fil (js/vie-gm.js `CHOIX_DES_FILS`).
 const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source) && !MUTATIONS[k].mentor);
 
@@ -132,9 +133,9 @@ function construire() {
   const mettre = c => { B[c.id] = c; };
   for (const cle of MODS_JOUEUR) {
     const M = MUTATIONS[cle];
-    mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, rarete: RARETE_MOD[cle] || M.rarete || 'peu', texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source }));
+    mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, niveau: NIVEAU_MOD[cle] ?? 2, texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source }));
   }
-  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.echange ? { echange: true } : {}) }));
+  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, niveau: C.niveau, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.echange ? { echange: true } : {}) }));
   return B;
 }
 export const BANQUE = construire();

@@ -19,7 +19,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, generateur, joueurDeLObjectif } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, joueurDeLObjectif } from '../js/sim.js';
+import { generateur } from '../js/util.js';
 import { pronostic, conditions, chancesDesObjectifs } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 

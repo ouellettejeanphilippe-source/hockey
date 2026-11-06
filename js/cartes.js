@@ -24,6 +24,7 @@
 
 import { getTeamBand } from './logos.js';
 import { NOM_VARIANTE, EDITIONS } from './rarete.js';
+import { NIVEAUX, nomDuNiveau, niveauSur } from './niveaux.js';
 import { actionSrc, cadreAction, actionCouchee, cadreCouche } from './actions.js';
 
 /*
@@ -36,14 +37,12 @@ import { actionSrc, cadreAction, actionCouchee, cadreCouche } from './actions.js
  * séparait : elle en porte quatre. Une gemme par rareté, la même partout
  * (cartes de jeu, cartes de joueur, cartable, boutique).
  */
-export const RARETES = {
-  commune: { nom: 'Commune', gemme: '◆' },
-  peu: { nom: 'Peu commune', gemme: '◆◆' },
-  rare: { nom: 'Rare', gemme: '◆◆◆' },
-  legendaire: { nom: 'Légendaire', gemme: '◆◆◆◆' },
-};
-/* Les deux raretés qui brillent : l'holographique, le reflet, l'inclinaison au téléphone. */
+/* Les quatre cadres d'un carton de jeu (style.css, les mêmes classes que les éditions d'un joueur), du plus simple au prisme. */
+const CADRES = ['commune', 'peu', 'rare', 'legendaire'];
+/* Les deux cadres qui brillent (l'or, le prisme) : l'holographique, le reflet, l'inclinaison au téléphone. */
 const brille = r => r === 'rare' || r === 'legendaire';
+/* La gemme d'une carte de jeu : un diamant par niveau, de ◆ (Soutien) à ◆◆◆◆◆ (★ Phénomène). */
+const gemmeDuNiveau = k => '◆'.repeat(k + 1);
 
 /*
  * LES ILLUSTRATIONS DES CARTES DE MATCH (1.0). JP : *ça feel vraiment cheap
@@ -131,7 +130,7 @@ function dessinHtml(cle, genre) {
  * (`.carton-cadre`, `.carton-lueur`) n'existent que sur les rares et les
  * légendaires : trente communes n'en paient rien.
  *
- * c : { cle, rarete, i (rang dans la main, pour la donne), ico, nomHtml,
+ * c : { cle, niveau (0 à 4, js/niveaux.js ; V25 B1 : la rareté est partie), i (rang dans la main, pour la donne), ico, nomHtml,
  *       typeHtml, artHtml, texteHtml, bonHtml, prixHtml, pucesHtml,
  *       coinHtml, desactive, dos (le DOS de la carte : elle sort d'un paquet
  *       face cachée et se retourne, js/gerant.js `ouvrirChoix`), r (son rang
@@ -152,7 +151,7 @@ const icoDeJeu = c => (c.ico ? `<span class="tcj-ico" aria-hidden="true">${c.ico
  * `.tc.tc-g-…`). `carteHtml` l'habille d'un choix .
  */
 function rectoDeJeu(c) {
-  const r = RARETES[c.rarete] ? c.rarete : 'commune', R = RARETES[r];
+  const k = niveauSur(c.niveau), r = NIVEAUX[k].cadre;
   const nomTexte = String(c.nomHtml || '').replace(/<[^>]*>/g, '');
   return `<span class="carton cs-glace cs-jeu tc-${r}">
       ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
@@ -160,22 +159,21 @@ function rectoDeJeu(c) {
       <span class="carton-deco" aria-hidden="true"></span>
       ${brille(r) ? '<span class="carton-lueur" aria-hidden="true"></span><span class="carton-cadre" aria-hidden="true"></span>' : ''}
       ${c.coinHtml ? `<span class="carton-pos">${c.coinHtml}</span>` : ''}
-      <span class="cj-gemme" title="${R.nom}">${R.gemme}</span>
+      <span class="cj-gemme" title="${nomDuNiveau(k)}">${gemmeDuNiveau(k)}</span>
       <span class="carton-nom" style="--n:${Math.max(6, nomTexte.length)}"><span class="lname tc-nom">${c.nomHtml || ''}</span>${c.typeHtml ? `<span class="carton-club-nom">${c.typeHtml}</span>` : ''}</span>
       <span class="carton-club">${icoDeJeu(c)}</span>
-      <span class="carton-imprime"><b>Cap 82-0</b><span>${R.nom}</span></span>
+      <span class="carton-imprime"><b>Cap 82-0</b><span>${nomDuNiveau(k)}</span></span>
     </span>`;
 }
 export function carteHtml(c) {
-  const r = RARETES[c.rarete] ? c.rarete : 'commune';
-  const R = RARETES[r];
+  const k = niveauSur(c.niveau), r = NIVEAUX[k].cadre;
   /*
    * UN JOUEUR OFFERT NE SE PREND PAS D'UN TOUCHER (S78). JP : *si je clique sur
    * carte, pas automatiquement la choisir si pas cliqué sur signer*. La carte
    * se TOUCHE pour voir la fiche (`data-apercu`) ; le bouton « Signer » (ou
    * « Garder », « Choisir ») est le seul qui choisit (`data-choix`).
    */
-  if (c.joueurHtml) return `<div class="choix-option tc tc-${edition(c.rarete)} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-apercu="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' aria-disabled="true"' : ''}>
+  if (c.joueurHtml) return `<div class="choix-option tc tc-${edition(c.edition)} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-apercu="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' aria-disabled="true"' : ''}>
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
     <span class="tcj-carte" role="button" tabindex="0" title="Voir sa fiche">${c.joueurHtml}</span>
     ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tcj-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
@@ -188,14 +186,14 @@ export function carteHtml(c) {
   /*
    * LE FORMAT CARTE DE HOCKEY (oct. 2026). JP : *j'aime vraiment le format carte de hockey, pas les autres*. Une carte
    * de jeu est un carton comme celui d'un joueur (`cartonHtml`) : la série de la glace, aux couleurs de son genre au
-   * lieu d'un club ; son dessin dans la fenêtre, son coût dans le coin, sa rareté dans l'autre, son nom sur la plaque
-   * et son icône dans le médaillon. Sa rareté en est l'édition : le cadre de métal, l'or, le prisme.
+   * lieu d'un club ; son dessin dans la fenêtre, son coût dans le coin, son niveau dans l'autre, son nom sur la plaque
+   * et son icône dans le médaillon. Son niveau fait son cadre : le métal, l'or, le prisme (V25 B1).
    */
   const ico = icoDeJeu(c);
   /*
    * CE QU'ELLE FAIT SE LIT À SON VERSO (JP : *mettre les stats derrière la carte*). Le recto est la carte, rien d'autre ;
    * la toucher la retourne (`brancherInclinaison`). Toucher ne prend plus : « Prendre », dessous, prend. Le verso est le
-   * dos du même carton : la glace, le métal de sa rareté, la bande de son genre en tête et l'imprimé au pied.
+   * dos du même carton : la glace, le métal de son niveau, la bande de son genre en tête et l'imprimé au pied.
    */
   const verso = `${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}`;
   const face = verso ? 'button type="button" class="tc-face" aria-pressed="false" title="Toucher pour la retourner"' : 'span class="tc-face"';
@@ -205,7 +203,7 @@ export function carteHtml(c) {
     ${rectoDeJeu(c)}
     ${verso ? `<span class="carton cs-glace cs-jeu tc-${r} tc-verso">
       ${brille(r) ? '<span class="carton-lueur" aria-hidden="true"></span><span class="carton-cadre" aria-hidden="true"></span>' : ''}
-      <span class="tcv-corps"><span class="tcv-tete">${ico}<span class="tcv-nom">${c.nomHtml || ''}</span></span>${verso}<span class="tcv-pied"><b>Cap 82-0</b><span>${R.nom}</span></span></span>
+      <span class="tcv-corps"><span class="tcv-tete">${ico}<span class="tcv-nom">${c.nomHtml || ''}</span></span>${verso}<span class="tcv-pied"><b>Cap 82-0</b><span>${nomDuNiveau(k)}</span></span></span>
     </span>` : ''}
     </${verso ? 'button' : 'span'}>
     ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : c.statique || c.lecture ? '' : `<button type="button" class="btn-sign tc-prendre" data-choix="${c.cle}">${c.motChoixHtml || 'Prendre'}</button>`}
@@ -215,63 +213,13 @@ export function carteHtml(c) {
 /*
  * LES JOUEURS SONT DES CARTES AUSSI (S76). JP : *Même dans le ui et le ux,
  * renforcer que les joueurs aussi, c'est des cartes de hockey*. Les cartes de
- * match avaient leur cadre, leur rareté et leur reflet ; le joueur qu'on
+ * match avaient leur cadre, leur niveau et leur reflet ; le joueur qu'on
  * repêche, qu'on aligne et qu'on réclame au ballottage n'était qu'une tuile
  * aux couleurs de son club. Il prend le même langage — un cadre dont le
- * métal dit la rareté, le reflet holographique des rares, une fenêtre de
+ * métal dit l'édition, le reflet holographique des brillantes, une fenêtre de
  * portrait, la plaque de la saison — pour qu'un joueur et une carte de match
  * se lisent comme deux cartes du même paquet.
  *
- * (S78 : la rareté n'est plus le salaire, c'est une variante tirée par chance
- * — voir « CE QUE LA GEMME VEUT DIRE » plus bas. `rareteDeSalaire` reste pour
- * qui veut encore lire le rang d'un salaire ; les cartes ne la lisent plus.)
- *
- * LA RARETÉ D'UN JOUEUR VIENT DE SON SALAIRE, ET DE RIEN D'AUTRE. La règle
- * ferme du dépôt : aucune cote dans le DOM, jamais — ni `o d r c v sp`, ni
- * rien qui s'en déduise en douce. Le salaire, lui, est écrit en gros sur la
- * carte : dire en couleur QUEL RANG il occupe parmi les salaires de sa saison
- * ne révèle rien que la carte ne dise déjà. Le centile se prend dans SA
- * saison (tous les joueurs du shard), pas sur les 55 : le barème est ramené
- * au plafond du jeu, mais sa forme change d'une époque à l'autre — plus du
- * tiers de la ligue touche le plancher en 1970-71, trois pour cent en
- * 2005-06, où le haut de l'échelle s'étire jusqu'à 18,6 M$.
- *
- * Les seuils font un paquet de cartes, mesurés sur six saisons : environ
- * deux tiers de communes, un quart de peu communes, une rare sur dix et deux
- * ou trois légendaires pour cent — Orr et Esposito en 1970-71, Gretzky et
- * Bossy en 1981-82, MacKinnon et McDavid en 2023-24. Un vestiaire de trente
- * joueurs en montre une ou deux rares, et une légendaire une fois sur deux :
- * ce qu'on trouve en ouvrant un paquet.
- */
-const PALIERS_RARETE = [['legendaire', 0.97], ['rare', 0.88], ['peu', 0.65]];
-/* Le centile (la part de sa saison payée MOINS que lui) vers la rareté. */
-function rareteDuCentile(c) {
-  for (const [r, seuil] of PALIERS_RARETE) if (c >= seuil) return r;
-  return 'commune';
-}
-/*
- * La rareté d'un joueur dans SA saison : `saison` est l'entrée du shard
- * chargé (`{ players }`, `G.shards` dans js/game.js). Le barème trié se garde
- * par saison, la rareté par joueur — une recherche binaire, une fois : le
- * vestiaire rend trente cartes à chaque rendu, la liste « Tous » d'une
- * franchise des centaines. Une saison pas encore chargée rend « commune »
- * sans rien retenir : le rendu suivant, le shard en main, dira la vraie.
- */
-const BAREMES = new WeakMap();
-const RARETE_DE = new WeakMap();
-export function rareteDeSalaire(p, saison) {
-  if (!p) return 'commune';
-  const connue = RARETE_DE.get(p);
-  if (connue) return connue;
-  if (!saison || !saison.players || !(p.$ > 0)) return 'commune';
-  let s = BAREMES.get(saison);
-  if (!s) { s = saison.players.map(x => x.$).filter(x => x > 0).sort((a, b) => a - b); BAREMES.set(saison, s); }
-  let bas = 0, haut = s.length;
-  while (bas < haut) { const m = (bas + haut) >> 1; if (s[m] < p.$) bas = m + 1; else haut = m; }
-  const r = rareteDuCentile(s.length ? bas / s.length : 0);
-  RARETE_DE.set(p, r);
-  return r;
-}
 /*
  * CE QUE LA GEMME VEUT DIRE (S78). JP : *Pour les rareté pas par joueur, mais
  * par dessus joueur, comme un shiny dans pokemon genre*. La rareté d'une carte
@@ -508,7 +456,7 @@ export function tirageLimite(cle, num = '/99') {
  *                        numéroté (« 07/25 »). Pas de signature (JP : *c'est laid*).
  * Le tout reste sous les mots : on lit d'abord, on brille ensuite.
  *
- * c : { serie, rarete, portraitHtml, actionSrc, cadre, pos, posClasse, gemmeHtml,
+ * c : { serie, edition, portraitHtml, actionSrc, cadre, pos, posClasse, gemmeHtml,
  *       rubanHtml, nomHtml (`formatName`), nomLettres (le nom de famille, pour
  *       la taille de la plaque), nomClasse, logoHtml, club, clubNom, numero,
  *       annee, tirage, clubClasse, eclat }
@@ -518,9 +466,9 @@ export function tirageLimite(cle, num = '/99') {
  * deux bords*). Le verso pose son texte sur la même coque que le recto — le carton de la série, son cadre, ses ornements,
  * le métal de son édition, aux couleurs du club — sans la photo ni la plaque : le pourtour d'un dos est celui de sa face.
  */
-export function dosDeCarton(serie, rarete, couchee = false) {
+export function dosDeCarton(serie, editionDe, couchee = false) {
   const s = SERIES[serie] ? serie : serieDe('');
-  const r = edition(rarete);
+  const r = edition(editionDe);
   // Le dos d'une carte couchée est couché aussi : le carton de sa série, à plat, son métal.
   if (couchee) return aPlat(`<span class="carton carton-couchee tc-${r} carton-dos" aria-hidden="true"><span class="cc-carte cs-${s} tc-${r}">
     ${r === 'peu' ? '<span class="carton-fini"></span>' : ''}
@@ -538,7 +486,7 @@ export function dosDeCarton(serie, rarete, couchee = false) {
 }
 export function cartonHtml(c) {
   const serie = SERIES[c.serie] ? c.serie : serieDe('');
-  const r = edition(c.rarete);
+  const r = edition(c.edition);
   if (c.couchee) return carteCouchee(c, serie, r);
   const action = c.actionSrc
     ? `<img class="carton-action photo-cadree" src="${echapper(c.actionSrc)}"${styleCadre(c.cadre)} alt="" loading="lazy" decoding="async" onerror="this.remove()">`
@@ -604,7 +552,7 @@ const aPlat = carte => `<span class="carton-a-plat"><span class="carton-pivot">$
  */
 export function paquetHtml({ n = 3, meilleure = 'commune', serie = 'Récompense' } = {}) {
   serie = String(serie).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  return `<button type="button" class="paquet paquet-${RARETES[meilleure] ? meilleure : 'commune'}" aria-label="Ouvrir le paquet">
+  return `<button type="button" class="paquet paquet-${CADRES.includes(meilleure) ? meilleure : 'commune'}" aria-label="Ouvrir le paquet">
     <span class="paquet-lueur" aria-hidden="true"></span>
     <span class="paquet-corps" aria-hidden="true">
       <span class="paquet-rabat paquet-haut"></span>

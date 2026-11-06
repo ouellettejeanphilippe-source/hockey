@@ -54,15 +54,28 @@
  */
 
 import { mesuresDeSaison } from './ratings.js';
-import { famillesBrutes, FAMILLES, clesSpeciales } from './sim.js';
+import { famillesBrutes, FAMILLES, clesSpeciales, joueursDeLaSaison } from './sim.js';
 
+/*
+ * UNE SEULE ÉCHELLE DE RANG (V25 B1, docs/refonte-v25.md § 4 B) : le joueur, le coach, l'adjoint et la carte de jeu se rangent
+ * sur les mêmes cinq niveaux. Chaque niveau porte ce que le jeu en lit : `maitrise`, la force des pouvoirs d'un entraîneur de ce
+ * niveau (×0,9 au Soutien, ×1,3 au ★ Phénomène ; c'était `MAITRISE`) ; `borneV`, ce qu'une carte de jeu ou un adjoint de ce
+ * niveau a le droit de valoir en victoires sur ses soirs (1 · 1 · 1,5 · 2,5 · 4 ; c'étaient `BORNE_NIV` et la borne par
+ * rareté) ; `cadre`, le métal du carton d'une carte de jeu de ce niveau (les quatre cadres de style.css : la commune, le
+ * cadre, l'or, le prisme ; c'était `RARETE_NIV`) ; `tirage`, sa part dans la carte rare d'un pack (55 · 30 · 12 · 3, le
+ * Soutien n'en sort pas ; c'était `COTES_CARTES`). Les raretés (commune, peu commune, rare, légendaire) sont parties.
+ */
 export const NIVEAUX = [
-  { cle: 'soutien', nom: 'Soutien', haut: 1, rang: 'la moitié du bas' },
-  { cle: 'regulier', nom: 'Régulier', haut: 0.5, rang: 'la moitié du haut' },
-  { cle: 'pilier', nom: 'Pilier', haut: 0.2, rang: 'le 20 % du haut' },
-  { cle: 'etoile', nom: 'Étoile', haut: 0.04, rang: 'le 4 % du haut' },
-  { cle: 'phenomene', nom: 'Phénomène', haut: 0.01, rang: 'le 1 % du haut' },
+  { cle: 'soutien', nom: 'Soutien', haut: 1, rang: 'la moitié du bas', maitrise: 0.9, borneV: 1, cadre: 'commune', tirage: 0 },
+  { cle: 'regulier', nom: 'Régulier', haut: 0.5, rang: 'la moitié du haut', maitrise: 1, borneV: 1, cadre: 'commune', tirage: 55 },
+  { cle: 'pilier', nom: 'Pilier', haut: 0.2, rang: 'le 20 % du haut', maitrise: 1.1, borneV: 1.5, cadre: 'peu', tirage: 30 },
+  { cle: 'etoile', nom: 'Étoile', haut: 0.04, rang: 'le 4 % du haut', maitrise: 1.2, borneV: 2.5, cadre: 'rare', tirage: 12 },
+  { cle: 'phenomene', nom: 'Phénomène', haut: 0.01, rang: 'le 1 % du haut', maitrise: 1.3, borneV: 4, cadre: 'legendaire', tirage: 3 },
 ];
+/* Le nom d'un niveau tel que l'écran le dit : l'étoile devant les deux du haut (« ★ Étoile », « ★ Phénomène »). */
+export const nomDuNiveau = k => `${k >= ETOILE ? '★ ' : ''}${(NIVEAUX[k] || NIVEAUX[0]).nom}`;
+/* Un niveau sûr, de 0 à 4 ; sans niveau, Régulier. */
+export const niveauSur = k => (Number.isInteger(k) && NIVEAUX[k] ? k : REGULIER);
 export const REGULIER = 1;
 export const PILIER = 2;
 export const ETOILE = 3;
@@ -205,7 +218,8 @@ export const seuilDuNiveau = (joueurs, g, k) => saisonDe(joueurs).seuils[g][k];
 /* Les réguliers d'une saison rangés par niveau (une personne une fois). */
 export const joueursParNiveau = joueurs => saisonDe(joueurs).parNiveau;
 export const joueursHorsNiveau = joueurs => saisonDe(joueurs).horsNiveau;
-/* Ses cotes sur 20 (`AXES` : six pour un patineur, trois pour un gardien) dans SA saison, ou null (un joueur sans lecture). */
-export const axes20 = (p, joueurs) => (p && joueurs ? saisonDe(joueurs).axes(p) : null);
+/* Ses cotes sur 20 (`AXES` : six pour un patineur, trois pour un gardien) dans SA saison, ou null (un joueur sans lecture).
+   Sans liste, la saison est celle des joueurs enregistrés (`joueursDeLaSaison`, js/sim.js) : Sur table lit ainsi (V25 A2). */
+export const axes20 = (p, joueurs = joueursDeLaSaison(p && p.s)) => (p && joueurs ? saisonDe(joueurs).axes(p) : null);
 /* La cote sur 20 d'un joueur dans SA saison (1 à 20), ou null s'il n'est pas un régulier. Un appui à lire après le niveau, jamais un tri. */
-export const cote20 = (p, joueurs, auxPointsSeulement = false) => (p && joueurs ? saisonDe(joueurs).cote(p, auxPointsSeulement) : null);
+export const cote20 = (p, joueurs = joueursDeLaSaison(p && p.s), auxPointsSeulement = false) => (p && joueurs ? saisonDe(joueurs).cote(p, auxPointsSeulement) : null);

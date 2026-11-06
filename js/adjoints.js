@@ -116,13 +116,11 @@ export const ADJOINTS = {
  * qu'il donne (`FORCE_NIV`) et le PRIX de ce qu'il coûte (`PRIX_NIV`, qui bouge moins que la force : un style reste un style, son prix se voit encore au Phénomène, et le Soutien est faible sans être un piège), écart par écart au match ordinaire. Un Phénomène
  * donne plus et coûte moins ; un Soutien, l'inverse. Le Pilier, c'est la table telle quelle : une carte d'avant la V23,
  * sans niveau, en est un (`NIV_DEFAUT`), et une vieille partie se rejoue au but près (`check_sauvegardes`). Sa borne
- * suit son niveau comme une carte suit sa rareté (`RARETE_NIV`, `BORNE_NIV` : ±1 V à ±4 V) — `check_pouvoirs`.
+ * suit son niveau (`NIVEAUX[k].borneV`, js/niveaux.js : ±1 V à ±4 V ; V25 B1 : une seule échelle, ses noms, ses cadres
+ * et ses bornes vivent là) — `check_pouvoirs`.
  */
-export const NOMS_NIV = ['Soutien', 'Régulier', 'Pilier', '★ Étoile', '★ Phénomène'];
 export const FORCE_NIV = [0.7, 0.85, 1, 1.15, 1.3];
 const PRIX_NIV = [1.05, 1.025, 1, 0.9, 0.8];
-export const RARETE_NIV = ['commune', 'commune', 'peu', 'rare', 'legendaire'];
-export const BORNE_NIV = [1, 1, 1.5, 2.5, 4];
 export const NIV_DEFAUT = 3;
 /* LE RELAIS À SON NIVEAU (V23 D) : le canal relayé rejoue son écart, 0,5 fois au Soutien, 0,75 au Pilier, 1,05 au ★ Phénomène (mesuré, docs/decisions.md : à 0,3-0,6, un relais ne se voyait pas dans la feuille ; à 1, la paire rendait ×1,73 ses pièces, au-dessus de la bande). */
 export const RELAIS_NIV = [0.5, 0.6, 0.75, 0.9, 1.05];

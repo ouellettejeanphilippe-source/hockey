@@ -98,7 +98,6 @@ const MOT_EDITION = {
   legendaire: 'Ses deux badges montent de deux, et le second rend plein. Une case de plus au verso.',
 };
 const MOT_EDITION_G = n => (n > 1 ? `Son badge monte de ${n} : Bronze → ${['', '', 'Or', 'Platine'][n]}.` : 'Son badge monte au suivant : Bronze → Argent.');
-const RECRUE_PROGRESSE = { ico: '🐣', nom: 'Le jeune progresse', mot: 'Contrat d\'entrée : précision +1 % à partir de son 42e match.', apres: 41, finition: 1.01 };
 
 /* La variante tirée selon des cotes (en %), de la graine et de la clé du joueur. */
 export function varianteTiree(cotes, ...parts) {
@@ -111,16 +110,6 @@ export function carteDe(rarete) {
   return { rar: VARIANTE_PALIERS[rarete] ? rarete : 'commune' };
 }
 
-/*
- * L'EFFET D'UNE CARTE SUR UN CANAL du moteur, pour un joueur : un facteur (1 = rien). Depuis V2.4, la variante
- * joue par ses paliers (`badgesDe`) ; reste la recrue qui a fait ses classes (ses matchs joués, `simGP`).
- */
-export function effetCarte(p, canal) {
-  const c = p && p._carte;
-  if (!c || canal !== 'finition' || !c.recrue || (p.simGP || 0) <= RECRUE_PROGRESSE.apres) return 1;
-  return RECRUE_PROGRESSE.finition;
-}
-
 /* Ce qu'une carte fait sur la glace, en mots : l'écran l'affiche UNE fois. Rien pour une carte de base. */
 export function traitsDeCarte(carte, gardien = false) {
   const out = [];
@@ -129,6 +118,5 @@ export function traitsDeCarte(carte, gardien = false) {
     const mot = gardien ? `${MOT_EDITION_G(VARIANTE_PALIERS_G[r])}${VARIANTE_PLEINE[r] ? ' Une case de plus au verso.' : ''}` : MOT_EDITION[r];
     out.push({ ico: `Éd. ${numeroEdition(r)}`, nom: NOM_VARIANTE[r], mot });
   }
-  if (carte && carte.recrue) out.push({ ico: RECRUE_PROGRESSE.ico, nom: RECRUE_PROGRESSE.nom, mot: RECRUE_PROGRESSE.mot });
   return out;
 }

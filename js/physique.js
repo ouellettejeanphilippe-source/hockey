@@ -33,7 +33,8 @@
  *
  * Le moteur de la saison (js/sim.js) reste le moteur des matchs du jeu : celui-ci joue UNE glace, à la main.
  */
-import { entierDeGraine } from './sim.js';
+import { facteurPunitionsEpoque } from './sim.js';
+import { generateur, gauss, entierDeGraine } from './util.js';
 
 const PIED = 0.3048;
 /*
@@ -236,17 +237,6 @@ export const MATCH = {
 const hyp = Math.hypot;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const plier = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
-/* Un générateur semé (mulberry32) : la graine du match, hachée comme partout ailleurs. */
-function generateur(graine) {
-  let a = entierDeGraine(graine) || 1;
-  return () => {
-    a = a + 0x6D2B79F5 | 0;
-    let t = Math.imul(a ^ a >>> 15, 1 | a);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
-const gauss = de => Math.sqrt(-2 * Math.log(1 - de())) * Math.cos(2 * Math.PI * de());
 export const autre = eq => (eq === 'A' ? 'B' : 'A');
 
 /* La lame d'un patineur : devant lui, du côté de sa main (`s.av` devant, `s.lat` de côté, + à sa droite). */
@@ -354,7 +344,8 @@ export function nouveauMatch({ graine = 'match', A, B, periode = MATCH.periode, 
   const f = DIFFICULTES[difficulte] || 1;
   for (const [eq, club] of [['A', A], ['B', B]]) {
     const attaque = eq === 'A' ? 1 : -1;
-    const E = { attaque, nom: club.nom || eq, tag: club.tag || eq, lignes: { F: [[], [], []], D: [[], []] }, enPoste: { F: 0, D: 0 }, presence: 0 };
+    // LES PUNITIONS À L'ÉPOQUE DU CLUB (V25 A2) : les fautes de bâton se sifflent au rythme de sa saison, lu dans le moteur.
+    const E = { attaque, nom: club.nom || eq, tag: club.tag || eq, lignes: { F: [[], [], []], D: [[], []] }, enPoste: { F: 0, D: 0 }, presence: 0, punitions: facteurPunitionsEpoque(club.annee) };
     // La difficulté pèse sur le club que l'IA joue seule.
     const force = quiJoue.includes(eq) ? 1 : f;
     club.patineurs.forEach((j, k) => {
@@ -795,6 +786,7 @@ function fauteDeBaton(etat, s, p, protege, ev) {
   const derriere = (p.x - s.x) * Math.cos(p.cap) + (p.y - s.y) * Math.sin(p.cap) > 0;
   const fonce = ((s.vx - p.vx) * (p.x - s.x) + (s.vy - p.vy) * (p.y - s.y)) / d;
   const enMatch = etat.match && !etat.match.ronde;
+  const epoque = (etat.equipes[s.equipe] && etat.equipes[s.equipe].punitions) || 1;
   if (derriere && etat.de() < HARPON.trebuche) {
     // Le harpon rate, par-derrière, et accroche les patins du porteur : il tombe, deux minutes ; sur une échappée, un tir de punition.
     p.auSol = PATIN.sol * 0.8;
@@ -802,12 +794,12 @@ function fauteDeBaton(etat, s, p, protege, ev) {
       if (enEchappee(etat, p)) accorderTirDePunition(etat, p, s, ev);
       else punir(etat, s, 'avoir fait trébucher', ev, p);
     }
-  } else if (derriere && hyp(p.vx, p.vy) > FAUTES.rapide && etat.de() < FAUTES.accroche) {
+  } else if (derriere && hyp(p.vx, p.vy) > FAUTES.rapide && etat.de() < FAUTES.accroche * epoque) {
     p.vx *= FAUTES.ralenti; p.vy *= FAUTES.ralenti;
     if (enMatch) punir(etat, s, 'accrochage', ev, p);
-  } else if (protege && etat.de() < FAUTES.eleve) {
+  } else if (protege && etat.de() < FAUTES.eleve * epoque) {
     if (enMatch) punir(etat, s, 'bâton élevé', ev, p);
-  } else if (!protege && fonce > FAUTES.fonce && etat.de() < FAUTES.cinglage) {
+  } else if (!protege && fonce > FAUTES.fonce && etat.de() < FAUTES.cinglage * epoque) {
     if (enMatch) punir(etat, s, 'cinglage', ev, p);
   }
 }

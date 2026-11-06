@@ -42,7 +42,7 @@
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ, REVERS, PROTEGE, FEINTE, LAISSEE, BANC, JAMBES, HARPON, FAUTES, BAGARRE, LEVE, CELEBRATION } from '../js/physique.js';
 import { PATINEURS, DROITIERS, ANCRE } from '../js/sprites.js';
-import { decisionIA, styleDuClub, ECART_D, SORTIE, ECRAN_D } from '../js/glace-ia.js';
+import { decisionIA, styleDuClub, ECART_D, SORTIE, ECRAN_D, FOND } from '../js/glace-ia.js';
 
 const t0 = Date.now();
 const G = 9.81;
@@ -949,6 +949,9 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
 }
 {
   // LE LANCER AU FOND : la bleue bouchée par leurs deux défenseurs, personne des siens dedans : au fond, puis la course.
+  // La scène juge la RÈGLE, pas le dé : `FOND.part` (le lancer au fond, une décision sur trois) est mis à 1 le temps de la
+  // scène, sinon un autre générateur (V25 A2) la faisait réussir ou rater selon le tirage — une loterie, pas un test.
+  const partAvant = FOND.part; FOND.part = 1;
   const e = enScene('fond', null, -18);
   const A = surGlace(e, 'A'), B = surGlace(e, 'B'), porteur = A.find(s => s.poste === 'C');
   Object.assign(porteur, { x: 2.5, y: -1, cap: 0, vx: 5 });
@@ -964,6 +967,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   const chasseurs = A.filter(s => s.poste !== 'D' && s.x > BLEUE).length;
   exiger('le lancer au fond : la bleue bouchée, le porteur la lance dans le coin, pas au filet', !!fond && fond.fond && profond, fond ? `${Math.round(fond.v * 3.6)} km/h, ${profond ? 'au fond' : 'pas au fond'}` : 'aucun lancer');
   exiger('… et les siens courent après, sans hors-jeu', chasseurs >= 1 && !horsjeu, `${chasseurs} avant(s) dans la zone après 3 s${horsjeu ? ', hors-jeu' : ''}`);
+  FOND.part = partAvant;
 }
 {
   // LE CYCLE : au coin, pressé, il la remonte le long de la bande au coéquipier qui l'attend en haut.

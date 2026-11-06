@@ -21,6 +21,8 @@ export const niveauDe = xp => SEUILS_NIVEAU.filter(s => (xp || 0) >= s).length;
 /* Ce qu'il manque pour le niveau suivant (null au dernier). */
 export const xpAvantProchain = xp => { const s = SEUILS_NIVEAU.find(x => (xp || 0) < x); return s == null ? null : s - (xp || 0); };
 export const NIVEAU_DES_POUVOIRS = [1, 3, 5];
+/* Le carton d'un pouvoir (V25 B1) : Pilier, ★ Étoile, ★ Phénomène pour I, II et l'ultime — son cadre, pas une borne (la borne d'un pouvoir est par rang, `check_pouvoirs`). */
+export const NIVEAU_POUVOIR = [2, 3, 4];
 export const NIVEAUX_TALENT = [2, 4];
 export const TALENT = 0.5;
 /* Les pouvoirs ouverts à un niveau : leurs index (0, 1, 2). */

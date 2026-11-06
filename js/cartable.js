@@ -368,7 +368,7 @@ export function rendreCartable(host, ctx) {
     const autres = Object.keys(c.joueurs).filter(cle => !clesEq.has(cle)).length;
     nav = nPages > 1 ? `<div class="ct-nav"><button type="button" class="ct-nav-btn" data-feuille="avant" aria-label="Feuille précédente" disabled>‹</button><span class="ct-nav-mot">Feuille 1 / ${nPages}</span><button type="button" class="ct-nav-btn" data-feuille="apres" aria-label="Feuille suivante">›</button></div>` : '';
     corps = cartes.length
-      ? `<p class="ct-mot">${esc(ctx.titreSaison || 'Tes joueurs, dans le cartable.')} Touche une carte.</p><div class="ct-reliure">${pagesDe(cartes, 'Ton équipe', esc)}</div>${autres ? `<button type="button" class="ct-autres">Les autres débloqués · ${autres}</button>` : ''}`
+      ? `<p class="ct-mot">${esc(ctx.titreSaison || 'Tes joueurs')}</p><div class="ct-reliure">${pagesDe(cartes, 'Ton équipe', esc)}</div>${autres ? `<button type="button" class="ct-autres">Les autres débloqués · ${autres}</button>` : ''}`
       : '<p class="ct-vide">Pas encore d\'alignement.</p>';
   } else if (etat.vue === 'coachs') {
     // TES ENTRAÎNEURS (V21) : une carte par coach-saison, aux couleurs de son club ; ses runs chez toi dessous.

@@ -31,8 +31,9 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague } from '../js/sim.js';
 import { POUVOIRS, XP, SEUILS_NIVEAU, NIVEAU_MAX, niveauDe, pouvoirsOuverts, talentsDus, forceDuPouvoir, TALENT_CASE } from '../js/pouvoirs.js';
-import { MAITRISE, maitriseDu, niveauDuCoach, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
-import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, REPOS, MAIN_MAX, CASES_PAR_NIVEAU, adjointsOfferts, lignesDeLAdjoint, mainDe, enPoste, auRepos, embaucher, poster, quiPartDeLaMain, casesDuNiveau, casesDuPerso, CASE_DE_PLUS, NOMS_NIV, BORNE_NIV, NIV_DEFAUT, styleAuNiveau, niveauOffert } from '../js/adjoints.js';
+import { maitriseDu, niveauDuCoach, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
+import { NIVEAUX, nomDuNiveau } from '../js/niveaux.js';
+import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, REPOS, MAIN_MAX, CASES_PAR_NIVEAU, adjointsOfferts, lignesDeLAdjoint, mainDe, enPoste, auRepos, embaucher, poster, quiPartDeLaMain, casesDuNiveau, casesDuPerso, CASE_DE_PLUS, NIV_DEFAUT, styleAuNiveau, niveauOffert } from '../js/adjoints.js';
 import fs from 'node:fs';
 import { COACHS } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
@@ -93,7 +94,7 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
   const tel = Object.keys(ADJOINTS).every(k => JSON.stringify(styleAuNiveau(k)) === JSON.stringify({ effet: ADJOINTS[k].effet || null, adv: ADJOINTS[k].adv || null }));
   const nivs = Array.from({ length: 400 }, (_, g) => [niveauOffert(`g${g}`, 'r30', 'mur'), niveauOffert(`g${g}`, 'r30', 'mur', true)]);
   exiger('le niveau d\'un adjoint : le Pilier est la table, une offre tire de 1 à 5, un moment fort monte d\'un cran', tel && nivs.every(([a, b]) => a >= 1 && a <= 5 && b === Math.min(5, a + 1)) && new Set(nivs.map(([a]) => a)).size === 5,
-    [1, 2, 3, 4, 5].map(n => `${NOMS_NIV[n - 1]} ${nivs.filter(([a]) => a === n).length}`).join(' · '));
+    [1, 2, 3, 4, 5].map(n => `${nomDuNiveau(n - 1)} ${nivs.filter(([a]) => a === n).length}`).join(' · '));
   const a = adjointsOfferts(P, 'g', 'pp9'), b = adjointsOfferts(P, 'g', 'pp9');
   exiger('trois adjoints offerts, purs, distincts, jamais un déjà dans la main', a.length === 3 && JSON.stringify(a) === JSON.stringify(b) && new Set(a).size === 3 && a.every(k => ADJOINTS[k] && k !== 'canonnier'), a.join(', '));
   const autres = new Set();
@@ -115,12 +116,12 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
   const donnees = JSON.parse(fs.readFileSync(new URL('../data/coachs.json', import.meta.url), 'utf8'));
   const index = JSON.parse(fs.readFileSync(new URL('../data/index.json', import.meta.url), 'utf8')).seasons;
   const cartes = Object.entries(donnees).flatMap(([saison, clubs]) => Object.keys(clubs).map(tag => carteDuCoach(donnees, saison, tag)));
-  const fautes = cartes.filter(c => !c || !c.n || !POUVOIRS[c.cle] || !(c.rang >= 1) || c.maitrise < MAITRISE.at(-1)[1] || c.maitrise > MAITRISE[0][1] || c.maitrise !== maitriseDu(c.rang) || !(c.fiche.gp > 0));
+  const fautes = cartes.filter(c => !c || !c.n || !POUVOIRS[c.cle] || !(c.rang >= 1) || c.maitrise < NIVEAUX[0].maitrise || c.maitrise > NIVEAUX[4].maitrise || c.maitrise !== maitriseDu(c.rang) || !(c.fiche.gp > 0));
   exiger('un vrai entraîneur pour chaque club de chaque saison, une philosophie connue', !fautes.length && index.every(s => donnees[s]) && cartes.length > 1000,
     `${cartes.length} cartes · ${Object.keys(POUVOIRS).map(k => `${k} ${cartes.filter(c => c.cle === k).length}`).join(' · ')}`);
   const bowman = carteDuCoach(donnees, '1976-77', 'MTL');
   exiger('Scotty Bowman, Canadiens 1976-77 : sa fiche, sa Coupe, son Jack Adams', bowman && bowman.n === 'Scotty Bowman' && bowman.fiche.v === 60 && bowman.coupe && bowman.jack, bowman ? `${bowman.n} · ${bowman.cle} · ${bowman.rang}e · ×${bowman.maitrise}` : 'absent');
-  // V23 : cinq niveaux, comme les joueurs (js/coachs-reels.js `MAITRISE`, `niveauDuCoach`).
+  // V23 : cinq niveaux, comme les joueurs (js/niveaux.js `NIVEAUX[k].maitrise`, js/coachs-reels.js `niveauDuCoach`).
   exiger('la maîtrise suit le niveau : ★ Phénomène ×1,3 au 1er rang, ★ Étoile ×1,2 aux 3 premiers, Pilier ×1,1 aux 8, Régulier ×1 aux 16, Soutien ×0,9 ensuite',
     [[1, 5, 1.3], [2, 4, 1.2], [3, 4, 1.2], [4, 3, 1.1], [8, 3, 1.1], [9, 2, 1], [16, 2, 1], [17, 1, 0.9], [32, 1, 0.9]].every(([r, n, m]) => niveauDuCoach(r) === n && maitriseDu(r) === m));
   const ouverts = ['tortue', 'essaim', 'rhinos'];
@@ -278,13 +279,13 @@ if (MESURE) {
       Math.abs(x.pun) / VISIBLE.punitions, Math.abs(x.punEux) / VISIBLE.punitions, Math.abs(x.coups) / VISIBLE.coups, Math.abs(x.bl * 82) / VISIBLE.blessures);
     m.v = (m.d / m.soirs.n) * MATCHS_PAR_SAISON / BUTS_PAR_V;
     const A = ADJOINTS[m.cle];
-    informer(`${A.ico} ${A.nom} · ${NOMS_NIV[m.niv - 1]}`.padEnd(36), `par soir : tirs ${f(x.tp)} / ${f(x.tc)} · buts ${f(x.gf, 2)} / ${f(x.ga, 2)} · pun. ${f(x.pun, 2)} / ${f(x.punEux, 2)} · coups ${f(x.coups)} · blessures ${f(x.bl * 82)}/saison · vu ${m.vue.toFixed(1)} · ${f(m.v)} V sur ${Math.round(MATCHS_PAR_SAISON)} matchs`);
+    informer(`${A.ico} ${A.nom} · ${nomDuNiveau(m.niv - 1)}`.padEnd(36), `par soir : tirs ${f(x.tp)} / ${f(x.tc)} · buts ${f(x.gf, 2)} / ${f(x.ga, 2)} · pun. ${f(x.pun, 2)} / ${f(x.punEux, 2)} · coups ${f(x.coups)} · blessures ${f(x.bl * 82)}/saison · vu ${m.vue.toFixed(1)} · ${f(m.v)} V sur ${Math.round(MATCHS_PAR_SAISON)} matchs`);
   }
   exiger('chaque adjoint en poste est nommé à la feuille, chaque soir', adj.every(m => !m.sansNote), adj.filter(m => m.sansNote).map(m => `${ADJOINTS[m.cle].nom} (${m.sansNote})`).join(', ') || 'tous');
-  const qui = m => `${ADJOINTS[m.cle].nom} ${NOMS_NIV[m.niv - 1]}`;
+  const qui = m => `${ADJOINTS[m.cle].nom} ${nomDuNiveau(m.niv - 1)}`;
   exiger('chaque adjoint se voit dans la feuille, à chaque niveau', adj.every(m => m.vue >= 1), adj.filter(m => m.vue < 1).map(m => `${qui(m)} (${m.vue.toFixed(2)})`).join(', ') || 'tous');
-  // V23 : la borne suit le niveau, comme une carte suit sa rareté (`BORNE_NIV` : ±1 V au Soutien et au Régulier, ±1,5 au Pilier, ±2,5 à l'Étoile, ±4 au Phénomène).
-  exiger(`chaque adjoint reste sous la borne de son niveau sur une saison (${BORNE_NIV.map(b => `±${String(b).replace('.', ',')}`).join(' · ')} V)`, adj.every(m => Math.abs(m.v) <= BORNE_NIV[m.niv - 1]), adj.filter(m => Math.abs(m.v) > BORNE_NIV[m.niv - 1]).map(m => `${qui(m)} ${f(m.v)}`).join(', ') || 'tous');
+  // V23 : la borne suit le niveau, comme une carte de jeu (`NIVEAUX[k].borneV` : ±1 V au Soutien et au Régulier, ±1,5 au Pilier, ±2,5 à l'Étoile, ±4 au Phénomène ; V25 B1).
+  exiger(`chaque adjoint reste sous la borne de son niveau sur une saison (${NIVEAUX.map(N => `±${String(N.borneV).replace('.', ',')}`).join(' · ')} V)`, adj.every(m => Math.abs(m.v) <= NIVEAUX[m.niv - 1].borneV), adj.filter(m => Math.abs(m.v) > NIVEAUX[m.niv - 1].borneV).map(m => `${qui(m)} ${f(m.v)}`).join(', ') || 'tous');
   // Un niveau de plus vaut plus : le ★ Phénomène bat le Soutien du même style, en paires sur les mêmes dés.
   const parCle = cle => Object.fromEntries(adj.filter(m => m.cle === cle).map(m => [m.niv, m.v]));
   // Un soir isolé ne paie pas les blessures ni les jambes (le préparateur, le rouleur valent plus sur une saison) : chacun au

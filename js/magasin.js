@@ -12,7 +12,6 @@
  */
 import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE, tierDuPack, POSTES_DU_PACK } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
-import { RARETES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { esc, money as M } from './util.js';
 import { COACHS } from './coachs.js';
@@ -80,7 +79,7 @@ export function ouvrirMagasin(ctx) {
       if (R.cle === 'jour') return ctx.duJour ? `<section class="pk-rayon pk-rayon-jour"><h3>${R.ico} ${esc(ctx.mode === 'rogue' ? 'Le pack de la semaine' : R.nom)} <span class="pk-rabais">−${Math.round((1 - ctx.duJour.rabais) * 100)} % ${ctx.mode === 'rogue' ? 'cette semaine' : 'aujourd\'hui'}</span></h3><div class="pk-rangee">${tuile(ctx.duJour.pack, true)}</div></section>` : '';
       return `<section class="pk-rayon"><h3>${R.ico} ${esc(R.nom)}</h3><div class="pk-rangee">${R.packs.map(k => tuile(k)).join('')}</div></section>`;
     }).join('')
-      : `<section class="pk-rayon pk-rayon-debut"><h3>🎒 Pour commencer</h3><div class="pk-rangee">${DEBUT.filter(k => PACKS_TOUS[k]).map(k => tuile(k)).join('')}</div>
+      : `<section class="pk-rayon pk-rayon-debut"><h3>Pour commencer</h3><div class="pk-rangee">${DEBUT.filter(k => PACKS_TOUS[k]).map(k => tuile(k)).join('')}</div>
         <button type="button" class="btn pk-tout">Voir les ${BOUTIQUE.length} packs</button></section>`;
     /* TES PACKS (1.0, oct.) : achetés sans les ouvrir. JP : *séparer le marché des cartes déjà achetées, en bas*.
        Le haut de la boutique est le marché ; ce qui est déjà à toi vit à part, en bas, et une ligne en tête y mène. */
@@ -106,13 +105,13 @@ export function ouvrirMagasin(ctx) {
     const clubRangee = () => {
       const clubs = (ctx.club || []).filter(o => o.sorte === 'club' && !o.verrou).slice(0, 2);
       const tuileClub = (visuel, nom, mot, cls = '', data = '') => `<button type="button" class="pk-club-mini${cls}"${data}><span class="pk-club-mini-ecu" aria-hidden="true">${visuel}</span><b>${esc(nom)}</b><small>${esc(mot)}</small></button>`;
-      return `<section class="pk-rayon pk-rayon-club-rangee"><h3>🏅 Ton club <span class="pk-rabais">${ctx.club.length} à débloquer</span></h3><div class="pk-club-rangee">
+      return `<section class="pk-rayon pk-rayon-club-rangee"><h3>Ton club <span class="pk-rabais">${ctx.club.length} à débloquer</span></h3><div class="pk-club-rangee">
         ${ctx.clubPorte ? tuileClub(ctx.clubPorte.apercu, ctx.clubPorte.nom, 'Porté', ' porte', ' data-club-tout="1"') : ''}
         ${clubs.map(o => tuileClub(o.apercu, o.nom, `${o.prix} 🪙`, '', ` data-club="${esc(o.cle)}"`)).join('')}
         ${tuileClub('›', `Et ${Math.max(0, ctx.club.length - clubs.length)}`, 'Voir', ' pk-club-plus', ' data-club-tout="1"')}
       </div></section>`;
     };
-    const club = (ctx.club || []).length ? `<section class="pk-rayon pk-rayon-club"><h3>🏅 Ton club · ${ctx.club.length} à débloquer</h3>
+    const club = (ctx.club || []).length ? `<section class="pk-rayon pk-rayon-club"><h3>Ton club · ${ctx.club.length} à débloquer</h3>
       <div class="stat-tabs" role="tablist">${RAYONS_CLUB.map(R => `<button type="button" role="tab" class="stat-tab${R.cle === ongletClub ? ' on' : ''}" aria-selected="${R.cle === ongletClub}" data-onglet="${R.cle}">${esc(R.titre)} · ${(ctx.club || []).filter(o => o.sorte === R.cle).length}</button>`).join('')}</div>
       <div class="pk-rangee${ongletClub === 'palette' ? ' pk-nuancier' : ''}">${offres.map(o => {
       const manque = !o.verrou && ctx.jetons < o.prix ? o.prix - ctx.jetons : 0;
@@ -165,9 +164,9 @@ export function ouvrirMagasin(ctx) {
     const verrou = ctx.ouverts[cle] === true ? '' : (ctx.ouverts[cle] || 'Verrouillé');
     const prix = prixDe(cle, rabaisDe(cle));
     const ch = chancesDe(cle, P.sorte === 'joueurs' ? ctx.mods : {});
-    const cotes = P.sorte === 'joueurs' ? cotesDuPack(cle, ctx.mods) : P.cotes;
+    const cotes = cotesDuPack(cle, ctx.mods);
     const tot = Object.values(cotes).reduce((a, b) => a + b, 0) || 100;
-    const noms = P.sorte === 'joueurs' ? { ...NOM_VARIANTE, legendaire: 'Holo numérotée' } : { commune: 'Commune', peu: 'Peu commune', rare: 'Rare', legendaire: 'Légendaire' };
+    const noms = { ...NOM_VARIANTE, legendaire: 'Holo numérotée' };
     // Jalon P2 : la décennie et le rôle ; une option que les déblocages ferment se voit, grisée, avec sa raison.
     const verrous = (ctx.verrousChoix || {})[P.choix] || {};
     const option = (cle, nom) => `<option value="${esc(cle)}"${verrous[cle] ? ` disabled title="${esc(verrous[cle])}"` : ''}>${esc(nom)}${verrous[cle] ? ' 🔒' : ''}</option>`;
@@ -193,7 +192,7 @@ export function ouvrirMagasin(ctx) {
       ${P.sorte === 'joueurs' ? niveauxHtml(cle, ctx.mods) : ''}
       ${P.sorte === 'joueurs' && ctx.mode === 'rogue' ? `<p class="pk-num pk-garantie">🛟 Une Or ou une Holo au plus tard au ${PITIE + 1}e pack de joueurs${ctx.sansHolo ? ` (tu en es à ${ctx.sansHolo} sans)` : ''}.</p>` : ''}
       <h4>${P.sorte === 'joueurs' ? 'L\'édition d\'une carte' : 'Le barème d\'une carte'}</h4>
-      <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${P.sorte !== 'joueurs' && RARETES[k] ? `${RARETES[k].gemme} ` : ''}${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
+      <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' ? `<p class="pk-num">Une Holo est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}.</p>` : ''}
       </div>
       ${choix}

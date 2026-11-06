@@ -13,7 +13,6 @@ import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './ba
 import { hubActif } from './coquille.js';
 import { COACHS, VOIES, REGLES_DU_COACH } from './coachs.js';
 import { chargerCoachs, lotoDesCoachs, motDuRang, niveauDuCoach } from './coachs-reels.js';
-import { NOMS_NIV } from './adjoints.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
 import { motsDeMutationEnChiffres, ditDuPouvoir } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE, POSTES_DU_PACK } from './packs.js';
@@ -24,7 +23,7 @@ import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, SE
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi, coachAuCartable, coachsDuCartable } from './cartable.js';
 import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
-import { ETOILE, PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
+import { ETOILE, PHENOMENE, niveauDe, NIVEAUX, nomDuNiveau } from './niveaux.js';
 import { artJoueur, photoAction, cadrePhoto, epoqueDe, serieDe, SERIES } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
 import { ouvrirDepartClasseur } from './depart.js';
@@ -387,7 +386,7 @@ function optionDeJoueurTire(x) {
   const bonus = traitsDeCarte(carteDe(x.rar), g === 'G');
   return {
     // S80 : à finition égale, son niveau ordonne aussi le retournement (la finition d'abord : une holo Soutien sort après un Phénomène de base ; js/gerant.js).
-    cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
+    cle: getPlayerKey(x.p), edition: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
     art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p), cadre: cadrePhoto(x.p) }),
     joueurHtml: miniAvecVariante(x.p, x.rar),
     // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
@@ -801,7 +800,7 @@ async function ouvrirPacksDeDepart(roster, vedette = null) {
         : i === 0 ? `Ton équipe sort de ${packs.length} packs. Chaque carte va à ton effectif et à ton cartable.` : `${P.cartes.length} de plus.`,
       options: P.cartes.map(p => {
         const g = groupeDe(p);
-        return { cle: getPlayerKey(p), rarete: 'commune', nom: p.n, type: `${POSTE_GROUPE[g]} · ${p.t} ${p.s}`, coin: money(p.$),
+        return { cle: getPlayerKey(p), edition: 'commune', nom: p.n, type: `${POSTE_GROUPE[g]} · ${p.t} ${p.s}`, coin: money(p.$),
           art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(p.s), club: esc(p.t), actionSrc: photoAction(p), cadre: cadrePhoto(p) }),
           // Un pack de départ ne se choisit pas, il se montre : la carte se touche pour sa fiche, le bas mène au pack suivant.
           joueurHtml: carteMiniHtml(p), vue: true, apercu: () => apercuJoueur(p) };
@@ -1016,7 +1015,7 @@ async function choisirCoach() {
       const runs = (siens[c.id] || {}).r || 0;
       return { cle: c.id, ico: C.ico, nom: c.n, sous: `${nomDuClubSaison(c.tag, c.saison)} · ${fiche(c)} · ${c.neuf ? 'nouvelle carte' : `📒 ton cartable, ${runs} run${runs > 1 ? 's' : ''}`}`,
         // V23 : son niveau, comme un joueur (`niveauDuCoach`), et la force qu'il donne à ses pouvoirs.
-        mots: [{ txt: `${NOMS_NIV[niveauDuCoach(c.rang) - 1]} · ${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise !== 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: c.maitrise > 1 ? true : c.maitrise < 1 ? false : null },
+        mots: [{ txt: `${nomDuNiveau(niveauDuCoach(c.rang) - 1)} · ${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise !== 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: c.maitrise > 1 ? true : c.maitrise < 1 ? false : null },
           // V23 : sa règle, ce qu'elle paie le soir où ton club joue son hockey (js/coachs.js `REGLES_DU_COACH`).
           ...(REGLES_DU_COACH[c.cle] ? [{ txt: `Sa règle : ${REGLES_DU_COACH[c.cle].dit}, +${REGLES_DU_COACH[c.cle].jetons} 🪙 le soir`, bon: true }] : []),
           ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${ditDuPouvoir(P)}`, bon: null }))] };
@@ -1102,12 +1101,13 @@ async function choisirDuClasseur(gardes = [], exigence = 0) {
     }),
   });
 }
-/* Ce que le départ a donné, en une ligne : « Ton effectif : 20 Soutien et 3 Réguliers de ton cartable ». */
+/* Ce que le départ a donné, en comptes (jamais un zéro) : « Ton effectif : 3 Réguliers de ton cartable · 20 bouche-trous de la ligue ». */
 function motDuVestiaire(V) {
   if (V.quota == null) return 'Tes bouche-trous sont là';
   const s = V.tires.filter(x => estSoutien(x.niveau)).length, r = V.tires.length - s;
   const ligue = Object.values(V.roster).filter(Boolean).length - V.tires.length - V.nFixes;
-  return `Ton effectif : ${s} ${NIVEAUX[0].nom}${r ? ` et ${r} ${NIVEAUX[1].nom}${r > 1 ? 's' : ''}` : ''} de ton cartable${ligue > 0 ? `, ${ligue} bouche-trou${ligue > 1 ? 's' : ''} de la ligue` : ''}`;
+  const cartable = [s ? `${s} ${NIVEAUX[0].nom}` : '', r ? `${r} ${NIVEAUX[1].nom}${r > 1 ? 's' : ''}` : ''].filter(Boolean).join(' et ');
+  return `Ton effectif : ${[cartable ? `${cartable} de ton cartable` : '', ligue > 0 ? `${ligue} bouche-trou${ligue > 1 ? 's' : ''} de la ligue` : ''].filter(Boolean).join(' · ')}`;
 }
 async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = null, exigence = 0) {
   const meta = lireMeta();
@@ -1155,7 +1155,8 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
   saveGame(); syncOptionsUI(); render();
   setView('roster');
   const noms = [...gardes.map(p => p.n), ...tires.map(x => x.p.n)];
-  toast(`${motDuVestiaire(V)}${noms.length ? `, avec ${noms.join(', ')}` : ''}. Le proprio veut : ${mandatDe(1, exigence, m.runs === 1).mot}. Lance la saison quand tu veux.`);
+  // Une ligne de comptes, pas un paragraphe (5 nov. 2026, l'audit d'unslop) : le bouton dit déjà « Lance la saison ».
+  toast(`${motDuVestiaire(V)}${noms.length ? ` · ${noms.join(', ')}` : ''} · Le proprio veut : ${mandatDe(1, exigence, m.runs === 1).mot}`);
 }
 /*
  * LE PLAFOND D'UNE SAISON DE LA RUN : 82 M$, plus ce que le vestiaire a
@@ -1438,7 +1439,7 @@ export function majRunRogue() {
     <div class="rg-run-boutons">
       ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
       ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
-      <button type="button" class="btn rg-vestiaire">🏅 Les déblocages · ${lireMeta().ecussons || 0}</button>
+      <button type="button" class="btn rg-vestiaire">Les déblocages · ${lireMeta().ecussons || 0}</button>
     </div>${galonsHtml()}`;
   // 1.0 (R7) : la run finie ou gagnée s'ouvre UNE fois en plein écran, avant qu'on reparte.
   if ((sort === 'finie' || sort === 'gagnee') && G.rogue && !G.rogue.taRunVue) montrerTaRun(sort, n, s);
@@ -1687,7 +1688,7 @@ async function continuerRun(gardes = [], lotos = []) {
   saveGame(); render();
   setView('roster');
   const motEquipe = `${motDuVestiaire(V).toLowerCase()}${gardes.length ? `, avec ${gardes.map(p => p.n).join(', ')}` : ''}${lotos.length ? `, ${lotos.length} carte${lotos.length > 1 ? 's' : ''} du loto` : ''}`;
-  toast(`Saison ${G.rogue.saison} de la run : ${motEquipe}, et 🪙 ${G.rogue.depart} jetons. Le proprio veut : ${mandatDe(G.rogue.saison, exigenceDeLaRun(), premiereRun()).mot}.`);
+  toast(`Saison ${G.rogue.saison} de la run : ${motEquipe} · 🪙 ${G.rogue.depart} jetons · Le proprio veut : ${mandatDe(G.rogue.saison, exigenceDeLaRun(), premiereRun()).mot}`);
 }
 /*
  * LE VESTIAIRE DES DÉBLOCAGES : ce que les écussons achètent, d'une run à
@@ -1773,7 +1774,7 @@ export function palmaresDuClubHtml() {
   // cours d'abord, la porte des déblocages au pied ; ils vivaient dans la fenêtre des déblocages.
   // « 455 à dépenser › » : un seul chiffre de médailles sur la page, celui qui s'achète (le titre du prestige ne redit plus celui à vie).
   return `${prestigeHtml(meta, { court: true })}${enCours ? `<div class="vs-jalons">${enCours}</div>` : ''}${vitrine}${pantheon}${lesRuns}
-    <button type="button" class="hub-rangee vs-deblocages"><span class="hub-rangee-t">🏅 Les déblocages</span><b>${meta.ecussons || 0} à dépenser</b></button>`;
+    <button type="button" class="hub-rangee vs-deblocages"><span class="hub-rangee-t">Les déblocages</span><b>${meta.ecussons || 0} à dépenser</b></button>`;
 }
 /* Une ligne d'une rangée de jalons : l'icône, le nom, le chiffre au bout — jamais une deuxième ligne. */
 const ligneJalon = (ico, nom, bout, fait = false) => `<div class="vs-jalon vs-jalon-ligne${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${ico}</span><b>${esc(nom)}</b><span>${esc(bout)}</span></div>`;
@@ -1793,13 +1794,13 @@ function prestigeHtml(meta, { court = false } = {}) {
   // suivante ce qui manque et ce qu'elle donne (« ⛔ Gagner une ronde · Étoiles ×1,1 »), les autres leur prix en 🏅.
   const quoiDe = P => `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
   const prestige = court
-    ? `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)}${ouvertes ? ` <span class="hub-titre-d">${ICO_EXIGENCE} cran ${ouvertes}</span>` : ''}</p>
+    ? `<p class="vs-sec">Le prestige du club · ${esc(PRESTIGES[rang].nom)}${ouvertes ? ` <span class="hub-titre-d">${ICO_EXIGENCE} cran ${ouvertes}</span>` : ''}</p>
     <div class="pl-echelle">${PRESTIGES.map((P, k) => {
       const fait = k <= rang, ici = k === rang, suivant = k === rang + 1;
       const manque = P.jalon && !(meta.jalons || {})[P.jalon] ? `⛔ ${jalonDe(P.jalon)}` : vie < P.min ? `${P.min - vie} 🏅` : '';
       return marche({ num: fait ? '✓' : k, nom: P.nom, sous: ici ? 'tu es ici' : suivant ? esc([manque, `Étoiles ×${String(P.etoile).replace('.', ',')}`].filter(Boolean).join(' · ')) : '', bout: fait || suivant ? '' : `${P.min} 🏅`, etat: ici ? 'ici' : fait ? 'fait' : suivant ? 'suivant' : 'loin' });
     }).reverse().join('')}</div>`
-    : `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
+    : `<p class="vs-sec">Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
     <div class="vs-jalons">${PRESTIGES.map((P, k) => {
       const fait = k <= rang;
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${fait ? '✓' : k}</span><b>${esc(P.nom)}</b><span>${fait ? esc(quoiDe(P)) : `${P.min} 🏅 à vie${P.jalon ? ` et « ${esc(jalonDe(P.jalon))} »` : ''} → ${esc(quoiDe(P))}`}</span></div>`;

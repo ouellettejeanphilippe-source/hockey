@@ -155,7 +155,7 @@ Leur propre étape au CI : `check_coquille`, `check_graine`, `check_instantane`,
 check_packs (une demi-minute), check_gardiens, check_jambes (une minute), check_chiffres (une minute),
 check_banque (une douzaine de minutes), check_affinite (trois minutes), check_duel (six minutes ; N),
 check_retours (deux minutes ; GRAINES), check_arcs (deux minutes), check_suivis, check_effets (vingt minutes ; N, IDS),
-check_pouvoirs sans MESURE=0 (cinq minutes sur quatre processus ; N, COACHS, FILS), check_cartes, check_paliers,
+check_pouvoirs sans MESURE=0 (cinq minutes sur quatre processus ; N, COACHS, FILS), check_paliers,
 check_moments (S66, en paires), check_situations, check_series_pas (S79), check_plan_de_match (V17),
 check_force (la fiche suit la force), check_robot (le robot « premier Signer », 40 saisons ; BALLOTTAGE, MODE=rogue),
 check_rogue (RUNS, CAMPAGNES : la courbe des runs), check_profondeur (un quart d'heure ; rouge tant que la première

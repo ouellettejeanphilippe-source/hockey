@@ -21,7 +21,7 @@ import {
   physiqueDe, accordsDeLigne, EDITIONS_REGLEMENT,
 } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres, motsDeStats, flechesDe } from './impact.js';
-import { carteHtml, RARETES, paquetHtml } from './cartes.js';
+import { carteHtml, paquetHtml } from './cartes.js';
 import { facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { INTENTIONS, PLANS } from './greffes.js';
 import { jouerSon } from './sons.js';
@@ -29,8 +29,9 @@ import { notable, pic } from './mouvement.js';
 import { TRAITS } from './traits.js';
 import { esc, cap as majuscule, glyphe, varsEquipe, nom } from './util.js';
 import { getTeamBand, getTeamLogoHtml } from './logos.js';
-import { ADJOINTS, NOMS_NIV } from './adjoints.js';
+import { ADJOINTS } from './adjoints.js';
 import { COACHS } from './coachs.js';
+import { NIVEAUX, nomDuNiveau, niveauSur } from './niveaux.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -402,8 +403,10 @@ let fermerChoixCourant = null;
  * récompense ») montre les cartes. Sous `prefers-reduced-motion`, la pile sans
  * paquet ni mouvement.
  */
-// `hors` est une édition de carte de joueur (js/rarete.js), entre le Cadre et l'Or.
-const RANG_RARETE = { commune: 0, peu: 1, hors: 1.5, rare: 2, legendaire: 3 };
+// Le rang d'une option, pour l'ordre du retournement et la vedette d'un paquet : une carte de jeu par son niveau (0 à 4,
+// js/niveaux.js), une carte de joueur par son édition (`hors` entre le Cadre et l'Or) ramenée à la même échelle (V25 B1).
+const RANG_EDITION = { commune: 0, peu: 1, hors: 1.5, rare: 3, legendaire: 4 };
+const rangDOption = o => (o.niveau != null ? o.niveau : RANG_EDITION[o.edition] || 0);
 const PAQUETS_OUVERTS = new Set();
 const DECHIRE = 460;             // ms du rabat qui se déchire
 const mouvementCalme = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -503,13 +506,13 @@ export function ouvrirChoix(spec) {
   const pile = spec.genre === 'recompense' && spec.cartes && !spec.lecture && spec.options.length > 0 && !PAQUETS_OUVERTS.has(clePaquet);
   const paquet = pile && !mouvementCalme();
   // L'ordre du retournement : la meilleure carte en dernier (l'ordre à l'écran ne bouge pas) ; à rareté égale, le meilleur joueur (`rang`, son niveau, S80).
-  const ordre = spec.options.map((o, i) => i).sort((a, b) => (RANG_RARETE[spec.options[a].rarete] || 0) - (RANG_RARETE[spec.options[b].rarete] || 0)
+  const ordre = spec.options.map((o, i) => i).sort((a, b) => rangDOption(spec.options[a]) - rangDOption(spec.options[b])
     || (spec.options[a].rang || 0) - (spec.options[b].rang || 0) || a - b);
   const rangDe = i => ordre.indexOf(i);
-  const meilleure = spec.options.reduce((b, o) => ((RANG_RARETE[o.rarete] || 0) > (RANG_RARETE[b] || 0) ? o.rarete : b), 'commune');
+  const meilleure = spec.options.reduce((b, o) => (rangDOption(o) > rangDOption(b) ? o : b), spec.options[0] || {});
   // LE WALKOUT (1.0, oct.), comme FUT et HUT : la carte du pack — une holo, une or, un Phénomène — s'annonce avant de sortir.
   const vedette = paquet ? spec.options[ordre[ordre.length - 1]] : null;
-  const walkout = vedette && vedette.walkout && ((RANG_RARETE[vedette.rarete] || 0) >= RANG_RARETE.rare || vedette.eclat) ? vedette.walkout : null;
+  const walkout = vedette && vedette.walkout && (rangDOption(vedette) >= 3 || vedette.eclat) ? vedette.walkout : null;
   // Le genre dit CE QUE C'EST, à part du titre : un événement n'est pas le combat, le butin n'est pas l'événement.
   const BADGE = { evenement: 'Événement', recompense: 'Butin', entracte: 'Gros match' };
   // QUI LE DEMANDE (V21, la Boîte en plein écran) : la scène dit sa voix ; sans scène, la voix se dit sous le titre.
@@ -529,21 +532,21 @@ export function ouvrirChoix(spec) {
       ${spec.recit ? `<p class="choix-recit">${sub(spec.recit)}</p>` : ''}
       ${spec.joueur ? enteteJoueur(spec.joueur, ou(spec.joueur)) : ''}
       ${spec.contexte || ''}
-      ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
+      ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure: meilleure.edition || NIVEAUX[niveauSur(meilleure.niveau)].cadre, serie: spec.titre })}</div>` : ''}
       <div class="choix-options${spec.cartes ? ` choix-main${pile ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
         const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
         // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner. La forme tient dans le type, le visage ne bouge pas.
         if (spec.cartes) return carteHtml({
-          cle: esc(o.cle), rarete: o.rarete, i, ico: o.ico, nomHtml: sub(o.nom), typeHtml: esc(typeAvecForme(o.type || '', forme)),
+          cle: esc(o.cle), niveau: o.niveau, edition: o.edition, i, ico: o.ico, nomHtml: sub(o.nom), typeHtml: esc(typeAvecForme(o.type || '', forme)),
           artHtml: o.art || '', texteHtml: o.texte ? sub(o.texte) : (o.mutation ? esc(MUTATIONS[o.mutation].quoi) : ''),
           bonHtml: o.bon ? sub(o.bon) : '', prixHtml: o.prix ? sub(o.prix) : '', coinHtml: o.coin ? esc(o.coin) : '',
           // UNE CARTE SE LIT EN MOTS (V3, JP : *les cartes doivent être plus claires, quitte à pas mettre de stats*) :
           // sa face dit ce qu'elle fait (+ bon, − prix) ; ses chiffres de match attendent « Les chiffres ».
           pucesHtml: pucesDeFace(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
-          dos: pile, r: pile ? rangDe(i) : null, meilleure: pile && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
+          dos: pile, r: pile ? rangDe(i) : null, meilleure: pile && rangDe(i) === ordre.length - 1 && (rangDOption(o) >= 3 || !!o.eclat),
           joueurHtml: o.joueurHtml || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
           lecture: !!spec.lecture,
         });
@@ -1065,7 +1068,7 @@ export const motsSurLeJoueur = (canaux, qui, quand = '', court = qui) => Object.
  * qu'on n'a pas encore (sa règle ne se lit pas).
  */
 export const carteDeBanqueHtml = (o, { cache = false } = {}) => carteHtml({
-  cle: esc(o.cle), rarete: o.rarete, i: 0, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(typeAvecForme(o.type || '', formeDe(o))),
+  cle: esc(o.cle), niveau: o.niveau, edition: o.edition, i: 0, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(typeAvecForme(o.type || '', formeDe(o))),
   texteHtml: cache ? 'Pas encore dans ta collection' : o.texte ? `<i class="tc-ambiance">${esc(o.texte)}</i>` : '', coinHtml: o.coin ? esc(o.coin) : '',
   pucesHtml: cache ? '' : pucesDeFace(o.mots), genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille, statique: true,
 });
@@ -1219,7 +1222,7 @@ export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce =
   const tuile = x => {
     const PL = PLANS[x.cle];
     // Qui le propose (nov. 2026) : un adjoint en poste, à son niveau, ou ton coach ; sinon, une idée de la période.
-    const qui = x.qui && x.qui.genre === 'adjoint' && ADJOINTS[x.qui.cle] ? `${ADJOINTS[x.qui.cle].ico} ${ADJOINTS[x.qui.cle].nom} · ${NOMS_NIV[(x.qui.niv || 3) - 1]}`
+    const qui = x.qui && x.qui.genre === 'adjoint' && ADJOINTS[x.qui.cle] ? `${ADJOINTS[x.qui.cle].ico} ${ADJOINTS[x.qui.cle].nom} · ${nomDuNiveau((x.qui.niv || 3) - 1)}`
       : x.qui && x.qui.genre === 'coach' && COACHS[x.qui.cle] ? `${COACHS[x.qui.cle].ico} Ton coach` : '';
     const suit = PL.vedette && x.vedette && x.colle ? `${nom(x.colle)} suit ${nom(x.vedette)}` : '';
     return { cle: x.cle, ico: PL.ico, nom: PL.nom, sous: [qui, suit].filter(Boolean).join(' · '),
@@ -1234,4 +1237,3 @@ export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce =
   };
 }
 
-void RARETES;

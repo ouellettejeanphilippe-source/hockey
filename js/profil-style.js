@@ -21,7 +21,8 @@
 import { tirsTotal } from './sim.js';
 import { virgule } from './util.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, niveauDuPerso } from './pouvoirs.js';
-import { ADJOINTS, NOMS_NIV, nivDe } from './adjoints.js';
+import { ADJOINTS, nivDe } from './adjoints.js';
+import { nomDuNiveau } from './niveaux.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
 import { chiffresDuSoirDe } from './rogue.js';
 
@@ -163,7 +164,7 @@ export function banc(team, feuille, { jusqua = null } = {}) {
     };
   });
   const adjoints = (feuille.adjoints || []).filter(x => x.cote === cote).map(x => ({
-    genre: 'adjoint', ico: x.ico, nom: x.nom, dit: `${NOMS_NIV[nivDe(x) - 1]} · ${(ADJOINTS[x.cle] && ADJOINTS[x.cle].style) || ''}`, joue: true, periodes: [], reste: x.reste, salaire: x.salaire || 0,
+    genre: 'adjoint', ico: x.ico, nom: x.nom, dit: `${nomDuNiveau(nivDe(x) - 1)} · ${(ADJOINTS[x.cle] && ADJOINTS[x.cle].style) || ''}`, joue: true, periodes: [], reste: x.reste, salaire: x.salaire || 0,
   }));
   // V23 D : les relais (`feuille.relais`), une carte par adjoint qui a relayé, avec ses périodes et ce qui l'a allumé.
   const relais = (feuille.relais || []).filter(x => x.cote === cote && (jusqua == null || x.k < jusqua));

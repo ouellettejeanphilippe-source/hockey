@@ -180,10 +180,10 @@ await planche(page, 'banque', 6, 212, async p => {
   const esc = t => String(t).replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));
   for (const cat of ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'saison']) {
     const ids = Object.keys(BANQUE).filter(id => BANQUE[id].cat === cat);
-    const choix = ['commune', 'peu', 'rare', 'legendaire'].flatMap(r => ids.filter(id => BANQUE[id].rarete === r).slice(0, 2)).slice(0, 6);
+    const choix = [1, 2, 3, 4].flatMap(k => ids.filter(id => BANQUE[id].niveau === k).slice(0, 2)).slice(0, 6);
     for (const id of choix) {
       const c = BANQUE[id], d = document.createElement('div');
-      d.innerHTML = carteHtml({ cle: id, rarete: c.rarete, ico: c.ico, nomHtml: esc(c.nom), typeHtml: esc(CATEGORIES[c.cat].un), texteHtml: esc(c.texte || ''), pucesHtml: puces(reglesDe(id)), famille: c.cat });
+      d.innerHTML = carteHtml({ cle: id, niveau: c.niveau, ico: c.ico, nomHtml: esc(c.nom), typeHtml: esc(CATEGORIES[c.cat].un), texteHtml: esc(c.texte || ''), pucesHtml: puces(reglesDe(id)), famille: c.cat });
       p.appendChild(d.firstElementChild);
     }
   }

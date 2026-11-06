@@ -36,8 +36,7 @@ import {
 import { INTENTIONS, PERIODES_DU_DUEL, PLANS } from '../js/greffes.js';
 import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
-import { NIVEAUX } from '../js/niveaux.js';
-import { RARETES } from '../js/cartes.js';
+import { NIVEAUX, nomDuNiveau } from '../js/niveaux.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
 import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
@@ -45,7 +44,6 @@ import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, MANDAT_DE_LA_PREMIERE, 
 import { COACHS, REGLES_DU_COACH } from '../js/coachs.js';
 import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT, NIVEAUX_TALENT } from '../js/pouvoirs.js';
 import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU, CASE_DE_PLUS, RELAIS_NIV, NIV_DEFAUT } from '../js/adjoints.js';
-import { MAITRISE } from '../js/coachs-reels.js';
 import { FORCE_NIV, SALAIRE_NIV } from '../js/adjoints.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
@@ -204,7 +202,6 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   exiger('la page ne parle plus de ce qui est parti', encore.length === 0, encore.join(' · ') || 'rien de parti');
 
   // Chaque chiffre annoncé, reconstruit depuis sa constante.
-  const RARES = ['commune', 'peu', 'rare', 'legendaire'];
   const brille = stature => COTES_PAR_STATURE[stature].rare + COTES_PAR_STATURE[stature].legendaire;
   const minSal = Number((lire('js/game.js').match(/const MIN_SAL = ([\d_]+);/) || [])[1].replace(/_/g, ''));
   // Le ballottage vit dans js/banc.js depuis le découpage de js/game.js (1.0, J3-6).
@@ -282,8 +279,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V21 : le coach, un personnage (js/pouvoirs.js) — son expérience, ses niveaux, ses pouvoirs, ses talents, ses adjoints.
     [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],
     [`une victoire ${XP.victoire} point, un gros match gagné ${XP.gros} de plus, une série gagnée ${XP.serie} ; ${SEUILS_NIVEAU.slice(1).map((x, i) => `${i ? '' : 'niveau '}${i + 2} à ${x}`).join(', ').replace(/, ([^,]*)$/, ', $1')} points`, 'l\'expérience du coach'],
-    // V23 : le niveau de l'entraîneur, de Soutien à ★ Phénomène, fait sa maîtrise (js/coachs-reels.js `MAITRISE`).
-    [`son rang dans cette lecture fait son niveau et la force de ses pouvoirs, de ×${nombre(MAITRISE.at(-1)[1])} au Soutien à ×${nombre(MAITRISE[0][1])} au ★ Phénomène`, 'la maîtrise de l\'entraîneur'],
+    // V23 : le niveau de l'entraîneur, de Soutien à ★ Phénomène, fait sa maîtrise (js/niveaux.js `NIVEAUX[k].maitrise`).
+    [`son rang dans cette lecture fait son niveau et la force de ses pouvoirs, de ×${nombre(NIVEAUX[0].maitrise)} au Soutien à ×${nombre(NIVEAUX[4].maitrise)} au ★ Phénomène`, 'la maîtrise de l\'entraîneur'],
     [`un ★ Phénomène donne ${nombre(Math.round((FORCE_NIV[4] - 1) * 100))} % de plus qu'un Pilier, un Soutien ${nombre(Math.round((1 - FORCE_NIV[0]) * 100))} % de moins`, 'le niveau d\'un adjoint'],
     // V23 : la règle du coach (js/coachs.js) et le salaire d'un adjoint (js/adjoints.js), dits par leurs constantes.
     [`(🐝 ${REGLES_DU_COACH.essaim.dit} : +${REGLES_DU_COACH.essaim.jetons} 🪙)`, 'la règle du coach'],
@@ -301,8 +298,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V3.6 : la lancée et le doute (`LANCEE`, js/sim.js) ; le feu qui s'entretient est parti avec le personnel (V21).
     [`${LANCEE.buts} buts en ${LANCEE.matchs} matchs, et ${nombre(LANCEE.facteur)} fois son vrai rythme, mettent un joueur <strong>sur sa lancée</strong> : précision +${pct(LANCEE.lancee.finition)} %, tirs +${pct(LANCEE.lancee.lancers)} %`, 'la lancée'],
     [`sans but en ${LANCEE.doute.matchs} matchs <strong>doute</strong> : précision −${pct(LANCEE.doute.finition)} %`, 'le doute'],
-    // Les raretés (oct. 2026) : les gemmes et les noms de la carte (js/cartes.js, js/rarete.js), les cotes d'une brillante par stature.
-    [RARES.map(r => `${RARETES[r].gemme} ${RARETES[r].nom.toLowerCase()}`).join(', '), 'les gemmes des cartes de jeu'],
+    // Les niveaux d'une carte de jeu (V25 B1 : l'échelle des joueurs, js/niveaux.js) : un diamant par niveau, du Soutien au ★ Phénomène.
+    [NIVEAUX.map((N, k) => `${'◆'.repeat(k + 1)} ${nomDuNiveau(k).toLowerCase()}`).join(', '), 'les gemmes des cartes de jeu'],
     [`de 1 à ${EDITIONS.length}, qui change la carte entière : ${NOM_VARIANTE.commune} ; ${NOM_VARIANTE.peu}, un cadre de métal`, 'les éditions d\'une carte de joueur'],
     [`; ${NOM_VARIANTE.hors}, la photo prend toute la carte`, 'le Hors-cadre'],
     [`; ${NOM_VARIANTE.rare}, la feuille d'or`, 'l\'Or'],

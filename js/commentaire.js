@@ -24,6 +24,7 @@
  * {j} le joueur puni, {inf} l'infraction, {per} la période.
  */
 import { GESTES, SOLO, SEQUENCE, FIN, profil, nomCourt } from './recit.js';
+import { generateur } from './util.js';
 
 /* ---------- les arrêts dangereux ---------- */
 export const CRI_ARRET = [
@@ -347,15 +348,8 @@ export const COULEUR_FIN = {
 };
 
 /* ---------- la mécanique ---------- */
-function hacher(s) {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0;
-  return h >>> 0;
-}
-function suite(seed) {
-  let a = hacher(String(seed)) || 1;
-  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-}
+/* Une suite de dés semée par une chaîne : le générateur de js/util.js (V25 A2), le même que le moteur. */
+const suite = generateur;
 /*
  * L'ARTICLE DEVANT UN NOM D'ÉQUIPE (QA S74b). Les gabarits disaient « le
  * gardien de {autre} », et ça donnait « le gardien de Islanders ». Le nom

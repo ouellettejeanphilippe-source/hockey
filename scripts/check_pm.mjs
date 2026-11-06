@@ -29,7 +29,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, createTeam, simulateLeague, autoRoster, registerHiddenRatings, generateur } from '../js/sim.js';
+import { SLOTS, createTeam, simulateLeague, autoRoster, registerHiddenRatings } from '../js/sim.js';
+import { generateur } from '../js/util.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));

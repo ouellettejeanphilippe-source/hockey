@@ -26,7 +26,7 @@ js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour
 js/greffes.js         les greffes du Rogue sur le moteur (V25) : le coach et ses pouvoirs, les adjoints et leurs relais, le duel, les histoires appliquées, les suivis, l'expérience, les séjours — branchées par `brancherGreffes`
 js/ratings.js         les cotes (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
-js/util.js            les petits outils partagés (un seul exemplaire de chaque : `esc`, `money`, `virgule`, `ordF`…)
+js/util.js            les petits outils partagés (un seul exemplaire de chaque : `esc`, `money`, `virgule`, `ordF`…) et la seule source du hasard (V25 A2 : `generateur`, `gauss`, `entierDeGraine`, `hache`)
 js/saison.js          l'écran de saison et des séries : le Bureau (À faire, où les choix se règlent ; hier soir ; ton plan ; le journal), Ligue › Classement (un club s'y ouvre) et Calendrier
 js/gerant.js          les choix, le dépistage, l'écran du duel (`ouvrirDuel`, ce que ton adjoint propose)
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
@@ -57,14 +57,14 @@ js/coachs-reels.js    l'entraîneur, une vraie carte de coach-saison (V21) : dat
 js/adjoints.js        sa main d'adjoints (V22) : des cartes, un style chacune (un gain, un prix), postées pour un séjour de 12 matchs puis au repos ; une main de quatre, les cases en poste au niveau du coach ; un parmi trois aux moments forts — `check_pouvoirs`
 js/deposer.js         le glisser-déposer, souris et doigt (l'appui tenu) : une carte d'adjoint sur une case au Bureau › Coach, les cartes des Lignes (`permuter`)
 js/dossiers.js        les histoires de la semaine (V10 ; récrites à la V22, docs/refonte-v22.md) : ce qui arrive à ton club, dit par sa voix, un lundi sur deux, deux réponses concrètes — `check_dossiers`
-js/cartes.js          le gabarit des cartes (recto, verso, finitions)
-js/rarete.js          les variantes de carte et leur bonus
+js/cartes.js          le gabarit des cartes (recto, verso, finitions) ; une carte de jeu porte un niveau (V25 B1)
+js/rarete.js          les éditions d'une carte de joueur (Base → Holo) et leurs paliers
 js/lexique.js         le lexique : un mot par idée (coach, entraîneur, adjoint, vestiaire, classeur…) et les icônes réservées — `check_lexique`
 js/galons.js          les galons d'une saison de Rogue (40 buts, 50 passes…), lus dans le journal du club
 js/banque.js          la banque de cartes : les retouches et les cartes rares qui montent ou soignent
 js/coachs.js          les coachs : huit philosophies, leur identité, la couleur d'un joueur lue sur ses rôles
 js/packs.js           les packs de joueurs et de cartes, leurs taux
-js/niveaux.js         le niveau d'un joueur dans sa saison : Soutien → Phénomène
+js/niveaux.js         le niveau d'un joueur dans sa saison : Soutien → Phénomène ; ses cotes sur 20 (`axes20`, `cote20`), lues par la fiche, Sur table et Sur glace
 js/inventaire.js      l'inventaire : les cartes de la partie, les paliers de la saison et la revente
 js/magasin.js         la boutique
 js/rogue.js           le mode Rogue : jetons, mandat, déblocages, jalons
