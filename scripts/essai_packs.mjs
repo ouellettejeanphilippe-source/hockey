@@ -172,7 +172,7 @@ let pb = 0;
 for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   await regler(); await club(); log('regler:', await regler());
   if (tour % 2 === 1) {
-    await page.click('#navbar .navtab[data-section="club"]'); await page.waitForTimeout(1500);
+    await page.click('#navbar .navtab[data-section="lignes"]'); await page.waitForTimeout(1500);
     const am = await page.$('.ln-auto');
     // Nov. 2026 : « Aligner au mieux » agit d'un toucher, sans fenêtre.
     if (am) { await am.click(); await page.waitForTimeout(800); }

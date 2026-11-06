@@ -64,16 +64,16 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
     if (new Set(arbre.map(P => P.cle)).size !== arbre.length) fautes.push(`${c} : deux clés pareilles`);
     for (const P of arbre) {
       if (!P.ico || !P.nom || !P.dit || typeof P.quand !== 'function') fautes.push(`${c}/${P.cle} : la forme`);
-      const canaux = [...Object.keys(P.effet || {}), ...Object.keys(P.adv || {})];
+      const canaux = [...Object.keys(P.canaux || {}), ...Object.keys(P.adv || {})];
       if (!canaux.length || canaux.some(k => !CANAUX.has(k))) fautes.push(`${c}/${P.cle} : ${canaux.join(', ')}`);
     }
   }
   exiger('huit coachs, trois pouvoirs chacun, sur des canaux que le moteur connaît', !fautes.length, fautes.slice(0, 4).join(' · ') || `${Object.keys(POUVOIRS).length} arbres`);
   // UN ADJOINT EST UN STYLE : une ligne qui aide, une qui coûte, deux canaux au plus de chaque côté, sur des canaux connus ; un par coach.
   const pasStyle = Object.entries(ADJOINTS).filter(([k, A]) => {
-    const l = lignesDeLAdjoint(k), canaux = [...Object.keys(A.effet || {}), ...Object.keys(A.adv || {})];
+    const l = lignesDeLAdjoint(k), canaux = [...Object.keys(A.canaux || {}), ...Object.keys(A.adv || {})];
     return !A.ico || !A.nom || !A.style || !A.dit || /\d/.test(A.dit) || !l.some(x => x.bon) || !l.some(x => !x.bon) || canaux.some(c => !CANAUX.has(c))
-      || Object.keys(A.effet || {}).length > 3 || Object.keys(A.adv || {}).length > 1 || (A.voie ? !COACHS[A.voie] : !(A.salaire > 0));
+      || Object.keys(A.canaux || {}).length > 3 || Object.keys(A.adv || {}).length > 1 || (A.voie ? !COACHS[A.voie] : !(A.salaire > 0));
   }).map(([k]) => k);
   // Un par coach ; V23 : ceux hors des voies (l'ancien arbitre) ne rejoignent personne et se paient un salaire.
   const voies = Object.values(ADJOINTS).map(A => A.voie).filter(Boolean);
@@ -91,7 +91,7 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
   // LA MAIN (V22) : trois offerts, purs, jamais un déjà dans la main ; une main pleine laisse partir la plus ancienne hors poste.
   const P = { cle: 'essaim', talents: [], main: [{ cle: 'canonnier', depuis: null, fin: null, sejours: [] }] };
   // V23 : au Pilier, le style est la table telle quelle (une vieille carte se rejoue pareil) ; le niveau d'une offre est pur, entre 1 et 5, et un moment fort ne le baisse jamais.
-  const tel = Object.keys(ADJOINTS).every(k => JSON.stringify(styleAuNiveau(k)) === JSON.stringify({ effet: ADJOINTS[k].effet || null, adv: ADJOINTS[k].adv || null }));
+  const tel = Object.keys(ADJOINTS).every(k => JSON.stringify(styleAuNiveau(k)) === JSON.stringify({ canaux: ADJOINTS[k].canaux || null, adv: ADJOINTS[k].adv || null }));
   const nivs = Array.from({ length: 400 }, (_, g) => [niveauOffert(`g${g}`, 'r30', 'mur'), niveauOffert(`g${g}`, 'r30', 'mur', true)]);
   exiger('le niveau d\'un adjoint : le Pilier est la table, une offre tire de 1 à 5, un moment fort monte d\'un cran', tel && nivs.every(([a, b]) => a >= 1 && a <= 5 && b === Math.min(5, a + 1)) && new Set(nivs.map(([a]) => a)).size === 5,
     [1, 2, 3, 4, 5].map(n => `${nomDuNiveau(n - 1)} ${nivs.filter(([a]) => a === n).length}`).join(' · '));

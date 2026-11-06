@@ -753,7 +753,7 @@ export function ditDeLaFinition(f) {
 /** Ce qu'un adjoint donne et coûte à ton club, par match, son salaire au bout : [{ txt, bon }], le bon d'abord. */
 export function lignesDeLAdjointEnChiffres(cle, niv = null) {
   const A = ADJOINTS[cle] && styleAuNiveau(cle, niv || NIV_DEFAUT);
-  const lu = A && lireEffets(A.effet, A.adv, { par: 'par match' });
+  const lu = A && lireEffets(A.canaux, A.adv, { par: 'par match' });
   if (!lu) return lignesDeLAdjoint(cle, niv);
   const paye = salaireDe({ cle, niv }), relais = ligneDuRelais(cle, niv);
   const out = [...lu, ...(relais ? [relais] : []), ...(paye ? [{ txt: `Salaire : ${paye} 🪙 par match en poste`, bon: false }] : [])];
@@ -763,7 +763,7 @@ export function lignesDeLAdjointEnChiffres(cle, niv = null) {
 export function ditDuPouvoir(P) {
   if (!P) return '';
   const toute = /toute la soirée/i.test(P.dit);
-  const lu = lireEffets(P.effet || null, P.adv || null, toute ? { par: 'par match' } : { part: 1 / 3, par: 'la période' }, 2);
+  const lu = lireEffets(P.canaux || null, P.adv || null, toute ? { par: 'par match' } : { part: 1 / 3, par: 'la période' }, 2);
   if (!lu) return P.dit;
   const condition = P.dit.includes(' : ') ? P.dit.slice(0, P.dit.indexOf(' : ')) : '';
   return `${condition ? `${condition} : ` : ''}${lu.map(x => x.txt).join(', ')}.`;

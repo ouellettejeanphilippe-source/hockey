@@ -21,7 +21,7 @@
  * (`adjointsOfferts`) ; une main pleine laisse partir la plus ancienne hors poste (`quiPartDeLaMain`), et l'offre le dit.
  *
  * LE RELAIS (V23 D, docs/refonte-v23.md § D ; JP, 2 nov. : *l'adjoint peut être ce que tu veux*). Chaque adjoint a, en
- * plus de son style, un SIGNAL de hockey lu période par période comme un pouvoir (`signal.quand(e)` : « quand un pouvoir
+ * plus de son style, un SIGNAL de hockey lu période par période comme un pouvoir (`quand(e)`, la grammaire de js/effets.js : « quand un pouvoir
  * de ton coach joue », « en 3e, à un but près », « quand un autre adjoint relaie »). Quand il se lit, l'adjoint RELAIE
  * sur un de ses canaux (`relais`), la période même : le canal s'écarte encore de `RELAIS_NIV` fois son écart — un
  * adjoint excellent relaie plus fort. La chaîne s'arrête à deux maillons : un signal lit le match et les pouvoirs
@@ -63,50 +63,50 @@ export const casesDuPerso = (perso, n) => casesDuNiveau(n) + (aLaCaseDePlus(pers
 export const ADJOINTS = {
   canonnier: { ico: '🏹', nom: 'Le canonnier', style: 'Tirer de partout', voie: 'essaim',
     dit: 'Une rondelle sur la palette, c\'est une rondelle au filet. On comptera après.',
-    effet: { volume: 1.18, finition: 0.9 }, adv: { volume: 1.06 },
-    signal: { dit: 'Quand un pouvoir de ton coach joue', quand: e => e.pouvoirs.length > 0, part: 0.5, sur: 'pouvoir' }, relais: { cote: 'effet', canal: 'volume' } },
+    canaux: { volume: 1.18, finition: 0.9 }, adv: { volume: 1.06 },
+    quand: e => e.pouvoirs.length > 0, signal: { dit: 'Quand un pouvoir de ton coach joue', part: 0.5, sur: 'pouvoir' }, relais: { cote: 'canaux', canal: 'volume' } },
   lunette: { ico: '🔭', nom: 'Le tireur d\'élite', style: 'Choisir ses tirs', voie: 'rapaces',
     dit: 'Un bon tir vaut trois mauvais. On attend l\'ouverture, et on la prend.',
     // V23 : sa précision bute sur le plafond du jeu (`FINITION_MAX`) chez un club qui tire déjà bien ; son style se voit à
     // ses tirs choisis, −12 % (−10 % avant), jusqu'au Phénomène qui en paie moins.
-    effet: { finition: 1.15, volume: 0.88 },
+    canaux: { finition: 1.15, volume: 0.88 },
     // Mesuré (check_relais, N=400) : en 3e à un but près, sa précision relayée ne se voyait pas (+0,01 but) ; à l'étranger, toute la soirée, oui.
-    signal: { dit: 'À l\'étranger, chaque période', quand: e => !!e.soir && !!e.soir.visiteur, part: 0.5 }, relais: { cote: 'effet', canal: 'finition' } },
+    quand: e => !!e.soir && !!e.soir.visiteur, signal: { dit: 'À l\'étranger, chaque période', part: 0.5 }, relais: { cote: 'canaux', canal: 'finition' } },
   mur: { ico: '🧱', nom: 'Le mur', style: 'Fermer la zone', voie: 'tortue',
     dit: 'Personne ne traverse la ligne bleue debout. Le reste, c\'est du détail.',
-    effet: { volume: 0.9 }, adv: { volume: 0.86 },
-    signal: { dit: 'Quand tu mènes', quand: e => e.moi > e.lui, part: 0.35 }, relais: { cote: 'adv', canal: 'volume' } },
+    canaux: { volume: 0.9 }, adv: { volume: 0.86 },
+    quand: e => e.moi > e.lui, signal: { dit: 'Quand tu mènes', part: 0.35 }, relais: { cote: 'adv', canal: 'volume' } },
   cogneur: { ico: '🏋', nom: 'Le cogneur', style: 'Le jeu physique', voie: 'rhinos',
     dit: 'Finis tes mises en échec. Ils vont lever la tête, et c\'est là qu\'ils vont rater.',
-    effet: { robustesse: 2, discipline: 1.4 }, adv: { finition: 0.98 },
-    signal: { dit: 'Après une période perdue aux tirs', quand: e => !!e.der && e.der.tirsMoi < e.der.tirsLui, part: 0.3 }, relais: { cote: 'effet', canal: 'robustesse' } },
+    canaux: { robustesse: 2, discipline: 1.4 }, adv: { finition: 0.98 },
+    quand: e => !!e.der && e.der.tirsMoi < e.der.tirsLui, signal: { dit: 'Après une période perdue aux tirs', part: 0.3 }, relais: { cote: 'canaux', canal: 'robustesse' } },
   preparateur: { ico: '🏃', nom: 'Le préparateur', style: 'Les jambes fraîches', voie: 'souffle',
     dit: 'Des présences courtes, du repos, de l\'eau. On ne gagne rien à l\'infirmerie.',
-    effet: { blessure: 0.65, energie: 0.85, volume: 0.95 },
-    signal: { dit: 'Un soir de dos-à-dos, de jambes lourdes ou d\'infirmerie pleine, chaque période', quand: e => !!e.soir && !!(e.soir.dosADos || e.soir.jambesLourdes || e.soir.infirmerie), part: 0.6 }, relais: { cote: 'effet', canal: 'blessure' } },
+    canaux: { blessure: 0.65, energie: 0.85, volume: 0.95 },
+    quand: e => !!e.soir && !!(e.soir.dosADos || e.soir.jambesLourdes || e.soir.infirmerie), signal: { dit: 'Un soir de dos-à-dos, de jambes lourdes ou d\'infirmerie pleine, chaque période', part: 0.6 }, relais: { cote: 'canaux', canal: 'blessure' } },
   moine: { ico: '🧘', nom: 'Le moine', style: 'La discipline', voie: 'choeur',
     dit: 'Les bâtons sur la glace, la bouche fermée. L\'arbitre ne nous verra pas de la soirée.',
     // V23 : il perdait au Pilier (−0,4 V) et piégeait au Soutien (−1,1 V) : ses mises en échec perdues, −1,5 (−2 avant).
-    effet: { discipline: 0.7, robustesse: -1.5, volume: 0.94 },
-    signal: { dit: 'Derrière au pointage', quand: e => e.moi < e.lui, part: 0.35 }, relais: { cote: 'effet', canal: 'discipline' } },
+    canaux: { discipline: 0.7, robustesse: -1.5, volume: 0.94 },
+    quand: e => e.moi < e.lui, signal: { dit: 'Derrière au pointage', part: 0.35 }, relais: { cote: 'canaux', canal: 'discipline' } },
   rouleur: { ico: '🔁', nom: 'Le rouleur', style: 'Quatre trios', voie: 'profondeur',
     dit: 'Tout le monde joue, tout le monde est frais en troisième. C\'est là que ça se gagne.',
-    effet: { F: [0.82, 1, 1.1, 1.2], blessure: 0.7 }, adv: { volume: 0.92 },
+    canaux: { F: [0.82, 1, 1.1, 1.2], blessure: 0.7 }, adv: { volume: 0.92 },
     // Mesuré : ses minutes relayées ne se voyaient pas (−0,3 tir) ; leurs tirs, oui.
-    signal: { dit: 'Un soir de dos-à-dos, chaque période', quand: e => !!e.soir && !!e.soir.dosADos, part: 0.25 }, relais: { cote: 'adv', canal: 'volume' } },
+    quand: e => !!e.soir && !!e.soir.dosADos, signal: { dit: 'Un soir de dos-à-dos, chaque période', part: 0.25 }, relais: { cote: 'adv', canal: 'volume' } },
   vedettiste: { ico: '🎤', nom: 'Le vedettiste', style: 'Le premier trio', voie: 'etoiles',
     dit: 'On paie des vedettes pour qu\'elles jouent. Mets-les sur la glace et laisse-les faire.',
-    effet: { F: [1.2, 1, 0.92, 0.84], finition: 1.03, blessure: 1.3 }, adv: { volume: 1.08 },
-    signal: { dit: 'À domicile, chaque période', quand: e => !!e.soir && !!e.soir.domicile, part: 0.5 }, relais: { cote: 'effet', canal: 'F' } },
+    canaux: { F: [1.2, 1, 0.92, 0.84], finition: 1.03, blessure: 1.3 }, adv: { volume: 1.08 },
+    quand: e => !!e.soir && !!e.soir.domicile, signal: { dit: 'À domicile, chaque période', part: 0.5 }, relais: { cote: 'canaux', canal: 'F' } },
   /*
    * L'ANCIEN ARBITRE (V23 ; JP, 2 nov. : *a coach or assistant that was a ref, and pay them*). Hors des huit voies : il
    * ne rejoint aucun coach, et il se paie (`salaire`, en jetons par match en poste, en plus de celui de son niveau).
    */
   arbitre: { ico: '🦓', nom: 'L\'ancien arbitre', style: 'Il connaît les arbitres', voie: null, salaire: 2,
     dit: 'J\'ai sifflé vingt ans dans cette ligue. Je sais ce qu\'ils regardent, et ce qu\'ils ne regardent pas.',
-    effet: { discipline: 0.85 }, adv: { discipline: 1.1 },
+    canaux: { discipline: 0.85 }, adv: { discipline: 1.1 },
     // Le second maillon : il relaie quand un autre adjoint relaie, jamais plus loin.
-    signal: { dit: 'Quand un autre adjoint relaie', quand: e => e.relais.length > 0, part: 0.3, chaine: true }, relais: { cote: 'adv', canal: 'discipline' } },
+    quand: e => e.relais.length > 0, signal: { dit: 'Quand un autre adjoint relaie', part: 0.3, chaine: true }, relais: { cote: 'adv', canal: 'discipline' } },
 };
 
 /*
@@ -134,7 +134,7 @@ export const SALAIRE_NIV = [0, 0, 1, 2, 3];
 export const salaireDe = c => (c && ADJOINTS[c.cle] ? (c.niv ? SALAIRE_NIV[nivDe(c) - 1] : 0) + (ADJOINTS[c.cle].salaire || 0) : 0);
 export const nivDe = c => Math.min(5, Math.max(1, Math.round(Number(c && c.niv) || NIV_DEFAUT)));
 /* Ce qu'un canal fait de bon de ton côté (`effet`) ou de l'adversaire (`adv`) : plus de tirs à toi, moins des leurs… */
-const BON_SI_HAUT = { effet: new Set(['volume', 'finition', 'robustesse', 'F']), adv: new Set(['discipline']) };
+const BON_SI_HAUT = { canaux: new Set(['volume', 'finition', 'robustesse', 'F']), adv: new Set(['discipline']) };
 const echelle = (v, bon, niv) => 1 + (v - 1) * (bon ? FORCE_NIV : PRIX_NIV)[niv - 1];
 const canalAuNiveau = (cote, k, v, niv) => {
   if (Array.isArray(v)) return v.map(x => echelle(x, x > 1, niv));
@@ -145,10 +145,10 @@ const canalAuNiveau = (cote, k, v, niv) => {
 /* Le style d'un adjoint à son niveau : `{ effet, adv }`, les canaux du moteur. Au Pilier, la table telle quelle. */
 export function styleAuNiveau(cle, niv = NIV_DEFAUT) {
   const A = ADJOINTS[cle];
-  if (!A) return { effet: null, adv: null };
+  if (!A) return { canaux: null, adv: null };
   const n = nivDe({ niv });
   const passe = (cote, o) => (o ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, n === NIV_DEFAUT ? v : canalAuNiveau(cote, k, v, n)])) : null);
-  return { effet: passe('effet', A.effet), adv: passe('adv', A.adv) };
+  return { canaux: passe('canaux', A.canaux), adv: passe('adv', A.adv) };
 }
 /* Ce que le relais d'un adjoint ajoute, à son niveau : { cote, canal, valeur }, ou null (une carte sans relais). */
 export function effetDuRelais(cle, niv = NIV_DEFAUT) {
@@ -172,7 +172,7 @@ export function relaisDeLaPeriode(perso, games, e) {
   const postes = postesDe(perso, games), out = [];
   const base = { ...e, pouvoirs: e.pouvoirs || [], postes: postes.map(c => c.cle), relais: [] };
   const lire = (c, env) => {
-    const A = ADJOINTS[c.cle], fx = A.signal && A.relais && A.signal.quand(env) ? effetDuRelais(c.cle, nivDe(c)) : null;
+    const A = ADJOINTS[c.cle], fx = A.quand && A.relais && A.quand(env) ? effetDuRelais(c.cle, nivDe(c)) : null;
     if (!fx) return;
     const premier = out[0], pv = env.pouvoirs[0];
     const sur = A.signal.chaine && premier ? { genre: 'relais', cle: premier.cle, ico: premier.ico, nom: premier.nom }
@@ -219,7 +219,7 @@ export function lignesDeLAdjoint(cle, niv = null) {
   const A = ADJOINTS[cle] && styleAuNiveau(cle, niv || NIV_DEFAUT);
   if (!A) return [];
   const out = [];
-  for (const [k, v] of Object.entries(A.effet || {})) {
+  for (const [k, v] of Object.entries(A.canaux || {})) {
     if (k === 'F') {
       const haut = v[0] > 1;
       out.push({ txt: haut ? 'Ton 1er trio joue plus' : 'Tes 3e et 4e trios jouent plus', bon: true }, { txt: haut ? 'Le bas de l\'alignement joue moins' : 'Ton 1er trio joue moins', bon: false });

@@ -19,6 +19,7 @@ import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire, faitsDeLaCourse, REPOS_
 import { EXPEDITEURS } from '../js/vie-gm.js';
 import { BANQUE, ORDRE_CATEGORIES } from '../js/banque.js';
 import { effetDeMoment } from '../js/greffes.js';
+import { CASES, GESTES, CANAUX_LUI, estVide } from '../js/effets.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 /* ---------- 1. les événements sont partis ---------- */
@@ -28,11 +29,12 @@ import { exiger, informer, verdict } from './verdict.mjs';
 }
 
 /* ---------- 2. la forme ---------- */
-// V21 : les champs d'une conséquence concrète ; `duree` ne sert qu'à ce qui arrive au joueur nommé (`lui`).
-const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'duree', 'action', 'gain', 'xp', 'adjoint', 'perdAdjoint', 'soin', 'rien', 'lui', 'plafond', 'pari', 'suite']);
-const ACTIONS = new Set(['energieTous', 'gardienAux', 'energie', 'absents']);
+// V25 B1b : une réponse est un effet de la grammaire (js/effets.js), ses dix cases et rien d'autre ; `duree` ne sert
+// qu'à ce qui arrive au joueur nommé (`lui`).
+const CHAMPS = new Set(['cle', 'nom', ...CASES]);
+const ACTIONS = new Set(GESTES);
 /* Ce qu'un joueur nommé porte (V11, tranche 4) : ses canaux à lui (`CANAUX_MUT`, js/sim.js). */
-const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets']);
+const LUI = new Set(CANAUX_LUI);
 {
   const voix = new Set(Object.keys(EXPEDITEURS));
   const fautes = [];
@@ -41,21 +43,21 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
     if (!D.titre || !D.ico || (D.mots || []).length < 2) fautes.push(`${cle} : titre, icône ou répliques`);
     if (D.options.length < 2 || D.options.length > 3) fautes.push(`${cle} : ${D.options.length} réponses`);
     for (const o of D.options) {
-      if (!o.cle || !o.nom || !o.bon) fautes.push(`${cle}/${o.cle} : un nom et un bon côté`);
+      if (!o.cle || !o.nom) fautes.push(`${cle}/${o.cle} : un nom`);
       const inconnus = Object.keys(o).filter(k => !CHAMPS.has(k));
       if (inconnus.length) fautes.push(`${cle}/${o.cle} : ${inconnus.join(', ')}`);
-      if (o.action && Object.keys(o.action).some(k => !ACTIONS.has(k))) fautes.push(`${cle}/${o.cle} : le geste`);
-      if (!o.rien && !o.action && !o.gain && !o.xp && !o.adjoint && !o.perdAdjoint && !o.soin && !o.lui && !o.pari && !o.plafond) fautes.push(`${cle}/${o.cle} : ne fait rien de concret`);
+      if (o.gestes && Object.keys(o.gestes).some(k => !ACTIONS.has(k))) fautes.push(`${cle}/${o.cle} : le geste`);
+      if (estVide(o)) fautes.push(`${cle}/${o.cle} : ne fait rien de concret`);
       if (o.duree && !o.lui) fautes.push(`${cle}/${o.cle} : une durée sans joueur`);
       // L'AUDACE (V20) : un dé sur le joueur que le dossier nomme — ses deux issues sur ses canaux à lui, chacune une durée, rien à l'équipe.
       if (o.pari) {
         const issues = [o.pari.gagne, o.pari.perd];
-        if (!D.joueur || !(o.pari.chance > 0 && o.pari.chance < 1) || issues.some(e => !e || !e.duree || !e.lui || Object.keys(e).some(k => !['duree', 'lui'].includes(k)) || Object.keys(e.lui).some(k => !CANAUX_LUI.has(k))))
+        if (!D.joueur || !(o.pari.chance > 0 && o.pari.chance < 1) || issues.some(e => !e || !e.duree || !e.lui || Object.keys(e).some(k => !['duree', 'lui'].includes(k)) || Object.keys(e.lui).some(k => !LUI.has(k))))
           fautes.push(`${cle}/${o.cle} : l'audace`);
       }
       // Ce qui va à un joueur : seulement dans un dossier qui le nomme.
-      if ((o.lui || o.soin || (o.action && (o.action.energie || o.action.absents))) && !D.joueur) fautes.push(`${cle}/${o.cle} : un joueur que le dossier ne nomme pas`);
-      if (o.lui && (!o.duree || Object.keys(o.lui).some(k => !CANAUX_LUI.has(k)))) fautes.push(`${cle}/${o.cle} : ce qui va au joueur`);
+      if ((o.lui || (o.gestes && (o.gestes.soin || o.gestes.energie || o.gestes.absents))) && !D.joueur) fautes.push(`${cle}/${o.cle} : un joueur que le dossier ne nomme pas`);
+      if (o.lui && (!o.duree || Object.keys(o.lui).some(k => !LUI.has(k)))) fautes.push(`${cle}/${o.cle} : ce qui va au joueur`);
       // Un rachat vise le contrat que le dossier nomme ; de l'espace, lui, va au club.
       if (o.plafond && (Object.keys(o.plafond).some(k => !['espace', 'facteur'].includes(k)) || (o.plafond.facteur && !D.joueur))) fautes.push(`${cle}/${o.cle} : le plafond`);
     }

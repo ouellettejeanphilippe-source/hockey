@@ -57,47 +57,47 @@ const soirDe = (e, ...ms) => !!e.soir && ms.some(m => e.soir[m]);
  */
 export const POUVOIRS = {
   essaim: [
-    { cle: 'ruee', ico: '🐝', nom: 'La ruée', dit: 'En 3e période, à égalité ou derrière : +40 % de tirs.', quand: e => k3(e) && e.moi <= e.lui, effet: { volume: 1.4 } },
+    { cle: 'ruee', ico: '🐝', nom: 'La ruée', dit: 'En 3e période, à égalité ou derrière : +40 % de tirs.', quand: e => k3(e) && e.moi <= e.lui, canaux: { volume: 1.4 } },
     // 2 nov. 2026 (docs/revue-rogue-2026-11.md § 2.2 A) : « avec plus de tirs qu'eux » jouait souvent la même 3e que la
     // ruée (à égalité ou derrière) et s'y ajoutait ; il ne joue plus que si tu mènes, jamais avec elle.
-    { cle: 'bourdon', ico: '🔊', nom: 'Le bourdonnement', dit: 'En 3e période, quand tu mènes : +25 % de tirs.', quand: e => k3(e) && mene(e), effet: { volume: 1.25 } },
-    { cle: 'essaim', ico: '🌪', nom: 'L\'essaim', dit: 'Derrière au pointage : +35 % de tirs, +5 % de précision.', quand: derriere, effet: { volume: 1.35, finition: 1.05 } },
+    { cle: 'bourdon', ico: '🔊', nom: 'Le bourdonnement', dit: 'En 3e période, quand tu mènes : +25 % de tirs.', quand: e => k3(e) && mene(e), canaux: { volume: 1.25 } },
+    { cle: 'essaim', ico: '🌪', nom: 'L\'essaim', dit: 'Derrière au pointage : +35 % de tirs, +5 % de précision.', quand: derriere, canaux: { volume: 1.35, finition: 1.05 } },
   ],
   rapaces: [
-    { cle: 'riposte', ico: '🦅', nom: 'La riposte', dit: 'Après une période perdue aux tirs, sans mener : +28 % de précision.', quand: e => perduAuxTirs(e) && e.moi <= e.lui, effet: { finition: 1.28 } },
-    { cle: 'tueur', ico: '🗡', nom: 'Le tueur', dit: 'Quand tu mènes : +17 % de précision.', quand: mene, effet: { finition: 1.17 } },
-    { cle: 'parfait', ico: '🎯', nom: 'Le tir parfait', dit: 'En 3e période, à un but d\'écart ou moins : +45 % de précision.', quand: e => k3(e) && serre(e), effet: { finition: 1.45 } },
+    { cle: 'riposte', ico: '🦅', nom: 'La riposte', dit: 'Après une période perdue aux tirs, sans mener : +28 % de précision.', quand: e => perduAuxTirs(e) && e.moi <= e.lui, canaux: { finition: 1.28 } },
+    { cle: 'tueur', ico: '🗡', nom: 'Le tueur', dit: 'Quand tu mènes : +17 % de précision.', quand: mene, canaux: { finition: 1.17 } },
+    { cle: 'parfait', ico: '🎯', nom: 'Le tir parfait', dit: 'En 3e période, à un but d\'écart ou moins : +45 % de précision.', quand: e => k3(e) && serre(e), canaux: { finition: 1.45 } },
   ],
   tortue: [
-    { cle: 'verrou', ico: '🐢', nom: 'Le verrou', dit: 'Quand tu mènes : −25 % de buts contre.', quand: mene, effet: { defense: 0.75 } },
+    { cle: 'verrou', ico: '🐢', nom: 'Le verrou', dit: 'Quand tu mènes : −25 % de buts contre.', quand: mene, canaux: { defense: 0.75 } },
     { cle: 'tranchee', ico: '⛏', nom: 'La tranchée', dit: 'En 1re période, à l\'étranger : −25 % de leurs tirs.', quand: e => e.k === 0 && soirDe(e, 'visiteur'), adv: { volume: 0.75 } },
-    { cle: 'forteresse', ico: '🏰', nom: 'La forteresse', dit: 'En 3e période, en avant ou à égalité : −30 % de buts contre, −20 % de leurs tirs.', quand: e => k3(e) && e.moi >= e.lui, effet: { defense: 0.7 }, adv: { volume: 0.8 } },
+    { cle: 'forteresse', ico: '🏰', nom: 'La forteresse', dit: 'En 3e période, en avant ou à égalité : −30 % de buts contre, −20 % de leurs tirs.', quand: e => k3(e) && e.moi >= e.lui, canaux: { defense: 0.7 }, adv: { volume: 0.8 } },
   ],
   rhinos: [
-    { cle: 'usure', ico: '🦏', nom: 'L\'usure', dit: 'En 3e période : plus de mises en échec, et leur précision −10 %.', quand: k3, effet: { robustesse: 3.1 }, adv: { finition: 0.9 } },
-    { cle: 'choc', ico: '💥', nom: 'Le choc', dit: 'En 1re période, à domicile : plus de mises en échec, et leur précision −12 %.', quand: e => e.k === 0 && soirDe(e, 'domicile'), effet: { robustesse: 3.1 }, adv: { finition: 0.88 } },
-    { cle: 'charge', ico: '🐂', nom: 'La charge', dit: 'Derrière au pointage : +25 % de tirs, leur précision −12 %.', quand: derriere, effet: { volume: 1.25, robustesse: 1 }, adv: { finition: 0.88 } },
+    { cle: 'usure', ico: '🦏', nom: 'L\'usure', dit: 'En 3e période : plus de mises en échec, et leur précision −10 %.', quand: k3, canaux: { robustesse: 3.1 }, adv: { finition: 0.9 } },
+    { cle: 'choc', ico: '💥', nom: 'Le choc', dit: 'En 1re période, à domicile : plus de mises en échec, et leur précision −12 %.', quand: e => e.k === 0 && soirDe(e, 'domicile'), canaux: { robustesse: 3.1 }, adv: { finition: 0.88 } },
+    { cle: 'charge', ico: '🐂', nom: 'La charge', dit: 'Derrière au pointage : +25 % de tirs, leur précision −12 %.', quand: derriere, canaux: { volume: 1.25, robustesse: 1 }, adv: { finition: 0.88 } },
   ],
   souffle: [
-    { cle: 'souffle', ico: '🫁', nom: 'Le second souffle', dit: 'En 3e période, un soir de dos-à-dos ou de jambes lourdes : +20 % de tirs, −26 % de buts contre.', quand: e => k3(e) && soirDe(e, 'dosADos', 'jambesLourdes'), effet: { volume: 1.2, defense: 0.74 } },
-    { cle: 'rotation', ico: '🩺', nom: 'La rotation', dit: 'Toute la soirée : −40 % de blessures.', quand: () => true, effet: { blessure: 0.6 } },
-    { cle: 'resurrection', ico: '⚡', nom: 'La résurrection', dit: 'Derrière en 3e période : +40 % de tirs, +25 % de précision.', quand: e => k3(e) && derriere(e), effet: { volume: 1.4, finition: 1.25 } },
+    { cle: 'souffle', ico: '🫁', nom: 'Le second souffle', dit: 'En 3e période, un soir de dos-à-dos ou de jambes lourdes : +20 % de tirs, −26 % de buts contre.', quand: e => k3(e) && soirDe(e, 'dosADos', 'jambesLourdes'), canaux: { volume: 1.2, defense: 0.74 } },
+    { cle: 'rotation', ico: '🩺', nom: 'La rotation', dit: 'Toute la soirée : −40 % de blessures.', quand: () => true, canaux: { blessure: 0.6 } },
+    { cle: 'resurrection', ico: '⚡', nom: 'La résurrection', dit: 'Derrière en 3e période : +40 % de tirs, +25 % de précision.', quand: e => k3(e) && derriere(e), canaux: { volume: 1.4, finition: 1.25 } },
   ],
   choeur: [
-    { cle: 'sangfroid', ico: '😇', nom: 'Le sang-froid', dit: 'En 2e période : −45 % de punitions.', quand: e => e.k === 1, effet: { discipline: 0.55 } },
+    { cle: 'sangfroid', ico: '😇', nom: 'Le sang-froid', dit: 'En 2e période : −45 % de punitions.', quand: e => e.k === 1, canaux: { discipline: 0.55 } },
     { cle: 'provocation', ico: '📢', nom: 'La provocation', dit: 'En 3e période : leurs punitions +45 %.', quand: k3, adv: { discipline: 1.45 } },
-    { cle: 'miracle', ico: '✨', nom: 'Le miracle', dit: 'En 3e période, à un but d\'écart ou moins : +30 % de précision, −50 % de punitions.', quand: e => k3(e) && serre(e), effet: { finition: 1.3, discipline: 0.5 } },
+    { cle: 'miracle', ico: '✨', nom: 'Le miracle', dit: 'En 3e période, à un but d\'écart ou moins : +30 % de précision, −50 % de punitions.', quand: e => k3(e) && serre(e), canaux: { finition: 1.3, discipline: 0.5 } },
   ],
   profondeur: [
-    { cle: 'quatre', ico: '🪜', nom: 'Les quatre trios', dit: 'En 3e période, à un but d\'écart ou moins : tes quatre trios jouent autant, −25 % de buts contre.', quand: e => k3(e) && serre(e), effet: { F: [0.8, 0.95, 1.2, 1.45], defense: 0.75 } },
-    { cle: 'atelier', ico: '🛠', nom: 'L\'atelier', dit: 'Un soir de dos-à-dos : +12 % de tirs, −8 % de buts contre.', quand: e => soirDe(e, 'dosADos'), effet: { volume: 1.12, defense: 0.92 } },
-    { cle: 'releve', ico: '🔄', nom: 'La relève', dit: 'Derrière au pointage : tes quatre trios jouent autant, +30 % de tirs, +10 % de précision.', quand: derriere, effet: { F: [0.8, 0.95, 1.2, 1.45], volume: 1.3, finition: 1.1 } },
+    { cle: 'quatre', ico: '🪜', nom: 'Les quatre trios', dit: 'En 3e période, à un but d\'écart ou moins : tes quatre trios jouent autant, −25 % de buts contre.', quand: e => k3(e) && serre(e), canaux: { F: [0.8, 0.95, 1.2, 1.45], defense: 0.75 } },
+    { cle: 'atelier', ico: '🛠', nom: 'L\'atelier', dit: 'Un soir de dos-à-dos : +12 % de tirs, −8 % de buts contre.', quand: e => soirDe(e, 'dosADos'), canaux: { volume: 1.12, defense: 0.92 } },
+    { cle: 'releve', ico: '🔄', nom: 'La relève', dit: 'Derrière au pointage : tes quatre trios jouent autant, +30 % de tirs, +10 % de précision.', quand: derriere, canaux: { F: [0.8, 0.95, 1.2, 1.45], volume: 1.3, finition: 1.1 } },
   ],
   etoiles: [
-    { cle: 'spectacle', ico: '🌠', nom: 'Le spectacle', dit: 'En 3e période, à égalité ou derrière d\'un but : ton 1er trio joue 40 % plus, +32 % de précision.', quand: e => k3(e) && e.moi <= e.lui && e.lui - e.moi <= 1, effet: { F: [1.4, 1, 0.85, 0.75], finition: 1.32 } },
+    { cle: 'spectacle', ico: '🌠', nom: 'Le spectacle', dit: 'En 3e période, à égalité ou derrière d\'un but : ton 1er trio joue 40 % plus, +32 % de précision.', quand: e => k3(e) && e.moi <= e.lui && e.lui - e.moi <= 1, canaux: { F: [1.4, 1, 0.85, 0.75], finition: 1.32 } },
     // 1er nov. 2026 : mesuré à +2,9 V (N=600) pour une borne de 2,5, de 30 % et +35 % ; à 25 % et +28 %, encore +2,5 ; ramené à 20 % et +25 %.
-    { cle: 'duo', ico: '🎭', nom: 'Le duo vedette', dit: 'En 1re période, à domicile : ton 1er trio joue 20 % plus, +25 % de précision.', quand: e => e.k === 0 && soirDe(e, 'domicile'), effet: { F: [1.2, 1, 0.9, 0.85], finition: 1.25 } },
-    { cle: 'grandsoir', ico: '🎬', nom: 'Le grand soir', dit: 'En séries ou en gros match : +25 % de précision toute la soirée.', quand: e => e.series || e.gros, effet: { finition: 1.25 } },
+    { cle: 'duo', ico: '🎭', nom: 'Le duo vedette', dit: 'En 1re période, à domicile : ton 1er trio joue 20 % plus, +25 % de précision.', quand: e => e.k === 0 && soirDe(e, 'domicile'), canaux: { F: [1.2, 1, 0.9, 0.85], finition: 1.25 } },
+    { cle: 'grandsoir', ico: '🎬', nom: 'Le grand soir', dit: 'En séries ou en gros match : +25 % de précision toute la soirée.', quand: e => e.series || e.gros, canaux: { finition: 1.25 } },
   ],
 };
 
@@ -140,15 +140,15 @@ export function persoAdverse(team) {
   const cle = COACH_DU_STYLE[team.style] || AUTRES_COACHS[Math.floor(hache(String(team.tag || ''), String(team.season || ''), 'leur coach') * AUTRES_COACHS.length)];
   return { cle, xp: 0, talents: [], main: [], maitrise: 1, adverse: true };
 }
-/* LES POUVOIRS D'UNE PÉRIODE : ceux du personnage qui se déclenchent avant la période `e.k`, chacun à sa force. Rend [{ p, P, effet, adv }] ; leur coach (`adverse`) : son pouvoir, ou son ombre (`ombre`). */
+/* LES POUVOIRS D'UNE PÉRIODE : ceux du personnage qui se déclenchent avant la période `e.k`, chacun à sa force. Rend [{ p, P, canaux, adv }] ; leur coach (`adverse`) : son pouvoir, ou son ombre (`ombre`). */
 export function pouvoirsDeLaPeriode(perso, e) {
   if (!perso || !POUVOIRS[perso.cle]) return [];
   if (perso.adverse) {
     const P = POUVOIRS[perso.cle][0], joue = P.quand(e), f = (joue ? 1 : -OMBRE) * (perso.maitrise || 1);
-    return [{ p: 0, P, ombre: !joue, effet: grandir(P.effet, f), adv: grandir(P.adv, f) }];
+    return [{ p: 0, P, ombre: !joue, canaux: grandir(P.canaux, f), adv: grandir(P.adv, f) }];
   }
   return pouvoirsOuverts(niveauDuPerso(perso)).filter(p => POUVOIRS[perso.cle][p].quand(e)).map(p => {
     const P = POUVOIRS[perso.cle][p], f = forceDuPouvoir(perso, p);
-    return { p, P, effet: grandir(P.effet, f), adv: grandir(P.adv, f) };
+    return { p, P, canaux: grandir(P.canaux, f), adv: grandir(P.adv, f) };
   });
 }

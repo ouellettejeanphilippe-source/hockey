@@ -50,7 +50,7 @@ const f1 = (v, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
   for (const [k, A] of Object.entries(ADJOINTS)) {
     const S = A.signal, R = A.relais;
     if (!S || !R) { fautes.push(`${k} : sans signal ou sans relais`); continue; }
-    if (!S.dit || /\d(?!e\b)/.test(S.dit) || typeof S.quand !== 'function' || !(S.part > 0 && S.part <= 1)) fautes.push(`${k} : la forme du signal`);
+    if (!S.dit || /\d(?!e\b)/.test(S.dit) || typeof A.quand !== 'function' || !(S.part > 0 && S.part <= 1)) fautes.push(`${k} : la forme du signal`);
     if (!A[R.cote] || A[R.cote][R.canal] == null) fautes.push(`${k} : relaie ${R.cote}.${R.canal}, qui n'est pas un de ses canaux`);
     if (S.chaine) chaines++;
     const fx = effetDuRelais(k);
@@ -143,7 +143,7 @@ function mesurer(cle, n) {
     const notes = pa.f.relais.filter(x => x.cote === pa.moi && x.cle === cle).map(x => x.k);
     const attendues = [0, 1, 2].filter(k => {
       const e = etatLu(pa.f, pa.moi, k, o.series), autres = pa.f.relais.filter(x => x.cote === pa.moi && x.k === k && x.cle !== cle && x.maillon === 1).map(x => x.cle);
-      return ADJOINTS[cle].signal.quand({ ...e, relais: chaine ? autres : [], postes: cartes });
+      return ADJOINTS[cle].quand({ ...e, relais: chaine ? autres : [], postes: cartes });
     });
     if (notes.join() !== attendues.join()) m.faux++;
     m.fois += notes.length;

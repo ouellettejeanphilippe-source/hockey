@@ -181,7 +181,7 @@ const durees = [['dossiers', DOSSIERS]];
   const siens = tes(L, you);
   const familles = [['dossier', DOSSIERS]];
   for (const [famille, S] of familles) for (const [cle, M] of Object.entries(S)) for (const o of M.options) {
-    if (!o.duree || o.rien || o.mutation || !(CANAUX.some(c => c in o))) continue;
+    if (!o.duree || o.rien || o.mutation || !(o.canaux && CANAUX.some(c => c in o.canaux))) continue;
     candidats++;
     const e = effetDeMoment({ jour: J0, moment: { famille, cle, choix: o.cle } }, you);
     if (!e) { fautes.push(`${famille}.${cle}.${o.cle} : aucun effet posé`); continue; }

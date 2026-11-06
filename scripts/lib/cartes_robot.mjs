@@ -106,9 +106,10 @@ function adjointDuRobot({ you, graine, cle, politique, clic, fit }) {
  * d'absence, les soirs de l'auxiliaire. Sans lecture (`ROBOT_SAUF=histoires`), la valeur d'avant : un dé ne valait rien.
  */
 function valeurDeReponse(o, lu = null) {
-  let v = (o.gain || 0) * JETON + (o.xp || 0) * VAUT.xp + (o.adjoint ? VAUT.adjoint : 0) + (o.soin || 0) * VAUT.soin;
-  if (o.action) v += (o.action.energieTous || 0) * VAUT.jambes + (o.action.energie || 0) * VAUT.jambes / 4
-    + (lu ? lu.absent(o.action.absents || 0) + lu.auxiliaire(o.action.gardienAux || 0) : -(o.action.absents || 0) * VAUT.absent);
+  const g = o.gestes || {};
+  let v = (o.jetons || 0) * JETON + (o.xp || 0) * VAUT.xp + (g.adjoint ? VAUT.adjoint : 0) + (g.soin || 0) * VAUT.soin;
+  if (o.gestes) v += (g.energieTous || 0) * VAUT.jambes + (g.energie || 0) * VAUT.jambes / 4
+    + (lu ? lu.absent(g.absents || 0) + lu.auxiliaire(g.gardienAux || 0) : -(g.absents || 0) * VAUT.absent);
   if (lu && o.lui) v += lu.surLui(o.lui, o.duree);
   if (lu && o.pari) v += o.pari.chance * lu.surLui(o.pari.gagne.lui, o.pari.gagne.duree) + (1 - o.pari.chance) * lu.surLui(o.pari.perd.lui, o.pari.perd.duree);
   return v;
@@ -135,16 +136,16 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
       const entree = { cle, w, joueur: lui ? lui.cle : null, j };
       etat.dossiers.push(entree);
       const perso = persoDe(you);
-      const possibles = D.options.filter(o => !(o.gain < 0 && f.caisse < -o.gain));
+      const possibles = D.options.filter(o => !(o.jetons < 0 && f.caisse < -o.jetons));
       // L'attentif lit le joueur nommé sur son club (`lire.joueur`), une fois pour toutes les réponses.
       const lu = !clic && politique !== 'defaut' && lui && lire && lire.joueur ? lire.joueur(lui.cle) : null;
       const o = clic ? auHasard(possibles) : politique === 'defaut' ? possibles[0] : possibles.reduce((b, x) => (valeurDeReponse(x, lu) > valeurDeReponse(b, lu) ? x : b));
       entree.choix = o.cle;
-      const offert = o.adjoint && perso ? adjointsOfferts(perso, graine, `do:${w}`, 1)[0] || null : null;
+      const offert = o.gestes && o.gestes.adjoint && perso ? adjointsOfferts(perso, graine, `do:${w}`, 1)[0] || null : null;
       out.push({ jour: j, palier: `do:${w}`, moment: { famille: 'dossier', cle, choix: o.cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) },
-        ...(o.gain ? { gain: o.gain } : {}), ...(o.xp ? { xpCoach: o.xp } : {}),
+        ...(o.jetons ? { gain: o.jetons } : {}), ...(o.xp ? { xpCoach: o.xp } : {}),
         ...(offert ? { embauche: { cle: offert, niv: niveauOffert(graine, `do:${w}`, offert) } } : {}),
-        ...(o.soin && lui ? { gestes: { soin: o.soin, joueurs: [lui.cle] } } : {}) });
+        ...(o.gestes && o.gestes.soin && lui ? { gestes: { soin: o.gestes.soin, joueurs: [lui.cle] } } : {}) });
     }
   }
   // LE PALIER (`PALIERS_PACK`, js/inventaire.js) : un adjoint parmi trois.

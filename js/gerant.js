@@ -20,7 +20,8 @@ import {
   MUTATIONS, getPlayerKey,
   physiqueDe, accordsDeLigne, EDITIONS_REGLEMENT,
 } from './sim.js';
-import { motsEnChiffres, motsDeMutationEnChiffres, motsDeStats, flechesDe } from './impact.js';
+import { motsDeMutationEnChiffres, motsDeStats } from './impact.js';
+import { motsDe, motsDuPari, facesMot, MOTS_DU_JOUEUR } from './effets.js';
 import { carteHtml, paquetHtml } from './cartes.js';
 import { facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { INTENTIONS, PLANS } from './greffes.js';
@@ -245,46 +246,12 @@ export function basculerChiffres() {
   return CHIFFRES_OUVERTS;
 }
 /*
- * CE QU'UNE CARTE FAIT, EN PUCES (S72). JP : *varie les cartes* ; *faut le
- * faire pour vrai*. Un cadeau n'a que du vert, un moindre mal que du rouge ;
- * un pari dit sa chance et ses deux issues, un investissement ce qui vient
- * plus tard, un geste réel qui il touche et ce qui lui arrive.
+ * CE QU'UNE CARTE FAIT, EN PUCES (S72 ; V25 B1b : ses lignes viennent de sa grammaire, js/effets.js `motsDe`). Ici,
+ * ce que la grammaire ne dit pas : l'enjeu d'un avant-match, et « Rien ne change ».
  */
-const plur = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
-/* Les faces gagnantes d'un dé, les plus hautes : « sur 4, 5 ou 6 ». Jamais une cote. */
-const facesMot = k => { const f = Array.from({ length: k }, (_, i) => 7 - k + i); return `sur ${f.length > 1 ? `${f.slice(0, -1).join(', ')} ou ${f[f.length - 1]}` : `un ${f[0]}`}`; };
-function motsDAction(a, noms = '') {
-  if (!a) return [];
-  const qui = noms || 'le joueur visé';
+function motsDeCarte(o) {
   const out = [];
-  if (a.absents) out.push({ txt: `👥 ${qui} au vestiaire ${plur(a.absents, 'match')} — un réserviste ou un rappelé joue`, bon: null });
-  if (a.energie) out.push({ txt: `👥 ${qui} : jambes ${a.energie > 0 ? '+' : '−'}${Math.abs(a.energie)}`, bon: a.energie > 0 });
-  if (a.energieTous) out.push({ txt: `👥 Toute l'équipe : jambes ${a.energieTous > 0 ? '+' : '−'}${Math.abs(a.energieTous)}`, bon: a.energieTous > 0 });
-  if (a.gardienAux) out.push({ txt: `🧤 L'auxiliaire garde le filet ${plur(a.gardienAux, 'match')}`, bon: null });
-  return out;
-}
-/*
- * UN PARI SE DIT D'UNE SEULE FAÇON (V19, tranche 6 ; JP : *une seule lecture des choix*) : le dé et sa chance, ce qu'il donne
- * s'il tombe, ce qu'il donne sinon — en vraies stats, une puce verte et une puce rouge. Les options, les cartes de route et les
- * dossiers passent tous par ici.
- */
-function motsDuPari(pari, noms = '') {
-  // V20 : l'audace d'une histoire vise son joueur (`lui`) — ce qui lui arrive se dit à son nom.
-  const issue = e => { const { duree, action, lui, ...c } = e || {}; const m = [...motsEnChiffres(c, duree), ...motsDAction(action, noms), ...(lui ? motsSurLeJoueur(lui, noms || 'Ton joueur') : [])]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
-  return [{ txt: `🎲 ${majuscule(facesMot(facesDuPari(pari.chance)))} : ${issue(pari.gagne)}`, bon: true }, { txt: `🎲 sinon : ${issue(pari.perd)}`, bon: false }];
-}
-function motsDeCarte(o, noms = '') {
-  const out = [];
-  if (o.action) out.push(...motsDAction(o.action, noms));
-  if (o.lui) out.push(...motsSurLeJoueur(o.lui, noms || 'Ton joueur'));
-  if (o.changeGardien) out.push({ txt: '🧤 L\'auxiliaire prend le filet', bon: null });
-  if (o.gardienAux === true) out.push({ txt: '🧤 L\'auxiliaire au filet ce match-là', bon: null });
   if (o.enjeu) out.push({ txt: '⚖ Après le match, l\'élan ou le contrecoup dure deux fois plus', bon: null });
-  if (o.pari) out.push(...motsDuPari(o.pari, noms));
-  if (o.ensuite) {
-    const { apres, duree, ...c } = o.ensuite;
-    out.push({ txt: `⏳ Dans ${plur(apres || 0, 'match')} : ${motsEnChiffres(c, duree).map(x => x.txt).join(', ')}`, bon: true });
-  }
   if (o.rien) out.push({ txt: 'Rien ne change', bon: null });
   return out;
 }
@@ -316,9 +283,6 @@ function rolesDe(p) {
 export const barresProfils = rolesDe;
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
 const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(', ')} et ${ns[ns.length - 1]}`);
-/* Les canaux d'effet d'un objet : ce que motsEnChiffres sait dire. */
-const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
-const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
 /* Une forme, un mot : ce qu'on lit avant les chiffres. Un cadeau n'est pas un échange. */
 const CANAUX_FORME = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse'];
 const aideCanal = (k, v) => (k === 'robustesse' ? v > 0 : (k === 'defense' || k === 'discipline' || k === 'blessure' || k === 'energie' ? v < 1 : v > 1));
@@ -338,19 +302,18 @@ export function formeDe(o) {
   if (!o || typeof o !== 'object') return '';
   if (o.etiquette) return o.etiquette;
   if (o.pari) return 'Pari';
-  if (o.ensuite) return 'Plus tard';
-  if (o.action) return 'Geste';
+  if (o.gestes && Object.keys(o.gestes).some(k => k !== 'adjoint')) return 'Geste';
   // Ne rien faire se dit une fois, par sa puce (« Rien ne change ») : ni étiquette, ni « + Rien ne change » de plus.
   if (o.rien) return '';
   if (o.trou || (o.mutation && EDITIONS_REGLEMENT.includes(o.mutation))) return 'Règlement';
   if (EDITIONS_REGLEMENT.includes(o.cle)) return 'Règlement';
-  const src = o.effet || o;
-  if (Array.isArray(src.F) || Array.isArray(src.D)) return 'Minutes';
+  const c = o.canaux || {};
+  if (Array.isArray(c.F) || Array.isArray(c.D)) return 'Minutes';
   // Ce qui va au joueur nommé (`lui`) compte aussi : sa précision qui monte aide, ses buts accordés qui montent coûtent.
   // Ce que le moteur ne joue pas compte aussi (oct.) : des jetons gagnés ou payés, de l'espace sous le plafond. Le contrat de
   // télé (+2,5 M$) se lisait « Moindre mal ».
-  const bits = [...bitsDe(src, true), ...Object.entries(src.lui || {}).filter(([k]) => MOTS_DU_JOUEUR[k]).map(([k, v]) => (MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1)),
-    ...(o.gain ? [o.gain > 0] : []), ...(o.plafond ? [true] : [])];
+  const bits = [...bitsDe(c, true), ...Object.entries(o.lui || {}).filter(([k]) => MOTS_DU_JOUEUR[k]).map(([k, v]) => (MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1)),
+    ...(o.jetons ? [o.jetons > 0] : []), ...(o.plafond ? [true] : [])];
   if (!bits.length) return '';
   if (bits.every(Boolean)) return 'Cadeau';
   if (bits.every(b => !b)) return 'Moindre mal';
@@ -450,8 +413,7 @@ export function sceneHtml(sc, { voix = false } = {}) {
 export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', on = false, plein = false } = {}) {
   const { nom, noms, sub } = nommer(spec);
   if (!mots) {
-    const { duree: _d, ...canaux } = o.effet || o;
-    mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, o.cadre || spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+    mots = [...motsDe(o, { qui: noms || 'Ton joueur', cadre: o.cadre || spec.cadre, offert: o.offert || null }), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o), ...(o.mots || [])];
   }
   const forme = formeDesMots(o, mots);
   // LE GROS CHIFFRE (V23, docs/refonte-v23.md § B ; JP : *une vraie expérience de card game*) : la première ligne verte qui
@@ -462,7 +424,7 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
   const ig = gros ? mots.indexOf(gros.mot) : -1;
   const restants = ig >= 0 ? mots.filter((_, i) => i !== ig) : mots;
   const plieRestant = (m, k) => plie(m, ig >= 0 && k >= ig ? k + 1 : k);
-  const pucesHtml = `${puces(restants.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), plieRestant)}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
+  const pucesHtml = `${puces(restants.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), plieRestant)}${o.fenetre ? `<span class="puce neutre duree">${esc(o.fenetre)}</span>` : ''}`;
   // V23, la nouvelle interface : une option qui est un club (les rivaux) se dresse sur sa plaque, à ses couleurs (`o.bande`, `varsEquipe`).
   return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${o.bande ? ' eq' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${o.bande ? ` style="${esc(o.bande)}"` : ''}${forme ? ` data-forme="${esc(FORME_CLE[forme] || 'autre')}"` : ''}${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
     ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
@@ -534,8 +496,7 @@ export function ouvrirChoix(spec) {
       ${spec.contexte || ''}
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure: meilleure.edition || NIVEAUX[niveauSur(meilleure.niveau)].cadre, serie: spec.titre })}</div>` : ''}
       <div class="choix-options${spec.cartes ? ` choix-main${pile ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}">${spec.options.map((o, i) => {
-        const { duree: _d, ...canaux } = o.effet || o;
-        const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+        const mots = [...motsDe(o, { qui: noms || 'Ton joueur', cadre: spec.cadre, offert: o.offert || null }), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o), ...(o.mots || [])];
         const forme = formeDe(o);
         // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner. La forme tient dans le type, le visage ne bouge pas.
         if (spec.cartes) return carteHtml({
@@ -544,7 +505,7 @@ export function ouvrirChoix(spec) {
           bonHtml: o.bon ? sub(o.bon) : '', prixHtml: o.prix ? sub(o.prix) : '', coinHtml: o.coin ? esc(o.coin) : '',
           // UNE CARTE SE LIT EN MOTS (V3, JP : *les cartes doivent être plus claires, quitte à pas mettre de stats*) :
           // sa face dit ce qu'elle fait (+ bon, − prix) ; ses chiffres de match attendent « Les chiffres ».
-          pucesHtml: pucesDeFace(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
+          pucesHtml: pucesDeFace(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.fenetre ? `<span class="puce neutre duree">${esc(o.fenetre)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: pile, r: pile ? rangDe(i) : null, meilleure: pile && rangDe(i) === ordre.length - 1 && (rangDOption(o) >= 3 || !!o.eclat),
           joueurHtml: o.joueurHtml || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
@@ -651,7 +612,7 @@ function sceneDuDe(m, spec, o, sub, fermer, autre = () => ouvrirChoix(spec)) {
     <div class="de-besoin">🎲 Ça passe ${facesMot(faces)}</div>
     <div class="de-table">${deHtml(6)}</div>
     <div class="de-verdict" role="status" aria-live="polite"></div>
-    <span class="choix-puces de-issue">${puces(motsDuPari(o.pari, spec.joueur ? spec.joueur.n : ''))}</span>
+    <span class="choix-puces de-issue">${puces(motsDuPari(o.pari, spec.joueur ? spec.joueur.n : 'Ton joueur'))}</span>
     <div class="de-boutons">
       <button type="button" class="btn de-autre">Autre réponse</button>
       <button type="button" class="btn go de-lancer">Lancer le dé</button>
@@ -664,8 +625,7 @@ function sceneDuDe(m, spec, o, sub, fermer, autre = () => ouvrirChoix(spec)) {
   const montrer = () => {
     const de = table.querySelector('.de');
     de.classList.add('pose', v.gagne ? 'gagne' : 'perd');
-    const { duree, action, lui, ...canaux } = v.effet || {};
-    const mots = [...motsEnChiffres(canaux, Object.keys(canaux).length ? duree : null), ...motsDAction(action), ...(lui ? motsSurLeJoueur(lui, spec.joueur ? spec.joueur.n : 'Ton joueur') : [])];
+    const mots = motsDe(v.effet, { qui: spec.joueur ? spec.joueur.n : 'Ton joueur' });
     verdict.innerHTML = `<b>${v.face}</b> — ${v.gagne ? 'ça passe !' : 'raté.'}`;
     verdict.classList.add(v.gagne ? 'gagne' : 'perd');
     corps.querySelector('.de-issue').innerHTML = puces(mots.length ? mots : [{ txt: 'Rien ne change', bon: null }]);
@@ -1048,20 +1008,6 @@ export function resumeLignes(lineup, chimie) {
   }).join('');
 }
 
-/* ======================================================================
-   CE QUI BOUGE CHEZ UN JOUEUR NOMMÉ (V11)
-   ====================================================================== */
-const MOTS_DU_JOUEUR = { lancers: ['ses tirs', true], finition: ['sa précision', true], creation: ['ses passes', true], defense: ['leur précision contre lui', false], blessure: ['ses blessures', false], arrets: ['les buts qu\'il accorde', false] };
-/* Sur la face, sans chiffre et court (une carte de la main a la largeur d'un pouce) : « Le visé : tire plus juste ». */
-const FACE_DU_JOUEUR = { lancers: ['tire plus', 'tire moins'], finition: ['tire plus juste', 'tire moins juste'], creation: ['passe plus', 'passe moins'],
-  defense: ['plus facile à battre', 'plus dur à battre'], blessure: ['se blesse plus', 'se blesse moins'], arrets: ['accorde plus', 'accorde moins'] };
-/*
- * Ce qui bouge chez un joueur nommé (V11), un canal par ligne : « Ton joueur : sa précision +80 % » aux règles, et
- * « Ton joueur : tire plus juste » sur la face (`mot`, lu par `enMotsEtChiffres`).
- */
-export const motsSurLeJoueur = (canaux, qui, quand = '', court = qui) => Object.entries(canaux).filter(([k]) => MOTS_DU_JOUEUR[k])
-  .map(([k, v]) => ({ txt: `${qui} : ${MOTS_DU_JOUEUR[k][0]} ${flechesDe(v)}${quand ? `, ${quand}` : ''}`, bon: MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1,
-    cle: 'surLui', mot: `${court} : ${FACE_DU_JOUEUR[k][v > 1 ? 0 : 1]}` }));
 /*
  * UNE CARTE DE LA BANQUE, HORS D'UN CHOIX (Jalon U : un seul dessin). JP : *pas plein de designs différents pour des
  * fonctions pareilles*. L'inventaire montre la même face qu'un pack ou une main (`carteHtml`) ; `cache` : une carte
@@ -1079,7 +1025,7 @@ export const carteDeBanqueHtml = (o, { cache = false } = {}) => carteHtml({
  * l'envoie : `onJouer` reçoit ta réponse (`{ plan, snap }` : le plan pris, ou null pour garder le tien ; la mise),
  * l'ajustement et la carte de vestiaire. Une carte de vestiaire qui est un pari se joue au dé d'abord (`sceneDuDe`).
  *
- * spec : { titre, sousTitre, recit, duel (specDuDuel), ajustements (séries : [{ cle, ico, nom, bon, prix, … }] ou null),
+ * spec : { titre, sousTitre, recit, duel (specDuDuel), ajustements (séries : [{ cle, ico, nom, bon, prix, canaux, … }] ou null),
  *          enjeu(vestiaire) → html, vestiaire : { ico, titre, recit, joueurs, ouDe, cadre, options, pris,
  *          lancer(cle, args) → le dé d'un pari }, stats, couleurs, onAdjoint, onJouer(reponse, ajustement, vestiaire) }
  */
@@ -1106,8 +1052,7 @@ export function ouvrirDuel(spec) {
       ${etape('vest', `${V.ico} ${esc(V.titre)} · garde une carte`)}
       ${V.recit ? `<p class="main-vest-recit">${nV.sub(V.recit)}</p>` : ''}
       <div class="main-vest-rang">${V.options.map(o => {
-        const { duree: _d, ...canaux } = o;
-        const mv = [...motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, V.cadre), ...motsDeCarte(o, nV.noms)];
+        const mv = [...motsDe(o, { qui: nV.noms || 'Le joueur visé', cadre: V.cadre }), ...motsDeCarte(o)];
         return optionHtml({ ...o, desactive: V.pris && V.pris !== o.cle ? 'L\'autre est gardée' : o.desactive }, V, { mots: mv, classe: 'main-vest', attr: `data-vest="${esc(o.cle)}"`, on: vest === o.cle });
       }).join('')}</div>
     </div>` : '';
@@ -1140,8 +1085,7 @@ export function ouvrirDuel(spec) {
         ${D.mise ? `<div class="duel-mise">${sceneHtml(D.mise, { voix: true })}<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${snap ? '✓ Mise doublée' : 'Doubler la mise'} · ${esc(D.mise.chiffres)}</button></div>` : ''}
         ${vestiaire}
         ${spec.ajustements ? `<div class="main-ajuste">${etape('aj', 'Ton ajustement pour ce match')}<div class="main-ajuste-rang">${spec.ajustements.map(o => {
-          const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
-          const mots = [...motsEnChiffres(canaux), ...(o.pari ? motsDuPari(o.pari) : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
+          const mots = motsDe(o);
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
         ${propositionsHtml()}

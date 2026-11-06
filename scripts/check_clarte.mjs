@@ -60,10 +60,10 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
 /* Les chaînes d'un module, sans ses commentaires : scripts/lib/chaines.mjs (partagé avec le gel des chaînes). */
 {
   // Le lecteur lit vraiment : il trouve des chaînes connues, et il verrait un « énergie » glissé dans un gabarit.
-  const sim = chainesDe(lire('js/sim.js')), ger = chainesDe(lire('js/gerant.js'));
+  const sim = chainesDe(lire('js/sim.js')), eff = chainesDe(lire('js/effets.js'));
   const temoin = chainesDe("// l'énergie\nconst a = `x ${b ? 'y' : `z`} énergie`; /* 'énergie' */ const r = /'/g;");
-  exiger('le lecteur de chaînes lit le code', sim.includes('Plombier') && ger.some(s => /Toute l'équipe : jambes/.test(s)) && temoin.filter(s => /énergie/.test(s)).length === 1,
-    `${sim.length} chaînes dans sim.js, ${ger.length} dans gerant.js`);
+  exiger('le lecteur de chaînes lit le code', sim.includes('Plombier') && eff.some(s => /Toute l'équipe : jambes/.test(s)) && temoin.filter(s => /énergie/.test(s)).length === 1,
+    `${sim.length} chaînes dans sim.js, ${eff.length} dans effets.js`);
   const trouvés = [];
   for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'))) {
     for (const ch of chainesDe(lire(`js/${f}`))) if (/énergie/i.test(ch)) trouvés.push(`${f} : « ${ch.trim().slice(0, 60)} »`);

@@ -28,7 +28,7 @@ export const PLANCHER = { tirs: 1, pctTir: 0.01, contre: 1, pctArr: 0.01 };
 const FAMILLES = ['moment', 'sequence', 'dossier', 'vie', 'fil'];
 
 /* Un choix qui ne bouge rien au match (rien à faire, des jetons seuls) n'a pas de verdict de match. */
-const bougeLeMatch = (d, o, team) => !o.rien && !!(effetDeMoment(d, team) || o.lui || o.mutation || o.action || o.pari || o.ensuite || o.monte || o.mentor || o.suivi);
+const bougeLeMatch = (d, o, team) => !o.rien && !!(effetDeMoment(d, team) || o.lui || o.mutation || o.gestes || o.pari || o.monte || o.mentor || o.suivi);
 /* « … pour {nom} » : le joueur nommé par la décision, tel que ton club le porte, ou « lui » s'il est parti. */
 function sansAccolades(txt, d, you) {
   const m = d.moment || {};

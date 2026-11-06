@@ -106,7 +106,7 @@ const VOIX_DES_FILS = {
  * Cheechoo, la disette, le duo, la recrue — ouvre un choix à deux réponses : une qui ENGAGE (un suivi, `suivi` : dans
  * `apres` matchs, le moteur relit les feuilles du joueur nommé — ses buts, ses points, les buts du duo — et le seuil
  * décide, `gagne` ou `perd`, des effets forts et courts sur lui, jamais un dé), une qui ne promet rien ou qui fait un
- * geste concret (`action`, `monte`, `mentor`). Le retour se lit à la une avec ses vrais chiffres (`texteDuRetour`).
+ * geste concret (`gestes`, `monte`, `mentor`). Le retour se lit à la une avec ses vrais chiffres (`texteDuRetour`).
  * Les mots : `{nom}` le joueur du fil, `{deplace}` celui qu'il déloge, `{passeur}` son passeur, `{vieux}` le vétéran mentor.
  */
 export const CHOIX_DES_FILS = {
@@ -124,7 +124,7 @@ export const CHOIX_DES_FILS = {
         suivi: { apres: 8, mesure: 'buts', seuil: 2, depuis: 'votre discussion',
           gagne: { mot: 'il respire, la rondelle rentre', duree: 10, effets: [{ sur: 'joueur', finition: 1.5 }] },
           perd: { mot: 'le doute s\'installe', duree: 8, effets: [{ sur: 'joueur', finition: 0.55 }] } } },
-      { cle: 'reposer', nom: 'Le reposer deux matchs', bon: 'Il revient la tête vidée', prix: 'Deux matchs sans lui', action: { absents: 2 } },
+      { cle: 'reposer', nom: 'Le reposer deux matchs', bon: 'Il revient la tête vidée', prix: 'Deux matchs sans lui', gestes: { absents: 2 } },
     ] },
   duo: { ico: '🤝', titre: 'Le duo', question: 'Ces deux-là se trouvent. Tu les soudes ?',
     options: [

@@ -23,7 +23,8 @@
  * `check_cartes`).
  */
 import { MUTATIONS, EDITIONS_REGLEMENT } from './sim.js';
-import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
+import { motsDeMutationEnChiffres } from './impact.js';
+import { motsDe } from './effets.js';
 import { NIVEAUX } from './niveaux.js';
 
 export const CATEGORIES = {
@@ -69,9 +70,9 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
 export const CONSOMMABLES = {
   glace: { nom: 'Glace et compression', ico: '🧊', niveau: 1, vie: 'usage', cible: 'blesse', gestes: { soin: 2 }, texte: 'Vingt minutes, trois fois par jour.' },
   physio: { nom: 'La séance de physio', ico: '💆', niveau: 2, vie: 'usage', cible: 'blesse', gestes: { soin: 5 }, texte: 'Des ultrasons et de la patience.' },
-  chirurgie: { nom: 'La chirurgie éclair', ico: '🏥', niveau: 3, vie: 'permanent', cible: 'blesse', gestes: { soin: 12 }, effet: { blessure: 1.56 }, duree: 5, texte: 'Le meilleur chirurgien a une plage libre. Le retour presse, et les corps le paient.' },
+  chirurgie: { nom: 'La chirurgie éclair', ico: '🏥', niveau: 3, vie: 'permanent', cible: 'blesse', gestes: { soin: 12 }, canaux: { blessure: 1.56 }, duree: 5, texte: 'Le meilleur chirurgien a une plage libre. Le retour presse, et les corps le paient.' },
   // L'échange d'un doublon (P3) : ton doublon le plus fourni part ; trois joueurs de son époque, hors de ton cartable (`echange`).
-  echangeDoublon: { nom: 'L\'échange d\'un doublon', ico: '📟', niveau: 2, vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, echange: true, texte: 'Un doublon de trop, contre un joueur de son époque.' },
+  echangeDoublon: { nom: 'L\'échange d\'un doublon', ico: '📟', niveau: 2, vie: 'usage', cible: 'cartable', gestes: { echange: true, offres: 3 }, niveauMax: 2, texte: 'Un doublon de trop, contre un joueur de son époque.' },
   // Le stage (V21) : de l'expérience au coach de la run (js/pouvoirs.js `XP`), tout de suite.
   stage: { nom: 'Le stage du coach', ico: '🎞', niveau: 3, vie: 'permanent', cible: 'coach', xp: 8, texte: 'Une semaine de vidéo chez les meilleurs. Il revient avec un cahier neuf.' },
 };
@@ -135,7 +136,7 @@ function construire() {
     const M = MUTATIONS[cle];
     mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, niveau: NIVEAU_MOD[cle] ?? 2, texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source }));
   }
-  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, niveau: C.niveau, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.echange ? { echange: true } : {}) }));
+  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, niveau: C.niveau, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.gestes && C.gestes.echange ? { echange: true } : {}) }));
   return B;
 }
 export const BANQUE = construire();
@@ -155,7 +156,7 @@ const bitsDEffet = e => {
 /* La forme d'un consommable, lue sur toute la carte. Le mot dit le verbe, pas « un peu ». */
 function formeDeConsommable(C) {
   if (!C) return '';
-  const soin = !!(C.gestes && C.gestes.soin), bits = [...bitsDEffet(C.effet), ...(soin ? [true] : [])];
+  const soin = !!(C.gestes && C.gestes.soin), bits = [...bitsDEffet(C.canaux), ...(soin ? [true] : [])];
   if (bits.some(Boolean) && bits.some(b => !b)) return 'Échange';
   if (C.cible === 'coach') return 'Monte';
   if (C.cible === 'cartable') return 'Échange';
@@ -194,21 +195,11 @@ export function reglesDe(id, { joueur = null } = {}) {
   if (c.cat === 'joueur') return motsDeMutationEnChiffres(c.cle, joueur);
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
-    const out = [...motsDesGestes(C.gestes || {})];
-    if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
-    if (C.cible === 'coach') out.push({ txt: `Ton coach : +${C.xp} d'expérience`, bon: true });
-    if (C.cible === 'cartable') out.push({ txt: `Ton doublon le plus fourni part : ${C.offres} joueurs de son époque, ${NIVEAUX[C.niveauMax].nom} au plus, un signé`, bon: true });
-    return out;
+    // L'échange dit sa borne de niveau, que la grammaire ne connaît pas.
+    if (C.cible === 'cartable') return [{ txt: `Ton doublon le plus fourni part : ${C.gestes.offres} joueurs de son époque, ${NIVEAUX[C.niveauMax].nom} au plus, un signé`, bon: true }];
+    return motsDe(C, { qui: 'Un blessé' });
   }
   return [];
-}
-function motsDesGestes(g) {
-  const out = [];
-  if (g.soin) out.push({ txt: `${g.tousLesBlesses ? 'Tous tes blessés' : 'Un blessé'} : −${g.soin} match${g.soin > 1 ? 's' : ''} d'infirmerie`, bon: true });
-  if (g.energie) out.push({ txt: `Un joueur : jambes ${g.energie > 0 ? '+' : '−'}${Math.abs(g.energie)}`, bon: g.energie > 0 });
-  if (g.energieTous) out.push({ txt: `Tes patineurs : jambes ${g.energieTous > 0 ? '+' : '−'}${Math.abs(g.energieTous)}`, bon: g.energieTous > 0 });
-  if (g.gardienAux) out.push({ txt: `L'auxiliaire garde le filet ${g.gardienAux} match${g.gardienAux > 1 ? 's' : ''}`, bon: null });
-  return out;
 }
 
 /*
@@ -221,7 +212,7 @@ export function payloadDe(id, { joueur = null, sortie = null, rar = null } = {})
   if (c.cat === 'joueur') return joueur ? { mutation: { cle: c.cle, joueur } } : null;
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
-    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...C.effet } : null;
+    const effet = C.canaux ? { nom: C.nom, ico: C.ico, duree: C.duree, ...C.canaux } : null;
     if (C.cible === 'blesse') return joueur ? { ...(C.gestes ? { gestes: { ...C.gestes, joueurs: [joueur] } } : {}), ...(effet ? { effet } : {}) } : null;
     // Le stage : de l'expérience au coach de la run.
     if (C.cible === 'coach') return { xpCoach: C.xp };
