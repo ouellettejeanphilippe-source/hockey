@@ -57,7 +57,8 @@ import {
 import { PLANS } from '../../js/greffes.js';
 import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, styleAuNiveau, effetDuRelais } from '../../js/adjoints.js';
 import { robotDuel } from './duel.mjs';
-import { lundiDuRobot, coachDuRobot } from './cartes_robot.mjs';
+import { lundiDuRobot, rondeDuRobot, coachDuRobot } from './cartes_robot.mjs';
+import { sortiesDe, memoireDeLaRun } from '../../js/histoires.js';
 import { niveauDuPerso, POUVOIRS, grandir, TALENT } from '../../js/pouvoirs.js';
 import { lotoDesCoachs } from '../../js/coachs-reels.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
@@ -330,6 +331,20 @@ function lireLeJoueur(R, cle) {
   };
 }
 /*
+ * CE QUE LES CANAUX DU CLUB D'UNE HISTOIRE RENDENT (V25 C2 ; MESURE seulement, `ROBOT_SAUF=histoires` la retire) : au matin
+ * d'un gros match ou d'une ronde, une réponse pose des canaux sur ton club, un soir ou une série (`duree`) ; lus comme le
+ * style d'un adjoint (`fitDAdjoint`), les buts nets d'un soir avec eux moins sans, en victoires à `V_PAR_BUT`, sur leur durée.
+ */
+function lireLesCanaux(R, canaux, duree) {
+  const net = effets => avecHasardIsole('robot', () => {
+    const t = createTeam('Lu', 'LU', R);
+    t.courbe = true;
+    const m = chiffresDuSoirSous(t, { effets });
+    return m.butsPour - m.butsContre;
+  });
+  return (net([{ source: 'histoire', ...canaux }]) - net([])) * duree * V_PAR_BUT;
+}
+/*
  * CE QUE LE TALENT RENDRAIT À TON CLUB, en victoires par saison (nov. 2026 ; MESURE seulement, `ROBOT_SAUF=talent`).
  * L'attentif lisait « le pouvoir I a-t-il joué un soir sur deux ? » ; or le verrou de la Tortue joue un soir sur deux
  * et ne rend rien. Il pèse maintenant le talent selon son coach, comme le lot 3 l'a pesé : un pouvoir grandi de moitié
@@ -594,14 +609,17 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total - salairesDesAdjoints(L.calendrier, you, L.jour).total - depense;
   };
   // V10 : le lundi du robot — l'histoire, la carte d'un palier (scripts/lib/cartes_robot.mjs).
-  const etatCartes = { histoires: [], paliers: new Set(), butins: new Set() };
+  // V25 C2 : la mémoire des histoires de la run (`etat.histoires`, les saisons d'avant) et les rondes déjà demandées.
+  const etatCartes = { histoires: [], avant: etat.histoires || [], paliers: new Set(), butins: new Set(), rondes: new Set() };
+  // L'attentif lit le joueur nommé d'une histoire et les canaux du club qu'elle pose (`ROBOT_SAUF=histoires` les retire).
+  const lireHistoires = attentif && attentifFait('histoires');
   const plans = new Map();
   let planPose = 'match';
   while (!L.fini) {
     for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes,
       fit: attentif && attentifFait('fit') ? (k, niv) => fitDAdjoint(you.roster, k, etat.perso.cle, niv) : null,
       // Nov. 2026 : le joueur nommé d'une histoire, lu sur son club (`lireLeJoueur`), et le talent selon son coach (`valeurDuTalent`).
-      lire: attentif ? { joueur: attentifFait('histoires') ? cle => lireLeJoueur(you.roster, cle) : null,
+      lire: attentif ? { joueur: lireHistoires ? cle => lireLeJoueur(you.roster, cle) : null, canaux: lireHistoires ? (c, duree) => lireLesCanaux(you.roster, c, duree) : null,
         talent: attentifFait('talent') ? valeurDuTalent : null, case: VALEUR_DE_LA_CASE } : null })) {
       decisions.push(d);
       depense -= d.gain || 0;
@@ -671,11 +689,17 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const b = bilanLigue(L);
   const rang = b.standings.indexOf(you) + 1;
   let rondes = 0, coupe = false, finale = false;
+  const decsS = [];
   if (rang <= 16) {
-    const decsS = [];
     const S = creerSeries(b.standings.slice(0, 16), { ligue: L, graine: L.graine, decisions: decsS, equipes: L.teams });
-    // LA MAIN EN SÉRIES (Jalon P0) : chaque match est un duel, joué par `you.robotDuel` (plus haut).
-    for (let garde = 0; !S.fini && garde < 200; garde++) jouerMatchSeries(S);
+    // LA MAIN EN SÉRIES (Jalon P0) : chaque match est un duel, joué par `you.robotDuel` (plus haut). V25 C2 : le matin du
+    // premier match d'une ronde, l'histoire de la ronde (`rondeDuRobot`), décidée avant que la ronde se joue.
+    for (let garde = 0; !S.fini && garde < 200; garde++) {
+      const d = rondeDuRobot({ S, L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes,
+        lire: lireHistoires ? { joueur: cle => lireLeJoueur(you.roster, cle), canaux: (c, duree) => lireLesCanaux(you.roster, c, duree) } : null });
+      if (d) { decsS.push(d); depense -= d.gain || 0; }
+      jouerMatchSeries(S);
+    }
     rondes = S.toutes.filter(s => s.winner === you).length;
     coupe = S.champion === you;
     // LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1, `PACKS_DE_SERIE`) : ses joueurs vont au classeur, pas dans l'alignement des séries.
@@ -692,7 +716,9 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // `L` et `you` : la ligue jouée, pour qui veut relire ses feuilles (check_moments_si). `report` : ce que la saison suivante reprend.
   // V21 : le personnage que la saison laisse à la suivante — l'expérience gagnée s'ajoute, les choix restent.
   const perso = you.perso ? { ...you.perso, xp: you.perso.xp + (you.xpSaison || 0) } : etat.perso;
-  return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster }, L, you, decisions, perso };
+  // V25 C2 : la mémoire des histoires que la saison laisse à la suivante (js/histoires.js `memoireDeLaRun`), comme le jeu (js/rogue-jeu.js).
+  const histoires = memoireDeLaRun(etat.histoires, sortiesDe([...decisions, ...decsS], L.calendrier.length));
+  return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster }, L, you, decisions, decisionsSeries: decsS, perso, histoires };
 }
 
 /*
@@ -784,6 +810,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     etat.roster = vestiaire(rnd, meta, [...restent, ...lotos.map(x => copie(x.p))], classeurSaison, { saison: n + 1, exclus: partants, joues, graine: `${graine}:s${n + 1}`, exigence }).roster;
     etat.jetons = r.reste + jetonsDeDepart(meta);
     etat.perso = r.perso;
+    etat.histoires = r.histoires;
   }
   for (const k of jouees) joues.set(k, (joues.get(k) || 0) + 1);
   const fin = saisons[saisons.length - 1];

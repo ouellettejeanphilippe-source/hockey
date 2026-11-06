@@ -16,6 +16,8 @@
  *   2. LES CAMPAGNES : de zéro, douze runs par politique, les médailles achètent les déblocages (comme `check_rogue`).
  *      L'attentif gagne sa première Coupe entre la run 3 et la run 8 ; le distrait ne la gagne jamais. Après sa première
  *      Coupe, l'attentif la regagne, mais pas d'office : une run sur quatre à deux sur trois (tranche 8, `APRES`).
+ *      V25 C2 : la profondeur se juge sur la run — la première Coupe de l'attentif au moins deux runs avant celle du robot
+ *      d'avant (`AVANCE_RUNS`).
  *
  * LES CIBLES DE LA V9 (§ 10). Mesuré le 16 oct., avant la tranche 3 : voir docs/refonte-v9.md, § 14. Le script est le
  * juge des tranches 3 à 8, pas une vérification de la CI : il est rouge tant que mener ne compte pas assez.
@@ -37,6 +39,8 @@ const RUNS_CAMPAGNE = Number(process.env.RUNS_CAMPAGNE ?? 12);
 const SAISONS_CLUBS = ['1985-86', '1995-96', '2005-06', '2015-16'];
 /* Après sa première Coupe, la part des runs que l'attentif gagne encore (tranche 8) : ni jamais, ni d'office. */
 const APRES = [0.25, 2 / 3];
+/* V25 C2 : la première Coupe de l'attentif, au moins ces runs avant celle du robot d'avant (plage sûre : 1 à 3, docs/refonte-v25.md § 9). */
+const AVANCE_RUNS = 2;
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 
 /* Le vrai bilan d'un club : les victoires et les défaites de ses gardiens. */
@@ -151,6 +155,16 @@ if (!isMainThread) {
     const mediane = premieres.length % 2 ? premieres[(premieres.length - 1) / 2] : (premieres[premieres.length / 2 - 1] + premieres[premieres.length / 2]) / 2;
     exiger('l\'attentif gagne sa première Coupe entre la run 3 et la run 8 (la médiane des campagnes)', mediane >= 3 && mediane <= 8,
       `médiane ${mediane} · ${attentif.map(r => (r.premiere ? `run ${r.premiere}` : `> ${RUNS_CAMPAGNE}`)).join(' · ')}`);
+    /*
+     * LA PROFONDEUR SE JUGE SUR LA RUN (V25, docs/refonte-v25.md § 5 ; JP, 5 nov.) : lire ses choix change la carrière — la
+     * première Coupe de l'attentif arrive au moins `AVANCE_RUNS` runs avant celle du robot d'avant, sur les mêmes campagnes
+     * (une campagne sans Coupe compte pour la run d'après la dernière). L'écart par saison reste une information.
+     */
+    const defaut = camp[POLITIQUES.indexOf('defaut')];
+    const medianeDe = l => { const t = l.map(r => r.premiere ?? RUNS_CAMPAGNE + 1).sort((a, b) => a - b); return t.length % 2 ? t[(t.length - 1) / 2] : (t[t.length / 2 - 1] + t[t.length / 2]) / 2; };
+    const avance = medianeDe(defaut) - mediane;
+    exiger(`la première Coupe de l'attentif au moins ${AVANCE_RUNS} runs avant celle du robot d'avant (les médianes des campagnes)`, avance >= AVANCE_RUNS,
+      `${avance >= 0 ? '' : '−'}${Math.abs(avance)} run${Math.abs(avance) > 1 ? 's' : ''} · robot d'avant : ${defaut.map(r => (r.premiere ? `run ${r.premiere}` : `> ${RUNS_CAMPAGNE}`)).join(' · ')}`);
     /*
      * LA RUN NE S'APLATIT PAS (V9, tranche 8 ; § 14, « ce que ça dit », 3) : après sa première Coupe, l'attentif ne la
      * gagne plus à chaque run — une run gagnée d'office n'a plus d'enjeu — mais il la regagne : rouler sur la ligue

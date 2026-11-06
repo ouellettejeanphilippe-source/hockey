@@ -253,7 +253,7 @@ La pièce maîtresse. Chaque nom ci-dessous disparaît du jeu (js/, index.html, 
 - [ ] Une seule banque d'histoires, trois moments ; chaque entrée a une voix, nomme son joueur, dit ses vrais chiffres avec les matchs joués, et ses options sont des cartes ; chaque voix porte une histoire — `check_dossiers` (refait), `check_incidents`, `check_clarte` § 5, `check_choix`, `check_vie` (la vraie saison).
 - [ ] Les faits se lisent dans faits.js, jamais dans l'écran ; rien d'avance — `check_moments_si`, `check_fils`.
 - [ ] Chaque option qui touche un joueur engage un suivi lisible le lundi d'après — `check_suivis`.
-- [ ] Le rythme : aucun trou de plus de 10 matchs, une histoire par quart, aucune histoire revue sur le même joueur en trois saisons — `mesure_rythme` (étendu).
+- [x] Le rythme : aucun trou de plus de 10 matchs, une histoire par quart, aucune histoire revue sur le même joueur en trois saisons — `mesure_rythme` (étendu ; C2, 6 nov.).
 - [ ] La profondeur : la première Coupe de l'attentif deux runs avant celle du robot d'avant, à la run 3 ou plus tard ; le robot lit la banque — `check_profondeur` (le critère de run), `check_robot`.
 - [ ] L'interface du Rogue : zéro `body.mode-rogue`, moins de 6 000 lignes, aucun `if` de mode neuf dans le rendu, les douze pages faites des composants, la case en carte un composant nommé — `check_css` (étendu), `check_composants` (ce que `check_plateau` devient), `check_mort`.
 - [ ] La défensive : le canal par joueur bat le club seul et se sépare du gardien en retenue — `check_suppression` (étendu), avant toute ligne d'A3.

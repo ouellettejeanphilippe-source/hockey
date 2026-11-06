@@ -12,13 +12,16 @@
  *      réplique qui dit le nom court du joueur nommé et ne dit que des nombres reçus (le chiffre du fait, jamais une stat
  *      du moteur), et un fait qui nomme le joueur et porte un nombre ; aucune accolade oubliée ;
  *   3. le tirage, pur : la même graine, le même moment et les mêmes faits rendent la même histoire, toujours une vraie, et
- *      rien quand rien n'est vrai ; les lundis d'une histoire, une semaine sur deux environ (`lundiAHistoire`) ; jamais
+ *      rien quand rien n'est vrai ; les lundis d'une histoire, une semaine sur deux environ (`lundiAHistoire`), jamais plus de
+ *      `DISETTE_MAX` de suite sans (V25 C2) ; jamais
  *      pendant son repos (`REPOS_HISTOIRE` semaines) ni sur un joueur qu'elle a déjà nommé, `SORTIES_MAX` fois par saison au
  *      plus, et elle revient ; une rare par saison ; chaque moment a son pool ; une suite passe avant le tirage ;
+ *   3b. la mémoire de la run (V25 C2) : d'une saison à l'autre, jamais la même histoire sur le même joueur ; elle revient
+ *      sur un autre, et la rare de la saison d'avant ne retient pas celle-ci ;
  *   4. chacune s'ouvre : sur des lundis, des matins de gros match et des rondes fabriqués, chaque histoire sort.
  *   node scripts/check_histoires.mjs
  */
-import { HISTOIRES, MOMENTS, tirer, sceneDe, nomDOption, lundiAHistoire, CHANCE_HISTOIRE, REPOS_HISTOIRE, SORTIES_MAX, CHANCE_RARE } from '../js/histoires.js';
+import { HISTOIRES, MOMENTS, tirer, sceneDe, nomDOption, lundiAHistoire, memoireDeLaRun, DISETTE_MAX, CHANCE_HISTOIRE, REPOS_HISTOIRE, SORTIES_MAX, CHANCE_RARE } from '../js/histoires.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
 import { CASES, GESTES, CANAUX_LUI, estVide } from '../js/effets.js';
 import { nomCourt } from '../js/recit.js';
@@ -127,6 +130,9 @@ const F = plein();
   const part = grilles.flat().reduce((a, b) => a + b, 0) / (60 * 26);
   exiger(`les lundis d'une histoire : environ une semaine sur deux (${CHANCE_HISTOIRE}), purs, jamais le premier, pas les mêmes d'une graine à l'autre`,
     part > 0.45 && part < 0.65 && new Set(grilles.map(l => l.join(''))).size === 60 && !lundiAHistoire('h0', 0) && lundiAHistoire('h7', 9) === lundiAHistoire('h7', 9), `${(100 * part).toFixed(0)} % des lundis`);
+  // V25 C2 : jamais plus de DISETTE_MAX lundis de suite sans histoire (le premier, la semaine 0, n'en a jamais).
+  const disette = Math.max(...grilles.map(l => Math.max(...l.slice(1).join('').split('1').map(x => x.length))));
+  exiger(`jamais plus de ${DISETTE_MAX} lundis de suite sans histoire`, disette <= DISETTE_MAX, `au plus ${disette} de suite sur 60 saisons`);
 
   // Des matins fabriqués : chaque fait balaie ses valeurs, sur une graine qui ne se répète pas.
   let x = 7;
@@ -197,6 +203,32 @@ const F = plein();
   exiger(`une rare par saison au plus (${CHANCE_RARE} de chance à son tirage)`, raresParSaison === 0, `${raresParSaison} saisons à deux rares`);
   exiger('une suite passe avant le tirage', suitesAvant);
   exiger('chaque moment a son pool', poolsSepares);
+  /*
+   * 3b. LA MÉMOIRE DE LA RUN (V25 C2, `memoireDeLaRun`) : une deuxième saison, tirée avec les histoires de la première, ne
+   * revoit jamais une histoire sur un joueur qu'elle a déjà nommé ; elle la revoit sur un autre, et une rare de la saison
+   * d'avant n'empêche pas celle de cette saison (le repos, les sorties et la rare se comptent à la saison).
+   */
+  let redites = 0, reprises = 0, raresDeuxieme = 0;
+  for (let g = 0; g < 300; g++) {
+    const premiere = [];
+    for (let w = 1; w < 26; w++) {
+      const f = matin(w * SEMAINE, 'lundi'), a = tirer(`r${g}`, 'lundi', f, premiere);
+      if (a) premiere.push({ cle: a, choix: HISTOIRES[a].options[0].cle, joueur: HISTOIRES[a].joueur(f).cle, joueurs: [], j: w * SEMAINE });
+    }
+    const memoire = memoireDeLaRun([], premiere), deuxieme = [];
+    for (let w = 1; w < 26; w++) {
+      const f = matin(w * SEMAINE, 'lundi'), a = tirer(`r${g}:s2`, 'lundi', f, [...memoire, ...deuxieme]);
+      if (!a) continue;
+      const lui = HISTOIRES[a].joueur(f).cle;
+      if (memoire.some(x => x.cle === a && x.joueur === lui)) redites++;
+      else if (memoire.some(x => x.cle === a)) reprises++;
+      if (HISTOIRES[a].rare && memoire.some(x => HISTOIRES[x.cle].rare)) raresDeuxieme++;
+      deuxieme.push({ cle: a, choix: HISTOIRES[a].options[0].cle, joueur: lui, joueurs: [], j: w * SEMAINE });
+    }
+  }
+  exiger('la run ne revoit jamais une histoire sur le même joueur, d\'une saison à l\'autre', redites === 0, `${redites} redites sur 300 runs de deux saisons`);
+  exiger('la mémoire de la run ne bloque que le joueur : l\'histoire revient sur un autre, la rare d\'avant ne retient pas celle de cette saison', reprises > 0 && raresDeuxieme > 0,
+    `${reprises} histoires revues sur un autre joueur · ${raresDeuxieme} rares après une rare la saison d'avant`);
   /* ---------- 4. chacune s'ouvre ---------- */
   const jamais = cles.filter(k => !sortis.has(k));
   exiger('chaque histoire s\'ouvre', !jamais.length, jamais.join(', ') || `${sortis.size} histoires sur 300 saisons`);

@@ -1030,6 +1030,8 @@ export function ouvrirEcranSeries(depuis = null) {
     graine: S.graine, decisions: S.decisions,
     // LE DECK DE MATCH (S74) se déduit aussi des décisions de la saison.
     decisionsSaison: (G.ligue && G.ligue.decisions) || [],
+    // V25 C2 : les histoires des saisons d'avant de la run.
+    histoiresDeLaRun: (G.rogue && G.rogue.histoires) || [],
     // Les cartes, les plans et le banc des séries sont au Rogue ; la saison de base ne fait que jouer ses matchs.
     onDecision: G.bonus === 'ROGUE' ? deciderSerie || null : null,
     onBanc: G.bonus === 'ROGUE' ? bancSerie || null : null,
