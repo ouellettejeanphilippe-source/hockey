@@ -132,11 +132,8 @@ await page.click('#navbar .navtab[data-section="lignes"]');
 await page.waitForFunction(() => window.cap82.G.banc, null, { timeout: 60000 });
 await page.waitForTimeout(800);
 const auBanc = !!(await page.$('#rosterBoard .ln-auto'));
-if (auBanc) {
-  await page.click('#rosterBoard .ln-auto');
-  await page.click('#choixModal:not([hidden]) .tc-prendre[data-choix="equilibre"]');
-  await page.waitForTimeout(500);
-}
+// Nov. 2026 : « Aligner au mieux » agit d'un toucher, sans fenêtre.
+if (auBanc) { await page.click('#rosterBoard .ln-auto'); await page.waitForTimeout(800); }
 informer('achats enregistrés', achats.join(' · '));
 exiger('« Acheter » ferme la fiche du pack', !ficheRestee);
 exiger('un second toucher n\'ouvre pas le même pack', !second);
