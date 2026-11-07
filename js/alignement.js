@@ -269,159 +269,157 @@ function carteDeLaCase(p) {
   return `<button type="button" class="slot-carte slot-fiche" style="${varsEquipe(p)}" title="${esc(['Sa carte', ...posees.map(M => M.nom)].join(' · '))}" aria-label="La carte de ${esc(p.n)}">${cartonDe(p)}${pastilles}</button>`;
 }
 
-function slotEl(s) {
-  const p = G.roster[s.i];
+/*
+ * LA CASE, DEUX COMPOSANTS (V25 D1, docs/refonte-v25-d1.md). Ce que la case en carte et la case en rangée partagent — le
+ * socle (sa place dans SLOTS, les couleurs de son club, son édition), la bande, les verdicts, le toucher — reste un ; ce qui
+ * diffère, la case, est deux composants, jamais une classe de mode posée sur l'autre : `caseEnCarte` (le Rogue : sa carte
+ * debout, `carteDeLaCase`, une ligne dessous) et `caseEnRangee` (le 82-0 et Sur table : le visage, le nom, la rangée).
+ *
+ * LA CASE D'ABORD LISIBLE (S78 ; JP : *améliorer l'alignement pour que l'information soit plus claire*) : elle garde ce qui
+ * DÉCIDE d'un alignement, chacun une fois — la bande (sa case, son salaire), son nom, sa production ou sa fiche à ce jour,
+ * les verdicts (🩹 blessé, sa zone, ▼ ▲ hors de sa zone, ↔ hors position, ses icônes). Le reste est à sa fiche, à un toucher.
+ */
+const slotEl = s => (G.bonus === 'ROGUE' && !surTable() ? caseEnCarte : caseEnRangee)(s);
+
+/** Le socle d'une case : sa classe, son rang dans SLOTS (le glisser-déposer le relit, `permuter`), son club, son édition. */
+function socleDeCase(s, p, cls = '') {
   const el = document.createElement('div');
-  const adapt = p ? penaliteAffichee(p, s) : { pen: 0, base: 0, matchs: 0 };
-  const pen = adapt.pen;
-
-  const enCarte = G.bonus === 'ROGUE' && !surTable();
-  el.className = 'slot'
-    + (enCarte ? ' case-carte' : '')
-    + (p ? '' : ' empty')
-    + (G.selectedSlot === s.i ? ' selected' : '')
-    + (!p && G.target === s.i ? ' target' : '')
-    + (pen > 0 ? ' oop' : '');
-  // Son rang dans SLOTS : le glisser-déposer le relit (`permuter`).
+  const pen = p ? penaliteAffichee(p, s).pen : 0;
+  el.className = ['slot', cls, p ? '' : 'empty', G.selectedSlot === s.i ? 'selected' : '', !p && G.target === s.i ? 'target' : '', pen > 0 ? 'oop' : ''].filter(Boolean).join(' ');
   el.dataset.case = s.i;
+  if (!p) return el;
+  el.style.setProperty('--slot-line', couleurVive(p.t));
+  el.style.setProperty('--slot-fond', fondEquipe(p.t, 0.035) || '');
+  const band = getTeamBand(p.t);
+  el.style.setProperty('--slot-band', band.bg);
+  el.style.setProperty('--slot-ink', band.ink);
+  el.style.setProperty('--slot-stripe', band.stripe);
+  if (estRenfort(p)) el.classList.add('renfort');
+  el.classList.add('cj-case', `tc-${rareteJoueur(p)}`);
+  if (zoneEcart(p, s) === 'sous') el.classList.add('sous-zone');
+  // LA CARTE QU'ON VIENT DE SIGNER ENTRE DANS LE CARTABLE (S77) : sa case luit une fois ; l'horodatage vieillit.
+  if (G.dernierSigne && G.dernierSigne.p === p && Date.now() - G.dernierSigne.t < 1500) el.classList.add('cj-arrive');
+  return el;
+}
 
-  if (p) {
-    el.style.setProperty('--slot-line', couleurVive(p.t));
-    el.style.setProperty('--slot-fond', fondEquipe(p.t, 0.035) || '');
-    const band = getTeamBand(p.t);
-    el.style.setProperty('--slot-band', band.bg);
-    el.style.setProperty('--slot-ink', band.ink);
-    el.style.setProperty('--slot-stripe', band.stripe);
-    const st = displayStats(p);
-    // Le chiffre clé suit le rôle (`chiffreCle`, js/game.js) : ses punitions pour un bagarreur, ses mises en échec pour un checker.
-    const cle = chiffreCle(p);
-    const main = `${cle.v} ${cle.u}`;
-    /* La case est étroite : la ligne de statistiques y tient en une seule,
-       donc on abrège « PTS/M » en « /M ». La fiche donne le libellé complet.
-       Quand le chiffre clé n'est pas ses points, ses points suivent. */
-    const secondary = p.p === 'G' ? `${p.sv ?? '—'} %ARR` : cle.u === 'PTS' ? `${st.ppgStr}/M` : `${st.pt} PTS`;
-    // Sur table : les nombres du plateau, et rien de ce qu'il ne lit pas.
-    // Derrière le banc : la fiche À CE JOUR, jamais celle de fin de saison.
-    const ligneStats = G.banc ? ficheDuJour(p) : surTable() ? slotAxesTexte(p) : `${main} · ${secondary}`;
-    const blesseTag = G.banc && G.banc.blesses.has(p)
-      ? `<span class="tag tag-pen" title="Blessé : il lui reste ${G.banc.blesses.get(p)} match${G.banc.blesses.get(p) > 1 ? 's' : ''}. Un réserviste prend sa place le soir du match.">🩹 ${G.banc.blesses.get(p)}</span>` : '';
-    // LA LANCÉE (V3.6, Rogue) : son état au prochain match, en un mot ; le détail est dans les règles.
-    const lancee = G.banc && G.banc.lancees ? G.banc.lancees.get(p) : null;
-    const lanceeTag = !lancee ? '' : lancee === 'doute'
-      ? '<span class="tag tag-doute" title="Il doute : un vrai marqueur sans but depuis dix matchs finit moins bien, jusqu\'à son prochain but">Doute</span>'
-      : `<span class="tag tag-lancee" title="${lancee === 'vive' ? 'Sur une lancée vive (l\'étincelle) : il finit beaucoup mieux tant qu\'il marque' : 'Sur sa lancée : il finit mieux tant qu\'il marque'}">${lancee === 'vive' ? '☄ Vive' : 'Lancée'}</span>`;
-    /* HORS POSTE, EN MOTS (JP : *−3, ça veut dire quoi ? Ya même pas de overall aux joueurs*). Le chiffre de la
-       pénalité est sur l'échelle des cotes, qu'aucun écran ne montre : la case porte ↔, le signe du jeu pour
-       « hors de sa position » (js/gerant.js), et l'infobulle dit s'il s'y adapte, sans chiffre. */
-    const penTag = !surTable() && pen > 0 ? `<span class="tag tag-pen" title="${adapt.matchs ? `Hors de sa position naturelle, mais il s'y adapte : la pénalité fond en jouant ici (${adapt.matchs} m.)` : 'Hors de sa position naturelle : il rend moins ici, et s\'y fera en jouant là'}">↔</span>` : '';
-    const ecart = zoneEcart(p, s);
-    /* Une flèche seule : « ▼ zone » et « ▲ zone » poussaient la pénalité de
-       position hors de la case sur les écrans où un trio n'a que cent pixels
-       par joueur. L'infobulle dit la phrase entière. */
-    const zoneEcartTag = surTable() ? '' : ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
-      : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>` : '';
-    if (estRenfort(p)) el.classList.add('renfort');
-    /*
-     * LA CASE D'ABORD LISIBLE (S78). JP : *améliorer l'alignement pour que
-     * l'information soit plus claire, quitte à être moins beau et complexe*.
-     * La case était une carte en miniature : un visage de 34 px, le poste
-     * DEUX fois (la pastille de la case et « AG / AD » dans la ligne), le club
-     * deux fois (l'écusson et « EDM '94 »), et un nom de famille qui n'avait
-     * que 60 px — six noms coupés à 390 px, dix à 1 280. Elle garde ce qui
-     * DÉCIDE d'un alignement, chacun une fois, dans cet ordre de lecture :
-     *   1. la bande : la case qu'il occupe (sa pastille), son salaire ;
-     *   2. son NOM, sur toute la largeur de la case, l'écusson de son club devant (U19) ;
-     *   3. sa production (au repêchage) ou sa fiche à ce jour (derrière le banc) ;
-     *   4. les verdicts : 🩹 blessé, sa zone (T1-3), ▼ ▲ hors de sa zone, −N
-     *      hors position, puis ses icônes.
-     * Le visage, la saison et ses positions naturelles sont dans la fiche, à un
-     * toucher. Hors du Rogue, la case n'est PAS debout comme la carte du
-     * vestiaire : elle reste une rangée, aux couleurs du club. En Rogue (oct.),
-     * elle l'est : trois cartes de front par trio (`carteDeLaCase`), la bande et
-     * les verdicts dessous.
-     */
-    const rarete = rareteJoueur(p);
-    el.classList.add('cj-case', `tc-${rarete}`);
-    if (ecart === 'sous') el.classList.add('sous-zone');
-    // LA CARTE QU'ON VIENT DE SIGNER ENTRE DANS LE CARTABLE (S77) : sa case
-    // luit une fois, là où elle vient d'arriver. Rien ne se rejoue au rendu
-    // suivant : l'horodatage vieillit.
-    if (G.dernierSigne && G.dernierSigne.p === p && Date.now() - G.dernierSigne.t < 1500) el.classList.add('cj-arrive');
-    // EN ROGUE (S80), le ✕ RELÂCHE un réserviste — avant la saison comme derrière le banc ; un habillé ne se retire pas (rien ne comblerait sa case).
-    const relachable = G.bonus === 'ROGUE' && s.scratch && !estRenfort(p);
-    el.innerHTML = `
-      ${relachable ? `<button class="slot-remove slot-relacher" title="Relâcher ${esc(p.n)} : sa carte va à ton cartable" aria-label="Relâcher ${esc(p.n)}">✕</button>`
-        : estRenfort(p) || G.banc || G.bonus === 'ROGUE' ? ''
-        : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
-      ${enCarte ? carteDeLaCase(p) : ''}
-      <div class="slot-band${estRenfort(p) ? ' off' : ''}">
+/** Les verdicts d'une case : blessé, lancée ou doute, hors position (↔, sans chiffre : l'échelle des cotes ne s'affiche pas), hors de sa zone (▼ ▲). */
+function verdictsDeCase(p, s) {
+  const adapt = penaliteAffichee(p, s);
+  const restent = G.banc && G.banc.blesses.has(p) ? G.banc.blesses.get(p) : 0;
+  const blesseTag = restent ? `<span class="tag tag-pen" title="Blessé : il lui reste ${restent} match${restent > 1 ? 's' : ''}. Un réserviste prend sa place le soir du match.">🩹 ${restent}</span>` : '';
+  const lancee = G.banc && G.banc.lancees ? G.banc.lancees.get(p) : null;
+  const lanceeTag = !lancee ? '' : lancee === 'doute'
+    ? '<span class="tag tag-doute" title="Il doute : un vrai marqueur sans but depuis dix matchs finit moins bien, jusqu\'à son prochain but">Doute</span>'
+    : `<span class="tag tag-lancee" title="${lancee === 'vive' ? 'Sur une lancée vive (l\'étincelle) : il finit beaucoup mieux tant qu\'il marque' : 'Sur sa lancée : il finit mieux tant qu\'il marque'}">${lancee === 'vive' ? '☄ Vive' : 'Lancée'}</span>`;
+  const penTag = !surTable() && adapt.pen > 0 ? `<span class="tag tag-pen" title="${adapt.matchs ? `Hors de sa position naturelle, mais il s'y adapte : la pénalité fond en jouant ici (${adapt.matchs} m.)` : 'Hors de sa position naturelle : il rend moins ici, et s\'y fera en jouant là'}">↔</span>` : '';
+  const ecart = zoneEcart(p, s);
+  const zoneEcartTag = surTable() ? '' : ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
+    : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>` : '';
+  return { ecart, penTag, blesseTag, lanceeTag, zoneEcartTag };
+}
+
+/** La bande : ses positions, son salaire (un renfort ne coûte rien). */
+const bandeDeCase = p => `<div class="slot-band${estRenfort(p) ? ' off' : ''}">
         <span class="sb-role ${positionClass(p)}" title="Ses positions : ${esc(positionLabel(p))} — ce qu'il peut jouer (la case, elle, se lit à sa place dans le trio)">${esc(positionLabel(p).split(' / ').join('/'))}</span>
         ${estRenfort(p)
           ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
-          : `<span class="slot-salary">${st.salaryMain}</span>`}
-      </div>
-      <div class="slot-inner">
-        ${enCarte ? '' : `<span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>
-        <span class="slot-qui"><span class="slot-logo" aria-hidden="true">${getTeamLogoHtml(p.t, 20)}</span><button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button></span>`}
-        ${surTable() ? `<div class="slot-meta slot-faits">${ligneStats}</div>
-        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : (enCarte ? celluleCarte : celluleJoueur)(p, s, { ecart, penTag, blesseTag: blesseTag + lanceeTag })}
+          : `<span class="slot-salary">${displayStats(p).salaryMain}</span>`}
       </div>`;
-    // LE NOM OUVRE SA CARTE (1.0, JP : *dans alignement, peser sur nom ouvre carte*) ; en Rogue, la carte elle-même. Le
-    // reste de la case garde son geste : la toucher la choisit pour déplacer ou permuter. Une case déjà choisie, toucher
-    // une carte la déplace là : le geste passe à la case.
-    el.querySelector('.slot-fiche')?.addEventListener('click', ev => { if (enCarte && G.selectedSlot !== null) return; ev.stopPropagation(); ouvrirCarteDe(p); });
+
+/*
+ * LA CASE EN CARTE (oct., JP : *c'est pas plus simple d'avoir une ligne de trois cartes, même sur mobile ?*). En Rogue, la case
+ * EST sa carte, debout (`carteDeLaCase`) ; un trio se lit en trois cartes de front, une paire en deux ; dessous, une ligne. Le
+ * ✕ RELÂCHE un réserviste (S80 ; sa carte va au cartable) ; un habillé ne se retire pas. Une case de réserve à débloquer se
+ * voit, grisée, et dit où la débloquer.
+ */
+function caseEnCarte(s) {
+  const p = G.roster[s.i];
+  const el = socleDeCase(s, p, 'case-carte');
+  if (p) {
+    const v = verdictsDeCase(p, s);
+    const relachable = s.scratch && !estRenfort(p);
+    el.innerHTML = `
+      ${relachable ? `<button class="slot-remove slot-relacher" title="Relâcher ${esc(p.n)} : sa carte va à ton cartable" aria-label="Relâcher ${esc(p.n)}">✕</button>` : ''}
+      ${carteDeLaCase(p)}
+      ${bandeDeCase(p)}
+      <div class="slot-inner">${celluleCarte(p, s, { ecart: v.ecart, penTag: v.penTag, blesseTag: v.blesseTag + v.lanceeTag })}</div>`;
+    // La carte l'ouvre ; une case déjà choisie, toucher une carte la déplace là : le geste passe à la case.
+    el.querySelector('.slot-fiche').addEventListener('click', ev => { if (G.selectedSlot !== null) return; ev.stopPropagation(); ouvrirCarteDe(p); });
     el.querySelector('.slot-relacher')?.addEventListener('click', ev => { ev.stopPropagation(); relacherReserviste(s); });
-    el.querySelector('.slot-remove:not(.slot-relacher)')?.addEventListener('click', ev => {
-      ev.stopPropagation();
-      delete G.roster[s.i];
-      G.selectedSlot = null;
-      // Le tour est déjà joué : la prochaine signature comble cette case sans
-      // faire tourner la roulette. Sans ça, « signer le moins cher puis ✕ »
-      // était un « Passer » gratuit et illimité.
-      if (!estRenfort(p)) G.dette++;
-      saveGame();
-      render();
-      toast(`${p.n} retiré. ${money(capLeft())} de disponible, `
-        + `et la roulette ne tournera pas pour cette case.`, 'warn');
-    });
-  } else if (G.bonus === 'ROGUE' && s.extra && !caseOuverte(s)) {
-    // UNE CASE DE RÉSERVE À DÉBLOQUER (S80) : visible, grisée, et elle dit où la débloquer.
+  } else if (s.extra && !caseOuverte(s)) {
     el.classList.add('verrou');
     el.innerHTML = `<div class="slot-role">🔒 ${esc(s.role)}</div><div class="slot-sub">Aux déblocages</div>`;
     el.onclick = () => toast('Cette case de réserve se débloque aux déblocages, dans le menu (ou par un jalon).');
     return el;
-  } else if (G.bonus === 'ROGUE' && s.scratch) {
-    el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">Case libre</div>`;
+  } else {
+    el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${s.scratch ? 'Case libre' : esc(s.label)}</div>`;
+  }
+  el.onclick = toucherLaCase(s, p, true);
+  return el;
+}
+
+/*
+ * LA CASE EN RANGÉE (le 82-0, Sur table) : pas debout comme la carte du vestiaire, une rangée aux couleurs du club — le visage,
+ * l'écusson et le nom (U19 ; LE NOM OUVRE SA CARTE, 1.0), puis la cellule du joueur ; sur table, les nombres du plateau et rien de
+ * ce qu'il ne lit pas. Le ✕ retire un joueur avant la saison : la prochaine signature comble sa case sans faire tourner la roulette.
+ */
+function caseEnRangee(s) {
+  const p = G.roster[s.i];
+  const el = socleDeCase(s, p);
+  if (p) {
+    const v = verdictsDeCase(p, s);
+    el.innerHTML = `
+      ${estRenfort(p) || G.banc ? '' : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
+      ${bandeDeCase(p)}
+      <div class="slot-inner">
+        <span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>
+        <span class="slot-qui"><span class="slot-logo" aria-hidden="true">${getTeamLogoHtml(p.t, 20)}</span><button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button></span>
+        ${surTable() ? `<div class="slot-meta slot-faits">${G.banc ? ficheDuJour(p) : slotAxesTexte(p)}</div>
+        <div class="slot-tags">${v.blesseTag}${slotTags(p, v.zoneEcartTag, v.penTag)}</div>` : celluleJoueur(p, s, { ecart: v.ecart, penTag: v.penTag, blesseTag: v.blesseTag + v.lanceeTag })}
+      </div>`;
+    el.querySelector('.slot-fiche').addEventListener('click', ev => { ev.stopPropagation(); ouvrirCarteDe(p); });
+    el.querySelector('.slot-remove')?.addEventListener('click', ev => {
+      ev.stopPropagation();
+      delete G.roster[s.i];
+      G.selectedSlot = null;
+      // Sans la dette, « signer le moins cher puis ✕ » était un « Passer » gratuit et illimité.
+      if (!estRenfort(p)) G.dette++;
+      saveGame();
+      render();
+      toast(`${p.n} retiré. ${money(capLeft())} de disponible, et la roulette ne tournera pas pour cette case.`, 'warn');
+    });
   } else {
     // Sur table, la case vide ne promet pas de zone : le plateau n'en lit pas.
     el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${surTable() ? '' : esc(s.label)}</div>`;
   }
-
-  el.onclick = () => {
-    if (estRenfort(p)) { toast('Les renforts sont fournis : tu ne peux pas les déplacer.', 'warn'); return; }
-    if (G.selectedSlot !== null) {
-      if (G.selectedSlot === s.i) G.selectedSlot = null;
-      else { permuter(G.selectedSlot, s.i); return; }
-    } else if (p) {
-      G.selectedSlot = s.i;
-      toast(enCarte ? 'Touche une autre carte pour la déplacer ou les permuter, ou tiens-la et glisse-la.' : 'Touche une autre case pour déplacer ou permuter, ou glisse-la.');
-    } else if (G.bonus === 'ROGUE') {
-      // En saison, le Rogue n'a pas de vestiaire où piger (son repêchage vient entre deux saisons) : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
-      toast('Case libre : un joueur signé à la boutique pourra y entrer sans que personne sorte. Tu peux aussi y déplacer un joueur.');
-      return;
-    } else {
-      G.target = (G.target === s.i ? null : s.i);
-      // Retirer sa visée rend la main à la première case vide.
-      if (G.target === null) { G.mainCase = null; G.mainRang = null; }
-      if (G.target !== null) {
-        setView('pool');
-        toast(`Case ciblée : ${slotShort(s)}. ${MODE().loto ? 'Les trois clubs te tendent leur joueur de cette case.' : 'Les signatures iront là.'}`);
-      }
-    }
-    render();
-  };
+  el.onclick = toucherLaCase(s, p, false);
   return el;
 }
+
+/** Le toucher d'une case, le même pour les deux : la choisir, puis l'autre case déplace ou permute ; une case vide se vise. */
+const toucherLaCase = (s, p, enCarte) => () => {
+  if (estRenfort(p)) { toast('Les renforts sont fournis : tu ne peux pas les déplacer.', 'warn'); return; }
+  if (G.selectedSlot !== null) {
+    if (G.selectedSlot === s.i) G.selectedSlot = null;
+    else { permuter(G.selectedSlot, s.i); return; }
+  } else if (p) {
+    G.selectedSlot = s.i;
+    toast(enCarte ? 'Touche une autre carte pour la déplacer ou les permuter, ou tiens-la et glisse-la.' : 'Touche une autre case pour déplacer ou permuter, ou glisse-la.');
+  } else if (enCarte) {
+    // En saison, le Rogue n'a pas de vestiaire où piger : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
+    toast('Case libre : un joueur signé à la boutique pourra y entrer sans que personne sorte. Tu peux aussi y déplacer un joueur.');
+    return;
+  } else {
+    G.target = (G.target === s.i ? null : s.i);
+    // Retirer sa visée rend la main à la première case vide.
+    if (G.target === null) { G.mainCase = null; G.mainRang = null; }
+    if (G.target !== null) {
+      setView('pool');
+      toast(`Case ciblée : ${slotShort(s)}. ${MODE().loto ? 'Les trois clubs te tendent leur joueur de cette case.' : 'Les signatures iront là.'}`);
+    }
+  }
+  render();
+};
 
 /*
  * DÉPLACER OU PERMUTER, une seule règle pour le toucher (une case, puis l'autre) et pour le geste (la carte glissée sur une
