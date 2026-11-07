@@ -38,4 +38,4 @@ Pour un écran : des maquettes d'abord, à 390 × 844, en deux ou trois directio
 
 ## 6. La PR
 
-Son corps dit, en trois listes : **ce qui est parti**, **ce qui est neuf**, **ce qui est resté et pourquoi** ; puis la ligne du verdict de `check_refonte`. La décision va dans `docs/decisions.md` (le pourquoi, ce qui a été écarté), l'entrée au journal de `LIVRAISON.md`.
+Son corps dit, en trois listes : **ce qui est parti**, **ce qui est neuf**, **ce qui est resté et pourquoi** ; puis la ligne du verdict de `check_refonte`. La décision va dans `docs/decisions.md` (le pourquoi, ce qui a été écarté), l'entrée au journal, un fichier neuf de `docs/journal/entrees/` (la règle en tête du journal de `LIVRAISON.md`).
