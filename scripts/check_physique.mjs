@@ -1152,7 +1152,8 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   informer(`${N} matchs de l'IA contre l'IA (3 × 2 min)`, `${(S.buts / N).toFixed(1)} buts, ${(S.tirs / N).toFixed(0)} tirs (${(100 * S.masques / Math.max(1, S.tirs)).toFixed(0)} % masqués), ${(S.fonds / N).toFixed(0)} lancers au fond par match`);
   borne('le hors-jeu des mêlées : au plus un et demi par match de 6 min (4,3 à 5,9 avant)', S.hj / N, 0, 1.5, ' par match');
   borne('… et la passe réussit autant (64 % avant)', S.passesOk / Math.max(1, S.passes), 0.6, 0.8);
-  borne('la sortie de zone réussie : la rondelle sortie et reprise dehors (13 à 15 % avant)', S.sortOk / Math.max(1, S.sortT), 0.22, 0.6);
+  // 0,17 depuis le 7 nov. 2026 (0,22 avant) : l'adversaire revient en zone neutre (`REPLI`, js/glace-ia.js), et une sortie qui y est reprise se compte ratée ; check_possession mesure ce que la défensive y gagne.
+  borne('la sortie de zone réussie : la rondelle sortie et reprise dehors (13 à 15 % avant)', S.sortOk / Math.max(1, S.sortT), 0.17, 0.6);
   borne('en zone offensive, un joueur dans l\'enclave (19 à 25 % du temps avant)', S.ozFilet / Math.max(1, S.oz), 0.28, 0.8);
   borne('… et des buts, mais pas une pluie (5 par match au plus, environ)', S.buts / N, 2, 7, ' par match');
   borne('les punitions, au rythme de la LNH : ≈ 0,6 par club et par 6 min de jeu, donc vers 0,6 à 0,9 par match (1,9 après le lot 4)', S.punitions / N, 0.2, 1.5, ' par match');
