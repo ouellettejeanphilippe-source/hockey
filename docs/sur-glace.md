@@ -70,7 +70,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | L'écran devant le gardien (il ne voit pas la rondelle) | ✅ | 2 nov. : un patineur, de l'une ou l'autre équipe, sur la ligne de la rondelle au gardien, fait voir la rondelle 120 ms plus tard au gardien, qui la retrouve ensuite à double vitesse (`GARDIEN.ecran`, `masque`) ; 21 % des tirs masqués, IA contre IA — check « l'écran » : le même tir, du même point, arrêté 79 % sans écran, 63 % avec |
 | Le lancer au fond, le dégagement : hors de la zone d'attaque, le tir part où pointe le bâton | ✅ | 2 nov. : `viseeAssistee` ne ramène au filet que de la zone ; un lancer d'ailleurs n'est pas un tir au but (`fond` sur l'événement) — check « le tir part où pointe le bâton » |
 | Le retour (le rebond du gardien, à qui le ramasse) | ✅ | `gardien` (rebond) |
-| Bloquer un tir avec le corps (se jeter devant) | 🟡 | le corps et la lame au sol bloquent un lancer adverse, compté (`bloquer`, `M.blocs`, `stats.blocs`) ; se coucher volontairement manque |
+| Bloquer un tir avec le corps (se jeter devant) | ✅ | le corps et la lame bloquent un lancer adverse, compté (`bloquer`, `M.blocs`, `stats.blocs`) ; 7 nov. : se jeter devant, sans la rondelle, B en reculant (LB tenu) : couché 1,1 s en travers de son cap, il glisse sur son élan, son corps bloque sur 1,7 m les tirs plus bas que 35 cm, puis il se relève (`PLONGE`, `bloquerCouche`) ; « Bloqué ! » et la vibration pour ton joueur ; l'IA s'y jette quand le porteur adverse charge son lancer dans sa moitié et qu'elle est sur sa ligne, à 1,5 à 6 m de lui (`JETER`, js/glace-ia.js ; ≈ 7 plongeons par match de 6 min) — check « se jeter devant un tir », « passe par-dessus », « le prix du geste », « l'IA se jette » |
 | La rondelle qui saute sur un bâton (la bobble) et le mauvais rebond | 🟡 | la réception trop rapide dévie ; le hasard de glace manque |
 
 ## 4. Le jeu physique et les fautes
@@ -207,7 +207,7 @@ JP (7 nov. 2026) : *je veux toutes les mécaniques d'un jeu comme NHL 94, feel s
 | Le gardien qu'on contrôle soi-même | ⬜ | aucune entrée ne le mène ; il est toujours au moteur |
 | Le plongeon désespéré du gardien | ⬜ | § 5 |
 | La rondelle libre, la mêlée devant le filet, les rebonds, l'écran, la déviation | ✅ | § 3, § 5 |
-| Se jeter devant un tir (le bloc voulu) | 🟡 | § 3 |
+| Se jeter devant un tir (le bloc voulu) | ✅ | § 3 (7 nov.) |
 | Les changements de trio (à l'arrêt, au bouton, à la volée) | ✅ | § 6 |
 | La fatigue (les jambes) | ✅ | § 2 |
 | La fatigue du gardien, l'auxiliaire | ⬜ | § 5 |
@@ -225,7 +225,7 @@ JP (7 nov. 2026) : *je veux toutes les mécaniques d'un jeu comme NHL 94, feel s
 | Le tir instantané (snap), distinct du poignet | 🟡 | § 3 |
 | Pousser la rondelle du patin | 🟡 | § 1 |
 
-Le compte, le 7 nov. 2026 : 26 ✅, 4 🟡, 5 ⬜. L'ordre proposé pour ce qui reste, du feel d'abord : se jeter devant un tir, le plongeon du gardien, la passe par la bande voulue, puis les blessures, la fatigue du gardien, le temps d'arrêt et le gardien qu'on contrôle.
+Le compte, le 7 nov. 2026 : 27 ✅, 3 🟡, 5 ⬜. L'ordre proposé pour ce qui reste, du feel d'abord : le plongeon du gardien, la passe par la bande voulue, puis les blessures, la fatigue du gardien, le temps d'arrêt et le gardien qu'on contrôle.
 
 ## L'ordre de travail proposé
 
