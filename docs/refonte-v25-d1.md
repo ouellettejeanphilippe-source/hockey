@@ -44,10 +44,10 @@ Rien de neuf à l'œil sur les douze pages du Rogue : c'est le but. Ce qui chang
 
 ## 7. Ce qui part
 
-Chaque nom disparaît du jeu (js/, index.html, style.css, sw.js) ; `check_refonte` le vérifie.
+Chaque nom disparaît du jeu (js/, index.html, style.css, sw.js) ; check_refonte le vérifie.
 
-- Le module d'avant : `js/plateau-rogue.js` (refait en `js/composants.js`).
-- La surcharge de mode : `mode-rogue` (la classe de `body` et ses 112 sélecteurs), `en-cartes` (la classe posée sur `#rosterBoard`, ses 30 règles), `en-carte` (la classe de la case, devenue `.case-carte`).
+- Le module d'avant : `js/plateau-rogue.js` (refait en js/composants.js).
+- La surcharge de mode : `mode-rogue` (la classe posée sur la page et ses 112 sélecteurs), `en-cartes` (la classe posée sur l'alignement, ses 30 règles), `en-carte` (la classe de la case, devenue case-carte).
 - Les gabarits d'une page du Rogue remplacés par les jetons et la jauge : `.ct-vue`, `.inv-onglet`, `.inv-onglets`, `.inv-filtre`, `.inv-filtres`, `.ej-jauge`.
 
 ## 7b. Ce qui reste, et pourquoi

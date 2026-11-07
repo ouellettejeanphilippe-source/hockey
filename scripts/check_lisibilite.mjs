@@ -107,7 +107,9 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
   exiger('ni les onglets, ni la barre, ni les boutons, ni les choix ne portent de dégradé', !fautes.length, fautes.join(' · ') || 'aucun');
   const actif = regles.find(r => /^:is\(\.soustab[^)]*\)\.on$/.test(r.sel));
   const barre = regles.find(r => r.sel === '.navtab.on');
-  exiger('l\'onglet ouvert est un bloc plein et clair, texte noir — en haut comme dans la barre', !!actif && !!barre && /background:\s*var\(--encre\)/.test(actif.corps) && /color:\s*var\(--noir\)/.test(actif.corps) && /background:\s*var\(--encre\)/.test(barre.corps) && /color:\s*var\(--noir\)/.test(barre.corps));
+  // V25 D1 (docs/refonte-v25-d1.md) : la porte ouverte de la barre est sombre, celle du plateau (interface.md : « la porte
+  // ouverte sombre »), pour tous les modes — la surcharge `body.mode-rogue .navtab.on` est fondue dans la règle de base.
+  exiger('l\'onglet ouvert est un bloc plein : clair, texte noir, en haut ; sombre, texte blanc, dans la barre des portes', !!actif && !!barre && /background:\s*var\(--encre\)/.test(actif.corps) && /color:\s*var\(--noir\)/.test(actif.corps) && /background:\s*var\(--fond-2\)/.test(barre.corps) && /color:\s*var\(--blanc\)/.test(barre.corps));
 }
 
 /* 6. Les tuiles de choix, sobres. */

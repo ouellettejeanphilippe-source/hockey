@@ -45,8 +45,10 @@ function diff() {
   if (TETE) args.push(TETE);
   const par = {};
   for (const ligne of git(...args).split('\n')) {
-    const [plus, moins, fichier] = ligne.split('\t');
-    if (!fichier || plus === '-') continue;
+    const [plus, moins, brut] = ligne.split('\t');
+    if (!brut || plus === '-') continue;
+    // Un fichier renommé se dit « js/{a.js => b.js} » : il compte sous son nouveau nom (les lignes, elles, ne changent pas).
+    const fichier = brut.replace(/\{[^{}]*? => ([^{}]*)\}/, '$1').replace(/^.* => /, '').replace(/\/\//g, '/');
     par[fichier] = { plus: +plus, moins: +moins };
   }
   return par;
