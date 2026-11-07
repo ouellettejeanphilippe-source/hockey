@@ -219,6 +219,17 @@ export const FAUTES = { rapide: 6, accroche: 0.1, ralenti: 0.55, fonce: 5, cingl
  * X martelés pour toi, `cadence` coups par seconde pour l'IA (sa Robustesse en ajoute ou en ôte le quart) ; chaque coup
  * pèse sa Robustesse et sa masse. Cinq minutes chacun au cachot (`minutes`), coïncidentes : les deux clubs restent à cinq.
  */
+/*
+ * LE DOUBLE-ÉCHEC (7 nov. 2026) : la mise en échec donnée le bâton levé à deux mains — le bouton d'échec pendant le coup
+ * de bâton (X puis B, ou B puis X, à moins de `fenetre` s l'un de l'autre). Le manche frappe : le coup pèse `force` fois plus
+ * (il renverse plus souvent), et l'arbitre le voit `siffle` des fois : deux minutes.
+ *
+ * LA RUDESSE APRÈS LE SIFFLET : le jeu arrêté (pas après un but, ni à la fin d'une période), le bouton d'échec à `portee` m d'un adversaire le bouscule (il recule de
+ * `recul` m) : deux minutes, sur-le-champ. L'IA ne le fait que si elle est rude (sa Robustesse et ses minutes de
+ * punition à la LNH, comme la bagarre), une fois par arrêt de jeu au plus, `ia` × sa rudesse des fois.
+ */
+export const DOUBLE = { force: 1.25, siffle: 0.5, fenetre: 0.35 };
+export const RUDESSE = { portee: 1.5, recul: 0.4, ia: 0.02 };
 export const BAGARRE = { gros: 3, chance: 0.75, robuste: 11, pim: 1.0, pimMin: 0.3, pimMax: 3, duree: 3.5, cadence: 5, minutes: 5 };
 const ECHEC = { duree: 0.35, repos: 1.2, accel: 2, vMax: 1.15, derriere: 0.8, recent: 1.0 };   // l'élan d'une mise en échec ; par-derrière et sur qui n'a pas la rondelle, c'est puni
 // La fatigue d'une présence : ce qu'elle coûte par seconde, ce que le banc rend, quand on change à l'arrêt ; À LA VOLÉE (le lot 3),
@@ -739,11 +750,13 @@ function collisions(etat, ev) {
     const vf = hyp(elanAvant.vx, elanAvant.vy) || 1e-9;
     // Contre la bande, le coup pèse plus : le corps n'a nulle part où aller.
     const contreLaBande = Math.abs(frappe.x) > L / 2 - 1.6 || Math.abs(frappe.y) > W / 2 - 1.6;
-    const poids = Math.abs(ecart) * (contreLaBande ? CHUTE.bande : 1);
+    // Le bâton levé à deux mains (`DOUBLE`) : le manche frappe, le coup pèse plus.
+    const deuxMains = frappeur.elan > 0 && etat.t - (frappeur.harponT ?? -Infinity) < DOUBLE.fenetre;
+    const poids = Math.abs(ecart) * (contreLaBande ? CHUTE.bande : 1) * (deuxMains ? DOUBLE.force : 1);
     // Lancé pendant la feinte du porteur, l'élan a mordu : il le frôle sans le renverser.
     const mordu = frappeur.elan > 0 && frappeur.mordu === frappe.id;
     const fort = poids > CHUTE.seuil * frappe.p.equilibre && vf > 4 && !mordu;
-    ev.push({ type: 'echec', fort, qui: frappeur.id, sur: frappe.id, poids: Math.round(poids) });
+    ev.push({ type: 'echec', fort, qui: frappeur.id, sur: frappe.id, poids: Math.round(poids), deuxMains });
     etat.compte.echecs++;
     if (etat.match && fort) { etat.match.echecs[frappeur.equipe]++; frappeur.stats.echecs++; }
     if (fort) {
@@ -762,6 +775,7 @@ function collisions(etat, ev) {
       const loinDeLaRondelle = hyp(frappe.x - etat.rondelle.x, frappe.y - etat.rondelle.y) > 3;
       const sansRondelle = etat.rondelle.porteur !== frappe.id && etat.t - frappe.touche > ECHEC.recent && loinDeLaRondelle;
       if (parDerriere) punir(etat, frappeur, contreLaBande ? 'charge contre la bande' : 'charge par-derrière', ev, frappe);
+      else if (deuxMains && etat.de() < DOUBLE.siffle) punir(etat, frappeur, 'double-échec', ev, frappe);
       else if (sansRondelle) punir(etat, frappeur, 'obstruction', ev, frappe);
     }
     // UN GROS COUP (le lot 4) : le frappé, s'il est rude, peut laisser tomber les gants.
@@ -1775,10 +1789,32 @@ function renfort(etat, eq) {
 
 /* ---------- la bagarre (le lot 4) ---------- */
 /* Ce qu'un joueur a de rude : sa Robustesse au-dessus du seuil, fois ses minutes de punition à la LNH (`BAGARRE`) ; 0, il ne se bat pas. */
-function rudesse(s) {
+export function rudesse(s) {
   const r = clamp((s.p.robuste * 20 - BAGARRE.robuste) / (20 - BAGARRE.robuste), 0, 1);
   const pim = s.p.pim == null ? 1 : clamp(s.p.pim / BAGARRE.pim, BAGARRE.pimMin, BAGARRE.pimMax);
   return r * pim;
+}
+/*
+ * APRÈS LE SIFFLET (`RUDESSE`) : le bouton d'échec, nouvellement pressé, près d'un adversaire debout, le bouscule —
+ * deux minutes sur-le-champ. Une punition par joueur à la fois, comme `punir`.
+ */
+function apresLeSifflet(etat, entrees, ev) {
+  const M = etat.match;
+  for (const s of etat.patineurs) {
+    if (!s.surGlace) continue;
+    const e = entrees[s.id] || (etat.ia ? etat.ia(etat, s) : null);
+    const presse = !!(e && e.echec) && !s.tenaitEchec;
+    s.tenaitEchec = !!(e && e.echec);
+    if (!presse || !s.surGlace || M.penalites.some(p => p.id === s.id)) continue;
+    const q = etat.patineurs.filter(o => o.surGlace && o.equipe !== s.equipe && o.auSol <= 0).sort((a, b) => hyp(a.x - s.x, a.y - s.y) - hyp(b.x - s.x, b.y - s.y))[0];
+    const d = q ? hyp(q.x - s.x, q.y - s.y) : Infinity;
+    if (d > RUDESSE.portee) continue;
+    q.x += (q.x - s.x) / (d || 1) * RUDESSE.recul; q.y += (q.y - s.y) / (d || 1) * RUDESSE.recul;
+    ev.push({ type: 'rudesse', qui: s.id, sur: q.id, equipe: s.equipe });
+    const p = { id: s.id, equipe: s.equipe, genre: 'rudesse', reste: MATCH.punition, avantage: MATCH.punition };
+    ev.push({ type: 'punition', qui: s.id, equipe: s.equipe, genre: 'rudesse', attente: false });
+    appliquerPunition(etat, p);
+  }
 }
 /* Les gants tombent-ils ? Le frappé (ou la victime) et le frappeur (ou le puni), au dé de leur rudesse. */
 function gants(etat, a, b, ev) {
@@ -1953,6 +1989,7 @@ function pas(etat, entrees, ev) {
   if (etat.arret) {
     if (etat.arret.reste === Infinity) return;
     if (etat.arret.fete) feter(etat, etat.arret.fete);
+    if (M && !M.fini && !M.ronde && !M.fusillade && etat.arret.genre !== 'periode' && etat.arret.genre !== 'but') apresLeSifflet(etat, entrees, ev);
     etat.arret.reste -= PAS;
     if (etat.arret.reste > 0) return;
     const genre = etat.arret.genre, point = etat.arret.point;
@@ -2036,6 +2073,7 @@ function pas(etat, entrees, ev) {
       if (e && e.tir && !s.tenaitTir && s.harponRepos <= 0 && s.auSol <= 0) {
         const p = leveraitLeBaton(etat, s);
         if (p) soulever(etat, s, p, ev); else s.harpon = HARPON.duree;
+        s.harponT = etat.t;
         s.harponRepos = HARPON.repos;
       }
       if (e && e.echec && !s.tenaitEchec && s.elanRepos <= 0 && s.auSol <= 0) {
@@ -2201,6 +2239,7 @@ export function reglesDeLaGlace() {
     `À reculons, la pointe et la poussée valent ${Math.round(PATIN.recul * 100)} % ; le turbo les monte à ${Math.round(PATIN.sprint * 100)} % et use les jambes ${PATIN.sprintJambes} fois plus vite ; en tournant à vitesse moyenne, les croisés poussent ${Math.round((PATIN.croise - 1) * 100)} % plus fort ; couper sec coûte ${Math.round(PATIN.virage * 100)} % de vitesse par radian ; un patineur plus léger que ${PATIN.masse} kg tourne un peu plus court (${Math.round(PATIN.agilite * 100)} % au plus), un plus lourd frappe plus fort sans patiner moins vite. Un harpon raté par-derrière sur le porteur l'accroche une fois sur ${Math.round(1 / HARPON.trebuche)} : deux minutes, ou un tir de punition sur une échappée. Le gardien se retire pour un sixième attaquant (l'IA, sous ${MATCH.retraitGardien} s, à un ou deux buts) ; une charge contre la bande pèse ${dec(CHUTE.bande)} fois ; une punition ne tombe que sur une charge voulue, le bouton pressé.`,
     `La lame tient la rondelle du côté de la main du joueur, à ${Math.round(BATON.cote * 100)} cm (un gaucher à gauche, comme la LNH le dit). Le revers — la rondelle de l'autre côté du corps, ou lancée à plus de ${Math.round(REVERS.angle * 57.3)}° du cap vers ce côté — part à ${Math.round(REVERS.tir * 100)} % de la vitesse et ${dec(REVERS.ecart)} fois plus écarté (la passe, ${Math.round(REVERS.passe * 100)} % et ${dec(REVERS.ecartPasse)} fois) ; le tir sur réception ne part que du coup droit. Plus lent que ${kmh(PROTEGE.vitesse)} km/h, un adversaire à ${dec(PROTEGE.pres)} m, le porteur protège : sa lame passe de l'autre côté du corps, et un harpon qui doit passer par son corps réussit ${Math.round(PROTEGE.harpon * 100)} % aussi souvent. La feinte déporte la lame de ${dec(FEINTE.ecart)} m pendant ${dec(FEINTE.duree, 2)} s (${dec(FEINTE.repos)} s avant la suivante) : un harpon ou une charge lancés pendant ce temps ratent, sauf si le défenseur la lit : ${Math.round(FEINTE.lit * 100)} % par point de Défense sur 20 au-dessus de ${FEINTE.aveugle} (à 18, ${Math.round(FEINTE.lit * (18 - FEINTE.aveugle) * 100)} %), ${Math.round(FEINTE.relue * 100)} % de plus si tu feintais déjà moins de ${FEINTE.usee} s plus tôt. La passe laissée, le bâton tiré vers l'arrière : un coéquipier qui te suit, à ${LAISSEE.portee} m au plus et lancé à ${kmh(LAISSEE.suit)} km/h, la trouve à ${dec(LAISSEE.vitesse)} m/s.`,
     `Collé au porteur, de côté (ni devant lui ni dans son dos, à ${dec(LEVE.pres)} m au plus), X lui soulève le bâton et lui prend la rondelle : sans contact ni punition, ${Math.round(LEVE.force * 100)} % de ce qu'un harpon ouvert réussirait, qu'il protège ou non (le harpon, lui, passe par son corps ${Math.round(PROTEGE.harpon * 100)} % aussi souvent). Un harpon raté a ses fautes, deux minutes : par-derrière sur un porteur lancé à plus de ${kmh(FAUTES.rapide)} km/h, l'accrochage (${Math.round(FAUTES.accroche * 100)} %) ; en fonçant sur lui à plus de ${kmh(FAUTES.fonce)} km/h, le cinglage (${dec(FAUTES.cinglage * 100)} %) ; à travers son corps, le bâton élevé (${Math.round(FAUTES.eleve * 100)} %).`,
+    `Le double-échec : la mise en échec donnée pendant le coup de bâton, le manche à deux mains, pèse ${dec(DOUBLE.force, 2)} fois et se siffle ${Math.round(DOUBLE.siffle * 100)} fois sur 100 : ${MATCH.punition / 60} minutes. Après le sifflet, le bouton d'échec à ${dec(RUDESSE.portee)} m d'un adversaire le bouscule : la rudesse, ${MATCH.punition / 60} minutes sur-le-champ.`,
     `La bagarre : après une mise en échec de plus de ${Math.round(CHUTE.seuil * BAGARRE.gros)} kg·m/s ou une punition, deux joueurs de Robustesse ${BAGARRE.robuste + 1} ou plus sur 20 peuvent laisser tomber les gants, plus souvent s'ils passaient du temps au cachot à la LNH (jusqu'à ${BAGARRE.pimMax} fois pour ${BAGARRE.pimMax * BAGARRE.pim} minutes par match) ; une par joueur, jamais en prolongation. ${dec(BAGARRE.duree)} s de duel : martèle A ou X, chaque coup pèse ta Robustesse et ta masse ; l'IA frappe ${BAGARRE.cadence} fois par seconde. ${BAGARRE.minutes} minutes chacun, coïncidentes : les deux clubs restent à cinq.`,
     `À l'arrêt de jeu, Y choisit ton trio : il joue, quelles que soient ses jambes. À la volée, la rondelle loin, la ligne qui passe sous ${JAMBES.volee} jambes file à la porte de son banc, s'il y en a une à ${JAMBES.frais} au banc (l'IA comme tes coéquipiers ; toi, fatigué, tu y patines) ; à ${dec(BANC.porte)} m de la porte, l'un sort et le plus reposé entre, au même instant : jamais un patineur de trop. Les bancs sont à ${BANC.x} m du centre, chacun du côté de son filet de la première période : en deuxième, la présence est plus longue. Le gardien remis en jeu revient quand un patineur sort.`,
     `L'obstruction sur le gardien : un attaquant debout qui entre dans le gardien dans son enclave (${dec(FILET.enclave, 2)} m) le bouscule ; un but dans ce filet moins de ${dec(OBSTRUCTION.fenetre)} s après est refusé, et la mise en jeu va à la zone neutre ; entré à plus de ${kmh(OBSTRUCTION.fort)} km/h sans aller à la rondelle, ${MATCH.punition / 60} minutes. Poussé dedans par un adversaire, ou au sol, il n'y est pour rien.`,

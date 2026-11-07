@@ -42,7 +42,7 @@
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
  * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler vit sur le patineur (`s.memo`).
  */
-import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers } from './physique.js';
+import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers, rudesse, RUDESSE, DOUBLE } from './physique.js';
 
 const hyp = Math.hypot;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -212,6 +212,8 @@ const CONTOURNE = { marge: 0.2, freinage: 9, lent: 0.3, recul: 0.6 };
 export function decisionIA(etat, s) {
   const c0 = decider(etat, s);
   const a = etat.equipes[s.equipe].attaque, g = etat.gardiens.find(q => q.sens === a && !q.retire);
+  if (c0 && c0.echec && etat.t - (s.harponT ?? -Infinity) < DOUBLE.fenetre) c0.echec = false;   // pas de double-échec : l'IA ne s'élance pas le bâton levé (`DOUBLE`)
+  if (c0 && c0.tir && (s.elan > 0 || c0.echec) && etat.rondelle.porteur !== s.id) c0.tir = false;   // … ni ne harponne pendant son élan
   if (!c0 || !g || etat.mej) return c0;
   const dx = g.x - s.x, dy = g.y - s.y, d = hyp(dx, dy) || 1e-9;
   if (d > 5) return c0;
@@ -237,6 +239,13 @@ function decider(etat, s) {
   const porteur = R.porteur ? etat.patineurs.find(p => p.id === R.porteur) : null;
   const M = etat.match;
 
+  // APRÈS LE SIFFLET (`RUDESSE`) : un dur, près d'un adversaire, le bouscule parfois — une fois par arrêt de jeu au plus.
+  if (etat.arret) {
+    if (memo.arret !== etat.arret) { memo.arret = etat.arret; memo.rude = rudesse(s) > 0 && etat.de() < RUDESSE.ia * rudesse(s); }
+    const pres = memo.rude && surGlace(etat, autre(eq)).some(o => hyp(o.x - s.x, o.y - s.y) < RUDESSE.portee);
+    if (pres) memo.rude = false;
+    return { x: 0, y: 0, echec: pres };
+  }
   if (porteur === s) { if (!(memo.dernierePossession > etat.t - 0.1)) memo.dernierePrise = etat.t; memo.dernierePossession = etat.t; }
 
   // LA MISE EN JEU : le centre presse autour de la chute, le bâton vers où il l'envoie ; les autres attendent.

@@ -657,6 +657,7 @@ function boucle(now) {
     else if (v.type === 'punition') flash = { mot: `${nomDe(v.qui)} · ${v.genre} · 2 min${v.attente ? ' à retardement' : ''}`, reste: 2.2 };
     else if (v.type === 'leve' && v.ok && tonJoueur(v.qui)) { flash = { mot: 'Bâton soulevé !', reste: 0.9 }; vibrer(equipeDe(v.qui), 'harpon'); }
     else if (v.type === 'leve' && v.ok && tonJoueur(v.sur)) flash = { mot: `${nomDe(v.qui)} te soulève le bâton`, reste: 0.9 };
+    else if (v.type === 'rudesse') secousse = { t0: now, dur: 120, amp: 2 };
     else if (v.type === 'gants') { secousse = { t0: now, dur: 250, amp: 3 }; for (const eq of etat.humains) vibrer(eq, 'echecRecu'); }
     else if (v.type === 'coup') { secousse = { t0: now, dur: 90, amp: 2 }; if (tonJoueur(v.qui)) vibrer(v.equipe, 'echecDonne'); }
     else if (v.type === 'bagarre') flash = { mot: `${v.gagnant ? `${nomDe(v[v.gagnant])} gagne la bagarre` : 'Bagarre nulle'} · ${BAGARRE.minutes} min chacun`, reste: 2.4 };
