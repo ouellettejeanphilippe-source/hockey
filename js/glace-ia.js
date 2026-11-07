@@ -42,7 +42,7 @@
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
  * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler vit sur le patineur (`s.memo`).
  */
-import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers, rudesse, RUDESSE, DOUBLE, miroirDeBande } from './physique.js';
+import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers, rudesse, RUDESSE, DOUBLE, miroirDeBande, dansLesPatins } from './physique.js';
 
 const hyp = Math.hypot;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -223,6 +223,7 @@ function seJeter(etat, s) {
   const ecart = Math.abs((s.x - p.x) * dy - (s.y - p.y) * dx) / d;
   return t > JETER.pres && t < Math.min(JETER.loin, d - 1) && ecart < JETER.ligne;
 }
+const BOTTE_IA = 1, BOTTE_IA_BLEUE = 3;   // m/s, m
 const CONTOURNE = { marge: 0.2, freinage: 9, lent: 0.3, recul: 0.6 };
 export function decisionIA(etat, s) {
   const c0 = decider(etat, s);
@@ -230,6 +231,14 @@ export function decisionIA(etat, s) {
   if (c0 && c0.echec && etat.t - (s.harponT ?? -Infinity) < DOUBLE.fenetre) c0.echec = false;   // pas de double-échec : l'IA ne s'élance pas le bâton levé (`DOUBLE`)
   if (c0 && c0.tir && (s.elan > 0 || c0.echec) && etat.rondelle.porteur !== s.id) c0.tir = false;   // … ni ne harponne pendant son élan
   if (c0 && !etat.arret && !etat.mej && seJeter(etat, s)) return { x: 0, y: 0, recul: true, echec: true };
+  // LA PASSE DANS SES PATINS (`BOTTE`) : celle d'un coéquipier qui lui arrive dans le dos et qu'il distance (elle
+  // recule par rapport à lui de plus de `BOTTE_IA` m/s) : sa lame ne la rattrapera pas ; le même Y que toi, le bâton au
+  // neutre, la ramène sur sa lame. Une rondelle qui le rattrape, sa lame la prend toute seule. Loin des bleues
+  // (`BOTTE_IA_BLEUE` m) : la ramener à sa lame en entrant dans la zone serait un hors-jeu.
+  const R = etat.rondelle, deLaPasse = R.passeVers === s.id || (R.dernier && R.dernier.equipe === s.equipe && R.dernier.id !== s.id && !R.dernier.tir);
+  const cc = Math.cos(s.cap), cn = Math.sin(s.cap);
+  const distancee = (R.x - s.x) * cc + (R.y - s.y) * cn < 0 && (R.vx - s.vx) * cc + (R.vy - s.vy) * cn < -BOTTE_IA && Math.abs(Math.abs(s.x) - BLEUE) > BOTTE_IA_BLEUE;
+  if (c0 && !etat.arret && !etat.mej && deLaPasse && distancee && dansLesPatins(etat, s)) return { x: 0, y: 0, pied: true };
   if (!c0 || !g || etat.mej) return c0;
   const dx = g.x - s.x, dy = g.y - s.y, d = hyp(dx, dy) || 1e-9;
   if (d > 5) return c0;

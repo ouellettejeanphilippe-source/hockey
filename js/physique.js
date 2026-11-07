@@ -133,6 +133,15 @@ export const BATON = {
  * moins juste (`ecart` fois l'écart du poignet), à mi-hauteur. Plus tard, le même appui est un tir du poignet.
  */
 export const SNAP = { tape: 0.08, fenetre: 0.4, vitesse: 0.8, ecart: 1.3 };
+/*
+ * POUSSER LA RONDELLE DU PATIN (7 nov. 2026 ; JP : *toutes les mécaniques d'un jeu comme NHL 94*). La rondelle libre
+ * dans ses patins (au sol, sous `haut` m, à `portee` m de son corps au plus, pas devant lui à plus de `avant` m : là où la
+ * lame ne la prend pas) et pas plus vite que `max` m/s par rapport à lui : Y sans la rondelle la pousse du patin. Le bâton
+ * au neutre, il la ramène sur sa lame (`ramene` m/s vers elle, entre ses patins) ; poussé, il la pousse à `vitesse` m/s de
+ * plus que lui dans ce sens (un coéquipier la prend) et la laisse `repos` s. Poussée du patin dans le filet adverse sans
+ * qu'un bâton l'ait touchée depuis : le but est refusé (la règle 49 de la LNH, le mouvement de botté), même passée par le gardien.
+ */
+export const BOTTE = { portee: 0.55, avant: 0.3, haut: 0.15, max: 14, ramene: 3, vitesse: 6, repos: 0.4 };
 export const REVERS = { angle: 1.3, cote: 0.1, tir: 0.82, ecart: 1.5, passe: 0.85, ecartPasse: 1.6 };
 /*
  * PROTÉGER LA RONDELLE : le porteur plus lent que `vitesse` m/s, un adversaire debout à `pres` m, passe sa lame de
@@ -912,7 +921,26 @@ function enEchappee(etat, porteur) {
 }
 
 /* ---------- la rondelle ---------- */
+/* La rondelle dans les patins de `s` (`BOTTE`) : là où Y sans elle la pousse du patin. */
+export function dansLesPatins(etat, s) {
+  const R = etat.rondelle;
+  if (R.porteur || R.z > BOTTE.haut || !s.surGlace || s.auSol > 0 || s.lachee > 0) return false;
+  const dx = R.x - s.x, dy = R.y - s.y;
+  return hyp(dx, dy) < s.rayon + BOTTE.portee && dx * Math.cos(s.cap) + dy * Math.sin(s.cap) < BOTTE.avant && hyp(R.vx - s.vx, R.vy - s.vy) < BOTTE.max;
+}
+function botter(etat, s, e, ev) {
+  const R = etat.rondelle, m = hyp(e.x || 0, e.y || 0), ramene = m < 0.3;
+  let ux, uy, v;
+  if (ramene) { const lm = lame(s), dx = lm.x - R.x, dy = lm.y - R.y, d = hyp(dx, dy) || 1e-9; ux = dx / d; uy = dy / d; v = BOTTE.ramene; }
+  else { ux = e.x / m; uy = e.y / m; v = BOTTE.vitesse; s.lachee = BOTTE.repos; }
+  R.vx = s.vx + ux * v; R.vy = s.vy + uy * v; R.z = 0; R.vz = 0;
+  R.passeDe = null; R.passeVers = null;
+  toucher(etat, s, false);
+  R.patin = { id: s.id, equipe: s.equipe, t: etat.t };
+  ev.push({ type: 'botte', qui: s.id, ramene });
+}
 function toucher(etat, s, lance) {
+  etat.rondelle.patin = null;
   etat.rondelle.dernier = { equipe: s.equipe, id: s.id, t: etat.t, x: etat.rondelle.x, lance };
   s.touche = etat.t;
   if (!etat.match) return;
@@ -1096,7 +1124,9 @@ function rondelle(etat, entrees, ev) {
         continue;
       }
     }
-    // Le corps (les patins, les jambières, le tronc jusqu'à un mètre) la dévie ; un lancer adverse, c'est un bloc.
+    // Le corps (les patins, les jambières, le tronc jusqu'à un mètre) la dévie ; un lancer adverse, c'est un bloc. Celle
+    // que son patin ramène sur sa lame passe entre ses patins.
+    if (R.patin && R.patin.id === s.id && etat.t - R.patin.t < BOTTE.repos) continue;
     if (R.z < 1.0 && contreCercle(R, RONDELLE.rayon, s.x, s.y, s.rayon, 0.3) > 0) bloquer(etat, s, vol, ev);
   }
 }
@@ -1158,7 +1188,9 @@ function but(etat, avantX, ev) {
     const pour = etat.equipes.A.attaque === s ? 'A' : 'B';
     // LE BUT REFUSÉ (`OBSTRUCTION`) : un attaquant a bousculé le gardien de ce filet il y a moins de `fenetre` s.
     const Gd = etat.gardiens.find(g => g.sens === s), o = Gd && Gd.obstrue;
-    if (o && o.equipe === pour && etat.t - o.t < OBSTRUCTION.fenetre) { refuser(etat, pour, s, Gd, ev); return true; }
+    if (o && o.equipe === pour && etat.t - o.t < OBSTRUCTION.fenetre) { Gd.obstrue = null; refuser(etat, pour, s, o.qui, 'obstruction sur le gardien', ev); return true; }
+    // LA RONDELLE POUSSÉE DU PATIN (`BOTTE`) par un attaquant, sans bâton depuis : refusé aussi.
+    if (R.patin && R.patin.equipe === pour) { const qui = R.patin.id; R.patin = null; refuser(etat, pour, s, qui, 'poussée du patin', ev); return true; }
     etat.compte.buts++;
     const d = R.dernier;
     const marqueur = d && d.equipe === pour ? d.id : null;
@@ -1169,11 +1201,10 @@ function but(etat, avantX, ev) {
 }
 
 /* Le but refusé : le sifflet, l'arbitre l'annule, la mise en jeu au point de la zone neutre du côté du filet ; un tir de barrage, raté. */
-function refuser(etat, pour, s, Gd, ev) {
-  const M = etat.match, o = Gd.obstrue;
-  Gd.obstrue = null;
+function refuser(etat, pour, s, qui, genre, ev) {
+  const M = etat.match;
   M.refuses[pour]++;
-  ev.push({ type: 'butRefuse', equipe: pour, qui: o.qui, genre: 'obstruction sur le gardien' });
+  ev.push({ type: 'butRefuse', equipe: pour, qui, genre });
   if (M.ronde) { finDeRonde(etat, false, ev); return; }
   arreter(etat, 'refuse', { x: s * POINT.neutre, y: Math.sign(etat.rondelle.y || 1) * POINT.y }, MATCH.pauses.refuse);
 }
@@ -1671,7 +1702,7 @@ function arreter(etat, genre, point, pause) {
   etat.enJeu = false;
   etat.arret = { genre, reste: pause, point };
   etat.rondelle.porteur = null; etat.rondelle.z = 0; etat.rondelle.vz = 0;
-  etat.rondelle.passeDe = null; etat.rondelle.passeVers = null;
+  etat.rondelle.passeDe = null; etat.rondelle.passeVers = null; etat.rondelle.patin = null;
   for (const s of etat.patineurs) { s.charge = 0; s.harpon = 0; s.elan = 0; s.feinte = 0; s.mordu = null; s.couche = 0; }
   for (const g of etat.gardiens) { g.plonge = 0; g.auSol = 0; }
   if (etat.match) etat.match.horsJeuDiffere = null;
@@ -2148,6 +2179,8 @@ function pas(etat, entrees, ev) {
         s.harponT = etat.t;
         s.harponRepos = HARPON.repos;
       }
+      // POUSSER DU PATIN (`BOTTE`) : Y sans la rondelle, elle dans ses patins.
+      if (e && e.pied && !s.tenaitPied && dansLesPatins(etat, s)) botter(etat, s, e, ev);
       if (e && e.echec && e.recul && !s.tenaitEchec && s.elanRepos <= 0 && s.auSol <= 0) {
         // SE JETER DEVANT UN TIR (`PLONGE`) : couché en travers de son cap, il glisse sur son élan.
         s.auSol = s.couche = PLONGE.duree; s.coucheCap = s.cap; s.elanRepos = ECHEC.repos;
@@ -2185,6 +2218,7 @@ function pas(etat, entrees, ev) {
     s.tenaitPasse = !!(e && e.passe);
     s.tenaitEchec = !!(e && e.echec);
     s.tenaitFeinte = !!(e && e.feinte);
+    s.tenaitPied = !!(e && e.pied);
     if (!s.tenaitTir) { s.charge = 0; s.leve = false; }
   }
   if (M && !M.ronde && etat.enJeu && !etat.arret) volee(etat, toutes, ev);
@@ -2196,7 +2230,7 @@ function pas(etat, entrees, ev) {
     // Sans la rondelle, le bouton de la passe change de joueur (comme à la console) ; `changer` le fait aussi.
     const veut = !!(e && (e.changer || (e.passe && etat.rondelle.porteur !== ctl)));
     const demande = veut && !etat.changeTenu[eq];
-    etat.changeTenu[eq] = veut;
+    etat.changeTenu[eq] = veut || !!(e && e.pied);   // Y tenu après le coup de patin ne change pas de joueur
     if (demande || !ctl || !parId(etat, ctl).surGlace) changerDeJoueur(etat, eq, demande, ev);
     else if (porteur && porteur.equipe !== eq && (etat.tic & 15) === 0) {
       const proches = plusProches(etat, eq, etat.rondelle);
@@ -2323,6 +2357,7 @@ export function reglesDeLaGlace() {
     `Le contournement du filet : sorti de derrière, la lame à côté du poteau (${dec(CONTOUR.avant)} m devant la ligne des buts au plus, ${dec(CONTOUR.cote)} m du poteau au plus), le tir la glisse au ras du poteau ; le gardien qui le couvre l'arrête, celui resté à l'autre arrive trop tard.`,
     `Le plongeon désespéré : un tir qu'il n'atteindra pas en glissant, mais à ${dec(PLONGEON.portee, 2)} m de plus, le gardien plonge de ce côté ; tendu de tout son long, il en laisse passer ${Math.round(PLONGEON.trou * 100)} % et ne gèle rien, puis il reste couché ${dec(PLONGEON.sol)} s.`,
     `La passe par la bande : le bâton pointé vers la bande droite, là où la rondelle rebondie trouvera un coéquipier ; elle vise son reflet, la bande ne rendant que ${Math.round(RONDELLE.bande * 100)} % de la vitesse en travers. Celui que le bâton pointe droit la reçoit d'abord.`,
+    `Pousser la rondelle du patin : libre dans tes patins (à ${dec(BOTTE.portee, 2)} m de ton corps, pas devant ta lame, à moins de ${kmh(BOTTE.max)} km/h de toi), Y sans elle la ramène sur ta lame ; le bâton poussé, elle part de ton patin à ${kmh(BOTTE.vitesse)} km/h de plus que toi, vers un coéquipier. Poussée du patin dans le filet sans qu'un bâton l'ait touchée depuis : le but est refusé.`,
     `Le tir instantané : X touché d'un coup, du coup droit, moins de ${dec(SNAP.fenetre)} s après avoir pris la rondelle, part sans armer à ${kmh(BATON.tirMax * SNAP.vitesse)} km/h (le poignet : ${kmh(BATON.tirMin)}), un peu moins juste ; plus tard, le même appui est un tir du poignet.`,
     `Le gardien joue la rondelle libre derrière son filet, plus lente que ${kmh(GARDIEN.jouer.lente)} km/h, s'il y est le premier : une remise au coéquipier ouvert, sinon le long de la bande, puis il revient. Derrière sa ligne, il ne la joue que dans le trapèze (${dec(2 * GARDIEN.jouer.trapeze[0] / PIED, 0)} pieds de large à la ligne des buts, ${dec(2 * GARDIEN.jouer.trapeze[1] / PIED, 0)} à la bande) : dehors, ${MATCH.punition / 60} minutes. Un tir au but est un arrêt ou un but, comme la LNH les compte ; un but, et les coéquipiers du buteur se regroupent ${dec(CELEBRATION.duree)} s.`,
   ];
