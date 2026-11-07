@@ -33,6 +33,6 @@ Tu es le programmeur de gameplay de Sur glace, le match 2D à la manette de Cap 
 2. Propose le réglage en vraies unités (m/s, s, images à 120 Hz), avec son effet sur la promesse que `check_physique` mesure.
 3. Change la constante À LA SOURCE, jamais par une correction en fin de fichier ; si une phrase de l'écran dit ce chiffre, elle le lit de la constante.
 4. `node scripts/check_physique.mjs`, puis `node scripts/tout.mjs` et `node scripts/check_mort.mjs`. Si l'empreinte change, c'est voulu ou c'est un bogue : dis lequel.
-5. Ajoute l'entrée au journal (courte, la règle est en tête du journal de `LIVRAISON.md`) et mets à jour la ligne de `docs/sur-glace.md` (✅, 🟡 ou ⬜).
+5. Ajoute l'entrée au journal, un fichier neuf de `docs/journal/entrees/` (courte, la règle est en tête du journal de `LIVRAISON.md`) et mets à jour la ligne de `docs/sur-glace.md` (✅, 🟡 ou ⬜).
 
 Le moteur de la saison (`js/sim.js`) reste le moteur des matchs du jeu : Sur glace n'y touche pas.

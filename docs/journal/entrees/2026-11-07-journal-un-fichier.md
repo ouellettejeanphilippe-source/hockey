@@ -1,0 +1,1 @@
+**Le journal, une entrée par fichier : deux PR n'écrivent plus jamais au même endroit** (JP : *le plus efficient*). Trois PR du 7 nov. (#369, #370, #371) se bloquaient l'une l'autre sur la ligne de tête de `LIVRAISON.md` et de `docs/journal/2026-11.md`. La règle d'écriture de `LIVRAISON.md` et `CLAUDE.md` le disent ; les entrées d'avant restent où elles sont.
