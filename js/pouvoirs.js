@@ -15,7 +15,13 @@ import { hache } from './util.js';
 
 /* ---------- le niveau ---------- */
 export const XP = { victoire: 1, gros: 2, serie: 5 };
-export const SEUILS_NIVEAU = [0, 10, 25, 45, 70];
+/*
+ * LE COACH GRANDIT SUR LA RUN (7 nov. 2026 ; JP : *il faut vraiment bloquer le snowball*). Aux seuils d'avant (10, 25, 45,
+ * 70), une saison suffisait : même un club 32e finissait sa première saison au niveau 4, et la deuxième partait avec ses
+ * trois pouvoirs et ses deux talents dès le premier match (scratchpad `run1d`, 24 graines). Aux seuils neufs, l'attentif
+ * finit sa première saison au niveau 3, sa deuxième au 4, et le 5 vient à la troisième (docs/decisions.md).
+ */
+export const SEUILS_NIVEAU = [0, 25, 70, 140, 240];
 export const NIVEAU_MAX = SEUILS_NIVEAU.length;
 export const niveauDe = xp => SEUILS_NIVEAU.filter(s => (xp || 0) >= s).length;
 /* Ce qu'il manque pour le niveau suivant (null au dernier). */

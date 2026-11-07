@@ -166,10 +166,11 @@ if (!isMainThread) {
       && nom(D[3].cases) === 'Étoile+Étoile+Pilier+Pilier+Régulier' && !('mode' in D[3]) && !DEBLOCAGES.classeurChoix,
       D.map(x => `${nom(x.cases)} (${x.vues})`).join(' · '));
     exiger('le joueur de concession et les exigences retirent des cases, par le haut', nom(departDuClasseur({ deblocages: niveaux[2], vedette: 'x' }).cases) === 'Pilier+Régulier'
-      && nom(departDuClasseur({ deblocages: niveaux[2] }, 3).cases) === 'Pilier+Régulier' && nom(lotosDeSaison({ deblocages: niveaux[1] }, 3).cases) === 'Régulier+Régulier+Régulier',
+      && nom(departDuClasseur({ deblocages: niveaux[2] }, 3).cases) === 'Pilier+Régulier' && nom(lotosDeSaison({ deblocages: niveaux[1] }, 3).cases) === 'Régulier',
       nom(departDuClasseur({ deblocages: niveaux[2], vedette: 'x' }).cases));
-    exiger('entre deux saisons, trois lotos Régulier et un par page ; ceux qui restent : un Pilier et un Régulier, cinq au tri',
-      nom(L[0].cases) === 'Régulier+Régulier+Régulier' && nom(L[2].cases) === 'Étoile+Pilier+Régulier+Régulier+Régulier' && nom(R[0].cases) === 'Pilier+Régulier' && nom(R[3].cases) === 'Pilier+Régulier' && R[0].vues === 3 && R[2].vues === 5,
+    // 7 nov. 2026 (JP : *bloquer le snowball*) : un loto Régulier (c'était trois), deux Réguliers gardés (c'était un Pilier et un Régulier).
+    exiger('entre deux saisons, un loto Régulier et un par page ; ceux qui restent : deux Réguliers, cinq au tri',
+      nom(L[0].cases) === 'Régulier' && nom(L[2].cases) === 'Étoile+Pilier+Régulier' && nom(R[0].cases) === 'Régulier+Régulier' && nom(R[3].cases) === 'Régulier+Régulier' && R[0].vues === 3 && R[2].vues === 5,
       `${nom(L[2].cases)} · ${nom(R[2].cases)}`);
     const Gd = [[], ['garder1'], ['garder1', 'garder2'], ['garder1', 'garder2', 'garder3', 'classeurTri']].map(d => gardesDeLaDerniere({ deblocages: d }));
     exiger('de ta dernière équipe, un loto par case : Pilier, un deuxième Pilier, puis Étoile ; rien sans déblocage',
