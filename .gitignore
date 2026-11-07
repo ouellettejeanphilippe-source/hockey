@@ -9,3 +9,12 @@ package.json
 
 # Les worktrees des agents de Claude Code
 .claude/worktrees/
+
+# === Claude Code Game Studios (local) ===
+.claude/settings.local.json
+CLAUDE.local.md
+project.local.yaml
+production/session-logs/
+production/session-state/
+.claude/agent-memory/
+.claude/worktrees/
