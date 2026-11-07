@@ -648,14 +648,17 @@ function boucle(now) {
       if (j && !etat.match.fini && !j.fusillade && !j.punition) reprise = { attente: REPRISE.attente, t: 0, tBut: etat.t, images: null, allume: false };
     }
     else if (v.type === 'arret' && v.gele) flash = { mot: 'Gelée.', reste: 1.2 };
-    else if (v.type === 'arret') flash = { mot: 'Arrêt !', reste: 0.8 };
+    else if (v.type === 'arret') flash = { mot: v.plongeon ? 'Le plongeon !' : 'Arrêt !', reste: 0.8 };
     else if (v.type === 'poteau') { flash = { mot: v.barre ? 'La barre !' : 'Poteau !', reste: 0.8 }; secousse = { t0: now, dur: 160, amp: 2 }; const d = etat.rondelle.dernier; if (d && tonJoueur(d.id)) vibrer(d.equipe, 'poteau'); }
     else if (v.type === 'horsjeu') flash = { mot: 'Hors-jeu', reste: 1.2 };
     else if (v.type === 'degagement') flash = { mot: 'Dégagement refusé', reste: 1.2 };
+    else if (v.type === 'butRefuse') { flash = { mot: `But refusé · ${nomDe(v.qui)} a gêné le gardien`, reste: 2.6 }; secousse = { t0: now, dur: 200, amp: 2 }; }
     else if (v.type === 'vitre') flash = { mot: 'Par-dessus la vitre', reste: 1.2 };
     else if (v.type === 'punition') flash = { mot: `${nomDe(v.qui)} · ${v.genre} · 2 min${v.attente ? ' à retardement' : ''}`, reste: 2.2 };
     else if (v.type === 'leve' && v.ok && tonJoueur(v.qui)) { flash = { mot: 'Bâton soulevé !', reste: 0.9 }; vibrer(equipeDe(v.qui), 'harpon'); }
     else if (v.type === 'leve' && v.ok && tonJoueur(v.sur)) flash = { mot: `${nomDe(v.qui)} te soulève le bâton`, reste: 0.9 };
+    else if (v.type === 'bloc' && tonJoueur(v.qui)) { flash = { mot: 'Bloqué !', reste: 0.8 }; vibrer(equipeDe(v.qui), 'echecRecu'); }
+    else if (v.type === 'rudesse') secousse = { t0: now, dur: 120, amp: 2 };
     else if (v.type === 'gants') { secousse = { t0: now, dur: 250, amp: 3 }; for (const eq of etat.humains) vibrer(eq, 'echecRecu'); }
     else if (v.type === 'coup') { secousse = { t0: now, dur: 90, amp: 2 }; if (tonJoueur(v.qui)) vibrer(v.equipe, 'echecDonne'); }
     else if (v.type === 'bagarre') flash = { mot: `${v.gagnant ? `${nomDe(v[v.gagnant])} gagne la bagarre` : 'Bagarre nulle'} · ${BAGARRE.minutes} min chacun`, reste: 2.4 };
@@ -666,7 +669,7 @@ function boucle(now) {
     else if (v.type === 'fusillade') flash = { mot: 'Tirs de barrage', reste: 2 };
     else if (v.type === 'ronde') flash = { mot: v.but ? `Compté, ${noms[v.equipe]}` : `Raté, ${noms[v.equipe]}`, reste: 1.5 };
     else if (v.type === 'mej') flash = { mot: `${v.libre ? 'Rondelle libre !' : `Mise en jeu gagnée, ${noms[v.equipe]}`}${tonTiming(v.timing)}`, reste: 1.1 };
-    else if (v.type === 'tir') { if (Object.values(etat.controles).includes(v.qui)) flash = { mot: `${Math.round(v.v * 3.6)} km/h${v.uneTemps ? ' · sur réception' : ''}`, reste: 1 }; if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'tir'); }
+    else if (v.type === 'tir') { if (Object.values(etat.controles).includes(v.qui)) flash = { mot: `${Math.round(v.v * 3.6)} km/h${v.uneTemps ? ' · sur réception' : ''}${v.snap ? ' · instantané' : ''}${v.contour ? ' · le tour du filet' : ''}`, reste: 1 }; if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'tir'); }
     else if (v.type === 'echec' && v.fort) { gel = GEL; secousse = { t0: now, dur: 200, amp: 3 }; if (tonJoueur(v.sur)) vibrer(equipeDe(v.sur), 'echecRecu'); if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'echecDonne'); }
     else if (v.type === 'prise' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'prise');
     else if (v.type === 'passe' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'passe');
@@ -728,6 +731,7 @@ function sonner(v) {
   }
   else if (v.type === 'gel' || v.type === 'degagement') coupDeGlace('sifflet');
   else if (v.type === 'horsjeu') coupDeGlace('sifflet', 0, { coups: 2 });
+  else if (v.type === 'butRefuse') { coupDeGlace('sifflet', 0, { coups: 2 }); coupDeGlace('ohhh', 0.3, { grave: true }); coupDeGlace('huees', 0.8); }
   else if (v.type === 'punition' && !v.attente) { coupDeGlace('sifflet', 0, { duree: 0.9 }); coupDeGlace('huees', 0.6); fouleReagit('punition'); }
   else if (v.type === 'tirpunition' || v.type === 'fusillade') coupDeGlace('sifflet', 0, { duree: 0.9 });
   else if (v.type === 'but') {
@@ -1304,7 +1308,7 @@ function gardien(Gd, now) {
   // LE PAPILLON : les jambières à plat sur un arrêt, un demi-seconde ; sinon la garde, tourné vers la rondelle.
   corps(Gd.x, Gd.y, Gd.equipe, 'G', Gd.pose || poseDuGardien(Gd, now), directionDe(Math.atan2(R.y - Gd.y, R.x - Gd.x), 4));
 }
-const poseDuGardien = (Gd, now) => (Gd.anim && now - Gd.anim < 450 ? Gd.animPose || 'papillon' : 'garde');
+const poseDuGardien = (Gd, now) => (Gd.plonge > 0 || Gd.auSol > 0 ? (Gd.plongeCote * Gd.sens > 0 ? 'mitaine' : 'bloqueur') : Gd.anim && now - Gd.anim < 450 ? Gd.animPose || 'papillon' : 'garde');
 
 /* ---------- la reprise d'un but (le lot 4, `REPRISE`) ---------- */
 /* Ce qu'on vient de dessiner, gardé : les patineurs sur la glace (leur pose), les gardiens, la rondelle. */
