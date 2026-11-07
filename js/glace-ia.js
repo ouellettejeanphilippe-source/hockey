@@ -42,7 +42,7 @@
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
  * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler vit sur le patineur (`s.memo`).
  */
-import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers } from './physique.js';
+import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers, rudesse, RUDESSE, DOUBLE, miroirDeBande } from './physique.js';
 
 const hyp = Math.hypot;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -200,7 +200,52 @@ function uneTemps(etat, s, but, u, adv, M) {
   return { x: bx / n * UNE_TEMPS.baton, y: by / n * UNE_TEMPS.baton, tir: true };
 }
 
+/*
+ * L'OBSTRUCTION SUR LE GARDIEN (7 nov. 2026 ; `OBSTRUCTION`, js/physique.js) : l'IA contourne le gardien adverse. Lancée vers
+ * lui à plus de `lent` m/s, si elle ne peut plus s'arrêter avant de le toucher (v² / 2 × `freinage` m/s², plus `marge`
+ * m), elle pousse à l'envers (`recul`) ; à `marge` m de lui, elle retire de son bâton ce qui la pousse vers lui. Le même bâton
+ * que la manette, jamais un raccourci du moteur ; l'écran devant lui ne bouge pas : il y arrive lentement.
+ */
+// le gardien plus près que ça (m, de l'axe, du côté où le porteur ressort) de ce poteau : il y est, on ressort
+const CONTOUR_IA = 0.3;
+/*
+ * SE JETER DEVANT UN TIR (PLONGE, js/physique.js) : le porteur adverse charge son lancer (`JETER.charge` s au moins),
+ * dans notre moitié ; on est entre lui et notre filet, à `JETER.pres` à `JETER.loin` m de lui, à `JETER.ligne` m de la
+ * ligne de son tir au plus : on se couche dessus, LB et B, comme toi.
+ */
+const JETER = { charge: 0.15, pres: 1.5, loin: 6, ligne: 0.6 };
+function seJeter(etat, s) {
+  const R = etat.rondelle, p = R.porteur ? etat.patineurs.find(q => q.id === R.porteur) : null;
+  if (!p || p.equipe === s.equipe || p.charge < JETER.charge || s.auSol > 0 || s.elanRepos > 0) return false;
+  const a = etat.equipes[s.equipe].attaque, xb = -a * LIGNE_BUT;
+  if (p.x * a > 0) return false;
+  const dx = xb - p.x, dy = -p.y, d = hyp(dx, dy) || 1e-9, t = ((s.x - p.x) * dx + (s.y - p.y) * dy) / d;
+  const ecart = Math.abs((s.x - p.x) * dy - (s.y - p.y) * dx) / d;
+  return t > JETER.pres && t < Math.min(JETER.loin, d - 1) && ecart < JETER.ligne;
+}
+const CONTOURNE = { marge: 0.2, freinage: 9, lent: 0.3, recul: 0.6 };
 export function decisionIA(etat, s) {
+  const c0 = decider(etat, s);
+  const a = etat.equipes[s.equipe].attaque, g = etat.gardiens.find(q => q.sens === a && !q.retire);
+  if (c0 && c0.echec && etat.t - (s.harponT ?? -Infinity) < DOUBLE.fenetre) c0.echec = false;   // pas de double-échec : l'IA ne s'élance pas le bâton levé (`DOUBLE`)
+  if (c0 && c0.tir && (s.elan > 0 || c0.echec) && etat.rondelle.porteur !== s.id) c0.tir = false;   // … ni ne harponne pendant son élan
+  if (c0 && !etat.arret && !etat.mej && seJeter(etat, s)) return { x: 0, y: 0, recul: true, echec: true };
+  if (!c0 || !g || etat.mej) return c0;
+  const dx = g.x - s.x, dy = g.y - s.y, d = hyp(dx, dy) || 1e-9;
+  if (d > 5) return c0;
+  const vn = (s.vx * dx + s.vy * dy) / d;   // sa vitesse vers lui
+  const ecart = d - s.rayon - 0.45;         // ce qui reste avant le contact (le gardien fait 0,45 m de rayon)
+  const c = { ...c0 }, nx = dx / d, ny = dy / d;
+  const vers = (c.x || 0) * nx + (c.y || 0) * ny;
+  const fonce = vn > CONTOURNE.lent && vn * vn / (2 * CONTOURNE.freinage) > ecart - CONTOURNE.marge;
+  if (vers > 0 && (fonce || ecart < CONTOURNE.marge)) { c.x = (c.x || 0) - vers * nx; c.y = (c.y || 0) - vers * ny; }
+  // trop lancée pour s'arrêter avant lui : elle pousse à l'envers, le bâton tiré vers elle
+  if (fonce) { c.x -= nx * CONTOURNE.recul; c.y -= ny * CONTOURNE.recul; }
+  const m = hyp(c.x, c.y);
+  if (m > 1) { c.x /= m; c.y /= m; }
+  return c;
+}
+function decider(etat, s) {
   const memo = s.memo || (s.memo = {});
   const R = etat.rondelle;
   const eq = s.equipe, a = etat.equipes[eq].attaque;
@@ -210,6 +255,13 @@ export function decisionIA(etat, s) {
   const porteur = R.porteur ? etat.patineurs.find(p => p.id === R.porteur) : null;
   const M = etat.match;
 
+  // APRÈS LE SIFFLET (`RUDESSE`) : un dur, près d'un adversaire, le bouscule parfois — une fois par arrêt de jeu au plus.
+  if (etat.arret) {
+    if (memo.arret !== etat.arret) { memo.arret = etat.arret; memo.rude = rudesse(s) > 0 && etat.de() < RUDESSE.ia * rudesse(s); }
+    const pres = memo.rude && surGlace(etat, autre(eq)).some(o => hyp(o.x - s.x, o.y - s.y) < RUDESSE.portee);
+    if (pres) memo.rude = false;
+    return { x: 0, y: 0, echec: pres };
+  }
   if (porteur === s) { if (!(memo.dernierePossession > etat.t - 0.1)) memo.dernierePrise = etat.t; memo.dernierePossession = etat.t; }
 
   // LA MISE EN JEU : le centre presse autour de la chute, le bâton vers où il l'envoie ; les autres attendent.
@@ -370,7 +422,9 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   const bonTir = dBut < 11 * loin && lateral < 8 && couloir && angleFilet < 0.9;
   // Au coin, pressé, il ne lance pas de là (le lot 3) : il protège, le temps du cycle.
   const enCoin = u(s.x) > LIGNE_BUT - 6 && Math.abs(s.y) > 4.5;
-  if (peutLancer && (bonTir || dBut < 6 || (pression < 2.2 && dBut < 17 * loin && couloir && u(s.x) > BLEUE && !enCoin))) {
+  // La lame derrière la ligne des buts, le tir n'irait que dans le dos du filet : on le contourne d'abord (plus bas).
+  const derriereLigne = u(lame(s).x) > LIGNE_BUT - 0.05;
+  if (peutLancer && !derriereLigne && (bonTir || dBut < 6 || (pression < 2.2 && dBut < 17 * loin && couloir && u(s.x) > BLEUE && !enCoin))) {
     const charge = clamp((dBut - 4) / 14, 0.05, 0.9);
     return charger(memo, s, but, a, charge, etat);
   }
@@ -392,7 +446,7 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   }
   // DERRIÈRE LE FILET : chercher une passe devant (l'enclave, le devant du filet) ou ressortir de l'autre côté.
   // (Pressé au coin, c'est le cycle et la protection d'en bas qui jouent.)
-  const derriere = u(s.x) > LIGNE_BUT - 2.5 && dBut > 4 && !(enCoin && pression < COIN.pres);
+  const derriere = u(s.x) > LIGNE_BUT - 2.5 && (dBut > 4 || derriereLigne) && !(enCoin && pression < COIN.pres);
   if (derriere) {
     for (const m of miens) {
       if (m === s || m.auSol > 0) continue;
@@ -405,7 +459,10 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
         return { x: dx / d, y: dy / d, passe: true };
       }
     }
-    const cible = { x: but.x - a * 5, y: -Math.sign(s.y || 1) * 5 };
+    // LE CONTOURNEMENT DU FILET (`CONTOUR`, js/physique.js) : le gardien pas encore au poteau de l'autre côté, on y file,
+    // la lame au ras du poteau, et le tir de près part de là ; sinon on ressort de l'autre côté.
+    const cote = -Math.sign(s.y || 1), Gd = etat.gardiens.find(g => g.sens === a && !g.retire);
+    const cible = Gd && Gd.y * cote < CONTOUR_IA && u(s.x) > LIGNE_BUT ? { x: a * (LIGNE_BUT - 0.5), y: cote * 1.6 } : { x: but.x - a * 5, y: cote * 5 };
     const e = vers(s, cible.x, cible.y, 1);
     memo.dirX = e.x; memo.dirY = e.y;
     return e;
@@ -562,7 +619,12 @@ function sortieDeZone(etat, s, memo, a, u, miens, adv, pression) {
   // soulevée passe le bâton) ; en désavantage, le dégagement est permis : au fond.
   const cote = Math.sign(s.y) || 1;
   const ailier = miens.find(m => m !== s && m.poste !== 'D' && Math.sign(m.y) === cote && Math.abs(m.y) > 4 && u(m.x) > u(s.x) + 2);
-  if (ailier) return passerA(memo, s, ailier);
+  if (ailier) {
+    // LA PASSE PAR LA BANDE (`BANDE_PASSE`, js/physique.js) : la ligne vers lui barrée, le bâton vers son reflet dans la bande.
+    const P = miroirDeBande(s.x, s.y, ailier, cote * (W / 2 - 0.04));
+    if (P.ok && !couloirOuvert(s.x, s.y, ailier.x, ailier.y, adv, 1.3) && couloirOuvert(s.x, s.y, P.xh, cote * W / 2, adv, 1.3)) return passerA(memo, s, P);
+    return passerA(memo, s, ailier);
+  }
   const M = etat.match, enDesavantage = M && penalisesDe(etat, s.equipe) > penalisesDe(etat, autre(s.equipe));
   if (enDesavantage) return lancerVers(memo, s, { x: a * 1, y: cote * (W / 2 - 0.8) });
   return null;
