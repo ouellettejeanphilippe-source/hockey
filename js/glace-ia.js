@@ -165,6 +165,15 @@ export function styleDuClub(tag, joueurs) {
   return { tir, frappe, contre, strategie, mots };
 }
 const CONTENIR = { base: 1.4, parVitesse: 0.9, max: 10 };   // l'écart du défenseur qui contient le porteur, m (et par m/s du porteur)
+/*
+ * LE REPLI (7 nov. 2026 ; JP : *pis surtout, meilleure défensive*). Mesuré (check_possession) : l'adversaire installé
+ * depuis 2 s dans notre zone, 61 % de nos patineurs étaient encore dehors, et 10 % des possessions finissaient en
+ * échappée — personne ne revenait, et ceux qui revenaient ne prenaient jamais le turbo que le porteur, lui, prenait.
+ * Un patineur sans la rondelle qui n'est plus à `marge` m entre le porteur adverse et notre filet revient : à `devant` m
+ * devant le porteur, vers le couloir de celui-ci (`couloir` de son écart), à `large` m de l'axe au plus ; distancé de
+ * plus de `turbo` m, il presse le turbo (le même bouton que toi), au-dessus de `jambes`.
+ */
+const REPLI = { depuis: LIGNE_BUT, marge: 0.5, devant: 2.5, couloir: 0.5, large: 8, turbo: 1, jambes: 35 };
 function duBonCote(cible, a, u, adv, marge = 0) {
   let plusLoin = null;
   for (const o of adv) if (!plusLoin || u(o.x) < u(plusLoin.x)) plusLoin = o;
@@ -519,7 +528,7 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
     const d = hyp(m.x - s.x, m.y - s.y);
     if (d < 3 || d > 28) continue;
     const ouvert = Math.min(Infinity, ...adv.map(o => hyp(o.x - m.x, o.y - m.y))) > 2.2;
-    const ligne = couloirOuvert(R.x, R.y, m.x, m.y, adv, 1.3);
+    const ligne = couloirOuvert(R.x, R.y, m.x, m.y, adv, 1.3) && passeSure(R, m, d, adv);
     if (!ligne) continue;
     const avance = u(m.x) - u(s.x);
     // La rondelle hors de la zone (la passe part de la lame : c'est elle qui compte), pas de passe à qui est déjà dedans,
@@ -536,10 +545,26 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
       + (enAvantage && ouvert && u(m.x) > BLEUE && Math.sign(m.y) !== Math.sign(s.y) ? AVANTAGE.travers : 0);
     if (sc > score) { score = sc; meilleur = m; }
   }
-  if (meilleur && (pression < 3 || score > (enAvantage ? AVANTAGE.seuil : 1.6) || etat.de() < 0.02)) {
+  if (meilleur && (score > (enAvantage ? AVANTAGE.seuil : 1.6) || (pression < 3 && score > TENIR.seuil) || etat.de() < 0.02)) {
     const dx = meilleur.x - s.x, dy = meilleur.y - s.y, d = hyp(dx, dy) || 1;
     memo.dirX = dx / d; memo.dirY = dy / d;
     return { x: dx / d, y: dy / d, passe: true };
+  }
+  // TENIR LA RONDELLE : pressé, sans passe sûre, hors de notre zone : dos au presseur, lentement (`PROTEGE`), le temps
+  // qu'un coéquipier s'ouvre ; puis on repart.
+  if (pression < TENIR.pres && u(s.x) > -BLEUE && u(s.x) < BLEUE && !enCoin) {
+    if (!(memo.tientDepuis > etat.t - 0.2 - TENIR.duree)) memo.tientDebut = etat.t;
+    memo.tientDepuis = etat.t;
+    if (etat.t - memo.tientDebut < TENIR.duree) {
+      const o = adv.slice().sort((p, q) => hyp(p.x - s.x, p.y - s.y) - hyp(q.x - s.x, q.y - s.y))[0];
+      let ex = s.x - o.x, ey = s.y - o.y;
+      if (Math.abs(s.y) > W / 2 - 2.5 && ey * Math.sign(s.y) > 0) ey = 0;
+      // jamais vers notre filet : on tient la glace gagnée
+      if (ex * a < 0) ex *= 0.3;
+      const m = hyp(ex, ey) || 1;
+      memo.dirX = ex / m; memo.dirY = ey / m;
+      return { x: ex / m * COIN.lent, y: ey / m * COIN.lent };
+    }
   }
   // LE LANCER AU FOND quand la bleue est bouchée : dans le coin le moins gardé, puis la course.
   const devantLaBleue = u(s.x) > 0.5 && u(s.x) < BLEUE - 0.5;
@@ -585,6 +610,18 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   const libreDevant = !adv.some(o => { const dx = o.x - s.x, dy = o.y - s.y; return hyp(dx, dy) < 5 && dx * e.x + dy * e.y > 0; });
   if (libreDevant && s.jambes > 40 && u(s.x) > -BLEUE && !unDedans) e.sprint = true;
   return e;
+}
+/*
+ * LA PASSE SÛRE (7 nov. 2026 ; JP : *moins ping pong, plus réfléchi*). Mesuré (check_possession) : 39 % des possessions
+ * finissaient sur une passe perdue, 70 % des passes partaient sous pression. Le couloir se lisait sur les adversaires
+ * où ils sont ; il se lit maintenant où ils seront quand la rondelle passera (leur vitesse, `avance` de ce temps), à
+ * `marge` m de la ligne (la lame et le bras). Pressé, le porteur ne passe plus qu'à un coéquipier ouvert (`seuil`) ;
+ * sinon il TIENT : dos au presseur, lentement (la rondelle passe de l'autre côté du corps, `PROTEGE`), `duree` s au plus.
+ */
+const TENIR = { pres: 2.4, duree: 1.2, seuil: 1.3, marge: 1.6, avance: 0.7 };
+function passeSure(R, m, d, adv) {
+  const t = d / BATON.passe;
+  return couloirOuvert(R.x, R.y, m.x, m.y, adv.map(o => ({ x: o.x + o.vx * t * TENIR.avance, y: o.y + o.vy * t * TENIR.avance })), TENIR.marge, 1.05, 0.05);
 }
 /* Une passe à `m` : le bâton vers lui. */
 function passerA(memo, s, m) {
@@ -925,11 +962,17 @@ function defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur) {
   if (u(R.x) <= BLEUE) { const lim = avantLaBleue(s, a, 0.8); if (u(cible.x) > lim) cible = { x: a * lim, y: cible.y }; }
   // LES DÉFENSEURS ne se laissent pas déborder : entre l'attaquant le plus avancé et notre filet, l'écart selon sa vitesse.
   if (iD >= 0 && !desavantage) cible = duBonCote(cible, a, u, adv);
+  // LE REPLI : le porteur adverse nous a dépassés, on revient entre lui et notre filet avant de reprendre son poste.
+  const repli = porteur && porteur.equipe !== s.equipe && !desavantage && u(porteur.x) < REPLI.depuis && u(s.x) > u(porteur.x) - REPLI.marge;
+  if (repli) cible = { x: a * Math.max(-(LIGNE_BUT - 2), Math.min(u(cible.x), u(porteur.x) - REPLI.devant)), y: clamp(porteur.y * REPLI.couloir + s.y * (1 - REPLI.couloir), -REPLI.large, REPLI.large) };
   cible = dansLaGlace(cible.x, cible.y);
   const e = espacer(s, miens, vers(s, cible.x, cible.y, 1), 2.2, memo.auFilet === etat.t ? [] : adv.filter(o => o !== porteur));
   if (memo.auFilet === etat.t && hyp(but.x - s.x, but.y - s.y) < 5) e.tir = true;   // le bâton sur la glace : la déviation
+  // … au turbo, le même bouton que le porteur, tant que ses jambes tiennent.
+  if (repli && u(s.x) > u(porteur.x) + REPLI.turbo && s.jambes > REPLI.jambes) e.sprint = true;
   // LE DÉFENSEUR RECULE face au porteur qui descend sur lui, quand il est près : il va vers son filet, le cap tenu vers
-  // la rondelle. Loin, il se retourne et patine de face, plus vite, pour garder son écart.
-  if (iD >= 0 && porteur && u(porteur.x) < u(s.x) + 7 && u(porteur.x) > u(s.x) - 1 && e.x * -a > 0.3) e.recul = true;
+  // la rondelle. Loin, il se retourne et patine de face, plus vite, pour garder son écart. Débordé, il ne recule plus : il
+  // se retourne et revient de face (à reculons, il va moins vite que le porteur).
+  if (iD >= 0 && porteur && !repli && u(porteur.x) < u(s.x) + 7 && e.x * -a > 0.3) e.recul = true;
   return e;
 }

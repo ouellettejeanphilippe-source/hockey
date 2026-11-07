@@ -1982,10 +1982,12 @@ function finDePeriode(etat, ev) {
     else if (!M.prolongation) { M.prolongation = true; M.periode++; M.reste = M.dureeOT; }
     else { commencerFusillade(etat, ev); return; }
   } else { M.periode++; M.reste = M.duree; }
-  for (const g of etat.gardiens) g.retire = false;
+  // le gardien retiré revient au filet, même s'il attendait qu'un patineur sorte (`retour`) : la pause n'en garde aucun de trop
+  for (const g of etat.gardiens) { g.retire = false; g.retour = false; }
   for (const eq of ['A', 'B']) etat.equipes[eq].attaque = -etat.equipes[eq].attaque;
   for (const g of etat.gardiens) g.sens = -g.sens;
   for (const s of etat.patineurs) s.jambes = Math.min(100, s.jambes + 40);
+  for (const eq of ['A', 'B']) habiller(etat, eq);
   arreter(etat, 'periode', { x: 0, y: 0 }, MATCH.pauses.periode);
 }
 /* Les trois étoiles : les buts, les passes, les tirs et les mises en échec ; un gardien vaut ses arrêts. */
