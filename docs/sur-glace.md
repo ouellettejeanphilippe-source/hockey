@@ -183,6 +183,50 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Jouer un gros match du Rogue sur la glace, ou une série | ⬜ | une passerelle : l'alignement du Rogue devient un club de Sur glace ; le résultat reviendrait à la saison seulement si JP le veut |
 | Les réglages : la durée des périodes, les règles, la difficulté, les assistances (visée, changement automatique) | 🟡 | la durée, le hors-jeu, le dégagement, les séries, la difficulté, deux joueurs sur l'affiche ; les assistances à régler manquent |
 
+## 9. Contre le genre : ce qu'un hockey arcade de l'ère 16 bits offre au joueur
+
+JP (7 nov. 2026) : *je veux toutes les mécaniques d'un jeu comme NHL 94, feel similaire*. Les mécaniques et le feel d'un hockey arcade de l'ère 16 bits (vif, lisible, le patin qui glisse, le tir frappé qui claque, la mise en échec qui renverse), jamais son nom, ses graphismes, ses sons ni ses menus : le look et le son restent ceux du dépôt. Chaque mécanique renvoie à sa ligne des tableaux ci-dessus.
+
+| Mécanique du genre | État | Où (la ligne des tableaux) |
+|---|---|---|
+| Le tir frappé chargé et le tir du poignet | ✅ | § 3, « Le tir du poignet … et le lancer frappé » |
+| Le tir sur réception, l'IA comprise | ✅ | § 3 |
+| Le choix de l'angle de tir (le bâton dit où dans le filet) | ✅ | § 3, la visée |
+| La feinte | ✅ | § 3 |
+| Le contournement du filet (le porteur passe derrière et la glisse au poteau) | 🟡 | il fait le tour (le filet est un objet), mais la visée ne cherche le filet que devant lui ; ni le tir ni l'IA ne le jouent |
+| La passe, la passe soulevée, la passe laissée | ✅ | § 3 |
+| La passe par la bande, voulue | 🟡 | § 3 |
+| Le coup de patin (le turbo) et l'arrêt sec | ✅ | § 2, le sprint et le frein |
+| La mise en échec qui renverse, le joueur au sol, la charge contre la bande | ✅ | § 4, § 2 |
+| Le harponnage, soulever le bâton | ✅ | § 4 |
+| Les punitions : accrochage, cinglage, obstruction, bâton élevé, charge par-derrière, trébucher | ✅ | § 4 |
+| Le double-échec, la rudesse après le sifflet | ⬜ | § 4 |
+| L'avantage numérique et le désavantage (le parapluie, la boîte, la libération sur un but) | ✅ | § 4, § 7 |
+| **L'obstruction sur le gardien et le but refusé** | ✅ | § 4, § 5 (7 nov.) |
+| Le gardien qui sort de son filet (jouer la rondelle, le harpon, le retrait) | ✅ | § 5 |
+| Le gardien qu'on contrôle soi-même | ⬜ | aucune entrée ne le mène ; il est toujours au moteur |
+| Le plongeon désespéré du gardien | ⬜ | § 5 |
+| La rondelle libre, la mêlée devant le filet, les rebonds, l'écran, la déviation | ✅ | § 3, § 5 |
+| Se jeter devant un tir (le bloc voulu) | 🟡 | § 3 |
+| Les changements de trio (à l'arrêt, au bouton, à la volée) | ✅ | § 6 |
+| La fatigue (les jambes) | ✅ | § 2 |
+| La fatigue du gardien, l'auxiliaire | ⬜ | § 5 |
+| Le hors-jeu (différé compris) et le dégagement refusé | ✅ | § 6 |
+| La mise en jeu au bouton | ✅ | § 6 |
+| La prolongation, les tirs de barrage, le tir de punition | ✅ | § 6, § 4 |
+| La bagarre | ✅ | § 4 |
+| Les blessures | ⬜ | § 4 |
+| Le compteur de tirs, les stats d'entracte | ✅ | § 6, § 8 |
+| Les trois étoiles du match | ✅ | § 6 |
+| La reprise du but au ralenti, la célébration | ✅ | § 8 |
+| Le poids des contacts : l'arrêt sur image, la secousse, la vibration | ✅ | § 8 |
+| Deux joueurs sur le même écran | ✅ | § 8 |
+| Le temps d'arrêt | ⬜ | § 6 |
+| Le tir instantané (snap), distinct du poignet | 🟡 | § 3 |
+| Pousser la rondelle du patin | 🟡 | § 1 |
+
+Le compte, le 7 nov. 2026 : 24 ✅, 5 🟡, 6 ⬜. L'ordre proposé pour ce qui reste, du feel d'abord : le contournement du filet, le double-échec et la rudesse, se jeter devant un tir, le plongeon du gardien, la passe par la bande voulue, puis les blessures, la fatigue du gardien, le temps d'arrêt et le gardien qu'on contrôle.
+
 ## L'ordre de travail proposé
 
 Le 1er nov. 2026 (JP : *applique ce que tu peux*), les points 1 à 5 et l'essentiel des 7 et 8 sont faits ; ce qui reste est dans les tableaux, en ⬜ et 🟡. Les pitons sont ceux des NHL classiques (A passe, X tir, B turbo ou mise en échec, Y change, LB recule, Start pause), le nom du porteur se montre une seconde à la prise, et les sprites sont rastérisés en seize directions (JP : *16-bit, c'est plus beau que ça*).
