@@ -652,6 +652,7 @@ function boucle(now) {
     else if (v.type === 'poteau') { flash = { mot: v.barre ? 'La barre !' : 'Poteau !', reste: 0.8 }; secousse = { t0: now, dur: 160, amp: 2 }; const d = etat.rondelle.dernier; if (d && tonJoueur(d.id)) vibrer(d.equipe, 'poteau'); }
     else if (v.type === 'horsjeu') flash = { mot: 'Hors-jeu', reste: 1.2 };
     else if (v.type === 'degagement') flash = { mot: 'Dégagement refusé', reste: 1.2 };
+    else if (v.type === 'butRefuse') { flash = { mot: `But refusé · ${nomDe(v.qui)} a gêné le gardien`, reste: 2.6 }; secousse = { t0: now, dur: 200, amp: 2 }; }
     else if (v.type === 'vitre') flash = { mot: 'Par-dessus la vitre', reste: 1.2 };
     else if (v.type === 'punition') flash = { mot: `${nomDe(v.qui)} · ${v.genre} · 2 min${v.attente ? ' à retardement' : ''}`, reste: 2.2 };
     else if (v.type === 'leve' && v.ok && tonJoueur(v.qui)) { flash = { mot: 'Bâton soulevé !', reste: 0.9 }; vibrer(equipeDe(v.qui), 'harpon'); }
@@ -728,6 +729,7 @@ function sonner(v) {
   }
   else if (v.type === 'gel' || v.type === 'degagement') coupDeGlace('sifflet');
   else if (v.type === 'horsjeu') coupDeGlace('sifflet', 0, { coups: 2 });
+  else if (v.type === 'butRefuse') { coupDeGlace('sifflet', 0, { coups: 2 }); coupDeGlace('ohhh', 0.3, { grave: true }); coupDeGlace('huees', 0.8); }
   else if (v.type === 'punition' && !v.attente) { coupDeGlace('sifflet', 0, { duree: 0.9 }); coupDeGlace('huees', 0.6); fouleReagit('punition'); }
   else if (v.type === 'tirpunition' || v.type === 'fusillade') coupDeGlace('sifflet', 0, { duree: 0.9 });
   else if (v.type === 'but') {

@@ -201,22 +201,26 @@ function uneTemps(etat, s, but, u, adv, M) {
 }
 
 /*
- * L'OBSTRUCTION SUR LE GARDIEN (7 nov. 2026 ; `OBSTRUCTION`, js/physique.js) : l'IA contourne le gardien adverse. À moins de
- * `CONTOURNE.pres` m de lui, elle retire de son bâton ce qui la pousse vers lui, et, lancée vers lui à moins de
- * `CONTOURNE.frein` m à plus de `lent` m/s, elle pousse à l'envers pour freiner : le même bâton que la manette, jamais un raccourci du moteur.
+ * L'OBSTRUCTION SUR LE GARDIEN (7 nov. 2026 ; `OBSTRUCTION`, js/physique.js) : l'IA contourne le gardien adverse. Lancée vers
+ * lui à plus de `lent` m/s, si elle ne peut plus s'arrêter avant de le toucher (v² / 2 × `freinage` m/s², plus `marge`
+ * m), elle pousse à l'envers (`recul`) ; à `marge` m de lui, elle retire de son bâton ce qui la pousse vers lui. Le même bâton
+ * que la manette, jamais un raccourci du moteur ; l'écran devant lui ne bouge pas : il y arrive lentement.
  */
-export const CONTOURNE = { pres: 1.2, frein: 1.8, lent: 0.3 };
+const CONTOURNE = { marge: 0.2, freinage: 9, lent: 0.3, recul: 0.6 };
 export function decisionIA(etat, s) {
   const c0 = decider(etat, s);
   const a = etat.equipes[s.equipe].attaque, g = etat.gardiens.find(q => q.sens === a && !q.retire);
   if (!c0 || !g || etat.mej) return c0;
   const dx = g.x - s.x, dy = g.y - s.y, d = hyp(dx, dy) || 1e-9;
-  if (d > CONTOURNE.frein) return c0;
+  if (d > 5) return c0;
+  const vn = (s.vx * dx + s.vy * dy) / d;   // sa vitesse vers lui
+  const ecart = d - s.rayon - 0.45;         // ce qui reste avant le contact (le gardien fait 0,45 m de rayon)
   const c = { ...c0 }, nx = dx / d, ny = dy / d;
   const vers = (c.x || 0) * nx + (c.y || 0) * ny;
-  if (vers > 0 && d < CONTOURNE.pres) { c.x = (c.x || 0) - vers * nx; c.y = (c.y || 0) - vers * ny; }
-  const vn = s.vx * nx + s.vy * ny;
-  if (vn > CONTOURNE.lent) { const k = clamp((vn - CONTOURNE.lent) / 2, 0, 1); c.x -= nx * k; c.y -= ny * k; }
+  const fonce = vn > CONTOURNE.lent && vn * vn / (2 * CONTOURNE.freinage) > ecart - CONTOURNE.marge;
+  if (vers > 0 && (fonce || ecart < CONTOURNE.marge)) { c.x = (c.x || 0) - vers * nx; c.y = (c.y || 0) - vers * ny; }
+  // trop lancée pour s'arrêter avant lui : elle pousse à l'envers, le bâton tiré vers elle
+  if (fonce) { c.x -= nx * CONTOURNE.recul; c.y -= ny * CONTOURNE.recul; }
   const m = hyp(c.x, c.y);
   if (m > 1) { c.x /= m; c.y /= m; }
   return c;
