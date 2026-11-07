@@ -24,10 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const RACINE = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-// Les fins de ligne de Windows (CRLF, git en autocrlf) ramenées à 
- : les gabarits se découpent sur `
-}
-`.
+// Les fins de ligne de Windows (CRLF, git en autocrlf) ramenées à LF : les gabarits se découpent sur une accolade seule en début de ligne.
 const lire = f => fs.readFileSync(path.join(RACINE, f), 'utf8').replace(/
 /g, '
 ');
