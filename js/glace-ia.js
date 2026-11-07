@@ -42,7 +42,7 @@
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
  * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler vit sur le patineur (`s.memo`).
  */
-import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton } from './physique.js';
+import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers } from './physique.js';
 
 const hyp = Math.hypot;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -177,6 +177,29 @@ function duBonCote(cible, a, u, adv, marge = 0) {
 }
 
 /** L'entrée d'un patineur joué par l'IA : { x, y, passe, tir, echec }, en coordonnées de glace. */
+/*
+ * LE TIR SUR RÉCEPTION DE L'IA (7 nov. 2026 ; la revue de novembre, § 9 : « le tir sur réception de la passe d'un côté à
+ * l'autre serait le prochain levier »). Avant, l'IA recevait toujours la passe, puis réfléchissait : le gardien avait le
+ * temps de se replacer. Maintenant, le receveur d'une passe des siens, dans la zone d'attaque, bien placé (à `loin` m du
+ * filet au plus, à `angle` rad au plus de son axe, à `lateral` m au plus du centre, le couloir ouvert), la rondelle à
+ * `avant` s au plus de lui : il tient X, le bâton vers le poteau d'en face — la même commande que la manette ; le moteur
+ * lance s'il la prend du coup droit (BATON.uneTemps). Du revers, il ne tient rien : il la reçoit.
+ */
+export const UNE_TEMPS = { loin: 11, angle: 0.8, lateral: 7, avant: 0.3, travers: 0.6, baton: 0.15 };
+function uneTemps(etat, s, but, u, adv, M) {
+  if (M && M.ronde) return null;
+  const R = etat.rondelle, vr = hyp(R.vx, R.vy);
+  if (u(s.x) <= BLEUE + 1 || Math.abs(s.y) > UNE_TEMPS.lateral) return null;
+  const dx = but.x - s.x, dy = but.y - s.y, d = hyp(dx, dy) || 1;
+  if (d > UNE_TEMPS.loin || Math.atan2(Math.abs(dy), Math.abs(dx)) > UNE_TEMPS.angle) return null;
+  if (hyp(R.x - s.x, R.y - s.y) / Math.max(vr, 1) > UNE_TEMPS.avant) return null;
+  if (auRevers(s, Math.atan2(dy, dx)) || !couloirOuvert(s.x, s.y, but.x, but.y, adv, 1.1, 0.75)) return null;
+  // Le poteau d'en face : le bâton penché du côté opposé à sa position (`viseeAssistee` en fait le coin).
+  const pench = -Math.sign(s.y || 1) * Math.sign(dx) * UNE_TEMPS.travers * d;
+  const bx = dx, by = dy + pench, n = hyp(bx, by) || 1;
+  return { x: bx / n * UNE_TEMPS.baton, y: by / n * UNE_TEMPS.baton, tir: true };
+}
+
 export function decisionIA(etat, s) {
   const memo = s.memo || (s.memo = {});
   const R = etat.rondelle;
@@ -235,6 +258,7 @@ export function decisionIA(etat, s) {
   // lieu de foncer tous sur la rondelle (JP : *le positionnement des joueurs*). Ratée (elle file ailleurs ou meurt), on chasse.
   const receveur = !porteur && R.passeVers ? miens.find(m => m.id === R.passeVers) : null;
   const enRoute = receveur && hyp(R.vx, R.vy) > PASSE_VIVE && (receveur.x - R.x) * R.vx + (receveur.y - R.y) * R.vy > 0;
+  if (enRoute && receveur === s) { const r = uneTemps(etat, s, but, u, adv, M); if (r) return r; }
   if (enRoute && receveur !== s) return soutenir(etat, s, a, but, u, miens, adv, receveur);
   return defendre(etat, s, memo, a, but, monBut, u, miens, adv, porteur);
 }

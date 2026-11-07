@@ -57,7 +57,7 @@ export const FILET = { large: 6 * PIED, profond: 44 / 12 * PIED, haut: 4 * PIED,
 const PAS = 1 / 120;
 const G = 9.81;
 
-export const RONDELLE = { masse: 0.17, rayon: 0.038, frottement: 0.15, bande: 0.55, poteau: 0.70, filet: 0.10, rebondSol: 0.35, vitre: 2.3 };   // `frottement` à 0.15 : la rondelle roule moins loin, les passes ne glissent pas à l'infini (JP : *snappy*) ; `vitre` : plus haut que ça contre la bande, la rondelle sort du jeu
+export const RONDELLE = { masse: 0.17, rayon: 0.038, frottement: 0.15, bande: 0.55, poteau: 0.70, filet: 0.10, rebondSol: 0.35, vitre: 2.3, longe: 0.15, colle: 1.5 };   // `frottement` à 0.15 : la rondelle roule moins loin, les passes ne glissent pas à l'infini (JP : *snappy*) ; `vitre` : plus haut que ça contre la bande, la rondelle sort du jeu
 export const PATIN = {
   masse: 85, rayon: 0.55,   // un peu plus gros que nature (JP : *joueur plus gros un peu*) : il se voit, il se frappe
   vMax: 10.6,       // la vitesse de pointe, m/s (38 km/h)
@@ -466,8 +466,13 @@ function lireLesTrios(etat, entrees, ev) {
 }
 
 /* ---------- la patinoire : la bande, les coins, le filet ---------- */
-export function bander(o, r, rest) {
+/* LA RONDELLE QUI LONGE LA BANDE (7 nov. 2026) : `mu` freine ce qui file le long d'elle, à cette part de la poussée qui
+ * la frappe (Coulomb : un coup franc freine plus qu'un frôlement) ; ce qui la frôle à moins de `colle` m/s en travers ne
+ * rebondit pas : il reste collé et roule le long. Le patineur n'a ni l'un ni l'autre (0). */
+export function bander(o, r, rest, mu = 0, colle = 0) {
   const X = L / 2, Y = W / 2;
+  const rend = vn => vn < colle ? 0 : rest;
+  const frotte = (t, imp) => Math.sign(t) * Math.max(0, Math.abs(t) - mu * imp);
   let choc = 0;
   if (Math.abs(o.x) > X - COIN && Math.abs(o.y) > Y - COIN) {
     const cx = Math.sign(o.x) * (X - COIN), cy = Math.sign(o.y) * (Y - COIN);
@@ -476,14 +481,18 @@ export function bander(o, r, rest) {
       const nx = dx / d, ny = dy / d;
       o.x = cx + nx * (COIN - r); o.y = cy + ny * (COIN - r);
       const vn = o.vx * nx + o.vy * ny;
-      if (vn > 0) { o.vx -= (1 + rest) * vn * nx; o.vy -= (1 + rest) * vn * ny; choc = vn; }
+      if (vn > 0) {
+        const re = rend(vn), tx = o.vx - vn * nx, ty = o.vy - vn * ny, vt = hyp(tx, ty);
+        const k = vt > 0 ? Math.max(0, vt - mu * (1 + re) * vn) / vt : 0;
+        o.vx = tx * k - re * vn * nx; o.vy = ty * k - re * vn * ny; choc = vn;
+      }
     }
     return choc;
   }
-  if (o.x > X - r) { o.x = X - r; if (o.vx > 0) { choc = o.vx; o.vx = -o.vx * rest; } }
-  else if (o.x < -X + r) { o.x = -X + r; if (o.vx < 0) { choc = -o.vx; o.vx = -o.vx * rest; } }
-  if (o.y > Y - r) { o.y = Y - r; if (o.vy > 0) { choc = Math.max(choc, o.vy); o.vy = -o.vy * rest; } }
-  else if (o.y < -Y + r) { o.y = -Y + r; if (o.vy < 0) { choc = Math.max(choc, -o.vy); o.vy = -o.vy * rest; } }
+  if (o.x > X - r) { o.x = X - r; if (o.vx > 0) { choc = o.vx; const re = rend(o.vx); o.vy = frotte(o.vy, (1 + re) * o.vx); o.vx = -o.vx * re; } }
+  else if (o.x < -X + r) { o.x = -X + r; if (o.vx < 0) { choc = -o.vx; const re = rend(-o.vx); o.vy = frotte(o.vy, (1 + re) * -o.vx); o.vx = -o.vx * re; } }
+  if (o.y > Y - r) { o.y = Y - r; if (o.vy > 0) { choc = Math.max(choc, o.vy); const re = rend(o.vy); o.vx = frotte(o.vx, (1 + re) * o.vy); o.vy = -o.vy * re; } }
+  else if (o.y < -Y + r) { o.y = -Y + r; if (o.vy < 0) { choc = Math.max(choc, -o.vy); const re = rend(-o.vy); o.vx = frotte(o.vx, (1 + re) * -o.vy); o.vy = -o.vy * re; } }
   return choc;
 }
 
@@ -658,7 +667,7 @@ function corpsEntre(h, p, R) {
   return hyp(p.x - (h.x + t * dx), p.y - (h.y + t * dy)) < p.rayon + PROTEGE.marge;
 }
 /* LE REVERS : la rondelle part-elle de l'autre côté du corps (la lame passée de l'autre côté, ou lancée trop loin vers lui) ? */
-function auRevers(s, ang) {
+export function auRevers(s, ang) {
   const main = s.p.main || -1;
   return s.lat * main < -REVERS.cote || plier(ang - s.cap) * main < -REVERS.angle;
 }
@@ -922,7 +931,7 @@ function rondelle(etat, entrees, ev) {
     if (R.z <= 0) { R.z = 0; R.vz = R.vz < -0.6 ? -R.vz * RONDELLE.rebondSol : 0; if (R.vz === 0) { R.vx *= 0.85; R.vy *= 0.85; } }
   }
   R.x += R.vx * PAS; R.y += R.vy * PAS;
-  const choc = bander(R, RONDELLE.rayon, RONDELLE.bande);
+  const choc = bander(R, RONDELLE.rayon, RONDELLE.bande, RONDELLE.longe, RONDELLE.colle);
   if (choc > 3) ev.push({ type: 'bande', v: choc });
   // Par-dessus la vitre : hors jeu, mise en jeu au point le plus près.
   if (choc > 0 && R.z > RONDELLE.vitre && etat.match && !etat.match.ronde) {
@@ -2118,7 +2127,7 @@ export function reglesDeLaGlace() {
   return [
     `La patinoire fait ${dec(L, 1)} m sur ${dec(W, 1)} (${dec(200 * PIED, 0)} sur ${dec(W, 1)} à la LNH) : rapetissée pour qu'une zone, ${dec(L / 2 - BLEUE, 1)} m de la bleue à la bande, ou la zone neutre, ${dec(2 * BLEUE, 0)} m, remplisse un écran 16:9 ; les coins sont des arcs de ${dec(COIN, 1)} m, la ligne de but est à ${dec(L / 2 - LIGNE_BUT, 2)} m de la bande.`,
     `La rondelle pèse ${Math.round(RONDELLE.masse * 1000)} g et perd ≈ ${dec(RONDELLE.frottement * G, 1)} m/s par seconde : une passe à ${kmh(BATON.passe)} km/h meurt après ${Math.round(arretDe(BATON.passe))} m, un tir à ${kmh(BATON.tirMax)} km/h traverserait ${Math.round(arretDe(BATON.tirMax))} m.`,
-    `La bande rend ${Math.round(RONDELLE.bande * 100)} % de la vitesse qui la frappe, le poteau ${Math.round(RONDELLE.poteau * 100)} %, la maille du filet ${Math.round(RONDELLE.filet * 100)} %.`,
+    `La bande rend ${Math.round(RONDELLE.bande * 100)} % de la vitesse qui la frappe, le poteau ${Math.round(RONDELLE.poteau * 100)} %, la maille du filet ${Math.round(RONDELLE.filet * 100)} %. Le long de la bande, elle perd ${Math.round(RONDELLE.longe * 100)} % de la poussée qui la frappe ; celle qui la frôle à moins de ${kmh(RONDELLE.colle)} km/h en travers ne rebondit pas : elle la longe, collée.`,
     `Un patineur ordinaire pèse ${PATIN.masse} kg (un vrai joueur, son poids à la LNH), pousse à ${dec(PATIN.accel)} m/s² jusqu'à ${kmh(PATIN.vMax)} km/h, freine à ${PATIN.frein} m/s² (le bâton à l'envers) et perd ${dec(PATIN.glisse)} m/s² en roue libre ; sa cote sur 20 fait sa pointe, à ±${Math.round(PATIN.ecart * 100)} % d'un 1 à un 20 (deux patineurs ne sont jamais loin l'un de l'autre), ses cotes Tir, Jeu, Défense et Robustesse son lancer, sa passe, son harpon et son équilibre.`,
     `Il pousse par coups de patin, une jambe puis l'autre : ${dec(2 * FOULEE.cadence)} par seconde au départ, ${dec(2 * (FOULEE.cadence + FOULEE.parVitesse * PATIN.vMax))} à pleine vitesse ; le coup pousse ${Math.round(FOULEE.coup * 100)} % plus fort que la moyenne, et l'entre-deux d'autant moins.`,
     `Ses lames tiennent ${PATIN.adherence} m/s² de côté : à pleine vitesse, le virage le plus serré fait ${dec(PATIN.vMax ** 2 / PATIN.adherence, 0)} m de rayon ; à l'arrêt, il pivote à ${PATIN.pivot} rad/s. Une présence coûte ${dec(JAMBES.usure)} jambes par seconde à fond, le banc en rend ${JAMBES.repos} ; sous ${JAMBES.changement}, ou après ${JAMBES.presence} s, la ligne change à l'arrêt de jeu.`,

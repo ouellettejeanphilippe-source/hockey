@@ -1067,6 +1067,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const SIFFLET_TIENT = 900;     // la glace figée, le mot de l'arbitre posé
   const SIFFLET_RESTE = 1200;    // le mot reste encore, le temps que tout le monde se replace
   const REBOND = 150;
+  const REMISE = 260;            // l'arbitre pose la rondelle au point, tout le monde se replace
   const voyage = n => Math.min(560, Math.max(170, n * PAS_RONDELLE));
   const ecart = (a, b) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c));
   const cleDe = x => (x.gardien ? `${x.eq}-G` : `${x.eq}-${x.role}`);
@@ -1144,11 +1145,23 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
           coupDeSifflet = { r: e.point.r, c: e.point.c, mot: e.mot, ou: e.point.nom, n: ++noJet, dessous: e.point.r <= MI_GLACE };
         }, true);
         // L'arbitre pose la rondelle au point, tout le monde se replace, le centre la gagne.
-        pousser(260, () => {
+        pousser(REMISE, () => {
           photo = null;
           // Le jeu est arrêté : le dé du geste qui l'a arrêté n'a plus rien à dire sur la glace.
           deGlace = null;
+          /*
+           * LE REPLACEMENT EST UN PAS DE LA LECTURE (7 nov. 2026). Les pièces
+           * glissaient à leur place de mise au jeu au rythme de la feuille de
+           * style (240 ms), jamais accéléré, pendant que la lecture, elle,
+           * l'était : au toucher (VITE), la rondelle arrivait au centre qui la
+           * gagne en 100 ms, et son point voyageait sur lui, encore en route,
+           * jusqu'à 5,7 cases d'elle (smoke_table, le CI de la PR #365 : quatre
+           * images, selon le moment du toucher). Le replacement dure REMISE,
+           * divisé par la vitesse comme le reste : il finit avant que la
+           * rondelle arrive, à toute vitesse.
+           */
           for (const k of [...pilotes.keys()]) if (k !== 'rondelle') pilotes.delete(k);
+          for (const [cle, x] of jetons()) pilotes.set(cle, { r: x.r, c: x.c, ms: REMISE });
           pilotes.set('rondelle', { r: e.point.r, c: e.point.c, saute: true, libre: true, tenue: false });
           // En accéléré, le mot reste moins longtemps : la suite arrive plus vite, il ne doit pas la couvrir.
           minuteurSifflet = setTimeout(() => { coupDeSifflet = null; if (!regles && grilleFaite) majGlace(); }, SIFFLET_RESTE / (vitesse > 1 ? 2 : 1));
