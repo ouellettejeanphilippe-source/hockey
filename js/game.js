@@ -1995,13 +1995,14 @@ export function majEntete() {
     el.hidden = !v;
     if (v) { el.querySelector('.tete-ch-v').textContent = v; const d = el.querySelector('.tete-ch-d'); if (d) d.textContent = detail; }
   };
-  poser('teteFiche', fr && fr.fiche, fr ? `${fr.pts} pts · ${fr.diff > 0 ? '+' : ''}${fr.diff} buts` : '');
-  poser('teteRang', fr && `${fr.rang}${fr.rang === 1 ? 'er' : 'e'}`, fr ? `sur ${fr.sur} clubs` : '');
+  // Au Rogue, l'en-tête ne porte que tes jetons : la fiche et le rang vivent sur l'affiche et la jauge du proprio.
+  const jetons = G.bonus === 'ROGUE';
+  poser('teteFiche', !jetons && fr && fr.fiche, fr ? `${fr.pts} pts · ${fr.diff > 0 ? '+' : ''}${fr.diff} buts` : '');
+  poser('teteRang', !jetons && fr && `${fr.rang}${fr.rang === 1 ? 'er' : 'e'}`, fr ? `sur ${fr.sur} clubs` : '');
   // V5 : la caisse du Rogue se lit en saison, au téléphone aussi (la jauge du repêchage, qui la portait, y est cachée).
-  poser('teteJetons', G.bonus === 'ROGUE' && fr ? `🪙 ${jetonsRogue()}` : null, 'à dépenser');
+  poser('teteJetons', jetons && fr ? `🪙 ${jetonsRogue()}` : null, 'à dépenser');
   // Les compteurs de la jauge (les signés, le budget par case, les jetons) : au repêchage et au Rogue.
   document.body.classList.toggle('au-repechage', enRepechage());
-  document.body.classList.toggle('mode-rogue', G.bonus === 'ROGUE');
   document.body.classList.toggle('mode-table', G.bonus === 'TABLE');
   // DERRIÈRE LE BANC, un écran secondaire de la saison : « ‹ Retour » y ramène au match.
   const retour = $('retourBtn');

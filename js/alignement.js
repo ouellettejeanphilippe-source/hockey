@@ -14,7 +14,7 @@ import { primesDuCoach } from './rogue.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, NIVEAUX_TALENT, niveauDuPerso, xpAvantProchain, forceDuPouvoir, NIVEAU_POUVOIR } from './pouvoirs.js';
 import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, ficheDeLaCarte, casesLibres, nivDe, salaireDe } from './adjoints.js';
 import { carteHtml } from './cartes.js';
-import { carteLigne, grille, coin } from './plateau-rogue.js';
+import { carteLigne, grille, coin, jauge } from './composants.js';
 import { hubActif } from './coquille.js';
 import { glisserDeposer } from './deposer.js';
 import { jambesHtml, motDuBadge, puces } from './gerant.js';
@@ -277,7 +277,7 @@ function slotEl(s) {
 
   const enCarte = G.bonus === 'ROGUE' && !surTable();
   el.className = 'slot'
-    + (enCarte ? ' en-carte' : '')
+    + (enCarte ? ' case-carte' : '')
     + (p ? '' : ' empty')
     + (G.selectedSlot === s.i ? ' selected' : '')
     + (!p && G.target === s.i ? ' target' : '')
@@ -892,7 +892,7 @@ export function coachHtml() {
   `<span class="pv-nom">${esc(C.nom)}</span>`, { cls: 'ej-coach-carte', coins: coin(`Niveau <b>${niveau}</b>`, { cls: 'ej-rang', cote: 'gauche' }) });
   return `<div class="ej-coach">
     <div class="ej-coach-haut">${carteCoach}<div class="ej-coach-cote">
-    <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
+    ${jauge(part / 100, `Expérience ${xp}`)}
     <div class="ej-coach-l">${xp} exp.${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · ${manque} → niv. ${niveau + 1}${NIVEAUX_TALENT.includes(niveau + 1) ? ' · talent' : ''}`}</div>
     ${(R => (R ? (x => `<div class="ej-coach-l ej-regle" title="La règle ${esc(C.de)} : elle paie le soir où ton club joue son hockey">${C.ico} ${esc(R.dit)} → +${R.jetons} 🪙 · ${x.parJour.size} fois</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
     </div></div>
@@ -968,7 +968,6 @@ export function renderRoster() {
   const host = $('rosterBoard');
   if (!host) return;
   host.innerHTML = '';
-  host.classList.toggle('en-cartes', G.bonus === 'ROGUE' && !surTable());
   // Le bouton d'alignement sert partout où l'alignement se règle : au repêchage, et derrière le banc en pleine saison
   // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
   if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());

@@ -50,7 +50,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle, banc } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, varsCarton, pageDuClub, money } from './util.js';
 import { bancDuSoirHtml } from './banc-du-soir.js';
-import { bandeau, carteLigne, caseVide, grille, cellules, visage, rangeeVisage, billet, podium as podiumHtml, coin } from './plateau-rogue.js';
+import { bandeau, carteLigne, caseVide, grille, cellules, visage, rangeeVisage, billet, podium as podiumHtml, coin } from './composants.js';
 import { panelDe } from './panel-tv.js';
 import { EXPEDITEURS, messageDuFil } from './vie-gm.js';
 import { NIVEAUX, nomDuNiveau } from './niveaux.js';
