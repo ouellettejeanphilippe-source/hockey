@@ -16,6 +16,7 @@
  *                                          porteur, de côté, soulever son bâton (le même piton)
  *   B ou RB, Ctrl                          avec la rondelle, le turbo ; sans elle, l'élan d'une mise en échec
  *   Y, E                                   changer de joueur ; avec la rondelle, la feinte (le bâton dit de quel côté) ;
+ *                                          sans elle, la rondelle dans tes patins, la pousser du patin (`BOTTE`) ;
  *                                          à l'arrêt de jeu, le trio suivant (comme NHL 94)
  *   (rien)                                 protéger la rondelle : lent, un adversaire collé, la lame passe de l'autre
  *                                          côté du corps ; fatigué à la porte de ton banc, tu sors, le suivant entre
@@ -24,7 +25,7 @@
  *   A ou X martelés                        la bagarre (les gants tombés : chaque appui, un coup)
  *   A, X, Start, le doigt                  passer la reprise d'un but ; fermer les alignements, l'entracte
  */
-import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, BANC, BAGARRE, GARDIEN, CELEBRATION } from './physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, reglesDeLaGlace, lame, dansLesPatins, parametresDuPatineur, parametresDuGardien, receveurDePasse, retirerGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, MEJ, L, W, COIN, LIGNE_BUT, BLEUE, POINT, FILET, BATON, BANC, BAGARRE, GARDIEN, CELEBRATION } from './physique.js';
 import { decisionIA, STRATEGIES, styleDuClub } from './glace-ia.js';
 import { PATINEURS, DROITIERS, GARDIENS, LARGEUR, HAUTEUR, ANCRE } from './sprites.js';
 import { nouvelleGraine, autoRoster, copieDeJoueur, SLOTS } from './sim.js';
@@ -379,7 +380,7 @@ function lancer(e) {
         <aside class="sg-regles" hidden>
           <h3>Ce que la glace fait</h3>
           <ul>${reglesDeLaGlace().map(r => `<li>${esc(r)}</li>`).join('')}</ul>
-          <p class="sg-regles-mot">Le bâton gauche, les flèches ou WASD patinent ; à l'envers, c'est le frein. A ou Espace passe, change de joueur sans la rondelle, et prend la mise en jeu à la chute : le bâton tenu dit où tu l'envoies (vers l'arrière, ton défenseur ; de côté, ton ailier) ; le bâton tiré vers l'arrière, un coéquipier qui te suit, tu lui laisses la rondelle. X, RT ou Maj tenue charge le tir (le bâton choisit le coin) ; sans la rondelle, c'est le harpon ; collé au porteur, de côté, tu lui soulèves le bâton. Les gants tombés, martèle A ou X. B, RB ou Ctrl : le turbo avec la rondelle, la mise en échec sans elle. Y ou E change de joueur ; avec la rondelle, c'est la feinte (le bâton dit de quel côté) ; à l'arrêt de jeu, le trio suivant. Lent, un adversaire collé, tu protèges la rondelle de toi-même : tourne-lui le dos. Fatigué, patine jusqu'à la porte de ton banc : le plus reposé saute sur la glace. LB, LT ou Q patine à reculons. Start, Échap ou ॥ : la pause. A passe la reprise d'un but.</p>
+          <p class="sg-regles-mot">Le bâton gauche, les flèches ou WASD patinent ; à l'envers, c'est le frein. A ou Espace passe, change de joueur sans la rondelle, et prend la mise en jeu à la chute : le bâton tenu dit où tu l'envoies (vers l'arrière, ton défenseur ; de côté, ton ailier) ; le bâton tiré vers l'arrière, un coéquipier qui te suit, tu lui laisses la rondelle. X, RT ou Maj tenue charge le tir (le bâton choisit le coin) ; sans la rondelle, c'est le harpon ; collé au porteur, de côté, tu lui soulèves le bâton. Les gants tombés, martèle A ou X. B, RB ou Ctrl : le turbo avec la rondelle, la mise en échec sans elle. Y ou E change de joueur ; avec la rondelle, c'est la feinte (le bâton dit de quel côté) ; la rondelle dans tes patins, tu la pousses du patin (au neutre, sur ta lame ; le bâton poussé, vers un coéquipier) ; à l'arrêt de jeu, le trio suivant. Lent, un adversaire collé, tu protèges la rondelle de toi-même : tourne-lui le dos. Fatigué, patine jusqu'à la porte de ton banc : le plus reposé saute sur la glace. LB, LT ou Q patine à reculons. Start, Échap ou ॥ : la pause. A passe la reprise d'un but.</p>
         </aside>
       </div>
     </div>
@@ -567,7 +568,8 @@ function entrees() {
     // B : le turbo avec la rondelle, la mise en échec sans elle (les NHL classiques). Y : changer de joueur ; avec la
     // rondelle, la feinte ; à l'arrêt de jeu, le trio suivant.
     const arret = !!(etat.match && (etat.arret || etat.mej));
-    out[ctl] = { x: g.x, y: g.y, passe, tir, echec: echec && !porte, sprint: echec && porte, changer: changer && !porte && !arret, feinte: changer && porte, ligne: changer && arret, recul };
+    const sC = etat.patineurs.find(p => p.id === ctl), pied = !!(changer && !porte && !arret && sC && dansLesPatins(etat, sC));
+    out[ctl] = { x: g.x, y: g.y, passe, tir, echec: echec && !porte, sprint: echec && porte, changer: changer && !porte && !arret && !pied, feinte: changer && porte, ligne: changer && arret, recul, pied };
   }
   return out;
 }
@@ -652,7 +654,7 @@ function boucle(now) {
     else if (v.type === 'poteau') { flash = { mot: v.barre ? 'La barre !' : 'Poteau !', reste: 0.8 }; secousse = { t0: now, dur: 160, amp: 2 }; const d = etat.rondelle.dernier; if (d && tonJoueur(d.id)) vibrer(d.equipe, 'poteau'); }
     else if (v.type === 'horsjeu') flash = { mot: 'Hors-jeu', reste: 1.2 };
     else if (v.type === 'degagement') flash = { mot: 'Dégagement refusé', reste: 1.2 };
-    else if (v.type === 'butRefuse') { flash = { mot: `But refusé · ${nomDe(v.qui)} a gêné le gardien`, reste: 2.6 }; secousse = { t0: now, dur: 200, amp: 2 }; }
+    else if (v.type === 'butRefuse') { flash = { mot: `But refusé · ${nomDe(v.qui)} ${v.genre === 'poussée du patin' ? 'l\'a poussée du patin' : 'a gêné le gardien'}`, reste: 2.6 }; secousse = { t0: now, dur: 200, amp: 2 }; }
     else if (v.type === 'vitre') flash = { mot: 'Par-dessus la vitre', reste: 1.2 };
     else if (v.type === 'punition') flash = { mot: `${nomDe(v.qui)} · ${v.genre} · 2 min${v.attente ? ' à retardement' : ''}`, reste: 2.2 };
     else if (v.type === 'leve' && v.ok && tonJoueur(v.qui)) { flash = { mot: 'Bâton soulevé !', reste: 0.9 }; vibrer(equipeDe(v.qui), 'harpon'); }
@@ -664,6 +666,7 @@ function boucle(now) {
     else if (v.type === 'bagarre') flash = { mot: `${v.gagnant ? `${nomDe(v[v.gagnant])} gagne la bagarre` : 'Bagarre nulle'} · ${BAGARRE.minutes} min chacun`, reste: 2.4 };
     else if (v.type === 'tirpunition') flash = { mot: `Tir de punition, ${nomDe(v.qui)}`, reste: 2.2 };
     else if (v.type === 'liberation') flash = { mot: `${nomDe(v.qui)} revient`, reste: 1.2 };
+    else if (v.type === 'botte' && tonJoueur(v.qui)) { flash = { mot: v.ramene ? 'Du patin à la lame' : 'Poussée du patin', reste: 0.8 }; vibrer(equipeDe(v.qui), 'prise'); }
     else if (v.type === 'deviation') flash = { mot: `Déviée, ${nomDe(v.qui)}`, reste: 0.9 };
     else if (v.type === 'periode') { flash = { mot: etat.match.prolongation ? (etat.match.series ? 'Prolongation' : 'Prolongation, 3 contre 3') : `Fin de la ${v.periode}${v.periode === 1 ? 're' : 'e'} période`, reste: 2.5 }; if (!etat.match.fini) ouvrirRideau('entracte', v.periode); }
     else if (v.type === 'fusillade') flash = { mot: 'Tirs de barrage', reste: 2 };
