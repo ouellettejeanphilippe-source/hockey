@@ -23,6 +23,22 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 - [x] **A3 · La défensive** (7 nov.) — `check_suppression` étendu (le canal par joueur, vols moins revirements pondérés par la glace, par poste, en retenue 2013-2025 et en paires) : il ne tient pas — il ne bat pas le club seul (−0,1 %) ni ne se sépare du gardien (+0,2 %, intervalles à cheval sur zéro) ; la possession tombe comme le devis le prévoit, le moteur ne bouge pas — `check_suppression` (rouge, la mesure).
 - [ ] *Après* : D2, les autres modes, avec son devis (la V26).
 
+## Refonte · V27, le Rogue en roguelike (JP, 7 nov. : *calendrier réel pour toutes les équipes, mais tu choisis les équipes qui vont quand pour avoir duels plus tough aux bons endroits*)
+
+Le devis : docs/refonte-v27.md — une run = une saison en quatre actes, trois ❤️, un boss par acte, les élites, le banc de cinq, la boutique à six nœuds ; les décisions de JP du 7 nov. tranchées, 66 noms dans « Ce qui part », dix questions ouvertes au § 11. Chaque tranche porte son extrait `docs/refonte-v27-<n>.md` et passe `check_refonte` dessus.
+
+- [ ] **`/revue-design docs/refonte-v27.md`**, puis JP tranche les questions du § 11.
+- [ ] **1 · Le juge neuf** — le prototype en `scripts/lib/rogue_actes.mjs`, `check_profondeur` réécrit (2 Coupes sur 16 pour l'attentif, 0 pour les autres), remesuré aux contrôles 20 · 12 · 16.
+- [ ] **2 · Une saison, quatre actes, trois cœurs** — js/actes.js, les boss, les contrôles, les séries plus dures, le départ à 35-55 % — `check_rogue`, `check_sauvegardes`.
+- [ ] **3 · La boutique à ses nœuds** — 0 · 14 · 27 · 41 · 54 · 68, le prix remis à zéro — `check_rogue`, `check_packs`.
+- [ ] **4 · Le calendrier placé et le renfort** — `check_rogue`, `check_profondeur`.
+- [ ] **5 · Le banc de cinq** — js/pieces.js, la montée au boss ; séjour, repos, salaire, main, expérience partent — `check_pouvoirs`, `check_relais`, `check_banc`.
+- [ ] **6 · Le duel à un choix** — le plan du soir et les propositions par période partent — `check_duel`.
+- [ ] **7 · Les élites** — construites et mesurées — `check_elites` (neuf).
+- [ ] **8 · Les fourches** — une aux 2 ou 3 semaines, les autres en nouvelles d'Hier soir — `mesure_rythme`, `check_histoires`.
+- [ ] **9 · La méta en variété et la Dynastie** — `check_rogue`, `check_profondeur`.
+- [ ] **10 · Les écrans et D1b** — maquettes d'abord — `check_plateau`, `check_hauteur`, `essai_rogue`.
+
 ## Refonte · V23, un vrai jeu de cartes (JP, 2 nov. : *les UI et les mécaniques font un peu « cheap »* ; *facile à prendre en main, dur à maîtriser* ; *les coachs et adjoints comme les joueurs, de pas très bon à excellents*)
 
 Le devis : docs/refonte-v23.md. Huit tranches, chacune son juge ; JP a tranché ses six questions (au bas du devis).
