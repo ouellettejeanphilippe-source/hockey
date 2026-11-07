@@ -327,7 +327,7 @@ body .banc-tete > span:last-child, body .pk-rayon h3 .pk-rabais { color: var(--o
 body .navtab { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 body .topbar { background: var(--noir-pur); box-shadow: none; }
 body :is(.seg, .stat-tabs, .ct-vues, .hub-chips) { gap: var(--esp-1); padding: 0; border: 0; background: none; }
-body :is(.seg button, .stat-tab, .hub-chips button) { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; box-shadow: none; animation: none; }
+body :is(.seg button, .stat-tab, .hub-chips button) { flex: none; min-height: 44px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; box-shadow: none; animation: none; }
 body :is(.seg button, .stat-tab, .hub-chips button) span { color: inherit; font-size: inherit; }
 body :is(.seg button, .stat-tab, .hub-chips button).on { background: var(--club-vif); color: var(--noir-pur); border-color: transparent; box-shadow: none; }
 body :is(.seg button, .stat-tab, .hub-chips button).on span { color: inherit; }
