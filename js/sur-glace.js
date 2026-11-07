@@ -667,7 +667,7 @@ function boucle(now) {
     else if (v.type === 'fusillade') flash = { mot: 'Tirs de barrage', reste: 2 };
     else if (v.type === 'ronde') flash = { mot: v.but ? `Compté, ${noms[v.equipe]}` : `Raté, ${noms[v.equipe]}`, reste: 1.5 };
     else if (v.type === 'mej') flash = { mot: `${v.libre ? 'Rondelle libre !' : `Mise en jeu gagnée, ${noms[v.equipe]}`}${tonTiming(v.timing)}`, reste: 1.1 };
-    else if (v.type === 'tir') { if (Object.values(etat.controles).includes(v.qui)) flash = { mot: `${Math.round(v.v * 3.6)} km/h${v.uneTemps ? ' · sur réception' : ''}`, reste: 1 }; if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'tir'); }
+    else if (v.type === 'tir') { if (Object.values(etat.controles).includes(v.qui)) flash = { mot: `${Math.round(v.v * 3.6)} km/h${v.uneTemps ? ' · sur réception' : ''}${v.contour ? ' · le tour du filet' : ''}`, reste: 1 }; if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'tir'); }
     else if (v.type === 'echec' && v.fort) { gel = GEL; secousse = { t0: now, dur: 200, amp: 3 }; if (tonJoueur(v.sur)) vibrer(equipeDe(v.sur), 'echecRecu'); if (tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'echecDonne'); }
     else if (v.type === 'prise' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'prise');
     else if (v.type === 'passe' && tonJoueur(v.qui)) vibrer(equipeDe(v.qui), 'passe');

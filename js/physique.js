@@ -1074,7 +1074,7 @@ function tirer(etat, s, ev, part, uneTemps = false, revers = false) {
   const fond = etat.rondelle.dernier.x * etat.equipes[s.equipe].attaque <= BLEUE;
   etat.dernierTir = hyp(etat.rondelle.vx, etat.rondelle.vy);
   const Gd = gardienDe(etat, autre(s.equipe));
-  ev.push({ type: 'tir', v: etat.dernierTir, charge: part, qui: s.id, uneTemps, fond, revers, ecran: !fond && !Gd.retire && !!masque(etat, Gd) });
+  ev.push({ type: 'tir', v: etat.dernierTir, charge: part, qui: s.id, uneTemps, fond, revers, contour: !fond && auContour(lame(s), etat.equipes[s.equipe].attaque), ecran: !fond && !Gd.retire && !!masque(etat, Gd) });
   if (fond) return;
   etat.compte.tirs++;
   etat.rondelle.dernier.tir = true;   // un lancer au but, pas une passe : ce qu'un bloc arrête
@@ -1251,10 +1251,23 @@ function horsJeu(etat, avantX, ev, avant = { dernier: etat.rondelle.dernier, por
  * côté, `large` au-delà du poteau — on peut rater, comme dans FIFA. Il faut que le filet ATTAQUÉ soit devant (à moins
  * de `assist` du cap) ; le dos au filet, le tir part dans le cap. La charge fait la vitesse, et écarte la visée.
  */
+/*
+ * LE CONTOURNEMENT DU FILET (le wraparound ; JP, 7 nov. 2026 : *toutes les mécaniques d'un jeu comme NHL 94*). Le porteur
+ * qui sort de derrière le filet, la lame à côté du poteau (devant la ligne des buts de `avant` m au plus, à `cote` m au
+ * plus du poteau, dehors, ou `dedans` m en deçà) : le tir la glisse dans le filet, au ras de ce poteau : il passe la
+ * ligne à `ras` m en dedans du poteau. Le gardien qui couvre ce poteau l'arrête ; celui resté
+ * à l'autre, avec son retard, arrive trop tard.
+ */
+export const CONTOUR = { avant: 0.6, cote: 0.8, dedans: 0.1, ras: 0.12 };
+export function auContour(lm, sg) {
+  const devant = (sg * LIGNE_BUT - lm.x) * sg, cote = Math.abs(lm.y) - FILET.large / 2;
+  return devant > 0 && devant <= CONTOUR.avant && cote > -CONTOUR.dedans && cote <= CONTOUR.cote;
+}
 function viseeAssistee(etat, s, vise, baton) {
   const lm = lame(s);
   const sg = etat.equipes[s.equipe].attaque;
   const xb = sg * LIGNE_BUT;
+  if (auContour(lm, sg)) return Math.atan2(Math.sign(lm.y) * (FILET.large / 2 - CONTOUR.ras) - lm.y, xb - lm.x);
   if ((xb - lm.x) * sg <= 0.5) return vise;   // on l'a déjà dépassé
   // HORS DE LA ZONE D'ATTAQUE, le tir part où pointe le bâton : le lancer au fond, le dégagement le long de la bande.
   if (lm.x * sg <= BLEUE) return vise;
@@ -2191,6 +2204,7 @@ export function reglesDeLaGlace() {
     `La bagarre : après une mise en échec de plus de ${Math.round(CHUTE.seuil * BAGARRE.gros)} kg·m/s ou une punition, deux joueurs de Robustesse ${BAGARRE.robuste + 1} ou plus sur 20 peuvent laisser tomber les gants, plus souvent s'ils passaient du temps au cachot à la LNH (jusqu'à ${BAGARRE.pimMax} fois pour ${BAGARRE.pimMax * BAGARRE.pim} minutes par match) ; une par joueur, jamais en prolongation. ${dec(BAGARRE.duree)} s de duel : martèle A ou X, chaque coup pèse ta Robustesse et ta masse ; l'IA frappe ${BAGARRE.cadence} fois par seconde. ${BAGARRE.minutes} minutes chacun, coïncidentes : les deux clubs restent à cinq.`,
     `À l'arrêt de jeu, Y choisit ton trio : il joue, quelles que soient ses jambes. À la volée, la rondelle loin, la ligne qui passe sous ${JAMBES.volee} jambes file à la porte de son banc, s'il y en a une à ${JAMBES.frais} au banc (l'IA comme tes coéquipiers ; toi, fatigué, tu y patines) ; à ${dec(BANC.porte)} m de la porte, l'un sort et le plus reposé entre, au même instant : jamais un patineur de trop. Les bancs sont à ${BANC.x} m du centre, chacun du côté de son filet de la première période : en deuxième, la présence est plus longue. Le gardien remis en jeu revient quand un patineur sort.`,
     `L'obstruction sur le gardien : un attaquant debout qui entre dans le gardien dans son enclave (${dec(FILET.enclave, 2)} m) le bouscule ; un but dans ce filet moins de ${dec(OBSTRUCTION.fenetre)} s après est refusé, et la mise en jeu va à la zone neutre ; entré à plus de ${kmh(OBSTRUCTION.fort)} km/h sans aller à la rondelle, ${MATCH.punition / 60} minutes. Poussé dedans par un adversaire, ou au sol, il n'y est pour rien.`,
+    `Le contournement du filet : sorti de derrière, la lame à côté du poteau (${dec(CONTOUR.avant)} m devant la ligne des buts au plus, ${dec(CONTOUR.cote)} m du poteau au plus), le tir la glisse au ras du poteau ; le gardien qui le couvre l'arrête, celui resté à l'autre arrive trop tard.`,
     `Le gardien joue la rondelle libre derrière son filet, plus lente que ${kmh(GARDIEN.jouer.lente)} km/h, s'il y est le premier : une remise au coéquipier ouvert, sinon le long de la bande, puis il revient. Derrière sa ligne, il ne la joue que dans le trapèze (${dec(2 * GARDIEN.jouer.trapeze[0] / PIED, 0)} pieds de large à la ligne des buts, ${dec(2 * GARDIEN.jouer.trapeze[1] / PIED, 0)} à la bande) : dehors, ${MATCH.punition / 60} minutes. Un tir au but est un arrêt ou un but, comme la LNH les compte ; un but, et les coéquipiers du buteur se regroupent ${dec(CELEBRATION.duree)} s.`,
   ];
 }
