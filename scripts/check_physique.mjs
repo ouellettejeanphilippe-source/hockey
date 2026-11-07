@@ -40,7 +40,7 @@
  *   node scripts/check_physique.mjs
  */
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ, REVERS, PROTEGE, FEINTE, LAISSEE, BANC, JAMBES, HARPON, FAUTES, BAGARRE, LEVE, CELEBRATION, OBSTRUCTION } from '../js/physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ, REVERS, PROTEGE, FEINTE, LAISSEE, BANC, JAMBES, HARPON, FAUTES, BAGARRE, LEVE, CELEBRATION, OBSTRUCTION, CONTOUR } from '../js/physique.js';
 import { PATINEURS, DROITIERS, ANCRE } from '../js/sprites.js';
 import { decisionIA, styleDuClub, ECART_D, SORTIE, ECRAN_D, FOND, UNE_TEMPS } from '../js/glace-ia.js';
 
@@ -1085,7 +1085,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   // LES MATCHS DE L'IA CONTRE L'IA, mesurés (GLACE_MATCHS, 6 par défaut ; 24 pour le rapport) : le hors-jeu, la passe, la
   // sortie de zone, l'enclave, les buts.
   const N = +(process.env.GLACE_MATCHS || 6);
-  const S = { hj: 0, passes: 0, passesOk: 0, sortT: 0, sortOk: 0, oz: 0, ozFilet: 0, buts: 0, tirs: 0, fonds: 0, masques: 0, cycles: 0, trop: 0, revers: 0, volees: 0, punitions: 0, leves: 0, gants: 0, auBut: 0, ecarts: [], joue: 0, refuses: 0, obstrue: 0 };
+  const S = { hj: 0, passes: 0, passesOk: 0, sortT: 0, sortOk: 0, oz: 0, ozFilet: 0, buts: 0, tirs: 0, fonds: 0, masques: 0, cycles: 0, trop: 0, revers: 0, volees: 0, punitions: 0, leves: 0, gants: 0, auBut: 0, ecarts: [], joue: 0, refuses: 0, obstrue: 0, contours: 0 };
   for (let g = 0; g < N; g++) {
     const e = nouveauMatch({ graine: `serie-${g}`, A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
     let passe = null, sortie = null, k = 0;
@@ -1108,6 +1108,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
         if (v.type === 'gants') S.gants++;
         if (v.type === 'jeuDuGardien') S.joue++;
         if (v.type === 'butRefuse') S.refuses++;
+        if (v.type === 'tir' && v.contour) S.contours++;
         if (v.type === 'obstrue') S.obstrue++;
         if (v.type === 'prise') {
           const s = e.patineurs.find(p => p.id === v.qui);
@@ -1149,6 +1150,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   borne('les punitions, au rythme de la LNH : ≈ 0,6 par club et par 6 min de jeu, donc vers 0,6 à 0,9 par match (1,9 après le lot 4)', S.punitions / N, 0.2, 1.5, ' par match');
   exiger('les tirs au but se comptent comme la LNH : pour chaque club, tirs = arrêts du gardien adverse + buts (2 tirs pour 1 but et 0 arrêt avant le lot 5)', S.ecarts.length === 0, S.ecarts.length ? S.ecarts.slice(0, 3).join(' ; ') : `${2 * N} clubs, ${(S.auBut / N).toFixed(0)} tirs au but par match (${(S.tirs / N).toFixed(0)} tentés de la zone)`);
   informer('… le gardien joue la rondelle derrière son filet (le lot 5)', `${S.joue} fois en ${N} matchs`);
+  informer('… le contournement du filet, la lame au poteau', `${S.contours} tirs en ${N} matchs`);
   borne("… l'IA ne fonce pas dans le gardien : les buts refusés pour obstruction restent rares (la LNH : un sur dix matchs, environ)", S.refuses / N, 0, 0.35, ` par match (${S.obstrue} contacts dans l'enclave en ${N} matchs)`);
   borne("… et l'IA soulève le bâton du porteur, collée à lui", S.leves / N, 5, 60, ' par match');
   informer('… les bagarres (des clubs inventés, des défenseurs de Robustesse 14 : rares)', `${S.gants} en ${N} matchs`);
@@ -1688,6 +1690,29 @@ const immobilesDe = e => Object.fromEntries(e.patineurs.filter(s => s.surGlace).
   exiger(`… le but marqué plus de ${dec1(OBSTRUCTION.fenetre)} s après le contact compte`, tard.but && !tard.refuse, tard.refuse ? 'refusé' : 'compté');
   const fort = obstruer('obstruction-forte', { v: 6.5 });
   exiger(`… entré à plus de ${Math.round(OBSTRUCTION.fort * 3.6)} km/h : deux minutes pour obstruction sur le gardien`, !!fort.punition && fort.punition.genre === 'obstruction sur le gardien' && fort.punition.qui === fort.fonceur.id, fort.punition ? fort.punition.genre : fort.ev.filter(x => x.type === 'obstrue').map(x => `contact à ${x.v} m/s`).join(' ') || 'aucun contact');
+}
+
+{
+  // LE CONTOURNEMENT DU FILET (7 nov. 2026) : le centre de A sort de derrière le filet de B, vers l'axe, la lame à côté du
+  // poteau (0,3 m devant la ligne, 0,4 m au-dehors) ; un tir du poignet, au bouton (toi) ou à l'IA.
+  const contour = (graine, gardienY, humain) => {
+    const e = enScene(graine, humain, -18);
+    const Gd = e.gardiens.find(g => g.equipe === 'B'), sg = Gd.sens, p = surGlace(e, 'A').find(q => q.poste === 'C');
+    Object.assign(p, { x: sg * (LIGNE_BUT + 0.2), y: -2.2, cap: Math.PI / 2, vx: 0, vy: 2.5 });
+    const cible = { x: sg * (LIGNE_BUT - 0.3), y: -(FILET.large / 2 + 0.4) }, lm = lame(p);
+    p.x += cible.x - lm.x; p.y += cible.y - lm.y;
+    Object.assign(e.rondelle, { x: cible.x, y: cible.y, z: 0, vx: 0, vy: 2.5, vz: 0, porteur: p.id, dernier: { equipe: 'A', id: p.id, t: e.t, x: cible.x, lance: false } });
+    Object.assign(Gd, { x: sg * (LIGNE_BUT - 0.4), y: gardienY, vx: 0, vy: 0, memoire: [] });
+    if (humain) e.controles.A = p.id;
+    const ev = humain ? jouer(e, { [p.id]: { x: 0, y: 1, tir: true } }, DT) : [];
+    ev.push(...jouer(e, humain ? { [p.id]: { x: 0, y: 1, tir: false } } : {}, 1));
+    const tir = ev.find(x => x.type === 'tir' && x.qui === p.id);
+    return { tir, but: ev.some(x => x.type === 'but' && x.equipe === 'A'), arret: ev.some(x => x.type === 'arret' || x.type === 'poteau'), ev };
+  };
+  const ouvert = contour('contour', 0.75, 'A'), ferme = contour('contour-ferme', -0.6, 'A'), ia = contour('contour-ia', 0.75, null);
+  exiger(`le contournement du filet : la lame à côté du poteau, le gardien à l'autre, le tir la glisse au ras du poteau`, !!ouvert.tir && ouvert.tir.contour && ouvert.but, ouvert.tir ? `${ouvert.tir.contour ? 'au poteau' : 'pas au contour'}, ${ouvert.but ? 'but' : 'pas de but'}` : ouvert.ev.map(x => x.type).join(' ') || 'pas de tir');
+  exiger("… le gardien qui couvre ce poteau l'arrête", !!ferme.tir && ferme.tir.contour && !ferme.but, ferme.but ? 'but' : ferme.arret ? 'arrêt' : 'rien');
+  exiger("… l'IA la glisse aussi, du même bouton", !!ia.tir && ia.tir.contour && ia.but, ia.tir ? `${ia.tir.contour ? 'au poteau' : 'pas au contour'}, ${ia.but ? 'but' : 'pas de but'}` : 'pas de tir');
 }
 
 /* ---------- les règles, écrites de là ---------- */

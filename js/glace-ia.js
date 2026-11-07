@@ -42,7 +42,7 @@
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
  * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler vit sur le patineur (`s.memo`).
  */
-import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers, auContour, FILET } from './physique.js';
+import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers } from './physique.js';
 
 const hyp = Math.hypot;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -206,7 +206,8 @@ function uneTemps(etat, s, but, u, adv, M) {
  * m), elle pousse à l'envers (`recul`) ; à `marge` m de lui, elle retire de son bâton ce qui la pousse vers lui. Le même bâton
  * que la manette, jamais un raccourci du moteur ; l'écran devant lui ne bouge pas : il y arrive lentement.
  */
-const CONTOUR_IA = 0.5;
+// le gardien plus près que ça (m, de l'axe, du côté où le porteur ressort) de ce poteau : il y est, on ressort
+const CONTOUR_IA = 0.3;
 const CONTOURNE = { marge: 0.2, freinage: 9, lent: 0.3, recul: 0.6 };
 export function decisionIA(etat, s) {
   const c0 = decider(etat, s);
@@ -396,7 +397,9 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
   const bonTir = dBut < 11 * loin && lateral < 8 && couloir && angleFilet < 0.9;
   // Au coin, pressé, il ne lance pas de là (le lot 3) : il protège, le temps du cycle.
   const enCoin = u(s.x) > LIGNE_BUT - 6 && Math.abs(s.y) > 4.5;
-  if (peutLancer && (bonTir || dBut < 6 || (pression < 2.2 && dBut < 17 * loin && couloir && u(s.x) > BLEUE && !enCoin))) {
+  // La lame derrière la ligne des buts, le tir n'irait que dans le dos du filet : on le contourne d'abord (plus bas).
+  const derriereLigne = u(lame(s).x) > LIGNE_BUT - 0.05;
+  if (peutLancer && !derriereLigne && (bonTir || dBut < 6 || (pression < 2.2 && dBut < 17 * loin && couloir && u(s.x) > BLEUE && !enCoin))) {
     const charge = clamp((dBut - 4) / 14, 0.05, 0.9);
     return charger(memo, s, but, a, charge, etat);
   }
@@ -416,13 +419,9 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
     memo.dirX = e.x; memo.dirY = e.y;
     return e;
   }
-  // LE CONTOURNEMENT DU FILET (`CONTOUR`, js/physique.js) : la lame au poteau, le gardien pas encore à ce poteau (à plus
-  // de `CONTOUR_IA` m de lui) : on la glisse, un tir du poignet, le même bouton que toi.
-  const gAdv = etat.gardiens.find(g => g.sens === a && !g.retire), lmC = lame(s);
-  if (peutLancer && auContour(lmC, a) && (!gAdv || Math.abs(gAdv.y - Math.sign(lmC.y) * FILET.large / 2) > CONTOUR_IA)) return charger(memo, s, but, a, 0.05, etat);
   // DERRIÈRE LE FILET : chercher une passe devant (l'enclave, le devant du filet) ou ressortir de l'autre côté.
   // (Pressé au coin, c'est le cycle et la protection d'en bas qui jouent.)
-  const derriere = u(s.x) > LIGNE_BUT - 2.5 && dBut > 4 && !(enCoin && pression < COIN.pres);
+  const derriere = u(s.x) > LIGNE_BUT - 2.5 && (dBut > 4 || derriereLigne) && !(enCoin && pression < COIN.pres);
   if (derriere) {
     for (const m of miens) {
       if (m === s || m.auSol > 0) continue;
@@ -435,7 +434,10 @@ function avecLaRondelle(etat, s, memo, a, but, u, miens, adv, M) {
         return { x: dx / d, y: dy / d, passe: true };
       }
     }
-    const cible = { x: but.x - a * 5, y: -Math.sign(s.y || 1) * 5 };
+    // LE CONTOURNEMENT DU FILET (`CONTOUR`, js/physique.js) : le gardien pas encore au poteau de l'autre côté, on y file,
+    // la lame au ras du poteau, et le tir de près part de là ; sinon on ressort de l'autre côté.
+    const cote = -Math.sign(s.y || 1), Gd = etat.gardiens.find(g => g.sens === a && !g.retire);
+    const cible = Gd && Gd.y * cote < CONTOUR_IA && u(s.x) > LIGNE_BUT ? { x: a * (LIGNE_BUT - 0.5), y: cote * 1.6 } : { x: but.x - a * 5, y: cote * 5 };
     const e = vers(s, cible.x, cible.y, 1);
     memo.dirX = e.x; memo.dirY = e.y;
     return e;

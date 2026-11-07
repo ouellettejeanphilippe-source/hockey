@@ -193,7 +193,7 @@ JP (7 nov. 2026) : *je veux toutes les mécaniques d'un jeu comme NHL 94, feel s
 | Le tir sur réception, l'IA comprise | ✅ | § 3 |
 | Le choix de l'angle de tir (le bâton dit où dans le filet) | ✅ | § 3, la visée |
 | La feinte | ✅ | § 3 |
-| Le contournement du filet (le porteur passe derrière et la glisse au poteau) | 🟡 | il fait le tour (le filet est un objet), mais la visée ne cherche le filet que devant lui ; ni le tir ni l'IA ne le jouent |
+| Le contournement du filet (le porteur passe derrière et la glisse au poteau) | ✅ | 7 nov. : sorti de derrière, la lame à côté du poteau (0,6 m devant la ligne des buts au plus, 0,8 m du poteau au plus), le tir la glisse au ras du poteau (`CONTOUR`, `auContour`) ; le gardien qui couvre ce poteau l'arrête, celui resté à l'autre arrive trop tard (son retard de 170 ms) ; « le tour du filet » à l'écran. L'IA ne lance plus dans le dos du filet : la lame derrière la ligne, elle file au poteau où le gardien n'est pas encore, et la glisse (≈ 0,5 par match de 6 min) — check « le contournement du filet », « le gardien qui couvre ce poteau l'arrête », « l'IA la glisse aussi » |
 | La passe, la passe soulevée, la passe laissée | ✅ | § 3 |
 | La passe par la bande, voulue | 🟡 | § 3 |
 | Le coup de patin (le turbo) et l'arrêt sec | ✅ | § 2, le sprint et le frein |
@@ -225,7 +225,7 @@ JP (7 nov. 2026) : *je veux toutes les mécaniques d'un jeu comme NHL 94, feel s
 | Le tir instantané (snap), distinct du poignet | 🟡 | § 3 |
 | Pousser la rondelle du patin | 🟡 | § 1 |
 
-Le compte, le 7 nov. 2026 : 24 ✅, 5 🟡, 6 ⬜. L'ordre proposé pour ce qui reste, du feel d'abord : le contournement du filet, le double-échec et la rudesse, se jeter devant un tir, le plongeon du gardien, la passe par la bande voulue, puis les blessures, la fatigue du gardien, le temps d'arrêt et le gardien qu'on contrôle.
+Le compte, le 7 nov. 2026 : 25 ✅, 4 🟡, 6 ⬜. L'ordre proposé pour ce qui reste, du feel d'abord : le double-échec et la rudesse, se jeter devant un tir, le plongeon du gardien, la passe par la bande voulue, puis les blessures, la fatigue du gardien, le temps d'arrêt et le gardien qu'on contrôle.
 
 ## L'ordre de travail proposé
 
