@@ -1073,7 +1073,7 @@ function graineDuClasseur() {
 const nomDeCase = k => `${k >= ETOILE ? '★ ' : ''}${NIVEAUX[k].nom}`;
 const motDesCases = cases => cases.map(k => `une case ${nomDeCase(k)}`).join(', ');
 /* Les cartes de ton cartable, avec leur niveau dans leur saison et leur meilleure variante. */
-async function cartesDuCartable() {
+export async function cartesDuCartable() {
   const c = lireCartable(), out = [];
   for (const cle of Object.keys(c.joueurs)) {
     const p = await joueurDeCle(cle);
