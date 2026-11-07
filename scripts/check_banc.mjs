@@ -28,7 +28,8 @@ const VESTIAIRES = TEMOINS.map(([lab, s, t]) => [lab, s, t, equipeReelle(s, t)])
 const club = i => { const [lab, s, t, un] = VESTIAIRES[i]; const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(p), { season: s }); };
 const DECISIONS = [
   { jour: 0, equipe: 0, coach: { cle: 'essaim', xp: 0, talents: [] } },
-  { jour: 20, equipe: 0, xpCoach: SEUILS_NIVEAU[2] },
+  // 7 nov. 2026 : le coach grandit sur la run (`SEUILS_NIVEAU`) ; le banc se juge avec ses trois pouvoirs, l'ultime compris (il joue tôt).
+  { jour: 20, equipe: 0, xpCoach: SEUILS_NIVEAU[4] },
   { jour: 10, equipe: 0, embauche: { cle: 'mur' } }, { jour: 10, equipe: 0, embauche: { cle: 'canonnier' } },
   { jour: 20, equipe: 0, poste: { cle: 'mur' } }, { jour: 20, equipe: 0, poste: { cle: 'canonnier' } },
   // V23 : l'ancien arbitre, ★ Phénomène : son salaire (le niveau, plus le sien) se paie chaque match en poste.

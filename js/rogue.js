@@ -315,10 +315,12 @@ export function departDuClasseur(m, exigence = 0) {
   return { cases, n: cases.length, vues: vuesDuLoto(m) };
 }
 /*
- * LES LOTOS DU CARTABLE, ENTRE DEUX SAISONS (Jalon Q, js/rogue-jeu.js `lotoDuCartable`) : trois lotos Régulier, et un
- * de plus par page du classeur, à son niveau ; chacun signe une carte du cartable.
+ * LES LOTOS DU CARTABLE, ENTRE DEUX SAISONS (Jalon Q, js/rogue-jeu.js `lotoDuCartable`) : un loto Régulier, et un
+ * de plus par page du classeur, à son niveau ; chacun signe une carte du cartable. 7 nov. 2026 (JP : *bloquer le
+ * snowball*) : trois lotos au meilleur de trois, dans un cartable que les packs de la saison venaient de remplir,
+ * faisaient la moitié du saut de la deuxième saison ; les pages du classeur, achetées en médailles, les rendent.
  */
-const LOTOS_DE_SAISON = 3;
+const LOTOS_DE_SAISON = 1;
 export function lotosDeSaison(m, exigence = 0) {
   const cases = casesDuClasseur(m, Array(LOTOS_DE_SAISON).fill(REGULIER), -exigencesDe(exigence).classeur);
   return { cases, n: cases.length, vues: vuesDuLoto(m) };
@@ -701,12 +703,13 @@ export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 10 + (coupe 
  * permettait de prendre cinq joueurs, c'est brisé*). Maintenant, des cases,
  * comme le classeur : un loto de trois joueurs d'un niveau de ton équipe finie
  * (`lotoDeCase`), tu en gardes un, avec ses modifs ; leurs salaires ensemble
- * tiennent dans le budget du classeur. Un Pilier et un Régulier ;
+ * tiennent dans le budget du classeur. Deux Réguliers (7 nov. 2026 : c'était un Pilier et un Régulier ; le Pilier
+ * gardé, le meilleur de trois, partait la saison suivante déjà fort — docs/decisions.md, « bloquer le snowball ») ;
  * « Ceux qui partent » en retire un, par le haut. Mesuré (check_rogue, 24
  * runs par niveau) : une case ★ Étoile de plus, ouverte par la page Étoile,
  * menait la Coupe de 4 % à 38 % des runs à onze déblocages ; sans elle, 4 %.
  */
-export const GARDES_DE_SAISON = [PILIER, REGULIER];
+export const GARDES_DE_SAISON = [REGULIER, REGULIER];
 export function gardesDeLaRun(m, exigence = 0) {
   return { cases: GARDES_DE_SAISON.slice(Math.min(GARDES_DE_SAISON.length, -exigencesDe(exigence).gardes)), vues: vuesDuLoto(m) };
 }
