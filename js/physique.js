@@ -1340,48 +1340,71 @@ function lancer(etat, s, vise, v, ecart, elan, montee = 0) {
  */
 /** À qui la passe irait, et si la ligne est barrée : ce que l'écran montre avant l'appui. */
 const PASSE_VISEE = 2.5;   // le prix d'un radian d'écart entre la poussée du bâton et le receveur : à 15°, un coéquipier perd ce que la couverture coûte
+/*
+ * LA PASSE PAR LA BANDE, VOULUE (7 nov. 2026) : le bâton pointé vers la bande, là où la rondelle, rebondie, trouvera un
+ * coéquipier. La bande rend `RONDELLE.bande` de la vitesse en travers : le point visé est le reflet du receveur dans la
+ * bande, à sa distance d'elle divisée par ce rendu (`miroirDeBande`). Seulement sur la bande droite (hors des coins), le
+ * bâton tenu ; elle vaut `BANDE_PASSE.prix` de moins qu'une passe directe : celui que le bâton pointe droit la reçoit d'abord.
+ */
+export const BANDE_PASSE = { prix: 0.4, couvre: 1.3 };
+export function miroirDeBande(x0, y0, m, b) {
+  const ym = b + Math.sign(b) * Math.abs(b - m.y) / RONDELLE.bande;
+  const xh = x0 + (m.x - x0) * (b - y0) / ((ym - y0) || 1e-9);
+  return { x: m.x, y: ym, xh, ok: Math.abs(xh) < L / 2 - COIN && Math.sign(b - y0) === Math.sign(b) && Math.sign(b - m.y) === Math.sign(b) };
+}
+const couvertSur = (etat, eq, x0, y0, x1, y1) => {
+  const dx = x1 - x0, dy = y1 - y0, d2 = dx * dx + dy * dy || 1e-9;
+  let n = 0;
+  for (const o of etat.patineurs) {
+    if (!o.surGlace || o.equipe === eq) continue;
+    const u = ((o.x - x0) * dx + (o.y - y0) * dy) / d2;
+    if (u < 0.1 || u > 1) continue;
+    if (hyp(o.x - (x0 + u * dx), o.y - (y0 + u * dy)) < BANDE_PASSE.couvre) n++;
+  }
+  return n;
+};
 export function receveurDePasse(etat, s, baton) {
   const lm = lame(s);
   const ang0 = baton ? Math.atan2(baton.y, baton.x) : s.cap;
-  let meilleur = null, score = -Infinity, barree = false;
+  let meilleur = null, score = -Infinity, barree = false, bande = 0;
   for (const m of etat.patineurs) {
     if (!m.surGlace || m.equipe !== s.equipe || m.id === s.id || m.auSol > 0) continue;
-    const dx = m.x - lm.x, dy = m.y - lm.y, d = hyp(dx, dy) || 1e-9;
-    const ecartAng = Math.abs(plier(Math.atan2(dy, dx) - ang0));
-    if (baton && ecartAng > 1.22) continue;
-    if (!baton && ecartAng > 1.9) continue;
-    // Une passe couverte (un adversaire près de la ligne) vaut moins.
-    let couvert = 0;
-    for (const o of etat.patineurs) {
-      if (!o.surGlace || o.equipe === s.equipe) continue;
-      const u = ((o.x - lm.x) * dx + (o.y - lm.y) * dy) / (d * d);
-      if (u < 0.1 || u > 1) continue;
-      const px = lm.x + u * dx, py = lm.y + u * dy;
-      if (hyp(o.x - px, o.y - py) < 1.3) couvert++;
+    // la passe directe, puis, le bâton tenu, ses deux reflets dans les bandes
+    for (const b of baton ? [0, W / 2 - RONDELLE.rayon, -(W / 2 - RONDELLE.rayon)] : [0]) {
+      const P = b ? miroirDeBande(lm.x, lm.y, m, b) : { x: m.x, y: m.y, ok: true };
+      if (!P.ok) continue;
+      const dx = P.x - lm.x, dy = P.y - lm.y, d = hyp(dx, dy) || 1e-9;
+      const ecartAng = Math.abs(plier(Math.atan2(dy, dx) - ang0));
+      if (baton && ecartAng > 1.22) continue;
+      if (!baton && ecartAng > 1.9) continue;
+      // Une passe couverte (un adversaire près de la ligne) vaut moins.
+      const couvert = b ? couvertSur(etat, s.equipe, lm.x, lm.y, P.xh, b) + couvertSur(etat, s.equipe, P.xh, b, m.x, m.y) : couvertSur(etat, s.equipe, lm.x, lm.y, m.x, m.y);
+      // LA DIRECTION D'ABORD (JP, 1er nov. 2026 : *privilégier la passe si un joueur est dans la direction*) : celui que
+      // le bâton pointe la reçoit, même couvert (elle se soulève alors) ; un autre ne la prend qu'à quelques degrés de lui.
+      const sc = Math.cos(ecartAng) * 2 - ecartAng * PASSE_VISEE - d / 25 - couvert * 0.5 - (b ? BANDE_PASSE.prix : 0);
+      if (sc > score) { score = sc; meilleur = m; barree = !b && couvert > 0; bande = b; }
     }
-    // LA DIRECTION D'ABORD (JP, 1er nov. 2026 : *privilégier la passe si un joueur est dans la direction*) : celui que
-    // le bâton pointe la reçoit, même couvert (elle se soulève alors) ; un autre ne la prend qu'à quelques degrés de lui.
-    const sc = Math.cos(ecartAng) * 2 - ecartAng * PASSE_VISEE - d / 25 - couvert * 0.5;
-    if (sc > score) { score = sc; meilleur = m; barree = couvert > 0; }
   }
-  return { vers: meilleur, barree };
+  return { vers: meilleur, barree, bande };
 }
 function passer(etat, s, baton, vise, ev) {
   const R = etat.rondelle;
   const lm = lame(s);
-  const { vers: meilleur, barree } = receveurDePasse(etat, s, baton);
+  const { vers: meilleur, barree, bande } = receveurDePasse(etat, s, baton);
   if (!meilleur) {
     lancer(etat, s, vise, BATON.passe, BATON.ecart * 0.6 * s.p.passe, 1);
     ev.push({ type: 'passe', qui: s.id, vers: null });
     return;
   }
   // La passe menée : là où il sera quand elle arrivera.
-  let d = hyp(meilleur.x - lm.x, meilleur.y - lm.y);
+  // Par la bande, on vise son reflet (`miroirDeBande`), et la route est plus longue.
+  const viser = (x, y) => (bande ? miroirDeBande(lm.x, lm.y, { x, y }, bande) : { x, y });
+  let P = viser(meilleur.x, meilleur.y), d = hyp(P.x - lm.x, P.y - lm.y);
   let v = clamp(BATON.passe + (d - 8) * BATON.passeLoin, BATON.passe * 0.8, BATON.passeMax);
-  let tx = meilleur.x, ty = meilleur.y;
+  let tx = P.x, ty = P.y;
   for (let k = 0; k < 2; k++) {
     const t = d / v;
-    tx = meilleur.x + meilleur.vx * t * 0.8; ty = meilleur.y + meilleur.vy * t * 0.8;
+    P = viser(meilleur.x + meilleur.vx * t * 0.8, meilleur.y + meilleur.vy * t * 0.8); tx = P.x; ty = P.y;
     d = hyp(tx - lm.x, ty - lm.y);
     v = clamp(BATON.passe + (d - 8) * BATON.passeLoin, BATON.passe * 0.8, BATON.passeMax);
   }
@@ -1389,7 +1412,7 @@ function passer(etat, s, baton, vise, ev) {
   const ang = Math.atan2(ty - lm.y, tx - lm.x), revers = auRevers(s, ang);
   lancer(etat, s, ang, v * (revers ? REVERS.passe : 1), BATON.ecart * 0.6 * s.p.passe * (revers ? REVERS.ecartPasse : 1), 0.5, barree ? BATON.soulevee : 0);
   R.passeDe = s.id; R.passeVers = meilleur.id;
-  ev.push({ type: 'passe', qui: s.id, vers: meilleur.id, soulevee: barree, revers });
+  ev.push({ type: 'passe', qui: s.id, vers: meilleur.id, soulevee: barree, revers, bande: !!bande });
 }
 /* Le coéquipier qui suit le porteur : derrière lui, assez près, lancé dans son sens (`LAISSEE`). */
 function suiveur(etat, s) {
@@ -2291,6 +2314,7 @@ export function reglesDeLaGlace() {
     `L'obstruction sur le gardien : un attaquant debout qui entre dans le gardien dans son enclave (${dec(FILET.enclave, 2)} m) le bouscule ; un but dans ce filet moins de ${dec(OBSTRUCTION.fenetre)} s après est refusé, et la mise en jeu va à la zone neutre ; entré à plus de ${kmh(OBSTRUCTION.fort)} km/h sans aller à la rondelle, ${MATCH.punition / 60} minutes. Poussé dedans par un adversaire, ou au sol, il n'y est pour rien.`,
     `Le contournement du filet : sorti de derrière, la lame à côté du poteau (${dec(CONTOUR.avant)} m devant la ligne des buts au plus, ${dec(CONTOUR.cote)} m du poteau au plus), le tir la glisse au ras du poteau ; le gardien qui le couvre l'arrête, celui resté à l'autre arrive trop tard.`,
     `Le plongeon désespéré : un tir qu'il n'atteindra pas en glissant, mais à ${dec(PLONGEON.portee, 2)} m de plus, le gardien plonge de ce côté ; tendu de tout son long, il en laisse passer ${Math.round(PLONGEON.trou * 100)} % et ne gèle rien, puis il reste couché ${dec(PLONGEON.sol)} s.`,
+    `La passe par la bande : le bâton pointé vers la bande droite, là où la rondelle rebondie trouvera un coéquipier ; elle vise son reflet, la bande ne rendant que ${Math.round(RONDELLE.bande * 100)} % de la vitesse en travers. Celui que le bâton pointe droit la reçoit d'abord.`,
     `Le gardien joue la rondelle libre derrière son filet, plus lente que ${kmh(GARDIEN.jouer.lente)} km/h, s'il y est le premier : une remise au coéquipier ouvert, sinon le long de la bande, puis il revient. Derrière sa ligne, il ne la joue que dans le trapèze (${dec(2 * GARDIEN.jouer.trapeze[0] / PIED, 0)} pieds de large à la ligne des buts, ${dec(2 * GARDIEN.jouer.trapeze[1] / PIED, 0)} à la bande) : dehors, ${MATCH.punition / 60} minutes. Un tir au but est un arrêt ou un but, comme la LNH les compte ; un but, et les coéquipiers du buteur se regroupent ${dec(CELEBRATION.duree)} s.`,
   ];
 }

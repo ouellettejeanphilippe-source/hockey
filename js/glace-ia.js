@@ -42,7 +42,7 @@
  * Pur : les mêmes entrées sur la même graine rendent les mêmes décisions (le hasard vient de `etat.de`). Le moteur
  * la rappelle quelques fois par seconde ; ce qu'elle doit se rappeler vit sur le patineur (`s.memo`).
  */
-import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers, rudesse, RUDESSE, DOUBLE } from './physique.js';
+import { LIGNE_BUT, BLEUE, BATON, HARPON, PATIN, W, JAMBES, PROTEGE, FEINTE, surGlace, autre, lame, porteDuBanc, penalisesDe, leveraitLeBaton, auRevers, rudesse, RUDESSE, DOUBLE, miroirDeBande } from './physique.js';
 
 const hyp = Math.hypot;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -619,7 +619,12 @@ function sortieDeZone(etat, s, memo, a, u, miens, adv, pression) {
   // soulevée passe le bâton) ; en désavantage, le dégagement est permis : au fond.
   const cote = Math.sign(s.y) || 1;
   const ailier = miens.find(m => m !== s && m.poste !== 'D' && Math.sign(m.y) === cote && Math.abs(m.y) > 4 && u(m.x) > u(s.x) + 2);
-  if (ailier) return passerA(memo, s, ailier);
+  if (ailier) {
+    // LA PASSE PAR LA BANDE (`BANDE_PASSE`, js/physique.js) : la ligne vers lui barrée, le bâton vers son reflet dans la bande.
+    const P = miroirDeBande(s.x, s.y, ailier, cote * (W / 2 - 0.04));
+    if (P.ok && !couloirOuvert(s.x, s.y, ailier.x, ailier.y, adv, 1.3) && couloirOuvert(s.x, s.y, P.xh, cote * W / 2, adv, 1.3)) return passerA(memo, s, P);
+    return passerA(memo, s, ailier);
+  }
   const M = etat.match, enDesavantage = M && penalisesDe(etat, s.equipe) > penalisesDe(etat, autre(s.equipe));
   if (enDesavantage) return lancerVers(memo, s, { x: a * 1, y: cote * (W / 2 - 0.8) });
   return null;
