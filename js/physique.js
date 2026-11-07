@@ -127,6 +127,12 @@ export const BATON = {
  * LE REVERS : la rondelle part de l'autre côté du corps — la lame passée du côté de sa main à l'autre, ou lancée à plus
  * de `angle` rad du cap vers ce côté-là. Le tir y perd (× `tir` de vitesse, × `ecart` d'écart), la passe aussi.
  */
+/*
+ * LE TIR INSTANTANÉ (le snap ; 7 nov. 2026) : X touché d'un coup (moins de `tape` s de charge), du coup droit, moins de
+ * `fenetre` s après avoir pris la rondelle : il part sans armer, à `vitesse` du frappé (plus fort que le poignet), un peu
+ * moins juste (`ecart` fois l'écart du poignet), à mi-hauteur. Plus tard, le même appui est un tir du poignet.
+ */
+export const SNAP = { tape: 0.08, fenetre: 0.4, vitesse: 0.8, ecart: 1.3 };
 export const REVERS = { angle: 1.3, cote: 0.1, tir: 0.82, ecart: 1.5, passe: 0.85, ecartPasse: 1.6 };
 /*
  * PROTÉGER LA RONDELLE : le porteur plus lent que `vitesse` m/s, un adversaire debout à `pres` m, passe sa lame de
@@ -977,10 +983,12 @@ function rondelle(etat, entrees, ev) {
       else if (porteur.tenaitTir && !e.tir && !porteur.leve) {
         const part = Math.min(1, porteur.charge / BATON.charge);
         const ang = viseeAssistee(etat, porteur, vise, m > 0.1 ? e : null), revers = auRevers(porteur, ang);
-        const v = (BATON.tirMin + (BATON.tirMax - BATON.tirMin) * part) * porteur.p.tir * (revers ? REVERS.tir : 1);
-        lancer(etat, porteur, ang, v, BATON.ecart * (1 + 0.6 * part) * porteur.p.precision * (revers ? REVERS.ecart : 1), 0.5,
-          BATON.hauteurMin + (BATON.hauteurMax - BATON.hauteurMin) * part + gauss(etat.de) * BATON.ecartHauteur * (1 + part));
-        tirer(etat, porteur, ev, part, false, revers);
+        // LE TIR INSTANTANÉ (`SNAP`) : touché d'un coup, du coup droit, juste après la prise.
+        const snap = !revers && porteur.charge < SNAP.tape && etat.t - (porteur.priseT ?? -Infinity) < SNAP.fenetre;
+        const v = snap ? BATON.tirMax * SNAP.vitesse * porteur.p.tir : (BATON.tirMin + (BATON.tirMax - BATON.tirMin) * part) * porteur.p.tir * (revers ? REVERS.tir : 1);
+        lancer(etat, porteur, ang, v, BATON.ecart * (snap ? SNAP.ecart : 1 + 0.6 * part) * porteur.p.precision * (revers ? REVERS.ecart : 1), 0.5,
+          (snap ? (BATON.hauteurMin + BATON.hauteurMax) / 2 : BATON.hauteurMin + (BATON.hauteurMax - BATON.hauteurMin) * part) + gauss(etat.de) * BATON.ecartHauteur * (1 + part));
+        tirer(etat, porteur, ev, part, false, revers, snap);
       }
     }
     return;
@@ -1027,7 +1035,7 @@ function rondelle(etat, entrees, ev) {
         continue;
       }
       if (vrel <= BATON.reception * (passeAMoi ? 1.5 : 1) && R.z < 0.35) {
-        R.porteur = s.id; R.z = 0; R.vz = 0;
+        R.porteur = s.id; R.z = 0; R.vz = 0; s.priseT = etat.t;
         toucher(etat, s, false);
         if (etat.humains.includes(s.equipe)) etat.controles[s.equipe] = s.id;
         ev.push({ type: 'prise', qui: s.id, passe: !!passeAMoi });
@@ -1107,12 +1115,12 @@ function bloquer(etat, s, vol, ev) {
 }
 
 /* Un tir tenté : le dernier tir, l'événement ; le tir au but, lui, se compte à l'arrêt ou au but (`tirAuBut`). */
-function tirer(etat, s, ev, part, uneTemps = false, revers = false) {
+function tirer(etat, s, ev, part, uneTemps = false, revers = false, snap = false) {
   // Lancée de hors de la zone d'attaque, c'est un lancer au fond (ou un dégagement) : pas un tir au but.
   const fond = etat.rondelle.dernier.x * etat.equipes[s.equipe].attaque <= BLEUE;
   etat.dernierTir = hyp(etat.rondelle.vx, etat.rondelle.vy);
   const Gd = gardienDe(etat, autre(s.equipe));
-  ev.push({ type: 'tir', v: etat.dernierTir, charge: part, qui: s.id, uneTemps, fond, revers, contour: !fond && auContour(lame(s), etat.equipes[s.equipe].attaque), ecran: !fond && !Gd.retire && !!masque(etat, Gd) });
+  ev.push({ type: 'tir', v: etat.dernierTir, charge: part, qui: s.id, uneTemps, snap, fond, revers, contour: !fond && auContour(lame(s), etat.equipes[s.equipe].attaque), ecran: !fond && !Gd.retire && !!masque(etat, Gd) });
   if (fond) return;
   etat.compte.tirs++;
   etat.rondelle.dernier.tir = true;   // un lancer au but, pas une passe : ce qu'un bloc arrête
@@ -2315,6 +2323,7 @@ export function reglesDeLaGlace() {
     `Le contournement du filet : sorti de derrière, la lame à côté du poteau (${dec(CONTOUR.avant)} m devant la ligne des buts au plus, ${dec(CONTOUR.cote)} m du poteau au plus), le tir la glisse au ras du poteau ; le gardien qui le couvre l'arrête, celui resté à l'autre arrive trop tard.`,
     `Le plongeon désespéré : un tir qu'il n'atteindra pas en glissant, mais à ${dec(PLONGEON.portee, 2)} m de plus, le gardien plonge de ce côté ; tendu de tout son long, il en laisse passer ${Math.round(PLONGEON.trou * 100)} % et ne gèle rien, puis il reste couché ${dec(PLONGEON.sol)} s.`,
     `La passe par la bande : le bâton pointé vers la bande droite, là où la rondelle rebondie trouvera un coéquipier ; elle vise son reflet, la bande ne rendant que ${Math.round(RONDELLE.bande * 100)} % de la vitesse en travers. Celui que le bâton pointe droit la reçoit d'abord.`,
+    `Le tir instantané : X touché d'un coup, du coup droit, moins de ${dec(SNAP.fenetre)} s après avoir pris la rondelle, part sans armer à ${kmh(BATON.tirMax * SNAP.vitesse)} km/h (le poignet : ${kmh(BATON.tirMin)}), un peu moins juste ; plus tard, le même appui est un tir du poignet.`,
     `Le gardien joue la rondelle libre derrière son filet, plus lente que ${kmh(GARDIEN.jouer.lente)} km/h, s'il y est le premier : une remise au coéquipier ouvert, sinon le long de la bande, puis il revient. Derrière sa ligne, il ne la joue que dans le trapèze (${dec(2 * GARDIEN.jouer.trapeze[0] / PIED, 0)} pieds de large à la ligne des buts, ${dec(2 * GARDIEN.jouer.trapeze[1] / PIED, 0)} à la bande) : dehors, ${MATCH.punition / 60} minutes. Un tir au but est un arrêt ou un but, comme la LNH les compte ; un but, et les coéquipiers du buteur se regroupent ${dec(CELEBRATION.duree)} s.`,
   ];
 }
