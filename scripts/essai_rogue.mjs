@@ -689,7 +689,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-carte .carton:not(.tc-verso)').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
   const pouvoirs = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv:not(.adj)', e => e.map(x => ({ nom: (x.querySelector('.pv-nom b') || {}).textContent || '', ferme: x.classList.contains('ferme'), etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
-  const jauge = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .ej-jauge');
+  const jauge = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .pl-jauge');
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
@@ -1513,9 +1513,9 @@ await page.waitForSelector('#menuDepart');
 await page.screenshot({ path: `${DOSSIER}/rogue-menu.png` });
 // L'inventaire et le classeur, du menu (hors saison : on regarde, on ne joue pas).
 await page.click('[data-menu="inventaire"]');
-await page.waitForSelector('#inventaireModal:not([hidden]) .inv-onglet', { timeout: 10000 });
+await page.waitForSelector('#inventaireModal:not([hidden]) .inv-jetons .pl-jeton', { timeout: 10000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-inventaire-menu.png` });
-console.log(`15. l'inventaire du menu : ${(await page.$$eval('#inventaireModal .inv-onglet', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()))).join(' · ')}`);
+console.log(`15. l'inventaire du menu : ${(await page.$$eval('#inventaireModal .inv-jetons .pl-jeton', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()))).join(' · ')}`);
 await page.click('#inventaireModal .choix-fermer');
 await page.waitForSelector('#menuDepart');
 /*

@@ -15,7 +15,7 @@ import { hubActif } from './coquille.js';
 import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { blessesAuJour } from './rogue-jeu.js';
 import { slotShort, cartonDe, varsEquipe } from './repechage.js';
-import { carteLigne, grille, jetons, coin } from './plateau-rogue.js';
+import { carteLigne, grille, jetons, coin } from './composants.js';
 
 const GROUPES = [['F', 'Avants'], ['D', 'Défenseurs'], ['G', 'Gardiens']];
 const etat = { groupe: 'F', source: 'saison', tri: { F: ['pts', false], D: ['pts', false], G: ['pctArr', false], B: ['pts', false] } };
@@ -91,10 +91,10 @@ export function remplirJoueurs() {
   if (etat.groupe !== g) { remplirJoueurs(); return; }
   const filtres = [...GROUPES.map(([k, t]) => [k, t, rangees.filter(r => groupeDe(r) === k).length]), ...(infirmerie ? [['B', '🩹 Blessés', blesses.size]] : [])];
   const barre = `<div class="jr-barre">
-      <div class="inv-filtres" role="tablist">${filtres.map(([k, t, n]) => `<button type="button" role="tab" data-groupe="${k}" class="inv-filtre${k === g ? ' on' : ''}" aria-selected="${k === g}">${t} <span>${n}</span></button>`).join('')}</div>
+      ${jetons(filtres.map(([cle, mot, n]) => ({ cle, mot, n, on: cle === g })), 'groupe')}
       ${enSaison && g !== 'B' ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
     </div>`;
-  // LE PLATEAU : en Rogue, les filtres sont des jetons (js/plateau-rogue.js), les blessés sur le rouge ; la source aussi.
+  // LE PLATEAU : en Rogue, les filtres sont des jetons (js/composants.js), les blessés sur le rouge ; la source aussi.
   // Le contenu, de zéro (4 nov. 2026) : une rangée de jetons, les filtres ; la vraie saison vit au verso de la carte et à la fiche.
   const barrePlateau = `<div class="jr-barre">${jetons(filtres.map(([k, t, n]) => ({ cle: k, mot: t, n, on: k === g, cls: k === 'B' ? 'pl-ton-rouge' : '' })), 'groupe')}</div>`;
   const cartes = maison ? maison.html(g === 'B' ? 'infirmerie' : 'joueurs') : '';

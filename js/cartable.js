@@ -21,7 +21,7 @@
  * (`cap82_rogue.collection`, S77) y entre une fois, en cartes de base.
  */
 import { NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
-import { coin } from './plateau-rogue.js';
+import { coin, jetons } from './composants.js';
 import { COACHS } from './coachs.js';
 
 const CLE_CARTABLE = 'cap82_cartable';
@@ -352,10 +352,8 @@ export function rendreCartable(host, ctx) {
         <span class="ct-vars">${VARIANTES.map(([r, nom]) => `<span class="ct-var v-${r}" title="${esc(sensDe(r))}">${esc(nom)} <b>${k.parVariante[r]}</b></span>`).join('')}${k.numerotees ? `<span class="ct-var v-num">№ Numérotées <b>${k.numerotees}</b></span>` : ''}</span>
       </div>
     </div>
-    <div class="ct-vues" role="tablist">
-      ${[['equipe', 'Ton équipe', ctx.equipe.length], ['extensions', 'Extensions', parDecennie.size], ['clubs', 'Clubs', parClub.size], ...(nCoachs ? [['coachs', 'Coachs', nCoachs]] : [])]
-        .map(([v, nom, n]) => `<button type="button" role="tab" class="ct-vue${etat.vue === v ? ' on' : ''}" data-vue="${v}" aria-selected="${etat.vue === v}">${esc(nom)} <span>${n}</span></button>`).join('')}
-    </div>`;
+    ${jetons([['equipe', 'Ton équipe', ctx.equipe.length], ['extensions', 'Extensions', parDecennie.size], ['clubs', 'Clubs', parClub.size], ...(nCoachs ? [['coachs', 'Coachs', nCoachs]] : [])]
+      .map(([cle, mot, n]) => ({ cle, mot: esc(mot), n, on: etat.vue === cle })), 'vue', { cls: 'ct-vues' })}`;
   let corps = '';
   let nav = '';
   if (etat.vue === 'equipe') {

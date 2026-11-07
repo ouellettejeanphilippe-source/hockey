@@ -24,6 +24,7 @@ import { sortDUnPack } from './packs.js';
 import { NIVEAUX, nomDuNiveau } from './niveaux.js';
 import { puces, chiffresOuverts, basculerChiffres, carteDeBanqueHtml } from './gerant.js';
 import { esc, money as M, jaugePlafond } from './util.js';
+import { jetons } from './composants.js';
 import { EDITIONS } from './rarete.js';
 
 const $ = id => document.getElementById(id);
@@ -117,14 +118,10 @@ export function ouvrirInventaire(ctx) {
   ];
   if (!etat.onglet || !onglets.some(o => o[0] === etat.onglet)) etat.onglet = onglets[0][0];
   const dessiner = () => {
-    const filtres = (cats) => `<div class="inv-filtres" role="group" aria-label="Filtrer">
-      ${['tout', ...cats].map(c => `<button type="button" class="inv-filtre${etat.cat === c ? ' on' : ''}" data-cat="${c}">${c === 'tout' ? 'Tout' : `${CATEGORIES[c].ico} ${CATEGORIES[c].nom}`}</button>`).join('')}
-    </div>`;
+    const filtres = cats => jetons(['tout', ...cats].map(k => ({ cle: k, mot: k === 'tout' ? 'Tout' : `${CATEGORIES[k].ico} ${CATEGORIES[k].nom}`, on: etat.cat === k })), 'cat', { role: 'button' });
     // Le niveau (V25 B1 : l'échelle des joueurs) : ceux que la banque a.
     const nivs = [...new Set(Object.keys(BANQUE).map(id => BANQUE[id].niveau).filter(k => NIVEAUX[k]))].sort();
-    const rars = `<div class="inv-filtres inv-rar" role="group" aria-label="Niveau">
-      ${['tout', ...nivs].map(k => `<button type="button" class="inv-filtre${String(etat.niv) === String(k) ? ' on' : ''}" data-niv="${k}">${k === 'tout' ? 'Tous' : nomDuNiveau(k)}</button>`).join('')}
-    </div>`;
+    const rars = jetons(['tout', ...nivs].map(k => ({ cle: k, mot: k === 'tout' ? 'Tous' : nomDuNiveau(k), on: String(etat.niv) === String(k) })), 'niv', { role: 'button' });
     const garde = id => (etat.cat === 'tout' || BANQUE[id].cat === etat.cat) && (etat.niv === 'tout' || BANQUE[id].niveau === Number(etat.niv));
     const vide = mot => `<p class="inv-vide">${mot}</p>`;
     let corps = '';
@@ -155,7 +152,7 @@ export function ouvrirInventaire(ctx) {
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       ${plafond}
-      <div class="inv-onglets" role="tablist">${onglets.map(([k, nom, n]) => `<button type="button" role="tab" class="inv-onglet${etat.onglet === k ? ' on' : ''}" data-onglet="${k}" aria-selected="${etat.onglet === k}">${esc(nom)} <span>${n}</span></button>`).join('')}</div>
+      ${jetons(onglets.map(([cle, nom, n]) => ({ cle, mot: esc(nom), n, on: etat.onglet === cle })), 'onglet', { cls: 'inv-jetons' })}
       <div class="choix-corps inv-corps">${corps}${corps.includes('puce') && corps.includes(' detail') ? `<button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}</div>
     </div>`;
     // LES CHIFFRES (V3) : une carte se lit en mots ; ses nombres se déplient pour tout l'inventaire, comme dans un choix.

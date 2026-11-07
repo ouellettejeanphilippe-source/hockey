@@ -159,7 +159,7 @@
   /* LA PATINOIRE ÉCLAIRÉE (1.0, oct.). JP : *l'app a l'air plate, l'interface est « bland »*. Trois jetons, et c'est tout
      le relief du jeu : l'ambiance (la couleur vive du club qui tombe d'en haut sur le noir, comme les projecteurs d'un
      aréna), le panneau (un fond qui s'éclaire vers le haut, un filet de lumière en tête) et la lueur de l'action. */
-  --ambiance: radial-gradient(120% 70% at 50% -18%, color-mix(in srgb, var(--club-vif) 26%, transparent), transparent 62%), radial-gradient(circle at 50% 118%, transparent 0 34vmax, color-mix(in srgb, var(--club-vif) 16%, transparent) 34vmax calc(34vmax + 2px), transparent calc(34vmax + 3px)), radial-gradient(60% 40% at 100% 105%, color-mix(in srgb, var(--club-vif) 12%, transparent), transparent 70%);
+  --ambiance: radial-gradient(120% 70% at 50% -18%, color-mix(in srgb, var(--club-vif) 22%, transparent), transparent 62%);
   /* LA SCÈNE (1.0, oct.). JP : *des images en action dans le background avec un noir opacité .7 pour que ça reste lisible*.
      `--photo` est posée par js/game.js (applyTeamColors) : la photo de match de ta vedette, ou du vestiaire tiré. Sous
      l'éclairage du club, un voile noir à 0,7 ; sans photo (hors ligne, un joueur d'avant 2005), le noir seul. */
@@ -274,8 +274,6 @@
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--encre) 22%, transparent); border-radius: var(--r-2); border: 2px solid transparent; background-clip: padding-box; }
-/* LE ROGUE, EN TÉLÉ (V23, la nouvelle interface) : l'éclairage d'en haut reste, le cercle de glace au bas de l'écran part. */
-:root:has(> body.mode-rogue) { --ambiance: radial-gradient(120% 70% at 50% -18%, color-mix(in srgb, var(--club-vif) 22%, transparent), transparent 62%); }
 /* La page ne défile jamais : chaque écran tient dans la fenêtre, ce sont ses volets qui défilent. */
 html { -webkit-text-size-adjust: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; }
 body {
@@ -312,15 +310,12 @@ a { color: var(--bleu); text-decoration: none; }
    (le filet du club, le fond qui s'estompe, les capitales blanches) et non une étiquette grise ; les chiffres qui comptent en
    gros ; un bandeau de résultats qu'on balaie du doigt (rien ne boucle dans le décor : il entre une fois, essuyé comme à la
    télé) ; la vedette de chaque club en photo d'action sur l'affiche ; le bouton du soir avec son point rouge « en direct ». */
-body.mode-rogue .hub-volet, body.mode-rogue .hub-carte { background-image: radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--club-vif) 14%, transparent), transparent 70%); }
-body.mode-rogue :is(.hub-titre, .pr-k, .banc-tete, .live-tableau-titre, .vs-sec, .pk-rayon h3, .ej-case-l, .ct-set-tete, .hub-une-t, .hub-boite-titre, .pm-tete) {
+body :is(.hub-titre, .pr-k, .banc-tete, .live-tableau-titre, .vs-sec, .pk-rayon h3, .ej-case-l, .ct-set-tete, .hub-une-t, .hub-boite-titre, .pm-tete) {
   margin-bottom: var(--esp-1); padding: var(--esp-1) var(--esp-2) var(--esp-1) var(--esp-3); border: 0; border-left: 4px solid var(--club-vif);
   background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 28%, var(--noir-pur)), transparent 88%);
   font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--blanc);
 }
-body.mode-rogue .hub-titre::before, body.mode-rogue .hub-titre::after { display: none; }
-body.mode-rogue .banc-tete > span:last-child, body.mode-rogue .pk-rayon h3 .pk-rabais { color: var(--or); }
-body.mode-rogue .hub-une-t { writing-mode: horizontal-tb; rotate: none; padding: 2px var(--esp-2); }
+body .banc-tete > span:last-child, body .pk-rayon h3 .pk-rabais { color: var(--or); }
 /* L'HABILLAGE COMMUN DU PLATEAU (4 nov. 2026 ; JP : *pourquoi tu refais pas tout le UI au complet ?*). Une seule grammaire sur
    toutes les pages du Rogue, celle de la maquette A : l'en-tête sur le noir pur sans filet de couleur ; chaque segment, filtre ou
    onglet de page est un JETON — un petit bloc sombre, le choisi à la couleur du club, encre noire — jamais une pilule
@@ -329,19 +324,15 @@ body.mode-rogue .hub-une-t { writing-mode: horizontal-tb; rotate: none; padding:
    signature de la télé, le seul texte en capitales espacées ; onglets, portes, jetons, boutons, languettes et coins passent en
    casse de phrase, interlettrage 0,02 em au plus, graisse 600. L'or ne sert que deux fois par écran : l'action primaire et le
    chiffre qui compte ; aucune lueur colorée. */
-body.mode-rogue .navtab { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
-body.mode-rogue .btn:is(.go, .gold) { font-weight: 700; letter-spacing: 0.02em; text-transform: none; }
-body.mode-rogue .topbar { background: var(--noir-pur); box-shadow: none; }
-body.mode-rogue .navtab.on { background: var(--fond-2); color: var(--blanc); }
-body.mode-rogue :is(.seg, .inv-filtres, .stat-tabs, .ct-vues, .hub-chips) { gap: var(--esp-1); padding: 0; border: 0; background: none; }
-body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; box-shadow: none; animation: none; }
-body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button) span { color: inherit; font-size: inherit; }
-body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button).on { background: var(--club-vif); color: var(--noir-pur); border-color: transparent; box-shadow: none; }
-body.mode-rogue :is(.seg button, .inv-filtre, .stat-tab, .ct-vue, .hub-chips button).on span { color: inherit; }
-body.mode-rogue .seg-effectif { width: 100%; }
-body.mode-rogue .seg-effectif button { flex: 1 1 0; }
-body.mode-rogue :is(.plan-match, .unites-speciales) { padding: 0; margin-bottom: var(--esp-2); border: 0; border-radius: 0; background: none; }
-body.mode-rogue .pm-tete span { color: var(--or); text-transform: none; letter-spacing: 0; font-size: var(--t-1); }
+body .navtab { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+body .topbar { background: var(--noir-pur); box-shadow: none; }
+body :is(.seg, .stat-tabs, .ct-vues, .hub-chips) { gap: var(--esp-1); padding: 0; border: 0; background: none; }
+body :is(.seg button, .stat-tab, .hub-chips button) { flex: none; min-height: 44px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; box-shadow: none; animation: none; }
+body :is(.seg button, .stat-tab, .hub-chips button) span { color: inherit; font-size: inherit; }
+body :is(.seg button, .stat-tab, .hub-chips button).on { background: var(--club-vif); color: var(--noir-pur); border-color: transparent; box-shadow: none; }
+body :is(.seg button, .stat-tab, .hub-chips button).on span { color: inherit; }
+body .seg-effectif { width: 100%; }
+body .seg-effectif button { flex: 1 1 0; }
 .btn.go.hub-jour::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: var(--esp-2); border-radius: 50%; background: var(--live); box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 35%, transparent); vertical-align: 1px; }
 /* LES PICS (V23 G, docs/refonte-v23.md § G ; js/mouvement.js `pic`) : la carte rare, le gros match gagné, le talent du
    coach, la Coupe, le congédiement. Une secousse de 4 px, jamais plus, et douze particules de la couleur du club qui
@@ -423,14 +414,13 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 .tete-ch-l { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 /* Une info, une maison (JP : *le principe de GM Connected, c'est aussi de pas répéter les infos de page en page, genre le top bar*) : la fiche et le rang se lisent au Bureau, les jetons au Bureau et au Marché ; ailleurs l'en-tête n'est que l'identité du club et le menu. Au repêchage, il porte le plafond. */
 body:not([data-section="bureau"]):not([data-section="marche"]):not(.au-repechage) .tete-chiffres { display: none; }
-/* V23, la nouvelle interface : au Rogue, ta fiche et ton rang vivent sur l'affiche et la jauge du proprio ; l'en-tête ne garde que tes jetons, en une ligne. */
-body.mode-rogue :is(#teteFiche, #teteRang) { display: none; }
-body.mode-rogue #teteJetons { grid-template-columns: auto auto; align-items: baseline; column-gap: var(--esp-2); }
-body.mode-rogue #teteJetons .tete-ch-d { display: none; }
+/* V23 : tes jetons, en une ligne ; ta fiche et ton rang vivent sur l'affiche et la jauge du proprio (js/game.js ne les pose pas). */
+#teteJetons { grid-template-columns: auto auto; align-items: baseline; column-gap: var(--esp-2); }
+#teteJetons .tete-ch-d { display: none; }
 /* Ce soir : tes jetons montent dans la ligne du club, à côté du menu ; la ligne des chiffres disparaît. */
-body.mode-rogue[data-section="bureau"] .topbar-inner { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "retour club chiffres menu"; }
-body.mode-rogue[data-section="bureau"] #teteJetons .tete-ch-l { display: none; }
-body.mode-rogue[data-section="bureau"] .tete-chiffres .tete-ch { border-left: 0; padding: 0; align-content: center; }
+body[data-section="bureau"] .topbar-inner:has(#teteJetons:not([hidden])) { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "retour club chiffres menu"; }
+body[data-section="bureau"] #teteJetons .tete-ch-l { display: none; }
+body[data-section="bureau"] .tete-chiffres:has(> #teteJetons:not([hidden])) .tete-ch { border-left: 0; padding: 0; align-content: center; }
 body[data-section="marche"]:not(.au-repechage) :is(#teteFiche, #teteRang) { display: none; }
 .tete-ch-d { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tete-ch-d:empty { display: none; }
@@ -470,7 +460,7 @@ body:not(.au-repechage) #capGauge { display: none; }
   .tete-ch { padding: 0 var(--esp-3); }
   .capgauge-max, #perSlotLbl { display: none; }
   .capgauge .track { height: 3px; }
-  body:not(.au-repechage):not(.mode-rogue) .capgauge-row.small { display: none; }
+  body:not(.au-repechage) .capgauge-row.small { display: none; }
   #menuBtn { width: 40px; height: 40px; }
   /* Avec « ‹ Retour » (derrière le banc), le nom du club cède la place : l'écusson suffit à dire chez qui on est. */
   .topbar-inner:has(> .retour-btn:not([hidden])) .tete-id { display: none; }
@@ -497,24 +487,24 @@ body:not(.au-repechage) #capGauge { display: none; }
 .retour-btn:hover { background: var(--fond-2); }
 .retour-btn:hover .ico { transform: translateX(-3px); }
 .retour-btn:active { transform: scale(0.96); }
-body.mode-rogue .retour-btn { background: var(--fond-2); color: var(--encre); }
+body .retour-btn { background: var(--fond-2); color: var(--encre); }
 
 /* ---- LES ONGLETS (Jalon U : un seul dessin ; JP : *penser comme GM Connected*) : une rangée de mots, l'ouvert est un bloc plein et clair, texte noir ; les autres sont creux. Les sous-pages d'une section,
         les onglets d'une fenêtre (inventaire, boutique, bilan, statistiques) et les vues du cartable. ---- */
 .sousnav { display: flex; gap: var(--esp-1); max-width: 1720px; margin: var(--esp-2) auto 0; overflow-x: auto; scrollbar-width: none; }
 .sousnav::-webkit-scrollbar { display: none; }
-.soustab, .stat-tab, .inv-onglet, .ct-vue {
+.soustab, .stat-tab {
   flex: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-1); min-height: 44px; padding: 0 var(--esp-3);
   border: 1px solid transparent; border-radius: var(--r-1); background: none; color: var(--encre-3);
   font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
   transition: color var(--t-vite), background var(--t-vite), border-color var(--t-vite);
 }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue) span { font-size: var(--t-1); color: var(--encre-3); font-variant-numeric: tabular-nums; }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue):hover { color: var(--encre); }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on { color: var(--noir); background: var(--encre); border-color: var(--encre); }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on span { color: var(--noir); }
+:is(.soustab, .stat-tab) span { font-size: var(--t-1); color: var(--encre-3); font-variant-numeric: tabular-nums; }
+:is(.soustab, .stat-tab):hover { color: var(--encre); }
+:is(.soustab, .stat-tab).on { color: var(--noir); background: var(--encre); border-color: var(--encre); }
+:is(.soustab, .stat-tab).on span { color: var(--noir); }
 /* V23, la nouvelle interface : au Rogue, les onglets d'une porte se lisent comme ceux d'une télé — le mot, souligné à la couleur du club. */
-body.mode-rogue .soustab.on { background: none; border-color: transparent; border-radius: 0; color: var(--encre); box-shadow: inset 0 -3px 0 var(--club-vif); }
+body .soustab.on { background: none; border-color: transparent; border-radius: 0; color: var(--encre); box-shadow: inset 0 -3px 0 var(--club-vif); }
 
 /* ---- Les cinq portes : la barre au bas du téléphone, le rail à gauche dès 1000 px ---- */
 .navbar {
@@ -541,7 +531,7 @@ body.mode-rogue .soustab.on { background: none; border-color: transparent; borde
 .navtab.mort:not(.on) { opacity: 0.45; }
 /* V7 : le Bureau dit qu'il a quelque chose à régler, d'où qu'on soit (js/saison.js pose `data-a-traiter`). */
 body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::after { content: ""; position: absolute; top: 8px; left: calc(50% + 10px); width: 8px; height: 8px; border-radius: 50%; background: var(--mauvais); }
-.navtab.on { color: var(--noir); background: var(--encre); }
+.navtab.on { color: var(--blanc); background: var(--fond-2); }
 .navtab.on .navtab-badge { color: var(--encre); background: var(--noir); }
 /* LE BALAYAGE SE VOIT (js/glisser.js) : sous le doigt, le nom de l'onglet où il mène sort du bord ; plein au seuil, comme
    un onglet ouvert, le lâcher y va. */
@@ -797,7 +787,7 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn:active:not(:disabled) { transform: translateY(1px) scale(0.95); filter: brightness(1.25); transition-duration: 60ms; }
 .btn:disabled { opacity: 0.45; }
 /* L'action principale : pleine, en or (ce qui se gagne) ; .go garde le vert du dépôt pour « lancer ». */
-.btn:is(.go, .gold) { min-height: 48px; font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
+.btn:is(.go, .gold) { min-height: 48px; font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; letter-spacing: 0.02em; text-transform: none; }
 .btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: var(--bon); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, var(--noir-pur)); }
 @media (hover: hover) { .btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, var(--blanc)); border-color: var(--bon); } }
 .btn.go:active:not(:disabled), .btn.gold:active:not(:disabled) { transform: translateY(1px); animation: none; }
@@ -849,19 +839,19 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 
 /* ---- LES FILTRES (Jalon U : un seul dessin) : des pastilles bordées, l'ouverte pleine, son compte à côté. Les postes du
         vestiaire (avec ce qui reste à combler), les groupes de l'onglet Joueurs, du classeur, de l'inventaire. ---- */
-.filters, .inv-filtres { display: flex; overflow-x: auto; scrollbar-width: none; gap: var(--esp-1); padding-bottom: 2px; }
+.filters { display: flex; overflow-x: auto; scrollbar-width: none; gap: var(--esp-1); padding-bottom: 2px; }
 .filters { margin-bottom: var(--esp-2); }
-.filters::-webkit-scrollbar, .inv-filtres::-webkit-scrollbar { display: none; }
-.chip, .inv-filtre {
+.filters::-webkit-scrollbar { display: none; }
+.chip {
   flex: none; display: inline-flex; align-items: center; gap: var(--esp-1);
   min-height: 44px; padding: 0 var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: none; color: var(--encre-2);
   font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; white-space: nowrap;
   transition: background var(--t-vite), color var(--t-vite), transform var(--t-lent) var(--e-ressort);
 }
-:is(.chip, .inv-filtre) span { font-size: var(--t-1); opacity: 0.8; font-variant-numeric: tabular-nums; }
-:is(.chip, .inv-filtre):hover { color: var(--encre); }
-:is(.chip, .inv-filtre):active { transform: scale(0.94); }
-:is(.chip, .inv-filtre).on { background: var(--choisi); border-color: var(--choisi); color: var(--sur-choisi); }
+:is(.chip) span { font-size: var(--t-1); opacity: 0.8; font-variant-numeric: tabular-nums; }
+:is(.chip):hover { color: var(--encre); }
+:is(.chip):active { transform: scale(0.94); }
+:is(.chip).on { background: var(--choisi); border-color: var(--choisi); color: var(--sur-choisi); }
 /* Le filet d'or de l'onglet ouvert se déploie depuis le centre (un onglet, une étape du soir). */
 .chip-need { font: 800 var(--t-1)/1 var(--display); color: inherit; font-variant-numeric: tabular-nums; opacity: 0.8; }
 .chip .chip-need.full { color: var(--bon); opacity: 1; }
@@ -1059,10 +1049,9 @@ img.visage.brut { object-position: 50% 12%; }
   .modal-sheet { border-radius: var(--r-2); border-bottom: 1px solid var(--filet); max-height: 88vh; }
 }
 /* Une feuille plein écran (le direct, le bureau, le plateau) : sans voile, bord à bord. */
-.modal-backdrop.live { align-items: stretch; padding: 0; background: var(--scene), var(--noir); -webkit-backdrop-filter: none; backdrop-filter: none; }
-.live-sheet { display: flex; flex-direction: column; width: 100%; max-width: 900px; margin: 0 auto; height: 100dvh; background: var(--scene), var(--noir); }
+.modal-backdrop.live { align-items: stretch; padding: 0; background: var(--scene), var(--noir); -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--noir-pur); }
+.live-sheet { display: flex; flex-direction: column; width: 100%; max-width: 900px; margin: 0 auto; height: 100dvh; background: var(--scene), var(--noir); background: var(--noir-pur); }
 /* LE ROGUE, EN TÉLÉ (V23, la nouvelle interface) : un plateau noir, sans lueur ni cercle de glace ; la couleur vient des clubs. */
-body.mode-rogue .modal-backdrop.live, body.mode-rogue .live-sheet { background: var(--noir-pur); }
 /* Le plateau Sur table : la glace couvre tout, un fond uni dessous (rien à repeindre quand les pièces glissent). */
 #tableModal, #tableModal .table-sheet { background: var(--noir); }
 .live-top { display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-3) var(--esp-4); border-bottom: 1px solid var(--filet); background: var(--fond-1); }
@@ -3688,19 +3677,16 @@ a.spin-club:hover { background: var(--fond-2); }
    personnage en coin ; à côté, la jauge d'expérience, ses chiffres et sa règle. */
 .ej-coach-haut { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr); gap: var(--esp-3); align-items: center; padding: var(--esp-2) var(--esp-1) 0; }
 .ej-coach-cote { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
-.ej-coach-cote .ej-jauge { margin: 0 0 var(--esp-2); }
+.ej-coach-cote .pl-jauge { margin: 0 0 var(--esp-2); }
 .ej-rang b { font-size: var(--t-3); line-height: 1; margin-left: 2px; }
-.ej-jauge { position: relative; height: 6px; margin: var(--esp-2) var(--esp-3) var(--esp-3); border-radius: var(--r-1); background: var(--fond-3); }
-.ej-jauge i { display: block; height: 100%; border-radius: var(--r-1); background: var(--or); }
-.ej-jauge em { position: absolute; top: -2px; width: 2px; height: 10px; margin-left: -1px; background: var(--encre-3); }
-.ej-jauge em b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
-.ej-jauge em.fait { background: var(--encre); }
+.pl-jauge { position: relative; height: 6px; margin: var(--esp-2) var(--esp-3) var(--esp-3); border-radius: var(--r-1); background: var(--fond-3); }
+.pl-jauge i { display: block; height: 100%; border-radius: var(--r-1); background: var(--or); }
 .ej-coach-l { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
 /* LES POUVOIRS DU COACH (V21, js/alignement.js `coachHtml`) : une carte par pouvoir de son arbre — ouvert ou verrouillé (le niveau qui
    l'ouvre), ce qu'il fait, sa force, et combien de fois il a joué cette saison. */
 /* V23, la nouvelle interface : ses trois pouvoirs en cartes de front, l'icône en grand ; ouvert, un filet or et ce qu'il fait ;
    pas encore ouvert, éteint, le niveau qui l'ouvre au pied. */
-/* LE PLATEAU (nov. 2026) : ses trois pouvoirs en VRAIES cartes de jeu (`carteHtml`, js/plateau-rogue.js `carteLigne`), trois de
+/* LE PLATEAU (nov. 2026) : ses trois pouvoirs en VRAIES cartes de jeu (`carteHtml`, js/composants.js `carteLigne`), trois de
    front ; le coin dit combien de fois il a joué ou le niveau qui l'ouvre ; fermé, la carte s'éteint. */
 .pv-rang { margin-top: var(--esp-2); padding: 0 var(--esp-1); }
 /* TA MAIN D'ADJOINTS (V22, js/alignement.js `mainHtml`) : une seule rangée, les cases en poste puis la main, quatre cartes de
@@ -3736,9 +3722,9 @@ body > .fantome { position: fixed; z-index: 1000; margin: 0; pointer-events: non
 .af-onglet:not(.chiffres) .ej-coach-l.detail { display: none; }
 .ej-coach-l .bon { color: var(--bon); }
 .ej-coach-l .mal { color: var(--mauvais); }
-.plan-match { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
+.plan-match { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); padding: 0; margin-bottom: var(--esp-2); border: 0; border-radius: 0; background: none; }
 .pm-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
-.pm-tete span { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); text-transform: none; letter-spacing: 0; text-align: right; }
+.pm-tete span { font: 600 var(--t-1)/1.2 var(--display); color: var(--or); text-transform: none; letter-spacing: 0; text-align: right; font-size: var(--t-1); }
 .pm-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .pm-seg { display: flex; gap: 2px; flex-wrap: wrap; }
 .pm-btn { flex: 1 1 0; min-width: 44px; min-height: 44px; padding: var(--esp-1) var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2, transparent); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); white-space: nowrap; }
@@ -3750,7 +3736,7 @@ body > .fantome { position: fixed; z-index: 1000; margin: 0; pointer-events: non
 .pm-filet .pm-btn .jambes { width: 100%; }
 .pm-filet .pm-btn.on .jambes, .pm-filet .pm-btn.on .jambes :is(b, .jambes-k, .jambes-mot) { color: inherit; }
 /* Tes unités spéciales (V7) : un panneau comme celui du filet ; une bande par unité, ses minutes et ses stats, une rangée par joueur. */
-.unites-speciales { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
+.unites-speciales { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); padding: 0; margin-bottom: var(--esp-2); border: 0; border-radius: 0; background: none; }
 .unites-speciales .pm-tete { align-items: center; }
 .us-auto { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-1); }
 .us-unite { display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-1); overflow: hidden; }
@@ -3988,17 +3974,17 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
    (`carteDeLaCase`, js/alignement.js) : la carte dit son nom, son club, sa photo et son édition ; dessous, la bande (ses
    positions, son salaire) puis les verdicts de la rangée (son badge, son chiffre clé, son niveau, sa zone, ses jambes).
    Toucher la carte l'ouvre ; toucher les verdicts choisit la case. Hors du Rogue, aucune carte : la rangée reste. ---- */
-#rosterBoard.en-cartes .line-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); padding: var(--esp-2); background: none; }
-#rosterBoard.en-cartes .line-slots.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-#rosterBoard.en-cartes .slot { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: "carte" "band" "info"; align-content: start; overflow: visible; background: none; }
-#rosterBoard.en-cartes .slot:active { transform: none; }
+#rosterBoard .line:has(.case-carte) .line-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); padding: var(--esp-2); background: none; }
+#rosterBoard .line:has(.case-carte) .line-slots.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#rosterBoard .line:has(.case-carte) .slot { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: "carte" "band" "info"; align-content: start; overflow: visible; background: none; }
+#rosterBoard .line:has(.case-carte) .slot:active { transform: none; }
 .slot-carte { position: relative; grid-area: carte; justify-self: center; width: min(100%, 128px); padding: 0; border: 0; border-radius: 4.5% / 3.2%; background: none; cursor: pointer; transition: transform var(--t-vite); filter: drop-shadow(0 2px 4px color-mix(in srgb, black 60%, transparent)); }
 .slot-carte:active { transform: scale(0.97); }
 /* La case choisie (à déplacer) : sa carte se lève, cernée. */
-#rosterBoard.en-cartes .slot.selected { outline: 0; transform: none; }
+#rosterBoard .line:has(.case-carte) .slot.selected { outline: 0; transform: none; }
 .slot.selected .slot-carte { transform: translateY(-6px); outline: 2px solid var(--choisi); outline-offset: 2px; }
 /* La carte qu'on glisse au-dessus : celle dessous se lève pour la prendre, ou se ternit en rouge. */
-#rosterBoard.en-cartes .slot:not(.empty):is(.survol, .refus) { outline: 0; }
+#rosterBoard .line:has(.case-carte) .slot:not(.empty):is(.survol, .refus) { outline: 0; }
 .slot.survol .slot-carte { transform: translateY(-6px); outline: 2px solid var(--or); outline-offset: 2px; }
 .slot.refus .slot-carte { outline: 2px solid var(--mauvais); outline-offset: 2px; opacity: 0.6; }
 /* À la souris, la main dit qu'elle se prend (un clic l'ouvre toujours) ; un renfort ne bouge pas. */
@@ -4006,8 +3992,8 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
 /* Les cartes posées sur lui, en pastilles à cheval sur le pied de la carte. */
 .slot-posees { position: absolute; z-index: 1; left: 50%; bottom: -8px; transform: translateX(-50%); display: flex; gap: 2px; }
 .slot-posees i { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--or); border-radius: 50%; background: var(--noir); font: normal var(--t-1)/1 var(--display); }
-#rosterBoard.en-cartes .slot-band { grid-area: band; width: auto; flex-direction: row; justify-content: space-between; gap: var(--esp-1); min-height: 0; margin-top: var(--esp-2); padding: 2px var(--esp-1); background: none; box-shadow: inset 0 -1px 0 var(--filet); }
-#rosterBoard.en-cartes .slot-inner { grid-area: info; display: flex; flex-direction: column; align-items: stretch; gap: 3px; padding: var(--esp-1) var(--esp-1) 0; background: none; }
+#rosterBoard .line:has(.case-carte) .slot-band { grid-area: band; width: auto; flex-direction: row; justify-content: space-between; gap: var(--esp-1); min-height: 0; margin-top: var(--esp-2); padding: 2px var(--esp-1); background: none; box-shadow: inset 0 -1px 0 var(--filet); }
+#rosterBoard .line:has(.case-carte) .slot-inner { grid-area: info; display: flex; flex-direction: column; align-items: stretch; gap: 3px; padding: var(--esp-1) var(--esp-1) 0; background: none; }
 .sc-qui { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px var(--esp-1); min-width: 0; }
 .sc-qui > .cell-role { flex: 0 1 auto; }
 .sc-cle { display: flex; flex-wrap: wrap; align-items: baseline; }
@@ -4015,9 +4001,9 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
 .sc-cle > .cell-sec { text-align: left; }
 .sc-verdicts { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-1); min-width: 0; }
 /* Le ✕ qui relâche un réserviste : au coin de sa carte. */
-#rosterBoard.en-cartes .slot-remove { top: 2px; right: 2px; transform: none; }
+#rosterBoard .case-carte .slot-remove { top: 2px; right: 2px; transform: none; }
 /* Une case vide : la place d'une carte, en pointillés. */
-#rosterBoard.en-cartes .slot.empty { display: flex; flex-direction: column; justify-content: center; align-items: center; justify-self: center; width: min(100%, 128px); aspect-ratio: 5 / 7; padding: var(--esp-2); border: 1px dashed var(--filet); border-radius: 4.5% / 3.2%; text-align: center; }
+#rosterBoard .slot.case-carte.empty { display: flex; flex-direction: column; justify-content: center; align-items: center; justify-self: center; width: min(100%, 128px); aspect-ratio: 5 / 7; padding: var(--esp-2); border: 1px dashed var(--filet); border-radius: 4.5% / 3.2%; text-align: center; }
 /* LE PLATEAU (nov. 2026 ; JP : *refais tous les écrans* ; la direction A) : au téléphone, les cartes remplissent leur colonne
    et ce qui se lit dessous tient en deux lignes — la bande (le poste, le salaire), le badge et le niveau, les verdicts, les
    jambes en chiffre ; le chiffre clé et le mot des jambes attendent la fiche. Deux trios et demi par écran, pas un. */
@@ -4025,35 +4011,34 @@ body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="
 @media (max-width: 999.98px) {
   /* Le trio : son nom debout dans une colonne de 22 px, à la couleur de son état (vert à sa place, rouge mal placé) ; trois
      cartes pleine colonne ; sous chacune, une seule ligne. Ce que l'en-tête disait d'autre et l'affinité attendent le grand écran. */
-  body.mode-rogue #rosterBoard.en-cartes .line { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; border: 0; border-radius: 0; background: none; box-shadow: none; margin-bottom: var(--esp-2); }
-  body.mode-rogue #rosterBoard.en-cartes .line-head { grid-row: 1 / span 3; align-self: stretch; display: grid; place-items: center; min-height: 0; padding: var(--esp-1) 0; border: 0; border-right: 2px solid var(--filet-2); writing-mode: vertical-rl; rotate: 180deg; }
-  body.mode-rogue #rosterBoard.en-cartes .line-head > :not(.line-name) { display: none; }
-  body.mode-rogue #rosterBoard.en-cartes .line-name { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; color: var(--encre-3); white-space: nowrap; }
-  body.mode-rogue #rosterBoard.en-cartes .line-court { display: inline; margin-left: 4px; font-weight: 700; letter-spacing: 0.08em; text-transform: none; }
-  body.mode-rogue #rosterBoard.en-cartes .line.good .line-head { border-right-color: var(--bon); }
-  body.mode-rogue #rosterBoard.en-cartes .line.good .line-name { color: var(--bon); }
-  body.mode-rogue #rosterBoard.en-cartes .line.bad .line-head { border-right-color: var(--mauvais); }
-  body.mode-rogue #rosterBoard.en-cartes .line.bad .line-name { color: var(--mauvais); }
-  body.mode-rogue #rosterBoard.en-cartes .line-slots { gap: var(--esp-1); padding: 0 0 0 var(--esp-1); }
-  body.mode-rogue #rosterBoard.en-cartes :is(.slot-carte, .slot.empty) { width: 100%; }
-  body.mode-rogue #rosterBoard.en-cartes :is(.slot-band, .sc-qui, .sc-cle, .sc-verdicts, .slot-inner > .jambes, .ln-aff) { display: none; }
-  body.mode-rogue #rosterBoard.en-cartes .roster { gap: 0; }
-  body.mode-rogue #rosterBoard.en-cartes .line { margin-bottom: var(--esp-1); }
-  body.mode-rogue #rosterBoard.en-cartes .slot-inner { gap: 0; padding: 2px 0 0; }
-  body.mode-rogue #rosterBoard.en-cartes .sc-ligne { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px 3px; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); text-align: center; }
-  body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes { flex: none; gap: 2px; font-size: var(--t-1); white-space: nowrap; }
-  body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes :is(.jambes-k, i) { display: none; }
-  body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes .jambes-mot { display: none; }
-  body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes::before { content: "·"; }
-  body.mode-rogue #rosterBoard.en-cartes .sc-ligne .jambes b { font-size: var(--t-1); min-width: 0; color: var(--encre); }
-  body.mode-rogue #rosterBoard.en-cartes .sc-ligne .tag { padding: 0 3px; font-size: var(--t-1); }
+  #rosterBoard .line:has(.case-carte) { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: start; border: 0; border-radius: 0; background: none; box-shadow: none; margin-bottom: var(--esp-2); }
+  #rosterBoard .line:has(.case-carte) .line-head { grid-row: 1 / span 3; align-self: stretch; display: grid; place-items: center; min-height: 0; padding: var(--esp-1) 0; border: 0; border-right: 2px solid var(--filet-2); writing-mode: vertical-rl; rotate: 180deg; }
+  #rosterBoard .line:has(.case-carte) .line-head > :not(.line-name) { display: none; }
+  #rosterBoard .line:has(.case-carte) .line-name { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; color: var(--encre-3); white-space: nowrap; }
+  #rosterBoard .line:has(.case-carte) .line-court { display: inline; margin-left: 4px; font-weight: 700; letter-spacing: 0.08em; text-transform: none; }
+  #rosterBoard .line:has(.case-carte).good .line-head { border-right-color: var(--bon); }
+  #rosterBoard .line:has(.case-carte).good .line-name { color: var(--bon); }
+  #rosterBoard .line:has(.case-carte).bad .line-head { border-right-color: var(--mauvais); }
+  #rosterBoard .line:has(.case-carte).bad .line-name { color: var(--mauvais); }
+  #rosterBoard .line:has(.case-carte) .line-slots { gap: var(--esp-1); padding: 0 0 0 var(--esp-1); }
+  #rosterBoard .line:has(.case-carte) :is(.slot-carte, .slot.empty) { width: 100%; }
+  #rosterBoard .line:has(.case-carte) :is(.slot-band, .sc-qui, .sc-cle, .sc-verdicts, .slot-inner > .jambes, .ln-aff) { display: none; }
+  #rosterBoard .roster:has(.case-carte) { gap: 0; }
+  #rosterBoard .line:has(.case-carte) { margin-bottom: var(--esp-1); }
+  #rosterBoard .line:has(.case-carte) .slot-inner { gap: 0; padding: 2px 0 0; }
+  #rosterBoard .line:has(.case-carte) .sc-ligne { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px 3px; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); text-align: center; }
+  #rosterBoard .line:has(.case-carte) .sc-ligne .jambes { flex: none; gap: 2px; font-size: var(--t-1); white-space: nowrap; }
+  #rosterBoard .line:has(.case-carte) .sc-ligne .jambes :is(.jambes-k, i) { display: none; }
+  #rosterBoard .line:has(.case-carte) .sc-ligne .jambes .jambes-mot { display: none; }
+  #rosterBoard .line:has(.case-carte) .sc-ligne .jambes::before { content: "·"; }
+  #rosterBoard .line:has(.case-carte) .sc-ligne .jambes b { font-size: var(--t-1); min-width: 0; color: var(--encre); }
+  #rosterBoard .line:has(.case-carte) .sc-ligne .tag { padding: 0 3px; font-size: var(--t-1); }
   /* La ligne ne garde que ce qui alerte (▲ ▼ ↔ 🩹) : la zone en mots, le ✓, les traits et les départs attendent la fiche et le grand écran. */
-  body.mode-rogue #rosterBoard.en-cartes .sc-ligne :is(.tag-zone, .cell-zone.ok, .cell-trait, .cell-departs) { display: none; }
-  body.mode-rogue #rosterBoard.en-cartes .slot-remove { top: 0; right: 0; }
+  #rosterBoard .line:has(.case-carte) .sc-ligne :is(.tag-zone, .cell-zone.ok, .cell-trait, .cell-departs) { display: none; }
 }
 /* Les liens entre deux voisins : sur l'écart des deux cartes ; celui des ailiers, au haut de la carte du centre. */
-#rosterBoard.en-cartes .lien-place { position: absolute; top: 28%; left: calc(100% * var(--k) / var(--n)); margin-top: 0; }
-#rosterBoard.en-cartes .slot > .lien-ailes { left: 50%; top: 0; bottom: auto; transform: translate(-50%, -30%); }
+#rosterBoard .line:has(.case-carte) .lien-place { position: absolute; top: 28%; left: calc(100% * var(--k) / var(--n)); margin-top: 0; }
+#rosterBoard .line:has(.case-carte) .slot > .lien-ailes { left: 50%; top: 0; bottom: auto; transform: translate(-50%, -30%); }
 /* Rien d'écrit au-dessus des trios (1.0, R3) : ni titre, ni résumé — l'en-tête dit la masse et le compte, chaque trio dit s'il est à sa place. */
 .pane-roster .pane-title, .team-summary { display: none; }
 body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: var(--esp-3); }
@@ -4075,32 +4060,32 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
   /* En Rogue, la carte à gauche de sa bande et de ses verdicts : trois cases de front y ont la place. Elle grandit avec le
      volet (JP : *ya beaucoup d'espacement weird, grossir les cartes sur gros écrans*), ses verdicts gardent une colonne de
      lecture, et la paire se centre dans sa case plutôt que de laisser le vide d'un tiers d'écran à droite. */
-  #rosterBoard.en-cartes .slot { --carte: clamp(112px, 11.5cqi, 210px); grid-template-columns: var(--carte) minmax(0, 300px); grid-template-rows: 1fr auto auto 1fr; grid-template-areas: "carte ." "carte band" "carte info" "carte ."; justify-self: center; width: max-content; max-width: 100%; column-gap: var(--esp-3); }
-  #rosterBoard.en-cartes .slot-carte, #rosterBoard.en-cartes .slot.empty { width: var(--carte); }
-  #rosterBoard.en-cartes .slot-band { margin-top: 0; }
-  #rosterBoard.en-cartes .sc-cle > .cell-prod { font-size: var(--t-4); }
-  #rosterBoard.en-cartes .slot-remove { right: auto; left: calc(var(--carte) - 30px); }
-  #rosterBoard.en-cartes .lien-place { top: 50%; }
+  #rosterBoard .line:has(.case-carte) .slot { --carte: clamp(112px, 11.5cqi, 210px); grid-template-columns: var(--carte) minmax(0, 300px); grid-template-rows: 1fr auto auto 1fr; grid-template-areas: "carte ." "carte band" "carte info" "carte ."; justify-self: center; width: max-content; max-width: 100%; column-gap: var(--esp-3); }
+  #rosterBoard .line:has(.case-carte) .slot-carte, #rosterBoard .slot.case-carte.empty { width: var(--carte); }
+  #rosterBoard .line:has(.case-carte) .slot-band { margin-top: 0; }
+  #rosterBoard .line:has(.case-carte) .sc-cle > .cell-prod { font-size: var(--t-4); }
+  #rosterBoard .case-carte .slot-remove { right: auto; left: calc(var(--carte) - 30px); top: 0; right: 0; }
+  #rosterBoard .line:has(.case-carte) .lien-place { top: 50%; }
   /* LA DÉFENSE ET LE FILET EN LARGE (JP : *check les defs, comme c'est laid l'espace vide*) : une paire n'a que deux cartes
      sur une largeur faite pour trois. Les trois paires vont donc côte à côte, les gardiens à côté de la réserve, chaque
      carte debout, ses verdicts dessous, comme au téléphone : l'onglet tient en un écran, sans vide. */
-  body[data-effectif="D"] #rosterBoard.en-cartes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  body[data-effectif="G"] #rosterBoard.en-cartes { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
-  #rosterBoard.en-cartes > :is(.ln-auto, .plan-match) { grid-column: 1 / -1; }
-  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes .slot { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: "carte" "band" "info"; justify-self: stretch; width: auto; }
-  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes :is(.slot-carte, .slot.empty) { width: min(100%, var(--carte)); justify-self: center; }
-  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes .slot-band { margin-top: var(--esp-2); }
-  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes .slot-remove { right: auto; left: calc(50% + min(100%, var(--carte)) / 2 - 30px); }
+  body[data-effectif="D"] #rosterBoard .line:has(.case-carte) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body[data-effectif="G"] #rosterBoard .line:has(.case-carte) { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+  #rosterBoard .line:has(.case-carte) > :is(.ln-auto, .plan-match) { grid-column: 1 / -1; }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard .line:has(.case-carte) .slot { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: "carte" "band" "info"; justify-self: stretch; width: auto; }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard .line:has(.case-carte) :is(.slot-carte, .slot.empty) { width: min(100%, var(--carte)); justify-self: center; }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard .line:has(.case-carte) .slot-band { margin-top: var(--esp-2); }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard .case-carte .slot-remove { right: auto; left: calc(50% + min(100%, var(--carte)) / 2 - 30px); }
   /* La réserve sur une rangée, la case à débloquer comprise. */
-  body[data-effectif="G"] #rosterBoard.en-cartes .line-slots:not(.pair) { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
-  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard.en-cartes .lien-place { top: 28%; }
+  body[data-effectif="G"] #rosterBoard .line:has(.case-carte) .line-slots:not(.pair) { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+  body:is([data-effectif="D"], [data-effectif="G"]) #rosterBoard .line:has(.case-carte) .lien-place { top: 28%; }
 }
 /* Le résumé de l'onglet Équipe sur une ligne dès qu'il y a la place. */
 @container roster (min-width: 600px) { body[data-effectif="E"] .team-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 
 
 /* =====================================================================
-   LE PLATEAU DU ROGUE (4 nov. 2026 ; js/plateau-rogue.js). Les composants de la maquette A, écrits une fois, sans
+   LE PLATEAU DU ROGUE (4 nov. 2026 ; js/composants.js). Les composants de la maquette A, écrits une fois, sans
    rien emprunter aux panneaux, pilules et tableaux d'avant : chaque page du Rogue en est faite, et
    scripts/check_plateau.mjs refuse une page qui ne l'est pas. Rien ici ne surcharge une classe du 82-0.
    ===================================================================== */
@@ -4109,7 +4094,7 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-bandeau-d { color: var(--encre-2); text-align: right; }
 /* Les jetons : une rangée de choix, le choisi à la couleur du club, encre noire — jamais une pilule blanche. */
 .pl-jetons { display: flex; flex-wrap: wrap; gap: var(--esp-1); margin-bottom: var(--esp-2); }
-.pl-jeton { flex: none; min-height: 32px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; }
+.pl-jeton { flex: none; min-height: 44px; padding: 0 var(--esp-3); border: 0; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; }
 .pl-jeton span { margin-left: 2px; font-size: 0.9em; opacity: 0.8; }
 .pl-jeton.on { background: var(--club-vif); color: var(--noir-pur); }
 .pl-jeton.pl-ton-rouge { color: var(--mauvais); }
@@ -4239,9 +4224,9 @@ body.hub-docke .hub-sheet { max-width: none; }
 body.hub-docke:not(.mode-table) .hub-sheet .hub-head { display: none; }
 body.hub-docke:not(.mode-table) .hub-sheet .live-top { justify-content: flex-end; }
 body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { display: none; }
-.hub-carte { flex: none; padding: var(--esp-3) var(--esp-3) 0; container-type: inline-size; container-name: carte; }
+.hub-carte { flex: none; padding: var(--esp-3) var(--esp-3) 0; container-type: inline-size; container-name: carte; background-image: radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--club-vif) 14%, transparent), transparent 70%); }
 .hub-carte:empty { display: none; }
-.hub-volet { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
+.hub-volet { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); background-image: radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--club-vif) 14%, transparent), transparent 70%); }
 .hub-volet > * { flex: none; }
 /* LA JAUGE DU PROPRIO (V23, la nouvelle interface) : pas une boîte — une ligne de télé, le mandat et ton rang, et sous
    eux la ligue en jauge : ta place remplie (verte dans la cible, rouge dehors), le trait blanc de la cible. */
@@ -4290,8 +4275,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
    Ton plan, au Bureau, en est une (la feuille des six plans). Toujours visible, 44 px au moins, à coins vifs. */
 .hub-rangee { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: 0; background: var(--fond-2); text-align: left; font: 700 var(--t-2)/1.2 var(--display); color: var(--encre-2); }
 .hub-rangee::after { content: "›"; flex: none; margin-left: auto; font-size: var(--t-4); color: var(--or); }
-.hub-rangee-t { flex: none; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .hub-rangee-t { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-rangee-t { flex: none; letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
 .hub-rangee b { flex: 1; min-width: 0; color: var(--encre); overflow-wrap: anywhere; }
 /* Ton plan, sous l'affiche : une bande pleine largeur elle aussi, sans cadre. */
 /* L'ÉTAT DU SOIR (nov. 2026 ; JP : *where the infos are*) : ce qui pèse ce soir — sonnés, la lancée, un dos-à-dos — en jetons sous l'affiche.
@@ -4310,14 +4294,12 @@ body.mode-rogue .hub-rangee-t { font-weight: 600; letter-spacing: 0.02em; text-t
 .hub-hier-pointage { font: 900 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hub-hier-pointage > span { color: var(--encre-2); }
 .hub-hier-pointage small { margin-left: 2px; font-size: var(--t-1); color: var(--encre-3); }
-.hub-hier-mot { min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.mode-rogue .hub-hier-mot { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
-.hub-hier-ligne .hub-hier-voir { padding-right: var(--esp-3); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
-body.mode-rogue .hub-hier-ligne .hub-hier-voir { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-hier-mot { min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.hub-hier-ligne .hub-hier-voir { padding-right: var(--esp-3); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; font-weight: 600; }
 .hub-hier-ligne.neuf { animation: hier-neuf 200ms var(--e-ressort) both; }
 /* LA ROUTE (V8) : deux semaines, un arrêt par match, le gros match en or, le lundi, le pack gratuit. */
 .bu-route { padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
-/* LE PLATEAU (nov. 2026) : chaque arrêt est un BILLET de match (js/plateau-rogue.js `billet`) ; le palier 🎁 en coin. */
+/* LE PLATEAU (nov. 2026) : chaque arrêt est un BILLET de match (js/composants.js `billet`) ; le palier 🎁 en coin. */
 .rt-pack { font-size: var(--t-3); }
 @media (max-width: 1199.98px) {
   body.hub-docke .hub-sheet { overflow-y: auto; overscroll-behavior: contain; }
@@ -4344,10 +4326,10 @@ body.mode-rogue .hub-hier-ligne .hub-hier-voir { font-weight: 600; letter-spacin
   /* Sous le volet, la place du bouton flottant (`.hub-flottant`) : défilé au bout, le dernier rang se lit. */
   body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: calc(var(--flottant-h) + 2 * var(--esp-3)); }
   /* V23, la nouvelle interface : au Rogue, hier soir se lit entre l'affiche et ta main, comme une émission d'avant-match. */
-  body.mode-rogue.hub-docke .hub-sheet .hub-volet { order: 1; flex: 0 0 auto; padding-bottom: 0; }
+  body.hub-docke .hub-sheet .hub-volet { order: 1; flex: 0 0 auto; padding-bottom: 0; }
   /* Au Calendrier du Rogue, la route et le calendrier d'abord ; le rapport et ton style après. */
-  body.mode-rogue .hub-sheet[data-vue="saison"] .hub-volet > :is(.hub-rangee, .entracte) { order: 5; }
-  body.mode-rogue.hub-docke .hub-sheet .hub-boite { flex: 1 0 auto; }
+  body .hub-sheet[data-vue="saison"] .hub-volet > :is(.hub-rangee, .entracte) { order: 5; }
+  body.hub-docke .hub-sheet .hub-boite { flex: 1 0 auto; }
   /* Hors de « Match », le volet seul : l'affiche, la boîte et les boutons appartiennent au Bureau. */
   body.hub-docke .hub-sheet:not([data-vue="match"]) :is(.hub-carte, .hub-actions) { display: none; }
   body.hub-docke .hub-sheet .hub-actions { overflow: visible; min-height: auto; }
@@ -4377,10 +4359,8 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-page-retour:hover, .hub-page-retour:focus-visible { background: var(--fond-2); }
 .hub-page-ico { flex: none; font-size: var(--t-4); line-height: 1; }
 .hub-page-titres { flex: 1 1 auto; min-width: 0; }
-.hub-page-titre { margin: 0; font: 800 var(--t-4)/1.05 var(--display); letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.mode-rogue .hub-page-titre { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
-.hub-page-sous { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
-body.mode-rogue .hub-page-sous { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-page-titre { margin: 0; font: 800 var(--t-4)/1.05 var(--display); letter-spacing: 0.02em; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.hub-page-sous { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-2); font-weight: 600; }
 .hub-page-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
 .hub-page-corps > * { flex: none; }
 .hub-page-pied { position: sticky; bottom: 0; z-index: 3; padding-bottom: calc(var(--esp-3) + var(--safe-bas)); }
@@ -4431,8 +4411,7 @@ body.mode-rogue .hub-page-sous { font-weight: 600; letter-spacing: 0.02em; text-
 .hub-vedette-txt small { font: 700 var(--t-1)/1.2 var(--display); color: var(--encre-2); }
 .hub-eq-band { display: flex; align-items: center; gap: var(--esp-2); max-width: 100%; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .hub-eq.b .hub-eq-band { flex-direction: row-reverse; }
-.hub-eq-nom { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.mode-rogue .hub-eq-nom { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-eq-nom { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .hub-eq-nom .lien-equipe { color: inherit; max-width: 100%; }
 .hub-eq-fiche { max-width: 100%; margin-top: var(--esp-1); font: 700 var(--t-2)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* La forme : cinq lettres colorées sur UNE bande sombre sous les deux clubs, lisibles sur n'importe quelle couleur ;
@@ -4446,19 +4425,15 @@ body.mode-rogue .hub-eq-nom { font-weight: 600; letter-spacing: 0.02em; text-tra
 .hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); }
 .hub-forces { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); }
 .hub-forces table { width: 100%; border-collapse: collapse; table-layout: fixed; font: 700 var(--t-2)/1.3 var(--display); font-variant-numeric: tabular-nums; }
-.hub-forces caption { caption-side: top; padding-bottom: var(--esp-1); text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .hub-forces caption { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-forces caption { caption-side: top; padding-bottom: var(--esp-1); text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
 .hub-forces th, .hub-forces td { padding: 2px 0; text-align: center; color: var(--encre-2); }
-.hub-forces tbody th { width: 22%; text-align: left; letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.mode-rogue .hub-forces tbody th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-forces tbody th { width: 22%; text-align: left; letter-spacing: 0.02em; text-transform: none; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .hub-forces td.av.moi { color: var(--bon); }
 .hub-forces td.av.lui { color: var(--mauvais); }
 /* Le duel du soir (V7) : ta colonne à gauche, la leur à droite, le libellé au centre ; le meilleur s'allume. */
 table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hub-duel-titre { padding: var(--esp-2) var(--esp-3) var(--esp-1); border-top: 1px solid var(--filet-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .hub-duel-titre { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
-.hub-duel th { padding: 6px var(--esp-2); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); text-align: center; }
-body.mode-rogue .hub-duel th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-duel-titre { padding: var(--esp-2) var(--esp-3) var(--esp-1); border-top: 1px solid var(--filet-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
+.hub-duel th { padding: 6px var(--esp-2); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); text-align: center; font-weight: 600; }
 .hub-duel td { width: 30%; padding: 6px var(--esp-3); font: 800 var(--t-3)/1 var(--display); color: var(--encre-2); }
 .hub-duel td.g { text-align: left; }
 .hub-duel td.d { text-align: right; }
@@ -4476,8 +4451,7 @@ body.mode-rogue .hub-duel th { font-weight: 600; letter-spacing: 0.02em; text-tr
 .hub-match-note { padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 /* « Soir éreintant » : le seul badge, en or, parce qu'il change les règles du soir. */
 .hub-match-note.hub-ereintant { align-self: flex-start; margin: 0 var(--esp-3) var(--esp-2); padding: var(--esp-1) var(--esp-2); border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
-.hub-totaux { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2); padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); cursor: help; }
-body.mode-rogue .hub-totaux { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-totaux { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2); padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-2); cursor: help; font-weight: 600; }
 .hub-totaux b { color: var(--encre); }
 .hub-encours { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 .hub-soir-gestes { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) var(--esp-3); }
@@ -4509,7 +4483,7 @@ body.mode-rogue .hub-totaux { font-weight: 600; letter-spacing: 0.02em; text-tra
 .hub-une { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--esp-3); row-gap: var(--esp-1); margin: 0 0 var(--esp-2); padding: 0 var(--esp-3) 0 0; border: 1px solid var(--filet); border-radius: var(--r-1); overflow: hidden; background: var(--noir); font-size: var(--t-2); line-height: 1.3; animation: tele-balaie 420ms 120ms var(--e-sortie) both; }
 .hub-une > :not(.hub-une-t) { grid-column: 2; }
 .hub-une > b { font: 800 var(--t-4)/1.15 var(--display); letter-spacing: 0.02em; padding: var(--esp-2) 0; }
-.hub-une-t { grid-row: 1 / span 3; align-self: stretch; display: flex; align-items: center; padding: 0 var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; writing-mode: vertical-rl; transform: rotate(180deg); }
+.hub-une-t { grid-row: 1 / span 3; align-self: stretch; display: flex; align-items: center; padding: 2px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; writing-mode: horizontal-tb; transform: rotate(180deg); rotate: none; }
 .hub-une-but { color: var(--encre-2); font-style: italic; }
 .hub-une-voix { color: var(--encre-2); }
 .hub-miniboss { margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--mauvais); background: color-mix(in srgb, var(--mauvais) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
@@ -4530,8 +4504,7 @@ body.mode-rogue .hub-totaux { font-weight: 600; letter-spacing: 0.02em; text-tra
 .hub-actions-rang .btn { flex: 1 1 120px; min-width: 0; padding: 0 var(--esp-2); font-size: var(--t-3); }
 /* Le tournoi Sur table : le niveau de l'adversaire, une rangée à lui sous les boutons. */
 .hub-niveau { flex: 1 1 100%; display: flex; align-items: center; justify-content: center; gap: var(--esp-2); }
-.hub-niveau-t { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
-body.mode-rogue .hub-niveau-t { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-niveau-t { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-2); font-weight: 600; }
 .hub-niveau .seg button { min-height: 44px; }
 
 /* ---- À faire (V9 ; V21, une boîte de réception) : une ligne par choix ; la toucher l'ouvre en plein écran ---- */
@@ -4540,8 +4513,7 @@ body.mode-rogue .hub-niveau-t { font-weight: 600; letter-spacing: 0.02em; text-t
 .hub-boite.vide { display: none; }
 .hub-boite-tete { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); }
 .hub-boite-titre { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
-.hub-boite-compte { display: flex; gap: var(--esp-3); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
-body.mode-rogue .hub-boite-compte { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-boite-compte { display: flex; gap: var(--esp-3); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; font-weight: 600; }
 .hub-boite-compte .a-traiter { color: var(--mauvais); }
 .hub-boite-compte .a-jour { color: var(--encre-3); }
 /* V23 (JP : *trop de texte dans les pages genre boîte*) : un choix est une carte à jouer, pas un courriel — sa voix (son
@@ -4559,17 +4531,14 @@ body.mode-rogue .hub-boite-compte { font-weight: 600; letter-spacing: 0.02em; te
 .hub-msg.bloque { border-top-color: var(--mauvais); }
 .hub-msg:hover, .hub-msg:focus-within { z-index: 2; rotate: 0deg; translate: 0 -12px; }
 .hub-msg-tete { width: 100%; min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; gap: var(--esp-1); padding: var(--esp-2) var(--esp-2) var(--esp-2); border: 0; background: none; color: var(--encre); text-align: center; }
-.hub-msg-maison { align-self: stretch; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.mode-rogue .hub-msg-maison { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-msg-maison { align-self: stretch; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .hub-msg-ico { flex: none; display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 50%; background: var(--fond-3); font-size: var(--t-5); line-height: 1; color: var(--encre); }
 .hub-msg-visage { width: 52px; height: 52px; }
 .hub-msg-txt { min-width: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.hub-msg-de { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .hub-msg-de { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-msg-de { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
 .hub-msg-sujet { font: 800 var(--t-2)/1.1 var(--display); letter-spacing: 0.01em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 /* Son état, un tampon au pied : « À choisir » sur le rouge quand il presse. */
-.hub-msg-etat { flex: none; display: inline-flex; align-items: center; padding: 2px var(--esp-2); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; background: var(--or); color: var(--encre-sur-or); }
-body.mode-rogue .hub-msg-etat { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-msg-etat { flex: none; display: inline-flex; align-items: center; padding: 2px var(--esp-2); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; background: var(--or); color: var(--encre-sur-or); font-weight: 600; }
 .hub-msg-etat:empty { display: none; }
 .hub-msg.bloque .hub-msg-etat { background: var(--mauvais); color: var(--blanc); }
 .hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -4577,8 +4546,7 @@ body.mode-rogue .hub-msg-etat { font-weight: 600; letter-spacing: 0.02em; text-t
 .af-maison + .af-maison { margin-top: var(--esp-3); }
 .af-maison-tete { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-1); color: var(--encre-2); }
 .af-maison-ico { flex: none; font-size: var(--t-3); }
-.af-maison-titre { flex: 1; min-width: 0; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
-body.mode-rogue .af-maison-titre { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.af-maison-titre { flex: 1; min-width: 0; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; font-weight: 600; }
 .af-maison-compte { flex: none; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 /* LE SOUS-ONGLET D'UNE MAISON : ce qu'il montre toujours (V12-2), sans tête — l'onglet le nomme déjà ; ses choix se règlent dans la boîte. */
 .af-onglet { display: flex; flex-direction: column; gap: var(--esp-3); }
@@ -4590,8 +4558,7 @@ body.mode-rogue .af-maison-titre { font-weight: 600; letter-spacing: 0.02em; tex
 /* V23, la nouvelle interface : la scène est un bandeau de télé — la voix sur sa plaque d'or, sa réplique en grand sur une bande sombre, le fait dessous. */
 .scene { display: flex; flex-direction: column; gap: var(--esp-1); margin: 0; padding: var(--esp-3) var(--esp-3) var(--esp-2); border-radius: var(--r-1); background: var(--fond-1); box-shadow: inset 4px 0 0 var(--or); }
 /* La voix en bandeau de nom, comme une entrevue à la télé : sa plaque d'or, puis sa phrase qui monte. */
-.scene-de { align-self: flex-start; padding: 3px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; animation: tele-balaie 360ms var(--e-sortie) both; }
-body.mode-rogue .scene-de { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.scene-de { align-self: flex-start; padding: 3px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; animation: tele-balaie 360ms var(--e-sortie) both; font-weight: 600; }
 .scene-mot { margin: 0; font: 800 var(--t-4)/1.25 var(--corps); color: var(--encre); animation: tele-monte 360ms 160ms var(--e-sortie) both; }
 .scene-fait { margin: 0; font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .af-chiffres { align-self: center; }
@@ -4618,8 +4585,7 @@ body.mode-rogue .scene-de { font-weight: 600; letter-spacing: 0.02em; text-trans
 .hub-mv-j { margin-right: 3px; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 /* Le rapport du dépisteur : vert ce qui marche, rouge ce qui coule. */
 .hub-rapport { display: flex; flex-direction: column; gap: var(--esp-1); }
-.hub-rap-s { margin-top: var(--esp-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .hub-rap-s { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-rap-s { margin-top: var(--esp-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
 .hub-rap-l { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 .hub-rap-l.bon { color: var(--bon); }
 .hub-rap-l.prix { color: var(--mauvais); }
@@ -4656,12 +4622,11 @@ body.mode-rogue .hub-rap-s { font-weight: 600; letter-spacing: 0.02em; text-tran
 
 /* ---- Le volet : les titres, hier soir, l'état de la saison, ce qui se plie ---- */
 .hub-titre { display: flex; align-items: center; gap: var(--esp-2); margin-top: var(--esp-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }
-.hub-titre::before { content: ""; flex: none; width: 3px; height: 12px; background: var(--club-vif); }
-.hub-titre::after { content: ""; flex: 1; height: 1px; background: var(--filet); }
+.hub-titre::before { content: ""; flex: none; width: 3px; height: 12px; background: var(--club-vif); display: none; }
+.hub-titre::after { content: ""; flex: 1; height: 1px; background: var(--filet); display: none; }
 .hub-titre:first-child { margin-top: 0; }
 .hub-hier { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0; row-gap: var(--esp-1); padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
-.hub-hier-quand { grid-row: 1 / span 2; display: flex; align-items: center; justify-content: center; padding: var(--esp-2) 6px; writing-mode: vertical-rl; rotate: 180deg; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; background: var(--filet); color: var(--blanc); }
-body.mode-rogue .hub-hier-quand { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-hier-quand { grid-row: 1 / span 2; display: flex; align-items: center; justify-content: center; padding: var(--esp-2) 6px; writing-mode: vertical-rl; rotate: 180deg; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.02em; text-transform: none; background: var(--filet); color: var(--blanc); font-weight: 600; }
 .hub-hier.v .hub-hier-quand { background: var(--bon); color: var(--noir-pur); }
 .hub-hier.d .hub-hier-quand { background: var(--mauvais); }
 .hub-hier.v.neuf .hub-hier-score { animation: score-pop 600ms var(--e-ressort) 150ms backwards; }
@@ -4674,12 +4639,10 @@ body.mode-rogue .hub-hier-quand { font-weight: 600; letter-spacing: 0.02em; text
 .hub-hier-eq b { flex: 1; min-width: 0; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-hier-eq em { flex: none; min-width: 1.6em; padding: var(--esp-1) var(--esp-3); text-align: center; font-style: normal; font-size: var(--t-6); background: var(--noir-pur); color: var(--blanc); }
 .hub-hier-eq.perd { filter: saturate(0.35) brightness(0.7); }
-.hub-hier-pied { grid-column: 2; display: flex; justify-content: space-between; gap: var(--esp-2); padding: 0 var(--esp-2); font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .hub-hier-pied { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
-body.mode-rogue .hub-soir .hub-hier-recit { display: none; }
+.hub-hier-pied { grid-column: 2; display: flex; justify-content: space-between; gap: var(--esp-2); padding: 0 var(--esp-2); font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
+body .hub-soir .hub-hier-recit { display: none; }
 .hub-hier-recit { grid-column: 1 / -1; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hub-hier-voir { color: var(--or); }
-body.mode-rogue .hub-hier-voir { color: var(--encre-2); }
+.hub-hier-voir { color: var(--encre-2); }
 /* LE PROPRIO (nov. 2026 ; JP : *where the infos are*) : des blocs, un chiffre en gros chacun — le mandat et ton rang, la prévision,
    l'objectif, l'argent (la caisse, la masse, les salaires du banc), tes rivaux sur leur plaque, ses verdicts. */
 .pr { display: flex; flex-direction: column; gap: var(--esp-2); }
@@ -4695,23 +4658,19 @@ body.mode-rogue .hub-hier-voir { color: var(--encre-2); }
 .pr-rang { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-3); }
 .pr-rang .pr-gros { font-size: var(--t-7); }
 .pr-rang-txt { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
-.pr-rang-txt small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .pr-rang-txt small { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.pr-rang-txt small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
 .pr-rang-txt .bu-run-jauge { grid-column: auto; }
 .pr-bloc .tuile-jauge { width: 100%; }
 .pr-bloc > small { font-size: var(--t-1); color: var(--encre-3); }
 .pr-plaques { display: grid; gap: var(--esp-1); }
 .pr-rival { display: flex; align-items: center; gap: var(--esp-2); min-height: 40px; padding: var(--esp-1) var(--esp-2); border-left: 4px solid var(--eq-band); border-radius: var(--r-1); background: color-mix(in srgb, var(--eq-band) 18%, var(--fond-2)); }
-.pr-rival b { flex: 1; min-width: 0; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.mode-rogue .pr-rival b { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.pr-rival b { flex: 1; min-width: 0; font: 800 var(--t-3)/1.1 var(--display); text-transform: none; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .pr-rival small { font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.04em; color: var(--or); font-variant-numeric: tabular-nums; }
 .pr .hub-etat-l { font-size: var(--t-2); }
-.hub-titre-d { margin-left: auto; color: var(--or); }
-body.mode-rogue .hub-titre-d { color: var(--encre-2); }
+.hub-titre-d { margin-left: auto; color: var(--encre-2); }
 .hub-etat { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
 .hub-etat-l { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); min-width: 0; font-size: var(--t-2); }
-.hub-etat-k { flex: none; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .hub-etat-k { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-etat-k { flex: none; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
 .hub-etat-v { min-width: 0; }
 .hub-etat-v b { font: 800 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; }
 /* V23, la nouvelle interface : le mandat du proprio se lit comme un contrat — ce qu'il veut en gros, la suite dessous. */
@@ -4750,8 +4709,7 @@ body.mode-rogue .hub-etat-k { font-weight: 600; letter-spacing: 0.02em; text-tra
 .hub-scroll { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .hub-volet .live-tableau table { width: 100%; border-collapse: collapse; font-size: var(--t-2); font-variant-numeric: tabular-nums; }
 .hub-volet .live-tableau th, .hub-volet .live-tableau td { height: 40px; padding: 0 var(--esp-2); text-align: right; white-space: nowrap; vertical-align: middle; }
-.hub-volet .live-tableau thead th { position: sticky; top: 0; z-index: 2; background: var(--noir); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .hub-volet .live-tableau thead th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-volet .live-tableau thead th { position: sticky; top: 0; z-index: 2; background: var(--noir); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
 .hub-volet .live-tableau tbody td { background: var(--noir); border-bottom: 1px solid var(--filet-2); }
 .hub-volet .live-tableau tbody tr:last-child td { border-bottom: 0; }
 .hub-volet .live-tableau tbody tr:hover td { background: var(--fond-1); }
@@ -4759,14 +4717,14 @@ body.mode-rogue .hub-volet .live-tableau thead th { font-weight: 600; letter-spa
 .hub-volet .live-tableau td.nom { text-align: left; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 .hub-volet .live-tableau td.nom > .team-logo-img, .hub-volet .live-tableau td.nom > .team-logo-inline { vertical-align: -3px; margin-right: 5px; }
 .hub-volet .live-tableau td.eq, .hub-volet .live-tableau td.role { font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .hub-volet .live-tableau td.eq, body.mode-rogue .hub-volet .live-tableau td.role { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+body .hub-volet .live-tableau td.eq, body .hub-volet .live-tableau td.role { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .hub-volet .live-tableau .heros { font: 800 var(--t-3)/1 var(--display); color: var(--or); }
 .hub-volet .live-tableau tr.toi td { background: color-mix(in srgb, var(--club-vif) 22%, var(--noir)); color: var(--encre); font-weight: 800; }
 .hub-volet .live-tableau tr.toi td:first-child { box-shadow: inset 3px 0 0 var(--club-vif); }
 .hub-volet .live-tableau tr.cut td { border-bottom: 2px solid var(--or); }
 /* V23, la nouvelle interface : le filet de couleur du club au bord de sa rangée ; la ligne des séries, dite en vert. */
 .hub-classement tbody tr[style] td:first-child, .hub-table tbody tr[style] td:first-child { box-shadow: inset 4px 0 0 var(--eq-band); }
-/* LE PLATEAU (nov. 2026) : le podium des meneurs en VRAIES cartes (js/plateau-rogue.js `podium`) ; le tableau reprend au quatrième.
+/* LE PLATEAU (nov. 2026) : le podium des meneurs en VRAIES cartes (js/composants.js `podium`) ; le tableau reprend au quatrième.
    Ta rangée épinglée en tête du classement, sous le pli. */
 .hub-volet .live-tableau tr.epingle td { border-bottom: 2px solid var(--club-vif); }
 .hub-classement td.nom > :is(.team-logo-img, .team-logo-inline) { vertical-align: middle; }
@@ -4823,8 +4781,7 @@ body.mode-rogue .hub-volet .live-tableau td.eq, body.mode-rogue .hub-volet .live
 /* Le menu d'un volet (patineurs / gardiens, les équipes) : des onglets, l'ouvert souligné d'or. */
 .hub-chips { display: flex; gap: var(--esp-1); overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .hub-chips::-webkit-scrollbar { display: none; }
-.hub-chips button { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; transition: color var(--t-vite), border-color var(--t-vite); }
-body.mode-rogue .hub-chips button { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.hub-chips button { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3); border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.02em; text-transform: none; white-space: nowrap; transition: color var(--t-vite), border-color var(--t-vite); font-weight: 600; }
 .hub-chips button:hover { color: var(--encre); }
 .hub-chips button.on { color: var(--encre); border-bottom-color: var(--or); }
 
@@ -4904,8 +4861,7 @@ body.mode-rogue .hub-chips button { font-weight: 600; letter-spacing: 0.02em; te
 .hub-dep-corps { padding: 0 var(--esp-3) var(--esp-3); }
 /* Le dépistage, une page du Club hors du Rogue : tes chances, puis le détail. */
 .dep2-chances { display: flex; flex-direction: column; gap: var(--esp-1); }
-.dep2-chances-mots { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); }
-body.mode-rogue .dep2-chances-mots { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.dep2-chances-mots { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-2); font-weight: 600; }
 .dep2-chances-mots b { font: 800 var(--t-5)/1 var(--display); color: var(--encre); font-variant-numeric: tabular-nums; }
 .dep2-prol { font: 600 var(--t-1)/1.2 var(--display); text-transform: none; text-align: center; color: var(--encre-3); }
 .dep2-barre { display: flex; height: 8px; border-radius: var(--r-1); overflow: hidden; background: var(--lui, var(--fond-3)); }
@@ -4913,14 +4869,11 @@ body.mode-rogue .dep2-chances-mots { font-weight: 600; letter-spacing: 0.02em; t
 .dep2-barre .lui { flex: 1; }
 .dep2-note { font-size: var(--t-1); line-height: 1.35; color: var(--encre-3); }
 .dep3-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--t-2); }
-.dep3-table caption { caption-side: top; text-align: left; padding: 0 0 var(--esp-1); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .dep3-table caption { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
-.dep3-table thead th { padding: 0 var(--esp-1) var(--esp-1); font: 800 var(--t-1)/1.1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
-body.mode-rogue .dep3-table thead th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.dep3-table caption { caption-side: top; text-align: left; padding: 0 0 var(--esp-1); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
+.dep3-table thead th { padding: 0 var(--esp-1) var(--esp-1); font: 800 var(--t-1)/1.1 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-2); font-weight: 600; }
 .dep3-table thead th:first-child { width: 34%; }
 .dep3-table thead th:nth-child(3) { width: 24px; }
-.dep3-table th[scope="row"] { padding: var(--esp-2) var(--esp-1) var(--esp-2) 0; text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); }
-body.mode-rogue .dep3-table th[scope="row"] { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.dep3-table th[scope="row"] { padding: var(--esp-2) var(--esp-1) var(--esp-2) 0; text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-2); font-weight: 600; }
 .dep3-table td, .dep3-table th[scope="row"] { border-top: 1px solid var(--filet-2); vertical-align: middle; }
 .dep3-moi, .dep3-lui { padding: var(--esp-2) var(--esp-1); text-align: center; line-height: 1.1; }
 .dep3-table td b { display: block; font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; }
@@ -4969,8 +4922,7 @@ body.mode-rogue .dep3-table th[scope="row"] { font-weight: 600; letter-spacing: 
 .rl-table { width: 100%; border-collapse: collapse; font-size: var(--t-2); font-variant-numeric: tabular-nums; }
 .rl-table th, .rl-table td { padding: var(--esp-2) var(--esp-1); text-align: right; border-bottom: 1px solid var(--filet-2); }
 .rl-table th:first-child, .rl-table td:first-child { text-align: left; }
-.rl-table th { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .rl-table th { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.rl-table th { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
 
 /* ---- Le tournoi Sur table au bureau : le prochain duel, la fin ---- */
 .hub-prochain { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
@@ -5001,8 +4953,7 @@ body.mode-rogue .rl-table th { font-weight: 600; letter-spacing: 0.02em; text-tr
 .ff-rang .ff-d { text-align: right; }
 .ff-rang b.bon { color: var(--bon); }
 .ff-rang b.mauvais { color: var(--mauvais); }
-.ff-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); text-align: center; }
-body.mode-rogue .ff-k { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.ff-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); text-align: center; font-weight: 600; }
 .ff-barre { grid-column: 1 / -1; display: block; height: 6px; margin-top: 4px; border-radius: var(--r-1); background: var(--b-duel, var(--encre-3)); overflow: hidden; }
 .ff-barre em { display: block; height: 100%; background: var(--a-duel, var(--club-vif)); }
 .ff-mot { padding: 0 var(--esp-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
@@ -5839,7 +5790,7 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .vs-jalon-ligne .vs-ico { grid-row: auto; font-size: var(--t-3); }
 .vs-jalon-ligne b { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vs-jalon-ligne span:last-child { white-space: nowrap; font: 700 var(--t-2)/1 var(--display); font-variant-numeric: tabular-nums; }
-/* LE PLATEAU (nov. 2026) : l'échelle du prestige au Palmarès, une marche par rang (js/plateau-rogue.js `marche`). */
+/* LE PLATEAU (nov. 2026) : l'échelle du prestige au Palmarès, une marche par rang (js/composants.js `marche`). */
 
 /* ---- Le mouvement s'éteint pour qui le demande ---- */
 @media (prefers-reduced-motion: reduce) {
@@ -6245,22 +6196,22 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-barre { display: flex; flex-wrap: wrap; gap: var(--esp-2); margin-bottom: var(--esp-2); }
 .jr-barre .seg { flex: 0 1 auto; margin-left: auto; }
 .jr-barre .seg button { min-height: 36px; font-size: var(--t-1); }
-.jr-scroll { overflow-x: auto; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
+.jr-scroll { overflow-x: auto; border: 0; border-radius: 0; background: none; }
 .jr-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .jr-table th, .jr-table td { padding: var(--esp-2) var(--esp-1); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--filet-2); }
-.jr-table th { position: sticky; top: 0; z-index: 1; background: var(--fond-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); height: 44px; cursor: pointer; }
+.jr-table th { position: sticky; top: 0; z-index: 1; background: var(--fond-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); height: 44px; cursor: pointer; background: var(--noir-pur); }
 .jr-table th.on { color: var(--or); }
 .jr-table td { font: 700 var(--t-2)/1.1 var(--display); }
 /* La colonne qui trie se lit en gros, comme les points du prototype : le chiffre qu'on cherche saute aux yeux. */
 .jr-table td.on { font-size: var(--t-4); font-weight: 800; color: var(--encre); }
 /* Nov. 2026 : six colonnes, jamais un glissement — la colonne du nom est bornée pour que le salaire reste à l'écran à 390 px. */
-.jr-table .jr-col-nom { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--fond-1); max-width: 150px; padding-left: var(--esp-2); }
+.jr-table .jr-col-nom { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--fond-1); max-width: 150px; padding-left: var(--esp-2); background: var(--noir-pur); }
 /* Le visage, à gauche du nom (le prototype, oct.). */
 .jr-qui { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; }
 .jr-qui-txt { min-width: 0; }
 .jr-visage { width: 34px; height: 34px; }
 .jr-table th.jr-col-nom { z-index: 3; background: var(--fond-2); }
-.jr-nom { display: block; max-width: 100%; padding: 13px 0; margin: -13px 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: 700 var(--t-3)/1.25 var(--corps); }
+.jr-nom { display: block; max-width: 100%; padding: 13px 0; margin: -13px 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: 600 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; }
 .jr-sous { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 500 var(--t-1)/1.35 var(--corps); color: var(--encre-2); }
 .jr-table tr.reserve td { opacity: 0.6; }
 .jr-bl { font-size: var(--t-1); color: var(--mauvais); }
@@ -6269,25 +6220,21 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-pied { margin: var(--esp-2) 0 0; font-size: var(--t-1); color: var(--encre-3); }
 /* LE PLATEAU (nov. 2026 ; JP : *ça permet de mieux voir les cartes*) : en Rogue, l'effectif en grille de vraies cartes, trois de
    front ; la stat du tri en coin sur l'ardoise d'or, ses jambes en barre sous la carte, sa case et ses badges en une ligne. */
-.jr-tri { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); margin-bottom: var(--esp-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-body.mode-rogue .jr-tri { font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
+.jr-tri { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); margin-bottom: var(--esp-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-3); font-weight: 600; }
 .jr-tri .pl-jetons { margin: 0; }
 /* V23, la nouvelle interface : au Rogue, ton effectif comme une fiche de télé — sans cadre, sur le noir, les noms en capitales. */
-body.mode-rogue .jr-scroll { border: 0; border-radius: 0; background: none; }
-body.mode-rogue .jr-table th, body.mode-rogue .jr-table .jr-col-nom { background: var(--noir-pur); }
-body.mode-rogue .jr-nom { font: 600 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; }
 /* ---- Le cartable (js/cartable.js, #pageCartable) : une reliure, des feuilles de neuf pochettes ---- */
 .ct { display: flex; flex-direction: column; gap: var(--esp-3); height: 100%; min-height: 0; }
 .ct-tete { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); flex-wrap: wrap; }
 .ct-comptes { display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; }
 .ct-total { font: 600 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .ct-total b { color: var(--encre); font: 800 var(--t-5)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }
-.ct-vars { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); }
+.ct-vars { display: none; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); }
 .ct-var { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.02em; color: var(--encre-2); white-space: nowrap; }
 .ct-var b { color: var(--encre); font-variant-numeric: tabular-nums; }
 .ct-var.v-num { color: var(--or); }
 /* Nov. 2026 : les vues de l'Album tiennent à 390 px (Coachs était coupé au bord), rien ne glisse. */
-.ct-vues { flex: none; display: flex; flex-wrap: wrap; gap: var(--esp-1); border-bottom: 1px solid var(--filet); }
+.ct-vues { flex: none; display: grid; flex-wrap: wrap; gap: var(--esp-1); border-bottom: 1px solid var(--filet); grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .vs-deblocages { margin-top: var(--esp-3); }
 .ct-nav { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }
 .ct-nav-btn { flex: none; width: 44px; height: 40px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 800 var(--t-4)/1 var(--display); }
@@ -6295,7 +6242,7 @@ body.mode-rogue .jr-nom { font: 600 var(--t-3)/1.1 var(--display); letter-spacin
 .ct-nav-mot { font: 600 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .ct-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-3); }
 .ct-corps > * { flex-shrink: 0; }
-.ct-mot { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.ct-mot { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); display: none; }
 /* La reliure : le vinyle autour des feuilles. Au bureau, deux feuilles ouvertes côte à côte. */
 .ct-reliure {
   display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-2) 0;
@@ -6370,15 +6317,12 @@ body.mode-rogue .jr-nom { font: 600 var(--t-3)/1.1 var(--display); letter-spacin
 /* L'édition d'une carte du cartable, en mots, et la barre de ses doublons vers la suivante (trois la montent). */
 .ct-ed { color: var(--encre-2); letter-spacing: 0.02em; }
 /* LE PLATEAU (nov. 2026) : l'édition d'une carte de ton équipe en coin de sa pochette dès Cadre, « ×2 » en coin pour un doublon
-   (js/plateau-rogue.js `coin`) ; rien sous la carte (le contenu, de zéro). */
+   (js/composants.js `coin`) ; rien sous la carte (le contenu, de zéro). */
 .ct-carte .pl-coin { top: 2px; }
 .ct-carte .pl-coin-gauche { left: 2px; }
 .ct-carte .pl-coin-droite { right: 2px; }
-body.mode-rogue .ct-vars { display: none; }
 /* Nov. 2026 (le contenu, de zéro) : les quatre vues sur UNE rangée à 390 px — une colonne égale par vue, le mot qui se coupe avant la rangée. */
-body.mode-rogue .ct-vues { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
-body.mode-rogue .ct-vues .ct-vue { min-width: 0; min-height: 40px; padding: 0 var(--esp-1); font-size: var(--t-1); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body.mode-rogue .ct-mot { display: none; }
+.ct-vues .pl-jeton { min-width: 0; min-height: 44px; padding: 0 var(--esp-1); font-size: var(--t-1); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ct-carte[data-ct-equipe] .cjm-ligne { display: none; }
 .ct-prog { position: relative; width: 28px; height: 4px; border-radius: var(--r-0); overflow: hidden; background: var(--filet); }
 .ct-prog i { position: absolute; inset: 0 auto 0 0; background: var(--or); }
@@ -6417,7 +6361,7 @@ body.mode-rogue .ct-mot { display: none; }
 .pk-sheet { position: relative; }
 .pk-corps { gap: var(--esp-4); }
 /* V23, la nouvelle interface : au Rogue, la vitrine d'abord — les packs, puis le barème et la garantie. */
-body.mode-rogue .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
+body .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 .pk-corps > *, .inv-corps > *, .dp-corps > * { flex-shrink: 0; }
 .pk-mot { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .pk-garantie { border-left: 3px solid var(--or); padding-left: var(--esp-2); }
@@ -6430,17 +6374,17 @@ body.mode-rogue .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 .pk-rayon-debut .pk-tout { width: 100%; margin-top: var(--esp-3); }
 /* LE PLATEAU (nov. 2026 ; la direction A) : au Rogue, une pochette du début est une plaque de métal — la feuille du tier couvre la
    tuile, le tier en haut à gauche, le nom et le contenu au pied, le PRIX en gros. */
-body.mode-rogue .pk-rayon-debut .pk-tuile { position: relative; justify-content: flex-end; min-height: 168px; padding: var(--esp-3); border: 0; isolation: isolate; overflow: hidden; }
-body.mode-rogue .pk-rayon-debut .pochette-scellee { position: absolute; inset: 0; z-index: -1; display: block; aspect-ratio: auto; opacity: 0.92; }
-body.mode-rogue .pk-rayon-debut .pochette-scellee .pochette-corps { height: 100%; border-radius: var(--r-2); }
-body.mode-rogue .pk-rayon-debut .pochette-scellee .pochette-face::after { content: ""; display: block; position: absolute; inset: 0; transform: none; animation: none; background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--noir-pur) 82%, transparent)); }
-body.mode-rogue .pk-rayon-debut .pochette-ico { position: absolute; right: var(--esp-3); top: var(--esp-4); font-size: var(--t-5); color: color-mix(in srgb, var(--noir-pur) 60%, var(--pk-a)); }
-body.mode-rogue .pk-rayon-debut .pochette-scellee .pochette-serie { top: var(--esp-4); bottom: auto; left: var(--esp-3); right: auto; padding: 2px var(--esp-2); border-radius: var(--r-1); letter-spacing: 0.2em; }
-body.mode-rogue .pk-rayon-debut .pk-nom { font-size: var(--t-4); color: var(--blanc); }
-body.mode-rogue .pk-rayon-debut .pk-n { color: var(--encre-2); }
-body.mode-rogue .pk-rayon-debut .pk-prix { flex-direction: row; align-items: baseline; gap: var(--esp-1); margin-top: var(--esp-1); font-size: var(--t-6); color: var(--blanc); }
-body.mode-rogue .pk-rayon-debut .pk-tuile.verrou { opacity: 0.7; }
-body.mode-rogue .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
+body .pk-rayon-debut .pk-tuile { position: relative; justify-content: flex-end; min-height: 168px; padding: var(--esp-3); border: 0; isolation: isolate; overflow: hidden; }
+body .pk-rayon-debut .pochette-scellee { position: absolute; inset: 0; z-index: -1; display: block; aspect-ratio: auto; opacity: 0.92; }
+body .pk-rayon-debut .pochette-scellee .pochette-corps { height: 100%; border-radius: var(--r-2); }
+body .pk-rayon-debut .pochette-scellee .pochette-face::after { content: ""; display: block; position: absolute; inset: 0; transform: none; animation: none; background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--noir-pur) 82%, transparent)); }
+body .pk-rayon-debut .pochette-ico { position: absolute; right: var(--esp-3); top: var(--esp-4); font-size: var(--t-5); color: color-mix(in srgb, var(--noir-pur) 60%, var(--pk-a)); }
+body .pk-rayon-debut .pochette-scellee .pochette-serie { top: var(--esp-4); bottom: auto; left: var(--esp-3); right: auto; padding: 2px var(--esp-2); border-radius: var(--r-1); letter-spacing: 0.2em; }
+body .pk-rayon-debut .pk-nom { font-size: var(--t-4); color: var(--blanc); }
+body .pk-rayon-debut .pk-n { color: var(--encre-2); }
+body .pk-rayon-debut .pk-prix { flex-direction: row; align-items: baseline; gap: var(--esp-1); margin-top: var(--esp-1); font-size: var(--t-6); color: var(--blanc); }
+body .pk-rayon-debut .pk-tuile.verrou { opacity: 0.7; }
+body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 /* LE PLATEAU (nov. 2026) : « Ton club » en une rangée de quatre — le porté cerné d'or, deux clubs à débloquer, « Et N › ». */
 .pk-rayon-club-rangee { margin-top: var(--esp-3); }
 .pk-club-rangee { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--esp-2); }
@@ -6551,8 +6495,8 @@ body.mode-rogue .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2
 .bq-actions .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 14%, transparent); }
 
 /* ---- L'inventaire (#inventaireModal) : des onglets en bande, des filtres, une grille par catégorie ---- */
-.inv-onglets { flex: none; display: flex; gap: var(--esp-1); padding: 0 var(--esp-3); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--filet); }
-.inv-onglets::-webkit-scrollbar { display: none; }
+.inv-jetons { flex: none; display: flex; gap: var(--esp-1); padding: 0 var(--esp-3); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--filet); }
+.inv-jetons::-webkit-scrollbar { display: none; }
 .inv-corps { gap: var(--esp-3); }
 .inv-mot { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .inv-sec { margin: var(--esp-2) 0 0; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
