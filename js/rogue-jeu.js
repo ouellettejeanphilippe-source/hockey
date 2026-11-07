@@ -19,7 +19,7 @@ import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirer
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
-import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, SEMAINE } from './inventaire.js';
+import { venteDuDoublon, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi, coachAuCartable, coachsDuCartable } from './cartable.js';
 import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
@@ -289,9 +289,8 @@ function modsDesPacks() {
   if (r && r.exigence) m.rabais *= exigencesDe(r.exigence).prixPacks;
   return m;
 }
-/* La valeur de vente d'un joueur doublon : sa variante, et son numéro s'il en a un. */
-const NUM_VENTE = { '/99': 1, '/25': 2, '/10': 4, '1 de 1': 10 };
-const venteJoueur = x => (VENTE[x.rar] || 2) * (NUM_VENTE[x.num] || 1);
+/* La valeur de vente d'un joueur doublon : son édition, et son numéro s'il en a un (js/inventaire.js). */
+const venteJoueur = x => venteDuDoublon(x.rar, x.num);
 /* La carte mini d'un joueur tiré, AVEC la variante du tirage (la carte ne lit que la sienne). */
 export function miniAvecVariante(p, rar) {
   const k = getPlayerKey(p), avant = G.variantes.cartes[k];
