@@ -1354,7 +1354,7 @@ const PASSE_VISEE = 2.5;   // le prix d'un radian d'écart entre la poussée du 
  * bande, à sa distance d'elle divisée par ce rendu (`miroirDeBande`). Seulement sur la bande droite (hors des coins), le
  * bâton tenu ; elle vaut `BANDE_PASSE.prix` de moins qu'une passe directe : celui que le bâton pointe droit la reçoit d'abord.
  */
-export const BANDE_PASSE = { prix: 0.4, couvre: 1.3 };
+const BANDE_PASSE = { prix: 0.4, couvre: 1.3 };
 export function miroirDeBande(x0, y0, m, b) {
   const ym = b + Math.sign(b) * Math.abs(b - m.y) / RONDELLE.bande;
   const xh = x0 + (m.x - x0) * (b - y0) / ((ym - y0) || 1e-9);
