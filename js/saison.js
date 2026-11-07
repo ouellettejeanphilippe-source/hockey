@@ -2754,7 +2754,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const S = SORTES_DECK[c.sorte], niveau = NIVEAU_SORTE[c.sorte];
       if (c.sorte === 'recrue') return { cle: 'recrue', niveau, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un joueur déjà pigé',
         texte: `Trois joueurs de ton cartable, déjà pigés, ni dans ton alignement ni dans la ligue, ${(ctx.motRecrue && ctx.motRecrue()) || 'des Réguliers'} au plus : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.`,
-        desactive: recrues.length ? '' : 'Personne de ton cartable ne rentre sous ton plafond' };
+        desactive: recrues.length ? '' : 'Personne dans ton cartable hors de ton alignement, sous ton plafond' };
       if (c.sorte === 'profil') return { cle: 'profil', niveau, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
         texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
         desactive: roles.length ? '' : 'Personne à convertir' };
