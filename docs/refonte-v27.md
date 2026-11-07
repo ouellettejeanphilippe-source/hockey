@@ -1,6 +1,6 @@
 # V27 — Le Rogue en roguelike : une run, une saison, quatre actes
 
-Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec la commande `/refonte` (7 nov. 2026), puis **revu le même jour** : une revue adverse à quatre relecteurs (`/revue-design`) l'a jugé « À reprendre », et JP a tranché six points (§ 1, « Après la revue »). Cette version les applique partout. Le numéro : la V26 est réservée à « D2, les autres modes » (docs/refonte-v25.md § 4 D) ; celui-ci prend le suivant. **Rien n'est codé.** Ce qui reste à JP est au § 11.
+Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec la commande `/refonte` (7 nov. 2026), puis **revu le même jour** : une revue adverse à quatre relecteurs (`/revue-design`) l'a jugé « À reprendre », et JP a tranché six points (§ 1, « Après la revue »), puis quatre questions du § 11 (la Dynastie, la mise, le prestige, les jetons restants). Cette version les applique partout. Le numéro : la V26 est réservée à « D2, les autres modes » (docs/refonte-v25.md § 4 D) ; celui-ci prend le suivant. **Rien n'est codé.** Ce qui reste à JP est au § 11.
 
 La V25 (docs/refonte-v25.md) a fait la grammaire : un moteur pur et ses greffes, une carte de jeu, une grammaire d'effet, une banque d'histoires. La V27 garde cette grammaire et refait **la forme du jeu** : ce qu'est une run, ce qui la fait perdre, quand on décide, et combien de fois.
 
@@ -38,6 +38,13 @@ Ce qui pèse des semaines d'avant : *le roguelike, il est pas facile à rendre l
 4. **La livraison** : les maquettes de tous les écrans neufs à 390 × 844 d'abord (JP tranche), puis les tranches 2 à 6 se construisent sur une branche à part et sortent ensemble, mesurées ; **le jeu publié ne change qu'une fois** (« Les tranches »).
 5. **La première Coupe jamais avant la 3e run** (JP : *Le jamais avant 3 est quand même bien*) : la règle tenue reste (§ 5, § 10).
 6. **Le mot à l'écran : « rival »**, pas « boss » (JP : *rival*). Les rivaux du proprio partent dans ce devis ; le mot se libère pour le club qui finit un acte (§ 7, vocabulaire.md).
+
+**Puis, sur les questions du § 11 :**
+
+7. **La Dynastie s'écrit dans la V27** (JP : *Dans ce chantier*) : une saison de plus après la Coupe, avec la même équipe, en règles complètes (§ 4.12, tranche 11).
+8. **La mise doublée part au complet** (JP : *ça sert à rien*) : le duel est un seul choix avant le match, le plan ; un rival perdu laisse ses sonnés comme son prix, sans doublement (§ 4.7, § 8).
+9. **Le prestige est de la variété seulement** (JP) : ses taux d'Étoiles et de Phénomènes et son budget du classeur partent ; le rang reste un titre (§ 4.9).
+10. **Les jetons qui restent après le dernier nœud sont perdus** (JP) ; l'écran du 82e nœud le dit (§ 4.8).
 
 **Ce qui ne bouge pas** (JP) : les vrais joueurs et leurs vraies stats, le moteur calibré, le repêchage dans de vrais vestiaires, le gros match vécu en direct, les histoires vraies qui nomment le joueur, les cartes de hockey.
 
@@ -101,7 +108,7 @@ Ces règles se lisent seules ; elles ne sont pas un diff des règles d'avant.
 
 ### 4.1 La run
 
-- Une run est **une saison de 82 matchs et ses séries**. Il n'y a pas de deuxième saison dans ce devis : la Coupe gagnée ou la run perdue, c'est la fin, et on revient au départ (la méta, § 4.9). Une saison de plus après la Coupe (la Dynastie) est une question ouverte à JP (§ 11.1) ; tant qu'il ne l'a pas écrite, elle n'existe pas.
+- Une run est **une saison de 82 matchs et ses séries**. La run perdue, c'est la fin, et on revient au départ (la méta, § 4.9). **La Coupe gagnée** finit la run, ou ouvre **la Dynastie** (§ 4.12) : une saison de plus avec la même équipe, à tes risques ; ce n'est pas une deuxième saison d'avant (ni lotos, ni gardés, ni marche de la ligue).
 - La saison se coupe en **quatre actes** : l'acte I (tes matchs 1 à 27), l'acte II (28 à 54), l'acte III (55 à 82), les séries (l'acte IV).
 - La ligue joue sa vraie cédule, au jour le jour, comme aujourd'hui (moteur.md : rien d'avance).
 
@@ -167,15 +174,14 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 
 - Le duel (le rival, l'élite, chaque match de séries vu en direct) garde ses trois périodes vues et les intentions de l'adversaire (`INTENTIONS`).
 - **Un seul choix, avant le match** : **un plan fort**, parmi deux ou trois que ton banc propose (chacun tiré d'une pièce posée ou de la philosophie du coach), chacun avec un **vrai prix** en stats de match (tirs, % au tir, tirs contre, % d'arrêts, punitions), ou « Ton match ». Ce que le rival a montré à son annonce (son intention dominante, son style) est sur l'écran du choix.
-- **La mise**, posée sur le même écran, avant le match (décision 3 : aucune décision d'entracte) : elle double ce que le duel rapporte et ce qu'il coûte, **jamais les cœurs**. Le bouton dit le prix exact. Pour chaque duel :
+- **Ce que le duel rapporte et coûte**, sans mise (JP : la mise doublée part, *ça sert à rien*) :
 
-| Duel | Gagné, sans mise | Gagné, misé | Perdu, sans mise | Perdu, misé |
-|---|---|---|---|---|
-| Le rival | 1 pièce parmi 3, l'élan 3 matchs, 15 🏅 | 2 pièces (deux offres de 1 parmi 3), l'élan 6 matchs, 30 🏅 | les sonnés 3 matchs | les sonnés 6 matchs |
-| L'élite | 1 pièce parmi 3 et `J` 🪙, l'élan 3 matchs | 1 pièce et 2 × `J` 🪙, l'élan 6 matchs | −1 ❤️, les sonnés 3 matchs | −1 ❤️ (jamais 2), les sonnés 6 matchs |
-| Un match de séries | l'élan 3 matchs | l'élan 6 matchs | les sonnés 3 matchs | les sonnés 6 matchs |
+| Duel | Gagné | Perdu |
+|---|---|---|
+| Le rival | 1 pièce parmi 3, l'élan 3 matchs, 15 🏅 | les sonnés 3 matchs, son seul prix |
+| L'élite | 1 pièce parmi 3 et `J` 🪙, l'élan 3 matchs | −1 ❤️, les sonnés 3 matchs |
+| Un match de séries | l'élan 3 matchs | les sonnés 3 matchs |
 
-  Exemple du bouton, au rival de l'acte II : « Miser : gagné, 2 pièces et 30 🏅 ; perdu, sonnés 6 matchs ».
 - **Plus rien entre les périodes** : les propositions de l'adjoint à chaque entracte partent. L'entracte montre le pointage, leur intention qui vient, et un seul bouton.
 
 ### 4.8 La boutique et les monnaies
@@ -185,7 +191,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **Le prix des packs repart à zéro à chaque ouverture** : le premier achat d'un nœud coûte le prix de base, les suivants montent comme aujourd'hui (`hausseDesPacks`, compté sur les achats **de ce nœud**).
 - **La pièce de banc** : à chaque nœud, 3 pièces tirées de la graine, une seule peut s'acheter. Son prix : `arrondi(PRIX_PIECE × hausseDesPacks(n))`, `PRIX_PIECE` 32 🪙 (plage 24-40), `n` les achats déjà faits à ce nœud, packs et pièce confondus. Exemple fait : au nœud du 41e match, la pièce en premier coûte 32 🪙 ; après un pack Bronze (14 🪙), elle coûte `32 × 1,4 = 44,8`, soit 45 🪙. 32, c'est un peu plus de la moitié d'un nœud de revenu : une pièce, ou deux à trois packs.
 - **Au plus `ACHATS_PAR_NOEUD` achats par nœud** (4, ce que le prototype a mesuré), packs et pièce confondus.
-- **Les jetons qui restent** après le nœud du 82e match ne servent plus à rien dans la run : ils sont perdus (proposé ; la conversion en 🏅 est une question à JP, § 11.3). L'écran du 82e nœud le dit (« Dernière boutique »).
+- **Les jetons qui restent** après le nœud du 82e match ne servent plus à rien dans la run : ils sont **perdus** (décision 10 d'après la revue ; une conversion pousserait à garder au lieu d'acheter). L'écran du 82e nœud le dit (« Dernière boutique »).
 - **Les sources** : les victoires (le barème : 5 🪙 la victoire, 4 la défaite en prolongation, 2 la défaite), les 40 du départ, la règle du coach (50 au plus par saison), les élites gagnées et les primes des fils. **Les rivaux ne paient pas de jetons** (§ 4.3). **La prime de série passe en 🏅** (20 🏅 la ronde gagnée) : en séries, la boutique est fermée. Plus aucun salaire ne vide la caisse.
 - **Le tableau des sources et des puits**, pour l'attentif (une estimation de la revue, à remesurer à la tranche 1 : 10 % de défaites en prolongation, .400 à l'acte I, .450 au II, .500 au III ; la règle du coach ≈ 8 🪙 par tranche de 14 matchs ; les fils ≈ 1 à 2 ; une élite par acte prise, gagnée 40 % du temps pour ≈ 65 🪙, soit ≈ 26 en espérance) :
 
@@ -205,7 +211,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 ### 4.9 Le départ et la méta
 
 - **Le départ** : tes bouche-trous sont pigés entre **35 % et 55 %** de leur saison (`bouchesTrousDuDepart`, la bande), plus ta vedette du départ et ton classeur sans pages ; l'équipe part vers le 26e rang de force.
-- **La méta est de la variété** : les 🏅 ouvrent des coachs, des pièces de banc, des pochettes et des époques ; aucune ne rend la run plus facile. **Le catalogue chiffré** (proposé ; le nombre de runs pour tout ouvrir est une question à JP, § 11.5) :
+- **La méta est de la variété** : les 🏅 ouvrent des coachs, des pièces de banc, des pochettes et des époques ; aucune ne rend la run plus facile. **Le catalogue chiffré** (proposé ; le nombre de runs pour tout ouvrir est une question à JP, § 11.3) :
 
 | Objet | Combien | Prix | Total |
 |---|---|---|---|
@@ -218,7 +224,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 
   À ≈ 60 🏅 par run (l'attentif : un acte passé 9 fois sur 10, le deuxième 7 sur 10, le troisième une fois sur deux ; un rival battu sur deux ; une demi-ronde ; une Coupe sur huit), **tout ouvrir prend ≈ 18 runs**. Les clubs et leurs couleurs (js/club.js, aujourd'hui en jetons) passent en 🏅 avec le reste de la variété, puisque les jetons ne survivent plus à la run.
 - **Les déblocages de force partent** : la caisse, le plafond, les commanditaires, les Piliers gardés, les pages et le tri du classeur, les réserves de plus, la recrue qui monte, les bouche-trous moins pires, les vedettes des séries et les crans de pack (§ 8). Une vieille sauvegarde qui les avait achetés est **remboursée** de leur prix en 🏅 (§ 6).
-- **Le prestige** (`PRESTIGES`) : ses taux d'Étoiles et de Phénomènes et son budget du classeur sont de la force ; ils partent (proposé, § 11.6). Le rang reste un titre (l'échelle du Palmarès) ; les coachs qu'il ouvrait passent au catalogue ; le niveau de la ligue ne suit plus que les exigences (`niveauDeLigue`). À mesurer : le taux de Coupes au premier rang et au dernier, en paires (§ 10).
+- **Le prestige** (`PRESTIGES`) est de la **variété seulement** (décision 9 d'après la revue) : ses taux d'Étoiles et de Phénomènes et son budget du classeur sont de la force ; ils partent. Le rang reste un titre (l'échelle du Palmarès) ; les coachs qu'il ouvrait passent au catalogue ; le niveau de la ligue ne suit plus que les exigences (`niveauDeLigue`). À mesurer : le taux de Coupes au premier rang et au dernier, en paires (§ 10).
 - **Les jalons** se réécrivent à la tranche 9 : les trois impossibles deviennent « L'acte II passé » (au lieu de la deuxième saison, 30 🏅), « Les séries sans perdre un cœur » (au lieu de la troisième, 45 🏅) et « Le banc plein » (cinq pièces posées, au lieu du coach au sommet ; il ouvre le Pack du coach) ; ceux qui payaient un déblocage de force paient son prix en 🏅.
 - **Les exigences 🔺** restent la seule difficulté qui monte, et elles passent par les leviers de la V27, pas par le plafond acheté ni les gardés. Les huit crans, refaits :
 
@@ -250,12 +256,25 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **Banc plein** : la pièce neuve d'abord, puis celle qui sort ; la confirmation dit « X part ».
 - **L'élite** : proposée le lundi, une ligne de la boîte ; sans réponse, un soir ordinaire ; prise, l'affiche dit « Élite ».
 - **L'écran de fin** dit la cause en une ligne (« 17e, il fallait 16e » ; « Deux contrôles ratés » ; « Éliminés en deuxième ronde ») puis les 🏅.
-- **« La run continue »** est le moment fort (le palier « pic » de js/mouvement.js) de la fin d'un acte passé ; ses trois cellules sont refaites (les gardés et les lotos partent) : **le contrôle** (« 18e / 20 »), **les cœurs** (gardés ou perdus), **la pièce** gagnée au rival (ou « Passé »).
+- **« La run continue »** est le moment fort (le palier « pic » de js/mouvement.js) de la fin d'un acte passé et du passage à la Dynastie (§ 4.12) ; ses trois cellules sont refaites (les gardés et les lotos partent) : **le contrôle** (« 18e / 20 »), **les cœurs** (gardés ou perdus), **la pièce** gagnée au rival (ou « Passé »).
 - **La vieille sauvegarde** : l'écran dit ce qui est versé (les 🏅 de la run, les déblocages remboursés) avant la run neuve.
 - **Les cartes** : on les retourne ; **le verso agrandi porte son « Prendre »**, et retourner une carte referme l'autre. **Le verbe sous une carte est « Prendre » partout** (plus de « Poster », de « Signer » sous une carte de jeu ; « Signer » reste l'échange d'un joueur, interface.md).
 - **Une histoire** : sous la réplique, le fait dit **seulement ce que la réplique tait** (jamais le même chiffre deux fois).
-- **Écrans neufs** (tous en maquette à la tranche 0) : le rival annoncé (son intention, son style), le calendrier de l'acte (le placement, le renfort sur la case), la proposition d'élite, le choix du duel (le plan et la mise), l'entracte à un bouton, le soir de fin d'acte, le point de contrôle (les cœurs), la pièce à prendre (1 parmi 3, banc plein), la boutique (les packs et la pièce, fermée entre deux nœuds), « La run continue », l'écran de fin, la vieille sauvegarde, Ce soir et ta plaque, le Proprio.
+- **Écrans neufs** (tous en maquette à la tranche 0) : le rival annoncé (son intention, son style), le calendrier de l'acte (le placement, le renfort sur la case), la proposition d'élite, le choix du duel (le plan), l'entracte à un bouton, le soir de fin d'acte, le point de contrôle (les cœurs), la pièce à prendre (1 parmi 3, banc plein), la boutique (les packs et la pièce, fermée entre deux nœuds), « La run continue », l'écran de fin, la Dynastie (ce qu'on garde, les contrats à libérer), la vieille sauvegarde, Ce soir et ta plaque, le Proprio.
 - La seconde moitié de l'interface (D1b de LIVRAISON.md) se fait dans ces écrans neufs, pas dans les anciens.
+
+### 4.12 La Dynastie (décision 7 d'après la revue ; JP : *Dans ce chantier*)
+
+- **Quand** : la Coupe gagnée, l'écran de fin propose « Une saison de plus » à côté de « Finir la run ». Les 🏅 de la saison gagnée sont versées dans les deux cas ; continuer ouvre la saison de Dynastie. Le choix est une ligne de la boîte ; sans réponse, la run n'est pas finie et la question attend.
+- **Ce qui est gardé** : **toute l'équipe** (les 23 et les réservistes, leurs cartes, leurs éditions, leurs galons) — c'est la même run qui continue, pas un joueur qui te suit d'une run à l'autre, et la règle « aucun joueur ne te suit au choix » tient ; **3 pièces du banc sur 5**, que tu choisis (*PIECES_GARDEES* 3, plage 2-4), les deux autres partent ; la pièce de départ du coach compte parmi les cinq.
+- **Ce qui repart** : les jetons (les 40 du départ ; ceux d'avant sont déjà perdus au 82e nœud), la boutique et ses sept nœuds, le calendrier (une vraie cédule neuve, tirée de la graine de la saison), les élites, les fourches.
+- **Les contrats** : chaque joueur gardé demande plus après une Coupe : son contrat monte de *HAUSSE_CONTRATS* 10 % (plage 5-15 %). **Le plafond ne bouge pas** (celui du départ de la run, exigences comprises). Au-dessus du plafond, avant le premier soir, tu choisis qui part, un joueur à la fois, jusqu'à passer sous le plafond (l'écran de l'échange, sans arrivant ; une ligne qui bloque « Jour suivant »). Exemple fait : une masse de 80 M$ monte à 88 M$ ; sous un plafond de 84 M$, il faut libérer 4 M$ (un Pilier à 4,5 M$, ou deux joueurs plus petits).
+- **Le vieillissement** : chaque saison de Dynastie, un joueur dont l'âge (celui de sa vraie saison, plus les saisons de Dynastie jouées) atteint *AGE_DECLIN* 33 ans (plage 31-35) perd un palier de badge, jusqu'au Bronze au plus bas (le canal des badges qui existe, `badgesDe`) ; sa carte le dit (« 34 ans · un palier de moins »). Rien d'autre ne vieillit.
+- **Les cœurs** : **2 ❤️ remis** au départ de la saison (proposé) ; les contrôles 20 · 12 · séries restent.
+- **Plus dur** : **les rivaux d'un cran plus forts** (*RANGS_DES_RIVAUX* passe à 5 · 1 · 0 à la première saison de Dynastie, 3 · 0 · 0 à la deuxième et ensuite) et **l'exigence montée d'un cran** pour la saison (le cran suivant du § 4.9, ses médailles comprises, `PRIME_EXIGENCE`). **Pas de marche de la ligue** : aucune étape d'édition de plus aux adversaires.
+- **La fin** (**ma proposition**, à confirmer par JP, § 11.4) : **sans fin** — chaque Coupe propose une saison de plus, et la run finit à 0 ❤️, à l'acte III raté, à une série perdue, ou quand tu choisis « Finir la run ». Écartée : une seule saison de plus, qui coupe la Dynastie au moment où elle devient une histoire.
+- **Les médailles** : comme une saison ordinaire (§ 4.8), au multiple de l'exigence montée.
+- **Le nom** : « Dynastie » est aussi le dernier rang de prestige (`PRESTIGES`). **Proposé** : le mode garde « Dynastie » (le mot de hockey pour des Coupes de suite), le rang de prestige devient « Une institution » (son texte, « Tout le monde veut jouer pour toi », reste) ; seule la chaîne affichée change, aucune clé de sauvegarde.
 
 ## 5. Les chiffres
 
@@ -274,6 +293,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **Les bornes** : la règle « une carte sous ±1 V, ±1,5, ±2,5, ±4 selon son niveau » part pour les pièces de banc (elle reste pour les réponses d'histoire et les cartes de la banque). Ce qui la remplace : chaque pièce **se voit** dans la feuille du soir où elle joue (les seuils de rogue.md : ±2 tirs, ±0,3 but…), **n'est jamais un piège** (en paires, jamais sous −0,5 V sur un acte) ; **le banc complet** (cinq pièces) de l'attentif rend **au plus +5 V sur un acte** en paires contre un banc vide ; le robot **glouton** (qui prend toujours la meilleure pièce offerte) gagne **au plus la moitié** de ses runs.
 - **La courbe** se lit **en points au classement par acte**, pas en `teamStrength` (aveugle aux greffes, donc au banc) : la part de points de l'attentif monte d'un acte à l'autre, en médiane, et il passe ses contrôles ; les bornes chiffrées se posent à la tranche 1 sur la mesure du vrai banc, écrites comme des intervalles.
 - **La première Coupe** (décision 5) : la médiane de la première Coupe de l'attentif à la run 3 ou plus tard, et sa chance à la run 1 **au plus ≈ 15 %**. Vérifié : sans méta de force, les runs sont indépendantes, et une chance `q` par run donne une première Coupe à la run `k` avec `(1 − q)^(k−1) × q` ; la médiane est le premier `k` où `1 − (1 − q)^k ≥ 0,5`. À 13 % : `ln 0,5 / ln 0,87 = 4,98`, **médiane à la run 5** ; à 10 % : 6,58, **run 7** ; à 15 % : 4,27, run 5. La médiane ne tombe sous la run 3 qu'au-dessus de ≈ 29 % par run. **10 à 13 % par run tient donc la règle**, et la borne qui pince est celle de la run 1 (≤ 15 %). Sous 9 % (médiane à la run 8 ou plus), la Coupe s'éloigne trop.
+- **La Dynastie** : *PIECES_GARDEES* 3 (2-4) ; *HAUSSE_CONTRATS* 0,10 (0,05-0,15) ; *AGE_DECLIN* 33 (31-35) ; 2 ❤️ remis ; les rivaux 5 · 1 · 0 puis 3 · 0 · 0 ; un cran d'exigence par saison de Dynastie. Exemple fait des contrats : § 4.12. La cible : l'attentif regagne la Coupe dans **20 à 50 %** de ses saisons de Dynastie (ni jamais, ni d'office : la règle « après sa première Coupe, il la regagne sans la gagner d'office » tenue), et sa chance baisse d'une saison à l'autre.
 - **Les cœurs comptent** : l'attentif perd au moins un cœur dans **30 à 60 %** des runs ; il meurt de ses cœurs (0 ❤️ avant l'acte III) dans **au plus une run sur huit** ; il rate les séries (l'acte III) dans au plus une run sur trois.
 - **Les histoires** : une fourche aux 2 ou 3 semaines, soit **9 à 13 fourches** sur une saison de ≈ 26 semaines ; **au plus 20 %** des fourches ont deux réponses à moins de 0,1 V d'écart (63 % aujourd'hui).
 - **Les décisions** : cible **≤ 90 décisions par saison, dont ≥ 30 vrais choix** (175 et 20 à 25 aujourd'hui) ; « vrai choix », § 4.10. `mesure_decisions` est rouge au-dessus de 90 une fois la définition codée.
@@ -292,13 +312,13 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **Une élite sans réponse le lundi** : un soir ordinaire.
 - **Une élite à 1 ❤️** : proposée, avec l'avertissement ; la prendre est un choix.
 - **Une élite en prolongation perdue** : perdue.
-- **La mise sur une élite à 1 ❤️** : elle double les sonnés et les jetons, jamais le cœur.
+- **La Dynastie** : moins de trois pièces posées, tu gardes ce que tu as ; la masse sous le plafond malgré la hausse, personne ne part ; un joueur déjà au Bronze qui atteint 33 ans reste au Bronze ; l'exigence déjà au cran 8, les rivaux montent quand même, l'exigence et ses médailles restent au 8 ; une vieille partie dans la saison d'après une Coupe, sous les règles d'avant, se verse comme toute run d'avant et une run neuve commence.
 - **Le dernier cœur perdu à l'acte II** : la run finit le soir du contrôle, avant l'acte III.
 - **L'acte III raté avec 2 ❤️** : la run finit, sans séries.
 - **Le banc plein** : la pièce neuve, puis celle qui sort, « X part » ; « Passer » est toujours là.
 - **Une pièce qui ne se lit jamais** (sa condition ne revient pas avec ton club) : `check_moments_si` exige que chaque condition revienne assez souvent ; une pièce contre un style de rival est un moment rare, au sens de vocabulaire.md.
 - **Le calendrier sans échange possible** : la case reste ; l'écran ne propose pas l'échange qui casserait les 82 matchs.
-- **Les jetons au dernier nœud** : perdus après le 82e nœud (proposé, § 11.3) ; l'écran le dit.
+- **Les jetons au dernier nœud** : perdus après le 82e nœud (décision 10) ; l'écran le dit.
 - **Les séries** : pas de cœurs, la série perdue finit la run ; chaque match vu en direct est un duel ; le renfort reste.
 - **Hors ligne** : sw.js liste les modules neufs et oublie les partis — `check_coquille`.
 - **Le clavier et la manette** : chaque écran neuf répond à A, B, Échap et au balayage — smoke, `essai_rogue`.
@@ -310,7 +330,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 **Les règles fermes de `.claude/rules/`**, chacune réécrite pour décrire le neuf (refonte, § 4) :
 - rogue.md : « Le coach est un personnage… expérience, niveaux 1 à 5, talents » — **défaite** (décision 7) ; « chaque pouvoir… sous sa borne seul (2,5 V, 4 V) », « le personnage complet sous 16 V », « une carte… bornée par son niveau » (pour les pièces) — **défaites** (décision 8), réécrites comme « se voit, jamais un piège, le banc complet sous +5 V sur un acte, le glouton sous la moitié des runs » ; « la deuxième run est plus dure… `ETAPE_APRES_LA_PREMIERE` », « la première saison… `MANDAT_DE_LA_PREMIERE` », « la boule de neige est bloquée… lotos et gardés entre deux saisons » — **défaites** (décision 1 : plus de deuxième saison), et la première Coupe à la run 3 ou plus tard **tenue** (décision 5 d'après la revue) ; « les adjoints ne s'achètent pas… séjour, repos, salaire, main, cases par niveau » — **défaite** (décision 7 ; et une pièce s'achète maintenant en boutique, décision 2 d'après la revue) ; « la main du deck » — **défaite** (décision 7) ; « au duel, ton banc propose avant chaque période », « le duel bien joué… la meilleure proposition à chaque période » — **défaites** (décision 9 et décision 3 d'après la revue) ; « le robot premier Signer ne gagne pas la Coupe » — **tenue** (au plus 2 sur 64) ; « après sa première Coupe… exigences » — **tenue**, par les leviers neufs ; « le gros match se règle le jour où il se joue » — **tenue** (le rival et l'élite aussi) ; « aucun joueur ne te suit au choix » — **tenue** ; « l'histoire… un lundi sur deux, `CHANCE_HISTOIRE` » — **défaite** (décision 9), le reste de la règle des histoires tenu ; « la prime de série est versée » — **tenue**, en 🏅.
 - interface.md : « ton banc en main de quatre vraies cartes » — devient **cinq petites cartes de front**, une exception écrite à « à quatre et plus, la main se balaie » ; « "Prendre" sous une carte » — tenue et étendue (décision 12) ; « rien que ton rang dans la bande de Ce soir » — devient « dans ta plaque » ; « Ce soir est une émission… hier en une ligne » — Hier soir passe en tête, Ce soir tient en 1,0 écran ; « le Proprio… ses rivaux », « les rivaux se cochent un à un » — **défaites** (les rivaux du proprio partent).
-- vocabulaire.md : **adjoint**, **séjour**, **au repos**, **salaire**, **la main**, **talent**, **expérience**, **la main du deck** partent du vocabulaire du Rogue ; entrent **acte**, **élite**, **cœur** (❤️, la confiance du proprio : le mot « confiance » revient, pour le proprio seulement), **point de contrôle**, **pièce de banc**, **le banc** (cinq cases), **renfort**, **nœud** (de la boutique), **fourche**, **la mise** (avant le match). **Le mot « rival » change de sens** (décision 6 d'après la revue) : la ligne « **rival** : un club à deux rangs ou moins » est réécrite — le rival est le club annoncé au premier soir d'un acte, qu'on affronte à son dernier match, trois par run ; « Rival au classement » et « Ton rival, choisi au début de la saison » partent avec `MINI_BOSS` ; la **bête noire** et **ta rivalité** (le club le plus croisé en duel) restent. **« Boss » n'entre pas** : la ligne « leur coach… Pas "boss" » est tenue telle quelle. Les noms de code `bossHtml` et `.boss-vie` du combat des séries (js/saison.js) ne s'affichent pas ; ils se renomment s'ils sont réécrits, sinon ils restent.
+- vocabulaire.md : **adjoint**, **séjour**, **au repos**, **salaire**, **la main**, **talent**, **expérience**, **la main du deck** partent du vocabulaire du Rogue ; entrent **acte**, **élite**, **cœur** (❤️, la confiance du proprio : le mot « confiance » revient, pour le proprio seulement), **point de contrôle**, **pièce de banc**, **le banc** (cinq cases), **renfort**, **nœud** (de la boutique), **fourche**, **Dynastie** (la saison de plus après une Coupe ; le rang de prestige de ce nom devient « Une institution », et la ligne « prestige » le dit). **La mise doublée** sort du vocabulaire (la phrase « avant la 3e d'un duel de saison, le butin ou les sonnés doublent » part). **Le mot « rival » change de sens** (décision 6 d'après la revue) : la ligne « **rival** : un club à deux rangs ou moins » est réécrite — le rival est le club annoncé au premier soir d'un acte, qu'on affronte à son dernier match, trois par run ; « Rival au classement » et « Ton rival, choisi au début de la saison » partent avec `MINI_BOSS` ; la **bête noire** et **ta rivalité** (le club le plus croisé en duel) restent. **« Boss » n'entre pas** : la ligne « leur coach… Pas "boss" » est tenue telle quelle. Les noms de code `bossHtml` et `.boss-vie` du combat des séries (js/saison.js) ne s'affichent pas ; ils se renomment s'ils sont réécrits, sinon ils restent.
 - moteur.md : rien (le moteur ne bouge pas ; `jouerEnPeriodes` et les greffes restent).
 - **Les clés de sauvegarde ne bougent jamais** (`check_sauvegardes`).
 
@@ -354,7 +374,11 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 ### Le plan du soir et les micro-plans du duel (tranche 6)
 
 - `poserLesPlans`, `ouvrirPlan` → rien sur un soir ordinaire : ce qu'un plan faisait est une pièce de banc.
-- `propositionsDuDuel`, `voixDuBanc` → le plan fort d'avant-match (*plansDuDuel*), un seul choix, et la mise sur le même écran.
+- `propositionsDuDuel`, `voixDuBanc` → le plan fort d'avant-match (*plansDuDuel*), un seul choix.
+
+### La mise doublée (tranche 6 ; JP : *ça sert à rien*)
+
+- `MISE_DOUBLEE` (js/sim.js : le butin ou les sonnés doublés), `sceneDeLaMise` (js/scenes.js, sa scène et ses mots), `.duel-mise` et `.duel-snap` (js/gerant.js et style.css : le bloc et le bouton « Miser ») → rien : le duel est un seul choix, le plan ; un rival perdu laisse ses sonnés (*SONNE*), sans doublement. Le champ *snap* du gros match (js/sim.js) et la clé *mise* des mots de scène partent avec eux ; trop courts pour être cherchés en mot entier, ils se vérifient à la main à la tranche 6.
 
 ### Les histoires tirées chaque lundi (tranche 8)
 
@@ -368,7 +392,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 - `reservesDeLaRun` → rien : les cases de réserve de plus étaient de la force (et « banc » nomme maintenant les cinq cases).
 - Les clés des déblocages de force, des clés de données écrites entre guillemets dans js/rogue.js, js/rogue-jeu.js et js/saison.js (*check_refonte* les cherche aussi) : `caisse1`, `caisse2`, `commanditaire1`, `commanditaire2`, `plafond1`, `plafond2`, `garder1`, `garder2`, `garder3`, `classeur1`, `classeur2`, `classeur3`, `classeur4`, `classeurTri`, `banc1`, `banc2`, `recrue1`, `recrue2`, `plombiersPlus`, `packVedettes`. (La phrase d'avant, « aucune déclaration de commanditaire », était fausse : les deux sont dans *DEBLOCAGES*, et *baremeRogue* les lit.)
 
-**Le compte** : **90 noms** entre accents graves ci-dessus, dont 70 fonctions et constantes et 20 clés de déblocage. Trois sont courts (`XP`, `REPOS`, `TALENT`) : la tranche 5 vérifie qu'aucun texte d'écran ne les contient en mot entier avant de les mettre dans son extrait.
+**Le compte** : **94 noms** entre accents graves ci-dessus, dont 72 fonctions et constantes, 2 classes CSS et 20 clés de déblocage. Trois sont courts (`XP`, `REPOS`, `TALENT`) : la tranche 5 vérifie qu'aucun texte d'écran ne les contient en mot entier avant de les mettre dans son extrait.
 
 ## 8b. Ce qui reste, et pourquoi
 
@@ -378,7 +402,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 
 - **Le moteur calibré** : `jouerEnPeriodes`, les greffes (`brancherGreffes`), `teamStrength`, `profilMatch`, le hasard, la ligue au jour le jour — JP : *le moteur calibré ne bouge pas* ; la V27 ne touche aucune cote.
 - **Les vrais joueurs, le repêchage dans de vrais vestiaires** : `bouchesTrousDuDepart` (sa bande change, pas sa règle), `departDuClasseur`, `lotoDeCase`, `vestiaire` du départ — JP.
-- **Le duel vécu en direct** : `INTENTIONS`, `FORCE_DUEL`, `MISE_DOUBLEE`, `ELAN`, `SONNE`, les trois périodes vues, leur coach en séries (`persoAdverse`, `OMBRE`) — JP : *le gros match vécu en direct*.
+- **Le duel vécu en direct** : `INTENTIONS`, `FORCE_DUEL`, `ELAN`, `SONNE`, les trois périodes vues, leur coach en séries (`persoAdverse`, `OMBRE`) — JP : *le gros match vécu en direct*.
 - **Le relais** : `effetDuRelais`, `RELAIS_NIV`, la chaîne de deux maillons — décision 7 : le moteur des combos.
 - **La règle du coach** : `REGLES_DU_COACH`, `primesDuCoach`, `PRIME_COACH_MAX` — décision 7.
 - **L'entraîneur au loto et son niveau** : `lotoDesCoachs`, `coachAuCartable`, `niveauDuCoach`, `MAITRISE`, la philosophie lue des vraies stats — décision 7 (sa pièce de départ) et la variété de la méta.
@@ -390,7 +414,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 - **Le pack d'une série gagnée** : `packDeSerie` — il sert la ronde d'après ; c'est le cran de plus de `packVedettes` qui part.
 - **Les spécialités de pack** : `packDefenseurs`, `packGardiens`, `packAnnees80` — déjà de la variété.
 - **Les exigences** : `EXIGENCES`, `exigencesDe`, `PRIME_EXIGENCE` — décision 10 ; leurs crans changent de leviers (§ 4.9).
-- **Le prestige** : `PRESTIGES`, `rangDePrestige` — le rang reste un titre ; ses taux et son budget partent si JP le confirme (§ 11.6).
+- **Le prestige** : `PRESTIGES`, `rangDePrestige` — le rang reste un titre (variété seulement, décision 9) ; ses taux et son budget partent, et son dernier rang se renomme « Une institution » (§ 4.12).
 - **Les jalons** : `JALONS`, `jalonsAtteints`, `packsOuverts` — réécrits à la tranche 9 (§ 4.9), pas retirés.
 - **La plaque** : la classe `bu-run` — refaite (§ 4.11), son nom reste.
 - **Les galons** et le panthéon — ils comptent ce qu'un joueur a fait chez toi, une run ou plusieurs.
@@ -438,13 +462,14 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 - [ ] **Le banc** : cinq cases, aucun séjour, repos, salaire ni niveau ; chaque pièce joue 30 à 50 % des soirs, se voit dans la feuille du soir où elle joue et n'est jamais un piège (jamais sous −0,5 V en paires sur un acte) ; le relais rend 1,2 à 1,6 fois la somme d'une paire — `check_pouvoirs` (devient le juge des pièces : ses bornes de 2,5 V, 4 V et 16 V partent), `check_relais`, `check_banc` (le salaire part), `check_moments_si`.
 - [ ] **La courbe** : la part de points au classement de l'attentif monte d'un acte à l'autre en médiane, aux intervalles posés par la tranche 1 (pas en `teamStrength`) — `check_profondeur`.
 - [ ] **Le robot « premier »** ne gagne pas la Coupe (au plus 2 sur 64) — `check_robot` (réécrit : sa campagne passe sur le robot des actes).
-- [ ] **Le duel** : un seul choix avant le match (le plan et la mise), aucune décision d'entracte ; le rival montre son intention dominante et son style à son annonce ; deux clubs égaux, le meilleur plan fort contre « Ton match » : un avantage net, sous 60 % en face à face ; **chaque trio de plans que le banc peut proposer, sur toute la banque de pièces, n'a aucun plan qui domine les deux autres** sur les cinq intentions (meilleur ou égal contre chacune, et meilleur contre une) ; la mise ne touche jamais les cœurs et le bouton dit le prix exact — `check_duel` (réécrit : les propositions par période partent).
+- [ ] **Le duel** : un seul choix avant le match, le plan, sans mise et sans décision d'entracte ; le rival montre son intention dominante et son style à son annonce ; deux clubs égaux, le meilleur plan fort contre « Ton match » : un avantage net, sous 60 % en face à face ; **chaque trio de plans que le banc peut proposer, sur toute la banque de pièces, n'a aucun plan qui domine les deux autres** sur les cinq intentions (meilleur ou égal contre chacune, et meilleur contre une) ; un rival perdu laisse ses sonnés, sans doublement — `check_duel` (réécrit : les propositions par période partent).
 - [ ] **Les gros matchs** : au 82-0, les trois périodes vues sans choix (inchangé) ; en Rogue, seuls le rival, l'élite et la série sont des duels ; leur coach en séries tient — `check_gros` (réécrit : les rivaux du proprio, `MINI_BOSS` et le butin partent).
 - [ ] **Les jambes** : la profondeur contre les vedettes, mesurée avec une pièce au lieu du plan « tirer » — `check_jambes` (réécrit à la tranche 6).
 - [ ] **Les élites** : au plus une par acte, jamais la semaine du rival ni en séries, sans réponse un soir ordinaire ; la récompense suit la formule du § 4.5 ; **en paires**, le robot qui prend contre celui qui refuse : il gagne au moins autant de Coupes sur 64 et ne meurt pas plus d'une fois sur huit de plus — `check_elites` (neuf), `check_profondeur`.
 - [ ] **Les histoires** : 9 à 13 fourches par saison, aucun trou de plus de trois semaines ; au plus 20 % des fourches à moins de 0,1 V entre leurs réponses ; une pièce au plus par fourche, deux par saison ; les autres sortent en nouvelles d'Hier soir avec leur voix et leur fait — `mesure_rythme` (réécrit à la tranche 8 : la run d'une saison, plus trois), `check_histoires`, `check_effets` (réécrit à la tranche 8 : l'écart des fourches ; ses bornes par niveau restent pour les réponses).
 - [ ] **Les décisions** : au plus 90 par saison, dont au moins 30 vrais choix (§ 4.10), mesurés en paires sur deux états opposés — `mesure_decisions` (neuf ; une information jusqu'à ce que la définition soit codée, puis rouge au-dessus de 90).
 - [ ] **La méta** : en paires, le taux de Coupes **avec tous les déblocages et sans aucun** ne diffère pas de plus de 3 points sur 64 graines ; de même au premier et au dernier rang de prestige ; le catalogue de variété est chiffré dans la page des règles — `check_rogue`, `check_profondeur`.
+- [ ] **La Dynastie** : après une Coupe, l'équipe entière et trois pièces gardées, les contrats montés de 10 % et la masse ramenée sous un plafond inchangé, le palier de badge perdu à 33 ans, 2 ❤️ remis, les rivaux et l'exigence d'un cran plus haut ; aucun loto, aucun gardé, aucune étape de ligue ; sur 64 graines, l'attentif qui continue regagne la Coupe dans 20 à 50 % de ses saisons de Dynastie, moins à la deuxième qu'à la première — `check_dynastie` (neuf, tranche 11), `check_sauvegardes`.
 - [ ] **Les vieilles sauvegardes** : une partie de chaque forme d'avant (saison 1, saison 2+, en séries, au milieu d'un duel, avec des déblocages de force) s'ouvre sans erreur, verse ses 🏅, rembourse ses déblocages qui partent, et commence une run neuve — `check_sauvegardes`.
 - [ ] **Les écrans** : la maquette de la tranche 0 reproduite ; Hier soir en tête de Ce soir, Ce soir en 1,0 écran ; l'affiche à 240 px ; la plaque (« Acte I », « 22e / 20 », les cœurs dessinés et lus) ouvre le Proprio ; le banc en cinq cartes de front ; le soir de fin d'acte dans son ordre, chaque étape une ligne qui bloque ; le verso agrandi porte « Prendre », retourner une carte referme l'autre ; le rang une seule fois — `check_plateau` (contrat réécrit), `check_hauteur`, `check_clarte`, `essai_rogue` (`CAPTURES_PAGES=1`).
 - [ ] **Les juges qui partent** : `check_deck` et `mesure_deck` (tranche 5 : la main du deck part ; ce qu'ils prouvaient de l'atelier reste à `check_atelier`) ; `mesure_main` (tranche 5 : plus de main) ; `check_plan_de_match` (tranche 6 : le plan du soir part ; « Ton match ne change rien » passe à `check_duel`).
@@ -457,7 +482,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 
 Les campagnes lourdes tournent en CI (`profondeur.yml`), jamais sur le PC de JP. Chaque tranche porte son extrait `docs/refonte-v27-<n>.md` (ce qui part dans cette tranche) pour `check_refonte`.
 
-**0. Les maquettes** — tous les écrans neufs du § 4.11, à 390 × 844, sur le canevas privé de JP (comme les écrans du Rogue) : Ce soir et ta plaque, le rival annoncé, le calendrier de l'acte, l'élite du lundi, le choix du duel, l'entracte, le soir de fin d'acte, le contrôle et le cœur, la pièce à prendre et le banc plein, la boutique, « La run continue », l'écran de fin, la vieille sauvegarde, le Proprio. **JP tranche sur les maquettes ; aucune ligne de code.** *Le joueur ne voit rien.*
+**0. Les maquettes** — tous les écrans neufs du § 4.11, à 390 × 844, sur le canevas privé de JP (comme les écrans du Rogue) : Ce soir et ta plaque, le rival annoncé, le calendrier de l'acte, l'élite du lundi, le choix du duel, l'entracte, le soir de fin d'acte, le contrôle et le cœur, la pièce à prendre et le banc plein, la boutique, « La run continue », l'écran de fin, la Dynastie (ce qu'on garde, les contrats à libérer), la vieille sauvegarde, le Proprio. **JP tranche sur les maquettes ; aucune ligne de code.** *Le joueur ne voit rien.*
 
 **1. Le juge neuf** — le prototype (`jouerSaisonActes`, l'échange de cédule, les rivaux, les cœurs, le renfort neuf, les nœuds, la bande du départ) devient `scripts/lib/rogue_actes.mjs`, le robot du dépôt, avec le glouton ; `check_profondeur` et `check_robot` le lisent sur 64 graines ; `profondeur.yml` entre. Aucune ligne du jeu ne change ; **elle peut fusionner seule**. *Le joueur ne voit rien.* Juge : `check_profondeur` reproduit la cible sur l'ancien banc avec 2 ❤️, et dit le temps de la campagne.
 
@@ -466,22 +491,20 @@ Les campagnes lourdes tournent en CI (`profondeur.yml`), jamais sur le PC de JP.
 - **3. La boutique à ses nœuds** — sept ouvertures, le prix remis à zéro, quatre achats au plus, la pièce parmi trois (à brancher sur *PIECES* de la tranche 5, d'où le regroupement). *Le joueur voit la boutique fermée entre deux nœuds, « dans N matchs », ses packs moins chers à chaque ouverture et une pièce à vendre.* Juge : `check_rogue`, `check_packs`, `check_profondeur`.
 - **4. Le calendrier placé et le renfort** — l'écran du calendrier de l'acte, l'échange en deux touchers, le renfort compté depuis l'origine, le « +2 ✦ » qui suit le club. *Le joueur choisit au premier soir de chaque acte qui il affronte quand, et voit ce que ça coûte partout où le club apparaît.* Juge : `check_rogue`, `check_calendrier`, `check_graine`, `check_chiffres`, `check_profondeur` (variante placée), `essai_rogue`.
 - **5. Le banc de cinq** — js/pieces.js : pouvoirs, adjoints et plans fondus en *PIECES*, sans niveau, à leur présence réelle ; le coach et sa pièce de départ, la pièce des rivaux ; séjour, repos, salaire, main, expérience, talents, niveaux d'adjoint et main du deck partent. *Le joueur voit cinq cartes sur son banc, qui restent, et une pièce à prendre après chaque rival battu.* Juge : `check_pouvoirs` (réécrit), `check_relais`, `check_banc`, `check_moments_si`, `check_impact`, `check_profondeur` (le glouton), `check_sauvegardes`.
-- **6. Le duel à un choix** — le plan fort d'avant-match et la mise sur le même écran ; le plan du soir, les propositions par période et l'entracte à choix partent. *Le joueur choisit une fois avant le rival, puis vit le match ; les soirs ordinaires n'ont plus de plan à régler.* Juge : `check_duel` (réécrit), `check_gros`, `check_jambes`, `essai_rogue`.
+- **6. Le duel à un choix** — le plan fort d'avant-match ; le plan du soir, les propositions par période, l'entracte à choix et la mise doublée partent. *Le joueur choisit une fois avant le rival, puis vit le match ; les soirs ordinaires n'ont plus de plan à régler.* Juge : `check_duel` (réécrit), `check_gros`, `check_jambes`, `essai_rogue`.
 
 **Ensuite, une PR chacune vers main** :
 - **7. Les élites** — la proposition du lundi, le duel, la récompense chiffrée, le cœur perdu ; mesurées en paires. *Le joueur peut, une fois par acte, risquer un cœur contre un gros club pour une pièce et des jetons.* Juge : `check_elites` (neuf), `check_profondeur`.
 - **8. Les fourches** — une histoire aux 2 ou 3 semaines, de vraies fourches à prix en stats, les autres en nouvelles d'Hier soir. *Le joueur reçoit moins d'histoires, mais chacune est un vrai choix.* Juge : `mesure_rythme`, `check_histoires`, `check_effets`, `check_clarte`, `mesure_decisions` (neuf).
-- **9. La méta en variété** — les déblocages de force partent et sont remboursés, le catalogue de variété, les jalons et les exigences réécrits, le prestige selon JP (et la Dynastie si JP l'écrit, § 11.1). *Le joueur dépense ses 🏅 pour d'autres coachs, pièces, pochettes et époques.* Juge : `check_rogue` (aucun déblocage de force), `check_profondeur` (méta en paires, exigences), `check_sauvegardes`.
+- **9. La méta en variété** — les déblocages de force partent et sont remboursés, le catalogue de variété, les jalons et les exigences réécrits, le prestige en variété et son dernier rang renommé. *Le joueur dépense ses 🏅 pour d'autres coachs, pièces, pochettes et époques.* Juge : `check_rogue` (aucun déblocage de force), `check_profondeur` (méta en paires, exigences), `check_sauvegardes`.
 - **10. L'ordre de Ce soir** — seulement l'ordre : Hier soir en tête, l'affiche, la plaque, le banc, tes choix, le bouton, en 1,0 écran (les autres écrans sont faits aux tranches 2 à 6). *Le joueur voit Ce soir commencer par hier.* Juge : `check_plateau`, `check_hauteur`, `essai_rogue` (`CAPTURES_PAGES=1`), `check_mort`.
+- **11. La Dynastie** — la saison de plus après la Coupe (§ 4.12) : ce qu'on garde, les contrats et le plafond, le vieillissement, les cœurs remis, les rivaux et l'exigence d'un cran. Après la 9, parce qu'elle lit les exigences réécrites. *Le joueur qui gagne la Coupe peut continuer avec la même équipe, plus vieille et plus chère, contre plus fort.* Juge : `check_dynastie` (neuf), `check_profondeur`, `check_sauvegardes`, `essai_rogue`.
 
 ## 11. Les questions qui restent à JP
 
-Fermées par la revue et JP : les contrôles et les cœurs (décision 1), le rival perdu (sans cœur, il ne donne rien et laisse les sonnés), les cœurs regagnés (jamais), la récompense d'élite (une pièce et des jetons, § 4.5), la main du deck (la recrue et le rôle partent, l'atelier reste dans la banque ; la boutique vend des pièces), la courbe par acte (la mesure tranche), le vrai choix (§ 4.10), le mot « rival » (décision 6).
+Fermées par la revue et JP : les contrôles et les cœurs (décision 1), le rival perdu (sans cœur, il laisse les sonnés), les cœurs regagnés (jamais), la récompense d'élite (une pièce et des jetons, § 4.5), la main du deck (la recrue et le rôle partent, l'atelier reste dans la banque ; la boutique vend des pièces), la courbe par acte (la mesure tranche), le vrai choix (§ 4.10), le mot « rival » (décision 6), la Dynastie (décision 7), la mise (décision 8), le prestige (décision 9), les jetons restants (décision 10).
 
-1. **La Dynastie** (une saison de plus après la Coupe) : l'écrire en règles dans la V27, ou la sortir de la V27 ? — **Recommandé : la sortir** ; une run = une saison reste net, et la Dynastie se fera dans un devis à part après la mesure (le nom est aussi celui du dernier rang de prestige).
-2. **Le prix d'une pièce en boutique** : 32 🪙 au premier achat d'un nœud, puis la hausse des packs ? — **Recommandé : oui**, la mesure règle entre 24 et 40.
-3. **Les jetons qui restent après le dernier nœud** : perdus, ou convertis en 🏅 ? — **Recommandé : perdus**, l'écran du 82e nœud le dit ; une conversion pousserait à garder au lieu d'acheter.
-4. **Ce que paient les jetons** : seulement les packs et la pièce (les clubs et couleurs passent en 🏅) ? — **Recommandé : oui**, une monnaie par horizon.
-5. **La méta** : combien de runs pour tout débloquer ? Le catalogue chiffré fait ≈ 1 100 🏅, soit ≈ 18 runs. — **Recommandé : ≈ 15 runs** (les prix baissés d'un cinquième).
-6. **Le prestige** : de la force (ses taux d'Étoiles, son budget du classeur) ou de la variété seulement ? — **Recommandé : variété** ; le rang reste un titre, ses taux et son budget partent, et la mesure en paires le prouve.
-7. **La mise avant le match** (déduite de « aucune décision d'entracte ») : la mise de la 3e devient une mise posée avec le plan, avant le match ? — **Recommandé : oui**.
+1. **Le prix d'une pièce en boutique** : 32 🪙 au premier achat d'un nœud, puis la hausse des packs ? — **Recommandé : oui**, la mesure règle entre 24 et 40.
+2. **Ce que paient les jetons** : seulement les packs et la pièce (les clubs et couleurs passent en 🏅) ? — **Recommandé : oui**, une monnaie par horizon.
+3. **La méta** : combien de runs pour tout débloquer ? Le catalogue chiffré fait ≈ 1 100 🏅, soit ≈ 18 runs. — **Recommandé : ≈ 15 runs** (les prix baissés d'un cinquième).
+4. **La Dynastie, sa fin et son nom** : sans fin (chaque Coupe propose une saison de plus), et le rang de prestige renommé « Une institution » ? — **Recommandé : oui aux deux** (§ 4.12).
