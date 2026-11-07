@@ -49,7 +49,7 @@ JP (4 nov. 2026) : *ça fait une bonne vingtaine de fois qu'on retravaille le UI
 
 ## Avant de coder
 
-- `LIVRAISON.md` — ce qui est ouvert et le journal récent. Coche les cases au fur et à mesure et ajoute une entrée au journal, la plus récente en premier, selon la règle écrite en tête du journal. Le plan de la 1.0 et ses jalons, tous livrés : `docs/livraison-1.0.md`.
+- `LIVRAISON.md` — ce qui est ouvert et le journal récent. Coche les cases au fur et à mesure ; une entrée de journal est un fichier neuf dans `docs/journal/entrees/` (`AAAA-MM-JJ-sujet.md`), selon la règle écrite en tête du journal de `LIVRAISON.md` — jamais une ligne ajoutée en tête d'un fichier partagé, pour que deux PR n'entrent jamais en conflit. Le plan de la 1.0 et ses jalons, tous livrés : `docs/livraison-1.0.md`.
 - `ARCHITECTURE.md` — il explique pourquoi le découpage se fait par saison et non par équipe. Ce choix n'est pas arbitraire et le défaire casse la normalisation par époque.
 - `MOTEUR.md` — la spécification de la simulation par événements, avec les mesures qui appuient chaque choix ; obligatoire avant de toucher à `js/sim.js`, avec `docs/moteur-recalibrer.md` pour la recalibration. Pour Sur glace, `docs/sur-glace.md` est l'inventaire de toutes les fonctions d'un jeu de hockey 2D, faites ou à faire, et l'ordre de travail.
 - `PLAN.md` — l'état court et les décisions prises. L'histoire de chaque décision (pourquoi, ce qui a été essayé et écarté, mesuré) est dans `docs/decisions.md` ; les refontes du Rogue dans `docs/refonte-v*.md` ; le journal dans `docs/journal/` (par sprint, S7 à S80 ; par mois depuis septembre 2026, `AAAA-MM.md`).
