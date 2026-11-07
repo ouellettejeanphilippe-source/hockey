@@ -648,7 +648,7 @@ function boucle(now) {
       if (j && !etat.match.fini && !j.fusillade && !j.punition) reprise = { attente: REPRISE.attente, t: 0, tBut: etat.t, images: null, allume: false };
     }
     else if (v.type === 'arret' && v.gele) flash = { mot: 'Gelée.', reste: 1.2 };
-    else if (v.type === 'arret') flash = { mot: 'Arrêt !', reste: 0.8 };
+    else if (v.type === 'arret') flash = { mot: v.plongeon ? 'Le plongeon !' : 'Arrêt !', reste: 0.8 };
     else if (v.type === 'poteau') { flash = { mot: v.barre ? 'La barre !' : 'Poteau !', reste: 0.8 }; secousse = { t0: now, dur: 160, amp: 2 }; const d = etat.rondelle.dernier; if (d && tonJoueur(d.id)) vibrer(d.equipe, 'poteau'); }
     else if (v.type === 'horsjeu') flash = { mot: 'Hors-jeu', reste: 1.2 };
     else if (v.type === 'degagement') flash = { mot: 'Dégagement refusé', reste: 1.2 };
@@ -1308,7 +1308,7 @@ function gardien(Gd, now) {
   // LE PAPILLON : les jambières à plat sur un arrêt, un demi-seconde ; sinon la garde, tourné vers la rondelle.
   corps(Gd.x, Gd.y, Gd.equipe, 'G', Gd.pose || poseDuGardien(Gd, now), directionDe(Math.atan2(R.y - Gd.y, R.x - Gd.x), 4));
 }
-const poseDuGardien = (Gd, now) => (Gd.anim && now - Gd.anim < 450 ? Gd.animPose || 'papillon' : 'garde');
+const poseDuGardien = (Gd, now) => (Gd.plonge > 0 || Gd.auSol > 0 ? (Gd.plongeCote * Gd.sens > 0 ? 'mitaine' : 'bloqueur') : Gd.anim && now - Gd.anim < 450 ? Gd.animPose || 'papillon' : 'garde');
 
 /* ---------- la reprise d'un but (le lot 4, `REPRISE`) ---------- */
 /* Ce qu'on vient de dessiner, gardé : les patineurs sur la glace (leur pose), les gardiens, la rondelle. */
