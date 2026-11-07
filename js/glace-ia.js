@@ -200,7 +200,28 @@ function uneTemps(etat, s, but, u, adv, M) {
   return { x: bx / n * UNE_TEMPS.baton, y: by / n * UNE_TEMPS.baton, tir: true };
 }
 
+/*
+ * L'OBSTRUCTION SUR LE GARDIEN (7 nov. 2026 ; `OBSTRUCTION`, js/physique.js) : l'IA contourne le gardien adverse. À moins de
+ * `CONTOURNE.pres` m de lui, elle retire de son bâton ce qui la pousse vers lui, et, lancée vers lui à moins de
+ * `CONTOURNE.frein` m à plus de `lent` m/s, elle pousse à l'envers pour freiner : le même bâton que la manette, jamais un raccourci du moteur.
+ */
+export const CONTOURNE = { pres: 1.2, frein: 1.8, lent: 0.3 };
 export function decisionIA(etat, s) {
+  const c0 = decider(etat, s);
+  const a = etat.equipes[s.equipe].attaque, g = etat.gardiens.find(q => q.sens === a && !q.retire);
+  if (!c0 || !g || etat.mej) return c0;
+  const dx = g.x - s.x, dy = g.y - s.y, d = hyp(dx, dy) || 1e-9;
+  if (d > CONTOURNE.frein) return c0;
+  const c = { ...c0 }, nx = dx / d, ny = dy / d;
+  const vers = (c.x || 0) * nx + (c.y || 0) * ny;
+  if (vers > 0 && d < CONTOURNE.pres) { c.x = (c.x || 0) - vers * nx; c.y = (c.y || 0) - vers * ny; }
+  const vn = s.vx * nx + s.vy * ny;
+  if (vn > CONTOURNE.lent) { const k = clamp((vn - CONTOURNE.lent) / 2, 0, 1); c.x -= nx * k; c.y -= ny * k; }
+  const m = hyp(c.x, c.y);
+  if (m > 1) { c.x /= m; c.y /= m; }
+  return c;
+}
+function decider(etat, s) {
   const memo = s.memo || (s.memo = {});
   const R = etat.rondelle;
   const eq = s.equipe, a = etat.equipes[eq].attaque;
