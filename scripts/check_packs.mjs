@@ -37,7 +37,7 @@ import { fileURLToPath } from 'node:url';
 import { PACKS_TOUS, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesDuPack, RARE_DU_PACK, sortDUnPack, BOUTIQUE, tierDuPack, prixDe } from '../js/packs.js';
 import { PRESTIGES, JALONS, DEBLOCAGES, packsOuverts, monteeDesPacks, peutAcheter } from '../js/rogue.js';
 import { COACHS, VOIES } from '../js/coachs.js';
-import { VENTE, valeurDe } from '../js/inventaire.js';
+import { VENTE, valeurDe, venteDuDoublon } from '../js/inventaire.js';
 import { BANQUE, idsDe } from '../js/banque.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, niveauParDefense, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey } from '../js/sim.js';
@@ -462,5 +462,14 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   exiger('un cran ne s\'achète que sur un pack ouvert, et le second après le premier', peutAcheter(m, 'monte_bronze_1') && !peutAcheter(m, 'monte_bronze_2') && !peutAcheter(m, 'monte_argent_1')
     && peutAcheter({ ...m, jalons: { series: true } }, 'monte_argent_1') && monteeDesPacks({ deblocages: ['monte_bronze_1', 'monte_bronze_2'] })['j:bronze'] === 2,
     `${Object.keys(DEBLOCAGES).filter(k => DEBLOCAGES[k].pack).length} crans`);
+}
+/*
+ * LA REVENTE D'UN DOUBLON (7 nov. 2026) : à son édition, pas à 2 🪙 pour tous. `VENTE` est par niveau depuis la V25 B1 ;
+ * l'édition se lit à son rang dans `EDITIONS`, aux mêmes valeurs que les raretés d'avant (1 · 1 · 1 · 2 · 5).
+ */
+{
+  const prix = EDITIONS.map(e => venteDuDoublon(e));
+  exiger('un doublon se revend à son édition : Base à Holo, 1 · 1 · 1 · 2 · 5 🪙', prix.join() === '1,1,1,2,5', prix.join(' · '));
+  exiger('une Holo numérotée multiplie son prix : 1 de 1 vaut dix fois une Holo', venteDuDoublon('legendaire', '1 de 1') === 50 && venteDuDoublon('legendaire', '/25') === 10, `${venteDuDoublon('legendaire', '1 de 1')} 🪙`);
 }
 verdict('Les packs selon le niveau des joueurs');

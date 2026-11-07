@@ -24,6 +24,7 @@ import { sortDUnPack } from './packs.js';
 import { NIVEAUX, nomDuNiveau } from './niveaux.js';
 import { puces, chiffresOuverts, basculerChiffres, carteDeBanqueHtml } from './gerant.js';
 import { esc, money as M, jaugePlafond } from './util.js';
+import { EDITIONS } from './rarete.js';
 
 const $ = id => document.getElementById(id);
 
@@ -73,6 +74,10 @@ export function cartesDeLaPartie({ decisions = [], rogue = false } = {}) {
  */
 /* V25 B1 : par niveau (js/niveaux.js, 0 à 4), les mêmes valeurs qu'aux raretés d'avant : 1 · 1 · 1 · 2 · 5. */
 export const VENTE = [1, 1, 1, 2, 5];
+/* Un doublon tiré d'un pack se revend à son édition (Base à Holo, `EDITIONS`, au même rang que `VENTE`) et à son numéro.
+   Avant le 7 nov. 2026, `VENTE[x.rar]` lisait une édition dans un tableau par niveau : tout doublon valait 2 🪙. */
+const NUM_VENTE = { '/99': 1, '/25': 2, '/10': 4, '1 de 1': 10 };
+export const venteDuDoublon = (rar, num) => (VENTE[EDITIONS.indexOf(rar)] ?? 2) * (NUM_VENTE[num] || 1);
 export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'consommable' ? 0 : (VENTE[c.niveau] ?? 1); };
 
 /* Une carte de la banque en option de carte (`ouvrirChoix`, `carteDeBanqueHtml`) : sa famille, sa vie, sa règle. */
