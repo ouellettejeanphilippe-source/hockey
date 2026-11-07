@@ -17,7 +17,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | La barre horizontale (un tir qui frappe la barre, la rondelle qui passe dessus) | ✅ | `FILET.haut`, `but` — check « par-dessus la barre », « juste à la barre » |
 | La rondelle par-dessus la baie vitrée (arrêt de jeu, mise en jeu) | ✅ | `RONDELLE.vitre`, `rondelle` (événement `vitre`, mise en jeu au point le plus près) |
 | La rondelle qui longe la bande (elle roule le long, au lieu de repartir net) | ✅ | 7 nov. : la bande freine ce qui file le long d'elle, à 15 % de la poussée qui la frappe (Coulomb : `RONDELLE.longe`), et la rondelle qui la frôle à moins de 1,5 m/s en travers y reste collée (`RONDELLE.colle`) — check « la rondelle qui frôle la bande la longe », « le rebond garde la vitesse le long de la bande, moins le frottement » |
-| La rondelle dans les patins (elle rebondit sur le corps ; la pousser du pied) | 🟡 | le corps la dévie (`contreCercle` dans `rondelle`) ; le coup de patin volontaire manque |
+| La rondelle dans les patins (elle rebondit sur le corps ; la pousser du pied) | ✅ | le corps la dévie (`contreCercle` dans `rondelle`) ; 7 nov. : la rondelle libre dans tes patins (à 0,55 m de ton corps, pas devant ta lame, à moins de 50 km/h de toi), Y sans elle la pousse du patin : au neutre, sur ta lame (elle passe entre tes patins) ; le bâton poussé, à 22 km/h de plus que toi vers un coéquipier ; poussée du patin dans le filet sans bâton depuis, le but est refusé (« But refusé · X l'a poussée du patin ») (`BOTTE`, `dansLesPatins`, `botter`). L'IA presse le même Y sur la passe qui lui arrive dans le dos et qu'elle distance, loin des bleues (`BOTTE_IA`, ≈ 2 par match de 6 min) — check « pousser la rondelle du patin », « l'IA presse le même Y », « poussée du patin dans le filet, le but est refusé », « la même rondelle partie du bâton compte » |
 | Le trapèze derrière le filet (le gardien ne joue la rondelle que dedans) | ✅ | 2 nov., le lot 5 : la règle de 2005, 18 pieds de large à la ligne des buts, 28 à la bande (`GARDIEN.jouer.trapeze`, `dansLeTrapeze`), dessiné sur la glace ; le gardien ne va pas chercher une rondelle dehors ; s'il la joue dehors (il l'a vue dedans, 170 ms plus tôt), deux minutes, purgées par un patineur (`punirLeGardien`) — check « hors du trapèze, il ne la joue pas », « deux minutes, purgées par un patineur » |
 | Les bancs et les cachots, à leur place hors de la bande | 🟡 | dessinés (`patinoire`), les portes et les sauts par-dessus la bande ne sont pas joués |
 | La glace qui s'use (la rondelle rebondit plus en fin de période) | ⬜ | un frottement qui monte avec `M.reste` serait une ligne |
@@ -223,9 +223,9 @@ JP (7 nov. 2026) : *je veux toutes les mécaniques d'un jeu comme NHL 94, feel s
 | Deux joueurs sur le même écran | ✅ | § 8 |
 | Le temps d'arrêt | ⬜ | § 6 |
 | Le tir instantané (snap), distinct du poignet | ✅ | § 3 (7 nov.) |
-| Pousser la rondelle du patin | 🟡 | § 1 |
+| Pousser la rondelle du patin | ✅ | § 1 (7 nov.) |
 
-Le compte, le 7 nov. 2026 : 30 ✅, 1 🟡, 4 ⬜. L'ordre proposé pour ce qui reste, du feel d'abord : pousser la rondelle du patin, puis les blessures, la fatigue du gardien, le temps d'arrêt et le gardien qu'on contrôle.
+Le compte, le 7 nov. 2026 : 31 ✅, 0 🟡, 4 ⬜. L'ordre proposé pour ce qui reste : les blessures, la fatigue du gardien et l'auxiliaire, le temps d'arrêt, puis le gardien qu'on contrôle (JP, 7 nov., après son essai : la défensive et un jeu moins « ping-pong » passent d'abord).
 
 ## L'ordre de travail proposé
 
