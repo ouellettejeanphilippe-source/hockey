@@ -191,12 +191,13 @@ export const GARDIEN = {
  */
 export const OBSTRUCTION = { touche: 0.5, fort: 5, loin: 3, fenetre: 1.0, pousse: 0.6, masse: 90 };
 /*
- * LE PLONGEON DÉSESPÉRÉ DU GARDIEN (7 nov. 2026) : un tir qu'il voit venir (avec son retard) vers le filet, là où il
+ * LE PLONGEON DÉSESPÉRÉ DU GARDIEN (7 nov. 2026) : un tir adverse (jamais une passe) qu'il voit venir (avec son retard) vers le filet, là où il
  * n'arrivera pas en glissant (sa vitesse de pointe le temps qui reste), mais à `portee` m de plus : il plonge de ce côté
- * à `elan` m/s. Pendant `duree` s, il couvre `portee` m de plus de ce côté, mais l'extrémité tendue laisse passer
- * `trou` des tirs et ne gèle rien ; puis il reste couché `sol` s, sans bouger : le retour est pour qui le prend.
+ * à `elan` m/s. Pendant `duree` s, il couvre `portee` m de plus de ce côté, mais, tendu de tout son long, il laisse
+ * passer `trou` des tirs et ne gèle rien ; puis il reste couché `sol` s, glissant sur son élan (`frein` par seconde)
+ * sans se replacer : le retour est pour qui le prend.
  */
-export const PLONGEON = { portee: 0.55, elan: 3.5, duree: 0.35, sol: 0.7, trou: 0.45 };
+export const PLONGEON = { portee: 0.45, elan: 3.5, duree: 0.35, sol: 0.7, frein: 8, trou: 0.6 };
 export const CHUTE = { seuil: 300, bande: 1.5 };   // l'écart d'élan, kg·m/s, au-delà duquel le moins lancé des deux tombe ; contre la bande, le coup pèse plus
 export const HARPON = { duree: 0.25, portee: 2.2, largeur: 0.55, repos: 0.7, pousse: 5, trebuche: 0.04 };   // le harponnage : un coup de bâton devant soi ; raté sur le porteur, un sur vingt-cinq l'accroche
 /*
@@ -1435,7 +1436,8 @@ function gardien(etat, Gd, ev) {
   if (Gd.plonge > 0) { Gd.plonge -= PAS; if (Gd.plonge <= 0) Gd.auSol = PLONGEON.sol; }
   else if (Gd.auSol > 0) Gd.auSol -= PAS;
   const plonge = Gd.plonge > 0 || Gd.auSol > 0;
-  if (!plonge && !etat.arret && vu.libre && vu.vx * s > 8 && vu.x * s < LIGNE_BUT) {
+  const tirAdverse = R.dernier && R.dernier.tir && R.dernier.equipe !== Gd.equipe;   // un tir, pas une passe qui traverse
+  if (!plonge && !etat.arret && tirAdverse && vu.libre && vu.vx * s > 8 && vu.x * s < LIGNE_BUT) {
     const t = (Gd.x - vu.x) / vu.vx, y = vu.y + vu.vy * t, reste = t - Gd.p.reaction;
     const manque = Math.abs(y - Gd.y) - Gd.p.demi - Gd.p.vMax * Math.max(0, reste);
     if (Math.abs(y) < FILET.large / 2 && reste > 0 && manque > 0 && manque < PLONGEON.portee) {
@@ -1473,7 +1475,7 @@ function gardien(etat, Gd, ev) {
   let ax = k * (cible.x - Gd.x) - c * Gd.vx, ay = k * (cible.y - Gd.y) - c * Gd.vy;
   const a = hyp(ax, ay);
   if (a > GARDIEN.accel) { ax *= GARDIEN.accel / a; ay *= GARDIEN.accel / a; }
-  if (plonge) { ax = -Gd.vx * (Gd.plonge > 0 ? 0 : 8); ay = -Gd.vy * (Gd.plonge > 0 ? 0 : 8); }   // en plongeon, il glisse
+  if (plonge) { ax = -Gd.vx * (Gd.plonge > 0 ? 0 : PLONGEON.frein); ay = -Gd.vy * (Gd.plonge > 0 ? 0 : PLONGEON.frein); }   // en plongeon, il glisse
   Gd.vx += ax * PAS; Gd.vy += ay * PAS;
   const v = hyp(Gd.vx, Gd.vy), vMax = plonge ? PLONGEON.elan : Gd.p.vMax;
   if (v > vMax) { Gd.vx *= vMax / v; Gd.vy *= vMax / v; }
@@ -1484,7 +1486,7 @@ function gardien(etat, Gd, ev) {
   if (R.porteur && !etat.arret) { harponDuGardien(etat, Gd, ev); return; }
   if (R.porteur || etat.arret) return;
   if (Gd.joue && R.z < 0.3 && hyp(R.x - Gd.x, R.y - Gd.y) < GARDIEN.jouer.portee) { jouerLaRondelle(etat, Gd, ev); return; }
-  const tendu = plonge && Math.sign(R.y - Gd.y) === Gd.plongeCote && Math.abs(R.y - Gd.y) > Gd.p.demi;   // l'extrémité tendue
+  const tendu = plonge;   // tendu de tout son long
   const dansY = Math.abs(R.y - Gd.y) < Gd.p.demi + (plonge && Math.sign(R.y - Gd.y) === Gd.plongeCote ? PLONGEON.portee : 0) + RONDELLE.rayon;
   const dansX = Math.abs(R.x - Gd.x) < GARDIEN.profondeur + RONDELLE.rayon;
   if (!(dansY && dansX) || R.z > FILET.haut || Gd.x * s > LIGNE_BUT) return;   // derrière sa ligne, il ne gèle rien
@@ -2288,7 +2290,7 @@ export function reglesDeLaGlace() {
     `À l'arrêt de jeu, Y choisit ton trio : il joue, quelles que soient ses jambes. À la volée, la rondelle loin, la ligne qui passe sous ${JAMBES.volee} jambes file à la porte de son banc, s'il y en a une à ${JAMBES.frais} au banc (l'IA comme tes coéquipiers ; toi, fatigué, tu y patines) ; à ${dec(BANC.porte)} m de la porte, l'un sort et le plus reposé entre, au même instant : jamais un patineur de trop. Les bancs sont à ${BANC.x} m du centre, chacun du côté de son filet de la première période : en deuxième, la présence est plus longue. Le gardien remis en jeu revient quand un patineur sort.`,
     `L'obstruction sur le gardien : un attaquant debout qui entre dans le gardien dans son enclave (${dec(FILET.enclave, 2)} m) le bouscule ; un but dans ce filet moins de ${dec(OBSTRUCTION.fenetre)} s après est refusé, et la mise en jeu va à la zone neutre ; entré à plus de ${kmh(OBSTRUCTION.fort)} km/h sans aller à la rondelle, ${MATCH.punition / 60} minutes. Poussé dedans par un adversaire, ou au sol, il n'y est pour rien.`,
     `Le contournement du filet : sorti de derrière, la lame à côté du poteau (${dec(CONTOUR.avant)} m devant la ligne des buts au plus, ${dec(CONTOUR.cote)} m du poteau au plus), le tir la glisse au ras du poteau ; le gardien qui le couvre l'arrête, celui resté à l'autre arrive trop tard.`,
-    `Le plongeon désespéré : un tir qu'il n'atteindra pas en glissant, mais à ${dec(PLONGEON.portee, 2)} m de plus, le gardien plonge de ce côté ; tendu, il en laisse passer ${Math.round(PLONGEON.trou * 100)} % et ne gèle rien, puis il reste couché ${dec(PLONGEON.sol)} s.`,
+    `Le plongeon désespéré : un tir qu'il n'atteindra pas en glissant, mais à ${dec(PLONGEON.portee, 2)} m de plus, le gardien plonge de ce côté ; tendu de tout son long, il en laisse passer ${Math.round(PLONGEON.trou * 100)} % et ne gèle rien, puis il reste couché ${dec(PLONGEON.sol)} s.`,
     `Le gardien joue la rondelle libre derrière son filet, plus lente que ${kmh(GARDIEN.jouer.lente)} km/h, s'il y est le premier : une remise au coéquipier ouvert, sinon le long de la bande, puis il revient. Derrière sa ligne, il ne la joue que dans le trapèze (${dec(2 * GARDIEN.jouer.trapeze[0] / PIED, 0)} pieds de large à la ligne des buts, ${dec(2 * GARDIEN.jouer.trapeze[1] / PIED, 0)} à la bande) : dehors, ${MATCH.punition / 60} minutes. Un tir au but est un arrêt ou un but, comme la LNH les compte ; un but, et les coéquipiers du buteur se regroupent ${dec(CELEBRATION.duree)} s.`,
   ];
 }

@@ -108,7 +108,7 @@ Ce qui tient tout : un pas de temps fixe de 1/120 s, des mètres et des kilogram
 | Le gardien battu par un écran, la déviation, le mauvais rebond | ✅ | le rebond, l'écran (`GARDIEN.ecran`), la déviation malgré soi (`BATON.devie`) ; IA contre IA, le % d'arrêts passe de 92 à 89,5 %, les buts restent à ≈ 3,8 par match |
 | L'obstruction sur le gardien, le but refusé | ✅ | 7 nov. : un but dans ce filet moins de 1 s après le contact est refusé : le sifflet (deux coups), l'arbitre l'annule, « But refusé · X a gêné le gardien » à l'écran, la foule hue ; le tir ne compte pas au but, la mise en jeu va au point de la zone neutre de ce côté (la règle 78.6) ; un tir de barrage, raté (`refuser`, `M.refuses`) — check « le but qui suit est refusé », « le sifflet, et le tir ne compte pas », « la mise en jeu au point de la zone neutre », « poussé dedans par un défenseur … le but compte », « marqué plus de 1 s après le contact compte » |
 | La fatigue du gardien, le remplacement par l'auxiliaire | ⬜ | l'auxiliaire est dans le shard (`autoRoster` unit 1) |
-| Le plongeon désespéré (la mitaine qui se tend) | ⬜ | un geste d'animation et un dé |
+| Le plongeon désespéré (la mitaine qui se tend) | ✅ | 7 nov. : un tir adverse qu'il voit venir (avec son retard) vers le filet, hors de sa glisse mais à 0,45 m de plus : il plonge de ce côté à 3,5 m/s, 0,35 s ; tendu de tout son long, il en laisse passer 60 % et ne gèle rien, puis reste couché 0,7 s, glissant sans se replacer — le retour est à qui le prend (`PLONGEON`) ; la mitaine ou le bloqueur à l'écran, « Le plongeon ! » sur l'arrêt. IA contre IA : ≈ 3,5 plongeons par match de 6 min, les tirs de l'enclave arrêtés comme avant (88 %) — check « le plongeon du gardien » (30 sur 30), « il en arrête, pas tous » (20 sur 30, 0 sans le plongeon), « il reste couché », « un tir droit sur lui : pas de plongeon ». Les matchs mesurés passent de 6 à 10 (la part du temps dans l'enclave flottait de ±0,04 à 6) |
 
 ## 6. Les règles et le déroulement
 
@@ -205,7 +205,7 @@ JP (7 nov. 2026) : *je veux toutes les mécaniques d'un jeu comme NHL 94, feel s
 | **L'obstruction sur le gardien et le but refusé** | ✅ | § 4, § 5 (7 nov.) |
 | Le gardien qui sort de son filet (jouer la rondelle, le harpon, le retrait) | ✅ | § 5 |
 | Le gardien qu'on contrôle soi-même | ⬜ | aucune entrée ne le mène ; il est toujours au moteur |
-| Le plongeon désespéré du gardien | ⬜ | § 5 |
+| Le plongeon désespéré du gardien | ✅ | § 5 (7 nov.) |
 | La rondelle libre, la mêlée devant le filet, les rebonds, l'écran, la déviation | ✅ | § 3, § 5 |
 | Se jeter devant un tir (le bloc voulu) | ✅ | § 3 (7 nov.) |
 | Les changements de trio (à l'arrêt, au bouton, à la volée) | ✅ | § 6 |
@@ -225,7 +225,7 @@ JP (7 nov. 2026) : *je veux toutes les mécaniques d'un jeu comme NHL 94, feel s
 | Le tir instantané (snap), distinct du poignet | 🟡 | § 3 |
 | Pousser la rondelle du patin | 🟡 | § 1 |
 
-Le compte, le 7 nov. 2026 : 27 ✅, 3 🟡, 5 ⬜. L'ordre proposé pour ce qui reste, du feel d'abord : le plongeon du gardien, la passe par la bande voulue, puis les blessures, la fatigue du gardien, le temps d'arrêt et le gardien qu'on contrôle.
+Le compte, le 7 nov. 2026 : 28 ✅, 3 🟡, 4 ⬜. L'ordre proposé pour ce qui reste, du feel d'abord : la passe par la bande voulue, puis les blessures, la fatigue du gardien, le temps d'arrêt et le gardien qu'on contrôle.
 
 ## L'ordre de travail proposé
 

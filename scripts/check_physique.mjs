@@ -40,7 +40,7 @@
  *   node scripts/check_physique.mjs
  */
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ, REVERS, PROTEGE, FEINTE, LAISSEE, BANC, JAMBES, HARPON, FAUTES, BAGARRE, LEVE, CELEBRATION, OBSTRUCTION, CONTOUR, DOUBLE, RUDESSE, PLONGE } from '../js/physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ, REVERS, PROTEGE, FEINTE, LAISSEE, BANC, JAMBES, HARPON, FAUTES, BAGARRE, LEVE, CELEBRATION, OBSTRUCTION, CONTOUR, DOUBLE, RUDESSE, PLONGE, PLONGEON } from '../js/physique.js';
 import { PATINEURS, DROITIERS, ANCRE } from '../js/sprites.js';
 import { decisionIA, styleDuClub, ECART_D, SORTIE, ECRAN_D, FOND, UNE_TEMPS } from '../js/glace-ia.js';
 
@@ -1082,10 +1082,10 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   exiger('l\'IA envoie un avant au filet, sur la ligne de la rondelle au gardien : l\'écran', auFilet.ecart < GARDIEN.ecranLarge + PATIN.rayon && auFilet.t > GARDIEN.ecranPres && auFilet.t < 3.5, `${auFilet.s.poste} à ${auFilet.t.toFixed(1)} m devant le gardien, ${auFilet.ecart.toFixed(2)} m de la ligne (le poste : ${ECRAN_D.distance} m)`);
 }
 {
-  // LES MATCHS DE L'IA CONTRE L'IA, mesurés (GLACE_MATCHS, 6 par défaut ; 24 pour le rapport) : le hors-jeu, la passe, la
+  // LES MATCHS DE L'IA CONTRE L'IA, mesurés (GLACE_MATCHS, 10 par défaut — à 6, la part du temps dans l'enclave flottait de ±0,04 d'une graine à l'autre, le 7 nov. ; 24 pour le rapport) : le hors-jeu, la passe, la
   // sortie de zone, l'enclave, les buts.
-  const N = +(process.env.GLACE_MATCHS || 6);
-  const S = { hj: 0, passes: 0, passesOk: 0, sortT: 0, sortOk: 0, oz: 0, ozFilet: 0, buts: 0, tirs: 0, fonds: 0, masques: 0, cycles: 0, trop: 0, revers: 0, volees: 0, punitions: 0, leves: 0, gants: 0, auBut: 0, ecarts: [], joue: 0, refuses: 0, obstrue: 0, contours: 0, rudesses: 0, doubles: 0, plonges: 0, blocs: 0 };
+  const N = +(process.env.GLACE_MATCHS || 10);
+  const S = { hj: 0, passes: 0, passesOk: 0, sortT: 0, sortOk: 0, oz: 0, ozFilet: 0, buts: 0, tirs: 0, fonds: 0, masques: 0, cycles: 0, trop: 0, revers: 0, volees: 0, punitions: 0, leves: 0, gants: 0, auBut: 0, ecarts: [], joue: 0, refuses: 0, obstrue: 0, contours: 0, rudesses: 0, doubles: 0, plonges: 0, blocs: 0, plongeons: 0 };
   for (let g = 0; g < N; g++) {
     const e = nouveauMatch({ graine: `serie-${g}`, A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
     let passe = null, sortie = null, k = 0;
@@ -1111,6 +1111,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
         if (v.type === 'tir' && v.contour) S.contours++;
         if (v.type === 'rudesse') S.rudesses++;
         if (v.type === 'plonge') S.plonges++;
+        if (v.type === 'plongeon') S.plongeons++;
         if (v.type === 'bloc') S.blocs++;
         if (v.type === 'punition' && v.genre === 'double-échec') S.doubles++;
         if (v.type === 'obstrue') S.obstrue++;
@@ -1154,6 +1155,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   borne('les punitions, au rythme de la LNH : ≈ 0,6 par club et par 6 min de jeu, donc vers 0,6 à 0,9 par match (1,9 après le lot 4)', S.punitions / N, 0.2, 1.5, ' par match');
   exiger('les tirs au but se comptent comme la LNH : pour chaque club, tirs = arrêts du gardien adverse + buts (2 tirs pour 1 but et 0 arrêt avant le lot 5)', S.ecarts.length === 0, S.ecarts.length ? S.ecarts.slice(0, 3).join(' ; ') : `${2 * N} clubs, ${(S.auBut / N).toFixed(0)} tirs au but par match (${(S.tirs / N).toFixed(0)} tentés de la zone)`);
   informer('… le gardien joue la rondelle derrière son filet (le lot 5)', `${S.joue} fois en ${N} matchs`);
+  informer('… le plongeon du gardien', `${S.plongeons} en ${N} matchs`);
   informer('… se jeter devant un tir', `${S.plonges} plongeons, ${S.blocs} tirs bloqués en ${N} matchs`);
   informer('… le double-échec et la rudesse après le sifflet', `${S.doubles} et ${S.rudesses} en ${N} matchs`);
   informer('… le contournement du filet, la lame au poteau', `${S.contours} tirs en ${N} matchs`);
@@ -1786,6 +1788,37 @@ const immobilesDe = e => Object.fromEntries(e.patineurs.filter(s => s.surGlace).
   Object.assign(d, { x: 11, y: 0.2, cap: Math.PI, vx: 0, vy: 0 });
   const ev = jouer(e, { [p.id]: { x: 1, y: 0, tir: true } }, 0.15);
   exiger("… l'IA se jette devant le lancer qu'elle voit se charger, du même bouton", ev.some(x => x.type === 'plonge' && x.qui === d.id), ev.filter(x => x.type === 'plonge').length + ' plongeon(s)');
+}
+
+{
+  // LE PLONGEON DÉSESPÉRÉ DU GARDIEN (7 nov. 2026) : le gardien de B décalé de 0,3 m, un tir bas de 6 m à 30 m/s vers le
+  // coin d'en face ; les mêmes tirs, le plongeon retiré (`PLONGEON.portee` à 0, la scène seulement) ; un tir hors d'atteinte.
+  const tirAuCoin = (graine, yBut, y0 = 0.3) => {
+    const e = enScene(graine, null, -18);
+    const Gd = e.gardiens.find(g => g.equipe === 'B'), sg = Gd.sens, tireur = surGlace(e, 'A')[0];
+    Object.assign(Gd, { x: sg * (LIGNE_BUT - 0.4), y: -0.3, vx: 0, vy: 0, memoire: [] });
+    const x0 = sg * (LIGNE_BUT - 6), dx = sg * LIGNE_BUT - x0, dy = yBut - y0, d = Math.hypot(dx, dy);
+    Object.assign(e.rondelle, { x: x0, y: y0, z: 0.1, vz: 0, vx: dx / d * 30, vy: dy / d * 30, porteur: null, dernier: { equipe: 'A', id: tireur.id, t: e.t, x: x0, lance: true, tir: true } });
+    const ev = [];
+    let yCouche = null, bouge = 0;
+    for (let t = 0; t < 1; t += DT) {
+      ev.push(...avancer(e, {}, DT));
+      if (Gd.auSol > 0.1) { if (yCouche == null) yCouche = Gd.y; bouge = Math.max(bouge, Math.abs(Gd.y - yCouche)); }
+    }
+    return { plonge: ev.some(x => x.type === 'plongeon' && x.equipe === 'B'), but: ev.some(x => x.type === 'but'), couche: yCouche != null, bouge };
+  };
+  const NP = 30, ys = i => 0.62 + 0.2 * (i % 5) / 4;
+  const avec = Array.from({ length: NP }, (_, i) => tirAuCoin(`plongeon-${i}`, ys(i)));
+  const portee = PLONGEON.portee; PLONGEON.portee = 0;
+  const sans = Array.from({ length: NP }, (_, i) => tirAuCoin(`plongeon-${i}`, ys(i)));
+  PLONGEON.portee = portee;
+  const arrets = l => l.filter(r => !r.but).length;
+  exiger('le plongeon du gardien : le tir au coin d\'en face, hors de sa glisse, le fait plonger', avec.filter(r => r.plonge).length >= NP * 0.8, `${avec.filter(r => r.plonge).length} plongeons sur ${NP}`);
+  exiger(`… il en arrête, pas tous (tendu, il en laisse passer ${Math.round(PLONGEON.trou * 100)} %) ; sans le plongeon, moins`, arrets(avec) > arrets(sans) + 3 && arrets(avec) < NP, `${arrets(avec)} arrêts sur ${NP} avec le plongeon, ${arrets(sans)} sans`);
+  const couches = avec.filter(r => r.couche);
+  exiger(`… puis il reste couché ${dec1(PLONGEON.sol)} s, glissant sur son élan sans se replacer`, couches.length >= NP * 0.6 && couches.every(r => r.bouge < PLONGEON.elan / PLONGEON.frein + 0.05), `${couches.length} couchés, il glisse de ${dec1(Math.max(0, ...couches.map(r => r.bouge)))} m au plus`);
+  const centre = tirAuCoin('plongeon-centre', -0.3, -0.3);
+  exiger('… un tir droit sur lui : pas de plongeon', !centre.plonge, centre.plonge ? 'il plonge' : 'il reste debout');
 }
 
 /* ---------- les règles, écrites de là ---------- */
