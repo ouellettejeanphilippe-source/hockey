@@ -256,7 +256,7 @@ La pièce maîtresse. Chaque nom ci-dessous disparaît du jeu (js/, index.html, 
 - [x] Le rythme : aucun trou de plus de 10 matchs, une histoire par quart, aucune histoire revue sur le même joueur en trois saisons — `mesure_rythme` (étendu ; C2, 6 nov.).
 - [ ] La profondeur : la première Coupe de l'attentif deux runs avant celle du robot d'avant, à la run 3 ou plus tard ; le robot lit la banque — `check_profondeur` (le critère de run), `check_robot`.
 - [ ] L'interface du Rogue : zéro `body.mode-rogue`, moins de 6 000 lignes, aucun `if` de mode neuf dans le rendu, les douze pages faites des composants, la case en carte un composant nommé — `check_css` (étendu), `check_composants` (ce que `check_plateau` devient), `check_mort`.
-- [ ] La défensive : le canal par joueur bat le club seul et se sépare du gardien en retenue — `check_suppression` (étendu), avant toute ligne d'A3.
+- [x] La défensive : le canal par joueur bat le club seul et se sépare du gardien en retenue — `check_suppression` (étendu), avant toute ligne d'A3. *Mesuré le 7 nov. : il ne tient pas (−0,1 % contre le club, +0,2 % le gardien tenu, intervalles à cheval sur zéro) ; A3 tombe, la possession n'est pas écrite.*
 - [ ] Pas une couche de peinture : ce qui part est parti, le jeu retire au moins une ligne pour deux ajoutées, style.css fait moins de la moitié du diff — `check_refonte docs/refonte-v25-<tranche>.md` à chaque PR.
 - [ ] La vieille partie se relit et se rejoue — `check_sauvegardes`.
 - [ ] Hors ligne — `check_coquille`.
