@@ -1,0 +1,1 @@
+**Le juge des composants marche aussi sous Windows** : `scripts/check_composants.mjs` ramène les fins de ligne CRLF à `\n` avant de découper les gabarits ; il voyait un `enCarte ?` qui n'y était pas sur un poste en autocrlf, vert au CI.

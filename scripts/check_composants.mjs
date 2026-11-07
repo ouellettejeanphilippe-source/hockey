@@ -24,7 +24,13 @@ import { fileURLToPath } from 'node:url';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const RACINE = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const lire = f => fs.readFileSync(path.join(RACINE, f), 'utf8');
+// Les fins de ligne de Windows (CRLF, git en autocrlf) ramenées à 
+ : les gabarits se découpent sur `
+}
+`.
+const lire = f => fs.readFileSync(path.join(RACINE, f), 'utf8').replace(/
+/g, '
+');
 const sansCommentaires = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\])\/\/.*$/gm, '$1');
 const css = sansCommentaires(lire('style.css'));
 const jeu = fs.readdirSync(path.join(RACINE, 'js')).filter(f => f.endsWith('.js')).map(f => ({ f: `js/${f}`, t: sansCommentaires(lire(`js/${f}`)) }));
