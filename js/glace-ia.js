@@ -208,12 +208,28 @@ function uneTemps(etat, s, but, u, adv, M) {
  */
 // le gardien plus près que ça (m, de l'axe, du côté où le porteur ressort) de ce poteau : il y est, on ressort
 const CONTOUR_IA = 0.3;
+/*
+ * SE JETER DEVANT UN TIR (PLONGE, js/physique.js) : le porteur adverse charge son lancer (`JETER.charge` s au moins),
+ * dans notre moitié ; on est entre lui et notre filet, à `JETER.pres` à `JETER.loin` m de lui, à `JETER.ligne` m de la
+ * ligne de son tir au plus : on se couche dessus, LB et B, comme toi.
+ */
+const JETER = { charge: 0.15, pres: 1.5, loin: 6, ligne: 0.6 };
+function seJeter(etat, s) {
+  const R = etat.rondelle, p = R.porteur ? etat.patineurs.find(q => q.id === R.porteur) : null;
+  if (!p || p.equipe === s.equipe || p.charge < JETER.charge || s.auSol > 0 || s.elanRepos > 0) return false;
+  const a = etat.equipes[s.equipe].attaque, xb = -a * LIGNE_BUT;
+  if (p.x * a > 0) return false;
+  const dx = xb - p.x, dy = -p.y, d = hyp(dx, dy) || 1e-9, t = ((s.x - p.x) * dx + (s.y - p.y) * dy) / d;
+  const ecart = Math.abs((s.x - p.x) * dy - (s.y - p.y) * dx) / d;
+  return t > JETER.pres && t < Math.min(JETER.loin, d - 1) && ecart < JETER.ligne;
+}
 const CONTOURNE = { marge: 0.2, freinage: 9, lent: 0.3, recul: 0.6 };
 export function decisionIA(etat, s) {
   const c0 = decider(etat, s);
   const a = etat.equipes[s.equipe].attaque, g = etat.gardiens.find(q => q.sens === a && !q.retire);
   if (c0 && c0.echec && etat.t - (s.harponT ?? -Infinity) < DOUBLE.fenetre) c0.echec = false;   // pas de double-échec : l'IA ne s'élance pas le bâton levé (`DOUBLE`)
   if (c0 && c0.tir && (s.elan > 0 || c0.echec) && etat.rondelle.porteur !== s.id) c0.tir = false;   // … ni ne harponne pendant son élan
+  if (c0 && !etat.arret && !etat.mej && seJeter(etat, s)) return { x: 0, y: 0, recul: true, echec: true };
   if (!c0 || !g || etat.mej) return c0;
   const dx = g.x - s.x, dy = g.y - s.y, d = hyp(dx, dy) || 1e-9;
   if (d > 5) return c0;
