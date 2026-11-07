@@ -40,7 +40,7 @@
  *   node scripts/check_physique.mjs
  */
 import { exiger, borne, informer, verdict } from './verdict.mjs';
-import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ, REVERS, PROTEGE, FEINTE, LAISSEE, BANC, JAMBES, HARPON, FAUTES, BAGARRE, LEVE, CELEBRATION, OBSTRUCTION, CONTOUR, DOUBLE, RUDESSE, PLONGE, PLONGEON, miroirDeBande } from '../js/physique.js';
+import { nouvelleGlace, nouveauMatch, avancer, remise, empreinte, reglesDeLaGlace, lame, bander, surGlace, droitSurGlace, retirerGardien, parametresDuPatineur, parametresDuGardien, porteDuBanc, leveraitLeBaton, DIFFICULTES, L, W, LIGNE_BUT, BLEUE, POINT, FILET, PATIN, FOULEE, BATON, RONDELLE, GARDIEN, CHUTE, MATCH, MEJ, REVERS, PROTEGE, FEINTE, LAISSEE, BANC, JAMBES, HARPON, FAUTES, BAGARRE, LEVE, CELEBRATION, OBSTRUCTION, CONTOUR, DOUBLE, RUDESSE, PLONGE, PLONGEON, miroirDeBande, SNAP } from '../js/physique.js';
 import { PATINEURS, DROITIERS, ANCRE } from '../js/sprites.js';
 import { decisionIA, styleDuClub, ECART_D, SORTIE, ECRAN_D, FOND, UNE_TEMPS } from '../js/glace-ia.js';
 
@@ -205,7 +205,7 @@ function jouer(e, entrees, s) {
     const g = glaceVide('tir');
     Object.assign(g.patineurs[0], { x: -(BOUT - 8), y: 0, cap: 0 });
     Object.assign(g.rondelle, { x: -(BOUT - 9.1), y: 0.3 });
-    avancer(g, { toi: { x: 0, y: 0 } }, DT);
+    jouer(g, { toi: { x: 0, y: 0 } }, SNAP.fenetre + 0.1);   // la rondelle prise, puis le temps du tir instantané passé
     jouer(g, { toi: { x: 0, y: 0, tir: true } }, charge);
     const ev = avancer(g, { toi: { x: 0, y: 0, tir: false } }, DT);
     const t = ev.find(x => x.type === 'tir');
@@ -1085,7 +1085,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   // LES MATCHS DE L'IA CONTRE L'IA, mesurés (GLACE_MATCHS, 10 par défaut — à 6, la part du temps dans l'enclave flottait de ±0,04 d'une graine à l'autre, le 7 nov. ; 24 pour le rapport) : le hors-jeu, la passe, la
   // sortie de zone, l'enclave, les buts.
   const N = +(process.env.GLACE_MATCHS || 10);
-  const S = { hj: 0, passes: 0, passesOk: 0, sortT: 0, sortOk: 0, oz: 0, ozFilet: 0, buts: 0, tirs: 0, fonds: 0, masques: 0, cycles: 0, trop: 0, revers: 0, volees: 0, punitions: 0, leves: 0, gants: 0, auBut: 0, ecarts: [], joue: 0, refuses: 0, obstrue: 0, contours: 0, rudesses: 0, doubles: 0, plonges: 0, blocs: 0, plongeons: 0, parBande: 0 };
+  const S = { hj: 0, passes: 0, passesOk: 0, sortT: 0, sortOk: 0, oz: 0, ozFilet: 0, buts: 0, tirs: 0, fonds: 0, masques: 0, cycles: 0, trop: 0, revers: 0, volees: 0, punitions: 0, leves: 0, gants: 0, auBut: 0, ecarts: [], joue: 0, refuses: 0, obstrue: 0, contours: 0, rudesses: 0, doubles: 0, plonges: 0, blocs: 0, plongeons: 0, parBande: 0, snaps: 0 };
   for (let g = 0; g < N; g++) {
     const e = nouveauMatch({ graine: `serie-${g}`, A: club('AAA', 100), B: club('BBB', 200), periode: 120, humain: null, ia: decisionIA });
     let passe = null, sortie = null, k = 0;
@@ -1113,6 +1113,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
         if (v.type === 'plonge') S.plonges++;
         if (v.type === 'plongeon') S.plongeons++;
         if (v.type === 'passe' && v.bande) S.parBande++;
+        if (v.type === 'tir' && v.snap) S.snaps++;
         if (v.type === 'bloc') S.blocs++;
         if (v.type === 'punition' && v.genre === 'double-échec') S.doubles++;
         if (v.type === 'obstrue') S.obstrue++;
@@ -1156,6 +1157,7 @@ const ailierDe = (e, eq) => surGlace(e, eq).filter(s => s.poste === 'AG' || s.po
   borne('les punitions, au rythme de la LNH : ≈ 0,6 par club et par 6 min de jeu, donc vers 0,6 à 0,9 par match (1,9 après le lot 4)', S.punitions / N, 0.2, 1.5, ' par match');
   exiger('les tirs au but se comptent comme la LNH : pour chaque club, tirs = arrêts du gardien adverse + buts (2 tirs pour 1 but et 0 arrêt avant le lot 5)', S.ecarts.length === 0, S.ecarts.length ? S.ecarts.slice(0, 3).join(' ; ') : `${2 * N} clubs, ${(S.auBut / N).toFixed(0)} tirs au but par match (${(S.tirs / N).toFixed(0)} tentés de la zone)`);
   informer('… le gardien joue la rondelle derrière son filet (le lot 5)', `${S.joue} fois en ${N} matchs`);
+  informer('… le tir instantané', `${S.snaps} en ${N} matchs (${(100 * S.snaps / Math.max(1, S.tirs)).toFixed(0)} % des tirs)`);
   informer('… la passe par la bande, voulue', `${S.parBande} en ${N} matchs`);
   informer('… le plongeon du gardien', `${S.plongeons} en ${N} matchs`);
   informer('… se jeter devant un tir', `${S.plonges} plongeons, ${S.blocs} tirs bloqués en ${N} matchs`);
@@ -1843,6 +1845,24 @@ const immobilesDe = e => Object.fromEntries(e.patineurs.filter(s => s.surGlace).
   const b = parLaBande('par-la-bande', true), droit = parLaBande('par-la-bande-droit', false);
   exiger('la passe par la bande : le bâton vers la bande, la rondelle rebondit et trouve le coéquipier derrière l\'adversaire', !!b.passe && b.passe.bande && b.bande && b.recu, b.passe ? `${b.passe.bande ? 'par la bande' : 'directe'}, ${b.recu ? 'reçue' : b.prise ? 'prise par ' + b.prise.qui : 'perdue'}` : 'pas de passe');
   exiger('… le bâton pointé droit sur lui, la passe reste directe (et se soulève, la ligne barrée)', !!droit.passe && !droit.passe.bande && droit.passe.soulevee, droit.passe ? (droit.passe.bande ? 'par la bande' : droit.passe.soulevee ? 'soulevée' : 'directe') : 'pas de passe');
+}
+
+{
+  // LE TIR INSTANTANÉ (7 nov. 2026) : ton joueur prend une rondelle libre à sa lame, puis touche X d'un coup, `apres` s plus tard.
+  const instant = (graine, apres) => {
+    const e = enScene(graine, 'A', -18);
+    const t = surGlace(e, 'A').find(q => q.poste === 'C');
+    Object.assign(t, { x: 8, y: 2, cap: 0, vx: 0, vy: 0 });
+    e.controles.A = t.id;
+    const lm = lame(t); Object.assign(e.rondelle, { x: lm.x, y: lm.y, z: 0, vx: 0, vy: 0, vz: 0, porteur: null, dernier: null });
+    const ev = jouer(e, { [t.id]: { x: 0, y: 0 } }, apres);
+    ev.push(...jouer(e, { [t.id]: { x: 1, y: 0, tir: true } }, DT));
+    ev.push(...jouer(e, { [t.id]: { x: 1, y: 0, tir: false } }, 0.1));
+    return { pris: ev.some(x => x.type === 'prise' && x.qui === t.id), tir: ev.find(x => x.type === 'tir' && x.qui === t.id), p: t.p };
+  };
+  const vite = instant('snap', 0.15), tard = instant('snap-tard', SNAP.fenetre + 0.4);
+  exiger(`le tir instantané : X touché d'un coup moins de ${dec1(SNAP.fenetre)} s après la prise part sans armer, plus fort que le poignet`, vite.pris && !!vite.tir && vite.tir.snap && Math.abs(vite.tir.v - BATON.tirMax * SNAP.vitesse * vite.p.tir) < 1.5, vite.tir ? `${Math.round(vite.tir.v * 3.6)} km/h${vite.tir.snap ? ', instantané' : ''}` : 'pas de tir');
+  exiger('… le même appui plus tard est un tir du poignet', !!tard.tir && !tard.tir.snap && tard.tir.v < vite.tir.v - 4, tard.tir ? `${Math.round(tard.tir.v * 3.6)} km/h` : 'pas de tir');
 }
 
 /* ---------- les règles, écrites de là ---------- */
