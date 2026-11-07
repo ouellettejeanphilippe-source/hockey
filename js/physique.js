@@ -1259,7 +1259,7 @@ function horsJeu(etat, avantX, ev, avant = { dernier: etat.rondelle.dernier, por
  * à l'autre, avec son retard, arrive trop tard.
  */
 export const CONTOUR = { avant: 0.6, cote: 0.8, dedans: 0.1, ras: 0.12 };
-export function auContour(lm, sg) {
+function auContour(lm, sg) {
   const devant = (sg * LIGNE_BUT - lm.x) * sg, cote = Math.abs(lm.y) - FILET.large / 2;
   return devant > 0 && devant <= CONTOUR.avant && cote > -CONTOUR.dedans && cote <= CONTOUR.cote;
 }
