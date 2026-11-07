@@ -177,4 +177,10 @@ informer('les cinq sans la rondelle, l\'adversaire la porte dans notre zone', `d
 informer('… personne devant le filet ; un attaquant seul dans l\'enclave (% du temps)', `${pc(S.sansDevant / Math.max(1e-9, S.defT))} ; ${pc(S.seulEnclave / Math.max(1e-9, S.defT))}`);
 
 exiger('chaque match va au bout et compte des possessions', vraies.length > 20 * N, `${vraies.length} possessions`);
+// Les bornes du 7 nov. 2026, entre l'avant (16 matchs, la version 4 de l'arcade) et l'après (le repli, la passe sûre,
+// tenir sous pression), assez larges pour le bruit de 10 matchs :
+borne('la défense posée (l\'adversaire dans notre zone depuis 2 s) : la part de nos patineurs encore dehors (65 % avant)', S.poseeDehors / Math.max(1e-9, S.posee), 0, 0.5);
+borne('la passe réussit (66 % avant)', S.passesOk / Math.max(1, S.passes), 0.7, 0.9);
+borne('les revirements, par minute de jeu (26 avant)', S.revir / minutes, 5, 25);
+borne('… et des buts autour de ceux d\'avant (3,4 par match de 6 min)', S.buts / N, 2, 5);
 verdict('Sur glace — le ping-pong et la défensive');
