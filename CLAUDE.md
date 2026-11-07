@@ -79,7 +79,7 @@ docs/                 l'historique et la référence (voir docs/README.md)
 
 ## Les PR et la fusion
 
-JP (11 oct. 2026) : Claude fusionne quand le CI est vert. Après avoir ouvert une PR, Claude y active l'**auto-merge** (squash ou merge, selon ce que le dépôt permet) : GitHub la fusionne seul dès que la vérification `verifier` passe au vert sur main. Il n'attend pas de relecture humaine, sauf si JP dit « attends-moi » pour une PR précise. Si le CI est rouge, la PR reste ouverte et Claude la répare. Une PR qui ne doit pas partir (un brouillon, une expérience) s'ouvre en brouillon, sans auto-merge.
+JP (11 oct. 2026) : Claude fusionne quand le CI est vert. Après avoir ouvert une PR, Claude n'a rien à activer : le travail `fusionner` de `.github/workflows/verifier.yml` la fusionne (squash) dès que `verifier` passe au vert (7 nov. 2026 ; main n'a pas de règle de protection, pour que `build-data.yml` y pousse les données du lundi). Il n'attend pas de relecture humaine, sauf si JP dit « attends-moi » pour une PR précise. Si le CI est rouge, la PR reste ouverte et Claude la répare. Une PR qui ne doit pas partir (un brouillon, une expérience) s'ouvre en brouillon, ou porte l'étiquette « attends-moi ».
 
 ## Avant de pousser
 

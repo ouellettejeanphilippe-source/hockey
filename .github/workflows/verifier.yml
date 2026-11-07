@@ -213,3 +213,26 @@ jobs:
       # chaque nom lisible, la carte retournée qui se rapproche. Une vingtaine de secondes.
       - name: Un choix tient en un écran
         run: node scripts/check_hauteur.mjs http://localhost:8000
+
+  # La fusion par le CI (JP, 7 nov. 2026) : une PR verte se fusionne seule, comme l'auto-merge de GitHub.
+  # main n'a pas de règle de protection, exprès : build-data.yml y pousse les données du lundi, et un dépôt
+  # personnel ne laisse pas GitHub Actions contourner une protection. Une PR qui ne doit pas partir s'ouvre
+  # en brouillon, ou porte l'étiquette « attends-moi ».
+  fusionner:
+    needs: verifier
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !github.event.pull_request.draft &&
+      !contains(github.event.pull_request.labels.*.name, 'attends-moi')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Fusionner la PR verte
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --delete-branch --match-head-commit "$SHA"
