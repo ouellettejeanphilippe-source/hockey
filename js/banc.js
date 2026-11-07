@@ -21,10 +21,10 @@ import { mandatDe, MANDATS, JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaR
 import { $, G, MODE, TEAMFULL, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, cartonDe, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort, varsEquipe } from './repechage.js';
 import { renderMain, coachHtml, persoDuMatin } from './alignement.js';
-import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, premiereRun, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi, echangeDHistoire } from './rogue-jeu.js';
+import { cartesDuCartable, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, premiereRun, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi, echangeDHistoire } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
-import { niveauDe, REGULIER, PILIER } from './niveaux.js';
+import { REGULIER, PILIER } from './niveaux.js';
 
 /* ======================================================================
    DERRIÈRE LE BANC — les choix en saison
@@ -410,54 +410,49 @@ function rappelEcole(blesse, at) {
  * UN LOTO DE RÉGULIERS ET DE PILIERS (oct., JP : *rendre moins forte la carte, ça donne toujours des Étoiles* ; puis
  * *Joueur au choix donne des SUPERSTARS qui brisent le jeu*). Plafonnée au Pilier, la carte tirait encore parmi les
  * huit meilleurs producteurs : le haut des Piliers, un avant médian au 5 % du haut de sa saison, juste sous la ligne
- * des Étoiles (Brett Hull 1992-93, 101 points). Elle tire maintenant au hasard parmi TOUS les Réguliers et Piliers
- * qui rentrent, aux niveaux que ses crans ouvrent (`niveauxRecrue`, lus par `niveauDe`, js/niveaux.js) : un loto,
- * comme le classeur (`lotoDeCase`) ; le ballottage reste au Régulier (`NIVEAU_MAX_BALLOTTAGE`, js/ballottage.js).
+ * des Étoiles (Brett Hull 1992-93, 101 points). Elle tirait ensuite au hasard parmi TOUS les Réguliers et Piliers
+ * qui rentrent ; depuis le 7 nov. 2026, dans ton cartable (plus bas), au plus haut des niveaux que ses crans ouvrent
+ * (`niveauxRecrue`, lus par `niveauDe`, js/niveaux.js) ; le ballottage reste au Régulier (`NIVEAU_MAX_BALLOTTAGE`, js/ballottage.js).
  */
 /* Ses crans au vestiaire la montent (`niveauxDeLaRecrue`, js/rogue.js) ; une run d'avant les crans, ou hors du Rogue, tire au premier cran. */
 const niveauxRecrue = () => niveauxDeLaRecrue(G.bonus === 'ROGUE' && G.rogue && G.rogue.recrue != null ? G.rogue.recrue : 1);
 const MOTS_RECRUE = { [`${REGULIER},${REGULIER}`]: 'des Réguliers', [`${REGULIER},${PILIER}`]: 'des Réguliers et des Piliers', [`${PILIER},${PILIER}`]: 'des Piliers' };
-function candidatsRecrue(palier) {
+/*
+ * LE JOUEUR AU CHOIX PIGE DANS TES JOUEURS DÉJÀ PIGÉS (7 nov. 2026 ; JP : *peut-être faire que joueur au choix pige
+ * dans les joueurs déjà pigés*, après *il faut vraiment bloquer le snowball*). Il tirait de vrais Réguliers et Piliers
+ * NEUFS, de clubs absents de ta ligue : de la force gratuite aux 20e, 40e et 60e matchs. Il tire maintenant dans TON
+ * cartable (`cartesDuCartable`, js/rogue-jeu.js) — ceux que tes packs, ton classeur et tes runs ont déjà sortis, ni dans
+ * ton alignement ni ailleurs dans la ligue — un par poste, sous ton plafond, au plus haut niveau que ses crans ouvrent
+ * (`niveauxRecrue`) ; s'il n'y a personne à ce niveau, celui d'en dessous, comme le loto du cartable (`lotoDeCase`).
+ * Le tirage est pur : la graine de la ligue et le palier.
+ */
+async function candidatsRecrue(palier) {
   const L = G.ligue;
-  if (!L || !L.cles) return [];
+  if (!L) return [];
   const dansLaLigue = new Set();
   for (const t of L.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
-  const clubs = new Set(L.cles);
-  const saisons = [...new Set(L.cles.map(c => String(c).split('|')[0]))];
   const h = str => { let x = ((Number(L.graine) >>> 0) ^ Math.imul(palier + 7919, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
-  const ligne = ligneDuChoix;
-  const [min, max] = niveauxRecrue();
+  const [, max] = niveauxRecrue();
+  const cartes = (await cartesDuCartable()).filter(x => !dansLaLigue.has(getPersonKey(x.p)) && !isPicked(x.p));
   const out = [];
   for (const g of ['F', 'D', 'G']) {
     const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
     if (!slot) continue;
     const sort = G.roster[slot.i] || null;
     const budget = capLeft() + (sort && !estRenfort(sort) ? sort.$ : 0);
-    const pool = [];
-    for (const sa of saisons) {
-      const e = G.shards.get(sa);
-      if (!e) continue;
-      for (const [tag, joueurs] of Object.entries(e.byTeam)) {
-        if (clubs.has(`${sa}|${tag}`)) continue;
-        for (const p of joueurs) {
-          if ((p.gp || 0) < (g === 'G' ? 20 : 40) || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p)) || isPicked(p)) continue;
-          const n = niveauDe(p, e.players);
-          if (n < min || n > max) continue;
-          pool.push(p);
-        }
-      }
+    const siens = cartes.filter(x => groupeDe(x.p) === g && x.p.$ <= budget);
+    const de = x => Math.max(0, Math.min(max, x.niveau));
+    for (let k = max; k >= 0; k--) {
+      const pool = siens.filter(x => de(x) === k).sort((a, b) => h(a.cle) - h(b.cle));
+      if (!pool.length) continue;
+      const { p } = pool[0];
+      ballottageVu.set(getPlayerKey(p), p);
+      out.push({ cle: getPlayerKey(p), p, nom: p.n, poste: POSTE_GROUPE[g], club: `${p.t} ${p.s}`, salaire: money(p.$), ligne: ligneDuChoix(p),
+        i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null,
+        // Sa carte a la rareté de son salaire, comme partout (S76).
+        rarete: rareteJoueur(p) });
+      break;
     }
-    if (!pool.length) continue;
-    pool.sort((a, b) => h(getPlayerKey(a)) - h(getPlayerKey(b)));
-    const p = pool[0];
-    ballottageVu.set(getPlayerKey(p), p);
-    out.push({
-      cle: getPlayerKey(p), p, nom: p.n, poste: POSTE_GROUPE[g], club: `${p.t} ${p.s}`, salaire: money(p.$), ligne: ligne(p),
-      i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null,
-      // Sa carte a la rareté de son salaire, comme partout (S76) — plus une
-      // légendaire d'office parce que la carte du deck qui l'offre l'est.
-      rarete: rareteJoueur(p),
-    });
   }
   return out;
 }

@@ -2745,15 +2745,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const POSTE_CARTE = { G: 'Gardien', D: 'Défenseur', LD: 'Défenseur', RD: 'Défenseur', C: 'Centre', LW: 'Ailier', RW: 'Ailier' };
   // Le visage du joueur, l'écusson en médaillon (S74, l'agent de test : « le logo au lieu du visage »).
   const joueurArt = p => artJoueur({ portraitHtml: ctx.mug ? ctx.mug(p) : '', logoHtml: ctx.logo(p.t, ctx.mug ? 24 : 60), pos: ctx.esc(POSTE_CARTE[p.p] || 'Avant'), saison: ctx.esc(p.s), club: ctx.esc(p.t), actionSrc: ctx.mug ? photoAction(p) : '', cadre: cadrePhoto(p) });
-  function ouvrirMain(p0) {
+  async function ouvrirMain(p0) {
     const main = mainDuDeck(graine, p0);
-    const recrues = ctx.recrues ? (ctx.recrues(p0) || []) : [];
+    // 7 nov. 2026 : le joueur au choix pige dans ton cartable (js/banc.js `candidatsRecrue`), qui lit ses saisons d'abord.
+    const recrues = ctx.recrues ? ((await ctx.recrues(p0)) || []) : [];
     const roles = rolesOfferts(you, graine, p0);
     const options = main.map(c => {
       const S = SORTES_DECK[c.sorte], niveau = NIVEAU_SORTE[c.sorte];
-      if (c.sorte === 'recrue') return { cle: 'recrue', niveau, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un vrai joueur',
-        texte: `Trois vrais joueurs de clubs absents de ta ligue, ${(ctx.motRecrue && ctx.motRecrue()) || 'des Réguliers'} tirés au hasard : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.`,
-        desactive: recrues.length ? '' : 'Personne ne rentre sous ton plafond' };
+      if (c.sorte === 'recrue') return { cle: 'recrue', niveau, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un joueur déjà pigé',
+        texte: `Trois joueurs de ton cartable, déjà pigés, ni dans ton alignement ni dans la ligue, ${(ctx.motRecrue && ctx.motRecrue()) || 'des Réguliers'} au plus : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.`,
+        desactive: recrues.length ? '' : 'Personne de ton cartable ne rentre sous ton plafond' };
       if (c.sorte === 'profil') return { cle: 'profil', niveau, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
         texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
         desactive: roles.length ? '' : 'Personne à convertir' };
@@ -2781,7 +2782,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * un réclamé du ballottage (`poserAlignementDuJour`). Jalon R : la liste du 82-0, chacun à sa meilleure case.
        */
       ctx.listeSignature({ ico: '🎟', titre: 'Joueur au choix', motFermer: 'Retour aux trois cartes', genre: 'palier',
-        recit: 'Trois vrais joueurs, style loto. Tu en signes un.',
+        recit: 'Trois joueurs de ton cartable, style loto. Tu en signes un.',
         joueurs: recrues.map(x => ({ p: x.p, rar: x.rarete || 'legendaire', x })), roster: you.roster,
         onSigne: (y, { i, sort, cases }) => { const j = jour; quitter(); onDecision({ jour, palier: p0, deck: 'recrue', ballottage: { i, entre: y.x.cle, sort }, ...(cases ? { cases } : {}) }, j); },
         onFerme: retour });
