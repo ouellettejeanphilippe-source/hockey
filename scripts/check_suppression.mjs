@@ -28,12 +28,20 @@
  * prorata sur les matchs réellement joués, agrégat des gardiens plutôt que le
  * seul partant.
  *
+ * V25 A3 (docs/refonte-v25.md) : la dernière partie l'étend au canal de
+ * défense PAR JOUEUR — les vols moins les revirements, pondérés par la glace,
+ * par poste —, ajusté sur 2005-06 à 2012-13 et éprouvé en retenue sur 2013-14
+ * à 2025-26, en paires sur les mêmes équipes-saisons : il doit battre le club
+ * seul et se séparer du gardien, sinon la possession par joueur n'entre pas.
+ *
  *   node scripts/check_suppression.mjs
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { generateur } from '../js/util.js';
+import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
@@ -150,6 +158,7 @@ function saisonDe(shard) {
       pm: patineursT.reduce((s, p) => s + w(p) * (p.pm || 0), 0) / matchs,
       sv: svEquipe,
       gardiens: G,
+      F, D,
       butsContre: butsContre / matchs,
     });
   }
@@ -370,3 +379,167 @@ console.log('              Le vrai chiffre est entre les deux — la borne basse
   + '              qui gonfle son vestiaire.\n');
 console.log(`              P(but) = %tir_du_tireur × facteur_gardien × (1 − K × z_def_adverse)`);
 console.log(`              avec K entre ${kDefense.toFixed(3)} et ${(penteBrute / (1 - svMoyenne)).toFixed(3)}\n`);
+
+/* ---------- V25 A3 : le canal de défense PAR JOUEUR ---------- */
+/*
+ * MOTEUR.md § 9 : la défensive individuelle reste approximée, et ce qui répond
+ * est la QUALITÉ des tirs concédés (le % d'arrêts), pas leur volume. Les vols
+ * (`tk`) et les revirements (`gv`), par match, sont dans les shards depuis
+ * 2005-06 : un canal par joueur se lirait d'eux. Il n'entre au moteur
+ * (docs/refonte-v25.md, A3) que s'il passe deux épreuves, en retenue :
+ *
+ *   1. il BAT LE CLUB SEUL. Le club, c'est ce que le moteur lit déjà : la cote
+ *      `d` de la brigade et des trios (§ 4.4). Ajusté sur 2005-06 à 2012-13,
+ *      éprouvé sur 2013-14 à 2025-26 ; chaque équipe-saison de la retenue est
+ *      une PAIRE (la même équipe, le même % d'arrêts réel, prédite sans puis
+ *      avec le canal), et l'erreur gagnée se juge par son intervalle à 95 %,
+ *      tiré par saisons entières (les équipes d'une saison ne sont pas
+ *      indépendantes) sur une graine fixe.
+ *   2. il SE SÉPARE DU GARDIEN. Même épreuve, mais le club porte en plus la
+ *      carrière de ses gardiens, hors la saison jugée : ce que le canal ajoute
+ *      encore n'est pas le gardien qui se regarde dans le miroir.
+ *
+ * Le canal d'un poste : (vols − revirements) par 60 minutes, pondérés par la
+ * glace de chacun — Σ (tk − gv) / Σ toi —, sur les 12 attaquants et les
+ * 6 défenseurs de l'alignement lu plus haut, en écart réduit dans la saison.
+ */
+const AJUSTE = [2005, 2012];
+const RETENUE = [2013, 2025];
+const anDe = s => Number(String(s).slice(0, 4));
+const dans = (an, [a, z]) => an >= a && an <= z;
+
+function canalDe(joueurs, champ = p => (p.tk || 0) - (p.gv || 0)) {
+  let s = 0, w = 0;
+  for (const p of joueurs) {
+    if (p.tk == null || p.gv == null || !(p.toi > 0)) continue;
+    s += champ(p);
+    w += p.toi;
+  }
+  return w > 0 ? (60 * s) / w : null;
+}
+
+/* La carrière d'un gardien hors la saison jugée (écart d'arrêts à sa ligue,
+ * `carriere` plus haut : 20 matchs et plus), pondérée par ses lancers contre. */
+function gardienHorsSaison(e, saison) {
+  let s = 0, w = 0;
+  for (const g of e.gardiens) {
+    const autres = (carriere.get(g.id) || []).filter(x => x.saison !== saison);
+    if (!autres.length) continue;
+    const poids = g.sa || 0;
+    s += poids * moy(autres.map(x => x.ecart));
+    w += poids;
+  }
+  return w > 0 ? s / w : 0;
+}
+
+const paires = [];
+for (const s of saisons) {
+  const an = anDe(s.saison);
+  if (!dans(an, AJUSTE) && !dans(an, RETENUE)) continue;
+  const lignesS = [];
+  for (const e of s.equipes) {
+    const cF = canalDe(e.F), cD = canalDe(e.D);
+    if (cF == null || cD == null) continue;
+    lignesS.push({
+      e, cF, cD,
+      vF: canalDe(e.F, p => p.tk || 0), vD: canalDe(e.D, p => p.tk || 0),
+      rF: canalDe(e.F, p => p.gv || 0), rD: canalDe(e.D, p => p.gv || 0),
+      gardien: gardienHorsSaison(e, s.saison),
+    });
+  }
+  if (lignesS.length < 6) continue;
+  for (const k of ['cF', 'cD', 'vF', 'vD', 'rF', 'rD']) {
+    const m = moy(lignesS.map(l => l[k])), sd = ect(lignesS.map(l => l[k])) || 1;
+    for (const l of lignesS) l['z' + k] = (l[k] - m) / sd;
+  }
+  for (const l of lignesS) paires.push({ ...l, saison: s.saison, retenue: dans(an, RETENUE) });
+}
+
+const ajuste = paires.filter(p => !p.retenue);
+const retenue = paires.filter(p => p.retenue);
+const club = p => [1, p.e.zBrigade, p.e.zTrios];
+const avecCanal = p => [...club(p), p.zcF, p.zcD];
+const clubGardien = p => [...club(p), p.gardien];
+const gardienCanal = p => [...clubGardien(p), p.zcF, p.zcD];
+const clubVolume = p => [...club(p), Math.log(Math.max(0.3, p.e.pression))];
+const canalVolume = p => [...clubVolume(p), p.zcF, p.zcD];
+const qualite = p => p.e.svRel;
+const volume = p => Math.log(p.e.suppression);
+
+/** Ajusté sur 2005-2012, prédit la retenue : les erreurs au carré, paire par paire. */
+function erreurs(prediteurs, cible) {
+  const coef = moindresCarres(ajuste.map(prediteurs), ajuste.map(cible));
+  return { coef, e: retenue.map(p => (cible(p) - prediteurs(p).reduce((s, v, i) => s + v * coef[i], 0)) ** 2) };
+}
+
+/** Ce que B gagne sur A, paire par paire, et son intervalle à 95 % par saisons tirées. */
+function gainEnPaires(A, B, graine) {
+  const d = A.e.map((x, i) => x - B.e[i]);
+  const parSaison = new Map();
+  retenue.forEach((p, i) => { const l = parSaison.get(p.saison) || []; l.push(i); parSaison.set(p.saison, l); });
+  const blocs = [...parSaison.values()];
+  const gain = d.reduce((s, x) => s + x, 0) / A.e.reduce((s, x) => s + x, 0);
+  const de = generateur(graine);
+  const tirages = [];
+  for (let t = 0; t < 2000; t++) {
+    let nd = 0, na = 0;
+    for (let k = 0; k < blocs.length; k++) {
+      for (const i of blocs[Math.floor(de() * blocs.length)]) { nd += d[i]; na += A.e[i]; }
+    }
+    tirages.push(nd / na);
+  }
+  tirages.sort((x, y) => x - y);
+  return {
+    gain,
+    bas: tirages[Math.floor(0.025 * tirages.length)],
+    haut: tirages[Math.floor(0.975 * tirages.length)],
+    mieux: d.filter(x => x > 0).length / d.length,
+  };
+}
+
+const pct = x => `${(100 * x).toFixed(1)} %`;
+const qClub = erreurs(club, qualite), qCanal = erreurs(avecCanal, qualite);
+const qGard = erreurs(clubGardien, qualite), qGardCanal = erreurs(gardienCanal, qualite);
+const g1 = gainEnPaires(qClub, qCanal, 'a3-club');
+const g2 = gainEnPaires(qGard, qGardCanal, 'a3-gardien');
+const g3 = gainEnPaires(erreurs(clubVolume, volume), erreurs(canalVolume, volume), 'a3-volume');
+
+const saisonsRetenue = [...new Set(retenue.map(p => p.saison))];
+const corrRetenue = (fx, fy) => moy(saisonsRetenue.map(s => {
+  const l = retenue.filter(p => p.saison === s);
+  return pearson(l.map(fx), l.map(fy));
+}));
+
+console.log('  V25 A3 · LE CANAL DE DÉFENSE PAR JOUEUR (vols − revirements, par 60, pondérés par la glace)\n');
+console.log(`    ajusté sur ${AJUSTE.join('-')} : ${ajuste.length} équipes-saisons ; retenue ${RETENUE.join('-')} : ${retenue.length} paires\n`);
+console.log('    corrélation moyenne par saison, en retenue      % d\'arrêts   lancers contre');
+for (const [nom, fn] of [
+  ['canal des attaquants', p => p.zcF], ['canal des défenseurs', p => p.zcD],
+  ['vols des attaquants', p => p.zvF], ['vols des défenseurs', p => p.zvD],
+  ['revirements des attaquants', p => p.zrF], ['revirements des défenseurs', p => p.zrD],
+  ['le club (cote d, brigade)', p => p.e.zBrigade], ['carrière des gardiens', p => p.gardien],
+]) {
+  console.log(`    ${nom.padEnd(44)} ${corrRetenue(fn, qualite).toFixed(3).padStart(10)} ${corrRetenue(fn, p => p.e.suppression).toFixed(3).padStart(14)}`);
+}
+console.log(`\n    le canal et le gardien (corrélation, retenue)  attaquants ${corrRetenue(p => p.zcF, p => p.gardien).toFixed(3)}, défenseurs ${corrRetenue(p => p.zcD, p => p.gardien).toFixed(3)}`);
+console.log(`    coefficients ajustés (millièmes d'arrêts par écart-type) : attaquants ${(1000 * qCanal.coef[3]).toFixed(2)}, défenseurs ${(1000 * qCanal.coef[4]).toFixed(2)}`);
+console.log(`    le gardien tenu : attaquants ${(1000 * qGardCanal.coef[4]).toFixed(2)}, défenseurs ${(1000 * qGardCanal.coef[5]).toFixed(2)}\n`);
+const ligne = (nom, g) => console.log(`    ${nom.padEnd(44)} erreur gagnée ${pct(g.gain).padStart(7)}  [${pct(g.bas)} à ${pct(g.haut)}]  paires gagnées ${pct(g.mieux)}`);
+ligne('qualité : le canal contre le club seul', g1);
+ligne('qualité : le canal, le gardien tenu', g2);
+ligne('volume : le canal contre le club seul', g3);
+console.log('');
+
+/* Les parties d'avant sont la calibration de l'étape 3 (MOTEUR.md § 8.3),
+ * déjà écrite au moteur : elles se lisent. Le verdict juge le canal neuf : un
+ * canal qui ne bat pas, en retenue, ce que le moteur lit déjà, n'entre pas
+ * (la possession d'A3 tombe, docs/refonte-v25.md). Le volume se lit sans se
+ * juger : la cible d'A3 est la qualité des tirs concédés. */
+informer('calibration de l\'étape 3', `K entre ${kDefense.toFixed(3)} et ${(penteBrute / (1 - svMoyenne)).toFixed(3)} ; volume possession^${(-b[1]).toFixed(3)}`);
+exiger('des paires en retenue', retenue.length >= 300 && ajuste.length >= 150, `${ajuste.length} ajustées, ${retenue.length} en retenue`);
+exiger('le canal par joueur bat le club seul (qualité, retenue)', g1.bas > 0,
+  `erreur gagnée ${pct(g1.gain)}, intervalle ${pct(g1.bas)} à ${pct(g1.haut)}`);
+exiger('le canal se sépare du gardien (qualité, retenue)', g2.bas > 0,
+  `erreur gagnée ${pct(g2.gain)}, intervalle ${pct(g2.bas)} à ${pct(g2.haut)}`);
+informer('le canal sur le volume (retenue)', `erreur gagnée ${pct(g3.gain)}, intervalle ${pct(g3.bas)} à ${pct(g3.haut)}`);
+verdict('check_suppression — la défensive d\'un joueur et d\'un club');
