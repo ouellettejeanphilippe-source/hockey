@@ -25,19 +25,24 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 
 ## Refonte · V27, le Rogue en roguelike (JP, 7 nov. : *calendrier réel pour toutes les équipes, mais tu choisis les équipes qui vont quand pour avoir duels plus tough aux bons endroits*)
 
-Le devis : docs/refonte-v27.md — une run = une saison en quatre actes, trois ❤️, un boss par acte, les élites, le banc de cinq, la boutique à six nœuds ; les décisions de JP du 7 nov. tranchées, 66 noms dans « Ce qui part », dix questions ouvertes au § 11. Chaque tranche porte son extrait `docs/refonte-v27-<n>.md` et passe `check_refonte` dessus.
+Le devis : docs/refonte-v27.md — une run = une saison en quatre actes, deux ❤️, un rival par acte annoncé avec son jeu, une élite par acte au plus, le banc de cinq et la pièce en boutique, la boutique à sept nœuds ; revu le 7 nov. (revue adverse : « À reprendre »), six décisions de JP appliquées, la Dynastie écrite dedans, la mise doublée partie, 94 noms dans « Ce qui part », quatre questions au § 11. Chaque tranche porte son extrait `docs/refonte-v27-<n>.md` et passe `check_refonte` dessus.
 
-- [ ] **`/revue-design docs/refonte-v27.md`**, puis JP tranche les questions du § 11.
-- [ ] **1 · Le juge neuf** — le prototype en `scripts/lib/rogue_actes.mjs`, `check_profondeur` réécrit (2 Coupes sur 16 pour l'attentif, 0 pour les autres), remesuré aux contrôles 20 · 12 · 16.
-- [ ] **2 · Une saison, quatre actes, trois cœurs** — js/actes.js, les boss, les contrôles, les séries plus dures, le départ à 35-55 % — `check_rogue`, `check_sauvegardes`.
-- [ ] **3 · La boutique à ses nœuds** — 0 · 14 · 27 · 41 · 54 · 68, le prix remis à zéro — `check_rogue`, `check_packs`.
-- [ ] **4 · Le calendrier placé et le renfort** — `check_rogue`, `check_profondeur`.
-- [ ] **5 · Le banc de cinq** — js/pieces.js, la montée au boss ; séjour, repos, salaire, main, expérience partent — `check_pouvoirs`, `check_relais`, `check_banc`.
-- [ ] **6 · Le duel à un choix** — le plan du soir et les propositions par période partent — `check_duel`.
-- [ ] **7 · Les élites** — construites et mesurées — `check_elites` (neuf).
-- [ ] **8 · Les fourches** — une aux 2 ou 3 semaines, les autres en nouvelles d'Hier soir — `mesure_rythme`, `check_histoires`.
-- [ ] **9 · La méta en variété et la Dynastie** — `check_rogue`, `check_profondeur`.
-- [ ] **10 · Les écrans et D1b** — maquettes d'abord — `check_plateau`, `check_hauteur`, `essai_rogue`.
+- [x] **`/revue-design docs/refonte-v27.md`** (7 nov.) — « À reprendre » ; JP a tranché six points (2 ❤️, la pièce en boutique, le duel à un choix, la livraison groupée, la première Coupe jamais avant la run 3, « rival ») ; le devis est repris.
+- [x] JP tranche la Dynastie (*Dans ce chantier*), la mise doublée (*ça sert à rien* : elle part), le prestige (variété seulement) et les jetons restants (perdus).
+- [ ] JP tranche les quatre questions qui restent au § 11 (le prix de la pièce, ce que paient les jetons, la méta, la fin et le nom de la Dynastie).
+- [ ] **0 · Les maquettes** — tous les écrans neufs à 390 × 844 (§ 4.11), JP tranche ; aucune ligne de code.
+- [ ] **1 · Le juge neuf** — le prototype en `scripts/lib/rogue_actes.mjs` avec le glouton, `check_profondeur` et `check_robot` sur 64 graines (6 à 10 Coupes sur 64 pour l'attentif, 2 au plus pour les autres), `.github/workflows/profondeur.yml` ; fusionne seule.
+- [ ] **2 à 6, ensemble** — sur la branche `claude/v27-run`, une PR par tranche vers elle ; la branche sort vers main en une fois, la cible remesurée sur le vrai banc (R1, `profondeur.yml` vert) et `check_refonte` sur leur somme. Le jeu publié ne change qu'une fois.
+  - [ ] **2 · Une saison, quatre actes, deux cœurs** — js/actes.js, les rivaux, les contrôles, les séries plus dures, le départ à 35-55 % ; les rivaux du proprio partent — `check_rogue`, `check_gros`, `check_sauvegardes`.
+  - [ ] **3 · La boutique à ses nœuds** — 0 · 14 · 27 · 41 · 54 · 68 · 82, le prix remis à zéro, quatre achats, la pièce parmi trois — `check_rogue`, `check_packs`.
+  - [ ] **4 · Le calendrier placé et le renfort** — `check_rogue`, `check_calendrier`, `check_graine`, `check_chiffres`, `check_profondeur`.
+  - [ ] **5 · Le banc de cinq** — js/pieces.js, la pièce du rival ; séjour, repos, salaire, main, expérience, niveaux d'adjoint et main du deck partent — `check_pouvoirs`, `check_relais`, `check_banc`.
+  - [ ] **6 · Le duel à un choix** — le plan avant le match ; le plan du soir, les propositions par période et la mise doublée partent — `check_duel`, `check_jambes`.
+- [ ] **7 · Les élites** — construites et mesurées en paires — `check_elites` (neuf).
+- [ ] **8 · Les fourches** — une aux 2 ou 3 semaines, les autres en nouvelles d'Hier soir — `mesure_rythme`, `check_histoires`, `mesure_decisions` (neuf).
+- [ ] **9 · La méta en variété** — les déblocages de force partent et sont remboursés, les jalons et les exigences réécrits — `check_rogue`, `check_profondeur`.
+- [ ] **10 · L'ordre de Ce soir** — Hier soir en tête, en 1,0 écran — `check_plateau`, `check_hauteur`, `essai_rogue`.
+- [ ] **11 · La Dynastie** — l'équipe et trois pièces gardées, les contrats +10 % sous le même plafond, le vieillissement, 2 ❤️ remis, les rivaux et l'exigence d'un cran — `check_dynastie` (neuf), `check_profondeur`.
 
 ## Refonte · V23, un vrai jeu de cartes (JP, 2 nov. : *les UI et les mécaniques font un peu « cheap »* ; *facile à prendre en main, dur à maîtriser* ; *les coachs et adjoints comme les joueurs, de pas très bon à excellents*)
 
