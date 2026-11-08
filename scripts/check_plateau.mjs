@@ -7,12 +7,12 @@
  *   partout     cinq portes dans l'ordre ; la porte ouverte sombre ; aucune PILULE BLANCHE (un bouton clair hors des cartes,
  *               la grammaire d'avant) ; l'en-tête sans filet de couleur ;
  *   Ce soir     le bandeau des résultats (dès le 2e jour), l'affiche-héros d'au moins 240 px, la jauge du proprio SOUS elle,
- *               ton banc en main de vraies cartes de jeu (.pl-grille-4), tes choix ;
+ *               ton banc en cinq cases de front (V27, tranche 5 : .pl-grille-5, ses pièces en vraies cartes de jeu), tes choix ;
  *   Proprio     tes cœurs et le contrôle de l'acte, ton rang avec la jauge, l'argent en cellules ;
  *   Lignes      les jetons d'unité, chaque trio debout (son nom en colonne verticale), trois cartes pleine colonne, une seule
  *               ligne sous chaque carte (le reste caché) ;
  *   Joueurs     les filtres en jetons, le tri en jetons, une grille de trois vraies cartes avec leur coin ;
- *   Coach       le niveau en gros, trois pouvoirs en vraies cartes de jeu ;
+ *   Coach       l'entraîneur en carte, ton banc en cinq cases (ses pièces en vraies cartes de jeu, leur coin) ;
  *   Boutique    quatre pochettes du début avec leur prix, « Ton club » en rangée de quatre ;
  *   Album       les vues en jetons, l'édition en coin sur chaque carte de l'équipe dès Cadre (jamais sur une Base), rien dessous ;
  *   Classement  cinq colonnes (le contenu, de zéro : PJ est parti pour que « 10 derniers » tienne) ; Calendrier : l'acte en cases (V27, tranche 4), les actes en jetons ;
@@ -74,11 +74,11 @@ const PAGES = [
     const q = s => document.querySelector(`#hubModal ${s}`);
     const haut = s => { const e = q(s); return e ? Math.round(e.getBoundingClientRect().top) : null; };
     return { hero: q('.bu-prochain') ? Math.round(q('.bu-prochain').getBoundingClientRect().height) : 0, plaques: q('.bu-prochain .bu-plaques') ? 1 : 0,
-      ordre: [haut('.bu-prochain'), haut('.bu-run'), haut('.bu-banc')], main: document.querySelectorAll('#hubModal .bu-banc .pl-grille-4 .pl-carte').length, cartes: document.querySelectorAll('#hubModal .bu-banc .pl-carte .carton').length, boite: q('.hub-boite') ? 1 : 0 };
+      ordre: [haut('.bu-prochain'), haut('.bu-run'), haut('.bu-banc')], main: document.querySelectorAll('#hubModal .bu-banc .pl-grille-5 > .pl-carte').length, cartes: document.querySelectorAll('#hubModal .bu-banc .pl-carte .carton').length, boite: q('.hub-boite') ? 1 : 0 };
   }, juger: d => {
     exiger('Ce soir · l\'affiche-héros fait 240 px au moins, avec ses deux plaques', d.hero >= 240 && d.plaques, `${d.hero} px`);
     exiger('Ce soir · l\'affiche, puis la jauge du proprio, puis ton banc', d.ordre.every(x => x != null) && d.ordre[0] < d.ordre[1] && d.ordre[1] < d.ordre[2], d.ordre.join(' → '));
-    exiger('Ce soir · ton banc est une main de vraies cartes de jeu, quatre de front', d.main >= 2 && d.cartes >= 1, `${d.main} cartes, ${d.cartes} cartons`);
+    exiger('Ce soir · ton banc en cinq cases de front, ses pièces en vraies cartes de jeu', d.main === 5 && d.cartes >= 1, `${d.main} cases, ${d.cartes} cartons`);
     exiger('Ce soir · tes choix sont là', d.boite === 1);
   } },
   // Le face-à-face (4 nov. ; JP : *cette page n'est pas très lisible*) : l'affiche, une rangée par stat et par force à gros chiffres, aucun tableau.
@@ -101,8 +101,8 @@ const PAGES = [
   } },
   { porte: 'club', page: 'joueurs', nom: 'Joueurs', lire: () => ({ jetons: document.querySelectorAll('#pageJoueursCorps .pl-jetons').length, grille: document.querySelectorAll('#pageJoueursCorps .pl-grille-3 .pl-carte').length, coins: document.querySelectorAll('#pageJoueursCorps .pl-carte .pl-coin').length, cartons: document.querySelectorAll('#pageJoueursCorps .pl-carte .carton').length, tableau: !!document.querySelector('#pageJoueursCorps table') }),
     juger: d => { exiger('Joueurs · les filtres et le tri en jetons, une grille de vraies cartes avec leur coin, aucun tableau', d.jetons >= 2 && d.grille >= 9 && d.coins >= 9 && d.cartons >= 9 && !d.tableau, `${d.jetons} rangées de jetons, ${d.grille} cartes`); } },
-  { porte: 'club', page: 'entraineur', nom: 'Coach', lire: () => ({ niveau: !!document.querySelector('#hubModal .ej-rang b'), pouvoirs: [...document.querySelectorAll('#hubModal .pv-rang .pl-carte')].filter(c => c.querySelector('.carton')).length, coins: document.querySelectorAll('#hubModal .pv-rang .pl-coin').length }),
-    juger: d => { exiger('Coach · le niveau en gros, trois pouvoirs en vraies cartes de jeu avec leur coin', d.niveau && d.pouvoirs === 3 && d.coins === 3, `${d.pouvoirs} cartes`); } },
+  { porte: 'club', page: 'entraineur', nom: 'Coach', lire: () => ({ coach: !!document.querySelector('#hubModal .ej-coach-carte .carton'), cases: document.querySelectorAll('#hubModal .pv-rang > .pl-carte').length, pieces: [...document.querySelectorAll('#hubModal .pv-rang .pl-carte')].filter(c => c.querySelector('.carton')).length, coins: document.querySelectorAll('#hubModal .pv-rang .pl-coin').length }),
+    juger: d => { exiger('Coach · l\'entraîneur en carte, ton banc en cinq cases, chaque pièce en vraie carte de jeu avec son coin', d.coach && d.cases === 5 && d.pieces >= 1 && d.coins === d.pieces, `${d.pieces} pièces sur ${d.cases} cases`); } },
   { porte: 'club', page: 'vestiaire', nom: 'Vestiaire', lire: () => ({ ok: !!document.querySelector('#hubModal .af-onglet[data-maison="vestiaire"]') }), juger: d => { exiger('Vestiaire · la page répond', d.ok); } },
   { porte: 'marche', page: 'marche', nom: 'Boutique', lire: () => ({ bande: !!document.querySelector('#pageMarche .mk-bande'), ferme: !!document.querySelector('#pageMarche .mk-bande.ferme'), packs: [...document.querySelectorAll('#pageMarche .mk-rangee .pk-tuile[data-pack]')].length, prix: [...document.querySelectorAll('#pageMarche .mk-rangee .pk-tuile .pk-prix')].length, pieces: document.querySelectorAll('#pageMarche [data-piece] .carton').length, club: document.querySelectorAll('#pageMarche .pk-club-rangee .pk-club-mini').length }),
     // V27, tranche 3 : la boutique à son nœud (la maquette 5) — la bande du marché, trois pièces en vraies cartes, les packs à leur prix, « Ton club » en rangée ; entre deux nœuds, la bande fermée.

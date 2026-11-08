@@ -3673,45 +3673,14 @@ a.spin-club:hover { background: var(--fond-2); }
 :is(.ej-soir, .hub-rangee) .mauvais { color: var(--mauvais); }
 .ej-detail { grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
 .ej-coach { display: flex; flex-direction: column; gap: var(--esp-1); }
-/* LE COACH EST UNE CARTE (V25 B2) : l'entraîneur sur une vraie carte de jeu aux couleurs de son vrai club, son niveau de
-   personnage en coin ; à côté, la jauge d'expérience, ses chiffres et sa règle. */
+/* LE COACH EST UNE CARTE (V25 B2) : l'entraîneur sur une vraie carte de jeu aux couleurs de son vrai club ; à côté, sa
+   philosophie et sa règle. */
 .ej-coach-haut { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr); gap: var(--esp-3); align-items: center; padding: var(--esp-2) var(--esp-1) 0; }
 .ej-coach-cote { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
-.ej-coach-cote .pl-jauge { margin: 0 0 var(--esp-2); }
-.ej-rang b { font-size: var(--t-3); line-height: 1; margin-left: 2px; }
-.pl-jauge { position: relative; height: 6px; margin: var(--esp-2) var(--esp-3) var(--esp-3); border-radius: var(--r-1); background: var(--fond-3); }
-.pl-jauge i { display: block; height: 100%; border-radius: var(--r-1); background: var(--or); }
 .ej-coach-l { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
-/* LES POUVOIRS DU COACH (V21, js/alignement.js `coachHtml`) : une carte par pouvoir de son arbre — ouvert ou verrouillé (le niveau qui
-   l'ouvre), ce qu'il fait, sa force, et combien de fois il a joué cette saison. */
-/* V23, la nouvelle interface : ses trois pouvoirs en cartes de front, l'icône en grand ; ouvert, un filet or et ce qu'il fait ;
-   pas encore ouvert, éteint, le niveau qui l'ouvre au pied. */
-/* LE PLATEAU (nov. 2026) : ses trois pouvoirs en VRAIES cartes de jeu (`carteHtml`, js/composants.js `carteLigne`), trois de
-   front ; le coin dit combien de fois il a joué ou le niveau qui l'ouvre ; fermé, la carte s'éteint. */
-.pv-rang { margin-top: var(--esp-2); padding: 0 var(--esp-1); }
-/* TA MAIN D'ADJOINTS (V22, js/alignement.js `mainHtml`) : une seule rangée, les cases en poste puis la main, quatre cartes de
-   front au plus (l'onglet tient en un écran). Une carte prête se glisse (js/deposer.js) sur une case libre, ou « Poster » dessous. */
-.adj-zone { display: grid; grid-template-columns: repeat(4, minmax(0, 78px)); gap: var(--esp-2); align-items: start; }
-@media (min-width: 1000px) { .adj-zone { grid-template-columns: repeat(4, minmax(0, 120px)); } }
-.adj-carte { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
-.adj-carte .choix-option.tc { padding: 0; min-height: 0; }
-.adj-carte[data-etat="repos"] .tc { opacity: 0.55; filter: grayscale(0.6); }
-.adj-carte.glisse { opacity: 0.35; }
-.adj-sous { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); text-align: center; }
-.adj-carte[data-etat="poste"] .adj-sous { color: var(--or); }
-.adj-poster { align-self: center; }
-.adj-case { aspect-ratio: 5 / 7; display: grid; place-items: center; padding: var(--esp-2); border: 1px dashed var(--filet); background: none; color: var(--encre-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; border-radius: var(--r-1); }
-.adj-case.survol { border-color: var(--or); color: var(--or); }
-/* Personne dans la main : les cases libres n'ont pas besoin de la hauteur d'une carte. */
-/* Personne dans la main : la case libre reste en haut de sa zone, sans s'étirer (elle héritait d'une marge automatique). */
-.adj-zone { flex: none; }
-.adj-zone.sans { display: flex; align-items: flex-start; }
-.adj-zone.sans .adj-case { flex: 0 1 78px; margin: 0; aspect-ratio: auto; min-height: 56px; }
-/* Le verso d'une petite carte : son style seul, serré ; la réplique et la fiche vont dans la bande. */
-.adj-carte .tcv-corps { font-size: 9.5cqw; line-height: 1.2; gap: 2px; }
-.adj-carte .tcv-pied { display: none; }
-.adj-detail { margin: 0; font-size: var(--t-1); line-height: 1.4; color: var(--encre-2); }
-.adj-detail .bon { color: var(--bon); }
+/* TON BANC (V27, tranche 5, js/alignement.js `coachHtml`) : tes cinq cases en vraies cartes de jeu, cinq de front ; le coin dit
+   combien de soirs la pièce a joué ; une case libre en pointillés. */
+.pv-rang { margin-top: var(--esp-1); padding: 0 var(--esp-1); }
 /* Le fantôme d'une carte qu'on glisse : il suit le pointeur, par-dessus tout, sans capter le doigt. Posé sous `body`, il
    passe devant la règle de la carte qu'il copie (`.slot-carte` la met en `relative`, plus bas dans la feuille). */
 body > .fantome { position: fixed; z-index: 1000; margin: 0; pointer-events: none; transform: rotate(-3deg) scale(1.05); opacity: 0.92; }
@@ -4136,10 +4105,6 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-grille-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .pl-grille-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--esp-2); align-items: end; padding-top: var(--esp-1); }
 @media (min-width: 680px) { .pl-grille-3 { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
-.pl-eventail > :nth-child(1) { rotate: -4deg; }
-.pl-eventail > :nth-child(2) { rotate: -1deg; }
-.pl-eventail > :nth-child(3) { rotate: 2deg; }
-.pl-eventail > :nth-child(4) { rotate: 5deg; }
 /* Les cellules : des chiffres séparés d'un filet. */
 .pl-cellules { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .pl-cellule { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--esp-1) 0; text-align: center; }
@@ -5181,8 +5146,6 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .banc-ico { font-size: var(--t-5); line-height: 1; }
 .banc-carte.joue { opacity: 1; filter: none; border-color: var(--club-vif); background: linear-gradient(180deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); box-shadow: 0 0 14px color-mix(in srgb, var(--club-vif) 45%, transparent); animation: banc-allume 420ms var(--e-sortie) both; animation-delay: calc(var(--i, 0) * 140ms + 150ms); }
 .banc-carte.joue small { color: var(--club-vif); }
-.banc-adjoint.joue { border-color: var(--or); box-shadow: 0 0 12px color-mix(in srgb, var(--or) 35%, transparent); }
-.banc-adjoint.joue small { color: var(--or); }
 .banc-regle.joue { border-color: var(--bon); box-shadow: 0 0 12px color-mix(in srgb, var(--bon) 35%, transparent); }
 .banc-regle.joue small { color: var(--bon); }
 /* V23, la nouvelle interface : à Ce soir, ton banc en jetons d'une ligne — l'icône, le nom, ce qu'il a fait ; l'écran tient en un.
@@ -6505,6 +6468,35 @@ body .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 .pk-tuile.mk-pack { gap: 0; padding: 0; border: 0; border-radius: 0; background: var(--fond-2); text-align: center; overflow: hidden; }
 .mk-pack-nom { padding: var(--esp-2) var(--esp-1); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; background: linear-gradient(135deg, var(--pk-a), color-mix(in srgb, var(--pk-a) 45%, var(--noir-pur))); color: var(--blanc); }
 .mk-pack .pk-prix { padding: 6px 0; margin: 0; align-items: center; }
+
+/* LE BANC DE CINQ (V27, tranche 5 ; les maquettes 1 et 7) : cinq petites cartes de front ; celle qui joue s'allume, celle qui sort se barre. */
+.pl-grille-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-items: start; padding-top: var(--esp-1); }
+.banc-plan { min-height: 44px; margin-left: var(--esp-2); padding: 0 var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-1); background: var(--noir-pur); color: var(--or); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; }
+.pl-carte.joue .carton { box-shadow: 0 0 0 2px var(--blanc), 0 0 16px color-mix(in srgb, var(--blanc) 35%, transparent); }
+.pl-carte.joue::after { content: ""; position: absolute; top: -4px; right: -4px; z-index: 3; width: 11px; height: 11px; border-radius: 50%; background: var(--bon); box-shadow: 0 0 0 2px var(--noir-pur); }
+.pl-carte.sort .carton { opacity: 0.5; box-shadow: 0 0 0 2px var(--mauvais); }
+.pl-carte.sort::after { content: "✕"; position: absolute; top: 30%; left: 50%; translate: -50% 0; z-index: 3; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--mauvais); color: var(--noir-pur); font: 900 var(--t-3)/1 var(--display); }
+.fx-plus { color: var(--bon); }
+.fx-moins { color: var(--mauvais); }
+.pc-sheet { display: flex; flex-direction: column; gap: var(--esp-3); padding: 0 0 var(--esp-4); }
+.pc-bande { position: relative; isolation: isolate; overflow: hidden; display: grid; gap: var(--esp-1); padding: 48px var(--esp-4) var(--esp-4); background: linear-gradient(90deg, var(--eq-band, var(--fond-3)), color-mix(in srgb, var(--eq-band, var(--fond-3)) 45%, var(--noir-pur))); color: var(--blanc); }
+.pc-ecu { position: absolute; right: -20px; top: -6px; z-index: -1; opacity: 0.2; }
+.pc-k { position: absolute; top: var(--esp-3); left: 0; display: flex; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.pc-k > * { display: flex; align-items: center; gap: 6px; padding: 4px var(--esp-3); background: var(--noir-pur); }
+.pc-k b { background: var(--or); color: var(--encre-sur-or); }
+.pc-titre { font: 900 calc(var(--t-6) * 1.15)/0.95 var(--display); text-transform: uppercase; }
+.pc-bande .choix-fermer { position: absolute; top: var(--esp-2); right: var(--esp-2); }
+.pc-corps { display: grid; gap: var(--esp-3); padding: 0 var(--esp-4); }
+.pc-l { display: inline-flex; justify-self: start; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.pc-l > * { padding: 4px var(--esp-2); background: var(--noir-pur); color: var(--encre-2); }
+.pc-l b { background: var(--mauvais); color: var(--noir-pur); }
+.pc-echange { display: flex; align-items: stretch; background: var(--noir-pur); font: 900 var(--t-3)/1.1 var(--display); text-transform: uppercase; }
+.pc-echange b { padding: var(--esp-2) var(--esp-3); background: var(--blanc); color: var(--noir-pur); }
+.pc-echange svg { align-self: center; margin: 0 var(--esp-2); color: var(--blanc); }
+.pc-echange span { flex: 1; padding: var(--esp-2) var(--esp-3); background: var(--mauvais); color: var(--noir-pur); text-align: right; }
+.pc-boutons { display: flex; gap: var(--esp-2); margin-top: auto; padding: 0 var(--esp-4); }
+.pc-boutons .btn { flex: 1; min-height: 52px; }
+.pc-boutons .gold { flex: 2; }
 
 /* ---- Les cartes de la banque (js/inventaire.js) : la face d'un pack (`.tc`, Jalon U), son compte, ses boutons dessous ---- */
 .bq-carte { position: relative; display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; }

@@ -4,13 +4,13 @@
  *
  *   node scripts/check_banque.mjs
  *
- * V21 (docs/refonte-v21.md) : le personnel est parti ; la banque garde les cartes rares qui montent (les retouches, le
- * stage du coach, les soins, l'échange d'un doublon), une fois sur quatre dans un pack de joueurs. Les pouvoirs du
- * coach se mesurent dans check_pouvoirs. Vérifie :
+ * V21 (docs/refonte-v21.md) : le personnel est parti ; la banque garde les cartes rares qui montent (les retouches, les
+ * soins, l'échange d'un doublon ; le stage du coach est parti avec son expérience, V27, tranche 5), une fois sur quatre
+ * dans un pack de joueurs. Les pièces du banc se mesurent dans check_pouvoirs. Vérifie :
  *   1. le registre : les deux familles qui restent, une règle pour chaque carte, une décision que le moteur lit ;
  *   2. les packs : des chances affichées pour chaque pack, des barèmes qui font 100 %, une carte rare pure ;
  *   2b. LA MASSE SALARIALE (`plafondDe`) : le contrat de télé et le rachat du dossier du proprio, au dollar ;
- *   3. le moteur : le stage monte l'expérience du coach, une histoire aussi, et un SOIN raccourcit vraiment une
+ *   3. le moteur : une pièce entre sur le banc du coach, et un SOIN raccourcit vraiment une
  *      blessure ; une histoire sur un joueur tient sur lui ;
  *   4. la saison se rejoue au but près avec ces décisions.
  * Le rachat du dossier du proprio (V16) est parti avec sa banque (V22) : ses valeurs d'essai font jouer le même canal (`plafondDe`) ;
@@ -64,7 +64,7 @@ const sansRegle = Object.keys(BANQUE).filter(id => !reglesDe(id).length);
 exiger('chaque carte dit sa règle', !sansRegle.length, sansRegle.slice(0, 5).join(', ') || 'toutes');
 const chiffres = Object.keys(BANQUE).filter(id => BANQUE[id].cat === 'consommable').filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
 exiger('les cartes rares se lisent en chiffres', !chiffres.length, chiffres.slice(0, 5).join(', ') || 'toutes');
-const CHAMPS = ['effet', 'gestes', 'surJoueur', 'mutation', 'gain', 'xpCoach', 'ballottage'];
+const CHAMPS = ['effet', 'gestes', 'surJoueur', 'mutation', 'gain', 'ballottage'];
 const sansDecision = Object.keys(BANQUE).filter(id => {
   const p = payloadDe(id, { joueur: 'x' });
   return !p || !Object.keys(p).some(k => CHAMPS.includes(k));
@@ -109,13 +109,12 @@ const avant = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => moi.rost
 // Une histoire sur un joueur (V25 C1 : l'agent appelle, « Lui donner ce qu'il demande » : −20 🪙, ses tirs et ses passes sur 12 matchs) : sa réponse se pose sur lui, pas sur l'équipe.
 const AGENT = HISTOIRES.lAgent.options.find(o => o.cle === 'donner');
 const decs = [
-  { jour: 0, equipe: 0, coach: { cle: 'tortue', xp: 0, talents: [], adjoints: [] } },
-  { jour: 5, equipe: 0, ...payloadDe('consommable:stage', {}) },
-  { jour: 10, equipe: 0, xpCoach: 2 },
+  { jour: 0, equipe: 0, coach: { cle: 'tortue' } },
+  { jour: 10, equipe: 0, piece: { cle: 'mur' } },
   { jour: 20, equipe: 0, palier: 'h:lundi:20', moment: { famille: 'histoire', cle: 'lAgent', choix: 'donner', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] }, gain: AGENT.jetons },
 ];
 simulateLeague(t0, 82, { graine: 'banque', decisions: decs });
-exiger('le stage et une histoire montent l\'expérience du coach', moi.perso && moi.perso.xp === payloadDe('consommable:stage', {}).xpCoach + 2, moi.perso ? `${moi.perso.xp} points d'avant, ${moi.xpSaison} de la saison` : 'pas de coach');
+exiger('le coach pose sa pièce de départ, et une pièce entre sur son banc', moi.perso && moi.perso.banc.join() === 'verrou,mur', moi.perso ? moi.perso.banc.join(', ') : 'pas de coach');
 exiger('une histoire du lundi ne pose aucun effet sur l\'équipe', !(moi.effets || []).some(e => e.source === 'histoire'), `${(moi.effets || []).length} effet(s)`);
 // V11 (tranche 4) : un dossier qui nomme un joueur pose sa réponse sur lui.
 const boude = (moi.effetsCibles || []).find(e => e.nom === HISTOIRES.lAgent.titre);

@@ -18,7 +18,7 @@ import { estD, borne, hache, generateur, gauss, entierDeGraine } from './util.js
 
 /*
  * LES GREFFES (V25, docs/refonte-v25.md § A). Le moteur joue des matchs et une ligue ; ce que le Rogue y pose — le coach et
- * ses pouvoirs, les adjoints et leurs relais, le duel, les histoires appliquées, les suivis, l'expérience, les séjours —
+ * son banc de pièces et leurs relais, le duel, les histoires appliquées, les suivis —
  * vit dans js/greffes.js, qui se branche ici au chargement (`brancherGreffes`). Le moteur n'importe aucun module du
  * Rogue : il ne connaît que ce contrat, et le 82-0 n'y pose rien. Une ligue du Rogue sans greffes branchées est une
  * erreur, dite tout haut, jamais un match joué autrement en silence.
@@ -926,9 +926,9 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // V5 : les sources NOMMÉES qui touchent la finition ou la défense, pour que « ce qui a fait le match » dise chaque
   // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
   Object.defineProperty(e, 'sources', { value: sources.filter(c => c && c.nom && ((c.finition ?? 1) !== 1 || (c.defense ?? 1) !== 1)).map(c => ({ nom: c.nom, ico: c.ico || '', finition: c.finition ?? 1, defense: c.defense ?? 1 })) });
-  // V21 : la précision des POUVOIRS du coach (le temps d'une période), à part : elle passe par-dessus le plafond du jeu.
-  // V23 D : le relais d'un adjoint ne dure qu'une période, comme un pouvoir : il passe les plafonds du jeu de même.
-  const dUnePeriode = c => c && (c.source === 'pouvoir' || c.source === 'relais');
+  // V21 : la précision d'une PIÈCE du banc (le temps d'une période ; V27, tranche 5 : les pouvoirs et les adjoints fondus
+  // en pièces), à part : elle passe par-dessus le plafond du jeu. Son relais (V23 D) ne dure qu'une période : de même.
+  const dUnePeriode = c => c && (c.source === 'piece' || c.source === 'relais');
   Object.defineProperty(e, 'pouvoir', { value: sources.reduce((a, c) => (dUnePeriode(c) ? a * (c.finition ?? 1) : a), 1) });
   // Leurs tirs et leurs punitions aussi (oct.) : « la ruée, +40 % de tirs » se jouait écrêtée sous PRESSION_MAX pour un bon
   // club, « le sang-froid, −45 % de punitions » sur DISCIPLINE_MIN.
@@ -4808,7 +4808,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // pas une nuisance — et le gros pourvoyeur est le filet : deux cases
   // seulement, et l'auxiliaire n'est pas toujours remplaçable.
   noterTrous(A, LA); noterTrous(B, LB);
-  // LES GREFFES D'AVANT LE MATCH (V25) : leur coach en séries, le plan de match, les adjoints en poste ; retirées après.
+  // LES GREFFES D'AVANT LE MATCH (V25) : leur coach en séries, le plan de match ; retirées après.
   const retirerGreffes = GREFFES ? GREFFES.avantMatch(A, B, LA, LB, journal, { series, gros }) : () => {};
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   let gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
@@ -5421,7 +5421,6 @@ export function simulate(roster, { graine = null } = {}) {
  * décision, et les premières journées ne se rejoueraient plus. Appliquer
  * l'alignement qu'on a déjà ne change rien (check_graine.mjs le vérifie).
  */
-/* L'expérience d'une victoire (V21) : `XP.victoire`, plus `bonus` (un gros match gagné, une série gagnée). */
 
 
 /* La case d'un blessé confiée au remplaçant de la ligue (`activeLineup`), tant qu'il est à l'infirmerie. Idempotent. */
@@ -5429,7 +5428,7 @@ function poserRemplacant(team, d) {
   if (d.remplacant && Number.isFinite(d.remplacant.case) && d.remplacant.joueur) (team.remplacants = team.remplacants || new Map()).set(d.remplacant.case, d.remplacant.joueur);
 }
 function appliquerDecision(team, d, graine = 0) {
-  // CE QUE LE ROGUE EN FAIT (V25, js/greffes.js) : le plan de match, l'histoire par sa porte (`appliquerChoix`), le coach et ses adjoints.
+  // CE QUE LE ROGUE EN FAIT (V25, js/greffes.js) : le plan de match, l'histoire par sa porte (`appliquerChoix`), le coach et son banc.
   if (GREFFES) GREFFES.decision(team, d, graine);
   // UNE CARTE EST UNE DÉCISION comme une autre : elle s'applique au jour où
   // elle a été prise et vaut pour le reste de la saison.
@@ -5792,7 +5791,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // Une ligue neuve part de zéro : les cartes, les situations, les cases
       // vides, les effets, les gestes réels, la chimie et l'énergie, les
       // changements de carte, les gros matchs.
-      t.perso = null; t.xpSaison = 0; t.plan = null;
+      t.perso = null; t.plan = null;
       t.situations = [];
       t.trous = []; t.trouEnCours = false;
       t.effets = []; t.jourCourant = 0;
@@ -5803,7 +5802,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._adapt;
       for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._galon; delete p._si; delete p._soir; delete p._arcFx; delete p._arcSi; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.effetsCibles = [];
-      t.suivis = []; t.retours = []; t.sejoursFinis = []; t.blessesQuiJouent = []; t.commotions = null;
+      t.suivis = []; t.retours = []; t.blessesQuiJouent = []; t.commotions = null;
       t._gros = null; t._effetMatch = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t.rivaux = null; t.beteNoire = null;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
     }
@@ -6109,7 +6108,6 @@ export function jouerJournee(L) {
         poserGros(toi, advToi, gros);
       }
       const res = playGame(m.A, m.B, r, true, false, feuille, 0, true);
-      if (GREFFES) GREFFES.xp(res.winner, gros ? 'gros' : 'victoire');
       Object.assign(m, { gfA: res.gfA, gfB: res.gfB, ot: res.ot, feuille, joue: true });
       if (avecToi) grosMatchApres(toi, m, r, gros);
       if (gros) leverGros(toi);
@@ -6195,9 +6193,9 @@ export function feuilleVierge() {
     glacePremier: { A: 0, B: 0 },                         // la part de glace du premier trio de chaque club (V19)
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
-    pouvoirs: [],                                         // V21 : { cote, k, p, cle, nom, ico, buts, contre } ; V23 F : `ombre` (leur coach en séries, hors de sa condition)
-    relais: [],                                           // V23 D : { cote, k, cle, nom, ico, niv, sur: { genre, cle?, ico?, nom }, maillon }
-    adjoints: [],                                         // V22 : { cote, cle, nom, ico, reste } — les adjoints en poste ce soir
+    pieces: [],                                           // V27 : { cote, k, cle, nom, ico, buts, contre } ; V23 F : `ombre` (leur coach en séries, hors de sa condition)
+    relais: [],                                           // V23 D : { cote, k, cle, nom, ico, sur: { genre, cle?, ico?, nom }, maillon }
+    banc: { A: [], B: [] },                               // V27 : les pièces du banc de chaque club ce soir-là
     prolongation: false,
   };
 }
@@ -6318,7 +6316,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.perso = null; t.xpSaison = 0; t.sejoursFinis = []; t.plan = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.perso = null; t.plan = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0];
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -6914,7 +6912,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
   const ajouter = x => { if (serie) team.effetsSerie = [...(team.effetsSerie || []), x]; else team.effets = [...(team.effets || []), x]; };
   for (const d of aVenir || []) {
     if ('speciales' in d) team.speciales = specialesValides(d.speciales);
-    // Ce que le Rogue y pose de pur (V25, js/greffes.js) : le plan, l'effet d'une histoire, le coach et ses adjoints.
+    // Ce que le Rogue y pose de pur (V25, js/greffes.js) : le plan, l'effet d'une histoire, le coach et son banc.
     const x = GREFFES ? GREFFES.aVenir(team, d) : null;
     if (x && x.effet) ajouter(x.effet);
     if (d.effet && !serie) {
@@ -7158,10 +7156,9 @@ export function jouerMatchSeries(S) {
         toi._gardienAuxMatch = false;
       }
       if (res.winner === s.A) s.wA++; else s.wB++;
-      if (GREFFES) GREFFES.xp(res.winner, 'victoire');
       // Décidée au quatrième gain, pas à la fin de la ronde : ta série gagnée
       // en quatre ne demande pas de cinquième match pendant que les autres jouent.
-      if (s.wA === 4 || s.wB === 4) { s.winner = s.wA === 4 ? s.A : s.B; if (GREFFES) GREFFES.xp(s.winner, 'serie'); }
+      if (s.wA === 4 || s.wB === 4) { s.winner = s.wA === 4 ? s.A : s.B; }
       feuille.numero = k + 1;
       feuille.serie = `${s.wA}-${s.wB}`;
       s.feuilles.push(feuille);
@@ -7286,7 +7283,7 @@ function leverGros(toi) {
 /*
  * UN MATCH SE JOUE EN TROIS PÉRIODES (V25, docs/refonte-v25.md § A) : le seul chemin, pour tous les modes. Avant chaque
  * période, les greffes du mode posent sur les deux clubs ce qui se lit sur ce qui est déjà joué (js/greffes.js : les
- * pouvoirs du coach, les relais des adjoints, leur coach en séries, et au duel leur intention et ton plan) ; puis la
+ * pièces du banc et leurs relais, leur coach en séries, et au duel leur intention et ton plan) ; puis la
  * période se joue (`jouerPlage`) et la feuille garde son pointage (`periodes`). Une période sans rien de posé garde les
  * profils du soir ; le gros match du 82-0 n'y pose rien : trois périodes vues.
  */

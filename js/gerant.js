@@ -20,9 +20,10 @@ import {
   MUTATIONS, getPlayerKey,
   physiqueDe, accordsDeLigne, EDITIONS_REGLEMENT,
 } from './sim.js';
-import { motsDeMutationEnChiffres, motsDeStats } from './impact.js';
+import { motsDeMutationEnChiffres, motsDeStats, lignesDeLaPiece } from './impact.js';
+import { carteLigne } from './composants.js';
 import { motsDe, motsDuPari, facesMot, MOTS_DU_JOUEUR } from './effets.js';
-import { carteHtml, pochetteHtml } from './cartes.js';
+import { carteHtml, pochetteHtml, carteDePiece } from './cartes.js';
 import { facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { INTENTIONS, PLANS } from './greffes.js';
 import { jouerSon } from './sons.js';
@@ -30,9 +31,9 @@ import { notable, pic } from './mouvement.js';
 import { TRAITS } from './traits.js';
 import { esc, cap as majuscule, glyphe, varsEquipe, nom } from './util.js';
 import { getTeamBand, getTeamLogoHtml } from './logos.js';
-import { ADJOINTS } from './adjoints.js';
+import { PIECES, CASES_DU_BANC } from './pieces.js';
 import { COACHS } from './coachs.js';
-import { NIVEAUX, nomDuNiveau, niveauSur } from './niveaux.js';
+import { NIVEAUX, niveauSur } from './niveaux.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -289,7 +290,7 @@ export function formeDe(o) {
   if (!o || typeof o !== 'object') return '';
   if (o.etiquette) return o.etiquette;
   if (o.pari) return 'Pari';
-  if (o.gestes && Object.keys(o.gestes).some(k => k !== 'adjoint')) return 'Geste';
+  if (o.gestes && Object.keys(o.gestes).some(k => k !== 'piece')) return 'Geste';
   // Ne rien faire se dit une fois, par sa puce (« Rien ne change ») : ni étiquette, ni « + Rien ne change » de plus.
   if (o.rien) return '';
   if (o.trou || (o.mutation && EDITIONS_REGLEMENT.includes(o.mutation))) return 'Règlement';
@@ -394,6 +395,66 @@ function sceneHtml(sc, { voix = false } = {}) {
 const CARTE_JOUEE_MS = 200;
 /* Le premier focus d'un choix : la face d'une carte de jeu, ou son « Prendre » (la carte elle-même n'est pas un bouton). */
 const PREMIERE = 'button.tc-face, button.tc-prendre, button.tcj-signer';
+/*
+ * PRENDRE UNE PIÈCE (V27, tranche 5 ; la maquette 7 de docs/maquettes/v27.html). La bande de qui la donne (« Le prix du
+ * rival », son écusson et ses couleurs ; « Boutique ») et « Choisis ta pièce », puis les pièces offertes en vraies cartes
+ * de jeu, une ligne dessous ; toucher une carte la choisit. Banc plein : tes cinq pièces sous « Banc plein · Qui sort ? »,
+ * toucher celle qui part, et la bande de l'échange (« Le mur → Le verrou part »). « Passer » est toujours là quand la
+ * pièce est gratuite ; le ✕ (Échap) la laisse dans la boîte. `spec` : { k, club: { tag, nom }?, titre, offres: [cle],
+ * banc: [cle], motPrendre, onPrendre(cle, sort), onPasser?, onFerme? }.
+ */
+export function ouvrirPiece(spec) {
+  const m = $('choixModal');
+  if (!m) return () => {};
+  if (fermerChoixCourant) fermerChoixCourant(true);
+  const plein = spec.banc.length >= CASES_DU_BANC;
+  let choisie = spec.offres.length === 1 ? spec.offres[0] : null, sort = null;
+  const fermer = (silencieux = false) => {
+    m.hidden = true; m.innerHTML = '';
+    document.body.classList.remove('choix-ouvert');
+    fermerChoixCourant = null;
+    if (!silencieux && spec.onFerme) spec.onFerme();
+  };
+  const ligne = cle => { const l = lignesDeLaPiece(cle)[0]; return l ? `<span class="${l.bon === false ? 'fx-moins' : 'fx-plus'}">${esc(l.txt)}</span>` : ''; };
+  const carte = (cle, data, on, cls = '') => carteLigne(carteDePiece(cle, { lecture: true }), data === 'pc' ? ligne(cle) : '',
+    { cls: `pl-carte-touche${on ? ` ${cls}` : ''}`, attrs: ` data-${data}="${esc(cle)}" role="button" tabindex="0" aria-pressed="${on}" aria-label="${esc(`${PIECES[cle].nom} : ${PIECES[cle].quandMot}`)}"` });
+  const dessiner = () => {
+    const pret = choisie && (!plein || sort);
+    m.innerHTML = `<div class="choix-sheet pc-sheet" data-genre="piece" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+      <div class="pc-bande"${spec.club ? ` style="${varsEquipe(getTeamBand(spec.club.tag))}"` : ''}>
+        ${spec.club ? `<i class="pc-ecu" aria-hidden="true">${getTeamLogoHtml(spec.club.tag, 140)}</i>` : ''}
+        <span class="pc-k"><b>${esc(spec.k)}</b>${spec.club ? `<span>${getTeamLogoHtml(spec.club.tag, 16)}${esc(spec.club.nom)}</span>` : ''}</span>
+        <span class="pc-titre">${esc(spec.titre)}</span>
+        <button type="button" class="close-btn choix-fermer" aria-label="Plus tard" title="Plus tard">✕</button>
+      </div>
+      <div class="pc-corps">
+        <div class="pl-grille pl-grille-3 pc-offres">${spec.offres.map(k => carte(k, 'pc', k === choisie, 'choisie')).join('')}</div>
+        ${plein ? `<span class="pc-l"><span>Banc plein</span><b>Qui sort ?</b></span>
+        <div class="pl-grille pl-grille-5 pc-banc">${spec.banc.map(k => carte(k, 'sort', k === sort, 'sort')).join('')}</div>
+        <div class="pc-echange"><b>${choisie ? esc(PIECES[choisie].nom) : 'Ta pièce'}</b><svg width="22" height="14" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M2 7h17l-5-5M19 7l-5 5"/></svg><span>${sort ? `${esc(PIECES[sort].nom)} part` : 'Qui sort ?'}</span></div>` : ''}
+      </div>
+      <div class="pc-boutons">${spec.onPasser ? '<button type="button" class="btn pc-passer">Passer</button>' : ''}<button type="button" class="btn gold pc-prendre"${pret ? '' : ' disabled'}>${esc(spec.motPrendre || 'Prendre')}</button></div>
+    </div>`;
+    const toucher = (sel, poser) => m.querySelectorAll(sel).forEach(b => {
+      const faire = () => { poser(b.dataset.pc || b.dataset.sort); dessiner(); m.querySelector(`${sel}[aria-pressed="true"]`)?.focus(); };
+      b.onclick = faire;
+      b.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); faire(); } };
+    });
+    toucher('[data-pc]', k => { choisie = k; });
+    toucher('[data-sort]', k => { sort = k; });
+    m.querySelector('.choix-fermer').onclick = () => fermer();
+    const passer = m.querySelector('.pc-passer');
+    if (passer) passer.onclick = () => { fermer(true); spec.onPasser(); };
+    m.querySelector('.pc-prendre').onclick = () => { if (!pret) return; fermer(true); jouerSon('joue'); notable(); spec.onPrendre(choisie, plein ? sort : null); };
+  };
+  dessiner();
+  m.classList.remove('feuille');
+  m.hidden = false;
+  document.body.classList.add('choix-ouvert');
+  fermerChoixCourant = fermer;
+  (m.querySelector('[data-pc]') || m.querySelector('.pc-prendre')).focus({ preventScroll: true });
+  return () => fermer(true);
+}
 export function ouvrirChoix(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
@@ -1056,8 +1117,8 @@ export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce =
   // Ses plans : le nom et l'icône du plan, qui suit qui pour 🥷, et ses vraies stats de la période.
   const tuile = x => {
     const PL = PLANS[x.cle];
-    // Qui le propose (nov. 2026) : un adjoint en poste, à son niveau, ou ton coach ; sinon, une idée de la période.
-    const qui = x.qui && x.qui.genre === 'adjoint' && ADJOINTS[x.qui.cle] ? `${ADJOINTS[x.qui.cle].ico} ${ADJOINTS[x.qui.cle].nom} · ${nomDuNiveau((x.qui.niv || 3) - 1)}`
+    // Qui le propose (nov. 2026) : une pièce de ton banc, ou ton coach ; sinon, une idée de la période.
+    const qui = x.qui && x.qui.genre === 'piece' && PIECES[x.qui.cle] ? `${PIECES[x.qui.cle].ico} ${PIECES[x.qui.cle].nom}`
       : x.qui && x.qui.genre === 'coach' && COACHS[x.qui.cle] ? `${COACHS[x.qui.cle].ico} Ton coach` : '';
     const suit = PL.vedette && x.vedette && x.colle ? `${nom(x.colle)} suit ${nom(x.vedette)}` : '';
     return { cle: x.cle, ico: PL.ico, nom: PL.nom, sous: [qui, suit].filter(Boolean).join(' · '),

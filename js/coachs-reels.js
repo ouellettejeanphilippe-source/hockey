@@ -1,9 +1,9 @@
 /*
  * LES VRAIS COACHS (V21 ; JP : *les coachs et assistants comme l'alignement, avec des coachs ; des cartes de vrais coachs
  * par saison*). Ton entraîneur est une carte : un vrai coach, une saison, son club (data/coachs.json, construit par
- * scripts/coachs.mjs depuis les records de la LNH). Sa philosophie — un des huit coachs de js/coachs.js, et ses trois
- * pouvoirs (js/pouvoirs.js) — se lit dans les vraies stats de son club cette saison-là ; son rang dans cette lecture fait
- * sa MAÎTRISE, une force de plus sur ses pouvoirs (`NIVEAUX[k].maitrise`, js/niveaux.js). Pur : l'écran et les robots tirent les mêmes cartes.
+ * scripts/coachs.mjs depuis les records de la LNH). Sa philosophie — un des huit coachs de js/coachs.js, et sa pièce de
+ * départ (js/pieces.js) — se lit dans les vraies stats de son club cette saison-là ; son rang dans cette lecture fait
+ * sa MAÎTRISE, une force de plus sur sa pièce de départ (`NIVEAUX[k].maitrise`, js/niveaux.js). Pur : l'écran et les robots tirent les mêmes cartes.
  */
 import { hache } from './util.js';
 import { NIVEAUX } from './niveaux.js';

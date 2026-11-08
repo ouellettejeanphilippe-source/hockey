@@ -42,9 +42,7 @@ import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN, ecussonsDesSeries } from '../js/rogue.js';
 import { ACTES, RANGS_DES_RIVAUX, CONTROLES, COEURS, ETAPE_SERIES, MEDAILLES_ACTE, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, PRIX_PIECE } from '../js/actes.js';
 import { COACHS, REGLES_DU_COACH } from '../js/coachs.js';
-import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT, NIVEAUX_TALENT } from '../js/pouvoirs.js';
-import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU, CASE_DE_PLUS, RELAIS_NIV, NIV_DEFAUT } from '../js/adjoints.js';
-import { FORCE_NIV, SALAIRE_NIV } from '../js/adjoints.js';
+import { CASES_DU_BANC, PIECES_OFFERTES, PIECES_PAR_SAISON_DES_FOURCHES, RELAIS_NIV } from '../js/pieces.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH, hausseDesPacks } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
@@ -261,8 +259,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`qu'avant ton 1er match, puis après tes ${NOEUDS_BOUTIQUE.slice(1, -1).map(k => `${k}e`).join(', ')} et ${NOEUDS_BOUTIQUE.at(-1)}e matchs`, 'les nœuds de la boutique'],
     [`montent de ${Math.round((hausseDesPacks(1) - 1) * 100)} % à chaque achat, ${['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq'][ACHATS_PAR_NOEUD]} achats au plus ; une pièce de banc parmi trois, une seule, à ${PRIX_PIECE} jetons au premier achat`, 'le prix au nœud'],
     [`une ronde de séries gagnée paie ${ecussonsDesSeries(1, false)} médailles`, 'la prime de série'],
-    // V23 D : le relais à son niveau (`RELAIS_NIV`).
-    [`rejoue la période, ${String(RELAIS_NIV[NIV_DEFAUT - 1]).replace('.', ',')} fois au Pilier, ${String(RELAIS_NIV[4]).replace('.', ',')} fois au ★ Phénomène`, 'le relais'],
+    // V23 D, V27 : le relais d'une pièce (`RELAIS_NIV`, une seule force : une pièce n'a pas de niveau).
+    [`rejoue la période, ${nombre(RELAIS_NIV)} fois`, 'le relais'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs.`, 'l\'objectif raté'],
     [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],
@@ -283,21 +281,14 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`des clubs de toute l'histoire aux ${NIVEAUX_PLEINS === 2 ? 'deux' : NIVEAUX_PLEINS} premiers rangs`, 'les premières ligues'],
     [`Un cran d'exigence en vaut ${ETAPES_PAR_CRAN}.`, 'la ligue et les exigences'],
     [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
-    // V21 : le coach, un personnage (js/pouvoirs.js) — son expérience, ses niveaux, ses pouvoirs, ses talents, ses adjoints.
+    // V27, tranche 5 : le coach et son banc de cinq (js/pieces.js).
     [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],
-    [`une victoire ${XP.victoire} point, un gros match gagné ${XP.gros} de plus, une série gagnée ${XP.serie} ; ${SEUILS_NIVEAU.slice(1).map((x, i) => `${i ? '' : 'niveau '}${i + 2} à ${x}`).join(', ').replace(/, ([^,]*)$/, ', $1')} points`, 'l\'expérience du coach'],
+    [`<strong>Ton banc</strong> a <strong>${CASES_DU_BANC}</strong> cases, pour toute la run`, 'le banc'],
+    [`un rival battu en offre une parmi <strong>${PIECES_OFFERTES}</strong>, la boutique en vend une à chaque nœud, une histoire en donne une (${['zéro', 'une', 'deux', 'trois'][PIECES_PAR_SAISON_DES_FOURCHES]} par saison au plus)`, 'd\'où viennent les pièces'],
     // V23 : le niveau de l'entraîneur, de Soutien à ★ Phénomène, fait sa maîtrise (js/niveaux.js `NIVEAUX[k].maitrise`).
-    [`son rang dans cette lecture fait son niveau et la force de ses pouvoirs, de ×${nombre(NIVEAUX[0].maitrise)} au Soutien à ×${nombre(NIVEAUX[4].maitrise)} au ★ Phénomène`, 'la maîtrise de l\'entraîneur'],
-    [`un ★ Phénomène donne ${nombre(Math.round((FORCE_NIV[4] - 1) * 100))} % de plus qu'un Pilier, un Soutien ${nombre(Math.round((1 - FORCE_NIV[0]) * 100))} % de moins`, 'le niveau d\'un adjoint'],
-    // V23 : la règle du coach (js/coachs.js) et le salaire d'un adjoint (js/adjoints.js), dits par leurs constantes.
+    [`son rang dans cette lecture fait son niveau et la force de sa pièce de départ, de ×${nombre(NIVEAUX[0].maitrise)} au Soutien à ×${nombre(NIVEAUX[4].maitrise)} au ★ Phénomène`, 'la maîtrise de l\'entraîneur'],
+    // V23 : la règle du coach (js/coachs.js), dite par ses constantes.
     [`(🐝 ${REGLES_DU_COACH.essaim.dit} : +${REGLES_DU_COACH.essaim.jetons} 🪙)`, 'la règle du coach'],
-    [`en poste, il se paie, de ${SALAIRE_NIV[2]} 🪙 par match au Pilier à ${SALAIRE_NIV[4]} au ★ Phénomène`, 'le salaire d\'un adjoint'],
-    [`Ses trois pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.slice(0, -1).join(', ')} et ${NIVEAU_DES_POUVOIRS.at(-1)}`, 'les pouvoirs'],
-    [`fait grandir un pouvoir de ${nombre(TALENT * 100)} %`, 'le talent'],
-    // Nov. 2026 : le premier talent peut ouvrir une case d'adjoint de plus, à chaque niveau dès le sien (`CASE_DE_PLUS`).
-    [`au niveau ${NIVEAUX_TALENT[0]}, il peut plutôt ouvrir ${CASE_DE_PLUS.slice(NIVEAUX_TALENT[0] - 1).every(x => x === 1) && CASE_DE_PLUS.slice(0, NIVEAUX_TALENT[0] - 1).every(x => !x) ? "une case d'adjoint de plus, pour la run" : '(la case de plus a changé)'}`, 'la case de plus du talent'],
-    // V22 : la main d'adjoints, des séjours (js/adjoints.js).
-    [`elle joue ${SEJOUR} matchs (${SEJOUR_SYNERGIE} si son style rejoint ton coach), revient dans ta main et se repose ${REPOS} matchs ; ta main en garde ${MAIN_MAX}, une case en poste au niveau 1, ${CASES_PAR_NIVEAU[2] === 2 ? 'deux' : CASES_PAR_NIVEAU[2]} au 3, ${CASES_PAR_NIVEAU[4] === 3 ? 'trois' : CASES_PAR_NIVEAU[4]} au 5`, 'la main et les séjours'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
     [`trois cartes : ${Object.keys(SORTES_DECK).length === 3 ? 'un vrai joueur, un nouveau rôle, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
@@ -378,7 +369,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     masse: { espace: 400000, libre: '0,4 M$', cap: 60000000, lourd: { n: 'Alexei Yashin', cle: 'ay', sal: '7,6 M$' } }, defaites: 5, serie: 0, coach: null, pousse: { n: 'Mats Sundin', cle: 'ms', pts: 5, m: 7, ou: '3e trio' },
     chapeau: { n: 'Mike Bossy', cle: 'mb', buts: 3 }, blanchissage: { n: 'Jeff Hackett', cle: 'jh' }, suites: [], jalon: { n: 'Jari Kurri', cle: 'jk', quoi: 'buts', total: 20, m: 38, sal: '4,2 M$' },
     duo: { marqueur: { n: 'Brett Hull', cle: 'bh' }, passeur: { n: 'Adam Oates', cle: 'ao' }, buts: 6, m: 10 }, recrue: { n: 'Teemu Selänne', cle: 'ts', pts: 9, m: 12 }, veteran: { n: 'Gordie Howe', cle: 'gh', age: 41, pts: 7, m: 10 },
-    murEnVue: { n: 'Felix Potvin', cle: 'fp', v: 28, departs: 46 }, coup: { n: 'Tie Domi', cle: 'd', min: 5, adv: 'Kings 1993-94' }, sejourFini: { cle: 'canonnier', nom: 'Le canonnier', ico: '🏹', v: 8, d: 3, dp: 1, matchs: 12 },
+    murEnVue: { n: 'Felix Potvin', cle: 'fp', v: 28, departs: 46 }, coup: { n: 'Tie Domi', cle: 'd', min: 5, adv: 'Kings 1993-94' }, pieceChaude: { cle: 'canonnier', nom: 'Le canonnier', ico: '🏹', m: 7, v: 5, d: 2 },
     mandat: { mot: 'faire les séries', rang: null }, gros: null, ronde: null, vraie: () => V };
   const recus = new Set([...JSON.stringify({ F, V }).match(/\d+/g), '30']);
   for (const [cle, H] of Object.entries(HISTOIRES)) {

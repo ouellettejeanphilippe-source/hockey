@@ -1,6 +1,6 @@
 /*
  * TON BANC CE SOIR (V23, docs/refonte-v23.md § A ; JP, 2 nov. : *une vraie expérience digne d'un roguelike ou card
- * game*). Tes pouvoirs ouverts, tes adjoints en poste et la règle de ton coach en petites cartes : ce qui a joué
+ * game* ; V27, tranche 5 : le banc de cinq). La règle de ton coach et les pièces de ton banc en petites cartes : ce qui a joué
  * s'allume, l'un après l'autre, avec ses périodes ; ce qui n'a pas joué reste au banc, éteint, sa condition à
  * l'infobulle. La feuille fait foi (`banc`, js/profil-style.js) — `check_banc`. Le sommaire du soir (js/bilan.js) et
  * Hier soir au Bureau (js/saison.js) le montrent pareil.
@@ -20,8 +20,7 @@ export function bancDuSoirHtml(f, A, B, esc, { joues = false, jusqua = null } = 
   let i = 0;
   const carte = c => {
     const pied = c.genre === 'regle' ? (c.joue ? `+${c.jetons} 🪙` : 'pas ce soir')
-      : c.genre === 'adjoint' ? `${c.reste > 1 ? `encore ${c.reste - 1}` : 'dernier match'}${c.salaire ? ` · −${c.salaire} 🪙` : ''}`
-      : c.joue ? c.periodes.map(k => PERIODE_COURTE[k] || `${k + 1}e`).join(' · ') : jusqua ? 'pas encore' : 'au banc';
+      : c.joue ? `${c.periodes.map(k => PERIODE_COURTE[k] || `${k + 1}e`).join(' · ')}${c.relaie ? ' · relais' : ''}` : jusqua ? 'pas encore' : 'au banc';
     return `<div class="banc-carte banc-${c.genre}${c.joue ? ' joue' : ''}"${c.joue ? ` style="--i:${i++}"` : ''} title="${esc(`${c.nom} — ${c.dit}`)}">
       <span class="banc-ico" aria-hidden="true">${c.ico}</span><b>${esc(c.nom)}</b><small>${esc(pied)}</small></div>`;
   };

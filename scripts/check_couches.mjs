@@ -34,7 +34,7 @@ import { exiger, informer, verdict } from './verdict.mjs';
 const lire = f => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 const normaliser = p => posix.normalize(p).replace(/^\//, '');
 
-const ROGUE = new Set(['js/greffes.js', 'js/pouvoirs.js', 'js/adjoints.js', 'js/coachs.js', 'js/coachs-reels.js',
+const ROGUE = new Set(['js/greffes.js', 'js/pieces.js', 'js/actes.js', 'js/coachs.js', 'js/coachs-reels.js',
   'js/histoires.js', 'js/faits.js', 'js/vie-gm.js', 'js/scenes.js', 'js/recit.js', 'js/rogue.js', 'js/rogue-jeu.js',
   'js/impact.js', 'js/banque.js', 'js/packs.js', 'js/cartable.js', 'js/galons.js', 'js/inventaire.js',
   'js/saison.js', 'js/gerant.js', 'js/direct.js', 'js/game.js', 'js/composants.js']);

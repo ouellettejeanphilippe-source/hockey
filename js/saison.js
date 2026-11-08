@@ -28,21 +28,20 @@ import { suivisEnCours, lignePromesse, deDuChoix, apercuDuDuel, INTENTIONS, PLAN
 import { faitsDe } from './faits.js';
 import { HISTOIRES, tirer, sceneDe, nomDOption, sortiesDe } from './histoires.js';
 import { seasonLancers } from './ratings.js';
-import { lignesDeLAdjointEnChiffres, ditDeLaFinition, motsDuSoir, alignementDuSoir, chiffresDuSoir, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
+import { lignesDeLaPiece, ditDeLaFinition, motsDuSoir, alignementDuSoir, chiffresDuSoir, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
-import { artJoueur, photoAction, cadrePhoto, carteHtml } from './cartes.js';
+import { artJoueur, photoAction, cadrePhoto, carteDePiece } from './cartes.js';
 import { SEMAINE } from './inventaire.js';
-import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT, TALENT_CASE, NIVEAU_POUVOIR, SEUILS_NIVEAU } from './pouvoirs.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, bancDe, bancPlein, piecesOffertes } from './pieces.js';
 import { COACHS } from './coachs.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
-import { ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, basculerChiffres, ouvrirDuel, specDuDuel } from './gerant.js';
+import { ouvrirChoix, ouvrirPiece, choixOuvert, resumeLignes, puces, chiffresOuverts, basculerChiffres, ouvrirDuel, specDuDuel } from './gerant.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { etatDeLaRun, jeuDuRival, RAISONS_DU_DUEL, NOMS_DES_ACTES, ACTES, COEURS, MEDAILLES_ACTE, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat,
   acteDe, joursDe, renfortsDe, echangeables, echangerTesCases, brouillon } from './actes.js';
-import { ADJOINTS, adjointsOfferts, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, niveauOffert, momentFort, salaireDe, nivDe, casesDuPerso } from './adjoints.js';
 import { sceneDeLaMise, sceneDeLaBlessure, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { BANQUE } from './banque.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt, motsDeLObjectif, motDeBlessure } from './recit.js';
@@ -55,7 +54,7 @@ import { bancDuSoirHtml } from './banc-du-soir.js';
 import { bandeau, jetons, carteLigne, caseVide, grille, cellules, visage, rangeeVisage, caseDeMatch, podium as podiumHtml, coin, marche, coeurs } from './composants.js';
 import { panelDe } from './panel-tv.js';
 import { EXPEDITEURS, messageDuFil } from './vie-gm.js';
-import { NIVEAUX, nomDuNiveau } from './niveaux.js';
+import { NIVEAUX } from './niveaux.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -871,9 +870,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const accVus = new Set();
   const accidentsNeufs = () => (you.mutations || []).filter(m => m.source === 'accident' && m.jour <= jour && !accVus.has(m));
   const situationsNeuves = () => (you.situations || []).filter(f => !situVues.has(f) && f.jour <= jour);
-  // V22 : un séjour d'adjoint qui finit est une nouvelle d'Hier soir, avec sa fiche (js/sim.js `finirSejours`).
-  const sejVus = new Set();
-  const sejoursNeufs = () => (you.sejoursFinis || []).filter(x => !sejVus.has(x) && x.jour !== null && x.jour < jour);
   /*
    * CE QUI EST ARRIVÉ CETTE SEMAINE, GARDÉ JUSQU'À CE QU'ON L'AIT LU (V4.4). JP : *ya encore des courriels qu'on voit pas*.
    * Une avance ne gardait que la dernière situation et le dernier accident : deux dans la même semaine, et le premier
@@ -1169,7 +1165,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // règle du palier, étendue aux blessures, aux situations et aux cases
       // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
       if (stop && semaine) { if (arretDeSemaine()) { arrete = true; break; } continue; }
-      if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length || sejoursNeufs().length))
+      if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length))
         || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || etapesDeLActe().length > 0 || retourNeuf() || noeudNeuf())) { arrete = true; break; }
     }
     const pal = palierOuvert();
@@ -1185,7 +1181,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (trou) trousVus.add(trou);
     for (const f of situationsNeuves()) { situVues.add(f); retenirInfo(`s:${f.jour}`, 'situation', f); }
     for (const a of accidentsNeufs()) { accVus.add(a); retenirInfo(`a:${a.jour}:${getPlayerKey(a.p)}`, 'accident', a); }
-    for (const x of sejoursNeufs()) { sejVus.add(x); retenirInfo(`adj:${x.jour}:${x.cle}`, 'sejour', x); }
     // La journée révélée est la seule chose que la reprise a besoin de savoir :
     // tout le reste se rejoue de la graine.
     if (onJour) onJour(jour);
@@ -1734,9 +1729,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (genre === 'accident' && MUTATIONS[x.cle]) return `<div class="hub-situ hub-accident" role="status">
       <div class="hub-situ-quoi">${MUTATIONS[x.cle].ico} <b>${ctx.esc(x.p.n)}</b> · ${ctx.esc(MUTATIONS[x.cle].nom)} — ${ctx.esc(MUTATIONS[x.cle].quoi)}</div>
       <div class="choix-puces">${puces(motsDeMutationEnChiffres(x.cle, x.p, { deja: true }))}</div>
-    </div>`;
-    if (genre === 'sejour' && ADJOINTS[x.cle]) return `<div class="hub-situ hub-sejour" role="status">
-      <div class="hub-situ-quoi">${ADJOINTS[x.cle].ico} <b>${ctx.esc(ADJOINTS[x.cle].nom)}</b> · revenu en main · ${x.fin - x.debut} m, ${x.v}-${x.d}-${x.dp}</div>
     </div>`;
     if (genre === 'situation') return `<div class="hub-situ" role="status">
       <div class="hub-situ-rang">${[['porte', x.porte], ['pese', x.pese]].map(([sens, b]) => {
@@ -2596,8 +2588,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   let boitePrete = false;
   const decideDuMarche = d => { const j = jour; quitter(); onDecision(d, j); };
-  // V27, tranche 3 : la boutique lit ta main du jour (la pièce de banc entre dans ta main ; pleine, l'offre dit qui part).
-  if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, { ...page, perso: persoDuJour(), games: you.games || 0 });
+  // V27, tranches 3 et 5 : la boutique lit ton banc du jour (la pièce entre dans une case libre ; banc plein, l'écran de la pièce demande qui sort).
+  if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, { ...page, perso: persoDuJour() });
   // V12-3 : une page hors de l'écran de saison (Joueurs) montre et joue les cartes de sa maison ; `apres` dit où revenir.
   if (onDecision && ctx.maison) tabs.hub.maison = { html: k => ctx.maison.cartes(k, jour), jouer: (item, apres) => ctx.maison.jouer(item, jour, d => { if (apres) apres(); decideDuMarche(d); }) };
   // V18-5 : l'infirmerie est le filtre 🩹 d'Joueurs ; l'écran de saison lui prête ses blessés du jour.
@@ -2815,17 +2807,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       </div>`);
     }
     if (ctx.rogue) {
-      // La caisse, ce que ton banc coûte par match, et le barème de la run (il était à la Boutique) ; la masse salariale suit, avec ses cartes.
+      // La caisse et le barème de la run (il était à la Boutique) ; la masse salariale suit, avec ses cartes. V27 : le banc ne se paie plus.
       const jetons = ctx.rogue.jetons ? ctx.rogue.jetons(jour) : null, B = ctx.rogue.bareme();
-      const pA = persoDuJour(), gA = you.games || 0;
-      const sal = pA ? postesDe(pA, gA).reduce((a, c) => a + salaireDe(c), 0) : 0;
       // LE PLATEAU (nov. 2026) : l'argent en cellules séparées d'un filet — la caisse, ton banc par match ; la masse salariale a son bloc dessous.
-      // Le contenu, de zéro (4 nov.) : trois cellules — la caisse, l'espace sous le plafond, ton banc par match (cachée à zéro) ; le
+      // Le contenu, de zéro (4 nov.) : deux cellules — la caisse, l'espace sous le plafond ; le
       // barème de la run à l'infobulle du bloc (`.pk-bareme-run`, lu par essai_rogue) et à la page des règles.
       const masse = ctx.rogue.masse ? ctx.rogue.masse(jour) : null;
       const bareme = `🪙 ${[['Victoire', B.victoire], ['prolongation', B.prolongation], ['défaite', B.defaite], ['objectif', B.objectif, '+']].filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ')}`;
       blocs.push(`<div class="pr-bloc pr-argent pk-bareme-run" data-bareme="${ctx.esc(bareme)}" title="${ctx.esc(`Ce que chaque résultat rapporte : ${bareme}`)}"><span class="pr-k">L'argent</span>${cellules([...(jetons != null ? [{ k: 'Caisse', v: jetons, u: '🪙' }] : []),
-        ...(masse ? [{ k: 'Libre', v: masse.libre.replace(/\s*M\$$/, ''), u: 'M$' }] : []), ...(sal ? [{ k: 'Ton banc', v: `−${sal}`, u: '🪙 / m' }] : [])])}
+        ...(masse ? [{ k: 'Libre', v: masse.libre.replace(/\s*M\$$/, ''), u: 'M$' }] : []),])}
       </div>`);
       const verdicts = decs.filter(d => d.jour != null && d.jour <= jour && typeof d.palier === 'string' && d.palier.startsWith('v:'))
         .map(d => `<div class="hub-etat-l"><span class="hub-etat-k">J${d.jour + 1}</span><span class="hub-etat-v">${d.place && BANQUE[d.place] ? `🏆 Objectif atteint : il paie ${BANQUE[d.place].ico} ${ctx.esc(BANQUE[d.place].nom)}` : '😬 Objectif raté : le savon'}</span></div>`);
@@ -2841,32 +2831,26 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * bouton Lignes*).
    */
   /*
-   * TON BANC CE SOIR, AU MATIN (nov. 2026 ; JP : *where the infos are*). Ce qui jouera ce soir, en une rangée de petites cartes
-   * éteintes, la même forme que le banc allumé d'Hier soir (js/banc-du-soir.js) : ton plan en force (toucher ouvre les six
-   * plans, `ouvrirPlan`), les pouvoirs ouverts de ton coach (ils jouent si leur condition se lit), tes adjoints en poste (ils
-   * jouent chaque soir). Toucher un pouvoir ou un adjoint ouvre le Coach. La rangée « Ton plan » à part est partie.
-   */
-  /*
-   * LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu, pas les refondre* ; *ça permet de mieux voir les cartes*) :
-   * le banc est une main de vraies cartes de jeu (`carteHtml`, le carton 5:7 de la glace aux couleurs de son genre), quatre de
-   * front — ton plan, un pouvoir, un adjoint, la case libre —, chacune avec sa ligne dessous ; toucher ouvre les six plans ou le Coach.
+   * TON BANC CE SOIR (V27, tranche 5 ; la maquette 1 de docs/maquettes/v27.html) : tes cinq cases de front, chaque pièce en
+   * vraie carte de jeu (`carteDePiece`), sa condition en quelques mots dessous ; celles dont la condition est la soirée
+   * entière (à domicile, après une défaite…) et qui la tiennent ce soir s'allument, et la languette les compte ; une case
+   * libre en pointillés. Toucher une pièce ouvre le Coach, où le banc se lit en entier. Le plan du soir garde sa carte
+   * devant le banc jusqu'au duel à un choix (V27, tranche 6), qui le fera partir.
    */
   const bancDuMatinHtml = p => {
-    const P = PLANS[planEnForce(p.j)];
-    const pA = persoDuJour(), gA = you.games || 0;
-    const niveau = pA ? niveauDuPerso(pA) : 1;
-    const carte = (quoi, c, mot, pied) => carteLigne(carteHtml({ ...c, statique: true, lecture: true }), `<b>${ctx.esc(mot)}</b> · ${ctx.esc(pied)}`,
-      { cls: `pl-carte-touche${quoi === 'plan' ? ' banc-plan pl-carte-or' : ''}`, attrs: ` data-banc="${quoi}" role="button" tabindex="0" aria-label="${ctx.esc(`${c.nomTexte} : ${pied}`)}"` });
-    const plan = carte('plan', { cle: 'plan', niveau: 1, genreCarte: 'tactique', ico: P.ico, nomHtml: ctx.esc(P.mot), nomTexte: P.mot, typeHtml: 'Ton plan' }, 'Ton plan', 'en force');
-    // Sous chaque carte, sa condition en quelques mots (le contenu de zéro, 4 nov.) : « En 3e, à égalité ou derrière », « encore 12 m ».
-    const condition = dit => dit.split(' : ')[0].replace(/période/, '').replace(/\s+,/g, ',').trim();
-    const pouvoirs = pA && POUVOIRS[pA.cle] ? pouvoirsOuverts(niveau).map(i => { const V = POUVOIRS[pA.cle][i]; return carte('coach', { cle: `pv${i}`, niveau: NIVEAU_POUVOIR[i], genreCarte: 'synergie', ico: V.ico, nomHtml: ctx.esc(V.nom), nomTexte: V.nom, typeHtml: i === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][i]}` }, 'Pouvoir', condition(V.dit)); }) : [];
-    const postes = pA ? postesDe(pA, gA) : [];
-    const adjoints = postes.map(c => { const A = ADJOINTS[c.cle], niv = nivDe(c); return carte('coach', { cle: c.cle, niveau: niv - 1, genreCarte: 'tactique', ico: A.ico, nomHtml: ctx.esc(A.nom), nomTexte: A.nom, typeHtml: ctx.esc(`${nomDuNiveau(niv - 1)} · ${A.style}`) }, 'Adjoint', `encore ${resteDe(c, gA, pA.cle)} m`); });
-    // Une case en poste encore libre : la place d'une carte, en pointillés ; toucher ouvre le Coach, où la main se pose.
-    const libres = pA ? Math.max(0, casesDuPerso(pA, niveau) - postes.length) : 0;
-    const vide = libres ? caseVide('Case<br>libre', `Ta main · <b>${libres}</b> libre${libres > 1 ? 's' : ''}`, { cls: 'pl-carte-touche', attrs: ' data-banc="coach" role="button" tabindex="0" aria-label="Une case d\'adjoint libre"' }) : '';
-    return `<div class="bu-banc" role="group" aria-label="Ton banc ce soir">${bandeau('Ton banc ce soir')}${grille([plan, ...pouvoirs, ...adjoints, vide].filter(Boolean), { n: 4, cls: 'pl-eventail' })}</div>`;
+    const PL = PLANS[planEnForce(p.j)];
+    const pA = persoDuJour(), cases = bancDe(pA);
+    const res = resultats.get(you) || [], fin = res.slice(-3);
+    const soir = { domicile: p.m.A === you, visiteur: p.m.B === you, dosADos: !!soirEreintant(p.j, p.m.A, p.m.B), apresDefaite: res.length > 0 && res.at(-1) !== 'V', enFeu: fin.length === 3 && fin.every(r => r === 'V') };
+    const ceSoir = k => !!PIECES[k].soir && PIECES[k].quand({ k: 0, moi: 0, lui: 0, tirsMoi: 0, tirsLui: 0, der: null, series: false, gros: false, soir, pieces: [], relais: [] });
+    const touche = (quoi, mot) => ` data-banc="${quoi}" role="button" tabindex="0" aria-label="${ctx.esc(mot)}"`;
+    // Le plan du soir, jusqu'à la tranche 6 : un bouton dans la languette du banc, qui ouvre les six plans.
+    const plan = `<button type="button" class="banc-plan" data-banc="plan" aria-label="${ctx.esc(`Ton plan : ${PL.mot}`)}">Plan · ${ctx.esc(PL.mot)}</button>`;
+    const pieces = cases.map(k => carteLigne(carteDePiece(k, { statique: true, lecture: true }), ctx.esc(PIECES[k].quandMot),
+      { cls: `pl-carte-touche${ceSoir(k) ? ' joue' : ''}`, attrs: touche('coach', `${PIECES[k].nom} : ${PIECES[k].quandMot}`) }));
+    const vides = Array.from({ length: Math.max(0, CASES_DU_BANC - cases.length) }, () => caseVide('+', '', { cls: 'pl-carte-touche', attrs: touche('coach', 'Une case libre') }));
+    const jouent = cases.filter(ceSoir).length;
+    return `<div class="bu-banc" role="group" aria-label="Ton banc ce soir">${bandeau('Ton banc', `${jouent ? `${jouent} ${jouent > 1 ? 'jouent' : 'joue'} ce soir · ` : ''}${plan}`)}${grille([...pieces, ...vides], { n: 5 })}</div>`;
   };
   /*
    * TA PLAQUE ET LA PISTE DE LA SAISON (V27, la maquette 1 ; devis § 4.11). La bande de la run, refaite : la languette de
@@ -3145,24 +3129,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * match ne s'ouvre que seule, comme avant : elle a son écran de combat.
    */
   const choixForce = () => specsForces()[0] || null;
-  // Le personnage du matin : les décisions du jour pas encore jouées comprises (un talent pris ce matin).
-  const persoDuJour = () => { const p = you && avecAVenir(you, decs.filter(d => d.jour === jour && !d.equipe), () => you.perso); return p ? { ...p, xpSaison: you.xpSaison || 0 } : null; };
-  /*
-   * LES ADJOINTS D'UN MOMENT FORT (V22, js/adjoints.js) : un parmi trois, gratuit, chacun une carte — son style en vraies
-   * stats, son séjour, et la synergie avec ton coach. `cle` : le moment (le palier, le butin, le verdict, l'histoire). Une
-   * main pleine laisse partir la plus ancienne hors poste, et l'offre le dit.
-   */
-  // V23 : chaque carte a son niveau, tiré de la graine (`niveauOffert`), plus haut à un moment fort ; sa rareté fait le paquet.
-  const optionDAdjoint = (k, niv) => {
-    const p = persoDuJour(), part = p ? quiPartDeLaMain(p, you.games || 0) : null, syn = p ? motDeSynergie(k, p.cle) : null;
-    return { cle: k, niv, niveau: niv - 1, ico: ADJOINTS[k].ico, nom: ADJOINTS[k].nom, sous: `${nomDuNiveau(niv - 1)} · ${ADJOINTS[k].style}`, mots: [...lignesDeLAdjointEnChiffres(k, niv),
-      ...(syn ? [{ txt: syn, bon: true }] : [{ txt: `Un séjour de ${sejourDe(k, p ? p.cle : null)} matchs`, bon: null }]),
-      ...(part ? [{ txt: `Ta main est pleine : ${ADJOINTS[part].ico} ${ADJOINTS[part].nom} part`, bon: false }] : [])] };
-  };
-  const adjointsDuMoment = cle => (persoDuJour() ? adjointsOfferts(persoDuJour(), graine, cle, 3).map(k => optionDAdjoint(k, niveauOffert(graine, cle, k, momentFort(cle)))) : []);
-  const decisionDeLAdjoint = (cle, moment) => ({ embauche: { cle, niv: niveauOffert(graine, moment, cle, momentFort(moment)) } });
-  // La carte d'une offre unique (le talent, une histoire), nommée avec son niveau.
-  const motDeLOffert = (k, niv) => [{ txt: `Dans ta main : ${ADJOINTS[k].ico} ${ADJOINTS[k].nom}, ${nomDuNiveau(niv - 1)}, ${ADJOINTS[k].style.toLowerCase()}`, bon: true }, ...lignesDeLAdjointEnChiffres(k, niv)];
+  // Le personnage du matin : les décisions du jour pas encore jouées comprises (une pièce prise ce matin).
+  const persoDuJour = () => (you && avecAVenir(you, decs.filter(d => d.jour === jour && !d.equipe), () => you.perso)) || null;
+  /* La pièce d'une fourche, nommée : sur ton banc, son nom, puis ce qu'elle fait (la grammaire de js/pieces.js). */
+  const motDeLaPiece = k => [{ txt: `Sur ton banc : ${PIECES[k].ico} ${PIECES[k].nom}`, bon: true }, ...lignesDeLaPiece(k)];
   function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
     // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.
@@ -3187,7 +3157,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const M = Math.round(((x.tenu === false ? 0 : MEDAILLES_ACTE.passe) + (x.gagne ? MEDAILLES_ACTE.rival : 0)) * ctx.rogue.medailles());
         const rang = `${x.rang}<sup>e</sup><small> / ${x.cible}</small>`;
         const suite = [{ nom: 'Le rival', bout: x.gagne ? 'Battu' : 'Perdu', etat: 'fait' }, { nom: 'Le contrôle', bout: `${x.rang}e / ${x.cible}`, etat: 'fait' },
-          ...(x.gagne ? [{ nom: 'Prendre une pièce', bout: '1 niveau', etat: 'ici' }] : []), ...(st.genre === 'fin' ? [] : [{ nom: `Le rival de l'${NOMS_DES_ACTES[x.acte + 1].toLowerCase()}`, bout: '?', etat: x.gagne ? 'suivant' : 'ici' }, { nom: 'Le marché', bout: 'Ouvert', etat: 'loin' }])];
+          ...(x.gagne ? [{ nom: 'Prendre une pièce', bout: '1 parmi 3', etat: 'ici' }] : []), ...(st.genre === 'fin' ? [] : [{ nom: `Le rival de l'${NOMS_DES_ACTES[x.acte + 1].toLowerCase()}`, bout: '?', etat: x.gagne ? 'suivant' : 'ici' }, { nom: 'Le marché', bout: 'Ouvert', etat: 'loin' }])];
         specs.push({ de: DE.proprio, ico: st.genre === 'fin' ? '🚪' : '⚔', genre: st.genre === 'fin' ? 'run' : 'acte',
           titre: st.genre === 'fin' ? 'Fin de la run' : x.tenu ? 'La run continue' : 'Un cœur de moins', irl: `${NOMS_DES_ACTES[x.acte]} · ${ctx.teamShort(x.adv)} ${x.gagne ? 'battu' : 'gagne'}`,
           contexte: `<div class="acte-fin${x.tenu ? '' : ' rate'}">${cellules([{ k: 'Contrôle', v: rang }, { k: 'Cœurs', v: coeurs(x.coeurs, COEURS) }, { k: 'Médailles', v: `+${M}`, u: '🏅' }])}
@@ -3197,13 +3167,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           agir: () => { ctx.rogue.payerActe(x); quitter(); ctx.rogue.finir(); },
           ...(st.genre === 'fin' ? {} : { decision: () => { ctx.rogue.payerActe(x); return { palier: `acte:${x.acte}` }; } }) });
       } else if (st.genre === 'piece') {
-        const P = persoDuJour(), C = P && COACHS[P.cle], tot = P ? (P.xp || 0) + (P.xpSaison || 0) : 0, suivant = SEUILS_NIVEAU.find(s => s > tot);
+        // LE PRIX DU RIVAL (V27, tranche 5 ; la maquette 7) : une pièce parmi trois, de sa philosophie et des voisines, ou passer.
+        const P = persoDuJour(), offres = P ? piecesOffertes(P, graine, `r:${x.jour}`, undefined, { voisines: true }) : [];
+        const prendre = d => decider({ jour: soirDuProchain(), palier: `r:${x.jour}`, ...d });
+        // L'entraîneur le dit, sur le pointage de la feuille (la scène du butin) ; l'écran de la pièce s'ouvre de la boîte.
         const mR = calendrier[x.jour][indexMien(x.jour)], chezR = mR && mR.A === you;
         const scene = mR ? sceneDuButin({ pour: chezR ? mR.gfA : mR.gfB, contre: chezR ? mR.gfB : mR.gfA, adv: ctx.teamShort(x.adv), graine: `${graine}|${x.jour}` }) : null;
-        specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Prendre une pièce', genre: 'recompense', scene,
-          recit: suivant ? `Le rival battu : ${C ? C.nom : 'ton coach'} monte d'un niveau.` : 'Ton coach est déjà au sommet.',
-          options: [...(suivant ? [{ cle: 'prendre', ico: C ? C.ico : '📈', nom: 'Prendre', sous: `Niveau ${niveauDuPerso({ ...P, xpSaison: 0, xp: suivant })}`, mots: [{ txt: `+${suivant - tot} d'expérience pour ton coach`, bon: true }] }] : []), { cle: 'passer', nom: 'Passer', rien: true }],
-          decision: cle => ({ jour: soirDuProchain(), palier: `r:${x.jour}`, ...(cle === 'prendre' && suivant ? { xpCoach: suivant - tot } : {}) }) });
+        specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Prendre une pièce', genre: 'recompense', scene, irl: `${NOMS_DES_ACTES[x.acte]} · ${ctx.teamShort(x.adv)} battu`,
+          options: [{ cle: 'choisir', nom: 'Choisis ta pièce', ouvre: true }],
+          agir: () => ouvrirPiece({ k: 'Le prix du rival', club: { tag: x.adv.tag, nom: ctx.teamShort(x.adv) }, titre: 'Choisis ta pièce', offres, banc: bancDe(P),
+            onPrendre: (cle, sort) => prendre({ piece: { cle, ...(sort ? { sort } : {}) } }), onPasser: () => prendre({}), onFerme: plusTard.onFerme }) });
       } else if (st.genre === 'calendrier') {
         specs.push({ de: DE.proprio, ico: '🗓', titre: 'Ton calendrier', genre: 'calendrier', irl: `${NOMS_DES_ACTES[st.a]} · matchs ${miens.length + 1} à ${ACTES[st.a]}`,
           options: [{ cle: 'placer', nom: 'Placer tes matchs', ouvre: true }], agir: () => ouvrirLeCalendrier(st.a) });
@@ -3227,9 +3200,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       else specs.push(vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
           // Le proprio paie des jetons (V22 : l'adjoint parmi trois reviendra avec la main, phase 3).
-          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Il sort son carnet de chèques : +${((ctx.rogue && ctx.rogue.bareme()) || JETONS).objectif} 🪙 et un adjoint parmi trois.`,
-          options: adjointsDuMoment(`v${vo.j0}`),
-          decision: cle => ({ palier: `v:${vo.j0}`, ...decisionDeLAdjoint(cle, `v${vo.j0}`) }) }
+          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Il sort son carnet de chèques.`,
+          options: [{ cle: 'cheque', ico: '🪙', nom: 'Le chèque', sous: `+${((ctx.rogue && ctx.rogue.bareme()) || JETONS).objectif} 🪙` }],
+          decision: () => ({ palier: `v:${vo.j0}` }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
           recit: `${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs, pour ${o.cible} promis. Le proprio te convoque dans son bureau, porte fermée.`,
           options: [{ cle: 'encaisser', nom: 'Encaisser', prix: 'Le proprio coupe les vols nolisés : les voyages fatiguent', energie: OBJECTIF_RATE.energie, duree: OBJECTIF_RATE.duree }],
@@ -3251,7 +3224,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           return { cle, ico: OBJECTIFS[cle].ico, nom: motsDeLObjectif(cle, oo.quoi[cle]).nom, sous: raisonObjectif(cle, oo.quoi[cle]),
             mots: m ? [{ txt: `${m.mot} · ${x < 0.05 ? 'moins de 1 chance sur 10' : `environ ${Math.max(1, Math.round(x * 10))} chance${Math.round(x * 10) > 1 ? 's' : ''} sur 10`}`, bon: x >= 0.7 ? true : x < 0.45 ? false : undefined }] : [] };
         }),
-        contexte: `<div class="choix-puces"><span class="puce bon">Réussi : il paie, et un adjoint parmi trois</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs</span></div>`,
+        contexte: `<div class="choix-puces"><span class="puce bon">Réussi : il paie</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs</span></div>`,
         decision: cle => ({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour, ...(oo.quoi[cle] ? { quoi: oo.quoi[cle] } : {}) } }) });
     }
     // V25 C1 : l'histoire du matin d'un gros match (la boîte) se règle avant le duel.
@@ -3279,7 +3252,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const faitsDuJour = () => {
     if (faitsMemo && faitsMemo.jour === jour && faitsMemo.n === decs.length) return faitsMemo.f;
     const R = ctx.rogue;
-    const f = faitsDe({ ligue, you, jour, run: { jetons: R.jetons ? R.jetons(jour) : null, masse: R.masse ? R.masse(jour) : null, coach: R.coachs ? R.coachs(jour) : null, mandat: leControle(),
+    // V27, tranche 5 : les pièces déjà venues d'une fourche cette saison (deux au plus, `PIECES_PAR_SAISON_DES_FOURCHES`).
+    const fourches = decs.filter(d => d.moment && d.moment.famille === 'histoire' && d.piece).length;
+    const f = faitsDe({ ligue, you, jour, run: { fourches, jetons: R.jetons ? R.jetons(jour) : null, masse: R.masse ? R.masse(jour) : null, coach: R.coachs ? R.coachs(jour) : null, mandat: leControle(),
       anciens: anciens(), sorties: sorties(), places: enSeries, club: ctx.teamShort, nomDuClub: R.nom || null, shard: R.shard || null } });
     faitsMemo = { jour, n: decs.length, f };
     return f;
@@ -3298,22 +3273,29 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * LE MESSAGE D'UNE HISTOIRE dans la boîte : sa voix et le fait (la scène), le joueur qu'elle nomme, ses deux cartes
    * (V25 B1b : chaque réponse est un effet de la grammaire, ses lignes se dérivent, `motsDe`) ; une décision
    * `{ moment: { famille: 'histoire' } }` que la porte joue (js/greffes.js `appliquerChoix`) ; ce qu'elle paie ou coûte
-   * en jetons et en expérience reste à la décision (`gain`, `xpCoach`) ; la carte d'adjoint offerte est nommée, la
-   * première tirée pour cette histoire ; l'échange du joueur nommé s'ouvre comme une signature (`ctx.rogue.echange`).
+   * en jetons reste à la décision (`gain`) ; la pièce offerte (`piece`, V27) est nommée, la première tirée pour cette
+   * histoire, et un banc plein demande qui sort ; l'échange du joueur nommé s'ouvre comme une signature (`ctx.rogue.echange`).
    */
   function messageDHistoire(h) {
     const H = HISTOIRES[h.cle], f = h.f, { caisse } = f;
     const lui = H.joueur(f), joueurs = H.joueurs ? H.joueurs(f) : lui ? [lui] : [];
     const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
     const persoDo = persoDuJour();
-    const offert = persoDo && H.options.some(o => o.gestes && o.gestes.adjoint) ? adjointsOfferts(persoDo, graine, h.id, 1)[0] || null : null;
-    const offertMots = offert ? motDeLOffert(offert, niveauOffert(graine, h.id, offert)) : null;
+    const offert = persoDo && H.options.some(o => o.gestes && o.gestes.piece) ? piecesOffertes(persoDo, graine, h.id, 1)[0] || null : null;
+    const offertMots = offert ? motDeLaPiece(offert) : null;
     const options = optionsDHistoire(H, lui, { joues: miens.length, caisse, offert: offertMots });
-    const decision = cle => decisionDHistoire(h, H, cle, lui, joueurs, { ...(offert ? { embauche: decisionDeLAdjoint(offert, h.id).embauche } : {}) });
+    const decision = (cle, sort = null) => decisionDHistoire(h, H, cle, lui, joueurs, offert ? { piece: { cle: offert, ...(sort ? { sort } : {}) } } : {});
     const scene = sceneDe(h.cle, f);
     // L'AUDACE SE JOUE AU DÉ (V20 ; js/gerant.js `sceneDuDe`) : le sel se tire au lancer, le dé montre ce que le moteur en fera.
     const deciderIci = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); };
-    const spec = { de: EXPEDITEURS[H.de], ico: H.ico, titre: H.titre, scene, ...(joueur ? { joueur } : {}), options, decision, onChoix: cle => deciderIci(decision(cle)),
+    // LA PIÈCE D'UNE FOURCHE, BANC PLEIN (V27, tranche 5) : l'écran de la pièce demande qui sort ; passer garde la réponse, sans la pièce.
+    const choisir = cle => {
+      const o = H.options.find(x => x.cle === cle);
+      if (!offert || !o || !o.gestes || !o.gestes.piece || !bancPlein(persoDo)) { deciderIci(decision(cle)); return; }
+      const sansPiece = () => { const d = decision(cle); delete d.piece; return d; };
+      ouvrirPiece({ k: H.titre, titre: 'Ta pièce', offres: [offert], banc: bancDe(persoDo), onPrendre: (_, sort) => deciderIci(decision(cle, sort)), onPasser: () => deciderIci(sansPiece()) });
+    };
+    const spec = { de: EXPEDITEURS[H.de], ico: H.ico, titre: H.titre, scene, ...(joueur ? { joueur } : {}), options, decision, onChoix: choisir,
       // L'ÉCHANGE (la date limite) : « L'échanger » ouvre la signature ; signer, c'est l'échange, et la décision porte les deux.
       agir: cle => { const o = H.options.find(x => x.cle === cle); if (o && o.gestes && o.gestes.echange && lui && ctx.rogue.echange) ctx.rogue.echange({ j: jour, cle: lui.cle, n: o.gestes.offres || 2, graine: `${graine}:${h.id}`, base: decision(cle), decider: deciderIci }); },
       lancer: cle => { const d = { jour, ...decision(cle), sel: nouvelleGraine() }, x = deDuChoix(d, graine); return x ? { ...x, valider: () => deciderIci(d) } : null; } };
@@ -3420,24 +3402,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           options: [{ cle: 'aller', nom: 'Au marché', sous: faits ? `${faits} achat${faits > 1 ? 's' : ''} sur ${ACHATS_PAR_NOEUD}` : 'Une pièce, des packs', ouvre: true }],
           agir: () => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { page: 'boutique' } })) } });
     }
-    /*
-     * LE TALENT DU COACH (V21) : aux niveaux 2 et 4, un de ses pouvoirs ouverts grandit de moitié. Il attend le lundi.
-     * Au niveau 2 (nov. 2026, docs/revue-rogue-2026-11.md § 2.4 B), seul le pouvoir I est ouvert : l'autre réponse est une
-     * case d'adjoint de plus, pour la run (`TALENT_CASE`, js/adjoints.js `casesDuPerso`), et une carte pour la remplir
-     * (la première tirée pour ce talent, nommée).
-     */
-    const perso = persoDuJour();
-    const dus = perso ? talentsDus(niveauDuPerso(perso), perso.talents || []) : 0;
-    if (dus > 0 && !pris.has(`ta:${(perso.talents || []).length}`)) {
-      const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), nTal = (perso.talents || []).length;
-      const offert = nTal ? null : adjointsOfferts(perso, graine, 'ta0', 1)[0] || null;
-      out.push({ id: `ta:${nTal}`, genre: 'talent', bloque: false, de: DE.coach, sujet: `Niveau ${NIVEAUX_TALENT[nTal]} : un talent`,
-        choix: { recit: nTal ? `Un de ses pouvoirs grandit de ${Math.round(TALENT * 100)} %, pour la run.` : `Son pouvoir grandit de ${Math.round(TALENT * 100)} %, ou une case d'adjoint de plus : pour la run.`,
-          options: [...ouverts.map(p => { const P = POUVOIRS[perso.cle][p]; return { cle: String(p), ico: P.ico, nom: P.nom, sous: P.dit }; }),
-            ...(nTal ? [] : [{ cle: TALENT_CASE, ico: '📋', nom: 'Un adjoint de plus en poste', sous: "Une case d'adjoint de plus, dès maintenant et pour la run, et une carte pour la remplir.",
-              ...(offert ? { mots: motDeLOffert(offert, niveauOffert(graine, 'ta0', offert)) } : {}) }])],
-          decision: cle => ({ palier: `ta:${nTal}`, talent: { p: cle === TALENT_CASE ? TALENT_CASE : Number(cle) }, ...(cle === TALENT_CASE && offert ? decisionDeLAdjoint(offert, 'ta0') : {}) }) } });
-    }
     // L'HISTOIRE DU LUNDI et celle du matin d'un gros match (V25 C1) : la même porte, le même message.
     for (const moment of ['lundi', 'gros']) { const h = histoireOuverte(moment); if (h) out.push(messageDHistoire(h)); }
     /*
@@ -3520,8 +3484,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Une maison par sujet (V12-3) : une histoire se règle chez sa voix (le proprio, l'entraîneur, l'infirmerie, le vestiaire).
     if (m.genre === 'histoire') return MAISON_DE_VOIX[m.voix] || 'presse';
     if (m.genre === 'pack' || m.genre === 'boutique') return 'marche';
-    // L'adjoint d'un palier et le talent du coach (V21) : ils se choisissent sous l'entraîneur.
-    if (['cartes', 'palier', 'talent', 'adjoint'].includes(m.genre)) return 'entraineur';
+    // La main d'un palier : elle se choisit sous l'entraîneur.
+    if (['cartes', 'palier'].includes(m.genre)) return 'entraineur';
     const sp = m.spec || {};
     if (sp.ouvrir) return 'match';
     if (sp.cartes || sp.etat) return 'entraineur';
@@ -3813,12 +3777,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * nom sur la plaque ; la toucher la retourne, son verso dit ce qu'elle fait ; « Prendre », dessous, la joue.
        */
       const enCartes = m.genre === 'histoire';
-      const icoDe = o => (o.pari ? '🎲' : o.jetons > 0 ? '🪙' : o.gestes && o.gestes.adjoint ? '📋' : C.ico || m.de.ico);
-      // Son coin dit ce qu'elle rapporte, en grand, sans la retourner : des jetons, de l'expérience, une carte, ou le dé.
-      const coinDe = o => (o.jetons ? `${o.jetons > 0 ? '+' : '−'}${Math.abs(o.jetons)} 🪙` : o.xp ? `+${o.xp} exp.` : o.gestes && o.gestes.adjoint ? '+1 carte' : o.pari ? `🎲 ${Math.round(o.pari.chance * 6)}/6` : '');
+      const icoDe = o => (o.pari ? '🎲' : o.jetons > 0 ? '🪙' : o.gestes && o.gestes.piece ? '🎁' : C.ico || m.de.ico);
+      // Son coin dit ce qu'elle rapporte, en grand, sans la retourner : des jetons, une pièce, ou le dé.
+      const coinDe = o => (o.jetons ? `${o.jetons > 0 ? '+' : '−'}${Math.abs(o.jetons)} 🪙` : o.gestes && o.gestes.piece ? '+1 pièce' : o.pari ? `🎲 ${Math.round(o.pari.chance * 6)}/6` : '');
       const options = enCartes ? C.options.map(o => ({ ...o, genreCarte: 'tactique', ico: icoDe(o), coin: coinDe(o), motChoix: 'Jouer' })) : C.options;
-      // V23 G : le niveau du coach est un pic — le talent s'ouvre dans la secousse et les particules.
-      if (m.genre === 'talent') setTimeout(() => pic(document.querySelector('.choix-sheet[data-msg="talent"]')), 50);
       ouvrirChoix({
         ...C, options, ...(enCartes ? { cartes: true } : {}), de: m.de, ico: C.ico || m.de.ico, titre: m.sujet, cadre: cadreDuMatch(), ouDe: ctx.ouJoue, boite: { msg: m.genre, maison: m.maison },
         recit: C.recitHtml ? '' : C.recit,
@@ -4061,11 +4023,11 @@ function optionsDHistoire(H, lui, { joues, caisse, offert = null }) {
     desactive: o.jetons < 0 && caisse != null && caisse < -o.jetons ? 'Pas assez de jetons en caisse' : null,
     ...(o.gestes && o.gestes.echange ? { ouvre: true } : {}) }));
 }
-/* La décision d'une histoire : sa porte (`moment`), ses jetons et son expérience à la caisse, la carte d'adjoint offerte (`embauche`). */
+/* La décision d'une histoire : sa porte (`moment`), ses jetons à la caisse, la pièce offerte (`piece`). */
 function decisionDHistoire(h, H, cle, lui, joueurs, extras = {}) {
   const o = H.options.find(x => x.cle === cle);
   return { palier: h.id, moment: { famille: 'histoire', cle: h.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: joueurs.map(x => x.cle) } : {}) },
-    ...(o && o.jetons ? { gain: o.jetons } : {}), ...(o && o.xp ? { xpCoach: o.xp } : {}), ...(o && o.gestes && o.gestes.adjoint ? extras : {}) };
+    ...(o && o.jetons ? { gain: o.jetons } : {}), ...(o && o.gestes && o.gestes.piece ? extras : {}) };
 }
 export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes, you, saison = null, ctx, onTermine, depuis = null, onRevele = null, graine = 0, decisions = [], onDecision = null, onBanc = null, decisionsSaison = [], histoiresDeLaRun = [] }) {
   const ui = coquille('Les séries');
@@ -4211,17 +4173,17 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     return decsSerie.some(d => d.ronde === ronde && d.auto && d.match_no >= rep);
   };
   /*
-   * LEUR COACH EN SÉRIES (V23 F, js/pouvoirs.js `persoAdverse`) : l'adversaire d'une série a un coach-personnage, un
-   * pouvoir visible qui joue sa condition et son ombre le reste du temps. On le dit avant le match ; à l'entracte, les
+   * LEUR COACH EN SÉRIES (V23 F, js/pieces.js `persoAdverse`) : l'adversaire d'une série a un coach-personnage, une
+   * pièce visible qui joue sa condition et son ombre le reste du temps. On le dit avant le match ; à l'entracte, les
    * périodes où il a joué (la feuille, `ombre` à faux).
    */
   const leurCoachMot = adv => {
-    const P = adv && adv.persoSeries, C = P && COACHS[P.cle], W = C && POUVOIRS[P.cle] && POUVOIRS[P.cle][0];
-    return W ? `Leur coach : ${C.ico} ${C.nom} · ${W.ico} ${W.nom} — ${W.dit} Hors de là, l'ombre : l'inverse, à moitié.` : '';
+    const P = adv && adv.persoSeries, C = P && COACHS[P.cle], W = C && PIECES[PIECE_DU_COACH[P.cle]];
+    return W ? `Leur coach : ${C.ico} ${C.nom} · ${W.ico} ${W.nom} — ${W.quandMot}. Hors de là, l'ombre : l'inverse, à moitié.` : '';
   };
   const leurCoachAJoue = (f, cAdv, p, adv) => {
-    const P = adv && adv.persoSeries, W = P && POUVOIRS[P.cle] && POUVOIRS[P.cle][0];
-    const ks = W ? [...new Set((f.pouvoirs || []).filter(x => x.cote === cAdv && !x.ombre && x.k < p).map(x => x.k))].sort((a, b) => a - b) : [];
+    const P = adv && adv.persoSeries, W = P && PIECES[PIECE_DU_COACH[P.cle]];
+    const ks = W ? [...new Set((f.pieces || []).filter(x => x.cote === cAdv && !x.ombre && x.k < p).map(x => x.k))].sort((a, b) => a - b) : [];
     return W ? ` · ${W.ico} ${W.nom}${ks.length ? ` a joué en ${ks.map(k => (k ? `${k + 1}e` : '1re')).join(' et ')}` : ' : l\'ombre, jusqu\'ici'}` : '';
   };
   /* L'ENTRACTE D'UN DUEL DE SÉRIES (V9), comme en saison : leur intention de la période qui vient, ce que ton adjoint propose. */

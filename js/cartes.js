@@ -26,6 +26,8 @@ import { getTeamBand } from './logos.js';
 import { NOM_VARIANTE, EDITIONS } from './rarete.js';
 import { NIVEAUX, nomDuNiveau, niveauSur } from './niveaux.js';
 import { actionSrc, cadreAction, actionCouchee, cadreCouche } from './actions.js';
+import { PIECES } from './pieces.js';
+import { esc } from './util.js';
 
 /*
  * Les quatre raretés, de la plus commune à la plus rare. La gemme se lit sans
@@ -236,6 +238,14 @@ const SENS_RARETE = {
   rare: 'l\'édition 4, l\'Or : ses deux badges montent d\'un métal, et le second rend plein',
   legendaire: 'l\'édition 5, la Holo : ses deux badges montent de deux métaux, et le second rend plein',
 };
+/*
+ * LA CARTE D'UNE PIÈCE DE BANC (V27, tranche 5, js/pieces.js) : la carte de jeu de la glace, au cadre de la pièce et à la
+ * couleur de son genre, son nom sur la plaque, sa condition en type. `c` : ce que l'écran y ajoute (le verso, `lecture`).
+ */
+export function carteDePiece(cle, c = {}) {
+  const P = PIECES[cle];
+  return P ? carteHtml({ cle, niveau: P.cadre, genreCarte: P.genre, ico: P.ico, nomHtml: esc(P.nom), typeHtml: esc(P.quandMot), ...c }) : '';
+}
 export const sensRarete = r => SENS_RARETE[r] || SENS_RARETE.commune;
 /* Une édition au-dessus de la Base : le « shiny ». */
 export const brillante = r => EDITIONS.indexOf(r) > 0;

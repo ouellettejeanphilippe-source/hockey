@@ -14,7 +14,7 @@
 import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, MUTATIONS, joueurDeMutation, badgesDeMutation, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PROFILS, PART_UNITE, penaliteAdaptee } from './sim.js';
 import { PLANS, cibleDuPlan } from './greffes.js';
 import { virgule } from './util.js';
-import { ADJOINTS, NIV_DEFAUT, FORCE_NIV, styleAuNiveau, salaireDe, lignesDeLAdjoint, ligneDuRelais, postesDe, nivDe } from './adjoints.js';
+import { PIECES, bancDe, effetDuRelais } from './pieces.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
 const N_BASE = 1600;    // les lancers lus pour le niveau absolu d'un soir (±1 % sur les buts)
@@ -575,20 +575,21 @@ export function intentionEnChiffres(team, adv, intention, { n = N_EFFET } = {}) 
 const IDEES_DE_LADJOINT = { ombre: ['tirer', 'assaut'], chasse: ['discipline', 'centre'], centre: ['tirer', 'assaut'], assaut: ['centre', 'discipline'], cachot: ['discipline', 'centre'] };
 const IDEES_MAX = 3, JAMBES_LOURDES = 75;
 /*
- * TON BANC PROPOSE (nov. 2026 ; JP : *the duel with the assistants and coach, not random choices*). À l'entracte, chacun
- * de tes adjoints en poste propose le plan de son style, et ton coach celui de sa philosophie ; le plan joue à la force de
- * qui le propose (un adjoint à son niveau, `FORCE_NIV` ; le coach à sa maîtrise). Deux voix pour un même plan : la plus
- * forte parle. Moins de deux plans sur ton banc : les idées de la période (leur intention, le pointage) complètent.
+ * TON BANC PROPOSE (nov. 2026 ; JP : *the duel with the assistants and coach, not random choices*). À l'entracte, chaque
+ * pièce de ton banc qui a un plan propose le sien, et ton coach celui de sa philosophie ; le plan joue à la force de qui le
+ * propose (une pièce à 1 ; le coach à sa maîtrise). Deux voix pour un même plan : la plus forte parle. Moins de deux plans
+ * sur ton banc : les idées de la période (leur intention, le pointage) complètent. Le duel à un seul choix (tranche 6)
+ * remplacera ces propositions par période.
  */
-const PLAN_DE_L_ADJOINT = { canonnier: 'tirer', mur: 'centre', cogneur: 'assaut', moine: 'discipline', arbitre: 'discipline', vedettiste: 'ombre', lunette: 'ombre' };
+const PLAN_DE_LA_PIECE = { canonnier: 'tirer', mur: 'centre', cogneur: 'assaut', moine: 'discipline', arbitre: 'discipline', vedettiste: 'ombre', lunette: 'ombre' };
 const PLAN_DU_COACH = { essaim: 'tirer', rapaces: 'ombre', tortue: 'centre', rhinos: 'assaut', souffle: 'discipline', choeur: 'discipline', profondeur: 'centre', etoiles: 'ombre' };
 function voixDuBanc(team) {
   const P = team && team.perso;
   if (!P) return [];
   const voix = [];
-  for (const c of postesDe(P, team.games || 0)) {
-    const cle = PLAN_DE_L_ADJOINT[c.cle];
-    if (cle) voix.push({ cle, qui: { genre: 'adjoint', cle: c.cle, niv: nivDe(c) }, force: FORCE_NIV[nivDe(c) - 1] });
+  for (const k of bancDe(P)) {
+    const cle = PLAN_DE_LA_PIECE[k];
+    if (cle) voix.push({ cle, qui: { genre: 'piece', cle: k }, force: 1 });
   }
   if (PLAN_DU_COACH[P.cle]) voix.push({ cle: PLAN_DU_COACH[P.cle], qui: { genre: 'coach', cle: P.cle }, force: P.maitrise || 1 });
   return voix.sort((a, b) => b.force - a.force);
@@ -716,10 +717,10 @@ export function poserClubLu(f) { CLUB = f; }
 /** Le club lu en ce moment : `{ team, lineup, adv }`, ou `null`. */
 export const clubLu = () => (CLUB && CLUB()) || null;
 /*
- * LES ADJOINTS ET LES POUVOIRS EN VRAIES STATS (nov. 2026 ; JP : *adjoints and powers: real per-game stats*). Le canonnier
- * disait « Tes tirs +18 % », le plan « +1,7 tir par match » : on ne pouvait pas les comparer. Un adjoint se lit sur ton
- * club, par match ; un pouvoir, sur la période où il joue (le tiers d'un match), sa condition devant. Sans club lu (un
- * menu, un essai), leurs mots d'avant, en %.
+ * LES PIÈCES DU BANC EN VRAIES STATS (nov. 2026 ; JP : *adjoints and powers: real per-game stats* ; V27, tranche 5). Le
+ * canonnier disait « Tes tirs +18 % », le plan « +1,7 tir par match » : on ne pouvait pas les comparer. Une pièce de la
+ * soirée entière (`soir`) se lit sur ton club, par match ; les autres, sur la période où elles jouent (le tiers d'un
+ * match). Sans club lu (un menu, un essai), leurs mots en %.
  */
 // Court, pour une carte : sans « ≈ », sans « (27,4 → 28,7) » ; la glace, son sens seul (« Le haut joue plus »).
 const court = x => ({ ...x, txt: x.cle === 'glace' ? String(x.txt).split(' : ')[0].split(',')[0] : String(x.txt).replace(/^≈ /, '').replace(/ \([^)]*→[^)]*\)/g, '') });
@@ -750,23 +751,25 @@ export function ditDeLaFinition(f) {
     return `${signeDe(d)}${pts(d)} pt de précision par match`;
   } catch { return `${signeDe(f - 1)}${Math.round(Math.abs(f - 1) * 100)} % de précision`; }
 }
-/** Ce qu'un adjoint donne et coûte à ton club, par match, son salaire au bout : [{ txt, bon }], le bon d'abord. */
-export function lignesDeLAdjointEnChiffres(cle, niv = null) {
-  const A = ADJOINTS[cle] && styleAuNiveau(cle, niv || NIV_DEFAUT);
-  const lu = A && lireEffets(A.canaux, A.adv, { par: 'par match' });
-  if (!lu) return lignesDeLAdjoint(cle, niv);
-  const paye = salaireDe({ cle, niv }), relais = ligneDuRelais(cle, niv);
-  const out = [...lu, ...(relais ? [relais] : []), ...(paye ? [{ txt: `Salaire : ${paye} 🪙 par match en poste`, bon: false }] : [])];
-  return [...out.filter(x => x.bon !== false), ...out.filter(x => x.bon === false)];
+const MOTS_EUX = { volume: ['Leurs tirs', false], finition: ['Leur précision', false], discipline: ['Leurs punitions', true] };
+const QUOI_DU_RELAIS = { canaux: { volume: 'tes tirs', finition: 'ta précision', discipline: 'tes punitions', blessure: 'tes blessures' }, adv: { volume: 'leurs tirs', discipline: 'leurs punitions' } };
+/* LE RELAIS D'UNE PIÈCE, EN UNE LIGNE (V23 D) : son signal, puis ce qu'il ajoute la période — « Relais · Quand tu mènes : leurs tirs −10 % de plus, la période ». */
+function ligneDuRelais(cle) {
+  const P = PIECES[cle], fx = effetDuRelais(cle);
+  if (!fx) return null;
+  const v = fx.valeur, quoi = fx.canal === 'F' ? 'ton 1er trio joue plus encore' : fx.canal === 'robustesse' ? 'plus de mises en échec encore'
+    : `${QUOI_DU_RELAIS[fx.cote][fx.canal] || fx.canal} ${pctDe(v)} de plus`;
+  return { txt: `Relais · ${P.relais.mot} : ${quoi}, la période`, bon: true, relais: true };
 }
-/** Ce qu'un pouvoir fait, sa condition devant : « Quand tu mènes : −0,4 tir contre la période, +0,9 pt d'arrêts la période ». */
-export function ditDuPouvoir(P) {
-  if (!P) return '';
-  const toute = /toute la soirée/i.test(P.dit);
-  const lu = lireEffets(P.canaux || null, P.adv || null, toute ? { par: 'par match' } : { part: 1 / 3, par: 'la période' }, 2);
-  if (!lu) return P.dit;
-  const condition = P.dit.includes(' : ') ? P.dit.slice(0, P.dit.indexOf(' : ')) : '';
-  return `${condition ? `${condition} : ` : ''}${lu.map(x => x.txt).join(', ')}.`;
+/** Ce qu'une pièce donne et coûte à ton club : sa soirée par match, une période la période ; son relais au bout ; le bon d'abord. */
+export function lignesDeLaPiece(cle) {
+  const P = PIECES[cle];
+  if (!P) return [];
+  const lu = lireEffets(P.canaux || null, P.adv || null, P.soir ? { par: 'par match' } : { part: 1 / 3, par: 'la période' });
+  const eux = Object.entries(P.adv || {}).filter(([k]) => MOTS_EUX[k]).map(([k, v]) => ({ txt: `${MOTS_EUX[k][0]} ${pctDe(v)}`, bon: MOTS_EUX[k][1] ? v > 1 : v < 1 }));
+  const relais = ligneDuRelais(cle);
+  const out = [...(lu || [...motsDEffet(P.canaux || null), ...eux]), ...(relais ? [relais] : [])];
+  return [...out.filter(x => x.bon !== false), ...out.filter(x => x.bon === false)];
 }
 /**
  * Un effet dit pour le club courant, avec ses autres mots (le changement de carte, la durée) : le remplaçant

@@ -1,24 +1,22 @@
 /*
  * LES GREFFES DU ROGUE (V25, docs/refonte-v25.md § A). Ce que le Rogue pose sur un match, un soir, un matin ou une
- * décision : le coach-personnage et ses pouvoirs (V21), les adjoints en poste et leurs relais (V22, V23 D), leur coach
- * en séries (V23 F), le duel en trois périodes (V9, V17), les histoires par leur porte et leurs promesses (V25 C1),
- * l'expérience et les séjours. Le moteur (js/sim.js) n'importe rien de tout ça : ce module se branche sur lui au
- * chargement (`brancherGreffes`) par un contrat de huit fonctions, et le 82-0 n'y pose rien.
+ * décision : le coach et son banc de cinq pièces et leurs relais (V27, tranche 5, js/pieces.js), leur coach en séries
+ * (V23 F), le duel en trois périodes (V9, V17), les histoires par leur porte et leurs promesses (V25 C1). Le moteur
+ * (js/sim.js) n'importe rien de tout ça : ce module se branche sur lui au chargement (`brancherGreffes`) par un contrat
+ * de huit fonctions, et le 82-0 n'y pose rien.
  *
  * Le contrat (lu par le moteur, et lui seul) :
  *   avantMatch(A, B, LA, LB, journal, { series, gros })   ce qui se pose avant le match ; rend la fonction qui le retire
  *   match(A, B, LA, LB, { gros, journal, series })          la soirée : `periode(k, etat)` rend les effets des deux clubs,
  *                                                            `apres(k, h, cumul)` note ce qui a joué, `fin()` écrit le duel
- *   apresMatch(A, B)                                         après le match (les séjours finis ; en séries, les verdicts)
- *   xp(T, quoi)                                              l'expérience du coach : 'victoire', 'gros', 'serie'
+ *   apresMatch(A, B)                                         après le match (en séries, les verdicts)
  *   matin(L, toi, jour)                                      le matin de ton club : les verdicts des promesses, les effets de tes joueurs
- *   decision(team, d, graine)                                une décision prise à l'écran : le plan, l'histoire par sa porte, le coach
+ *   decision(team, d, graine)                                une décision prise à l'écran : le plan, l'histoire par sa porte, le banc
  *   coachDeSeries(S, t)                                      leur coach-personnage pour les séries, ou null
  *   lecture(team, adv, lu, { plan, intention, duel })        un plan et une intention posés le temps d'une lecture
  *   aVenir(team, d)                                          ce qu'une décision à venir a de pur, posé le temps d'une lecture
  */
-import { POUVOIRS, pouvoirsDeLaPeriode, XP, niveauDuPerso, TALENT_CASE, persoAdverse } from './pouvoirs.js';
-import { ADJOINTS, mainDe, postesDe, embaucher, poster, finirLesSejours, resteDe, styleAuNiveau, nivDe, salaireDe, relaisDeLaPeriode } from './adjoints.js';
+import { PIECES, PIECE_DU_COACH, bancDe, poserLaPiece, bancDuSoir, bancDeLaPeriode, persoAdverse } from './pieces.js';
 import { COACHS, coachDesRoles } from './coachs.js';
 import { HISTOIRES, nomDOption } from './histoires.js';
 import { FENETRE_JOUEUR } from './faits.js';
@@ -37,11 +35,11 @@ export const coachDuJoueur = p => (!p ? null : p.p === 'G' ? ((badgeGardien(p) |
 /*
  * LA PORTE (V25 C1, docs/refonte-v25.md § 4 C ; docs/refonte-v25-c1.md § 3). Une histoire répondue est une décision
  * `{ moment: { famille: 'histoire', cle, choix, joueur, joueurs } }` ; `appliquerChoix` pose, dans cet ordre, ce que sa
- * carte dit : les gestes d'aujourd'hui (le soin, les absents, les jambes, l'auxiliaire ; la carte d'adjoint et l'échange
- * du joueur nommé passent par la décision, `embauche` et l'alignement), ce qui va au joueur nommé (`lui`), le dé (`pari`,
+ * carte dit : les gestes d'aujourd'hui (le soin, les absents, les jambes, l'auxiliaire ; la pièce de banc et l'échange
+ * du joueur nommé passent par la décision, `piece` et l'alignement), ce qui va au joueur nommé (`lui`), le dé (`pari`,
  * tiré de la graine, du jour et du sel : l'écran l'a montré, le moteur le rejoue pareil), les canaux du club (permis aux
- * moments `gros` et `ronde` seulement, JP, C0 q. 4 ; `duree` 1 ou 7), et la promesse (`promettre`). Les jetons et
- * l'expérience restent à la décision (`gain`, `xpCoach`) : la caisse les lit. Une vieille décision `dossier`, `fil`,
+ * moments `gros` et `ronde` seulement, JP, C0 q. 4 ; `duree` 1 ou 7), et la promesse (`promettre`). Les jetons
+ * restent à la décision (`gain`) : la caisse les lit. Une vieille décision `dossier`, `fil`,
  * `avant` ou `ajustement` (d'avant la C1) ne trouve plus rien et ne joue rien. En séries, le club est au jour `Infinity` :
  * ce qui dure se date en matchs de séries (`jourDeSerie`, js/sim.js).
  */
@@ -99,45 +97,20 @@ export function deDuChoix(d, graine) {
   return { gagne, face, faces, effet: gagne ? x.o.pari.gagne : x.o.pari.perd };
 }
 
-function gagnerXp(T, bonus = 0) {
-  if (T && T.perso) T.xpSaison = (T.xpSaison || 0) + XP.victoire + bonus;
-}
 /*
- * LE COACH, UN PERSONNAGE (V21, js/pouvoirs.js). La décision `coach` (le jour 0 de chaque saison) porte son expérience
- * d'avant et ses talents ; `talent` et `xpCoach` s'y ajoutent au jour dit. L'expérience de la saison, le moteur la
- * compte (`xpSaison`, `gagnerXp`). V22 (js/adjoints.js) : sa main d'adjoints (`main`) suit la run ; `embauche` ({ cle })
- * y met une carte, `poste` ({ cle }) en pose une sur une case, le jour dit, pour son séjour ; le moteur finit les séjours
- * (`finirLesSejours`). Une vieille décision `adjoint`, `staff` ou `perdAdjoint` (V21) n'est plus lue.
+ * LE COACH ET SON BANC (V27, tranche 5, js/pieces.js). La décision `coach` (le jour 0) porte l'entraîneur (sa philosophie,
+ * sa vraie carte, sa maîtrise) et son banc — sans banc écrit, sa pièce de départ seule (`PIECE_DU_COACH`) ; une décision
+ * `piece` ({ cle, sort }) en pose une, le jour dit, et le banc plein laisse partir `sort`. Une vieille décision `talent`,
+ * `xpCoach`, `embauche` ou `poste` (les niveaux, l'expérience et la main d'adjoints d'avant la V27) ne joue plus rien.
  */
 function appliquerPerso(team, d) {
-  if (d.coach && d.coach.cle && POUVOIRS[d.coach.cle]) {
-    // L'entraîneur (une vraie carte de coach, js/coachs-reels.js) : son nom, sa saison, sa maîtrise (de 1 à 1,2).
-    const P = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])],
-      // Sa main suit la run ; chaque saison repart sans séjour en cours, les cartes gardent leurs fiches.
-      main: (d.coach.main || []).filter(c => c && ADJOINTS[c.cle]).map(c => ({ cle: c.cle, depuis: null, fin: null, sejours: [...(c.sejours || [])] })),
+  if (d.coach && d.coach.cle && PIECE_DU_COACH[d.coach.cle]) {
+    // L'entraîneur (une vraie carte de coach, js/coachs-reels.js) : son nom, sa saison, sa maîtrise (de 0,9 à 1,3).
+    const banc = (d.coach.banc || []).filter(k => PIECES[k]);
+    team.perso = { cle: d.coach.cle, banc: banc.length ? bancDe({ banc }) : [PIECE_DU_COACH[d.coach.cle]],
       ...(d.coach.chef ? { chef: { ...d.coach.chef } } : {}), maitrise: Math.min(1.3, Math.max(0.9, Number(d.coach.maitrise) || 1)) };
-    team.perso = P;
   }
-  if (!team.perso) return;
-  // Un talent : l'index du pouvoir qui grandit ; au premier, la case d'adjoint de plus (`TALENT_CASE`, nov. 2026), une fois.
-  if (d.talent && (Number.isInteger(d.talent.p) || (d.talent.p === TALENT_CASE && !team.perso.talents.includes(TALENT_CASE)))) team.perso = { ...team.perso, talents: [...team.perso.talents, d.talent.p] };
-  if (Number(d.xpCoach)) team.perso = { ...team.perso, xp: Math.max(0, team.perso.xp + Number(d.xpCoach)) };
-  if (d.embauche && ADJOINTS[d.embauche.cle]) team.perso = { ...team.perso, main: embaucher(team.perso, d.embauche.cle, team.games || 0, d.embauche.niv || null) };
-  if (d.poste && ADJOINTS[d.poste.cle]) {
-    const niveau = niveauDuPerso({ ...team.perso, xpSaison: team.xpSaison || 0 });
-    team.perso = { ...team.perso, main: poster(team.perso, d.poste.cle, team.games || 0, niveau, team) };
-  }
-}
-/*
- * LA FIN D'UN SÉJOUR (V22) : après le match, une carte dont le séjour est fait revient dans la main avec sa fiche, et le
- * club le note pour Hier soir (`sejoursFinis`, lu par js/saison.js).
- */
-function finirSejours(T) {
-  if (!T.perso || !mainDe(T.perso).length) return;
-  const { main, finis } = finirLesSejours(T.perso, T.games || 0, T);
-  if (!finis.length) return;
-  T.perso = { ...T.perso, main };
-  for (const f of finis) (T.sejoursFinis = T.sejoursFinis || []).push({ jour: Number.isFinite(T.jourCourant) ? T.jourCourant : null, ...f });
+  if (team.perso && d.piece && PIECES[d.piece.cle]) team.perso = { ...team.perso, banc: poserLaPiece(team.perso.banc, d.piece.cle, d.piece.sort || null) };
 }
 
 /*
@@ -298,7 +271,7 @@ export const PLANS = {
 /* Une décision `plan` telle que l'équipe la garde : Ton match (ou un plan inconnu) la retire. */
 /*
  * `force` (nov. 2026 ; JP : *the duel with the assistants and coach, not random choices*) : au duel, un plan joue à la force
- * de celui qui le propose — un adjoint à son niveau (`FORCE_NIV`, ×0,7 à ×1,3), le coach à sa maîtrise ; bornée là.
+ * de celui qui le propose — une pièce de ton banc à 1, le coach à sa maîtrise ; bornée là.
  */
 const planLu = x => (x && PLANS[x.cle] && x.cle !== 'match' ? { cle: x.cle, vise: x.vise || null, ...(Number(x.force) > 0 ? { force: Math.min(1.3, Math.max(0.7, Number(x.force))) } : {}) } : null);
 /* Le plan d'un club ce soir : la décision posée (`team.plan`), sinon Ton match. */
@@ -339,29 +312,6 @@ function poserLesPlans(A, B, LA, LB) {
       retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
     }
     retraits.push(poserFxDeJoueurs(fx.joueurs));
-  }
-  return () => { for (const r of retraits.reverse()) r(); };
-}
-/*
- * LES ADJOINTS EN POSTE (V22, js/adjoints.js) : chaque carte posée joue son style le temps du match — sur ton club (`effet`),
- * sur l'adversaire (`adv`) —, et la feuille la nomme avec ce qui lui reste. Rend la fonction qui les retire.
- */
-function poserLesAdjoints(A, B, journal) {
-  const retraits = [];
-  const poser = (X, e) => {
-    const avait = '_effetMatch' in X, avant = X._effetMatch;
-    X._effetMatch = [...(avant || []), e];
-    retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
-  };
-  for (const [T, O, cote] of [[A, B, 'A'], [B, A, 'B']]) {
-    if (!T.perso) continue;
-    for (const c of postesDe(T.perso, T.games || 0)) {
-      // V23 : à son niveau (`styleAuNiveau`, js/adjoints.js ; le Pilier sans niveau, la table telle quelle).
-      const J = ADJOINTS[c.cle], S = styleAuNiveau(c.cle, nivDe(c));
-      if (S.canaux) poser(T, { source: 'adjoint', nom: J.nom, ico: J.ico, ...S.canaux });
-      if (S.adv) poser(O, { source: 'adjoint', nom: J.nom, ico: J.ico, ...S.adv });
-      if (journal) (journal.adjoints = journal.adjoints || []).push({ cote, cle: c.cle, nom: J.nom, ico: J.ico, niv: nivDe(c), salaire: salaireDe(c), reste: resteDe(c, T.games || 0, T.perso.cle) });
-    }
   }
   return () => { for (const r of retraits.reverse()) r(); };
 }
@@ -469,10 +419,10 @@ function effetsDeLIntention(I, f = FORCE_DUEL) {
   };
 }
 /*
- * CE QU'UN POUVOIR LIT AVANT LA PÉRIODE `k` (V21, js/pouvoirs.js) : le pointage et les tirs déjà joués, la période
- * d'avant, le soir. Les tirs viennent de la feuille (`journal.tirs`, index 1 à 3) ; sans feuille, ils ne se lisent pas.
+ * CE QU'UNE PIÈCE LIT AVANT LA PÉRIODE `k` (js/pieces.js) : le pointage et les tirs déjà joués, la période d'avant, le
+ * soir. Les tirs viennent de la feuille (`journal.tirs`, index 1 à 3) ; sans feuille, ils ne se lisent pas.
  */
-function etatDuPouvoir(T, k, cote, moi, lui, journal, series, gros, avant) {
+function etatDuBanc(T, k, cote, moi, lui, journal, series, gros, avant) {
   const autre = cote === 'A' ? 'B' : 'A';
   const t = (c, i) => (journal ? journal.tirs[c][i] : 0);
   let tirsMoi = 0, tirsLui = 0;
@@ -481,36 +431,53 @@ function etatDuPouvoir(T, k, cote, moi, lui, journal, series, gros, avant) {
   return { k, moi, lui, tirsMoi, tirsLui, der, series, gros, soir: T._soir || {} };
 }
 /*
- * LES POUVOIRS D'UNE PÉRIODE pour le club `T` (V21) : ceux qui se déclenchent, posés en effets du soir sur lui (`effet`)
- * et sur l'adversaire (`adv`), et notés à la feuille. Rend { toi, adv, notes }.
+ * LES PIÈCES DE LA SOIRÉE (js/pieces.js `bancDuSoir`) : celles dont la condition est la soirée entière jouent le match comme
+ * un style, sur ton club (`effet`) et sur l'adversaire (`adv`), leurs minutes et leurs jambes comprises ; le club les garde
+ * le temps du match (`_bancSoir`) pour la feuille et les relais. Rend la fonction qui les retire.
  */
-function pouvoirsPoses(T, e, cote, journal) {
-  const out = { toi: [], adv: [], notes: [] };
-  if (!T.perso) return out;
-  const perso = { ...T.perso, xpSaison: T.xpSaison || 0 };
-  for (const x of pouvoirsDeLaPeriode(perso, e)) {
-    if (x.canaux) out.toi.push({ source: 'pouvoir', nom: x.P.nom, ico: x.P.ico, ...x.canaux });
-    if (x.adv) out.adv.push({ source: 'pouvoir', nom: x.P.nom, ico: x.P.ico, ...x.adv });
-    const note = { cote, k: e.k, p: x.p, cle: x.P.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0, ...(x.ombre ? { ombre: true } : {}) };
-    out.notes.push(note);
-    if (journal) journal.pouvoirs.push(note);
+function poserLeBancDuSoir(A, B, { series = false, gros = null } = {}) {
+  const retraits = [];
+  const poser = (X, e) => {
+    const avait = '_effetMatch' in X, avant = X._effetMatch;
+    X._effetMatch = [...(avant || []), e];
+    retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
+  };
+  for (const [T, O] of [[A, B], [B, A]]) {
+    const e0 = { k: 0, moi: 0, lui: 0, tirsMoi: 0, tirsLui: 0, der: null, series, gros: !!(gros && gros.duel), soir: T._soir || {} };
+    T._bancSoir = bancDuSoir(T.perso, e0);
+    for (const x of T._bancSoir) {
+      if (x.canaux) poser(T, { source: 'banc', nom: x.P.nom, ico: x.P.ico, ...x.canaux });
+      if (x.adv) poser(O, { source: 'banc', nom: x.P.nom, ico: x.P.ico, ...x.adv });
+    }
   }
-  return out;
+  return () => { for (const r of retraits.reverse()) r(); for (const T of [A, B]) delete T._bancSoir; };
 }
 /*
- * LES RELAIS D'UNE PÉRIODE pour le club `T` (V23 D, js/adjoints.js `relaisDeLaPeriode`) : les adjoints en poste dont le
- * signal se lit — sur ce qu'un pouvoir lit, plus les pouvoirs de ton coach qui jouent la période (`pouvoirs`, leurs
- * notes) —, posés en effets de la période sur le club (`toi`) ou sur l'adversaire (`adv`), et notés à la feuille
- * (`journal.relais`). Rend { toi, adv, notes }.
+ * LE BANC D'UNE PÉRIODE pour le club `T` (js/pieces.js `bancDeLaPeriode`) : les pièces dont la condition se lit, puis
+ * leurs relais, posés en effets de la période sur lui (`toi`) et sur l'adversaire (`adv`), et notés à la feuille
+ * (`journal.pieces`, `journal.relais`) ; les pièces de la soirée y sont notées à chaque période, sans effet de plus (le
+ * match les porte déjà). Rend { toi, adv, notes }.
  */
-function relaisPoses(T, e, pouvoirs, cote, journal) {
+function bancPose(T, e, cote, journal) {
   const out = { toi: [], adv: [], notes: [] };
   if (!T.perso) return out;
-  for (const x of relaisDeLaPeriode(T.perso, T.games || 0, { ...e, pouvoirs: pouvoirs.filter(n => !n.ombre) })) {
-    (x.cote === 'adv' ? out.adv : out.toi).push({ source: 'relais', nom: x.nom, ico: x.ico, [x.canal]: x.valeur });
-    const note = { cote, k: e.k, cle: x.cle, nom: x.nom, ico: x.ico, niv: x.niv, sur: x.sur, maillon: x.maillon };
+  const soir = T._bancSoir || [];
+  const { pieces, relais } = bancDeLaPeriode(T.perso, e, soir);
+  for (const x of soir) {
+    const note = { cote, k: e.k, cle: x.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0, soir: true };
     out.notes.push(note);
-    if (journal) (journal.relais = journal.relais || []).push(note);
+    if (journal) journal.pieces.push(note);
+  }
+  for (const x of pieces) {
+    if (x.canaux) out.toi.push({ source: 'piece', nom: x.P.nom, ico: x.P.ico, ...x.canaux });
+    if (x.adv) out.adv.push({ source: 'piece', nom: x.P.nom, ico: x.P.ico, ...x.adv });
+    const note = { cote, k: e.k, cle: x.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0, ...(x.ombre ? { ombre: true } : {}) };
+    out.notes.push(note);
+    if (journal) journal.pieces.push(note);
+  }
+  for (const x of relais) {
+    (x.cote === 'adv' ? out.adv : out.toi).push({ source: 'relais', nom: x.P.nom, ico: x.P.ico, [x.canal]: x.valeur });
+    if (journal) journal.relais.push({ cote, k: e.k, cle: x.cle, nom: x.P.nom, ico: x.P.ico, sur: x.sur, maillon: x.maillon });
   }
   return out;
 }
@@ -525,26 +492,28 @@ export function apercuDuDuel(toi, adv, { graine = 0, cle = '' } = {}) {
    LE CONTRAT (V25) : ce que le moteur appelle, et rien d'autre.
    ===================================================================== */
 
-/* AVANT LE MATCH : leur coach en séries, ton plan de match, tes adjoints en poste. Rend ce qui les retire. */
+/* AVANT LE MATCH : leur coach en séries, ton plan de match, les pièces de la soirée. Rend ce qui les retire. */
 function avantMatch(A, B, LA, LB, journal, { series = false, gros = null } = {}) {
-  // LEUR COACH EN SÉRIES (V23 F, js/pouvoirs.js `persoAdverse`) : un club sans personnage qui en porte un pour les
+  // LEUR COACH EN SÉRIES (V23 F, js/pieces.js `persoAdverse`) : un club sans personnage qui en porte un pour les
   // séries (`persoSeries`, posé par `creerSeries`) le joue le temps du match, et le dépose après.
   const pretes = [A, B].filter(T => series && !T.perso && T.persoSeries);
   for (const T of pretes) T.perso = T.persoSeries;
   // LE PLAN DE MATCH (V17) : posé avant le profil du match, retiré après ; au duel, chaque période pose le sien.
   const retirerPlans = gros && gros.duel ? () => {} : poserLesPlans(A, B, LA, LB);
-  // LES ADJOINTS EN POSTE (V22) : leur style, le temps du match, le duel compris ; la feuille les nomme.
-  const retirerAdjoints = poserLesAdjoints(A, B, journal);
+  // LE BANC DE CE SOIR (V27) : la feuille garde les cinq cases de chaque club, ce que le banc d'Hier soir relit ; les
+  // pièces de la soirée jouent le match entier, posées comme un style.
+  if (journal) journal.banc = { A: bancDe(A.perso), B: bancDe(B.perso) };
+  const retirerSoir = poserLeBancDuSoir(A, B, { series, gros });
   // EN SÉRIES (V25 C1) : ce qu'une histoire de ronde a posé sur tes joueurs se lit au jour des séries (le match qui vient).
   if (series) for (const T of [A, B]) if (T.isPlayer) effetsDesJoueurs(T, jourDeSerie(T));
-  return () => { retirerPlans(); retirerAdjoints(); for (const T of pretes) T.perso = null; };
+  return () => { retirerPlans(); retirerSoir(); for (const T of pretes) T.perso = null; };
 }
-/* APRÈS LE MATCH : les séjours finis reviennent dans la main ; en séries, les verdicts des promesses (aucun lundi n'y passe). */
-function apresMatch(A, B) { finirSejours(A); finirSejours(B); for (const T of [A, B]) if (T.isPlayer && T.jourCourant === Infinity) verdictsDuMatin(T, jourDeSerie(T)); }
+/* APRÈS LE MATCH : en séries, les verdicts des promesses (aucun lundi n'y passe). */
+function apresMatch(A, B) { for (const T of [A, B]) if (T.isPlayer && T.jourCourant === Infinity) verdictsDuMatin(T, jourDeSerie(T)); }
 /*
  * LA SOIRÉE, PÉRIODE PAR PÉRIODE. Au duel (`gros.duel`) : la décision de la période (ses dés neufs), leur intention
- * (`intentionDuDuel`), tes moments (`MOMENTS_SI`), ton plan (`effetsDuPlan`) ; pour tous : les pouvoirs du coach et les
- * relais des adjoints des deux clubs, lus sur ce qui est déjà joué ; leur coach en séries passe par là aussi. Sans
+ * (`intentionDuDuel`), tes moments (`MOMENTS_SI`), ton plan (`effetsDuPlan`) ; pour tous : le banc des deux clubs (ses
+ * pièces et leurs relais), lu sur ce qui est déjà joué ; leur coach en séries passe par là aussi. Sans
  * décision (« L'adjoint joue cette série », une période qui n'attend personne), `toi.robotDuel` décide, s'il y en a un
  * (la mesure). `fin()` écrit le duel dans `gros.duelJoue` et la feuille (`duel`).
  */
@@ -597,11 +566,10 @@ function match(A, B, LA, LB, { gros = null, journal = null, series = false, base
         const fxPlan = effetsDuPlan(plan === undefined ? planDe(toi) : plan, { Ltoi, Ladv }, FORCE_DUEL);
         if (fxPlan) { effToi.push(...fxPlan.toi); effAdv.push(...fxPlan.adv); for (const [q, e] of fxPlan.joueurs) viser(q, e); }
       }
-      // LES POUVOIRS DU COACH (V21) et LES RELAIS DES ADJOINTS (V23 D) des deux clubs ; en séries, leur coach (V23 F).
-      const eA = etatDuPouvoir(A, k, 'A', gfA, gfB, journal, series, !!duel, der && der.A), eB = etatDuPouvoir(B, k, 'B', gfB, gfA, journal, series, !!duel, der && der.B);
-      const xA = pouvoirsPoses(A, eA, 'A', journal), xB = pouvoirsPoses(B, eB, 'B', journal);
-      const rA = relaisPoses(A, eA, xA.notes, 'A', journal), rB = relaisPoses(B, eB, xB.notes, 'B', journal);
-      effA.push(...xA.toi, ...xB.adv, ...rA.toi, ...rB.adv); effB.push(...xB.toi, ...xA.adv, ...rB.toi, ...rA.adv);
+      // LE BANC DES DEUX CLUBS (V27, tranche 5 : ses pièces et leurs relais) ; en séries, leur coach (V23 F).
+      const eA = etatDuBanc(A, k, 'A', gfA, gfB, journal, series, !!duel, der && der.A), eB = etatDuBanc(B, k, 'B', gfB, gfA, journal, series, !!duel, der && der.B);
+      const xA = bancPose(A, eA, 'A', journal), xB = bancPose(B, eB, 'B', journal);
+      effA.push(...xA.toi, ...xB.adv); effB.push(...xB.toi, ...xA.adv);
       enCours = { vises, xA, xB, I, d, nButs: journal ? journal.buts.length : 0, nPun: journal ? journal.punitions.length : 0 };
       return { effA, effB };
     },
@@ -629,11 +597,6 @@ function match(A, B, LA, LB, { gros = null, journal = null, series = false, base
     },
   };
 }
-/* L'EXPÉRIENCE DU COACH : une victoire, un gros match gagné (`XP.gros` en plus), une série gagnée (`XP.serie`). */
-function xp(T, quoi) {
-  if (quoi === 'serie') gagnerXp(T, XP.serie - XP.victoire);
-  else gagnerXp(T, quoi === 'gros' ? XP.gros : 0);
-}
 /* LE MATIN DE TON CLUB : les verdicts des promesses finies (le lundi), puis ce qui est posé sur tes joueurs ce jour-là. */
 function matin(L, toi, r) {
   verdictsDuMatin(toi, r);
@@ -641,7 +604,7 @@ function matin(L, toi, r) {
 }
 /*
  * UNE DÉCISION DU ROGUE : le plan de match (V17 : il dure jusqu'au suivant, Ton match le retire), une histoire par sa
- * porte (`appliquerChoix`), et le coach : son expérience, ses talents, ses adjoints.
+ * porte (`appliquerChoix`), et le coach : son entraîneur, son banc.
  */
 function decision(team, d, graine) {
   if ('plan' in d) team.plan = planLu(d.plan);
@@ -669,7 +632,7 @@ function lecture(team, adv, lu, { plan = null, intention = null, duel = false } 
 
 /*
  * UNE DÉCISION À VENIR, LE TEMPS D'UNE LECTURE (`poserAVenir`, js/sim.js) : son plan, l'effet de club d'une histoire (rendu,
- * le moteur l'ajoute aux effets du jour ou du match de séries qui vient), le coach et ses adjoints.
+ * le moteur l'ajoute aux effets du jour ou du match de séries qui vient), le coach et son banc.
  */
 function aVenir(team, d) {
   if ('plan' in d) team.plan = planLu(d.plan);
@@ -678,4 +641,4 @@ function aVenir(team, d) {
   return { effet };
 }
 
-brancherGreffes({ avantMatch, apresMatch, match, xp, matin, decision, coachDeSeries, lecture, aVenir });
+brancherGreffes({ avantMatch, apresMatch, match, matin, decision, coachDeSeries, lecture, aVenir });

@@ -89,7 +89,7 @@ const plein = (jour = 70, { gros = true, ronde = true } = {}) => ({
   suites: [{ de: 'lePetit', choix: 'monter', joueur: J('Mario Lemieux', 'pt'), m: 8, pts: 7, butsDuo: 0, resolue: false }, { de: 'leDuo', choix: 'souder', joueur: J('Brett Hull', 'hu'), m: 10, pts: 12, butsDuo: 7, resolue: false }],
   jalon: J('Jari Kurri', 'ku', { quoi: 'buts', total: 20, m: 38, sal: '4,2 M$' }), duo: { marqueur: J('Brett Hull', 'hu'), passeur: J('Adam Oates', 'oa'), buts: 6, m: 10 },
   recrue: J('Teemu Selänne', 'se', { pts: 9, m: 12 }), veteran: J('Gordie Howe', 'ho', { age: 41, pts: 7, m: 10 }), murEnVue: J('Ken Dryden', 'lg', { v: 28, departs: 46 }),
-  coup: J('Tie Domi', 'pn', { min: 5, adv: 'Boston' }), sejourFini: { cle: 'canonnier', nom: 'Le canonnier', ico: '🏹', v: 8, d: 3, dp: 1, matchs: 12 },
+  coup: J('Tie Domi', 'pn', { min: 5, adv: 'Boston' }), pieceChaude: { cle: 'canonnier', nom: 'Le canonnier', ico: '🏹', m: 7, v: 5, d: 2 },
   mandat: { mot: 'finir dans les dix premiers', rang: 10 },
   gros: gros ? { adv: 'Québec', sorte: 'nemesis', domicile: true, fiche: { v: 0, d: 2 }, dernier: { pour: 1, contre: 3 }, ancien: J('Dale Hunter', 'hu2', { pts: 9, m: 12, vraie: VRAIES.lv }),
     leurVedette: { n: 'Wayne Gretzky', pts: 21, m: 10, vraie: VRAIES.lv }, monMur: J('Rod Langway', 'la', { pm: 6 }), lancee: 4,
@@ -105,7 +105,7 @@ const F = plein();
   const fautes = [];
   let n = 0;
   // Ce qu'une histoire exige des faits pleins qui contredit une autre : le petit qui doute, le séjour raté, le mandat (ni premier ni au fond), la première ronde.
-  const VARIANTES = { lePetitDoute: { suites: [{ ...F.suites[0], pts: 1 }] }, leSejourRate: { sejourFini: { ...F.sejourFini, v: 3, d: 8 } }, leMandat: { rang: 13, retard: 0 }, lesBillets: { ronde: { ...F.ronde, k: 1 } } };
+  const VARIANTES = { lePetitDoute: { suites: [{ ...F.suites[0], pts: 1 }] }, laPieceQuiRate: { pieceChaude: { ...F.pieceChaude, v: 2, d: 5 } }, leMandat: { rang: 13, retard: 0 }, lesBillets: { ronde: { ...F.ronde, k: 1 } } };
   for (const [k, H] of Object.entries(HISTOIRES)) {
     const f = { ...F, ...(VARIANTES[k] || {}) };
     const recus = new Set([...JSON.stringify(f).match(/\d+/g), '30', '2']);   // le trentième (le galon), « sa deuxième commotion »
@@ -149,7 +149,7 @@ const F = plein();
       muet: peutEtre(0.15, { ...f.muet, ...q('m' + pige([1, 2])) }), pousse: peutEtre(0.3, { ...f.pousse, ...q('t' + pige([1, 2])) }), blesses: r() < 0.4 ? f.blesses : [],
       visiteur: pige([0, 1, 3]), dosRoute: pige([0, 0, 1]), chapeau: peutEtre(0.1, f.chapeau), blanchissage: peutEtre(0.1, f.blanchissage),
       suites: r() < 0.25 ? [{ ...f.suites[0], pts: pige([1, 7]) }, f.suites[1]] : [], jalon: peutEtre(0.1, f.jalon), duo: peutEtre(0.15, f.duo), recrue: peutEtre(0.1, f.recrue), veteran: peutEtre(0.15, f.veteran),
-      murEnVue: peutEtre(0.08, f.murEnVue), coup: peutEtre(0.1, f.coup), sejourFini: peutEtre(0.2, pige([f.sejourFini, { ...f.sejourFini, v: 3, d: 8 }])),
+      murEnVue: peutEtre(0.08, f.murEnVue), coup: peutEtre(0.1, f.coup), pieceChaude: peutEtre(0.2, pige([f.pieceChaude, { ...f.pieceChaude, v: 2, d: 5 }])),
       masse: r() < 0.3 ? f.masse : { ...f.masse, espace: 9_000_000 }, mandat: f.mandat,
       ...(moment === 'gros' ? { gros: { ...f.gros, sorte: pige(['choisi', 'nemesis']), ancien: peutEtre(0.3, f.gros.ancien), leurVedette: peutEtre(0.7, f.gros.leurVedette), lancee: pige([0, 1, 4]), malades: r() < 0.3 ? f.gros.malades : [], partant: { ...f.gros.partant, j: pige([70, 90]), dosADos: r() < 0.3 } } } : {}),
       ...(moment === 'ronde' ? { ronde: { ...f.ronde, k: pige([1, 2, 3]), ficheSaison: pige([{ v: 1, d: 3 }, { v: 2, d: 1 }]), precedente: pige([{ matchs: 4 }, { matchs: 7 }]), meneur: peutEtre(0.7, f.ronde.meneur), leurCoach: peutEtre(0.8, f.ronde.leurCoach) } } : {}) };

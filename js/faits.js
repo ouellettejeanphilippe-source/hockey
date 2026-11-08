@@ -9,7 +9,7 @@
  *   n, jambes, pire, blesses[{ n, cle, m, total, genre, deja }], vedette, gardien, soirs, dos, visiteur, domicile, rival,
  *   bete, caisse, dernier { pour, contre, adv }, rang, equipes, retard, avance, dosRoute, masse { espace, libre, lourd, cap },
  *   defaites, serie, coach, puni, muet, pousse, chapeau, blanchissage, suites[{ de, choix, joueur, m, pts, butsDuo, resolue }],
- *   jalon, duo, recrue, veteran, murEnVue, coup, sejourFini, mandat,
+ *   jalon, duo, recrue, veteran, murEnVue, coup, pieceChaude, fourches (les pièces déjà venues d'une fourche), mandat,
  *   gros { adv, sorte, domicile, fiche, dernier, ancien, leurVedette, monMur, lancee, malades, partant }   (le matin du duel)
  *   ronde { k, adv, leurCoach, domicile, ficheSaison, precedente, meneur, gardien }                        (le matin du 1er match)
  *   vraie(cle)  → { buts, passes, gp, matchsDeSaSaison, clubs, enCours, victoires, arrets } : LA VRAIE SAISON AVEC SES BORNES
@@ -25,9 +25,8 @@ import { SLOTS, getPlayerKey, energieDe, jambesGardien, dosADos, joueursDeLaSais
 import { seasonGames, ageAtSeason } from './ratings.js';
 import { joueurDuFait } from './vie-gm.js';
 import { FILS } from './recit.js';
-import { ADJOINTS } from './adjoints.js';
 import { COACHS } from './coachs.js';
-import { POUVOIRS } from './pouvoirs.js';
+import { PIECES, PIECE_DU_COACH } from './pieces.js';
 import { SEMAINE } from './inventaire.js';
 import { money, ord, ordF, pct3 } from './util.js';
 
@@ -37,6 +36,8 @@ export const FENETRE_JOUEUR = 10, PUNITIONS_CHICANE = 4;
 const POINTS_PETIT = 4, BUTS_DUO = 5, AGE_VETERAN = 35;
 /* Le gardien en vue du galon : de MUR_DE à MUR_A victoires (le galon 🏵 Le mur est à 30, js/galons.js). */
 const MUR_DE = 26, MUR_A = 29;
+/* La pièce chaude : jouée PIECE_CHAUDE soirs au moins sur tes FENETRE_JOUEUR derniers matchs. */
+const PIECE_CHAUDE = 5;
 /* Les primes au contrat : le 20e but, le 40e point, puis les crans des fils (`FILS.jalon`). */
 const CRANS_JALON = { buts: [20, ...FILS.jalon.buts], points: [40, ...FILS.jalon.points] };
 /* Le virus : un patineur sous MALADE de jambes le matin d'un gros match. */
@@ -183,9 +184,15 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
       butsDuo: passeur ? depuis.reduce((a, x) => a + (x.f.buts || []).filter(y => y.cote === x.cote && !y.fusillade && y.marqueur === p && (y.passeurs || []).includes(passeur)).length, 0) : 0,
       resolue: (run.sorties || []).some(y => y !== d && y.j > d.j && y.joueur === d.joueur) });
   }
-  // LA FIN D'UN SÉJOUR (V22) de la semaine : la carte, sa fiche.
-  const sej = (you.sejoursFinis || []).filter(x => Number.isFinite(x.jour) && x.jour < jour && x.jour >= jour - SEMAINE).at(-1) || null;
-  const sejourFini = sej && ADJOINTS[sej.cle] ? { cle: sej.cle, nom: ADJOINTS[sej.cle].nom, ico: ADJOINTS[sej.cle].ico, v: sej.v, d: sej.d, dp: sej.dp, matchs: sej.fin - sej.debut } : null;
+  // LA PIÈCE CHAUDE (V27, tranche 5) : sur tes derniers matchs, la pièce de ton banc qui a joué le plus de soirs (à la
+  // feuille ou en relais), PIECE_CHAUDE au moins, et ta fiche ces soirs-là.
+  const parPiece = new Map();
+  for (const x of dernieres) {
+    const joue = new Set([...(x.f.pieces || []), ...(x.f.relais || [])].filter(y => y.cote === x.cote && PIECES[y.cle]).map(y => y.cle));
+    for (const k of joue) { const z = parPiece.get(k) || { m: 0, v: 0, d: 0 }; z.m++; if (x.e.win) z.v++; else z.d++; parPiece.set(k, z); }
+  }
+  const chaude = [...parPiece.entries()].filter(([, z]) => z.m >= PIECE_CHAUDE).sort((a, b) => b[1].m - a[1].m || b[1].v - a[1].v || (a[0] < b[0] ? -1 : 1))[0] || null;
+  const pieceChaude = chaude ? { cle: chaude[0], nom: PIECES[chaude[0]].nom, ico: PIECES[chaude[0]].ico, ...chaude[1] } : null;
   const shard = run.shard || null, nomDuClub = run.nomDuClub || null;
   const vraie = k => vraieDe(parCle.get(k) || (gros0 && gros0.adv && Object.values(gros0.adv.roster || {}).find(p => p && cle(p) === k)) || null, shard, nomDuClub);
   // LE GROS MATCH DE CE MATIN (jamais la veille) : joué, il est dans `minisBoss` ; à venir, le moteur l'a annoncé (`grosAnnonces`).
@@ -215,7 +222,7 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
   let ronde = null;
   if (series && series.s) {
     const s = series.s, adv = s.A === you ? s.B : s.A, perso = adv.perso || adv.persoSeries;
-    const P = perso && POUVOIRS[perso.cle] ? POUVOIRS[perso.cle][0] : null;
+    const P = perso ? PIECES[PIECE_DU_COACH[perso.cle]] || null : null;
     const contre = feuilles.filter(x => x.e.adv === adv);
     const po = p => (p && p.po) || {};
     const meneur = patineurs.map(x => x.p).filter(p => (po(p).PTS || 0) > 0).sort((a, b) => (po(b).PTS || 0) - (po(a).PTS || 0))[0] || null;
@@ -247,7 +254,7 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
     jalon, duo,
     recrue: recrue ? { ...qui(recrue.p), pts: recrue.pts, m: recrue.m } : null,
     veteran: veteran ? { ...qui(veteran.p), age: veteran.age, pts: veteran.pts, m: veteran.m } : null,
-    murEnVue, coup, sejourFini,
+    murEnVue, coup, pieceChaude, fourches: run.fourches || 0,
     mandat: run.mandat ? { mot: run.mandat.mot, rang: run.mandat.top ?? null } : null,
     gros, ronde, vraie,
   };

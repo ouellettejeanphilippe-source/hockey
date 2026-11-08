@@ -471,8 +471,8 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
 }
 
 /*
- * LA CARTE RARE D'UN PACK DE JOUEURS (V16, § 4d ; V21) : un pack qui porte des `cartes` en donne une — une retouche, le
- * stage du coach, un soin, l'échange d'un doublon — une fois sur `1 / RARE_DU_PACK`, jamais le gros du pack.
+ * LA CARTE RARE D'UN PACK DE JOUEURS (V16, § 4d ; V21) : un pack qui porte des `cartes` en donne une — une retouche,
+ * un soin, l'échange d'un doublon — une fois sur `1 / RARE_DU_PACK`, jamais le gros du pack.
  */
 const CATS_RARES = ['joueur', 'consommable'];
 export const RARE_DU_PACK = 0.25;

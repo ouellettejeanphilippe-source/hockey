@@ -29,13 +29,11 @@
  * offertes, même au dernier cœur) ; et les variantes de mesure : « placé » (le calendrier placé), « courbe » (la ligue
  * qui monte d'une étape par acte, `ETAPES_DES_ACTES` [0, 1, 2] essayé), « prudent » (l'attentif qui refuse les élites).
  *
- * CE QUE LE JEU N'A PAS ENCORE, ET CE QUE LE ROBOT JOUE À LA PLACE. Le banc de cinq pièces (tranche 5) et le duel à un
- * seul choix (tranche 6) n'existent pas : le robot joue avec ce qui existe
- * aujourd'hui — le plan du soir, les adjoints à séjours et à salaire, la main du deck, le coach à l'expérience, les
- * plans par période au duel, les histoires telles quelles. « Une pièce » (un rival ou une élite battus) y est
- * approchée par le niveau suivant du coach (`SEUILS_NIVEAU`), comme au prototype. La cible de la tranche 1 se lit donc
- * sur l'ancien banc ; elle se remesure sur le vrai banc à la tranche 5, avant que les tranches 2 à 6 sortent (le
- * risque R1, § 5). Depuis la tranche 2 (docs/refonte-v27-2.md), le robot joue les règles du jeu au lieu de les copier :
+ * LE BANC DE CINQ (tranche 5, docs/refonte-v27-5a.md) : un rival ou une élite battus donnent une pièce parmi trois, la
+ * boutique en vend une à chaque nœud, une fourche en donne une (deux par saison au plus) ; le robot les prend et dit qui
+ * sort par les mêmes fonctions que le jeu (scripts/lib/cartes_robot.mjs `pieceDuRobot`, js/pieces.js). CE QUE LE JEU N'A
+ * PAS ENCORE : le duel à un seul choix (tranche 6) ; le robot joue le plan du soir, la main du deck et les plans par
+ * période au duel. La cible de la tranche 1 se remesure sur ce banc (le risque R1, § 5), en CI. Depuis la tranche 2 (docs/refonte-v27-2.md), le robot joue les règles du jeu au lieu de les copier :
  * les rivaux posés dans la cédule, les contrôles et les cœurs viennent de js/actes.js (`poserLesRivaux`, par le crochet
  * `placer` de `lancerLaLigue` ; `rangAuSoir`), la bande du départ de js/rogue.js (`bouchesTrousDuDepart`, `BANDE_DEPART`).
  * LE RÉGLAGE DE JP APRÈS LA PREMIÈRE MESURE (8 nov. 2026, « Élite = risque plus clair ») : aucune élite à l'acte I, et
@@ -50,8 +48,7 @@ import { DATE_LIMITE_MATCH } from '../../js/packs.js';
 import { jetonsDeDepart, habillerLaLigue, niveauDeLigue, rangDePrestige } from '../../js/rogue.js';
 import { pronostic } from '../../js/pronostic.js';
 import { SEMAINE } from '../../js/inventaire.js';
-import { SEUILS_NIVEAU } from '../../js/pouvoirs.js';
-import { lundiDuRobot, rondeDuRobot, pieceDuRobot } from './cartes_robot.mjs';
+import { lundiDuRobot, rondeDuRobot, pieceDuRobot, poserDuRobot } from './cartes_robot.mjs';
 import {
   generateur, metaAuNiveau, vedetteDuRobot, vestiaire, ouvrirLaSaison, lancerLaLigue, jetonsDuRobot, packDuRobot, prixAuAchat, signerDuPack, lectureDuRobot, planDuRobot,
 } from './rogue_sim.mjs';
@@ -95,7 +92,7 @@ export function jouerLaRun(nom, graine) {
   const ligue = niveauDeLigue(rangDePrestige(meta), 0);
   const c = ouvrirLaSaison(meta, etat, { graine, saison: 1, politique: robot.politique, exigence: 0, ligue, etapeDeRun: etapes[0], clic: null });
   const { you, opps, attentif } = c;
-  const decisions = [{ jour: 0, cases: photoAlignement(c.roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], main: [] } }];
+  const decisions = [{ jour: 0, cases: photoAlignement(c.roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, banc: [...etat.perso.banc] } }];
   const L = lancerLaLigue(c, decisions, true, etapes[0]);
   const n = L.teams.length;
 
@@ -119,8 +116,8 @@ export function jouerLaRun(nom, graine) {
   const placees = new Set();
   const habiller = etape => { const R = renfortsDe(L); for (const T of opps) habillerLaLigue([T], ligue, valeur, etape + (R.get(T) || 0)); };
 
-  // Seuls les rivaux (posés par le jeu) et les élites prises sont des duels ; aucun ne paie de butin (`butins` : déjà réglés).
-  const etatCartes = { histoires: [], avant: [], butins: new Set(finActe), rondes: new Set() };
+  // Seuls les rivaux (posés par le jeu) et les élites prises sont des duels ; chacun gagné donne sa pièce parmi trois (`lundiDuRobot`).
+  const etatCartes = { histoires: [], avant: [], butins: new Set(), rondes: new Set() };
   const lecture = lectureDuRobot(c);
   let depense = 0, achats = 0, signes = 0, coeurs = COEURS, mort = 0, acte = 0;
   const jetons = () => jetonsDuRobot(c, etat.jetons, depense);
@@ -129,11 +126,6 @@ export function jouerLaRun(nom, graine) {
   const gagneLe = j => { const m = L.calendrier[j].find(x => x.A === you || x.B === you); return (m.A === you) === (m.gfA > m.gfB); };
   const out = { robot: nom, graine, actes: [], elites: [], noeuds: [], pieces: 0, jetonsMax: 0, rivaux };
   const tires = [];
-  // UNE PIÈCE (un rival ou une élite battus) : approchée par le niveau suivant du coach, comme au prototype.
-  const piece = () => {
-    const tot = (you.perso.xp || 0) + (you.xpSaison || 0), suivant = SEUILS_NIVEAU.find(s => s > tot);
-    if (suivant) decisions.push({ jour: L.jour, xpCoach: suivant - tot });
-  };
   // LA BOUTIQUE À SES NŒUDS (js/actes.js, comme le jeu) : le prix repart à zéro à chaque ouverture, au plus
   // `ACHATS_PAR_NOEUD` achats, la pièce comprise ; `n`, les achats déjà faits à ce nœud, fait le prix du suivant.
   const visites = new Set();
@@ -146,7 +138,8 @@ export function jouerLaRun(nom, graine) {
     const choisie = pieceDuRobot({ you, offre: piecesDuNoeud(you.perso, L.graine, k), politique: lecture.politique, clic: null, fit: lecture.fit });
     if (choisie && jetons() >= prixDeLaPiece(n)) {
       depense += prixDeLaPiece(n); n++; out.pieces++;
-      decisions.push({ jour: L.jour, palier: `bq:${k}`, embauche: { cle: choisie.cle, niv: choisie.niv } });
+      poserDuRobot(you, choisie);
+      decisions.push({ jour: L.jour, palier: `bq:${k}`, piece: choisie });
     }
     for (; n < ACHATS_PAR_NOEUD && k < DATE_LIMITE_MATCH; n++) {
       const voulu = packDuRobot(c, jetons(), n);
@@ -196,11 +189,10 @@ export function jouerLaRun(nom, graine) {
     const e = out.elites.find(x => x.jour === jour);
     if (e) {
       e.gagnee = gagneLe(jour); e.duel = enDuel(jour);
-      if (e.gagnee) { depense -= e.J; piece(); } else if (!mort && --coeurs <= 0) mort = e.acte;
+      if (e.gagnee) depense -= e.J; else if (!mort && --coeurs <= 0) mort = e.acte;
     }
     if (acte < 3 && jour === finActe[acte]) {
       const gagne = gagneLe(jour);
-      if (gagne) piece();
       // Le rang de l'écran Classement, ses bris d'égalité compris (js/actes.js `rangAuSoir`), comme le jeu.
       const rang = rangAuSoir(L.calendrier, L.teams, you, jour);
       // Les contrôles des actes I et II ; celui de l'acte III est la place en séries, lue au classement final.

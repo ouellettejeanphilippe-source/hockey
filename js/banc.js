@@ -10,8 +10,7 @@ import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { BANQUE } from './banque.js';
 import { COACHS } from './coachs.js';
-import { POUVOIRS, TALENT_CASE } from './pouvoirs.js';
-import { ADJOINTS, sejourDe } from './adjoints.js';
+import { PIECES, PIECE_DU_COACH } from './pieces.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
@@ -21,7 +20,7 @@ import { JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue, exigencesDe 
 import { crochetDesActes } from './actes.js';
 import { $, G, MODE, TEAMFULL, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, cartonDe, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort, varsEquipe } from './repechage.js';
-import { renderMain, coachHtml, persoDuMatin } from './alignement.js';
+import { renderMain, coachHtml } from './alignement.js';
 import { cartesDuCartable, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, payerLActe, montrerLaFin, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi, echangeDHistoire } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
@@ -336,14 +335,9 @@ function confirmerDecision(d) {
   else if (d.ballottage && d.ballottage.ecole) mot = `📟 ${qui(d.ballottage.entre)} monte du club-école : gratuit, hors plafond.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   else if (d.ballottage && d.ballottage.entre) mot = d.ballottage.sort ? `📒 ${qui(d.ballottage.entre)} prend la place de ${qui(d.ballottage.sort)} : la carte de ${qui(d.ballottage.sort)} va à ton cartable.` : `🪑 ${qui(d.ballottage.entre)} entre dans une case de réserve libre : personne ne sort.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
-  // V21 : un talent ou de l'expérience pour le coach de la run ; V22 : un adjoint qui entre dans ta main, ou posté.
-  const perso = persoDuMatin(), Pv = p => (perso && POUVOIRS[perso.cle] ? POUVOIRS[perso.cle][p] : null);
-  // Nov. 2026 : la case de plus du premier talent arrive avec sa carte (une `embauche` dans la même décision).
-  if (d.talent && d.talent.p === TALENT_CASE) mot = `📋 Une case d'adjoint de plus, pour la run${d.embauche && ADJOINTS[d.embauche.cle] ? ` : ${ADJOINTS[d.embauche.cle].ico} ${ADJOINTS[d.embauche.cle].nom} entre dans ta main. Poste-le au Coach.` : '.'}`;
-  else if (d.embauche && ADJOINTS[d.embauche.cle]) mot = `${ADJOINTS[d.embauche.cle].ico} ${ADJOINTS[d.embauche.cle].nom} entre dans ta main : « ${ADJOINTS[d.embauche.cle].dit} » Poste-le au Coach.`;
-  else if (d.poste && ADJOINTS[d.poste.cle]) mot = `${ADJOINTS[d.poste.cle].ico} ${ADJOINTS[d.poste.cle].nom} en poste pour ${sejourDe(d.poste.cle, perso ? perso.cle : null)} matchs.`;
-  else if (d.talent && Pv(d.talent.p)) mot = `${Pv(d.talent.p).ico} ${Pv(d.talent.p).nom} grandit, pour la run.`;
-  else if (Number(d.xpCoach) > 0 && perso && COACHS[perso.cle]) mot = `${COACHS[perso.cle].ico} ${COACHS[perso.cle].nom} : +${d.xpCoach} d'expérience.`;
+  // V27, tranche 5 : une pièce qui entre sur ton banc, et celle qui en sort.
+  const P = d.piece && PIECES[d.piece.cle], S = d.piece && PIECES[d.piece.sort];
+  if (P) mot = `${P.ico} ${P.nom} sur ton banc${S ? ` : ${S.nom} part` : ''}.`;
   if (mot) toast(mot);
 }
 
@@ -631,9 +625,9 @@ export async function runSeason(opts = {}) {
     : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' },
       // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées continuent, en décisions du jour 0.
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
-      // LE COACH DE LA RUN (V21, js/pouvoirs.js) : son expérience, ses talents et ses adjoints d'avant, chaque saison.
+      // LE COACH DE LA RUN (V27, tranche 5, js/pieces.js) : son entraîneur et sa pièce de départ, posée dans la première case.
       ...(G.bonus === 'ROGUE' && G.rogue && COACHS[(G.rogue.perso || {}).cle || G.rogue.coach]
-        ? [{ jour: 0, coach: G.rogue.perso && G.rogue.perso.cle ? { ...G.rogue.perso } : { cle: G.rogue.coach, xp: 0, talents: [], main: [] }, rogue: { depart: true } }] : [])];
+        ? [{ jour: 0, coach: G.rogue.perso && G.rogue.perso.cle ? { ...G.rogue.perso } : { cle: G.rogue.coach, banc: [PIECE_DU_COACH[G.rogue.coach]] }, rogue: { depart: true } }] : [])];
   // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
   poserCartes(decisions);
   /*
