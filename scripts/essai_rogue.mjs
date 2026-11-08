@@ -395,9 +395,6 @@ async function regler() {
       if (enjeu) {
         // V27 (tranche 2) : le rival d'un acte paie l'élan, une pièce et ses médailles — jamais de jetons.
         if (!/Victoire : .*🏅/.test(enjeu) || /🪙/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas ce que paie le rival (« ${enjeu} »)`);
-        // V8 : un rival choisi paie son butin, un multiple de la prime de la run (`BUTIN_RIVAL`) ; une bête noire, la prime.
-        const primes = [1, ...BUTIN_RIVAL].map(x => Math.round(B ? B.grosMatch * x : 0));
-        if (B && !primes.some(x => enjeu.includes(`Victoire : +${x} 🪙`))) erreurs.push(`l'enjeu du combat (« ${enjeu} ») ne dit ni la prime de la run (+${B.grosMatch} 🪙) ni le butin d'un rival`);
         if (!/Défaite : 😵 sonnés \d+ matchs/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas la défaite (« ${enjeu} »)`);
         if (vest.length && vest.length !== 2) erreurs.push(`le combat offre ${vest.length} carte(s) de vestiaire au lieu de deux`);
         if (vest.length && !(await page.$('#choixModal .duel-prop[aria-disabled="true"]'))) erreurs.push('les plans de l\'adjoint ne demandent pas de garder une carte de vestiaire');
