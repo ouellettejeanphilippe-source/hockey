@@ -11,7 +11,6 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
-import { BUTIN_RIVAL } from '../js/sim.js';
 import { PLANS } from '../js/greffes.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
@@ -340,8 +339,11 @@ async function lireLeVerdict() {
   const v = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg, #choixModal:not([hidden]) .choix-sheet[data-msg]')].map(a => a.textContent.replace(/\s+/g, ' ').trim()).filter(x => /Objectif (atteint|raté|levé)/.test(x)).sort((a, b) => b.length - a.length)[0] || '');
   if (v.length > suivi.verdict.length) { suivi.verdict = v; if (/ en \d+ matchs/.test(v)) await page.screenshot({ path: `${DOSSIER}/rogue-verdict-proprio.png` }); }
 }
+let runMorte = false;
 async function regler() {
   for (let i = 0; i < 30; i++) {
+    // V27 (tranche 2) : la run morte en route (0 ❤️) — l'écran de fin est ouvert : plus rien à régler, la saison s'arrête là.
+    if (runMorte || await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]')) { runMorte = true; return; }
     await guetterBords('en jouant');
     await lireLeSuivi();
     // Le gros match se vit en direct (oct.) : au vestiaire à l'entracte, sinon « Passer à la fin », puis « Continuer » ; jamais de ✕.
@@ -391,10 +393,8 @@ async function regler() {
       const journeeOuverte = ((await lireSauvegarde()).partie || {}).journee;
       const enjeu = ((await page.textContent('#choixModal .main-enjeu').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
       if (enjeu) {
-        const B = ((await lireSauvegarde()).partie || {}).rogue?.bareme || (await lireSauvegarde()).rogue?.bareme || null;
-        // V8 : un rival choisi paie son butin, un multiple de la prime de la run (`BUTIN_RIVAL`) ; une bête noire, la prime.
-        const primes = [1, ...BUTIN_RIVAL].map(x => Math.round(B ? B.grosMatch * x : 0));
-        if (B && !primes.some(x => enjeu.includes(`Victoire : +${x} 🪙`))) erreurs.push(`l'enjeu du combat (« ${enjeu} ») ne dit ni la prime de la run (+${B.grosMatch} 🪙) ni le butin d'un rival`);
+        // V27 (tranche 2) : le rival d'un acte paie l'élan, une pièce et ses médailles — jamais de jetons.
+        if (!/Victoire : .*🏅/.test(enjeu) || /🪙/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas ce que paie le rival (« ${enjeu} »)`);
         if (!/Défaite : 😵 sonnés \d+ matchs/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas la défaite (« ${enjeu} »)`);
         if (vest.length && vest.length !== 2) erreurs.push(`le combat offre ${vest.length} carte(s) de vestiaire au lieu de deux`);
         if (vest.length && !(await page.$('#choixModal .duel-prop[aria-disabled="true"]'))) erreurs.push('les plans de l\'adjoint ne demandent pas de garder une carte de vestiaire');
@@ -664,12 +664,11 @@ const versLOnglet = async (sec, pg) => {
   await page.waitForTimeout(400);
 };
 await versLOnglet('bureau', 'proprio');
-// Nov. 2026 : le mandat en mots vit au Proprio (`.pr-mandat`), la bande de Ce soir n'en garde que ton rang.
-const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat').catch(() => '');
-// Le contenu, de zéro (4 nov. 2026) : la suite du mandat (« Puis : … ») vit à l'infobulle du bloc, pas dans le texte.
-const suiteDuMandat = await page.getAttribute('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat', 'title').catch(() => '');
+// V27 (tranche 2) : le contrôle de l'acte et les cœurs vivent au Proprio (`.pr-coeurs`) ; la plaque de Ce soir n'en garde que ton rang.
+const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .pr-coeurs').catch(() => '');
+const suiteDuMandat = await page.getAttribute('#hubModal .af-onglet[data-maison="proprio"] .pr-coeurs', 'title').catch(() => '');
 console.log(`5. le proprio : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
-if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le mandat de la run');
+if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le contrôle de l\'acte');
 // LE CONTENU PERMANENT (V12-2 ; nov. 2026 : la route des deux semaines est au Calendrier, plus chez le Coach) ; le Bureau ne la redit pas.
 await versLOnglet('ligue', 'saison');
 const routeOnglet = await page.$('#hubModal .hub-volet .bu-route');
@@ -700,8 +699,8 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (!/^Niveau\s?[1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
   if (pouvoirs.length !== 3 || pouvoirs[0].ferme || !pouvoirs.slice(1).every(x => x.ferme === /Niveau [35]/.test(x.etat))) erreurs.push(`le coach ne montre pas ses trois pouvoirs, le premier ouvert (${JSON.stringify(pouvoirs)})`);
 }
-if (!/le mandat/.test(run || '')) erreurs.push('le Proprio ne dit pas le mandat de la run');
-if (!/Puis :/.test(suiteDuMandat || '')) erreurs.push('le mandat au Proprio ne dit pas sa suite (« Puis : … », à l\'infobulle)');
+if (!/Acte I+ · le contrôle/.test(run || '')) erreurs.push('le Proprio ne dit pas l\'acte et son contrôle');
+if (!/Rater le contrôle/.test(suiteDuMandat || '')) erreurs.push('le contrôle au Proprio ne dit pas ce qu\'il coûte (à l\'infobulle)');
 /*
  * « SEMAINE SUIVANTE » (V4) remplace « Jusqu'à la prochaine décision » : elle joue les journées une à une jusqu'à
  * la fin de la semaine, et s'arrête avant sur ce qui demande le joueur. On attend qu'elle ait fini (le bouton se
@@ -774,7 +773,7 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
   const svB = await lireSauvegarde();
   const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;
   const lu = [...bareme.matchAll(/(\d+)/g)].map(m => Number(m[1]));
-  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.grosMatch, B.objectif, B.serie] : null;
+  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.objectif, B.serie] : null;
   console.log(`5b. le barème à la boutique : ${bareme.replace(/\s+/g, ' ').trim() || '(absent)'} · attendu ${attendu ? attendu.join('/') : '?'}`);
   if (!bareme) erreurs.push('la boutique n\'écrit pas le barème des jetons de la run');
   else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème à la boutique (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
@@ -1427,6 +1426,7 @@ await unVisible(BUREAU, 20000);
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
 for (let i = 0; i < 200; i++) {
   await regler();
+  if (runMorte) break;
   // Deux « Voir le bilan » peuvent exister (le bureau et sa page) : c'est le visible qui compte.
   if (await page.locator('#hubModal .hub-suite:visible').count()) break;
   if (await page.$('.result .score') && await page.isVisible('.result .score')) break;
@@ -1434,6 +1434,8 @@ for (let i = 0; i < 200; i++) {
   const j = await page.$('#hubModal .hub-jour');
   if (j && await j.isVisible()) { await j.click(); await page.waitForTimeout(400); }
 }
+let meta = null;
+if (!runMorte) {
 await page.locator('#hubModal .hub-suite:visible, .result .score:visible').first().waitFor({ timeout: 120000 }).catch(async e => {
   console.log('DIAG', await page.evaluate(() => ({ sec: document.body.dataset.section, page: document.body.dataset.page, choix: (document.getElementById('choixModal') || {}).hidden, choixTxt: ((document.getElementById('choixModal') || {}).innerText || '').slice(0, 300), boutons: [...document.querySelectorAll('#hubModal button')].filter(b => b.offsetParent).map(b => b.className.split(' ').pop() + ':' + b.textContent.trim().slice(0, 25)) })));
   throw e;
@@ -1459,7 +1461,7 @@ await page.waitForTimeout(2500);
   const ecranRun = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]');
   const svR = await lireSauvegarde();
   const sort = ((await page.textContent('#resultHost .rg-run').catch(() => '')) || '');
-  const finie = /Mandat manqué|run est gagnée/.test(sort);
+  const finie = /Pas de séries|Plus de cœurs|Éliminés|Perdu en finale|run est gagnée/.test(sort);
   const metaR = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
   console.log(`12c. « Ta run » : ${ecranRun ? 'ouvert' : 'fermé'} · run ${finie ? 'finie' : 'en cours'} · dernière run au méta : ${metaR.derniereRun ? JSON.stringify(metaR.derniereRun) : '(aucune)'}`);
   // LES GALONS GARDENT LEUR EFFET ET PERDENT LEUR ÉCRAN (V25 B2) : le cartable les grave, la carte du joueur les dit (« Gravé sur sa carte »,
@@ -1474,8 +1476,7 @@ await page.waitForTimeout(2500);
     await page.screenshot({ path: `${DOSSIER}/rogue-ta-run.png` });
     const txt = (await ecranRun.textContent()).replace(/\s+/g, ' ');
     const d = metaR.derniereRun || {};
-    if (/Mandat manqué/.test(sort) && !/Le proprio\s*« [^»]+ »/.test(txt)) erreurs.push(`« Ta run » ne cite pas le proprio : ${txt.slice(0, 160)}`);
-    if (!new RegExp(`${d.saisons}\\s*saison`).test(txt) || !txt.includes(`+${d.ecussons}`) || !txt.includes(`🏅 ${metaR.ecussons}`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
+    if (!txt.includes(`Médailles ${d.ecussons}`) || !txt.includes(`🏅 ${metaR.ecussons}`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
     if (!(svR.partie && svR.partie.rogue && svR.partie.rogue.taRunVue) && !(svR.rogue && svR.rogue.taRunVue)) erreurs.push('« Ta run » vu n\'est pas dans la sauvegarde (il se rouvrirait au rechargement)');
     await page.click('#choixModal:not([hidden]) .choix-fermer');
     await page.waitForTimeout(300);
@@ -1488,7 +1489,7 @@ const motRun = blocRun ? (await blocRun.textContent()).replace(/\s+/g, ' ').trim
 const rejouer = await page.isVisible('#replayBtn').catch(() => false);
 console.log(`13. la run au bilan : ${motRun.slice(0, 220) || '(rien)'}${rejouer ? ' · « Rejouer la saison » visible !' : ''}`);
 if (!blocRun || rejouer) erreurs.push('le bilan ne montre pas la run, ou garde « Rejouer la saison »');
-const meta = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
+meta = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
 const nCartable = (await cartable()).length;
 console.log(`14. fin de saison : ${meta.ecussons} écussons · ${meta.runs} run · ${meta.saisons} saison · jalons ${Object.keys(meta.jalons || {}).join(', ') || '(aucun)'} · collection ${(meta.collection || []).length} joueurs · cartable ${nCartable} cartes · personnel ${(meta.personnel || []).length} · inventaire permanent ${Object.values(meta.inventaire || {}).reduce((a, n) => a + n, 0)} · dernière équipe ${(meta.derniereEquipe || []).length}`);
 /*
@@ -1507,6 +1508,15 @@ console.log(`14. fin de saison : ${meta.ecussons} écussons · ${meta.runs} run 
   if (!P.records.club) erreurs.push('le panthéon ne garde pas le record du club');
   // Un galon se mérite : une poignée par saison, jamais tout l'alignement (la première règle des grands soirs en donnait 18).
   if (g.galons > 8) erreurs.push(`${g.galons} galons en une saison : un galon se mérite`);
+}
+} else {
+  // L'ÉCRAN DE FIN D'UNE RUN MORTE (V27, la maquette 8) : la cause en une ligne, les actes et leurs médailles, « Une run neuve ».
+  const fin = ((await page.textContent('#choixModal .choix-sheet[data-genre="run"]').catch(() => '')) || '').replace(/\s+/g, ' ');
+  await page.screenshot({ path: `${DOSSIER}/rogue-fin-de-run.png` });
+  console.log(`12. la run est morte en route : ${fin.slice(0, 200)}`);
+  if (!/Plus de cœurs/.test(fin) || !/Médailles/.test(fin) || !/Une run neuve/.test(fin)) erreurs.push(`l'écran de fin d'une run morte ne dit pas sa cause, ses médailles et « Une run neuve » : ${fin.slice(0, 160)}`);
+  meta = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
+  await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {});
 }
 await page.click('#menuBtn');
 await page.waitForSelector('#menuDepart');

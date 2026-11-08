@@ -52,7 +52,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, retenirMatchsDuShard, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJournee,
-  bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup
+  bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, batirLesClubs, avecHasardIsole, activeLineup
 } from '../../js/sim.js';
 import { PLANS } from '../../js/greffes.js';
 import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, styleAuNiveau, effetDuRelais } from '../../js/adjoints.js';
@@ -67,13 +67,14 @@ import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rare
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack } from '../../js/packs.js';
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
 import {
-  JETONS, jetonsDeDepart, gardesDeLaDerniere, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
-  DEBLOCAGES, departDuClasseur, lotosDeSaison, lotoDeCase, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils, primesDuCoach, salairesDesAdjoints,
-  soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
-  NIVEAUX_PLEINS, niveauDeLigue, habillerLaLigue, etapeDeLaRun,
+  JETONS, jetonsDeDepart, aDebloque, plafondDuVestiaire,
+  DEBLOCAGES, departDuClasseur, lotoDeCase, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, baremeRogue, primesDesFils, primesDuCoach, salairesDesAdjoints,
+  soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison,
+  NIVEAUX_PLEINS, niveauDeLigue, habillerLaLigue,
   packsOuverts, monteeDesPacks,
   bouchesTrousDuDepart, vedettesDeConcession, alourdirLaPremiere, VRAIS_CONTRATS, PLAFOND_PREMIERE,
 } from '../../js/rogue.js';
+import { poserLesRivaux } from '../../js/actes.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -585,7 +586,8 @@ export function ouvrirLaSaison(meta, etat, { graine, saison, politique, exigence
 export function lancerLaLigue(c, decisions, mains = true) {
   const { meta, graine, saison, attentif, clic, you, opps } = c;
   if (mains && ((attentif && attentifFait('duel')) || clic)) you.robotDuel = robotDuel(attentif ? 'attentif' : 'distrait', clic || undefined);
-  const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
+  // V27 (js/actes.js) : la saison du Rogue est en actes — ses rivaux se posent dans la cédule, comme au jeu (js/banc.js).
+  const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true, placer: X => poserLesRivaux(X, { exigence: c.exigence || 0 }) });
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
   const boutique = attentif && (attentifFait('boutique') || PACK_FORCE) ? lireLaBoutique(meta, graine, saison, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p))) : null;
@@ -594,10 +596,10 @@ export function lancerLaLigue(c, decisions, mains = true) {
 }
 /*
  * LES JETONS DU ROBOT, comme au jeu (`resultatsRogue`, js/rogue-jeu.js) : `base` (le départ), le barème des matchs joués,
- * le butin des gros matchs (`grosMatchs` : la saison en actes ne paie pas ses rivaux en jetons), la prime des fils (V3.6 :
+ * (V27 : un rival ne paie aucun jeton), la prime des fils (V3.6 :
  * le Cheechoo, le jalon…) et la règle du coach, moins les salaires des adjoints et `depense`.
  */
-export function jetonsDuRobot(c, base, depense, grosMatchs = true) {
+export function jetonsDuRobot(c, base, depense) {
   const { L, you, meta, exigence } = c;
   let W = 0, D = 0, P = 0;
   for (const jour of L.calendrier.slice(0, L.jour)) for (const m of jour) {
@@ -605,9 +607,8 @@ export function jetonsDuRobot(c, base, depense, grosMatchs = true) {
     const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA;
     if (pour > contre) W++; else if (m.ot) P++; else D++;
   }
-  const gros = grosMatchs ? (you.minisBoss || []).filter(mb => mb.gagne).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0) : 0;
   const B = baremeRogue(meta, exigence);
-  return base + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total - salairesDesAdjoints(L.calendrier, you, L.jour).total - depense;
+  return base + W * B.victoire + P * B.prolongation + D * B.defaite + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total - salairesDesAdjoints(L.calendrier, you, L.jour).total - depense;
 }
 /* Le pack que le robot achète avec `jetons`, au `n`-ième achat : celui que l'attentif lit, sinon l'ordre du robot d'avant. */
 export function packDuRobot(c, jetons, n) {
@@ -697,9 +698,6 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
   const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, (etat.galons && etat.galons.get(getPlayerKey(p))) || 0)]).filter(([, n]) => n > 0));
   if (Object.keys(galons).length) decisions.push({ jour: 0, galons, report: true });
-  // V8 : les rivaux choisis au premier jour. Le robot prend les trois du milieu de l'offre (ni le plus fort ni le plus faible).
-  const offre = rivauxOfferts([you, ...opps], you, `rogue80:${graine}:${saison}`);
-  if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: (clic ? melanger(offre, clic).slice(0, RIVAUX) : offre.slice(1, 1 + RIVAUX)).map(x => ({ cle: x.cle, butin: x.butin })) });
   const L = lancerLaLigue(c, decisions, mains);
   const entrees = [];
   let depense = 0, achats = 0, signes = 0, serie = 0, serieMax = 0;
@@ -790,86 +788,6 @@ export function planDuRobot(L, you, plans, attentif, clic) {
 }
 
 /*
- * UNE RUN (S80 : PLUSIEURS SAISONS). La saison 1 part des plombiers (et des
- * gardés, et du classeur) ; chaque saison suivante repart de plombiers neufs
- * et de ceux qui restent, une case chacun (`gardesDeLaRun`), avec les jetons qui
- * restent et la caisse du vestiaire. La run
- * finit quand on rate les séries — le proprio montre la porte — ou quand on
- * gagne la Coupe. `jalons` : paie les jalons (js/rogue.js `JALONS`), qui
- * peuvent débloquer en cours de run. Rend la run saison par saison, les
- * écussons, ce qui entre au classeur, et l'équipe finale.
- */
-export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', jalons = false, maxSaisons = 8, joues = new Map(), mains = true, politique = 'defaut', exigence = 0 } = {}) {
-  const rnd = generateur('rogue80', graine);
-  const clic = politique === 'distrait' ? generateur('rogue80-distrait', graine) : null;
-  const exclus = new Set();
-  // Ceux de la dernière équipe : un loto par case (le robot garde le meilleur de chaque loto ; le distrait, n'importe qui).
-  const vedette = vedetteDuRobot(rnd, meta, clic);
-  const gardes = lotosParCase(gardesDeLaDerniere(meta), derniere.map(p => ({ p })), `${graine}:derniere`, budgetDuClasseur(meta),
-    new Set(vedette ? [getPersonKey(vedette)] : []), clic).map(x => copie(x.p));
-  if (vedette) gardes.unshift(copie(vedette));
-  gardes.forEach(p => exclus.add(getPersonKey(p)));
-  // Les cartes du classeur au départ.
-  const tires = tirerClasseur(meta, classeur, exclus, graine, clic, exigence).map(x => ({ p: copie(x.p), rar: x.rar }));
-  tires.forEach(x => exclus.add(getPersonKey(x.p)));
-  const premiere = !classeur.length && !derniere.length;
-  const V = vestiaire(rnd, meta, [...gardes, ...tires.map(x => x.p)], classeur, { joues, graine: `${graine}:depart`, exigence, premiere });
-  const etat = { roster: V.roster, variantes: new Map(tires.map(x => [getPlayerKey(x.p), x.rar])), jetons: jetonsDeDepart(meta), galons: new Map() };
-  for (const x of classeur) if (!etat.variantes.has(getPlayerKey(x.p))) etat.variantes.set(getPlayerKey(x.p), x.rar);
-  const jouees = new Set();
-  const saisons = [];
-  // La ligue de la run (tranche 8) : son niveau est fixé au départ, comme le prestige au jeu (`G.rogue.prestige`).
-  const ligue = niveauDeLigue(rangDePrestige(meta), exigence);
-  // La deuxième run est plus dure (31 oct., js/rogue.js `etapeDeLaRun`) : une étape d'édition de plus, dès qu'un classeur ou une dernière équipe la précède.
-  const etapeDeRun = etapeDeLaRun(premiere ? 1 : 2);
-  let ecussons = 0;
-  const entrees = Object.values(etat.roster).map(p => ({ p, rar: etat.variantes.get(getPlayerKey(p)) || 'commune' }));
-  for (let n = 1; n <= maxSaisons; n++) {
-    // La valeur moyenne de l'équipe au départ de la saison (check_rogue : la saison 2 reste un défi).
-    const valeur = (l => l.reduce((t, p) => t + v(p), 0) / (l.length || 1))(Object.values(etat.roster).filter(Boolean));
-    const r = jouerSaison(meta, etat, { graine, saison: n, mains, politique, exigence, ligue, etapeDeRun: premiere ? etapeDeLaRun(1, n) : etapeDeRun });
-    entrees.push(...r.entrees);
-    for (const g of r.galons) etat.galons.set(g.joueur, (etat.galons.get(g.joueur) || 0) + 1);
-    let e = (ecussonsDeLaSaison(r.pts) + ecussonsDesSeries(r.rondes, r.coupe)) * exigencesDe(exigence).medailles;
-    // La prime de découverte : les cartes qui finissent leur première saison (`joues` ne les connaît pas encore).
-    const fin = Object.values(r.roster).filter(Boolean).map(getPlayerKey);
-    e += fin.filter(k => !joues.has(k) && !jouees.has(k)).length * PRIME_DECOUVERTE;
-    for (const k of [...Object.values(etat.roster).filter(Boolean).map(getPlayerKey), ...fin]) jouees.add(k);
-    if (jalons) e += payerJalonsSim(meta, { ...r, saisonDeLaRun: n, cartes: classeur.length + entrees.length });
-    e = Math.round(e);
-    ecussons += e;
-    const mandat = mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32, exigence, premiere });
-    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length, valeur, mandat, coach: r.perso.cle, niveau: niveauDuPerso(r.perso), adjoints: (r.perso.main || []).length });
-    // La Coupe (tranche 8) : elle compte, et le cran d'exigence gagné ouvre le suivant (js/rogue.js `payerEcussons`).
-    if (r.coupe) { meta.coupes = (meta.coupes || 0) + 1; meta.exigence = Math.max(meta.exigence || 0, exigence); }
-    // LE MANDAT DU PROPRIO (js/rogue.js `MANDATS`) : manqué, la run est finie ; la Coupe la gagne.
-    if (r.coupe || !mandat) break;
-    // LA SAISON SUIVANTE : l'équipe se défait — les meilleurs restent, des plombiers neufs ; les jetons restent, la caisse revient.
-    const equipe = Object.values(r.roster).filter(Boolean);
-    // Ton joueur de concession reste d'une saison à l'autre, sans loto ; les autres, une case chacun (`gardesDeLaRun`).
-    const ved = meta.vedette && equipe.find(p => getPlayerKey(p) === meta.vedette);
-    const restent = [...(ved ? [ved] : []), ...lotosParCase(gardesDeLaRun(meta, exigence), equipe.filter(p => p !== ved).map(p => ({ p })), `${graine}:g${n + 1}`,
-      budgetDuClasseur(meta), new Set(ved ? [getPersonKey(ved)] : []), clic).map(x => x.p)];
-    const partants = new Set(equipe.map(getPlayerKey).filter(k => !restent.some(p => getPlayerKey(p) === k)));
-    // Le classeur a grossi pendant la saison : les cartes tirées des packs en sont.
-    const classeurSaison = [...classeur, ...r.entrees.map(x => ({ p: x.p, rar: x.rar }))];
-    // LES LOTOS DU CARTABLE (Jalon Q) : le robot signe la meilleure carte de chaque loto, sous le budget du classeur.
-    const lotos = lotosDuRobot(meta, classeurSaison, restent, partants, `${graine}:s${n + 1}`, clic, exigence);
-    etat.roster = vestiaire(rnd, meta, [...restent, ...lotos.map(x => copie(x.p))], classeurSaison, { saison: n + 1, exclus: partants, joues, graine: `${graine}:s${n + 1}`, exigence }).roster;
-    etat.jetons = r.reste + jetonsDeDepart(meta);
-    etat.perso = r.perso;
-    etat.histoires = r.histoires;
-  }
-  for (const k of jouees) joues.set(k, (joues.get(k) || 0) + 1);
-  const fin = saisons[saisons.length - 1];
-  return {
-    saisons, nSaisons: saisons.length, coupe: !!fin.coupe, ecussons, depart: tires.length, valeurDepart: tires.reduce((a, x) => a + v(x.p), 0), exigence, ligue,
-    pts1: saisons[0].pts, series1: saisons[0].rang <= 16,
-    entrees: entrees.map(x => ({ p: x.p, rar: x.rar })),
-    equipe: Object.values(etat.roster).filter(Boolean),
-  };
-}
-/*
  * LE VESTIAIRE TIRÉ DU CLASSEUR (js/rogue.js `tirageDuDepart`, comme
  * js/rogue-jeu.js `vestiaireDeDepart`) : les cartes Soutien et Régulier du
  * classeur, les moins jouées d'abord (`joues` : clé → runs jouées) ; les
@@ -901,21 +819,6 @@ export function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new
   plombiers(rnd, meta, new Set(pris.map(getPersonKey)), reserve);
   const v = plafondDuVestiaire(meta), cible = PLAFOND_PREMIERE + v - Math.max(0, ESPACE_DE_DEPART + v + exigencesDe(exigence).espace);
   return { roster: alourdirLaPremiere(ranger(pris, nRes), reserve.map(copie), { fixes: [...fixes, ...tires.map(x => x.p)], personne: getPersonKey, cible }), tires };
-}
-/* LES LOTOS DU ROBOT (js/rogue-jeu.js `lotoDuCartable`) : les cases de `lotosDeSaison`, sous le budget du classeur moins ses gardés. */
-const lotosDuRobot = (meta, classeur, gardes, partants, graine, clic = null, exigence = 0) =>
-  lotosParCase(lotosDeSaison(meta, exigence), classeur.filter(x => !partants.has(getPlayerKey(x.p))), graine, budgetDuClasseur(meta) - masseDe(gardes), new Set(gardes.map(getPersonKey)), clic);
-/* Les jalons, dans la mesure : les mêmes règles que le jeu (js/rogue.js `jalonsAtteints`), payés une fois. */
-function payerJalonsSim(meta, faits) {
-  meta.jalons = meta.jalons || {};
-  let e = 0;
-  for (const J of jalonsAtteints(meta, faits)) {
-    meta.jalons[J.cle] = true;
-    const d = J.recompense.deblocage;
-    if (d && DEBLOCAGES[d] && !aDebloque(meta, d) && (!DEBLOCAGES[d].requis || aDebloque(meta, DEBLOCAGES[d].requis))) meta.deblocages.push(d);
-    else e += J.recompense.ecussons || 0;
-  }
-  return e;
 }
 
 /*

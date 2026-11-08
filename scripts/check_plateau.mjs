@@ -8,7 +8,7 @@
  *               la grammaire d'avant) ; l'en-tête sans filet de couleur ;
  *   Ce soir     le bandeau des résultats (dès le 2e jour), l'affiche-héros d'au moins 240 px, la jauge du proprio SOUS elle,
  *               ton banc en main de vraies cartes de jeu (.pl-grille-4), tes choix ;
- *   Proprio     le mandat en citation, ton rang avec la jauge, l'argent en cellules ;
+ *   Proprio     tes cœurs et le contrôle de l'acte, ton rang avec la jauge, l'argent en cellules ;
  *   Lignes      les jetons d'unité, chaque trio debout (son nom en colonne verticale), trois cartes pleine colonne, une seule
  *               ligne sous chaque carte (le reste caché) ;
  *   Joueurs     les filtres en jetons, le tri en jetons, une grille de trois vraies cartes avec leur coin ;
@@ -84,8 +84,8 @@ const PAGES = [
   // Le face-à-face (4 nov. ; JP : *cette page n'est pas très lisible*) : l'affiche, une rangée par stat et par force à gros chiffres, aucun tableau.
   { porte: 'bureau', page: 'match', nom: 'Face à face', ouvrir: '#hubModal .bu-prochain', lire: () => ({ ff: !!document.querySelector('#hubModal .ff'), affiche: !!document.querySelector('#hubModal .ff .hub-face'), rangs: document.querySelectorAll('#hubModal .ff .ff-rang').length, gros: [...document.querySelectorAll('#hubModal .ff .ff-rang b')].every(b => parseFloat(getComputedStyle(b).fontSize) >= 16), tableau: !!document.querySelector('#hubModal .ff table'), bandeaux: document.querySelectorAll('#hubModal .ff .pl-bandeau').length }),
     juger: d => { exiger('Face à face · l\'affiche, puis une rangée par stat et par force, en gros chiffres, sous leurs bandeaux, aucun tableau', d.ff && d.affiche && d.rangs >= 6 && d.gros && !d.tableau && d.bandeaux >= 1, `${d.rangs} rangées, ${d.bandeaux} bandeaux`); } },
-  { porte: 'bureau', page: 'proprio', nom: 'Proprio', lire: () => ({ cite: !!document.querySelector('#hubModal .pr-mandat .pr-cite'), rang: !!document.querySelector('#hubModal .pr-rang .bu-run-jauge'), cellules: document.querySelectorAll('#hubModal .pr-argent .pl-cellule').length }),
-    juger: d => { exiger('Proprio · le mandat en citation, ton rang avec la jauge, l\'argent en cellules', d.cite && d.rang && d.cellules >= 2, `${d.cellules} cellules`); } },
+  { porte: 'bureau', page: 'proprio', nom: 'Proprio', lire: () => ({ coeurs: !!document.querySelector('#hubModal .pr-coeurs .pl-coeurs'), rang: !!document.querySelector('#hubModal .pr-rang .bu-run-jauge'), cellules: document.querySelectorAll('#hubModal .pr-argent .pl-cellule').length }),
+    juger: d => { exiger('Proprio · tes cœurs et le contrôle de l\'acte, ton rang avec la jauge, l\'argent en cellules', d.coeurs && d.rang && d.cellules >= 2, `${d.cellules} cellules`); } },
   { porte: 'lignes', page: null, nom: 'Lignes', lire: () => {
     const lignes = [...document.querySelectorAll('#rosterBoard .line:has(.case-carte)')].filter(l => l.offsetParent);
     const tete = lignes[0] && lignes[0].querySelector('.line-head');

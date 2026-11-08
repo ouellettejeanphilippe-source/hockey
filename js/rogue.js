@@ -125,13 +125,7 @@ export function salairesDesAdjoints(calendrier, you, j = Infinity) {
   }
   return { total, parJour };
 }
-export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, grosMatch: 20, objectif: 20, serie: 40 };
-/*
- * LE BUTIN D'UN GROS MATCH GAGNÉ (V23 D, docs/refonte-v23.md § D ; docs/revue-rogue-2026-11.md § 2.3 B : moins d'offres,
- * qui comptent) : des jetons de plus, ou de l'expérience pour ton coach — plus d'adjoint. Sans ça, on tenait toutes les
- * cartes, et le relais n'était plus un choix. Une décision `palier: 'r:<jour>'` avec `gain` ou `xpCoach`.
- */
-export const BUTIN_DU_GROS = { jetons: 15, xp: 4 };
+export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, objectif: 20, serie: 40 };
 /*
  * Les jetons à un moment de la saison : ce que les résultats ont rapporté,
  * moins ce que la boutique a coûté. `res` : W, L, OTL (matchs révélés), les
@@ -141,7 +135,7 @@ export function jetonsDe(res, depenses, depart = JETONS.depart, bareme = JETONS)
   const r = res || {};
   const B = bareme || JETONS;
   return depart + (r.W || 0) * B.victoire + (r.OTL || 0) * B.prolongation + (r.L || 0) * B.defaite
-    + (r.gros || 0) * B.grosMatch + (r.objectifs || 0) * B.objectif + (r.series || 0) * B.serie + (r.primes || 0) - (depenses || 0);
+    + (r.objectifs || 0) * B.objectif + (r.series || 0) * B.serie + (r.primes || 0) - (depenses || 0);
 }
 /*
  * LE BARÈME D'UNE RUN (S80). Une run dure maintenant plusieurs saisons : ce
@@ -315,17 +309,6 @@ export function departDuClasseur(m, exigence = 0) {
   return { cases, n: cases.length, vues: vuesDuLoto(m) };
 }
 /*
- * LES LOTOS DU CARTABLE, ENTRE DEUX SAISONS (Jalon Q, js/rogue-jeu.js `lotoDuCartable`) : un loto Régulier, et un
- * de plus par page du classeur, à son niveau ; chacun signe une carte du cartable. 7 nov. 2026 (JP : *bloquer le
- * snowball*) : trois lotos au meilleur de trois, dans un cartable que les packs de la saison venaient de remplir,
- * faisaient la moitié du saut de la deuxième saison ; les pages du classeur, achetées en médailles, les rendent.
- */
-const LOTOS_DE_SAISON = 1;
-export function lotosDeSaison(m, exigence = 0) {
-  const cases = casesDuClasseur(m, Array(LOTOS_DE_SAISON).fill(REGULIER), -exigencesDe(exigence).classeur);
-  return { cases, n: cases.length, vues: vuesDuLoto(m) };
-}
-/*
  * LE BUDGET DU CLASSEUR : ce que ses cartes peuvent coûter ensemble. Le
  * plafond de la run, moins l'espace qu'elle garde au départ, moins ce que
  * coûtent des plombiers (mesuré V9 : les pires contrats de leur tranche, 43 à
@@ -341,7 +324,8 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
  * Mesuré sur 60 départs : tirés par leurs POINTS, comme les attaquants, les défenseurs sortaient au 35e rang de valeur
  * de leur saison, deux fois les attaquants (18e) — peu de points, c'est souvent un bon défenseur défensif. Les
  * défenseurs et les gardiens se tirent maintenant par leur VALEUR ; les attaquants, par leurs points. Dans chaque
- * saison tirée, la même bande pour tous (du 5e au 25e centile ; « Des plombiers moins pires » : du 25e au 45e), et
+ * saison tirée, la même bande pour tous (V27 : du 35e au 55e centile, `BANDE_DEPART` — l'équipe part vers le 26e rang
+ * de force, docs/refonte-v27.md § 4.9 ; « Des plombiers moins pires » la monte de 20 centiles), et
  * dans la bande, les pires contrats (le tiers le mieux payé, V9 : le plafond qui mord).
  *   saisons   les joueurs de chaque saison tirée ; groupe(p) : 'F', 'D' ou 'G' ; valeur(p) : la valeur cachée
  *             (js/sim.js) ; personne(p) : la personne (une par alignement) ; exclus : les personnes déjà prises ;
@@ -349,10 +333,11 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
  */
 const BOUCHES_TROUS = { F: { par: 'points', n: 3 }, D: { par: 'valeur', n: 2 }, G: { par: 'valeur', n: 1 } };
 const PART_DES_PIRES = 1 / 3;
+const BANDE_DEPART = [0.35, 0.55];
 const pointsParMatch = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
 export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, plus = false, exclus = new Set(), reserve = null }) {
   const out = [], pris = new Set(exclus);
-  const [bas, haut] = plus ? [0.25, 0.45] : [0.05, 0.25];
+  const [bas, haut] = BANDE_DEPART.map(x => x + (plus ? 0.2 : 0));
   const pires = t => t.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (personne(a) < personne(b) ? -1 : 1)).slice(0, Math.max(1, Math.ceil(t.length * PART_DES_PIRES)));
   saisons.forEach((joueurs, i) => {
     for (const g of ['F', 'D', 'G']) {
@@ -531,12 +516,20 @@ export function tirageDuDepart({ fixes = [], cartes = [], quota, budget = Infini
  * déblocages et le panthéon restent. Rend le méta converti, ou null s'il l'était déjà.
  */
 /* V21 (docs/refonte-v21.md ; JP : *on s'en fout de briser les saves*) : le coach-personnage remplace le personnel ; les runs en cours repartent, une fois. */
-const JEU_DE_CARTES = 'v21';
-export const convertirAuJeuNeuf = m => {
-  if (m.jeu === JEU_DE_CARTES) return null;
+/*
+ * V27 (docs/refonte-v27.md § 6) : une run d'avant la saison en actes (ses saisons de plus, son mandat) ne se rejoue pas
+ * sous les règles neuves. Elle est retirée au démarrage et verse ses médailles comme une saison finie : la moitié de ses
+ * points, lus dans son résumé (« … · 31-20-4 »). `resumes` : ceux des runs retirées. Rend { meta, verse }, ou null.
+ */
+const JEU_DE_CARTES = 'v21', JEU_DE_LA_RUN = 'v27';
+const pointsDuResume = r => { const x = /(\d+)-(\d+)-(\d+)/.exec((r && r.etape) || ''); return x ? 2 * Number(x[1]) + Number(x[3]) : 0; };
+export const convertirAuJeuNeuf = (m, resumes = []) => {
+  if (m.jeu === JEU_DE_LA_RUN) return null;
   const { personnel: _p, copiesPerso: _c, ...reste } = m;
   void _p; void _c;
-  return { ...reste, inventaire: {}, cartes: [], jeu: JEU_DE_CARTES };
+  const base = m.jeu === JEU_DE_CARTES ? m : { ...reste, inventaire: {}, cartes: [] };
+  const verse = resumes.reduce((a, r) => a + ecussonsDeLaSaison(pointsDuResume(r)), 0);
+  return { meta: { ...base, ecussons: (base.ecussons || 0) + verse, ecussonsAVie: ecussonsAVie(base) + verse, jeu: JEU_DE_LA_RUN }, verse };
 };
 const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: [], runs: 0, saisons: 0, coupes: 0, meilleur: null, derniereEquipe: [], recompenses: {}, inventaire: {}, recus: {}, jalons: {}, sel: null });
 /*
@@ -648,7 +641,7 @@ export function ajouterCollection({ joueurs = [], cartes = [] } = {}) {
 }
 /*
  * LES ÉCUSSONS D'UNE RUN : la saison (un par tranche de deux points), les
- * séries (dix par ronde gagnée, vingt de plus pour la Coupe). Payés UNE fois
+ * séries (V27 : vingt par ronde gagnée, quarante de plus pour la Coupe). Payés UNE fois
  * par run et par étape (`recompenses[cle]`) : un rechargement du bilan ne
  * paie pas deux fois.
  */
@@ -689,82 +682,11 @@ export function payerEcussons(cleRun, etape, n, { equipe = null, bilan = null } 
   ecrireMeta(m);
   return Math.round(n);
 }
-export const ecussonsDeLaSaison = pts => Math.floor((pts || 0) / 2);
+const ecussonsDeLaSaison = pts => Math.floor((pts || 0) / 2);
 /* La prime de découverte : un écusson par carte qui finit sa première saison avec toi (js/cartable.js `decouvrir`). */
 export const PRIME_DECOUVERTE = 1;
-export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 10 + (coupe ? 20 : 0);
+export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 20 + (coupe ? 40 : 0);
 
-/* ---------- la run sur plusieurs saisons (S80) ---------- */
-/*
- * L'ÉQUIPE SE DÉFAIT ENTRE DEUX SAISONS (1.0). JP : *pour une saison 2 d'une
- * run, pas repartir avec la même équipe, mais pouvoir garder un ou des
- * joueurs de l'ancienne équipe*. Des plombiers neufs, et ceux qui restent :
- * jusqu'au 24 oct., cinq joueurs au choix (JP : *la saison suivante me
- * permettait de prendre cinq joueurs, c'est brisé*). Maintenant, des cases,
- * comme le classeur : un loto de trois joueurs d'un niveau de ton équipe finie
- * (`lotoDeCase`), tu en gardes un, avec ses modifs ; leurs salaires ensemble
- * tiennent dans le budget du classeur. Deux Réguliers (7 nov. 2026 : c'était un Pilier et un Régulier ; le Pilier
- * gardé, le meilleur de trois, partait la saison suivante déjà fort — docs/decisions.md, « bloquer le snowball ») ;
- * « Ceux qui partent » en retire un, par le haut. Mesuré (check_rogue, 24
- * runs par niveau) : une case ★ Étoile de plus, ouverte par la page Étoile,
- * menait la Coupe de 4 % à 38 % des runs à onze déblocages ; sans elle, 4 %.
- */
-export const GARDES_DE_SAISON = [REGULIER, REGULIER];
-export function gardesDeLaRun(m, exigence = 0) {
-  return { cases: GARDES_DE_SAISON.slice(Math.min(GARDES_DE_SAISON.length, -exigencesDe(exigence).gardes)), vues: vuesDuLoto(m) };
-}
-/*
- * UNE RUN DURE PLUSIEURS SAISONS. JP : *en roguelike, nouvelle saison veut
- * dire continuer avec base des cartes ramassé qui sont pas des consommables,
- * débloquées, etc*. La saison suivante repart de ton deck et de tes jetons ;
- * les cartes « cette saison » et les consommables expirent.
- *
- * LE MANDAT DU PROPRIO. Une run qui continue tant qu'on fait les séries ne
- * finit presque jamais : une équipe qui passe la première saison se bâtit
- * saison après saison et finit par gagner — mesuré (scripts/check_rogue.mjs),
- * une run sans aucun déblocage gagnait la Coupe une fois sur quatre à six. Le
- * proprio en demande donc PLUS à chaque saison : les séries la première, une
- * ronde gagnée la deuxième, les demi-finales la troisième, la finale
- * ensuite. Manque le mandat et la run est finie ; gagne la Coupe et la run
- * est gagnée. C'est ce qui fait de la Coupe l'affaire de plusieurs saisons ET
- * de plusieurs runs.
- *
- * V5 — LE PROPRIO JUGE LA SAISON, PAS UNE SÉRIE (docs/refonte-v5.md ; JP : *je suis ouvert à tous*). Une série au
- * meilleur de sept est à moitié un tirage : « gagner une ronde » tuait 46 à 67 % des runs en deuxième saison, avec
- * une bonne équipe (mesuré, eco.mjs). Le mandat se lit maintenant au classement de la saison régulière, ce que le
- * build contrôle : les séries d'abord, puis un rang qui monte (les dix, les six, puis les trois premiers ; mesuré :
- * le premier tiers, puis le quart, laissaient la Coupe à 17 % des runs sans déblocage). Les séries paient toujours (40 🪙 la ronde) et donnent la Coupe, qui gagne la run.
- */
-export const MANDATS = [
-  { top: null, mot: 'faire les séries' },
-  { top: 10, mot: 'finir dans les dix premiers' },
-  { top: 6, mot: 'finir dans les six premiers' },
-  { top: 3, mot: 'finir dans les trois premiers' },
-];
-/*
- * LA PREMIÈRE SAISON DE LA PREMIÈRE RUN (nov. 2026, docs/revue-rogue-2026-11.md § 1 ; docs/decisions.md). Mesuré
- * (check_profondeur) : le gérant attentif finissait sa première saison entre le 22e et le 26e rang, et la run finissait
- * là, trois runs de suite — le coach, ses talents et ses adjoints ne vivaient jamais une deuxième saison. Le proprio
- * de ta première run te laisse une saison pour bâtir : finir dans les `MANDAT_DE_LA_PREMIERE.top` premiers, séries ou
- * pas ; dès la deuxième saison, et dès la deuxième run, les mandats de toujours. Lot 5 (nov. 2026, docs/decisions.md) :
- * 27 a été essayé — l'attentif passait sa première saison une fois sur deux (14 graines sur 30), mais sa deuxième saison
- * sautait du 27e rang au podium et gagnait la Coupe dès la run 1 (5 graines sur 30 ; check_profondeur : la première Coupe
- * à la run 1). 24 reste ; la deuxième saison de la première run porte la marche de la ligue (`etapeDeLaRun`).
- */
-export const MANDAT_DE_LA_PREMIERE = { top: 24, sansSeries: true, mot: 'finir dans les vingt-quatre premiers' };
-/*
- * Le mandat de la saison `n` (1 = la première de la run) ; « Le proprio impatient » (les exigences) l'avance.
- * `premiere` : la première run de la partie (`G.rogue.numero` 1).
- */
-export const mandatDe = (n, exigence = 0, premiere = false) => (premiere && (n || 1) === 1 && !exigencesDe(exigence).mandat ? MANDAT_DE_LA_PREMIERE
-  : MANDATS[Math.max(0, Math.min(MANDATS.length, (n || 1) + exigencesDe(exigence).mandat) - 1)]);
-/* Le rang à atteindre pour le mandat `M` dans une ligue de `nEquipes` clubs (null : faire les séries). */
-export const rangDuMandat = (M, nEquipes = 32) => (M.top ? Math.min(M.top, nEquipes) : null);
-/* La saison a-t-elle rempli son mandat ? `series` : qualifiée ; `rang` : au classement ; `nEquipes` : la taille de la ligue. */
-export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32, exigence = 0, premiere = false } = {}) => {
-  const M = mandatDe(n, exigence, premiere), seuil = rangDuMandat(M, nEquipes);
-  return (!!series || !!M.sansSeries) && (seuil == null || rang <= seuil);
-};
 
 /*
  * LES EXIGENCES (V9, tranche 8 ; JP, 17 oct. : *les exigences*). Mesuré (scripts/check_profondeur.mjs) : après sa
@@ -773,7 +695,7 @@ export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32
  * pèse, ce sont ses packs en saison et son classeur, et sa façon de mener. Comme l'Ascension de Slay the Spire : après
  * ta première Coupe, au départ d'une run, tu montes les exigences du proprio d'un cran. Chaque cran ajoute la sienne à
  * celles d'avant, par un canal qui existe (le plafond, le prix des packs, le classeur, le quota de Soutien, le barème,
- * le mandat, les gardés), et paie `PRIME_EXIGENCE` de médailles de plus. La Coupe gagnée à un cran ouvre le suivant
+ * les contrôles des actes, le rang des rivaux, les séries — V27, docs/refonte-v27.md § 4.9), et paie `PRIME_EXIGENCE` de médailles de plus. La Coupe gagnée à un cran ouvre le suivant
  * (`m.exigence`, le plus haut cran gagné). Celui qui découvre le jeu n'en voit rien ; l'expert garde un défi.
  */
 export const ICO_EXIGENCE = '🔺';
@@ -781,18 +703,18 @@ export const PRIME_EXIGENCE = 0.15;
 export const EXIGENCES = [
   { cle: 'ceinture', nom: 'La ceinture', texte: '2 M$ d\'espace de moins sous le plafond', espace: -2_000_000 },
   { cle: 'agents', nom: 'Les agents', texte: 'les packs coûtent 25 % de plus', prixPacks: 0.25 },
-  { cle: 'classeur', nom: 'Le classeur fermé', texte: 'une case de moins au classeur, et un loto de moins', classeur: -1 },
-  { cle: 'vestiaire', nom: 'L\'effectif mince', texte: '3 cartes Soutien de plus au départ de chaque saison', soutiens: 3 },
+  { cle: 'classeur', nom: 'Le classeur fermé', texte: 'une case de moins au classeur', classeur: -1 },
+  { cle: 'vestiaire', nom: 'L\'effectif mince', texte: '3 cartes Soutien de plus au départ', soutiens: 3 },
   { cle: 'commanditaires', nom: 'Les commanditaires boudent', texte: '2 jetons de moins par victoire', victoire: -2 },
-  { cle: 'impatient', nom: 'Le proprio impatient', texte: 'chaque mandat arrive une saison plus tôt', mandat: 1 },
-  { cle: 'partants', nom: 'Ceux qui partent', texte: 'une case de moins chez ceux qui restent', gardes: -1 },
-  { cle: 'serree', nom: 'La ceinture serrée', texte: '3 M$ d\'espace de moins encore', espace: -3_000_000 },
+  { cle: 'impatient', nom: 'Le proprio impatient', texte: 'les contrôles des actes serrés de 2 rangs', controles: -2 },
+  { cle: 'partants', nom: 'Ceux qui partent', texte: 'les rivaux plus haut : le 6e, le 2e, le plus fort', rivaux: 1 },
+  { cle: 'serree', nom: 'La ceinture serrée', texte: 'les séries plus dures : 1 étape d\'édition de plus à chaque club', series: 1 },
 ];
 /* Ce que `n` crans exigent ensemble : chaque canal additionné, et le multiple des médailles. */
 export function exigencesDe(n = 0) {
   const k = Math.max(0, Math.min(EXIGENCES.length, Math.floor(n || 0)));
-  const out = { n: k, espace: 0, prixPacks: 1, classeur: 0, soutiens: 0, victoire: 0, mandat: 0, gardes: 0, medailles: 1 + PRIME_EXIGENCE * k };
-  for (const E of EXIGENCES.slice(0, k)) for (const c of ['espace', 'prixPacks', 'classeur', 'soutiens', 'victoire', 'mandat', 'gardes']) out[c] += E[c] || 0;
+  const out = { n: k, espace: 0, prixPacks: 1, classeur: 0, soutiens: 0, victoire: 0, controles: 0, rivaux: 0, series: 0, medailles: 1 + PRIME_EXIGENCE * k };
+  for (const E of EXIGENCES.slice(0, k)) for (const c of ['espace', 'prixPacks', 'classeur', 'soutiens', 'victoire', 'controles', 'rivaux', 'series']) out[c] += E[c] || 0;
   return out;
 }
 /* Le plus haut cran qu'une run peut prendre : aucun avant ta première Coupe, puis un de plus que le plus haut gagné. */
@@ -807,22 +729,10 @@ export const exigencesOuvertes = m => ((m && m.coupes) ? Math.min(EXIGENCES.leng
  * choisir les clubs à leur vrai bilan ne bougeait presque rien. Les premiers niveaux devaient prendre « les plus
  * faibles d'un tirage plus large » : le tri n'a jamais trié (NaN), et trier pour vrai donnait la Coupe au robot dès
  * la run 1 (JP, 27 oct. : *on a été vraiment plus fort qu'on aurait dû*) — retiré, docs/decisions.md.
- * LA DEUXIÈME RUN EST PLUS DURE (31 oct. ; JP : *plus tough la deuxième run*) : la première run joue la ligue nue de son
- * niveau ; dès la deuxième, chaque club adverse porte `ETAPE_APRES_LA_PREMIERE` étape d'édition de plus, fixée au
- * départ de la run comme le prestige (`G.rogue.etapeDeRun`). Mesuré (check_profondeur, quatre campagnes) : sans elle,
- * l'attentif qui lit ses adjoints et son coach gagnait sa première Coupe à la run 2 une fois sur deux, en runs de 4 à
- * 6 saisons au niveau le plus bas. Une marche, pas une pente : la ligue ne monte pas à chaque run (docs/decisions.md).
  */
 export const NIVEAUX_PLEINS = 2;
 export const ETAPES_PAR_CRAN = 2;
-export const ETAPE_APRES_LA_PREMIERE = 1;
 export const niveauDeLigue = (rang = 0, exigence = 0) => Math.max(0, (rang || 0) + ETAPES_PAR_CRAN * (exigence || 0));
-/*
- * L'étape de plus que porte la ligue d'une run : aucune à la première saison de la première run, `ETAPE_APRES_LA_PREMIERE`
- * ensuite — dès la deuxième run, et dès la deuxième saison de la première (lot 5, nov. 2026 : la première saison laisse
- * bâtir, `MANDAT_DE_LA_PREMIERE` ; sans la marche, l'attentif qui la passait gagnait la Coupe dès la run 1).
- */
-export const etapeDeLaRun = (run = 1, saison = 1) => ((run || 1) > 1 || (saison || 1) > 1 ? ETAPE_APRES_LA_PREMIERE : 0);
 /* L'étape des éditions d'un niveau de ligue, plus celle de la run. */
 export const ligueDe = (niveau, etapeDeRun = 0) => ({ etape: Math.max(0, (niveau || 0) - NIVEAUX_PLEINS) + (etapeDeRun || 0) });
 /* L'édition d'un adversaire, au rang `r` de son club (0 : son meilleur) sur `n` : un tiers de plus du club par étape. */

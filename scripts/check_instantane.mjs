@@ -18,12 +18,15 @@ import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouer
 import { generateur } from '../js/util.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, verdict } from './verdict.mjs';
+import { poserLesRivaux } from '../js/actes.js';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const saisons = fs.readdirSync(DIR).filter(x => /^\d{4}.*\.json$/.test(x)).sort();
 const GROS = Number(process.env.GROS || 3);
+// V27 : les gros matchs sont les rivaux de la run, posés dans la cédule par le Rogue (le crochet `placer`).
+const EN_ACTES = { placer: X => poserLesRivaux(X) };
 
 const choix = generateur('check_instantane');
 const vestiaires = [], vus = new Set();
@@ -65,7 +68,7 @@ function empreinte(L, jusqua) {
 
 // Une ligue rembobinée à chaque entracte : trois plans par duel, pris l'un après l'autre comme au jeu.
 const des = { matins: [], soirs: [], series: {} };
-const A = creerLigue(equipes(), 82, { graine: 'inst', decisions: [], courbe: true, des, instantanes: true });
+const A = creerLigue(equipes(), 82, { graine: 'inst', ...EN_ACTES, decisions: [], courbe: true, des, instantanes: true });
 const decisions = [];
 let pris = 0, rembobines = 0, refus = 0;
 const jours = [];
@@ -89,7 +92,7 @@ exiger('chaque entracte se rembobine (aucun rejeu de la graine)', rembobines ===
 exiger('l\'instantané se reprend après le rembobinage', !!A._instant || pris === 0);
 
 // La même ligue rejouée de la graine, avec les décisions de A et ses dés : ce que le jeu faisait avant.
-const B = creerLigue(equipes(), 82, { graine: 'inst', decisions: A.decisions.slice(), courbe: true, des: structuredClone(des) });
+const B = creerLigue(equipes(), 82, { graine: 'inst', ...EN_ACTES, decisions: A.decisions.slice(), courbe: true, des: structuredClone(des) });
 jouerJusqua(B, fin);
 const eA = empreinte(A, fin), eB = empreinte(B, fin);
 const diff = eA.findIndex((x, i) => x !== eB[i]);
@@ -97,7 +100,7 @@ exiger('la saison rembobinée est la saison rejouée, au caractère près', diff
   diff < 0 ? `${eA.length} lignes, ${fin} journées` : `ligne ${diff} :\n    ${String(eA[diff]).slice(0, 300)}\n    ${String(eB[diff]).slice(0, 300)}`);
 
 // Le témoin : sans les plans des entractes, la saison n'est pas la même — sinon le test ne prouve rien.
-const C = creerLigue(equipes(), 82, { graine: 'inst', decisions: A.decisions.filter(d => !d.duel), courbe: true, des: structuredClone(des) });
+const C = creerLigue(equipes(), 82, { graine: 'inst', ...EN_ACTES, decisions: A.decisions.filter(d => !d.duel), courbe: true, des: structuredClone(des) });
 jouerJusqua(C, fin);
 exiger('le témoin : sans les plans des entractes, la saison change', empreinte(C, fin).some((x, i) => x !== eA[i]));
 
@@ -131,7 +134,7 @@ for (let garde = 0; !SA.fini && garde < 40 && duelsS < 4; garde++) {
   duelsS++;
 }
 exiger('chaque entracte de séries se rembobine', duelsS > 0 && rembS === 2 * duelsS, `${duelsS} matchs de ta série, ${rembS} rembobinés`);
-const B2 = jouerJusqua(creerLigue(equipes(), 82, { graine: 'inst', decisions: A.decisions.slice(), courbe: true, des: structuredClone(des) }), Infinity);
+const B2 = jouerJusqua(creerLigue(equipes(), 82, { graine: 'inst', ...EN_ACTES, decisions: A.decisions.slice(), courbe: true, des: structuredClone(des) }), Infinity);
 const SB = creerSeries(qualifies(B2), { ligue: B2, graine: B2.graine, decisions: SA.decisions.slice(), equipes: B2.teams, des: structuredClone(des.series) });
 while (!SB.fini && (SB.ronde < SA.ronde || (SB.ronde === SA.ronde && SB.k < SA.k))) jouerMatchSeries(SB);
 const sA = empreinteSeries(SA), sB = empreinteSeries(SB);

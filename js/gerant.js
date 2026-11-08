@@ -386,7 +386,7 @@ function nommer({ joueur = null, joueurs = [], ouDe = null }) {
  * UNE SCÈNE (Jalon M, js/scenes.js) : la réplique d'une voix entre guillemets, et le fait sous elle. Dans À faire, la
  * voix est déjà dans la bande du choix ; ailleurs (le duel), `voix` la dit en tête.
  */
-export function sceneHtml(sc, { voix = false } = {}) {
+function sceneHtml(sc, { voix = false } = {}) {
   return `<blockquote class="scene">${voix ? `<span class="scene-de">${glyphe(sc.de.ico)} ${esc(sc.de.nom)}</span>` : ''}<p class="scene-mot">« ${esc(sc.mot)} »</p><p class="scene-fait">${esc(sc.fait)}</p></blockquote>`;
 }
 
@@ -414,8 +414,6 @@ export function ouvrirChoix(spec) {
   const BADGE = { evenement: 'Événement', recompense: 'Butin', entracte: 'Gros match' };
   // QUI LE DEMANDE (V21, la Boîte en plein écran) : la scène dit sa voix ; sans scène, la voix se dit sous le titre.
   const irl = spec.irl || (spec.de && spec.de.nom && !spec.scene ? `${spec.de.ico} ${spec.de.nom}` : '');
-  // LES RIVAUX (`multi`) se cochent un à un, sur place, et partent au dernier ; `onCoche` garde le brouillon si on ferme avant.
-  const coches = [].concat(spec.coches || []).map(String);
   const badgeTxt = spec.regle && spec.genre === 'evenement' ? 'Événement · Règlement' : (BADGE[spec.genre] || '');
   const badge = badgeTxt ? `<div class="choix-badge">${badgeTxt}</div>` : '';
   m.innerHTML = `<div class="choix-sheet${chiffresOuverts() ? ' chiffres' : ''}${spec.cartes ? ' choix-cartes' : ''}${scellee ? ' paquet-ferme' : pile ? ' paquet-pile' : ''}${auxCouleurs(spec.couleurs)}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''}${spec.boite ? ` data-msg="${esc(spec.boite.msg)}" data-maison="${esc(spec.boite.maison)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
@@ -444,7 +442,7 @@ export function ouvrirChoix(spec) {
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: pile, r: pile ? rangDe(i) : null, meilleure: pile && rangDe(i) === ordre.length - 1 && (rangDOption(o) >= 3 || !!o.eclat),
           joueurHtml: o.joueurHtml || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
-          lecture: !!spec.lecture, classe: o.ouvre ? 'ouvre' : '', on: coches.includes(String(o.cle)),
+          lecture: !!spec.lecture, classe: o.ouvre ? 'ouvre' : '',
         });
       }).join('')}</div>
       ${spec.options.length ? '' : `<p class="empty-msg">${esc(spec.vide || 'Rien ici.')}</p>`}
@@ -487,16 +485,6 @@ export function ouvrirChoix(spec) {
     const carte = b.closest('.choix-option') || b;
     b.onclick = () => {
       if (o && o.pari && typeof spec.lancer === 'function') { sceneDuDe(m, spec, o, sub, fermer); return; }
-      if (spec.multi > 1 && o) {
-        const k = String(o.cle), i = coches.indexOf(k);
-        if (i >= 0) coches.splice(i, 1); else coches.push(k);
-        jouerSon('joue');
-        if (coches.length >= spec.multi) { fermer(true); spec.onChoix(coches.map(c => spec.options.find(x => String(x.cle) === c).cle)); return; }
-        carte.classList.toggle('on', i < 0);
-        if (i < 0) b.setAttribute('aria-pressed', 'true'); else b.removeAttribute('aria-pressed');
-        if (spec.onCoche) spec.onCoche(coches.map(c => spec.options.find(x => String(x.cle) === c).cle));
-        return;
-      }
       // LA CARTE JOUÉE (V23) : elle s'envole le temps d'un geste, puis le choix part ; sous `prefers-reduced-motion`, tout de suite.
       if (envoyee) return;
       envoyee = true;

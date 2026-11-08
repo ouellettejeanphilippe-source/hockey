@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, etapeDeLaRun, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, primesDuCoach, salairesDesAdjoints, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
+import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, payerJalons, ecussonsDesSeries, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, primesDuCoach, salairesDesAdjoints, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, motDeLaLigue, niveauDeLigue, habillerLaLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { coachDuJoueur } from './greffes.js';
@@ -20,8 +20,8 @@ import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { venteDuDoublon, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, SEMAINE } from './inventaire.js';
-import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi, coachAuCartable, coachsDuCartable } from './cartable.js';
-import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml } from './gerant.js';
+import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, coachAuCartable, coachsDuCartable } from './cartable.js';
+import { ouvrirChoix, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { ETOILE, PHENOMENE, niveauDe, NIVEAUX, nomDuNiveau } from './niveaux.js';
 import { artJoueur, photoAction, cadrePhoto, epoqueDe, serieDe, SERIES } from './cartes.js';
@@ -30,9 +30,8 @@ import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
 import { pic } from './mouvement.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
-import { galonsDeLaSaison, grosGagnesDe, GALONS_MAX, ICO_GALON } from './galons.js';
-import { sceneDuMandat } from './scenes.js';
-import { sortiesDe, memoireDeLaRun } from './histoires.js';
+import { galonsDeLaSaison, grosGagnesDe } from './galons.js';
+import { etatDeLaRun, etapeDesSeries, MEDAILLES_ACTE, NOMS_DES_ACTES } from './actes.js';
 import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { marche } from './composants.js';
@@ -85,8 +84,7 @@ function resultatsRogue(j) {
     const pour = m.A === toi ? m.gfA : m.gfB, contre = m.A === toi ? m.gfB : m.gfA;
     if (pour > contre) W++; else if (m.ot) P++; else D++;
   }
-  // V8 : un rival choisi paie son butin (un multiple du gros match) ; les autres gros matchs, un.
-  const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0);
+  // V27 (devis § 4.3) : un rival battu ne paie aucun jeton — il paie en pièce et en médailles.
   // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`) : (`place` ou `carte`, des vieilles parties).
   const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && (d.place || d.carte)).length;
   // 1.0 (J1-C) : les rondes de séries gagnées (`finDesSeriesRogue` les pose) — la prime `JETONS.serie` se verse enfin.
@@ -94,7 +92,7 @@ function resultatsRogue(j) {
   // V3.6 : la prime des fils (le Cheechoo, le jalon…), en Rogue seulement.
   // V23 : la règle du coach paie (`primesDuCoach`), les adjoints en poste se paient (`salairesDesAdjoints`).
   const primes = G.bonus === 'ROGUE' ? primesDesFils(L.calendrier, toi, j).total + primesDuCoach(L.calendrier, toi, j).total - salairesDesAdjoints(L.calendrier, toi, j).total : 0;
-  return { W, L: D, OTL: P, gros, objectifs, series, primes };
+  return { W, L: D, OTL: P, objectifs, series, primes };
 }
 /*
  * LES JETONS DE LA PARTIE (S79), dans les DEUX modes : les résultats
@@ -992,7 +990,7 @@ export async function ouvrirRogue() {
   // La ligue qui monte (tranche 8) : ton prestige la règle, chaque cran la monte ; le départ la dit.
   const rangRun = rangDePrestige(meta);
   const crans = Array.from({ length: ouvertes }, (_, i) => i + 1).map(n => ({ cle: `e${n}`, ico: ICO_EXIGENCE, nom: `Exigence ${n} : ${EXIGENCES[n - 1].nom}`,
-    sous: `Ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, n), 23, etapeDeLaRun(run))}`,
+    sous: `Ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, n), 23)}`,
     bon: `${Math.round(100 * PRIME_EXIGENCE * n)} % de médailles de plus`, prix: `${EXIGENCES[n - 1].texte}${n > 1 ? ', en plus des précédentes' : ''}` }));
   const go = await new Promise(resolve => ouvrirChoix({
     ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant', compact: crans.length > 2,
@@ -1003,7 +1001,7 @@ export async function ouvrirRogue() {
         meta.vedette ? '★ ton joueur de concession' : '', nCartable && D.n ? `📒 ton classeur : ${motDesCases(D.cases)}` : '',
         `🛒 ${BOUTIQUE.filter(k => packsOuverts(meta)[k] === true).length} packs ouverts à la boutique sur ${BOUTIQUE.length}`,
         R.cases.length && (meta.derniereEquipe || []).length ? `🤝 ta dernière équipe : ${motDesCases(R.cases)}` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
-        `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0), 23, etapeDeLaRun(run))}`].filter(Boolean).join(' · '),
+        `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0), 23)}`].filter(Boolean).join(' · '),
       sous: meta.runs ? `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` : '' }, ...crans],
     onChoix: cle => resolve(cle === 'go' ? 0 : Number(String(cle).slice(1))),
     onFerme: () => resolve(false),
@@ -1174,8 +1172,6 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     depart: jetonsDeDepart(meta), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta, exigence, { reel: true }),
     // S80 : la run sur plusieurs saisons, ses cases de réserve, et ce que le classeur a donné ; V9 (tranche 8) : son cran d'exigence, fixé.
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigence), exigence,
-    // 31 oct. : la deuxième run est plus dure — l'étape d'édition de plus de sa ligue, fixée ici (js/rogue.js `etapeDeLaRun`).
-    etapeDeRun: etapeDeLaRun(m.runs),
     // V21 : le coach de la run, un personnage (js/pouvoirs.js) — son expérience et ses choix passent d'une saison à
     // l'autre (`perso`, la décision du jour 0, js/banc.js) — et le prestige du club, FIXÉ pour la run (js/rogue.js
     // `PRESTIGES`) : un rang gagné en route sert la suivante.
@@ -1190,7 +1186,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
   setView('roster');
   const noms = [...gardes.map(p => p.n), ...tires.map(x => x.p.n)];
   // Une ligne de comptes, pas un paragraphe (5 nov. 2026, l'audit d'unslop) : le bouton dit déjà « Lance la saison ».
-  toast(`${motDuVestiaire(V)}${noms.length ? ` · ${noms.join(', ')}` : ''} · Le proprio veut : ${mandatDe(1, exigence, m.runs === 1).mot}`);
+  toast(`${motDuVestiaire(V)}${noms.length ? ` · ${noms.join(', ')}` : ''} · Acte I : le rival t'attend à ton 27e match`);
 }
 /*
  * LE PLAFOND D'UNE SAISON DE LA RUN : 82 M$, plus ce que le vestiaire a
@@ -1225,7 +1221,7 @@ function plafondDeDepart(meta, exigence = 0, { reel = false } = {}) {
  * s'en souvient), les jalons de la saison, et le sort de la run — le mandat
  * de la première saison se lit ici (les séries), les autres aux séries.
  */
-export const numeroDeSaison = () => (G.rogue && G.rogue.saison) || 1;
+const numeroDeSaison = () => (G.rogue && G.rogue.saison) || 1;
 /*
  * MOMENTS LÉGENDAIRES (v2) : quatre exploits qui se gravent sur la carte d'un
  * joueur à la fin de la saison. Ils lisent les feuilles du calendrier régulier
@@ -1311,19 +1307,20 @@ function direJalons(payes) {
 }
 /* Le cran d'exigence de la run en cours (tranche 8) ; une run d'avant n'en a pas. */
 const exigenceDeLaRun = () => (G.bonus === 'ROGUE' && G.rogue && G.rogue.exigence) || 0;
-/* La première run de la partie (nov. 2026) : son proprio laisse une saison pour bâtir (js/rogue.js `MANDAT_DE_LA_PREMIERE`). */
-export const premiereRun = () => !!(G.bonus === 'ROGUE' && G.rogue && G.rogue.numero === 1);
 /* 1.0 (R7) : les écussons gagnés par CETTE run, cumulés au moment où ils se paient (exacts, jamais recalculés). */
 function compterEcussonsRun(n) { if (n && G.rogue) G.rogue.ecussonsRun = (G.rogue.ecussonsRun || 0) + n; }
 export function finDeSaisonRogue() {
   if (G.bonus !== 'ROGUE' || !G.ligue || !G.ligue.you) return;
   const t = G.ligue.you;
   const f = faitsDeLaSaison();
-  const n = payerEcussons(G.ligue.graine, 'saison', ecussonsDeLaSaison(f.pts) * exigencesDe(exigenceDeLaRun()).medailles, {
+  // V27 : l'acte III se paie à la fin de la saison — sa place en séries, son rival battu (devis § 4.8).
+  const x3 = ((etatDuMoteur() || {}).actes || []).find(x => x.acte === 2);
+  const base = (f.series ? MEDAILLES_ACTE.passe : 0) + (x3 && x3.gagne ? MEDAILLES_ACTE.rival : 0);
+  const n = payerEcussons(G.ligue.graine, 'saison', base * exigencesDe(exigenceDeLaRun()).medailles, {
     equipe: Object.values(G.roster || {}).filter(Boolean).map(getPlayerKey),
     bilan: { pts: f.pts, W: t.W, L: t.L, OTL: t.OTL },
   });
-  if (n) setTimeout(() => toast(`🏅 +${n} médailles pour ta saison (${f.pts} points) — dépense-les aux déblocages.`, '', { attendre: true }), 900);
+  if (n) setTimeout(() => toast(`🏅 +${n} médailles pour ton acte III — dépense-les aux déblocages.`, '', { attendre: true }), 900);
   compterEcussonsRun(n);
   modsAuCartable();
   // 1.0 : LA PRIME DE DÉCOUVERTE — chaque carte qui finit sa première saison avec toi (une fois pour toujours).
@@ -1365,14 +1362,7 @@ function graverLaSaisonRogue(t) {
   if (mots.length) setTimeout(() => toast(`Au panthéon : ${mots.join(' · ')}.`, '', { attendre: true }), 3600);
 }
 const nomDe = cle => ((Object.values((G.ligue && G.ligue.you && G.ligue.you.roster) || {}).find(p => p && getPlayerKey(p) === cle)) || {}).n || cle;
-/* Son histoire chez toi, en une ligne, avant de trancher qui reste (V9, tranche 7) : ses saisons, ses chiffres, ses galons. */
-const histoireCourte = p => {
-  const h = histoireChezToi(getPlayerKey(p));
-  if (!h.length) return '';
-  const t = h.reduce((a, e) => ({ g: a.g + (e.g || 0), pts: a.pts + (e.pts || 0), w: a.w + (e.w || 0), galons: a.galons + (e.galons || []).length }), { g: 0, pts: 0, w: 0, galons: 0 });
-  return `Chez toi : ${h.length} saison${h.length > 1 ? 's' : ''}, ${p.p === 'G' ? `${t.w} victoires` : `${t.g} buts, ${t.pts} points`}${t.galons ? ` · ${ICO_GALON} ${t.galons}` : ''}`;
-};
-/* Et ceux des séries : dix par ronde gagnée, vingt de plus pour la Coupe ; les jalons des séries ; le sort de la run. */
+/* Et ceux des séries : vingt par ronde gagnée, quarante de plus pour la Coupe (V27) ; les jalons des séries ; le sort de la run. */
 export function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
   if (G.bonus !== 'ROGUE' || !G.ligue) return;
   G.rogue = G.rogue || {};
@@ -1404,27 +1394,53 @@ export function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
   majRunRogue();
 }
 /*
- * LE SORT DE LA RUN (S80), lu dans les résultats : 'attente' (la saison ou
- * les séries se jouent encore), 'continue' (mandat rempli), 'finie' (mandat
- * manqué), 'gagnee' (la Coupe).
+ * L'ÉTAT DE LA RUN (V27, js/actes.js `etatDeLaRun`) : les actes finis, les cœurs, la run morte — lus dans la cédule jouée
+ * du moteur, jamais sauvegardés (une reprise relit le même état).
+ */
+function etatDuMoteur() {
+  const L = G.ligue, M = L && L.moteur;
+  if (G.bonus !== 'ROGUE' || !M || !L.you) return null;
+  return etatDeLaRun({ calendrier: M.calendrier, teams: M.teams, you: L.you, rivaux: M.rivaux || [], jour: Math.min(G.journee || 0, M.calendrier.length), exigence: exigenceDeLaRun() });
+}
+/*
+ * LES MÉDAILLES D'UN ACTE (devis § 4.8) : 10 l'acte passé, 15 le rival battu, au multiple des exigences ; payées une fois
+ * (`payerEcussons`, la clé de l'acte), quand son soir se referme dans la boîte, ou à la fin de la run.
+ */
+export function payerLActe(x) {
+  if (G.bonus !== 'ROGUE' || !G.ligue || !x) return 0;
+  const base = (x.tenu === false ? 0 : MEDAILLES_ACTE.passe) + (x.gagne ? MEDAILLES_ACTE.rival : 0);
+  const n = payerEcussons(G.ligue.graine, `acte${x.acte}`, base * exigencesDe(exigenceDeLaRun()).medailles);
+  compterEcussonsRun(n);
+  if (n) saveGame();
+  return n;
+}
+/*
+ * LE SORT DE LA RUN (V27) : 'attente' (la saison ou les séries se jouent encore), 'finie' (0 ❤️, l'acte III raté ou une
+ * série perdue), 'gagnee' (la Coupe). La run est une saison : plus de saison de plus, plus de mandat.
  */
 function sortDeLaRun() {
   const L = G.ligue;
-  if (!L || !L.you || !L.calendrier || (G.journee || 0) < L.calendrier.length) return 'attente';
-  const f = faitsDeLaSaison();
-  // Nov. 2026 : sans les séries, la saison finit ici ; le mandat de la première saison de la première run peut quand même tenir.
-  if (!f.series) return mandatRempli(numeroDeSaison(), { series: false, rang: f.rang, nEquipes: (L.teams || []).length, exigence: exigenceDeLaRun(), premiere: premiereRun() }) ? 'continue' : 'finie';
+  if (!L || !L.you || !L.calendrier) return 'attente';
+  const E = etatDuMoteur();
+  if (E && E.mort) return 'finie';
+  if ((G.journee || 0) < L.calendrier.length) return 'attente';
+  if (!faitsDeLaSaison().series) return 'finie';
   const s = G.rogue && G.rogue.series;
-  if (!s) return 'attente';
-  if (s.coupe) return 'gagnee';
-  // V5 : le mandat se lit au classement de la saison régulière ; les séries ne le défont pas.
-  return mandatRempli(numeroDeSaison(), { series: true, rang: f.rang, nEquipes: (L.teams || []).length, exigence: exigenceDeLaRun(), premiere: premiereRun() }) ? 'continue' : 'finie';
+  return !s ? 'attente' : s.coupe ? 'gagnee' : 'finie';
+}
+/* La cause de la fin, en une ligne (devis § 4.11, la maquette 8) : le titre en gros, la ligne dessous. */
+const RONDES_PERDUES = ['Éliminés en première ronde', 'Éliminés en deuxième ronde', 'Éliminés en demi-finale', 'Perdu en finale'];
+function causeDeLaFin(E, f, s) {
+  if (E && E.mort) {
+    const rates = E.actes.filter(x => x.tenu === false), d = rates.at(-1);
+    return { titre: 'Plus de cœurs', ligne: rates.length >= 2 ? 'Deux contrôles ratés' : `${d.rang}e, il fallait ${d.cible}e` };
+  }
+  if (!f.series) return { titre: 'Pas de séries', ligne: `${f.rang}e, il fallait ${nombreEnSeries((G.ligue.teams || []).length)}e` };
+  return { titre: RONDES_PERDUES[Math.min(3, (s && s.rondes) || 0)], ligne: `${f.rang}e en saison` };
 }
 /*
- * LA RUN AU BILAN : quelle saison, ce que le proprio voulait, et ce qui
- * vient — la saison suivante, ou une autre run. « Rejouer la saison » n'a
- * pas de sens dans une run (ce serait relancer les dés d'une saison ratée) :
- * il disparaît, et « Nouvelle partie » devient « Nouvelle run ».
+ * LA RUN AU BILAN : où elle en est, et ce qui vient — la Coupe, ou une run neuve. « Rejouer la saison » n'a pas de sens
+ * dans une run (ce serait relancer les dés d'une saison ratée) : il disparaît.
  */
 export function majRunRogue() {
   if (G.bonus !== 'ROGUE') return;
@@ -1433,60 +1449,42 @@ export function majRunRogue() {
   for (const id of ['replayBtn', 'againBtn']) { const b = $(id); if (b) b.hidden = true; }
   let bloc = res.querySelector('.rg-run');
   if (!bloc) { bloc = document.createElement('div'); bloc.className = 'rg-run'; res.querySelector('.result-actions')?.after(bloc); }
-  const sort = sortDeLaRun();
-  const n = numeroDeSaison(), M = mandatDe(n, exigenceDeLaRun(), premiereRun()), suivant = mandatDe(n + 1, exigenceDeLaRun(), premiereRun());
-  const s = (G.rogue && G.rogue.series) || null;
-  const mots = {
-    attente: (() => {
-      const f = faitsDeLaSaison();
-      if (!f.series) return `Le proprio veut : ${M.mot}. Le but de la run : la Coupe.`;
-      const ok = mandatRempli(n, { series: true, rang: f.rang, nEquipes: (G.ligue.teams || []).length, exigence: exigenceDeLaRun(), premiere: premiereRun() });
-      return `Le proprio voulait : ${M.mot} — ${ok ? 'c\'est fait, la run continuera' : `raté (${f.rang}e)`}. Les séries peuvent encore te donner la Coupe.`;
-    })(),
-    continue: `Mandat rempli : ${M.mot}. La run continue ; la saison ${n + 1}, le proprio voudra : ${suivant.mot}.`,
-    finie: `Mandat manqué — il fallait ${M.mot}. La run est finie après ${n} saison${n > 1 ? 's' : ''}. Tes médailles, tes jalons et ton cartable restent.`,
-    gagnee: `La Coupe Stanley, à la saison ${n} de la run : la run est gagnée ! Tes médailles, tes jalons et ton cartable restent.`,
-  };
+  const sort = sortDeLaRun(), s = (G.rogue && G.rogue.series) || null;
+  const c = sort === 'finie' ? causeDeLaFin(etatDuMoteur(), faitsDeLaSaison(), s) : null;
+  const mot = sort === 'gagnee' ? 'La Coupe Stanley : la run est gagnée.' : c ? `${c.titre} : ${c.ligne}.` : 'Les séries : la Coupe gagne la run, une série perdue la finit.';
   bloc.className = `rg-run ${sort}`;
-  bloc.innerHTML = `<div class="rg-run-tete"><span>${sort === 'gagnee' ? '🏆' : sort === 'finie' ? '🚪' : '💀'} Run ${(G.rogue && G.rogue.numero) || ''} · saison ${n}</span>
+  bloc.innerHTML = `<div class="rg-run-tete"><span>${sort === 'gagnee' ? '🏆' : sort === 'finie' ? '🚪' : '⚔'} Run ${(G.rogue && G.rogue.numero) || ''}</span>
       <small>${s ? `${s.rondes} ronde${s.rondes > 1 ? 's' : ''} gagnée${s.rondes > 1 ? 's' : ''}` : ''}</small></div>
-    <p class="rg-run-mot">${esc(mots[sort])}</p>
-    ${sort === 'continue' ? sceneHtml(sceneDuMandat({ sort: 'rempli', fiche: { V: G.ligue.you.W || 0, D: G.ligue.you.L || 0, DP: G.ligue.you.OTL || 0 }, rang: faitsDeLaSaison().rang, equipes: (G.ligue.teams || []).length, mandat: M.mot, graine: `${G.ligue.graine}|${n}` }), { voix: true }) : ''}
-    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : un loto de tes joueurs par case (${motDesCases(gardesDeLaRun(lireMeta(), exigenceDeLaRun()).cases)}), un loto de ton cartable par case (${motDesCases(lotosDeSaison(lireMeta(), exigenceDeLaRun()).cases)}), et le reste vient de ton cartable, avec moins de ${NIVEAUX[0].nom} qu'à la saison d'avant. Chaque carte garde ses modifs. Ce qui te suit aussi : ton coach et ton personnel, tes jetons qui restent (plus ta caisse) et tes cartes rares.</p>` : ''}
+    <p class="rg-run-mot">${esc(mot)}</p>
     <div class="rg-run-boutons">
-      ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
-      ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
+      ${sort !== 'attente' ? '<button type="button" class="btn gold rg-nouvelle">Une run neuve</button>' : ''}
       <button type="button" class="btn rg-vestiaire">Les déblocages · ${lireMeta().ecussons || 0}</button>
     </div>`;
-  // 1.0 (R7) : la run finie ou gagnée s'ouvre UNE fois en plein écran, avant qu'on reparte.
-  if ((sort === 'finie' || sort === 'gagnee') && G.rogue && !G.rogue.taRunVue) montrerTaRun(sort, n, s);
-  const b1 = bloc.querySelector('.rg-suivante');
-  if (b1) b1.onclick = async () => {
-    if (sortDeLaRun() !== 'continue') return;
-    await choisirNouvelleEquipe(n + 1);
-  };
+  // La run finie ou gagnée s'ouvre UNE fois en plein écran, avant qu'on reparte.
+  if (sort !== 'attente' && G.rogue && !G.rogue.taRunVue) montrerLaFin(sort);
   const b2 = bloc.querySelector('.rg-nouvelle');
   if (b2) b2.onclick = () => contexteDuMenu().rogue.nouvelle();
   bloc.querySelector('.rg-vestiaire').onclick = () => ouvrirVestiaire(() => majRunRogue());
 }
-/*
- * « TA RUN » (1.0, R7) : un seul écran quand la run finit — les saisons jouées,
- * la Coupe ou le mandat manqué, les écussons gagnés par la run, les jalons
- * débloqués, les cartes entrées au cartable. Tout se lit dans le méta et dans
- * `G.rogue` (comptés au moment où ils se paient), rien n'est recalculé. Le
- * méta garde le résumé (`derniereRun`) pour le carton du menu.
- */
 const MOT_RONDES = ['éliminé au premier tour', 'éliminé au deuxième tour', 'éliminé en demi-finale', 'perdu en finale'];
 export function motDeRun(d) {
   if (d.coupe) return 'la Coupe 🏆';
+  if (d.mort) return 'sans cœurs';
   if (!d.series) return 'sans séries';
   return MOT_RONDES[Math.min(3, d.rondes || 0)];
 }
-function montrerTaRun(sort, n, s) {
+/*
+ * L'ÉCRAN DE FIN (V27, la maquette 8 ; JP : *montrer, pas dire*) : la cause en une ligne, puis chaque acte et son rival
+ * avec ses médailles, le total, et « Une run neuve ». La Coupe a son écran (`montrerLaCoupe`). Le méta garde le résumé
+ * (`derniereRun`) pour le carton du menu et le Palmarès. Une run morte en route (0 ❤️) passe ici le soir même (la boîte).
+ */
+export function montrerLaFin(sort = sortDeLaRun()) {
+  if (G.bonus !== 'ROGUE' || !G.rogue || !G.ligue) return;
+  const E = etatDuMoteur(), f = faitsDeLaSaison(), s = G.rogue.series || null;
+  // Les actes finis versent leurs médailles, s'ils ne l'ont pas fait dans la boîte.
+  for (const x of (E && E.actes) || []) if (x.acte < 2) payerLActe(x);
   const meta = lireMeta();
-  const f = faitsDeLaSaison();
-  const M = mandatDe(n, exigenceDeLaRun(), premiereRun());
-  const d = { numero: G.rogue.numero || meta.runs || 1, saisons: n, sort, series: !!f.series, rondes: (s && s.rondes) || 0, coupe: !!(s && s.coupe),
+  const d = { numero: G.rogue.numero || meta.runs || 1, saisons: 1, sort, mort: !!(E && E.mort), series: !!f.series && !(E && E.mort), rondes: (s && s.rondes) || 0, coupe: !!(s && s.coupe),
     ecussons: G.rogue.ecussonsRun || 0, jalons: G.rogue.jalonsRun || [], coach: G.rogue.coach || null };
   const nCartable = Object.keys(lireCartable().joueurs).length;
   const entrees = G.rogue.cartableDepart != null ? Math.max(0, nCartable - G.rogue.cartableDepart) : null;
@@ -1494,31 +1492,40 @@ function montrerTaRun(sort, n, s) {
   meta.derniereRun = d;
   // Tes runs, au Palmarès (V18-5) : une par numéro, qu'une saison rechargée ne compte pas deux fois.
   meta.lesRuns = { ...(meta.lesRuns || {}), [d.numero]: d };
-  // LA VITRINE (1.0) : chaque Coupe y entre, avec ses vedettes — V9 (tranche 7) : ce qu'ils ont fait CHEZ TOI, leurs points (un gardien, ses victoires).
+  // LA VITRINE (1.0) : chaque Coupe y entre, avec ses vedettes — ce qu'ils ont fait CHEZ TOI, leurs points (un gardien, ses victoires).
   const pts = p => (p.p === 'G' ? p.simW || 0 : p.simPTS || 0);
-  const vedettes = sort === 'gagnee' ? Object.values((G.ligue && G.ligue.you && G.ligue.you.roster) || {}).filter(Boolean).sort((a, b) => pts(b) - pts(a)).slice(0, 3) : [];
-  if (sort === 'gagnee') meta.vitrine = [...(meta.vitrine || []), { run: d.numero, saison: n, coach: G.rogue.coach || null, vedettes: vedettes.map(p => p.n) }];
+  const vedettes = sort === 'gagnee' ? Object.values((G.ligue.you && G.ligue.you.roster) || {}).filter(Boolean).sort((a, b) => pts(b) - pts(a)).slice(0, 3) : [];
+  if (sort === 'gagnee') meta.vitrine = [...(meta.vitrine || []), { run: d.numero, saison: 1, coach: G.rogue.coach || null, vedettes: vedettes.map(p => p.n) }];
   ecrireMeta(meta);
   saveGame();
   const ligne = (k, v) => `<div class="run-l"><span class="run-k">${esc(k)}</span><b class="run-v">${v}</b></div>`;
-  if (sort === 'gagnee') { montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable); return; }
-  // V23 G : le congédiement est un pic, comme la Coupe — la porte claque.
+  if (sort === 'gagnee') { montrerLaCoupe(d, 1, meta, vedettes, ligne, entrees, nCartable); return; }
+  const c = causeDeLaFin(E, f, s), M = exigencesDe(exigenceDeLaRun()).medailles;
+  const club = t => `<span class="fin-club">${getTeamLogoHtml(t.tag, t.season, 20)}${esc(t.tag)}</span>`;
+  const rang = x => `${x.rang}<sup>e</sup>${x.cible ? ` / ${x.cible}` : ''}`;
+  const lignes = ((E && E.actes) || []).flatMap(x => [
+    `<div class="fin-l${x.tenu === false ? ' rate' : ''}"><span>${NOMS_DES_ACTES[x.acte]}</span><span class="${x.tenu === false ? 'mal' : 'bon'}">${rang(x)}${x.tenu == null ? '' : x.tenu ? ' ✓' : ' ✗'}</span><span class="or">${x.tenu === false || x.acte === 2 ? '0' : `+${Math.round(MEDAILLES_ACTE.passe * M)}`}</span></div>`,
+    `<div class="fin-l"><span>${club(x.adv)} · Rival</span><span class="${x.gagne ? 'bon' : 'mal'}">${x.gagne ? 'Battu' : 'Perdu'}</span><span class="or">${x.gagne ? `+${Math.round(MEDAILLES_ACTE.rival * M)}` : '0'}</span></div>`]);
+  // La porte claque : la fin est un pic, comme la Coupe.
   setTimeout(() => pic(document.querySelector('.choix-sheet[data-genre="run"]')), 50);
   ouvrirChoix({
-    ico: sort === 'gagnee' ? '🏆' : '🚪', titre: 'Ta run', genre: 'run', fermable: true, motFermer: 'Compris',
-    irl: `Run ${d.numero} · ${n} saison${n > 1 ? 's' : ''}`,
-    recit: `Mandat manqué : il fallait ${esc(M.mot)}.`,
-    contexte: `${sceneHtml(sceneDuMandat({ sort: 'rate', fiche: { V: G.ligue.you.W || 0, D: G.ligue.you.L || 0, DP: G.ligue.you.OTL || 0 }, rang: f.rang, equipes: (G.ligue.teams || []).length, mandat: M.mot, graine: `${G.ligue.graine}|${n}` }), { voix: true })}
-      <div class="run-bilan">
-      ${ligne('Saisons jouées', n)}
-      ${ligne('Le sort', esc(motDeRun(d)))}
-      ${ligne('Médailles gagnées par la run', `🏅 +${d.ecussons}`)}
-      ${ligne('Jalons débloqués', d.jalons.length ? esc(d.jalons.join(' · ')) : 'aucun')}
-      ${entrees != null ? ligne('Cartes entrées au cartable', `📒 +${entrees}`) : ''}
-      ${ligne('Ton club', `🏅 ${meta.ecussons || 0} médailles · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''}`)}
-    </div>`,
-    options: [], onChoix: () => {},
+    ico: '🚪', titre: c.titre, genre: 'run', fermable: true, motFermer: 'Le bilan',
+    irl: `Fin de la run ${d.numero}`,
+    recit: c.ligne,
+    contexte: `<div class="fin-lignes">${lignes.join('')}</div>
+      <div class="fin-total"><span>Médailles</span><b>${d.ecussons}</b></div>
+      <div class="run-bilan">${entrees != null ? ligne('Cartes entrées au cartable', `📒 +${entrees}`) : ''}${ligne('Ton club', `🏅 ${meta.ecussons || 0} médailles · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''}`)}</div>`,
+    options: [{ cle: 'neuve', nom: 'Une run neuve' }], onChoix: () => contexteDuMenu().rogue.nouvelle(),
   });
+}
+/*
+ * LES SÉRIES PLUS DURES (V27, js/actes.js `etapeDesSeries`) : au premier match des séries, chaque club qualifié, sauf toi,
+ * monte de ses étapes d'édition (le canal de la ligue qui monte, `habillerLaLigue`). Sans dé : une reprise rhabille pareil.
+ */
+export function avantLesSeriesRogue(qualifies) {
+  if (G.bonus !== 'ROGUE' || !G.rogue) return;
+  const ex = exigenceDeLaRun();
+  habillerLaLigue(qualifies.filter(t => !t.isPlayer), niveauDeLigue(G.rogue.prestige || 0, ex), p => getHiddenRatings(p).v, etapeDesSeries(ex));
 }
 /*
  * LA COUPE (1.0). JP : *gagner la coupe devrait être genre la victoire finale
@@ -1551,22 +1558,6 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
   });
 }
 /*
- * LA SAISON SUIVANTE DE LA RUN (S80). JP : *nouvelle saison veut dire
- * continuer avec base des cartes ramassé qui sont pas des consommables*.
- * Ce qui continue, et comment :
- *   - l'ÉQUIPE SE DÉFAIT (1.0) : JP, *pas repartir avec la même équipe, mais
- *     pouvoir garder un ou des joueurs de l'ancienne équipe*. Les GARDÉS
- *     (`choisirGardesDeSaison`) passent devant ; le reste se tire du classeur
- *     (`vestiaireDeDepart`), avec moins de Soutien qu'à la saison d'avant ;
- *   - les MODIFS posées vivent sur leur carte (`modsAuCartable`) : chaque carte
- *     de l'équipe neuve rejoue les siennes au jour 0 (`reportDesCartes`) ;
- *   - les JETONS qui restent, plus la caisse du vestiaire ;
- *   - le PLAFOND est celui d'un départ de run (`plafondDeDepart`).
- * Le personnel et les cartes permanentes vivent déjà dans le méta. La POCHE
- * (Jalon Q) suit aussi : ses cartes pas jouées entrent au jour 0 de la saison
- * neuve (`poche`, une décision de report, js/inventaire.js `cartesDeLaPartie`).
- */
-/*
  * LES MODIFS QUI VIVENT SUR LA CARTE (1.0, js/cartable.js `poserSurLesCartes`) :
  * améliorations, styles, contrats et éditions de l'atelier. Le physio soigne
  * une fois ; le lustre passe par la variante de la carte.
@@ -1596,116 +1587,6 @@ function reportDesCartes(roster) {
     for (const cle of modsDe(k, c)) if (MUTATIONS[cle]) out.push({ jour: 0, mutation: { cle, joueur: k }, report: true });
   }
   return out;
-}
-/*
- * CEUX QUI RESTENT (JP, 24 oct. : *la saison suivante me permettait de prendre cinq joueurs, c'est brisé*) : les
- * cases de `gardesDeLaRun` (js/rogue.js), chacune un loto de trois joueurs de ton équipe de la saison finie, d'un
- * niveau ; leurs salaires ensemble dans le budget du classeur. Ton joueur de concession reste à part, sans loto :
- * il ouvre la liste rendue.
- */
-async function choisirGardesDeSaison(saison) {
-  const meta = lireMeta();
-  const vedette = meta.vedette ? signes().find(p => p && getPlayerKey(p) === meta.vedette) : null;
-  const equipe = signes().filter(p => p && p !== vedette);
-  const cartes = await Promise.all(equipe.map(async p => ({ cle: getPlayerKey(p), p, niveau: niveauDe(p, (await getShard(p.s)).players) })));
-  const R = gardesDeLaRun(meta, exigenceDeLaRun());
-  const gardes = await lotosParCase({
-    cases: R.cases, vues: R.vues, cartes, graine: `${graineDuClasseur()}:g${saison}`, budget: budgetDuClasseur(meta),
-    personnes: new Set(vedette ? [getPersonKey(vedette)] : []), qui: p => [quiEst(p), histoireCourte(p)].filter(Boolean).join(' · '),
-    textes: ({ i, n, k, niveau, vus, dernier }) => ({
-      ico: '🤝', titre: `Ceux qui restent · ${nomDeCase(k)}`, irl: `Saison ${saison} de la run${n > 1 ? ` · case ${i + 1} de ${n}` : ''}`,
-      recit: `${motDeLaDescente(k, niveau, 'joueur')}Ton équipe se défait. Le loto tire ${vus} de tes joueurs ${nomDeCase(niveau)} : garde-en un, ou laisse-les partir.`,
-      budget: '🤝 Budget des gardés', plein: 'Tu gardes déjà ton joueur de ce loto',
-      partir: pris => (pris ? (dernier ? `Saison ${saison}` : 'Loto suivant') : 'Les laisser partir'),
-    }),
-  });
-  return [...(vedette ? [vedette] : []), ...gardes.map(x => x.p)];
-}
-/*
- * LE LOTO DU CARTABLE (Jalon Q). JP : *présentement, la grosse liste, ça suce, faque je dirais x loto à même mes
- * joueurs*. Entre deux saisons, plus de repêchage de cinquante cartes : les cases de `lotosDeSaison` (js/rogue.js),
- * chacune un loto de TON cartable, sous le budget du classeur moins tes gardés, dont tu signes une carte, ou
- * aucune. Le reste de l'équipe se tire du cartable comme au départ d'une run (`vestiaireDeDepart`), comme le robot
- * le joue (scripts/lib/rogue_sim.mjs). Le tirage est pur (la graine du classeur, la saison, la case).
- */
-async function lotoDuCartable(gardes = [], saison = 2) {
-  const meta = lireMeta();
-  const L = lotosDeSaison(meta, exigenceDeLaRun());
-  const budget = budgetDuClasseur(meta) - gardes.reduce((a, p) => a + (p.$ || 0), 0);
-  if (!L.n || budget <= 0 || !Object.keys(lireCartable().joueurs).length) return [];
-  const cartes = await sousVoile('On brasse le loto…', cartesDuCartable);
-  const pris = await lotosParCase({
-    cases: L.cases, vues: L.vues, cartes, graine: `${graineDuClasseur()}:s${saison}`, budget, personnes: new Set(gardes.map(getPersonKey)), qui: p => quiEst(p),
-    textes: ({ i, n, k, niveau, vus, dernier }) => ({
-      ico: '🎰', titre: `Le loto du cartable · ${nomDeCase(k)}`, irl: `Saison ${saison} de la run · ${i + 1} de ${n}`,
-      recit: `${motDeLaDescente(k, niveau, 'carte')}Le loto tire ${vus} carte${vus > 1 ? 's' : ''} ${nomDeCase(niveau)} de ton cartable : signes-en une, ou passe. Ton cartable comble le reste.`,
-      budget: '🎰 Budget des lotos', plein: 'Tu as ta carte de ce loto',
-      partir: k2 => (k2 ? (dernier ? 'À la saison' : 'Loto suivant') : 'Passer ce loto'),
-    }),
-  });
-  return pris.map(x => x.p);
-}
-/* LA SAISON SUIVANTE : ceux qui restent, les lotos du cartable, puis le vestiaire tiré du cartable et le coach. */
-async function choisirNouvelleEquipe(saison) {
-  const gardes = await choisirGardesDeSaison(saison);
-  const lotos = await lotoDuCartable(gardes, saison);
-  await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes, lotos));
-}
-async function continuerRun(gardes = [], lotos = []) {
-  if (G.bonus !== 'ROGUE' || !G.ligue || sortDeLaRun() !== 'continue') return;
-  const L = G.ligue, meta = lireMeta();
-  const saison = numeroDeSaison() + 1;
-  // Ton joueur de concession reste d'une saison à l'autre, sans prendre la place d'un gardé.
-  const vedette = meta.vedette ? signes().find(p => p && getPlayerKey(p) === meta.vedette) : null;
-  if (vedette && !gardes.includes(vedette)) gardes = [vedette, ...gardes];
-  const partants = new Set(signes().filter(Boolean).map(getPlayerKey).filter(k => !gardes.some(p => getPlayerKey(p) === k)));
-  // Les gardés et les cartes des lotos passent devant ; le reste se tire du cartable (`vestiaireDeDepart`).
-  const fixes = [...gardes, ...lotos];
-  const V = await vestiaireDeDepart(meta, fixes, { saison, rang: G.rogue.prestige || 0, exclus: partants, graine: `${graineDuClasseur()}:s${saison}`, exigence: exigenceDeLaRun() });
-  for (const x of [...V.tires, ...lotos.map(p => ({ cle: getPlayerKey(p) }))]) G.variantes.cartes[x.cle] = meilleureVariante(lireCartable().joueurs[x.cle]);
-  const roster = V.roster;
-  // Les modifs de la saison sont déjà sur leurs cartes (`modsAuCartable`, à la fin de la saison) : chaque carte de l'équipe neuve rejoue les siennes.
-  modsAuCartable();
-  const report = reportDesCartes(roster);
-  for (const p of gardes) G.variantes.cartes[getPlayerKey(p)] = meilleureVariante(lireCartable().joueurs[getPlayerKey(p)]) || G.variantes.cartes[getPlayerKey(p)];
-  const decsSaison = decisionsDeLaPartie();
-  // V21 : le coach de la run continue — son expérience de la saison (séries comprises) rejoint celle d'avant.
-  if (L.you && L.you.perso) G.rogue.perso = { ...L.you.perso, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])], main: (L.you.perso.main || []).map(c => ({ cle: c.cle, depuis: null, fin: null, sejours: [...(c.sejours || [])] })) };
-  // Jalon Q : les cartes de la partie te suivent — celles pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
-  const poche = cartesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);
-  if (poche.length) report.push({ jour: 0, poche, report: true });
-  // V9 (tranche 6) : une commotion se garde — d'une saison à l'autre de la run, la suivante s'allonge (`COMMOTION_MEMOIRE`, js/sim.js).
-  const commotions = { ...((decsSaison.find(d => d && d.commotions) || {}).commotions || {}) };
-  for (const b of (L.you && L.you.injuriesLog) || []) if (b.genre === 'commotion') commotions[getPlayerKey(b.player)] = (commotions[getPlayerKey(b.player)] || 0) + 1;
-  if (Object.keys(commotions).length) report.push({ jour: 0, commotions, report: true });
-  // V9 (tranche 7) : les galons de la run — un palier de badge chacun, `GALONS_MAX` au plus (js/galons.js).
-  const run = G.rogue.numero || 0;
-  const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, galonsDe(getPlayerKey(p), run).length)]).filter(([, n]) => n > 0));
-  if (Object.keys(galons).length) report.push({ jour: 0, galons, report: true });
-  // Les packs scellés pas ouverts passent à la saison suivante, déjà payés.
-  packsScelles(decsSaison).forEach((d, i) => report.push({ jour: 0, palier: `k:r${i}`, achat: { pack: d.achat.pack, n: -1 - i, prix: 0, sorte: d.achat.sorte, params: d.achat.params, scelle: true }, report: true }));
-  const reste = Math.max(0, jetonsRogue(L.calendrier.length));
-  G.renfort = null; G.selectedSlot = null;
-  G.roster = roster; poserCartes();
-  G.rogue = {
-    ...G.rogue, saison, series: null, report,
-    // V25 C2 : la mémoire des histoires de la run (js/histoires.js `memoireDeLaRun`) — jamais la même sur le même joueur.
-    histoires: memoireDeLaRun(G.rogue.histoires, sortiesDe(decsSaison)),
-    // Lot 5 (nov. 2026) : passé la première saison de la première run, la ligue porte son étape de plus (`etapeDeLaRun`).
-    etapeDeRun: etapeDeLaRun(G.rogue.numero || 1, saison),
-    depart: jetonsDeDepart(meta) + reste, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigenceDeLaRun()), plafond: null,
-  };
-  // La saison neuve : ni ligue, ni séries, ni entrée d'historique — `runSeason` les refera.
-  G.ligue = null; G.done = false; G.journee = 0; G.seriesVues = null; G.lbId = null; G.series = null; G.seriesMoteur = null; G.banc = null;
-  // Le vrai plafond à chaque saison (oct., JP : *je m'en crisse si j'ai du lousse à mes runs suivantes*).
-  G.rogue.plafond = plafondDeDepart(meta, exigenceDeLaRun(), { reel: true });
-  $('resultHost').innerHTML = '';
-  $('resultHost').style.display = 'none';
-  $('game').classList.remove('bilan');
-  saveGame(); render();
-  setView('roster');
-  const motEquipe = `${motDuVestiaire(V).toLowerCase()}${gardes.length ? `, avec ${gardes.map(p => p.n).join(', ')}` : ''}${lotos.length ? `, ${lotos.length} carte${lotos.length > 1 ? 's' : ''} du loto` : ''}`;
-  toast(`Saison ${G.rogue.saison} de la run : ${motEquipe} · 🪙 ${G.rogue.depart} jetons · Le proprio veut : ${mandatDe(G.rogue.saison, exigenceDeLaRun(), premiereRun()).mot}`);
 }
 /*
  * LE VESTIAIRE DES DÉBLOCAGES : ce que les écussons achètent, d'une run à
@@ -1836,7 +1717,7 @@ export function ouvrirVestiaire(apres = null) {
   const jalons = `${prestigeHtml(meta)}<p class="vs-sec">🏅 Les déblocages</p>`;
   ouvrirChoix({
     ico: '🏅', titre: `Les déblocages · ${meta.ecussons || 0} médailles`, fermable: true, motFermer: 'Fermer',
-    recit: `Tes médailles se gagnent à chaque saison : une par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs.`,
+    recit: `Tes médailles se gagnent dans la run : dix par acte passé, quinze par rival battu, vingt par ronde de séries gagnée, quarante de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs.`,
     contexte: jalons,
     options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le club (son nom et son écusson) et ses couleurs : ceux que tu portes, et ceux qui se débloquent.' },
       // V10 : le cran d'un pack se montre quand le pack est ouvert, et le second après le premier.

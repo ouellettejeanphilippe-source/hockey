@@ -8,7 +8,8 @@
  *    périodes vues : la feuille garde leurs trois pointages, et il ne porte ni plan adverse, ni main adverse, ni
  *    entracte à choix ; une vieille décision d'entracte ne change aucun match.
  * 3. En séries, chaque match de ta série est un gros match en trois périodes.
- * 4. La saison en donne assez pour raconter, pas assez pour noyer.
+ * 4. V27 (docs/refonte-v27-2.md) : les gros matchs d'une saison sont les trois rivaux des actes, posés dans la cédule
+ *    (js/actes.js `poserLesRivaux`, le crochet `placer`) ; sans eux (le 82-0), la saison n'en a plus aucun.
  * 5. En Rogue, le duel (V9) et leur coach en séries (V23 F).
  */
 import fs from 'node:fs';
@@ -21,7 +22,8 @@ import {
 import { POUVOIRS, persoAdverse, COACH_DU_STYLE, OMBRE } from '../js/pouvoirs.js';
 import { COACHS } from '../js/coachs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { exiger, borne, informer, verdict } from './verdict.mjs';
+import { poserLesRivaux } from '../js/actes.js';
+import { exiger, informer, verdict } from './verdict.mjs';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -49,6 +51,8 @@ function ligue(seed, joueur = true) {
   return out;
 }
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
+/* La saison en actes du Rogue : ses rivaux posés dans la cédule (V27). */
+const EN_ACTES = { placer: X => poserLesRivaux(X) };
 
 console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
 
@@ -84,11 +88,11 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   for (let L = 0; L < LIGUES; L++) {
     const graine = `gros-${L}`;
     const t0 = ligue(9200 + L);
-    const r0 = simulateLeague(t0, 82, { graine, decisions: [] });
+    const r0 = simulateLeague(t0, 82, { graine, decisions: [], ...EN_ACTES });
     const mb = (t0[0].minisBoss || [])[0];
     if (!mb) continue;
     const t1 = ligue(9200 + L);
-    const r1 = simulateLeague(t1, 82, { graine, decisions: [{ jour: mb.jour, entracte: { cle: 'garder' }, sel: 'a' }] });
+    const r1 = simulateLeague(t1, 82, { graine, decisions: [{ jour: mb.jour, entracte: { cle: 'garder' }, sel: 'a' }], ...EN_ACTES });
     essais++;
     if (texte(r0.calendrier) === texte(r1.calendrier)) memes++;
   }
@@ -117,12 +121,15 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   const n = []; let complets = 0, total = 0;
   for (let L = 0; L < LIGUES; L++) {
     const teams = ligue(9400 + L);
-    simulateLeague(teams, 82, { graine: `dose-${L}`, decisions: [] });
+    simulateLeague(teams, 82, { graine: `dose-${L}`, decisions: [], ...EN_ACTES });
     const mb = teams[0].minisBoss || [];
     n.push(mb.length); total += mb.length;
     complets += mb.filter(x => Array.isArray(x.periodes) && x.periodes.length === 3 && x.plan == null && !x.depistage && !x.apres40).length;
   }
-  borne('gros matchs par saison', moy(n), 5, 14, '');
+  exiger('trois gros matchs par saison : les rivaux des actes', n.every(x => x === 3), n.join(' · '));
+  const nu = ligue(9450);
+  simulateLeague(nu, 82, { graine: 'dose-82-0', decisions: [] });
+  exiger('au 82-0 (sans rivaux posés), la saison n\'a plus aucun gros match', !(nu[0].minisBoss || []).length, `${(nu[0].minisBoss || []).length}`);
   exiger('chaque gros match porte ses trois pointages de période, et ni plan ni dépistage', complets === total, `${complets}/${total}`);
 }
 
@@ -148,13 +155,13 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   for (let L = 0; L < LIGUES; L++) {
     const graine = `duel-${L}`;
     const base = ligue(9700 + L);
-    simulateLeague(base, 82, { graine, decisions: [], courbe: true });
+    simulateLeague(base, 82, { graine, decisions: [], courbe: true, ...EN_ACTES });
     const mbs = base[0].minisBoss || [];
     duels += mbs.length;
     complets += mbs.filter(x => x.duel && x.duel.periodes.length === 3 && x.plan == null && !x.depistage).length;
     const mb = mbs[0];
     if (!mb) continue;
-    const jouer = decisions => { const teams = ligue(9700 + L); const res = simulateLeague(teams, 82, { graine, decisions, courbe: true }); return { teams, cal: res.calendrier }; };
+    const jouer = decisions => { const teams = ligue(9700 + L); const res = simulateLeague(teams, 82, { graine, decisions, courbe: true, ...EN_ACTES }); return { teams, cal: res.calendrier }; };
     const p0 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 0 }, sel: 's0' };
     const dp1 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 1, plan: { cle: 'centre' } }, sel: 's1' };
     const dp2 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 2, snap: true }, sel: 's2' };
@@ -185,7 +192,7 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
 {
   const graine = 'leur-coach';
   const teams = ligue(9800);
-  const res = simulateLeague(teams, 82, { graine, decisions: [], courbe: true });
+  const res = simulateLeague(teams, 82, { graine, decisions: [], courbe: true, ...EN_ACTES });
   // Ton club dans les seize, quel que soit son rang : c'est sa série qu'on lit.
   const top = [teams[0], ...(res.standings || teams).filter(t => t !== teams[0])].slice(0, 16);
   const enSaison = teams.filter(t => !t.isPlayer && t.perso).length;

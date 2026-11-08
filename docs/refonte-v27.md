@@ -148,7 +148,8 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 
 ### 4.5 Les élites
 
-- **Au plus une par acte** : le lundi, si ta semaine a un match contre un club **du top 8 en force**, l'écran peut proposer d'en faire une **élite** — un duel (§ 4.7) contre lui. **Jamais la semaine du rival, jamais en séries.**
+- **Le réglage de JP après la première mesure** (8 nov. 2026 ; JP a choisi « Élite = risque plus clair ») : **aucune élite à l'acte I** — elles s'ouvrent aux actes II et III —, et l'écran d'une élite montre **ta vraie chance de gagner**, le pronostic du jour (`pronostic`, js/pronostic.js), celui qui fixe sa récompense. Le robot de la profondeur (scripts/lib/rogue_actes.mjs) le joue depuis la tranche 2 ; l'écran vient avec les élites (tranche 7).
+- **Au plus une par acte, aux actes II et III** : le lundi, si ta semaine a un match contre un club **du top 8 en force**, l'écran peut proposer d'en faire une **élite** — un duel (§ 4.7) contre lui. **Jamais la semaine du rival, jamais en séries.**
 - La proposition est une ligne de la boîte, le lundi ; **sans réponse, c'est un soir ordinaire**. Prise, l'affiche du soir dit « Élite ».
 - **Gagnée** : **1 pièce de banc parmi 3**, ou passer, **et des jetons** qui montent avec la force du club battu : `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], avec `p` la chance que le pronostic du jour (`pronostic`, js/pronostic.js) te donne, bornée à [0,25, 0,55], et `V_COEUR` 60 🪙 (la valeur d'un cœur en jetons, le revenu d'un nœud ; un réglage, § 9). La règle : `p × récompense ≥ (1 − p) × V_COEUR`, la pièce comptée à son prix en boutique. Exemple fait : contre le 3e club en force, le pronostic dit 38 % ; `60 × 0,62 / 0,38 = 97,9`, moins 32 : **66 🪙 et une pièce parmi 3**. Contre le 8e, 52 % : `60 × 0,48 / 0,52 = 55,4`, moins 32 : **23 🪙 et une pièce**.
 - **Perdue** (en temps réglementaire, en prolongation ou en fusillade) : −1 ❤️ et les sonnés (3 matchs).
@@ -436,7 +437,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 | *ACHATS_PAR_NOEUD* | 4 | 3-5 | à 2, l'économie ne sert plus ; sans plafond, un nœud riche vide la boutique |
 | *PRIX_PIECE* | 32 🪙 | 24-40 | à 20, la pièce est obligatoire à chaque nœud ; à 50, on ne prend que des packs |
 | *V_COEUR* | 60 🪙 | 40-90 | trop bas, l'élite ne vaut pas le risque ; trop haut, elle est obligatoire |
-| *ELITES_PAR_ACTE* | 1 | 0-1 | à 2, l'élite redevient une routine et les cœurs fondent |
+| *ELITES_PAR_ACTE* | 0 à l'acte I, 1 aux actes II et III (JP, 8 nov. : « Élite = risque plus clair ») | 0-1 | à 2, l'élite redevient une routine et les cœurs fondent ; à l'acte I, l'équipe du départ y perdait un cœur sans pouvoir le risquer en connaissance de cause |
 | *BANDE_DEPART* | 0,35 · 0,55 | 0,25-0,45 · 0,45-0,65 | à 0,05-0,25, l'équipe part au 31e rang et l'acte I tue ; au-dessus, la run 1 se gagne. Le deuxième levier de R1 |
 | *CASES_DU_BANC* | 5 | 4-6 | à 3, aucun combo ; à 7, tout se lit à la fois |
 | *PIECES_OFFERTES* | 3 | 2-4 | — |
