@@ -36,7 +36,7 @@
  *
  *   node scripts/check_robot.mjs                 40 saisons, deux passes
  *   SAISONS=10 FILS=4 node scripts/check_robot.mjs
- *   MODE=rogue node scripts/check_robot.mjs      le robot du Rogue (scripts/lib/rogue_sim.mjs)
+ *   MODE=rogue node scripts/check_robot.mjs      « premier » dans la run en actes (scripts/lib/rogue_actes.mjs)
  *
  * Cibles (LIVRAISON.md) : la Coupe au plus 5 % des saisons, les séries entre
  * 20 et 50 %, et le ballottage au plus +3 victoires.
@@ -49,7 +49,8 @@ import {
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, autoRoster,
   ecoleDe,
 } from '../js/sim.js';
-import { SAISONS, shard, generateur, groupe, jouerRun, metaAuNiveau } from './lib/rogue_sim.mjs';
+import { SAISONS, shard, generateur, groupe } from './lib/rogue_sim.mjs';
+import { jouerLaRun } from './lib/rogue_actes.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
 const MIN_SAL = 775_000;                 // js/game.js:74 — le salaire plancher d'une case
@@ -209,24 +210,16 @@ if (!isMainThread) {
 
   if (MODE === 'rogue') {
     /*
-     * LE ROBOT DU ROGUE : `jouerRun` (scripts/lib/rogue_sim.mjs), sans
-     * aucun déblocage. Sa boutique n'est pas jouée au hasard mais par sa
-     * politique fixe (`packVoulu` : le pack de talent qu'il peut payer, sinon
-     * l'Argent) : `jouerRun` n'offre pas de crochet pour l'achat. Un crochet
-     * `{ acheter(meta, jetons, n) → cle | null, choisir(cartes) → carte }`
-     * passé dans ses options suffirait ; on le note, on ne le modifie pas ici.
+     * LE ROBOT DU ROGUE (V27, tranche 1 ; docs/refonte-v27.md § 10) : « premier », qui signe la première carte qui
+     * entre, dans la run en actes de la vraie première run (scripts/lib/rogue_actes.mjs `jouerLaRun`). Il ne gagne pas
+     * la Coupe : au plus 2 runs sur 64. Une dizaine de secondes la run.
      */
-    console.log(`\n  Le robot du Rogue · ${N} runs, sans déblocage\n`);
+    console.log(`\n  « premier » dans la run en actes · ${N} runs\n`);
     const runs = [];
-    for (let n = 0; n < N; n++) {
-      const r = jouerRun(metaAuNiveau(0), { graine: `robot:${n}`, jalons: false });
-      runs.push(r);
-    }
+    for (let n = 0; n < N; n++) runs.push(jouerLaRun('premier', `robot:${n}`));
     const coupes = runs.filter(r => r.coupe).length;
-    const saisons = moy(runs.map(r => r.nSaisons));
-    informer('runs jouées', `${N} · ${saisons.toFixed(2).replace('.', ',')} saisons par run · ${pct(moy(runs.map(r => r.series1)))} font les séries dès la saison 1`);
-    borne('Coupe par run, robot du Rogue sans déblocage', coupes / N, 0, 0.1);
-    informer('boutique', 'politique fixe de rogue_sim.mjs (packVoulu), pas de tirage au hasard : jouerRun n\'a pas de crochet d\'achat');
+    informer('runs jouées', `${N} · ${pct(moy(runs.map(r => (r.mort || r.rate ? 0 : 1))))} jouent les séries · ${pct(moy(runs.map(r => (r.mort ? 1 : 0))))} meurent de leurs cœurs`);
+    borne('Coupe par run, « premier »', coupes / N, 0, 2 / 64);
     verdict(`Le robot du Rogue · ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   } else {
     console.log(`\n  Le robot « premier Signer » · ${N} saisons · ${FILS} travailleurs\n`);

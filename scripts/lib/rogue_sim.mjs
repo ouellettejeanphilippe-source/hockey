@@ -236,7 +236,6 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
   return r;
 }
 
-export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
 /*
  * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi,fit,boutique,histoires,talent,relais —
  * ce que l'attentif NE fait PAS dans cette mesure, pour trouver d'où vient son avance (ou son retard) sur le robot d'avant,
@@ -485,7 +484,7 @@ const tirerClasseur = (meta, classeur, exclus, graine, clic = null, exigence = 0
  */
 const VERROUS = { defensif: 'packDefenseurs', gardien: 'packGardiens' };
 /* Le prix d'un pack au `n`-ième achat de la saison : les prix montent comme au jeu (js/packs.js `hausseDesPacks`), et « Les agents » (les exigences) les montent. */
-const prixAuAchat = (k, n, exigence = 0) => Math.max(1, Math.round(PACKS_JOUEURS[k].prix * hausseDesPacks(n) * exigencesDe(exigence).prixPacks));
+export const prixAuAchat = (k, n, exigence = 0) => Math.max(1, Math.round(PACKS_JOUEURS[k].prix * hausseDesPacks(n) * exigencesDe(exigence).prixPacks));
 function packVoulu(meta, jetons, n, exigence = 0) {
   const roles = ['sniper', 'passeur', 'defensif', 'gardien'].filter(r => !VERROUS[r] || aDebloque(meta, VERROUS[r]));
   // V10 : seulement ce que la boutique vend — le Bronze et l'Époque d'abord, le reste à son jalon (js/rogue.js `packsOuverts`).
@@ -776,7 +775,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
  * le plus de buts nets, « Ton match » si aucun ne rend ; le distrait en tire un au hasard chaque soir ; le robot
  * d'avant n'en pose aucun (`undefined`). `plans` : la lecture de l'attentif, club par club, pour la saison.
  */
-function planDuRobot(L, you, plans, attentif, clic) {
+export function planDuRobot(L, you, plans, attentif, clic) {
   const m = (L.calendrier[L.jour] || []).find(x => x.A === you || x.B === you);
   if (attentif && !attentifFait('plan')) return undefined;
   if (!m || (!attentif && !clic)) return undefined;
