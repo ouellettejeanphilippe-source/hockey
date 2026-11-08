@@ -32,8 +32,8 @@
  * LE BANC DE CINQ (tranche 5, docs/refonte-v27-5a.md) : un rival ou une élite battus donnent une pièce parmi trois, la
  * boutique en vend une à chaque nœud, une fourche en donne une (deux par saison au plus) ; le robot les prend et dit qui
  * sort par les mêmes fonctions que le jeu (scripts/lib/cartes_robot.mjs `pieceDuRobot`, js/pieces.js). CE QUE LE JEU N'A
- * PAS ENCORE : le duel à un seul choix (tranche 6) ; le robot joue le plan du soir et les plans par période au duel
- * (la main du deck est partie à la tranche 5b). La cible de la tranche 1 se remesure sur ce banc (le risque R1, § 5), en CI. Depuis la tranche 2 (docs/refonte-v27-2.md), le robot joue les règles du jeu au lieu de les copier :
+ * Depuis la tranche 6 : le duel est à un seul choix (scripts/lib/duel.mjs : le plan d'avant-match que l'écran propose) et le
+ * plan du soir est parti (la main du deck est partie à la tranche 5b). La cible de la tranche 1 se remesure sur ce banc (le risque R1, § 5), en CI. Depuis la tranche 2 (docs/refonte-v27-2.md), le robot joue les règles du jeu au lieu de les copier :
  * les rivaux posés dans la cédule, les contrôles et les cœurs viennent de js/actes.js (`poserLesRivaux`, par le crochet
  * `placer` de `lancerLaLigue` ; `rangAuSoir`), la bande du départ de js/rogue.js (`bouchesTrousDuDepart`, `BANDE_DEPART`).
  * LE RÉGLAGE DE JP APRÈS LA PREMIÈRE MESURE (8 nov. 2026, « Élite = risque plus clair ») : aucune élite à l'acte I, et
@@ -50,7 +50,7 @@ import { pronostic } from '../../js/pronostic.js';
 import { SEMAINE } from '../../js/inventaire.js';
 import { lundiDuRobot, rondeDuRobot, pieceDuRobot, poserDuRobot } from './cartes_robot.mjs';
 import {
-  generateur, metaAuNiveau, vedetteDuRobot, vestiaire, ouvrirLaSaison, lancerLaLigue, jetonsDuRobot, packDuRobot, prixAuAchat, signerDuPack, lectureDuRobot, planDuRobot,
+  generateur, metaAuNiveau, vedetteDuRobot, vestiaire, ouvrirLaSaison, lancerLaLigue, jetonsDuRobot, packDuRobot, prixAuAchat, signerDuPack, lectureDuRobot,
 } from './rogue_sim.mjs';
 
 /* Les chiffres du § 5 et du § 9 que le jeu n'a pas encore (les actes, les rivaux, les contrôles et les cœurs : js/actes.js). */
@@ -173,8 +173,6 @@ export function jouerLaRun(nom, graine) {
   };
 
   let pts0 = 0;
-  const plans = new Map();
-  let planPose = 'match';
   while (!L.fini) {
     if (robot.placer && [0, ACTES[0], ACTES[1]].includes(joues()) && !placees.has(joues())) { placees.add(joues()); placer(joues()); }
     elite();
@@ -182,8 +180,6 @@ export function jouerLaRun(nom, graine) {
       decisions.push(d); depense -= d.gain || 0;
     }
     boutique();
-    const plan = planDuRobot(L, you, plans, attentif, null);
-    if (plan !== undefined && plan !== planPose) { decisions.push({ jour: L.jour, plan: { cle: plan } }); planPose = plan; }
     const jour = L.jour;
     jouerJournee(L);
     const e = out.elites.find(x => x.jour === jour);

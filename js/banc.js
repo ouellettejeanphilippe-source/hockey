@@ -213,15 +213,11 @@ async function deciderMaintenant(ds, depuis) {
     decisions = liste;
     prises.push(d);
   }
-  // Un entracte de gros match ne « reprend » pas la saison : la période suivante commence (on vit le match).
-  const k = Math.max(-1, ...prises.map(periodeDuDuel));
-  await continuerSaison(decisions, depuis, k === 1 ? 'La deuxième période commence…' : k === 2 ? 'La troisième période commence…' : 'La saison reprend avec ton choix…');
+  await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
   if (prises.some(d => d.ballottage || d.plafond || d.achat)) renderCap();
   prises.forEach(confirmerDecision);
 }
-/* La période d'une décision de duel (V9) : 0 pour la main du soir, 1 et 2 pour les entractes ; -1 pour le reste. */
-const periodeDuDuel = d => (d && d.duel ? d.duel.p || 0 : d && d.main ? 0 : -1);
 function ajouterDecision(avant, d) {
   // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
   if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
@@ -230,12 +226,10 @@ function ajouterDecision(avant, d) {
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
-    && !(d.plan && x.plan && x.jour === d.jour)
     // LES GROS MATCHS (S70) : un avant-match par soir. Une vieille décision d'entracte (le 82-0 d'avant la V25) tombe.
     && !(d.avant && x.avant && x.jour === d.jour) && !x.entracte
-    // LE DUEL (V9) : la 2e et la 3e période se rejouent sur ce qui précède ; une décision du soir ou d'avant les défait,
-    // une période les suivantes, jamais celles d'avant.
-    && !(periodeDuDuel(x) > 0 && (periodeDuDuel(d) > 0 ? x.jour === d.jour && periodeDuDuel(x) >= periodeDuDuel(d) : x.jour >= d.jour)));
+    // LE DUEL (V27, tranche 6) : un choix d'avant-match par soir ; une vieille décision d'entracte (`duel.p` 1 ou 2) tombe.
+    && !(d.main && x.main && x.jour === d.jour) && !(x.duel && x.duel.p > 0));
   // UNE DÉCISION QUI NE TOUCHE QUE LE DECK DE MATCH (une récompense, un
   // ménage) ne tire pas de dés neufs : le moteur ne la lit pas, les matchs ne
   // doivent pas bouger (S74).
@@ -430,10 +424,10 @@ export async function deciderSerie(d) {
   if (!G.ligue) return;
   const meme = x => x.ronde === d.ronde && x.match_no === d.match_no && (
     (d.cases && x.cases) || (d.ajustement && x.ajustement)
-    // S74 : une main par match, une récompense par série. Le duel (V9) : une main par période.
-    || (d.main && x.main && periodeDuDuel(d) === periodeDuDuel(x)) || (d.recompense !== undefined && x.recompense !== undefined)
-    // Le duel : toute décision pour ce match défait les périodes d'après, jamais celles d'avant.
-    || (periodeDuDuel(x) > 0 && !(periodeDuDuel(d) > 0 && periodeDuDuel(x) < periodeDuDuel(d)))
+    // S74 : un choix d'avant-match par match (V27, tranche 6 : le duel à un choix), une récompense par série.
+    || (d.main && x.main) || (d.recompense !== undefined && x.recompense !== undefined)
+    // Une vieille décision d'entracte d'un duel (`duel.p` 1 ou 2, d'avant la V27) tombe.
+    || !!(x.duel && x.duel.p > 0)
     // Reprendre la série retire ce que l'adjoint a posé pour ce match ; la lui redonner retire la reprise.
     || (d.reprise && x.auto) || (d.auto && x.reprise)
     // Une vieille décision d'entracte (le 82-0 d'avant la V25) tombe.

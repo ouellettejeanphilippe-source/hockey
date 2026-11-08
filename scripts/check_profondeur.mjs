@@ -34,7 +34,8 @@ import path from 'node:path';
 import { Worker, isMainThread, parentPort } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
-import { jouerLaRun, renfortDe, ROBOTS, COEURS, ACTES } from './lib/rogue_actes.mjs';
+import { jouerLaRun, ROBOTS, COEURS, ACTES } from './lib/rogue_actes.mjs';
+import { renfortDe } from '../js/actes.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 if (!isMainThread) {

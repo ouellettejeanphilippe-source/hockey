@@ -20,33 +20,6 @@ const piger = (mots, ...cle) => mots[Math.floor(hache(...cle.map(String)) * mots
  * Les répliques, par scène et par situation. Une voix tutoie, sauf le proprio, qui vouvoie (EXPEDITEURS).
  */
 export const MOTS_DES_SCENES = {
-  // LA MISE DOUBLÉE (A1) : le capitaine, avant la 3e d'un duel de saison.
-  mise: {
-    mene: [
-      'Le vestiaire veut doubler. On mène : on ferme la porte et on encaisse.',
-      'Les gars sentent le coup. Si on double, on joue la dernière comme une finale.',
-    ],
-    egal: [
-      'Le vestiaire veut doubler. Une période pour tout prendre ; si on l\'échappe, on va traîner ça longtemps.',
-      'Tout se joue maintenant. Moi, je doublerais, mais c\'est toi qui signes.',
-    ],
-    derriere: [
-      'On tire de l\'arrière, et le vestiaire y croit encore. Doubler, c\'est se mettre le couteau sous la gorge.',
-      'Les gars veulent la remonter. Si on double et qu\'on la perd, ça va faire mal longtemps.',
-    ],
-  },
-  // L'ENTRACTE DU DUEL (V17) : ton adjoint, avant chaque période ; la réplique suit sa première idée.
-  adjoint: {
-    ombre: ['Ils vont lui coller un homme aux fesses. Moi, je ferais tirer tout le monde.', 'Leur ombre le suit partout. On peut la noyer sous les tirs.'],
-    chasse: ['Ils vont chercher notre défenseur. Restons propres, qu\'ils écopent tout seuls.', 'Ça va brasser sur notre brigade. On garde la tête froide.'],
-    centre: ['Le milieu est fermé. Il faut tirer de partout, des pointes, des coins.', 'Ils bouchent le centre. On ne passera pas par là : on lance.'],
-    assaut: ['Ils vont débouler. Moi, je fermerais le centre et je les laisserais tirer de loin.', 'Ça va lancer de partout. On resserre devant le filet.'],
-    cachot: ['Ils veulent nous envoyer au cachot. Les bâtons en bas, pas de niaiseries.', 'Ils vont nous provoquer toute la période. On ne mord pas.'],
-    mene: ['On mène. On ferme la porte et on fait jouer l\'horloge.', 'Une période à tenir. Pas de cadeau au centre.'],
-    traine: ['On tire de l\'arrière. Il faut aller les chercher dans leur zone.', 'Vingt minutes pour la remonter. On met de la pression.'],
-    jambes: ['Les gars sont brûlés. On joue propre et on ménage les jambes.', 'Ça pèse dans les jambes. Pas question de courir partout.'],
-    vedette: ['Leur meilleur, je le ferais suivre de près.', 'Si on éteint leur vedette, le reste suivra.'],
-  },
   // LA BLESSURE (A4) : le médecin, selon la longueur de l'absence.
   blessure: {
     court: ['Rien de grave. Il sera de retour avant que tu t\'ennuies de lui.',
@@ -62,30 +35,6 @@ export const MOTS_DES_SCENES = {
       'Une soirée de même, ça se récompense. Choisis qui vient m\'aider derrière le banc.'],
   },
 };
-
-/*
- * A1 · DOUBLER LA MISE. Le capitaine, avant la 3e période d'un duel de saison. Le fait : le pointage après deux
- * périodes contre le rival nommé, et ce qui reste à jouer.
- *   moi, lui   le pointage après deux périodes ; rival : le nom court du club ; graine : la partie et le soir
- */
-export function sceneDeLaMise({ moi, lui, rival, graine = '' }) {
-  const sit = moi > lui ? 'mene' : moi === lui ? 'egal' : 'derriere';
-  const pointage = moi > lui ? `${moi}–${lui} pour toi` : moi === lui ? `${moi}–${lui}` : `${moi}–${lui} contre toi`;
-  return { de: EXPEDITEURS.ca, mot: piger(MOTS_DES_SCENES.mise[sit], graine, 'mise', moi, lui), fait: `Contre ${rival} : ${pointage}, une période à jouer` };
-}
-
-/*
- * L'ENTRACTE DU DUEL (V17). Ton adjoint, avant chaque période. Le fait : leur intention annoncée (et qui elle vise),
- * le pointage, ce qui reste à jouer.
- *   intention : { ico, nom } ; cible : le nom de ton joueur visé, ou '' ; raison : la clé de sa première idée ;
- *   moi, lui : le pointage ; k : la période qui vient (0 à 2) ; rival : le nom court du club ; graine : la partie et le soir
- */
-export function sceneDeLAdjoint({ intention, cible = '', raison, moi = 0, lui = 0, k = 0, rival = '', graine = '' }) {
-  const mots = MOTS_DES_SCENES.adjoint[raison] || MOTS_DES_SCENES.adjoint.vedette;
-  const quand = ['Avant la 1re', 'Avant la 2e', 'Avant la 3e'][k] || '';
-  const pointage = k ? ` · ${moi}–${lui}` : '';
-  return { de: EXPEDITEURS.ad, mot: piger(mots, graine, 'adjoint', k, raison), fait: `${quand} contre ${rival}${pointage} · ils annoncent ${intention.ico} ${intention.nom}${cible ? ` sur ${cible}` : ''}` };
-}
 
 /*
  * A4 · LA BLESSURE. Le médecin. Le fait : le blessé, ses matchs d'absence, sa case, le prochain adversaire.

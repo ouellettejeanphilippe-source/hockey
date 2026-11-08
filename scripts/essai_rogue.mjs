@@ -11,7 +11,6 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
-import { PLANS } from '../js/greffes.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC } from '../js/pieces.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
@@ -256,15 +255,14 @@ const compterFeuilles = async ou => {
   const vues = await page.$$eval('.choix-sheet', ls => ls.filter(e => e.checkVisibility({ visibilityProperty: true })).map(e => (e.closest('[id]') || {}).id || e.className));
   feuilles.vues++; if (vues.length > 1) feuilles.empilees.push(`${ou} : ${vues.join(' + ')}`);
 };
-const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et le premier duel, photographiés une fois
+const captures = { duel: 0, duelPris: 0, entracte: 0 };   // le premier choix du duel (et son plan touché), le premier entracte, photographiés une fois
 const pieces = { vues: [], prises: [], capture: false };   // V27, tranche 5 : l'écran de la pièce, photographié une fois
 const placement = { vu: false, actes: [] };   // V27, tranche 4 : le calendrier de chaque acte, photographié une fois
 const afaire = { vu: false, lots: [], histoire: '', genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
-const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
-const intentionsVues = new Set();   // V17 : les intentions lues au duel, leurs puces jugées
+const combats = [];   // V27, tranche 6 : les duels choisis, leur soir et le plan pris
+const entractes = [];   // V27, tranche 6 : les entractes du direct d'un duel, leurs boutons
+const rivalVu = { lu: null };   // V27, tranche 6 : le rival annoncé, son jeu et sa fiche
 const veilles = [];   // V17 : un gros match ouvert avant son matin
-const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le plan pris (V17)
-const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée une fois, et sa scène
 // LES SCÈNES (Jalon M) : les choix d'À faire mis en scène citent leur voix ; on garde la première de chaque genre.
 // V10 (tranche 5) : les histoires (V25 C1 : js/histoires.js), la blessure (A4) ; la route (A3) se juge à son bloc.
 const SCENES = ['cartes', 'histoire', 'blessure'];
@@ -354,7 +352,18 @@ async function regler() {
     if (await page.evaluate(() => { const m = document.getElementById('liveModal'); return !!m && m.style.display === 'flex'; })) {
       if (await page.$('#liveModal .live-close:not([hidden])')) erreurs.push('le direct d\'un gros match garde son ✕');
     directs++;
-    const b = await page.$('#liveModal .live-entracte') || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
+    // V27, tranche 6 : l'entracte du duel montre le pointage, leur intention qui vient et un seul bouton.
+    // Le premier duel, on le laisse filer jusqu'à son premier entracte (« Passer à la fin » saute les pauses).
+    if (!captures.entracte && !(await page.$('#liveModal .live-close:not([hidden])'))) await page.waitForSelector('#liveModal .live-periode', { timeout: 90000 }).catch(() => {});
+    const per = await page.$('#liveModal .live-periode');
+    if (per) {
+      const ent = await page.evaluate(() => ({ boutons: document.querySelectorAll('#liveModal .live-controls button').length, ligne: [...document.querySelectorAll('#liveModal .live-feed .live-ligne')].slice(0, 3).map(e => e.textContent).join(' | ') }));
+      entractes.push(ent.boutons);
+      if (ent.boutons !== 1) erreurs.push(`l'entracte du duel a ${ent.boutons} boutons`);
+      if (!/⚔/.test(ent.ligne)) erreurs.push(`l'entracte du duel ne dit pas leur intention qui vient (« ${ent.ligne.trim().slice(0, 80)} »)`);
+      if (!captures.entracte++) { await page.waitForTimeout(300); await page.screenshot({ path: `${DOSSIER}/rogue-duel-entracte.png` }); }
+    }
+    const b = per || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
       if (b) await b.click().catch(() => {});
       await page.waitForTimeout(600); continue;
     }
@@ -410,135 +419,58 @@ async function regler() {
       }
       await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue;
     }
-    if (await page.$('#choixModal:not([hidden]) .duel-prop')) {
+    /*
+     * LE RIVAL ANNONCÉ (V27, tranches 2 et 6 ; la maquette 2) : sa plaque, son rang en force, son jeu — son style lu dans ses
+     * vraies stats et son intention dominante —, puis ses trois lignes contre les tiennes, rang contre rang. Photographié une
+     * fois ; la ligne de la boîte se règle ensuite comme les autres.
+     */
+    if (!rivalVu.lu && await page.$('#choixModal:not([hidden]) .rival-annonce')) {
+      rivalVu.lu = await page.$eval('#choixModal', m => ({ jeu: [...m.querySelectorAll('.rival-jeu > span')].map(x => x.textContent.trim()),
+        lignes: [...m.querySelectorAll('.rival-fiche .rival-l')].map(l => l.querySelectorAll(':scope > span').length) }));
+      await page.waitForTimeout(400); await page.screenshot({ path: `${DOSSIER}/rogue-rival.png` });
+      if (rivalVu.lu.jeu.length !== 2 || !/^Son jeu : (des tireurs|des durs|un gros gardien)$/.test(rivalVu.lu.jeu[0])) erreurs.push(`le rival annoncé ne montre pas son style et son intention dominante (« ${rivalVu.lu.jeu.join(' | ')} »)`);
+      if (rivalVu.lu.lignes.length !== 3 || rivalVu.lu.lignes.some(n => n !== 2)) erreurs.push(`la fiche du rival n'a pas ses trois lignes, rang contre rang (${rivalVu.lu.lignes.join(', ')})`);
+    }
+    if (await page.$('#choixModal:not([hidden]) .dl-sheet')) {
       /*
-       * L'ÉCRAN DE COMBAT (V5) : l'avant-match n'est plus un arrêt à part. Dans un gros match, l'écran dit l'enjeu
-       * (les vrais chiffres de la run) et offre deux cartes de vestiaire ; on garde la première, et les plans de ton adjoint
-       * attendent ce choix (V17). Le plan touché émet l'avant-match puis la période, au même soir, dans cet ordre.
+       * LE DUEL À UN CHOIX (V27, tranche 6 ; la maquette 4) : les deux plaques, ta chance, leur jeu, deux ou trois plans de ton
+       * banc en vraies cartes (leur gain et leur prix du match dessous), « Ton match », ce que le duel rapporte et coûte, « Au
+       * match ». On prend tour à tour le premier plan, le deuxième, puis Ton match ; la décision du soir porte ce plan.
        */
-      const vest = await page.$$('#choixModal .main-vest:not([aria-disabled="true"])');
       // LE JOUR DU GROS MATCH, PAS LA VEILLE (V17) : l'écran s'ouvre le matin où il se joue.
       const journeeOuverte = ((await lireSauvegarde()).partie || {}).journee;
-      const enjeu = ((await page.textContent('#choixModal .main-enjeu').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
-      if (enjeu) {
-        // V27 (tranche 2) : le rival d'un acte paie l'élan, une pièce et ses médailles — jamais de jetons.
-        if (!/Victoire : .*🏅/.test(enjeu) || /🪙/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas ce que paie le rival (« ${enjeu} »)`);
-        if (!/Défaite : 😵 sonnés \d+ matchs/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas la défaite (« ${enjeu} »)`);
-        if (vest.length && vest.length !== 2) erreurs.push(`le combat offre ${vest.length} carte(s) de vestiaire au lieu de deux`);
-        if (vest.length && !(await page.$('#choixModal .duel-prop[aria-disabled="true"]'))) erreurs.push('les plans de l\'adjoint ne demandent pas de garder une carte de vestiaire');
-        // Le premier combat, photographié deux fois : l'intention en haut, puis la carte de vestiaire gardée.
-        const premierCombat = !captures.combat++;
-        if (premierCombat) {
-          await page.waitForTimeout(600);
-          await page.evaluate(() => document.querySelectorAll('#choixModal, #choixModal .choix-sheet, #choixModal .choix-corps').forEach(e => { e.scrollTop = 0; }));
-          await page.screenshot({ path: `${DOSSIER}/rogue-combat.png` });
-        }
-        // V25 B2 : la carte se garde par « Garder » dessous (toucher la carte la retourne).
-        if (vest.length) { await (await vest[0].$('.tc-prendre')).click({ timeout: 10000 }).catch(async e => { console.log(`la carte de vestiaire bouge :\n${await sonde(vest[0])}`); await page.screenshot({ path: `${DOSSIER}/rogue-vest-bouge.png` }); throw e; }); await page.waitForTimeout(250); }
-        if (premierCombat) await page.screenshot({ path: `${DOSSIER}/rogue-combat-vestiaire.png` });
-      }
-      /*
-       * SANS MAIN (V13-2, docs/refonte-v13.md) : le duel se joue à ton tableau ; ni cartes de match, ni élan, ni « Mon deck ».
-       */
-      const resteDeMain = await page.$$eval('#choixModal :is(.main-carte, .main-energie, .main-orbe, .main-deck, .main-reprendre, .deck-grille, .duel-cartes)', e => e.map(x => x.className.split(' ').filter(c => /^(main|deck|duel)-/.test(c))[0] || x.tagName));
-      if (resteDeMain.length) erreurs.push(`l'écran du duel montre encore la main : ${[...new Set(resteDeMain)].join(', ')}`);
-      if (/(^|[^\p{L}])élan([^\p{L}]|$)|Mon deck/iu.test(((await page.textContent('#choixModal .choix-sheet').catch(() => '')) || ''))) erreurs.push('l\'écran du duel parle encore d\'élan ou de deck');
-      /*
-       * LE DUEL (V9 ; V17, l'adjoint) : chaque période dit leur intention ; ton adjoint parle (sa voix, sa réplique entre
-       * guillemets, le fait) et propose deux ou trois plans en vraies stats de la période, plus « Garder ». On prend
-       * tour à tour sa première idée, sa deuxième, puis on garde ; la décision porte sa période et ce plan.
-       */
-      const duel = await page.$('#choixModal .duel-intention');
-      let pris = null;
-      if (duel) {
-        const fait = ((await page.textContent('#choixModal .duel-fait').catch(() => '')) || '').trim();
-        if (!fait) erreurs.push('le duel n\'annonce pas leur intention');
-        const lu = await page.$eval('#choixModal', m => ({
-          voix: (m.querySelector('.duel-adjoint .scene-de') || {}).textContent || '', mot: ((m.querySelector('.duel-adjoint .scene-mot') || {}).textContent || '').trim(),
-          props: [...m.querySelectorAll('.duel-prop')].map(b => ({ cle: b.dataset.prop, puces: b.querySelectorAll('.puce, .impact-l').length, on: b.getAttribute('aria-disabled') === 'true' })),
-          tableau: !!m.querySelector('.duel-tableau, .duel-tab-s, .duel-geste, .duel-verdict'),
-        }));
-        if (!/adjoint/i.test(lu.voix) || !/^«.+»$/.test(lu.mot)) erreurs.push(`l'adjoint ne parle pas au duel (« ${lu.voix} ${lu.mot} »)`);
-        const idees = lu.props.filter(x => x.cle !== 'garder');
-        if (idees.length < 2 || idees.length > 3 || !lu.props.some(x => x.cle === 'garder')) erreurs.push(`l'adjoint propose ${idees.length} plan(s) (${lu.props.map(x => x.cle).join(', ')}), et « Garder »`);
-        if (idees.some(x => !x.puces)) erreurs.push('un plan de l\'adjoint ne dit pas ses vraies stats');
-        if (lu.tableau) erreurs.push('le tableau du duel (systèmes, portes, geste) est encore à l\'écran');
-        /*
-         * LEURS PUCES (V17) : leur intention se lit comme ton plan, en vraies stats de la période, le canal qui la définit
-         * d'abord, ce qui est à eux sous « Eux : ». 🦂 : tes punitions ; ⛔ : tes tirs ; 🐗 : leurs tirs ; 🦈 et 🥷 : ton joueur visé.
-         */
-        const pu = await page.$eval('#choixModal .duel-intention', e => ({ etape: (e.querySelector('.main-etape') || {}).textContent || '', puces: [...e.querySelectorAll('.puce')].map(x => x.textContent.trim()) }));
-        const DEF = { '🦂': /^≈ \+.* punitions? pour toi/, '⛔': /^≈ −.* tirs? pour toi/, '🐗': /^Eux : ≈ \+.* tirs?/, '🦈': /: moins de tirs, des coups/, '🥷': /: moins de tirs, moins de chances/ };
-        const ico = Object.keys(DEF).find(k => pu.etape.includes(k));
-        intentionsVues.add(ico || '?');
-        // Un canal à sa borne (`DISCIPLINE_MAX` : un club déjà indiscipliné) ne bouge plus : la puce qui le définit manque alors, et rien d'autre ne passe devant elle.
-        const SON_CANAL = { '🦂': /punitions? pour toi/, '⛔': /tirs? pour toi/, '🐗': /^Eux : .*tirs?/, '🦈': /moins de tirs, des coups/, '🥷': /moins de tirs, moins de chances/ };
-        const absent = ico && !pu.puces.some(x => SON_CANAL[ico].test(x));
-        if (!ico || !pu.puces.length || (!absent && !DEF[ico].test(pu.puces[0]))) erreurs.push(`leur intention (${pu.etape.trim()}) ne dit pas d'abord ce qui la définit : ${pu.puces.join(' | ') || 'aucune puce'}`);
-        if (ico && ico !== '🥷' && !pu.puces.some(x => x.startsWith('Eux : '))) erreurs.push(`leur intention ${ico} ne dit pas ce qu'elle leur fait (« Eux : ») : ${pu.puces.join(' | ')}`);
-        if (pu.puces.some(x => /%/.test(x))) erreurs.push(`leur intention se dit en % : ${pu.puces.join(' | ')}`);
-        pris = periodes.length % 3 === 2 ? 'garder' : (idees[periodes.length % 3] || idees[0] || { cle: 'garder' }).cle;
-        /* LE GROS MATCH PLUS COURT (Jalon M, B3) : l'entracte de l'adjoint tient à 1,3 écran au plus, ses plans à l'écran. */
-        const h = await page.$eval('#choixModal', m => {
-          const els = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].filter(Boolean);
-          const r = Math.max(...els.map(e => e.scrollHeight / Math.max(1, e.clientHeight)));
-          return { r };
-        });
-        duelCourt.n++; duelCourt.max = Math.max(duelCourt.max, h.r);
-        if (h.r > 1.3) duelCourt.longs++;
-        if (!captures.duel++) { await page.waitForTimeout(400); await page.screenshot({ path: `${DOSSIER}/rogue-duel.png` }); }
-        if (/entracte/i.test(((await page.textContent('#choixModal .choix-titre').catch(() => '')) || '')) && !captures.entracte++) {
-          await page.waitForTimeout(300); await page.screenshot({ path: `${DOSSIER}/rogue-duel-entracte.png` });
-        }
-      }
-      /*
-       * LA MISE DOUBLÉE AU DOIGT (audit mobile, oct.) : touchée, elle prend l'or et sa coche — le survol collé d'un
-       * toucher lui donnait le fond sombre d'un bouton éteint. Touchée encore, elle se laisse (le robot ne double pas).
-       */
-      if (!mise.vue && await page.$('#choixModal .duel-snap')) {
-        mise.vue = true;
-        // LA SCÈNE (Jalon M, A1) : le capitaine la demande, entre guillemets, et le fait nomme le rival.
-        const sc = await page.$eval('#choixModal', m => ({ voix: (m.querySelector('.duel-mise .scene-de') || {}).textContent || '',
-          mot: (m.querySelector('.duel-mise .scene-mot') || {}).textContent || '', fait: (m.querySelector('.duel-mise .scene-fait') || {}).textContent || '',
-          rival: ((m.querySelector('.choix-irl') || {}).textContent || '').replace(/^Contre\s+/, '').trim() }));
-        mise.scene = `${sc.voix.trim()} ${sc.mot.trim()} — ${sc.fait.trim()}`;
-        if (!/^«.+»$/.test(sc.mot.trim()) || !/capitaine/i.test(sc.voix)) erreurs.push(`la mise doublée ne cite pas le capitaine (« ${sc.voix} ${sc.mot} »)`);
-        if (!sc.rival || !sc.fait.includes(sc.rival)) erreurs.push(`le fait de la mise doublée ne nomme pas le rival « ${sc.rival} » (« ${sc.fait} »)`);
-        await page.tap('#choixModal .duel-snap'); await page.waitForTimeout(300);
-        const lu = await page.$eval('#choixModal .duel-snap', b => {
-          const t = document.createElement('i'); t.style.background = 'var(--or)'; document.body.appendChild(t);
-          const or = getComputedStyle(t).backgroundColor; t.remove();
-          return { on: b.classList.contains('on'), fond: getComputedStyle(b).backgroundColor, or, txt: b.textContent.trim() };
-        });
-        mise.lu = `${lu.txt} · ${lu.fond}`;
-        if (!lu.on || !lu.txt.startsWith('✓')) erreurs.push(`la mise doublée touchée ne se coche pas (« ${lu.txt} »)`);
-        if (lu.fond !== lu.or) erreurs.push(`la mise doublée touchée n'a pas le fond de l'or (${lu.fond}, l'or ${lu.or})`);
-        await page.tap('#choixModal .duel-snap'); await page.waitForTimeout(300);
-        if (await page.$('#choixModal .duel-snap.on')) erreurs.push('la mise doublée touchée deux fois reste doublée');
-      }
-      const avantJouer = await decisionsDuCombat(), mains0 = avantJouer.filter(d => d.main).length;
-      await page.click(`#choixModal .duel-prop[data-prop="${pris || 'garder'}"] .tc-prendre`); await page.waitForTimeout(1500);
-      // Un dé à lancer d'abord : la décision s'écrit après lui.
-      if (!(await page.$('#choixModal:not([hidden]) .de-scene'))) await attendreDecisions(avantJouer.length);
-      if (duel && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
-        const ds = await decisionsDuCombat();
-        const dn = ds.slice().reverse().find(d => d.main && d.duel);
-        if (!dn) erreurs.push('la période du duel jouée n\'entre pas dans la sauvegarde');
-        else {
-          periodes.push(`${dn.duel.p + 1}:${pris}`);
-          if (dn.duel.p === 0 && journeeOuverte != null && dn.jour !== journeeOuverte) { veilles.push(`J${dn.jour + 1} ouvert à la journée ${journeeOuverte}`); }
-          const cle = dn.duel.plan ? dn.duel.plan.cle : 'garder';
-          if (cle !== pris) erreurs.push(`le plan « ${pris} » n'entre pas dans la décision de la période (${cle})`);
-          if (dn.duel.reponse || dn.duel.tactiques) erreurs.push('la période du duel part encore avec un geste ou un tableau');
-          if (dn.main.tirage || (dn.main.jouees || []).length) erreurs.push(`la période du duel part encore avec une main (${JSON.stringify(dn.main)})`);
-        }
-      }
-      if (enjeu && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
-        const ds = await decisionsDuCombat();
-        const iM = ds.findLastIndex(d => d.main), iA = iM >= 0 ? ds.findLastIndex(d => d.avant && d.jour === ds[iM].jour) : -1;
-        combats.push(iM >= 0 ? `J${ds[iM].jour + 1}${iA >= 0 ? ` ${ds[iA].avant.cle}:${ds[iA].avant.choix}` : ''}` : '?');
-        if (ds.filter(d => d.main).length !== mains0 + 1) erreurs.push('le combat confirmé n\'enregistre pas la main');
-        else if (vest.length && (iA < 0 || iA > iM)) erreurs.push('le combat n\'enregistre pas l\'avant-match puis la main, au même soir');
+      const lu = await page.$eval('#choixModal .dl-sheet', m => ({
+        plaques: m.querySelectorAll('.dl-plaque').length, prono: !!m.querySelector('.dl-prono'), jeu: ((m.querySelector('.dl-jeu') || {}).textContent || '').replace(/\s+/g, ' ').trim(),
+        k: ((m.querySelector('.dl-k b') || {}).textContent || '').trim(),
+        plans: [...m.querySelectorAll('[data-plan]')].map(b => ({ cle: b.dataset.plan, ligne: [...b.querySelectorAll('.pl-carte-l span')].map(x => x.textContent.trim()), carte: !!b.querySelector('.carton') })),
+        enjeu: ((m.querySelector('.dl-enjeu') || {}).textContent || '').replace(/\s+/g, ' ').trim(), tonMatch: !!m.querySelector('.dl-tonmatch'),
+        vieux: [...m.querySelectorAll('.duel-prop, .duel-snap, .duel-mise, .duel-intention, .main-enjeu, .main-vest')].length,
+      }));
+      if (lu.plaques !== 2 || !lu.tonMatch) erreurs.push(`l'écran du duel n'a pas ses deux plaques et « Ton match » (${JSON.stringify(lu)})`);
+      if (!/^Leur jeu : /.test(lu.jeu)) erreurs.push(`l'écran du duel ne montre pas leur jeu (« ${lu.jeu} »)`);
+      if (lu.plans.length < 2 || lu.plans.length > 3 || lu.plans.some(x => !x.carte || !x.ligne.length)) erreurs.push(`le banc propose ${lu.plans.length} plan(s), chacun sa carte et ses stats du match (${JSON.stringify(lu.plans)})`);
+      if (lu.vieux) erreurs.push(`l'écran du duel montre encore l'adjoint par période, la mise ou le vestiaire (${lu.vieux})`);
+      if (/rival/i.test(lu.k) && (!/1 pièce sur 3/.test(lu.enjeu) || !/médailles/.test(lu.enjeu) || /🪙|jeton/.test(lu.enjeu))) erreurs.push(`l'enjeu du rival ne dit pas ce qu'il paie (« ${lu.enjeu} »)`);
+      if (!/Sonnés \d+ matchs/.test(lu.enjeu)) erreurs.push(`l'enjeu du duel ne dit pas la défaite (« ${lu.enjeu} »)`);
+      /* L'ÉCRAN DU CHOIX TIENT : 1,3 écran au plus (le Jalon M, B3), ses plans à l'écran. */
+      const h = await page.$eval('#choixModal', m => Math.max(...[m, m.querySelector('.choix-sheet')].filter(Boolean).map(e => e.scrollHeight / Math.max(1, e.clientHeight))));
+      duelCourt.n++; duelCourt.max = Math.max(duelCourt.max, h);
+      if (h > 1.3) duelCourt.longs++;
+      if (!captures.duel++) { await page.waitForTimeout(500); await page.screenshot({ path: `${DOSSIER}/rogue-duel.png` }); }
+      const pris = combats.length % 3 === 2 ? null : (lu.plans[combats.length % 3] || lu.plans[0] || {}).cle || null;
+      if (pris) { await page.click(`#choixModal [data-plan="${pris}"]`); await page.waitForTimeout(200); }
+      if (pris && !(await page.$(`#choixModal [data-plan="${pris}"][aria-pressed="true"]`))) erreurs.push(`toucher le plan « ${pris} » ne le choisit pas`);
+      if (pris && !captures.duelPris++) await page.screenshot({ path: `${DOSSIER}/rogue-duel-plan.png` });
+      const avantJouer = await decisionsDuCombat();
+      await page.click('#choixModal .dl-jouer'); await page.waitForTimeout(1500);
+      await attendreDecisions(avantJouer.length);
+      const dn = (await decisionsDuCombat()).slice(avantJouer.length).find(d => d.main && d.duel);
+      if (!dn) erreurs.push('le choix du duel n\'entre pas dans la sauvegarde');
+      else {
+        combats.push(`J${dn.jour + 1}:${pris || 'match'}`);
+        if (journeeOuverte != null && dn.jour !== journeeOuverte) veilles.push(`J${dn.jour + 1} ouvert à la journée ${journeeOuverte}`);
+        if (dn.duel.p !== 0 || (dn.duel.plan ? dn.duel.plan.cle : null) !== pris) erreurs.push(`le plan « ${pris || 'Ton match'} » n'entre pas dans la décision du soir (${JSON.stringify(dn.duel)})`);
+        if (dn.duel.snap != null || dn.duel.reponse || (dn.main.jouees || []).length) erreurs.push(`le choix du duel part encore avec une mise, un geste ou une main (${JSON.stringify(dn)})`);
       }
       continue;
     }
@@ -1139,34 +1071,11 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   const portes = await page.$$eval('#navbar .navtab', e => e.filter(b => b.offsetParent).map(b => b.dataset.section)).catch(() => []);
   console.log(`10b. la barre : ${portes.join(' · ')}`);
   if (portes.join() !== 'bureau,lignes,club,marche,ligue') erreurs.push(`la barre du bas n'a pas ses cinq portes (le plateau, 4 nov. 2026) : ${portes.join(' · ')}`);
-  // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?* ; *j'hais les accordéons*) : une rangée
-  // sous la ligne du match, qui ouvre une feuille des six plans, celui en force le dit, 🥷 nomme les deux joueurs ; en toucher un
-  // écrit la décision.
+  // LE PLAN DU SOIR EST PARTI (V27, tranche 6b) : le Bureau n'a plus de plan à régler, ni accordéon ; le banc ne s'ouvre que sur le Coach.
   {
     if (await page.$('#hubModal details, #hubModal summary')) erreurs.push('le Bureau garde un accordéon (details / summary)');
-    // Nov. 2026 : ton plan est la première carte de ton banc du matin ; la toucher ouvre les six plans.
-    await page.click('#hubModal .bu-banc .banc-plan').catch(() => {});
-    await page.waitForTimeout(800);
-    const pl = await page.$$eval('#choixModal .choix-option[data-carte]', bs => bs.map(b => ({ cle: b.dataset.carte, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.tc-quoi') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree), .impact-l').length }))).catch(() => []);
-    await page.screenshot({ path: `${DOSSIER}/rogue-plan.png` });
-    const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
-    const autre = pl.find(x => !x.on && x.cle !== 'match');
-    let ecrit = null;
-    if (autre) {
-      const n0 = (await decisionsDuCombat()).length;
-      await page.click(`#choixModal .tc-prendre[data-choix="${autre.cle}"]`).catch(() => {});
-      await page.waitForTimeout(600); await attendreDecisions(n0);
-      ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
-    } else await page.click('#choixModal .choix-fermer').catch(() => {});
-    await auBureau();
-    const ligne = await page.$eval('#hubModal .bu-banc .banc-plan', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
-    console.log(`10d. ton plan : ${pl.length} tuiles · en force ${on.map(x => x.cle).join(', ') || 'aucune'} · 🥷 « ${ombre ? ombre.sous : ''} » · ${pl.filter(x => x.stats).length} en stats · touché ${autre ? autre.cle : '—'} → ${ecrit ? JSON.stringify(ecrit.plan) : 'rien d\'écrit'} · au Bureau « ${ligne.trim()} »`);
-    if (pl.length !== 6) erreurs.push(`le plan du Bureau montre ${pl.length} plans, pas six`);
-    if (on.length !== 1) erreurs.push(`le plan du Bureau marque ${on.length} plans en force, pas un`);
-    if (ombre && !/ suit /.test(ombre.sous)) erreurs.push('le plan 🥷 ne nomme pas leur vedette et ton joueur qui la suit');
-    if (pl.filter(x => x.cle !== 'match' && !x.stats).length) erreurs.push('un plan ne dit pas ses stats de match');
-    if (autre && !(ecrit && ecrit.plan.cle === autre.cle)) erreurs.push(`toucher le plan « ${autre.cle} » n'écrit pas sa décision`);
-    if (autre && !ligne.includes(PLANS[autre.cle].mot)) erreurs.push(`le Bureau ne dit pas le plan en force (« ${PLANS[autre.cle].mot} »)`);
+    if (await page.$('#hubModal .banc-plan, #hubModal [data-banc="plan"]')) erreurs.push('le Bureau montre encore le plan du soir');
+    console.log('10d. le plan du soir : parti, le banc du soir ouvre le Coach');
   }
   // La ligne du match, au Bureau, ouvre le face-à-face (JP, oct. : *les stats de confrontation, pas les lignes*).
   const ligneMatch = await page.$('#hubModal .bu-prochain');
@@ -1643,12 +1552,12 @@ console.log(`18. ton club : ${nClub} clubs · onglets ${JSON.stringify(parOnglet
 if ((m3.club || {}).club !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('club:harfangs')) erreurs.push(`le club remis n'est pas porté (méta ${(m3.club || {}).club}, en-tête « ${tete} »)`);
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
-console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
+console.log(`20b. duels (un choix chacun, son plan) : ${combats.length ? combats.join(' · ') : 'aucun cette run'} · le rival annoncé : ${rivalVu.lu ? rivalVu.lu.jeu.join(' | ') : 'jamais vu'}`);
+if (!rivalVu.lu) erreurs.push('le rival annoncé ne s\'est jamais ouvert');
 console.log(`20c. le calendrier de l'acte (V27, tranche 4) : ${placement.actes.join(' · ') || 'jamais ouvert'}`);
 if (!placement.actes.length) erreurs.push('le calendrier de l\'acte ne s\'est jamais ouvert au premier soir');
 if (veilles.length) erreurs.push(`un gros match s'ouvre avant le matin où il se joue : ${veilles.join(' · ')}`);
-console.log(`20d. leurs intentions lues, leurs puces jugées : ${[...intentionsVues].join(' ') || 'aucune'}`);
-console.log(`20d. périodes de duel jouées (période:plan pris) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
+console.log(`20d. les entractes du duel (boutons) : ${entractes.length ? entractes.join(' · ') : 'aucun cette run'}`);
 console.log(`20e. l'histoire de la semaine : ${afaire.histoire || 'jamais offerte'}`);
 console.log(`20s. ce qui court : ${suivi.pas.size} pas de l'objectif lus chez le proprio (${[...suivi.pas].slice(0, 3).join(' | ') || 'aucun'}) · verdict : ${suivi.verdict.slice(0, 160) || 'aucun'}`);
 // L'essai ne visite pas chaque matin (il saute aux gros matchs) : un objectif qui a bougé se dit au moins une fois dans
@@ -1668,7 +1577,7 @@ if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a réglé les choix que d
 if (afaire.horsBoite.size) erreurs.push(`un sous-onglet porte encore des choix : ${[...afaire.horsBoite].join(', ')}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 // LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.
-if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucun duel ne s'est rendu à sa troisième période (${periodes.join(' · ') || 'aucune période'})`);
+if (combats.length && !entractes.length) erreurs.push('aucun duel regardé ne s\'est arrêté à son entracte');
 // LE SOIR D'UN MATCH (JP, 17 oct.) : une page du soir qui suit un gros match est le sommaire du match.
 console.log(`20f. les pages du soir : ${soirs.pages}, dont ${soirs.match} sommaire(s) de match`);
 console.log(`20r. le gros match en direct : ${directs} geste(s) dans le direct`);
@@ -1682,7 +1591,7 @@ if (sommaireSimple) {
   if (!apres.feuille) erreurs.push('« Plus de détails » n\'ouvre pas la feuille du match');
 }
 if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été le sommaire d'un match (${soirs.pages} page(s) du soir)`);
-console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
+console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'}`);
 if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);
 // Depuis le départ de l'Avant-match (oct.), aucun écran ne cache « Jour suivant » à coup sûr : le flottant se juge quand il paraît.
 console.log(`20n. rien ne colle au bord (${MARGE} px) : ${bords.vus} écrans mesurés${bords.fautes.size ? `, ${bords.fautes.size} faute(s) : ${[...bords.fautes.values()].slice(0, 12).join(' | ')}` : ', aucun ne colle'}`);
@@ -1691,10 +1600,9 @@ console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix ouverts en
 if (barreA.longs.length) erreurs.push(`« Encore un choix » ne tient pas sur une ligne : ${barreA.longs.slice(0, 3).join(' · ')}`);
 console.log(`20k. une feuille à la fois : ${feuilles.vues} capture(s) · ${feuilles.empilees.length ? `empilées : ${feuilles.empilees.join(', ')}` : 'jamais deux'}`);
 if (feuilles.empilees.length) erreurs.push(`des feuilles s'empilent à l'écran : ${feuilles.empilees.join(', ')}`);
-console.log(`20j. le gros match plus court : ${duelCourt.n} entracte(s) de l'adjoint · la plus longue à ${duelCourt.max.toFixed(2).replace('.', ',')} écran · ${duelCourt.longs} au-dessus de 1,3`);
-if (duelCourt.longs) erreurs.push(`${duelCourt.longs} entracte(s) du duel font plus de 1,3 écran (${duelCourt.max.toFixed(2)})`);
-if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
-console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}${mise.scene ? ` | la mise : ${mise.scene}` : ''}`);
+console.log(`20j. le choix du duel tient : ${duelCourt.n} écran(s) · le plus long à ${duelCourt.max.toFixed(2).replace('.', ',')} écran · ${duelCourt.longs} au-dessus de 1,3`);
+if (duelCourt.longs) erreurs.push(`${duelCourt.longs} écran(s) du choix du duel font plus de 1,3 écran (${duelCourt.max.toFixed(2)})`);
+console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}`);
 {
   // V27, tranche 5 : le banc de la saison — les pièces prises (un rival battu, la boutique, une fourche), et l'écran de la pièce.
   const sv = await lireSauvegarde().catch(() => null);

@@ -49,7 +49,7 @@ const unRelais = cle => e => (e.relais || []).some(x => x !== cle);
  * LA FAMILLE (trente-trois pièces). Les vingt-quatre pouvoirs des huit coachs (I, II, l'ultime : leurs canaux et leur
  * condition, réglée à la présence) et les neuf adjoints (leur style d'un soir, leur relais) ; les idées du plan du soir
  * (tirer, fermer, coller, forechecker, rester discipliné) y sont déjà : le canonnier, le mur, le cogneur, le moine. Le
- * plan du soir lui-même part à la tranche 6. `voie` : la philosophie qui l'offre d'abord (null : personne) ; `soir` : sa
+ * plan du soir lui-même est parti à la tranche 6b. `voie` : la philosophie qui l'offre d'abord (null : personne) ; `soir` : sa
  * condition est celle de la soirée entière (elle se lit par match) ; `genre` : la couleur de sa carte.
  */
 export const PIECES = {

@@ -4759,7 +4759,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // pas une nuisance — et le gros pourvoyeur est le filet : deux cases
   // seulement, et l'auxiliaire n'est pas toujours remplaçable.
   noterTrous(A, LA); noterTrous(B, LB);
-  // LES GREFFES D'AVANT LE MATCH (V25) : leur coach en séries, le plan de match ; retirées après.
+  // LES GREFFES D'AVANT LE MATCH (V25) : leur coach en séries, les pièces de la soirée ; retirées après.
   const retirerGreffes = GREFFES ? GREFFES.avantMatch(A, B, LA, LB, journal, { series, gros }) : () => {};
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   let gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
@@ -5379,7 +5379,7 @@ function poserRemplacant(team, d) {
   if (d.remplacant && Number.isFinite(d.remplacant.case) && d.remplacant.joueur) (team.remplacants = team.remplacants || new Map()).set(d.remplacant.case, d.remplacant.joueur);
 }
 function appliquerDecision(team, d, graine = 0) {
-  // CE QUE LE ROGUE EN FAIT (V25, js/greffes.js) : le plan de match, l'histoire par sa porte (`appliquerChoix`), le coach et son banc.
+  // CE QUE LE ROGUE EN FAIT (V25, js/greffes.js) : l'histoire par sa porte (`appliquerChoix`), le coach et son banc.
   if (GREFFES) GREFFES.decision(team, d, graine);
   // UNE CARTE EST UNE DÉCISION comme une autre : elle s'applique au jour où
   // elle a été prise et vaut pour le reste de la saison.
@@ -5742,7 +5742,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // Une ligue neuve part de zéro : les cartes, les situations, les cases
       // vides, les effets, les gestes réels, la chimie et l'énergie, les
       // changements de carte, les gros matchs.
-      t.perso = null; t.plan = null;
+      t.perso = null;
       t.situations = [];
       t.trous = []; t.trouEnCours = false;
       t.effets = []; t.jourCourant = 0;
@@ -6015,16 +6015,15 @@ export function jouerJournee(L) {
     // Les décisions du jour s'appliquent AVANT les matchs : elles ne
     // consomment aucun hasard, donc une décision au jour k ne touche pas aux
     // journées d'avant.
-    let sel = null, mainDuJour = null;
-    const duelDuJour = [];
+    let sel = null, choixDuJour = null;
     for (const d of L.decisions) {
       if (d.jour !== r) continue;
       // V25 : l'entracte à choix du gros match du 82-0 est parti ; une vieille décision `entracte` ne joue rien.
       if (d.entracte) continue;
-      // LE DUEL (V9) : la décision d'une 2e ou d'une 3e période se joue à 20:00 ou à 40:00, de la même façon ; son coach, après le soir.
-      if (d.duel && d.duel.p > 0) { duelDuJour[d.duel.p] = d; continue; }
-      // LA DÉCISION DU SOIR D'UN DUEL (`main`, vide depuis la V13-2 : elle marque le soir et porte le plan de la 1re).
-      if (d.main) mainDuJour = d;
+      // V27, tranche 6 : une vieille décision d'entracte d'un duel (`duel.p` 1 ou 2) ne joue rien et ne tire aucun dé.
+      if (d.duel && d.duel.p > 0) continue;
+      // LE CHOIX D'AVANT LE DUEL (`main`, vide depuis la V13-2 : elle marque le soir et porte ton plan des trois périodes).
+      if (d.main) choixDuJour = choixDuDuel(d);
       if (d.cedule) jouerLaCedule(L, d);
       const t = teams[d.equipe || 0];
       if (t) appliquerDecision(t, d, graine);
@@ -6054,7 +6053,7 @@ export function jouerJournee(L) {
       if (raison) {
         const duel = !!toi.courbe;
         gros = { jour: r, adv: advToi, raison,
-          ...(duel ? { duel, periodes: periodesDuDuel(mainDuJour, duelDuJour, `${graine}:${r}`) } : {}),
+          ...(duel ? { duel, choix: choixDuJour, ...(annonce.dominante ? { dominante: annonce.dominante } : {}) } : {}),
           graineMain: graine, cleMain: `j${r}` };
         poserGros(toi, advToi, gros);
       }
@@ -6267,7 +6266,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.perso = null; t.plan = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.perso = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0];
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -6421,7 +6420,9 @@ export function echangesProposes(roster, n = 12) {
  * saisons de run du robot attentif (`check_moments_si`) : un moment `rare` (les séries, la bête noire, le duel) arrive
  * quelques fois par saison et vaut plus par soir ; un moment `choix` dépend d'un geste du joueur (jouer un blessé).
  * Les jambes se lisent sur le patineur le plus fatigué de l'alignement : la moyenne du club ne bouge presque pas (90 à
- * 96), le plus fatigué beaucoup plus — ses seuils (78 et 88) sont les quartiles du bas et du haut d'une saison de run.
+ * 96), le plus fatigué beaucoup plus — ses seuils (86 et 88) sont le bas et le haut d'une saison de run. V27, tranche 6b : le
+ * plan du soir parti (tirer ×1,1 et forechecker ×1,12 d'usure, posés presque chaque soir), le quart le plus las d'une saison
+ * de run est passé de 78 à 86 (mesuré : 1 soir de jambes lourdes par saison à 78, 17 à 86 ; `check_moments_si`).
  * `parSaison` (V10, tranche 3) : combien de soirs d'une saison de run le moment est vrai, la médiane de cette mesure
  * (docs/refonte-v10.md § 3) — ce qu'une carte de saison dit de ses chiffres, et la borne de sa rareté (check_places).
  */
@@ -6430,7 +6431,7 @@ export const MOMENTS_SI = {
   visiteur: { mot: 'À l\'étranger', parSaison: 41 },
   series: { mot: 'En séries', rare: true, parSaison: 10 },
   dosADos: { mot: 'Un soir de dos-à-dos', parSaison: 15 },
-  jambesLourdes: { mot: 'Les jambes lourdes', seuil: 78, parSaison: 16 },
+  jambesLourdes: { mot: 'Les jambes lourdes', seuil: 86, parSaison: 16 },
   jambesFraiches: { mot: 'Les jambes fraîches', seuil: 88, parSaison: 23 },
   rival: { mot: 'Contre un rival', parSaison: 6 },
   beteNoire: { mot: 'Contre ta bête noire', rare: true, parSaison: 3 },
@@ -6945,7 +6946,7 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
       if (toi) {
         const adv = toi === s.A ? s.B : s.A;
         gros = { serie: true, raison: 'serie', adv, graineMain: graine, cleMain: `po${ronde}:${k}`, ronde };
-        toi._mainSerie = null;
+        toi._choixSerie = null;
         poserGros(toi, adv, gros);
       }
       const r = playGame(s.A, s.B, k, true, true, feuille, ronde);
@@ -7094,9 +7095,8 @@ export function jouerMatchSeries(S) {
       if (toi) {
         const adv = toi === s.A ? s.B : s.A;
         gros = { serie: true, raison: 'serie', adv, graineMain: S.graine, cleMain: `po${s.ronde}:${k}`, ronde: r,
-          ...(toi.courbe ? { duel: true, periodes: periodesDuDuel(toi._mainSerie && toi._mainSerie.decision, toi._duelSerie || [], `${S.graine}:po:${r}:${k}`) } : {}) };
-        gros.tenues = toi._duelSerie || [];
-        toi._mainSerie = null; toi._duelSerie = null;
+          ...(toi.courbe ? { duel: true, choix: toi._choixSerie || null } : {}) };
+        toi._choixSerie = null;
         poserGros(toi, adv, gros);
       }
       const res = playGame(s.A, s.B, k, true, true, feuille, r);
@@ -7142,14 +7142,14 @@ export function jouerSeriesVues(S, revele = []) {
  * neufs, les matchs d'avant ne bougent pas.
  */
 function appliquerDecisionSerie(team, d, graine) {
-  // LE DUEL (V9) : la décision d'une 2e ou d'une 3e période attend son entracte (`jouerMatchSeries`), sans rien appliquer avant.
-  if (d.duel && d.duel.p > 0) { (team._duelSerie = team._duelSerie || [])[d.duel.p] = d; return; }
+  // V27, tranche 6 : une vieille décision d'entracte d'un duel de séries ne joue rien.
+  if (d.duel && d.duel.p > 0) return;
   appliquerDecision(team, d, graine);
   // Les effets du match qui vient s'AJOUTENT (V25 C1 : l'ajustement de séries est parti ; une vieille décision `ajustement` ne joue rien).
   team.effetsSerie = team.effetsSerie || [];
   if (d.filet) team._filetMatch = d.filet === 'auto' ? null : d.filet;
-  // LA DÉCISION DU SOIR D'UN DUEL (`main`, vide depuis la V13-2) : le moteur la lit pour la 1re période (`periodesDuDuel`).
-  if (d.main) team._mainSerie = { decision: d };
+  // LE CHOIX D'AVANT LE DUEL (`main`) : ton plan des trois périodes du match qui vient (`choixDuDuel`).
+  if (d.main) team._choixSerie = choixDuDuel(d);
   // V25 : l'entracte à choix du 82-0 est parti ; une vieille décision `entracte` ne joue rien, et ne tire aucun dé (comme avant).
   if (d.entracte) return;
   if (d.sel) grainerHasard(`${graine}:po:${d.ronde}:${d.match_no}:${d.sel}`);
@@ -7195,7 +7195,7 @@ function appliquerDecisionSerie(team, d, graine) {
  */
 function poserGros(toi, adv, gros) {
   toi._gros = gros; adv._gros = null;
-  adv._effetMatch = null; adv._planMatch = null;
+  adv._effetMatch = null;
   toi._effetMatch = [];
   toi._advGros = adv;
 }
@@ -7205,7 +7205,7 @@ function poserGros(toi, adv, gros) {
  * entières était trop bruité : un gros match n'est « gros » que si le classement de la veille le dit, et chaque décision
  * déplace les suivants — il n'en restait qu'une vingtaine d'appariés. Ici, le même match, sur les mêmes dés.
  */
-export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', moment = null, periodes = null, visiteur = false } = {}) {
+export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', moment = null, plan, dominante = null, visiteur = false } = {}) {
   grainerHasard(`${graine}:${cle}`);
   // Des jambes fraîches des deux côtés : une carte qui rend de l'énergie écrit sur les joueurs, et la mesure d'un match ne doit pas hériter du précédent.
   for (const t of [toi, adv]) for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) { p.energie = 100; delete p._reserve; } }
@@ -7214,8 +7214,9 @@ export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', mome
   // LE MOMENT (S80, scripts/check_rogue.mjs) : le même match au jour N de la saison, ou à une ronde des séries — l'échelle de la fin de partie suit.
   const m = moment || {};
   const gros = { jour: m.serie ? 0 : (m.jour || 0), serie: !!m.serie, ronde: m.ronde || 0, adv, raison: 'rival', graineMain: graine, cleMain: cle,
-    // LE DUEL (V9) : une équipe de Rogue (`courbe`) joue ses trois périodes ; `periodes`, ses décisions, sinon son robot.
-    ...(toi.courbe ? { duel: true, periodes: periodes || null } : {}) };
+    // LE DUEL (V9 ; V27, tranche 6) : une équipe de Rogue (`courbe`) joue ses trois périodes au `plan` pris avant (null : Ton
+    // match ; absent : son robot choisit), contre leur intention `dominante` s'ils en ont une.
+    ...(toi.courbe ? { duel: true, choix: plan === undefined ? null : { plan }, ...(dominante ? { dominante } : {}) } : {}) };
   poserGros(toi, adv, gros);
   const feuille = feuilleVierge();
   // `visiteur` : le même duel au loin (le dernier changement est à eux).
@@ -7226,7 +7227,7 @@ export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', mome
 function leverGros(toi) {
   const adv = toi._advGros;
   for (const p of (toi._gros && toi._gros._duelTouches) || []) delete p._duelBlessure;
-  if (adv) { adv._effetMatch = null; adv._planMatch = null; }
+  if (adv) adv._effetMatch = null;
   toi._gros = null; toi._effetMatch = null; toi._advGros = null;
 }
 
@@ -7269,23 +7270,10 @@ function jouerEnPeriodes(A, B, LA, LB, pA, pB, gA, gB, chanceA, chanceB, heavy, 
 }
 const blessureDesEffets = fx => fx.reduce((a, e) => a * (e.blessure ?? 1), 1);
 /*
- * LA MISE DOUBLÉE (« snap », Marvel Snap). Avant la troisième période d'un duel de saison, tu peux doubler la mise :
- * gagné, le butin en jetons double ; perdu, les sonnés durent deux fois plus. Rien ne change au match lui-même.
+ * LE CHOIX D'AVANT LE DUEL (V27, tranche 6 ; docs/refonte-v27-6a.md), tel que `jouerEnPeriodes` le lit : la décision du soir
+ * (`d.main`, vide depuis la V13-2, la marque) porte ton plan des trois périodes (`d.duel.plan`), ou rien : Ton match.
  */
-export const MISE_DOUBLEE = 2;
-/*
- * LES DÉCISIONS DES TROIS PÉRIODES, telles que `jouerEnPeriodes` les lit au duel. La première est celle du soir (`d.main`, vide
- * depuis la V13-2, la marque) ; les suivantes portent leur période (`d.duel.p`) et leur sel, qui ne relance les dés
- * qu'à leur entracte (`cle` : la graine et le soir, ou la ronde et le match des séries). `plan` : le plan pris pour la
- * période (V17), absent quand on garde celui d'avant.
- */
-function periodesDuDuel(d0, suivantes, cle) {
-  const de = (d, k) => (d ? {
-    plan: (d.duel && d.duel.plan) || null,
-    snap: !!(d.duel && d.duel.snap), graine: k > 0 ? `${cle}:p${k}:${d.sel || ''}` : null,
-  } : null);
-  return [de(d0, 0), de(suivantes[1], 1), de(suivantes[2], 2)];
-}
+const choixDuDuel = d => ({ plan: (d && d.duel && d.duel.plan) || null });
 
 
 /*
@@ -7353,12 +7341,11 @@ function grosMatchApres(toi, m, r, gros) {
   if (!gros) return;
   toi._dernierGros = r;
   const E = gagne ? ELAN : SONNE;
-  // LA MISE DOUBLÉE (V9) : perdu, les sonnés durent deux fois plus ; gagné, le butin double (`mise`, lu par les jetons).
-  const mise = gros.snap ? MISE_DOUBLEE : 1;
-  const duree = E.duree * (!gagne ? mise : 1);
+  // V27, tranche 6 : la mise doublée est partie (JP : *ça sert à rien*) ; l'élan ou les sonnés, trois matchs.
+  const duree = E.duree;
   (toi.effets = toi.effets || []).push({ debut: r + 1, fin: apresMatchs(toi, r + 1, duree), source: 'miniboss', nom: E.nom, ico: E.ico, finition: E.finition });
   // V25 : le pointage de chaque période (la feuille, `periodes`), à la place du plan, du contre et du pointage après deux.
   (toi.minisBoss = toi.minisBoss || []).push({ jour: r, adv, raison: gros.raison, gagne, duree,
     periodes: (m.feuille && m.feuille.periodes) || null,
-    ...(gros.duelJoue ? { duel: gros.duelJoue, mise } : {}) });
+    ...(gros.duelJoue ? { duel: gros.duelJoue } : {}) });
 }

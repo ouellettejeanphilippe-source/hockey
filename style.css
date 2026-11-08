@@ -4222,6 +4222,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .bu-prochain-k > span { padding: var(--esp-1) var(--esp-3); background: var(--noir-pur); }
 .bu-prochain-k > .bu-prochain-no { background: var(--club-vif); color: var(--noir-pur); }
 .bu-prochain-k > .bu-prochain-gros { background: var(--or); color: var(--encre-sur-or); }
+.bu-prochain-k > .bu-prochain-jeu { background: var(--eq-stripe, var(--club-vif)); color: var(--noir-pur); }
 .bu-vedette { position: absolute; right: 0; top: calc(var(--esp-3) + 34px); padding: var(--esp-1) var(--esp-3); background: var(--noir-pur); font: 700 var(--t-1)/1.5 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }
 @media (min-width: 680px) { .bu-vedette { top: var(--esp-3); } }
 .bu-plaques { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); align-items: stretch; min-height: 88px; }
@@ -4852,37 +4853,9 @@ body .hub-volet .live-tableau td.eq, body .hub-volet .live-tableau td.role { fon
 .dep3-surveiller { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 /* Ton plan (V17) : six tuiles d'À faire, deux par rangée au téléphone, trois dès 700 px ; le nom et deux stats. */
 
-/* ---- Le deuxième entracte : le pointage, les buts, l'incident ---- */
-.ent2 { margin: var(--esp-1) 0 var(--esp-3); }
-/* LE TABLEAU (V23 ; JP : *feel sports broadcast*) : deux plaques aux couleurs des clubs, dos à dos, le pointage en gros sur l'ardoise noire au centre. */
-.ent2-score { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; border-radius: var(--r-1); overflow: hidden; background: var(--noir-pur); box-shadow: var(--relief); font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.ent2-eq { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; padding-left: var(--esp-2); background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 -3px 0 var(--eq-stripe); }
-.ent2-eq.eux { flex-direction: row-reverse; padding: 0 var(--esp-2) 0 0; }
-.ent2-eq i { flex: 1; min-width: 0; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ent2-eq.eux i { text-align: right; }
-.ent2-eq b { flex: none; min-width: 1.5em; padding: var(--esp-2); background: var(--noir-pur); color: var(--blanc); text-align: center; font-size: var(--t-7); font-variant-numeric: tabular-nums; }
-.ent2-note { margin: var(--esp-2) 0; text-align: center; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
-/* Les trois périodes en pastilles (docs/ecrans-rogue.md, E6) : jouées, à jouer, à venir. */
-.ent2-periodes { display: flex; justify-content: center; gap: var(--esp-1); margin: 0; padding: 0; list-style: none; }
-.ent2-periodes li { padding: 3px var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
-.ent2-periodes li.faite { background: var(--fond-2); color: var(--encre-2); }
-.ent2-periodes li.a-jouer { background: var(--encre); border-color: var(--encre); color: var(--sur-choisi); }
-/* LE POINTAGE EN TÊTE DU DUEL (E6) : aux couleurs de l'adversaire, sous le titre ; il reste quand l'intention se plie. */
-.duel-tete .ent2 { margin: 0; display: grid; gap: var(--esp-1); }
-.duel-tete .ent2-note { margin: 0; }
-/* Les buteurs se relisent au sommaire du match : la tête du duel reste un pointage. */
-.duel-tete .ent2-buts { display: none; }
 .hub-prev-fin { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
 .pr-rang-txt .hub-prev-lancer { align-self: flex-start; }
 /* LES JAMBES (le volet de saison) : les plus usés d'abord, puis de quoi les ménager. */
-.ent2-stats { width: 100%; border-collapse: collapse; margin-top: var(--esp-2); font-size: var(--t-2); }
-.ent2-stats th, .ent2-stats td { padding: 3px var(--esp-1); text-align: right; font-variant-numeric: tabular-nums; }
-.ent2-stats tbody th { text-align: left; font-weight: 400; color: var(--encre-2); }
-.ent2-stats thead th { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-.ent2-stats thead tr:first-child th { text-align: center; border-bottom: 1px solid var(--filet-2); }
-.ent2-stats td:last-child { color: var(--encre-3); }
-.ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
-.ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: var(--r-1); }
 .live-ligne.ent2-marque { background: color-mix(in srgb, var(--violet) 14%, transparent); }
 
 /* ---- Tes lignes à forces égales : un petit tableau, une rangée par ligne ---- */
@@ -5125,7 +5098,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-controls .btn { flex: 1 1 120px; }
 .live-vitesse { flex: none; }
 .live-vitesse button { min-width: 44px; }
-.live-controls .live-suite, .live-controls .live-entracte, .live-controls .live-periode { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
+.live-controls .live-suite, .live-controls .live-periode { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
 /* En pause, « Reprendre » devient l'action : il passe à l'or. */
 #liveModal.en-pause .live-pause { background: var(--or); border-color: var(--or); color: var(--encre-sur-or); }
 
@@ -5152,12 +5125,11 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 /* V23, la nouvelle interface : à Ce soir, ton banc en jetons d'une ligne — l'icône, le nom, ce qu'il a fait ; l'écran tient en un.
    À l'entracte du duel (V23 A2), la même ligne sous les périodes, sans titre (l'entracte tient sous 1,3 écran) : ce qui a joué
    jusque-là s'allume en direct ; le titre reste dans l'aria-label. */
-.hub-soir .banc-soir, .ent2 .banc-soir { margin: 0; padding: 0; }
-.hub-soir .banc-tete, .ent2 .banc-tete { display: none; }
-.ent2 .banc-soir { margin-top: var(--esp-1); }
-:is(.hub-soir, .ent2) .banc-rang { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
-:is(.hub-soir, .ent2) .banc-carte { flex-direction: row; aspect-ratio: auto; gap: var(--esp-1); padding: var(--esp-1) var(--esp-2); }
-:is(.hub-soir, .ent2) .banc-ico { font-size: var(--t-3); }
+.hub-soir .banc-soir { margin: 0; padding: 0; }
+.hub-soir .banc-tete { display: none; }
+.hub-soir .banc-rang { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
+.hub-soir .banc-carte { flex-direction: row; aspect-ratio: auto; gap: var(--esp-1); padding: var(--esp-1) var(--esp-2); }
+.hub-soir .banc-ico { font-size: var(--t-3); }
 @keyframes banc-allume {
   from { opacity: 0.45; filter: grayscale(0.8); box-shadow: none; clip-path: inset(0 100% 0 0); }
   30% { opacity: 1; filter: none; }
@@ -5327,7 +5299,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 }
 .choix-main::-webkit-scrollbar { display: none; }
 .choix-main > .tc { flex: 0 0 min(72vw, 270px); scroll-snap-align: start; }
-.main-sheet .choix-main > .tc { flex-basis: min(64vw, 240px); }
 /* V25 B2 (JP, 5 nov. : *trois petites côte à côte*) : jusqu'à trois cartes tiennent de front, sans se balayer ni rien de coupé au
    bord ; à deux, elles se font face ; à quatre et plus, la main se balaie. Une petite carte retournée se RAPPROCHE pour se
    lire : son verso grossit par-dessus ses voisines, depuis son coin du côté du bord. */
@@ -5352,8 +5323,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-points i.on { background: var(--or); transform: scale(1.25); }
 @media (min-width: 640px) {
   .choix-main { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 250px)); justify-content: center; gap: var(--esp-4); margin: 0; padding: var(--esp-2) 0 var(--esp-1); overflow: visible; scroll-snap-type: none; }
-  .choix-main > .tc, .main-sheet .choix-main > .tc { flex: none; }
-  .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(160px, 180px)); gap: var(--esp-3); }
+  .choix-main > .tc { flex: none; }
 }
 /* ---- La carte de match (.tc) : le métal de sa rareté, une bannière de son genre, la gemme du coût, le dessin au trait ---- */
 .tc.tc-commune { --tc-bord: var(--filet); }
@@ -5513,12 +5483,6 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 }
 .tc-dos-marque { display: flex; flex-direction: column; align-items: center; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.3em; text-transform: uppercase; color: var(--encre); }
 .tc-dos-marque b { font-size: var(--t-5); letter-spacing: 0.02em; color: var(--or); }
-/* LA MAIN DU DUEL (Jalon M, B3 ; docs/ecrans-rogue.md, E6) : une rangée de cartons qui se balaie, deux cartes et le bord
-   de la troisième ; ce qu'elles font tient dans leurs puces, la phrase d'ambiance s'efface. */
-@media (max-width: 639.98px) {
-  .main-sheet .choix-main > .tc { flex-basis: 40vw; }
-  .main-sheet .choix-main > .tc .tc-texte { display: none; }
-}
 
 /* ---- La pochette de récompense (pochetteHtml, brancherPaquet) : posée PAR-DESSUS la bande, qui garde sa place, invisible et intouchable ---- */
 .pochette-scene { display: none; }
@@ -5615,61 +5579,8 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .paquet-pile .choix-points { flex-wrap: wrap; }
 .pile-tout { align-self: center; }
 
-/* ---- Le duel (.main-sheet, ouvrirDuel) : l'enjeu en une ligne, leur intention, les plans de l'adjoint, les deux clubs ---- */
-/* L'écran du duel : leur plan, puis les plans de l'adjoint ; ce qui se consulte, plié. */
-.main-etape { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre); }
-/* La mise : le pointage est déjà au tableau, son fait ne le redit pas (l'entracte tient en 1,3 écran). */
-.duel-mise .scene-fait { display: none; }
-.duel-mise { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid color-mix(in srgb, var(--or) 40%, var(--filet)); }
-.main-stats { display: flex; flex-direction: column; gap: var(--esp-2); }
-/* V23 : le tableau des deux clubs attend « Les chiffres » ; devant, le pointage, leur jeu et tes cartes. */
-.main-sheet:not(.chiffres) .main-stats { display: none; }
-.main-enjeu { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
-/* V23 : au duel, ton adjoint parle en une phrase ; le fait (« Avant la 1re contre… ») redisait l'intention juste au-dessus. */
-.duel-adjoint .scene-fait { display: none; }
-/* LE DUEL (V9) : leur intention, ton adjoint, la mise doublée. */
-/* LEUR INTENTION, UNE CARTE DE BOSS (V23 ; JP : *que les gros matchs, ça soit vraiment un jeu*) : leur jeu de la période,
-   au centre, encadré de rouge, une lueur à son arrivée (une fois : le décor ne boucle pas) ; ton adjoint répond dessous avec ses cartes. */
-.duel-intention { position: relative; align-self: center; width: min(100%, 320px); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); text-align: center; border-radius: var(--r-2); background: color-mix(in srgb, var(--mauvais) 16%, var(--fond-1)); border: 2px solid var(--mauvais); box-shadow: var(--relief); animation: tele-balaie 420ms var(--e-sortie) both, boss-lueur 1.2s 420ms ease-out 1 both; }
-.duel-intention .main-etape { color: var(--mauvais); font-size: var(--t-1); letter-spacing: 0.16em; }
-.duel-intention .choix-puces { flex-direction: column; align-items: center; gap: 2px; }
-.duel-intention .puce { font: 700 var(--t-2)/1.25 var(--corps); background: none; border: 0; padding: 0; }
-@keyframes boss-lueur { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mauvais) 45%, transparent); } 50% { box-shadow: 0 0 22px 2px color-mix(in srgb, var(--mauvais) 30%, transparent); } }
-.duel-fait { margin: 0; font: 800 var(--t-5)/1.15 var(--display); letter-spacing: 0.02em; color: var(--encre); }
-.duel-pourquoi { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
-/*
- * TON ADJOINT À L'ENTRACTE (V17, à la EHM) : sa scène, puis ses plans en cartes de jeu (V25 B2), deux ou trois de front au
- * téléphone ; « Garder » est la dernière. « Jouer » sous une carte joue la période.
- */
-.duel-adjoint { display: flex; flex-direction: column; gap: var(--esp-2); }
-/* L'unité des plans, dite une fois (nov. 2026) : la répéter au bout de chaque ligne les faisait passer sur deux. */
-.duel-adjoint .scene { padding: var(--esp-2) var(--esp-3); }
-.duel-adjoint .scene-mot { font-size: var(--t-3); }
-.duel-unite { margin: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-/* V25 B2 : ses plans sont des cartes de jeu qu'il te tend, une à une (`tele-monte`) ; la main se balaie à quatre. */
-.duel-props > .choix-option { animation: tele-monte 320ms var(--e-sortie) both; }
-.duel-props > .choix-option:nth-child(2) { animation-delay: 70ms; }
-.duel-props > .choix-option:nth-child(3) { animation-delay: 140ms; }
-.duel-props > .choix-option:nth-child(4) { animation-delay: 210ms; }
-.duel-snap { align-self: flex-start; }
-.btn.duel-snap.on { background: var(--or); color: var(--encre-sur-or); border-color: var(--or); }
 .duel-avant { font-size: var(--t-2); line-height: 1.35; color: var(--encre); }
 .duel-avant small { color: var(--encre-2); }
-/* Dans la main, l'effet chiffré passe avant l'ambiance : à 1440 × 900, les puces restent au-dessus des boutons (le smoke le mesure). */
-.main-sheet .choix-option.tc .tc-puces { order: 1; }
-.main-sheet .choix-option.tc .tc-texte { order: 2; }
-.main-sheet .choix-option.tc .choix-option-non { order: 3; }
-.main-sheet .choix-option.tc .tc-quoi { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.main-sheet .choix-corps { gap: var(--esp-3); }
-.main-outils { display: flex; flex-wrap: wrap; gap: var(--esp-2); justify-content: center; }
-.main-outils .btn { min-height: 44px; padding: 0 var(--esp-3); font-size: var(--t-2); }
-/* Mon deck : une ligne par carte, le coût dans un rond d'or, la rareté au flanc ; une maudite, au flanc rouge. */
-/* Au bureau, la main tient sans défiler : cinq cartes sur une rangée, le récit sur deux lignes, les puces d'effet au-dessus des boutons (le smoke le mesure à 1440 × 900). */
-@media (min-width: 1000px) {
-  .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--esp-2); padding-top: 0; }
-  .main-sheet .choix-corps { gap: var(--esp-3); }
-  .main-sheet .choix-recit { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
-}
 
 /* ---- « Qui sort ? » (.choix-aln, ouvrirAlignement) : neuf rangées titrées, les cases en grille, la barre de décision en bas ---- */
 .choix-aln .choix-corps { gap: var(--esp-3); padding-top: var(--esp-3); }
@@ -6028,10 +5939,14 @@ a.bk-serie:hover, a.bk-serie:focus-visible { box-shadow: inset 0 0 0 1px var(--c
 .rival-ecu { position: absolute; right: -40px; top: 10px; z-index: -1; opacity: 0.22; }
 .rival-annonce small { font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.1em; color: color-mix(in srgb, var(--blanc) 70%, transparent); }
 .rival-annonce b { font: 900 calc(var(--t-7) * 1.6)/0.9 var(--display); }
-.rival-jeu { align-self: flex-start; margin-top: var(--esp-2); padding: 6px var(--esp-2); background: var(--noir-pur); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.rival-jeu { display: flex; margin: var(--esp-2) calc(-1 * var(--esp-3)) calc(-1 * var(--esp-3)); background: var(--noir-pur); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.rival-jeu > span { padding: var(--esp-2) var(--esp-3); }
+.rival-jeu > span:first-child { flex: 1; background: var(--eq-stripe); color: var(--noir-pur); }
 .rival-fiche { display: grid; gap: 2px; margin-top: var(--esp-2); }
-.rival-l { display: grid; grid-template-columns: 40px minmax(0, 1fr) 80px minmax(0, 1fr); align-items: center; gap: var(--esp-2); min-height: 32px; font: 800 var(--t-2)/1 var(--display); }
+.rival-l { display: grid; grid-template-columns: 36px minmax(0, 1fr) 76px minmax(0, 1fr) 36px; align-items: center; gap: var(--esp-2); min-height: 32px; font: 800 var(--t-2)/1 var(--display); }
 .rival-l > span { color: var(--encre-2); text-align: right; }
+.rival-l > span.eux { text-align: left; color: var(--encre-3); }
+.rival-l > span.fort { color: var(--or); }
 .rival-l > b { text-align: center; text-transform: uppercase; letter-spacing: 0.06em; }
 .rival-l > i { height: 8px; background: linear-gradient(to left, var(--bon) calc(var(--p) * 100%), var(--fond-3) 0); }
 .rival-l > i.eux { background: linear-gradient(to right, var(--eq-band) calc(var(--p) * 100%), var(--fond-3) 0); }
@@ -6472,7 +6387,6 @@ body .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 
 /* LE BANC DE CINQ (V27, tranche 5 ; les maquettes 1 et 7) : cinq petites cartes de front ; celle qui joue s'allume, celle qui sort se barre. */
 .pl-grille-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-items: start; padding-top: var(--esp-1); }
-.banc-plan { min-height: 44px; margin-left: var(--esp-2); padding: 0 var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-1); background: var(--noir-pur); color: var(--or); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; }
 .pl-carte.joue .carton { box-shadow: 0 0 0 2px var(--blanc), 0 0 16px color-mix(in srgb, var(--blanc) 35%, transparent); }
 .pl-carte.joue::after { content: ""; position: absolute; top: -4px; right: -4px; z-index: 3; width: 11px; height: 11px; border-radius: 50%; background: var(--bon); box-shadow: 0 0 0 2px var(--noir-pur); }
 .pl-carte.sort .carton { opacity: 0.5; box-shadow: 0 0 0 2px var(--mauvais); }
@@ -6498,6 +6412,38 @@ body .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 .pc-boutons { display: flex; gap: var(--esp-2); margin-top: auto; padding: 0 var(--esp-4); }
 .pc-boutons .btn { flex: 1; min-height: 52px; }
 .pc-boutons .gold { flex: 2; }
+/* LE DUEL À UN CHOIX (V27, tranche 6 ; la maquette 4) : la languette, les deux plaques, ta chance, leur jeu ; tes plans ; l'enjeu. */
+.dl-sheet { display: flex; flex-direction: column; gap: var(--esp-3); padding: 0 0 var(--esp-4); }
+.dl-tete { position: relative; display: grid; padding-top: 40px; background: var(--noir-pur); }
+.dl-k { position: absolute; top: var(--esp-2); left: 0; display: flex; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.dl-k > * { padding: 4px var(--esp-3); background: var(--fond-3); }
+.dl-k b { background: var(--or); color: var(--encre-sur-or); }
+.dl-plaques { display: grid; grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr); min-height: 76px; }
+.dl-plaque { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--esp-2); align-content: center; align-items: center; padding: var(--esp-2); background: var(--eq-band); color: var(--eq-ink); min-width: 0; }
+.dl-plaque > :first-child { grid-row: 1 / 3; }
+.dl-plaque b { font: 900 var(--t-5)/0.95 var(--display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-plaque small { display: flex; align-items: center; gap: 4px; font: 700 var(--t-2)/1.1 var(--display); opacity: 0.9; }
+.dl-plaque.eux { grid-template-columns: minmax(0, 1fr) auto; text-align: right; }
+.dl-plaque.eux > :first-child { grid-column: 2; }
+.dl-plaque.eux b, .dl-plaque.eux small { grid-column: 1; justify-content: flex-end; }
+.dl-vs { display: grid; place-items: center; font: 900 var(--t-4)/1 var(--display); color: var(--blanc); }
+.dl-prono { display: flex; align-items: center; gap: var(--esp-2); padding: 6px var(--esp-3); font: 800 var(--t-3)/1 var(--display); color: var(--blanc); }
+.dl-barre { flex: 1; display: flex; height: 8px; background: var(--eq-band); }
+.dl-jeu { display: flex; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.dl-jeu > span { padding: var(--esp-2) var(--esp-3); }
+.dl-jeu > span:first-child { flex: 1; background: var(--eq-stripe, var(--fond-3)); color: var(--noir-pur); }
+.dl-corps { display: grid; gap: var(--esp-3); padding: 0 var(--esp-4); }
+.dl-l { display: inline-flex; justify-self: start; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.dl-l > * { padding: 4px var(--esp-2); background: var(--noir-pur); color: var(--encre-2); }
+.dl-l b { background: var(--club-vif); color: var(--noir-pur); }
+.dl-plans .pl-carte-l { display: flex; flex-direction: column; gap: 2px; }
+.dl-tonmatch { min-height: 48px; background: transparent; box-shadow: inset 0 0 0 1px var(--filet); }
+.dl-tonmatch.on { box-shadow: inset 0 0 0 2px var(--or); color: var(--or); }
+.dl-enjeu { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-1); }
+.dl-enjeu > span { display: block; padding: 0 var(--esp-2) var(--esp-2); background: var(--fond-2); font: 700 var(--t-2)/1.4 var(--display); }
+.dl-enjeu b { display: block; margin: 0 calc(-1 * var(--esp-2)) var(--esp-1); padding: 4px var(--esp-2); color: var(--noir-pur); text-transform: uppercase; letter-spacing: 0.06em; }
+.dl-gagne b { background: var(--bon); }
+.dl-perd b { background: var(--mauvais); }
 
 /* ---- Les cartes de la banque (js/inventaire.js) : la face d'un pack (`.tc`, Jalon U), son compte, ses boutons dessous ---- */
 .bq-carte { position: relative; display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; }

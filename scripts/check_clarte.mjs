@@ -29,7 +29,7 @@ import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
 import {
   PROFILS, AGRESSIVITES, CAP, REROLLS, MODES, PART_UNITE, AFFINITES, SPEC_MULT, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX,
-  PART_SANS_AUX, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, OBJECTIF_RATE, MISE_DOUBLEE, ADAPT_MATCHS,
+  PART_SANS_AUX, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, OBJECTIF_RATE, ADAPT_MATCHS,
   SLOTS, getPositionPenalty, K_ROB, ROB_ORDINAIRE, DISSUASION, EFFET_ROLE, EFFET_PALIER, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE,
   BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE, BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, LANCEE, POIDS_AN, POIDS_DN
 } from '../js/sim.js';
@@ -46,7 +46,7 @@ import { CASES_DU_BANC, PIECES_OFFERTES, PIECES_PAR_SAISON_DES_FOURCHES, RELAIS_
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH, hausseDesPacks } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDeLaBlessure, sceneDuButin, sceneDeLAdjoint } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaBlessure, sceneDuButin } from '../js/scenes.js';
 import { HISTOIRES, sceneDe } from '../js/histoires.js';
 import { nomCourt } from '../js/recit.js';
 
@@ -250,7 +250,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`${['zéro', 'un', 'deux', 'trois', 'quatre'][GARDIEN_SUITE_LIBRE]} départs de suite ; au ${['', 'deuxième', 'troisième', 'quatrième', 'cinquième'][GARDIEN_SUITE_LIBRE]}, il en perd ${GARDIEN_JAMBES_PAS} par départ, jamais sous ${GARDIEN_JAMBES_MIN}, et chaque ${GARDIEN_JAMBES_PAS} points perdus lui coûtent ${nombre(GARDIEN_USURE * 100)} %`, 'la fatigue des gardiens'],
     [`<strong>duel en ${['zéro', 'une', 'deux', 'trois', 'quatre'][PERIODES_DU_DUEL.length]} périodes</strong>`, 'le duel'],
     [`${INTENTIONS.ombre.ico} l'ombre suit ta vedette, ${INTENTIONS.chasse.ico} la chasse vise ton défenseur, ${INTENTIONS.centre.ico} il ferme le centre, ${INTENTIONS.assaut.ico} il lance de partout, ${INTENTIONS.cachot.ico} il cherche tes punitions`, 'les intentions'],
-    [MISE_DOUBLEE === 2 ? 'tu peux doubler la mise' : '(la mise ne double plus)', 'la mise doublée'],
+    [`un plan qui répond à leur intention (${Object.entries(PLANS).filter(([, P]) => P.repond).map(([, P]) => `${P.ico} à ${P.repond.map(k => INTENTIONS[k].ico).join(' et ')}`).join(', ')}) ramène ce qu'elle te fait à la force d'un soir ordinaire`, 'le plan qui répond'],
+    ['<strong>Un seul choix, avant le match</strong>', 'le duel à un choix'],
     // V9, tranche 7 : les galons (js/galons.js) et le chandail retiré (`CHANDAIL_GALONS`, js/rogue.js).
     [`${GALONS.buts.seuil} buts, ${GALONS.passes.seuil} passes, ${GALONS.victoires.seuil} victoires, un point dans ${GALONS.grandsSoirs.seuil} gros matchs gagnés ou ${GALONS.recrue.seuil} points d'une recrue montent son badge d'un métal pour la run (${['zéro', 'un', 'deux', 'trois'][GALONS_MAX]} au plus) ; ${['zéro', 'un', 'deux', 'trois', 'quatre'][Number((lire('js/rogue.js').match(/const CHANDAIL_GALONS = (\d+);/) || [])[1])]} retirent son chandail`, 'les galons'],
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
@@ -342,17 +343,10 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     for (const x of nombres) if (!sc.fait.includes(String(x))) fautes.push(`${nom} : le fait « ${sc.fait} » ne dit pas ${x}`);
   };
   let n = 0;
-  for (let g = 0; g < 40; g++) {
-    for (const [moi, lui] of [[3, 1], [2, 2], [0, 4]]) { juger('la mise', sceneDeLaMise({ moi, lui, rival: 'Bruins 1995-96', graine: g }), [moi, lui, 'Bruins 1995-96']); n++; }
-  }
   // A4 à A6 (V10, tranche 5 ; V20 : les routes sont parties).
   for (let g = 0; g < 40; g++) {
     for (const [k, t] of [[3, 3], [9, 12]]) { juger('la blessure', sceneDeLaBlessure({ joueur: 'Al Secord', n: k, total: t, ou: 'T2 · ailier gauche', adv: 'Wild 2010-11', graine: g }), ['Al Secord', k, ...(t > k ? [t] : []), 'T2 · ailier gauche', 'Wild 2010-11']); n++; }
     for (const [pour, contre] of [[4, 2], [6, 1]]) { juger('le butin', sceneDuButin({ pour, contre, adv: 'Bruins 1995-96', graine: g }), [pour, contre, 'Bruins 1995-96']); n++; }
-    // V17 : ton adjoint, à chaque entracte d'un duel ; le fait nomme leur intention, ton visé, le rival et le pointage.
-    for (const raison of Object.keys(MOTS_DES_SCENES.adjoint)) for (const k of [0, 2]) {
-      juger('l\'adjoint', sceneDeLAdjoint({ intention: { ico: '🥷', nom: 'L\'ombre' }, cible: 'Sundin', raison, moi: 2, lui: 1, k, rival: 'Bruins 1995-96', graine: g }), ['Sundin', 'Bruins 1995-96', ...(k ? [2, 1] : [])]); n++;
-    }
   }
   /*
    * LES HISTOIRES (V25 C1, js/histoires.js ; JP, C0 q. 1 : la réplique dit le chiffre du fait, jamais une stat du moteur) : sur
@@ -384,7 +378,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   const repliques = Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m])));
   for (const [ou, m] of repliques) if (!m || /\d|\{/.test(m)) fautes.push(`${ou} : « ${m} »`);
   informer('les scènes', `${n} scènes jouées, ${repliques.length} répliques écrites`);
-  exiger('chaque choix dit qui le demande : une voix, une réplique qui nomme et ne dit que le chiffre du fait, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers, les dilemmes');
+  exiger('chaque choix dit qui le demande : une voix, une réplique qui nomme et ne dit que le chiffre du fait, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers, les dilemmes');
 }
 
 verdict('La clarté');

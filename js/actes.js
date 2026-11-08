@@ -12,7 +12,8 @@
  *     une reprise relit le même état.
  * Pur : la cédule, les clubs, la graine. Le moteur n'importe pas ce module (check_couches).
  */
-import { teamStrength, getHiddenRatings } from './sim.js';
+import { teamStrength, getHiddenRatings, activeLineup } from './sim.js';
+import { hache } from './util.js';
 import { exigencesDe, habillerLaLigue } from './rogue.js';
 import { hausseDesPacks } from './packs.js';
 import { piecesOffertes } from './pieces.js';
@@ -107,7 +108,9 @@ export function poserLesRivaux(L, { exigence = 0 } = {}) {
     const adv = advAu(jours[i]);
     L.rivaux.push({ acte: a, jour: jours[i], adv, voulu, rang: parForce.indexOf(adv) });
   });
-  for (const R of L.rivaux) L.grosAnnonces[R.jour] = { jour: R.jour, adv: R.adv, raison: 'rival', acte: R.acte };
+  // SON JEU, MONTRÉ DÈS L'ANNONCE (V27, tranche 6) : son style lu dans ses vraies stats, et l'intention qu'il annoncera le plus.
+  for (const R of L.rivaux) { R.jeu = jeuDuRival(L.teams, you, R.adv); R.dominante = dominanteDe(R.jeu, L.graine, R.acte, R.adv); }
+  for (const R of L.rivaux) L.grosAnnonces[R.jour] = { jour: R.jour, adv: R.adv, raison: 'rival', acte: R.acte, dominante: R.dominante };
   // Le moment « Contre un rival » (js/sim.js `MOMENTS_SI`) lit tes rivaux sur ton club.
   you.rivaux = L.rivaux.map(R => R.adv);
   // La cédule d'origine, d'où le renfort se compte (tranche 4) : ton adversaire, match par match.
@@ -160,20 +163,40 @@ export function etatDeLaRun({ calendrier, teams, you, rivaux = [], jour, exigenc
     cible: acte < 2 ? controleDeLActe(acte, n, exigence) : null, rang: joues ? rangAuSoir(calendrier, teams, you, jour - 1) : null };
 }
 /*
- * LE JEU DU RIVAL, en un mot (devis § 4.3) : son meilleur côté parmi les adversaires — l'attaque fait des tireurs, la
- * défense des durs, le filet un gros gardien. `rangs` : son rang (de 1) sur chacun, et ta force à côté (`toi`).
+ * LE JEU DU RIVAL (devis § 4.3 ; V27, tranche 6 : lu dans ses vraies stats, plus dans sa force). Trois lignes, chacune le
+ * rang du club dans la ligue (de 1) et le tien à côté, sur les joueurs qu'il habille ce soir-là, dans leur vraie saison :
+ *   TIRS     ses tirs par match (la somme des tirs par match de ses patineurs) ;
+ *   DURS     ses mises en échec et ses punitions par match (les mises en échec ne se comptent que depuis 2005-06 : une ligue
+ *            sans elles se lit sur les punitions seules) ;
+ *   GARDIEN  le % d'arrêts de son gardien partant.
+ * Son style, en un mot, est sa ligne au meilleur rang : des tireurs, des durs, un gros gardien. `lui`, `toi` : la part de la
+ * barre (0,05 à 1, du dernier club au premier).
  */
-const STYLES_DU_RIVAL = [['att', 'des tireurs', 'Tirs'], ['def', 'des durs', 'Durs'], ['g', 'un gros gardien', 'Gardien']];
+const parMatch = (p, v) => (p && p.gp ? (v || 0) / p.gp : 0);
+const patineurs = t => Object.values(activeLineup(t)).filter(p => p && p.p !== 'G');
+const LIGNES_DU_JEU = [
+  { k: 'tirs', mot: 'des tireurs', nom: 'Tirs', lire: t => patineurs(t).reduce((a, p) => a + parMatch(p, p.sh), 0) },
+  { k: 'durs', mot: 'des durs', nom: 'Durs', lire: (t, coups) => patineurs(t).reduce((a, p) => a + (coups ? p.ht || 0 : 0) + parMatch(p, p.pim) / (coups ? 2 : 1), 0) },
+  { k: 'gardien', mot: 'un gros gardien', nom: 'Gardien', lire: t => { const g = Object.values(activeLineup(t)).filter(p => p && p.p === 'G').sort((a, b) => (b.gp || 0) - (a.gp || 0))[0]; return g ? g.sv || 0 : 0; } },
+];
 export function jeuDuRival(teams, you, adv) {
-  const opps = teams.filter(t => t !== you), F = new Map(teams.map(t => [t, teamStrength(t)]));
-  const lignes = STYLES_DU_RIVAL.map(([k, mot, nom]) => {
-    const tri = opps.slice().sort((a, b) => F.get(b)[k] - F.get(a)[k]);
-    const max = F.get(tri[0])[k], min = F.get(tri[tri.length - 1])[k], part = v => Math.max(0.05, Math.min(1, (v - min) / ((max - min) || 1)));
-    return { k, mot, nom, rang: tri.indexOf(adv) + 1, lui: part(F.get(adv)[k]), toi: part(F.get(you)[k]) };
+  const coups = teams.every(t => patineurs(t).some(p => p.ht != null));
+  const lignes = LIGNES_DU_JEU.map(({ k, mot, nom, lire }) => {
+    const v = new Map(teams.map(t => [t, lire(t, coups)]));
+    const tri = teams.slice().sort((a, b) => v.get(b) - v.get(a));
+    const max = v.get(tri[0]), min = v.get(tri[tri.length - 1]), part = x => Math.max(0.05, Math.min(1, (x - min) / ((max - min) || 1)));
+    return { k, mot, nom, rang: tri.indexOf(adv) + 1, rangToi: tri.indexOf(you) + 1, lui: part(v.get(adv)), toi: part(v.get(you)) };
   });
   const fort = lignes.slice().sort((a, b) => a.rang - b.rang)[0];
-  return { mot: fort.mot, lignes };
+  return { cle: fort.k, mot: fort.mot, lignes };
 }
+/*
+ * SON INTENTION DOMINANTE (devis § 4.3) : celle des cinq qu'il annoncera le plus souvent (`POIDS_DOMINANTE`, js/greffes.js),
+ * fixée à l'annonce de son style et de la graine — des tireurs foncent (l'assaut) ou collent ta vedette pour la contrer
+ * (l'ombre) ; des durs chassent ou te poussent au cachot ; un gros gardien ferme le centre ou colle ta vedette.
+ */
+const DOMINANTES = { tirs: ['assaut', 'ombre'], durs: ['chasse', 'cachot'], gardien: ['centre', 'ombre'] };
+const dominanteDe = (jeu, graine, acte, adv) => DOMINANTES[jeu.cle][hache(graine, 'dominante', acte, adv.tag) < 0.5 ? 0 : 1];
 
 /*
  * LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; docs/refonte-v27.md § 4.8, docs/refonte-v27-3.md). Elle n'ouvre qu'à sept

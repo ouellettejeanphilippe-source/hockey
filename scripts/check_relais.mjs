@@ -12,8 +12,8 @@
  *      relais (±2 tirs, ±0,3 but, ±0,5 punition, ±4 mises en échec, ±3 blessures par saison, au tiers d'un soir) ;
  *   4. (MESURE) la paire rend 1,2 à 1,6 fois la somme de ses pièces (la pièce de départ seule, la pièce à relais seule),
  *      en moyenne sur les huit voies, et aucun relais ne nuit ; le second maillon (🦓) ajoute ;
- *   5. la saison : la feuille garde chaque relais, le banc l'allume avec ses périodes (js/profil-style.js `banc`), à
- *      l'entracte les périodes jouées seulement, et la même graine rejoue les mêmes relais.
+ *   5. la saison : la feuille garde chaque relais, le banc l'allume avec ses périodes (js/profil-style.js `banc`), et la
+ *      même graine rejoue les mêmes relais (V27, tranche 6a : le banc ne paraît plus à l'entracte, qui se vit dans le direct).
  * `N` : matchs par club et par pièce (400, deux minutes sur quatre processus, `FILS`). `MESURE=0 N=20` (la CI, dix
  * secondes) : 1, 2, 3a et 5, sans les chiffres de valeur.
  */
@@ -195,10 +195,9 @@ if (MESURE) {
       cartes++;
       if (!c || !c.joue || !c.relaie || !ks.every(k => c.periodes.includes(k))) fautes.push(`${PIECES[cle].nom} : ${c ? c.periodes.join('·') : 'absent'} contre ${ks.join('·')}`);
     }
-    for (const k of [1, 2]) if (banc(A.toi, f, { jusqua: k }).some(c => c.periodes.some(p => p >= k))) fautes.push('une pièce d\'une période à venir à l\'entracte');
   }
   const empreinte = x => soirs(x).map(s => (s.f.relais || []).filter(r => r.cote === s.cote).map(r => `${r.cle}${r.k}${r.maillon}`).join(',')).join('/');
-  exiger('5. la feuille garde chaque relais, et le banc l\'allume avec ses périodes (à l\'entracte, les jouées seulement)', relais.length > 0 && !fautes.length && cartes > 0, fautes.slice(0, 3).join(' ; ') || `${relais.length} relais sur la saison, ${cartes} cartes allumées · le second maillon ${relais.filter(r => r.maillon === 2).length} fois`);
+  exiger('5. la feuille garde chaque relais, et le banc l\'allume avec ses périodes', relais.length > 0 && !fautes.length && cartes > 0, fautes.slice(0, 3).join(' ; ') || `${relais.length} relais sur la saison, ${cartes} cartes allumées · le second maillon ${relais.filter(r => r.maillon === 2).length} fois`);
   exiger('5. la même graine rejoue les mêmes relais', empreinte(A) === empreinte(B) && relais.some(r => r.maillon === 2), `${sA.length} soirs`);
 }
 

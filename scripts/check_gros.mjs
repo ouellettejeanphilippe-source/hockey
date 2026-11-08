@@ -10,14 +10,14 @@
  * 3. En séries, chaque match de ta série est un gros match en trois périodes.
  * 4. V27 (docs/refonte-v27-2.md) : les gros matchs d'une saison sont les trois rivaux des actes, posés dans la cédule
  *    (js/actes.js `poserLesRivaux`, le crochet `placer`) ; sans eux (le 82-0), la saison n'en a plus aucun.
- * 5. En Rogue, le duel (V9) et leur coach en séries (V23 F).
+ * 5. En Rogue, le duel à un choix (V27, tranche 6) et leur coach en séries (V23 F).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde, creerSeries, jouerMatchSeries, simulerGrosMatch,
-  activeLineup, SONNE, MISE_DOUBLEE, playGame, grainerHasard, feuilleVierge,
+  activeLineup, SONNE, playGame, grainerHasard, feuilleVierge,
 } from '../js/sim.js';
 import { PIECE_DU_COACH, persoAdverse, COACH_DU_STYLE, OMBRE } from '../js/pieces.js';
 import { COACHS } from '../js/coachs.js';
@@ -146,40 +146,45 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
 }
 
 /*
- * LE DUEL (V9, tranche 5 ; scripts/check_duel.mjs mesure sa force). Dans une ligue de Rogue (`courbe`), chaque gros
- * match se joue en trois périodes, sans plan à dépister ; la décision de la 2e période garde la 1re, celle de la 3e
- * les deux premières, et les journées d'avant ne bougent pas ; la mise doublée double les sonnés d'une défaite.
+ * LE DUEL À UN CHOIX (V27, tranche 6 ; scripts/check_duel.mjs mesure sa force). Dans une ligue de Rogue (`courbe`), chaque
+ * gros match se joue en trois périodes, sans plan à dépister ; le plan pris avant le match (la décision du soir, `main`)
+ * joue les trois périodes ; une vieille décision d'entracte (`duel.p` 1 ou 2, avec sa mise doublée, d'avant la V27) se
+ * relit sans planter et ne change aucun match ; un rival perdu laisse ses sonnés, sans doublement ; le rival montre son
+ * intention dominante dès son annonce, et le duel la joue.
  */
 {
-  let essais = 0, p1 = 0, p12 = 0, duels = 0, complets = 0, misesOk = 0;
+  let essais = 0, duels = 0, complets = 0, plans = 0, vieilles = 0, sonnes = 0, perdus = 0, dominantes = 0, rivaux = 0;
   for (let L = 0; L < LIGUES; L++) {
     const graine = `duel-${L}`;
     const base = ligue(9700 + L);
-    simulateLeague(base, 82, { graine, decisions: [], courbe: true, ...EN_ACTES });
+    const res0 = simulateLeague(base, 82, { graine, decisions: [], courbe: true, ...EN_ACTES });
     const mbs = base[0].minisBoss || [];
     duels += mbs.length;
     complets += mbs.filter(x => x.duel && x.duel.periodes.length === 3 && x.plan == null && !x.depistage).length;
+    for (const mb of mbs) if (!mb.gagne) { perdus++; if (mb.duree === SONNE.duree) sonnes++; }
+    const annonces = (res0.ligue && res0.ligue.rivaux) || [];
+    for (const R of annonces) { rivaux++; if (R.dominante && R.jeu && (mbs.find(x => x.jour === R.jour) || {}).duel?.dominante === R.dominante) dominantes++; }
     const mb = mbs[0];
     if (!mb) continue;
     const jouer = decisions => { const teams = ligue(9700 + L); const res = simulateLeague(teams, 82, { graine, decisions, courbe: true, ...EN_ACTES }); return { teams, cal: res.calendrier }; };
-    const p0 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 0 }, sel: 's0' };
-    const dp1 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 1, plan: { cle: 'centre' } }, sel: 's1' };
+    const p0 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 0, plan: { cle: 'centre' } }, sel: 's0' };
+    // Une vieille partie : ses décisions d'entracte, la mise doublée comprise.
+    const dp1 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 1, plan: { cle: 'tirer' } }, sel: 's1' };
     const dp2 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 2, snap: true }, sel: 's2' };
-    const r0 = jouer([p0]), r1 = jouer([p0, dp1]), r2 = jouer([p0, dp1, dp2]);
+    const r0 = jouer([p0]), r2 = jouer([p0, dp1, dp2]);
     const leSoir = r => r.cal[mb.jour].find(m => m.A === r.teams[0] || m.B === r.teams[0]);
-    const buts = (m, fin) => m.feuille.buts.filter(x => x.instant < fin).map(x => `${x.cote}@${x.instant.toFixed(3)}`).join(',');
+    const empreinte = r => r.cal.map(j => j.map(m => `${m.gfA}-${m.gfB}`).join(' ')).join('|');
     essais++;
-    if (buts(leSoir(r0), 20) === buts(leSoir(r1), 20)) p1++;
-    if (buts(leSoir(r1), 40) === buts(leSoir(r2), 40)) p12++;
+    if ((leSoir(r0).feuille.duel || { periodes: [] }).periodes.every(h => h.plan === 'centre')) plans++;
+    if (empreinte(r0) === empreinte(r2)) vieilles++;
     const avant = cal => cal.slice(0, mb.jour).map(j => j.map(m => `${m.gfA}-${m.gfB}`).join(' ')).join('|');
-    exiger(`ligue ${L} : les journées d'avant le duel ne bougent pas`, avant(r0.cal) === avant(r2.cal));
-    const mb2 = (r2.teams[0].minisBoss || []).find(x => x.jour === mb.jour);
-    if (mb2 && mb2.mise === MISE_DOUBLEE && (mb2.gagne || mb2.duree === SONNE.duree * MISE_DOUBLEE)) misesOk++;
+    exiger(`ligue ${L} : les journées d'avant le duel ne bougent pas`, avant(r0.cal) === avant(jouer([]).cal));
   }
   exiger('en Rogue, chaque gros match est un duel de trois périodes, sans plan à dépister', duels > 0 && complets === duels, `${complets}/${duels}`);
-  exiger('la décision de la 2e période garde la 1re', essais > 0 && p1 === essais, `${p1}/${essais}`);
-  exiger('la décision de la 3e garde les deux premières', p12 === essais, `${p12}/${essais}`);
-  exiger('la mise doublée double les sonnés d\'une défaite', misesOk === essais, `${misesOk}/${essais}`);
+  exiger('le plan pris avant le match joue ses trois périodes', essais > 0 && plans === essais, `${plans}/${essais}`);
+  exiger('une vieille décision d\'entracte (et sa mise doublée) se relit sans planter et ne change aucun match', vieilles === essais, `${vieilles}/${essais}`);
+  exiger('un duel perdu laisse ses sonnés, sans doublement', sonnes === perdus, `${sonnes}/${perdus} duels perdus · ${SONNE.duree} matchs`);
+  exiger('chaque rival montre son jeu et son intention dominante à son annonce, et son duel la joue', rivaux > 0 && dominantes === rivaux, `${dominantes}/${rivaux} rivaux`);
 }
 
 /*

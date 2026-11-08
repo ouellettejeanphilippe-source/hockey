@@ -17,7 +17,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame, feuilleVierge, photoAlignement, SITUATIONS, JOURS_SITUATIONS, connaitre, getPlayerKey, poserAlignementDuJour, batirLesClubs, jouerLaCedule, getHiddenRatings } from '../js/sim.js';
 import { generateur } from '../js/util.js';
-import { PLANS } from '../js/greffes.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin, TEMOINS_DE_SAISON } from './lib/temoins.mjs';
 import { prevision } from '../js/pronostic.js';
@@ -143,36 +142,23 @@ dire(g1.feuilles === g2.feuilles && g1.joueurs === g2.joueurs, 'la même carte s
 const mortes = TEMOINS_DE_SAISON.filter(cle => jouer('la-meme-graine', carte(cle)).feuilles === a.feuilles);
 dire(!mortes.length, mortes.length ? `décisions sans effet : ${mortes.join(', ')}` : `les ${TEMOINS_DE_SAISON.length} témoins déplacent la saison`);
 
-/* ---------- le plan de match ---------- */
-/*
- * UNE DÉCISION QUI VAUT JUSQU'À LA SUIVANTE (V17), donc une décision qui doit se comporter comme les autres : l'avant
- * intact, la suite changée, la reprise identique. Et chaque plan doit VRAIMENT déplacer la saison — un plan décoratif
- * est pire qu'un plan déséquilibré, puisque le joueur le choisit et ne voit jamais la différence.
- */
+/* ---------- ce qui est parti ---------- */
 const JOUR_PLAN = 20;
 const reglage = (champ, cle) => () => [{ jour: JOUR_PLAN, [champ]: cle }];
-const p1 = jouer('la-meme-graine', reglage('plan', { cle: 'assaut' }));
-const p2 = jouer('la-meme-graine', reglage('plan', { cle: 'assaut' }));
-dire(a.jours.slice(0, JOUR_PLAN).join('\n') === p1.jours.slice(0, JOUR_PLAN).join('\n'),
-  `un plan au jour ${JOUR_PLAN} laisse les ${JOUR_PLAN} journées d'avant identiques`);
-dire(a.jours.slice(JOUR_PLAN).join('\n') !== p1.jours.slice(JOUR_PLAN).join('\n'), 'et change ce qui suit');
-dire(p1.feuilles === p2.feuilles && p1.joueurs === p2.joueurs, 'le même plan se rejoue à l\'identique');
-const plansMorts = Object.keys(PLANS).filter(cle => cle !== 'match'
-  && jouer('la-meme-graine', reglage('plan', { cle })).feuilles === a.feuilles);
-dire(!plansMorts.length, plansMorts.length ? `plans sans effet : ${plansMorts.join(', ')}`
-  : `les ${Object.keys(PLANS).length - 1} plans déplacent la saison`);
 /*
  * CE QUI EST PARTI NE JOUE PLUS (V18) : une vieille sauvegarde porte encore des lignes réglées (système, agressivité,
- * secondes), un roulement, un appariement ou une consigne du match ; elle se relit, et rien de tout ça ne joue.
+ * secondes), un roulement, un appariement, une consigne du match ou un plan du soir (V27, tranche 6b) ; elle se relit, et
+ * rien de tout ça ne joue.
  */
 const vieux = [
   ['des lignes réglées', reglage('lignes', [0, 1, 2, 3].map(() => ({ tac: 'echec', tacD: 'maison', agr: 3, sec: 80 })))],
   ['un roulement', reglage('roulement', 'trois')],
   ['un appariement', reglage('appariement', [3, 2, 1, 0])],
   ['une consigne du match', reglage('match', { importance: 'haute', ad: 2 })],
+  ['un plan du soir', reglage('plan', { cle: 'assaut' })],
 ];
 const vivants = vieux.filter(([, d]) => jouer('la-meme-graine', d).feuilles !== a.feuilles).map(([nom]) => nom);
-dire(!vivants.length, vivants.length ? `encore lus : ${vivants.join(', ')}` : 'les lignes réglées, le roulement, l\'appariement et la consigne d\'une vieille sauvegarde ne jouent plus');
+dire(!vivants.length, vivants.length ? `encore lus : ${vivants.join(', ')}` : 'les lignes réglées, le roulement, l\'appariement, la consigne et le plan du soir d\'une vieille sauvegarde ne jouent plus');
 
 /*
  * LES SITUATIONS SE REJOUENT, ET ELLES NE CONSOMMENT AUCUN HASARD.

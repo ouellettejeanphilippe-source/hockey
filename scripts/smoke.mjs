@@ -92,7 +92,7 @@ async function aller(cle, clic = s => page.click(s)) {
   await clic(`#navbar .navtab[data-section="${SECTION_DE[cle]}"]`);
   if (await page.$(`#sousNav:not([hidden]) .soustab[data-page="${cle}"]`)) await clic(`#sousNav .soustab[data-page="${cle}"]`);
 }
-const mainsVues = [];   // les périodes de duel jouées aux gros matchs et en séries (V13-2 : sans main)
+const mainsVues = [];   // les plans d'avant-duel pris aux gros matchs et en séries (V27, tranche 6 : un seul choix)
 /* Le 82-0, c'est juste les joueurs (oct.) : « Commencer » mène droit à la roulette, sans carte d'identité (elle reste à Sur table). */
 async function sansIdentite() {
   await page.waitForTimeout(300);
@@ -363,40 +363,26 @@ async function repondreAuxChoix() {
       return;
     }
     /*
-     * LE DUEL D'UN GROS MATCH (V9 ; sans main depuis la V13-2, docs/refonte-v13.md) : leur intention et les plans de ton adjoint (V17),
-     * ni cartes de match, ni élan, ni « Mon deck ». Le parcours prend l'ajustement offert et la carte de vestiaire,
-     * puis prend sa première idée ; la décision porte le duel et une main vide.
+     * LE DUEL À UN CHOIX (V27, tranche 6 ; la maquette 4) : les deux plaques, leur jeu, deux ou trois plans de ton banc, « Ton
+     * match » et « Au match » ; ni main, ni mise, ni adjoint par période. Le parcours prend le premier plan ; la décision du soir
+     * porte le duel, son plan et une main vide.
      */
-    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) {
-      const reste = await page.$$eval('#choixModal :is(.main-carte, .main-orbe, .main-energie, .main-deck, .main-reprendre, .dep-piste, .deck-grille)', e => e.length);
-      if (reste) errors.push(`l'écran du duel montre encore la main (${reste} élément(s) : cartes, élan, deck ou dépistage)`);
-      if (!(await page.$('#choixModal .duel-intention'))) errors.push('l\'écran d\'un gros match ne dit pas leur intention');
-      if (/(^|[^\p{L}])élan([^\p{L}]|$)|Mon deck/iu.test((await page.textContent('#choixModal .choix-sheet')) || '')) errors.push('l\'écran du duel parle encore d\'élan ou de deck');
-      // ENTRE DEUX MATCHS (S74b) : l'ajustement est une rangée du duel — on prend le premier.
-      const titreMain = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
-      if (await page.$('#choixModal .main-aj')) {
-        choixVus.set('hub-dilemme', [...(choixVus.get('hub-dilemme') || []), titreMain]);
-        await _click('#choixModal .main-aj');
-      }
-      // L'ÉCRAN DE COMBAT (V5) : un gros match offre deux cartes de vestiaire ; on garde celle qui n'est pas un pari (le dé ferait attendre la décision).
-      // V25 B2 : la carte de vestiaire est une carte de jeu ; sa forme se lit dans son type (`.carton-club-nom`), « Garder » dessous la garde.
-      const vests = await page.$$('#choixModal .main-vest:not([aria-disabled="true"])');
-      if (vests.length) {
-        if (!(await page.$('#choixModal .duel-prop[aria-disabled="true"]'))) errors.push('le combat laisse jouer sans garder de carte de vestiaire');
-        const formes = await Promise.all(vests.map(v => v.$eval('.carton-club-nom', e => e.textContent).catch(() => '')));
-        await vests[Math.max(0, formes.findIndex(f => !/Pari/.test(f)))].$eval('.tc-prendre', b => b.click());
-      }
-      // V17 : ton adjoint propose deux ou trois plans, et « Garder » ; on prend sa première idée.
-      const idees = await page.$$eval('#choixModal .duel-prop', e => e.map(b => b.dataset.prop).filter(k => k !== 'garder'));
-      if (idees.length < 2 || idees.length > 3) errors.push(`l'adjoint propose ${idees.length} plan(s) au duel au lieu de deux ou trois`);
-      const motJouer = idees[0] || 'garder';
-      await _click(`#choixModal .duel-prop[data-prop="${motJouer}"] .tc-prendre`);
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="duel"]')) {
+      const lu = await page.$eval('#choixModal .dl-sheet', m => ({ plaques: m.querySelectorAll('.dl-plaque').length, plans: [...m.querySelectorAll('[data-plan]')].map(b => b.dataset.plan), jeu: !!m.querySelector('.dl-jeu'),
+        vieux: m.querySelectorAll('.duel-prop, .duel-snap, .duel-intention, .main-vest, .main-carte, .main-deck').length }));
+      if (lu.plaques !== 2 || !lu.jeu) errors.push(`l'écran du duel n'a pas ses deux plaques et leur jeu (${JSON.stringify(lu)})`);
+      if (lu.plans.length < 2 || lu.plans.length > 3) errors.push(`le banc propose ${lu.plans.length} plan(s) au duel au lieu de deux ou trois`);
+      if (lu.vieux) errors.push(`l'écran du duel montre encore la main, la mise ou l'adjoint par période (${lu.vieux})`);
+      const motJouer = lu.plans[0] || 'match';
+      if (lu.plans[0]) await _click(`#choixModal [data-plan="${motJouer}"]`);
+      await _click('#choixModal .dl-jouer');
       await ecranPret();
       await page.waitForTimeout(350);
       const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
-      if (!d.length || !d.some(x => x.duel)) errors.push('la période du duel jouée n\'entre pas dans la sauvegarde');
-      if (d.some(x => x.main && !x.auto && (x.main.jouees || []).length)) errors.push('une période du duel part avec des cartes jouées');
+      if (!d.length || !d.some(x => x.duel)) errors.push('le choix du duel n\'entre pas dans la sauvegarde');
+      if (d.some(x => x.main && !x.auto && (x.main.jouees || []).length)) errors.push('un choix du duel part avec des cartes jouées');
       mainsVues.push(motJouer);
+      continue;      mainsVues.push(motJouer);
       continue;
     }
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await signerPuisSortir(); await page.waitForTimeout(350); continue; }
@@ -450,13 +436,6 @@ async function repondreAuxChoix() {
   }
 }
 /*
- * FINIR UN DIRECT (S70). Un gros match — et chaque match de ta série —
- * s'arrête au deuxième entracte : on choisit, la saison se rejoue, et le
- * direct reprend à 40:00. On exige qu'il reprenne à la troisième période et
- * que les deux premières, déjà vues, n'aient pas bougé d'une ligne.
- */
-const entractesVus = [];
-/*
  * LE DIRECT ET LE SOMMAIRE DISENT LES MÊMES BUTS (S79). JP : *le sommaire
  * post match et ce que je voyais dans le match, les buts sont pas au même
  * moment* — le sommaire donnait le temps écoulé, le direct le temps qu'il
@@ -472,7 +451,7 @@ const butsDuDirect = () => page.$$eval('#liveModal .live-feed .live-ligne', els 
   let per = 1; const out = [];
   // Le fil s'écrit du plus récent au plus ancien ; une fin de période est une ligne sans heure.
   for (const e of els.slice().reverse()) {
-    if (e.classList.contains('periode') && !e.classList.contains('ent2-marque') && !e.querySelector('.live-tps')) { per++; continue; }
+    if (e.classList.contains('periode') && !e.classList.contains('ent2-marque') && !e.classList.contains('cartes') && !e.querySelector('.live-tps')) { per++; continue; }
     if (e.classList.contains('but')) out.push(`${per} ${e.querySelector('.live-tps').textContent.trim()} ${e.querySelector('b:not(.live-but-mot)').textContent.replace(/\s+/g, ' ').trim()}`);
   }
   return out;
@@ -549,74 +528,15 @@ async function memesButs(etiquette, serie = false) {
   if (faux.length) errors.push(`${etiquette} : ${faux.map(([q, l]) => `${q} (${l.join(' · ')})`).join(' et ')} ne dit pas les mêmes buts que le direct (${vu.buts.join(' · ')})`);
   else console.log(`   ${etiquette} : le direct, ${lus.map(([q]) => q).join(' et ')} disent les mêmes ${vu.buts.length} buts, période, heure et marqueur${vu.entracte ? ' — entracte compris' : ''} (${propre(vu.buts.slice(0, 3).join(' · '))}${vu.buts.length > 3 ? ' …' : ''})`);
 }
-async function finirDirect(etiquette) {
+/*
+ * FINIR UN DIRECT (S70 ; V27, tranche 6 : plus d'entracte à choix). Un duel s'arrête à ses entractes, un seul bouton (la
+ * période suivante) ; « Passer à la fin » va au bout sans autre pause, et le fil se lit tel quel.
+ */
+async function finirDirect() {
+  if (await page.$('#liveModal .live-periode') && !(await page.$('#liveModal .live-fin'))) await _click('#liveModal .live-periode');
   await _click('#liveModal .live-fin');
-  await _wait('#liveModal .live-suite, #liveModal .live-entracte', { timeout: 10000 });
-  if (!(await page.$('#liveModal .live-entracte'))) { await lireLeDirect(false); return; }
-  const sousLeMarqueur = () => page.$$eval('#liveModal .live-ligne', els => {
-    const i = els.findIndex(e => e.classList.contains('ent2-marque'));
-    return els.slice(i + 1).map(e => e.textContent.trim()).join(' | ');
-  });
-  const avant = await sousLeMarqueur();
-  const butsAvant = await butsDuDirect();
-  await _click('#liveModal .live-entracte');
-  await _wait('#choixModal:not([hidden]) .choix-option', { timeout: 5000 });
-  const titre = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
-  const opts = await page.$$eval('#choixModal .choix-option', e => e.length);
-  const quand = await page.$$eval('#choixModal .choix-option', e => e.filter(x => /3e période/.test(x.textContent)).length);
-  if (quand !== opts) errors.push(`${etiquette} : l'entracte a ${opts - quand} option(s) qui ne disent pas « 3e période »`);
-  // CE QUE LES CHOIX TOUCHENT (1.0, oct.) : une rangée par puce, ce soir et par match, des deux côtés, sans déborder.
-  const tableau = await page.$eval('#choixModal .ent2-stats', t => ({ rangs: [...t.querySelectorAll('tbody th')].map(x => x.textContent.trim()), cols: t.querySelectorAll('tbody tr:first-child td').length, deborde: t.scrollWidth - t.parentElement.clientWidth })).catch(() => null);
-  if (!tableau) errors.push(`${etiquette} : l'entracte n'a pas le tableau des deux équipes`);
-  else {
-    const voulus = ['Tirs', 'Précision', 'Buts contre', 'Punitions', 'Mises en échec'];
-    const manque = voulus.filter(k => !tableau.rangs.includes(k));
-    if (manque.length || tableau.cols !== 4) errors.push(`${etiquette} : le tableau de l'entracte n'a pas ${manque.join(', ') || 'ses quatre colonnes'} (${tableau.rangs.join(', ')} · ${tableau.cols} colonnes)`);
-    if (tableau.deborde > 1) errors.push(`${etiquette} : le tableau de l'entracte déborde de ${tableau.deborde} px`);
-  }
-  // L'IMPACT EN CHIFFRES DE MATCH (js/impact.js) : une puce de tirs, de buts, de punitions ou de mises en échec dit ce qu'elle vaut en 3e — jamais un « % ».
-  const puces3e = await page.$$eval('#choixModal .choix-option .puce', l => l.map(e => e.textContent.trim()));
-  const chiffrees = puces3e.filter(t => /^≈ [+−][\d,]+ (tirs?|buts?|punitions?|mises? en échec)/.test(t));
-  if (puces3e.some(t => /%/.test(t))) errors.push(`${etiquette} : une puce de l'entracte dit encore un pourcentage (${puces3e.filter(t => /%/.test(t)).join(' · ')})`);
-  if (chiffrees.length && !chiffrees.every(t => /en 3e$/.test(t))) errors.push(`${etiquette} : les puces de l'entracte ne disent pas « en 3e » (${chiffrees.join(' · ')})`);
-  else if (chiffrees.length) console.log(`   ${etiquette}, l'entracte en chiffres de match : ${chiffrees.slice(0, 2).join(' · ')}`);
-  await _click('#choixModal .choix-option');
-  await _wait('#liveModal .live-pause, #liveModal .live-suite', { timeout: 120000 });
-  /*
-   * LE DIRECT REPRIS SE REDESSINE (S74) : la saison se rejoue, puis le fil
-   * des deux premières périodes revient avant la troisième. Lire au premier
-   * bouton de pause lisait parfois le fil en plein redessin — l'ancien
-   * direct a lui aussi un bouton de pause. On attend la troisième période à
-   * l'écran et un fil qui ne bouge plus.
-   */
-  await page.waitForFunction(() => /Troisième période/.test((document.querySelector('#liveModal .live-feed') || {}).textContent || ''), null, { timeout: 120000 }).catch(() => {});
-  for (let n = -1, i = 0; i < 20; i++) {
-    const m = await page.$$eval('#liveModal .live-ligne', e => e.length);
-    if (m === n) break;
-    n = m;
-    await page.waitForTimeout(250);
-  }
-  const repris = await page.$eval('#liveModal .live-feed', e => e.textContent);
-  // v2 : une rangée du fil ne se comprime jamais sous son texte (JP : *problème affichage*, les jeux se chevauchaient).
-  const debordent = await page.$$eval('#liveModal .live-feed .live-ligne', e => e.filter(x => x.offsetParent && x.scrollHeight > x.clientHeight + 1).length);
-  if (debordent) errors.push(`${etiquette} : ${debordent} rangée(s) du fil débordent sur la suivante`);
-  if (!/Troisième période/.test(repris)) errors.push(`${etiquette} : le direct ne reprend pas à la troisième période après l'entracte`);
-  else {
-    const apres = await sousLeMarqueur();
-    if (avant !== apres) {
-      // La PREMIÈRE ligne qui diffère, pour savoir quoi réparer (un mot du commentateur, un but, une punition…).
-      const a = avant.split(' | '), b = apres.split(' | ');
-      const k = a.findIndex((x, i) => x !== b[i]);
-      errors.push(`${etiquette} : les deux premières périodes ont changé après le choix de l'entracte — ligne ${k} : « ${(a[k] || '').slice(0, 140)} » devient « ${(b[k] || '').slice(0, 140)} » (${a.length} lignes avant, ${b.length} après)`);
-    }
-  }
-  entractesVus.push(`${etiquette} « ${titre} » (${opts} options)`);
-  if (await page.$('#liveModal .live-fin')) await _click('#liveModal .live-fin');
   await _wait('#liveModal .live-suite', { timeout: 10000 });
-  await lireLeDirect(true);
-  // Le même match, continué : les buts vus avant l'entracte sont ceux des deux premières périodes à la fin.
-  const deuxPeriodes = butsVusEnDirect.buts.filter(b => /^[12] /.test(b));
-  if (JSON.stringify(deuxPeriodes) !== JSON.stringify(butsAvant)) errors.push(`${etiquette} : les buts vus avant l'entracte (${butsAvant.join(' · ')}) ne sont plus ceux des deux premières périodes (${deuxPeriodes.join(' · ')})`);
+  await lireLeDirect(false);
 }
 async function versLeMatch() {
   const ou = await page.evaluate(() => ({ zone: document.body.dataset.zone, page: document.body.dataset.page }));
@@ -1920,19 +1840,18 @@ if (enabled) {
     await page.waitForTimeout(200);
     /*
      * L'ACCUEIL ENTRE LES MATCHS (1.0, oct.). JP : *en séries, montrer l'accueil entre les matchs*. Le duel
-     * ne couvre plus le bureau de la série : « 📋 Ton tableau · match N » le propose (V13-2 : sans main), et on le
+     * ne couvre plus le bureau de la série : « ⚔ Ton plan · match N » le propose (V27, tranche 6 : un seul choix), et on le
      * joue avant de regarder.
      */
-    const mainSerie = await page.$('#hubModal .hub-main-serie');
+    const mainSerie = await page.$('#hubModal .hub-duel-serie');
     if (mainSerie) {
       const mot = (await mainSerie.textContent()).trim();
-      if (await page.$('#choixModal:not([hidden])')) errors.push('séries : le duel du match s\'ouvre par-dessus l\'accueil au lieu d\'attendre « Ton tableau »');
+      if (await page.$('#choixModal:not([hidden])')) errors.push('séries : le duel du match s\'ouvre par-dessus l\'accueil au lieu d\'attendre « Ton plan »');
       else console.log(`   séries : l'accueil entre les matchs, « ${mot} »`);
-      if (!/^📋 Ton tableau · match \d+$/.test(mot)) errors.push(`séries : le bouton du duel dit « ${mot} » au lieu de « 📋 Ton tableau · match N »`);
+      if (!/^⚔ Ton plan · match \d+$/.test(mot)) errors.push(`séries : le bouton du duel dit « ${mot} » au lieu de « ⚔ Ton plan · match N »`);
       await mainSerie.click();
-      await _wait('#choixModal:not([hidden]) .main-sheet', { timeout: 5000 });
-      const stats = await page.$$eval('#choixModal .ent2-stats tbody th', l => l.map(e => e.textContent.trim()));
-      if (!stats.includes('Jambes moyennes')) errors.push(`séries : le duel du soir ne montre pas les stats des deux clubs (${stats.join(', ') || 'rien'})`);
+      await _wait('#choixModal:not([hidden]) .dl-sheet', { timeout: 5000 });
+      if (!(await page.$('#choixModal .dl-jeu'))) errors.push('séries : le duel du match ne montre pas leur jeu');
       await repondreAuxChoix();
       await aller('match');
       await page.waitForTimeout(200);
@@ -1942,7 +1861,7 @@ if (enabled) {
     if (regarder) {
       await regarder.click();
       await page.waitForSelector('#liveModal .live-pause', { timeout: 20000 });
-      await finirDirect('séries');
+      await finirDirect();
       const fil = await page.$eval('#liveModal .live-feed', e => e.textContent);
       xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
       await page.click('#liveModal .live-suite');
@@ -1950,17 +1869,17 @@ if (enabled) {
       await memesButs('séries, le match vu en direct', true);
     }
     /*
-     * L'ADJOINT JOUE CETTE SÉRIE (1.0, J2-13) : le duel qui s'ouvre lui est
-     * confié ; ses décisions portent `auto` (une main vide depuis la V13-2), et le
+     * TON MATCH, TOUTE LA SÉRIE (1.0, J2-13 ; V27, tranche 6) : le duel qui s'ouvre se
+     * joue au plan de ton alignement, sans écran ; ses décisions portent `auto` (une main vide), et le
      * duel du match d'après ne s'ouvre plus. Sans duel ouvert (série finie), rien à confier.
      */
     {
       await page.waitForTimeout(400);
-      const mainOuverte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]');
-      const adj = await page.$('#choixModal:not([hidden]) .main-adjoint');
-      if (mainOuverte && !adj) errors.push('le duel d\'un match de séries n\'offre pas « L\'adjoint joue cette série »');
+      const mainOuverte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="duel"]');
+      const adj = await page.$('#choixModal:not([hidden]) .dl-auto');
+      if (mainOuverte && !adj) errors.push('le duel d\'un match de séries n\'offre pas « Ton match, toute la série »');
       else if (adj) {
-        await deuxCaptures('adjoint', '#choixModal .main-adjoint');
+        await deuxCaptures('adjoint', '#choixModal .dl-auto');
         await adj.click();
         await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
         await page.waitForTimeout(600);
@@ -1973,7 +1892,7 @@ if (enabled) {
           for (let i = 0; i < 8; i++) {
             const b = await page.$('#hubModal .hub-jour');
             if (!b || !(await b.isVisible()) || await page.$('#hubModal .hub-ronde')) break;
-            if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) { errors.push('un duel s\'ouvre encore dans une série confiée à l\'adjoint'); break; }
+            if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="duel"]')) { errors.push('un duel s\'ouvre encore dans une série jouée à ton match'); break; }
             if (await page.$('#choixModal:not([hidden])')) break;
             await b.click();
             await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
@@ -1991,7 +1910,7 @@ if (enabled) {
             await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
             await page.waitForTimeout(600);
             if (await page.$('#hubModal .hub-adjoint')) errors.push('« Reprendre la série » : l\'adjoint la joue encore');
-            else if (!(await page.$('#hubModal .hub-main-serie'))) errors.push('« Reprendre la série » : le duel du match ne revient pas');
+            else if (!(await page.$('#hubModal .hub-duel-serie'))) errors.push('« Reprendre la série » : le duel du match ne revient pas');
             else console.log('   la série reprise : le duel du prochain match revient');
           }
         }
@@ -2264,8 +2183,7 @@ if (parisPris.length && !parisDits.length) errors.push(`${parisPris.length} pari
 else if (parisPris.length) console.log(`   paris tranchés : ${parisPris.length} pris, la boîte en dit ${parisDits.length} — « ${parisDits[0]} »`);
 if (parisPris.length && !desLances.length) errors.push(`${parisPris.length} pari(s) pris, et aucun dé lancé`);
 else if (desLances.length) console.log(`   dés lancés : ${desLances.length} — ${desLances.slice(0, 4).join(' · ')}`);
-console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
-console.log(`   périodes de duel jouées : ${mainsVues.length} (${mainsVues.slice(0, 6).join(" · ") || "aucune"})`);
+console.log(`   choix d'avant-duel : ${mainsVues.length} (${mainsVues.slice(0, 6).join(" · ") || "aucune"})`);
 console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
 if (actionsLNH) errors.push(`la version Web a demandé ${actionsLNH} photo(s) d'action à la LNH (elles viennent de img/actions)`);
 

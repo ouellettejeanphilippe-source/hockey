@@ -81,16 +81,16 @@ const rnd = (() => { let x = Number(process.env.GRAINE || 7); return () => (x = 
 async function regler(max = 40) {
   for (let i = 0; i < max; i++) {
     const e = await etat();
-    // Le gros match se vit en direct (oct.) : au vestiaire à l'entracte, sinon « Passer à la fin », puis « Continuer » ; jamais de ✕.
+    // Le gros match se vit en direct (oct.) : la période suivante à l'entracte, sinon « Passer à la fin », puis « Continuer » ; jamais de ✕.
     if (await page.evaluate(() => { const m = document.getElementById('liveModal'); return !!m && m.style.display === 'flex'; })) {
-      const b = await page.$('#liveModal .live-entracte') || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
+      const b = await page.$('#liveModal .live-periode') || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
       if (b) await b.click().catch(() => {});
       await page.waitForTimeout(600); continue;
     }
     if (e.choix) {
       if (await page.$('#choixModal:not([hidden]) .pochette')) { await passerLaPile({ tout: true }); await page.waitForTimeout(800); const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) await f.click(); continue; }
-      // L'écran de combat (V5) : une carte de vestiaire à garder avant « Jouer » (la première ; un pari passe par le dé, plus bas).
-      if (await page.$('#choixModal:not([hidden]) .duel-prop')) { const v = await page.$('#choixModal .main-vest:not([aria-disabled="true"]) .tc-prendre'); if (v && await page.$('#choixModal .duel-prop[aria-disabled="true"]')) { await v.click(); await page.waitForTimeout(200); } await page.click('#choixModal .duel-prop[data-prop="garder"] .tc-prendre'); await page.waitForTimeout(1200); continue; }
+      // Le duel à un choix (V27, tranche 6) : Ton match, puis « Au match ».
+      if (await page.$('#choixModal:not([hidden]) .dl-sheet')) { await page.click('#choixModal .dl-jouer'); await page.waitForTimeout(1200); continue; }
       const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc [data-choix]'); if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .de-lancer:not([disabled]):not(.de-suite)')) { await page.focus('#choixModal .de-lancer'); await page.keyboard.press('Enter'); await page.waitForTimeout(2500); await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .tcj-signer') && e.choix === 'ballottage') { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
