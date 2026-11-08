@@ -436,6 +436,99 @@ async function repondreAuxChoix() {
   }
 }
 /*
+ * LE DIRECT ET LE SOMMAIRE DISENT LES MÊMES BUTS (S79). JP : *le sommaire
+ * post match et ce que je voyais dans le match, les buts sont pas au même
+ * moment* — le sommaire donnait le temps écoulé, le direct le temps qu'il
+ * reste. `finirDirect` lit les buts du fil (période, heure, marqueur) ;
+ * `memesButs` les compare, au caractère près, au tableau de la journée et au
+ * « Sommaire du match ». Un entracte au milieu n'y change rien : c'est le
+ * même match, continué.
+ */
+const PERIODES = ['1re période', '2e période', '3e période', 'Prolongation'];
+let butsVusEnDirect = null;
+const propre = t => (t || '').replace(/\s+/g, ' ').trim();
+const butsDuDirect = () => page.$$eval('#liveModal .live-feed .live-ligne', els => {
+  let per = 1; const out = [];
+  // Le fil s'écrit du plus récent au plus ancien ; une fin de période est une ligne sans heure.
+  for (const e of els.slice().reverse()) {
+    if (e.classList.contains('periode') && !e.classList.contains('ent2-marque') && !e.classList.contains('cartes') && !e.querySelector('.live-tps')) { per++; continue; }
+    if (e.classList.contains('but')) out.push(`${per} ${e.querySelector('.live-tps').textContent.trim()} ${e.querySelector('b:not(.live-but-mot)').textContent.replace(/\s+/g, ' ').trim()}`);
+  }
+  return out;
+});
+let glaceDuDirect = 0;
+async function lireLeDirect(entracte) {
+  butsVusEnDirect = { buts: await butsDuDirect(), entracte };
+  // UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP).
+  const ternes = await page.$$eval('#liveModal :is(.live-ligne.but, .live-but-ligne)', l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band') && !e.closest('[style*="--eq-band"]')).length);
+  if (ternes) errors.push(`le direct : ${ternes} but(s) sans les couleurs du club qui marque`);
+  // LA GLACE (js/glace.js) : un point par tir au tableau, ni plus ni moins.
+  const points = await page.$$eval('#liveModal .live-glace:not([hidden]) .gl-pt', e => e.length);
+  const tirs = await page.$eval('#liveModal .live-tirs', e => (e.textContent.match(/\d+/g) || []).map(Number).reduce((x, y) => x + y, 0)).catch(() => -1);
+  if (!points) errors.push('le direct : la glace n\'a posé aucun tir');
+  else if (tirs >= 0 && points !== tirs) errors.push(`le direct : ${points} points sur la glace pour ${tirs} tirs au tableau`);
+  glaceDuDirect = points;
+}
+/* Le « Sommaire du match » d'une clé `saison|j|k` ou `series|i|k` : ses buts, période, heure et marqueur. */
+async function butsDuSommaire(cle) {
+  await page.evaluate(c => {
+    const el = document.createElement('div');
+    el.dataset.sommaire = c;
+    document.body.appendChild(el);
+    el.click();
+    el.remove();
+  }, cle);
+  // Au bureau, une page du Club (1.0, R3) ; ailleurs (le bilan), la fenêtre.
+  await page.waitForFunction(() => document.getElementById('gameModal').style.display !== 'none' || document.querySelector('#hubModal .hub-page[data-genre="sommaire-match"]'), null, { timeout: 5000 }).catch(() => {});
+  const enPage = !!(await page.$('#hubModal .hub-page[data-genre="sommaire-match"]'));
+  const portee = enPage ? '#hubModal .hub-page[data-genre="sommaire-match"]' : '#gameModalBody';
+  const ternes = await page.$$eval(`${portee} .som-but:not(.som-pun)`, l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band')).length);
+  if (ternes) errors.push(`le sommaire du match : ${ternes} but(s) sans les couleurs du club qui marque`);
+  // LES FAITS SAILLANTS (JP, 23 oct.) : la manchette, puis le récit et la clé du match, en texte.
+  const saillants = await page.$$eval(`${portee} .som-saillants p`, l => l.map(e => e.textContent.trim()).filter(Boolean));
+  const manchette = await page.$eval(`${portee} .som-saillants .som-manchette`, e => e.textContent.trim()).catch(() => '');
+  if (!manchette || saillants.length < 2) errors.push(`le sommaire n'a pas ses faits saillants : ${saillants.join(' · ') || 'rien'}`);
+  else if (!decideVu) { decideVu = true; console.log(`   les faits saillants : ${saillants.join(' · ')}`); }
+  const buts = await page.$$eval(enPage ? '#hubModal .hub-page[data-genre="sommaire-match"] .som-per' : '#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
+    const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
+    return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);
+  }), PERIODES);
+  if (enPage) await page.evaluate(() => document.querySelector('#hubModal .hub-page[data-genre="sommaire-match"] .hub-page-retour')?.click());
+  else await page.evaluate(() => document.getElementById('closeGameBtn').click());
+  await page.waitForTimeout(150);
+  return buts;
+}
+/*
+ * ET ÇA RESTE VRAI APRÈS (S79). JP : *surtout, la simulation doit pas se faire
+ * d'avance, pis rester ok après*. Le match vu en direct se relit au bilan,
+ * après toutes les décisions du reste de la saison (et les entractes qui
+ * rebâtissent la ligue jusqu'à leur soir) : les mêmes buts, au caractère près.
+ */
+const aRelire = [];
+let decideVu = false;
+async function memesButs(etiquette, serie = false) {
+  const vu = butsVusEnDirect;
+  butsVusEnDirect = null;
+  if (!vu) return;
+  const lus = [];
+  // S79 : l'écran Match ne répète plus les buts d'hier (une ligne qui ouvre le sommaire) : le sommaire fait foi.
+  // Le « Sommaire du match » : le dernier match révélé (ta série : le plus haut numéro).
+  const cle = await page.evaluate(s => {
+    const els = [...document.querySelectorAll(s ? '#hubModal [data-sommaire^="series|"]' : '#hubModal .hub-hier[data-sommaire]')];
+    const el = els.sort((a, b) => Number(a.dataset.sommaire.split('|')[2]) - Number(b.dataset.sommaire.split('|')[2])).pop();
+    return el ? el.dataset.sommaire : null;
+  }, serie);
+  if (cle) {
+    lus.push(['le sommaire du match', await butsDuSommaire(cle)]);
+    // Le match de saison se relira au bilan, après toutes les décisions qui suivent.
+    if (!serie) aRelire.push({ etiquette, cle, buts: vu.buts });
+  } else errors.push(`${etiquette} : le match vu en direct n'a pas de sommaire à ouvrir`);
+  const direct = JSON.stringify(vu.buts);
+  const faux = lus.filter(([, l]) => JSON.stringify(l) !== direct);
+  if (faux.length) errors.push(`${etiquette} : ${faux.map(([q, l]) => `${q} (${l.join(' · ')})`).join(' et ')} ne dit pas les mêmes buts que le direct (${vu.buts.join(' · ')})`);
+  else console.log(`   ${etiquette} : le direct, ${lus.map(([q]) => q).join(' et ')} disent les mêmes ${vu.buts.length} buts, période, heure et marqueur${vu.entracte ? ' — entracte compris' : ''} (${propre(vu.buts.slice(0, 3).join(' · '))}${vu.buts.length > 3 ? ' …' : ''})`);
+}
+/*
  * FINIR UN DIRECT (S70 ; V27, tranche 6 : plus d'entracte à choix). Un duel s'arrête à ses entractes, un seul bouton (la
  * période suivante) ; « Passer à la fin » va au bout sans autre pause, et le fil se lit tel quel.
  */
