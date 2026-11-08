@@ -6,7 +6,7 @@
  * 54), le III (55 à 82), les séries. Le prototype du 7 nov. (scratchpad `proto-actes`) devient ici le robot du dépôt :
  *   - LES RIVAUX (§ 4.3) : le dernier match de chaque acte, contre le 8e, le 4e puis le plus fort club en force
  *     (attaque + défense + gardien au premier soir, `RANGS_DES_RIVAUX`), posé là par un échange de cédule qui garde 82
- *     matchs à chacun et un match par jour (`echanger`) ; faute d'échange, un club d'un rang voisin. Un duel ; gagné, une
+ *     matchs à chacun et un match par jour (`echanger`), sinon en amenant le club au jour du rival (`amener`) ; en dernier recours, un club d'un rang voisin. Un duel ; gagné, une
  *     pièce ; perdu, les sonnés, aucun cœur, et jamais de jetons.
  *   - LES CŒURS ET LES CONTRÔLES (§ 4.2) : `COEURS` 2 ; à la fin des actes I et II, le classement du soir (celui de
  *     l'écran, `bilanLigue`) doit tenir le 20e puis le 12e rang (proportionnels à la taille de la ligue), sinon −1 ❤️ ;
@@ -133,6 +133,31 @@ function echanger(L, d, e, X, Y) {
 }
 /* L'échange garde 82 matchs à chacun et un match par jour seulement si Y joue le jour d autant que X joue le jour e. */
 const peut = (L, d, e, X, Y) => joueLe(L, Y, d) === joueLe(L, X, e);
+/* X et Y échangent leur place dans les matchs du jour d seulement. */
+function echangerLeJour(L, d, X, Y) {
+  for (const m of L.calendrier[d]) {
+    if (m.A === X) m.A = Y; else if (m.A === Y) m.A = X;
+    if (m.B === X) m.B = Y; else if (m.B === Y) m.B = X;
+  }
+}
+/*
+ * AMENER B dans ton match du jour d, à la place de X, quand aucun échange de deux journées ne le peut (B ne te joue
+ * jamais, ou jamais un jour qui le permette). B joue ce jour-là : X prend son match, chacun garde ses 82. B ne joue pas :
+ * X perd un match et B en gagne un, rendu par un autre jour où B joue un tiers et X rien (X y prend sa place). Ton
+ * calendrier ne change qu'au jour d. Rend faux, sans rien toucher, si aucun jour ne rééquilibre.
+ */
+function amener(L, d, X, B, you) {
+  if (joueLe(L, B, d)) { echangerLeJour(L, d, X, B); return true; }
+  for (let f = 0; f < L.calendrier.length; f++) {
+    if (f === d || joueLe(L, X, f)) continue;
+    const m = L.calendrier[f].find(x => (x.A === B || x.B === B) && x.A !== you && x.B !== you);
+    if (!m) continue;
+    echangerLeJour(L, d, X, B);
+    if (m.A === B) m.A = X; else m.B = X;
+    return true;
+  }
+  return false;
+}
 
 /*
  * UNE RUN : une saison en actes, de la première run (aucun déblocage, `metaAuNiveau(0)`), pour le robot `nom` sous la
@@ -171,6 +196,8 @@ export function jouerLaRun(nom, graine) {
       let best = -1;
       jours.forEach((j, q) => { if (!fixe.has(q) && q !== i && advAu(j) === B && peut(L, jours[i], j, X, B) && (best < 0 || Math.abs(q - i) < Math.abs(best - i))) best = q; });
       if (best >= 0) { echanger(L, jours[i], jours[best], X, B); break; }
+      // Aucun échange de deux journées (V27, tranche 1 : profondeur-3, le plus fort ne te jouait aucun jour possible) : B vient au jour du rival.
+      if (amener(L, jours[i], X, B, you)) break;
     }
     fixe.add(i);
     rivaux.push({ voulu, rang: parForce.indexOf(advAu(jours[i])) });
