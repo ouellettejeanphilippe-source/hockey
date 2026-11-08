@@ -23,7 +23,7 @@ Le sujet : `$ARGUMENTS` (vide : la courbe des runs et les pouvoirs, les deux « 
 | cartes | `check_cartes` · `check_effets` | `IDS=…` pour cibler | ~20 min |
 | packs, economie | `check_packs` · `mesure_rogue` · `check_rogue` | `RUNS=10 CAMPAGNES=2` | `RUNS=40 CAMPAGNES=6` |
 | duel | `check_duel` | `N=200` | `N=1200` (~6 min) |
-| runs | `check_profondeur` | `GRAINES=1 CAMPAGNES=1 RUNS_CAMPAGNE=2` (2 min) | ~15 min |
+| runs | `check_profondeur` | `GRAINES=2 FILS=1` (4 min, rien de statistique jugé) | en CI (`profondeur.yml`, 64 graines) |
 
 Dis la commande et sa durée avant de la lancer. Plus de cinq minutes : demande d'abord. Un repère décimal se juge sur la médiane de plusieurs graines (`GRAINES=1,2,3`), jamais sur une seule.
 

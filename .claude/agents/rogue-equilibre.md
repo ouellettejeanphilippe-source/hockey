@@ -29,7 +29,7 @@ Tu es le designer des systèmes du Rogue de Cap 82-0 : tu tiens les chiffres. Ta
 | `node scripts/check_effets.mjs` (`N`, `IDS=q:,a:`) | chaque effet se voit, reste borné | ~20 min ; `IDS` pour cibler |
 | `node scripts/check_cartes.mjs` | les cartes en paires, le style ne se paie pas en force | ~1 min |
 | `node scripts/check_duel.mjs` (`N`) | l'attentif contre « Garder » | ~6 min |
-| `node scripts/check_profondeur.mjs` | la courbe des runs, trois robots | ~15 min ; `GRAINES=1 CAMPAGNES=1 RUNS_CAMPAGNE=2` en 2 min |
+| `node scripts/check_profondeur.mjs` | la run en actes (V27), sept robots sur 64 graines | en CI seulement (`profondeur.yml`) ; `GRAINES=2 FILS=1` en 4 min, rien de statistique jugé |
 | `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` | la courbe des runs, l'économie | quelques minutes |
 | `node scripts/check_banque.mjs` | la banque de cartes | ~12 min |
 | `node scripts/check_impact.mjs` (`COMPLET=1`) · `check_chiffres.mjs` | ce que l'écran annonce égale ce que le moteur joue | 12 s · 1 min |
