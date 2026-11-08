@@ -29,9 +29,10 @@ import {
   DEBLOCAGES, departDuClasseur, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, exigencesOuvertes,
   EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, ESPACE_DE_DEPART, soutiensDuDepart, bouchesTrousDuDepart,
-  ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN,
+  ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN, ecussonsDesSeries,
 } from '../js/rogue.js';
-import { ACTES, COEURS, CONTROLES, RANGS_DES_RIVAUX, ETAPE_SERIES, controleDeLActe, etapeDesSeries, rangAuSoir, etatDeLaRun, parmiLesAdversaires } from '../js/actes.js';
+import { ACTES, COEURS, CONTROLES, RANGS_DES_RIVAUX, ETAPE_SERIES, controleDeLActe, etapeDesSeries, rangAuSoir, etatDeLaRun, parmiLesAdversaires,
+  NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, PRIX_PIECE, noeudOuvert, prochainNoeud, prixDeLaPiece, estUnAchat, piecesDuNoeud } from '../js/actes.js';
 import { EDITIONS } from '../js/rarete.js';
 import { NIVEAUX as NOMS_DE_NIVEAU } from '../js/niveaux.js';
 import { POUVOIRS } from '../js/pouvoirs.js';
@@ -127,9 +128,23 @@ if (!isMainThread) {
     exiger('le budget du classeur : 25 M$ sans déblocage, le plafond débloqué le monte', budgetDuClasseur({ deblocages: [] }) === 25_000_000 && budgetDuClasseur({ deblocages: ['plafond1', 'plafond2'], ecussonsAVie: 0 }) === 32_000_000, '25 M$ · 32 M$');
     exiger('les cases de réserve de plus se débloquent une à une', reservesDeLaRun({ deblocages: [] }) === 0 && reservesDeLaRun({ deblocages: ['banc1'] }) === 1 && reservesDeLaRun({ deblocages: ['banc1', 'banc2'] }) === 2 && DEBLOCAGES.banc2.requis === 'banc1', '0 · 1 · 2');
     exiger('le barème d\'une run : 5 🪙 par victoire, 8 et 10 avec les commanditaires', baremeRogue({ deblocages: [] }).victoire === 5 && baremeRogue({ deblocages: ['commanditaire1'] }).victoire === 8 && baremeRogue({ deblocages: ['commanditaire1', 'commanditaire2'] }).victoire === 10, '5 · 8 · 10');
-    // 1.0 (J1-C) : la prime de série se verse — `resultatsRogue` (js/game.js) renvoie enfin `series`, que `jetonsDe` lit.
-    exiger('la prime de série : trois rondes gagnées valent 3 × 40 🪙, et rien sans ronde', jetonsDe({ series: 3 }, 0, 40, JETONS) === 40 + 3 * JETONS.serie && jetonsDe({}, 0, 40, JETONS) === 40 && JETONS.serie === 40,
-      `${jetonsDe({ series: 3 }, 0, 40, JETONS)} 🪙 avec trois rondes, ${jetonsDe({}, 0, 40, JETONS)} sans`);
+    // V27, tranche 3 : la prime de série est en médailles (20 🏅 la ronde, `ecussonsDesSeries`) ; en séries, la boutique est fermée.
+    exiger('la prime de série : en médailles (20 🏅 la ronde, 40 de plus pour la Coupe), plus en jetons', jetonsDe({ series: 3 }, 0, 40, JETONS) === 40 && !('serie' in JETONS) && ecussonsDesSeries(3, false) === 60 && ecussonsDesSeries(4, true) === 120,
+      `${jetonsDe({ series: 3 }, 0, 40, JETONS)} 🪙 avec trois rondes · ${ecussonsDesSeries(3, false)} 🏅`);
+    /*
+     * LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; docs/refonte-v27-3.md) : sept nœuds, ouverts jusqu'à ton match suivant ; le prix
+     * remis à zéro à chaque nœud ; quatre achats au plus, la pièce comprise ; la pièce à 32 🪙, puis à la hausse des packs ; trois
+     * pièces tirées de la graine, les mêmes pour la même graine ; ton club et l'ouverture d'un pack scellé ne comptent pas.
+     */
+    exiger('la boutique n\'ouvre qu\'à ses sept nœuds', NOEUDS_BOUTIQUE.join() === '0,14,27,41,54,68,82' && [0, 14, 27, 41, 54, 68, 82].every(k => noeudOuvert(k) === k) && [1, 13, 15, 40, 81, 83].every(k => noeudOuvert(k) === null)
+      && prochainNoeud(33) === 41 && prochainNoeud(0) === 14 && prochainNoeud(82) === null, `ouverte à ${NOEUDS_BOUTIQUE.join(' · ')} ; après le 33e, la prochaine au ${prochainNoeud(33)}e`);
+    exiger('le prix repart de zéro au nœud : la pièce 32 🪙 en premier, 45 après un pack', PRIX_PIECE === 32 && prixDeLaPiece(0) === 32 && prixDeLaPiece(1) === 45 && ACHATS_PAR_NOEUD === 4,
+      `${prixDeLaPiece(0)} · ${prixDeLaPiece(1)} · ${prixDeLaPiece(2)} · ${prixDeLaPiece(3)} 🪙 · ${ACHATS_PAR_NOEUD} achats au plus`);
+    exiger('un achat de nœud : un pack payé ou la pièce ; ton club et l\'ouverture d\'un scellé, non', estUnAchat({ achat: { sorte: 'joueurs', prix: 14 } }) && estUnAchat({ achat: { sorte: 'piece', prix: 32 } })
+      && !estUnAchat({ achat: { sorte: 'club', prix: 15 } }) && !estUnAchat({ achat: { sorte: 'joueurs', prix: 0, de: 'k:0' } }), 'pack · pièce · ni club ni scellé');
+    const P0 = { cle: 'tortue', talents: [], main: [] }, o1 = piecesDuNoeud(P0, 'g', 41), o2 = piecesDuNoeud(P0, 'g', 41), o3 = piecesDuNoeud(P0, 'g', 54);
+    exiger('trois pièces par nœud, pures, chacune à son niveau, une autre offre au nœud suivant', o1.length === 3 && JSON.stringify(o1) === JSON.stringify(o2) && JSON.stringify(o1) !== JSON.stringify(o3) && o1.every(x => x.niv >= 1 && x.niv <= 5),
+      o1.map(x => `${x.cle} ${x.niv}`).join(' · '));
     // 1.0 (J1-B) : un achat s'enregistre AVANT le butin — un ballottage de pack porte le palier `k:n:signe`, jamais l'achat lui-même,
     // donc le numéro d'achat suivant ne bouge pas et la dépense est comptée même sans signature.
     const achats = [{ jour: 3, palier: 'k:0', achat: { pack: 'j:hasard_bronze', n: 0, prix: 12, sorte: 'joueurs' } }, { jour: 3, palier: 'k:0:signe', ballottage: { i: 20, entre: 'x', sort: null } }];

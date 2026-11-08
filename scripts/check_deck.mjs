@@ -33,7 +33,7 @@ import {
 } from '../js/sim.js';
 import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, payloadDe } from '../js/banque.js';
 import { monterLesDoublons, missionsDuCartable, decennieDe } from '../js/cartable.js';
-import { cartesDeLaPartie, PALIERS_PACK } from '../js/inventaire.js';
+import { cartesDeLaPartie } from '../js/inventaire.js';
 import { BANQUE } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -175,7 +175,7 @@ console.log('\n  Le deck (S73)\n');
   exiger('les cartes de la saison d\'avant entrent au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
   // Un palier ou un butin d'un gros match n'ajoute aucune carte à l'inventaire : V22, les adjoints du staff sont partis
   // (ceux de la main reviennent à la phase 3) ; une vieille décision `adjoint` ne donne rien à tes cartes.
-  const prise = { jour: 21, palier: `pp:${PALIERS_PACK[0]}`, adjoint: { cle: 'canonnier' } };
+  const prise = { jour: 21, palier: 'pp:10', adjoint: { cle: 'canonnier' } };
   const butin = { jour: 31, palier: 'r:30', adjoint: { cle: 'mur' } };
   const avec = cartesDeLaPartie({ decisions: [prise, butin], rogue: true });
   exiger('un palier ou un butin ne met aucune carte dans tes cartes', avec.length === 0, avec.map(x => `${x.ref} ${x.id}`).join(' · ') || 'aucune carte');

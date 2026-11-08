@@ -14,6 +14,8 @@
  */
 import { teamStrength } from './sim.js';
 import { exigencesDe } from './rogue.js';
+import { hausseDesPacks } from './packs.js';
+import { adjointsOfferts, niveauOffert } from './adjoints.js';
 
 export const ACTES = [27, 54, 82];
 export const RANGS_DES_RIVAUX = [7, 3, 0];
@@ -170,3 +172,29 @@ export function jeuDuRival(teams, you, adv) {
   const fort = lignes.slice().sort((a, b) => a.rang - b.rang)[0];
   return { mot: fort.mot, lignes };
 }
+
+/*
+ * LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; docs/refonte-v27.md § 4.8, docs/refonte-v27-3.md). Elle n'ouvre qu'à sept
+ * moments de la saison : avant ton 1er match, puis après tes 14e, 27e, 41e, 54e, 68e et 82e matchs, et elle reste
+ * ouverte jusqu'à ton match suivant (après le 82e, jusqu'aux séries, où elle est fermée). À chaque ouverture, le prix
+ * des packs repart de zéro (`hausseDesPacks` compté sur les achats DE CE NŒUD), au plus `ACHATS_PAR_NOEUD` achats,
+ * packs et pièce confondus ; la pièce de banc, une parmi trois, coûte `arrondi(PRIX_PIECE × hausseDesPacks(n))`. Les
+ * jetons qui restent après le dernier nœud sont perdus. Le jeu (js/rogue-jeu.js) et le robot de la profondeur
+ * (scripts/lib/rogue_actes.mjs) lisent ces mêmes fonctions : ils achètent aux mêmes nœuds, aux mêmes prix.
+ */
+export const NOEUDS_BOUTIQUE = [0, 14, 27, 41, 54, 68, 82];
+export const ACHATS_PAR_NOEUD = 4;
+export const PRIX_PIECE = 32;
+/* Le nœud ouvert quand `joues` de tes matchs sont joués (ou null : la boutique est fermée). */
+export const noeudOuvert = joues => (NOEUDS_BOUTIQUE.includes(joues) ? joues : null);
+/* Le prochain nœud après `joues` matchs (ou null : la dernière boutique est passée). */
+export const prochainNoeud = joues => NOEUDS_BOUTIQUE.find(k => k > joues) ?? null;
+/* Un achat qui compte au nœud : un pack payé, ou la pièce. Ton club (un nom, des couleurs) et l'ouverture d'un pack scellé, non. */
+export const estUnAchat = d => !!(d && d.achat && d.achat.prix > 0 && ['joueurs', 'cartes', 'piece'].includes(d.achat.sorte));
+/* La pièce au `n`-ième achat du nœud (de 0) : 32 🪙 en premier, 45 après un pack. */
+export const prixDeLaPiece = n => Math.round(PRIX_PIECE * hausseDesPacks(n));
+/*
+ * LES TROIS PIÈCES D'UN NŒUD, tirées de la graine. Tant que le banc de cinq n'existe pas (tranche 5, *PIECES*), une
+ * pièce est un adjoint pour ta main, à son niveau (`adjointsOfferts`, `niveauOffert`) : la carte qui deviendra une pièce.
+ */
+export const piecesDuNoeud = (perso, graine, k) => (perso ? adjointsOfferts(perso, graine, `bq${k}`, 3).map(cle => ({ cle, niv: niveauOffert(graine, `bq${k}`, cle) })) : []);

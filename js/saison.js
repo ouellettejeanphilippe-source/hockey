@@ -32,7 +32,7 @@ import { lignesDeLAdjointEnChiffres, ditDeLaFinition, motsDuSoir, alignementDuSo
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto, carteHtml } from './cartes.js';
-import { PALIERS_PACK, SEMAINE } from './inventaire.js';
+import { SEMAINE } from './inventaire.js';
 import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT, TALENT_CASE, NIVEAU_POUVOIR, SEUILS_NIVEAU } from './pouvoirs.js';
 import { COACHS } from './coachs.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
@@ -40,9 +40,9 @@ import { ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, bascule
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
-import { etatDeLaRun, jeuDuRival, RAISONS_DU_DUEL, NOMS_DES_ACTES, ACTES, COEURS, MEDAILLES_ACTE } from './actes.js';
+import { etatDeLaRun, jeuDuRival, RAISONS_DU_DUEL, NOMS_DES_ACTES, ACTES, COEURS, MEDAILLES_ACTE, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat } from './actes.js';
 import { ADJOINTS, adjointsOfferts, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, niveauOffert, momentFort, salaireDe, nivDe, casesDuPerso } from './adjoints.js';
-import { sceneDeLaMise, sceneDuPalier, sceneDeLaBlessure, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
+import { sceneDeLaMise, sceneDeLaBlessure, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { BANQUE } from './banque.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt, motsDeLObjectif, motDeBlessure } from './recit.js';
 import { jouerSon } from './sons.js';
@@ -677,6 +677,8 @@ function cacherBoutonFlottant() {
 
 /* Ce qui presse (V5) : en semaine, seuls ces messages bloquent ; le reste attend le nœud du lundi. */
 const PRESSE = new Set(['choix', 'histoire', 'pack', 'blessure', 'trou']);
+/* Le sac du marché (V27, tranche 3 ; la maquette 1) : un nœud de la boutique sur la piste et la route, dessiné, sans le mot. */
+const SAC = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.8" aria-hidden="true"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>';
 /* Les accès de la carte de la semaine (V5) : ce qu'un roguelike garde à un toucher de sa carte. La boutique n'y est
    pas (JP : *rien de la boutique dans le Club*) : elle est au Marché, à un toucher de la barre, ouverte en tout temps. */
 /*
@@ -836,7 +838,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const jEv = k => jourEvenement(you, k);
   const palierOuvert = () => (onDecision ? PALIERS_CARTES.find(j => jour >= jEv(j) && !prises.has(j)) : undefined);
   const paliersVus = new Set();      // les paliers qui ont déjà arrêté l'avance
-  const packsVus = new Set();        // V4 : les paliers de la saison (`PALIERS_PACK`) qui ont déjà arrêté l'avance
+  // V27, tranche 3 : un nœud de la boutique arrête l'avance une fois (js/actes.js `NOEUDS_BOUTIQUE`) : elle ferme à ton match suivant.
+  const noeudsVus = new Set();
+  const noeudNeuf = () => { const k = ctx.rogue && onDecision ? noeudOuvert(miens.length) : null; return k != null && !noeudsVus.has(k); };
   /*
    * LES PALIERS DÉJÀ PROPOSÉS À CE PASSAGE (S74). La main s'ouvrait seulement
    * quand un clic s'arrêtait sur le palier ; un choix forcé tombé le même jour
@@ -1148,7 +1152,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * entracte) et pour un blessé qu'il faut remplacer avant le prochain match.
    */
   const auNoeud = () => !ctx.rogue || jour >= N || jour % SEMAINE === 0;
-  const arretDeSemaine = () => { const bo = blessureOuverte(); return (!!bo && !vues.has(bo)) || !!mainOuverte() || etapesDeLActe().length > 0 || (auNoeud() && (forceOuvert() || retourNeuf())); };
+  const arretDeSemaine = () => { const bo = blessureOuverte(); return (!!bo && !vues.has(bo)) || !!mainOuverte() || etapesDeLActe().length > 0 || noeudNeuf() || (auNoeud() && (forceOuvert() || retourNeuf())); };
   const avancer = (n, stop = false, infos = true, semaine = false) => {
     let premier = true, arrete = false;
     entracteDemande = false;
@@ -1163,11 +1167,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
       if (stop && semaine) { if (arretDeSemaine()) { arrete = true; break; } continue; }
       if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length || sejoursNeufs().length))
-        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || etapesDeLActe().length > 0 || retourNeuf() || PALIERS_PACK.some(x => miens.length >= x && !packsVus.has(x)))) { arrete = true; break; }
+        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || etapesDeLActe().length > 0 || retourNeuf() || noeudNeuf())) { arrete = true; break; }
     }
     const pal = palierOuvert();
     if (pal !== undefined) paliersVus.add(pal);
-    for (const x of PALIERS_PACK) if (miens.length >= x) packsVus.add(x);
+    if (noeudNeuf()) noeudsVus.add(noeudOuvert(miens.length));
     const rvu = retourOuvert();
     if (rvu) retoursVus.add(rvu.id);
     const neuves = blessuresNeuves();
@@ -2281,21 +2285,20 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const routeDeuxSemaines = () => {
     if (!ctx.rogue || jour >= N) return '';
     const arrets = [];
-    let n = miens.length, nGros = 0, nPacks = 0;
+    let n = miens.length, nGros = 0;
     for (let j = jour; j < N && arrets.length < ROUTE_MATCHS; j++) {
       const m = monMatch(j);
       if (!m) continue;
       n++;
       const adv = m.A === you ? m.B : m.A;
       const gros = grosDuJour(j);
-      const pack = PALIERS_PACK.includes(n) ? '<span class="pl-coin pl-coin-droite rt-pack" title="Une carte parmi trois après ce match">🎁</span>' : '';
+      const noeud = NOEUDS_BOUTIQUE.includes(n) ? `<span class="pl-coin pl-coin-droite rt-marche" title="Le marché ouvre après ce match">${SAC}</span>` : '';
       if (gros) nGros++;
-      if (pack) nPacks++;
       const pied = gros && RAISONS_DU_DUEL[gros.raison] ? RAISONS_DU_DUEL[gros.raison].nom : jour ? `${rangMot(rangDe(adv))} · ${ficheTexte(adv)}` : '';
       arrets.push(billet({ quand: `${j === jour ? 'Ce soir' : `J${j + 1}`} · ${m.A === you ? 'chez toi' : 'chez eux'}`, ico: ctx.logo(adv.tag, 22), nom: ctx.esc(ctx.tagCourt(adv)), pied: ctx.esc(pied),
-        cls: `${gros ? 'pl-billet-gros' : ''}${j === jour ? ' pl-billet-soir' : ''}`, attrs: gros && RAISONS_DU_DUEL[gros.raison] ? ` title="Gros match · ${ctx.esc(RAISONS_DU_DUEL[gros.raison].nom)}"` : '', coinHtml: pack }));
+        cls: `${gros ? 'pl-billet-gros' : ''}${j === jour ? ' pl-billet-soir' : ''}`, attrs: gros && RAISONS_DU_DUEL[gros.raison] ? ` title="Gros match · ${ctx.esc(RAISONS_DU_DUEL[gros.raison].nom)}"` : '', coinHtml: noeud }));
     }
-    const compte = [nGros ? `⚔ ${nGros}` : '', nPacks ? `🎁 ${nPacks}` : ''].filter(Boolean).join(' · ');
+    const compte = nGros ? `⚔ ${nGros}` : '';
     return arrets.length ? `<section class="bu-route" aria-label="La route">${bandeau('La route', compte)}<ol class="pl-billets">${arrets.join('')}</ol></section>` : '';
   };
   const voletJourneeSeul = () => {
@@ -2639,7 +2642,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   let boitePrete = false;
   const decideDuMarche = d => { const j = jour; quitter(); onDecision(d, j); };
-  if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, page);
+  // V27, tranche 3 : la boutique lit ta main du jour (la pièce de banc entre dans ta main ; pleine, l'offre dit qui part).
+  if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, { ...page, perso: persoDuJour(), games: you.games || 0 });
   // V12-3 : une page hors de l'écran de saison (Joueurs) montre et joue les cartes de sa maison ; `apres` dit où revenir.
   if (onDecision && ctx.maison) tabs.hub.maison = { html: k => ctx.maison.cartes(k, jour), jouer: (item, apres) => ctx.maison.jouer(item, jour, d => { if (apres) apres(); decideDuMarche(d); }) };
   // V18-5 : l'infirmerie est le filtre 🩹 d'Joueurs ; l'écran de saison lui prête ses blessés du jour.
@@ -2865,7 +2869,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // Le contenu, de zéro (4 nov.) : trois cellules — la caisse, l'espace sous le plafond, ton banc par match (cachée à zéro) ; le
       // barème de la run à l'infobulle du bloc (`.pk-bareme-run`, lu par essai_rogue) et à la page des règles.
       const masse = ctx.rogue.masse ? ctx.rogue.masse(jour) : null;
-      const bareme = `🪙 ${[['Victoire', B.victoire], ['prolongation', B.prolongation], ['défaite', B.defaite], ['objectif', B.objectif, '+'], ['ronde de séries', B.serie, '+']].filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ')}`;
+      const bareme = `🪙 ${[['Victoire', B.victoire], ['prolongation', B.prolongation], ['défaite', B.defaite], ['objectif', B.objectif, '+']].filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ')}`;
       blocs.push(`<div class="pr-bloc pr-argent pk-bareme-run" data-bareme="${ctx.esc(bareme)}" title="${ctx.esc(`Ce que chaque résultat rapporte : ${bareme}`)}"><span class="pr-k">L'argent</span>${cellules([...(jetons != null ? [{ k: 'Caisse', v: jetons, u: '🪙' }] : []),
         ...(masse ? [{ k: 'Libre', v: masse.libre.replace(/\s*M\$$/, ''), u: 'M$' }] : []), ...(sal ? [{ k: 'Ton banc', v: `−${sal}`, u: '🪙 / m' }] : [])])}
       </div>`);
@@ -2926,12 +2930,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const marques = ligue.rivaux.map(x => (x.acte <= E.acte
       ? `<span class="bu-piste-mq rival${x.jour < jour ? ' joue' : ''}" style="left:${pos(ACTES[x.acte])};${varsEquipe(ctx.band(x.adv.tag))}">${ctx.logo(x.adv.tag, 18)}</span>`
       : `<span class="bu-piste-mq" style="left:${pos(ACTES[x.acte])}">?</span>`)).join('');
-    const mot = `${NOMS_DES_ACTES[E.acte]}, match ${k + 1} sur ${ACTES[2]}${r ? `, ${r}e pour une cible de ${cible}` : ''}${R ? `. Rival ${ctx.teamShort(R.adv)} au ${ACTES[R.acte]}e match` : ''}`;
+    // V27, tranche 3 : le prochain nœud de la boutique sur la piste (le sac), à son match.
+    const kB = prochainNoeud(k);
+    const sac = kB != null ? `<span class="bu-piste-mq marche" style="left:${pos(kB)}">${SAC}</span>` : '';
+    const mot = `${NOMS_DES_ACTES[E.acte]}, match ${k + 1} sur ${ACTES[2]}${r ? `, ${r}e pour une cible de ${cible}` : ''}${kB != null ? `. Le marché au ${kB}e` : ''}${R ? `. Rival ${ctx.teamShort(R.adv)} au ${ACTES[R.acte]}e match` : ''}`;
     return `<button type="button" class="bu-run${etat}" aria-label="${ctx.esc(`Le proprio : ${mot}`)}">
       <span class="bu-run-k"><b>${NOMS_DES_ACTES[E.acte]}</b><span>Match ${Math.min(k + 1, ACTES[2])}</span></span>
       <span class="bu-run-rang">${r ? `${r}<sup>e</sup>` : ''}<small> / ${cible}</small></span>${coeurs(E.coeurs, COEURS)}
       <span class="bu-piste" aria-hidden="true"><i class="fait" style="width:${pos(k)}"></i><i class="fin-acte" style="left:${pos(ACTES[0])}"></i><i class="fin-acte" style="left:${pos(ACTES[1])}"></i>
-        <span class="bu-piste-moi" style="left:${pos(k)}">${Math.min(k + 1, ACTES[2])}</span>${marques}<span class="bu-piste-mq coupe" style="left:97%">🏆</span></span>
+        <span class="bu-piste-moi" style="left:${pos(k)}">${Math.min(k + 1, ACTES[2])}</span>${sac}${marques}<span class="bu-piste-mq coupe" style="left:97%">🏆</span></span>
       ${R && dans > 0 ? `<span class="bu-run-rival">${ctx.logo(R.adv.tag, 16)} Rival · ${dans === 1 ? 'ce soir' : `dans ${dans} matchs`}</span>` : ''}
     </button>`;
   };
@@ -3226,7 +3233,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const M = Math.round(((x.tenu === false ? 0 : MEDAILLES_ACTE.passe) + (x.gagne ? MEDAILLES_ACTE.rival : 0)) * ctx.rogue.medailles());
         const rang = `${x.rang}<sup>e</sup><small> / ${x.cible}</small>`;
         const suite = [{ nom: 'Le rival', bout: x.gagne ? 'Battu' : 'Perdu', etat: 'fait' }, { nom: 'Le contrôle', bout: `${x.rang}e / ${x.cible}`, etat: 'fait' },
-          ...(x.gagne ? [{ nom: 'Prendre une pièce', bout: '1 niveau', etat: 'ici' }] : []), ...(st.genre === 'fin' ? [] : [{ nom: `Le rival de l'${NOMS_DES_ACTES[x.acte + 1].toLowerCase()}`, bout: '?', etat: x.gagne ? 'suivant' : 'ici' }])];
+          ...(x.gagne ? [{ nom: 'Prendre une pièce', bout: '1 niveau', etat: 'ici' }] : []), ...(st.genre === 'fin' ? [] : [{ nom: `Le rival de l'${NOMS_DES_ACTES[x.acte + 1].toLowerCase()}`, bout: '?', etat: x.gagne ? 'suivant' : 'ici' }, { nom: 'Le marché', bout: 'Ouvert', etat: 'loin' }])];
         specs.push({ de: DE.proprio, ico: st.genre === 'fin' ? '🚪' : '⚔', genre: st.genre === 'fin' ? 'run' : 'acte',
           titre: st.genre === 'fin' ? 'Fin de la run' : x.tenu ? 'La run continue' : 'Un cœur de moins', irl: `${NOMS_DES_ACTES[x.acte]} · ${ctx.teamShort(x.adv)} ${x.gagne ? 'battu' : 'gagne'}`,
           contexte: `<div class="acte-fin${x.tenu ? '' : ' rate'}">${cellules([{ k: 'Contrôle', v: rang }, { k: 'Cœurs', v: coeurs(x.coeurs, COEURS) }, { k: 'Médailles', v: `+${M}`, u: '🏅' }])}
@@ -3444,18 +3451,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           agir: () => ouvrirMain(pal) } });
     }
     /*
-     * LE PALIER DE LA SAISON (V9, tranche 5b ; V21) : aux matchs de `PALIERS_PACK` (10, 30, 50, 70), un adjoint parmi trois, un échange
-     * (`adjointsOfferts`, js/adjoints.js). Il attend le lundi, comme les autres.
+     * LA BOUTIQUE OUVERTE (V27, tranche 3) : à son nœud, une ligne qui ne bloque pas et mène au Marché (elle nomme le marché sans
+     * rendre la boutique, comme le pack qui attend sa signature) ; elle part avec ton match suivant, quand la boutique ferme. L'adjoint parmi trois des 10e, 30e, 50e et 70e matchs est parti : la pièce
+     * parmi trois s'achète là, à chaque nœud.
      */
-    const pp = ctx.rogue && ctx.inventaire ? PALIERS_PACK.find(x => miens.length >= x && !pris.has(`pp:${x}`)) : undefined;
-    if (pp !== undefined) {
-      // LA SCÈNE (Jalon M, A2) : le proprio la demande, sur la fiche et le rang déjà joués, et ce que le mandat veut.
-      const f = fiche.get(you), run = leControle();
-      const scene = sceneDuPalier({ n: miens.length, fiche: { V: f.W, D: f.L, DP: f.OTL }, rang: rangDe(you), equipes: teams.length, mandat: run ? run.mot : '', graine });
-      out.push({ id: `pp:${pp}`, genre: 'cartes', bloque: true, de: scene.de, sujet: `Le ${pp}e match : un adjoint parmi trois`,
-        choix: { scene, recit: 'Pour la run : ce qu\'il donne, ce qu\'il coûte.',
-          options: adjointsDuMoment(`pp${pp}`),
-          decision: cle => ({ palier: `pp:${pp}`, ...decisionDeLAdjoint(cle, `pp${pp}`) }) } });
+    const kB = ctx.rogue && ctx.boutique && jour < N ? noeudOuvert(miens.length) : null;
+    if (kB != null) {
+      const faits = decs.filter(d => estUnAchat(d) && miens.filter(x => x.j < d.jour).length === kB).length;
+      out.push({ id: `bq:${kB}`, genre: 'boutique', bloque: false, de: DE.dg, sujet: kB === NOEUDS_BOUTIQUE.at(-1) ? 'Le dernier marché, avant les séries' : 'Le marché est ouvert',
+        choix: { recit: `Jusqu'à ton prochain match : une pièce parmi trois, des packs au prix de base, ${ACHATS_PAR_NOEUD} achats au plus.`,
+          options: [{ cle: 'aller', nom: 'Au marché', sous: faits ? `${faits} achat${faits > 1 ? 's' : ''} sur ${ACHATS_PAR_NOEUD}` : 'Une pièce, des packs', ouvre: true }],
+          agir: () => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { page: 'boutique' } })) } });
     }
     /*
      * LE TALENT DU COACH (V21) : aux niveaux 2 et 4, un de ses pouvoirs ouverts grandit de moitié. Il attend le lundi.
@@ -3556,7 +3562,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (['blessure', 'physio', 'retour', 'trou'].includes(m.genre)) return 'infirmerie';
     // Une maison par sujet (V12-3) : une histoire se règle chez sa voix (le proprio, l'entraîneur, l'infirmerie, le vestiaire).
     if (m.genre === 'histoire') return MAISON_DE_VOIX[m.voix] || 'presse';
-    if (m.genre === 'pack') return 'marche';
+    if (m.genre === 'pack' || m.genre === 'boutique') return 'marche';
     // L'adjoint d'un palier et le talent du coach (V21) : ils se choisissent sous l'entraîneur.
     if (['cartes', 'palier', 'talent', 'adjoint'].includes(m.genre)) return 'entraineur';
     const sp = m.spec || {};

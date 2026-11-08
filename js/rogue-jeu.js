@@ -7,19 +7,20 @@
 
 import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, payerJalons, ecussonsDesSeries, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, primesDuCoach, salairesDesAdjoints, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, motDeLaLigue, niveauDeLigue, habillerLaLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, matchsEntre } from './sim.js';
 import { coachDuJoueur } from './greffes.js';
 import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
 import { COACHS, VOIES, REGLES_DU_COACH } from './coachs.js';
 import { chargerCoachs, lotoDesCoachs, motDuRang, niveauDuCoach } from './coachs-reels.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
-import { motsDeMutationEnChiffres, ditDuPouvoir } from './impact.js';
-import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE, POSTES_DU_PACK } from './packs.js';
+import { motsDeMutationEnChiffres, ditDuPouvoir, lignesDeLAdjointEnChiffres } from './impact.js';
+import { ADJOINTS, quiPartDeLaMain } from './adjoints.js';
+import { PACKS_TOUS, packsSansHolo, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, hausseDesPacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE, POSTES_DU_PACK } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
-import { venteDuDoublon, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, SEMAINE } from './inventaire.js';
+import { venteDuDoublon, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, coachAuCartable, coachsDuCartable } from './cartable.js';
 import { ouvrirChoix, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
@@ -31,7 +32,7 @@ import { jouerSon } from './sons.js';
 import { pic } from './mouvement.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
 import { galonsDeLaSaison, grosGagnesDe } from './galons.js';
-import { etatDeLaRun, etapeDesSeries, MEDAILLES_ACTE, NOMS_DES_ACTES } from './actes.js';
+import { etatDeLaRun, etapeDesSeries, MEDAILLES_ACTE, NOMS_DES_ACTES, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat, prixDeLaPiece, piecesDuNoeud } from './actes.js';
 import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { marche } from './composants.js';
@@ -87,12 +88,10 @@ function resultatsRogue(j) {
   // V27 (devis § 4.3) : un rival battu ne paie aucun jeton — il paie en pièce et en médailles.
   // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`) : (`place` ou `carte`, des vieilles parties).
   const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && (d.place || d.carte)).length;
-  // 1.0 (J1-C) : les rondes de séries gagnées (`finDesSeriesRogue` les pose) — la prime `JETONS.serie` se verse enfin.
-  const series = (G.rogue && G.rogue.series && G.rogue.series.rondes) || 0;
   // V3.6 : la prime des fils (le Cheechoo, le jalon…), en Rogue seulement.
   // V23 : la règle du coach paie (`primesDuCoach`), les adjoints en poste se paient (`salairesDesAdjoints`).
   const primes = G.bonus === 'ROGUE' ? primesDesFils(L.calendrier, toi, j).total + primesDuCoach(L.calendrier, toi, j).total - salairesDesAdjoints(L.calendrier, toi, j).total : 0;
-  return { W, L: D, OTL: P, objectifs, series, primes };
+  return { W, L: D, OTL: P, objectifs, primes };
 }
 /*
  * LES JETONS DE LA PARTIE (S79), dans les DEUX modes : les résultats
@@ -165,8 +164,6 @@ const apresDateLimite = j => !!(G.ligue && G.ligue.you && matchsEntre(G.ligue.yo
  * LA BOUTIQUE RESTE OUVERTE (Jalon P2) : tous ses packs ont des joueurs ; passé la date limite, ils vont au cartable
  * sans se signer (`offrirPackJoueurs`), et les cartes servent encore. Seul un pack scellé attend la saison suivante.
  */
-/* Ce que la boutique vend : en Rogue, ce que tes jalons ont ouvert (V10, js/rogue.js `packsOuverts`) ; hors du Rogue, tout. */
-const packsOuvertsBoutique = () => (G.bonus === 'ROGUE' ? packsOuverts(lireMeta()) : Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, true])));
 /*
  * LE NUMÉRO D'UN ACHAT SE PREND AU CLIC (oct.). JP : *encore des doublons de packs achetés*. Il se prenait à
  * l'ouverture de la boutique ; or un pack de joueurs charge ses saisons AVANT d'écrire son achat, et la boutique
@@ -191,22 +188,39 @@ function unTirageALaFois(f) {
     .finally(() => { tirageEnCours = false; });
 }
 /*
- * LA BOUTIQUE OUVERTE EN TOUT TEMPS (V5). JP : *accès au store en tout temps*. Elle avait fermé hors du lundi ;
- * le nœud de la semaine regroupe maintenant ce qui se décide, et la boutique reste ouverte à toute journée.
+ * LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; docs/refonte-v27-3.md, js/actes.js `NOEUDS_BOUTIQUE`). Elle n'ouvre qu'aux
+ * sept nœuds de la saison et reste ouverte jusqu'à ton match suivant ; ailleurs, le Marché la montre fermée, avec le
+ * prochain nœud. À chaque nœud, le prix repart de zéro et monte à chaque achat de CE nœud (`hausseDesPacks`), quatre
+ * achats au plus, packs et pièce confondus ; la pièce de banc, une parmi trois (`piecesDuNoeud`), une seule. Tout se
+ * relit des décisions : un achat est daté de son jour, et son nœud est le compte de tes matchs joués ce jour-là.
+ * `page` = { dans, fermer, perso, games } : la page du Marché, et ton coach du jour (sa main), prêtés par l'écran de saison.
  */
 export function ouvrirBoutique(j, decider, page) {
   const decs = decisionsDeLaPartie();
-  const ouverts = packsOuvertsBoutique();
+  const ouverts = packsOuverts(lireMeta());
+  const you = G.ligue && G.ligue.you;
+  const joues = you ? matchsEntre(you, 0, j) : 0;
+  const noeud = G.ligue ? noeudOuvert(joues) : null;
+  const faits = noeud == null ? 0 : decs.filter(d => estUnAchat(d) && matchsEntre(you, 0, d.jour) === noeud).length;
+  const { perso = null, games = 0, ...lieu } = page || {};
+  const piecePrise = noeud != null && decs.some(d => d && d.palier === `bq:${noeud}`);
+  const prixPiece = prixDeLaPiece(faits);
+  const part = perso ? quiPartDeLaMain(perso, games) : null;
+  const pieces = noeud == null || !G.ligue ? [] : piecesDuNoeud(perso, G.ligue.graine, noeud).map(x => ({ ...x, A: ADJOINTS[x.cle], lignes: lignesDeLAdjointEnChiffres(x.cle, x.niv) }));
   ouvrirMagasin({
-    ...(page || {}),
-    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts,
-    // Nov. 2026 : les absents sont à Joueurs › Blessés, le barème des jetons au Proprio ; la boutique ne dit que ce qui décide un achat.
-    mods: modsDesPacks(), achats: () => (G.bonus === 'ROGUE' ? achatsDePacks(decisionsDeLaPartie()) : 0), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
-    // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
-    duJour: packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique()),
-    // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
-    // Le vrai calendrier (1.0, oct.) : le 20e match tombe vers le jour 45 (20 × 186 / 82).
-    debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < Math.round(20 * JOURS_PAR_MATCH),
+    ...lieu,
+    jetons: jetonsRogue(j), ouverts,
+    noeud: noeud == null ? null : { k: noeud, faits, max: ACHATS_PAR_NOEUD, dernier: noeud === NOEUDS_BOUTIQUE.at(-1), hausse: hausseDesPacks(faits) },
+    prochain: (k => (k == null ? null : { k, dans: k - joues }))(prochainNoeud(joues)),
+    pieces, piecePrise, prixPiece, part: part && ADJOINTS[part] ? `${ADJOINTS[part].ico} ${ADJOINTS[part].nom}` : '',
+    prendrePiece: cle => {
+      const x = pieces.find(y => y.cle === cle);
+      if (!x || noeud == null || piecePrise || faits >= ACHATS_PAR_NOEUD) return;
+      if (prixPiece > jetonsRogue(j)) { toast(`Il te manque ${prixPiece - jetonsRogue(j)} 🪙.`, 'bad'); return; }
+      decider({ jour: j, palier: `bq:${noeud}`, achat: { sorte: 'piece', prix: prixPiece, n: numeroDAchat() }, embauche: { cle: x.cle, niv: x.niv } });
+      toast(`${x.A.ico} ${x.A.nom} : dans ta main.`);
+    },
+    mods: modsDesPacks(), sansHolo: packsSansHolo(decs), plafond: plafondPourBoutique(),
     franchises: Object.entries(FRANCHISES).map(([cle, F]) => ({ cle, nom: F.nom })).sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
     // v2 : le pack du coach propose ton coach en premier.
     coachs: VOIES.map(k => ({ cle: k, nom: `${COACHS[k].ico} ${COACHS[k].nom}` })), coachRun: (G.rogue && G.rogue.coach) || null,
@@ -219,6 +233,7 @@ export function ouvrirBoutique(j, decider, page) {
       const params = P.choix === 'skill' ? { ...choisis, permis: permisDe('skill', Object.keys(NOMS_SKILLS)) }
         : P.choix === 'decennie' ? { ...choisis, permis: permisDe('decennie', DECENNIES) } : choisis;
       // Les jetons se recomptent au clic : une boutique restée ouverte montre ceux d'avant le dernier achat.
+      if (noeud == null || faits >= ACHATS_PAR_NOEUD) return;
       if (prix > jetonsRogue(j)) { toast(`Il te manque ${prix - jetonsRogue(j)} 🪙.`, 'bad'); return; }
       if (scelle) {
         const n = numeroDAchat();

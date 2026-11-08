@@ -704,7 +704,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const jetons = () => jetonsDuRobot(c, etat.jetons, depense);
   // V10 : le lundi du robot — l'histoire, la carte d'un palier (scripts/lib/cartes_robot.mjs).
   // V25 C2 : la mémoire des histoires de la run (`etat.histoires`, les saisons d'avant) et les rondes déjà demandées.
-  const etatCartes = { histoires: [], avant: etat.histoires || [], paliers: new Set(), butins: new Set(), rondes: new Set() };
+  const etatCartes = { histoires: [], avant: etat.histoires || [], butins: new Set(), rondes: new Set() };
   const lecture = lectureDuRobot(c);
   const plans = new Map();
   let planPose = 'match';

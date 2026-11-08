@@ -31,7 +31,6 @@ import { COACHS, COACH_DU_ROLE } from '../js/coachs.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS } from '../js/pouvoirs.js';
 import { adjointsOfferts } from '../js/adjoints.js';
 import { PITIE, packsSansHolo } from '../js/packs.js';
-import { PALIERS_PACK } from '../js/inventaire.js';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -100,11 +99,11 @@ function ligue(seed, n = 12) {
 /* ---------- 4. les matchs, pas les journées ---------- */
 {
   const sa = lire('js/saison.js');
-  exiger('les paliers de la saison se comptent en matchs du club (jEv)', /PALIERS_CARTES\.find\(j => jour >= jEv\(j\)/.test(sa), `main aux ${PALIERS_CARTES.join(', ')}e matchs, adjoints aux ${PALIERS_PACK.join(', ')}e`);
+  exiger('les paliers de la saison se comptent en matchs du club (jEv)', /PALIERS_CARTES\.find\(j => jour >= jEv\(j\)/.test(sa), `main aux ${PALIERS_CARTES.join(', ')}e matchs`);
   const inv = prose('inventaire.js');
   exiger('la main du deck se dit « du Ne match », pas « de la journée »', inv.some(s => /^Main du $/.test(s)) && !inv.some(s => /Main de la journée/.test(s)));
   const html = lire('index.html').replace(/<!--[\s\S]*?-->/g, '');
-  exiger('les règles disent les paliers en matchs', new RegExp(`${PALIERS_CARTES[0]}e, ${PALIERS_CARTES[1]}e et ${PALIERS_CARTES[2]}e matchs`).test(html) && html.includes(`${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs`));
+  exiger('les règles disent les paliers en matchs', new RegExp(`${PALIERS_CARTES[0]}e, ${PALIERS_CARTES[1]}e et ${PALIERS_CARTES[2]}e matchs`).test(html));
 }
 
 /* ---------- 5. le plafond effectif ---------- */

@@ -315,7 +315,7 @@ body :is(.hub-titre, .pr-k, .banc-tete, .live-tableau-titre, .vs-sec, .pk-rayon 
   background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 28%, var(--noir-pur)), transparent 88%);
   font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--blanc);
 }
-body .banc-tete > span:last-child, body .pk-rayon h3 .pk-rabais { color: var(--or); }
+body .banc-tete > span:last-child { color: var(--or); }
 /* L'HABILLAGE COMMUN DU PLATEAU (4 nov. 2026 ; JP : *pourquoi tu refais pas tout le UI au complet ?*). Une seule grammaire sur
    toutes les pages du Rogue, celle de la maquette A : l'en-tête sur le noir pur sans filet de couleur ; chaque segment, filtre ou
    onglet de page est un JETON — un petit bloc sombre, le choisi à la couleur du club, encre noire — jamais une pilule
@@ -4202,7 +4202,6 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-marche-loin { opacity: 0.6; }
 /* Le podium : le premier au centre et plus haut, sur l'or. */
 /* La tête de la boutique, en une ligne : tes jetons, jusqu'où tu signes (nov. 2026, le contenu, de zéro). */
-.pk-tete { font: 600 var(--t-3)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .pl-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); align-items: end; margin: var(--esp-3) 0 var(--esp-2); padding: var(--esp-2) var(--esp-2) 0; }
 .pl-podium-2 { width: 92%; justify-self: end; }
 .pl-podium-3 { width: 88%; }
@@ -4316,7 +4315,8 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 /* LA ROUTE (V8) : deux semaines, un arrêt par match, le gros match en or, le lundi, le pack gratuit. */
 .bu-route { padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
 /* LE PLATEAU (nov. 2026) : chaque arrêt est un BILLET de match (js/composants.js `billet`) ; le palier 🎁 en coin. */
-.rt-pack { font-size: var(--t-3); }
+.rt-marche { color: var(--or); }
+.bu-piste-mq.marche { background: none; color: var(--or); }
 @media (max-width: 1199.98px) {
   body.hub-docke .hub-sheet { overflow-y: auto; overscroll-behavior: contain; }
   body.hub-docke .hub-sheet > * { flex-shrink: 0; }
@@ -6405,24 +6405,7 @@ body .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 .pk-garantie { border-left: 3px solid var(--or); padding-left: var(--esp-2); }
 .pr .pk-bareme-run { font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.03em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .pk-rayon h3 { display: flex; align-items: center; gap: var(--esp-2); margin: 0 0 var(--esp-2); padding-bottom: var(--esp-2); border-bottom: 1px solid var(--filet); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
-.pk-rabais { color: var(--or); }
 .pk-rangee { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); }
-/* Nov. 2026 : les quatre packs du début de front, deux par rangée, visibles sans défiler. */
-.pk-rayon-debut .pk-rangee { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.pk-rayon-debut .pk-tout { width: 100%; margin-top: var(--esp-3); }
-/* LE PLATEAU (nov. 2026 ; la direction A) : au Rogue, une pochette du début est une plaque de métal — la feuille du tier couvre la
-   tuile, le tier en haut à gauche, le nom et le contenu au pied, le PRIX en gros. */
-body .pk-rayon-debut .pk-tuile { position: relative; justify-content: flex-end; min-height: 168px; padding: var(--esp-3); border: 0; isolation: isolate; overflow: hidden; }
-body .pk-rayon-debut .pochette-scellee { position: absolute; inset: 0; z-index: -1; display: block; aspect-ratio: auto; opacity: 0.92; }
-body .pk-rayon-debut .pochette-scellee .pochette-corps { height: 100%; border-radius: var(--r-2); }
-body .pk-rayon-debut .pochette-scellee .pochette-face::after { content: ""; display: block; position: absolute; inset: 0; transform: none; animation: none; background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--noir-pur) 82%, transparent)); }
-body .pk-rayon-debut .pochette-ico { position: absolute; right: var(--esp-3); top: var(--esp-4); font-size: var(--t-5); color: color-mix(in srgb, var(--noir-pur) 60%, var(--pk-a)); }
-body .pk-rayon-debut .pochette-scellee .pochette-serie { top: var(--esp-4); bottom: auto; left: var(--esp-3); right: auto; padding: 2px var(--esp-2); border-radius: var(--r-1); letter-spacing: 0.2em; }
-body .pk-rayon-debut .pk-nom { font-size: var(--t-4); color: var(--blanc); }
-body .pk-rayon-debut .pk-n { color: var(--encre-2); }
-body .pk-rayon-debut .pk-prix { flex-direction: row; align-items: baseline; gap: var(--esp-1); margin-top: var(--esp-1); font-size: var(--t-6); color: var(--blanc); }
-body .pk-rayon-debut .pk-tuile.verrou { opacity: 0.7; }
-body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 /* LE PLATEAU (nov. 2026) : « Ton club » en une rangée de quatre — le porté cerné d'or, deux clubs à débloquer, « Et N › ». */
 .pk-rayon-club-rangee { margin-top: var(--esp-3); }
 .pk-club-rangee { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--esp-2); }
@@ -6443,7 +6426,6 @@ body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-s
 /* Ce qui est déjà à toi : à part, en bas, sous un filet d'or — le marché au-dessus, ton bien en dessous. */
 .pk-rayon-scelles { margin-top: var(--esp-3); padding: var(--esp-3); border: 1px solid color-mix(in srgb, var(--or) 45%, var(--filet)); border-top: 3px solid var(--or); border-radius: var(--r-2); background: radial-gradient(80% 60% at 50% 0, color-mix(in srgb, var(--or) 14%, transparent), transparent 70%), var(--panneau); box-shadow: var(--relief); scroll-margin-top: var(--esp-3); }
 .pk-rayon-scelles h3 { color: var(--or); }
-.pk-aller { margin-top: var(--esp-3); }
 /* La pochette : le métal du tier en jeton local (--pk-a). */
 .pk-tuile {
   --pk-a: var(--encre-3);
@@ -6457,7 +6439,6 @@ body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-s
 .pk-or { --pk-a: var(--or); }
 .pk-premium { --pk-a: var(--violet); }
 .pk-cartes { --pk-a: var(--bleu); }
-.pk-tuile.pk-jour { border-color: var(--or); box-shadow: inset 0 0 0 1px var(--or); }
 .pk-tuile.verrou { opacity: 0.45; --pk-a: var(--encre-3); }
 .pk-tuile.pk-cher { opacity: 0.6; }
 .pk-tuile.pk-cher .pk-prix { color: var(--encre-3); }
@@ -6473,10 +6454,8 @@ body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-s
 .pochette-ico { position: relative; font-size: var(--t-6); line-height: 1; color: color-mix(in srgb, var(--noir-pur) 78%, var(--pk-a)); }
 .pochette-scellee .pochette-serie { position: absolute; bottom: 0; left: 0; right: 0; max-width: none; padding: 3px 0; border-radius: 0; text-align: center; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; background: color-mix(in srgb, var(--noir-pur) 70%, transparent); color: var(--pk-a); }
 .pk-nom { font: 600 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
-.pk-n { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.03em; color: var(--encre-2); overflow-wrap: anywhere; }
 .pk-prix { display: flex; flex-direction: column; gap: 2px; margin-top: auto; font: 800 var(--t-4)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
 .pk-prix s { color: var(--encre-3); font-weight: 600; font-size: var(--t-2); }
-.pk-manque { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.03em; color: var(--mauvais); }
 /* La fiche d'un pack : par-dessus la boutique (z 5), au bas au téléphone, au centre dès qu'il y a la place. */
 .pk-fiche { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--noir) 72%, transparent); }
 /* Dans une page du Club (le Marché en saison), la feuille grandit avec les rayons et défile : la fiche se pose sur l'ÉCRAN, dans la zone de la page (#hubModal), pas au bas des rayons (JP : *apparaît dans le bas de la page, invisible*). */
@@ -6510,12 +6489,31 @@ body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-s
   .pk-fiche { align-items: center; }
   .pk-fiche-carte { border-radius: var(--r-2); }
 }
-/* Au téléphone, le pack du jour se couche : sa pochette à gauche, ses mots à droite. */
-@media (max-width: 639.98px) {
-  .pk-rayon-jour .pk-rangee { grid-template-columns: minmax(0, 1fr); }
-  .pk-rayon-jour .pk-tuile { flex-direction: row; align-items: center; gap: var(--esp-3); }
-  .pk-rayon-jour .pochette-scellee { width: 84px; flex: none; }
-}
+
+/* LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; la maquette 5) : la bande du marché, la pièce parmi trois, les packs en plaques de métal. */
+.mk-bande { position: relative; display: grid; gap: var(--esp-1); padding: var(--esp-3); background: repeating-linear-gradient(115deg, color-mix(in srgb, var(--blanc) 6%, transparent) 0 22px, transparent 22px 52px), linear-gradient(90deg, color-mix(in srgb, var(--or) 24%, var(--noir-pur)), color-mix(in srgb, var(--or) 8%, var(--noir-pur))); color: var(--blanc); }
+.mk-bande.ferme { background: linear-gradient(90deg, var(--fond-3), var(--fond-1)); }
+.mk-k { display: inline-flex; justify-self: start; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.mk-k > * { padding: 5px var(--esp-2); background: var(--noir-pur); color: var(--encre-2); }
+.mk-k b { background: var(--or); color: var(--encre-sur-or); }
+.mk-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--esp-2); }
+.mk-titre { font: 900 var(--t-7)/0.95 var(--display); text-transform: uppercase; }
+.mk-caisse { font: 600 var(--t-2)/1 var(--display); color: var(--or); white-space: nowrap; }
+.mk-caisse b { font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; }
+.mk-pips { display: flex; gap: 4px; justify-self: end; }
+.mk-pips i { width: 16px; height: 8px; background: var(--filet); }
+.mk-pips i.on { background: var(--or); }
+.mk-signe { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-2); }
+.mk-section { display: grid; gap: var(--esp-2); }
+.mk-l { display: inline-flex; justify-self: start; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.mk-l > * { padding: 4px var(--esp-2); background: var(--noir-pur); color: var(--encre-2); }
+.mk-l b { background: var(--bleu); color: var(--noir); }
+.pl-carte.choisie .carton { box-shadow: 0 0 0 3px var(--or); }
+.mk-prendre, .mk-fermer { width: 100%; min-height: 48px; }
+.mk-rangee { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.pk-tuile.mk-pack { gap: 0; padding: 0; border: 0; border-radius: 0; background: var(--fond-2); text-align: center; overflow: hidden; }
+.mk-pack-nom { padding: var(--esp-2) var(--esp-1); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; background: linear-gradient(135deg, var(--pk-a), color-mix(in srgb, var(--pk-a) 45%, var(--noir-pur))); color: var(--blanc); }
+.mk-pack .pk-prix { padding: 6px 0; margin: 0; align-items: center; }
 
 /* ---- Les cartes de la banque (js/inventaire.js) : la face d'un pack (`.tc`, Jalon U), son compte, ses boutons dessous ---- */
 .bq-carte { position: relative; display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; }
