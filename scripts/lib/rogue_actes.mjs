@@ -19,7 +19,7 @@
  *     (`renfortsDe`) reste en séries, qui ajoutent `ETAPE_SERIES` à chaque club.
  *   - LA BOUTIQUE (§ 4.8 ; tranche 3, docs/refonte-v27-3.md) : les nœuds, les prix et la pièce viennent de js/actes.js
  *     (`NOEUDS_BOUTIQUE`, `noeudOuvert`, `ACHATS_PAR_NOEUD`, `prixDeLaPiece`, `piecesDuNoeud`), comme au jeu : la pièce
- *     d'abord si la caisse la paie, puis des packs au prix du nœud ; passé la date limite (`DATE_LIMITE_MATCH`), un pack ne
+ *     d'abord si la caisse la paie, puis des packs au prix du nœud ; passé la date limite (`dateLimitePassee`), un pack ne
  *     se signe plus au jeu, et le robot n'en achète plus.
  *   - LE DÉPART (§ 4.9) : les bouche-trous tirés de `BANDE_DEPART` de leur saison (il était du 5e au 25e centile).
  *
@@ -44,7 +44,7 @@
 import { teamStrength, photoAlignement, getHiddenRatings, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries } from '../../js/sim.js';
 import { ACTES, COEURS, CONTROLES, ETAPE_SERIES, aLaTaille, parmiLesAdversaires, acteDe, joursDe, rangAuSoir, ACHATS_PAR_NOEUD, PRIX_PIECE, noeudOuvert, prixDeLaPiece, piecesDuNoeud,
   echangeables, echangerTesCases, brouillon, renfortsDe } from '../../js/actes.js';
-import { DATE_LIMITE_MATCH } from '../../js/packs.js';
+import { dateLimitePassee } from '../../js/packs.js';
 import { jetonsDeDepart, habillerLaLigue, niveauDeLigue, rangDePrestige } from '../../js/rogue.js';
 import { pronostic } from '../../js/pronostic.js';
 import { SEMAINE } from '../../js/inventaire.js';
@@ -141,7 +141,7 @@ export function jouerLaRun(nom, graine) {
       poserDuRobot(you, choisie);
       decisions.push({ jour: L.jour, palier: `bq:${k}`, piece: choisie });
     }
-    for (; n < ACHATS_PAR_NOEUD && k < DATE_LIMITE_MATCH; n++) {
+    for (; n < ACHATS_PAR_NOEUD && !dateLimitePassee(k); n++) {
       const voulu = packDuRobot(c, jetons(), n);
       if (!voulu) break;
       depense += prixAuAchat(voulu.cle, n); achats++; packs++;

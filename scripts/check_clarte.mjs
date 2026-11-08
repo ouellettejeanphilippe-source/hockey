@@ -264,7 +264,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs.`, 'l\'objectif raté'],
     [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],
     [`de ${RAPPEL_MATCHS[0]} à ${RAPPEL_MATCHS[1]} matchs dans sa saison`, 'le rappel au ballottage'],
-    [`Après ton ${DATE_LIMITE_MATCH}e match, la date limite des échanges`, 'la date limite'],
+    [`Passé le marché de ton ${DATE_LIMITE_MATCH}e match, la date limite des échanges`, 'la date limite'],
     [`${JETONS.depart} jetons et ${nombre(ESPACE_DE_DEPART / 1e6)} M$ sous le plafond`, 'le départ Rogue'],
     [`une victoire ${B.victoire} jetons (${B.victoire + 3}, puis ${B.victoire + 5} avec les commanditaires), une défaite en prolongation ${B.prolongation}, une défaite ${B.defaite}, un objectif du proprio ${B.objectif}.`, 'le barème des jetons'],
     [`une réclamation coûte ${coutBal} jetons`, 'la réclamation Rogue'],

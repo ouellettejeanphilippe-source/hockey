@@ -84,10 +84,15 @@ export const PITIE = 12;   // V5 : la holo est rare ; la garantie arrive plus ta
 /*
  * LA DATE LIMITE DES ÉCHANGES (1.0, oct.). JP : *rendre impossible de prendre
  * des packs de joueurs après la date limite des échanges*. Comme la vraie
- * ligue, fin février : après ton 62e match, plus aucun joueur n'entre par un
- * pack. Le rappel d'un blessé (le ballottage), lui, reste ouvert.
+ * ligue, fin février : passé le marché de ton 68e match, plus aucun joueur
+ * n'entre par un pack. Le rappel d'un blessé (le ballottage), lui, reste ouvert.
+ * JP (8 nov. 2026) : la date limite passe du 62e au 68e match, pour que le
+ * nœud du 68e match (js/actes.js `NOEUDS_BOUTIQUE`) fasse encore signer ;
+ * celui du 82e ne vend plus que la pièce et les cartes. Le jeu et les deux
+ * robots lisent la même règle, `dateLimitePassee(joues)`.
  */
-export const DATE_LIMITE_MATCH = 62;
+export const DATE_LIMITE_MATCH = 68;
+export const dateLimitePassee = joues => joues > DATE_LIMITE_MATCH;
 
 /*
  * LES PACKS DE JOUEURS. \`famille\` dit où l'on pige ; \`choix\` : le pack se

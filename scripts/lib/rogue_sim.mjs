@@ -63,7 +63,7 @@ import { lotoDesCoachs } from '../../js/coachs-reels.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
 import { alignementAuMieux, chiffresDuSoir, chiffresDuSoirSous, planEnChiffres } from '../../js/impact.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
-import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack, DATE_LIMITE_MATCH } from '../../js/packs.js';
+import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack, dateLimitePassee } from '../../js/packs.js';
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, aDebloque, plafondDuVestiaire,
@@ -690,7 +690,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
       if (choisie && jetons() >= prixDeLaPiece(0)) poserDuRobot(you, choisie);
       if (choisie && jetons() >= prixDeLaPiece(0)) { depense += prixDeLaPiece(0); n++; decisions.push({ jour: L.jour, palier: `bq:${k}`, piece: choisie }); }
     } else n = ACHATS_PAR_NOEUD;
-    for (; n < ACHATS_PAR_NOEUD && k < DATE_LIMITE_MATCH; n++) {
+    for (; n < ACHATS_PAR_NOEUD && !dateLimitePassee(k); n++) {
       const voulu = packDuRobot(c, jetons(), n);
       if (!voulu) break;
       depense += prixAuAchat(voulu.cle, n, exigence); achats++;
