@@ -24,7 +24,7 @@
 import { REROLLS, MODES, batirLesClubs, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, positionsAvant, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES, matchsDeSaSaison } from './sim.js';
 import { coachDuJoueur } from './greffes.js';
 import { COACHS } from './coachs.js';
-import { PLAFOND_ROGUE, lireMeta, ecrireMeta, mandatDe, convertirAuJeuNeuf } from './rogue.js';
+import { PLAFOND_ROGUE, lireMeta, ecrireMeta, convertirAuJeuNeuf } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
 import { IDENTITES, scoreIdentite } from './identites.js';
 import { state, loadIndex, cacheClear } from './data.js';
@@ -52,7 +52,7 @@ import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { brancherEntractes } from './entracte.js';
 import { migrerHistorique, rendreCartable, ajouterAuCartable, marquerJouees } from './cartable.js';
 import { ouvrirEquipes } from './equipes.js';
-import { blessesAuJour, decisionsDeLaPartie, finDesSeriesRogue, jetonsRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire, palmaresDuClubHtml } from './rogue-jeu.js';
+import { blessesAuJour, decisionsDeLaPartie, finDesSeriesRogue, avantLesSeriesRogue, jetonsRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire, palmaresDuClubHtml } from './rogue-jeu.js';
 import { ajusterCartes, carteMiniHtml, clesDesMods, compteSignables, getShard, nextSpin, playerCardEl, poserCartes, renderCap, renderDash, renderFilters, renderPool, renderPoolMeta, renderSpin, syncAgeControls, rareteJoueur } from './repechage.js';
 import { ballottageVu, bancSerie, connaitreBallottages, deciderSerie, personneDeCle, reprendreSaison, reprendreSeries, runSeason, sousVoile } from './banc.js';
 import { compteEnGrille, compteRevele, lienEquipe, lienJoueur, ouvrirFiche, porteeRevele, showPlayerModal, statsSim } from './fiche.js';
@@ -641,7 +641,7 @@ function resumePartie() {
   }
   const qui = [G.bonus !== 'ROGUE' && MODES[G.mode] ? MODES[G.mode].nom : '', G.repechage === 'FRANCHISE' && FRANCHISES[G.franchise] ? FRANCHISES[G.franchise].nom : '', G.epoque || ''].filter(Boolean).join(' · ');
   // S80 : une run Rogue dit sa saison, au menu comme au hub.
-  if (G.bonus === 'ROGUE' && G.rogue && G.rogue.saison) etape = `Run ${G.rogue.numero || ''} · saison ${G.rogue.saison} · ${etape}`.replace('Run  ·', 'Run ·');
+  if (G.bonus === 'ROGUE' && G.rogue) etape = `Run ${G.rogue.numero || ''} · ${etape}`.replace('Run  ·', 'Run ·');
   return { etape, qui, vierge: !signes && !L };
 }
 
@@ -1181,21 +1181,18 @@ async function boot() {
     $, G, TEAMFULL, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele,
     capMax: () => plafondDeJauge(),
     money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain,
-    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, deciderSerie, bancSerie, finDesSeriesRogue,
+    saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, deciderSerie, bancSerie, finDesSeriesRogue, avantLesSeriesRogue,
     // L'onglet « La ligue » reconstitue la VRAIE fiche des 31 adversaires :
     // il lui faut le shard de leur saison, et le chargeur le met en cache.
     getShard,
   });
   // S77 : l'ancienne sauvegarde unique devient la première partie de l'index.
   migrer();
-  // V10, puis V21 : le jeu neuf, une fois — les runs en cours repartent de zéro, l'inventaire de cartes se vide.
-  const meta = lireMeta(), converti = convertirAuJeuNeuf(meta);
-  if (converti) {
-    const runs = retirerLesRuns();
-    ecrireMeta(converti);
-    if (runs || Object.keys(meta.inventaire || {}).length) {
-      setTimeout(() => toast('Le Rogue a un jeu de cartes neuf : ta run repart de zéro, et tes cartes d\'avant sont parties. Ton cartable, tes médailles et tes déblocages restent.'), 1500);
-    }
+  // V10, V21, puis V27 : le jeu neuf, une fois — les runs en cours repartent de zéro et versent leurs médailles.
+  if (convertirAuJeuNeuf(lireMeta())) {
+    const resumes = retirerLesRuns(), converti = convertirAuJeuNeuf(lireMeta(), resumes);
+    ecrireMeta(converti.meta);
+    if (resumes.length) setTimeout(() => toast(`Ta run date d'avant la nouvelle saison en actes : elle s'arrête ici${converti.verse ? `, et verse 🏅 ${converti.verse} médailles` : ''}. Une run neuve t'attend au menu.`), 1500);
   }
   // PREMIÈRE VISITE : ni préférences ni partie. Lu AVANT `loadOpts`, qui écrit.
   let vierge = false;
@@ -2172,7 +2169,7 @@ function remplirVide(cle) {
     if (cle === 'match') {
       msg = manque > 0
         ? `Encore <b>${manque}</b> case${manque > 1 ? 's' : ''} à combler.`
-        : `Ta formation est complète.${G.bonus === 'ROGUE' && G.rogue ? ` Le proprio veut : ${esc(mandatDe(G.rogue.saison, G.rogue.exigence || 0, G.rogue.numero === 1).mot)}.` : ''}`;
+        : 'Ta formation est complète.';
       btns = manque > 0
         ? (auVestiaire() ? bouton('repechage', MODE().loto ? 'Au loto' : 'Au vestiaire', true) : bouton('alignement', 'Aux lignes', true))
         : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : 'Lancer la saison', true);

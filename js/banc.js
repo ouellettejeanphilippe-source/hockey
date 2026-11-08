@@ -17,11 +17,12 @@ import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { mandatDe, MANDATS, JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue } from './rogue.js';
+import { JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue } from './rogue.js';
+import { poserLesRivaux } from './actes.js';
 import { $, G, MODE, TEAMFULL, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, cartonDe, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort, varsEquipe } from './repechage.js';
 import { renderMain, coachHtml, persoDuMatin } from './alignement.js';
-import { cartesDuCartable, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, premiereRun, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi, echangeDHistoire } from './rogue-jeu.js';
+import { cartesDuCartable, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi, echangeDHistoire } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 import { REGULIER, PILIER } from './niveaux.js';
@@ -602,17 +603,15 @@ export async function runSeason(opts = {}) {
   await new Promise(r => setTimeout(r, 20));
 
   let opponents = [];
-  // LA LIGUE QUI MONTE (V9, tranche 8, js/rogue.js `ligueDe`) : en Rogue, son niveau suit le prestige et les exigences de la run,
-  // et dès la deuxième run, l'étape de plus fixée à son départ (`etapeDeRun`, 31 oct.).
+  // LA LIGUE QUI MONTE (V9, tranche 8, js/rogue.js `ligueDe`) : en Rogue, son niveau suit le prestige et les exigences de la run.
   const niveau = G.bonus === 'ROGUE' && G.rogue ? niveauDeLigue(G.rogue.prestige || 0, G.rogue.exigence || 0) : 0;
-  const etapeDeRun = G.bonus === 'ROGUE' && G.rogue ? G.rogue.etapeDeRun || 0 : 0;
   if (opts.adversaires) {
     opponents = opts.adversaires.map(a => createTeam(a.name, a.tag, a.roster, { season: a.season, ecole: a.ecole || [] }));
   } else {
     try { opponents = await buildOpponents(31); } catch { opponents = []; }
   }
   // Leurs cartes : les éditions de la ligue en Rogue, aucune ailleurs (une ligue d'avant n'en laisse pas).
-  habillerLaLigue(opponents, niveau, p => getHiddenRatings(p).v, etapeDeRun);
+  habillerLaLigue(opponents, niveau, p => getHiddenRatings(p).v);
   // TU ES LA 33e ÉQUIPE. Une saison fixée met dans la ligue TOUS ses vrais
   // clubs, et la tienne par-dessus : trente-trois en 2024-25, vingt-deux en
   // 1985-86. C'était le club le plus faible qui cédait sa place pour garder
@@ -645,7 +644,10 @@ export async function runSeason(opts = {}) {
   let r = null, teams, leaders = [], calendrier = [], graine = null, moteur = null;
   if (opponents.length) {
     // S80 : une ligue Rogue porte la courbe de la fin de partie (js/sim.js `echelleTardive`).
-    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE', des: desPrec, instantanes: G.bonus === 'ROGUE' });
+    // V27 (js/actes.js) : en Rogue, les rivaux des actes se posent dans la cédule, avant le premier soir.
+    const exigence = (G.bonus === 'ROGUE' && G.rogue && G.rogue.exigence) || 0;
+    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE', des: desPrec, instantanes: G.bonus === 'ROGUE',
+      placer: G.bonus === 'ROGUE' ? L => poserLesRivaux(L, { exigence }) : null });
     jouerJusqua(moteur, opts.depuis || 0);
     // Un joueur signé aujourd'hui est dans l'alignement dès maintenant, pas au matin (S79).
     poserAlignementDuJour(moteur);
@@ -765,13 +767,9 @@ function ouvrirEcranSaison(depuis = 0) {
         listeJoueurs: ouvrirListeJoueurs,
         // LE MODE ROGUE (S77) : la run, pour le Club — rien de la boutique (elle est au Marché).
         rogue: G.bonus === 'ROGUE' ? {
-          // S80 : la saison de la run, le mandat du proprio, et celui d'après ; le barème de la run, tel que `jetonsRogue`
-          // le compte (`G.rogue.bareme`) — le sommaire y lit la prime d'un gros match.
-          // V9 (tranche 8) : « Le proprio impatient » avance le mandat (`G.rogue.exigence`).
-          // V23 : son rang à atteindre (`top` ; sans lui, faire les séries) pour la bande de la run, en haut de Ce soir.
-          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison(), (G.rogue && G.rogue.exigence) || 0, premiereRun()).mot, top: mandatDe(numeroDeSaison(), (G.rogue && G.rogue.exigence) || 0, premiereRun()).top || null,
-            suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1, (G.rogue && G.rogue.exigence) || 0, premiereRun()).mot : null,
-            bareme: (G.rogue && G.rogue.bareme) || JETONS }),
+          // Le barème de la run, tel que `jetonsRogue` le compte (`G.rogue.bareme`) ; V27 : son cran d'exigence, que les
+          // contrôles des actes lisent (js/actes.js).
+          bareme: () => (G.rogue && G.rogue.bareme) || JETONS, exigence: () => (G.rogue && G.rogue.exigence) || 0,
           // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
           jetons: j => jetonsRogue(j),
           // V16 (tranche 6) : ce que le proprio lit le lundi, pour la masse salariale et la tête du coach.

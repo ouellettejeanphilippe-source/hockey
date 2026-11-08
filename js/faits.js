@@ -21,7 +21,7 @@
  * nomDuClub(code), shard(saison) } ; `series` : { k (la ronde, 1 = la première), s (ta série, { A, B, feuilles }), precedente } le matin du
  * premier match d'une ronde. Un joueur absent des faits : null.
  */
-import { SLOTS, getPlayerKey, energieDe, jambesGardien, dosADos, rivalChoisi, joueursDeLaSaison } from './sim.js';
+import { SLOTS, getPlayerKey, energieDe, jambesGardien, dosADos, joueursDeLaSaison } from './sim.js';
 import { seasonGames, ageAtSeason } from './ratings.js';
 import { joueurDuFait } from './vie-gm.js';
 import { FILS } from './recit.js';
@@ -95,7 +95,7 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
   const monSoir = j => ((ligue && ligue.calendrier && ligue.calendrier[j]) || []).find(m => m.A === you || m.B === you) || null;
   const jours = []; for (let j = jour; j < jour + SEMAINE; j++) if (monSoir(j)) jours.push(j);
   const soirs = jours.map(monSoir), advs = soirs.map(m => (m.A === you ? m.B : m.A));
-  const bete = advs.find(a => you.beteNoire === a) || null, rival = advs.find(a => a !== bete && rivalChoisi(you, a)) || null;
+  const bete = advs.find(a => you.beteNoire === a) || null, rival = advs.find(a => a !== bete && Array.isArray(you.rivaux) && you.rivaux.includes(a)) || null;
   // LE CLASSEMENT DU MATIN, la course aux séries et l'avance du premier.
   const teams = (ligue && ligue.teams) || [you];
   const ordre = classer(teams), rang = ordre.indexOf(you) + 1, places = run.places || 16;
