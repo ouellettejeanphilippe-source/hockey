@@ -15,8 +15,7 @@ import { faitsDe } from '../../js/faits.js';
 import { HISTOIRES, tirer } from '../../js/histoires.js';
 import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { COACHS } from '../../js/coachs.js';
-import { BUTIN_DU_GROS } from '../../js/rogue.js';
-import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts, TALENT_CASE, NIVEAU_MAX } from '../../js/pouvoirs.js';
+import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts, TALENT_CASE, SEUILS_NIVEAU } from '../../js/pouvoirs.js';
 import { ADJOINTS, adjointsOfferts, pretesDe, casesLibres, niveauOffert, momentFort } from '../../js/adjoints.js';
 
 /* MESURE seulement (jamais lu par le jeu) : ROBOT_TALENT=case ou pouvoir force le premier talent de l'attentif (scripts/mesure_main.mjs). */
@@ -127,13 +126,12 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
     const d = adjointDuRobot({ you, graine, cle: `pp${pp}`, politique, clic, fit });
     if (d) out.push({ jour: j, palier: `pp:${pp}`, ...d });
   }
-  // LE BUTIN D'UN GROS MATCH GAGNÉ (V23 D) : des jetons, ou de l'expérience (js/saison.js `recompenseOuverte`, `BUTIN_DU_GROS`).
-  // L'attentif prend l'expérience tant que son coach a un niveau à gagner, le distrait tire, le robot d'avant les jetons.
+  // LA PIÈCE D'UN RIVAL BATTU (V27, tranche 2 ; js/saison.js, l'étape « Prendre une pièce ») : tant que le banc de cinq
+  // n'existe pas, le niveau suivant du coach — chaque robot la prend, comme on prend une carte offerte.
   for (const mb of (you.minisBoss || []).filter(x => x.gagne && !etat.butins.has(x.jour))) {
     etat.butins.add(mb.jour);
-    const perso = persoDe(you);
-    const xp = clic ? clic() < 0.5 : politique !== 'defaut' && !!perso && niveauDuPerso(perso) < NIVEAU_MAX;
-    out.push({ jour: j, palier: `r:${mb.jour}`, ...(xp ? { xpCoach: BUTIN_DU_GROS.xp } : { gain: BUTIN_DU_GROS.jetons }) });
+    const tot = ((you.perso && you.perso.xp) || 0) + (you.xpSaison || 0), suivant = SEUILS_NIVEAU.find(s => s > tot);
+    out.push({ jour: j, palier: `r:${mb.jour}`, ...(suivant ? { xpCoach: suivant - tot } : {}) });
   }
   // POSTER (V22) : une case libre et une carte prête, l'attentif la poste (celle de sa voie d'abord), le distrait une au hasard ;
   // le robot d'avant ne poste rien. Une décision `poste` par case libre, le jour même ; une carte qui entre aujourd'hui attend lundi.

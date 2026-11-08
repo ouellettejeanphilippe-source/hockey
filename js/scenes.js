@@ -69,22 +69,6 @@ export const MOTS_DES_SCENES = {
     long: ['Ça va être long. Il faut quelqu\'un pour sa case, et vite.',
       'Je n\'aime pas ce que je vois. Prépare-toi à jouer sans lui un bon bout.'],
   },
-  // TES RIVAUX (A5) : le proprio, qui vouvoie, au premier lundi.
-  rivaux: {
-    tous: ['Choisissez ceux que vous voulez battre devant moi.',
-      'Je veux des noms sur mon bureau : ceux qu\'on va battre devant nos partisans.'],
-    dernier: ['Il m\'en manque un. Choisissez-le bien.',
-      'Un dernier nom, et je fais imprimer les affiches.'],
-  },
-  // LE MANDAT, À LA FIN DE LA SAISON (A8) : le proprio, qui vouvoie.
-  mandat: {
-    rate: ['Pas de séries. Je ne vous ai pas payé pour regarder le printemps à la télé.',
-      'J\'avais été clair. On reprendra tout à zéro, avec quelqu\'un d\'autre en tête.'],
-    rempli: ['C\'est ce que je voulais. L\'an prochain, j\'en demanderai plus.',
-      'Mandat rempli. Ne vous habituez pas : la barre monte.'],
-    coupe: ['La Coupe. Je n\'ai plus rien à vous demander, sauf de recommencer.',
-      'Vous l\'avez ramenée. Je vais m\'en souvenir longtemps.'],
-  },
   // LE BUTIN D'UN GROS MATCH GAGNÉ (A6) : l'entraîneur veut une page de plus, ton adjoint trouve le cahier épais.
   butin: {
     serre: ['On l\'a arraché. Prends quelqu\'un pour les prochains soirs, on en aura besoin.',
@@ -123,16 +107,16 @@ export function sceneDeLAdjoint({ intention, cible = '', raison, moi = 0, lui = 
 
 /*
  * A2 · LES PALIERS DE LA SAISON (`PALIERS_PACK`, js/inventaire.js). Le proprio, qui vouvoie. Le fait : la fiche après n matchs, le rang, et
- * ce que le mandat demande.
+ * ce que le contrôle de l'acte demande (V27).
  *   n          les matchs joués ; fiche : { V, D, DP } ; rang : la place au classement, sur `equipes` ;
- *   mandat     le mot du mandat (`mandatDe(...).mot`) ; graine : la partie
+ *   mandat     le contrôle de l'acte, en mots ; graine : la partie
  */
 export function sceneDuPalier({ n, fiche, rang, equipes = 32, mandat = '', graine = '' }) {
   const sit = rang <= equipes / 4 ? 'haut' : rang > (3 * equipes) / 4 ? 'fond' : 'milieu';
   return {
     de: EXPEDITEURS.pr,
     mot: piger(MOTS_DES_SCENES.palier[sit], graine, 'palier', n),
-    fait: `${fiche.V}-${fiche.D}-${fiche.DP} après ${n} matchs · ${rangMot(rang)}${mandat ? ` · le mandat : ${mandat}` : ''}`,
+    fait: `${fiche.V}-${fiche.D}-${fiche.DP} après ${n} matchs · ${rangMot(rang)}${mandat ? ` · le contrôle : ${mandat}` : ''}`,
   };
 }
 
@@ -149,18 +133,6 @@ export function sceneDeLaBlessure({ joueur, n, total = n, ou = '', adv = '', gra
 }
 
 /*
- * A5 · TES RIVAUX. Le proprio, au premier lundi. Le fait : combien en prendre, parmi combien de clubs.
- *   multi   combien il en reste à prendre ; offerts : les clubs offerts
- */
-export function sceneDesRivaux({ multi, offerts, graine = '' }) {
-  return {
-    de: EXPEDITEURS.pr,
-    mot: piger(MOTS_DES_SCENES.rivaux[multi > 1 ? 'tous' : 'dernier'], graine, 'rivaux', multi),
-    fait: `${multi} à choisir parmi ${offerts} clubs`,
-  };
-}
-
-/*
  * A6 · LE BUTIN D'UN GROS MATCH GAGNÉ. L'entraîneur. Le fait : le pointage de la feuille (un adjoint parmi trois, V16).
  *   pour, contre   le pointage ; adv : le club battu
  */
@@ -171,17 +143,3 @@ export function sceneDuButin({ pour, contre, adv, graine = '' }) {
     fait: `${pour}–${contre} contre ${adv}`,
   };
 }
-
-/*
- * A8 · LE MANDAT. Le proprio, à la fin de la saison. Le fait : la fiche, le rang, et ce que le mandat demandait.
- *   sort     'rate', 'rempli' ou 'coupe' ; fiche : { V, D, DP } ; rang, equipes : la place au classement ;
- *   mandat   le mot du mandat (`mandatDe(...).mot`)
- */
-export function sceneDuMandat({ sort, fiche, rang, equipes = 32, mandat = '', graine = '' }) {
-  return {
-    de: EXPEDITEURS.pr,
-    mot: piger(MOTS_DES_SCENES.mandat[sort], graine, 'mandat', rang),
-    fait: `${fiche.V}-${fiche.D}-${fiche.DP} · ${rangMot(rang)} sur ${equipes}${mandat ? ` · ${sort === 'rate' ? 'il fallait' : 'le mandat :'} ${mandat}` : ''}`,
-  };
-}
-

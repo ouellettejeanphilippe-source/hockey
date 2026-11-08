@@ -17,12 +17,12 @@ import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue } from './rogue.js';
+import { JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue, exigencesDe } from './rogue.js';
 import { poserLesRivaux } from './actes.js';
 import { $, G, MODE, TEAMFULL, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, cartonDe, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort, varsEquipe } from './repechage.js';
 import { renderMain, coachHtml, persoDuMatin } from './alignement.js';
-import { cartesDuCartable, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi, echangeDHistoire } from './rogue-jeu.js';
+import { cartesDuCartable, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, payerLActe, montrerLaFin, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi, echangeDHistoire } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 import { REGULIER, PILIER } from './niveaux.js';
@@ -770,6 +770,9 @@ function ouvrirEcranSaison(depuis = 0) {
           // Le barème de la run, tel que `jetonsRogue` le compte (`G.rogue.bareme`) ; V27 : son cran d'exigence, que les
           // contrôles des actes lisent (js/actes.js).
           bareme: () => (G.rogue && G.rogue.bareme) || JETONS, exigence: () => (G.rogue && G.rogue.exigence) || 0,
+          medailles: () => exigencesDe((G.rogue && G.rogue.exigence) || 0).medailles,
+          // La fin d'un acte verse ses médailles ; la run morte ouvre son écran de fin (js/rogue-jeu.js).
+          payerActe: x => payerLActe(x), finir: () => montrerLaFin(),
           // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
           jetons: j => jetonsRogue(j),
           // V16 (tranche 6) : ce que le proprio lit le lundi, pour la masse salariale et la tête du coach.

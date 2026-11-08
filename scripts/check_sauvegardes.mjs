@@ -110,9 +110,19 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
 {
   const { convertirAuJeuNeuf } = await import('../js/rogue.js');
   const vieux = { ecussons: 40, personnel: { per_physioDeRoute: 2 }, copiesPerso: { per_physioDeRoute: 1 }, inventaire: { 'consommable:chirurgie': 1 }, cartes: ['x'] };
-  const neuf = convertirAuJeuNeuf(vieux);
+  const { meta: neuf } = convertirAuJeuNeuf(vieux);
   exiger('un méta d\'avant la V21 se convertit une fois : le personnel part, les médailles restent',
     neuf && !neuf.personnel && !neuf.copiesPerso && neuf.ecussons === 40 && !Object.keys(neuf.inventaire).length && convertirAuJeuNeuf(neuf) === null);
+  /*
+   * UNE RUN D'AVANT LA V27 (docs/refonte-v27.md § 6) : la saison en actes ne la rejoue pas. Elle se retire au démarrage
+   * (js/game.js) et verse ses médailles comme une saison finie, la moitié de ses points lus dans son résumé ; un méta de
+   * la V21 garde son inventaire ; la conversion ne se fait qu'une fois.
+   */
+  const v21 = { ecussons: 10, ecussonsAVie: 30, inventaire: { a: 1 }, jeu: 'v21' };
+  const c = convertirAuJeuNeuf(v21, [{ etape: 'Run 3 · Journée 40 / 165 · 21-15-4' }, { etape: 'Run 2 · Repêchage · 12/23 signés' }, null]);
+  exiger('une run d\'avant la V27 verse ses médailles (la moitié de ses points) et la conversion ne se refait pas',
+    c && c.verse === 23 && c.meta.ecussons === 33 && c.meta.ecussonsAVie === 53 && c.meta.inventaire.a === 1 && convertirAuJeuNeuf(c.meta) === null,
+    `${c ? c.verse : '?'} médailles versées (21-15-4 : 46 points)`);
   const { autoRoster, registerHiddenRatings, createTeam, simulateLeague } = await import('../js/sim.js');
   const { TEMOINS, equipeReelle } = await import('./lib/vestiaires.mjs');
   const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(ps), { season: sa }); };

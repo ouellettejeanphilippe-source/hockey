@@ -37,7 +37,7 @@ export const acteDe = k => { const a = ACTES.findIndex(n => k < n); return a < 0
 /* Le rang à tenir à la fin de l'acte `a` (0 ou 1), exigences comprises (« Le proprio impatient » le serre). */
 export const controleDeLActe = (a, n = 32, exigence = 0) => aLaTaille(CONTROLES[a] + exigencesDe(exigence).controles, n);
 /* Les rangs de force des rivaux (« Ceux qui partent » les monte) ; les étapes des séries (« La ceinture serrée »). */
-export const rangsDesRivaux = (exigence = 0) => (exigencesDe(exigence).rivaux ? [5, 1, 0] : RANGS_DES_RIVAUX);
+const rangsDesRivaux = (exigence = 0) => (exigencesDe(exigence).rivaux ? [5, 1, 0] : RANGS_DES_RIVAUX);
 export const etapeDesSeries = (exigence = 0) => ETAPE_SERIES + exigencesDe(exigence).series;
 
 const forceDe = t => { const f = teamStrength(t); return f.att + f.def + f.g; };

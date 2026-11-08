@@ -125,7 +125,7 @@ export function salairesDesAdjoints(calendrier, you, j = Infinity) {
   }
   return { total, parJour };
 }
-export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, grosMatch: 20, objectif: 20, serie: 40 };
+export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, objectif: 20, serie: 40 };
 /*
  * Les jetons à un moment de la saison : ce que les résultats ont rapporté,
  * moins ce que la boutique a coûté. `res` : W, L, OTL (matchs révélés), les
@@ -135,7 +135,7 @@ export function jetonsDe(res, depenses, depart = JETONS.depart, bareme = JETONS)
   const r = res || {};
   const B = bareme || JETONS;
   return depart + (r.W || 0) * B.victoire + (r.OTL || 0) * B.prolongation + (r.L || 0) * B.defaite
-    + (r.gros || 0) * B.grosMatch + (r.objectifs || 0) * B.objectif + (r.series || 0) * B.serie + (r.primes || 0) - (depenses || 0);
+    + (r.objectifs || 0) * B.objectif + (r.series || 0) * B.serie + (r.primes || 0) - (depenses || 0);
 }
 /*
  * LE BARÈME D'UNE RUN (S80). Une run dure maintenant plusieurs saisons : ce
@@ -333,7 +333,7 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
  */
 const BOUCHES_TROUS = { F: { par: 'points', n: 3 }, D: { par: 'valeur', n: 2 }, G: { par: 'valeur', n: 1 } };
 const PART_DES_PIRES = 1 / 3;
-export const BANDE_DEPART = [0.35, 0.55];
+const BANDE_DEPART = [0.35, 0.55];
 const pointsParMatch = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
 export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, plus = false, exclus = new Set(), reserve = null }) {
   const out = [], pris = new Set(exclus);
@@ -641,7 +641,7 @@ export function ajouterCollection({ joueurs = [], cartes = [] } = {}) {
 }
 /*
  * LES ÉCUSSONS D'UNE RUN : la saison (un par tranche de deux points), les
- * séries (dix par ronde gagnée, vingt de plus pour la Coupe). Payés UNE fois
+ * séries (V27 : vingt par ronde gagnée, quarante de plus pour la Coupe). Payés UNE fois
  * par run et par étape (`recompenses[cle]`) : un rechargement du bilan ne
  * paie pas deux fois.
  */
@@ -682,10 +682,10 @@ export function payerEcussons(cleRun, etape, n, { equipe = null, bilan = null } 
   ecrireMeta(m);
   return Math.round(n);
 }
-export const ecussonsDeLaSaison = pts => Math.floor((pts || 0) / 2);
+const ecussonsDeLaSaison = pts => Math.floor((pts || 0) / 2);
 /* La prime de découverte : un écusson par carte qui finit sa première saison avec toi (js/cartable.js `decouvrir`). */
 export const PRIME_DECOUVERTE = 1;
-export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 10 + (coupe ? 20 : 0);
+export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 20 + (coupe ? 40 : 0);
 
 
 /*

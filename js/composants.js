@@ -65,3 +65,7 @@ export const marche = ({ num, nom, sous = '', bout = '', etat = 'loin' }) => `<d
 
 /** Le podium : trois cartes de joueur (déjà en `carteLigne`), la première au centre et plus haute. */
 export const podium = ([un, deux, trois]) => `<div class="pl-podium" role="group" aria-label="Le podium"><div class="pl-podium-2">${deux}</div><div class="pl-podium-1">${un}</div><div class="pl-podium-3">${trois}</div></div>`;
+
+/** Les cœurs du proprio (V27, la maquette 1) : dessinés, pleins ou vides, et lus en mots (« 1 cœur sur 2 ») — jamais des emojis dans un bouton. */
+const COEUR = 'M12 21s-9-5.6-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.4-9 12-9 12z';
+export const coeurs = (n, max = 2) => `<span class="pl-coeurs" role="img" aria-label="${n} cœur${n > 1 ? 's' : ''} sur ${max}">${Array.from({ length: max }, (_, i) => `<svg viewBox="0 0 24 22" aria-hidden="true"><path d="${COEUR}" class="${i < n ? 'plein' : 'vide'}"/></svg>`).join('')}</span>`;
