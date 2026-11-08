@@ -57,14 +57,14 @@ import {
 import { PLANS } from '../../js/greffes.js';
 import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, styleAuNiveau, effetDuRelais } from '../../js/adjoints.js';
 import { robotDuel } from './duel.mjs';
-import { lundiDuRobot, rondeDuRobot, coachDuRobot } from './cartes_robot.mjs';
+import { lundiDuRobot, rondeDuRobot, coachDuRobot, pieceDuRobot } from './cartes_robot.mjs';
 import { sortiesDe, memoireDeLaRun } from '../../js/histoires.js';
 import { niveauDuPerso, POUVOIRS, grandir, TALENT } from '../../js/pouvoirs.js';
 import { lotoDesCoachs } from '../../js/coachs-reels.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
 import { alignementAuMieux, chiffresDuSoir, chiffresDuSoirSous, planEnChiffres } from '../../js/impact.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
-import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack } from '../../js/packs.js';
+import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack, DATE_LIMITE_MATCH } from '../../js/packs.js';
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, aDebloque, plafondDuVestiaire,
@@ -74,7 +74,7 @@ import {
   packsOuverts, monteeDesPacks,
   bouchesTrousDuDepart, vedettesDeConcession, alourdirLaPremiere, VRAIS_CONTRATS, PLAFOND_PREMIERE,
 } from '../../js/rogue.js';
-import { poserLesRivaux } from '../../js/actes.js';
+import { poserLesRivaux, joursDe, noeudOuvert, ACHATS_PAR_NOEUD, prixDeLaPiece, piecesDuNoeud } from '../../js/actes.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -708,16 +708,26 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const lecture = lectureDuRobot(c);
   const plans = new Map();
   let planPose = 'match';
+  const jours = joursDe(L.calendrier, you), visites = new Set();
+  const joues = () => jours.filter(j => j < L.jour).length;
   while (!L.fini) {
     for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: lecture.politique, clic, jetons: jetons(), etat: etatCartes, fit: lecture.fit, lire: lecture.lire })) {
       decisions.push(d);
       depense -= d.gain || 0;
     }
-    // La boutique, le matin : tant qu'il y a de quoi acheter.
-    for (let garde = 0; garde < 4; garde++) {
-      const voulu = packDuRobot(c, jetons(), achats);
+    // LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; js/actes.js, comme le jeu et scripts/lib/rogue_actes.mjs) : la pièce d'abord si
+    // la caisse la paie (un adjoint pour la main, jusqu'au banc de cinq), puis des packs au prix du nœud, quatre achats au plus.
+    const k = noeudOuvert(joues());
+    let n = 0;
+    if (k != null && !visites.has(k)) {
+      visites.add(k);
+      const choisie = pieceDuRobot({ you, offre: piecesDuNoeud(you.perso, L.graine, k), politique: lecture.politique, clic, fit: lecture.fit });
+      if (choisie && jetons() >= prixDeLaPiece(0)) { depense += prixDeLaPiece(0); n++; decisions.push({ jour: L.jour, palier: `bq:${k}`, embauche: { cle: choisie.cle, niv: choisie.niv } }); }
+    } else n = ACHATS_PAR_NOEUD;
+    for (; n < ACHATS_PAR_NOEUD && k < DATE_LIMITE_MATCH; n++) {
+      const voulu = packDuRobot(c, jetons(), n);
       if (!voulu) break;
-      depense += prixAuAchat(voulu.cle, achats, exigence); achats++;
+      depense += prixAuAchat(voulu.cle, n, exigence); achats++;
       const { cartes, signe } = signerDuPack(c, voulu, `b${L.jour}:${achats}`);
       entrees.push(...cartes);
       if (signe) signes++;
