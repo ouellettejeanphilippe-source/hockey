@@ -302,7 +302,7 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
  * Mesuré sur 60 départs : tirés par leurs POINTS, comme les attaquants, les défenseurs sortaient au 35e rang de valeur
  * de leur saison, deux fois les attaquants (18e) — peu de points, c'est souvent un bon défenseur défensif. Les
  * défenseurs et les gardiens se tirent maintenant par leur VALEUR ; les attaquants, par leurs points. Dans chaque
- * saison tirée, la même bande pour tous (V27 : du 35e au 55e centile, `BANDE_DEPART` — l'équipe part vers le 26e rang
+ * saison tirée, la même bande pour tous (V27 : du 40e au 60e centile, `BANDE_DEPART` — l'équipe part vers le 26e rang
  * de force, docs/refonte-v27.md § 4.9 ; « Des plombiers moins pires » la monte de 20 centiles), et
  * dans la bande, les pires contrats (le tiers le mieux payé, V9 : le plafond qui mord).
  *   saisons   les joueurs de chaque saison tirée ; groupe(p) : 'F', 'D' ou 'G' ; valeur(p) : la valeur cachée
@@ -311,7 +311,8 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
  */
 const BOUCHES_TROUS = { F: { par: 'points', n: 3 }, D: { par: 'valeur', n: 2 }, G: { par: 'valeur', n: 1 } };
 const PART_DES_PIRES = 1 / 3;
-const BANDE_DEPART = [0.35, 0.55];
+/* R1 (8 nov. 2026) : 0,35-0,55 la faisait partir au 28e (la borne) et l'acte I tuait l'attentif 18 fois sur 64. */
+export const BANDE_DEPART = [0.40, 0.60];
 const pointsParMatch = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
 export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, plus = false, exclus = new Set(), reserve = null }) {
   const out = [], pris = new Set(exclus);

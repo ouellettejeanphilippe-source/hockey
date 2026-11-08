@@ -28,7 +28,7 @@ import {
 import {
   DEBLOCAGES, departDuClasseur, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, exigencesOuvertes,
-  EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, ESPACE_DE_DEPART, soutiensDuDepart, bouchesTrousDuDepart,
+  EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, ESPACE_DE_DEPART, soutiensDuDepart, bouchesTrousDuDepart, BANDE_DEPART,
   ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN, ecussonsDesSeries,
 } from '../js/rogue.js';
 import { ACTES, COEURS, CONTROLES, RANGS_DES_RIVAUX, ETAPE_SERIES, controleDeLActe, etapeDesSeries, rangAuSoir, etatDeLaRun, parmiLesAdversaires,
@@ -236,12 +236,12 @@ if (!isMainThread) {
    * un cœur part par contrôle raté, la run meurt à 0 ❤️, et l'acte III n'en coûte aucun.
    */
   {
-    exiger('les actes, les cœurs et les contrôles du devis', ACTES.join() === '27,54,82' && COEURS === 2 && CONTROLES.join() === '20,12' && RANGS_DES_RIVAUX.join() === '7,3,0' && ETAPE_SERIES === 3,
+    exiger('les actes, les cœurs et les contrôles du devis', ACTES.join() === '27,54,82' && COEURS === 2 && CONTROLES.join() === '20,15' && RANGS_DES_RIVAUX.join() === '7,3,0' && ETAPE_SERIES === 4,
       `actes ${ACTES.join(' · ')} · ${COEURS} ❤️ · contrôles ${CONTROLES.join(' · ')} · rivaux ${RANGS_DES_RIVAUX.map(r => r + 1).join(' · ')} · séries +${ETAPE_SERIES}`);
-    exiger('les contrôles et les rivaux suivent la taille de la ligue', controleDeLActe(0, 32) === 20 && controleDeLActe(1, 32) === 12 && controleDeLActe(0, 24) === 15 && controleDeLActe(1, 24) === 9
+    exiger('les contrôles et les rivaux suivent la taille de la ligue', controleDeLActe(0, 32) === 20 && controleDeLActe(1, 32) === 15 && controleDeLActe(0, 24) === 15 && controleDeLActe(1, 24) === 11
       && parmiLesAdversaires(7, 32) === 7 && parmiLesAdversaires(7, 24) === 5, `ligue de 24 : ${controleDeLActe(0, 24)} · ${controleDeLActe(1, 24)}`);
     const n = EXIGENCES.length;
-    exiger('les exigences serrent les contrôles, montent les rivaux et durcissent les séries', controleDeLActe(0, 32, n) === 18 && controleDeLActe(1, 32, n) === 10 && etapeDesSeries(n) === ETAPE_SERIES + 1 && etapeDesSeries(0) === ETAPE_SERIES,
+    exiger('les exigences serrent les contrôles, montent les rivaux et durcissent les séries', controleDeLActe(0, 32, n) === 18 && controleDeLActe(1, 32, n) === 13 && etapeDesSeries(n) === ETAPE_SERIES + 1 && etapeDesSeries(0) === ETAPE_SERIES,
       `au cran ${n} : ${controleDeLActe(0, 32, n)} · ${controleDeLActe(1, 32, n)} · séries +${etapeDesSeries(n)}`);
     // Une ligue de quatre clubs sur une cédule écrite à la main : le rang du soir, ses bris d'égalité.
     const T = ['A', 'B', 'C', 'D'].map(tag => ({ tag, season: '2000-01' })), [a, b, c, d] = T;
@@ -251,7 +251,7 @@ if (!isMainThread) {
     const rangs = T.map(t => rangAuSoir(cal, T, t, 1));
     // Après deux soirs : A 2 pts (1 V, +1), B 2 pts (1 V, +2), C 4 pts, D 1 pt (DP) → C, B, A, D.
     exiger('le rang du soir est celui de l\'écran : les points, les victoires, le différentiel', rangs.join() === '3,2,1,4', `A ${rangs[0]}e · B ${rangs[1]}e · C ${rangs[2]}e · D ${rangs[3]}e`);
-    // Les cœurs : un rival par soir ; à 4 clubs, les contrôles valent 3 et 2 (arrondi(20 × 4 / 32), arrondi(12 × 4 / 32)).
+    // Les cœurs : un rival par soir ; à 4 clubs, les contrôles valent 3 et 2 (arrondi(20 × 4 / 32), arrondi(15 × 4 / 32)).
     const rivaux = [{ acte: 0, jour: 0, adv: b }, { acte: 1, jour: 1, adv: c }];
     const E = etatDeLaRun({ calendrier: cal, teams: T, you: a, rivaux, jour: 2 });
     exiger('un contrôle raté coûte un cœur ; deux, la run', E.actes.length === 2 && E.actes[0].tenu === true && E.actes[1].tenu === false && E.coeurs === 1 && !E.mort
@@ -262,12 +262,12 @@ if (!isMainThread) {
     exiger('le renfort : +1 par acte de recul, +1 au-delà du nœud du milieu, compté depuis la cédule d\'origine', R1 === 2 && R2 === 1 && renfortDe([4], [4]) === 0 && renfortDe([20], [10]) === 0 && renfortDe([60], [70]) === 1 && renfortDe([60], [66]) === 0,
       `le 5 au 60 et le 33 au 40 : +${R1} ; puis le 60 ramené au 20 : +${R2}`);
     exiger('un rival perdu ne coûte aucun cœur', E.actes[1].gagne === false && E.actes[0].gagne === true && E.coeurs === COEURS - 1, `rival I ${E.actes[0].gagne ? 'battu' : 'perdu'} · rival II ${E.actes[1].gagne ? 'battu' : 'perdu'}`);
-    // La bande du départ (devis § 4.9) : les bouche-trous tirés du 35e au 55e centile de leur saison.
+    // La bande du départ (devis § 4.9) : les bouche-trous tirés de `BANDE_DEPART` (du 40e au 60e centile) de leur saison.
     const s = shard('1985-86').players.filter(p => groupe(p) === 'F' && (p.gp || 0) >= 30);
     const ppm = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
-    const tri = s.slice().sort((x, y) => ppm(x) - ppm(y)), bande = new Set(tri.slice(Math.floor(tri.length * 0.35), Math.floor(tri.length * 0.55)));
+    const tri = s.slice().sort((x, y) => ppm(x) - ppm(y)), bande = new Set(tri.slice(Math.floor(tri.length * BANDE_DEPART[0]), Math.floor(tri.length * BANDE_DEPART[1])));
     const pris = bouchesTrousDuDepart([s], { groupe, valeur: () => 0, personne: getPersonKey, piger: l => l[0] }).filter(p => groupe(p) === 'F');
-    exiger('les bouche-trous du départ sont pigés du 35e au 55e centile de leur saison', pris.length === 3 && pris.every(p => bande.has(p)), `${pris.length} attaquants, ${pris.filter(p => bande.has(p)).length} dans la bande`);
+    exiger('les bouche-trous du départ sont pigés de la bande du départ de leur saison (BANDE_DEPART)', pris.length === 3 && pris.every(p => bande.has(p)), `${pris.length} attaquants, ${pris.filter(p => bande.has(p)).length} dans la bande`);
   }
 
   /* ---------- 2. la run en actes, jouée par l'attentif (un fil par graine, deux à la fois) ---------- */
