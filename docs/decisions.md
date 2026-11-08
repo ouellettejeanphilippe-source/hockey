@@ -3485,3 +3485,13 @@ JP, 7 nov. 2026 : *les pouvoirs du coach, les adjoints et la main du deck fondus
 **Les vieilles parties.** Une décision d'entracte (`duel.p` 1 ou 2, avec ou sans mise) ne joue rien et ne tire aucun dé : la saison se rejoue sans planter, au but près comme sans elle (`check_gros`) ; une décision neuve l'efface.
 
 **Écarté.** Garder l'entracte à un choix « léger » (une seule proposition) : JP a dit *aucune décision d'entracte*. Garder le banc allumé à l'entracte (V23 A2) : il se lit au sommaire du soir. Un pronostic du duel (avec son plan) : celui du soir suffit, et coûterait 300 matchs de plus par plan.
+
+## Le réglage R1 : la difficulté remesurée sur le vrai banc (V27 — 8 nov. 2026)
+
+**Le problème.** Sur le jeu de la tranche 6 (PR #389, 64 graines par robot), l'attentif gagnait ses 10 Coupes sur 64, mais mourait avant l'acte III dans 18 runs (≤ 8) et perdait un cœur dans 49 (19-38). Relu dans les runs gardées : les 18 morts ratent les deux contrôles, presque toutes parties du 29e au 32e rang de force ; le départ médian était au 28e, la borne du § 10, pas au 26e que le devis visait.
+
+**Ce qui a changé, un levier par course, chacun dans sa plage sûre (devis § 9).** `BANDE_DEPART` (js/rogue.js) de 0,35-0,55 à 0,40-0,60 : le départ médian au 26e. `CONTROLES` (js/actes.js) de 20 · 12 à 20 · 15 : les morts de 13 à 6. `ETAPE_SERIES` de 3 à 4 : la bande remontée avait donné 3 Coupes à « premier » et au naïf ; des séries plus dures pèsent plus sur le club le plus faible (0 et 1 Coupe, l'attentif 10). Les chiffres de chaque course : docs/refonte-v27.md § 9.
+
+**Ce qui reste.** Un cœur perdu dans 44 runs : les élites, que le robot prend sans lire le pronostic (sous 40 %, il en perd 7 sur 9) ; refusées sous 40 %, ≈ 37. C'est à JP de trancher : le robot qui lit le pronostic, ou l'élite proposée seulement quand ta chance est assez haute. +9,2 V contre le naïf, sur une borne de 9, à un écart-type de la moyenne.
+
+**Écarté.** Les contrôles seuls : même à 24 · 16, le haut de leur plage, l'attentif mourait 11 fois sur 64 avec la bande d'avant (relu sur les runs gardées). Une bande plus haute (0,45-0,65) : le départ au 24e, la borne, et « premier » qui gagne des rondes. Toucher aux cœurs : la décision 1 l'interdit. Baisser une borne du juge : jamais.
