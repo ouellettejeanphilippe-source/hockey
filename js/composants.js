@@ -53,8 +53,8 @@ export const visage = ({ mug, nom, mot, fait = '', ton = '' }) => `<div class="p
 /** Une rangée qui parle de quelqu'un : son visage (ou une icône), un titre, l'état dessous, un chiffre au bout. */
 export const rangeeVisage = ({ mug = '', ico = '', titre, sous = '', chiffre = '', ton = 'or', attrs = '' }) => `<div class="pl-rangee pl-ton-${ton}"${attrs}>${mug ? `<span class="rond-visage" aria-hidden="true">${mug}</span>` : ico ? `<span class="pl-rangee-ico" aria-hidden="true">${ico}</span>` : ''}<span class="pl-rangee-t"><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${chiffre ? `<span class="pl-rangee-c">${chiffre}</span>` : ''}</div>`;
 
-/** Ton `n`-ième match (la maquette 3) : son numéro, l'écusson, le sigle, `bas` (le score, le renfort). `cls` : ok, choisi, fort, v, d, dp, ici, rival, marche. */
-export const caseDeMatch = ({ n, logo, sigle, bas = '', cls = '', attrs = '' }) => `<button type="button" class="ac-case${cls ? ` ${cls}` : ''}"${attrs}><i>${n}</i>${logo}<b>${sigle}</b>${bas}</button>`;
+/** Ton `n`-ième match (la maquette 3) : son numéro, l'écusson, le sigle, `bas` (le score, le renfort), `marques` (le proprio, l'accident : [{ quoi, titre }], dessinées à droite). `cls` : ok, choisi, fort, v, d, dp, ici, rival, marche. */
+export const caseDeMatch = ({ n, logo, sigle, bas = '', marques = [], cls = '', attrs = '' }) => `<button type="button" class="ac-case${cls ? ` ${cls}` : ''}"${attrs}><i>${n}</i>${logo}<b>${sigle}</b>${bas}${marques.length ? `<span class="ac-marques">${marques.map(x => `<span class="ac-m ac-m-${x.quoi}" title="${esc(x.titre)}"></span>`).join('')}</span>` : ''}</button>`;
 
 /** Une marche de l'échelle : son numéro ou ✓, son nom, ce qui manque ou ce qu'elle donne, un mot au bout. `etat` : fait, ici, suivant, loin. */
 export const marche = ({ num, nom, sous = '', bout = '', etat = 'loin' }) => `<div class="pl-marche pl-marche-${etat}"><i>${num}</i><span class="pl-marche-n">${esc(nom)}${sous ? `<small>${sous}</small>` : ''}</span><small class="pl-marche-b">${bout}</small></div>`;

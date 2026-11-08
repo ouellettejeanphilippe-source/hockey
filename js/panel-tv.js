@@ -25,7 +25,7 @@
  *             séries : dedans = tu en occupes une, ecart = ton avance (ou ton retard)
  *             en points ; n'ouvre rien au-delà de 4 points
  *   dateLimite 'proche' (quelques matchs avant) | 'passee' (la date limite des échanges,
- *             DATE_LIMITE_MATCH de js/rogue-jeu.js)
+ *             DATE_LIMITE_MATCH de js/packs.js)
  *   vedetteBlessee  true quand le meilleur joueur est blessé (≥ 15 matchs, you.injuriesLog) ;
  *             vedette : son nom (facultatif)
  *   rang, rangPrevu, nbEquipes   ton rang au classement (rangDe(you)), celui d'avant-saison

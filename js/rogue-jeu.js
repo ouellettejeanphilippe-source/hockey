@@ -15,7 +15,7 @@ import { COACHS, VOIES, REGLES_DU_COACH } from './coachs.js';
 import { chargerCoachs, lotoDesCoachs, motDuRang, niveauDuCoach } from './coachs-reels.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, bancDe, bancPlein } from './pieces.js';
 import { motsDeMutationEnChiffres, lignesDeLaPiece } from './impact.js';
-import { PACKS_TOUS, packsSansHolo, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, hausseDesPacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE, POSTES_DU_PACK } from './packs.js';
+import { PACKS_TOUS, packsSansHolo, tirerJoueursDuPack, PITIE, tirerCartesDuPack, dateLimitePassee, hausseDesPacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE, POSTES_DU_PACK } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
@@ -157,8 +157,8 @@ function packsScelles(decs) {
   const ouverts = new Set(decs.filter(d => d && d.achat && d.achat.de).map(d => d.achat.de));
   return decs.filter(d => d && d.achat && d.achat.scelle && PACKS_TOUS[d.achat.pack] && !ouverts.has(d.palier));
 }
-/* Passé la date limite (ton DATE_LIMITE_MATCH-e match joué), les packs de joueurs se ferment. */
-const apresDateLimite = j => !!(G.ligue && G.ligue.you && matchsEntre(G.ligue.you, 0, j) >= DATE_LIMITE_MATCH);
+/* Passé la date limite (le marché de ton DATE_LIMITE_MATCH-e match, js/packs.js), les packs de joueurs se ferment. */
+const apresDateLimite = j => !!(G.ligue && G.ligue.you && dateLimitePassee(matchsEntre(G.ligue.you, 0, j)));
 /*
  * LA BOUTIQUE RESTE OUVERTE (Jalon P2) : tous ses packs ont des joueurs ; passé la date limite, ils vont au cartable
  * sans se signer (`offrirPackJoueurs`), et les cartes servent encore. Seul un pack scellé attend la saison suivante.

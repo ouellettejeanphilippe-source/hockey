@@ -98,13 +98,18 @@ exiger('le soir éreintant est un dos-à-dos d\'un des deux clubs', ecartesSoir 
  * LE CALENDRIER NE PROMET QUE CE QUI EST SÛR (V2.2 ; V27, tranche 4, docs/refonte-v27-4.md). Le Calendrier est la saison en
  * cases, un acte à la fois (`saisonEnCases`, js/saison.js), faite de la case de match (`caseDeMatch`) : jouée, son score ; à
  * venir, seulement ce qui est écrit — le rival (posé à la création), le marché (ses nœuds fixes), le renfort (décidé). Aucun
- * événement ni situation à venir ; la route des trois billets et les semaines de sept journées sont parties.
+ * événement ni situation à venir ; la route des trois billets et les semaines de sept journées sont parties. Les marques de
+ * la grille d'avant reviennent (JP, 8 nov. 2026 ; `marquesDesCases`) : le proprio à ses dates fixes et son verdict, les
+ * accidents seulement passés ; la carte à prendre n'a plus de source.
  */
 {
   const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'saison.js'), 'utf8').replace(/\r\n/g, '\n');
   const bloc = (src.match(/const caseDuMatch = [\s\S]*?\n  \};/) || [''])[0];
   exiger('le Calendrier est la saison en cases, faite de la case de match ; la route et les semaines sont parties', /const saisonEnCases = /.test(src) && /caseDeMatch\(/.test(bloc) && !/routeDeuxSemaines|calendrierFiche|marquesDeSaison/.test(src));
   exiger('une case ne dit que ce qui est sûr : le score joué, le rival, le marché, le renfort', /rivaux/.test(bloc) && /NOEUDS_BOUTIQUE/.test(bloc) && /renfortHtml/.test(bloc) && !/situations|JOURS_|PALIERS_/.test(bloc));
+  const marques = (src.match(/const marquesDesCases = [\s\S]*?\n  \};/) || [''])[0];
+  exiger('ses marques ne disent que ce qui est sûr : le proprio à ses dates fixes, l\'accident une fois passé, jamais une situation', /caseDuMatch\(k, js\[k\], [^)]*\bM\b/.test(src) && /marques: M\.get\(k \+ 1\)/.test(bloc)
+    && /JOURS_OBJECTIFS/.test(marques) && /MATCHS_OBJECTIF/.test(marques) && /x\.jour <= jour && MUTATIONS\[x\.cle\]/.test(marques) && !/situations|PALIERS_|possible/.test(marques));
 }
 
 /*

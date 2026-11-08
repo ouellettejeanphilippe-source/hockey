@@ -2391,16 +2391,33 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * ce soir, le rival, le marché qui ouvre après le match (le sac), et le renfort du club (« +2 ✦ », `renfortsDe`).
    */
   const renfortHtml = (R, t) => (R.get(t) ? `<em class="ac-renf">+${R.get(t)} ✦</em>` : '');
-  const caseDuMatch = (k, j, adv, R, cls = '') => {
+  /*
+   * LES MARQUES DES CASES (JP, 8 nov. 2026 : celles de la grille d'avant, que la tranche 4 avait retirées, reviennent).
+   * Chacune se pose sur la case du match après lequel elle arrive, comme le sac du marché : le proprio à ses rendez-vous
+   * (l'objectif fixé, aux `JOURS_OBJECTIFS` ; son verdict, joué, au jour de sa décision, à venir au bout des
+   * `MATCHS_OBJECTIF`), et les accidents passés (ils ne se prévoient pas). La carte à prendre n'a plus de source : la main
+   * du deck et ses paliers sont partis (tranche 5b). Rien de ce qui peut ne pas venir (une situation, un événement).
+   * Une map : le numéro de la case → ses marques.
+   */
+  const marquesDesCases = js => {
+    const out = new Map(), apres = d => js.filter(x => x < d).length;
+    const m = (n, quoi, titre) => { if (n >= 1 && n <= js.length) out.set(n, [...(out.get(n) || []), { quoi, titre }]); };
+    JOURS_OBJECTIFS.forEach(k => m(k, 'proprio', 'Le proprio fixe un objectif'));
+    for (const d of decs) if (typeof d.palier === 'string' && d.palier.startsWith('v:')) m(apres(d.jour), 'proprio', 'Le verdict du proprio');
+    JOURS_OBJECTIFS.forEach(k => { if (k + MATCHS_OBJECTIF > miens.length && !decs.some(d => d.palier === `v:${k}`)) m(k + MATCHS_OBJECTIF, 'proprio', 'Le verdict du proprio'); });
+    for (const x of you.mutations || []) if (x && x.jour <= jour && MUTATIONS[x.cle] && MUTATIONS[x.cle].source === 'accident') m(apres(x.jour), 'accident', `Un accident : ${MUTATIONS[x.cle].nom}`);
+    return out;
+  };
+  const caseDuMatch = (k, j, adv, R, M, cls = '') => {
     const i = indexMien(j), m = calendrier[j][i], joue = j < jour, p = prochain(), rival = ((ligue && ligue.rivaux) || []).some(x => x.jour === j);
     const etat = joue ? (gagne(m, you) ? 'v' : m.ot ? 'dp' : 'd') : p && p.j === j ? 'ici' : '';
-    return caseDeMatch({ n: k + 1, logo: ctx.logo(adv.tag, 26), sigle: ctx.esc(ctx.tagCourt(adv)), bas: joue ? `<small>${m.A === you ? m.gfA : m.gfB}–${m.A === you ? m.gfB : m.gfA}</small>` : renfortHtml(R, adv),
+    return caseDeMatch({ n: k + 1, logo: ctx.logo(adv.tag, 26), sigle: ctx.esc(ctx.tagCourt(adv)), bas: joue ? `<small>${m.A === you ? m.gfA : m.gfB}–${m.A === you ? m.gfB : m.gfA}</small>` : renfortHtml(R, adv), marques: M.get(k + 1) || [],
       cls: [cls, etat, rival ? 'rival' : '', NOEUDS_BOUTIQUE.includes(k + 1) ? 'marche' : ''].filter(Boolean).join(' '),
       attrs: ` data-k="${k}" style="${varsEquipe(ctx.band(adv.tag))}"${joue && m.feuille ? ` data-sommaire="saison|${j}|${i}"` : ''}` });
   };
   const saisonEnCases = () => {
-    const js = joursDe(calendrier, you), R = renfortsDe(ligue), a = menu.calActe ?? Math.min(2, acteDe(miens.length)), cases = [];
-    for (let k = a ? ACTES[a - 1] : 0; k < Math.min(ACTES[a], js.length); k++) { const m = calendrier[js[k]][indexMien(js[k])]; cases.push(caseDuMatch(k, js[k], m.A === you ? m.B : m.A, R)); }
+    const js = joursDe(calendrier, you), R = renfortsDe(ligue), M = marquesDesCases(js), a = menu.calActe ?? Math.min(2, acteDe(miens.length)), cases = [];
+    for (let k = a ? ACTES[a - 1] : 0; k < Math.min(ACTES[a], js.length); k++) { const m = calendrier[js[k]][indexMien(js[k])]; cases.push(caseDuMatch(k, js[k], m.A === you ? m.B : m.A, R, M)); }
     return `${jetons(NOMS_DES_ACTES.slice(0, 3).map((mot, i) => ({ cle: i, mot, on: i === a })), 'acte')}<div class="ac-grille">${cases.join('')}</div>`;
   };
   /*
@@ -2410,7 +2427,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * « Valider » envoie la décision `cedule` (rien placé : la vraie cédule).
    */
   function ouvrirLeCalendrier(a) {
-    const joues = miens.length, js = joursDe(calendrier, you), paires = [];
+    const joues = miens.length, js = joursDe(calendrier, you), M = marquesDesCases(js), paires = [];
     let B = brouillon(ligue), choisi = null;
     const advB = k => { const m = B.calendrier[js[k]].find(x => x.A === you || x.B === you); return m.A === you ? m.B : m.A; };
     const somme = X => [...renfortsDe(X).values()].reduce((s, n) => s + n, 0);
@@ -2418,7 +2435,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const dessinerCal = () => {
       const R = renfortsDe(B), parts = choisi == null ? null : echangeables(B, choisi, joues), base = somme(B);
       const fort = q => { const X = brouillon(B); echangerTesCases(X, choisi, q, joues); return somme(X) > base; };
-      const cas = k => caseDuMatch(k, js[k], advB(k), R, k === choisi ? 'choisi' : parts ? (parts.includes(k) ? `ok${fort(k) ? ' fort' : ''}` : '') : echangeables(B, k, joues).length ? 'ok' : '');
+      const cas = k => caseDuMatch(k, js[k], advB(k), R, M, k === choisi ? 'choisi' : parts ? (parts.includes(k) ? `ok${fort(k) ? ' fort' : ''}` : '') : echangeables(B, k, joues).length ? 'ok' : '');
       const acte = [], loin = (parts || []).filter(q => q >= ACTES[a]);
       for (let k = joues; k < ACTES[a]; k++) acte.push(cas(k));
       const d = paires.at(-1), plaque = (k, de) => `<span class="ac-ech" style="${varsEquipe(ctx.band(advB(k).tag))}">${ctx.logo(advB(k).tag, 30)}<b>${ctx.esc(ctx.tagCourt(advB(k)))}</b><small>${de + 1} → ${k + 1}</small>${renfortHtml(R, advB(k)) || '<em class="ac-gratuit">Gratuit</em>'}</span>`;
