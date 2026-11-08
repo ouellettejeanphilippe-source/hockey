@@ -201,14 +201,16 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   for (let garde = 0; !S.fini && garde < 200; garde++) jouerMatchSeries(S);
   const toi = teams[0];
   const mienne = S.toutes.filter(x => x.A === toi || x.B === toi);
-  const notes = mienne.flatMap(x => x.feuilles.flatMap(f => (f.pieces || []).filter(n => n.cote === (x.A === toi ? 'B' : 'A'))));
+  // Chaque note porte la pièce du coach de CETTE série : ton club peut passer une ronde et changer d'adversaire.
+  const notes = mienne.flatMap(x => x.feuilles.flatMap(f => (f.pieces || []).filter(n => n.cote === (x.A === toi ? 'B' : 'A'))
+    .map(n => ({ ...n, attendue: PIECE_DU_COACH[(x.A === toi ? x.B : x.A).persoSeries.cle] }))));
   const styles = new Set(teams.filter(t => t.persoSeries).map(t => t.persoSeries.cle));
   const duStyle = teams.filter(t => t.persoSeries && COACH_DU_STYLE[t.style]);
   exiger('leur philosophie se lit sur le style du club (offensif, défensif, robuste), pure', duStyle.length > 0 && duStyle.every(t => t.persoSeries.cle === COACH_DU_STYLE[t.style]) && teams.filter(t => t.persoSeries).every(t => persoAdverse(t).cle === t.persoSeries.cle),
     `${duStyle.length} clubs au style marqué · l'ombre joue l'inverse à ×${OMBRE}`);
   exiger('en séries, chaque adversaire a son coach-personnage (une pièce), aucun en saison, et le tien reste le tien', avecCoach === teams.length - 1 && enSaison === 0 && !toi.persoSeries,
     `${avecCoach} coachs adverses · ${[...styles].map(c => COACHS[c].ico).join(' ')} · ${mienne.length ? `ta série contre ${COACHS[(mienne[0].A === toi ? mienne[0].B : mienne[0].A).persoSeries.cle].nom}` : 'pas de série (hors des 16)'}`);
-  exiger('leur pièce joue sa condition et son ombre le reste du temps, la feuille le note', !mienne.length || (notes.some(n => !n.ombre) && notes.some(n => n.ombre) && notes.every(n => PIECE_DU_COACH[(mienne[0].A === toi ? mienne[0].B : mienne[0].A).persoSeries.cle] === n.cle)),
+  exiger('leur pièce joue sa condition et son ombre le reste du temps, la feuille le note', !mienne.length || (notes.some(n => !n.ombre) && notes.some(n => n.ombre) && notes.every(n => n.attendue === n.cle)),
     `${notes.filter(n => !n.ombre).length} périodes jouées, ${notes.filter(n => n.ombre).length} à l'ombre sur ${mienne.reduce((a, x) => a + x.feuilles.length, 0)} matchs`);
   // Neutre en V : le même match de séries, mêmes dés, leur coach contre aucun.
   const N_LEUR = Number(process.env.N_LEUR ?? 60), NEUTRE_V = 1.5;
