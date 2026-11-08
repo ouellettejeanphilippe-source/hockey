@@ -167,7 +167,9 @@ export const PIECES = {
     quand: chez, canaux: { F: [1.15, 1, 0.94, 0.88], finition: 1.06, blessure: 1.3 }, adv: { volume: 1.08 },
     relais: { mot: 'À domicile, chaque période', quand: e => soirDe(e, 'domicile'), cote: 'canaux', canal: 'finition' } },
   // L'ANCIEN ARBITRE (V23 ; JP : *a coach or assistant that was a ref*) : hors des huit voies, le second maillon de la chaîne.
-  arbitre: { voie: null, cadre: 2, genre: 'synergie', ico: '🦓', nom: 'L\'ancien arbitre', quandMot: 'À l\'étranger, sans dos-à-dos', soir: true,
+  // La plus forte (+3 V seule, +4,5 avec le canonnier) : elle garde sa force, mais sort rarement (`rarete`, JP, 8 nov. 2026),
+  // et sa carte prend le cadre d'or des rares.
+  arbitre: { voie: null, cadre: 3, rarete: 'rare', genre: 'synergie', ico: '🦓', nom: 'L\'ancien arbitre', quandMot: 'À l\'étranger, sans dos-à-dos', soir: true,
     dit: 'J\'ai sifflé vingt ans dans cette ligue. Je sais ce qu\'ils regardent, et ce qu\'ils ne regardent pas.',
     quand: ailleurs, canaux: { discipline: 0.8 }, adv: { discipline: 1.15 },
     relais: { mot: 'Quand une autre pièce relaie', quand: unRelais('arbitre'), chaine: true, cote: 'adv', canal: 'discipline' } },
@@ -194,15 +196,24 @@ export function poserLaPiece(banc, cle, sort = null) {
 /* Le banc est-il plein ? Alors une pièce neuve demande celle qui sort. */
 export const bancPlein = perso => bancDe(perso).length >= CASES_DU_BANC;
 /*
+ * LA RARETÉ D'UNE PIÈCE (JP, 8 nov. 2026 : l'arbitre devient une pièce rare). Une pièce `rarete: 'rare'` garde sa force,
+ * mais pèse `POIDS_RARE` au tirage des offres (une ordinaire : 1) : chaque offre range les pièces par une course
+ * exponentielle, −ln(1 − u) / poids, la plus petite d'abord ; à poids égaux, c'est l'ordre de la graine seule.
+ */
+export const POIDS_RARE = 0.25;
+export const poidsDuTirage = cle => (PIECES[cle] && PIECES[cle].rarete === 'rare' ? POIDS_RARE : 1);
+/*
  * LES PIÈCES OFFERTES (une parmi trois), tirées de la graine parmi celles qui ne sont pas déjà sur le banc. `cle` : le
  * moment (le rival battu, le nœud de la boutique, la fourche) ; deux moments n'offrent pas les mêmes. `voisines` (le rival
- * battu) : les pièces de la philosophie du coach et de ses deux voisines dans `VOIES`, plus celles hors des voies.
+ * battu) : les pièces de la philosophie du coach et de ses deux voisines dans `VOIES`, plus celles hors des voies. Une rare
+ * sort à son poids (`poidsDuTirage`) : le rival battu, la boutique, la fourche et les robots tirent tous ici.
  */
 export function piecesOffertes(perso, graine, cle, n = PIECES_OFFERTES, { voisines = false } = {}) {
   const pris = new Set(bancDe(perso)), i = perso ? VOIES.indexOf(perso.cle) : -1;
   const proches = i < 0 ? null : new Set([VOIES[i], VOIES[(i + 1) % VOIES.length], VOIES[(i + VOIES.length - 1) % VOIES.length]]);
+  const rang = k => -Math.log(1 - hache(String(graine), 'piece', cle, k)) / poidsDuTirage(k);
   return Object.keys(PIECES).filter(k => !pris.has(k) && (!voisines || !proches || !PIECES[k].voie || proches.has(PIECES[k].voie)))
-    .sort((a, b) => hache(String(graine), 'piece', cle, a) - hache(String(graine), 'piece', cle, b)).slice(0, n);
+    .sort((a, b) => rang(a) - rang(b)).slice(0, n);
 }
 
 /* ---------- le jeu d'une période ---------- */
