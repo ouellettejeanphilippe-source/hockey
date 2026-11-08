@@ -15,7 +15,7 @@
 import { teamStrength, getHiddenRatings } from './sim.js';
 import { exigencesDe, habillerLaLigue } from './rogue.js';
 import { hausseDesPacks } from './packs.js';
-import { adjointsOfferts, niveauOffert } from './adjoints.js';
+import { piecesOffertes } from './pieces.js';
 
 export const ACTES = [27, 54, 82];
 export const RANGS_DES_RIVAUX = [7, 3, 0];
@@ -195,11 +195,8 @@ export const prochainNoeud = joues => NOEUDS_BOUTIQUE.find(k => k > joues) ?? nu
 export const estUnAchat = d => !!(d && d.achat && d.achat.prix > 0 && ['joueurs', 'cartes', 'piece'].includes(d.achat.sorte));
 /* La pièce au `n`-ième achat du nœud (de 0) : 32 🪙 en premier, 45 après un pack. */
 export const prixDeLaPiece = n => Math.round(PRIX_PIECE * hausseDesPacks(n));
-/*
- * LES TROIS PIÈCES D'UN NŒUD, tirées de la graine. Tant que le banc de cinq n'existe pas (tranche 5, *PIECES*), une
- * pièce est un adjoint pour ta main, à son niveau (`adjointsOfferts`, `niveauOffert`) : la carte qui deviendra une pièce.
- */
-export const piecesDuNoeud = (perso, graine, k) => (perso ? adjointsOfferts(perso, graine, `bq${k}`, 3).map(cle => ({ cle, niv: niveauOffert(graine, `bq${k}`, cle) })) : []);
+/* LES TROIS PIÈCES D'UN NŒUD, tirées de la graine parmi celles qui ne sont pas sur ton banc (js/pieces.js `piecesOffertes`) : leurs clés. */
+export const piecesDuNoeud = (perso, graine, k) => (perso ? piecesOffertes(perso, graine, `bq${k}`) : []);
 
 /*
  * LE CALENDRIER PLACÉ ET LE RENFORT (V27, tranche 4 ; devis § 4.4, docs/refonte-v27-4.md). Au premier soir d'un acte, tu

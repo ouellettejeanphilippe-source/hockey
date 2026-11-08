@@ -3,7 +3,7 @@
  * presque plus rien : les paliers d'adjoints tombaient aux 9e, 18e et 26e matchs (`PALIERS_PACK`, js/inventaire.js) et
  * les histoires ne s'ouvraient qu'une fois par saison (js/histoires.js). On le mesure sur l'attentif
  * (scripts/lib/rogue_sim.mjs) : les clubs de check_profondeur (le meilleur et celui du milieu de quatre saisons),
- * `SAISONS` saisons de suite chacun, comme scripts/mesure_main.mjs.
+ * `SAISONS` saisons de suite chacun (la main d'adjoints de scripts/mesure_main.mjs est partie avec la V27, tranche 5).
  *
  * UN MOMENT, c'est un match avant lequel la saison te demande quelque chose :
  *   - ce que le robot joue : un palier (un adjoint parmi trois), une histoire, le butin d'un gros match gagné, un talent
@@ -66,10 +66,10 @@ function relire(r) {
   for (const d of decisions) {
     const p = String(d.palier || '');
     const sorte = p.startsWith('pp:') ? 'palier' : p.startsWith('h:') ? 'histoire' : p.startsWith('r:') ? 'butin' : p.startsWith('ta:') ? 'talent' : d.ballottage ? 'signature' : null;
-    if (sorte) out.push({ sorte, m: avant(d.jour), ...(sorte === 'histoire' ? { cle: d.moment.cle, joueur: d.moment.joueur || null, xp: Number(d.xpCoach) || 0, gain: Number(d.gain) || 0, adjoint: !!d.embauche } : {}) });
+    if (sorte) out.push({ sorte, m: avant(d.jour), ...(sorte === 'histoire' ? { cle: d.moment.cle, joueur: d.moment.joueur || null, gain: Number(d.gain) || 0, piece: !!d.piece } : {}) });
   }
   // L'histoire d'une ronde se joue après la saison : elle ne compte pas au rythme des 82 matchs, mais à la run.
-  const rondes = (r.decisionsSeries || []).filter(d => d.moment && d.moment.famille === 'histoire').map(d => ({ cle: d.moment.cle, joueur: d.moment.joueur || null, xp: Number(d.xpCoach) || 0, gain: Number(d.gain) || 0 }));
+  const rondes = (r.decisionsSeries || []).filter(d => d.moment && d.moment.famille === 'histoire').map(d => ({ cle: d.moment.cle, joueur: d.moment.joueur || null, gain: Number(d.gain) || 0 }));
   for (const mb of you.minisBoss || []) out.push({ sorte: 'gros', m: avant(mb.jour) });
   const n = joue.filter(Boolean).length;
   for (const k of PALIERS_CARTES) if (k < n) out.push({ sorte: 'main', m: k });
@@ -105,7 +105,7 @@ if (!isMainThread) {
     while (suivante < taches.length) { const k = suivante++; resultats[k] = await lancer(taches[k]); }
   }));
 
-  const trous = [], parQuart = [0, 0, 0, 0], parSorte = {}, histoires = new Map(), rapporte = { xp: 0, gain: 0, adjoint: 0 };
+  const trous = [], parQuart = [0, 0, 0, 0], parSorte = {}, histoires = new Map(), rapporte = { gain: 0, piece: 0 };
   let quartsVides = 0, nSaisons = 0, signatures = 0, quartsSansHistoire = 0;
   const parMoment = Object.fromEntries(MOMENTS.map(m => [m, 0])), revues = [];
   for (const { cle, saisons } of resultats) {
@@ -113,7 +113,7 @@ if (!isMainThread) {
     const vues = new Map();
     for (const [i, { moments, rondes }] of saisons.entries()) for (const x of [...moments.filter(y => y.sorte === 'histoire'), ...rondes]) {
       parMoment[HISTOIRES[x.cle].moment]++;
-      if (rondes.includes(x)) { histoires.set(x.cle, (histoires.get(x.cle) || 0) + 1); rapporte.xp += x.xp; rapporte.gain += x.gain; }
+      if (rondes.includes(x)) { histoires.set(x.cle, (histoires.get(x.cle) || 0) + 1); rapporte.gain += x.gain; }
       if (!x.joueur) continue;
       const k = `${x.cle}:${x.joueur}`;
       if (vues.has(k)) revues.push(`${cle} : ${x.cle} sur ${x.joueur}, saisons ${vues.get(k) + 1} et ${i + 1}`);
@@ -124,7 +124,7 @@ if (!isMainThread) {
       const vrais = moments.filter(x => x.sorte !== 'signature');
       signatures += moments.length - vrais.length;
       for (const x of moments) parSorte[x.sorte] = (parSorte[x.sorte] || 0) + 1;
-      for (const x of vrais.filter(y => y.sorte === 'histoire')) { histoires.set(x.cle, (histoires.get(x.cle) || 0) + 1); rapporte.xp += x.xp; rapporte.gain += x.gain; rapporte.adjoint += x.adjoint ? 1 : 0; }
+      for (const x of vrais.filter(y => y.sorte === 'histoire')) { histoires.set(x.cle, (histoires.get(x.cle) || 0) + 1); rapporte.gain += x.gain; rapporte.piece += x.piece ? 1 : 0; }
       // Les matchs où un moment tombe, du début (le match 0) à la fin de la saison.
       const ms = [...new Set([0, ...vrais.map(x => x.m), matchs])].sort((a, b) => a - b);
       let trou = 0, ou = '';
@@ -143,7 +143,7 @@ if (!isMainThread) {
   const tries = [...trous].sort((a, b) => a - b);
   informer('les moments, par sorte (par saison)', Object.entries(SORTES).map(([k, nom]) => `${nom} ${((parSorte[k] || 0) / nSaisons).toFixed(1)}`).join(' · '));
   // L'ÉCONOMIE : ce que les réponses de l'attentif aux histoires rapportent (une histoire qui revient ne doit pas l'emballer).
-  informer('ce que les histoires rapportent à l\'attentif (par saison)', `${(rapporte.xp / nSaisons).toFixed(1)} d'expérience au coach · ${(rapporte.gain / nSaisons).toFixed(1)} 🪙 · ${(rapporte.adjoint / nSaisons).toFixed(1)} carte d'adjoint`);
+  informer('ce que les histoires rapportent à l\'attentif (par saison)', `${(rapporte.gain / nSaisons).toFixed(1)} 🪙 · ${(rapporte.piece / nSaisons).toFixed(1)} pièce de banc`);
   informer('les histoires sorties (sur toutes les saisons)', [...histoires.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(' · ') || '—');
   informer('les moments par quart de saison (moyenne par saison)', parQuart.map((v, i) => `${['1-20', '21-41', '42-61', '62-82'][i]} : ${(v / nSaisons).toFixed(1)}`).join(' · ') + ` · signatures à part : ${(signatures / nSaisons).toFixed(1)} par saison`);
   informer('le plus long trou de chaque saison', `médiane ${tries[Math.floor(tries.length / 2)]}, pire ${tries.at(-1)} · ${trous.filter(x => x > TROU_MAX).length} saisons sur ${nSaisons} au-dessus de ${TROU_MAX}`);

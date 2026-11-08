@@ -74,7 +74,7 @@ const lundiPlein = {
   suites: [{ de: 'lePetit', choix: 'monter', joueur: J('Lepetit', 'pt'), m: 8, pts: 5, butsDuo: 0, resolue: false }, { de: 'leDuo', choix: 'souder', joueur: J('Lemarqueur', 'mq'), m: 10, pts: 12, butsDuo: 7, resolue: false }],
   jalon: J('Lejalon', 'ja', { quoi: 'buts', total: 20, m: 38, sal: '4,2 M$' }), duo: { marqueur: J('Lemarqueur', 'mq'), passeur: J('Lepasseur', 'pa'), buts: 6, m: 10 },
   recrue: J('Larecrue', 'rk', { pts: 9, m: 12 }), veteran: J('Levieux', 'vx', { age: 41, pts: 7, m: 10 }), murEnVue: J('Legardien', 'lg', { v: 28, departs: 46 }), coup: J('Lepuni', 'pn', { min: 5, adv: 'Eux' }),
-  sejourFini: { cle: 'canonnier', nom: 'Le canonnier', ico: '🏹', v: 8, d: 3, dp: 1, matchs: 12 }, mandat: { mot: 'finir dans les dix premiers', rang: 10 },
+  pieceChaude: { cle: 'canonnier', nom: 'Le canonnier', ico: '🏹', m: 7, v: 5, d: 2 }, mandat: { mot: 'finir dans les dix premiers', rang: 10 },
   gros: { adv: 'Eux', sorte: 'nemesis', domicile: true, fiche: { v: 0, d: 2 }, dernier: { pour: 1, contre: 3 }, ancien: J('Lancien', 'an', { pts: 9, m: 12, vraie: null }), leurVedette: { n: 'Leurgars', pts: 21, m: 10, vraie: null },
     monMur: J('Lemur', 'mu', { pm: 6 }), lancee: 4, malades: [J('Malade1', 'm1', { j: 58 }), J('Malade2', 'm2', { j: 62 }), J('Malade3', 'm3', { j: 64 })], partant: J('Legardien', 'lg', { j: 72, dosADos: true }) },
   ronde: { k: 1, adv: 'Eux', domicile: true, leurCoach: { nom: 'Le Frelon', ico: '🐝', pouvoir: 'La ruée' }, ficheSaison: { v: 1, d: 3 }, precedente: { matchs: 7 }, meneur: J('Lavedette', 'lv', { pts: 11, m: 6, vraie: null }), gardien: J('Legardien', 'lg', { pctArr: 0.931, departs: 5 }) },
@@ -93,7 +93,7 @@ const lundiPlein = {
   }
   exiger('chaque histoire nomme un joueur et le dit dans son fait', !fautes.length && n >= 30, fautes.slice(0, 4).join(' · ') || `${n} histoires vraies sur les faits pleins`);
   // Au début d'une saison, personne n'a encore de feuille : aucune histoire ne plante, et aucune ne nomme personne.
-  const vide = { ...lundiPlein, n: 0, vedette: null, gardien: null, puni: null, muet: null, pousse: null, blesses: [], suites: [], jalon: null, duo: null, recrue: null, veteran: null, murEnVue: null, coup: null, sejourFini: null, chapeau: null, blanchissage: null, dernier: null, gros: null, ronde: null, serie: 0, dosRoute: 0, visiteur: 0 };
+  const vide = { ...lundiPlein, n: 0, vedette: null, gardien: null, puni: null, muet: null, pousse: null, blesses: [], suites: [], jalon: null, duo: null, recrue: null, veteran: null, murEnVue: null, coup: null, pieceChaude: null, chapeau: null, blanchissage: null, dernier: null, gros: null, ronde: null, serie: 0, dosRoute: 0, visiteur: 0 };
   const plantes = [];
   for (const [k, D] of Object.entries(HISTOIRES)) { try { if (D.quand(vide) && D.joueur(vide)) plantes.push(`${k} : vraie sans feuille`); } catch (e) { plantes.push(`${k} : plante sans feuille (${e.message})`); } }
   exiger('sans feuille jouée, aucune histoire ne sort ni ne plante', !plantes.length, plantes.slice(0, 4).join(' · ') || `${Object.keys(HISTOIRES).length} histoires`);

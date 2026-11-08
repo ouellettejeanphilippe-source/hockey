@@ -35,7 +35,7 @@ import { ACTES, COEURS, CONTROLES, RANGS_DES_RIVAUX, ETAPE_SERIES, controleDeLAc
   NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, PRIX_PIECE, noeudOuvert, prochainNoeud, prixDeLaPiece, estUnAchat, piecesDuNoeud, renfortDe } from '../js/actes.js';
 import { EDITIONS } from '../js/rarete.js';
 import { NIVEAUX as NOMS_DE_NIVEAU } from '../js/niveaux.js';
-import { POUVOIRS } from '../js/pouvoirs.js';
+import { PIECES, PIECE_DU_COACH } from '../js/pieces.js';
 import { VOIES } from '../js/coachs.js';
 import { PACKS_TOUS, PACKS_DE_SERIE } from '../js/packs.js';
 import { shard, groupe } from './lib/rogue_sim.mjs';
@@ -142,9 +142,10 @@ if (!isMainThread) {
       `${prixDeLaPiece(0)} · ${prixDeLaPiece(1)} · ${prixDeLaPiece(2)} · ${prixDeLaPiece(3)} 🪙 · ${ACHATS_PAR_NOEUD} achats au plus`);
     exiger('un achat de nœud : un pack payé ou la pièce ; ton club et l\'ouverture d\'un scellé, non', estUnAchat({ achat: { sorte: 'joueurs', prix: 14 } }) && estUnAchat({ achat: { sorte: 'piece', prix: 32 } })
       && !estUnAchat({ achat: { sorte: 'club', prix: 15 } }) && !estUnAchat({ achat: { sorte: 'joueurs', prix: 0, de: 'k:0' } }), 'pack · pièce · ni club ni scellé');
-    const P0 = { cle: 'tortue', talents: [], main: [] }, o1 = piecesDuNoeud(P0, 'g', 41), o2 = piecesDuNoeud(P0, 'g', 41), o3 = piecesDuNoeud(P0, 'g', 54);
-    exiger('trois pièces par nœud, pures, chacune à son niveau, une autre offre au nœud suivant', o1.length === 3 && JSON.stringify(o1) === JSON.stringify(o2) && JSON.stringify(o1) !== JSON.stringify(o3) && o1.every(x => x.niv >= 1 && x.niv <= 5),
-      o1.map(x => `${x.cle} ${x.niv}`).join(' · '));
+    // V27, tranche 5 : trois pièces de banc (js/pieces.js), jamais une déjà sur ton banc.
+    const P0 = { cle: 'tortue', banc: ['verrou'] }, o1 = piecesDuNoeud(P0, 'g', 41), o2 = piecesDuNoeud(P0, 'g', 41), o3 = piecesDuNoeud(P0, 'g', 54);
+    exiger('trois pièces par nœud, pures, jamais une déjà sur ton banc, une autre offre au nœud suivant', o1.length === 3 && JSON.stringify(o1) === JSON.stringify(o2) && JSON.stringify(o1) !== JSON.stringify(o3) && o1.every(k => PIECES[k] && k !== 'verrou'),
+      o1.join(' · '));
     // 1.0 (J1-B) : un achat s'enregistre AVANT le butin — un ballottage de pack porte le palier `k:n:signe`, jamais l'achat lui-même,
     // donc le numéro d'achat suivant ne bouge pas et la dépense est comptée même sans signature.
     const achats = [{ jour: 3, palier: 'k:0', achat: { pack: 'j:hasard_bronze', n: 0, prix: 12, sorte: 'joueurs' } }, { jour: 3, palier: 'k:0:signe', ballottage: { i: 20, entre: 'x', sort: null } }];
@@ -156,7 +157,7 @@ if (!isMainThread) {
    */
   {
     const n = PRESTIGES.map((_, r) => coachsOuverts(r).length);
-    exiger('les coachs ouverts : trois au départ, un de plus par rang, les huit voies à la Dynastie', n[0] === 3 && n.every((x, i) => i === 0 || x > n[i - 1]) && n[n.length - 1] === VOIES.length && VOIES.every(k => POUVOIRS[k]), n.join(' · '));
+    exiger('les coachs ouverts : trois au départ, un de plus par rang, les huit voies à la Dynastie', n[0] === 3 && n.every((x, i) => i === 0 || x > n[i - 1]) && n[n.length - 1] === VOIES.length && VOIES.every(k => PIECE_DU_COACH[k]), n.join(' · '));
   }
   {
     const m = { deblocages: [], jalons: {} };

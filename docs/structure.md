@@ -50,9 +50,8 @@ js/entracte.js        le rapport d'entracte en cartons
 js/pronostic.js       le dépistage d'avant-match
 js/impact.js          l'impact en chiffres de match : ce que le moteur joue, dit pour ton club (« ≈ +1,2 tir par match »), jamais en « % » ; les mots d'un effet, d'une mutation, des totaux et de la pénalité de position (V25 A1 : sortis de sim.js) ; partagé navigateur + Node
 js/equipes.js         l'écran des équipes et leurs vraies statistiques
-js/pouvoirs.js        le coach, un personnage (V21) : son niveau, ses trois pouvoirs par période, ses talents — `check_pouvoirs`
+js/pieces.js          le banc de cinq (V27, tranche 5) : la famille *PIECES* (les pouvoirs et les adjoints d'avant), la pièce de départ du coach, le banc pur, le jeu d'une période et de la soirée, le relais, leur coach en séries — `check_pouvoirs`, `check_relais`
 js/coachs-reels.js    l'entraîneur, une vraie carte de coach-saison (V21) : data/coachs.json, sa philosophie lue des vraies stats de son club, sa maîtrise, le loto du départ (ton cartable d'abord)
-js/adjoints.js        sa main d'adjoints (V22) : des cartes, un style chacune (un gain, un prix), postées pour un séjour de 12 matchs puis au repos ; une main de quatre, les cases en poste au niveau du coach ; un parmi trois aux moments forts — `check_pouvoirs`
 js/deposer.js         le glisser-déposer, souris et doigt (l'appui tenu) : une carte d'adjoint sur une case au Bureau › Coach, les cartes des Lignes (`permuter`)
 js/histoires.js       la banque des histoires (V25 C1, docs/refonte-v25-c1.md) : quarante, à trois moments (le lundi, le gros match, la ronde), un tirage pur (`tirer`), la scène qui nomme (`sceneDe`), les sorties d'une saison et la mémoire de la run (`sortiesDe`, `memoireDeLaRun`, V25 C2) — `check_histoires`
 js/faits.js           les faits (V25 C1) : `faitsDe`, une seule lecture pure des feuilles jouées, du journal du club, du classement et de la cédule connue, pour l'écran, le moteur et les robots ; la vraie saison avec ses bornes (`vraie`, `vraieMot`) — `check_vie`

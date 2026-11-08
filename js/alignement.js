@@ -8,20 +8,18 @@ import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3, varsCarton } from './util.js';
 import { badgesDe, getPlayerKey, MUTATIONS, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, avecAVenir } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, specialesEnStats, lignesDeLAdjointEnChiffres, ditDuPouvoir, penaliteAffichee } from './impact.js';
+import { alignementAuMieux, unitesDuSoir, specialesEnStats, lignesDeLaPiece, penaliteAffichee } from './impact.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
 import { primesDuCoach } from './rogue.js';
-import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, SEUILS_NIVEAU, NIVEAUX_TALENT, niveauDuPerso, xpAvantProchain, forceDuPouvoir, NIVEAU_POUVOIR } from './pouvoirs.js';
-import { ADJOINTS, MAIN_MAX, casesDuPerso, mainDe, enPoste, auRepos, resteDe, reposDe, sejourDe, motDeSynergie, ficheDeLaCarte, casesLibres, nivDe, salaireDe } from './adjoints.js';
-import { carteHtml } from './cartes.js';
-import { carteLigne, grille, coin, jauge } from './composants.js';
-import { hubActif } from './coquille.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, bancDe } from './pieces.js';
+import { carteHtml, carteDePiece } from './cartes.js';
+import { carteLigne, caseVide, grille, coin } from './composants.js';
 import { glisserDeposer } from './deposer.js';
 import { jambesHtml, motDuBadge, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
-import { $, G, TEAMFULL, MODE, montrerPage, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setOption, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
+import { $, G, TEAMFULL, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setOption, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, cartonDe, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort, varsEquipe } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { poseesSur } from './banque.js';
@@ -830,123 +828,61 @@ function avecLeBanc(fn) {
   } catch { return null; }
 }
 /*
- * LE PERSONNAGE DU MATIN : celui que le moteur a joué, plus les décisions de la journée pas encore jouée (un talent pris
+ * LE PERSONNAGE DU MATIN : celui que le moteur a joué, plus les décisions de la journée pas encore jouée (une pièce prise
  * ce matin) — le moteur ne les applique qu'en jouant la journée (`avecAVenir`, js/sim.js).
  */
-export function persoDuMatin() {
+function persoDuMatin() {
   const L = G.ligue, you = L && L.you, M = L && L.moteur;
   if (!you) return null;
   if (!M || M.fini) return you.perso || null;
   return avecAVenir(you, (L.decisions || []).filter(d => d.jour === M.jour && !d.equipe), () => you.perso) || null;
 }
 /*
- * TON COACH, UN PERSONNAGE (V21, docs/refonte-v21.md). Son niveau et sa barre d'expérience, puis ses trois pouvoirs :
- * ouvert ou verrouillé (le niveau qui l'ouvre), ce qu'il fait, sa force (ses talents), et combien de fois il a joué
- * cette saison (lu dans tes feuilles). Puis sa main d'adjoints (V22, `mainHtml`).
- * Le personnage est celui que la ligue rejouée porte.
+ * TON COACH ET TON BANC (V27, tranche 5 ; js/pieces.js). L'entraîneur en carte (sa vraie carte, sa maîtrise, sa règle),
+ * puis ton banc de cinq cases, pour la run : chaque pièce en vraie carte de jeu (`carteDePiece`), son verso dit ce qu'elle
+ * fait et sa réplique, son coin combien de soirs elle a joué cette saison (lu dans tes feuilles), sa condition dessous ; une
+ * case libre en pointillés. Rien ne se pose ici : une pièce arrive d'un rival battu, de la boutique ou d'une fourche.
  */
 export function coachHtml() {
   if (G.bonus !== 'ROGUE' || !G.rogue) return '';
   const L = G.ligue, you = L && L.you;
-  const perso = persoDuMatin() || (G.rogue.coach ? { cle: G.rogue.coach, xp: 0, talents: [] } : null);
+  const perso = persoDuMatin() || (G.rogue.coach ? { cle: G.rogue.coach, banc: [PIECE_DU_COACH[G.rogue.coach]] } : null);
   const C = perso && COACHS[perso.cle];
   if (!C) return '';
-  const xp = (perso.xp || 0) + ((you && you.xpSaison) || 0), niveau = niveauDuPerso({ ...perso, xpSaison: (you && you.xpSaison) || 0 });
-  const manque = xpAvantProchain(xp);
-  const bas = SEUILS_NIVEAU[niveau - 1] || 0, haut = SEUILS_NIVEAU[niveau] ?? bas;
-  const part = manque == null ? 100 : Math.round(((xp - bas) / Math.max(1, haut - bas)) * 100);
-  // Combien de fois chaque pouvoir a joué cette saison, dans tes feuilles déjà jouées (la ligue est rejouée jusqu'à ce jour).
-  const fois = [0, 0, 0];
+  // Combien de soirs chaque pièce a joué cette saison (à la feuille ou en relais), dans tes feuilles déjà jouées.
+  const soirs = new Map();
   for (const m of (L && L.calendrier ? L.calendrier.flat() : [])) {
     if (!m.feuille || (m.A !== you && m.B !== you)) continue;
     const cote = m.A === you ? 'A' : 'B';
-    for (const x of m.feuille.pouvoirs || []) if (x.cote === cote) fois[x.p]++;
+    for (const k of new Set([...(m.feuille.pieces || []), ...(m.feuille.relais || [])].filter(x => x.cote === cote).map(x => x.cle))) soirs.set(k, (soirs.get(k) || 0) + 1);
   }
+  const banc = bancDe(perso);
+  const carte = k => carteLigne(carteDePiece(k, { statique: true, texteHtml: `« ${esc(PIECES[k].dit)} »`, pucesHtml: puces(lignesDeLaPiece(k)) }), `<span class="pv-nom">${esc(PIECES[k].quandMot)}</span>`,
+    { cls: 'pv', coins: coin(soirs.get(k) ? `${soirs.get(k)} soirs` : 'Pas encore', { ton: soirs.get(k) ? 'or' : 'gris', cls: 'pl-coin-petit pv-etat' }) });
+  const vides = Array.from({ length: Math.max(0, CASES_DU_BANC - banc.length) }, () => caseVide('Case<br>libre'));
   /*
-   * LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu* ; *faire les autres cartes dans un look similaire*) : chaque
-   * pouvoir est une VRAIE carte de jeu (`carteHtml`, le carton 5:7 de la glace), au genre des pouvoirs du coach ; son verso dit ce
-   * qu'il fait ; sur l'ardoise en coin, combien de fois il a joué, ou le niveau qui l'ouvre ; fermé, il s'éteint.
-   */
-  const carte = (P, p) => {
-    const ouvert = niveau >= NIVEAU_DES_POUVOIRS[p];
-    const f = forceDuPouvoir(perso, p);
-    return carteLigne(carteHtml({ cle: `pv${p}`, niveau: NIVEAU_POUVOIR[p], genreCarte: 'synergie', ico: P.ico, nomHtml: esc(P.nom), typeHtml: p === 2 ? 'Ultime' : `Pouvoir ${['I', 'II'][p]}`, statique: true,
-      texteHtml: `${esc(ditDuPouvoir(P))}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}` }),
-    `<span class="pv-nom">${esc(P.dit.split(' : ')[0])}</span>`,
-    { cls: `pv${ouvert ? '' : ' ferme pl-carte-eteinte'}`, coins: coin(ouvert ? (fois[p] ? `${fois[p]} fois` : 'Pas encore') : `Niveau ${NIVEAU_DES_POUVOIRS[p]}`, { ton: ouvert ? 'or' : 'gris', cls: 'pl-coin-petit pv-etat' }) });
-  };
-  /*
-   * LE COACH EST UNE CARTE (V25 B2, docs/refonte-v25.md § 4 B) : l'entraîneur sur une vraie carte de jeu, au genre des pouvoirs,
-   * aux couleurs de son vrai club (`varsCarton`), son niveau d'entraîneur en cadre (V25 B1 : `NIVEAUX[k].maitrise`), son club et
-   * sa saison en type, sa philosophie et sa maîtrise au verso ; le niveau du personnage en coin (l'ardoise), la jauge
-   * d'expérience et sa règle à côté, en chiffres (« 4 → niv. 2 · talent », « ≤ 24 tirs contre → +2 🪙 · 1 fois »).
+   * LE COACH EST UNE CARTE (V25 B2) : l'entraîneur sur une vraie carte de jeu, aux couleurs de son vrai club (`varsCarton`),
+   * son niveau d'entraîneur en cadre (`NIVEAUX[k].maitrise`), son club et sa saison en type, sa philosophie et la force
+   * qu'il donne à sa pièce de départ au verso ; sa règle à côté, en chiffres (« ≤ 24 tirs contre → +2 🪙 · 1 fois »).
    */
   const chef = perso.chef;
   const kMaitrise = NIVEAUX.findIndex(N => N.maitrise === (perso.maitrise || 1));
   const maitrise = (perso.maitrise || 1) !== 1 && kMaitrise >= 0 ? nomDuNiveau(kMaitrise) : '';
+  const depart = PIECES[PIECE_DU_COACH[perso.cle]];
   const carteCoach = carteLigne(carteHtml({ cle: 'coach', niveau: kMaitrise >= 0 ? kMaitrise : undefined, genreCarte: 'synergie', ico: C.ico, nomHtml: esc(chef ? chef.n : C.nom),
     typeHtml: esc(chef ? `${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}` : C.nom), statique: true, style: chef ? varsCarton(getTeamBand(chef.tag)) : '',
-    texteHtml: `${C.ico} ${esc(C.nom)}${maitrise ? `<br>${esc(maitrise)} · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}` }),
-  `<span class="pv-nom">${esc(C.nom)}</span>`, { cls: 'ej-coach-carte', coins: coin(`Niveau <b>${niveau}</b>`, { cls: 'ej-rang', cote: 'gauche' }) });
+    texteHtml: `${C.ico} ${esc(C.nom)}${maitrise ? `<br>${esc(maitrise)} · ${esc(depart.nom)} ×${String(perso.maitrise).replace('.', ',')}` : ''}` }),
+  `<span class="pv-nom">${esc(C.nom)}</span>`, { cls: 'ej-coach-carte' });
+  const R = REGLES_DU_COACH[perso.cle];
   return `<div class="ej-coach">
     <div class="ej-coach-haut">${carteCoach}<div class="ej-coach-cote">
-    ${jauge(part / 100, `Expérience ${xp}`)}
-    <div class="ej-coach-l">${xp} exp.${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · ${manque} → niv. ${niveau + 1}${NIVEAUX_TALENT.includes(niveau + 1) ? ' · talent' : ''}`}</div>
-    ${(R => (R ? (x => `<div class="ej-coach-l ej-regle" title="La règle ${esc(C.de)} : elle paie le soir où ton club joue son hockey">${C.ico} ${esc(R.dit)} → +${R.jetons} 🪙 · ${x.parJour.size} fois</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''))(REGLES_DU_COACH[perso.cle])}
+    <div class="ej-coach-l">${esc(C.mot)}</div>
+    ${R ? (x => `<div class="ej-coach-l ej-regle" title="La règle ${esc(C.de)} : elle paie le soir où ton club joue son hockey">${C.ico} ${esc(R.dit)} → +${R.jetons} 🪙 · ${x.parJour.size} fois</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''}
     </div></div>
-    ${grille(POUVOIRS[perso.cle].map(carte), { cls: 'pv-rang' })}
-    ${mainHtml(perso, niveau)}
+    <div class="ej-case-l">Ton banc · ${banc.length} sur ${CASES_DU_BANC}</div>
+    ${grille([...banc.map(carte), ...vides], { n: 5, cls: 'pv-rang' })}
   </div>`;
 }
-/*
- * TA MAIN D'ADJOINTS (V22, js/adjoints.js ; JP : *coach plus adjoints dans une main, qui sont là x matchs et changent le
- * style de l'équipe*). Les cases en poste (au niveau du coach), chacune une carte et ce qui lui reste ; puis la main : les
- * cartes prêtes (« Poster » dessous, ou glissée sur une case libre) et celles au repos. Une carte se retourne : son style
- * en vraies stats, sa réplique, sa fiche chez toi. Poster est une décision `poste`, le jour même (js/sim.js `appliquerPerso`).
- */
-function mainHtml(perso, niveau) {
-  const L = G.ligue, you = L && L.you, games = (you && you.games) || 0;
-  const main = mainDe(perso), cases = casesDuPerso(perso, niveau);
-  // Le prochain niveau qui ouvre une case (la case de plus du premier talent comprise), s'il y en a un.
-  const plusTard = [2, 3, 4, 5].find(n => n > niveau && casesDuPerso(perso, n) > cases);
-  const postes = main.filter(c => enPoste(c, games, perso.cle)), autres = main.filter(c => !enPoste(c, games, perso.cle));
-  const carteAdj = c => {
-    // V23 : la carte à son niveau — ses lignes, sa rareté (le cadre de la série), son nom de niveau.
-    const niv = nivDe(c), A = ADJOINTS[c.cle], l = lignesDeLAdjointEnChiffres(c.cle, c.niv), syn = motDeSynergie(c.cle, perso.cle), fiche = ficheDeLaCarte(c);
-    const etat = enPoste(c, games, perso.cle) ? 'poste' : auRepos(c, games) ? 'repos' : 'prete';
-    // Nov. 2026 : son salaire par match, sur la carte (il se lisait au banc du soir seulement).
-    const sal = salaireDe(c) ? ` · −${salaireDe(c)} 🪙/match` : '';
-    const sous = etat === 'poste' ? `encore ${resteDe(c, games, perso.cle)} m${sal}` : etat === 'repos' ? `repos ${reposDe(c, games)}` : `${sejourDe(c.cle, perso.cle)} m`;
-    // Le verso, petit, dit le style seul ; la réplique, la synergie et la fiche se lisent dans la bande, au toucher (`.adj-detail`).
-    const detail = `<b>${esc(A.nom)}</b> · ${esc(nomDuNiveau(niv - 1))} · ${esc(A.style)} — « ${esc(A.dit)} »${syn ? ` · <b class="bon">${esc(syn)}</b>` : ''}${fiche ? ` · ${esc(fiche)}` : ''}`;
-    return `<div class="adj-carte" data-adj="${c.cle}" data-etat="${etat}" data-detail="${esc(detail)}">
-      ${carteHtml({ cle: c.cle, niveau: niv - 1, genreCarte: 'tactique', ico: A.ico, nomHtml: esc(A.nom), typeHtml: esc(`${nomDuNiveau(niv - 1)} · ${A.style}`), statique: true,
-        pucesHtml: puces(l) })}
-      <span class="adj-sous">${sous}</span>
-      ${etat === 'prete' && casesLibres(perso, games, niveau) ? `<button type="button" class="btn-sign adj-poster" data-poste="${c.cle}">Poster</button>` : ''}
-    </div>`;
-  };
-  // UNE SEULE RANGÉE (l'onglet tient en un écran) : les cases en poste d'abord, puis la main ; quatre cartes de front au plus.
-  const vides = Math.max(0, cases - postes.length);
-  return `<div class="ej-case-l" title="${plusTard ? `Une case de plus au niveau ${plusTard}` : 'Tes cases en poste, et ta main'}">En poste ${postes.length}/${cases} · Main ${main.length}/${MAIN_MAX}</div>
-    <div class="adj-zone${main.length ? '' : ' sans'}" data-zone="main">${postes.map(carteAdj).join('')}${Array.from({ length: vides }, () => `<button type="button" class="adj-case vide" title="Glisse une carte de ta main ici">Case libre</button>`).join('')}${autres.map(carteAdj).join('')}</div>
-    ${main.length ? '<p class="adj-detail" role="status" aria-live="polite"></p>' : ''}`;
-}
-/* POSTER UNE CARTE : la décision du jour (`hub.decider`), puis on revient au Coach, où l'on était. */
-function posterLAdjoint(cle) {
-  const hub = hubActif();
-  if (!hub || !hub.decider || !ADJOINTS[cle]) return;
-  Promise.resolve(hub.decider({ poste: { cle } })).then(() => montrerPage('entraineur'));
-}
-glisserDeposer({ prise: '.adj-zone .adj-carte[data-etat="prete"]', cible: '.adj-case.vide', deposer: de => posterLAdjoint(de.dataset.adj), fantome: el => el.querySelector('.tc') || el });
-if (typeof document !== 'undefined') document.addEventListener('click', ev => {
-  const b = ev.target.closest && ev.target.closest('.adj-poster[data-poste]');
-  if (b) { posterLAdjoint(b.dataset.poste); return; }
-  // AU TOUCHER D'UNE CARTE : la bande sous la main dit son style, sa réplique, sa synergie et sa fiche chez toi.
-  const c = ev.target.closest && ev.target.closest('.adj-carte[data-detail]');
-  const bande = c && c.closest('.ej-coach') && c.closest('.ej-coach').querySelector('.adj-detail');
-  if (bande) bande.innerHTML = c.dataset.detail;
-});
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */
 function filetHtml() {
   const b = G.banc, F = b.filetEtat;

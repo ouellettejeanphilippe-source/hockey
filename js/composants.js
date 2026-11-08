@@ -13,7 +13,6 @@
  *   caseVide   la place d'une carte, en pointillés ;
  *   grille     trois cartes de front (l'effectif, l'album, les trios), quatre pour la main ;
  *   cellules   deux ou trois chiffres séparés d'un filet (l'argent) ;
- *   jauge      une barre qui se remplit (l'expérience du coach) ;
  *   visage     un joueur en vignette, son état et son fait en vrais chiffres (la forme du groupe, ce qui court) ;
  *   caseDeMatch un de tes matchs dans la saison en cases (le Calendrier, le placement de l'acte) ;
  *   marche     un rang de l'échelle du prestige ;
@@ -47,9 +46,6 @@ export const grille = (cartes, { n = 3, cls = '', attrs = '' } = {}) => `<div cl
 
 /** Des chiffres en cellules séparées d'un filet : [{ k, v, u }]. */
 export const cellules = items => `<div class="pl-cellules">${items.map(x => `<span class="pl-cellule"><small>${x.k}</small><b>${x.v}</b><small>${x.u || ''}</small></span>`).join('')}</div>`;
-
-/** Une jauge : la part remplie (0 à 1), ce qu'elle mesure en mots pour le lecteur d'écran. */
-export const jauge = (part, mot) => `<div class="pl-jauge" role="img" aria-label="${esc(mot)}"><i style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></i></div>`;
 
 /** Un joueur en vignette : son visage, son nom, son état, son fait. `ton` : feu, doute, blesse, or. */
 export const visage = ({ mug, nom, mot, fait = '', ton = '' }) => `<div class="pl-visage${ton ? ` pl-ton-${ton}` : ''}"><span class="rond-visage" aria-hidden="true">${mug}</span><b>${esc(nom)}</b><small>${esc(mot)}${fait ? `<br>${esc(fait)}` : ''}</small></div>`;

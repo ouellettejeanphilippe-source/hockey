@@ -115,16 +115,6 @@ export function primesDuCoach(calendrier, you, j = Infinity, cle = you && you.pe
   }
   return { total, parJour };
 }
-/* LE SALAIRE DES ADJOINTS (V23, js/adjoints.js `salaireDe`) : ce que la feuille dit qu'ils ont coûté, jusqu'à la journée `j`. */
-export function salairesDesAdjoints(calendrier, you, j = Infinity) {
-  const parJour = new Map();
-  let total = 0;
-  for (const x of tesSoirs(calendrier, you, j)) {
-    const n = (x.f.adjoints || []).filter(a => a.cote === x.cote).reduce((a, b) => a + (b.salaire || 0), 0);
-    if (n) { total += n; parJour.set(x.j, n); }
-  }
-  return { total, parJour };
-}
 /* V27, tranche 3 : la prime de série est en médailles (`ecussonsDesSeries`, 20 🏅 la ronde) ; en séries, la boutique est fermée. */
 export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, objectif: 20 };
 /*
@@ -789,7 +779,8 @@ export const JALONS = [
   // 1.0 : le goût d'essayer — des cartes différentes, et tous les niveaux dans la même équipe.
   { cle: 'essais', ico: '🧪', nom: 'Cinquante essais', texte: 'Fais jouer 50 cartes différentes en Rogue.', si: f => (f.joues || 0) >= 50, recompense: { ecussons: 40 } },
   // V10 : le Pack du coach s'ouvre quand un coach a toute ta confiance.
-  { cle: 'coachIII', ico: '📋', nom: 'Le coach au sommet', texte: 'Mène ton coach à son dernier niveau.', si: f => !!f.coachAuSommet, recompense: { ecussons: 40 }, pack: 'j:coach' },
+  // V27, tranche 5 (devis § 4.9) : le coach au sommet est parti avec son expérience ; le même jalon est le banc plein.
+  { cle: 'coachIII', ico: '📋', nom: 'Le banc plein', texte: 'Pose cinq pièces sur ton banc.', si: f => !!f.bancPlein, recompense: { ecussons: 40 }, pack: 'j:coach' },
   { cle: 'tousNiveaux', ico: '🌈', nom: 'Tous les niveaux', texte: 'Finis une saison avec un joueur de chaque niveau, de Soutien à Phénomène.', si: f => (f.niveaux || 0) >= 5, recompense: { ecussons: 50 } },
 ];
 /*

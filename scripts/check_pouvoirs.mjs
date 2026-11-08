@@ -1,42 +1,43 @@
 /*
- * LES POUVOIRS DU COACH ET SA MAIN D'ADJOINTS (V21, docs/refonte-v21.md — js/pouvoirs.js ; V22, docs/refonte-v22.md —
- * js/adjoints.js). Le coach est un personnage : un niveau gagné en jouant, trois pouvoirs qui s'ouvrent aux niveaux 1, 3
- * et 5, deux talents ; sa main d'adjoints, des cartes qu'on poste pour un séjour de `SEJOUR` matchs. Ce qu'on exige :
- *   1. les tables : huit coachs, trois pouvoirs chacun, tous sur des canaux que le moteur connaît ; huit adjoints,
- *      chacun un style — un gain ET un prix —, deux canaux au plus de chaque côté, un par philosophie (`voie`) ;
- *   2. le niveau : les seuils, les pouvoirs ouverts, les talents dus ; les vraies cartes d'entraîneur
- *      (data/coachs.json) : un coach par club-saison, une philosophie connue, un loto pur de trois philosophies ouvertes ;
- *   3. EN PAIRES, match par match (CLAUDE.md) : deux copies d'un même vrai club, le même match sur les mêmes dés,
- *      une fois avec un coach muet (trois périodes, aucun pouvoir : la soirée en périodes a son propre tirage), une
- *      fois avec le pouvoir seul. Chaque pouvoir :
- *        a. joue exactement les périodes que sa condition lit dans la feuille (le pointage, les tirs, le soir) ;
- *        b. hors de ses périodes, rien : un match où il ne joue pas rend la même feuille ;
- *        c. se voit dans la feuille d'un soir où il joue (±2 tirs, ±0,3 but, ±0,5 punition, ±4 mises en échec, ±3
+ * LE BANC DE CINQ (V27, tranche 5 ; docs/refonte-v27.md § 4.6, § 5, § 10 ; docs/refonte-v27-5a.md — js/pieces.js). Les
+ * pouvoirs du coach et les adjoints sont devenus une seule famille, *PIECES* : cinq cases pour la run, sans séjour, repos,
+ * salaire ni niveau. Ce juge les réécrit tous (ses bornes de 2,5 V, 4 V et 16 V sur une saison sont parties avec eux).
+ * Ce qu'on exige :
+ *   1. les tables : chaque pièce a son icône, son nom, sa condition en mots et en fonction, une réplique sans chiffre, des
+ *      canaux que le moteur connaît, trois au plus de son côté, deux de l'autre, un relais sur un de SES canaux ; chaque
+ *      coach a sa pièce de départ, de sa philosophie ; l'arbitre seul est hors des voies ;
+ *   2. le banc, pur : une pièce entre dans la première case libre, jamais deux fois ; plein, elle prend la case de celle qui
+ *      sort, et sans elle rien ne bouge ; trois offertes, pures, jamais une déjà posée, celles du rival battu de la
+ *      philosophie du coach et de ses voisines ; la maîtrise ne règle que la pièce de départ ; les vrais entraîneurs ;
+ *   3. LA PRÉSENCE (§ 4.6) : sur des saisons de run (le robot attentif), chaque pièce se lit 30 à 50 % des soirs (`PRESENCE`), sauf celles d'un
+ *      moment rare (`rare` : les séries, le gros match) ;
+ *   4. EN PAIRES, match par match (CLAUDE.md) : deux copies d'un même vrai club, le même match sur les mêmes dés, une fois
+ *      avec un banc vide (trois périodes, aucune pièce), une fois avec la pièce seule. Chaque pièce :
+ *        a. joue exactement les périodes que sa condition lit dans la feuille (la pièce de la soirée, les trois) ;
+ *        b. hors de ses périodes, rien : un match où elle ne joue pas rend la même feuille ;
+ *        c. se voit dans la feuille d'un soir où elle joue (±2 tirs, ±0,3 but, ±0,5 punition, ±4 mises en échec, ±3
  *           blessures par saison) ;
- *        d. aide sans casser : au plus `BORNE_V` victoires sur une saison (le premier et le deuxième d'un arbre ; l'ultime
- *           plus), jamais un piège ;
- *   3'. EN PAIRES aussi, chaque adjoint seul en poste, tous les soirs : il se voit dans la feuille (le soir où il joue,
- *      les mêmes bornes que c.) et, ramené à ce qu'une carte peut jouer sur une saison (`SEJOUR / (SEJOUR + REPOS)` des
- *      matchs), il reste sous `ECHANGE_V` victoires, cadeau comme piège ;
- *   4. le personnage complet (niveau 5, ses deux talents) peut casser le jeu — c'est la récompense d'une run qui a
- *      duré (docs/refonte-v3.md, principe 5) — sans s'emballer ;
- *   5. la saison : l'expérience compte les victoires, la même graine rejoue le même personnage ; une carte embauchée
- *      puis postée joue exactement son séjour (la feuille la nomme), revient dans la main, se repose `REPOS` matchs
- *      (une pose pendant le repos ne fait rien) et garde sa fiche ; la main se borne à `MAIN_MAX` ; une vieille décision
- *      `adjoint`, `staff` ou `perdAdjoint` (V21) ne change rien.
- * `N` : matchs par club et par pouvoir (600, cinq minutes sur quatre processus, `FILS`). `COACHS=a,b` : quelques coachs.
- * `MESURE=0 N=20` (la CI, une demi-minute) : a, b et la saison, sans les chiffres de valeur.
+ *        d. sur un acte (`ACTE` matchs, à sa présence), n'est jamais un piège (au-dessus de `PIEGE_V`) et rend au plus le
+ *           net d'un pouvoir d'avant sur la même durée (`BORNE_ACTE_V` ; l'ultime, son cadre de ★ Phénomène,
+ *           `BORNE_ULTIME_V`) : le net d'un adjoint d'aujourd'hui, × 1, jamais × 2,7 (§ 4.6) ;
+ *   5. le banc complet (cinq pièces d'un coach) rend au plus `BANC_MAX_V` sur un acte contre un banc vide, et aide ;
+ *   6. la saison : la même graine rejoue le même banc ; le coach pose sa pièce de départ ; une décision `piece` entre, le
+ *      banc plein laisse partir `sort` ; une vieille décision (`talent`, `xpCoach`, `embauche`, `poste`, `adjoint`,
+ *      `staff`, `perdAdjoint`) ne change rien ; la feuille nomme la pièce aux soirs où elle joue.
+ * `N` : matchs par club et par pièce (600, quelques minutes sur `FILS` processus). `PIECES=a,b` : quelques pièces.
+ * `MESURE=0 N=20` (la CI, une demi-minute) : 1, 2, a, b et 6, sans les chiffres de valeur ni la présence.
  */
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague } from '../js/sim.js';
-import { POUVOIRS, XP, SEUILS_NIVEAU, NIVEAU_MAX, niveauDe, pouvoirsOuverts, talentsDus, forceDuPouvoir, TALENT_CASE } from '../js/pouvoirs.js';
-import { maitriseDu, niveauDuCoach, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
-import { NIVEAUX, nomDuNiveau } from '../js/niveaux.js';
-import { ADJOINTS, SEJOUR, SEJOUR_SYNERGIE, REPOS, MAIN_MAX, CASES_PAR_NIVEAU, adjointsOfferts, lignesDeLAdjoint, mainDe, enPoste, auRepos, embaucher, poster, quiPartDeLaMain, casesDuNiveau, casesDuPerso, CASE_DE_PLUS, NIV_DEFAUT, styleAuNiveau, niveauOffert } from '../js/adjoints.js';
 import fs from 'node:fs';
-import { COACHS } from '../js/coachs.js';
+import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague, MOMENTS_SI } from '../js/sim.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, PIECES_OFFERTES, bancDe, poserLaPiece, piecesOffertes, forceDeLaPiece, bancPlein } from '../js/pieces.js';
+import { maitriseDu, niveauDuCoach, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
+import { NIVEAUX } from '../js/niveaux.js';
+import { COACHS, VOIES } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
+import { jouerSaison, shard, metaAuNiveau } from './lib/rogue_sim.mjs';
+import { NIVEAUX_PLEINS } from '../js/rogue.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
@@ -44,71 +45,58 @@ const N = Number(process.env.N ?? 600);
 /* `MESURE=0` (la CI) : les périodes, la feuille hors des soirs et la saison, sans les chiffres de valeur ni les bornes, que le bruit d'un petit N fausserait. */
 const MESURE = process.env.MESURE !== '0';
 const FILS = Math.max(1, Number(process.env.FILS ?? 4)), ICI = fileURLToPath(import.meta.url);
-const QUELS = process.env.COACHS ? process.env.COACHS.split(',') : Object.keys(POUVOIRS);
+const QUELLES = process.env.PIECES ? process.env.PIECES.split(',') : Object.keys(PIECES);
 const VISIBLE = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
-/* La borne d'un pouvoir seul, à sa force de départ, en victoires sur une saison : I et II, puis l'ultime. */
-const BORNE_V = [2.5, 2.5, 4];
-const PIEGE_V = -0.5, BUTS_PAR_V = 6, COMPLET_MAX_V = 16;
-/* Un adjoint est un style, pas une force : sur une saison, au plus `ECHANGE_V` victoires, en plus comme en moins ; une carte
-   joue au plus `MATCHS_PAR_SAISON` matchs (son séjour, son repos, et ainsi de suite). */
-const ECHANGE_V = 1.5, MATCHS_PAR_SAISON = 82 * SEJOUR / (SEJOUR + REPOS);
+/*
+ * LES BORNES D'UNE PIÈCE, sur un acte de `ACTE` matchs (devis § 4.6 et § 5). Un pouvoir I ou II d'avant restait sous 2,5 V
+ * sur une saison, l'ultime sous 4 V ; ramenés à un acte au même rythme, 2,5 × 27 / 82 et 4 × 27 / 82. Un adjoint d'avant
+ * au ★ Étoile (±2,5 V sur ses matchs joués) donne le même plafond : c'est « le net d'un adjoint d'aujourd'hui sur la même
+ * durée ». Jamais un piège : au-dessus de −0,5 V sur l'acte. Le banc complet : au plus +5 V sur l'acte (§ 5).
+ */
+const ACTE = 27, BUTS_PAR_V = 6;
+const BORNE_ACTE_V = 2.5 * ACTE / 82, BORNE_ULTIME_V = 4 * ACTE / 82, PIEGE_V = -0.5, BANC_MAX_V = 5;
+/* La présence (§ 4.6) : 30 à 50 % des soirs. */
+const PRESENCE = [0.3, 0.5];
 const CANAUX = new Set(['volume', 'finition', 'defense', 'discipline', 'blessure', 'robustesse', 'F', 'energie']);
+const GENRES = new Set(['attaque', 'defense', 'tactique', 'synergie']);
 const somme = a => (a || []).reduce((x, y) => x + y, 0);
+const f1 = (v, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
 
 /* ---------- 1. les tables ---------- */
 {
   const fautes = [];
-  if (Object.keys(POUVOIRS).sort().join() !== Object.keys(COACHS).sort().join()) fautes.push('les coachs et les arbres');
-  for (const [c, arbre] of Object.entries(POUVOIRS)) {
-    if (arbre.length !== 3) fautes.push(`${c} : ${arbre.length} pouvoirs`);
-    if (new Set(arbre.map(P => P.cle)).size !== arbre.length) fautes.push(`${c} : deux clés pareilles`);
-    for (const P of arbre) {
-      if (!P.ico || !P.nom || !P.dit || typeof P.quand !== 'function') fautes.push(`${c}/${P.cle} : la forme`);
-      const canaux = [...Object.keys(P.canaux || {}), ...Object.keys(P.adv || {})];
-      if (!canaux.length || canaux.some(k => !CANAUX.has(k))) fautes.push(`${c}/${P.cle} : ${canaux.join(', ')}`);
-    }
+  for (const [k, P] of Object.entries(PIECES)) {
+    if (!P.ico || !P.nom || !P.quandMot || !P.dit || /\d/.test(P.dit) || typeof P.quand !== 'function') fautes.push(`${k} : la forme`);
+    if (!GENRES.has(P.genre) || !(P.cadre >= 0 && P.cadre <= 4)) fautes.push(`${k} : le genre ou le cadre`);
+    const canaux = [...Object.keys(P.canaux || {}), ...Object.keys(P.adv || {})];
+    if (!canaux.length || canaux.some(c => !CANAUX.has(c)) || Object.keys(P.canaux || {}).length > 3 || Object.keys(P.adv || {}).length > 2) fautes.push(`${k} : ${canaux.join(', ')}`);
+    if (P.voie ? !COACHS[P.voie] : k !== 'arbitre') fautes.push(`${k} : sa voie`);
+    if (P.relais && (!P.relais.mot || typeof P.relais.quand !== 'function' || !(P[P.relais.cote] && P[P.relais.cote][P.relais.canal] != null))) fautes.push(`${k} : son relais`);
   }
-  exiger('huit coachs, trois pouvoirs chacun, sur des canaux que le moteur connaît', !fautes.length, fautes.slice(0, 4).join(' · ') || `${Object.keys(POUVOIRS).length} arbres`);
-  // UN ADJOINT EST UN STYLE : une ligne qui aide, une qui coûte, deux canaux au plus de chaque côté, sur des canaux connus ; un par coach.
-  const pasStyle = Object.entries(ADJOINTS).filter(([k, A]) => {
-    const l = lignesDeLAdjoint(k), canaux = [...Object.keys(A.canaux || {}), ...Object.keys(A.adv || {})];
-    return !A.ico || !A.nom || !A.style || !A.dit || /\d/.test(A.dit) || !l.some(x => x.bon) || !l.some(x => !x.bon) || canaux.some(c => !CANAUX.has(c))
-      || Object.keys(A.canaux || {}).length > 3 || Object.keys(A.adv || {}).length > 1 || (A.voie ? !COACHS[A.voie] : !(A.salaire > 0));
-  }).map(([k]) => k);
-  // Un par coach ; V23 : ceux hors des voies (l'ancien arbitre) ne rejoignent personne et se paient un salaire.
-  const voies = Object.values(ADJOINTS).map(A => A.voie).filter(Boolean);
-  exiger(`${Object.keys(ADJOINTS).length} adjoints, chacun un style : un gain, un prix, une réplique sans chiffre, un par coach (les autres se paient)`, Object.keys(ADJOINTS).length >= 8 && !pasStyle.length && voies.length === Object.keys(COACHS).length && new Set(voies).size === voies.length,
-    pasStyle.join(', ') || Object.values(ADJOINTS).map(A => `${A.ico}${A.voie ? COACHS[A.voie].ico : `${A.salaire}🪙`}`).join(' '));
+  exiger(`${Object.keys(PIECES).length} pièces, chacune une condition en mots, une réplique sans chiffre, des canaux connus, un relais sur un de ses canaux`, !fautes.length && Object.keys(PIECES).length >= 30,
+    fautes.slice(0, 4).join(' · ') || Object.values(PIECES).map(P => P.ico).join(''));
+  exiger('chaque coach a sa pièce de départ, de sa philosophie', VOIES.every(c => PIECES[PIECE_DU_COACH[c]] && PIECES[PIECE_DU_COACH[c]].voie === c) && Object.keys(PIECE_DU_COACH).length === VOIES.length,
+    VOIES.map(c => `${COACHS[c].ico}${PIECES[PIECE_DU_COACH[c]] ? PIECES[PIECE_DU_COACH[c]].ico : '?'}`).join(' '));
 }
 
-/* ---------- 2. le niveau et les talents ---------- */
+/* ---------- 2. le banc, pur ---------- */
 {
-  exiger('le niveau : 1 au départ, un de plus à chaque seuil, cinq au plus', niveauDe(0) === 1 && SEUILS_NIVEAU.every((s, i) => niveauDe(s) === i + 1 && (i === 0 || niveauDe(s - 1) === i)) && niveauDe(9999) === NIVEAU_MAX && NIVEAU_MAX === 5,
-    SEUILS_NIVEAU.join(' · '));
-  exiger('les pouvoirs s\'ouvrent aux niveaux 1, 3 et 5', [1, 2, 3, 4, 5].map(n => pouvoirsOuverts(n).length).join() === '1,1,2,2,3');
-  exiger('un talent au niveau 2, un autre au 4, chacun grandit un pouvoir de moitié', talentsDus(1) === 0 && talentsDus(2) === 1 && talentsDus(4) === 2 && talentsDus(4, [0]) === 1 && talentsDus(5, [0, 1]) === 0
-    && forceDuPouvoir({ talents: [1, 1] }, 1) === 2 && forceDuPouvoir({ talents: [] }, 0) === 1);
-  // LA MAIN (V22) : trois offerts, purs, jamais un déjà dans la main ; une main pleine laisse partir la plus ancienne hors poste.
-  const P = { cle: 'essaim', talents: [], main: [{ cle: 'canonnier', depuis: null, fin: null, sejours: [] }] };
-  // V23 : au Pilier, le style est la table telle quelle (une vieille carte se rejoue pareil) ; le niveau d'une offre est pur, entre 1 et 5, et un moment fort ne le baisse jamais.
-  const tel = Object.keys(ADJOINTS).every(k => JSON.stringify(styleAuNiveau(k)) === JSON.stringify({ canaux: ADJOINTS[k].canaux || null, adv: ADJOINTS[k].adv || null }));
-  const nivs = Array.from({ length: 400 }, (_, g) => [niveauOffert(`g${g}`, 'r30', 'mur'), niveauOffert(`g${g}`, 'r30', 'mur', true)]);
-  exiger('le niveau d\'un adjoint : le Pilier est la table, une offre tire de 1 à 5, un moment fort monte d\'un cran', tel && nivs.every(([a, b]) => a >= 1 && a <= 5 && b === Math.min(5, a + 1)) && new Set(nivs.map(([a]) => a)).size === 5,
-    [1, 2, 3, 4, 5].map(n => `${nomDuNiveau(n - 1)} ${nivs.filter(([a]) => a === n).length}`).join(' · '));
-  const a = adjointsOfferts(P, 'g', 'pp9'), b = adjointsOfferts(P, 'g', 'pp9');
-  exiger('trois adjoints offerts, purs, distincts, jamais un déjà dans la main', a.length === 3 && JSON.stringify(a) === JSON.stringify(b) && new Set(a).size === 3 && a.every(k => ADJOINTS[k] && k !== 'canonnier'), a.join(', '));
-  const autres = new Set();
-  for (let g = 0; g < 40; g++) autres.add(JSON.stringify(adjointsOfferts(P, `g${g}`, 'pp9')));
-  exiger('deux graines n\'offrent pas les mêmes', autres.size > 10, `${autres.size} offres sur 40 graines`);
-  let M = { ...P };
-  for (const k of ['lunette', 'mur', 'cogneur']) M = { ...M, main: embaucher(M, k, 0) };
-  const pleine = { ...M, main: poster(M, 'mur', 5, 3, { W: 3, L: 2, OTL: 0 }) };
-  const part = quiPartDeLaMain(pleine, 6), apres = { ...pleine, main: embaucher(pleine, 'moine', 6) };
-  exiger(`une main de ${MAIN_MAX} : pleine, la plus ancienne hors poste part à l'arrivée suivante`, M.main.length === MAIN_MAX && part === 'canonnier' && apres.main.length === MAIN_MAX
-    && !apres.main.some(c => c.cle === 'canonnier') && apres.main.some(c => c.cle === 'moine') && enPoste(apres.main.find(c => c.cle === 'mur'), 6, 'essaim'), `${part} part · ${apres.main.map(c => c.cle).join(', ')}`);
-  exiger(`les cases suivent le niveau : ${CASES_PAR_NIVEAU.join(', ')} ; une pose sans case libre ou au repos ne fait rien`, casesDuNiveau(1) === 1 && casesDuNiveau(3) === 2 && casesDuNiveau(5) === 3
-    && JSON.stringify(poster(pleine, 'lunette', 6, 1)) === JSON.stringify(mainDe(pleine)) && poster({ ...P, main: [{ cle: 'canonnier', depuis: null, fin: 10, sejours: [] }] }, 'canonnier', 12, 5).every(c => c.depuis === null)
-    && auRepos({ cle: 'canonnier', depuis: null, fin: 10 }, 12) && !auRepos({ cle: 'canonnier', depuis: null, fin: 10 }, 10 + REPOS));
+  const b1 = poserLaPiece(['verrou'], 'mur'), b2 = poserLaPiece(b1, 'mur'), plein = ['verrou', 'mur', 'ruee', 'tueur', 'choc'];
+  exiger(`${CASES_DU_BANC} cases : une pièce entre dans la première libre, jamais deux fois ; plein, elle prend la case de celle qui sort, sans elle rien ne bouge`,
+    b1.join() === 'verrou,mur' && b2.join() === b1.join() && poserLaPiece(plein, 'duo', 'ruee').join() === 'verrou,mur,duo,tueur,choc'
+    && poserLaPiece(plein, 'duo').join() === plein.join() && poserLaPiece(plein, 'duo', 'inconnue').join() === plein.join() && poserLaPiece(['verrou'], 'inconnue').join() === 'verrou'
+    && bancPlein({ banc: plein }) && !bancPlein({ banc: b1 }) && bancDe({ banc: [...plein, 'duo'] }).length === CASES_DU_BANC, poserLaPiece(plein, 'duo', 'ruee').join(' · '));
+  const P = { cle: 'tortue', banc: ['verrou', 'mur'] };
+  const a = piecesOffertes(P, 'g', 'bq14'), b = piecesOffertes(P, 'g', 'bq14');
+  const autres = new Set(Array.from({ length: 40 }, (_, g) => piecesOffertes(P, `g${g}`, 'bq14').join()));
+  exiger(`${PIECES_OFFERTES} pièces offertes, pures, distinctes, jamais une déjà sur le banc ; deux graines n'offrent pas les mêmes`,
+    a.length === PIECES_OFFERTES && a.join() === b.join() && new Set(a).size === a.length && !a.some(k => P.banc.includes(k)) && autres.size > 10, `${a.join(', ')} · ${autres.size} offres sur 40 graines`);
+  const voisines = Array.from({ length: 60 }, (_, g) => piecesOffertes(P, `g${g}`, 'r:26', undefined, { voisines: true })).flat();
+  const i = VOIES.indexOf('tortue'), permises = new Set([VOIES[i], VOIES[(i + 1) % VOIES.length], VOIES[(i + VOIES.length - 1) % VOIES.length], null]);
+  exiger('le rival battu offre les pièces de la philosophie du coach et de ses voisines', voisines.every(k => permises.has(PIECES[k].voie)) && new Set(voisines.map(k => PIECES[k].voie)).size >= 3,
+    [...new Set(voisines.map(k => PIECES[k].voie || 'hors des voies'))].join(', '));
+  exiger('la maîtrise de l\'entraîneur règle sa pièce de départ seule, de ×0,9 à ×1,3', forceDeLaPiece({ cle: 'tortue', maitrise: 1.2 }, 'verrou') === 1.2 && forceDeLaPiece({ cle: 'tortue', maitrise: 1.2 }, 'mur') === 1
+    && forceDeLaPiece({ cle: 'tortue', maitrise: 2 }, 'verrou') === 1.3 && forceDeLaPiece({ cle: 'tortue', maitrise: 0.5 }, 'verrou') === 0.9);
 }
 
 /* ---------- 2b. les vrais entraîneurs (js/coachs-reels.js, data/coachs.json) ---------- */
@@ -116,19 +104,17 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
   const donnees = JSON.parse(fs.readFileSync(new URL('../data/coachs.json', import.meta.url), 'utf8'));
   const index = JSON.parse(fs.readFileSync(new URL('../data/index.json', import.meta.url), 'utf8')).seasons;
   const cartes = Object.entries(donnees).flatMap(([saison, clubs]) => Object.keys(clubs).map(tag => carteDuCoach(donnees, saison, tag)));
-  const fautes = cartes.filter(c => !c || !c.n || !POUVOIRS[c.cle] || !(c.rang >= 1) || c.maitrise < NIVEAUX[0].maitrise || c.maitrise > NIVEAUX[4].maitrise || c.maitrise !== maitriseDu(c.rang) || !(c.fiche.gp > 0));
+  const fautes = cartes.filter(c => !c || !c.n || !PIECE_DU_COACH[c.cle] || !(c.rang >= 1) || c.maitrise < NIVEAUX[0].maitrise || c.maitrise > NIVEAUX[4].maitrise || c.maitrise !== maitriseDu(c.rang) || !(c.fiche.gp > 0));
   exiger('un vrai entraîneur pour chaque club de chaque saison, une philosophie connue', !fautes.length && index.every(s => donnees[s]) && cartes.length > 1000,
-    `${cartes.length} cartes · ${Object.keys(POUVOIRS).map(k => `${k} ${cartes.filter(c => c.cle === k).length}`).join(' · ')}`);
+    `${cartes.length} cartes · ${VOIES.map(k => `${k} ${cartes.filter(c => c.cle === k).length}`).join(' · ')}`);
   const bowman = carteDuCoach(donnees, '1976-77', 'MTL');
   exiger('Scotty Bowman, Canadiens 1976-77 : sa fiche, sa Coupe, son Jack Adams', bowman && bowman.n === 'Scotty Bowman' && bowman.fiche.v === 60 && bowman.coupe && bowman.jack, bowman ? `${bowman.n} · ${bowman.cle} · ${bowman.rang}e · ×${bowman.maitrise}` : 'absent');
-  // V23 : cinq niveaux, comme les joueurs (js/niveaux.js `NIVEAUX[k].maitrise`, js/coachs-reels.js `niveauDuCoach`).
   exiger('la maîtrise suit le niveau : ★ Phénomène ×1,3 au 1er rang, ★ Étoile ×1,2 aux 3 premiers, Pilier ×1,1 aux 8, Régulier ×1 aux 16, Soutien ×0,9 ensuite',
     [[1, 5, 1.3], [2, 4, 1.2], [3, 4, 1.2], [4, 3, 1.1], [8, 3, 1.1], [9, 2, 1], [16, 2, 1], [17, 1, 0.9], [32, 1, 0.9]].every(([r, n, m]) => niveauDuCoach(r) === n && maitriseDu(r) === m));
   const ouverts = ['tortue', 'essaim', 'rhinos'];
   const a = lotoDesCoachs(donnees, ouverts, 'g'), b = lotoDesCoachs(donnees, ouverts, 'g'), c = lotoDesCoachs(donnees, ouverts, 'h');
   exiger('le loto de l\'entraîneur : trois cartes, trois philosophies ouvertes, pur', a.length === 3 && new Set(a.map(x => x.cle)).size === 3 && a.every(x => ouverts.includes(x.cle))
     && JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) !== JSON.stringify(c), a.map(x => `${x.n} ${x.saison} ${x.tag}`).join(' · '));
-  // Le cartable d'abord, comme le classeur : les moins jouées, DU_CARTABLE au plus, et une carte neuve chaque fois.
   const siens = { [a[0].id]: { r: 3 }, [a[1].id]: { r: 1 }, [a[2].id]: { r: 2 } };
   const d = lotoDesCoachs(donnees, ouverts, 'h', 3, siens);
   exiger(`le loto tire d'abord dans ton cartable, les moins jouées, ${DU_CARTABLE} au plus, et une carte neuve`,
@@ -136,23 +122,19 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
     && d.find(x => !x.neuf).id === a[1].id && new Set(d.map(x => x.cle)).size === 3, d.map(x => `${x.n} ${x.saison}${x.neuf ? ' (neuve)' : ''}`).join(' · '));
 }
 
-/* ---------- 3. chaque pouvoir, en paires ---------- */
+/* ---------- les matchs en paires ---------- */
 const VESTIAIRES = TEMOINS.map(([lab, s, t]) => [lab, s, t, equipeReelle(s, t)]);
 const club = i => { const [lab, s, t, un] = VESTIAIRES[i]; const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(p), { season: s }); };
-// Le coach muet : la soirée en trois périodes, aucun pouvoir.
-POUVOIRS.__muet = [{ cle: 'muet', ico: '·', nom: 'Muet', dit: '', quand: () => false, effet: { volume: 1 } }];
+const MUET = { cle: '__muet', banc: [] };
 /*
  * Un match isolé : des clubs neufs, les dés de la graine. `soir` : un moment posé pour la lecture (`_lireMoment`) ;
  * `series` : un match de séries. Rend la feuille et les chiffres de ton club.
  */
 function match(i, j, graine, visiteur, perso, { soir = null, series = false, aux = false } = {}) {
   const toi = club(i), adv = club(j);
-  // Un soir, pas une saison : la chance de saison se tire à la création du club, hors de la graine.
   toi.luck = 0; adv.luck = 0;
-  toi.perso = perso; toi.xpSaison = 0;
+  toi.perso = perso;
   if (soir) toi._lireMoment = soir;
-  // Ton gardien n° 1 part trois soirs sur quatre, ton n° 2 le quatrième, comme sur une saison (le premier soir d'un club
-  // neuf, la rotation enverrait le n° 2).
   toi.jourCourant = 0; toi._filetForce = { jour: 0, qui: aux ? 'aux' : 'partant' };
   grainerHasard(graine);
   const f = feuilleVierge();
@@ -162,7 +144,7 @@ function match(i, j, graine, visiteur, perso, { soir = null, series = false, aux
     tp: somme(f.tirs[moi]), tc: somme(f.tirs[eux]), pun: f.punitions.filter(p => p.cote === moi).length, punEux: f.punitions.filter(p => p.cote === eux).length,
     coups: f.coups[moi], bl: f.blessures.filter(b => b.cote === moi).length };
 }
-/* Ce que la condition d'un pouvoir lit avant la période `k`, relu dans la feuille. */
+/* Ce que la condition d'une pièce lit avant la période `k`, relu dans la feuille. */
 function etatLu(f, moi, k, series) {
   const eux = moi === 'A' ? 'B' : 'A';
   const buts = (c, a, b) => f.buts.filter(x => x.cote === c && x.instant >= a && x.instant < b).length;
@@ -170,173 +152,157 @@ function etatLu(f, moi, k, series) {
   for (let i = 1; i <= k; i++) { tirsMoi += f.tirs[moi][i]; tirsLui += f.tirs[eux][i]; }
   const der = k ? { tirsMoi: f.tirs[moi][k], tirsLui: f.tirs[eux][k], moi: buts(moi, 20 * (k - 1), 20 * k), lui: buts(eux, 20 * (k - 1), 20 * k) } : null;
   const soir = Object.fromEntries((f.moments ? f.moments[moi] : []).map(x => [x, true]));
-  return { k, moi: buts(moi, 0, 20 * k), lui: buts(eux, 0, 20 * k), tirsMoi, tirsLui, der, series, gros: false, soir };
+  return { k, moi: buts(moi, 0, 20 * k), lui: buts(eux, 0, 20 * k), tirsMoi, tirsLui, der, series, gros: false, soir, pieces: [], relais: [] };
 }
-/* Le soir d'un match isolé, à peu près comme une saison les sert : à l'étranger un soir sur deux, un dos-à-dos sur quatre, des séries sur huit. */
-const soirDuMatch = g => ({ visiteur: g % 2 === 1, soir: Math.floor(g / 2) % 4 === 1 ? 'dosADos' : null, series: Math.floor(g / 2) % 8 === 3, aux: Math.floor(g / 4) % 4 === 2 });
-/* Un pouvoir seul (`c:idx`), en paires contre le coach muet, `n` matchs par club : ses périodes, ses soirs, ses chiffres. */
-function mesurerPouvoir(c, idx, n) {
-  const P = POUVOIRS[c][idx];
-  POUVOIRS.__seul = [P];
-  const perso = { cle: '__seul', xp: 0, talents: [] };
-  const m = { c, idx, n: 0, fois: 0, soirs: 0, faux: 0, horsDiff: 0, dv: 0, dgf: 0, dga: 0, dbl: 0, sv: { tp: 0, tc: 0, gf: 0, ga: 0, pun: 0, punEux: 0, coups: 0 } };
+/* Le moment du soir qu'une pièce lit (`dosADos`, `apresDefaite`…), s'il en faut un : la mesure le pose, sinon elle ne jouerait jamais dans un match isolé. */
+const ETATS = [0, 1, 2].flatMap(k => [[0, 0], [1, 0], [0, 1], [2, 0], [0, 2]].map(([moi, lui]) => ({ k, moi, lui, tirsMoi: 9, tirsLui: 10, der: k ? { tirsMoi: 8, tirsLui: 10, moi: 0, lui: 0 } : null, series: false, gros: false, pieces: [], relais: [] })));
+const momentDe = P => {
+  if (ETATS.some(e => P.quand({ ...e, soir: {} }))) return null;
+  return Object.keys(MOMENTS_SI).filter(m => !MOMENTS_SI[m].duel && !['domicile', 'visiteur', 'series'].includes(m)).find(m => ETATS.some(e => P.quand({ ...e, soir: { [m]: true } }))) || null;
+};
+/* Le soir d'un match isolé : à l'étranger un soir sur deux, des séries sur huit ; le moment de la pièce, posé. */
+const soirDuMatch = (g, P) => ({ visiteur: g % 2 === 1, soir: momentDe(P), series: P.rare ? Math.floor(g / 2) % 2 === 0 : Math.floor(g / 2) % 8 === 3, aux: Math.floor(g / 4) % 4 === 2 });
+/* Une pièce seule, en paires contre le banc vide, `n` matchs par club : ses périodes, ses soirs, ses chiffres. */
+function mesurerPiece(cle, n) {
+  const P = PIECES[cle], perso = { cle: '__muet', banc: [cle] };
+  const m = { cle, n: 0, fois: 0, soirs: 0, faux: 0, horsDiff: 0, dgfSoir: 0, dgaSoir: 0, dbl: 0, sv: { tp: 0, tc: 0, gf: 0, ga: 0, pun: 0, punEux: 0, coups: 0 } };
   for (let i = 0; i < VESTIAIRES.length; i++) for (let g = 0; g < n; g++) {
     const j = (i + 1 + (g % (VESTIAIRES.length - 1))) % VESTIAIRES.length;
-    const o = soirDuMatch(g), graine = `pv${c}${idx}:${i}:${g}`;
+    const o = soirDuMatch(g, P), graine = `pc${cle}:${i}:${g}`;
     const a = match(i, j, graine, o.visiteur, MUET, o), b = match(i, j, graine, o.visiteur, perso, o);
     m.n++;
-    const notes = b.f.pouvoirs.filter(x => x.cote === b.moi).map(x => x.k);
+    const notes = b.f.pieces.filter(x => x.cote === b.moi && x.cle === cle).map(x => x.k);
     // a. Les périodes jouées sont celles que la condition lit.
     const attendues = [0, 1, 2].filter(k => P.quand(etatLu(b.f, b.moi, k, o.series)));
     if (notes.join() !== attendues.join()) m.faux++;
     m.fois += notes.length;
-    if (!notes.length) {
+    // Son relais joue aussi ses périodes (son signal, pas sa condition) : un soir sans l'une ni l'autre, rien.
+    const relaie = b.f.relais.some(x => x.cote === b.moi && x.cle === cle);
+    if (!notes.length && !relaie) {
       // b. Hors de ses périodes, la même feuille.
       if (JSON.stringify([a.gf, a.ga, a.f.tirs, a.pun, a.punEux, a.coups]) !== JSON.stringify([b.gf, b.ga, b.f.tirs, b.pun, b.punEux, b.coups])) m.horsDiff++;
-    } else {
+    } else if (notes.length) {
       m.soirs++;
       for (const k of Object.keys(m.sv)) m.sv[k] += b[k] - a[k];
+      m.dbl += b.bl - a.bl;
     }
-    m.dv += b.v - a.v; m.dgf += b.gf - a.gf; m.dga += b.ga - a.ga; m.dbl += b.bl - a.bl;
-  }
-  delete POUVOIRS.__seul;
-  return m;
-}
-/* Le personnage complet d'un coach : niveau 5, ses deux talents ; en victoires. */
-/* Un adjoint seul (`cle`), en poste, en paires contre le coach muet sans main, tous les soirs : ce qu'il change. */
-function mesurerAdjoint(cle, n, niv = NIV_DEFAUT) {
-  const m = { cle, niv, soirs: { n: 0, tp: 0, tc: 0, gf: 0, ga: 0, pun: 0, punEux: 0, coups: 0, bl: 0 }, d: 0 };
-  for (let i = 0; i < VESTIAIRES.length; i++) for (let g = 0; g < n; g++) {
-    const j = (i + 1 + (g % (VESTIAIRES.length - 1))) % VESTIAIRES.length;
-    const o = soirDuMatch(g), graine = `ad${cle}:${i}:${g}`;
-    const a = match(i, j, graine, o.visiteur, MUET, o), b = match(i, j, graine, o.visiteur, { ...MUET, main: [{ cle, niv, depuis: 0, fin: null, sejours: [] }] }, o);
-    m.soirs.n++; for (const k of Object.keys(m.soirs)) if (k !== 'n') m.soirs[k] += b[k] - a[k];
-    m.d += (b.gf - b.ga) - (a.gf - a.ga);
-    if (!b.f.adjoints.some(x => x.cote === b.moi && x.cle === cle)) m.sansNote = (m.sansNote || 0) + 1;
   }
   return m;
 }
-function mesurerComplet(c, n) {
-  const perso = { cle: c, xp: SEUILS_NIVEAU[4], talents: [0, 2] };
+/* LE BANC COMPLET d'un coach : sa pièce de départ, les deux autres de sa voie, sa pièce d'adjoint et l'arbitre ; en paires contre le banc vide. */
+const bancComplet = c => [PIECE_DU_COACH[c], ...Object.keys(PIECES).filter(k => PIECES[k].voie === c && k !== PIECE_DU_COACH[c]), 'arbitre'].slice(0, CASES_DU_BANC);
+/* Les moments que le banc complet voit, à peu près comme une saison : un dos-à-dos, une défaite, trois victoires, une infirmerie pleine sur huit soirs chacun. */
+const MOMENTS_DU_BANC = [null, 'dosADos', null, 'apresDefaite', null, 'enFeu', 'infirmerie', 'apresDefaite'];
+function mesurerBanc(c, n) {
+  const perso = { cle: c, banc: bancComplet(c), maitrise: 1 };
   let k = 0, d = 0;
   for (let i = 0; i < VESTIAIRES.length; i++) for (let g = 0; g < n; g++) {
     const j = (i + 1 + (g % (VESTIAIRES.length - 1))) % VESTIAIRES.length;
-    const o = soirDuMatch(g), graine = `cp${c}:${i}:${g}`;
+    const o = { visiteur: g % 2 === 1, soir: MOMENTS_DU_BANC[Math.floor(g / 2) % MOMENTS_DU_BANC.length], series: Math.floor(g / 2) % 8 === 3 }, graine = `bc${c}:${i}:${g}`;
     const a = match(i, j, graine, o.visiteur, MUET, o), b = match(i, j, graine, o.visiteur, perso, o);
     k++; d += (b.gf - b.ga) - (a.gf - a.ga);
   }
-  return { c, v: (d / k) * 82 / BUTS_PAR_V };
+  return { c, v: (d / k) * ACTE / BUTS_PAR_V };
 }
-const MUET = { cle: '__muet', xp: 0, talents: [] };
-/* V23 : chaque adjoint se mesure à trois niveaux — le Soutien, le Pilier (la table), le ★ Phénomène. */
-const NIVEAUX_MESURES = [1, NIV_DEFAUT, 5];
-// UN FILS : ses tâches (« p:coach:idx », « c:coach »), rendues en JSON.
+// UN FILS : ses tâches (« p:cle », « b:coach »), rendues en JSON.
 if (process.env.PART) {
-  const out = process.env.PART.split(',').map(t => { const [s, c, idx] = t.split(':'); return s === 'p' ? mesurerPouvoir(c, Number(idx), N) : s === 'a' ? mesurerAdjoint(c, N, Number(idx) || NIV_DEFAUT) : mesurerComplet(c, N); });
+  const out = process.env.PART.split(',').map(t => { const [s, x] = t.split(':'); return s === 'p' ? mesurerPiece(x, N) : mesurerBanc(x, N); });
   process.stdout.write(JSON.stringify(out));
   process.exit(0);
 }
-console.log(`\n  Les pouvoirs du coach (V21) · ${N} matchs par club${MESURE ? '' : ' · sans les bornes'}\n`);
-const taches = [...QUELS.flatMap(c => POUVOIRS[c].map((_, idx) => `p:${c}:${idx}`)), ...(MESURE ? [...QUELS.map(c => `c:${c}`), ...Object.keys(ADJOINTS).flatMap(k => NIVEAUX_MESURES.map(v => `a:${k}:${v}`))] : [])];
+
+/* ---------- 3. la présence, sur des saisons jouées ---------- */
+/*
+ * Des saisons de run (le robot attentif, un club de 2005-06 par graine, comme check_moments_si : ses jambes, ses défaites et
+ * son infirmerie sont celles d'une vraie saison) : chaque soir de ton club, la condition de chaque pièce relue dans sa
+ * feuille, période par période. Une pièce « joue un soir » si elle se lit à une période au moins.
+ */
+function presences(graines) {
+  const soirs = new Map(Object.keys(PIECES).map(k => [k, 0]));
+  let total = 0;
+  const clubs = Object.values(shard('2005-06').byTeam).filter(ps => ps.length >= 23);
+  for (const g of graines) {
+    const etat = { roster: autoRoster(clubs[g % clubs.length].filter(p => (p.gp || 0) >= 10).map(p => ({ ...p }))), variantes: new Map(), jetons: 0 };
+    const r = jouerSaison(metaAuNiveau(0), etat, { graine: g, saison: 1, politique: 'attentif', ligue: NIVEAUX_PLEINS });
+    for (const jour of r.L.calendrier) for (const m of jour) {
+      if (!m.feuille || (m.A !== r.you && m.B !== r.you)) continue;
+      const moi = m.A === r.you ? 'A' : 'B';
+      total++;
+      for (const k of Object.keys(PIECES)) if ([0, 1, 2].some(q => PIECES[k].quand(etatLu(m.feuille, moi, q, false)))) soirs.set(k, soirs.get(k) + 1);
+    }
+  }
+  return new Map([...soirs].map(([k, n]) => [k, n / Math.max(1, total)]));
+}
+
+console.log(`\n  Le banc de cinq (V27) · ${N} matchs par club et par pièce${MESURE ? '' : ' · sans les bornes'}\n`);
+const taches = [...QUELLES.map(k => `p:${k}`), ...(MESURE ? VOIES.map(c => `b:${c}`) : [])];
+/* Une tâche par processus, `FILS` à la fois : la mémoire d'un fils ne grandit pas avec le nombre de tâches. */
 const lancer = l => new Promise((ok, ko) => {
-  const p = spawn(process.execPath, [ICI], { env: { ...process.env, PART: l.join(',') } });
+  const p = spawn(process.execPath, ['--max-old-space-size=2048', ICI], { env: { ...process.env, PART: l.join(',') } });
   let t = '';
   p.stdout.on('data', x => { t += x; }); p.stderr.on('data', x => process.stderr.write(x));
   p.on('close', code => (code === 0 ? ok(JSON.parse(t)) : ko(new Error(`fils ${code}`))));
 });
-const lots = Array.from({ length: FILS }, (_, k) => taches.filter((_, i) => i % FILS === k)).filter(l => l.length);
-const rendus = (await Promise.all(lots.map(lancer))).flat();
-const mesures = rendus.filter(x => 'idx' in x && !('soirs' in x && 'd' in x)).sort((a, b) => taches.indexOf(`p:${a.c}:${a.idx}`) - taches.indexOf(`p:${b.c}:${b.idx}`));
+const file = [...taches], faits = [];
+await Promise.all(Array.from({ length: Math.min(FILS, file.length) }, async () => { while (file.length) faits.push(...await lancer([file.shift()])); }));
+const rendus = faits;
+const mesures = rendus.filter(x => 'cle' in x).sort((a, b) => QUELLES.indexOf(a.cle) - QUELLES.indexOf(b.cle));
+const pres = MESURE ? presences([1, 2, 3]) : null;
+const nomDe = m => `${PIECES[m.cle].ico} ${PIECES[m.cle].nom}`;
 for (const m of mesures) {
-  m.P = POUVOIRS[m.c][m.idx];
-  const s = m.soirs || 1, parSaison = x => (x / m.n) * 82;
-  // Comme check_effets : les tirs d'un côté ou des deux, les buts des deux clubs, les punitions, les mises en échec, les blessures d'une saison.
+  const s = m.soirs || 1;
   m.vue = Math.max(Math.abs(m.sv.tp / s) / VISIBLE.tirs, Math.abs(m.sv.tc / s) / VISIBLE.tirs, Math.abs((m.sv.tp + m.sv.tc) / s) / VISIBLE.tirs, (Math.abs(m.sv.gf / s) + Math.abs(m.sv.ga / s)) / VISIBLE.buts,
-    Math.abs(m.sv.pun / s) / VISIBLE.punitions, Math.abs(m.sv.punEux / s) / VISIBLE.punitions, Math.abs(m.sv.coups / s) / VISIBLE.coups, Math.abs(parSaison(m.dbl)) / VISIBLE.blessures);
-  m.vButs = parSaison(m.dgf - m.dga) / BUTS_PAR_V;
-  informer(`${m.P.ico} ${m.P.nom}`.padEnd(26), `${(m.soirs / m.n * 100).toFixed(0)} % des soirs · le soir où il joue : tirs ${(m.sv.tp / s).toFixed(1)} / ${(m.sv.tc / s).toFixed(1)} · buts ${(m.sv.gf / s).toFixed(2)} / ${(m.sv.ga / s).toFixed(2)} · pun. ${(m.sv.pun / s).toFixed(2)} / ${(m.sv.punEux / s).toFixed(2)} · coups ${(m.sv.coups / s).toFixed(1)} · blessures ${parSaison(m.dbl).toFixed(1)}/saison · ${m.vButs >= 0 ? '+' : ''}${m.vButs.toFixed(1)} V`);
+    Math.abs(m.sv.pun / s) / VISIBLE.punitions, Math.abs(m.sv.punEux / s) / VISIBLE.punitions, Math.abs(m.sv.coups / s) / VISIBLE.coups, Math.abs((m.dbl / s) * 82) / VISIBLE.blessures);
+  // Le net d'un soir où elle joue, ramené à un acte à sa présence (`pres`) : ce que la pièce rend sur la durée d'un acte.
+  m.parSoir = (m.sv.gf - m.sv.ga) / s;
+  m.presence = pres ? pres.get(m.cle) : null;
+  m.vActe = m.presence == null ? null : (m.parSoir * m.presence * ACTE) / BUTS_PAR_V;
+  if (MESURE) informer(nomDe(m).padEnd(26), `${m.presence == null ? '' : `${Math.round(m.presence * 100)} % des soirs · `}le soir où elle joue : tirs ${f1(m.sv.tp / s)} / ${f1(m.sv.tc / s)} · buts ${f1(m.sv.gf / s, 2)} / ${f1(m.sv.ga / s, 2)} · pun. ${f1(m.sv.pun / s, 2)} / ${f1(m.sv.punEux / s, 2)} · coups ${f1(m.sv.coups / s)} · blessures ${f1((m.dbl / s) * 82)}/saison · ${m.vActe == null ? '' : `${f1(m.vActe, 2)} V sur un acte`}`);
 }
-const nomDe = m => `${m.P.ico} ${m.P.nom}`;
-exiger('a. chaque pouvoir joue exactement les périodes que sa condition lit dans la feuille', mesures.every(m => !m.faux), mesures.filter(m => m.faux).map(m => `${nomDe(m)} (${m.faux})`).join(', ') || `${mesures.reduce((x, m) => x + m.fois, 0)} périodes jouées`);
+exiger('a. chaque pièce joue exactement les périodes que sa condition lit dans la feuille', mesures.every(m => !m.faux), mesures.filter(m => m.faux).map(m => `${nomDe(m)} (${m.faux})`).join(', ') || `${mesures.reduce((x, m) => x + m.fois, 0)} périodes jouées`);
 exiger('b. hors de ses périodes, rien : la même feuille', mesures.every(m => !m.horsDiff), mesures.filter(m => m.horsDiff).map(m => `${nomDe(m)} (${m.horsDiff})`).join(', ') || 'aucune feuille changée');
-exiger('chaque pouvoir joue des soirs', mesures.every(m => m.soirs > 0), mesures.filter(m => !m.soirs).map(nomDe).join(', ') || 'tous');
+exiger('chaque pièce joue des soirs', mesures.every(m => m.soirs > 0), mesures.filter(m => !m.soirs).map(nomDe).join(', ') || 'toutes');
 if (MESURE) {
-  exiger('c. chaque pouvoir se voit dans la feuille d\'un soir où il joue', mesures.every(m => m.vue >= 1), mesures.filter(m => m.vue < 1).map(m => `${nomDe(m)} (${m.vue.toFixed(2)})`).join(', ') || 'tous');
-  exiger('d. un pouvoir seul reste sous sa borne (I et II : 2,5 V ; l\'ultime : 4 V)', mesures.every(m => m.vButs <= BORNE_V[m.idx]), mesures.filter(m => m.vButs > BORNE_V[m.idx]).map(m => `${nomDe(m)} +${m.vButs.toFixed(1)}`).join(', ') || 'tous');
-  exiger('d. aucun pouvoir n\'est un piège', mesures.every(m => m.vButs >= PIEGE_V), mesures.filter(m => m.vButs < PIEGE_V).map(m => `${nomDe(m)} ${m.vButs.toFixed(1)}`).join(', ') || 'aucun');
-  /* ---------- 4. le personnage complet ---------- */
-  const complets = rendus.filter(x => 'v' in x && !('d' in x));
-  const signe = v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}`;
-  informer('le personnage complet, en victoires sur une saison', complets.map(x => `${COACHS[x.c].ico} ${signe(x.v)}`).join(' · '));
-  const trop = complets.filter(x => x.v > COMPLET_MAX_V || x.v < 1);
-  exiger(`le personnage complet aide pour de vrai, sans s'emballer (de 1 à ${COMPLET_MAX_V} V)`, !trop.length, trop.map(x => `${COACHS[x.c].nom} ${x.v.toFixed(1)}`).join(', ') || 'tous');
-  /* ---------- 3'. chaque adjoint, un style ---------- */
-  const adj = rendus.filter(x => 'soirs' in x && 'd' in x);
-  const f = (v, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
-  for (const m of adj) {
-    const x = Object.fromEntries(Object.entries(m.soirs).map(([k, v]) => [k, v / (m.soirs.n || 1)]));
-    m.vue = Math.max(Math.abs(x.tp) / VISIBLE.tirs, Math.abs(x.tc) / VISIBLE.tirs, Math.abs(x.tp + x.tc) / VISIBLE.tirs, (Math.abs(x.gf) + Math.abs(x.ga)) / VISIBLE.buts,
-      Math.abs(x.pun) / VISIBLE.punitions, Math.abs(x.punEux) / VISIBLE.punitions, Math.abs(x.coups) / VISIBLE.coups, Math.abs(x.bl * 82) / VISIBLE.blessures);
-    m.v = (m.d / m.soirs.n) * MATCHS_PAR_SAISON / BUTS_PAR_V;
-    const A = ADJOINTS[m.cle];
-    informer(`${A.ico} ${A.nom} · ${nomDuNiveau(m.niv - 1)}`.padEnd(36), `par soir : tirs ${f(x.tp)} / ${f(x.tc)} · buts ${f(x.gf, 2)} / ${f(x.ga, 2)} · pun. ${f(x.pun, 2)} / ${f(x.punEux, 2)} · coups ${f(x.coups)} · blessures ${f(x.bl * 82)}/saison · vu ${m.vue.toFixed(1)} · ${f(m.v)} V sur ${Math.round(MATCHS_PAR_SAISON)} matchs`);
-  }
-  exiger('chaque adjoint en poste est nommé à la feuille, chaque soir', adj.every(m => !m.sansNote), adj.filter(m => m.sansNote).map(m => `${ADJOINTS[m.cle].nom} (${m.sansNote})`).join(', ') || 'tous');
-  const qui = m => `${ADJOINTS[m.cle].nom} ${nomDuNiveau(m.niv - 1)}`;
-  exiger('chaque adjoint se voit dans la feuille, à chaque niveau', adj.every(m => m.vue >= 1), adj.filter(m => m.vue < 1).map(m => `${qui(m)} (${m.vue.toFixed(2)})`).join(', ') || 'tous');
-  // V23 : la borne suit le niveau, comme une carte de jeu (`NIVEAUX[k].borneV` : ±1 V au Soutien et au Régulier, ±1,5 au Pilier, ±2,5 à l'Étoile, ±4 au Phénomène ; V25 B1).
-  exiger(`chaque adjoint reste sous la borne de son niveau sur une saison (${NIVEAUX.map(N => `±${String(N.borneV).replace('.', ',')}`).join(' · ')} V)`, adj.every(m => Math.abs(m.v) <= NIVEAUX[m.niv - 1].borneV), adj.filter(m => Math.abs(m.v) > NIVEAUX[m.niv - 1].borneV).map(m => `${qui(m)} ${f(m.v)}`).join(', ') || 'tous');
-  // Un niveau de plus vaut plus : le ★ Phénomène bat le Soutien du même style, en paires sur les mêmes dés.
-  const parCle = cle => Object.fromEntries(adj.filter(m => m.cle === cle).map(m => [m.niv, m.v]));
-  // Un soir isolé ne paie pas les blessures ni les jambes (le préparateur, le rouleur valent plus sur une saison) : chacun au
-  // moins à `BRUIT_V` près de son Soutien, et en moyenne sur les huit, le Phénomène rend `ECART_NIV_V` de plus.
-  const BRUIT_V = 0.3, ECART_NIV_V = 0.6;
-  const ecarts = Object.keys(ADJOINTS).map(k => [k, parCle(k)]).filter(([, v]) => v[5] != null && v[1] != null);
-  const pasMieux = ecarts.filter(([, v]) => v[5] < v[1] - BRUIT_V);
-  const moyen = ecarts.reduce((a, [, v]) => a + v[5] - v[1], 0) / Math.max(1, ecarts.length);
-  exiger(`le ★ Phénomène d'un style rend plus que son Soutien (chacun à ${String(BRUIT_V).replace('.', ',')} V près, ${String(ECART_NIV_V).replace('.', ',')} V de plus en moyenne)`, !pasMieux.length && moyen >= ECART_NIV_V,
-    pasMieux.map(([k, v]) => `${ADJOINTS[k].nom} ${f(v[1])} → ${f(v[5])}`).join(', ') || `${f(moyen)} V en moyenne`);
+  const horsBande = mesures.filter(m => !PIECES[m.cle].rare && (m.presence < PRESENCE[0] || m.presence > PRESENCE[1]));
+  exiger(`3. chaque pièce se lit ${PRESENCE[0] * 100} à ${PRESENCE[1] * 100} % des soirs (sauf un moment rare)`, !horsBande.length, horsBande.map(m => `${nomDe(m)} ${Math.round(m.presence * 100)} %`).join(', ') || 'toutes');
+  exiger('c. chaque pièce se voit dans la feuille d\'un soir où elle joue', mesures.every(m => m.vue >= 1), mesures.filter(m => m.vue < 1).map(m => `${nomDe(m)} (${m.vue.toFixed(2)})`).join(', ') || 'toutes');
+  const borne = m => (PIECES[m.cle].cadre === 4 ? BORNE_ULTIME_V : BORNE_ACTE_V);
+  exiger(`d. sur un acte, une pièce rend au plus le net d'un pouvoir d'avant sur la même durée (${f1(BORNE_ACTE_V, 2)} V ; l'ultime, ${f1(BORNE_ULTIME_V, 2)} V)`, mesures.every(m => m.vActe <= borne(m)),
+    mesures.filter(m => m.vActe > borne(m)).map(m => `${nomDe(m)} ${f1(m.vActe, 2)}`).join(', ') || 'toutes');
+  exiger(`d. aucune pièce n'est un piège (au-dessus de ${f1(PIEGE_V, 1)} V sur un acte)`, mesures.every(m => m.vActe >= PIEGE_V), mesures.filter(m => m.vActe < PIEGE_V).map(m => `${nomDe(m)} ${f1(m.vActe, 2)}`).join(', ') || 'aucune');
+  /* ---------- 5. le banc complet ---------- */
+  const bancs = rendus.filter(x => 'c' in x);
+  informer('le banc complet de chaque coach, en victoires sur un acte', bancs.map(x => `${COACHS[x.c].ico} ${f1(x.v)}`).join(' · '));
+  const trop = bancs.filter(x => x.v > BANC_MAX_V || x.v < 0);
+  exiger(`5. le banc complet aide pour de vrai, sans s'emballer (de 0 à ${BANC_MAX_V} V sur un acte)`, !trop.length, trop.map(x => `${COACHS[x.c].nom} ${f1(x.v)}`).join(', ') || 'tous');
 }
 
-/* ---------- 5. la saison ---------- */
+/* ---------- 6. la saison ---------- */
 {
   const ligue = () => VESTIAIRES.map((_, i) => club(i));
-  const avec = (plus = []) => [{ jour: 0, equipe: 0, coach: { cle: 'essaim', xp: 0, talents: [] } }, { jour: 20, equipe: 0, xpCoach: SEUILS_NIVEAU[2] }, ...plus];
-  const joue = decisions => { const t = ligue(); const L = simulateLeague(t, 82, { graine: 'pouvoirs', decisions: decisions.map(d => ({ ...d })) }); return { t, L }; };
+  const avec = (plus = []) => [{ jour: 0, equipe: 0, coach: { cle: 'essaim', maitrise: 1.1 } }, ...plus];
+  const joue = decisions => { const t = ligue(); const L = simulateLeague(t, 82, { graine: 'banc', decisions: decisions.map(d => ({ ...d })), courbe: true }); return { t, L }; };
+  const fiche = x => `${x.t[0].W}-${x.t[0].L}-${x.t[0].OTL} ${x.t[0].GF}-${x.t[0].GA} ${bancDe(x.t[0].perso).join(',')}`;
   const A = joue(avec()), B = joue(avec());
-  const toi = A.t[0];
-  const fiche = x => `${x.t[0].W}-${x.t[0].L}-${x.t[0].OTL} ${x.t[0].GF}-${x.t[0].GA} xp ${x.t[0].xpSaison}`;
-  exiger('la même graine rejoue le même personnage', fiche(A) === fiche(B), fiche(A));
-  exiger('l\'expérience de la saison compte les victoires', toi.xpSaison === toi.W * XP.victoire, `${toi.W} victoires, ${toi.xpSaison} points`);
-  // V22 : les adjoints du staff de la V21 sont partis ; leurs décisions, dans une vieille partie, ne changent rien.
-  const V = joue(avec([{ jour: 30, equipe: 0, adjoint: { cle: 'numeroUn' } }, { jour: 50, equipe: 0, staff: ['numeroUn'] }, { jour: 60, equipe: 0, perdAdjoint: 'numeroUn' }]));
-  exiger('une vieille décision adjoint, staff ou perdAdjoint ne change rien', fiche(V) === fiche(A) && !('adjoints' in toi.perso) && !('staff' in toi.perso), `${fiche(V)} contre ${fiche(A)}`);
-  // LE SÉJOUR (V22) : embauché au jour 10, posté au jour 20 : la feuille le nomme exactement SEJOUR matchs (SEJOUR_SYNERGIE chez son coach),
-  // puis il revient dans la main avec sa fiche et se repose ; une pose pendant le repos ne fait rien ; la main et les cartes suivent la run.
-  const S = joue(avec([{ jour: 10, equipe: 0, embauche: { cle: 'mur' } }, { jour: 10, equipe: 0, embauche: { cle: 'canonnier' } }, { jour: 20, equipe: 0, poste: { cle: 'mur' } }, { jour: 20, equipe: 0, poste: { cle: 'canonnier' } },
-    { jour: 60, equipe: 0, poste: { cle: 'mur' } }]));
-  const feuilles = S.L.ligue.calendrier.flat().filter(m => (m.A === S.t[0] || m.B === S.t[0]) && m.feuille).map(m => ({ j: S.L.ligue.calendrier.findIndex(d => d.includes(m)), cote: m.A === S.t[0] ? 'A' : 'B', f: m.feuille }));
-  const notes = cle => feuilles.filter(x => (x.f.adjoints || []).some(a => a.cote === x.cote && a.cle === cle));
-  const nMur = notes('mur'), nCan = notes('canonnier'), premier = feuilles.findIndex(x => x.j >= 20);
-  const main = mainDe(S.t[0].perso), mur = main.find(c => c.cle === 'mur');
-  // L'expérience du jour 20 ouvre le niveau 3 le jour même : deux cases ; le canonnier, de la voie du Frelon, fait SEJOUR_SYNERGIE.
-  exiger(`un séjour joue exactement ${SEJOUR} matchs dès la pose (${SEJOUR_SYNERGIE} chez son coach), et la feuille le nomme`, nMur.length === SEJOUR && feuilles.indexOf(nMur[0]) === premier && feuilles.indexOf(nMur.at(-1)) === premier + SEJOUR - 1,
-    `le mur : ${nMur.length} matchs, du ${nMur.length ? nMur[0].j + 1 : '?'}e au ${nMur.length ? nMur.at(-1).j + 1 : '?'}e jour · le canonnier, chez le Frelon : ${nCan.length}`);
-  exiger(`chez son coach, le séjour fait ${SEJOUR_SYNERGIE} matchs`, nCan.length === SEJOUR_SYNERGIE, `${nCan.length}`);
-  exiger('la carte revient dans la main avec sa fiche, et une pose au repos ne fait rien', !!mur && mur.depuis === null && mur.sejours.length === 1 && mur.sejours[0].v + mur.sejours[0].d + mur.sejours[0].dp === SEJOUR
-    && (S.t[0].sejoursFinis || []).some(x => x.cle === 'mur' && x.v === mur.sejours[0].v) && main.length === 2, mur ? `${mur.sejours[0].v}-${mur.sejours[0].d}-${mur.sejours[0].dp}` : 'pas de mur');
-  // LA CASE DE PLUS (nov. 2026) : le premier talent pris en case, au niveau 2, deux cartes se postent le même jour ; sans lui, une.
-  const deux = talent => joue([{ jour: 0, equipe: 0, coach: { cle: 'tortue', xp: 0, talents: [] } }, { jour: 2, equipe: 0, xpCoach: SEUILS_NIVEAU[1] },
-    ...(talent ? [{ jour: 3, equipe: 0, talent: { p: TALENT_CASE } }] : []), { jour: 4, equipe: 0, embauche: { cle: 'mur' } }, { jour: 4, equipe: 0, embauche: { cle: 'lunette' } },
-    { jour: 20, equipe: 0, poste: { cle: 'mur' } }, { jour: 20, equipe: 0, poste: { cle: 'lunette' } }]);
-  const enPosteLe = (x, cle) => mainDe(x.t[0].perso).find(c => c.cle === cle).sejours.length;
-  const sans = deux(false), avecCase = deux(true);
-  exiger(`la case de plus du premier talent : ${[1, 2, 3, 4, 5].map(n => casesDuPerso({ talents: [TALENT_CASE] }, n)).join(', ')} cases ; au niveau 2, deux cartes postées le même jour (une sans elle)`,
-    [1, 2, 3, 4, 5].map(n => casesDuPerso({ talents: [TALENT_CASE] }, n) - casesDuNiveau(n)).join() === CASE_DE_PLUS.join() && CASE_DE_PLUS[0] === 0
-    && enPosteLe(avecCase, 'mur') === 1 && enPosteLe(avecCase, 'lunette') === 1 && enPosteLe(sans, 'mur') === 1 && enPosteLe(sans, 'lunette') === 0
-    && forceDuPouvoir({ talents: [TALENT_CASE] }, 0) === 1 && avecCase.t[0].perso.talents.join() === TALENT_CASE,
-    `avec : ${enPosteLe(avecCase, 'mur') + enPosteLe(avecCase, 'lunette')} séjours · sans : ${enPosteLe(sans, 'mur') + enPosteLe(sans, 'lunette')}`);
-  exiger('le séjour change la saison, et la même graine le rejoue pareil', fiche(S) !== fiche(A) && fiche(joue(avec([{ jour: 10, equipe: 0, embauche: { cle: 'mur' } }, { jour: 20, equipe: 0, poste: { cle: 'mur' } }]))) !== fiche(A), `${fiche(S)} contre ${fiche(A)}`);
+  exiger('la même graine rejoue le même banc', fiche(A) === fiche(B), fiche(A));
+  exiger('le coach pose sa pièce de départ dans la première case, à sa maîtrise', bancDe(A.t[0].perso).join() === PIECE_DU_COACH.essaim && A.t[0].perso.maitrise === 1.1, bancDe(A.t[0].perso).join());
+  const V = joue(avec([{ jour: 10, equipe: 0, talent: { p: 0 } }, { jour: 20, equipe: 0, xpCoach: 25 }, { jour: 30, equipe: 0, embauche: { cle: 'mur' } }, { jour: 31, equipe: 0, poste: { cle: 'mur' } },
+    { jour: 40, equipe: 0, adjoint: { cle: 'numeroUn' } }, { jour: 50, equipe: 0, staff: ['numeroUn'] }, { jour: 60, equipe: 0, perdAdjoint: 'numeroUn' }]));
+  exiger('une vieille décision talent, xpCoach, embauche, poste, adjoint, staff ou perdAdjoint ne change rien', fiche(V) === fiche(A), `${fiche(V)} contre ${fiche(A)}`);
+  // UNE PIÈCE POSÉE au jour 20 : elle joue dès son jour, aux soirs que sa condition lit, et la feuille la nomme ; le banc plein, `sort` part.
+  const S = joue(avec([{ jour: 20, equipe: 0, piece: { cle: 'canonnier' } }, { jour: 21, equipe: 0, piece: { cle: 'mur' } }, { jour: 22, equipe: 0, piece: { cle: 'tueur' } }, { jour: 23, equipe: 0, piece: { cle: 'choc' } },
+    { jour: 60, equipe: 0, piece: { cle: 'verrou' } }, { jour: 61, equipe: 0, piece: { cle: 'verrou', sort: 'mur' } }]));
+  const toi = S.t[0];
+  const feuilles = S.L.ligue.calendrier.flatMap((d, j) => d.filter(m => (m.A === toi || m.B === toi) && m.feuille).map(m => ({ j, cote: m.A === toi ? 'A' : 'B', f: m.feuille })));
+  const chez = x => x.cote === 'A' && !x.f.moments[x.cote].includes('dosADos');
+  const canon = feuilles.filter(x => x.f.pieces.some(n => n.cote === x.cote && n.cle === 'canonnier'));
+  exiger('une pièce posée joue dès son jour, aux soirs que sa condition lit (le canonnier : à domicile, sans dos-à-dos), et la feuille la nomme',
+    canon.length > 0 && canon.every(x => x.j >= 20 && chez(x)) && feuilles.filter(x => x.j >= 20 && chez(x)).every(x => canon.includes(x)), `${canon.length} soirs`);
+  exiger('plein, une pièce neuve sans `sort` n\'entre pas ; avec, elle prend la case de celle qui part', bancDe(toi.perso).join() === 'ruee,canonnier,verrou,tueur,choc'
+    && feuilles.every(x => (x.f.banc[x.cote] || []).length <= CASES_DU_BANC), bancDe(toi.perso).join(', '));
+  exiger('la feuille garde le banc de chaque soir', feuilles.filter(x => x.j < 20).every(x => x.f.banc[x.cote].join() === 'ruee') && feuilles.filter(x => x.j > 61).every(x => x.f.banc[x.cote].join() === bancDe(toi.perso).join()),
+    `${feuilles.length} feuilles`);
+  exiger('le banc change la saison, et la même graine le rejoue pareil', fiche(S) !== fiche(A) && fiche(joue(avec([{ jour: 20, equipe: 0, piece: { cle: 'canonnier' } }]))) !== fiche(A), `${fiche(S)} contre ${fiche(A)}`);
 }
 
-verdict('Les pouvoirs du coach et sa main d\'adjoints');
+verdict('Le banc de cinq');

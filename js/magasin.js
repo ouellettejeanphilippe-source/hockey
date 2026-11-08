@@ -2,7 +2,7 @@
  * LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; docs/refonte-v27-3.md, la maquette 5 de docs/maquettes/v27.html).
  *
  * Une émission de télé, pas un catalogue : la bande du marché (le nœud, tes jetons, tes quatre achats en pastilles), la
- * pièce de banc parmi trois — de vraies cartes de jeu (`carteHtml`), une seule à prendre —, puis les packs ouverts,
+ * pièce de banc parmi trois — de vraies cartes de jeu (`carteDePiece`), une seule à prendre —, puis les packs ouverts,
  * chacun son métal et son prix du moment, et « Fermer · prochaine dans N ». Hors d'un nœud, la boutique est fermée et dit
  * quand elle rouvre. Le toucher d'un pack ouvre sa fiche : toutes ses chances (« 1 pack sur N »), le JOUEUR d'une carte
  * (son niveau, S80 : les taux et ce que chaque niveau veut dire en rang réel) et sa FINITION (le barème des variantes),
@@ -10,10 +10,10 @@
  * (js/game.js) ; l'ouverture, le paquet qui se déchire (js/gerant.js).
  */
 import { PACKS_TOUS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, tierDuPack, POSTES_DU_PACK, BOUTIQUE } from './packs.js';
-import { NIVEAUX, ETOILE, nomDuNiveau } from './niveaux.js';
+import { NIVEAUX, ETOILE } from './niveaux.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { esc, money as M } from './util.js';
-import { pochetteHtml, carteHtml } from './cartes.js';
+import { pochetteHtml, carteDePiece } from './cartes.js';
 import { COACHS } from './coachs.js';
 import { RAYONS_CLUB } from './club.js';
 import { carteLigne, grille } from './composants.js';
@@ -23,7 +23,7 @@ const $ = id => document.getElementById(id);
 /*
  * ctx : { jetons, ouverts (cle → true | 'raison du verrou'), mods (patrons : rabais, holo, carteExtra, sansBase), sansHolo,
  *         noeud { k, faits, max, dernier, hausse } (null : fermée), prochain { k, dans } (null : la dernière est passée),
- *         pieces [{ cle, niv, A, lignes }], piecePrise, prixPiece, part (qui sort de ta main pleine), prendrePiece(cle),
+ *         pieces [{ cle, lignes }] (js/pieces.js), piecePrise, prixPiece, plein (ton banc : la pièce prise demandera qui sort), prendrePiece(cle),
  *         franchises [{ cle, nom }], coachs [{ cle, nom }], coachRun, decennies [1970…], roles [{ cle, nom }],
  *         verrousChoix { choix: { valeur: raison } } (Jalon P2), scelles [{ palier, cle, verrou }], ouvrirScelle(palier),
  *         acheter(cle, { prix, params, scelle }), club, clubPorte, acheterClub(cle, prix), onFerme() }
@@ -115,11 +115,11 @@ export function ouvrirMagasin(ctx) {
     } else {
       const P = ctx.pieces || [];
       const pieces = P.length ? `<section class="mk-section"><span class="mk-l"><span>Une pièce de banc</span><b>${ctx.piecePrise ? 'Prise' : '1 seule'}</b></span>
-          ${grille(P.map(x => carteLigne(carteHtml({ cle: x.cle, niveau: x.niv - 1, genreCarte: 'tactique', ico: x.A.ico, nomHtml: esc(x.A.nom), typeHtml: esc(`${nomDuNiveau(x.niv - 1)} · ${x.A.style}`), lecture: true }),
+          ${grille(P.map(x => carteLigne(carteDePiece(x.cle, { lecture: true }),
             x.lignes[0] ? (x.lignes[0].bon === false ? esc(x.lignes[0].txt) : `<b>${esc(x.lignes[0].txt)}</b>`) : '',
             { cls: `pl-carte-touche${x.cle === choisie && !ctx.piecePrise ? ' choisie' : ''}${ctx.piecePrise ? ' pl-carte-eteinte' : ''}`, attrs: ` data-piece="${esc(x.cle)}" role="button" tabindex="0" title="${esc(x.lignes.map(l => l.txt).join(' · '))}"` })))}
           ${ctx.piecePrise ? '' : `<button type="button" class="btn gold mk-prendre"${plein || ctx.jetons < ctx.prixPiece ? ' disabled' : ''}>${plein ? 'Quatre achats faits' : ctx.jetons < ctx.prixPiece ? `Il te manque ${ctx.prixPiece - ctx.jetons} 🪙` : `Prendre · ${ctx.prixPiece}`}</button>`}
-          ${ctx.part && !ctx.piecePrise ? `<p class="pk-num">Ta main est pleine : ${esc(ctx.part)} part.</p>` : ''}</section>` : '';
+          ${ctx.plein && !ctx.piecePrise ? '<p class="pk-num">Banc plein : tu choisiras qui sort.</p>' : ''}</section>` : '';
       const packs = BOUTIQUE.filter(k => ctx.ouverts[k] === true && PACKS_TOUS[k]);
       corps = `<header class="mk-bande${N.dernier ? ' dernier' : ''}"><span class="mk-k"><b>${N.dernier ? 'Dernière boutique' : 'Boutique'}</b><span>${N.k ? `Après le ${e(N.k)}` : 'Avant le 1<sup>er</sup> match'}</span></span>
           <div class="mk-tete"><span class="mk-titre">Le marché</span>${caisse}</div>

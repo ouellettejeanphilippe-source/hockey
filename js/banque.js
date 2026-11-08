@@ -6,8 +6,8 @@
  *
  * UN SEUL REGISTRE pour tout ce qui se joue. Depuis la V21 (docs/refonte-v21.md), le personnel est parti : les
  * adjoints du staff sont partis (V22), jamais des cartes de la banque. Restent ici les
- * cartes rares (V16, tranche 6, § 4d) : les retouches d'édition de l'atelier, le stage du coach, trois soins et
- * l'échange d'un doublon.
+ * cartes rares (V16, tranche 6, § 4d) : les retouches d'édition de l'atelier, trois soins et l'échange d'un doublon (le
+ * stage du coach est parti avec son expérience, V27, tranche 5).
  * La masse salariale et le congédiement sont des dossiers du proprio (js/dossiers.js). Les cartes de match sont parties avec la main du duel (V13-2,
  * docs/refonte-v13.md). Presque chaque carte attend son MOMENT (`si`, `MOMENTS_SI`, js/sim.js). Chaque carte a un identifiant
  * (\`cat:cle\`), une catégorie, une rareté, une durée de vie, et sa RÈGLE en chiffres de match (\`reglesDe\`) :
@@ -15,7 +15,7 @@
  *
  * RIEN DE NEUF DANS LE MOTEUR. Une carte jouée est une DÉCISION (\`payloadDe\`) faite des champs que
  * \`appliquerDecision\` connaît déjà : \`effet\` (des canaux d'équipe pour quelques matchs), \`mutation\` (un joueur),
- * \`gestes\` (un soin, de l'énergie) et \`xpCoach\` (de l'expérience au coach). La décision porte ses CHIFFRES : une partie reprise rejoue exactement
+ * \`gestes\` (un soin, de l'énergie). La décision porte ses CHIFFRES : une partie reprise rejoue exactement
  * ce qui a été joué, même si la banque change entre-temps.
  *
  * LES POIDS (mesurés) : 1 % de précision ou de tirs ≈ 0,18 victoire sur une saison, 1 % de buts contre ≈ 0,24 à 0,32,
@@ -73,8 +73,6 @@ export const CONSOMMABLES = {
   chirurgie: { nom: 'La chirurgie éclair', ico: '🏥', niveau: 3, vie: 'permanent', cible: 'blesse', gestes: { soin: 12 }, canaux: { blessure: 1.56 }, duree: 5, texte: 'Le meilleur chirurgien a une plage libre. Le retour presse, et les corps le paient.' },
   // L'échange d'un doublon (P3) : ton doublon le plus fourni part ; trois joueurs de son époque, hors de ton cartable (`echange`).
   echangeDoublon: { nom: 'L\'échange d\'un doublon', ico: '📟', niveau: 2, vie: 'usage', cible: 'cartable', gestes: { echange: true, offres: 3 }, niveauMax: 2, texte: 'Un doublon de trop, contre un joueur de son époque.' },
-  // Le stage (V21) : de l'expérience au coach de la run (js/pouvoirs.js `XP`), tout de suite.
-  stage: { nom: 'Le stage du coach', ico: '🎞', niveau: 3, vie: 'permanent', cible: 'coach', xp: 8, texte: 'Une semaine de vidéo chez les meilleurs. Il revient avec un cahier neuf.' },
 };
 
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
@@ -158,7 +156,6 @@ function formeDeConsommable(C) {
   if (!C) return '';
   const soin = !!(C.gestes && C.gestes.soin), bits = [...bitsDEffet(C.canaux), ...(soin ? [true] : [])];
   if (bits.some(Boolean) && bits.some(b => !b)) return 'Échange';
-  if (C.cible === 'coach') return 'Monte';
   if (C.cible === 'cartable') return 'Échange';
   if (soin) return 'Soin';
   if (!bits.length) return '';
@@ -214,8 +211,6 @@ export function payloadDe(id, { joueur = null, sortie = null, rar = null } = {})
     const C = CONSOMMABLES[c.cle];
     const effet = C.canaux ? { nom: C.nom, ico: C.ico, duree: C.duree, ...C.canaux } : null;
     if (C.cible === 'blesse') return joueur ? { ...(C.gestes ? { gestes: { ...C.gestes, joueurs: [joueur] } } : {}), ...(effet ? { effet } : {}) } : null;
-    // Le stage : de l'expérience au coach de la run.
-    if (C.cible === 'coach') return { xpCoach: C.xp };
     // L'échange : le joueur du cartable entre à la case que `sortie` libère, comme au ballottage.
     return joueur ? { ballottage: { entre: joueur, i: sortie ? sortie.i : null, sort: sortie ? sortie.sort : null, ...(rar ? { rar } : {}) }, ...(sortie && sortie.cases ? { cases: sortie.cases } : {}) } : null;
   }

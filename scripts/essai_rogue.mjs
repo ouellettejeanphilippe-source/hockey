@@ -12,6 +12,7 @@ import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
 import { PLANS } from '../js/greffes.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC } from '../js/pieces.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 import { collesAuBord, MARGE } from './lib/bords.mjs';
@@ -128,7 +129,7 @@ await page.addInitScript(cartes => {
   if (localStorage.getItem('essai80')) return;
   localStorage.setItem('essai80', '1');
   localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, i === 1 ? { v: { commune: 3 }, n: 3 } : { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
-  // V16 (tranche 6) : « Le stage du coach » attend dans l'inventaire permanent, pour monter le coach d'un cran (plus bas, 10c).
+  // V27, tranche 5 : « Le stage du coach » est parti avec son expérience ; une vieille sauvegarde qui en garde un ne plante pas.
   // « Une caisse de départ » et « Une grosse caisse » (+40 jetons) : les Harfangs puis le Pack Époque s'achètent quel que soit le
   // tirage de la saison (sans elles, une caisse de 22 ou 36 jetons laissait l'essai en panne devant le pack : une loterie ;
   // V23, les salaires des adjoints : 23 jetons après les Harfangs, sous les 26 de l'Époque).
@@ -153,15 +154,16 @@ if (crans.length !== 1 || !/Exigence 1/.test(crans[0]) || !/médailles/.test(cra
 await choix('.tc-prendre[data-choix="go"]');
 /*
  * TON ENTRAÎNEUR (V21, js/coachs-reels.js) : un loto de trois vraies cartes de coach-saison, de trois philosophies que
- * le prestige ouvre (ce méta est un Club de quartier, donc quatre) ; chacune dit son club et sa saison, et ses trois
- * pouvoirs avec le niveau qui ouvre chacun.
+ * le prestige ouvre (ce méta est un Club de quartier, donc quatre) ; chacune dit son club et sa saison, et sa pièce de
+ * départ (V27, tranche 5 : js/pieces.js `PIECE_DU_COACH`).
  */
 const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'caisse2', 'classeur1'], jalons: {} })].coachs;
 await page.waitForFunction(() => /Ton entraîneur/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
 const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
 console.log(`0. ton entraîneur : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 60)).join(' | ')}`);
-if (offerts.length !== Math.min(3, COACHS_ATTENDUS) || !offerts.every(t => /niveau 3/.test(t) && /niveau 5/.test(t) && /\d{4}-\d{2}/.test(t))) erreurs.push(`le loto de l'entraîneur offre ${offerts.length} carte(s) (attendu : 3), ou une carte ne dit pas sa saison et ses trois pouvoirs`);
+const departs = Object.values(PIECE_DU_COACH).map(k => PIECES[k].nom);
+if (offerts.length !== Math.min(3, COACHS_ATTENDUS) || !offerts.every(t => departs.some(n => t.includes(n)) && /\d{4}-\d{2}/.test(t))) erreurs.push(`le loto de l'entraîneur offre ${offerts.length} carte(s) (attendu : 3), ou une carte ne dit pas sa saison et sa pièce de départ`);
 await choix();
 /*
  * TON JOUEUR DE CONCESSION (JP, 18 oct. : *avoir un gros joueur dès la première run, mais difficile d'en avoir
@@ -255,6 +257,7 @@ const compterFeuilles = async ou => {
   feuilles.vues++; if (vues.length > 1) feuilles.empilees.push(`${ou} : ${vues.join(' + ')}`);
 };
 const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et le premier duel, photographiés une fois
+const pieces = { vues: [], prises: [], capture: false };   // V27, tranche 5 : l'écran de la pièce, photographié une fois
 const placement = { vu: false, actes: [] };   // V27, tranche 4 : le calendrier de chaque acte, photographié une fois
 const afaire = { vu: false, lots: [], histoire: '', genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
@@ -539,6 +542,29 @@ async function regler() {
       }
       continue;
     }
+    /*
+     * PRENDRE UNE PIÈCE (V27, tranche 5 ; la maquette 7) : la bande de qui la donne et « Choisis ta pièce », les pièces en vraies
+     * cartes avec leur ligne ; banc plein, tes cinq pièces sous « Qui sort ? » et la bande de l'échange. On touche la première,
+     * celle qui sort si le banc est plein, puis « Prendre » : la décision porte la pièce (et `sort`).
+     */
+    if (await page.$('#choixModal:not([hidden]) .pc-sheet')) {
+      const lu = await page.evaluate(() => { const m = document.querySelector('#choixModal .pc-sheet');
+        return { titre: (m.querySelector('.pc-titre') || {}).textContent || '', offres: m.querySelectorAll('.pc-offres [data-pc] .carton').length, lignes: m.querySelectorAll('.pc-offres .pl-carte-l span').length,
+          banc: m.querySelectorAll('.pc-banc [data-sort] .carton').length, passer: !!m.querySelector('.pc-passer') }; });
+      pieces.vues.push(`${lu.titre} : ${lu.offres} offertes${lu.banc ? `, banc plein (${lu.banc})` : ''}`);
+      if (!lu.offres || lu.lignes !== lu.offres || (lu.banc && lu.banc !== CASES_DU_BANC)) erreurs.push(`l'écran de la pièce : ${JSON.stringify(lu)}`);
+      await page.click('#choixModal .pc-offres [data-pc]');
+      if (lu.banc) await page.click('#choixModal .pc-banc [data-sort]:last-child');
+      await page.waitForTimeout(200);
+      if (!pieces.capture) { pieces.capture = true; await page.screenshot({ path: `${DOSSIER}/rogue-piece.png` }); }
+      const n0 = (await decisionsDuCombat()).length;
+      await page.click('#choixModal .pc-prendre:not([disabled])').catch(() => erreurs.push('« Prendre » reste éteint sur l\'écran de la pièce'));
+      await page.waitForTimeout(800);
+      const d = (await decisionsDuCombat()).slice(n0).find(x => x.piece);
+      if (!d || !PIECES[d.piece.cle] || (lu.banc && !d.piece.sort)) erreurs.push(`la pièce prise n'écrit pas sa décision (${JSON.stringify(d || null)})`);
+      else pieces.prises.push(`${PIECES[d.piece.cle].ico}${d.piece.sort ? ` (${PIECES[d.piece.sort].ico} part)` : ''}`);
+      continue;
+    }
     // Une main de palier (des cartes .tc) : la première carte jouable.
     const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc [data-choix]');
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
@@ -706,23 +732,21 @@ if (casesCal < 20) erreurs.push('le Calendrier ne montre pas l\'acte en cases');
 if (routeCoach) erreurs.push('le Coach montre encore le calendrier (il est au Calendrier)');
 if (routeBoite) erreurs.push('le Bureau redit le calendrier ou le mandat, qui ont leur sous-onglet');
 {
-  // TON COACH, UN PERSONNAGE (V21) : au sous-onglet de l'entraîneur (V12-2) — son niveau, son expérience, ses trois pouvoirs,
-  // le premier ouvert, les deux autres au niveau qui les ouvre.
+  // TON COACH ET TON BANC (V27, tranche 5) : au sous-onglet de l'entraîneur — sa carte, puis ton banc de cinq cases, la pièce
+  // de départ dans la première, les autres libres.
   await versLOnglet('club', 'entraineur');
   await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
   const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-carte .carton:not(.tc-verso)').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
-  const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
-  const pouvoirs = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv:not(.adj)', e => e.map(x => ({ nom: (x.querySelector('.pv-nom b') || {}).textContent || '', ferme: x.classList.contains('ferme'), etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
-  const jauge = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .pl-jauge');
+  const cases = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv-rang > .pl-carte', e => e.map(x => ({ piece: !!x.querySelector('.carton'), nom: (x.querySelector('.tc-nom') || {}).textContent || '', etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
   console.log(`5c. ton coach : ${coachs || '(absent)'} · décision du jour 0 : ${d0 ? JSON.stringify(d0.coach) : '(aucune)'}`);
-  if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.talents)) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec son expérience et ses talents');
+  if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.banc) || d0.coach.banc.join() !== PIECE_DU_COACH[d0.coach.cle]) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec sa pièce de départ');
   if (((sv0.partie || {}).decisions || []).some(x => x.patron)) erreurs.push('une décision de personnel (`patron`) reste dans la partie');
-  console.log(`5f. ses pouvoirs : ${pouvoirs.map(x => `${x.nom} (${x.etat})`).join(' | ') || '(aucun)'}`);
-  if (!/^Niveau\s?[1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
-  if (pouvoirs.length !== 3 || pouvoirs[0].ferme || !pouvoirs.slice(1).every(x => x.ferme === /Niveau [35]/.test(x.etat))) erreurs.push(`le coach ne montre pas ses trois pouvoirs, le premier ouvert (${JSON.stringify(pouvoirs)})`);
+  console.log(`5f. ton banc : ${cases.map(x => (x.piece ? `${x.nom} (${x.etat})` : 'libre')).join(' | ') || '(aucun)'}`);
+  if (!coachs) erreurs.push('le sous-onglet de l\'entraîneur ne montre pas la carte du coach');
+  if (cases.length !== CASES_DU_BANC || !cases[0].piece || (d0 && cases[0].nom !== PIECES[PIECE_DU_COACH[d0.coach.cle]].nom)) erreurs.push(`le Coach ne montre pas ton banc de ${CASES_DU_BANC} cases, la pièce de départ dans la première (${JSON.stringify(cases)})`);
 }
 if (!/Acte I+ · le contrôle/.test(run || '')) erreurs.push('le Proprio ne dit pas l\'acte et son contrôle');
 if (!/Rater le contrôle/.test(suiteDuMandat || '')) erreurs.push('le contrôle au Proprio ne dit pas ce qu\'il coûte (à l\'infobulle)');
@@ -1043,8 +1067,8 @@ await page.waitForTimeout(500);
 await verifMarche('après un pack signé');
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique-apres-pack.png` });
 /*
- * LA PIÈCE PARMI TROIS (V27, tranche 3) : au même nœud, après un pack, la pièce coûte 32 × 1,4 = 45 🪙 ; prise, elle entre dans
- * ta main (une décision `embauche`, son prix compté comme un achat du nœud), et la boutique la dit « Prise ».
+ * LA PIÈCE PARMI TROIS (V27, tranches 3 et 5) : au même nœud, après un pack, la pièce coûte 32 × 1,4 = 45 🪙 ; prise, elle entre
+ * sur ton banc (une décision `piece`, son prix compté comme un achat du nœud), et la boutique la dit « Prise ».
  */
 {
   const lu = await page.evaluate(() => { const m = document.querySelector('#pageMarche .hub-page[data-genre="boutique"]');
@@ -1061,7 +1085,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-boutique-apres-pack.png` });
     const prise = await page.$eval('#pageMarche .mk-section .mk-l b', x => x.textContent.trim()).catch(() => '');
     const apres = Number(await page.textContent('#pageMarche .mk-caisse b'));
     console.log(`8q. la pièce prise : ${cle} · ${JSON.stringify(d)} · « ${prise} » · ${lu.jetons} → ${apres} 🪙`);
-    if (d.length !== 1 || !d[0].embauche || d[0].embauche.cle !== cle || d[0].achat.sorte !== 'piece' || d[0].achat.prix !== prix || prise !== 'Prise' || apres !== lu.jetons - prix) erreurs.push(`la pièce prise à la boutique : ${JSON.stringify(d)}, « ${prise} », ${lu.jetons} → ${apres} 🪙`);
+    if (d.length !== 1 || !d[0].piece || d[0].piece.cle !== cle || d[0].achat.sorte !== 'piece' || d[0].achat.prix !== prix || prise !== 'Prise' || apres !== lu.jetons - prix) erreurs.push(`la pièce prise à la boutique : ${JSON.stringify(d)}, « ${prise} », ${lu.jetons} → ${apres} 🪙`);
   } else if (!/Il te manque \d+ 🪙|Quatre achats faits/.test(lu.prendre)) erreurs.push(`la pièce impayable ne dit pas ce qui manque : « ${lu.prendre} »`);
 }
 await auBureau();
@@ -1194,7 +1218,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
 }
 /*
  * UNE MAISON PAR SUJET (V12-3 ; V16, tranche 6). JP : *that philosophy should be for everything*. La masse salariale est
- * chez le proprio, les soins à l'infirmerie, les pouvoirs et le stage du coach chez l'entraîneur, les cartes de joueur
+ * chez le proprio, les soins à l'infirmerie, le banc chez l'entraîneur, les cartes de joueur
  * à l'effectif ; il n'y a plus de « Tes cartes » qui y renvoie.
  */
 {
@@ -1222,7 +1246,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     ici.infirmerie = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'infirmerie')); await fermerLaFeuille();
     await page.click('#pageJoueursCorps [data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   }
-  if (!(ici.entraineur || []).includes('consommable:stage')) erreurs.push('« Le stage du coach » ne se joue pas chez l\'entraîneur');
+  // V27, tranche 5 : le stage du coach est parti avec son expérience ; la vieille carte de l'inventaire ne paraît nulle part.
+  if (Object.values(ici).some(l => (l || []).includes('consommable:stage'))) erreurs.push('« Le stage du coach », parti, paraît encore');
   if (!(ici.joueurs || []).includes('consommable:echangeDoublon')) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif');
   // V12-4 : chaque sous-onglet tient en un écran (390 × 844) ; on mesure chacun, la feuille entière.
   const hauteur = () => page.$eval('#hubModal .hub-sheet', e => e.scrollHeight / Math.max(1, e.clientHeight)).catch(() => 0);
@@ -1242,11 +1267,11 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     // Trop long : ses blocs, du plus haut au plus bas, pour savoir quoi plier.
     if (ecrans[k] > 1.3) console.log(`    ▸ ${k} : ${await page.$eval(`#hubModal .af-onglet[data-maison="${k}"]`, o => [...o.querySelectorAll(':scope > *, :scope > * > *')].filter(e => e.offsetHeight > 30).map(e => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')} ${e.offsetHeight}`).join(' · ')).catch(() => '?')}`);
   }
-  // V21 : le personnel est parti ; aucune rangée d'adjoint au banc de l'entraîneur, ses pouvoirs seulement.
+  // V21 : le personnel est parti ; aucune rangée d'adjoint chez l'entraîneur, son banc seulement.
   {
     await versLOnglet('club', 'entraineur');
     const restes = await page.$$('#hubModal .af-onglet[data-maison="entraineur"] :is(.gens-l, .perso-l, [data-choix^="echelon:"])');
-    console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pouvoirs du coach seulement'}`);
+    console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pièces du banc seulement'}`);
     if (restes.length) erreurs.push('le sous-onglet de l\'entraîneur montre encore du personnel ou ses échelons');
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
@@ -1308,24 +1333,9 @@ for (const pack of ['j:bronze', 'j:epoque']) {
 // V16 : une retouche ne se joue plus au Marché (l'onglet « Tes places » est parti) : elle se pose au verso de son joueur (12b).
 let posee = null, nomModif = '';
 /*
- * LE STAGE DU COACH (V16, tranche 6 ; V21) : une carte rare qui donne de l'expérience au coach. Elle se joue chez
- * l'entraîneur ; sa décision porte ses points (`xpCoach`). Le proprio qui doute du coach était une histoire (`laTete`, partie à la V22).
+ * LE STAGE DU COACH est parti avec son expérience (V27, tranche 5) ; restent l'échange d'un doublon et les retouches, plus bas.
  */
 {
-  await versLOnglet('club', 'entraineur');
-  await deplierLesCartes('#hubModal .af-onglet[data-maison="entraineur"]');
-  const clesEntraineur = await cartesDeLaMaison('#hubModal .af-onglet[data-maison="entraineur"]', 'entraineur');
-  const jouer = clesEntraineur.includes('meta|consommable:stage|') ? await page.$('#choixModal [data-choix="meta|consommable:stage|"]') : null;
-  if (!jouer) erreurs.push('« Le stage du coach » ne se joue pas depuis le sous-onglet de l\'entraîneur');
-  else {
-    const n0 = (await decisions()).length;
-    await jouer.click();
-    await page.waitForTimeout(800);
-    await regler();
-    const ds = (await decisions()).slice(n0).find(x => x.xpCoach && x.joue);
-    console.log(`10c. le stage du coach : ${ds ? `+${ds.xpCoach} d'expérience` : '(rien)'}`);
-    if (!ds) erreurs.push('« Le stage du coach » n\'écrit pas sa décision d\'expérience');
-  }
   const versLEffectif = async () => {
     await versLOnglet('club', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
@@ -1687,10 +1697,11 @@ if (duelCourt.longs) erreurs.push(`${duelCourt.longs} entracte(s) du duel font p
 if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
 console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}${mise.scene ? ` | la mise : ${mise.scene}` : ''}`);
 {
-  // V21 : le coach de la saison — ses talents et son expérience.
+  // V27, tranche 5 : le banc de la saison — les pièces prises (un rival battu, la boutique, une fourche), et l'écran de la pièce.
   const sv = await lireSauvegarde().catch(() => null);
   const ds = (((sv && sv.partie) || {}).decisions || []);
-  console.log(`20p. le coach : ${ds.filter(d => d.talent).length} talent(s), ${ds.filter(d => d.xpCoach).length} gain(s) d'expérience`);
+  console.log(`20p. le banc : ${ds.filter(d => d.piece).length} pièce(s) prise(s) · l'écran de la pièce ${pieces.vues.join(' | ') || 'pas ouvert'} · ${pieces.prises.join(' ') || 'aucune prise à l\'écran'}`);
+  if (ds.some(d => d.talent || d.xpCoach || d.embauche || d.poste)) erreurs.push('une décision d\'avant le banc de cinq (talent, expérience, adjoint) est encore écrite');
 }
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
