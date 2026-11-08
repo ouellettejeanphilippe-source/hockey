@@ -138,15 +138,13 @@ export function buildDuSoir(team, jour, feuille = null) {
  * pièce du banc de ce soir-là (`feuille.banc`, posé avant le match), avec ce qu'elle a fait. Une pièce « joue » si elle
  * est à la feuille (`feuille.pieces`) ou si elle y a relayé (`feuille.relais`), avec ses périodes ; les autres restent au
  * banc, éteintes, leur condition à lire. Rien n'est deviné : la feuille fait foi.
- * `jusqua` (V23 A2, l'entracte du duel) : seulement les périodes déjà jouées (1 après la première, 2 après la deuxième) ;
- * une pièce ne s'allume que pour elles, et la règle du coach, lue sur le match entier, attend la fin.
  * Rend [{ genre: 'regle'|'piece', cle, ico, nom, dit, joue, periodes: [k…], relaie, jetons }].
  */
-export function banc(team, feuille, { jusqua = null } = {}) {
+export function banc(team, feuille) {
   if (!team || !feuille) return [];
   const cote = feuille.B === team ? 'B' : 'A';
   const perso = team.perso;
-  const avant = x => x.cote === cote && (jusqua == null || x.k < jusqua);
+  const avant = x => x.cote === cote;
   const notes = (feuille.pieces || []).filter(avant), relais = (feuille.relais || []).filter(avant);
   const sur = (feuille.banc && feuille.banc[cote]) || bancDe(perso);
   const pieces = sur.filter(cle => PIECES[cle]).map(cle => {
@@ -155,7 +153,7 @@ export function banc(team, feuille, { jusqua = null } = {}) {
       periodes: [...new Set([...miennes, ...relaie].map(x => x.k))].sort((a, b) => a - b), relaie: relaie.length > 0 };
   });
   // V23 : la règle du coach (js/coachs.js `REGLES_DU_COACH`), allumée le soir où elle paie.
-  const R = jusqua == null && perso && REGLES_DU_COACH[perso.cle];
+  const R = perso && REGLES_DU_COACH[perso.cle];
   const regle = R ? [{ genre: 'regle', ico: COACHS[perso.cle].ico, nom: R.dit, dit: `La règle ${COACHS[perso.cle].de} : +${R.jetons} 🪙 le soir où ton club la tient`, joue: R.lit(chiffresDuSoirDe(feuille, cote)), periodes: [], jetons: R.jetons }] : [];
   return [...regle, ...pieces];
 }

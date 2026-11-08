@@ -10,9 +10,7 @@
  *   3. aucun salaire : le banc ne coûte rien, la caisse ne déduit rien ;
  *   4. la même graine rend le même banc ; un club sans coach-personnage n'a pas de banc ;
  *   5. le banc s'allume au sommaire (js/bilan.js), et le mouvement s'éteint pour qui le demande (style.css) ;
- *   6. la règle du coach (V23) s'allume les soirs où elle paie, la caisse les paie ;
- *   7. à l'entracte du duel (V23 A2, `jusqua`), le banc n'allume que les périodes déjà jouées, la règle du coach attend la fin,
- *      et les deux entractes (saison, séries) le montrent sous les périodes.
+ *   6. la règle du coach (V23) s'allume les soirs où elle paie, la caisse les paie (V27, tranche 6 : le duel n'a plus d'entracte à choix, le banc n'y paraît plus).
  */
 import fs from 'node:fs';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague } from '../js/sim.js';
@@ -86,26 +84,6 @@ const css = fs.readFileSync(new URL('../style.css', import.meta.url), 'utf8');
 const saisonJs = fs.readFileSync(new URL('../js/saison.js', import.meta.url), 'utf8');
 exiger('5. le sommaire du soir montre le banc sous le pointage, et Hier soir au Bureau aussi', /\$\{bancDuSoirHtml\(f, A, B, esc\)\}\s*\$\{apres\}/.test(bilan) && /bancDuSoirHtml\(m\.feuille, m\.A, m\.B, ctx\.esc, \{ joues: true \}\)/.test(saisonJs));
 
-// 7. V23 A2 : à l'entracte du duel, le banc n'allume que ce qui a déjà joué — jamais une période à venir, jamais la règle.
-const fautes7 = [];
-let allumesAvant = 0, attendaient = 0;
-soirs.forEach(({ f, cote }, n) => {
-  for (const k of [1, 2]) {
-    const b = banc(toi, f, { jusqua: k });
-    if (b.some(c => c.genre === 'regle')) fautes7.push(`soir ${n + 1} : la règle du coach au ${k}e entracte`);
-    for (const c of b.filter(x => x.genre === 'piece')) {
-      const vraies = periodesDe(f, cote, c.cle, k);
-      if (c.periodes.some(x => x >= k) || c.periodes.join() !== vraies.join()) fautes7.push(`soir ${n + 1} : ${c.nom} ${c.periodes.join('·')} contre ${vraies.join('·')} au ${k}e entracte`);
-      if (c.joue) allumesAvant++;
-      else if (periodesDe(f, cote, c.cle).length) attendaient++;
-    }
-    if (b.filter(x => x.genre === 'piece').map(x => x.cle).join() !== (f.banc[cote] || []).join()) fautes7.push(`soir ${n + 1} : les cases ne sont pas les mêmes à l'entracte`);
-  }
-});
-exiger('7. à l\'entracte, le banc allume exactement les périodes déjà jouées, sans la règle du coach, les mêmes cases', !fautes7.length && allumesAvant > 0 && attendaient > 0,
-  fautes7.slice(0, 3).join(' ; ') || `${allumesAvant} allumées avant l'entracte, ${attendaient} qui attendaient encore leur période`);
-exiger('7. les deux entractes du duel (saison, séries) montrent le banc sous les périodes', /bancDuSoirHtml\(f, p\.m\.A, p\.m\.B, ctx\.esc, \{ jusqua: k \}\)/.test(saisonJs) && /bancDuSoirHtml\(f, s\.A, s\.B, ctx\.esc, \{ jusqua: p \}\)/.test(saisonJs)
-  && /\.ent2 \.banc-soir \{/.test(css));
 exiger('5. le banc s\'allume en animation, éteinte sous prefers-reduced-motion', /\.banc-carte\.joue \{[^}]*animation: banc-allume/.test(css)
   && /@media \(prefers-reduced-motion: reduce\) \{\s*\*, \*::before, \*::after \{ animation-duration: 0\.01ms !important/.test(css));
 

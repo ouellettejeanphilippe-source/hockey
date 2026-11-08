@@ -25,7 +25,7 @@ import { carteLigne } from './composants.js';
 import { motsDe, motsDuPari, facesMot, MOTS_DU_JOUEUR } from './effets.js';
 import { carteHtml, pochetteHtml, carteDePiece } from './cartes.js';
 import { facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
-import { INTENTIONS, PLANS } from './greffes.js';
+import { PLANS } from './greffes.js';
 import { jouerSon } from './sons.js';
 import { notable, pic } from './mouvement.js';
 import { TRAITS } from './traits.js';
@@ -1003,133 +1003,70 @@ export const carteDeBanqueHtml = (o, { cache = false } = {}) => carteHtml({
   pucesHtml: cache ? '' : pucesDeFace(o.mots), genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille, statique: true,
 });
 /*
- * LE DUEL (V9), en plein écran : l'enjeu, leur intention de la période et CE QUE TON ADJOINT PROPOSE (V17,
- * docs/refonte-v17.md) — deux ou trois plans nets, chacun en vraies stats de la période, et « Garder » ; la mise doublée
- * avant la 3e. Toucher un plan l'envoie : `onJouer` reçoit ta réponse (`{ plan, snap }` : le plan pris, ou null pour
- * garder le tien ; la mise). V25 C1 : la carte de vestiaire et l'ajustement de séries sont partis ; les histoires du matin
- * d'un gros match et d'une ronde vivent dans js/histoires.js et se règlent avant le duel.
+ * LE DUEL, UN SEUL CHOIX (V27, tranche 6 ; la maquette 4 de docs/maquettes/v27.html ; docs/refonte-v27-6a.md). JP : *un seul
+ * choix avant le match, mais le rival montre son jeu dès son annonce* ; *aucune décision d'entracte*. En tête, la languette du
+ * duel (« Rival · Match 54 ») et les deux plaques aux couleurs des clubs, « VS » entre les deux ; la barre du pronostic ; leur
+ * jeu (son style, son intention dominante) ; « Ton plan · 1 choix » et deux ou trois plans de ton banc en vraies cartes de jeu,
+ * chacune son gain et son prix du match dessous ; « Ton match · aucun plan » ; ce que le duel rapporte et coûte ; « Au match ».
+ * Rien n'est choisi d'avance : sans carte touchée, c'est Ton match.
  *
- * spec : { titre, sousTitre, recit, duel (specDuDuel), enjeu (html), stats, couleurs, onAdjoint, onJouer(reponse) }
+ * spec : { k, no, toi, eux ({ tag, nom, sous }), prono (ta chance, 0 à 1, ou null), jeu ({ mot, intention } ou null),
+ *          plans (`plansDuDuel`, js/impact.js), gagne, perd (des lignes), onJouer({ plan }), onAuto (en séries) }
  */
-export function ouvrirDuel(spec) {
+export function ouvrirLeDuel(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
   if (fermerChoixCourant) fermerChoixCourant(true);
-  const D = spec.duel;
-  let snap = false;
-  const dessiner = () => {
-    // L'ÉCRAN NE REMONTE PAS quand on règle quelque chose (S80) : on reste où on lisait.
-    const hauts = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].map(e => (e ? e.scrollTop : 0));
-    const etape = txt => `<div class="main-etape"><span>${txt}</span></div>`;
-    /*
-     * CE QUE TON ADJOINT PROPOSE (V17). JP : *mon adjoint propose des ajustements à chaque période, j'en choisis un*.
-     * Sa scène (la voix, sa réplique), puis ses plans en cartes de jeu (V25 B2), chacune ses lignes au verso, en vraies
-     * stats de la période ; « Garder » laisse ton plan en force. « Jouer » sous une carte joue la période.
-     */
-    const propositionsHtml = () => `<div class="duel-adjoint">
-      ${D.scene ? sceneHtml(D.scene, { voix: true }) : ''}
-      <p class="duel-unite">Les chiffres de la période qui vient</p>
-      <div class="choix-main duel-props">${[...D.propositions, D.garder].map((o, i) => carteHtml({ cle: esc(o.cle), i, ico: o.ico, nomHtml: esc(o.nom), texteHtml: versoDe(o, esc), pucesHtml: pucesDeFace(o.mots || []),
-        desactive: o.desactive ? esc(o.desactive) : '', genreCarte: 'tactique', classe: 'duel-prop', attrs: ` data-prop="${esc(o.cle)}"`, motChoixHtml: 'Jouer' })).join('')}</div>
-    </div>`;
-    m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
-      <div class="choix-tete">
-        <span class="choix-ico">⚔</span>
-        <div class="choix-titres"><div class="choix-badge">Gros match</div><div class="choix-titre">${esc(spec.titre)}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>
-      </div>
-      <div class="choix-corps">
-        ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
-        ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu}</div>` : ''}
-        ${D.tete ? `<div class="duel-tete">${D.tete}</div>` : ''}
-        <div class="duel-intention">
-          ${etape(`${D.ico} ${esc(D.nom)} · leur jeu en ${D.periode}`)}
-          <p class="duel-fait">${esc(D.fait)}</p>
-          ${D.pourquoi ? `<p class="duel-pourquoi">${esc(D.pourquoi)}</p>` : ''}
-          ${D.mots && D.mots.length ? `<div class="choix-puces">${pucesEnBref(D.mots)}</div>` : ''}
-        </div>
-        ${D.mise ? `<div class="duel-mise">${sceneHtml(D.mise, { voix: true })}<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${snap ? '✓ Mise doublée' : 'Doubler la mise'} · ${esc(D.mise.chiffres)}</button></div>` : ''}
-        ${propositionsHtml()}
-        ${spec.stats ? `<div class="main-stats"><div class="gl-k">📊 Les deux clubs, par match</div>${spec.stats}</div>` : ''}
-        <div class="main-outils">
-          <button type="button" class="btn main-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>
-          ${spec.onAdjoint ? '<button type="button" class="btn main-adjoint" title="Il garde ton tableau aux entractes, jusqu\'à la fin de la série">L\'adjoint joue cette série</button>' : ''}
-        </div>
-      </div>
-    </div>`;
-    [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].forEach((e, i) => { if (e && hauts[i]) e.scrollTop = hauts[i]; });
-    pointsDeBande(m);
-    m.querySelectorAll('.duel-prop[data-prop] .tc-prendre').forEach(b => { b.onclick = () => {
-      const o = [...D.propositions, D.garder].find(x => x.cle === b.closest('.duel-prop').dataset.prop);
-      fermer(true);
-      spec.onJouer({ plan: o && o.plan ? o.plan : null, snap });
-    }; });
-    const bs = m.querySelector('.duel-snap');
-    if (bs) bs.onclick = () => { snap = !snap; jouerSon('joue'); dessiner(); };
-    // LES CHIFFRES (V3) : la préparation se lit en mots ; ses chiffres se déplient, comme dans un choix.
-    const bc = m.querySelector('.main-chiffres');
-    bc.onclick = () => { const o = basculerChiffres(); m.querySelector('.choix-sheet').classList.toggle('chiffres', o); bc.setAttribute('aria-pressed', String(o)); };
-    const adj = m.querySelector('.main-adjoint');
-    if (adj) adj.onclick = () => { fermer(true); spec.onAdjoint(); };
-    // Le focus reste DANS le duel : le clavier ne tombe jamais sur la page dessous.
-    const f0 = m.querySelector('.duel-prop:not([aria-disabled="true"]) .tc-prendre') || m.querySelector('.choix-sheet');
-    if (f0) f0.focus({ preventScroll: true });
-  };
+  let pris = null;
   const fermer = () => {
     m.hidden = true; m.innerHTML = '';
     document.body.classList.remove('choix-ouvert');
     fermerChoixCourant = null;
   };
-  fermerChoixCourant = fermer;
+  const plaque = (x, cote) => `<span class="dl-plaque ${cote}" style="${varsEquipe(getTeamBand(x.tag))}">${getTeamLogoHtml(x.tag, 34)}<b>${esc(x.nom)}</b>${x.sous ? `<small>${x.sous}</small>` : ''}</span>`;
+  const carte = x => {
+    const PL = PLANS[x.cle], Pc = x.qui && x.qui.genre === 'piece' ? PIECES[x.qui.cle] : null, C = x.qui && x.qui.genre === 'coach' ? COACHS[x.qui.cle] : null;
+    const qui = Pc ? Pc.nom : C ? 'Ton coach' : 'Ton banc';
+    const mots = motsDeStats(x.stats, 4, { par: 'par match', dire: false });
+    const plus = mots.find(l => l.bon === true), moins = mots.find(l => l.bon === false);
+    const ligne = [plus && `<span class="fx-plus">${esc(plus.txt)}</span>`, moins && `<span class="fx-moins">${esc(moins.txt)}</span>`].filter(Boolean).join('') || '<span>à peine perceptible</span>';
+    const suit = PL.vedette && x.vedette && x.colle ? ` ${nom(x.colle)} suit ${nom(x.vedette)}.` : '';
+    return carteLigne(carteHtml({ cle: esc(x.cle), niveau: Pc ? Pc.cadre : 2, genreCarte: Pc ? Pc.genre : 'tactique', ico: PL.ico, nomHtml: esc(PL.nom), typeHtml: esc(qui), lecture: true }), ligne,
+      { cls: `pl-carte-touche${pris === x.cle ? ' choisie' : ''}`, attrs: ` data-plan="${esc(x.cle)}" role="button" tabindex="0" aria-pressed="${pris === x.cle}" aria-label="${esc(`${PL.nom}, proposé par ${qui} : ${mots.map(l => l.txt).join(', ')}.${suit}`)}"` });
+  };
+  const dessiner = () => {
+    const p = spec.prono;
+    m.innerHTML = `<div class="choix-sheet dl-sheet" data-genre="duel" role="dialog" aria-modal="true" aria-label="${esc(`${spec.k} : ${spec.eux.nom}`)}">
+      <div class="dl-tete">
+        <span class="dl-k"><b>${esc(spec.k)}</b><span>${esc(spec.no)}</span></span>
+        <div class="dl-plaques">${plaque(spec.toi, 'toi')}<span class="dl-vs" aria-hidden="true">VS</span>${plaque(spec.eux, 'eux')}</div>
+        ${p != null ? `<div class="dl-prono" role="img" aria-label="${esc(`Ta chance : ${Math.round(p * 100)} %`)}" style="${varsEquipe(getTeamBand(spec.eux.tag))}"><b>${Math.round(p * 100)} %</b><span class="dl-barre"><i style="width:${Math.round(p * 100)}%;background:${getTeamBand(spec.toi.tag).bg}"></i></span><b>${100 - Math.round(p * 100)} %</b></div>` : ''}
+        ${spec.jeu ? `<div class="dl-jeu"><span>Leur jeu : ${esc(spec.jeu.mot)}</span><span>${spec.jeu.intention.ico} ${esc(spec.jeu.intention.nom)}</span></div>` : ''}
+      </div>
+      <div class="dl-corps">
+        <span class="dl-l"><span>Ton plan</span><b>1 choix</b></span>
+        <div class="pl-grille pl-grille-3 dl-plans">${spec.plans.map(carte).join('')}</div>
+        <button type="button" class="btn dl-tonmatch${pris ? '' : ' on'}" aria-pressed="${!pris}">Ton match · aucun plan</button>
+        <div class="dl-enjeu"><span class="dl-gagne"><b>Gagné</b>${spec.gagne.map(esc).join('<br>')}</span><span class="dl-perd"><b>Perdu</b>${spec.perd.map(esc).join('<br>')}</span></div>
+      </div>
+      <div class="pc-boutons">${spec.onAuto ? '<button type="button" class="btn dl-auto">Ton match, toute la série</button>' : ''}<button type="button" class="btn gold dl-jouer">Au match</button></div>
+    </div>`;
+    m.querySelectorAll('[data-plan]').forEach(b => {
+      const faire = () => { pris = pris === b.dataset.plan ? null : b.dataset.plan; jouerSon('joue'); dessiner(); m.querySelector('[data-plan][aria-pressed="true"]')?.focus(); };
+      b.onclick = faire;
+      b.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); faire(); } };
+    });
+    m.querySelector('.dl-tonmatch').onclick = () => { pris = null; dessiner(); m.querySelector('.dl-tonmatch').focus(); };
+    m.querySelector('.dl-jouer').onclick = () => { const x = spec.plans.find(y => y.cle === pris); fermer(); notable(); spec.onJouer({ plan: x ? x.plan : null }); };
+    const auto = m.querySelector('.dl-auto');
+    if (auto) auto.onclick = () => { fermer(); spec.onAuto(); };
+  };
+  dessiner();
+  m.classList.remove('feuille');
   m.hidden = false;
   document.body.classList.add('choix-ouvert');
   jouerSon('donne');
-  dessiner();
-  return () => fermer(true);
+  fermerChoixCourant = fermer;
+  (m.querySelector('[data-plan]') || m.querySelector('.dl-jouer')).focus({ preventScroll: true });
+  return () => fermer();
 }
-
-/*
- * LE DUEL EN MOTS (V9 ; V17). Ce que `ouvrirDuel` montre d'une période : leur intention (le fait, son pourquoi, ce
- * qu'elle fait aux deux clubs, le temps de la période), la scène de ton adjoint et ses plans. `P` : `{ intention }`
- * (le moteur) ; `propositions` : ce que `propositionsDuDuel` (js/impact.js) rend ; `enChiffres` : leurs puces
- * (`intentionEnChiffres`) ; `enForce` : la clé de ton plan en
- * force ; `scene` : `sceneDeLAdjoint` (js/scenes.js) ; `mise` : la ligne de la mise doublée, avant la 3e d'un duel de
- * saison.
- */
-const PERIODE_MOT = ['1re', '2e', '3e'];
-export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce = 'match', scene = null, enChiffres = [] } = {}) {
-  const I = P.intention, J = INTENTIONS[I.cle], c = nom(I.cible), par = nom(I.par);
-  const fait = {
-    ombre: `${par || 'Leur meilleur défensif'} suit ${c} toute la période`,
-    chasse: `${par || 'Leur dur'} va frapper ${c}`,
-    centre: 'Ils ferment le centre : moins de tirs des deux bords',
-    assaut: 'Ils lancent de partout, quitte à écoper',
-    cachot: 'Ils cherchent à te faire punir',
-  }[I.cle];
-  const w = I.pourquoi || {};
-  const pourquoi = {
-    vedette: `${c} est ta vedette.`, sansDur: `Personne ne protège ${c}.`, brigadier: `${c} lance l'attaque de ta brigade.`,
-    planTir: 'Ton coach mise sur le Tir.', planDefense: 'Ton coach mise sur la Défense : ils veulent la tester.', indiscipline: 'Ton club écope plus que le leur.',
-    garde: 'Ça a marché la période d\'avant.', mene: 'Tu mènes : ils n\'ont plus rien à perdre.', traine: 'Ils mènent : ils protègent l\'avance.',
-    punitions: `Tu as pris ${w.n} punitions.`, trio: `Ton ${w.u + 1}e trio a marqué ${w.n} fois.`, marqueur: `${c} a marqué ${w.n} fois.`,
-  }[w.cle] || '';
-  // Leurs puces (`intentionEnChiffres`, js/impact.js), le joueur visé d'abord : c'est lui que leur plan définit.
-  const mots = [...(J.joueur && c ? [{ txt: I.cle === 'ombre' ? `${c} : moins de tirs, moins de chances` : `${c} : moins de tirs, des coups, des jambes en moins`, bon: false }] : []), ...enChiffres];
-  // Ses plans : le nom et l'icône du plan, qui suit qui pour 🥷, et ses vraies stats de la période.
-  const tuile = x => {
-    const PL = PLANS[x.cle];
-    // Qui le propose (nov. 2026) : une pièce de ton banc, ou ton coach ; sinon, une idée de la période.
-    const qui = x.qui && x.qui.genre === 'piece' && PIECES[x.qui.cle] ? `${PIECES[x.qui.cle].ico} ${PIECES[x.qui.cle].nom}`
-      : x.qui && x.qui.genre === 'coach' && COACHS[x.qui.cle] ? `${COACHS[x.qui.cle].ico} Ton coach` : '';
-    const suit = PL.vedette && x.vedette && x.colle ? `${nom(x.colle)} suit ${nom(x.vedette)}` : '';
-    return { cle: x.cle, ico: PL.ico, nom: PL.nom, sous: [qui, suit].filter(Boolean).join(' · '),
-      mots: motsDeStats(x.stats, 2, { par: 'la période', dire: false }), plan: { cle: x.cle, ...(x.vise ? { vise: x.vise } : {}), ...(x.force ? { force: x.force } : {}) } };
-  };
-  const PE = PLANS[enForce] || PLANS.match;
-  return {
-    k, ico: J.ico, nom: J.nom, fait, pourquoi, mots, mise, scene, periode: PERIODE_MOT[k],
-    propositions: propositions.map(tuile),
-    // « Garder tirer de partout » se lisait mal : le verbe du plan reste à sa ligne du dessous.
-    garder: { cle: 'garder', ico: PE.ico, nom: enForce === 'match' ? 'Garder ton match' : 'Garder ton plan', sous: enForce === 'match' ? 'Ton alignement, tel quel' : `${PE.nom}, tel quel`, mots: [], plan: null },
-  };
-}
-

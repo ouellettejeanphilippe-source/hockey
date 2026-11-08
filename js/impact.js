@@ -539,91 +539,42 @@ export function planEnChiffres(team, lineup, adv, cle) {
   return { stats: { ...statsEntre(avec, sans), punitions: avec.punitions - sans.punitions, usure: avec.usure - sans.usure }, net: (avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre) };
 }
 
-/*
- * LEUR INTENTION, EN VRAIES STATS DE LA PÉRIODE (V17). Leur plan se lit comme le tien : la période avec leur
- * intention contre la même période sans elle, au duel (`FORCE_DUEL`), le tiers d'un match. Le canal qui le définit
- * vient en premier (🦂 tes punitions, ⛔ tes tirs, 🐗 leurs tirs, 🦈 leurs punitions, 🥷 tes tirs), puis son prix ;
- * ce qui est à eux se dit « Eux : ». Rend [{ cle, txt, bon }].
- */
-const ORDRE_DE_LINTENTION = { cachot: ['punitions', 'contre', 'punitionsEux'], centre: ['tirs', 'contre'], assaut: ['contre', 'punitionsEux', 'tirs'], chasse: ['punitionsEux', 'tirs', 'contre'], ombre: ['tirs', 'contre'] };
-const SEUIL_INTENTION = { tirs: 0.1, contre: 0.1, punitions: 0.05, punitionsEux: 0.05 };
-export function intentionEnChiffres(team, adv, intention, { n = N_EFFET } = {}) {
-  if (!team || !intention || !ORDRE_DE_LINTENTION[intention.cle]) return [];
-  const avec = lire(team, null, adv, { intention, duel: true, n }), sans = lire(team, null, adv, { duel: true, n });
-  const d = { tirs: (avec.tirsPour - sans.tirsPour) / 3, contre: (avec.tirsContre - sans.tirsContre) / 3,
-    punitions: (avec.punitions - sans.punitions) / 3, punitionsEux: (avec.punitionsEux - sans.punitionsEux) / 3 };
-  const dire = {
-    tirs: x => ({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')} pour toi la période`, bon: x > 0 }),
-    contre: x => ({ txt: `Eux : ≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')} la période`, bon: x < 0 }),
-    punitions: x => ({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'punition', 'punitions')} pour toi la période`, bon: x < 0 }),
-    punitionsEux: x => ({ txt: `Eux : ≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'punition', 'punitions')} la période`, bon: x > 0 }),
-  };
-  return ORDRE_DE_LINTENTION[intention.cle].filter(k => Math.abs(d[k]) >= SEUIL_INTENTION[k]).map(k => ({ cle: k, ...dire[k](d[k]) }));
-}
 
 /*
- * CE QUE TON ADJOINT PROPOSE À L'ENTRACTE (V17, docs/refonte-v17.md § 3). JP : *les gros matchs, je veux que mon adjoint
- * propose des ajustements à chaque période, j'en choisis un, il impacte la simulation* ; et la boussole : *quelqu'un qui
- * a joué à EHM, New Star Soccer, MLB The Show mobile se retrouve facilement*. Un écran court : l'adjoint parle, deux ou
- * trois plans nets. Ses idées viennent de son œil de hockey (`IDEES_DE_LADJOINT` : leur intention, le pointage, tes
- * jambes), pas du moteur : il peut se tromper, ou deux idées s'équivalent. Chacune se dit ensuite en vraies stats de
- * LA période (le tiers d'un match : la lecture avec elle contre la lecture avec ton plan en force, sous leur intention,
- * les mêmes dés). `net` : les buts nets qu'elle change sur la période, ce que le robot attentif lit.
- *   team, adv : les deux clubs ; intention : la leur (`apercuDuDuel`, ou la période du moteur) ; plan : ton plan en force
- *   ({ cle } ou null : Ton match) ; pointage : { moi, lui } avant la période ; k : la période (0 à 2) ; n : les lancers lus
- */
-const IDEES_DE_LADJOINT = { ombre: ['tirer', 'assaut'], chasse: ['discipline', 'centre'], centre: ['tirer', 'assaut'], assaut: ['centre', 'discipline'], cachot: ['discipline', 'centre'] };
-const IDEES_MAX = 3, JAMBES_LOURDES = 75;
-/*
- * TON BANC PROPOSE (nov. 2026 ; JP : *the duel with the assistants and coach, not random choices*). À l'entracte, chaque
- * pièce de ton banc qui a un plan propose le sien, et ton coach celui de sa philosophie ; le plan joue à la force de qui le
- * propose (une pièce à 1 ; le coach à sa maîtrise). Deux voix pour un même plan : la plus forte parle. Moins de deux plans
- * sur ton banc : les idées de la période (leur intention, le pointage) complètent. Le duel à un seul choix (tranche 6)
- * remplacera ces propositions par période.
+ * LES PLANS DU DUEL (V27, tranche 6 ; docs/refonte-v27.md § 4.7, docs/refonte-v27-6a.md). JP : *le duel : un seul choix
+ * lourd* ; *un seul choix avant le match, mais le rival montre son jeu dès son annonce*. Avant le match, ton banc propose
+ * deux ou trois plans forts : chaque pièce posée qui a un plan propose le sien (`PLAN_DE_LA_PIECE`), ton coach celui de sa
+ * philosophie (`PLAN_DU_COACH`) ; deux voix pour un même plan, la plus forte parle. Moins de deux : ton coach complète par
+ * les plans qui répondent à leur jeu (`repond`, js/greffes.js), puis fermer le centre, rester discipliné. Un plan joue les trois périodes, à la force du duel et de qui le propose
+ * (une pièce à 1, le coach à sa maîtrise). Chacun se dit en vraies stats DU MATCH, son vrai prix : la lecture avec lui contre
+ * Ton match, sous leur jeu (`leurJeuDuDuel`, js/greffes.js), les mêmes dés. `net` : les buts nets qu'il change, ce que le
+ * robot lit (scripts/lib/duel.mjs) ; l'écran ne dit que les stats.
+ *   team, adv : les deux clubs ; intention : leur jeu ; n : les lancers lus
  */
 const PLAN_DE_LA_PIECE = { canonnier: 'tirer', mur: 'centre', cogneur: 'assaut', moine: 'discipline', arbitre: 'discipline', vedettiste: 'ombre', lunette: 'ombre' };
 const PLAN_DU_COACH = { essaim: 'tirer', rapaces: 'ombre', tortue: 'centre', rhinos: 'assaut', souffle: 'discipline', choeur: 'discipline', profondeur: 'centre', etoiles: 'ombre' };
-function voixDuBanc(team) {
-  const P = team && team.perso;
-  if (!P) return [];
-  const voix = [];
-  for (const k of bancDe(P)) {
-    const cle = PLAN_DE_LA_PIECE[k];
-    if (cle) voix.push({ cle, qui: { genre: 'piece', cle: k }, force: 1 });
+const PLANS_DU_DUEL = 3;
+export function plansDuDuel(team, adv, { intention = null, n = N_EFFET } = {}) {
+  if (!team) return [];
+  const P = team.perso, voix = [];
+  for (const k of bancDe(P)) if (PLAN_DE_LA_PIECE[k]) voix.push({ cle: PLAN_DE_LA_PIECE[k], qui: { genre: 'piece', cle: k }, force: 1 });
+  if (P && PLAN_DU_COACH[P.cle]) voix.push({ cle: PLAN_DU_COACH[P.cle], qui: { genre: 'coach', cle: P.cle }, force: Math.min(1.3, Math.max(0.7, Number(P.maitrise) || 1)) });
+  const plans = [];
+  for (const v of voix.sort((a, b) => b.force - a.force)) if (!plans.some(x => x.cle === v.cle)) plans.push(v);
+  const repondent = intention ? Object.keys(PLANS).filter(k => (PLANS[k].repond || []).includes(intention.cle)) : [];
+  for (const cle of [...repondent, 'centre', 'discipline']) {
+    if (plans.length >= 2) break;
+    if (!plans.some(x => x.cle === cle)) plans.push({ cle, qui: { genre: 'coach', cle: P ? P.cle : null }, force: 1 });
   }
-  if (PLAN_DU_COACH[P.cle]) voix.push({ cle: PLAN_DU_COACH[P.cle], qui: { genre: 'coach', cle: P.cle }, force: P.maitrise || 1 });
-  return voix.sort((a, b) => b.force - a.force);
-}
-export function propositionsDuDuel(team, adv, { intention, plan = null, pointage = { moi: 0, lui: 0 }, k = 0, n = N_EFFET } = {}) {
-  if (!team || !intention) return [];
-  const enForce = plan && PLANS[plan.cle] ? plan.cle : 'match';
-  const idees = [];
-  for (const v of voixDuBanc(team)) if (v.cle !== enForce && PLANS[v.cle] && !idees.some(x => x.cle === v.cle)) idees.push({ ...v, raison: v.qui.genre });
-  const banc = idees.length;
-  // Sans banc (aucun personnage), les idées de la période comme avant ; avec un banc, elles ne font que compléter jusqu'à deux.
-  const plafond = banc === 0 ? IDEES_MAX : Math.max(2, banc);
-  const ajouter = (cle, raison) => { if (cle !== enForce && PLANS[cle] && !idees.some(x => x.cle === cle) && idees.length < plafond) idees.push({ cle, raison }); };
-  // En 3e, le pointage d'abord : on protège une avance, on pousse pour remonter.
-  if (k === 2 && pointage.moi > pointage.lui) ajouter('centre', 'mene');
-  if (k === 2 && pointage.moi < pointage.lui) ajouter('assaut', 'traine');
-  const habilles = Object.values(activeLineup(team)).filter(p => p && p.p !== 'G');
-  const jambes = habilles.length ? habilles.reduce((a, p) => a + energieDe(p), 0) / habilles.length : 100;
-  for (const cle of IDEES_DE_LADJOINT[intention.cle] || []) {
-    // Des jambes lourdes : pas de plan qui use.
-    if (jambes < JAMBES_LOURDES && (cle === 'tirer' || cle === 'assaut')) { ajouter('discipline', 'jambes'); continue; }
-    ajouter(cle, intention.cle);
-  }
-  ajouter('ombre', 'vedette');
-  // Toujours deux idées au moins : le plan en force ou les jambes lourdes ont pu en écarter (des plans qui n'usent pas).
-  for (const cle of ['centre', 'discipline']) if (idees.length < 2) ajouter(cle, intention.cle);
-  const lu = (p, force = null) => lire(team, null, adv, { plan: force ? { cle: p, force } : p, intention, duel: true, n });
-  const sans = lu(enForce);
+  const lu = plan => lire(team, null, adv, { plan, intention, duel: true, n });
+  const sans = lu('match');
   const { vedette, colle } = cibleDuPlan(activeLineup(team), adv ? activeLineup(adv) : null);
-  return idees.slice(0, IDEES_MAX).map(x => {
-    const avec = lu(x.cle, x.force), d = statsEntre(avec, sans);
-    const stats = { tirs: d.tirs / 3, pctTir: d.pctTir, contre: d.contre / 3, pctArr: d.pctArr, punitions: (avec.punitions - sans.punitions) / 3, usure: (avec.usure - sans.usure) / 3 };
-    return { ...x, stats, net: ((avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre)) / 3,
-      ...(PLANS[x.cle].vedette && vedette ? { vise: getPlayerKey(vedette), vedette, colle } : {}) };
+  return plans.slice(0, PLANS_DU_DUEL).map(x => {
+    const avec = lu({ cle: x.cle, force: x.force }), d = statsEntre(avec, sans);
+    const stats = { tirs: d.tirs, pctTir: d.pctTir, contre: d.contre, pctArr: d.pctArr, punitions: avec.punitions - sans.punitions, usure: avec.usure - sans.usure };
+    return { ...x, stats, net: (avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre),
+      plan: { cle: x.cle, force: x.force, ...(PLANS[x.cle].vedette && vedette ? { vise: getPlayerKey(vedette) } : {}) },
+      ...(PLANS[x.cle].vedette && vedette ? { vedette, colle } : {}) };
   });
 }
 

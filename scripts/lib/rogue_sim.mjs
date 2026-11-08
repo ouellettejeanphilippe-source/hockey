@@ -27,8 +27,8 @@
  *     signe la carte du pack qui monte le plus ses buts nets, lus au moteur,
  *     plan compris ; il aligne au mieux (`alignementAuMieux`, le bouton
  *     « Aligner au mieux ») au départ et après chaque signature ; il joue chaque
- *     gros match en duel (V9, tranche 5) : il répond à chaque intention, puis
- *     joue ce que l'adjoint jouerait (scripts/lib/duel.mjs) ; chaque soir, son plan
+ *     gros match en duel (V27, tranche 6) : avant le match, le plan de son banc qui
+ *     rend le plus contre leur jeu (scripts/lib/duel.mjs, l'écran du choix) ; chaque soir, son plan
  *     de match (V17) : contre chaque club, celui qui rend le plus de buts nets
  *     lus au moteur (`planDuRobot`) ; à la boutique, le pack qui rend le plus
  *     par jeton (`packLu`, nov. 2026) ;
@@ -544,8 +544,8 @@ export function ouvrirLaSaison(meta, etat, { graine, saison, politique, exigence
 }
 /*
  * LA LIGUE CRÉÉE (`creerLigue`, sous la graine de la saison) avec les décisions du jour 0 ; le duel du robot (V9, tranche
- * 5, scripts/lib/duel.mjs : l'attentif lit chaque intention et y répond ; le distrait clique au hasard ; le robot d'avant
- * ne répond à rien ; `mains: false`, aucun) ; ceux qui sont déjà dans la ligue ; la boutique que l'attentif lit au matin
+ * 6, scripts/lib/duel.mjs : l'attentif prend avant le match le plan de son banc qui rend le plus ; le distrait clique au hasard ;
+ * le robot d'avant joue son match ; `mains: false`, aucun) ; ceux qui sont déjà dans la ligue ; la boutique que l'attentif lit au matin
  * de la saison (`lireLaBoutique` ; `ROBOT_SAUF=boutique`, l'ordre du robot d'avant).
  */
 export function lancerLaLigue(c, decisions, mains = true, etape = 0) {

@@ -32,8 +32,8 @@
  * LE BANC DE CINQ (tranche 5, docs/refonte-v27-5a.md) : un rival ou une élite battus donnent une pièce parmi trois, la
  * boutique en vend une à chaque nœud, une fourche en donne une (deux par saison au plus) ; le robot les prend et dit qui
  * sort par les mêmes fonctions que le jeu (scripts/lib/cartes_robot.mjs `pieceDuRobot`, js/pieces.js). CE QUE LE JEU N'A
- * PAS ENCORE : le duel à un seul choix (tranche 6) ; le robot joue le plan du soir et les plans par période au duel
- * (la main du deck est partie à la tranche 5b). La cible de la tranche 1 se remesure sur ce banc (le risque R1, § 5), en CI. Depuis la tranche 2 (docs/refonte-v27-2.md), le robot joue les règles du jeu au lieu de les copier :
+ * PAS ENCORE : le plan du soir part à la tranche 6b ; le duel est à un seul choix depuis la 6a (scripts/lib/duel.mjs : le
+ * plan d'avant-match que l'écran propose ; la main du deck est partie à la tranche 5b). La cible de la tranche 1 se remesure sur ce banc (le risque R1, § 5), en CI. Depuis la tranche 2 (docs/refonte-v27-2.md), le robot joue les règles du jeu au lieu de les copier :
  * les rivaux posés dans la cédule, les contrôles et les cœurs viennent de js/actes.js (`poserLesRivaux`, par le crochet
  * `placer` de `lancerLaLigue` ; `rangAuSoir`), la bande du départ de js/rogue.js (`bouchesTrousDuDepart`, `BANDE_DEPART`).
  * LE RÉGLAGE DE JP APRÈS LA PREMIÈRE MESURE (8 nov. 2026, « Élite = risque plus clair ») : aucune élite à l'acte I, et
