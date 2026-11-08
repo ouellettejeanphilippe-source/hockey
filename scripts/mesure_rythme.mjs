@@ -27,7 +27,7 @@
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
-import { autoRoster, PALIERS_CARTES, JOURS_OBJECTIFS } from '../js/sim.js';
+import { autoRoster, JOURS_OBJECTIFS } from '../js/sim.js';
 import { NIVEAUX_PLEINS } from '../js/rogue.js';
 import { jouerSaison, metaAuNiveau, shard, groupe } from './lib/rogue_sim.mjs';
 import { HISTOIRES, MOMENTS } from '../js/histoires.js';
@@ -72,7 +72,6 @@ function relire(r) {
   const rondes = (r.decisionsSeries || []).filter(d => d.moment && d.moment.famille === 'histoire').map(d => ({ cle: d.moment.cle, joueur: d.moment.joueur || null, gain: Number(d.gain) || 0 }));
   for (const mb of you.minisBoss || []) out.push({ sorte: 'gros', m: avant(mb.jour) });
   const n = joue.filter(Boolean).length;
-  for (const k of PALIERS_CARTES) if (k < n) out.push({ sorte: 'main', m: k });
   for (const k of JOURS_OBJECTIFS) if (k < n) out.push({ sorte: 'objectif', m: k });
   return { moments: out, matchs: n, rondes };
 }

@@ -29,9 +29,9 @@ import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
 import {
   PROFILS, AGRESSIVITES, CAP, REROLLS, MODES, PART_UNITE, AFFINITES, SPEC_MULT, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX,
-  PART_SANS_AUX, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, PALIERS_CARTES, OBJECTIF_RATE, MISE_DOUBLEE, ADAPT_MATCHS,
+  PART_SANS_AUX, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, OBJECTIF_RATE, MISE_DOUBLEE, ADAPT_MATCHS,
   SLOTS, getPositionPenalty, K_ROB, ROB_ORDINAIRE, DISSUASION, EFFET_ROLE, EFFET_PALIER, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE,
-  BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE, BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE, POIDS_AN, POIDS_DN
+  BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE, BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, LANCEE, POIDS_AN, POIDS_DN
 } from '../js/sim.js';
 import { INTENTIONS, PERIODES_DU_DUEL, PLANS } from '../js/greffes.js';
 import { TRAITS } from '../js/traits.js';
@@ -261,7 +261,6 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`une ronde de séries gagnée paie ${ecussonsDesSeries(1, false)} médailles`, 'la prime de série'],
     // V23 D, V27 : le relais d'une pièce (`RELAIS_NIV`, une seule force : une pièce n'a pas de niveau).
     [`rejoue la période, ${nombre(RELAIS_NIV)} fois`, 'le relais'],
-    [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs.`, 'l\'objectif raté'],
     [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],
     [`de ${RAPPEL_MATCHS[0]} à ${RAPPEL_MATCHS[1]} matchs dans sa saison`, 'le rappel au ballottage'],
@@ -290,7 +289,6 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V23 : la règle du coach (js/coachs.js), dite par ses constantes.
     [`(🐝 ${REGLES_DU_COACH.essaim.dit} : +${REGLES_DU_COACH.essaim.jetons} 🪙)`, 'la règle du coach'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
-    [`trois cartes : ${Object.keys(SORTES_DECK).length === 3 ? 'un vrai joueur, un nouveau rôle, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
     [`${nombre(POIDS_AN[0] * 100)} et ${nombre(POIDS_AN[1] * 100)} % du temps, deux en désavantage à ${nombre(POIDS_DN[0] * 100)} et ${nombre(POIDS_DN[1] * 100)} %`, 'les unités spéciales'],
     // V3.6 : la lancée et le doute (`LANCEE`, js/sim.js) ; le feu qui s'entretient est parti avec le personnel (V21).

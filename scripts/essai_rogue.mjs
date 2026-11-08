@@ -565,9 +565,8 @@ async function regler() {
       else pieces.prises.push(`${PIECES[d.piece.cle].ico}${d.piece.sort ? ` (${PIECES[d.piece.sort].ico} part)` : ''}`);
       continue;
     }
-    // Une main de palier (des cartes .tc) : la première carte jouable.
-    const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc [data-choix]');
-    if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
+    // V27, tranche 5b : la main du palier est partie ; si elle s'ouvre encore, c'est une erreur.
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]')) { erreurs.push("une main de palier s'ouvre encore (partie à la V27, tranche 5b)"); await page.click('#choixModal .choix-fermer').catch(() => {}); await page.waitForTimeout(300); continue; }
     // Un joueur offert (S78) : « Signer », puis « qui sort ? » — en liste (Jalon U), puis « Où joue ? » : une case, puis « Confirmer ».
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
     // Jalon R : la liste de signature (un pack rouvert de la boîte, un ballottage) : « Signer », puis « qui sort ? » (U18).
@@ -1507,9 +1506,9 @@ await page.locator('#hubModal .hub-suite:visible, .result .score:visible').first
   console.log('DIAG', await page.evaluate(() => ({ sec: document.body.dataset.section, page: document.body.dataset.page, choix: (document.getElementById('choixModal') || {}).hidden, choixTxt: ((document.getElementById('choixModal') || {}).innerText || '').slice(0, 300), boutons: [...document.querySelectorAll('#hubModal button')].filter(b => b.offsetParent).map(b => b.className.split(' ').pop() + ':' + b.textContent.trim().slice(0, 25)) })));
   throw e;
 });
-// Ce qui reste à régler avant le bilan (un palier, un sommaire).
+// Ce qui reste à régler avant le bilan (une étape, un sommaire).
 await regler();
-// Prendre le dernier palier peut mener tout droit au bilan : on ne touche « Voir le bilan » que s'il est là.
+// Régler le dernier choix peut mener tout droit au bilan : on ne touche « Voir le bilan » que s'il est là.
 const suite = page.locator('#hubModal .hub-suite:visible').first();
 if (await suite.count()) await suite.click();
 await page.waitForSelector('.result .score', { timeout: 60000 });

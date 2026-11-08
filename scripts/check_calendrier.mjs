@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, effetsEnCours, matchsEntre, jourEvenement,
-  soirEreintant, dosADos, JOURS_SITUATIONS, PALIERS_CARTES } from '../js/sim.js';
+  soirEreintant, dosADos, JOURS_SITUATIONS } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { crochetDesActes, joursDe, echangeables, echangerTesCases, brouillon, renfortsDe, ACTES, acteDe } from '../js/actes.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -77,7 +77,7 @@ exiger('ses quatre matchs sont les quatre premiers du club', fx && matchsEntre(t
 
 // 3. Les événements, datés en matchs, tombent un jour de congé quand il y en a un.
 let conges = 0, possibles = 0, faux = 0;
-for (const t of teams) for (const k of [...JOURS_SITUATIONS, ...PALIERS_CARTES]) {
+for (const t of teams) for (const k of JOURS_SITUATIONS) {
   const j = jourEvenement(t, k), m = t._jours[k];
   const congeAvant = m > 0 && !t._jours.includes(m - 1);
   if (congeAvant) { possibles++; if (j === m - 1) conges++; else faux++; } else if (j !== m) faux++;

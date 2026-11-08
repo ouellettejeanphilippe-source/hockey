@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, payerJalons, ecussonsDesSeries, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, primesDuCoach, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, motDeLaLigue, niveauDeLigue, habillerLaLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue } from './rogue.js';
+import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, payerJalons, ecussonsDesSeries, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, primesDuCoach, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, motDeLaLigue, niveauDeLigue, habillerLaLigue, packsOuverts, monteeDesPacks } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, matchsEntre } from './sim.js';
 import { coachDuJoueur } from './greffes.js';
@@ -1083,7 +1083,7 @@ function graineDuClasseur() {
 const nomDeCase = k => `${k >= ETOILE ? '★ ' : ''}${NIVEAUX[k].nom}`;
 const motDesCases = cases => cases.map(k => `une case ${nomDeCase(k)}`).join(', ');
 /* Les cartes de ton cartable, avec leur niveau dans leur saison et leur meilleure variante. */
-export async function cartesDuCartable() {
+async function cartesDuCartable() {
   const c = lireCartable(), out = [];
   for (const cle of Object.keys(c.joueurs)) {
     const p = await joueurDeCle(cle);
@@ -1187,7 +1187,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigence), exigence,
     // V27, tranche 5 : le coach de la run (js/pieces.js) — son entraîneur et sa pièce de départ, la décision du jour 0
     // (`perso`, js/banc.js) — et le prestige du club, FIXÉ pour la run (js/rogue.js `PRESTIGES`) : un rang gagné en route sert la suivante.
-    ...(coach && COACHS[coach.cle] ? { coach: coach.cle, perso: { cle: coach.cle, banc: [PIECE_DU_COACH[coach.cle]], chef: { id: coach.id, n: coach.n, saison: coach.saison, tag: coach.tag }, maitrise: coach.maitrise } } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta),
+    ...(coach && COACHS[coach.cle] ? { coach: coach.cle, perso: { cle: coach.cle, banc: [PIECE_DU_COACH[coach.cle]], chef: { id: coach.id, n: coach.n, saison: coach.saison, tag: coach.tag }, maitrise: coach.maitrise } } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta),
     classeur: { cases: D.cases, pris: tires.map(x => x.cle) },
     // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
     cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],

@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries, OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, getPlayerKey, effetsEnCours, OBJECTIF_RATE, periodeDe, MUTATIONS, ELAN, SONNE, mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, jourEvenement, photoAlignement, fits, getPositionPenalty, nouvelleGraine, avecAVenir, MISE_DOUBLEE } from './sim.js';
+import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, SITUATIONS, jouerJusqua, jouerMatchSeries, OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, getPlayerKey, effetsEnCours, OBJECTIF_RATE, periodeDe, MUTATIONS, ELAN, SONNE, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, jourEvenement, photoAlignement, fits, getPositionPenalty, nouvelleGraine, avecAVenir, MISE_DOUBLEE } from './sim.js';
 import { suivisEnCours, lignePromesse, deDuChoix, apercuDuDuel, INTENTIONS, PLANS, cibleDuPlan } from './greffes.js';
 import { faitsDe } from './faits.js';
 import { HISTOIRES, tirer, sceneDe, nomDOption, sortiesDe } from './histoires.js';
@@ -31,7 +31,7 @@ import { seasonLancers } from './ratings.js';
 import { lignesDeLaPiece, ditDeLaFinition, motsDuSoir, alignementDuSoir, chiffresDuSoir, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
-import { artJoueur, photoAction, cadrePhoto, carteDePiece } from './cartes.js';
+import { photoAction, cadrePhoto, carteDePiece } from './cartes.js';
 import { SEMAINE } from './inventaire.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, bancDe, bancPlein, piecesOffertes } from './pieces.js';
 import { COACHS } from './coachs.js';
@@ -54,7 +54,6 @@ import { bancDuSoirHtml } from './banc-du-soir.js';
 import { bandeau, jetons, carteLigne, caseVide, grille, cellules, visage, rangeeVisage, caseDeMatch, podium as podiumHtml, coin, marche, coeurs } from './composants.js';
 import { panelDe } from './panel-tv.js';
 import { EXPEDITEURS, messageDuFil } from './vie-gm.js';
-import { NIVEAUX } from './niveaux.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -696,7 +695,7 @@ function duelDeLAdjoint(ctx, you, adv, P, { k = 0, enForce = 'match', pointage =
 
 /* Le journal de l'ouverture se lit une fois par visite : un rechargement de la page le redonne, une décision non. */
 let journalLu = false;
-export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, paliersPris = [], trousPris = [], decisions = [], onDecision = null }) {
+export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -808,50 +807,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * `BLESSURE_MOMENT` matchs, la saison continue sans rien dire.
    */
   /*
-   * LA MAIN D'UN PALIER. À trois paliers, on prend une carte parmi trois
-   * (`mainDuDeck`, js/sim.js). La main offerte se
-   * tire de la GRAINE et du jour, donc la même partie rejouée offre
-   * exactement les mêmes trois cartes ; et prendre une carte est une
-   * DÉCISION, donc la saison se rejoue de la graine avec elle.
-   *
-   * Un palier ARRÊTE l'avance UNE FOIS : c'est un moment, pas une
-   * notification qu'on dépasse. Il ne bloque rien — « Journée suivante »
-   * reste dessous et l'offre tient tant qu'on ne l'a pas prise — mais il ne
-   * s'arrête pas deux fois, sans quoi « +10 journées » avancerait d'UNE
-   * journée par clic pour qui a décidé de ne pas choisir. C'est la règle
-   * des blessures, appliquée aux paliers.
-   *
-   * DEUX CLÉS, PAS UNE. Le PALIER dit quelle offre est déjà servie ; le JOUR
-   * où la carte a été prise, lui, est celui où elle entre en vigueur, et les
-   * deux diffèrent dès qu'on laisse passer un palier sans choisir. Les
-   * confondre rembobinerait la saison au palier — on perdrait les journées
-   * déjà lues pour une carte prise après coup.
-   */
-  const prises = new Set(paliersPris);
-  /*
-   * LES DATES EN MATCHS (1.0, oct., le vrai calendrier). `PALIERS_CARTES`,
-   * `JOURS_MOMENTS`, `JOURS_OBJECTIFS` se disent en matchs de ta formation ;
+   * LES DATES EN MATCHS (1.0, oct., le vrai calendrier). `JOURS_MOMENTS`,
+   * `JOURS_OBJECTIFS` se disent en matchs de ta formation ;
    * `jEv` donne le jour où chacun tombe — la veille du match quand c'est un
    * congé (`jourEvenement`, js/sim.js). Les clés des décisions (« m:14 »)
    * gardent le numéro : une sauvegarde se rejoue pareil.
    */
   const jEv = k => jourEvenement(you, k);
-  const palierOuvert = () => (onDecision ? PALIERS_CARTES.find(j => jour >= jEv(j) && !prises.has(j)) : undefined);
-  const paliersVus = new Set();      // les paliers qui ont déjà arrêté l'avance
   // V27, tranche 3 : un nœud de la boutique arrête l'avance une fois (js/actes.js `NOEUDS_BOUTIQUE`) : elle ferme à ton match suivant.
   const noeudsVus = new Set();
   const noeudNeuf = () => { const k = ctx.rogue && onDecision ? noeudOuvert(miens.length) : null; return k != null && !noeudsVus.has(k); };
-  /*
-   * LES PALIERS DÉJÀ PROPOSÉS À CE PASSAGE (S74). La main s'ouvrait seulement
-   * quand un clic s'arrêtait sur le palier ; un choix forcé tombé le même jour
-   * (le verdict du proprio arrive aux journées 20, 40 et 60) passait devant,
-   * la saison se rejouait sans « arrêt », et la main ne s'ouvrait plus jamais
-   * — l'agent de test l'a perdue trois fois sur trois au bureau. Maintenant :
-   * tant qu'un palier est ouvert, sa main s'ouvre d'elle-même une fois par
-   * passage de l'écran, dès qu'aucun autre choix n'est à l'écran.
-   */
-  const palProposes = new Set();
-
   /*
    * LES SITUATIONS. Elles ne sont pas une décision — elles ARRIVENT, tirées
    * de la graine (voir `SITUATIONS`, js/sim.js) — donc l'écran n'a rien à
@@ -1160,16 +1125,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (stop && entracteAttendu(jour)) { if (premier) entracteDemande = true; arrete = true; break; }
       premier = false;
       appliquerJour(jour++);
-      const pal = palierOuvert();
       // LES RAISONS DE S'ARRÊTER, et chacune n'arrête qu'UNE fois — c'est la
       // règle du palier, étendue aux blessures, aux situations et aux cases
       // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
       if (stop && semaine) { if (arretDeSemaine()) { arrete = true; break; } continue; }
       if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length))
-        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || etapesDeLActe().length > 0 || retourNeuf() || noeudNeuf())) { arrete = true; break; }
+        || forceOuvert() || mainOuverte() || etapesDeLActe().length > 0 || retourNeuf() || noeudNeuf())) { arrete = true; break; }
     }
-    const pal = palierOuvert();
-    if (pal !== undefined) paliersVus.add(pal);
     if (noeudNeuf()) noeudsVus.add(noeudOuvert(miens.length));
     const rvu = retourOuvert();
     if (rvu) retoursVus.add(rvu.id);
@@ -2385,14 +2347,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const H = d.moment.famille === 'histoire' && HISTOIRES[d.moment.cle];
         if (!H) continue;
         ev.push({ j: d.jour, t: `${H.ico} ${ctx.esc(H.titre)}${d.moment.joueur ? ` · ${ctx.esc(qui(d.moment.joueur))}` : ''}` });
-      } else if (d.deck && SORTES_DECK[d.deck]) {
-        const S = SORTES_DECK[d.deck], M = d.mutation && MUTATIONS[d.mutation.cle];
-        // S80 : la modif gardée au palier (`garde`, « joueur:affute ») attend dans l'inventaire.
-        const MG = d.garde ? MUTATIONS[String(d.garde).split(':')[1]] : null;
-        const t = d.deck === 'recrue' ? `Recrue · ${ctx.esc(qui(d.ballottage && d.ballottage.entre))}`
-          : MG ? `${MG.ico} ${ctx.esc(MG.nom)} gardée`
-          : M ? `${M.ico} ${ctx.esc(M.nom)} · ${ctx.esc(qui(d.mutation.joueur))}` : ctx.esc(S.nom);
-        ev.push({ j: d.jour, t: `${S.ico} ${t}` });
       } else if (d.joue && d.mutation && MUTATIONS[d.mutation.cle]) ev.push({ j: d.jour, t: `${MUTATIONS[d.mutation.cle].ico} ${ctx.esc(MUTATIONS[d.mutation.cle].nom)} · ${ctx.esc(qui(d.mutation.joueur))}` });
       else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Ballottage' });
     }
@@ -2672,100 +2626,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
   /*
-   * LA MAIN DU PALIER, EN PLEIN ÉCRAN (S73). JP : *quand y'a un choix, c'est
-   * un fullscreen modal pis ça se passe là, sauf si carte à utiliser plus
-   * tard* ; *pense vraiment à un kid qui joue avec ses cartes Upper Deck
-   * comme si c'était Slay the Spire*. Trois cartes de sortes différentes
-   * (`mainDuDeck`) ; une carte qui demande un deuxième choix — quel joueur,
-   * quel rôle — l'ouvre dans le même plein écran, et « Retour à
-   * la main » y ramène. Toutes finissent en UNE décision datée d'aujourd'hui,
-   * portant son palier : c'est ce qui ferme la main.
-   */
-  // Le carton de chaque sorte (V25 B1 : au niveau), au niveau que la carte VAUT (6 nov. 2026, scripts/mesure_deck.mjs, en paires sur
-  // 62 soirs : la recrue ≈ 1 V et jusqu'à 3,4 à la place du 9e avant, le rôle ≈ 1 V, la retouche de Cadre ≈ 0,4 V, d'Or ≈ 1,2) :
-  // la recrue en ★ Étoile, le rôle en Pilier, l'atelier en Pilier.
-  const NIVEAU_SORTE = { recrue: 3, profil: 2, atelier: 2 };
-  /*
-   * UNE CARTE DU DECK SE DATE DU SOIR DU PROCHAIN MATCH (S74), pas d'aujourd'hui.
+   * UNE PIÈCE DU RIVAL SE DATE DU SOIR DU PROCHAIN MATCH (S74 ; V27, tranche 5), pas d'aujourd'hui.
    * Son sel tire des dés neufs à partir de sa journée : datée d'aujourd'hui,
    * elle rebrassait les journées d'ici au prochain match de ta formation — et
    * le classement, donc le gros match qu'on avait préparé. Entre les deux, ta
    * formation ne joue pas : rien d'autre ne change.
    */
   const soirDuProchain = () => { const p = prochain(); return p ? p.j : jour; };
-  const deciderDeck = (p0, d) => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: p0, ...d }, j); };
-  const POSTE_CARTE = { G: 'Gardien', D: 'Défenseur', LD: 'Défenseur', RD: 'Défenseur', C: 'Centre', LW: 'Ailier', RW: 'Ailier' };
-  // Le visage du joueur, l'écusson en médaillon (S74, l'agent de test : « le logo au lieu du visage »).
-  const joueurArt = p => artJoueur({ portraitHtml: ctx.mug ? ctx.mug(p) : '', logoHtml: ctx.logo(p.t, ctx.mug ? 24 : 60), pos: ctx.esc(POSTE_CARTE[p.p] || 'Avant'), saison: ctx.esc(p.s), club: ctx.esc(p.t), actionSrc: ctx.mug ? photoAction(p) : '', cadre: cadrePhoto(p) });
-  async function ouvrirMain(p0) {
-    const main = mainDuDeck(graine, p0);
-    // 7 nov. 2026 : le joueur au choix pige dans ton cartable (js/banc.js `candidatsRecrue`), qui lit ses saisons d'abord.
-    const recrues = ctx.recrues ? ((await ctx.recrues(p0)) || []) : [];
-    const roles = rolesOfferts(you, graine, p0);
-    const options = main.map(c => {
-      const S = SORTES_DECK[c.sorte], niveau = NIVEAU_SORTE[c.sorte];
-      if (c.sorte === 'recrue') return { cle: 'recrue', niveau, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un joueur déjà pigé',
-        texte: `Trois joueurs de ton cartable, déjà pigés, ni dans ton alignement ni dans la ligue, ${(ctx.motRecrue && ctx.motRecrue()) || 'des Réguliers'} au plus : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.`,
-        desactive: recrues.length ? '' : 'Personne dans ton cartable hors de ton alignement, sous ton plafond' };
-      if (c.sorte === 'profil') return { cle: 'profil', niveau, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
-        texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
-        desactive: roles.length ? '' : 'Personne à convertir' };
-      return { cle: 'atelier', niveau, ico: S.ico, nom: S.nom, type: `${S.nom} · se pose au verso`,
-        texte: `Trois retouches : ${editionsDuJour(graine, p0).map(k => `${MUTATIONS[k].ico} ${MUTATIONS[k].nom}`).join(' · ')}. Tu en gardes une, et tu la poses au verso d'un joueur quand tu veux.` };
-    });
-    ouvrirChoix({
-      ico: '🎁', titre: `La main de la journée ${p0}`, cartes: true, genre: 'palier', fermable: true, motFermer: 'Plus tard',
-      recit: 'Trois cartes, trois sortes. Touche celle que tu gardes ; les deux autres retournent dans le jeu.',
-      contexte: dejaEnJeu(),
-      options,
-      onChoix: cle => suiteDeLaMain(p0, cle, recrues, roles),
-    });
-  }
-  function suiteDeLaMain(p0, cle, recrues, roles) {
-    const retour = () => ouvrirMain(p0);
-    const [sorte] = cle.split(':');
-    const suite = { cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour aux trois cartes', onFerme: retour };
-    if (sorte === 'recrue') {
-      /*
-       * LA RECRUE ENTRE AUJOURD'HUI (oct.). JP : *la carte qui bugge, celle qui permet d'avoir trois joueurs étoiles
-       * pas dans la ligue*. Datée du soir du prochain match comme les autres cartes de la main, elle n'entrait qu'à
-       * ce soir-là : signé, il n'était pas dans l'effectif, et la photo de l'alignement qu'elle porte (`cases`)
-       * écrasait au passage tout ce qu'on avait changé d'ici là. Elle entre aujourd'hui, comme un pack signé ou
-       * un réclamé du ballottage (`poserAlignementDuJour`). Jalon R : la liste du 82-0, chacun à sa meilleure case.
-       */
-      ctx.listeSignature({ ico: '🎟', titre: 'Joueur au choix', motFermer: 'Retour aux trois cartes', genre: 'palier',
-        recit: 'Trois joueurs de ton cartable, style loto. Tu en signes un.',
-        joueurs: recrues.map(x => ({ p: x.p, rar: x.rarete || 'legendaire', x })), roster: you.roster,
-        onSigne: (y, { i, sort, cases }) => { const j = jour; quitter(); onDecision({ jour, palier: p0, deck: 'recrue', ballottage: { i, entre: y.x.cle, sort }, ...(cases ? { cases } : {}) }, j); },
-        onFerme: retour });
-      return;
-    }
-    /*
-     * L'ATELIER SE GARDE (S80). JP : *je veux que les
-     * upgrades de joueurs se fassent au verso de la carte, pas nécessairement
-     * quand on la pige*. La retouche gardée des trois de l'atelier va dans ton inventaire
-     * (`garde`, lu par `pocheDeLaPartie`) ; on la pose au verso d'un joueur
-     * quand on veut. La décision ferme le palier et ne touche pas le moteur.
-     */
-    if (sorte === 'atelier') {
-      ouvrirChoix({ ...suite, ico: '🛠', titre: 'L\'atelier',
-        recit: 'Trois retouches : touche celle que tu gardes. Elle va dans tes cartes, et tu la poses au verso d\'un joueur quand tu veux ; elle vaut pour le reste de la saison.',
-        options: editionsDuJour(graine, p0).map(k => ({ cle: k, niveau: 3, ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutationEnChiffres(k) })),
-        onChoix: k => deciderDeck(p0, { deck: 'atelier', garde: `joueur:${k}` }) });
-      return;
-    }
-    if (sorte === 'profil') {
-      // Jalon U : les rangées du vestiaire ; la ligne dit le rôle offert, où il joue et ce que ça change.
-      ctx.listeJoueurs({ ico: '🔄', titre: 'Nouveau rôle', motFermer: 'Retour aux trois cartes', motBouton: 'Choisir',
-        recit: 'Trois conversions possibles dans ton alignement. Le joueur change de rôle pour de bon : ses accords suivent.',
-        contexte: dejaEnJeu(roles.map(x => x.p)),
-        joueurs: roles.map(x => ({ p: x.p, cle: `${x.cle}|${getPlayerKey(x.p)}`,
-          sous: [`${MUTATIONS[x.cle].ico} ${MUTATIONS[x.cle].nom}`, ctx.ouJoue && ctx.ouJoue(x.p), ...motsDeMutationEnChiffres(x.cle, x.p).slice(0, 2).map(m => m.txt)].filter(Boolean).join(' · ') })),
-        onChoix: k => { const [m, joueur] = k.split('|'); deciderDeck(p0, { deck: 'profil', mutation: { cle: m, joueur } }); },
-        onFerme: retour });
-      return;
-    }
-  }
 
   /*
    * L'ÉTAT DE LA SAISON (S79), à la place du portail de S77 : ce que le
@@ -2931,14 +2798,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const p = prochain();
     if (jour >= N) {
       carte.innerHTML = `<div class="live-bilan ${rang <= enSeries ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">Saison terminée · ${f.W}-${f.L}-${f.OTL} · ${rang}${rang === 1 ? 'er' : 'e'} de ${teams.length}${rang <= enSeries ? ' · en séries' : ' · éliminé'}</div></div>`;
-      // Une main de palier encore ouverte (on a passé à la fin) : elle vaut encore
-      // pour les séries — les cartes de saison y jouent — donc elle s'offre ici.
-      const palFin = palierOuvert();
-      actions.innerHTML = `${palFin !== undefined ? '<button class="btn hub-main-ouvrir">🎁 La main de la journée t\'attend : trois cartes</button>' : ''}<button class="btn gold hub-suite">Voir le bilan de la saison</button>`;
+      actions.innerHTML = '<button class="btn gold hub-suite">Voir le bilan de la saison</button>';
       actions.querySelector('.hub-suite').onclick = fermer;
-      const vm = actions.querySelector('.hub-main-ouvrir');
-      if (vm) vm.onclick = () => ouvrirMain(palFin);
-      if (palFin !== undefined && !palProposes.has(palFin) && !choixOuvert()) { palProposes.add(palFin); ouvrirMain(palFin); }
       return;
     }
     if (p) {
@@ -3381,14 +3242,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           agir: cle => { if (cle === 'banc') { quitter(); onBanc(jour); } else if (cle === 'ecole' && E) rappeler(); },
           decision: () => ({ palier: palierT }) } });
     }
-    // LE PALIER : une main de trois cartes, une à garder. Elle se joue en plein écran (S73) ; le choix en montre le dos.
-    const pal = palierOuvert();
-    if (pal !== undefined) {
-      out.push({ id: `p:${pal}`, genre: 'palier', bloque: true, de: DE.dg, sujet: `La main de la journée ${pal} : trois cartes`, pal,
-        choix: { recitHtml: `<div class="hub-dos-rang" role="group" aria-label="Une main de trois cartes">${mainDuDeck(graine, pal).map(c => `<span class="hub-dos tc-${NIVEAUX[NIVEAU_SORTE[c.sorte]].cadre}" data-sorte="${c.sorte}" title="${ctx.esc(SORTES_DECK[c.sorte].nom)}">${SORTES_DECK[c.sorte].ico}</span>`).join('')}</div>`,
-          options: [{ cle: 'voir', nom: 'Voir les trois cartes', sous: 'Tu en gardes une', ouvre: true }],
-          agir: () => ouvrirMain(pal) } });
-    }
     /*
      * LA BOUTIQUE OUVERTE (V27, tranche 3) : à son nœud, une ligne qui ne bloque pas et mène au Marché (elle nomme le marché sans
      * rendre la boutique, comme le pack qui attend sa signature) ; elle part avec ton match suivant, quand la boutique ferme. L'adjoint parmi trois des 10e, 30e, 50e et 70e matchs est parti : la pièce
@@ -3484,8 +3337,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Une maison par sujet (V12-3) : une histoire se règle chez sa voix (le proprio, l'entraîneur, l'infirmerie, le vestiaire).
     if (m.genre === 'histoire') return MAISON_DE_VOIX[m.voix] || 'presse';
     if (m.genre === 'pack' || m.genre === 'boutique') return 'marche';
-    // La main d'un palier : elle se choisit sous l'entraîneur.
-    if (['cartes', 'palier'].includes(m.genre)) return 'entraineur';
+    if (m.genre === 'cartes') return 'entraineur';
     const sp = m.spec || {};
     if (sp.ouvrir) return 'match';
     if (sp.cartes || sp.etat) return 'entraineur';
