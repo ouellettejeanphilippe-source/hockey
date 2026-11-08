@@ -3831,7 +3831,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
     // ENVOYER UN CHOIX (`deciderMaintenant`, js/banc.js) : la saison se rejoue avec lui.
     const envoyer = (m, cles) => {
-      delete br[m.id];
       const j = jour;
       quitter();
       onDecision([].concat(m.choix.decision(cles)).map(d => ({ jour: j, ...d })), j);
