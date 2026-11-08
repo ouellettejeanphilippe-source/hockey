@@ -110,7 +110,7 @@ if (!isMainThread) {
     const elites = rs.flatMap(r => r.elites);
     informer(`${robot} (${rs.length} runs, ${v1(moy(rs.map(r => r.s)))} s la run)`,
       `${coupes(robot)} Coupe(s) · ${v1(moy(rs.map(r => r.W)))} V · ${med(rs.map(r => r.rang))}e en médiane · ${v2(moy(rs.map(r => r.rondes)))} rondes · cœurs 2/1/0 : ${[2, 1, 0].map(k => rs.filter(r => r.coeurs === k).length).join('/')} · morts aux actes I/II/III : ${morts.join('/')} · séries ratées : ${rs.filter(r => r.rate).length}`);
-    informer(`${robot} : la boutique et les élites`, `${v1(moy(rs.map(r => r.achats)))} packs par saison (cible de l'attentif : 7 à 10) · ${v1(moy(rs.map(r => r.signes)))} signés · ${Math.round(moy(rs.map(r => r.jetonsMax)))} 🪙 au plus riche · achats par nœud ${[0, 1, 2, 3, 4, 5, 6].map(k => v1(moy(rs.map(r => r.noeuds[k] || 0)))).join(' · ')} · élites ${elites.length} prises, ${elites.filter(e => e.gagnee).length} gagnées, ${Math.round(moy(elites.map(e => e.J)))} 🪙 en moyenne`);
+    informer(`${robot} : la boutique et les élites`, `${v1(moy(rs.map(r => r.achats)))} packs par saison (cible de l'attentif : 7 à 10) · ${v1(moy(rs.map(r => r.pieces || 0)))} pièces · ${v1(moy(rs.map(r => r.signes)))} signés · ${Math.round(moy(rs.map(r => r.jetonsMax)))} 🪙 au plus riche · packs par nœud ${[0, 1, 2, 3, 4, 5, 6].map(k => v1(moy(rs.map(r => r.noeuds[k] || 0)))).join(' · ')} · élites ${elites.length} prises, ${elites.filter(e => e.gagnee).length} gagnées, ${Math.round(moy(elites.map(e => e.J)))} 🪙 en moyenne`);
   }
 
   /* LA CIBLE DE LA TRANCHE 1 (§ 5) ET LA PREMIÈRE COUPE (décision 5). */

@@ -47,21 +47,6 @@ export const MOTS_DES_SCENES = {
     jambes: ['Les gars sont brûlés. On joue propre et on ménage les jambes.', 'Ça pèse dans les jambes. Pas question de courir partout.'],
     vedette: ['Leur meilleur, je le ferais suivre de près.', 'Si on éteint leur vedette, le reste suivra.'],
   },
-  // LE PALIER DE LA SAISON (A2) : le proprio, aux matchs de `PALIERS_PACK` (js/inventaire.js).
-  palier: {
-    fond: [
-      'Je vous ai laissé trois enveloppes sur le bureau. Prenez celle qui nous sort du fond.',
-      'Trois enveloppes sur votre bureau. Je veux voir ce club remonter, pas des excuses.',
-    ],
-    milieu: [
-      'Trois enveloppes sur votre bureau. Choisissez celle qui nous pousse du bon bord.',
-      'On n\'est ni dans le trouble ni dans le portrait. Prenez celle qui fait pencher la saison.',
-    ],
-    haut: [
-      'Trois enveloppes, et une équipe qui gagne. Prenez celle qui garde la machine en marche.',
-      'Ça va bien, et je veux que ça dure. Choisissez celle qui nous garde en avant.',
-    ],
-  },
   // LA BLESSURE (A4) : le médecin, selon la longueur de l'absence.
   blessure: {
     court: ['Rien de grave. Il sera de retour avant que tu t\'ennuies de lui.',
@@ -77,9 +62,6 @@ export const MOTS_DES_SCENES = {
       'Une soirée de même, ça se récompense. Choisis qui vient m\'aider derrière le banc.'],
   },
 };
-
-/** Le rang en mots courts du classement : 1er, 2e… */
-const rangMot = r => (r === 1 ? '1er' : `${r}e`);
 
 /*
  * A1 · DOUBLER LA MISE. Le capitaine, avant la 3e période d'un duel de saison. Le fait : le pointage après deux
@@ -103,21 +85,6 @@ export function sceneDeLAdjoint({ intention, cible = '', raison, moi = 0, lui = 
   const quand = ['Avant la 1re', 'Avant la 2e', 'Avant la 3e'][k] || '';
   const pointage = k ? ` · ${moi}–${lui}` : '';
   return { de: EXPEDITEURS.ad, mot: piger(mots, graine, 'adjoint', k, raison), fait: `${quand} contre ${rival}${pointage} · ils annoncent ${intention.ico} ${intention.nom}${cible ? ` sur ${cible}` : ''}` };
-}
-
-/*
- * A2 · LES PALIERS DE LA SAISON (`PALIERS_PACK`, js/inventaire.js). Le proprio, qui vouvoie. Le fait : la fiche après n matchs, le rang, et
- * ce que le contrôle de l'acte demande (V27).
- *   n          les matchs joués ; fiche : { V, D, DP } ; rang : la place au classement, sur `equipes` ;
- *   mandat     le contrôle de l'acte, en mots ; graine : la partie
- */
-export function sceneDuPalier({ n, fiche, rang, equipes = 32, mandat = '', graine = '' }) {
-  const sit = rang <= equipes / 4 ? 'haut' : rang > (3 * equipes) / 4 ? 'fond' : 'milieu';
-  return {
-    de: EXPEDITEURS.pr,
-    mot: piger(MOTS_DES_SCENES.palier[sit], graine, 'palier', n),
-    fait: `${fiche.V}-${fiche.D}-${fiche.DP} après ${n} matchs · ${rangMot(rang)}${mandat ? ` · le contrôle : ${mandat}` : ''}`,
-  };
 }
 
 /*

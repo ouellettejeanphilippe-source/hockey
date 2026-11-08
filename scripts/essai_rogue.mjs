@@ -82,7 +82,7 @@ const verifMarche = async (etape, { boutique = true } = {}) => {
     const hub = document.getElementById('hubModal');
     return { sec: document.body.dataset.section, nav: (document.querySelector('#navbar .navtab.on') || {}).dataset?.section,
       horsMarche: hub ? hub.querySelectorAll('[data-genre="boutique"], .pk-tuile, .pk-fiche, .pk-sheet').length : 0,
-      boutique: !!document.querySelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-tuile'),
+      boutique: !!document.querySelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-sheet'),
       hubVisible: !!hub && getComputedStyle(hub).display !== 'none' && hub.offsetParent !== null };
   });
   if (r.sec !== 'marche' || r.nav !== 'marche') erreurs.push(`${etape} : la section ouverte est « ${r.sec} » et la barre allume « ${r.nav} » (attendu : marche)`);
@@ -750,15 +750,15 @@ async function unJour() {
   }
   console.log(`5e. le jour par jour : ${vus.join(' · ') || '(aucune journée)'}`);
 }
-// Avancer un peu pour gagner des jetons (des semaines : V4). V5 : « Jusqu'à lundi » ne s'arrête plus en route, cinq
-// semaines suffisent — et la boutique de la première run montre encore ses quatre packs (avant le 20e match).
+// Avancer un peu pour gagner des jetons (des semaines : V4). V5 : « Jusqu'à lundi » ne s'arrête plus en route ; V27
+// (tranche 3) : il s'arrête au nœud de la boutique, qui ferme à ton match suivant.
 for (let i = 0; i < 5; i++) {
   await regler();
   await prochaineDecision();
 }
 await regler();
 await versMarche('boutique'); await page.waitForTimeout(200);
-const avant = (await page.textContent('#pageMarcheCorps .hub-page[data-genre="boutique"] .pk-tete')).replace(/\s+/g, ' ').trim();
+const avant = (await page.textContent('#pageMarcheCorps .hub-page[data-genre="boutique"] .mk-bande')).replace(/\s+/g, ' ').trim();
 await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(200);
 const jauge = async () => (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge()}`);
@@ -773,7 +773,8 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
   const svB = await lireSauvegarde();
   const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;
   const lu = [...bareme.matchAll(/(\d+)/g)].map(m => Number(m[1]));
-  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.objectif, B.serie] : null;
+  // V27, tranche 3 : la prime de série est en médailles ; le barème des jetons s'arrête à l'objectif du proprio.
+  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.objectif] : null;
   console.log(`5b. le barème à la boutique : ${bareme.replace(/\s+/g, ' ').trim() || '(absent)'} · attendu ${attendu ? attendu.join('/') : '?'}`);
   if (!bareme) erreurs.push('la boutique n\'écrit pas le barème des jetons de la run');
   else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème à la boutique (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
@@ -799,11 +800,9 @@ const dechirer = async () => {
 };
 const acheter = async (pack, capture) => {
   await versMarche('boutique');
-  await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-  // V5 : la boutique est ouverte en tout temps (JP : *accès au store en tout temps*).
-  if (await page.$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-mot', p => p.textContent.trim().startsWith('🔒')).catch(() => false)) erreurs.push('la boutique est fermée');
-  // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; « Voir les N packs » montre le reste.
-  if (!(await page.$(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`)) && await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout')) { await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tout'); await page.waitForTimeout(300); }
+  await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
+  // V27, tranche 3 : la boutique n'ouvre qu'à ses nœuds ; l'essai l'a amenée à un nœud ouvert.
+  if (await page.$('#pageMarche .hub-page[data-genre="boutique"] .mk-bande.ferme')) erreurs.push('la boutique est fermée au nœud');
   await page.click(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`);
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-fiche');
   // LA FICHE SE POSE SUR L'ÉCRAN (1.0, oct.) : JP la trouvait au bas des rayons, hors écran.
@@ -817,47 +816,58 @@ const acheter = async (pack, capture) => {
   await dechirer();
   return true;
 };
+/*
+ * LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; docs/refonte-v27-3.md). Entre deux nœuds, elle est fermée et dit dans combien de
+ * matchs elle rouvre, sans un pack ; l'essai avance jour par jour jusqu'au nœud suivant (l'avance s'y arrête), où elle
+ * s'ouvre : la bande du marché (tes jetons, quatre pastilles d'achat, jusqu'où tu signes), trois pièces en vraies cartes,
+ * les packs ouverts seulement, chacun à son prix de base.
+ */
+const joues = () => page.evaluate(() => { const G = window.cap82.G; return ((G.ligue.you && G.ligue.you._jours) || []).filter(j => j < G.journee).length; });
+const NOEUDS = [0, 14, 27, 41, 54, 68, 82];
 await versMarche('boutique');
-await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
+await verifMarche('la boutique au Marché');
+{
+  const k0 = await joues();
+  const ferme = !!(await page.$('#pageMarche .hub-page[data-genre="boutique"] .mk-bande.ferme'));
+  const packsFerme = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack]', e => e.length);
+  const bande = (await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .mk-bande')).replace(/\s+/g, ' ').trim();
+  console.log(`7. après ${k0} matchs, la boutique ${ferme ? 'fermée' : 'ouverte'} : « ${bande} »`);
+  if (ferme !== !NOEUDS.includes(k0)) erreurs.push(`après ${k0} matchs, la boutique devrait être ${NOEUDS.includes(k0) ? 'ouverte' : 'fermée'}`);
+  if (ferme && (packsFerme || !new RegExp(`Dans ${NOEUDS.find(k => k > k0) - k0} match`).test(bande))) erreurs.push(`la boutique fermée montre ${packsFerme} pack(s) ou ne dit pas quand elle rouvre : « ${bande} »`);
+  if (ferme) await page.screenshot({ path: `${DOSSIER}/rogue-boutique-fermee.png` });
+  // Jusqu'au nœud suivant, un jour à la fois (l'avance s'arrête au nœud).
+  for (let i = 0; i < 40 && !NOEUDS.includes(await joues()); i++) { await auBureau(); await regler(); if (!(await unJour())) await prochaineDecision(); }
+  await regler();
+}
+await versMarche('boutique');
+await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
 await verifMarche('la boutique ouverte');
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
-const nPacks = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
-// Nov. 2026 : la boutique ne dit que tes jetons et jusqu'où tu signes, dans son en-tête ; la masse salariale est au Proprio.
-const espace = ((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete').catch(() => '')) || '').match(/tu signes jusqu'à [^·]+/)?.[0] || '';
-// 1.0 (R5) : à la première run, quatre packs pour commencer, un bouton « Voir les N packs », et un pack impayable qui dit ce qui manque.
-const voirTout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
-console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}${voirTout ? ` · « ${(await voirTout.textContent()).trim()} »` : ''}`);
+const nPacks = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .mk-rangee .pk-tuile[data-pack]', e => e.length);
+// La bande dit tes jetons et jusqu'où tu signes ; la masse salariale est au Proprio.
+const espace = ((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .mk-bande').catch(() => '')) || '').match(/Tu signes jusqu'à .+/)?.[0] || '';
+const ouverte = await page.evaluate(() => { const m = document.querySelector('#pageMarche .hub-page[data-genre="boutique"]');
+  return { k: m.querySelector('.mk-k') ? m.querySelector('.mk-k').textContent.replace(/\s+/g, ' ').trim() : '', pips: m.querySelectorAll('.mk-pips i').length, faits: m.querySelectorAll('.mk-pips i.on').length,
+    pieces: m.querySelectorAll('[data-piece] .carton').length, prendre: ((m.querySelector('.mk-prendre') || {}).textContent || '').trim(), fermer: ((m.querySelector('.mk-fermer') || {}).textContent || '').trim(),
+    sousCle: m.querySelectorAll('.pk-tuile.verrou[data-pack]').length, prix: [...m.querySelectorAll('.mk-rangee .pk-tuile[data-pack]')].map(t => `${t.dataset.pack} ${t.querySelector('.pk-prix').textContent.trim()}`) }; });
+console.log(`7b. la boutique ouverte (${ouverte.k}) : ${nPacks} packs (${ouverte.prix.join(' · ')}) · ${ouverte.pieces} pièces, « ${ouverte.prendre} » · ${ouverte.faits}/${ouverte.pips} achats · « ${ouverte.fermer} » · ${(espace || '(pas de plafond)')}`);
 if (!espace) erreurs.push('la boutique ne dit pas jusqu\'où tu signes');
-if (nPacks !== 4 || !voirTout) erreurs.push(`la première run devrait ouvrir sur quatre packs et « Voir les N packs » : ${nPacks} packs, bouton ${voirTout ? 'présent' : 'absent'}`);
-else {
-  await page.screenshot({ path: `${DOSSIER}/rogue-boutique-debut.png` });
-  await voirTout.click(); await page.waitForTimeout(300);
-  // Les packs des rayons (le pack de la semaine et ton club à part).
-  const nTout = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon:not(.pk-rayon-jour):not(.pk-rayon-club) .pk-tuile[data-pack]', e => e.length);
-  const chers = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile.pk-cher .pk-manque', e => e.map(x => x.textContent.trim()));
-  // Un pack coûte plus que la caisse ? Alors sa tuile doit le dire. (À 84 🪙, aucun pack n'est impayable : rien à exiger.)
-  const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
-  const prixMax = Math.max(...await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
-  console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
-  // Jalon P2 : la boutique vend ses packs, tous mixtes ; V10 (les packs qui montent) : huit, dont deux ouverts à la première run.
-  if (nTout !== 8) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 8`);
-  const sousCle = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon:not(.pk-rayon-jour):not(.pk-rayon-club) .pk-tuile.verrou[data-pack]', e => e.map(x => `${x.dataset.pack} : ${x.title}`));
-  console.log(`7c. sous clé : ${sousCle.length} · ${sousCle.slice(0, 2).join(' · ')}`);
-  if (sousCle.length !== 6 || !sousCle.some(t => /^j:argent : Qualifie-toi pour les séries/.test(t))) erreurs.push(`à la première run, six packs sous clé, l'Argent aux séries : ${sousCle.join(' · ')}`);
-  if (prixMax > jetonsB && (!chers.length || !chers.every(t => /il te manque \d+/.test(t)))) erreurs.push('un pack impayable ne dit pas ce qui manque');
-  // Échap ferme la boutique (1.0, R5 ; U21 : c'est un sous-onglet, le retour mène au Bureau) ; on la rouvre pour continuer comme avant.
-  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
-  if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
-  await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-}
+// V10 (les packs qui montent) : à la première run, le Bronze et l'Époque ; un pack sous clé ne se montre pas à la boutique.
+if (nPacks !== 2 || ouverte.sousCle) erreurs.push(`à la première run, la boutique vend le Bronze et l'Époque, rien sous clé : ${ouverte.prix.join(' · ')}, ${ouverte.sousCle} sous clé`);
+if (ouverte.pieces !== 3 || ouverte.pips !== 4) erreurs.push(`la boutique ouverte : trois pièces et quatre pastilles d'achat (${ouverte.pieces} pièces, ${ouverte.pips} pastilles)`);
+if (ouverte.faits === 0 && !/^(Prendre · 32|Il te manque \d+ 🪙)$/.test(ouverte.prendre)) erreurs.push(`la pièce au premier achat d'un nœud coûte 32 🪙 : « ${ouverte.prendre} »`);
+if (!/^Fermer · (prochaine dans \d+|dernière boutique)$/.test(ouverte.fermer)) erreurs.push(`le bouton du bas ne dit pas la prochaine boutique : « ${ouverte.fermer} »`);
+// Échap ferme la boutique (1.0, R5 ; U21 : c'est un sous-onglet, le retour mène au Bureau) ; on la rouvre pour continuer comme avant.
+await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
+await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
 /*
  * TON CLUB À LA BOUTIQUE (1.0, oct.). JP : *même monnaie que les autres packs*. Les Harfangs (15 🪙) s'achètent au rayon
  * « Ton club » : la caisse baisse, le méta les garde, ils sont portés, et l'en-tête le dit.
  */
 {
-  const tout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
-  if (tout) { await tout.click(); await page.waitForTimeout(300); }
-  const avantJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const avantJ = Number((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .mk-caisse b')) || 0);
   // Nov. 2026 : le rayon du club se plie en une rangée (le porté, deux clubs, « Et N › ») ; « Et N › » l'ouvre.
   const rangeeClub = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-club-plus[data-club-tout]');
   if (rangeeClub) { await rangeeClub.click(); await page.waitForTimeout(300); }
@@ -878,8 +888,8 @@ else {
   await auBureau();
   const mc = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}').club || {});
   const tete = await page.textContent('.tete-nom');
-  await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-  const apresJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
+  const apresJ = Number((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .mk-caisse b')) || 0);
   console.log(`7c. ton club à la boutique : les Harfangs · ${avantJ} → ${apresJ} 🪙 · porté : ${mc.club} · en-tête « ${tete} »`);
   if (mc.club !== 'harfangs' || tete !== 'Harfangs' || apresJ !== avantJ - PRIX_HARFANGS) erreurs.push(`les Harfangs achetés à la boutique (${avantJ} → ${apresJ} 🪙, méta ${mc.club}, en-tête « ${tete} »)`);
 }
@@ -891,7 +901,7 @@ else {
  */
 const NOMS_NIVEAUX = ['Soutien', 'Régulier', 'Pilier', 'Étoile', 'Phénomène'];
 await versMarche('boutique');
-await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
 await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="j:bronze"]');
 await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-fiche');
 await page.screenshot({ path: `${DOSSIER}/rogue-fiche-bronze.png` });
@@ -1007,6 +1017,28 @@ await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="bout
 await page.waitForTimeout(500);
 await verifMarche('après un pack signé');
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique-apres-pack.png` });
+/*
+ * LA PIÈCE PARMI TROIS (V27, tranche 3) : au même nœud, après un pack, la pièce coûte 32 × 1,4 = 45 🪙 ; prise, elle entre dans
+ * ta main (une décision `embauche`, son prix compté comme un achat du nœud), et la boutique la dit « Prise ».
+ */
+{
+  const lu = await page.evaluate(() => { const m = document.querySelector('#pageMarche .hub-page[data-genre="boutique"]');
+    return { prendre: ((m.querySelector('.mk-prendre') || {}).textContent || '').trim(), faits: m.querySelectorAll('.mk-pips i.on').length, jetons: Number((m.querySelector('.mk-caisse b') || {}).textContent || 0) }; });
+  const prix = Number((lu.prendre.match(/Prendre · (\d+)/) || [])[1]) || null;
+  console.log(`8p. la pièce après ${lu.faits} achat(s) : « ${lu.prendre} » · ${lu.jetons} 🪙`);
+  if (lu.faits >= 1 && prix != null && prix !== Math.round(32 * (1 + 0.4 * lu.faits))) erreurs.push(`la pièce après ${lu.faits} achat(s) du nœud coûte ${prix} 🪙 (attendu ${Math.round(32 * (1 + 0.4 * lu.faits))})`);
+  if (prix != null) {
+    const cle = await page.$eval('#pageMarche [data-piece]:nth-child(2)', x => x.dataset.piece);
+    await page.click('#pageMarche [data-piece]:nth-child(2)'); await page.waitForTimeout(200);
+    await page.click('#pageMarche .mk-prendre');
+    await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 120000 }); await page.waitForTimeout(800);
+    const d = ((await lireSauvegarde()).partie || {}).decisions.filter(x => /^bq:/.test(x.palier || ''));
+    const prise = await page.$eval('#pageMarche .mk-section .mk-l b', x => x.textContent.trim()).catch(() => '');
+    const apres = Number(await page.textContent('#pageMarche .mk-caisse b'));
+    console.log(`8q. la pièce prise : ${cle} · ${JSON.stringify(d)} · « ${prise} » · ${lu.jetons} → ${apres} 🪙`);
+    if (d.length !== 1 || !d[0].embauche || d[0].embauche.cle !== cle || d[0].achat.sorte !== 'piece' || d[0].achat.prix !== prix || prise !== 'Prise' || apres !== lu.jetons - prix) erreurs.push(`la pièce prise à la boutique : ${JSON.stringify(d)}, « ${prise} », ${lu.jetons} → ${apres} 🪙`);
+  } else if (!/Il te manque \d+ 🪙|Quatre achats faits/.test(lu.prendre)) erreurs.push(`la pièce impayable ne dit pas ce qui manque : « ${lu.prendre} »`);
+}
 await auBureau();
 await verifClubSansBoutique('le bureau du Club après un pack');
 await page.waitForTimeout(800);
@@ -1476,7 +1508,8 @@ await page.waitForTimeout(2500);
     await page.screenshot({ path: `${DOSSIER}/rogue-ta-run.png` });
     const txt = (await ecranRun.textContent()).replace(/\s+/g, ' ');
     const d = metaR.derniereRun || {};
-    if (!txt.includes(`Médailles ${d.ecussons}`) || !txt.includes(`🏅 ${metaR.ecussons}`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
+    // V27, tranche 2 : l'écran de fin (la maquette 8) dit « Médailles » en cellule, puis « 558 médailles » à ton club.
+    if (!new RegExp(`Médailles ?${d.ecussons}\\b`).test(txt) || !txt.includes(`${metaR.ecussons} médailles`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
     if (!(svR.partie && svR.partie.rogue && svR.partie.rogue.taRunVue) && !(svR.rogue && svR.rogue.taRunVue)) erreurs.push('« Ta run » vu n\'est pas dans la sauvegarde (il se rouvrirait au rechargement)');
     await page.click('#choixModal:not([hidden]) .choix-fermer');
     await page.waitForTimeout(300);

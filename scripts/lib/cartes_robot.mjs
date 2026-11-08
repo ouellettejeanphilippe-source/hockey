@@ -13,10 +13,10 @@
 import { getPlayerKey } from '../../js/sim.js';
 import { faitsDe } from '../../js/faits.js';
 import { HISTOIRES, tirer } from '../../js/histoires.js';
-import { PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
+import { SEMAINE } from '../../js/inventaire.js';
 import { COACHS } from '../../js/coachs.js';
 import { POUVOIRS, niveauDuPerso, talentsDus, pouvoirsOuverts, TALENT_CASE, SEUILS_NIVEAU } from '../../js/pouvoirs.js';
-import { ADJOINTS, adjointsOfferts, pretesDe, casesLibres, niveauOffert, momentFort } from '../../js/adjoints.js';
+import { ADJOINTS, adjointsOfferts, pretesDe, casesLibres, niveauOffert } from '../../js/adjoints.js';
 
 /* MESURE seulement (jamais lu par le jeu) : ROBOT_TALENT=case ou pouvoir force le premier talent de l'attentif (scripts/mesure_main.mjs). */
 const TALENT_FORCE = process.env.ROBOT_TALENT || null;
@@ -43,17 +43,16 @@ function faitsDuRobot(L, you, jetons, sorties = [], series = null) {
     coach: C ? { cle: perso.cle, nom: C.nom, ico: C.ico, niveau: niveauDuPerso(perso) } : null }, series });
 }
 
-/* L'ADJOINT D'UN MOMENT FORT (js/saison.js `adjointsDuMoment`) : un parmi trois, tirés de la graine. Rend la décision. */
-function adjointDuRobot({ you, graine, cle, politique, clic, fit }) {
+/*
+ * LA PIÈCE DE LA BOUTIQUE (V27, tranche 3 ; js/actes.js `piecesDuNoeud`) : une parmi les trois du nœud, que le jeu tire de la même
+ * graine — tant que le banc de cinq n'existe pas, un adjoint pour la main, à son niveau. Rend l'offre choisie ({ cle, niv }), ou null.
+ */
+export function pieceDuRobot({ you, offre, politique, clic, fit }) {
   const perso = persoDe(you);
-  const offre = perso ? adjointsOfferts(perso, graine, cle, 3) : [];
-  if (!offre.length) return null;
-  // V23 : chaque carte a son niveau, tiré comme à l'écran (`niveauOffert`).
-  const niv = k => niveauOffert(graine, cle, k, momentFort(cle));
+  if (!perso || !offre.length) return null;
   // L'attentif lit le style sur SON effectif, à son niveau (`fit`, scripts/lib/rogue_sim.mjs) ; sans lecture, la voie de son coach d'abord.
-  const k = clic ? offre[Math.floor(clic() * offre.length)] : politique === 'defaut' ? offre[0]
-    : fit ? offre.reduce((a, b) => (fit(b, niv(b)) > fit(a, niv(a)) ? b : a)) : offre.reduce((a, b) => (rangDe(b, perso.cle) < rangDe(a, perso.cle) ? b : a));
-  return { embauche: { cle: k, niv: niv(k) } };
+  return clic ? offre[Math.floor(clic() * offre.length)] : politique === 'defaut' ? offre[0]
+    : fit ? offre.reduce((a, b) => (fit(b.cle, b.niv) > fit(a.cle, a.niv) ? b : a)) : offre.reduce((a, b) => (rangDe(b.cle, perso.cle) < rangDe(a.cle, perso.cle) ? b : a));
 }
 /*
  * La valeur d'une réponse d'histoire, en conséquences concrètes, pour l'attentif. `lu` (nov. 2026, scripts/lib/rogue_sim.mjs
@@ -101,10 +100,10 @@ function histoireDuRobot({ moment, id, f, j = f.jour, graine, politique, clic, e
 
 /*
  * LE LUNDI DU ROBOT : l'histoire du lundi (un lundi tiré de la graine, V20 ; V25 C1 : js/histoires.js) et celle du matin d'un
- * gros match (V25 C2 : le jour même, jamais la veille, comme l'écran), l'adjoint d'un palier (quand le compte de matchs le
- * franchit), le butin d'un gros match gagné, le talent quand le niveau le donne, et les cartes qu'il poste. Rend les
- * décisions à pousser au jour de la ligue. `etat` : ce que la saison retient (les histoires sorties, la mémoire de la run,
- * les paliers et les butins pris).
+ * gros match (V25 C2 : le jour même, jamais la veille, comme l'écran), la pièce d'un rival battu (V27 : l'adjoint d'un
+ * palier est parti, la pièce s'achète à la boutique, `pieceDuRobot`), le talent quand le niveau le donne, et les cartes
+ * qu'il poste. Rend les décisions à pousser au jour de la ligue. `etat` : ce que la saison retient (les histoires sorties,
+ * la mémoire de la run, les butins pris).
  */
 export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fit = null, lire = null }) {
   const out = [];
@@ -118,13 +117,6 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, fi
   for (const moment of moments) {
     const d = histoireDuRobot({ moment, id: `h:${moment}:${j}`, f: moment === 'lundi' ? f : faitsDuRobot(L, you, jetons, etat.histoires), graine, politique, clic, etat, you, lire });
     if (d) out.push({ jour: j, ...d });
-  }
-  // LE PALIER (`PALIERS_PACK`, js/inventaire.js) : un adjoint parmi trois.
-  const pp = PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));
-  if (pp !== undefined) {
-    etat.paliers.add(pp);
-    const d = adjointDuRobot({ you, graine, cle: `pp${pp}`, politique, clic, fit });
-    if (d) out.push({ jour: j, palier: `pp:${pp}`, ...d });
   }
   // LA PIÈCE D'UN RIVAL BATTU (V27, tranche 2 ; js/saison.js, l'étape « Prendre une pièce ») : tant que le banc de cinq
   // n'existe pas, le niveau suivant du coach — chaque robot la prend, comme on prend une carte offerte.

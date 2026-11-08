@@ -38,18 +38,17 @@ import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX, nomDuNiveau } from '../js/niveaux.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
-import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
-import { JETONS, baremeRogue, ESPACE_DE_DEPART, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN } from '../js/rogue.js';
-import { ACTES, RANGS_DES_RIVAUX, CONTROLES, COEURS, ETAPE_SERIES, MEDAILLES_ACTE } from '../js/actes.js';
+import { JETONS, baremeRogue, ESPACE_DE_DEPART, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN, ecussonsDesSeries } from '../js/rogue.js';
+import { ACTES, RANGS_DES_RIVAUX, CONTROLES, COEURS, ETAPE_SERIES, MEDAILLES_ACTE, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, PRIX_PIECE } from '../js/actes.js';
 import { COACHS, REGLES_DU_COACH } from '../js/coachs.js';
 import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT, NIVEAUX_TALENT } from '../js/pouvoirs.js';
 import { MAIN_MAX, SEJOUR, SEJOUR_SYNERGIE, REPOS, CASES_PAR_NIVEAU, CASE_DE_PLUS, RELAIS_NIV, NIV_DEFAUT } from '../js/adjoints.js';
 import { FORCE_NIV, SALAIRE_NIV } from '../js/adjoints.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
-import { DATE_LIMITE_MATCH } from '../js/packs.js';
+import { DATE_LIMITE_MATCH, hausseDesPacks } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaBlessure, sceneDuButin, sceneDeLAdjoint } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDeLaBlessure, sceneDuButin, sceneDeLAdjoint } from '../js/scenes.js';
 import { HISTOIRES, sceneDe } from '../js/histoires.js';
 import { nomCourt } from '../js/recit.js';
 
@@ -188,7 +187,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // Nov. 2026 : la page disait le mandat de la première saison ; V27 (tranche 2) : la saison en actes le remplace (les actes, les rivaux, les cœurs).
   // V23 (2 nov.) : 2 600 (2 540 avant) — la règle du coach et le salaire des adjoints, deux mécaniques neuves, chacune en une phrase.
   // 2 600 jusqu'au 4 nov. 2026 ; le relais, le butin du gros match et leur coach en séries (V23 D et F) valent leurs trois phrases.
-  borne('la page des règles est courte', mots, 300, 2650, 'mots');
+  // V27, tranche 3 (8 nov. 2026) : 2 710 — la boutique à ses nœuds (les sept nœuds, le prix remis à zéro, quatre achats, la pièce, les jetons perdus) vaut ses trois phrases.
+  borne('la page des règles est courte', mots, 300, 2710, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -256,8 +256,10 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`${GALONS.buts.seuil} buts, ${GALONS.passes.seuil} passes, ${GALONS.victoires.seuil} victoires, un point dans ${GALONS.grandsSoirs.seuil} gros matchs gagnés ou ${GALONS.recrue.seuil} points d'une recrue montent son badge d'un métal pour la run (${['zéro', 'un', 'deux', 'trois'][GALONS_MAX]} au plus) ; ${['zéro', 'un', 'deux', 'trois', 'quatre'][Number((lire('js/rogue.js').match(/const CHANDAIL_GALONS = (\d+);/) || [])[1])]} retirent son chandail`, 'les galons'],
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
-    // V9, tranche 5b, puis V16 : tes adjoints et les paliers de la saison.
-    [`Aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs et au verdict du proprio, <strong>un adjoint parmi trois</strong>`, 'les paliers de la saison'],
+    // V27, tranche 3 (js/actes.js) : la boutique à ses nœuds, le prix remis à zéro, quatre achats, la pièce parmi trois.
+    [`qu'avant ton 1er match, puis après tes ${NOEUDS_BOUTIQUE.slice(1, -1).map(k => `${k}e`).join(', ')} et ${NOEUDS_BOUTIQUE.at(-1)}e matchs`, 'les nœuds de la boutique'],
+    [`montent de ${Math.round((hausseDesPacks(1) - 1) * 100)} % à chaque achat, ${['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq'][ACHATS_PAR_NOEUD]} achats au plus ; une pièce de banc parmi trois, une seule, à ${PRIX_PIECE} jetons au premier achat`, 'le prix au nœud'],
+    [`une ronde de séries gagnée paie ${ecussonsDesSeries(1, false)} médailles`, 'la prime de série'],
     // V23 D : le relais à son niveau (`RELAIS_NIV`).
     [`rejoue la période, ${String(RELAIS_NIV[NIV_DEFAUT - 1]).replace('.', ',')} fois au Pilier, ${String(RELAIS_NIV[4]).replace('.', ',')} fois au ★ Phénomène`, 'le relais'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
@@ -266,7 +268,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`de ${RAPPEL_MATCHS[0]} à ${RAPPEL_MATCHS[1]} matchs dans sa saison`, 'le rappel au ballottage'],
     [`Après ton ${DATE_LIMITE_MATCH}e match, la date limite des échanges`, 'la date limite'],
     [`${JETONS.depart} jetons et ${nombre(ESPACE_DE_DEPART / 1e6)} M$ sous le plafond`, 'le départ Rogue'],
-    [`une victoire ${B.victoire} jetons (${B.victoire + 3}, puis ${B.victoire + 5} avec les commanditaires), une défaite en prolongation ${B.prolongation}, une défaite ${B.defaite}, un objectif du proprio ${B.objectif}, une ronde de séries gagnée ${B.serie}`, 'le barème des jetons'],
+    [`une victoire ${B.victoire} jetons (${B.victoire + 3}, puis ${B.victoire + 5} avec les commanditaires), une défaite en prolongation ${B.prolongation}, une défaite ${B.defaite}, un objectif du proprio ${B.objectif}.`, 'le barème des jetons'],
     [`une réclamation coûte ${coutBal} jetons`, 'la réclamation Rogue'],
     // V27, tranche 2 (js/actes.js) : la run en actes, ses rivaux, ses cœurs et ses contrôles, les séries plus dures.
     [`tes matchs 1 à ${ACTES[0]}, ${ACTES[0] + 1} à ${ACTES[1]}, ${ACTES[1] + 1} à ${ACTES[2]}, puis les séries`, 'les actes'],
@@ -352,7 +354,6 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   let n = 0;
   for (let g = 0; g < 40; g++) {
     for (const [moi, lui] of [[3, 1], [2, 2], [0, 4]]) { juger('la mise', sceneDeLaMise({ moi, lui, rival: 'Bruins 1995-96', graine: g }), [moi, lui, 'Bruins 1995-96']); n++; }
-    for (const rang of [2, 16, 31]) { juger('le palier', sceneDuPalier({ n: 18, fiche: { V: 7, D: 9, DP: 2 }, rang, equipes: 32, mandat: 'faire les séries', graine: g }), [18, '7-9-2', `${rang}e`, 'faire les séries']); n++; }
   }
   // A4 à A6 (V10, tranche 5 ; V20 : les routes sont parties).
   for (let g = 0; g < 40; g++) {

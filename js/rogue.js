@@ -125,17 +125,18 @@ export function salairesDesAdjoints(calendrier, you, j = Infinity) {
   }
   return { total, parJour };
 }
-export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, objectif: 20, serie: 40 };
+/* V27, tranche 3 : la prime de série est en médailles (`ecussonsDesSeries`, 20 🏅 la ronde) ; en séries, la boutique est fermée. */
+export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, objectif: 20 };
 /*
  * Les jetons à un moment de la saison : ce que les résultats ont rapporté,
  * moins ce que la boutique a coûté. `res` : W, L, OTL (matchs révélés), les
- * gros matchs gagnés, les objectifs réussis, les séries gagnées.
+ * objectifs réussis, les primes.
  */
 export function jetonsDe(res, depenses, depart = JETONS.depart, bareme = JETONS) {
   const r = res || {};
   const B = bareme || JETONS;
   return depart + (r.W || 0) * B.victoire + (r.OTL || 0) * B.prolongation + (r.L || 0) * B.defaite
-    + (r.objectifs || 0) * B.objectif + (r.series || 0) * B.serie + (r.primes || 0) - (depenses || 0);
+    + (r.objectifs || 0) * B.objectif + (r.primes || 0) - (depenses || 0);
 }
 /*
  * LE BARÈME D'UNE RUN (S80). Une run dure maintenant plusieurs saisons : ce

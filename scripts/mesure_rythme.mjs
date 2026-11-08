@@ -28,7 +28,6 @@ import { Worker, isMainThread, parentPort, workerData } from 'node:worker_thread
 import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 import { autoRoster, PALIERS_CARTES, JOURS_OBJECTIFS } from '../js/sim.js';
-import { PALIERS_PACK } from '../js/inventaire.js';
 import { NIVEAUX_PLEINS } from '../js/rogue.js';
 import { jouerSaison, metaAuNiveau, shard, groupe } from './lib/rogue_sim.mjs';
 import { HISTOIRES, MOMENTS } from '../js/histoires.js';
@@ -92,7 +91,7 @@ if (!isMainThread) {
   parentPort.postMessage({ cle: t.cle, saisons });
 } else {
   const t0 = Date.now();
-  console.log(`\n  Le rythme d'une saison : paliers aux ${PALIERS_PACK.join(', ')}e matchs · l'attentif, ${SAISONS} saisons de suite par club\n`);
+  console.log(`\n  Le rythme d'une saison : l'attentif, ${SAISONS} saisons de suite par club\n`);
   const taches = SAISONS_CLUBS.flatMap(clubsDeLaSaison).flatMap(k => Array.from({ length: GRAINES }, (_, g) =>
     ({ cle: `${k.club} ${k.saison} (${k.genre})`, saison: k.saison, club: k.club, graine: `rythme-${k.club}-${k.saison}-${g}` })));
   const lancer = data => new Promise((resolve, reject) => {
