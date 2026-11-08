@@ -2158,55 +2158,6 @@ export function etatObjectif(cle, matchs, quoi = null, team = null) {
 
 
 
-/*
- * LES TROIS CARTES OFFERTES À UN PALIER. Tirées de la GRAINE et du jour, sans
- * toucher à `hasard()` : le moteur ne doit pas consommer une seule valeur de
- * plus à cause de l'écran, sinon la même graine ne rejouerait plus la même
- * saison. Deux paliers d'une même partie n'offrent donc pas la même main, et
- * la même partie rejouée offre exactement la même.
- */
-export const PALIERS_CARTES = [20, 40, 60];
-/*
- * LE DECK (S73). JP : *comme un deck de deckbuilder, considérant que c'est des
- * cartes de joueurs et d'effets* ; *possible d'avoir des cartes style
- * événement qui permettent d'aller chercher un joueur au choix loto, ou
- * changer le profil d'un joueur, améliorer ses stats, etc.* Un palier n'offre
- * plus trois cartes d'effet : il offre une main de trois cartes de SORTES
- * différentes — un effet, et deux parmi un joueur au choix (trois vrais
- * joueurs, tu en prends un), une amélioration, un nouveau rôle. Tirée de la
- * graine, pure.
- */
-/*
- * V10 (tranche 6) : la carte d'effet (une carte de saison) et l'amélioration (une modif d'avant) quittent la main ; elle
- * tire trois des cinq sortes qui restent.
- */
-export const SORTES_DECK = {
-  recrue: { ico: '🎟', nom: 'Joueur au choix', mot: 'Trois vrais joueurs, style loto : tu en prends un' },
-  profil: { ico: '🔄', nom: 'Nouveau rôle', mot: 'Un de tes joueurs change de rôle' },
-  // L'ATELIER (S78) : éditer un joueur — son poste, ses trios possibles, ses malus, sa carte.
-  atelier: { ico: '🛠', nom: 'L\'atelier', mot: 'Édite un de tes joueurs : poste, trios, malus, carte' },
-};
-export function mainDuDeck(graine, jour) {
-  return Object.keys(SORTES_DECK).map(k => [k, hache(graine, 'deck', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([sorte]) => ({ sorte }));
-}
-/* L'atelier : trois éditions tirées de la graine ; le joueur, tu le choisis. */
-export function editionsDuJour(graine, jour) {
-  return MUTATIONS_ATELIER.map(k => [k, hache(graine, 'atelier', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([k]) => k);
-}
-/* Le nouveau rôle : trois (changement, joueur) possibles dans ton alignement, tirés de la graine. */
-export function rolesOfferts(team, graine, jour) {
-  const choix = Object.keys(MUTATIONS).filter(k => MUTATIONS[k].source === 'choix')
-    .map(k => [k, hache(graine, 'role', jour, k)]).sort((a, b) => a[1] - b[1]).map(([k]) => k);
-  const out = [], vus = new Set();
-  for (const k of choix) {
-    const p = cibleMutation(team, k);
-    if (!p || vus.has(getPlayerKey(p))) continue;
-    vus.add(getPlayerKey(p)); out.push({ cle: k, p });
-    if (out.length === 3) break;
-  }
-  return out;
-}
-
 /* =====================================================================
    LES SITUATIONS — le vestiaire vit, et la force du club ne bouge pas
 
@@ -6774,7 +6725,6 @@ export const mutationNuit = k => {
   const M = MUTATIONS[k];
   return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
 };
-const MUTATIONS_ATELIER = ['pinceau', 'fenetre', 'dorure', 'lustre'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.

@@ -182,34 +182,15 @@ const ballottage = { fait: false, mot: null };
 /*
  * À FAIRE (S78, V9). JP : *forcer que le joueur agisse avant de continuer* ;
  * puis *tous les choix au même endroit, même UI et UX*. Tant qu'un choix
- * bloque (une blessure, une case vide, un palier, un choix forcé), « Journée
+ * bloque (une blessure, une case vide, un choix forcé), « Journée
  * suivante » devient « ⏳ Encore un choix… » ou « À régler… ». Le parcours règle
  * ces choix comme un joueur : la première option du choix ouvert, qui part
  * au toucher (le jour à jour est au Rogue). La case
- * vide s'éprouve d'abord (`guetterTrouHook`, posé par la saison) ; le palier
- * reste ouvert tant que son bloc ne l'a pas éprouvé (`palierAuto`), puis se
- * joue tout seul : la carte d'effet, ou la première, et son deuxième choix.
+ * vide s'éprouve d'abord (`guetterTrouHook`, posé par la saison). La main du
+ * palier est partie (V27, tranche 5).
  */
 let guetterTrouHook = null;
-let palierAuto = false;
-const paliersJoues = [];
 let sommairesVus = 0;
-async function prendrePalier() {
-  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
-  await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
-  const eff = await page.$('#choixModal .tc [data-choix^="effet:"]');
-  const nom = eff ? await eff.getAttribute('data-choix') : await page.$eval('#choixModal .tc [data-choix]', e => e.dataset.choix);
-  await _click(`#choixModal .tc [data-choix="${nom}"]`);
-  // Le deuxième choix d'une carte du deck (le joueur, le rôle, l'édition… et qui sort, dans l'alignement, S80).
-  for (let k = 0; k < 3; k++) {
-    await page.waitForTimeout(350);
-    if (await page.$('#choixModal:not([hidden]) .choix-sheet:is([data-genre="alignement"], [data-genre="echange"])')) { await sortirDansAlignement(); continue; }
-    if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, .tc-prendre, button.tc-prendre:not([disabled]))'))) break;
-  }
-  // Après la carte : le hub, ou un autre plein écran (un sommaire, un choix, la main suivante).
-  await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-suite, #choixModal:not([hidden]) .choix-sheet, .result .score', { timeout: 120000 });
-  paliersJoues.push(nom);
-}
 /*
  * Un clic PAR SÉLECTEUR, qui tolère le redessin : le hub se redessine après
  * chaque geste (une réclamation, une décision), et une poignée d'élément prise
@@ -239,12 +220,6 @@ async function versSaPage(genre) {
   await page.waitForTimeout(250);
   return true;
 }
-async function ouvrirLaMain() {
-  await versLaBoite();
-  if (await page.$('#hubModal .hub-main-ouvrir')) { await _click('#hubModal .hub-main-ouvrir'); return; }
-  await versSaPage('palier');
-  await _click(`${SA_PAGE('palier')} .tc-prendre`);
-}
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet:not([data-msg])')) return;
@@ -255,11 +230,6 @@ async function debloquer() {
       await versSaPage('trou');
       if (guetterTrouHook) await guetterTrouHook();
       await toucher(`${SA_PAGE('trou')} .choix-option:not([aria-disabled="true"]):not(.ouvre) .tc-prendre`);
-      continue;
-    }
-    if (await page.$('#hubModal .hub-msg.bloque[data-msg="palier"]')) {
-      if (!palierAuto) return;
-      await prendrePalier();
       continue;
     }
     // Le ballottage se guette une fois : s'il a joué, le hub s'est redessiné, on repasse.
@@ -428,15 +398,6 @@ async function repondreAuxChoix() {
       if (d.some(x => x.main && !x.auto && (x.main.jouees || []).length)) errors.push('une période du duel part avec des cartes jouées');
       mainsVues.push(motJouer);
       continue;
-    }
-    // LA MAIN DU PALIER (S73) s'ouvre d'elle-même. Tant que son bloc (plus bas)
-    // ne l'a pas éprouvée, on la referme « Plus tard » — elle bloque alors la
-    // journée (S78) ; ensuite, elle se joue.
-    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]')) {
-      if (palierAuto) { await prendrePalier(); continue; }
-      await _click('#choixModal .choix-fermer');
-      await page.waitForTimeout(200);
-      return;
     }
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await signerPuisSortir(); await page.waitForTimeout(350); continue; }
     const titre = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
@@ -2298,7 +2259,7 @@ console.log(`   qui sort, l'échange : ${alignementsVus.length ? `${alignementsV
 // Un paquet dépend d'une victoire en gros match ou d'une série gagnée : on dit ce qu'on a ouvert.
 console.log(`   paquets ouverts : ${paquetsVus.length ? paquetsVus.join(' · ') : 'aucun (pas de gros match gagné ni de série gagnée)'}`);
 // LE SOMMAIRE DE LA JOURNÉE (S78) : après une avance où ton club a joué, avant le retour au hub.
-console.log(`   sommaires de journée lus : ${sommairesVus} · paliers joués en passant : ${paliersJoues.join(' · ') || 'aucun'}`);
+console.log(`   sommaires de journée lus : ${sommairesVus}`);
 if (parisPris.length && !parisDits.length) errors.push(`${parisPris.length} pari(s) pris (${parisPris.slice(0, 3).join(' · ')}), et la boîte n'a jamais dit comment il a tourné`);
 else if (parisPris.length) console.log(`   paris tranchés : ${parisPris.length} pris, la boîte en dit ${parisDits.length} — « ${parisDits[0]} »`);
 if (parisPris.length && !desLances.length) errors.push(`${parisPris.length} pari(s) pris, et aucun dé lancé`);
