@@ -13,6 +13,8 @@ Refait le 31 octobre 2026 (version 2.9.2, moteur S136, cotes v30). La version co
                             check_lexique, check_lisibilite, check_glace, check_pouvoirs MESURE=0 N=20,
                             check_mort, check_css), puis tout.mjs (les 32 rapides), check_actions, et dans
                             Chromium le smoke à 390 px et smoke_table. Auto-merge quand c'est vert.
+.github/workflows/profondeur.yml  Action « Profondeur » (V27, tranche 1), à la main et sur une PR qui touche le Rogue ou
+                            son juge : check_profondeur, un travail par robot sur 64 graines, puis le verdict (LIRE)
 .github/workflows/build-data.yml  Action « Bâtir les données » : les shards depuis l'API LNH (modes bios, rerate,
                             seed, full) ; chaque lundi, la saison en cours seulement (--refresh-current)
 index.html                  la page unique : l'en-tête du club, les sections (Bureau, Joueurs, Lignes, Marché en
@@ -159,8 +161,8 @@ check_retours (deux minutes ; GRAINES), check_suivis, check_effets (vingt minute
 check_pouvoirs sans MESURE=0 (cinq minutes sur quatre processus ; N, COACHS, FILS), check_paliers,
 check_moments (S66, en paires), check_situations, check_series_pas (S79), check_plan_de_match (V17),
 check_force (la fiche suit la force), check_robot (le robot « premier Signer », 40 saisons ; BALLOTTAGE, MODE=rogue),
-check_rogue (RUNS, CAMPAGNES : la courbe des runs), check_profondeur (un quart d'heure ; rouge tant que la première
-Coupe arrive avant la run 3)
+check_rogue (RUNS, CAMPAGNES : la courbe des runs), check_profondeur (V27 : la run en actes, 64 graines × sept robots,
+en CI par profondeur.yml ; GRAINES=2 FILS=1 l'essai de quatre minutes, rien de statistique jugé ; ROBOTS, SORTIE, LIRE)
 ```
 
 ### Essayer à la main (Playwright ; l'adresse du jeu en argument)
@@ -187,7 +189,8 @@ lib/bords.mjs               rien ne colle au bord : 8 px au moins à 390 px (ess
 lib/gros.mjs                le hook UserPromptSubmit (.claude/settings.json) : quand la demande de JP porte les mots d'un gros changement (refonte, de zéro, au complet, pas juste la peinture…), il écrit la marche à suivre dans le contexte de la session (/refonte, le devis, check_refonte)
 lib/cibles.mjs              les cibles de 44 px (smoke)
 lib/emojis.mjs              les émojis du jeu et les polices qui les rendent au trait
-lib/rogue_sim.mjs           une run Rogue jouée par un robot (check_rogue, check_profondeur ; `politique`)
+lib/rogue_sim.mjs           une run Rogue jouée par un robot (check_rogue ; `politique`) et les gestes d'une saison que la run en actes partage
+lib/rogue_actes.mjs         la run en actes de la V27, jouée par les robots de check_profondeur (`ROBOTS` : l'attentif, « premier », le naïf, le glouton, les variantes)
 lib/cartes_robot.mjs        ce que les robots font du coach-personnage (talents, adjoints) et des histoires aux trois moments (V25 C2)
 lib/duel.mjs                les robots du duel : l'attentif, « Garder »
 lib/temoins.mjs             des effets témoins pour les juges, au chiffre connu

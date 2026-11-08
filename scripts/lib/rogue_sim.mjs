@@ -133,21 +133,22 @@ function estEtoile(p) {
 /*
  * LES PLOMBIERS (js/rogue-jeu.js `plombiersDeLaLigue`) : huit saisons, et la composition du départ
  * (js/rogue.js `bouchesTrousDuDepart`) — peu de bons, quelques entre-deux, beaucoup de faibles ; les défenseurs et les
- * gardiens par leur valeur, les attaquants par leurs points, les pires contrats de chaque bande.
+ * gardiens par leur valeur, les attaquants par leurs points, les pires contrats de chaque bande. `bouchesTrous` : la
+ * règle du jeu, ou celle de la V27 que la saison en actes mesure avant le jeu (scripts/lib/rogue_actes.mjs, `BANDE_DEPART`).
  */
-function plombiers(rnd, meta, exclus, reserve = null) {
+function plombiers(rnd, meta, exclus, reserve = null, bouchesTrous = bouchesTrousDuDepart) {
   // Une `reserve` à remplir, c'est la première run (js/rogue-jeu.js `equipeDeLaPremiere`) : de vrais contrats seulement.
   const vrais = !!reserve;
   const saisons = SAISONS.filter(s => !vrais || s >= VRAIS_CONTRATS), choisies = [];
   while (choisies.length < 8) choisies.push(saisons.splice(Math.floor(rnd() * saisons.length), 1)[0]);
-  return bouchesTrousDuDepart(choisies.map(s => shard(s).players.filter(p => !vrais || p.isReal)), { groupe, valeur: v, personne: getPersonKey, exclus, plus: aDebloque(meta, 'plombiersPlus'),
+  return bouchesTrous(choisies.map(s => shard(s).players.filter(p => !vrais || p.isReal)), { groupe, valeur: v, personne: getPersonKey, exclus, plus: aDebloque(meta, 'plombiersPlus'),
     reserve, piger: liste => liste[Math.floor(rnd() * liste.length)] }).map(copie);
 }
 /*
  * TON JOUEUR DE CONCESSION (js/rogue.js `vedettesDeConcession`) : trois offerts une fois, à la première run ; le robot
  * prend celui qui vaut le plus (le distrait, au hasard). Sa clé au méta ; il revient à chaque départ.
  */
-function vedetteDuRobot(rnd, meta, clic) {
+export function vedetteDuRobot(rnd, meta, clic) {
   if (meta.vedette) { const [s] = meta.vedette.split('_'); return shard(s).players.find(p => getPlayerKey(p) === meta.vedette) || null; }
   const saisons = SAISONS.slice(), candidats = [];
   for (let i = 0; i < 8; i++) { const e = shard(saisons.splice(Math.floor(rnd() * saisons.length), 1)[0]); for (const p of e.players) candidats.push({ p, niveau: niveauDe(p, e.players) }); }
@@ -235,7 +236,6 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
   return r;
 }
 
-export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
 /*
  * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi,fit,boutique,histoires,talent,relais —
  * ce que l'attentif NE fait PAS dans cette mesure, pour trouver d'où vient son avance (ou son retard) sur le robot d'avant,
@@ -484,7 +484,7 @@ const tirerClasseur = (meta, classeur, exclus, graine, clic = null, exigence = 0
  */
 const VERROUS = { defensif: 'packDefenseurs', gardien: 'packGardiens' };
 /* Le prix d'un pack au `n`-ième achat de la saison : les prix montent comme au jeu (js/packs.js `hausseDesPacks`), et « Les agents » (les exigences) les montent. */
-const prixAuAchat = (k, n, exigence = 0) => Math.max(1, Math.round(PACKS_JOUEURS[k].prix * hausseDesPacks(n) * exigencesDe(exigence).prixPacks));
+export const prixAuAchat = (k, n, exigence = 0) => Math.max(1, Math.round(PACKS_JOUEURS[k].prix * hausseDesPacks(n) * exigencesDe(exigence).prixPacks));
 function packVoulu(meta, jetons, n, exigence = 0) {
   const roles = ['sniper', 'passeur', 'defensif', 'gardien'].filter(r => !VERROUS[r] || aDebloque(meta, VERROUS[r]));
   // V10 : seulement ce que la boutique vend — le Bronze et l'Époque d'abord, le reste à son jalon (js/rogue.js `packsOuverts`).
@@ -546,15 +546,13 @@ function packLu(lu, roster, cap, jetons, n, exigence, nRes = 0) {
 }
 
 /*
- * UNE SAISON D'UNE RUN. `etat` : l'alignement et les variantes qui continuent
- * (la saison 2 d'une run repart de l'équipe de la saison 1), les jetons de
- * départ. Rend la fiche, les séries, les jetons qui restent et l'équipe.
+ * L'OUVERTURE D'UNE SAISON, que `jouerSaison` et la saison en actes (scripts/lib/rogue_actes.mjs) partagent : les cartes
+ * posées, le coach du départ de la run, l'alignement, le plafond, ton club et ses 31 adversaires. Rend le contexte que
+ * les gestes du robot lisent (`lancerLaLigue`, `jetonsDuRobot`, `packDuRobot`, `signerDuPack`, `lectureDuRobot`).
  */
-export function jouerSaison(meta, etat, { graine, saison, mains = true, politique = 'defaut', exigence = 0, ligue = niveauDeLigue(rangDePrestige(meta), exigence), etapeDeRun = 0 }) {
+export function ouvrirLaSaison(meta, etat, { graine, saison, politique, exigence, ligue, etapeDeRun, clic }) {
   const rnd = generateur('rogue80', graine, saison);
   const attentif = politique === 'attentif';
-  const clic = politique === 'distrait' ? generateur('rogue80-distrait', graine, saison) : null;
-  const auHasard = l => l[Math.floor(clic() * l.length)];
   const nRes = reservesDeLaRun(meta);
   const { variantes } = etat;
   const poser = p => { const k = getPlayerKey(p); p._carte = carteDe(variantes.get(k) || varianteTiree(COTES_VARIANTES, graine, k), p.p === 'G', graine, k); };
@@ -576,6 +574,124 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus, 31, ligue, etapeDeRun);
+  return { meta, etat, graine, saison, politique, attentif, clic, exigence, rnd, nRes, variantes, poser, roster, cap, you, opps };
+}
+/*
+ * LA LIGUE CRÉÉE (`creerLigue`, sous la graine de la saison) avec les décisions du jour 0 ; le duel du robot (V9, tranche
+ * 5, scripts/lib/duel.mjs : l'attentif lit chaque intention et y répond ; le distrait clique au hasard ; le robot d'avant
+ * ne répond à rien ; `mains: false`, aucun) ; ceux qui sont déjà dans la ligue ; la boutique que l'attentif lit au matin
+ * de la saison (`lireLaBoutique` ; `ROBOT_SAUF=boutique`, l'ordre du robot d'avant).
+ */
+export function lancerLaLigue(c, decisions, mains = true) {
+  const { meta, graine, saison, attentif, clic, you, opps } = c;
+  if (mains && ((attentif && attentifFait('duel')) || clic)) you.robotDuel = robotDuel(attentif ? 'attentif' : 'distrait', clic || undefined);
+  const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
+  const dansLaLigue = new Set();
+  for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
+  const boutique = attentif && (attentifFait('boutique') || PACK_FORCE) ? lireLaBoutique(meta, graine, saison, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p))) : null;
+  Object.assign(c, { L, decisions, dansLaLigue, boutique });
+  return L;
+}
+/*
+ * LES JETONS DU ROBOT, comme au jeu (`resultatsRogue`, js/rogue-jeu.js) : `base` (le départ), le barème des matchs joués,
+ * le butin des gros matchs (`grosMatchs` : la saison en actes ne paie pas ses rivaux en jetons), la prime des fils (V3.6 :
+ * le Cheechoo, le jalon…) et la règle du coach, moins les salaires des adjoints et `depense`.
+ */
+export function jetonsDuRobot(c, base, depense, grosMatchs = true) {
+  const { L, you, meta, exigence } = c;
+  let W = 0, D = 0, P = 0;
+  for (const jour of L.calendrier.slice(0, L.jour)) for (const m of jour) {
+    if (m.A !== you && m.B !== you) continue;
+    const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA;
+    if (pour > contre) W++; else if (m.ot) P++; else D++;
+  }
+  const gros = grosMatchs ? (you.minisBoss || []).filter(mb => mb.gagne).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0) : 0;
+  const B = baremeRogue(meta, exigence);
+  return base + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total - salairesDesAdjoints(L.calendrier, you, L.jour).total - depense;
+}
+/* Le pack que le robot achète avec `jetons`, au `n`-ième achat : celui que l'attentif lit, sinon l'ordre du robot d'avant. */
+export function packDuRobot(c, jetons, n) {
+  const { meta, attentif, boutique, you, cap, exigence, nRes } = c;
+  return attentif && PACK_FORCE ? packLu(boutique.filter(o => o.cle === PACK_FORCE), you.roster, cap, jetons, n, exigence, nRes) || (jetons >= prixAuAchat(PACK_FORCE, n, exigence) ? { cle: PACK_FORCE } : null)
+    : (boutique && packLu(boutique, you.roster, cap, jetons, n, exigence, nRes)) || packVoulu(meta, jetons, n, exigence);
+}
+/*
+ * SIGNER (un seul du pack acheté) : celui qui monte le plus l'alignement, sous le plafond ; qui sort : celui que
+ * l'alignement laisse. Le distrait : une carte au hasard, et un joueur du même groupe au hasard lui laisse sa case.
+ * « premier » (la saison en actes) : la première carte qui entre sous le plafond. Rend les cartes tirées, et qui a signé.
+ */
+export function signerDuPack(c, voulu, sel) {
+  const { meta, politique, attentif, clic, rnd, nRes, variantes, poser, cap, you, L, decisions, dansLaLigue } = c;
+  const auHasard = l => l[Math.floor(clic() * l.length)];
+  const actuel = you.roster;
+  // V9 : l'offre n'est plus filtrée sous le plafond ; ne se signe que ce qu'une sortie fait entrer (plus bas).
+  const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p)), voulu.role, meta);
+  let meilleur = null;
+  const joueurs = Object.values(actuel).filter(Boolean);
+  const valeur0 = valeurAlignement(actuel);
+  if (clic && cartes.length) {
+    const x = auHasard(cartes);
+    const memes = Object.entries(actuel).filter(([, p]) => p && groupe(p) === groupe(x.p));
+    const [i, sort] = memes.length ? auHasard(memes) : [];
+    if (sort && masseDe(actuel) - (sort.$ || 0) + (x.p.$ || 0) <= cap) meilleur = { x, r: { ...actuel, [i]: x.p }, sort };
+  }
+  // L'attentif : la carte qui monte le plus ses buts nets, lus au moteur, plan et coach compris — contre son effectif
+  // rangé de la même façon (le rangement automatique), sinon l'alignement qu'il a déjà optimisé gagne toujours.
+  const net0 = attentif && cartes.length ? lireNet(ranger(joueurs, nRes)) : 0;
+  for (const x of clic ? [] : cartes) {
+    const avec = [...joueurs, x.p];
+    const r = ranger(avec, nRes);
+    const dedans = new Set(Object.values(r).map(getPersonKey));
+    const sort = avec.find(p => !dedans.has(getPersonKey(p))) || null;
+    if (sort === x.p) continue;
+    if (masseDe(actuel) - (sort ? sort.$ || 0 : 0) + (x.p.$ || 0) > cap) continue;
+    if (politique === 'premier') { meilleur = { x, r, sort }; break; }
+    // Une case de réserve libre (débloquée) : il entre sans que personne sorte — ça vaut un peu de profondeur.
+    const auNet = attentif && attentifFait('net');
+    const gain = auNet ? lireNet(r) - net0 + (sort ? 0 : 0.01) : valeurAlignement(r) - valeur0 + (sort ? 0 : 0.6);
+    if (gain > (auNet ? 0.01 : 0.5) && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
+  }
+  if (meilleur) {
+    const { x, sort } = meilleur;
+    const r = attentif && attentifFait('aumieux') ? ranger(Object.values(meilleur.r).filter(Boolean), nRes, auMieux) : meilleur.r;
+    variantes.set(getPlayerKey(x.p), x.rar);
+    poser(x.p); connaitre(x.p);
+    dansLaLigue.add(getPersonKey(x.p));
+    const i = sort ? Number(Object.entries(actuel).find(([, p]) => p === sort)[0]) : Number(Object.entries(r).find(([, p]) => p === x.p)[0]);
+    decisions.push({ jour: L.jour, ballottage: { i, entre: getPlayerKey(x.p), sort: sort ? getPlayerKey(sort) : null, rar: x.rar }, sel });
+    decisions.push({ jour: L.jour, cases: photoAlignement(r), fermeture: 'auto' });
+    // Le moteur applique les décisions du jour avant les matchs : l'alignement suit tout de suite.
+    for (const k of Object.keys(actuel)) delete actuel[k];
+    Object.assign(actuel, r);
+  }
+  return { cartes, signe: !!meilleur };
+}
+/*
+ * CE QUE LE ROBOT LIT AUX HISTOIRES (scripts/lib/cartes_robot.mjs `lundiDuRobot`, `rondeDuRobot`) : l'attentif lit le
+ * joueur nommé d'une histoire sur son club (`lireLeJoueur`) et les canaux qu'elle pose (`ROBOT_SAUF=histoires` les
+ * retire), chaque adjoint sur son effectif (`fitDAdjoint`) et le talent selon son coach (`valeurDuTalent`, nov. 2026).
+ */
+export function lectureDuRobot(c) {
+  const { politique, attentif, you, etat } = c;
+  const lireHistoires = attentif && attentifFait('histoires');
+  const joueur = lireHistoires ? cle => lireLeJoueur(you.roster, cle) : null, canaux = lireHistoires ? (k, duree) => lireLesCanaux(you.roster, k, duree) : null;
+  return {
+    politique: attentif && !attentifFait('lundi') ? 'defaut' : politique,
+    fit: attentif && attentifFait('fit') ? (k, niv) => fitDAdjoint(you.roster, k, etat.perso.cle, niv) : null,
+    lire: attentif ? { joueur, canaux, talent: attentifFait('talent') ? valeurDuTalent : null, case: VALEUR_DE_LA_CASE } : null,
+    lireRonde: lireHistoires ? { joueur, canaux } : null,
+  };
+}
+
+/*
+ * UNE SAISON D'UNE RUN. `etat` : l'alignement et les variantes qui continuent
+ * (la saison 2 d'une run repart de l'équipe de la saison 1), les jetons de
+ * départ. Rend la fiche, les séries, les jetons qui restent et l'équipe.
+ */
+export function jouerSaison(meta, etat, { graine, saison, mains = true, politique = 'defaut', exigence = 0, ligue = niveauDeLigue(rangDePrestige(meta), exigence), etapeDeRun = 0 }) {
+  const clic = politique === 'distrait' ? generateur('rogue80-distrait', graine, saison) : null;
+  const c = ouvrirLaSaison(meta, etat, { graine, saison, politique, exigence, ligue, etapeDeRun, clic });
+  const { attentif, roster, you, opps } = c;
   // Le coach du jour 0 de chaque saison (js/banc.js) : son expérience d'avant, ses talents, sa main d'adjoints.
   const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], main: (etat.perso.main || []).map(c => ({ cle: c.cle, depuis: null, fin: null, sejours: [...(c.sejours || [])] })) } }];
   // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
@@ -584,96 +700,29 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // V8 : les rivaux choisis au premier jour. Le robot prend les trois du milieu de l'offre (ni le plus fort ni le plus faible).
   const offre = rivauxOfferts([you, ...opps], you, `rogue80:${graine}:${saison}`);
   if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: (clic ? melanger(offre, clic).slice(0, RIVAUX) : offre.slice(1, 1 + RIVAUX)).map(x => ({ cle: x.cle, butin: x.butin })) });
-  /*
-   * LE DUEL (V9, tranche 5, scripts/lib/duel.mjs) : l'attentif lit chaque intention et y répond ; le distrait clique au
-   * hasard ; le robot d'avant ne répond à rien. Sans main depuis la V13-2. `mains: false`, aucun : ni geste ni tableau.
-   */
-  if (mains && ((attentif && attentifFait('duel')) || clic)) you.robotDuel = robotDuel(attentif ? 'attentif' : 'distrait', clic || undefined);
-  const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
-  const dansLaLigue = new Set();
-  for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
-  // L'attentif lit la boutique au matin de la saison (`lireLaBoutique`) ; `ROBOT_SAUF=boutique`, l'ordre du robot d'avant.
-  const boutique = attentif && (attentifFait('boutique') || PACK_FORCE) ? lireLaBoutique(meta, graine, saison, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p))) : null;
+  const L = lancerLaLigue(c, decisions, mains);
   const entrees = [];
   let depense = 0, achats = 0, signes = 0, serie = 0, serieMax = 0;
-  const jetons = () => {
-    let W = 0, D = 0, P = 0;
-    for (const jour of L.calendrier.slice(0, L.jour)) for (const m of jour) {
-      if (m.A !== you && m.B !== you) continue;
-      const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA;
-      if (pour > contre) W++; else if (m.ot) P++; else D++;
-    }
-    const gros = (you.minisBoss || []).filter(mb => mb.gagne).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0);
-    const B = baremeRogue(meta, exigence);
-    // V3.6 : la prime des fils (le Cheechoo, le jalon…), comme au jeu (`resultatsRogue`, js/rogue-jeu.js).
-    return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total - salairesDesAdjoints(L.calendrier, you, L.jour).total - depense;
-  };
+  const jetons = () => jetonsDuRobot(c, etat.jetons, depense);
   // V10 : le lundi du robot — l'histoire, la carte d'un palier (scripts/lib/cartes_robot.mjs).
   // V25 C2 : la mémoire des histoires de la run (`etat.histoires`, les saisons d'avant) et les rondes déjà demandées.
   const etatCartes = { histoires: [], avant: etat.histoires || [], paliers: new Set(), butins: new Set(), rondes: new Set() };
-  // L'attentif lit le joueur nommé d'une histoire et les canaux du club qu'elle pose (`ROBOT_SAUF=histoires` les retire).
-  const lireHistoires = attentif && attentifFait('histoires');
+  const lecture = lectureDuRobot(c);
   const plans = new Map();
   let planPose = 'match';
   while (!L.fini) {
-    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes,
-      fit: attentif && attentifFait('fit') ? (k, niv) => fitDAdjoint(you.roster, k, etat.perso.cle, niv) : null,
-      // Nov. 2026 : le joueur nommé d'une histoire, lu sur son club (`lireLeJoueur`), et le talent selon son coach (`valeurDuTalent`).
-      lire: attentif ? { joueur: lireHistoires ? cle => lireLeJoueur(you.roster, cle) : null, canaux: lireHistoires ? (c, duree) => lireLesCanaux(you.roster, c, duree) : null,
-        talent: attentifFait('talent') ? valeurDuTalent : null, case: VALEUR_DE_LA_CASE } : null })) {
+    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique: lecture.politique, clic, jetons: jetons(), etat: etatCartes, fit: lecture.fit, lire: lecture.lire })) {
       decisions.push(d);
       depense -= d.gain || 0;
     }
     // La boutique, le matin : tant qu'il y a de quoi acheter.
     for (let garde = 0; garde < 4; garde++) {
-      const voulu = attentif && PACK_FORCE ? packLu(boutique.filter(o => o.cle === PACK_FORCE), you.roster, cap, jetons(), achats, exigence, nRes) || (jetons() >= prixAuAchat(PACK_FORCE, achats, exigence) ? { cle: PACK_FORCE } : null)
-        : (boutique && packLu(boutique, you.roster, cap, jetons(), achats, exigence, nRes)) || packVoulu(meta, jetons(), achats, exigence);
+      const voulu = packDuRobot(c, jetons(), achats);
       if (!voulu) break;
       depense += prixAuAchat(voulu.cle, achats, exigence); achats++;
-      const actuel = you.roster;
-      // V9 : l'offre n'est plus filtrée sous le plafond ; ne se signe que ce qu'une sortie fait entrer (plus bas).
-      const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p)), voulu.role, meta);
+      const { cartes, signe } = signerDuPack(c, voulu, `b${L.jour}:${achats}`);
       entrees.push(...cartes);
-      // SIGNER (un seul du pack) : celui qui monte le plus l'alignement, sous le plafond ; qui sort : celui que l'alignement laisse.
-      // Le distrait : une carte au hasard, et un joueur du même groupe au hasard lui laisse sa case.
-      let meilleur = null;
-      const joueurs = Object.values(actuel).filter(Boolean);
-      const valeur0 = valeurAlignement(actuel);
-      if (clic && cartes.length) {
-        const x = auHasard(cartes);
-        const memes = Object.entries(actuel).filter(([, p]) => p && groupe(p) === groupe(x.p));
-        const [i, sort] = memes.length ? auHasard(memes) : [];
-        if (sort && masseDe(actuel) - (sort.$ || 0) + (x.p.$ || 0) <= cap) meilleur = { x, r: { ...actuel, [i]: x.p }, sort };
-      }
-      // L'attentif : la carte qui monte le plus ses buts nets, lus au moteur, plan et coach compris — contre son effectif
-      // rangé de la même façon (le rangement automatique), sinon l'alignement qu'il a déjà optimisé gagne toujours.
-      const net0 = attentif && cartes.length ? lireNet(ranger(joueurs, nRes)) : 0;
-      for (const x of clic ? [] : cartes) {
-        const avec = [...joueurs, x.p];
-        const r = ranger(avec, nRes);
-        const dedans = new Set(Object.values(r).map(getPersonKey));
-        const sort = avec.find(p => !dedans.has(getPersonKey(p))) || null;
-        if (sort === x.p) continue;
-        if (masseDe(actuel) - (sort ? sort.$ || 0 : 0) + (x.p.$ || 0) > cap) continue;
-        // Une case de réserve libre (débloquée) : il entre sans que personne sorte — ça vaut un peu de profondeur.
-        const auNet = attentif && attentifFait('net');
-        const gain = auNet ? lireNet(r) - net0 + (sort ? 0 : 0.01) : valeurAlignement(r) - valeur0 + (sort ? 0 : 0.6);
-        if (gain > (auNet ? 0.01 : 0.5) && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
-      }
-      if (meilleur) {
-        const { x, sort } = meilleur;
-        const r = attentif && attentifFait('aumieux') ? ranger(Object.values(meilleur.r).filter(Boolean), nRes, auMieux) : meilleur.r;
-        variantes.set(getPlayerKey(x.p), x.rar);
-        poser(x.p); connaitre(x.p);
-        dansLaLigue.add(getPersonKey(x.p));
-        const i = sort ? Number(Object.entries(actuel).find(([, p]) => p === sort)[0]) : Number(Object.entries(r).find(([, p]) => p === x.p)[0]);
-        decisions.push({ jour: L.jour, ballottage: { i, entre: getPlayerKey(x.p), sort: sort ? getPlayerKey(sort) : null, rar: x.rar }, sel: `b${L.jour}:${achats}` });
-        decisions.push({ jour: L.jour, cases: photoAlignement(r), fermeture: 'auto' });
-        signes++;
-        // Le moteur applique les décisions du jour avant les matchs : l'alignement suit tout de suite.
-        for (const k of Object.keys(actuel)) delete actuel[k];
-        Object.assign(actuel, r);
-      }
+      if (signe) signes++;
     }
     // LE PLAN DE MATCH (V17) : le plan de ce soir, posé s'il change.
     const plan = planDuRobot(L, you, plans, attentif, clic);
@@ -695,8 +744,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     // LA MAIN EN SÉRIES (Jalon P0) : chaque match est un duel, joué par `you.robotDuel` (plus haut). V25 C2 : le matin du
     // premier match d'une ronde, l'histoire de la ronde (`rondeDuRobot`), décidée avant que la ronde se joue.
     for (let garde = 0; !S.fini && garde < 200; garde++) {
-      const d = rondeDuRobot({ S, L, you, graine: `rogue80:${graine}:${saison}`, politique: attentif && !attentifFait('lundi') ? 'defaut' : politique, clic, jetons: jetons(), etat: etatCartes,
-        lire: lireHistoires ? { joueur: cle => lireLeJoueur(you.roster, cle), canaux: (c, duree) => lireLesCanaux(you.roster, c, duree) } : null });
+      const d = rondeDuRobot({ S, L, you, graine: `rogue80:${graine}:${saison}`, politique: lecture.politique, clic, jetons: jetons(), etat: etatCartes, lire: lecture.lireRonde });
       if (d) { decsS.push(d); depense -= d.gain || 0; }
       jouerMatchSeries(S);
     }
@@ -704,7 +752,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     coupe = S.champion === you;
     // LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1, `PACKS_DE_SERIE`) : ses joueurs vont au classeur, pas dans l'alignement des séries.
     // « Les vedettes » (le déblocage) montent d'un cran le pack de chaque ronde.
-    for (let i = 0; i < rondes; i++) entrees.push(...tirerPack(rnd, packDeSerie(i, aDebloque(meta, 'packVedettes')).slice(2), p => !dansLaLigue.has(getPersonKey(p))));
+    for (let i = 0; i < rondes; i++) entrees.push(...tirerPack(c.rnd, packDeSerie(i, aDebloque(meta, 'packVedettes')).slice(2), p => !c.dansLaLigue.has(getPersonKey(p))));
     finale = S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A === you || s.B === you));
   }
   const reste = Math.max(0, jetons());
@@ -727,7 +775,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
  * le plus de buts nets, « Ton match » si aucun ne rend ; le distrait en tire un au hasard chaque soir ; le robot
  * d'avant n'en pose aucun (`undefined`). `plans` : la lecture de l'attentif, club par club, pour la saison.
  */
-function planDuRobot(L, you, plans, attentif, clic) {
+export function planDuRobot(L, you, plans, attentif, clic) {
   const m = (L.calendrier[L.jour] || []).find(x => x.A === you || x.B === you);
   if (attentif && !attentifFait('plan')) return undefined;
   if (!m || (!attentif && !clic)) return undefined;
@@ -827,13 +875,13 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
  * classeur, les moins jouées d'abord (`joues` : clé → runs jouées) ; les
  * trous, des plombiers de la ligue. Un classeur vide : les plombiers d'avant.
  */
-function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new Set(), joues = new Map(), graine = '', exigence = 0, premiere = false } = {}) {
+export function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new Set(), joues = new Map(), graine = '', exigence = 0, premiere = false, bouchesTrous } = {}) {
   const nRes = reservesDeLaRun(meta);
   const personnes = new Set(fixes.map(getPersonKey));
   const dispo = classeur.filter(x => !exclus.has(getPlayerKey(x.p)) && !personnes.has(getPersonKey(x.p)) && (x.p.$ || 0) > 0);
   if (premiere) {
     const reserve = [];
-    const roster = ranger([...fixes, ...plombiers(rnd, meta, personnes, reserve)], nRes);
+    const roster = ranger([...fixes, ...plombiers(rnd, meta, personnes, reserve, bouchesTrous)], nRes);
     return { roster: alourdirLaPremiere(roster, reserve.map(copie), { fixes, personne: getPersonKey }), tires: [] };
   }
   if (!dispo.length) return { roster: ranger([...fixes, ...plombiers(rnd, meta, personnes)], nRes), tires: [] };

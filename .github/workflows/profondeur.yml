@@ -1,0 +1,75 @@
+name: Profondeur
+
+# Le juge neuf de la V27 (docs/refonte-v27.md § 10, tranche 1) : la run en actes jouée par
+# les robots de scripts/lib/rogue_actes.mjs sur 64 graines de la vraie première run, les
+# mêmes dés pour chacun, puis jugée par scripts/check_profondeur.mjs — la Coupe de
+# l'attentif 6 à 10 fois sur 64, « premier » et le naïf au plus 2, le glouton au plus 32,
+# les cœurs, la courbe en points par acte, et les invariants de la cédule.
+#
+# Les campagnes lourdes ne tournent jamais sur le PC de JP : ici seulement. Chaque robot
+# joue ses 64 graines dans son propre travail, sur quatre fils (une dizaine de minutes ; à
+# un seul travail, ≈ 48 minutes, plus que le budget de 45) ; le dernier travail lit toutes
+# les runs et rend le verdict. Pas dans `verifier` : la fusion automatique ne l'attend pas,
+# mais la branche des tranches 2 à 6 ne sort vers main qu'avec ce travail vert (§ 10).
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "js/rogue*.js"
+      - "js/actes.js"
+      - "js/pieces.js"
+      - "scripts/lib/rogue_actes.mjs"
+      - "scripts/lib/rogue_sim.mjs"
+      - "scripts/lib/cartes_robot.mjs"
+      - "scripts/check_profondeur.mjs"
+      - ".github/workflows/profondeur.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  jouer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        robot: [attentif, premier, naif, glouton, place, courbe, prudent]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 64 graines de la run en actes (${{ matrix.robot }})
+        run: GRAINES=64 FILS=4 ROBOTS=${{ matrix.robot }} SORTIE=runs-${{ matrix.robot }}.json node scripts/check_profondeur.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runs-${{ matrix.robot }}
+          path: runs-${{ matrix.robot }}.json
+          if-no-files-found: error
+
+  juger:
+    needs: jouer
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: runs-*
+          path: runs
+          merge-multiple: true
+
+      - name: La profondeur du Rogue, en actes (tous les robots, en paires)
+        run: LIRE=runs node scripts/check_profondeur.mjs
