@@ -7,7 +7,7 @@
  *     club ses 82 matchs, un par jour (`poserLesRivaux`, le crochet `placer` de `creerLigue`). Le jeu et le robot de
  *     la profondeur (scripts/lib/rogue_actes.mjs) appellent la même fonction : ils jouent la même cédule.
  *   - LES CŒURS ET LES CONTRÔLES : 2 ❤️ ; à la fin des actes I et II, le rang du soir du rival (les bris d'égalité de
- *     l'écran Classement, `rangAuSoir`) doit tenir le 20e puis le 12e, ramenés à la taille de la ligue, sinon −1 ❤️.
+ *     l'écran Classement, `rangAuSoir`) doit tenir le 20e puis le 15e (R1, 8 nov. 2026 : au 12e, l'attentif mourait à l'acte II 13 fois sur 64), ramenés à la taille de la ligue, sinon −1 ❤️.
  *     L'acte III demande une place en séries. Tout se lit dans la cédule jouée (`etatDeLaRun`) : rien à sauvegarder,
  *     une reprise relit le même état.
  * Pur : la cédule, les clubs, la graine. Le moteur n'importe pas ce module (check_couches).
@@ -20,7 +20,7 @@ import { piecesOffertes } from './pieces.js';
 
 export const ACTES = [27, 54, 82];
 export const RANGS_DES_RIVAUX = [7, 3, 0];
-export const CONTROLES = [20, 12];
+export const CONTROLES = [20, 15];
 export const COEURS = 2;
 export const ETAPE_SERIES = 3;
 /* Les médailles d'un acte (devis § 4.8) : l'acte passé, le rival battu. */

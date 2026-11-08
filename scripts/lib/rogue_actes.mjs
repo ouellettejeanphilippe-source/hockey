@@ -9,7 +9,7 @@
  *     matchs à chacun et un match par jour (js/actes.js `poserLesRivaux`, sinon en amenant le club au jour du rival) ; en dernier recours, un club d'un rang voisin. Un duel ; gagné, une
  *     pièce ; perdu, les sonnés, aucun cœur, et jamais de jetons.
  *   - LES CŒURS ET LES CONTRÔLES (§ 4.2) : `COEURS` 2 ; à la fin des actes I et II, le classement du soir (celui de
- *     l'écran, `rangAuSoir`) doit tenir le 20e puis le 12e rang (proportionnels à la taille de la ligue), sinon −1 ❤️ ;
+ *     l'écran, `rangAuSoir`) doit tenir le 20e puis le 15e rang (proportionnels à la taille de la ligue), sinon −1 ❤️ ;
  *     l'acte III demande une place en séries, sinon la run finit. À 0 ❤️, la run est morte.
  *   - LES ÉLITES (§ 4.5) : au plus une par acte, le lundi, contre un club du top 8 en force de la semaine, jamais la
  *     semaine d'un rival ; un duel ; gagnée, une pièce et `J` jetons (le pronostic du jour, `pronostic`) ; perdue, −1 ❤️.

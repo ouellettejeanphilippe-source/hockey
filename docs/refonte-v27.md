@@ -117,9 +117,9 @@ Ces règles se lisent seules ; elles ne sont pas un diff des règles d'avant.
 - Le proprio te donne **2 ❤️** au départ ; ils ne remontent jamais dans la run.
 - **À la fin de chaque acte**, après le match du rival, le classement du soir est lu, **tel que l'écran Classement le montre** (ses bris d'égalité compris : le contrôle ne recalcule rien) :
   - acte I : 20e ou mieux, sinon −1 ❤️ ;
-  - acte II : 12e ou mieux, sinon −1 ❤️ ;
+  - acte II : 15e ou mieux, sinon −1 ❤️ (12e jusqu'au réglage R1, § 9) ;
   - acte III : une place en séries, sinon **la run finit** (sans séries, pas d'acte IV), quels que soient les cœurs.
-- **Les contrôles suivent la taille de la ligue** : dans une ligue de `n` clubs, le rang à tenir est `arrondi(C × n / 32)` (20 · 12 dans une ligue de 32 ; 15 · 9 dans une de 24) et l'acte III demande une place en séries de cette ligue. Le code d'aujourd'hui lit déjà la taille de la ligue (`rangDuMandat`, `nEquipes`), mais il coupe au minimum ; la V27 passe à la proportion.
+- **Les contrôles suivent la taille de la ligue** : dans une ligue de `n` clubs, le rang à tenir est `arrondi(C × n / 32)` (20 · 15 dans une ligue de 32 ; 15 · 11 dans une de 24) et l'acte III demande une place en séries de cette ligue. Le code d'aujourd'hui lit déjà la taille de la ligue (`rangDuMandat`, `nEquipes`), mais il coupe au minimum ; la V27 passe à la proportion.
 - **Une élite perdue** : −1 ❤️ (§ 4.5).
 - **Un rival perdu** ne coûte aucun cœur (§ 4.3).
 - **À 0 ❤️**, la run finit le soir même : l'écran de fin, les 🏅 de ce qui a été fait. Avec 2 ❤️ : rater l'acte I puis l'acte II finit la run à la fin de l'acte II ; une élite perdue plus un contrôle raté aussi.
@@ -237,7 +237,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 | 3 | Le classeur fermé | une case de moins au classeur, un loto de moins | une case de moins au classeur |
 | 4 | L'effectif mince | 3 Soutiens de plus au départ de chaque saison | 3 Soutiens de plus au départ |
 | 5 | Les commanditaires boudent | 2 jetons de moins par victoire | 1 jeton de moins par victoire (le barème est à 5 sans commanditaire) |
-| 6 | Le proprio impatient | chaque mandat une saison plus tôt | **les contrôles serrés** : 18 · 10 au lieu de 20 · 12 |
+| 6 | Le proprio impatient | chaque mandat une saison plus tôt | **les contrôles serrés** : 18 · 13 au lieu de 20 · 15 |
 | 7 | Ceux qui partent | une case de moins chez ceux qui restent | **les rivaux plus haut** : le 6e, le 2e et le plus fort (`RANGS_DES_RIVAUX` 5 · 1 · 0) |
 | 8 | La ceinture serrée | 3 M$ d'espace de moins encore | **les séries plus dures** : `ETAPE_SERIES` +1 (4 étapes) |
 
@@ -273,7 +273,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **Ce qui repart** : les jetons (les 40 du départ ; ceux d'avant sont déjà perdus au 82e nœud), la boutique et ses sept nœuds, le calendrier (une vraie cédule neuve, tirée de la graine de la saison), les élites, les fourches.
 - **Les contrats** : chaque joueur gardé demande plus après une Coupe : son contrat monte de *HAUSSE_CONTRATS* 10 % (plage 5-15 %). **Le plafond ne bouge pas** (celui du départ de la run, exigences comprises). Au-dessus du plafond, avant le premier soir, tu choisis qui part, un joueur à la fois, jusqu'à passer sous le plafond (l'écran de l'échange, sans arrivant ; une ligne qui bloque « Jour suivant »). Exemple fait : une masse de 80 M$ monte à 88 M$ ; sous un plafond de 84 M$, il faut libérer 4 M$ (un Pilier à 4,5 M$, ou deux joueurs plus petits).
 - **Le vieillissement** : chaque saison de Dynastie, un joueur dont l'âge (celui de sa vraie saison, plus les saisons de Dynastie jouées) atteint *AGE_DECLIN* 33 ans (plage 31-35) perd un palier de badge, jusqu'au Bronze au plus bas (le canal des badges qui existe, `badgesDe`) ; sa carte le dit (« 34 ans · un palier de moins »). Rien d'autre ne vieillit.
-- **Les cœurs** : **2 ❤️ remis** au départ de la saison (proposé) ; les contrôles 20 · 12 · séries restent.
+- **Les cœurs** : **2 ❤️ remis** au départ de la saison (proposé) ; les contrôles 20 · 15 · séries restent.
 - **Plus dur** : **les rivaux d'un cran plus forts** (*RANGS_DES_RIVAUX* passe à 5 · 1 · 0 à la première saison de Dynastie, 3 · 0 · 0 à la deuxième et ensuite) et **l'exigence montée d'un cran** pour la saison (le cran suivant du § 4.9, ses médailles comprises, `PRIME_EXIGENCE`). **Pas de marche de la ligue** : aucune étape d'édition de plus aux adversaires.
 - **La fin** (**ma proposition**, à confirmer par JP, § 11.4) : **sans fin** — chaque Coupe propose une saison de plus, et la run finit à 0 ❤️, à l'acte III raté, à une série perdue, ou quand tu choisis « Finir la run ». Écartée : une seule saison de plus, qui coupe la Dynastie au moment où elle devient une histoire.
 - **Les médailles** : comme une saison ordinaire (§ 4.8), au multiple de l'exigence montée.
@@ -283,7 +283,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 
 - **Les actes** : *ACTES* [27, 54, 82] (tes matchs joués à la fin de chaque acte). Exemple : ton 27e match est le rival de l'acte I.
 - **Les rivaux** : *RANGS_DES_RIVAUX* [7, 3, 0], le rang (de 0) parmi les 31 adversaires triés par `att + def + g` au premier soir ; dans une ligue de `n` clubs, `arrondi(r × (n − 1) / 31)`.
-- **Les contrôles** : *CONTROLES* [20, 12, séries] (rang au classement le soir du rival, inclus), `arrondi(C × n / 32)` dans une ligue de `n` clubs. Le tour 3 du prototype les a relus avec 3 ❤️ : l'attentif ne meurt qu'une fois sur 16, à l'acte III ; le premier robot 6 fois.
+- **Les contrôles** : *CONTROLES* [20, 15, séries] (le 12e de l'acte II jusqu'au réglage R1, § 9) (rang au classement le soir du rival, inclus), `arrondi(C × n / 32)` dans une ligue de `n` clubs. Le tour 3 du prototype les a relus avec 3 ❤️ : l'attentif ne meurt qu'une fois sur 16, à l'acte III ; le premier robot 6 fois.
 - **Les cœurs** : *COEURS* 2 (JP).
 - **Le renfort** : *RENFORT* 1 étape par match reculé et par acte de recul, compté depuis la cédule d'origine, sans arrondi, plus 1 pour un match reculé au-delà du nœud du milieu de son acte. Exemple fait : § 4.4.
 - **Les séries** : chaque adversaire monte de *ETAPE_SERIES* 3 étapes d'édition au premier match des séries, renfort compris en plus.
@@ -428,7 +428,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 |---|---|---|---|
 | *ACTES* | 27 · 54 · 82 | ± 3 matchs par borne | un acte de moins de 22 matchs n'a pas de méso-boucle ; de plus de 32, l'arrêt naturel s'éloigne |
 | *RANGS_DES_RIVAUX* | 7 · 3 · 0 | [12, 6, 2] à [3, 1, 0] (essayés : `att-bossdoux`, `att-bossdur`) | trop bas, le rival n'est pas un pic ; trop haut à l'acte I, l'équipe du départ ne peut pas gagner. Le premier levier si l'attentif meurt trop (R1) |
-| *CONTROLES* | 20 · 12 · séries | 18-24 · 10-16 · séries | relu au tour 3 avec 3 ❤️ : l'attentif meurt 1 fois sur 16 ; avec 2 ❤️, à remesurer (R1) |
+| *CONTROLES* | 20 · 15 · séries (R1, 8 nov. ; 20 · 12 avant) | 18-24 · 10-16 · séries | relu au tour 3 avec 3 ❤️ : l'attentif meurt 1 fois sur 16 ; avec 2 ❤️, à remesurer (R1) |
 | *COEURS* | 2 | 2 (JP) | ne se règle pas : si l'attentif meurt trop, on règle le départ ou les rivaux (décision 1) |
 | *RENFORT* | 1 étape par match et par acte | 1-2 | à 0, placer est gratuit et dominant ; à 3 par acte (essayé), placer ne vaut plus rien |
 | *ETAPE_SERIES* | 3 étapes | 2-4 | à 0, les séries sont plus faciles que l'acte III |
@@ -445,6 +445,16 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 | La présence d'une pièce | 30-50 % des soirs | 25-60 % | sous 25 %, elle ne se sent pas ; au-dessus de 60 %, elle vaut deux adjoints d'aujourd'hui |
 | *SEMAINES_ENTRE_FOURCHES* | 2 ou 3 (tiré) | 2-4 | à 1, on revient à 175 décisions ; à 4, une saison n'a que six fourches |
 | Les médailles | 10 · 15 · 20 · 40 | ±50 % | trop bas, la méta prend 30 runs ; trop haut, tout s'ouvre en 8 |
+
+**Le réglage R1 (8 nov. 2026, branche `claude/v27-reglage`)**, mesuré en CI (`profondeur.yml`, 64 graines par robot), un levier par course :
+
+| Course | Réglage | Coupes att. · premier · naïf | Un cœur perdu (19-38) | Morts avant l'acte III (≤ 8) | Att. − premier · naïf (5-9 V) |
+|---|---|---|---|---|---|
+| 0 (PR #389) | — (bande 0,35-0,55, contrôles 20 · 12) | 10 · 0 · 0 | 49 ✗ | 18 ✗ | +9,3 ✗ · +8,3 |
+| 1 | *BANDE_DEPART* 0,40 · 0,60 : le départ médian du 28e au 26e | 5 ✗ · 3 ✗ · 3 ✗ | 43 ✗ | 13 ✗ | +8,3 · +9,1 ✗ |
+| 2 | *CONTROLES* 20 · 15 | à mesurer | | | |
+
+Lu dans les runs gardées : à la course 0, les 18 morts sont toutes à l'acte II, 17 sur deux contrôles ratés, presque toutes parties du 29e au 32e rang de force ; à la course 1, les 13 morts ratent encore les deux contrôles, mais 12 d'entre elles finissent l'acte II du 13e au 19e. Les Coupes bougent beaucoup d'une course à l'autre sur les mêmes dés : les variantes de l'attentif (le placé, le prudent) en gagnent 10 chacune à la course 1, l'attentif 5 ; une borne de 6 à 10 sur 64 est à ±2,7 Coupes du hasard.
 
 ## 10. Les critères d'acceptation, et ce que deviennent les juges
 

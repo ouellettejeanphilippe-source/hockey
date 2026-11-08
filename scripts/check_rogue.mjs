@@ -236,12 +236,12 @@ if (!isMainThread) {
    * un cœur part par contrôle raté, la run meurt à 0 ❤️, et l'acte III n'en coûte aucun.
    */
   {
-    exiger('les actes, les cœurs et les contrôles du devis', ACTES.join() === '27,54,82' && COEURS === 2 && CONTROLES.join() === '20,12' && RANGS_DES_RIVAUX.join() === '7,3,0' && ETAPE_SERIES === 3,
+    exiger('les actes, les cœurs et les contrôles du devis', ACTES.join() === '27,54,82' && COEURS === 2 && CONTROLES.join() === '20,15' && RANGS_DES_RIVAUX.join() === '7,3,0' && ETAPE_SERIES === 3,
       `actes ${ACTES.join(' · ')} · ${COEURS} ❤️ · contrôles ${CONTROLES.join(' · ')} · rivaux ${RANGS_DES_RIVAUX.map(r => r + 1).join(' · ')} · séries +${ETAPE_SERIES}`);
-    exiger('les contrôles et les rivaux suivent la taille de la ligue', controleDeLActe(0, 32) === 20 && controleDeLActe(1, 32) === 12 && controleDeLActe(0, 24) === 15 && controleDeLActe(1, 24) === 9
+    exiger('les contrôles et les rivaux suivent la taille de la ligue', controleDeLActe(0, 32) === 20 && controleDeLActe(1, 32) === 15 && controleDeLActe(0, 24) === 15 && controleDeLActe(1, 24) === 11
       && parmiLesAdversaires(7, 32) === 7 && parmiLesAdversaires(7, 24) === 5, `ligue de 24 : ${controleDeLActe(0, 24)} · ${controleDeLActe(1, 24)}`);
     const n = EXIGENCES.length;
-    exiger('les exigences serrent les contrôles, montent les rivaux et durcissent les séries', controleDeLActe(0, 32, n) === 18 && controleDeLActe(1, 32, n) === 10 && etapeDesSeries(n) === ETAPE_SERIES + 1 && etapeDesSeries(0) === ETAPE_SERIES,
+    exiger('les exigences serrent les contrôles, montent les rivaux et durcissent les séries', controleDeLActe(0, 32, n) === 18 && controleDeLActe(1, 32, n) === 13 && etapeDesSeries(n) === ETAPE_SERIES + 1 && etapeDesSeries(0) === ETAPE_SERIES,
       `au cran ${n} : ${controleDeLActe(0, 32, n)} · ${controleDeLActe(1, 32, n)} · séries +${etapeDesSeries(n)}`);
     // Une ligue de quatre clubs sur une cédule écrite à la main : le rang du soir, ses bris d'égalité.
     const T = ['A', 'B', 'C', 'D'].map(tag => ({ tag, season: '2000-01' })), [a, b, c, d] = T;
@@ -251,7 +251,7 @@ if (!isMainThread) {
     const rangs = T.map(t => rangAuSoir(cal, T, t, 1));
     // Après deux soirs : A 2 pts (1 V, +1), B 2 pts (1 V, +2), C 4 pts, D 1 pt (DP) → C, B, A, D.
     exiger('le rang du soir est celui de l\'écran : les points, les victoires, le différentiel', rangs.join() === '3,2,1,4', `A ${rangs[0]}e · B ${rangs[1]}e · C ${rangs[2]}e · D ${rangs[3]}e`);
-    // Les cœurs : un rival par soir ; à 4 clubs, les contrôles valent 3 et 2 (arrondi(20 × 4 / 32), arrondi(12 × 4 / 32)).
+    // Les cœurs : un rival par soir ; à 4 clubs, les contrôles valent 3 et 2 (arrondi(20 × 4 / 32), arrondi(15 × 4 / 32)).
     const rivaux = [{ acte: 0, jour: 0, adv: b }, { acte: 1, jour: 1, adv: c }];
     const E = etatDeLaRun({ calendrier: cal, teams: T, you: a, rivaux, jour: 2 });
     exiger('un contrôle raté coûte un cœur ; deux, la run', E.actes.length === 2 && E.actes[0].tenu === true && E.actes[1].tenu === false && E.coeurs === 1 && !E.mort
