@@ -24,7 +24,8 @@
  *   - LE DÉPART (§ 4.9) : les bouche-trous tirés de `BANDE_DEPART` de leur saison (il était du 5e au 25e centile).
  *
  * LES ROBOTS (§ 10, `ROBOTS`), sur les mêmes dés : l'attentif (il lit le moteur, comme scripts/lib/rogue_sim.mjs ; une
- * élite quand ses deux cœurs sont là et qu'il tient le contrôle de l'acte) ; « premier » (il signe la première carte qui
+ * élite quand ses deux cœurs sont là, qu'il tient le contrôle de l'acte et que le pronostic que l'écran montre lui donne au moins
+ * `CHANCE_ELITE`) ; « premier » (il signe la première carte qui
  * entre) ; le naïf (le robot d'avant, `defaut`) ; LE GLOUTON (neuf : il court après chaque pièce — toutes les élites
  * offertes, même au dernier cœur) ; et les variantes de mesure : « placé » (le calendrier placé), « courbe » (la ligue
  * qui monte d'une étape par acte, `ETAPES_DES_ACTES` [0, 1, 2] essayé), « prudent » (l'attentif qui refuse les élites).
@@ -56,10 +57,16 @@ import {
 /* Les chiffres du § 5 et du § 9 que le jeu n'a pas encore (les actes, les rivaux, les contrôles et les cœurs : js/actes.js). */
 export { ACTES, COEURS };
 const TOP_DES_ELITES = 8, ELITES_PAR_ACTE = 1;
+/*
+ * LE RÉGLAGE R1 (8 nov. 2026 ; docs/refonte-v27.md § 4.5, § 9) : l'attentif lit le pronostic du jour, la vraie chance que l'écran
+ * de l'élite montre (js/pronostic.js `pronostic`, la même qui fixe sa récompense), et la refuse sous 40 %. Ce n'est pas une
+ * règle du jeu : c'est le robot qui joue comme un joueur attentif. Le glouton prend tout, le prudent refuse tout.
+ */
+const CHANCE_ELITE = 0.40;
 const ETAPES_DES_ACTES = [0, 0, 0];
 const V_COEUR = 60;
 
-/* Les robots de check_profondeur (§ 10). `elites` : 'prudent' (deux cœurs et le contrôle tenu), 'toutes', 'jamais'. */
+/* Les robots de check_profondeur (§ 10). `elites` : 'prudent' (deux cœurs, le contrôle tenu, le pronostic à `CHANCE_ELITE` ou plus), 'toutes', 'jamais'. */
 export const ROBOTS = {
   attentif: { politique: 'attentif', elites: 'prudent' },
   premier: { politique: 'premier', elites: 'jamais' },
@@ -165,7 +172,10 @@ export function jouerLaRun(nom, graine) {
     if (robot.elites === 'prudent' && (coeurs < COEURS || rangAuSoir(L.calendrier, L.teams, you, L.jour - 1) > (a < 2 ? aLaTaille(CONTROLES[a], n) : aLaTaille(16, n)))) return;
     const j = jours[k], m = L.calendrier[j].find(x => x.A === you || x.B === you);
     const pr = pronostic({ A: m.A, B: m.B, calendrier: L.calendrier, jourMatch: j, jourRevele: L.jour, graine: `${graine}:elite` });
-    const p = Math.min(0.55, Math.max(0.25, (m.A === you ? pr.vA : pr.vB) / pr.n));
+    const chance = (m.A === you ? pr.vA : pr.vB) / pr.n;
+    // L'attentif lit la vraie chance que l'écran montre (R1) : sous `CHANCE_ELITE`, il refuse.
+    if (robot.elites === 'prudent' && chance < CHANCE_ELITE) return;
+    const p = Math.min(0.55, Math.max(0.25, chance));
     const J = Math.min(90, Math.max(10, Math.round((V_COEUR * (1 - p)) / p) - PRIX_PIECE));
     L.grosAnnonces[j] = { jour: j, adv: advAu(j), raison: 'elite' };
     etatCartes.butins.add(j);
