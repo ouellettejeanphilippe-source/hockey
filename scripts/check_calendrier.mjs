@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, effetsEnCours, matchsEntre, jourEvenement,
   soirEreintant, dosADos, JOURS_SITUATIONS, PALIERS_CARTES } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
+import { crochetDesActes, joursDe, echangeables, echangerTesCases, brouillon, renfortsDe, ACTES, acteDe } from '../js/actes.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -94,18 +95,46 @@ for (let d = 0; d < L.calendrier.length; d++) for (const m of L.calendrier[d]) {
 exiger('le soir éreintant est un dos-à-dos d\'un des deux clubs', ecartesSoir === 0, `${soirs} soirs sur ${total} matchs (${Math.round(100 * soirs / total)} %)`);
 
 /*
- * LE CALENDRIER NE PROMET QUE CE QUI ARRIVE (V2.2). Le calendrier lit une seule liste de marques (`marquesDeSaison`,
- * js/saison.js) : un événement et une situation à venir ne s'annoncent pas (V19 : leur jour est tiré de la graine, JP : *plus
- * « randoms »*) ; le passé ne marque que ce qui est arrivé ; le verdict du proprio et les accidents y sont. Nov. 2026 : la route
- * de la saison (`routeHtml`) est partie du Calendrier, qui garde la grille et la route des deux semaines ; aucune autre liste.
+ * LE CALENDRIER NE PROMET QUE CE QUI EST SÛR (V2.2 ; V27, tranche 4, docs/refonte-v27-4.md). Le Calendrier est la saison en
+ * cases, un acte à la fois (`saisonEnCases`, js/saison.js), faite de la case de match (`caseDeMatch`) : jouée, son score ; à
+ * venir, seulement ce qui est écrit — le rival (posé à la création), le marché (ses nœuds fixes), le renfort (décidé). Aucun
+ * événement ni situation à venir ; la route des trois billets et les semaines de sept journées sont parties.
  */
 {
-  const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'saison.js'), 'utf8');
-  const bloc = (src.match(/const marquesDeSaison = \(\) => \{[\s\S]*?\n  \};/) || [''])[0];
-  exiger('le calendrier lit la liste des marques, et la route de la saison est partie (nov. 2026)', !!bloc && /for \(const x of marquesDeSaison\(\)\)/.test(src) && !/routeHtml\(/.test(src));
-  exiger('un événement et une situation à venir ne s\'annoncent pas : rien n\'est promis d\'avance', !/un événement possible/.test(bloc) && !/vivra peut-être quelque chose/.test(bloc));
-  exiger('le passé ne marque que ce qui est arrivé (les situations vécues ; la banque d\'événements est vide, V22)', !/d\.moment\.famille === 'moment'/.test(bloc) && /you\.situations/.test(bloc));
-  exiger('le verdict du proprio et les accidents sont sur la route', /le verdict du proprio/.test(bloc) && /source === 'accident'/.test(bloc));
+  const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'saison.js'), 'utf8').replace(/\r\n/g, '\n');
+  const bloc = (src.match(/const caseDuMatch = [\s\S]*?\n  \};/) || [''])[0];
+  exiger('le Calendrier est la saison en cases, faite de la case de match ; la route et les semaines sont parties', /const saisonEnCases = /.test(src) && /caseDeMatch\(/.test(bloc) && !/routeDeuxSemaines|calendrierFiche|marquesDeSaison/.test(src));
+  exiger('une case ne dit que ce qui est sûr : le score joué, le rival, le marché, le renfort', /rivaux/.test(bloc) && /NOEUDS_BOUTIQUE/.test(bloc) && /renfortHtml/.test(bloc) && !/situations|JOURS_|PALIERS_/.test(bloc));
+}
+
+/*
+ * LA CÉDULE PLACÉE (V27, tranche 4) : sur une vraie ligue en actes, quarante échanges de suite, chacun pris parmi ceux que
+ * l'écran propose (`echangeables`) : chaque club garde 82 matchs, jamais deux le même jour ; le match d'un rival ne bouge
+ * jamais ; aucun échange ne touche un match joué ni ne sort de l'acte et des suivants ; un club ramené à sa case d'origine
+ * n'a plus de renfort.
+ */
+{
+  const ts = ligue(57); ts[0].isPlayer = true;
+  const P = creerLigue(ts, 82, { graine: 'placee', placer: crochetDesActes() });
+  const toi = ts[0], B = brouillon(P), jours = joursDe(B.calendrier, toi), rivaux = P.rivaux.map(R => `${R.jour}:${R.adv.name}`).join();
+  const advAu = j => { const m = B.calendrier[j].find(x => x.A === toi || x.B === toi); return m.A === toi ? m.B : m.A; };
+  let faits = 0, horsActe = 0;
+  for (let i = 0; i < 40; i++) {
+    const k = (i * 7) % ACTES[0], q = echangeables(B, k, 0)[(i * 3) % Math.max(1, echangeables(B, k, 0).length)];
+    if (q == null) continue;
+    if (acteDe(k) !== 0 && acteDe(q) !== 0) horsActe++;
+    if (echangerTesCases(B, k, q, 0)) faits++;
+  }
+  const nb = new Map(); let doubles = 0;
+  for (const jr of B.calendrier) { const vus = new Set(); for (const m of jr) for (const t of [m.A, m.B]) { if (vus.has(t)) doubles++; vus.add(t); nb.set(t, (nb.get(t) || 0) + 1); } }
+  exiger('quarante échanges de l\'écran : 82 matchs à chaque club, jamais deux le même jour', faits >= 20 && !doubles && [...nb.values()].every(n => n === 82) && nb.size === ts.length, `${faits} échanges faits, ${doubles} doublé`);
+  exiger('le match d\'un rival ne bouge jamais, et l\'une des deux cases est dans l\'acte', P.rivaux.map(R => `${R.jour}:${advAu(R.jour).name}`).join() === rivaux && !horsActe && !echangeables(B, ACTES[0] - 1, 0).length);
+  exiger('un match joué ne se place plus', !echangeables(B, 3, 5).length && echangeables(B, 5, 5).every(q => q >= 5));
+  const C = brouillon(P), k0 = jours.findIndex((j, k) => k < ACTES[0] && echangeables(C, k, 0).some(q => acteDe(q) === 2)), q0 = echangeables(C, k0, 0).find(q => acteDe(q) === 2);
+  echangerTesCases(C, k0, q0, 0);
+  const n1 = [...renfortsDe(C).values()].reduce((s, n) => s + n, 0);
+  echangerTesCases(C, k0, q0, 0);
+  exiger('reculé de l\'acte I à l\'acte III, un club porte deux étapes au moins (une de plus s\'il passe aussi un nœud du milieu) ; ramené, plus rien', n1 >= 2 && renfortsDe(C).size === 0, `+${n1} puis ${renfortsDe(C).size} club renforcé`);
 }
 
 verdict();

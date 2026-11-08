@@ -32,7 +32,7 @@ import {
   ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN, ecussonsDesSeries,
 } from '../js/rogue.js';
 import { ACTES, COEURS, CONTROLES, RANGS_DES_RIVAUX, ETAPE_SERIES, controleDeLActe, etapeDesSeries, rangAuSoir, etatDeLaRun, parmiLesAdversaires,
-  NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, PRIX_PIECE, noeudOuvert, prochainNoeud, prixDeLaPiece, estUnAchat, piecesDuNoeud } from '../js/actes.js';
+  NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, PRIX_PIECE, noeudOuvert, prochainNoeud, prixDeLaPiece, estUnAchat, piecesDuNoeud, renfortDe } from '../js/actes.js';
 import { EDITIONS } from '../js/rarete.js';
 import { NIVEAUX as NOMS_DE_NIVEAU } from '../js/niveaux.js';
 import { POUVOIRS } from '../js/pouvoirs.js';
@@ -256,6 +256,10 @@ if (!isMainThread) {
     exiger('un contrôle raté coûte un cœur ; deux, la run', E.actes.length === 2 && E.actes[0].tenu === true && E.actes[1].tenu === false && E.coeurs === 1 && !E.mort
       && etatDeLaRun({ calendrier: cal, teams: T, you: d, rivaux, jour: 2, exigence: EXIGENCES.length }).mort,
       `A : ${E.actes.map(x => `${x.rang}e / ${x.cible} ${x.tenu ? '✓' : '✗'}`).join(' · ')} · ${E.coeurs} ❤️`);
+    // LE RENFORT (tranche 4, devis § 4.4), l'exemple fait à la main : Boston contre toi aux matchs 5, 33 et 70 (de 0 : 4, 32, 69).
+    const R1 = renfortDe([4, 32, 69], [39, 59, 69]), R2 = renfortDe([4, 32, 69], [19, 39, 69]);
+    exiger('le renfort : +1 par acte de recul, +1 au-delà du nœud du milieu, compté depuis la cédule d\'origine', R1 === 2 && R2 === 1 && renfortDe([4], [4]) === 0 && renfortDe([20], [10]) === 0 && renfortDe([60], [70]) === 1 && renfortDe([60], [66]) === 0,
+      `le 5 au 60 et le 33 au 40 : +${R1} ; puis le 60 ramené au 20 : +${R2}`);
     exiger('un rival perdu ne coûte aucun cœur', E.actes[1].gagne === false && E.actes[0].gagne === true && E.coeurs === COEURS - 1, `rival I ${E.actes[0].gagne ? 'battu' : 'perdu'} · rival II ${E.actes[1].gagne ? 'battu' : 'perdu'}`);
     // La bande du départ (devis § 4.9) : les bouche-trous tirés du 35e au 55e centile de leur saison.
     const s = shard('1985-86').players.filter(p => groupe(p) === 'F' && (p.gp || 0) >= 30);

@@ -13,9 +13,10 @@
  *     l'acte III demande une place en séries, sinon la run finit. À 0 ❤️, la run est morte.
  *   - LES ÉLITES (§ 4.5) : au plus une par acte, le lundi, contre un club du top 8 en force de la semaine, jamais la
  *     semaine d'un rival ; un duel ; gagnée, une pièce et `J` jetons (le pronostic du jour, `pronostic`) ; perdue, −1 ❤️.
- *   - LE CALENDRIER PLACÉ (§ 4.4) : le robot « placé » met les plus faibles d'abord ; chaque match reculé renforce son
- *     club d'une étape d'édition par acte de recul, comptée depuis la cédule d'origine, plus une au-delà du nœud du milieu
- *     de son acte (`renfortDe`) ; le renfort reste en séries, qui ajoutent `ETAPE_SERIES` à chaque club.
+ *   - LE CALENDRIER PLACÉ (§ 4.4 ; tranche 4, docs/refonte-v27-4.md) : au premier soir de chaque acte, le robot « placé »
+ *     met les plus faibles d'abord, par les échanges du jeu (js/actes.js `echangeables`, `echangerTesCases`, sur un
+ *     `brouillon`) et la même décision `cedule`, que le moteur joue à son jour (`crochetDesActes`) ; le renfort
+ *     (`renfortsDe`) reste en séries, qui ajoutent `ETAPE_SERIES` à chaque club.
  *   - LA BOUTIQUE (§ 4.8 ; tranche 3, docs/refonte-v27-3.md) : les nœuds, les prix et la pièce viennent de js/actes.js
  *     (`NOEUDS_BOUTIQUE`, `noeudOuvert`, `ACHATS_PAR_NOEUD`, `prixDeLaPiece`, `piecesDuNoeud`), comme au jeu : la pièce
  *     d'abord si la caisse la paie, puis des packs au prix du nœud ; passé la date limite (`DATE_LIMITE_MATCH`), un pack ne
@@ -43,7 +44,8 @@
  * Tout est pur : la graine de la run, et le moteur sous sa graine. MESURE seulement, jamais lu par le jeu.
  */
 import { teamStrength, photoAlignement, getHiddenRatings, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries } from '../../js/sim.js';
-import { ACTES, COEURS, CONTROLES, ETAPE_SERIES, aLaTaille, parmiLesAdversaires, acteDe, joursDe, rangAuSoir, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, PRIX_PIECE, noeudOuvert, prixDeLaPiece, piecesDuNoeud } from '../../js/actes.js';
+import { ACTES, COEURS, CONTROLES, ETAPE_SERIES, aLaTaille, parmiLesAdversaires, acteDe, joursDe, rangAuSoir, ACHATS_PAR_NOEUD, PRIX_PIECE, noeudOuvert, prixDeLaPiece, piecesDuNoeud,
+  echangeables, echangerTesCases, brouillon, renfortsDe } from '../../js/actes.js';
 import { DATE_LIMITE_MATCH } from '../../js/packs.js';
 import { jetonsDeDepart, habillerLaLigue, niveauDeLigue, rangDePrestige } from '../../js/rogue.js';
 import { pronostic } from '../../js/pronostic.js';
@@ -59,8 +61,6 @@ export { ACTES, COEURS };
 const TOP_DES_ELITES = 8, ELITES_PAR_ACTE = 1;
 const ETAPES_DES_ACTES = [0, 0, 0];
 const V_COEUR = 60;
-/* Les nœuds du milieu de chaque acte (le 14e, le 41e, le 68e) : un match reculé au-delà, dans son acte, renforce aussi. */
-const MILIEUX = [NOEUDS_BOUTIQUE[1], NOEUDS_BOUTIQUE[3], NOEUDS_BOUTIQUE[5]];
 
 /* Les robots de check_profondeur (§ 10). `elites` : 'prudent' (deux cœurs et le contrôle tenu), 'toutes', 'jamais'. */
 export const ROBOTS = {
@@ -74,33 +74,9 @@ export const ROBOTS = {
 };
 
 
-/*
- * LE RENFORT D'UN CLUB (§ 4.4) : `avant`, les rangs (de 0) de tes matchs contre lui dans la cédule d'origine ; `apres`,
- * dans la cédule placée. Chaque match reculé vaut une étape par acte de recul, sans arrondi ; dans un même acte, une
- * étape s'il passe le nœud du milieu. Toujours compté depuis l'origine : reculer puis ramener ne coûte rien.
- */
-export function renfortDe(avant, apres) {
-  const a = avant.slice().sort((x, y) => x - y), b = apres.slice().sort((x, y) => x - y);
-  return a.reduce((s, k, i) => {
-    const q = b[i], de = acteDe(k), vers = acteDe(q);
-    if (q <= k) return s;
-    return s + (vers > de ? vers - de : k < MILIEUX[de] && q >= MILIEUX[de] ? 1 : 0);
-  }, 0);
-}
-
 const valeur = p => getHiddenRatings(p).v;
 const forceDe = t => { const f = teamStrength(t); return f.att + f.def + f.g; };
 const advDe = (m, you) => (m.A === you ? m.B : m.A);
-const joueLe = (L, T, j) => L.calendrier[j].some(m => m.A === T || m.B === T);
-/* LE CALENDRIER PLACÉ du robot « placé » (tranche 4) : échanger ton adversaire de deux journées, X (jour d) contre Y (jour e). */
-function echanger(L, d, e, X, Y) {
-  for (const j of [d, e]) for (const m of L.calendrier[j]) {
-    if (m.A === X) m.A = Y; else if (m.A === Y) m.A = X;
-    if (m.B === X) m.B = Y; else if (m.B === Y) m.B = X;
-  }
-}
-/* L'échange garde 82 matchs à chacun et un match par jour seulement si Y joue le jour d autant que X joue le jour e. */
-const peut = (L, d, e, X, Y) => joueLe(L, Y, d) === joueLe(L, X, e);
 
 /*
  * UNE RUN : une saison en actes, de la première run (aucun déblocage, `metaAuNiveau(0)`), pour le robot `nom` sous la
@@ -120,7 +96,7 @@ export function jouerLaRun(nom, graine) {
   const c = ouvrirLaSaison(meta, etat, { graine, saison: 1, politique: robot.politique, exigence: 0, ligue, etapeDeRun: etapes[0], clic: null });
   const { you, opps, attentif } = c;
   const decisions = [{ jour: 0, cases: photoAlignement(c.roster), fermeture: 'auto' }, { jour: 0, coach: { ...etat.perso, talents: [...etat.perso.talents], main: [] } }];
-  const L = lancerLaLigue(c, decisions);
+  const L = lancerLaLigue(c, decisions, true, etapes[0]);
   const n = L.teams.length;
 
   // LES RIVAUX DES ACTES : posés dans la cédule par le jeu (js/actes.js `poserLesRivaux`, à la création de la ligue).
@@ -129,26 +105,19 @@ export function jouerLaRun(nom, graine) {
   const force0 = new Map(opps.map(t => [t, forceDe(t)]));
   const parForce = opps.slice().sort((a, b) => force0.get(b) - force0.get(a));
   const finActe = L.rivaux.map(R => R.jour);
-  const fixe = new Set(L.rivaux.map(R => jours.indexOf(R.jour)));
   const rivaux = L.rivaux.map(R => ({ voulu: R.voulu, rang: R.rang }));
 
-  // LE CALENDRIER PLACÉ (le robot « placé ») : les plus faibles d'abord, le match du rival à sa place ; puis le renfort.
-  const rangsContre = () => { const M = new Map(opps.map(T => [T, []])); jours.forEach((j, k) => M.get(advAu(j)).push(k)); return M; };
-  const origine = rangsContre();
-  if (robot.placer) {
-    const libres = jours.map((j, k) => k).filter(k => !fixe.has(k));
-    const pool = libres.map(k => advAu(jours[k])).sort((a, b) => force0.get(a) - force0.get(b));
-    libres.forEach((k, q) => {
-      const T = pool[q], X = advAu(jours[k]);
-      if (X === T) return;
-      const kk = libres.slice(q + 1).find(z => advAu(jours[z]) === T && peut(L, jours[k], jours[z], X, T));
-      if (kk != null) echanger(L, jours[k], jours[kk], X, T);
-    });
-  }
-  const placee = rangsContre();
-  const renforts = new Map(opps.map(T => [T, renfortDe(origine.get(T), placee.get(T))]));
-  const habiller = etape => { for (const T of opps) habillerLaLigue([T], ligue, valeur, etape + renforts.get(T)); };
-  if ([...renforts.values()].some(Boolean)) habiller(etapes[0]);
+  // LE CALENDRIER PLACÉ (le robot « placé »), au premier soir de chaque acte : case par case, le plus faible qui s'échange.
+  const placer = k0 => {
+    const B = brouillon(L), cedule = [], advB = k => advDe(B.calendrier[jours[k]].find(m => m.A === you || m.B === you), you);
+    for (let k = k0; k < (ACTES[acteDe(k0)] || 0); k++) {
+      const q = echangeables(B, k, k0).reduce((m, z) => (force0.get(advB(z)) < force0.get(advB(m)) ? z : m), k);
+      if (q !== k && echangerTesCases(B, k, q, k0)) cedule.push([k, q]);
+    }
+    if (cedule.length) decisions.push({ jour: L.jour, palier: `cal:${acteDe(k0)}`, cedule });
+  };
+  const placees = new Set();
+  const habiller = etape => { const R = renfortsDe(L); for (const T of opps) habillerLaLigue([T], ligue, valeur, etape + (R.get(T) || 0)); };
 
   // Seuls les rivaux (posés par le jeu) et les élites prises sont des duels ; aucun ne paie de butin (`butins` : déjà réglés).
   const etatCartes = { histoires: [], avant: [], butins: new Set(finActe), rondes: new Set() };
@@ -158,7 +127,7 @@ export function jouerLaRun(nom, graine) {
   const joues = () => jours.filter(j => j < L.jour).length;
   const enDuel = j => (you.minisBoss || []).some(mb => mb.jour === j);
   const gagneLe = j => { const m = L.calendrier[j].find(x => x.A === you || x.B === you); return (m.A === you) === (m.gfA > m.gfB); };
-  const out = { robot: nom, graine, actes: [], elites: [], noeuds: [], pieces: 0, jetonsMax: 0, rivaux, renfort: [...renforts.values()].reduce((a, x) => a + x, 0) };
+  const out = { robot: nom, graine, actes: [], elites: [], noeuds: [], pieces: 0, jetonsMax: 0, rivaux };
   const tires = [];
   // UNE PIÈCE (un rival ou une élite battus) : approchée par le niveau suivant du coach, comme au prototype.
   const piece = () => {
@@ -214,6 +183,7 @@ export function jouerLaRun(nom, graine) {
   const plans = new Map();
   let planPose = 'match';
   while (!L.fini) {
+    if (robot.placer && [0, ACTES[0], ACTES[1]].includes(joues()) && !placees.has(joues())) { placees.add(joues()); placer(joues()); }
     elite();
     for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:1`, politique: lecture.politique, clic: null, jetons: jetons(), etat: etatCartes, fit: lecture.fit, lire: lecture.lire })) {
       decisions.push(d); depense -= d.gain || 0;
@@ -243,6 +213,7 @@ export function jouerLaRun(nom, graine) {
     }
   }
   if (!mort) boutique();
+  out.renfort = [...renfortsDe(L).values()].reduce((a, x) => a + x, 0);
   const b = bilanLigue(L);
   const rang = b.standings.indexOf(you) + 1, places = aLaTaille(16, n);
   Object.assign(out, { rang, W: you.W, pts: you.PTS, achats, signes, coeurs: Math.max(0, coeurs), mort, rate: !mort && rang > places, rondes: 0, coupe: false });

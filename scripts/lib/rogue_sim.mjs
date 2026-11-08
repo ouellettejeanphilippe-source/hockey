@@ -74,7 +74,7 @@ import {
   packsOuverts, monteeDesPacks,
   bouchesTrousDuDepart, vedettesDeConcession, alourdirLaPremiere, VRAIS_CONTRATS, PLAFOND_PREMIERE,
 } from '../../js/rogue.js';
-import { poserLesRivaux, joursDe, noeudOuvert, ACHATS_PAR_NOEUD, prixDeLaPiece, piecesDuNoeud } from '../../js/actes.js';
+import { crochetDesActes, joursDe, noeudOuvert, ACHATS_PAR_NOEUD, prixDeLaPiece, piecesDuNoeud } from '../../js/actes.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -575,7 +575,7 @@ export function ouvrirLaSaison(meta, etat, { graine, saison, politique, exigence
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus, 31, ligue, etapeDeRun);
-  return { meta, etat, graine, saison, politique, attentif, clic, exigence, rnd, nRes, variantes, poser, roster, cap, you, opps };
+  return { meta, etat, graine, saison, politique, attentif, clic, exigence, ligue, rnd, nRes, variantes, poser, roster, cap, you, opps };
 }
 /*
  * LA LIGUE CRÉÉE (`creerLigue`, sous la graine de la saison) avec les décisions du jour 0 ; le duel du robot (V9, tranche
@@ -583,11 +583,11 @@ export function ouvrirLaSaison(meta, etat, { graine, saison, politique, exigence
  * ne répond à rien ; `mains: false`, aucun) ; ceux qui sont déjà dans la ligue ; la boutique que l'attentif lit au matin
  * de la saison (`lireLaBoutique` ; `ROBOT_SAUF=boutique`, l'ordre du robot d'avant).
  */
-export function lancerLaLigue(c, decisions, mains = true) {
+export function lancerLaLigue(c, decisions, mains = true, etape = 0) {
   const { meta, graine, saison, attentif, clic, you, opps } = c;
   if (mains && ((attentif && attentifFait('duel')) || clic)) you.robotDuel = robotDuel(attentif ? 'attentif' : 'distrait', clic || undefined);
-  // V27 (js/actes.js) : la saison du Rogue est en actes — ses rivaux se posent dans la cédule, comme au jeu (js/banc.js).
-  const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true, placer: X => poserLesRivaux(X, { exigence: c.exigence || 0 }) });
+  // V27 (js/actes.js) : la saison du Rogue est en actes — ses rivaux se posent dans la cédule, et le placement à son jour, comme au jeu (js/banc.js).
+  const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true, placer: crochetDesActes({ exigence: c.exigence || 0, niveau: c.ligue, etape }) });
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
   const boutique = attentif && (attentifFait('boutique') || PACK_FORCE) ? lireLaBoutique(meta, graine, saison, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p))) : null;

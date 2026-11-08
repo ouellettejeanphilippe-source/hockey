@@ -15,7 +15,7 @@
  *   cellules   deux ou trois chiffres séparés d'un filet (l'argent) ;
  *   jauge      une barre qui se remplit (l'expérience du coach) ;
  *   visage     un joueur en vignette, son état et son fait en vrais chiffres (la forme du groupe, ce qui court) ;
- *   billet     un match de la route, encoché sur les côtés ;
+ *   caseDeMatch un de tes matchs dans la saison en cases (le Calendrier, le placement de l'acte) ;
  *   marche     un rang de l'échelle du prestige ;
  *   podium     trois cartes, le premier au centre.
  * La case en carte des Lignes (`carteDeLaCase`, `.case-carte`, js/alignement.js) est le composant nommé de l'alignement du Rogue,
@@ -57,8 +57,8 @@ export const visage = ({ mug, nom, mot, fait = '', ton = '' }) => `<div class="p
 /** Une rangée qui parle de quelqu'un : son visage (ou une icône), un titre, l'état dessous, un chiffre au bout. */
 export const rangeeVisage = ({ mug = '', ico = '', titre, sous = '', chiffre = '', ton = 'or', attrs = '' }) => `<div class="pl-rangee pl-ton-${ton}"${attrs}>${mug ? `<span class="rond-visage" aria-hidden="true">${mug}</span>` : ico ? `<span class="pl-rangee-ico" aria-hidden="true">${ico}</span>` : ''}<span class="pl-rangee-t"><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${chiffre ? `<span class="pl-rangee-c">${chiffre}</span>` : ''}</div>`;
 
-/** Un billet de la route : quand et où, l'écusson, le club, sa fiche. `cls` : pl-billet-soir, pl-billet-gros. */
-export const billet = ({ quand, ico, nom, pied = '', cls = '', attrs = '', coinHtml = '' }) => `<li class="pl-billet${cls ? ` ${cls}` : ''}"${attrs}><span class="pl-billet-q">${quand}</span><span class="pl-billet-i" aria-hidden="true">${ico}</span><span class="pl-billet-n">${nom}</span>${pied ? `<span class="pl-billet-p">${pied}</span>` : ''}${coinHtml}</li>`;
+/** Ton `n`-ième match (la maquette 3) : son numéro, l'écusson, le sigle, `bas` (le score, le renfort). `cls` : ok, choisi, fort, v, d, dp, ici, rival, marche. */
+export const caseDeMatch = ({ n, logo, sigle, bas = '', cls = '', attrs = '' }) => `<button type="button" class="ac-case${cls ? ` ${cls}` : ''}"${attrs}><i>${n}</i>${logo}<b>${sigle}</b>${bas}</button>`;
 
 /** Une marche de l'échelle : son numéro ou ✓, son nom, ce qui manque ou ce qu'elle donne, un mot au bout. `etat` : fait, ici, suivant, loin. */
 export const marche = ({ num, nom, sous = '', bout = '', etat = 'loin' }) => `<div class="pl-marche pl-marche-${etat}"><i>${num}</i><span class="pl-marche-n">${esc(nom)}${sous ? `<small>${sous}</small>` : ''}</span><small class="pl-marche-b">${bout}</small></div>`;

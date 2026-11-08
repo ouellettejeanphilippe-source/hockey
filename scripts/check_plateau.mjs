@@ -15,7 +15,7 @@
  *   Coach       le niveau en gros, trois pouvoirs en vraies cartes de jeu ;
  *   Boutique    quatre pochettes du début avec leur prix, « Ton club » en rangée de quatre ;
  *   Album       les vues en jetons, l'édition en coin sur chaque carte de l'équipe dès Cadre (jamais sur une Base), rien dessous ;
- *   Classement  cinq colonnes (le contenu, de zéro : PJ est parti pour que « 10 derniers » tienne) ; Calendrier : trois billets de front, la grille ;
+ *   Classement  cinq colonnes (le contenu, de zéro : PJ est parti pour que « 10 derniers » tienne) ; Calendrier : l'acte en cases (V27, tranche 4), les actes en jetons ;
  *   Palmarès    l'échelle du prestige entière, une marche « tu es ici ».
  *
  * Une capture de chaque page va dans le dossier donné (le 3e argument ; scripts/ par défaut), pour l'œil.
@@ -111,8 +111,9 @@ const PAGES = [
     juger: d => { exiger('Album · les vues, l\'édition en coin sur chaque carte de ton équipe dès Cadre, jamais sur une Base, rien dessous', d.vues >= 3 && d.cartes > 0 && d.coins === d.editees && !d.basesACoin && !d.lignes, `${d.coins} coins sur ${d.editees} cartes éditées (${d.cartes} cartes), ${d.basesACoin} Base à coin, ${d.lignes} lignes dessous`); } },
   { porte: 'ligue', page: 'classement', nom: 'Classement', lire: () => ({ colonnes: document.querySelectorAll('#hubModal .hub-classement thead th').length, rangees: document.querySelectorAll('#hubModal .hub-classement tbody tr').length, bandeau: !!document.querySelector('#hubModal .hub-classement .pl-bandeau') }),
     juger: d => { exiger('Classement · le bandeau, cinq colonnes', d.bandeau && d.colonnes === 5 && d.rangees >= 16, `${d.colonnes} colonnes, ${d.rangees} rangées`); } },
-  { porte: 'ligue', page: 'saison', nom: 'Calendrier', lire: () => { const b = document.querySelector('#hubModal .pl-billets'); return { billets: document.querySelectorAll('#hubModal .pl-billets .pl-billet').length, rail: b ? ['auto', 'scroll'].includes(getComputedStyle(b).overflowX) : true, grille: !!document.querySelector('#hubModal .calj-grille') }; },
-    juger: d => { exiger('Calendrier · trois billets de front, sans rail, puis la grille', d.billets === 3 && !d.rail && d.grille, `${d.billets} billets${d.rail ? ', un rail' : ''}`); } },
+  // V27, tranche 4 (la maquette 3) : la saison en cases, un acte à la fois — les trois actes en jetons, puis les cases de l'acte, six de front, l'écusson de chacune.
+  { porte: 'ligue', page: 'saison', nom: 'Calendrier', lire: () => { const g = document.querySelector('#hubModal .ac-grille'); return { actes: document.querySelectorAll('#hubModal .pl-jeton[data-acte]').length, cases: document.querySelectorAll('#hubModal .ac-grille .ac-case').length, logos: document.querySelectorAll('#hubModal .ac-grille .ac-case .team-logo-img').length, colonnes: g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0 }; },
+    juger: d => { exiger('Calendrier · les trois actes en jetons, l\'acte en cases de six de front, l\'écusson de chaque club', d.actes === 3 && d.cases >= 20 && d.cases <= 28 && d.logos === d.cases && d.colonnes === 6, `${d.actes} actes, ${d.cases} cases, ${d.colonnes} colonnes`); } },
   { porte: 'ligue', page: 'meneurs', nom: 'Meneurs', lire: () => ({ ok: !!document.querySelector('#hubModal .hub-chips, #hubModal .pl-jetons, #hubModal .live-vide') }), juger: d => { exiger('Meneurs · la page répond', d.ok); } },
   { porte: 'ligue', page: 'historique', nom: 'Palmarès', lire: () => ({ marches: document.querySelectorAll('#pageHistorique .pl-echelle .pl-marche').length, ici: document.querySelectorAll('#pageHistorique .pl-marche-ici').length }),
     juger: d => { exiger('Palmarès · l\'échelle du prestige entière, une marche « tu es ici »', d.marches === 5 && d.ici === 1, `${d.marches} marches`); } },

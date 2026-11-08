@@ -35,7 +35,7 @@ Le devis : docs/refonte-v27.md — une run = une saison en quatre actes, deux �
 - [ ] **2 à 6, ensemble** — sur la branche `claude/v27-run`, une PR par tranche vers elle ; la branche sort vers main en une fois, la cible remesurée sur le vrai banc (R1, `profondeur.yml` vert) et `check_refonte` sur leur somme. Le jeu publié ne change qu'une fois.
   - [x] **2 · Une saison, quatre actes, deux cœurs** (8 nov., docs/refonte-v27-2.md) — js/actes.js, les rivaux, les contrôles, les séries plus dures, le départ à 35-55 % ; les rivaux du proprio partent — `check_rogue`, `check_gros`, `check_sauvegardes`.
   - [x] **3 · La boutique à ses nœuds** (8 nov., docs/refonte-v27-3.md) — 0 · 14 · 27 · 41 · 54 · 68 · 82, le prix remis à zéro, quatre achats, la pièce parmi trois — `check_rogue`, `check_packs`.
-  - [ ] **4 · Le calendrier placé et le renfort** — `check_rogue`, `check_calendrier`, `check_graine`, `check_chiffres`, `check_profondeur`.
+  - [x] **4 · Le calendrier placé et le renfort** (8 nov., docs/refonte-v27-4.md) — `check_rogue`, `check_calendrier`, `check_graine`, `check_chiffres`, `check_profondeur`.
   - [ ] **5 · Le banc de cinq** — js/pieces.js, la pièce du rival ; séjour, repos, salaire, main, expérience, niveaux d'adjoint et main du deck partent — `check_pouvoirs`, `check_relais`, `check_banc`.
   - [ ] **6 · Le duel à un choix** — le plan avant le match ; le plan du soir, les propositions par période et la mise doublée partent — `check_duel`, `check_jambes`.
 - [ ] **7 · Les élites** — construites et mesurées en paires — `check_elites` (neuf).

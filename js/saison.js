@@ -40,7 +40,8 @@ import { ouvrirChoix, choixOuvert, resumeLignes, puces, chiffresOuverts, bascule
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
-import { etatDeLaRun, jeuDuRival, RAISONS_DU_DUEL, NOMS_DES_ACTES, ACTES, COEURS, MEDAILLES_ACTE, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat } from './actes.js';
+import { etatDeLaRun, jeuDuRival, RAISONS_DU_DUEL, NOMS_DES_ACTES, ACTES, COEURS, MEDAILLES_ACTE, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat,
+  acteDe, joursDe, renfortsDe, echangeables, echangerTesCases, brouillon } from './actes.js';
 import { ADJOINTS, adjointsOfferts, quiPartDeLaMain, sejourDe, motDeSynergie, postesDe, resteDe, niveauOffert, momentFort, salaireDe, nivDe, casesDuPerso } from './adjoints.js';
 import { sceneDeLaMise, sceneDeLaBlessure, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { BANQUE } from './banque.js';
@@ -51,7 +52,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle, banc } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
 import { bancDuSoirHtml } from './banc-du-soir.js';
-import { bandeau, carteLigne, caseVide, grille, cellules, visage, rangeeVisage, billet, podium as podiumHtml, coin, marche, coeurs } from './composants.js';
+import { bandeau, jetons, carteLigne, caseVide, grille, cellules, visage, rangeeVisage, caseDeMatch, podium as podiumHtml, coin, marche, coeurs } from './composants.js';
 import { panelDe } from './panel-tv.js';
 import { EXPEDITEURS, messageDuFil } from './vie-gm.js';
 import { NIVEAUX, nomDuNiveau } from './niveaux.js';
@@ -982,6 +983,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (x.gagne && jour < N && !pris(`r:${x.jour}`)) out.push({ genre: 'piece', x });
     }
     if (E.rival && E.rival.jour >= jour && !pris(`riv:${E.rival.acte}`)) out.push({ genre: 'rival', R: E.rival, E });
+    // Puis son calendrier (tranche 4), à son premier soir seulement : une fois l'acte commencé, il ne bouge plus.
+    else if (E.rival && !pris(`cal:${E.acte}`) && E.joues === (E.acte ? ACTES[E.acte - 1] : 0)) out.push({ genre: 'calendrier', a: E.acte });
     return out;
   };
   const forceOuvert = () => !!(offreObjectif() || verdictObjectif());
@@ -2272,35 +2275,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return rangeeHtml('en-jeu', `En jeu · ${jeu.length}`, jeu.total ? `<span class="ej-stats">${pastilles(jeu.total, 4)}</span>` : '', () => ({
       ico: '🃏', titre: 'En jeu', sousTitre: p ? 'Au prochain match' : '', html: `<div class="ej-soir"><ul class="ej-liste">${jeu.map(rangee).join('')}</ul></div>` }));
   };
-  /*
-   * LA ROUTE (V8, à la Slay the Spire) : tes deux prochaines semaines, ce qui est connu d'avance et rien d'autre — tes
-   * matchs (chez toi ou chez eux), le gros match contre un rival choisi ou ta bête noire, le lundi, le pack gratuit.
-   * Ce qui naîtra en route (une blessure, un événement) n'y est pas : il arrivera dans À faire.
-   */
-  // EN PUCES (docs/ecrans-rogue.md, E4) : la route se lit d'un coup d'œil, de gauche à droite. D'où tu viens est parti au
-  // Calendrier, qui dit tes matchs joués (V18-5).
-  // NOV. 2026 (le contenu, de zéro ; interface.md : jamais un glissement de côté) : tes TROIS prochains matchs, trois billets de
-  // front, sans rail — quand et où, l'écusson, le sigle, le rang et la fiche ; un gros match dit sa prime.
-  const ROUTE_MATCHS = 3;
-  const routeDeuxSemaines = () => {
-    if (!ctx.rogue || jour >= N) return '';
-    const arrets = [];
-    let n = miens.length, nGros = 0;
-    for (let j = jour; j < N && arrets.length < ROUTE_MATCHS; j++) {
-      const m = monMatch(j);
-      if (!m) continue;
-      n++;
-      const adv = m.A === you ? m.B : m.A;
-      const gros = grosDuJour(j);
-      const noeud = NOEUDS_BOUTIQUE.includes(n) ? `<span class="pl-coin pl-coin-droite rt-marche" title="Le marché ouvre après ce match">${SAC}</span>` : '';
-      if (gros) nGros++;
-      const pied = gros && RAISONS_DU_DUEL[gros.raison] ? RAISONS_DU_DUEL[gros.raison].nom : jour ? `${rangMot(rangDe(adv))} · ${ficheTexte(adv)}` : '';
-      arrets.push(billet({ quand: `${j === jour ? 'Ce soir' : `J${j + 1}`} · ${m.A === you ? 'chez toi' : 'chez eux'}`, ico: ctx.logo(adv.tag, 22), nom: ctx.esc(ctx.tagCourt(adv)), pied: ctx.esc(pied),
-        cls: `${gros ? 'pl-billet-gros' : ''}${j === jour ? ' pl-billet-soir' : ''}`, attrs: gros && RAISONS_DU_DUEL[gros.raison] ? ` title="Gros match · ${ctx.esc(RAISONS_DU_DUEL[gros.raison].nom)}"` : '', coinHtml: noeud }));
-    }
-    const compte = nGros ? `⚔ ${nGros}` : '';
-    return arrets.length ? `<section class="bu-route" aria-label="La route">${bandeau('La route', compte)}<ol class="pl-billets">${arrets.join('')}</ol></section>` : '';
-  };
   const voletJourneeSeul = () => {
     if (soirEnVolet && !jour) return '';
     if (!jour) return cartesDuBureau();
@@ -2466,75 +2440,57 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return `<div class="recit">${bandeau('Ton histoire', `${comptes.length} moment${comptes.length > 1 ? 's' : ''}`)}${lignes(recents)}${avant.length ? rangeeHtml('histoire-avant', 'Plus tôt', `${avant.length}`, () => ({ ico: '📖', titre: 'Ton histoire, plus tôt', html: `<div class="recit">${lignes(avant)}</div>` })) : ''}</div>`;
   };
   /*
-   * LA ROUTE DE LA SAISON (S66) quitte l'écran Match (S79) : quatre rangées
-   * d'icônes au-dessus de l'affiche, sans légende, se lisaient mal. Elle vit
-   * avec ton histoire, et elle dit ce que veut dire chaque marque.
+   * LA SAISON EN CASES (V27, tranche 4 ; la maquette 3) : une case par match, un acte à la fois ; le Calendrier et le
+   * placement de l'acte en sont faits (`caseDeMatch`). Jouée, le score dans sa couleur, qui ouvre son sommaire ; à venir,
+   * ce soir, le rival, le marché qui ouvre après le match (le sac), et le renfort du club (« +2 ✦ », `renfortsDe`).
    */
-  /*
-   * LA ROUTE : un combat annoncé ou déjà joué se pose sur le filet. Son avant-match n'est plus un nœud à
-   * part (V5) : c'est la carte de vestiaire de l'écran de combat, le soir même.
-   */
-  /*
-   * LE CALENDRIER NE PROMET QUE CE QUI ARRIVE (V2.2). Une seule liste de marques pour la route et le calendrier.
-   * Le PASSÉ dit ce qui est arrivé, au jour où c'est arrivé : l'événement pris, la situation du vestiaire, le
-   * verdict du proprio, l'accident. L'AVENIR distingue ce qui est sûr (le proprio, la main, le verdict d'un
-   * objectif choisi, un combat annoncé) de ce qui peut ne pas venir (`possible`) : un événement ne se tire que si
-   * ses faits sont vrais, une situation peut être reportée.
-   */
-  const marquesDeSaison = () => {
-    const out = [];
-    const m = (j, ico, titre, rang, possible = false) => { if (j != null && j >= 0 && j < N) out.push({ j, ico, titre, rang, possible }); };
-    const futur = j => j >= jour;
-    JOURS_OBJECTIFS.forEach(k => m(jEv(k), '🏢', 'le proprio fixe un objectif', 'haut'));
-    PALIERS_CARTES.forEach(k => m(jEv(k), '🃏', 'une carte à prendre', 'haut'));
-    // Le verdict du proprio : joué, au jour de sa décision ; à venir, au bout des MATCHS_OBJECTIF de chaque objectif.
-    for (const d of decs) if (typeof d.palier === 'string' && d.palier.startsWith('v:')) m(d.jour, '🏢', 'le verdict du proprio', 'haut');
-    JOURS_OBJECTIFS.forEach(k => { const j = jEv(k + MATCHS_OBJECTIF); if (futur(j) && !decs.some(d => d.palier === `v:${k}`)) m(j, '🏢', 'le verdict du proprio', 'haut'); });
-    // Le vestiaire : les situations vécues ; à venir, possibles (une situation peut être reportée).
-    for (const x of you.situations || []) if (x.jour < jour) m(x.jour, '💬', 'le vestiaire a vécu quelque chose', 'bas');
-    // Les accidents : ils ne se prévoient pas ; joués, ils se marquent.
-    for (const x of you.mutations || []) if (x && x.jour < jour && MUTATIONS[x.cle] && MUTATIONS[x.cle].source === 'accident') m(x.jour, MUTATIONS[x.cle].ico, `un accident : ${MUTATIONS[x.cle].nom}`, 'bas');
-    const combats = new Map();
-    for (const a of [...(you.minisBoss || []), ...Object.values((ligue && ligue.grosAnnonces) || {})]) {
-      if (a && a.jour != null && !combats.has(a.jour)) combats.set(a.jour, RAISONS_DU_DUEL[a.raison] ? RAISONS_DU_DUEL[a.raison].nom : 'gros match');
-    }
-    for (const [j, nomC] of combats) m(j, '⚔', `gros match · ${nomC}`, 'chemin');
-    return out;
+  const renfortHtml = (R, t) => (R.get(t) ? `<em class="ac-renf">+${R.get(t)} ✦</em>` : '');
+  const caseDuMatch = (k, j, adv, R, cls = '') => {
+    const i = indexMien(j), m = calendrier[j][i], joue = j < jour, p = prochain(), rival = ((ligue && ligue.rivaux) || []).some(x => x.jour === j);
+    const etat = joue ? (gagne(m, you) ? 'v' : m.ot ? 'dp' : 'd') : p && p.j === j ? 'ici' : '';
+    return caseDeMatch({ n: k + 1, logo: ctx.logo(adv.tag, 26), sigle: ctx.esc(ctx.tagCourt(adv)), bas: joue ? `<small>${m.A === you ? m.gfA : m.gfB}–${m.A === you ? m.gfB : m.gfA}</small>` : renfortHtml(R, adv),
+      cls: [cls, etat, rival ? 'rival' : '', NOEUDS_BOUTIQUE.includes(k + 1) ? 'marche' : ''].filter(Boolean).join(' '),
+      attrs: ` data-k="${k}" style="${varsEquipe(ctx.band(adv.tag))}"${joue && m.feuille ? ` data-sommaire="saison|${j}|${i}"` : ''}` });
+  };
+  const saisonEnCases = () => {
+    const js = joursDe(calendrier, you), R = renfortsDe(ligue), a = menu.calActe ?? Math.min(2, acteDe(miens.length)), cases = [];
+    for (let k = a ? ACTES[a - 1] : 0; k < Math.min(ACTES[a], js.length); k++) { const m = calendrier[js[k]][indexMien(js[k])]; cases.push(caseDuMatch(k, js[k], m.A === you ? m.B : m.A, R)); }
+    return `${jetons(NOMS_DES_ACTES.slice(0, 3).map((mot, i) => ({ cle: i, mot, on: i === a })), 'acte')}<div class="ac-grille">${cases.join('')}</div>`;
   };
   /*
-   * LA SAISON EN CALENDRIER (1.0, oct.). JP : *la carte de saison pourrait être un calendrier*. Sous la
-   * route, la saison entière en semaines de sept journées : chaque case dit le jour, l'adversaire (son
-   * écusson ; @ chez lui), le pointage une fois joué (vert, rouge, orange en prolongation), un congé en
-   * sourdine, ce que la route y pose (le proprio, une carte, un événement, un combat) et aujourd'hui.
-   * Une case jouée ouvre son sommaire, comme une rangée de « Tes matchs ».
+   * PLACER SES MATCHS (V27, tranche 4 ; la maquette 3), au premier soir de l'acte : la case, puis l'autre, et leurs deux
+   * adversaires s'échangent sur un brouillon (js/actes.js) ; seules les cases qui s'échangent s'allument, en or celles qui
+   * renforcent un club, et celles d'un acte plus loin sous « Plus loin ». Dessous, le dernier échange et son renfort ;
+   * « Valider » envoie la décision `cedule` (rien placé : la vraie cédule).
    */
-  const calendrierFiche = () => {
-    const marques = new Map();
-    for (const x of marquesDeSaison()) { if (!marques.has(x.j)) marques.set(x.j, []); marques.get(x.j).push([x.ico, x.titre]); }
-    const cellule = j => {
-      const k = indexMien(j), m = k >= 0 ? calendrier[j][k] : null, joue = j < jour;
-      const ev = marques.get(j) || [];
-      const evHtml = ev.length ? `<span class="calj-ev">${ev[ev.length - 1][0]}</span>` : '';
-      const quoi = ev.map(e => e[1]).join(' · ');
-      const cls = ['calj'];
-      if (j === jour) cls.push('ici');
-      if (!m) { cls.push('conge'); return `<div class="${cls.join(' ')}" title="Journée ${j + 1} · congé${quoi ? ` · ${ctx.esc(quoi)}` : ''}"><span class="calj-n">${j + 1}</span>${evHtml}</div>`; }
-      const adv = m.A === you ? m.B : m.A, dom = m.A === you;
-      if (joue) cls.push(gagne(m, you) ? 'v' : m.ot ? 'dp' : 'd');
-      const pour = dom ? m.gfA : m.gfB, contre = dom ? m.gfB : m.gfA;
-      const somm = joue && m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0"` : '';
-      return `<div class="${cls.join(' ')}"${somm} title="Journée ${j + 1} · ${dom ? 'contre' : 'chez'} ${ctx.esc(ctx.teamLabel(adv))}${quoi ? ` · ${ctx.esc(quoi)}` : ''}"><span class="calj-n">${dom ? '' : '@'}${j + 1}</span>${ctx.logo(adv.tag, 18)}${joue ? `<span class="calj-r">${pour}–${contre}${m.ot ? ' P' : ''}</span>` : ''}${evHtml}</div>`;
+  function ouvrirLeCalendrier(a) {
+    const joues = miens.length, js = joursDe(calendrier, you), paires = [];
+    let B = brouillon(ligue), choisi = null;
+    const advB = k => { const m = B.calendrier[js[k]].find(x => x.A === you || x.B === you); return m.A === you ? m.B : m.A; };
+    const somme = X => [...renfortsDe(X).values()].reduce((s, n) => s + n, 0);
+    const corps = ui.ouvrirPage({ genre: 'placer', ico: '🗓', titre: 'Ton calendrier', sousTitre: `${NOMS_DES_ACTES[a]} · matchs ${joues + 1} à ${ACTES[a]}`, html: '' });
+    const dessinerCal = () => {
+      const R = renfortsDe(B), parts = choisi == null ? null : echangeables(B, choisi, joues), base = somme(B);
+      const fort = q => { const X = brouillon(B); echangerTesCases(X, choisi, q, joues); return somme(X) > base; };
+      const cas = k => caseDuMatch(k, js[k], advB(k), R, k === choisi ? 'choisi' : parts ? (parts.includes(k) ? `ok${fort(k) ? ' fort' : ''}` : '') : echangeables(B, k, joues).length ? 'ok' : '');
+      const acte = [], loin = (parts || []).filter(q => q >= ACTES[a]);
+      for (let k = joues; k < ACTES[a]; k++) acte.push(cas(k));
+      const d = paires.at(-1), plaque = (k, de) => `<span class="ac-ech" style="${varsEquipe(ctx.band(advB(k).tag))}">${ctx.logo(advB(k).tag, 30)}<b>${ctx.esc(ctx.tagCourt(advB(k)))}</b><small>${de + 1} → ${k + 1}</small>${renfortHtml(R, advB(k)) || '<em class="ac-gratuit">Gratuit</em>'}</span>`;
+      corps.innerHTML = `<div class="ac-placer"><div class="ac-grille">${acte.join('')}</div>${loin.length ? `${bandeau('Plus loin')}<div class="ac-grille">${loin.map(cas).join('')}</div>` : ''}
+        ${d ? `<div class="ac-dernier">${plaque(d[1], d[0])}<span aria-hidden="true">⇄</span>${plaque(d[0], d[1])}</div>` : ''}
+        <div class="ac-boutons"><button type="button" class="btn ac-annuler"${paires.length ? '' : ' disabled'}>Annuler</button><button type="button" class="btn gold ac-valider">${paires.length ? 'Valider' : 'Garder la cédule'}</button></div></div>`;
     };
-    // Quatre semaines à la fois (nov. 2026), la semaine en cours en tête ; « ‹ › » feuillettent le reste.
-    const nSem = Math.ceil(N / 7), s0 = semaineDuCalendrier();
-    let semaines = '';
-    for (let d = s0 * 7; d < Math.min(N, (s0 + CAL_SEMAINES) * 7); d += 7) semaines += `<div class="calj-sem"><span class="calj-s">S${d / 7 + 1}</span>${Array.from({ length: 7 }, (_, i) => (d + i < N ? cellule(d + i) : '<span></span>')).join('')}</div>`;
-    // Nov. 2026 (le contenu, de zéro) : le titre « Le calendrier · journée 28 sur 186 » est parti (la journée est en en-tête).
-    return `<div class="calj-nav-rang"><button type="button" class="calj-nav" data-cal="-1" aria-label="Les semaines d'avant"${s0 <= 0 ? ' disabled' : ''}>‹</button><span>S${s0 + 1} – S${Math.min(nSem, s0 + CAL_SEMAINES)}</span><button type="button" class="calj-nav" data-cal="1" aria-label="Les semaines d'après"${s0 + CAL_SEMAINES >= nSem ? ' disabled' : ''}>›</button></div><div class="calj-grille">${semaines}</div>`;
-  };
-  /* La première des quatre semaines montrées : celle d'aujourd'hui, ou celle qu'on a feuilletée (`menu.calSemaine`). */
-  const CAL_SEMAINES = 4;
-  const semaineDuCalendrier = () => Math.max(0, Math.min(Math.ceil(N / 7) - CAL_SEMAINES, menu.calSemaine ?? Math.floor(jour / 7)));
+    corps.addEventListener('click', e => {
+      const c = e.target.closest('.ac-case[data-k]'), k = c ? Number(c.dataset.k) : null;
+      if (e.target.closest('.ac-valider')) { const j = jour; quitter(); onDecision({ jour: j, palier: `cal:${a}`, cedule: paires }, j); return; }
+      if (e.target.closest('.ac-annuler')) { paires.pop(); B = brouillon(ligue); for (const [x, y] of paires) echangerTesCases(B, x, y, joues); choisi = null; }
+      else if (k == null) return;
+      else if (choisi != null && echangerTesCases(B, choisi, k, joues)) { paires.push([choisi, k]); choisi = null; jouerSon('joue'); }
+      else choisi = choisi === k || !echangeables(B, k, joues).length ? null : k;
+      dessinerCal();
+    });
+    dessinerCal();
+  }
   /*
    * LA PRÉVISION DU MOTEUR (1.0, oct.). JP : *pas un ov qui décide tout, mais
    * un genre de prévision de ce que l'équipe doit faire donner, ou un joueur,
@@ -2561,12 +2517,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return deckDeCartons(cartesDeStyle({ profil: p, ligue: l, style: motDeStyle(p, l) }), { cle: 'style' });
   };
   /*
-   * LE CALENDRIER (nov. 2026 ; JP : *where the infos are*) : ce qui vient et ce qui s'est joué, rien d'autre. La route des deux
-   * semaines (elle était chez le Coach), puis la grille, quatre semaines à la fois autour de la semaine en cours. La prévision
-   * est partie au Proprio, le rapport du dépisteur au Vestiaire, ton style au Coach ; la liste des matchs joués redisait la
-   * grille (chaque case jouée porte son score et ouvre son sommaire) ; hors du Rogue, ton histoire reste ici.
+   * LE CALENDRIER (nov. 2026 ; JP : *where the infos are* ; V27, tranche 4) : ce qui vient et ce qui s'est joué, un acte à la
+   * fois, en cases (`saisonEnCases`) — la route des trois billets et les semaines de sept journées sont parties.
    */
-  const voletFiche = () => `${routeDeuxSemaines()}${calendrierFiche()}${soirEnVolet || !miens.length ? '' : recitHtml()}`;
+  const voletFiche = () => `${saisonEnCases()}${soirEnVolet || !miens.length ? '' : recitHtml()}`;
 
   /*
    * LE MENU : les meneurs de toute la ligue et la feuille de n'importe
@@ -2690,14 +2644,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }, 30);
   };
   volet.addEventListener('click', lancerPrevision);
-  // Le calendrier se feuillette (nov. 2026) : quatre semaines à la fois.
-  const feuilleterCalendrier = e => {
-    const b = e.target.closest('.calj-nav');
+  // Le calendrier se lit un acte à la fois (V27, tranche 4).
+  const choisirLActe = e => {
+    const b = e.target.closest('.pl-jeton[data-acte]');
     if (!b || !volet.contains(b) || !actif()) return;
-    menu.calSemaine = semaineDuCalendrier() + Number(b.dataset.cal);
+    menu.calActe = Number(b.dataset.acte);
     tabs.rafraichir();
   };
-  volet.addEventListener('click', feuilleterCalendrier);
+  volet.addEventListener('click', choisirLActe);
   /*
    * LE VOLET EST PARTAGÉ (#hubModal) : un écran de saison qui n'est plus l'écran actif (rouvert par une décision) ne
    * répond plus. Sans ça, son écouteur réécrivait le volet avec SON onglet — la V8 l'a vu : un onglet touché
@@ -2721,7 +2675,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pj = e.target.closest('.maison-jouer[data-id], .maison-vendre[data-id]');
     if (pj && volet.contains(pj) && ctx.maison) ctx.maison.jouer({ src: pj.dataset.src || 'partie', id: pj.dataset.id, ref: pj.dataset.ref, vendre: pj.classList.contains('maison-vendre') }, jour, d => { const j = jour; quitter(); onDecision(d, j); });
   });
-  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); volet.removeEventListener('click', feuilleterCalendrier); volet.removeEventListener('click', ouvrirRangee); };
+  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); volet.removeEventListener('click', choisirLActe); volet.removeEventListener('click', ouvrirRangee); };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -2962,7 +2916,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const leur = vedettes[p.m.A === you ? 1 : 0], mienne = vedettes[p.m.A === you ? 0 : 1];
     const photoDe = v => { const src = v && photoAction(v.p); if (!src) return ''; const c = cadrePhoto(v.p); return `--photo:url('${src}')${c ? `;--fx:${c[0]};--fy:${c[1]}` : ''}`; };
     const photo = photoDe(leur) || photoDe(mienne);
-    const plaque = (t, cote) => `<span class="bu-vs-eq ${cote}">${ctx.logo(t.tag, 26)}<b>${ctx.esc(ctx.tagCourt(t))}</b><small>${ctx.esc(pied(t))}</small></span>`;
+    const plaque = (t, cote) => `<span class="bu-vs-eq ${cote}">${ctx.logo(t.tag, 26)}<b>${ctx.esc(ctx.tagCourt(t))}</b><small>${ctx.esc(pied(t))}</small>${renfortHtml(renfortsDe(ligue), t)}</span>`;
     return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}${photo ? ' avec-photo' : ''}" style="--a-band:${a.bg};--a-ink:${a.ink};--b-band:${b.bg};--b-ink:${b.ink}${photo ? `;${photo}` : ''}" aria-label="Face à face : ${ctx.esc(ctx.teamShort(adv))}">
       ${photo ? '' : `<span class="bu-ecu-fond" aria-hidden="true">${ctx.logo(adv.tag, 150)}</span>`}
       <span class="bu-prochain-k">${G0 ? `<span class="bu-prochain-gros">${G0.ico} ${ctx.esc(G0.nom)}</span>` : `<span class="bu-prochain-no">Match ${miens.length + 1}</span>`}<span>${ctx.esc(quand)} · ${domicile ? 'chez toi' : 'chez eux'}</span></span>
@@ -3118,7 +3072,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const ligne = carte.querySelector('.bu-prochain');
         if (ligne) ligne.onclick = () => ui.ouvrirPage({ genre: 'face', ico: ctx.logo(adv.tag, 28), titre: 'Face à face',
           sousTitre: `Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}`,
-          html: ctx.rogue ? `<div class="ff">${face}<div class="ff-mot">${ficheContre}</div>${ereintant}${duelHtml(adv, { complet: true, barres: true })}${forcesHtml(adv, { table: true }).detail}</div>`
+          html: ctx.rogue ? `<div class="ff">${face}<div class="ff-mot">${ficheContre}${renfortHtml(renfortsDe(ligue), adv)}</div>${ereintant}${duelHtml(adv, { complet: true, barres: true })}${forcesHtml(adv, { table: true }).detail}</div>`
             : `<div class="hub-match">${face}${duelHtml(adv, { complet: true, barres: true })}${ereintant}</div>${forcesHtml(adv, { table: true }).detail}<div class="hub-match-note">${dernierMot}</div>` });
         carte.querySelectorAll('.bu-banc [data-banc]').forEach(b => {
           const ouvrir = () => { if (!actif()) return; if (b.dataset.banc === 'plan') ouvrirPlan(p, adv); else tabs.montrer('entraineur'); };
@@ -3250,6 +3204,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           recit: suivant ? `Le rival battu : ${C ? C.nom : 'ton coach'} monte d'un niveau.` : 'Ton coach est déjà au sommet.',
           options: [...(suivant ? [{ cle: 'prendre', ico: C ? C.ico : '📈', nom: 'Prendre', sous: `Niveau ${niveauDuPerso({ ...P, xpSaison: 0, xp: suivant })}`, mots: [{ txt: `+${suivant - tot} d'expérience pour ton coach`, bon: true }] }] : []), { cle: 'passer', nom: 'Passer', rien: true }],
           decision: cle => ({ jour: soirDuProchain(), palier: `r:${x.jour}`, ...(cle === 'prendre' && suivant ? { xpCoach: suivant - tot } : {}) }) });
+      } else if (st.genre === 'calendrier') {
+        specs.push({ de: DE.proprio, ico: '🗓', titre: 'Ton calendrier', genre: 'calendrier', irl: `${NOMS_DES_ACTES[st.a]} · matchs ${miens.length + 1} à ${ACTES[st.a]}`,
+          options: [{ cle: 'placer', nom: 'Placer tes matchs', ouvre: true }], agir: () => ouvrirLeCalendrier(st.a) });
       } else {
         const { R } = st, J = jeuDuRival(teams, you, R.adv);
         specs.push({ de: DE.proprio, ico: '⚔', titre: `Le rival de l'${NOMS_DES_ACTES[R.acte].toLowerCase()}`, genre: 'rival', irl: `${NOMS_DES_ACTES[R.acte]} · ton ${ACTES[R.acte]}e match`,

@@ -5758,6 +5758,8 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
     grosAVenir: null, grosAnnonces: {},
     // L'INSTANTANÉ du matin d'un gros match (`rembobiner`) : le jeu le retient, les mesures s'en passent.
     instantanes, _instant: null,
+    // Le crochet du Rogue (js/actes.js) : il pose les rivaux ici, puis joue une décision `cedule` à son jour.
+    placer,
   };
   poserJours(L);
   avecLigue(L, () => {
@@ -6044,6 +6046,16 @@ export function rembobinerSeries(S, decisions, ronde, k) {
   return true;
 }
 
+/*
+ * LE CALENDRIER PLACÉ (V27, tranche 4) : une décision `cedule` échange des matchs à venir par le crochet du Rogue, sans dé,
+ * une fois (l'écran la joue au matin où elle est prise, la journée ne la rejoue pas) ; les journées d'avant ne bougent pas.
+ */
+export function jouerLaCedule(L, d) {
+  if (!d.cedule.length || !L.placer || (L.cedules = L.cedules || new Set()).has(d)) return;
+  L.cedules.add(d);
+  L.placer(L, d);
+  poserJours(L);
+}
 /* UNE JOURNÉE : ses décisions, ses matchs, puis le matin du lendemain. */
 export function jouerJournee(L) {
   if (L.fini) return;
@@ -6063,6 +6075,7 @@ export function jouerJournee(L) {
       if (d.duel && d.duel.p > 0) { duelDuJour[d.duel.p] = d; continue; }
       // LA DÉCISION DU SOIR D'UN DUEL (`main`, vide depuis la V13-2 : elle marque le soir et porte le plan de la 1re).
       if (d.main) mainDuJour = d;
+      if (d.cedule) jouerLaCedule(L, d);
       const t = teams[d.equipe || 0];
       if (t) appliquerDecision(t, d, graine);
       if (d.sel) sel = `${sel || ''}${d.sel}`;
