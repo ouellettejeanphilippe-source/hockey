@@ -291,7 +291,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **La boutique** : *NOEUDS_BOUTIQUE* [0, 14, 27, 41, 54, 68, 82] ; *ACHATS_PAR_NOEUD* 4 ; le prix d'un pack, `prixDe(cle, hausseDesPacks(n))` avec `n` les achats **de ce nœud** ; la pièce, `arrondi(PRIX_PIECE × hausseDesPacks(n))`, *PRIX_PIECE* 32.
 - **L'élite** : au plus *ELITES_PAR_ACTE* 1 ; `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], *V_COEUR* 60, `p` borné à [0,25, 0,55]. Exemple fait : § 4.5.
 - **Les médailles** : 10 par acte passé, 15 par rival battu, 20 par ronde gagnée, 40 pour la Coupe.
-- **Le départ** : *BANDE_DEPART* [0,35, 0,55] de la saison du bouche-trou à son poste (il était [0,05, 0,25]).
+- **Le départ** : *BANDE_DEPART* [0,40, 0,60] de la saison du bouche-trou à son poste (il était [0,05, 0,25], puis [0,35, 0,55] jusqu'au réglage R1, § 9).
 - **Le banc** : *CASES_DU_BANC* 5 ; *PIECES_OFFERTES* 3 ; une pièce joue 30 à 50 % des soirs ; une fourche, une pièce au plus, deux par saison.
 - **Les bornes** : la règle « une carte sous ±1 V, ±1,5, ±2,5, ±4 selon son niveau » part pour les pièces de banc (elle reste pour les réponses d'histoire et les cartes de la banque). Ce qui la remplace : chaque pièce **se voit** dans la feuille du soir où elle joue (les seuils de rogue.md : ±2 tirs, ±0,3 but…), **n'est jamais un piège** (en paires, jamais sous −0,5 V sur un acte) ; **le banc complet** (cinq pièces) de l'attentif rend **au plus +5 V sur un acte** en paires contre un banc vide ; le robot **glouton** (qui prend toujours la meilleure pièce offerte) gagne **au plus la moitié** de ses runs.
 - **La courbe** se lit **en points au classement par acte**, pas en `teamStrength` (aveugle aux greffes, donc au banc) : la part de points de l'attentif monte d'un acte à l'autre, en médiane, et il passe ses contrôles ; les bornes chiffrées se posent à la tranche 1 sur la mesure du vrai banc, écrites comme des intervalles.
@@ -439,7 +439,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 | *PRIX_PIECE* | 32 🪙 | 24-40 | à 20, la pièce est obligatoire à chaque nœud ; à 50, on ne prend que des packs |
 | *V_COEUR* | 60 🪙 | 40-90 | trop bas, l'élite ne vaut pas le risque ; trop haut, elle est obligatoire |
 | *ELITES_PAR_ACTE* | 0 à l'acte I, 1 aux actes II et III (JP, 8 nov. : « Élite = risque plus clair ») | 0-1 | à 2, l'élite redevient une routine et les cœurs fondent ; à l'acte I, l'équipe du départ y perdait un cœur sans pouvoir le risquer en connaissance de cause |
-| *BANDE_DEPART* | 0,35 · 0,55 | 0,25-0,45 · 0,45-0,65 | à 0,05-0,25, l'équipe part au 31e rang et l'acte I tue ; au-dessus, la run 1 se gagne. Le deuxième levier de R1 |
+| *BANDE_DEPART* | 0,40 · 0,60 (R1, 8 nov. ; 0,35 · 0,55 avant) | 0,25-0,45 · 0,45-0,65 | à 0,05-0,25, l'équipe part au 31e rang et l'acte I tue ; au-dessus, la run 1 se gagne. Le deuxième levier de R1 |
 | *CASES_DU_BANC* | 5 | 4-6 | à 3, aucun combo ; à 7, tout se lit à la fois |
 | *PIECES_OFFERTES* | 3 | 2-4 | — |
 | La présence d'une pièce | 30-50 % des soirs | 25-60 % | sous 25 %, elle ne se sent pas ; au-dessus de 60 %, elle vaut deux adjoints d'aujourd'hui |

@@ -28,7 +28,7 @@ import {
 import {
   DEBLOCAGES, departDuClasseur, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, exigencesOuvertes,
-  EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, ESPACE_DE_DEPART, soutiensDuDepart, bouchesTrousDuDepart,
+  EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, ESPACE_DE_DEPART, soutiensDuDepart, bouchesTrousDuDepart, BANDE_DEPART,
   ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN, ecussonsDesSeries,
 } from '../js/rogue.js';
 import { ACTES, COEURS, CONTROLES, RANGS_DES_RIVAUX, ETAPE_SERIES, controleDeLActe, etapeDesSeries, rangAuSoir, etatDeLaRun, parmiLesAdversaires,
@@ -262,12 +262,12 @@ if (!isMainThread) {
     exiger('le renfort : +1 par acte de recul, +1 au-delà du nœud du milieu, compté depuis la cédule d\'origine', R1 === 2 && R2 === 1 && renfortDe([4], [4]) === 0 && renfortDe([20], [10]) === 0 && renfortDe([60], [70]) === 1 && renfortDe([60], [66]) === 0,
       `le 5 au 60 et le 33 au 40 : +${R1} ; puis le 60 ramené au 20 : +${R2}`);
     exiger('un rival perdu ne coûte aucun cœur', E.actes[1].gagne === false && E.actes[0].gagne === true && E.coeurs === COEURS - 1, `rival I ${E.actes[0].gagne ? 'battu' : 'perdu'} · rival II ${E.actes[1].gagne ? 'battu' : 'perdu'}`);
-    // La bande du départ (devis § 4.9) : les bouche-trous tirés du 35e au 55e centile de leur saison.
+    // La bande du départ (devis § 4.9) : les bouche-trous tirés de `BANDE_DEPART` (du 40e au 60e centile) de leur saison.
     const s = shard('1985-86').players.filter(p => groupe(p) === 'F' && (p.gp || 0) >= 30);
     const ppm = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
-    const tri = s.slice().sort((x, y) => ppm(x) - ppm(y)), bande = new Set(tri.slice(Math.floor(tri.length * 0.35), Math.floor(tri.length * 0.55)));
+    const tri = s.slice().sort((x, y) => ppm(x) - ppm(y)), bande = new Set(tri.slice(Math.floor(tri.length * BANDE_DEPART[0]), Math.floor(tri.length * BANDE_DEPART[1])));
     const pris = bouchesTrousDuDepart([s], { groupe, valeur: () => 0, personne: getPersonKey, piger: l => l[0] }).filter(p => groupe(p) === 'F');
-    exiger('les bouche-trous du départ sont pigés du 35e au 55e centile de leur saison', pris.length === 3 && pris.every(p => bande.has(p)), `${pris.length} attaquants, ${pris.filter(p => bande.has(p)).length} dans la bande`);
+    exiger('les bouche-trous du départ sont pigés de la bande du départ de leur saison (BANDE_DEPART)', pris.length === 3 && pris.every(p => bande.has(p)), `${pris.length} attaquants, ${pris.filter(p => bande.has(p)).length} dans la bande`);
   }
 
   /* ---------- 2. la run en actes, jouée par l'attentif (un fil par graine, deux à la fois) ---------- */
