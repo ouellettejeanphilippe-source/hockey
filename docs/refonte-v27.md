@@ -262,6 +262,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **Une histoire** : sous la réplique, le fait dit **seulement ce que la réplique tait** (jamais le même chiffre deux fois).
 - **Écrans neufs** (tous en maquette à la tranche 0) : le rival annoncé (son intention, son style), le calendrier de l'acte (le placement, le renfort sur la case), la proposition d'élite, le choix du duel (le plan), l'entracte à un bouton, le soir de fin d'acte, le point de contrôle (les cœurs), la pièce à prendre (1 parmi 3, banc plein), la boutique (les packs et la pièce, fermée entre deux nœuds), « La run continue », l'écran de fin, la Dynastie (ce qu'on garde, les contrats à libérer), la vieille sauvegarde, Ce soir et ta plaque, le Proprio.
 - La seconde moitié de l'interface (D1b de LIVRAISON.md) se fait dans ces écrans neufs, pas dans les anciens.
+- **Les maquettes tranchées** (JP, 7 nov. : *Maquettes ok*) : docs/maquettes/v27.html, neuf écrans (Ce soir, le rival annoncé, placer ses matchs, le duel, la boutique, le soir de fin d'acte, prendre une pièce, la fin, la Dynastie). Le code les reproduit : peu de phrases (la piste de la saison, les languettes, les jauges disent l'état), la télé du jeu (bandes aux couleurs des clubs, plaques, languettes noires, coins vifs, bouton or), les logos des clubs, les cartes de jeu de `carteHtml` et les cartes de joueurs de `cartonHtml` telles qu'elles sont.
 
 ### 4.12 La Dynastie (décision 7 d'après la revue ; JP : *Dans ce chantier*)
 
