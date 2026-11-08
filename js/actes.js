@@ -22,7 +22,8 @@ export const ACTES = [27, 54, 82];
 export const RANGS_DES_RIVAUX = [7, 3, 0];
 export const CONTROLES = [20, 15];
 export const COEURS = 2;
-export const ETAPE_SERIES = 3;
+/* R1 (8 nov. 2026) : à 3, la bande du départ remontée laissait « premier » et le naïf gagner 3 Coupes sur 64. */
+export const ETAPE_SERIES = 4;
 /* Les médailles d'un acte (devis § 4.8) : l'acte passé, le rival battu. */
 export const MEDAILLES_ACTE = { passe: 10, rival: 15 };
 /* Pourquoi un soir est un duel (V27 ; « rival » remplace les rivaux du proprio, l'élite vient à la tranche 7). */

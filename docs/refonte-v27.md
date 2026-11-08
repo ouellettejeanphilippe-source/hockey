@@ -239,7 +239,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 | 5 | Les commanditaires boudent | 2 jetons de moins par victoire | 1 jeton de moins par victoire (le barème est à 5 sans commanditaire) |
 | 6 | Le proprio impatient | chaque mandat une saison plus tôt | **les contrôles serrés** : 18 · 13 au lieu de 20 · 15 |
 | 7 | Ceux qui partent | une case de moins chez ceux qui restent | **les rivaux plus haut** : le 6e, le 2e et le plus fort (`RANGS_DES_RIVAUX` 5 · 1 · 0) |
-| 8 | La ceinture serrée | 3 M$ d'espace de moins encore | **les séries plus dures** : `ETAPE_SERIES` +1 (4 étapes) |
+| 8 | La ceinture serrée | 3 M$ d'espace de moins encore | **les séries plus dures** : `ETAPE_SERIES` +1 (5 étapes) |
 
 ### 4.10 Les histoires
 
@@ -286,7 +286,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **Les contrôles** : *CONTROLES* [20, 15, séries] (le 12e de l'acte II jusqu'au réglage R1, § 9) (rang au classement le soir du rival, inclus), `arrondi(C × n / 32)` dans une ligue de `n` clubs. Le tour 3 du prototype les a relus avec 3 ❤️ : l'attentif ne meurt qu'une fois sur 16, à l'acte III ; le premier robot 6 fois.
 - **Les cœurs** : *COEURS* 2 (JP).
 - **Le renfort** : *RENFORT* 1 étape par match reculé et par acte de recul, compté depuis la cédule d'origine, sans arrondi, plus 1 pour un match reculé au-delà du nœud du milieu de son acte. Exemple fait : § 4.4.
-- **Les séries** : chaque adversaire monte de *ETAPE_SERIES* 3 étapes d'édition au premier match des séries, renfort compris en plus.
+- **Les séries** : chaque adversaire monte de *ETAPE_SERIES* 4 étapes d'édition (3 jusqu'au réglage R1, § 9) au premier match des séries, renfort compris en plus.
 - **La courbe de la ligue par acte** : *ETAPES_DES_ACTES* [0, 0, 0] (mesuré) ; [0, 1, 2] essayé, à trancher par la mesure de la tranche 1 (pas une question à JP : le juge décide).
 - **La boutique** : *NOEUDS_BOUTIQUE* [0, 14, 27, 41, 54, 68, 82] ; *ACHATS_PAR_NOEUD* 4 ; le prix d'un pack, `prixDe(cle, hausseDesPacks(n))` avec `n` les achats **de ce nœud** ; la pièce, `arrondi(PRIX_PIECE × hausseDesPacks(n))`, *PRIX_PIECE* 32.
 - **L'élite** : au plus *ELITES_PAR_ACTE* 1 ; `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], *V_COEUR* 60, `p` borné à [0,25, 0,55]. Exemple fait : § 4.5.
@@ -431,7 +431,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 | *CONTROLES* | 20 · 15 · séries (R1, 8 nov. ; 20 · 12 avant) | 18-24 · 10-16 · séries | relu au tour 3 avec 3 ❤️ : l'attentif meurt 1 fois sur 16 ; avec 2 ❤️, à remesurer (R1) |
 | *COEURS* | 2 | 2 (JP) | ne se règle pas : si l'attentif meurt trop, on règle le départ ou les rivaux (décision 1) |
 | *RENFORT* | 1 étape par match et par acte | 1-2 | à 0, placer est gratuit et dominant ; à 3 par acte (essayé), placer ne vaut plus rien |
-| *ETAPE_SERIES* | 3 étapes | 2-4 | à 0, les séries sont plus faciles que l'acte III |
+| *ETAPE_SERIES* | 4 étapes (R1, 8 nov. ; 3 avant) | 2-4 | à 0, les séries sont plus faciles que l'acte III |
 | *ETAPES_DES_ACTES* | 0 · 0 · 0 | 0-2 par acte | la tranche 1 tranche par la mesure |
 | *NOEUDS_BOUTIQUE* | 0 · 14 · 27 · 41 · 54 · 68 · 82 | 5 à 8 nœuds | 3 nœuds (essayé) : l'équipe ne grandit pas assez ; chaque matin (essayé) : la boutique redevient une corvée |
 | Le prix au nœud | remis à zéro | — | sans remise, l'équipe ne grandit pas aux actes II et III (mesuré) |
@@ -452,9 +452,10 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 |---|---|---|---|---|---|
 | 0 (PR #389) | — (bande 0,35-0,55, contrôles 20 · 12) | 10 · 0 · 0 | 49 ✗ | 18 ✗ | +9,3 ✗ · +8,3 |
 | 1 | *BANDE_DEPART* 0,40 · 0,60 : le départ médian du 28e au 26e | 5 ✗ · 3 ✗ · 3 ✗ | 43 ✗ | 13 ✗ | +8,3 · +9,1 ✗ |
-| 2 | *CONTROLES* 20 · 15 | à mesurer | | | |
+| 2 | *CONTROLES* 20 · 15 | 6 · 3 ✗ · 3 ✗ | 44 ✗ | 6 ✓ | +8,3 · +9,2 ✗ |
+| 3 | *ETAPE_SERIES* 4 | à mesurer | | | |
 
-Lu dans les runs gardées : à la course 0, les 18 morts sont toutes à l'acte II, 17 sur deux contrôles ratés, presque toutes parties du 29e au 32e rang de force ; à la course 1, les 13 morts ratent encore les deux contrôles, mais 12 d'entre elles finissent l'acte II du 13e au 19e. Les Coupes bougent beaucoup d'une course à l'autre sur les mêmes dés : les variantes de l'attentif (le placé, le prudent) en gagnent 10 chacune à la course 1, l'attentif 5 ; une borne de 6 à 10 sur 64 est à ±2,7 Coupes du hasard.
+Lu dans les runs gardées : à la course 0, les 18 morts sont toutes à l'acte II, 17 sur deux contrôles ratés, presque toutes parties du 29e au 32e rang de force ; à la course 1, les 13 morts ratent encore les deux contrôles, mais 12 d'entre elles finissent l'acte II du 13e au 19e. Les Coupes bougent beaucoup d'une course à l'autre sur les mêmes dés : les variantes de l'attentif (le placé, le prudent) en gagnent 10 chacune à la course 1, l'attentif 5 ; une borne de 6 à 10 sur 64 est à ±2,7 Coupes du hasard. À la course 2, les morts tombent à 6, mais l'attentif perd encore un cœur dans 44 runs : 27 d'entre elles ont tenu les deux contrôles et perdu une élite (57 % des runs qui tiennent les deux). Le prudent, qui les refuse, n'en perd un que dans 17. Relu, monter le contrôle de l'acte I jusqu'au 24e ne ramènerait les cœurs perdus qu'à ≈ 41 : ce qui reste, ce sont les élites. Le robot prend chaque élite qu'il a le droit de prendre, même à 29 % de pronostic, et en perd 7 sur 9 sous 40 %. « premier » et le naïf gagnent 3 Coupes depuis la course 1 : la bande remontée leur a donné 40 rondes de séries au lieu de 15, et à l'attentif 89 au lieu de 85. D'où la course 3, des séries plus dures, qui pèsent plus sur le club le plus faible.
 
 ## 10. Les critères d'acceptation, et ce que deviennent les juges
 

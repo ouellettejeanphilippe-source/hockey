@@ -236,7 +236,7 @@ if (!isMainThread) {
    * un cœur part par contrôle raté, la run meurt à 0 ❤️, et l'acte III n'en coûte aucun.
    */
   {
-    exiger('les actes, les cœurs et les contrôles du devis', ACTES.join() === '27,54,82' && COEURS === 2 && CONTROLES.join() === '20,15' && RANGS_DES_RIVAUX.join() === '7,3,0' && ETAPE_SERIES === 3,
+    exiger('les actes, les cœurs et les contrôles du devis', ACTES.join() === '27,54,82' && COEURS === 2 && CONTROLES.join() === '20,15' && RANGS_DES_RIVAUX.join() === '7,3,0' && ETAPE_SERIES === 4,
       `actes ${ACTES.join(' · ')} · ${COEURS} ❤️ · contrôles ${CONTROLES.join(' · ')} · rivaux ${RANGS_DES_RIVAUX.map(r => r + 1).join(' · ')} · séries +${ETAPE_SERIES}`);
     exiger('les contrôles et les rivaux suivent la taille de la ligue', controleDeLActe(0, 32) === 20 && controleDeLActe(1, 32) === 15 && controleDeLActe(0, 24) === 15 && controleDeLActe(1, 24) === 11
       && parmiLesAdversaires(7, 32) === 7 && parmiLesAdversaires(7, 24) === 5, `ligue de 24 : ${controleDeLActe(0, 24)} · ${controleDeLActe(1, 24)}`);
