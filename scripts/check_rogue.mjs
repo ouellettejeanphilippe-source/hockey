@@ -174,7 +174,7 @@ if (!isMainThread) {
     });
     exiger('chaque cran d\'exigence change un seul canal, s\'ajoute aux précédents et paie plus de médailles', !fautes.length, fautes.join(' · ') || EXIGENCES.map(E => E.nom).join(' · '));
     const n = EXIGENCES.length, X = exigencesDe(n);
-    const tout = plafondDeSaison(60e6, m0, n) === 60e6 && plafondDeSaison(60e6, { deblocages: ['plafond1', 'plafond2'] }, n) === 60e6 + ESPACE_DE_DEPART + 7e6 + X.espace
+    const tout = plafondDeSaison(60e6, m0, n) === Math.max(60e6, 60e6 + ESPACE_DE_DEPART + X.espace) && plafondDeSaison(60e6, { deblocages: ['plafond1', 'plafond2'] }, n) === 60e6 + ESPACE_DE_DEPART + 7e6 + X.espace
       && plafondDeSaison(60e6, m0, 1) === 60e6 + ESPACE_DE_DEPART + EXIGENCES[0].espace && soutiensDuDepart(4, 1, n) === soutiensDuDepart(4, 1) + 3 && departDuClasseur(m0, n).n === 0
       && baremeRogue(m0, n).victoire === baremeRogue(m0).victoire - 2 && X.controles === -2 && X.rivaux === 1 && X.series === 1;
     exiger('au plus haut cran, chaque canal mord (et le plafond jamais sous la masse)', tout,

@@ -35,7 +35,7 @@ Le rival que l'échange ne peut pas amener : un club d'un rang voisin (le robot,
 
 ## 6. Ce qu'il touche
 
-`js/actes.js` (neuf), `js/rogue.js`, `js/rogue-jeu.js`, `js/saison.js`, `js/sim.js`, `js/banc.js`, `js/game.js`, `js/scenes.js`, `js/faits.js`, `js/gerant.js`, `sw.js`, `style.css`, `scripts/lib/rogue_actes.mjs`, `scripts/lib/rogue_sim.mjs`, `scripts/check_rogue.mjs`, `docs/refonte-v27.md`, `.claude/rules/rogue.md`, `.claude/rules/vocabulaire.md`, `.claude/rules/interface.md`. Les clés de sauvegarde ne bougent pas ; `G.rogue` gagne *acte*, *coeurs* et *actes* (`check_sauvegardes`).
+`js/actes.js` (neuf), `js/rogue.js`, `js/rogue-jeu.js`, `js/saison.js`, `js/sim.js`, `js/banc.js`, `js/game.js`, `js/scenes.js`, `js/faits.js`, `js/gerant.js`, `sw.js`, `style.css`, `scripts/lib/rogue_actes.mjs`, `scripts/lib/rogue_sim.mjs`, `scripts/check_rogue.mjs`, `docs/refonte-v27.md`, `.claude/rules/rogue.md`, `.claude/rules/vocabulaire.md`, `.claude/rules/interface.md`. Les clés de sauvegarde ne bougent pas, et `G.rogue` ne gagne aucun champ : l'état de la run se lit dans la cédule jouée (*etatDeLaRun*), une reprise relit le même (`check_sauvegardes`).
 
 ## 7. Ce qui part
 
