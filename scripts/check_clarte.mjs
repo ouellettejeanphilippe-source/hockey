@@ -188,7 +188,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // V23 (2 nov.) : 2 600 (2 540 avant) — la règle du coach et le salaire des adjoints, deux mécaniques neuves, chacune en une phrase.
   // 2 600 jusqu'au 4 nov. 2026 ; le relais, le butin du gros match et leur coach en séries (V23 D et F) valent leurs trois phrases.
   // V27, tranche 3 (8 nov. 2026) : 2 710 — la boutique à ses nœuds (les sept nœuds, le prix remis à zéro, quatre achats, la pièce, les jetons perdus) vaut ses trois phrases.
-  borne('la page des règles est courte', mots, 300, 2710, 'mots');
+  // V27, tranche 4 (8 nov. 2026) : 2 740 — le calendrier placé et son renfort, une phrase.
+  borne('la page des règles est courte', mots, 300, 2740, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];

@@ -12,8 +12,8 @@
  *     une reprise relit le même état.
  * Pur : la cédule, les clubs, la graine. Le moteur n'importe pas ce module (check_couches).
  */
-import { teamStrength } from './sim.js';
-import { exigencesDe } from './rogue.js';
+import { teamStrength, getHiddenRatings } from './sim.js';
+import { exigencesDe, habillerLaLigue } from './rogue.js';
 import { hausseDesPacks } from './packs.js';
 import { adjointsOfferts, niveauOffert } from './adjoints.js';
 
@@ -110,6 +110,8 @@ export function poserLesRivaux(L, { exigence = 0 } = {}) {
   for (const R of L.rivaux) L.grosAnnonces[R.jour] = { jour: R.jour, adv: R.adv, raison: 'rival', acte: R.acte };
   // Le moment « Contre un rival » (js/sim.js `MOMENTS_SI`) lit tes rivaux sur ton club.
   you.rivaux = L.rivaux.map(R => R.adv);
+  // La cédule d'origine, d'où le renfort se compte (tranche 4) : ton adversaire, match par match.
+  L.origine = advsDe(L, you);
   return L.rivaux;
 }
 /*
@@ -198,3 +200,61 @@ export const prixDeLaPiece = n => Math.round(PRIX_PIECE * hausseDesPacks(n));
  * pièce est un adjoint pour ta main, à son niveau (`adjointsOfferts`, `niveauOffert`) : la carte qui deviendra une pièce.
  */
 export const piecesDuNoeud = (perso, graine, k) => (perso ? adjointsOfferts(perso, graine, `bq${k}`, 3).map(cle => ({ cle, niv: niveauOffert(graine, `bq${k}`, cle) })) : []);
+
+/*
+ * LE CALENDRIER PLACÉ ET LE RENFORT (V27, tranche 4 ; devis § 4.4, docs/refonte-v27-4.md). Au premier soir d'un acte, tu
+ * échanges deux adversaires entre deux de tes cases à venir, dans l'acte ou vers un acte plus loin (`echangeables`) : le
+ * match du rival ne bouge pas, chaque club garde 82 matchs, un par jour. Un club reculé porte son renfort (`renfortDe`),
+ * compté depuis la cédule d'origine (`L.origine`). Le placement est une décision (`cedule`, les paires de cases) que le
+ * moteur joue à son jour par le crochet `placer` (`crochetDesActes`) : une reprise replace et rhabille pareil.
+ */
+const MILIEUX = [NOEUDS_BOUTIQUE[1], NOEUDS_BOUTIQUE[3], NOEUDS_BOUTIQUE[5]];
+/*
+ * `avant`, `apres` : les rangs (de 0) de tes matchs contre un club. Un match reculé vaut une étape par acte de recul ; dans
+ * son acte, une s'il passe le nœud du milieu ; avancé, rien. Le compte est le plus petit sur les façons d'apparier les deux
+ * listes (un club te joue deux à quatre fois) : un match reculé de deux actes vaut 2, même s'il décale les autres.
+ */
+const recul = (k, q) => (q <= k ? 0 : acteDe(q) > acteDe(k) ? acteDe(q) - acteDe(k) : k < MILIEUX[acteDe(k)] && q >= MILIEUX[acteDe(k)] ? 1 : 0);
+export function renfortDe(avant, apres) {
+  const meilleur = (i, reste) => (i === avant.length ? 0 : Math.min(...reste.map((q, j) => recul(avant[i], q) + meilleur(i + 1, reste.filter((_, x) => x !== j)))));
+  return meilleur(0, apres);
+}
+const toiDe = L => L.teams.find(t => t.isPlayer);
+const advsDe = (L, you) => joursDe(L.calendrier, you).map(j => advDe(L.calendrier[j].find(m => m.A === you || m.B === you), you));
+/* Les étapes de chaque club reculé (club → étapes), depuis la cédule d'origine. */
+export function renfortsDe(L) {
+  const you = L && toiDe(L), out = new Map();
+  if (!you || !L.origine) return out;
+  const rangs = advs => advs.reduce((M, T, k) => M.set(T, [...(M.get(T) || []), k]), new Map());
+  const apres = rangs(advsDe(L, you));
+  for (const [T, ks] of rangs(L.origine)) { const n = renfortDe(ks, apres.get(T) || []); if (n) out.set(T, n); }
+  return out;
+}
+/* Les cases qui s'échangent avec ta case `k` (de 0), `joues` matchs joués : à venir, l'une des deux dans l'acte, jamais un rival. */
+export function echangeables(L, k, joues) {
+  const you = toiDe(L), jours = joursDe(L.calendrier, you), advs = advsDe(L, you), acte = acteDe(joues);
+  const rivaux = new Set((L.rivaux || []).map(R => R.jour));
+  const libre = q => q >= joues && q < jours.length && acteDe(q) >= acte && !rivaux.has(jours[q]);
+  if (!libre(k)) return [];
+  return jours.map((_, q) => q).filter(q => q !== k && libre(q) && (acteDe(k) === acte || acteDe(q) === acte) && advs[q] !== advs[k] && peut(L, jours[k], jours[q], advs[k], advs[q]));
+}
+/* Échanger tes cases `k` et `q`, si elles s'échangent ; faux sinon. */
+export function echangerTesCases(L, k, q, joues) {
+  if (!echangeables(L, k, joues).includes(q)) return false;
+  const you = toiDe(L), jours = joursDe(L.calendrier, you), advs = advsDe(L, you);
+  echanger(L, jours[k], jours[q], advs[k], advs[q]);
+  return true;
+}
+/* Le brouillon d'un placement (l'écran, le robot) : la même ligue, sa cédule copiée. */
+export const brouillon = L => ({ ...L, calendrier: L.calendrier.map(jr => jr.map(m => ({ A: m.A, B: m.B }))) });
+/*
+ * LE CROCHET DU ROGUE (`placer` de `creerLigue`) : à la création, les rivaux ; à une décision `cedule`, ses échanges, puis
+ * chaque adversaire habillé à `etape` plus son renfort (`habillerLaLigue`), pour la saison qui reste, contre toi et les autres.
+ */
+export const crochetDesActes = ({ exigence = 0, niveau = 0, etape = 0 } = {}) => (L, d) => {
+  if (!d) { poserLesRivaux(L, { exigence }); return; }
+  const joues = joursDe(L.calendrier, toiDe(L)).filter(j => j < L.jour).length;
+  for (const [k, q] of d.cedule) echangerTesCases(L, k, q, joues);
+  const R = renfortsDe(L);
+  for (const T of L.teams) if (!T.isPlayer) habillerLaLigue([T], niveau, p => getHiddenRatings(p).v, etape + (R.get(T) || 0));
+};

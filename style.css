@@ -4169,21 +4169,6 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-rangee-t small { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-rangee-c { font: 900 var(--t-5)/1 var(--display); color: var(--pl-ton, var(--or)); font-variant-numeric: tabular-nums; }
 .pl-rangee-c small { font-size: var(--t-1); color: var(--encre-3); }
-/* Les billets de la route : quand et où, l'écusson, le sigle, son rang et sa fiche ; encochés ; ce soir cerné de blanc, le gros match d'or.
-   Nov. 2026 (le contenu, de zéro ; interface.md : jamais un glissement de côté) : trois billets de front, sans rail. */
-.pl-billets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); margin: 0; padding: 0; list-style: none; }
-.pl-billet { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 2px; min-width: 0; min-height: 104px; padding: var(--esp-2) var(--esp-2) var(--esp-2) var(--esp-3); border: 1px solid var(--filet-2); border-radius: var(--r-1); background: var(--fond-2); font: 800 var(--t-2)/1.1 var(--display); text-transform: uppercase; color: var(--encre); text-align: left; }
-.pl-billet::before, .pl-billet::after { content: ""; position: absolute; top: 50%; left: -6px; width: 11px; height: 11px; margin-top: -6px; border-radius: 50%; background: var(--fond-1); box-shadow: inset 0 0 0 1px var(--filet-2); }
-.pl-billet::after { left: auto; right: -6px; }
-.pl-billet-soir { border-color: var(--encre-3); box-shadow: inset 0 0 0 1px var(--encre-3); }
-.pl-billet-gros { border-color: var(--or); }
-.pl-billet-gros :is(.pl-billet-q, .pl-billet-p) { color: var(--or); }
-.pl-billet-q { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-billet-i { display: grid; place-items: center; }
-.pl-billet-n { max-width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-billet-p { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-/* Le palier 🎁 au bas du billet, à droite du pied (en tête, il couvrait « Ce soir · chez eux »). */
-.pl-billet .pl-coin { top: auto; bottom: var(--esp-1); right: var(--esp-1); border: 0; padding: 0; background: none; }
 /* Les marches de l'échelle : les faites cochées, la tienne cernée d'or, la prochaine dit ce qui manque, les lointaines en sourdine. */
 .pl-echelle { display: grid; gap: var(--esp-1); }
 .pl-marche { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 40px; padding: 0 var(--esp-2); border-radius: var(--r-1); background: var(--fond-1); font: 600 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; }
@@ -4312,10 +4297,6 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-hier-mot { min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .hub-hier-ligne .hub-hier-voir { padding-right: var(--esp-3); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; font-weight: 600; }
 .hub-hier-ligne.neuf { animation: hier-neuf 200ms var(--e-ressort) both; }
-/* LA ROUTE (V8) : deux semaines, un arrêt par match, le gros match en or, le lundi, le pack gratuit. */
-.bu-route { padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
-/* LE PLATEAU (nov. 2026) : chaque arrêt est un BILLET de match (js/composants.js `billet`) ; le palier 🎁 en coin. */
-.rt-marche { color: var(--or); }
 .bu-piste-mq.marche { background: none; color: var(--or); }
 @media (max-width: 1199.98px) {
   body.hub-docke .hub-sheet { overflow-y: auto; overscroll-behavior: contain; }
@@ -4607,25 +4588,39 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-rap-lignes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px var(--esp-3); font-size: var(--t-2); color: var(--encre-2); }
 .hub-rap-lignes b { color: var(--encre); font-family: var(--display); }
 
-/* ---- La saison en calendrier (js/saison.js, calendrierFiche) : des semaines de sept journées, une case par jour ---- */
-.calj-grille { display: flex; flex-direction: column; gap: 3px; }
-.calj-sem { display: grid; grid-template-columns: 24px repeat(7, minmax(0, 1fr)); gap: 3px; }
-.calj-s { align-self: center; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.04em; color: var(--encre-3); }
-.calj { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; min-height: 52px; padding: 3px 2px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--panneau); font: 700 var(--t-1)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); }
-.calj-n { position: absolute; top: 3px; left: 4px; font-size: var(--t-1); color: var(--encre-3); }
-.calj-r { color: var(--encre); white-space: nowrap; }
-.calj-ev { position: absolute; top: 2px; right: 3px; font-size: var(--t-1); line-height: 1; }
-.calj.conge { background: transparent; border-style: dashed; border-color: var(--filet-2); }
-.calj.v { background: color-mix(in srgb, var(--bon) 18%, var(--fond-1)); border-color: color-mix(in srgb, var(--bon) 55%, transparent); }
-.calj.v .calj-r { color: var(--bon); }
-.calj.d { background: color-mix(in srgb, var(--mauvais) 14%, var(--fond-1)); border-color: color-mix(in srgb, var(--mauvais) 45%, transparent); }
-.calj.d .calj-r { color: var(--mauvais); }
-.calj.dp { background: color-mix(in srgb, var(--attention) 14%, var(--fond-1)); border-color: color-mix(in srgb, var(--attention) 45%, transparent); }
-.calj.dp .calj-r { color: var(--attention); }
-.calj.ici { border: 2px solid var(--or); box-shadow: 0 0 14px -4px var(--or); }
-.calj[data-sommaire] { cursor: pointer; transition: transform var(--t-vite) var(--e-ressort); }
-.calj[data-sommaire]:hover { transform: translateY(-2px); }
-.calj .team-logo-img, .calj .team-logo-inline { flex: none; }
+/* ---- La saison en cases (V27, tranche 4 ; la maquette 3 ; js/composants.js `caseDeMatch`) : le Calendrier et le placement de l'acte ---- */
+.ac-grille { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; margin: var(--esp-2) 0; }
+.ac-case { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; height: 58px; padding: 6px 0 0; border: 0; background: var(--fond-2); color: var(--encre-3); font-family: var(--display); }
+.ac-case > i { position: absolute; left: 4px; top: 5px; font: 700 var(--t-1)/1 var(--display); opacity: 0.8; }
+.ac-case > b { font-size: var(--t-1); font-weight: 900; letter-spacing: 0.04em; }
+.ac-case > small { font: 800 var(--t-1)/1 var(--display); font-variant-numeric: tabular-nums; }
+/* Au placement, seules les cases qui s'échangent gardent leurs couleurs ; les autres en sourdine. */
+.ac-placer .ac-case:not(.ok, .choisi, .rival) { color: var(--encre-3); }
+.ac-placer .ac-case:not(.ok, .choisi, .rival) .team-logo-img { filter: grayscale(0.85) brightness(0.7); opacity: 0.75; }
+.ac-case.ok { background: var(--fond-3); box-shadow: inset 0 0 0 2px var(--bleu); }
+.ac-case.ok::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: var(--eq-band); }
+.ac-case.fort { box-shadow: inset 0 0 0 3px var(--or); }
+.ac-case.choisi { background: var(--blanc); color: var(--noir-pur); }
+.ac-case.rival { background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 0 0 2px var(--or); }
+.ac-case.ici { box-shadow: inset 0 0 0 2px var(--encre); }
+.ac-case.v > small { color: var(--bon); }
+.ac-case.d > small { color: var(--mauvais); }
+.ac-case.dp > small { color: var(--attention); }
+.ac-case.marche::after { content: ""; position: absolute; right: 4px; top: 4px; width: 11px; height: 11px; background: var(--or); -webkit-mask: var(--sac) center / contain no-repeat; mask: var(--sac) center / contain no-repeat;
+  --sac: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.8'%3E%3Cpath d='M5 8h14l-1 12H6z'/%3E%3Cpath d='M9 8a3 3 0 0 1 6 0'/%3E%3C/svg%3E"); }
+/* Le renfort « +2 ✦ » suit le club : sur sa case, à l'affiche, au Face à face ; « Gratuit » sous un échange qui ne coûte rien. */
+.ac-renf, .ac-gratuit { padding: 1px 4px; background: var(--or); color: var(--sur-or); font: 900 var(--t-1)/1.2 var(--display); font-style: normal; white-space: nowrap; }
+.ac-case .ac-renf { position: absolute; z-index: 1; right: 0; top: 0; }
+.ac-gratuit { background: var(--bon); color: var(--noir-pur); }
+.ac-dernier { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: var(--esp-3); background: var(--noir-pur); color: var(--blanc); font-size: var(--t-5); }
+.ac-ech { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--eq-band); color: var(--eq-ink); font-family: var(--display); }
+.ac-ech .team-logo-img { grid-row: span 3; }
+.ac-ech b { font-size: var(--t-5); font-weight: 900; }
+.ac-ech small { font: 700 var(--t-1)/1 var(--display); }
+.ac-ech em { justify-self: start; }
+.ac-boutons { display: flex; gap: var(--esp-2); margin-top: var(--esp-3); }
+.ac-boutons .btn { flex: 1; min-height: 56px; }
+.ac-boutons .gold { flex: 2; }
 
 
 /* ---- Le journal de l'ouverture (js/saison.js, ouvrirJournal) : une une de journal, courte ---- */
@@ -4796,10 +4791,6 @@ body .hub-volet .live-tableau td.eq, body .hub-volet .live-tableau td.role { fon
 .hub-chips button.on { color: var(--encre); border-bottom-color: var(--or); }
 
 /* ---- Tes matchs, un par bande : la journée, le verdict, le pointage, l'adversaire ---- */
-/* Le calendrier se feuillette (nov. 2026) : quatre semaines, « ‹ S5 – S8 › » seul en tête (le titre est parti, la journée est en en-tête). */
-.calj-nav-rang { display: flex; align-items: center; justify-content: center; gap: var(--esp-2); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.08em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
-.calj-nav { min-width: 44px; min-height: 44px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 800 var(--t-4)/1 var(--display); cursor: pointer; }
-.calj-nav:disabled { opacity: 0.35; cursor: default; }
 .hub-jeux { display: flex; flex-direction: column; border-top: 1px solid var(--filet-2); }
 .hub-jeu { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-2); border-bottom: 1px solid var(--filet-2); border-left: 3px solid transparent; font-size: var(--t-2); cursor: pointer; transition: background var(--t-vite); }
 .hub-jeu:hover, .hub-jeu:focus-visible { background: var(--fond-1); }

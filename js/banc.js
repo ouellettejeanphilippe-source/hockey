@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { lanceesDuSoir, getHiddenRatings, compterFeuilles, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue, rembobiner, rembobinerSeries } from './sim.js';
+import { lanceesDuSoir, getHiddenRatings, compterFeuilles, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue, rembobiner, rembobinerSeries, jouerLaCedule } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -18,7 +18,7 @@ import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { JETONS, niveauDeLigue, habillerLaLigue, niveauxDeLaRecrue, exigencesDe } from './rogue.js';
-import { poserLesRivaux } from './actes.js';
+import { crochetDesActes } from './actes.js';
 import { $, G, MODE, TEAMFULL, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, cartonDe, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort, varsEquipe } from './repechage.js';
 import { renderMain, coachHtml, persoDuMatin } from './alignement.js';
@@ -246,7 +246,7 @@ function ajouterDecision(avant, d) {
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   // V9 : ni la carte prise à un palier (`place`), ni « Attendre » le physio (`attend`).
   // V13-2 : ni le butin d'un gros match, pris (`place`) ou passé (`r:<jour>` seul).
-  const deckSeul = !d.coach && (d.recompense !== undefined || (typeof d.palier === 'string' && d.palier.startsWith('r:')) || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || !!d.place || !!d.attend || (!!d.garde && !d.mutation));
+  const deckSeul = !d.coach && ((d.cedule && !d.cedule.length) || d.recompense !== undefined || (typeof d.palier === 'string' && d.palier.startsWith('r:')) || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || !!d.place || !!d.attend || (!!d.garde && !d.mutation));
   // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
   decisions.push(deckSeul ? { ...d } : { ...d, sel: d.sel || nouvelleGraine() });
   return { liste: decisions, d };
@@ -261,6 +261,8 @@ function ajouterDecision(avant, d) {
  * est joué pour être montré) reconstruit la ligue, et seulement jusqu'à
  * aujourd'hui : le passé se rejoue à l'identique de la graine, rien d'avance.
  */
+/* Le calendrier placé ce matin (V27, tranche 4) se voit tout de suite : la cédule et le renfort, avant le match du jour. */
+const placerDuJour = M => { for (const d of M.decisions) if (d.cedule && d.jour === M.jour) jouerLaCedule(M, d); };
 async function continuerSaison(decisions, depuis, mot) {
   const L = G.ligue, M = L && L.moteur;
   const avant = new Set(L.decisions || []), apres = new Set(decisions);
@@ -275,6 +277,7 @@ async function continuerSaison(decisions, depuis, mot) {
   if (rembobine) jouerJusqua(M, depuis || 0);
   if (M && (rembobine || jourMin >= M.jour)) {
     L.decisions = M.decisions = decisions;
+    placerDuJour(M);
     // Le joueur signé (un pack, le ballottage) entre dans l'alignement tout de suite (S79), avec sa carte.
     poserAlignementDuJour(M);
     poserCartesArrivees(decisions);
@@ -644,11 +647,12 @@ export async function runSeason(opts = {}) {
   let r = null, teams, leaders = [], calendrier = [], graine = null, moteur = null;
   if (opponents.length) {
     // S80 : une ligue Rogue porte la courbe de la fin de partie (js/sim.js `echelleTardive`).
-    // V27 (js/actes.js) : en Rogue, les rivaux des actes se posent dans la cédule, avant le premier soir.
+    // V27 (js/actes.js) : en Rogue, les rivaux des actes se posent dans la cédule, avant le premier soir ; le placement, à son jour.
     const exigence = (G.bonus === 'ROGUE' && G.rogue && G.rogue.exigence) || 0;
     moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE', des: desPrec, instantanes: G.bonus === 'ROGUE',
-      placer: G.bonus === 'ROGUE' ? L => poserLesRivaux(L, { exigence }) : null });
+      placer: G.bonus === 'ROGUE' ? crochetDesActes({ exigence, niveau }) : null });
     jouerJusqua(moteur, opts.depuis || 0);
+    placerDuJour(moteur);
     // Un joueur signé aujourd'hui est dans l'alignement dès maintenant, pas au matin (S79).
     poserAlignementDuJour(moteur);
     teams = moteur.teams;

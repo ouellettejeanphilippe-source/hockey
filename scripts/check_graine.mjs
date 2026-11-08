@@ -15,12 +15,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame, feuilleVierge, photoAlignement, SITUATIONS, JOURS_SITUATIONS, connaitre, getPlayerKey, poserAlignementDuJour, batirLesClubs } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame, feuilleVierge, photoAlignement, SITUATIONS, JOURS_SITUATIONS, connaitre, getPlayerKey, poserAlignementDuJour, batirLesClubs, jouerLaCedule, getHiddenRatings } from '../js/sim.js';
 import { generateur } from '../js/util.js';
 import { PLANS } from '../js/greffes.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin, TEMOINS_DE_SAISON } from './lib/temoins.mjs';
 import { prevision } from '../js/pronostic.js';
+import { crochetDesActes, joursDe, renfortsDe, renfortDe, echangeables, ACTES, acteDe } from '../js/actes.js';
+import { habillerLaLigue } from '../js/rogue.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
@@ -495,6 +497,43 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
   const cles = ligue.map(t => `${t.season}|${t.tag}`);
   const rebatie = batirLesClubs(cles.map(k => cands.find(c => `${c.season}|${c.team}` === k)));
   dire(ligue.length === 31 && empreinte(rebatie) === empreinte(ligue), 'les 31 clés d\'une ligue, rebâties dans l\'ordre, redonnent les mêmes alignements et les mêmes clubs-écoles');
+}
+
+/*
+ * (8) LE CALENDRIER PLACÉ (V27, tranche 4 ; docs/refonte-v27-4.md) : au premier soir de l'acte II, un club de l'acte II
+ * reculé à l'acte III. La décision `cedule` jouée au matin où elle est prise (l'écran, `jouerLaCedule`, deux fois : une
+ * seule compte) et la saison rejouée de la graine (une reprise) donnent la même saison ; les journées d'avant ne bougent
+ * pas ; chaque club garde 82 matchs, un par jour, les rivaux leur jour ; le club reculé porte exactement les étapes que
+ * `habillerLaLigue` lui donne, et lui seul.
+ */
+{
+  const equipes = () => vestiaires.map(v => { const pool = v.pool.map(p => ({ ...p })); pool.forEach(registerHiddenRatings); return createTeam(`${v.tag} ${v.season}`, v.tag, autoRoster(pool), { season: v.season }); });
+  const lancer = decs => { const ts = equipes(); ts[0].isPlayer = true; return creerLigue(ts, 82, { graine: 'placee', decisions: [{ jour: 0, cases: photoAlignement(ts[0].roster) }, ...decs], placer: crochetDesActes() }); };
+  const texte = L => L.calendrier.map(j => j.map(m => `${m.A.name}|${m.B.name}|${m.gfA}-${m.gfB}`).join(';'));
+  const advAu = (L, j) => { const t = L.teams[0], m = L.calendrier[j].find(x => x.A === t || x.B === t); return m.A === t ? m.B : m.A; };
+  const L0 = lancer([]), js = joursDe(L0.calendrier, L0.teams[0]), d0 = js[ACTES[0] - 1] + 1;
+  jouerJusqua(L0, d0);
+  const k = Array.from({ length: ACTES[1] - ACTES[0] }, (_, i) => ACTES[0] + i).find(x => echangeables(L0, x, ACTES[0]).some(z => acteDe(z) === 2));
+  const q = echangeables(L0, k, ACTES[0]).find(z => acteDe(z) === 2), recule = advAu(L0, js[k]).name;
+  const dec = { jour: d0, palier: 'cal:1', cedule: [[k, q]] };
+  const L1 = lancer([]);
+  jouerJusqua(L1, d0); L1.decisions.push(dec); jouerLaCedule(L1, dec); jouerLaCedule(L1, dec); jouerJusqua(L1, Infinity);
+  const L2 = lancer([{ ...dec }]);
+  jouerJusqua(L2, Infinity); jouerJusqua(L0, Infinity);
+  const [t0, t1, t2] = [L0, L1, L2].map(texte);
+  dire(t1.join('\n') === t2.join('\n'), `le calendrier placé au matin et la saison rejouée de la graine sont la même saison (${recule}, match ${k + 1} → ${q + 1})`);
+  dire(t0.slice(0, d0).join('\n') === t1.slice(0, d0).join('\n') && t0.slice(d0).join('\n') !== t1.slice(d0).join('\n'), `les ${d0} journées d'avant ne bougent pas, la suite change`);
+  const nb = new Map(); let doubles = 0;
+  for (const jr of L2.calendrier) { const vus = new Set(); for (const m of jr) for (const t of [m.A, m.B]) { if (vus.has(t)) doubles++; vus.add(t); nb.set(t, (nb.get(t) || 0) + 1); } }
+  dire(!doubles && [...nb.values()].every(n => n === 82) && L2.rivaux.every((R, i) => R.jour === L0.rivaux[i].jour && R.adv.name === L0.rivaux[i].adv.name), '82 matchs à chaque club, un par jour, et les rivaux à leur jour');
+  const R = renfortsDe(L2), X = L2.teams.find(t => t.name === recule), n = R.get(X) || 0;
+  const rangs = (advs, T) => advs.reduce((a, U, i) => (U === T ? [...a, i] : a), []);
+  const avant = rangs(L2.origine, X), apres = rangs(joursDe(L2.calendrier, L2.teams[0]).map(j => advAu(L2, j)), X);
+  const copie = { roster: Object.fromEntries(Object.entries(X.roster).map(([s, p]) => [s, p && { ...p }])) };
+  habillerLaLigue([copie], 0, p => getHiddenRatings(p).v, n);
+  const rar = p => (p && p._carte && p._carte.rar) || 'commune';
+  const pareil = Object.entries(X.roster).every(([s, p]) => !p || rar(p) === rar(copie.roster[s]));
+  dire(n >= 1 && n === renfortDe(avant, apres) && pareil && R.size === 1, `${recule} porte +${n} ✦, exactement les étapes que habillerLaLigue lui donne ; aucun autre club renforcé`);
 }
 
 console.log(echecs ? `\n${echecs} échec(s)` : '\ntout se rejoue');

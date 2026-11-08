@@ -32,7 +32,7 @@ import { jouerSon } from './sons.js';
 import { pic } from './mouvement.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
 import { galonsDeLaSaison, grosGagnesDe } from './galons.js';
-import { etatDeLaRun, etapeDesSeries, MEDAILLES_ACTE, NOMS_DES_ACTES, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat, prixDeLaPiece, piecesDuNoeud } from './actes.js';
+import { etatDeLaRun, etapeDesSeries, renfortsDe, MEDAILLES_ACTE, NOMS_DES_ACTES, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat, prixDeLaPiece, piecesDuNoeud } from './actes.js';
 import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { marche } from './composants.js';
@@ -1535,12 +1535,12 @@ export function montrerLaFin(sort = sortDeLaRun()) {
 }
 /*
  * LES SÉRIES PLUS DURES (V27, js/actes.js `etapeDesSeries`) : au premier match des séries, chaque club qualifié, sauf toi,
- * monte de ses étapes d'édition (le canal de la ligue qui monte, `habillerLaLigue`). Sans dé : une reprise rhabille pareil.
+ * monte de ses étapes d'édition (le canal de la ligue qui monte, `habillerLaLigue`), son renfort en plus (tranche 4). Sans dé : une reprise rhabille pareil.
  */
 export function avantLesSeriesRogue(qualifies) {
   if (G.bonus !== 'ROGUE' || !G.rogue) return;
-  const ex = exigenceDeLaRun();
-  habillerLaLigue(qualifies.filter(t => !t.isPlayer), niveauDeLigue(G.rogue.prestige || 0, ex), p => getHiddenRatings(p).v, etapeDesSeries(ex));
+  const ex = exigenceDeLaRun(), R = renfortsDe(G.ligue && G.ligue.moteur);
+  for (const t of qualifies) if (!t.isPlayer) habillerLaLigue([t], niveauDeLigue(G.rogue.prestige || 0, ex), p => getHiddenRatings(p).v, etapeDesSeries(ex) + (R.get(t) || 0));
 }
 /*
  * LA COUPE (1.0). JP : *gagner la coupe devrait être genre la victoire finale

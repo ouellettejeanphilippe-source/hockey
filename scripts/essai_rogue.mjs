@@ -255,6 +255,7 @@ const compterFeuilles = async ou => {
   feuilles.vues++; if (vues.length > 1) feuilles.empilees.push(`${ou} : ${vues.join(' + ')}`);
 };
 const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et le premier duel, photographiés une fois
+const placement = { vu: false, actes: [] };   // V27, tranche 4 : le calendrier de chaque acte, photographié une fois
 const afaire = { vu: false, lots: [], histoire: '', genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const intentionsVues = new Set();   // V17 : les intentions lues au duel, leurs puces jugées
@@ -353,6 +354,30 @@ async function regler() {
     const b = await page.$('#liveModal .live-entracte') || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
       if (b) await b.click().catch(() => {});
       await page.waitForTimeout(600); continue;
+    }
+    /*
+     * LE CALENDRIER DE L'ACTE (V27, tranche 4 ; la maquette 3) : la ligne de la boîte l'ouvre au premier soir de l'acte. On le
+     * photographie une fois, on touche une case qui s'échange puis l'une des siennes (deux touchers) et on valide : l'échange
+     * se voit dessous (son renfort ou « Gratuit »), et la décision `cedule` s'écrit.
+     */
+    if (await page.$('#hubModal .ac-placer')) {
+      const n0 = (await decisionsDuCombat()).length;
+      const lu = await page.evaluate(() => ({ cases: document.querySelectorAll('#hubModal .ac-placer .ac-case').length, ok: document.querySelectorAll('#hubModal .ac-placer .ac-case.ok').length }));
+      if (lu.ok) {
+        await page.click('#hubModal .ac-placer .ac-case.ok'); await page.waitForTimeout(200);
+        const parts = await page.$$('#hubModal .ac-placer .ac-case.ok');
+        if (parts.length) { await parts[parts.length - 1].click(); await page.waitForTimeout(200); }
+      }
+      const ech = await page.$$eval('#hubModal .ac-dernier .ac-ech', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim())).catch(() => []);
+      if (!placement.vu) { placement.vu = true; await page.screenshot({ path: `${DOSSIER}/rogue-calendrier-acte.png` }); }
+      placement.actes.push(`${lu.cases} cases, ${lu.ok} échangeables${ech.length ? ` · ${ech.join(' ⇄ ')}` : ''}`);
+      if (!lu.ok) erreurs.push('le calendrier de l\'acte n\'allume aucune case échangeable');
+      if (lu.ok && ech.length !== 2) erreurs.push('deux touchers n\'échangent pas deux adversaires');
+      await page.click('#hubModal .ac-placer .ac-valider');
+      await attendreDecisions(n0);
+      const d = (await decisionsDuCombat()).slice(n0).find(x => x.cedule);
+      if (!d || (lu.ok && !d.cedule.length)) erreurs.push('valider le calendrier n\'écrit pas la décision du placement');
+      continue;
     }
     // Rien ne passe par-dessus le Bureau après « Jour suivant » (oct., JP : *j'hais le modal avec le score de la veille*).
     if (await page.$('.passage')) erreurs.push('le bandeau télé du passage de la journée est revenu');
@@ -630,7 +655,7 @@ async function regler() {
       const mot = await t.evaluate(b => ({ txt: b.textContent.trim(), h: b.getBoundingClientRect().height }));
       if (mot.h > 60) barreA.longs.push(`« ${mot.txt.slice(0, 40)} » (${Math.round(mot.h)} px)`);
       await t.click({ timeout: 8000 }); await page.waitForTimeout(900);
-      const ou = await page.evaluate(() => (document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden])') ? 'porte' : ''));
+      const ou = await page.evaluate(() => (document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden]), #hubModal .ac-placer') ? 'porte' : ''));
       if (ou) barreA.vus++;
       if (!ou) afaire.sansPage.push(mot.txt.slice(0, 40));
       continue;
@@ -669,17 +694,17 @@ const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] 
 const suiteDuMandat = await page.getAttribute('#hubModal .af-onglet[data-maison="proprio"] .pr-coeurs', 'title').catch(() => '');
 console.log(`5. le proprio : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le contrôle de l\'acte');
-// LE CONTENU PERMANENT (V12-2 ; nov. 2026 : la route des deux semaines est au Calendrier, plus chez le Coach) ; le Bureau ne la redit pas.
+// LE CONTENU PERMANENT (V12-2 ; V27, tranche 4 : le Calendrier est la saison en cases, un acte à la fois) ; ni le Coach ni le Bureau ne la redisent.
 await versLOnglet('ligue', 'saison');
-const routeOnglet = await page.$('#hubModal .hub-volet .bu-route');
+const casesCal = await page.$$eval('#hubModal .hub-volet .ac-grille .ac-case', e => e.length).catch(() => 0);
 await versLOnglet('club', 'entraineur');
-const routeCoach = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .bu-route');
+const routeCoach = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .ac-grille');
 await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
-const routeBoite = await page.$('#hubModal .hub-volet:not(:has(.af-onglet)) .bu-route, #hubModal .hub-carte .hub-etat');
-console.log(`5v. les sous-onglets : la route ${routeOnglet ? 'au Calendrier' : 'absente'}${routeCoach ? ', et encore chez le Coach' : ''} · le Bureau ${routeBoite ? 'la redit' : 'ne la redit pas'}`);
-if (!routeOnglet) erreurs.push('le Calendrier ne montre pas les deux semaines qui viennent');
-if (routeCoach) erreurs.push('le Coach montre encore la route (elle est au Calendrier)');
-if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leur sous-onglet');
+const routeBoite = await page.$('#hubModal .hub-volet:not(:has(.af-onglet)) .ac-grille, #hubModal .hub-carte .hub-etat');
+console.log(`5v. les sous-onglets : l'acte en ${casesCal} cases au Calendrier${routeCoach ? ', et encore chez le Coach' : ''} · le Bureau ${routeBoite ? 'la redit' : 'ne la redit pas'}`);
+if (casesCal < 20) erreurs.push('le Calendrier ne montre pas l\'acte en cases');
+if (routeCoach) erreurs.push('le Coach montre encore le calendrier (il est au Calendrier)');
+if (routeBoite) erreurs.push('le Bureau redit le calendrier ou le mandat, qui ont leur sous-onglet');
 {
   // TON COACH, UN PERSONNAGE (V21) : au sous-onglet de l'entraîneur (V12-2) — son niveau, son expérience, ses trois pouvoirs,
   // le premier ouvert, les deux autres au niveau qui les ouvre.
@@ -1610,6 +1635,8 @@ if ((m3.club || {}).club !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
+console.log(`20c. le calendrier de l'acte (V27, tranche 4) : ${placement.actes.join(' · ') || 'jamais ouvert'}`);
+if (!placement.actes.length) erreurs.push('le calendrier de l\'acte ne s\'est jamais ouvert au premier soir');
 if (veilles.length) erreurs.push(`un gros match s'ouvre avant le matin où il se joue : ${veilles.join(' · ')}`);
 console.log(`20d. leurs intentions lues, leurs puces jugées : ${[...intentionsVues].join(' ') || 'aucune'}`);
 console.log(`20d. périodes de duel jouées (période:plan pris) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);

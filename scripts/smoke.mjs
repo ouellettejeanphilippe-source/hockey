@@ -248,6 +248,7 @@ async function ouvrirLaMain() {
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet:not([data-msg])')) return;
+    if (await validerLeCalendrier()) continue;
     if (!(await page.$('#hubModal .hub-traiter'))) return;
     await versLaBoite();
     if (await page.$('#hubModal .hub-msg.bloque[data-msg="trou"]')) {
@@ -269,6 +270,13 @@ async function debloquer() {
     // Le choix qui attend est plié : « Encore un choix » l'ouvre.
     await toucher('#hubModal .hub-traiter');
   }
+}
+/* LE CALENDRIER DE L'ACTE (V27, tranche 4) : sa ligne l'ouvre au premier soir de l'acte ; le parcours le valide tel quel, la vraie cédule. */
+async function validerLeCalendrier() {
+  if (!(await page.$('#hubModal .ac-placer .ac-valider'))) return false;
+  await _click('#hubModal .ac-placer .ac-valider');
+  await ecranPret();
+  return true;
 }
 async function guetterBallottage() {
   if (ballottage.fait) return;
@@ -348,6 +356,7 @@ async function repondreAuxChoix() {
   let rouvert = false;
   for (let i = 0; i < 12; i++) {
     if (await ouvrirPaquet()) continue;
+    if (await validerLeCalendrier()) continue;
     // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au bureau » — sauf sous un choix ouvert, qui passe d'abord.
     if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#hubModal .hub-page[data-genre="sommaire"]')) {
       sommairesVus++;
