@@ -223,7 +223,7 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
   while (LC.jour < r + 1) jouerJournee(LC);
   let mesures = 1;
   while (LA.jour < 100) {
-    if (LA.jour % 7 === 0) { usureDuSoir(toiA); jambesAVenir({ toi: toiA, calendrier: LA.calendrier, jourRevele: LA.jour, propositions: [{ jour: LA.jour, plan: { cle: 'tirer' } }, { jour: LA.jour, cases }] }); mesures++; }
+    if (LA.jour % 7 === 0) { usureDuSoir(toiA); jambesAVenir({ toi: toiA, calendrier: LA.calendrier, jourRevele: LA.jour, propositions: [{ jour: LA.jour, piece: { cle: 'canonnier' } }, { jour: LA.jour, cases }] }); mesures++; }
     jouerJournee(LA); jouerJournee(LC);
   }
   const sig = L => L.teams.map(t => `${t.W}-${t.L}-${t.OTL}-${t.GF}-${t.GA}`).join('|');

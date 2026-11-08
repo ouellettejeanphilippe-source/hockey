@@ -11,7 +11,6 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
-import { PLANS } from '../js/greffes.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC } from '../js/pieces.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
@@ -1072,34 +1071,11 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   const portes = await page.$$eval('#navbar .navtab', e => e.filter(b => b.offsetParent).map(b => b.dataset.section)).catch(() => []);
   console.log(`10b. la barre : ${portes.join(' · ')}`);
   if (portes.join() !== 'bureau,lignes,club,marche,ligue') erreurs.push(`la barre du bas n'a pas ses cinq portes (le plateau, 4 nov. 2026) : ${portes.join(' · ')}`);
-  // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?* ; *j'hais les accordéons*) : une rangée
-  // sous la ligne du match, qui ouvre une feuille des six plans, celui en force le dit, 🥷 nomme les deux joueurs ; en toucher un
-  // écrit la décision.
+  // LE PLAN DU SOIR EST PARTI (V27, tranche 6b) : le Bureau n'a plus de plan à régler, ni accordéon ; le banc ne s'ouvre que sur le Coach.
   {
     if (await page.$('#hubModal details, #hubModal summary')) erreurs.push('le Bureau garde un accordéon (details / summary)');
-    // Nov. 2026 : ton plan est la première carte de ton banc du matin ; la toucher ouvre les six plans.
-    await page.click('#hubModal .bu-banc .banc-plan').catch(() => {});
-    await page.waitForTimeout(800);
-    const pl = await page.$$eval('#choixModal .choix-option[data-carte]', bs => bs.map(b => ({ cle: b.dataset.carte, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.tc-quoi') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree), .impact-l').length }))).catch(() => []);
-    await page.screenshot({ path: `${DOSSIER}/rogue-plan.png` });
-    const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
-    const autre = pl.find(x => !x.on && x.cle !== 'match');
-    let ecrit = null;
-    if (autre) {
-      const n0 = (await decisionsDuCombat()).length;
-      await page.click(`#choixModal .tc-prendre[data-choix="${autre.cle}"]`).catch(() => {});
-      await page.waitForTimeout(600); await attendreDecisions(n0);
-      ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
-    } else await page.click('#choixModal .choix-fermer').catch(() => {});
-    await auBureau();
-    const ligne = await page.$eval('#hubModal .bu-banc .banc-plan', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
-    console.log(`10d. ton plan : ${pl.length} tuiles · en force ${on.map(x => x.cle).join(', ') || 'aucune'} · 🥷 « ${ombre ? ombre.sous : ''} » · ${pl.filter(x => x.stats).length} en stats · touché ${autre ? autre.cle : '—'} → ${ecrit ? JSON.stringify(ecrit.plan) : 'rien d\'écrit'} · au Bureau « ${ligne.trim()} »`);
-    if (pl.length !== 6) erreurs.push(`le plan du Bureau montre ${pl.length} plans, pas six`);
-    if (on.length !== 1) erreurs.push(`le plan du Bureau marque ${on.length} plans en force, pas un`);
-    if (ombre && !/ suit /.test(ombre.sous)) erreurs.push('le plan 🥷 ne nomme pas leur vedette et ton joueur qui la suit');
-    if (pl.filter(x => x.cle !== 'match' && !x.stats).length) erreurs.push('un plan ne dit pas ses stats de match');
-    if (autre && !(ecrit && ecrit.plan.cle === autre.cle)) erreurs.push(`toucher le plan « ${autre.cle} » n'écrit pas sa décision`);
-    if (autre && !ligne.includes(PLANS[autre.cle].mot)) erreurs.push(`le Bureau ne dit pas le plan en force (« ${PLANS[autre.cle].mot} »)`);
+    if (await page.$('#hubModal .banc-plan, #hubModal [data-banc="plan"]')) erreurs.push('le Bureau montre encore le plan du soir');
+    console.log('10d. le plan du soir : parti, le banc du soir ouvre le Coach');
   }
   // La ligne du match, au Bureau, ouvre le face-à-face (JP, oct. : *les stats de confrontation, pas les lignes*).
   const ligneMatch = await page.$('#hubModal .bu-prochain');

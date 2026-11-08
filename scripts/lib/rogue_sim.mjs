@@ -28,13 +28,12 @@
  *     plan compris ; il aligne au mieux (`alignementAuMieux`, le bouton
  *     « Aligner au mieux ») au départ et après chaque signature ; il joue chaque
  *     gros match en duel (V27, tranche 6) : avant le match, le plan de son banc qui
- *     rend le plus contre leur jeu (scripts/lib/duel.mjs, l'écran du choix) ; chaque soir, son plan
- *     de match (V17) : contre chaque club, celui qui rend le plus de buts nets
- *     lus au moteur (`planDuRobot`) ; à la boutique, le pack qui rend le plus
+ *     rend le plus contre leur jeu (scripts/lib/duel.mjs, l'écran du choix ; le plan
+ *     du soir est parti à la V27, tranche 6b) ; à la boutique, le pack qui rend le plus
  *     par jeton (`packLu`, nov. 2026) ;
  *   - 'distrait' : il clique sans lire. Un coach au hasard ; une carte du pack au hasard, et qui
  *     sort au hasard (le nouveau prend sa case) ; aux gros matchs et en séries, une réponse sur deux et une
- *     main jouable au hasard ; un plan de match au hasard chaque soir ; des rivaux, des gardés et des lotos au hasard. Ses
+ *     main jouable au hasard ; des rivaux, des gardés et des lotos au hasard. Ses
  *     clics ont leur générateur : les adversaires et les dés restent ceux des
  *     deux autres.
  *
@@ -54,14 +53,13 @@ import {
   SLOTS, autoRoster, registerHiddenRatings, retenirMatchsDuShard, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey, createTeam, creerLigue, jouerJournee,
   bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, batirLesClubs, avecHasardIsole, activeLineup
 } from '../../js/sim.js';
-import { PLANS } from '../../js/greffes.js';
 import { PIECES, PIECE_DU_COACH, grandir, effetDuRelais, forceDeLaPiece } from '../../js/pieces.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, rondeDuRobot, coachDuRobot, pieceDuRobot, poserDuRobot } from './cartes_robot.mjs';
 import { sortiesDe, memoireDeLaRun } from '../../js/histoires.js';
 import { lotoDesCoachs } from '../../js/coachs-reels.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
-import { alignementAuMieux, chiffresDuSoir, chiffresDuSoirSous, planEnChiffres } from '../../js/impact.js';
+import { alignementAuMieux, chiffresDuSoir, chiffresDuSoirSous } from '../../js/impact.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack, dateLimitePassee } from '../../js/packs.js';
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
@@ -237,7 +235,7 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
 }
 
 /*
- * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=plan,net,duel,aumieux,coach,lundi,fit,boutique,histoires,relais —
+ * MESURE seulement (check_profondeur, l'ablation ; jamais lu par le jeu) : ROBOT_SAUF=net,duel,aumieux,coach,lundi,fit,boutique,histoires,relais —
  * ce que l'attentif NE fait PAS dans cette mesure, pour trouver d'où vient son avance (ou son retard) sur le robot d'avant,
  * un geste à la fois, sur les mêmes dés. ROBOT_COACH=essaim force la philosophie du coach de l'attentif, pour mesurer ce
  * que chaque coach vaut à son club.
@@ -671,8 +669,6 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // V25 C2 : la mémoire des histoires de la run (`etat.histoires`, les saisons d'avant) et les rondes déjà demandées.
   const etatCartes = { histoires: [], avant: etat.histoires || [], butins: new Set(), rondes: new Set() };
   const lecture = lectureDuRobot(c);
-  const plans = new Map();
-  let planPose = 'match';
   const jours = joursDe(L.calendrier, you), visites = new Set();
   const joues = () => jours.filter(j => j < L.jour).length;
   while (!L.fini) {
@@ -698,9 +694,6 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
       entrees.push(...cartes);
       if (signe) signes++;
     }
-    // LE PLAN DE MATCH (V17) : le plan de ce soir, posé s'il change.
-    const plan = planDuRobot(L, you, plans, attentif, clic);
-    if (plan !== undefined && plan !== planPose) { decisions.push({ jour: L.jour, plan: { cle: plan } }); planPose = plan; }
     jouerJournee(L);
     // La plus longue séquence de victoires (un jalon).
     for (const m of L.calendrier[L.jour - 1] || []) {
@@ -743,25 +736,6 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster }, L, you, decisions, decisionsSeries: decsS, perso, histoires };
 }
 
-/*
- * LE PLAN DU ROBOT (V17, docs/refonte-v17.md § 3), ce soir. L'attentif lit le moteur à la première rencontre d'un club
- * (`planEnChiffres`, js/impact.js : chaque plan contre « Ton match », en paires) et garde, contre lui, celui qui rend
- * le plus de buts nets, « Ton match » si aucun ne rend ; le distrait en tire un au hasard chaque soir ; le robot
- * d'avant n'en pose aucun (`undefined`). `plans` : la lecture de l'attentif, club par club, pour la saison.
- */
-export function planDuRobot(L, you, plans, attentif, clic) {
-  const m = (L.calendrier[L.jour] || []).find(x => x.A === you || x.B === you);
-  if (attentif && !attentifFait('plan')) return undefined;
-  if (!m || (!attentif && !clic)) return undefined;
-  const cles = Object.keys(PLANS);
-  if (clic) return cles[Math.floor(clic() * cles.length)];
-  const adv = m.A === you ? m.B : m.A;
-  if (!plans.has(adv)) {
-    const lu = avecHasardIsole('robot', () => cles.filter(k => k !== 'match').map(k => [k, planEnChiffres(you, null, adv, k).net])).sort((a, b) => b[1] - a[1])[0];
-    plans.set(adv, lu && lu[1] > 0 ? lu[0] : 'match');
-  }
-  return plans.get(adv);
-}
 
 /*
  * LE VESTIAIRE TIRÉ DU CLASSEUR (js/rogue.js `tirageDuDepart`, comme

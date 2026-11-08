@@ -4759,7 +4759,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // pas une nuisance — et le gros pourvoyeur est le filet : deux cases
   // seulement, et l'auxiliaire n'est pas toujours remplaçable.
   noterTrous(A, LA); noterTrous(B, LB);
-  // LES GREFFES D'AVANT LE MATCH (V25) : leur coach en séries, le plan de match ; retirées après.
+  // LES GREFFES D'AVANT LE MATCH (V25) : leur coach en séries, les pièces de la soirée ; retirées après.
   const retirerGreffes = GREFFES ? GREFFES.avantMatch(A, B, LA, LB, journal, { series, gros }) : () => {};
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   let gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
@@ -5379,7 +5379,7 @@ function poserRemplacant(team, d) {
   if (d.remplacant && Number.isFinite(d.remplacant.case) && d.remplacant.joueur) (team.remplacants = team.remplacants || new Map()).set(d.remplacant.case, d.remplacant.joueur);
 }
 function appliquerDecision(team, d, graine = 0) {
-  // CE QUE LE ROGUE EN FAIT (V25, js/greffes.js) : le plan de match, l'histoire par sa porte (`appliquerChoix`), le coach et son banc.
+  // CE QUE LE ROGUE EN FAIT (V25, js/greffes.js) : l'histoire par sa porte (`appliquerChoix`), le coach et son banc.
   if (GREFFES) GREFFES.decision(team, d, graine);
   // UNE CARTE EST UNE DÉCISION comme une autre : elle s'applique au jour où
   // elle a été prise et vaut pour le reste de la saison.
@@ -5742,7 +5742,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // Une ligue neuve part de zéro : les cartes, les situations, les cases
       // vides, les effets, les gestes réels, la chimie et l'énergie, les
       // changements de carte, les gros matchs.
-      t.perso = null; t.plan = null;
+      t.perso = null;
       t.situations = [];
       t.trous = []; t.trouEnCours = false;
       t.effets = []; t.jourCourant = 0;
@@ -6266,7 +6266,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.perso = null; t.plan = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.perso = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0];
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -7193,7 +7193,7 @@ function appliquerDecisionSerie(team, d, graine) {
  */
 function poserGros(toi, adv, gros) {
   toi._gros = gros; adv._gros = null;
-  adv._effetMatch = null; adv._planMatch = null;
+  adv._effetMatch = null;
   toi._effetMatch = [];
   toi._advGros = adv;
 }
@@ -7225,7 +7225,7 @@ export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', mome
 function leverGros(toi) {
   const adv = toi._advGros;
   for (const p of (toi._gros && toi._gros._duelTouches) || []) delete p._duelBlessure;
-  if (adv) { adv._effetMatch = null; adv._planMatch = null; }
+  if (adv) adv._effetMatch = null;
   toi._gros = null; toi._effetMatch = null; toi._advGros = null;
 }
 

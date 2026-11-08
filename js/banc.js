@@ -226,7 +226,6 @@ function ajouterDecision(avant, d) {
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
-    && !(d.plan && x.plan && x.jour === d.jour)
     // LES GROS MATCHS (S70) : un avant-match par soir. Une vieille décision d'entracte (le 82-0 d'avant la V25) tombe.
     && !(d.avant && x.avant && x.jour === d.jour) && !x.entracte
     // LE DUEL (V27, tranche 6) : un choix d'avant-match par soir ; une vieille décision d'entracte (`duel.p` 1 ou 2) tombe.

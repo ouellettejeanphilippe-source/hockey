@@ -24,11 +24,11 @@
  */
 
 import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, SITUATIONS, jouerJusqua, jouerMatchSeries, OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, getPlayerKey, effetsEnCours, OBJECTIF_RATE, periodeDe, MUTATIONS, ELAN, SONNE, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, jourEvenement, photoAlignement, fits, getPositionPenalty, nouvelleGraine, avecAVenir } from './sim.js';
-import { suivisEnCours, lignePromesse, deDuChoix, leurJeuDuDuel, INTENTIONS, PLANS, cibleDuPlan } from './greffes.js';
+import { suivisEnCours, lignePromesse, deDuChoix, leurJeuDuDuel, INTENTIONS, PLANS } from './greffes.js';
 import { faitsDe } from './faits.js';
 import { HISTOIRES, tirer, sceneDe, nomDOption, sortiesDe } from './histoires.js';
 import { seasonLancers } from './ratings.js';
-import { lignesDeLaPiece, ditDeLaFinition, motsDuSoir, alignementDuSoir, chiffresDuSoir, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, plansDuDuel } from './impact.js';
+import { lignesDeLaPiece, ditDeLaFinition, motsDuSoir, alignementDuSoir, chiffresDuSoir, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, plansDuDuel } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { photoAction, cadrePhoto, carteDePiece } from './cartes.js';
@@ -1484,34 +1484,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     PAGES_DE_RANGEE.set(cle, page);
     return `<button type="button" class="hub-rangee" data-hub-page="${cle}"><span class="hub-rangee-t">${titre}</span>${mot ? `<b>${mot}</b>` : ''}</button>`;
   };
-  /*
-   * TON PLAN (V17, docs/refonte-v17.md § 3). JP : *des choix avant le match, plus stratégiques, genre tirer plus, suivre
-   * un joueur de près*. Six tuiles à coins vifs, chacune en vraies stats de CE match (`planEnChiffres` : le moteur, le
-   * plan contre « Ton match », les mêmes dés) ; 🥷 nomme leur vedette et ton joueur qui la suit. Le plan en force porte
-   * l'or ; toucher un autre l'envoie, une décision du soir du match, qui tient jusqu'à la suivante.
-   */
-  const planEnForce = j => {
-    const d = decs.filter(x => x.plan && x.jour <= j).sort((a, b) => a.jour - b.jour).pop();
-    return d && PLANS[d.plan.cle] ? d.plan.cle : 'match';
-  };
-  /* La feuille du plan (Bureau › Ton plan) : les six plans, chacun en vraies stats de CE match ; celui en force le dit. */
-  function ouvrirPlan(p, adv) {
-    const enForce = planEnForce(p.j);
-    const { vedette, colle } = cibleDuPlan(activeLineup(you), activeLineup(adv));
-    const options = Object.entries(PLANS).map(([k, P]) => ({
-      cle: k, ico: P.ico, nom: P.nom,
-      sous: k === 'match' ? P.bon : P.vedette && vedette && colle ? `${nomCourt(colle.n)} suit ${nomCourt(vedette.n)}` : '',
-      mots: k === 'match' ? [] : motsDeStats(planEnChiffres(you, null, adv, k).stats, 2, { par: 'par match' }),
-      ...(k === enForce ? { fenetre: 'En force' } : {}),
-    }));
-    ouvrirChoix({ ico: '🎯', titre: 'Ton plan', recit: `Journée ${p.j + 1} · ${ctx.teamShort(adv)}`, compact: true, fermable: true, motFermer: 'Retour', options,
-      onChoix: k => {
-        // Un plan touché devient une décision du soir du match, et la saison se rejoue d'ici ; celui en force ne bouge rien.
-        if (k === enForce || !actif()) return;
-        const P = PLANS[k], ici = jour;
-        quitter(); onDecision({ jour: p.j, plan: { cle: k, ...(P.vedette && vedette ? { vise: getPlayerKey(vedette) } : {}) } }, ici);
-      } });
-  }
 
   /*
    * LE RAPPORT DU DÉPISTEUR (S78), tous les dix matchs. JP : *avoir scouting de
@@ -2655,23 +2627,20 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * TON BANC CE SOIR (V27, tranche 5 ; la maquette 1 de docs/maquettes/v27.html) : tes cinq cases de front, chaque pièce en
    * vraie carte de jeu (`carteDePiece`), sa condition en quelques mots dessous ; celles dont la condition est la soirée
    * entière (à domicile, après une défaite…) et qui la tiennent ce soir s'allument, et la languette les compte ; une case
-   * libre en pointillés. Toucher une pièce ouvre le Coach, où le banc se lit en entier. Le plan du soir garde sa carte
-   * devant le banc jusqu'au duel à un choix (V27, tranche 6), qui le fera partir.
+   * libre en pointillés. Toucher une pièce ouvre le Coach, où le banc se lit en entier. Le plan du soir est parti (V27,
+   * tranche 6b) : un soir ordinaire n'a rien à régler, ses idées sont des pièces.
    */
   const bancDuMatinHtml = p => {
-    const PL = PLANS[planEnForce(p.j)];
     const pA = persoDuJour(), cases = bancDe(pA);
     const res = resultats.get(you) || [], fin = res.slice(-3);
     const soir = { domicile: p.m.A === you, visiteur: p.m.B === you, dosADos: !!soirEreintant(p.j, p.m.A, p.m.B), apresDefaite: res.length > 0 && res.at(-1) !== 'V', enFeu: fin.length === 3 && fin.every(r => r === 'V') };
     const ceSoir = k => !!PIECES[k].soir && PIECES[k].quand({ k: 0, moi: 0, lui: 0, tirsMoi: 0, tirsLui: 0, der: null, series: false, gros: false, soir, pieces: [], relais: [] });
     const touche = (quoi, mot) => ` data-banc="${quoi}" role="button" tabindex="0" aria-label="${ctx.esc(mot)}"`;
-    // Le plan du soir, jusqu'à la tranche 6 : un bouton dans la languette du banc, qui ouvre les six plans.
-    const plan = `<button type="button" class="banc-plan" data-banc="plan" aria-label="${ctx.esc(`Ton plan : ${PL.mot}`)}">Plan · ${ctx.esc(PL.mot)}</button>`;
     const pieces = cases.map(k => carteLigne(carteDePiece(k, { statique: true, lecture: true }), ctx.esc(PIECES[k].quandMot),
       { cls: `pl-carte-touche${ceSoir(k) ? ' joue' : ''}`, attrs: touche('coach', `${PIECES[k].nom} : ${PIECES[k].quandMot}`) }));
     const vides = Array.from({ length: Math.max(0, CASES_DU_BANC - cases.length) }, () => caseVide('+', '', { cls: 'pl-carte-touche', attrs: touche('coach', 'Une case libre') }));
     const jouent = cases.filter(ceSoir).length;
-    return `<div class="bu-banc" role="group" aria-label="Ton banc ce soir">${bandeau('Ton banc', `${jouent ? `${jouent} ${jouent > 1 ? 'jouent' : 'joue'} ce soir · ` : ''}${plan}`)}${grille([...pieces, ...vides], { n: 5 })}</div>`;
+    return `<div class="bu-banc" role="group" aria-label="Ton banc ce soir">${bandeau('Ton banc', jouent ? `${jouent} ${jouent > 1 ? 'jouent' : 'joue'} ce soir` : '')}${grille([...pieces, ...vides], { n: 5 })}</div>`;
   };
   /*
    * TA PLAQUE ET LA PISTE DE LA SAISON (V27, la maquette 1 ; devis § 4.11). La bande de la run, refaite : la languette de
@@ -2877,7 +2846,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           html: ctx.rogue ? `<div class="ff">${face}<div class="ff-mot">${ficheContre}${renfortHtml(renfortsDe(ligue), adv)}</div>${ereintant}${duelHtml(adv, { complet: true, barres: true })}${forcesHtml(adv, { table: true }).detail}</div>`
             : `<div class="hub-match">${face}${duelHtml(adv, { complet: true, barres: true })}${ereintant}</div>${forcesHtml(adv, { table: true }).detail}<div class="hub-match-note">${dernierMot}</div>` });
         carte.querySelectorAll('.bu-banc [data-banc]').forEach(b => {
-          const ouvrir = () => { if (!actif()) return; if (b.dataset.banc === 'plan') ouvrirPlan(p, adv); else tabs.montrer('entraineur'); };
+          const ouvrir = () => { if (actif()) tabs.montrer('entraineur'); };
           b.onclick = ouvrir;
           b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ouvrir(); } };
         });

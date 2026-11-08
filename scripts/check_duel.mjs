@@ -3,7 +3,8 @@
  * joue en trois périodes ; avant chacune, l'adversaire annonce son intention (son plan, qui vise tes joueurs). Ta
  * réponse est UN choix avant le match : un plan fort parmi deux ou trois que ton banc propose (`plansDuDuel`,
  * js/impact.js), chiffrés contre leur jeu (`leurJeuDuDuel`, js/greffes.js), ou Ton match. Ce juge :
- *   1. le duel a trois périodes, chacune son intention ; le plan pris avant le match joue les trois, Ton match aucune ;
+ *   1. le duel a trois périodes, chacune son intention ; le plan pris avant le match joue les trois, Ton match aucune
+ *      (sa feuille est celle d'un duel sans plan), et un plan ne laisse rien derrière lui ;
  *   2. leur jeu, avant le match : sans dominante, l'intention que le moteur joue en 1re ; avec, la dominante ;
  *   3. LA DOMINANTE : un rival qui en a une l'annonce plus souvent que chacune des quatre autres ;
  *   4. le banc propose deux ou trois plans distincts, chacun en vraies stats du match, tirés de ses pièces ou du coach ;
@@ -104,6 +105,22 @@ console.log(`\n  Le duel à un choix (V27, tranche 6) · ${N} matchs par club et
   exiger('le plan pris avant le match joue les trois périodes', joue === 40, `${joue} sur 40`);
   exiger('Ton match ne pose aucun plan', rien === 40, `${rien} sur 40`);
   exiger('sans dominante, leur jeu annoncé est l\'intention que le moteur joue en 1re', pareil === 40, `${pareil} sur 40`);
+  // Ton match ne change rien (repris de check_plan_de_match, parti avec le plan du soir à la 6b) : un plan « match » joue la
+  // feuille d'un duel sans plan ; et un plan ne laisse rien derrière lui (ni effet de match, ni canal de joueur).
+  let pareilMatch = 0, propre = 0;
+  const empreinte = r => JSON.stringify([r.feuille.buts.map(b => [b.cote, b.instant.toFixed(3)]), r.feuille.tirs]);
+  const traces = () => [toi, adv].some(t => t._effetMatch || t._gros || Object.values(t.roster).some(p => p && p._duelFx));
+  for (let i = 0; i < 20; i++) {
+    for (const x of [toi, adv]) if (x.injured) x.injured.clear();
+    const a = simulerGrosMatch(toi, adv, { graine: `tm-${lab}`, cle: `t${i}`, plan: null });
+    for (const x of [toi, adv]) if (x.injured) x.injured.clear();
+    const b = simulerGrosMatch(toi, adv, { graine: `tm-${lab}`, cle: `t${i}`, plan: { cle: 'match' } });
+    if (empreinte(a) === empreinte(b)) pareilMatch++;
+    simulerGrosMatch(toi, adv, { graine: `tm-${lab}`, cle: `o${i}`, plan: { cle: 'ombre' } });
+    if (!traces()) propre++;
+  }
+  exiger('Ton match ne change rien : la feuille d\'un duel sans plan', pareilMatch === 20, `${pareilMatch} sur 20`);
+  exiger('un plan ne laisse rien derrière lui (ni effet de match, ni canal de joueur)', propre === 20, `${propre} sur 20`);
   // 2 et 3. La dominante : leur jeu annoncé, et l'intention qui sort le plus.
   const parts = [];
   let annonce = 0, devant = 0;

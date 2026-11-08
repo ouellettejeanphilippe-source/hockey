@@ -11,7 +11,7 @@
  *                                                            `apres(k, h, cumul)` note ce qui a joué, `fin()` écrit le duel
  *   apresMatch(A, B)                                         après le match (en séries, les verdicts)
  *   matin(L, toi, jour)                                      le matin de ton club : les verdicts des promesses, les effets de tes joueurs
- *   decision(team, d, graine)                                une décision prise à l'écran : le plan, l'histoire par sa porte, le banc
+ *   decision(team, d, graine)                                une décision prise à l'écran : l'histoire par sa porte, le banc
  *   coachDeSeries(S, t)                                      leur coach-personnage pour les séries, ou null
  *   lecture(team, adv, lu, { plan, intention, duel })        un plan et une intention posés le temps d'une lecture
  *   aVenir(team, d)                                          ce qu'une décision à venir a de pur, posé le temps d'une lecture
@@ -254,9 +254,9 @@ export const INTENTIONS = {
  * tirer plus, suivre un joueur de près, qqchose qui change vraiment le match, mais sans briser les équipes*. Les
  * mêmes leviers que les intentions, posés par TON club, sur ses canaux qui existent : `toi` sur ton club, `adv` sur
  * le leur, `vedette` sur leur meilleur marqueur (`ptsDe`) et `colle` sur ton attaquant qui le suit (le plus fort en
- * Défense, `famillesDe`). Un plan change la FORME du match, pas sa force : chacun paie ce qu'il donne (`check_plan_de_match`).
- * `mot` : le plan en un mot, sur la ligne du match au Bureau (js/saison.js).
- * La décision `plan` dure jusqu'à la suivante ; au duel, le plan pris avant le match joue les trois périodes (V27, tranche 6).
+ * Défense, `famillesDe`). Un plan change la FORME du match, pas sa force : chacun paie ce qu'il donne (`check_duel`).
+ * V27, tranche 6 : un plan ne se pose plus qu'au duel, pris avant le match (`plansDuDuel`, js/impact.js), pour les trois
+ * périodes ; le plan du soir des matchs ordinaires est parti (6b : ses idées sont des pièces de banc, js/pieces.js).
  */
 export const PLANS = {
   match: { ico: '🏒', nom: 'Ton match', mot: 'Ton match', bon: 'Ton alignement tel quel', prix: '' },
@@ -284,8 +284,6 @@ const forceContre = (plan, I) => (plan && I && PLANS[plan.cle] && (PLANS[plan.cl
  * de celui qui le propose — une pièce de ton banc à 1, le coach à sa maîtrise ; bornée là.
  */
 const planLu = x => (x && PLANS[x.cle] && x.cle !== 'match' ? { cle: x.cle, vise: x.vise || null, ...(Number(x.force) > 0 ? { force: Math.min(1.3, Math.max(0.7, Number(x.force))) } : {}) } : null);
-/* Le plan d'un club ce soir : la décision posée (`team.plan`), sinon Ton match. */
-const planDe = team => { const x = team && (team._planMatch || team.plan); return x && PLANS[x.cle] ? x : null; };
 /* Leur vedette (leur meilleur marqueur habillé, ou celui que tu nommes) et ton attaquant qui la colle. */
 export function cibleDuPlan(Ltoi, Ladv, vise = null) {
   const leurs = habillesDuGroupe(Ladv || {}, 'F').map(x => x.p);
@@ -305,25 +303,6 @@ function effetsDuPlan(plan, { Ltoi, Ladv }, f0 = 1) {
   const eff = (e, ou) => (e ? [{ source: 'plan', cle: plan.cle, nom: P.nom, ico: P.ico, ...F(e), ...(ou ? { ou } : {}) }] : []);
   const { vedette, colle } = P.vedette || P.colle ? cibleDuPlan(Ltoi, Ladv, plan.vise) : {};
   return { toi: eff(P.toi), adv: eff(P.adv), joueurs: [[vedette, P.vedette], [colle, P.colle]].filter(([p, e]) => p && e).map(([p, e]) => [p, F(e)]), vedette: vedette || null };
-}
-/*
- * LES PLANS D'UN MATCH ORDINAIRE (`playGame`) : chaque club qui en a un pose ses effets et ses canaux de joueur pour
- * le match, jusqu'aux blessures et à l'usure d'après ; rend la fonction qui remet tout comme avant.
- */
-function poserLesPlans(A, B, LA, LB) {
-  const retraits = [];
-  for (const [T, O, LT, LO] of [[A, B, LA, LB], [B, A, LB, LA]]) {
-    const fx = effetsDuPlan(planDe(T), { Ltoi: LT, Ladv: LO });
-    if (!fx) continue;
-    for (const [X, e] of [[T, fx.toi], [O, fx.adv]]) {
-      if (!e.length) continue;
-      const avait = '_effetMatch' in X, avant = X._effetMatch;
-      X._effetMatch = [...(avant || []), ...e];
-      retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
-    }
-    retraits.push(poserFxDeJoueurs(fx.joueurs));
-  }
-  return () => { for (const r of retraits.reverse()) r(); };
 }
 /* Poser des canaux de joueur le temps d'un match ou d'une période ; rend la fonction qui les retire. */
 function poserFxDeJoueurs(joueurs) {
@@ -512,21 +491,19 @@ export function leurJeuDuDuel(toi, adv, { graine = 0, cle = '', dominante = null
    LE CONTRAT (V25) : ce que le moteur appelle, et rien d'autre.
    ===================================================================== */
 
-/* AVANT LE MATCH : leur coach en séries, ton plan de match, les pièces de la soirée. Rend ce qui les retire. */
+/* AVANT LE MATCH : leur coach en séries, les pièces de la soirée. Rend ce qui les retire. */
 function avantMatch(A, B, LA, LB, journal, { series = false, gros = null } = {}) {
   // LEUR COACH EN SÉRIES (V23 F, js/pieces.js `persoAdverse`) : un club sans personnage qui en porte un pour les
   // séries (`persoSeries`, posé par `creerSeries`) le joue le temps du match, et le dépose après.
   const pretes = [A, B].filter(T => series && !T.perso && T.persoSeries);
   for (const T of pretes) T.perso = T.persoSeries;
-  // LE PLAN DE MATCH (V17) : posé avant le profil du match, retiré après ; au duel, chaque période pose le sien.
-  const retirerPlans = gros && gros.duel ? () => {} : poserLesPlans(A, B, LA, LB);
   // LE BANC DE CE SOIR (V27) : la feuille garde les cinq cases de chaque club, ce que le banc d'Hier soir relit ; les
   // pièces de la soirée jouent le match entier, posées comme un style.
   if (journal) journal.banc = { A: bancDe(A.perso), B: bancDe(B.perso) };
   const retirerSoir = poserLeBancDuSoir(A, B, { series, gros });
   // EN SÉRIES (V25 C1) : ce qu'une histoire de ronde a posé sur tes joueurs se lit au jour des séries (le match qui vient).
   if (series) for (const T of [A, B]) if (T.isPlayer) effetsDesJoueurs(T, jourDeSerie(T));
-  return () => { retirerPlans(); retirerSoir(); for (const T of pretes) T.perso = null; };
+  return () => { retirerSoir(); for (const T of pretes) T.perso = null; };
 }
 /* APRÈS LE MATCH : en séries, les verdicts des promesses (aucun lundi n'y passe). */
 function apresMatch(A, B) { for (const T of [A, B]) if (T.isPlayer && T.jourCourant === Infinity) verdictsDuMatin(T, jourDeSerie(T)); }
@@ -618,11 +595,10 @@ function matin(L, toi, r) {
   effetsDesJoueurs(toi, r);
 }
 /*
- * UNE DÉCISION DU ROGUE : le plan de match (V17 : il dure jusqu'au suivant, Ton match le retire), une histoire par sa
- * porte (`appliquerChoix`), et le coach : son entraîneur, son banc.
+ * UNE DÉCISION DU ROGUE : une histoire par sa porte (`appliquerChoix`), et le coach : son entraîneur, son banc. Une vieille
+ * décision `plan` (le plan du soir, parti à la V27, tranche 6b) ne joue rien.
  */
 function decision(team, d, graine) {
-  if ('plan' in d) team.plan = planLu(d.plan);
   if (d.moment) appliquerChoix(team, d, graine);
   appliquerPerso(team, d);
 }
@@ -646,11 +622,10 @@ function lecture(team, adv, lu, { plan = null, intention = null, duel = false } 
 }
 
 /*
- * UNE DÉCISION À VENIR, LE TEMPS D'UNE LECTURE (`poserAVenir`, js/sim.js) : son plan, l'effet de club d'une histoire (rendu,
+ * UNE DÉCISION À VENIR, LE TEMPS D'UNE LECTURE (`poserAVenir`, js/sim.js) : l'effet de club d'une histoire (rendu,
  * le moteur l'ajoute aux effets du jour ou du match de séries qui vient), le coach et son banc.
  */
 function aVenir(team, d) {
-  if ('plan' in d) team.plan = planLu(d.plan);
   const effet = d.moment ? effetDuChoix(team, d) : null;
   appliquerPerso(team, d);
   return { effet };

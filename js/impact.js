@@ -527,17 +527,6 @@ export function unitesDuSoir(team, lineup, adv) {
   return { F: m.unitesF, D: m.unitesD };
 }
 
-/*
- * UN PLAN DE MATCH, EN VRAIES STATS (V17) : le soir lu avec le plan contre le même soir en « Ton match », les mêmes
- * dés, CE club contre CET adversaire. `net` : les buts pour moins les buts contre qu'il change — ce que le robot
- * attentif lit pour choisir (scripts/lib/rogue_sim.mjs) ; l'écran, lui, ne dit que les stats.
- */
-export function planEnChiffres(team, lineup, adv, cle) {
-  if (!team) return null;
-  const avec = lire(team, lineup, adv, { plan: cle, n: N_EFFET }), sans = lire(team, lineup, adv, { plan: 'match', n: N_EFFET });
-  // Ses punitions et l'usure de tes jambes aussi (nov. 2026) : « Rester discipliné » et « Forechecker fort » ne montraient que la moitié d'eux-mêmes.
-  return { stats: { ...statsEntre(avec, sans), punitions: avec.punitions - sans.punitions, usure: avec.usure - sans.usure }, net: (avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre) };
-}
 
 
 /*

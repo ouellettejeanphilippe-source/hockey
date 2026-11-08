@@ -6387,7 +6387,6 @@ body .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 
 /* LE BANC DE CINQ (V27, tranche 5 ; les maquettes 1 et 7) : cinq petites cartes de front ; celle qui joue s'allume, celle qui sort se barre. */
 .pl-grille-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-items: start; padding-top: var(--esp-1); }
-.banc-plan { min-height: 44px; margin-left: var(--esp-2); padding: 0 var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-1); background: var(--noir-pur); color: var(--or); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; }
 .pl-carte.joue .carton { box-shadow: 0 0 0 2px var(--blanc), 0 0 16px color-mix(in srgb, var(--blanc) 35%, transparent); }
 .pl-carte.joue::after { content: ""; position: absolute; top: -4px; right: -4px; z-index: 3; width: 11px; height: 11px; border-radius: 50%; background: var(--bon); box-shadow: 0 0 0 2px var(--noir-pur); }
 .pl-carte.sort .carton { opacity: 0.5; box-shadow: 0 0 0 2px var(--mauvais); }
