@@ -162,7 +162,7 @@ export function coachDuRobot(loto, { politique, clic, fit }) {
  * joueur la prend (la décision `elite`, `decisionDElite`). `elites` : 'toutes' (le glouton, même au dernier cœur), 'jamais'
  * (« premier », le naïf, le prudent), ou 'prudent' (l'attentif : ses deux cœurs, le contrôle de l'acte tenu au classement de
  * l'écran, `etatDeLaRun`, et la chance que l'écran montre à `CHANCE_ELITE` ou plus — le réglage R1, 8 nov. 2026 ; ce n'est
- * pas une règle du jeu, l'élite reste proposée à toute chance). Rend { e, d } (l'élite et sa décision), ou null.
+ * pas une règle du jeu, l'élite reste proposée à toute chance ; 40 % au réglage R1, 50 % depuis la tranche 7, la mesure ci-dessous). Rend { e, d } (l'élite et sa décision), ou null.
  */
 export const CHANCE_ELITE = 0.50;
 export function eliteDuRobot(L, elites) {
