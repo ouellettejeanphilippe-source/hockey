@@ -34,7 +34,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesDuPack, RARE_DU_PACK, sortDUnPack, BOUTIQUE, tierDuPack, prixDe } from '../js/packs.js';
+import { PACKS_TOUS, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, tirerCartesDuPack, hausseDesPacks, RARE_DU_PACK, sortDUnPack, BOUTIQUE, tierDuPack, prixDe } from '../js/packs.js';
 import { PRESTIGES, JALONS, DEBLOCAGES, packsOuverts, monteeDesPacks, peutAcheter } from '../js/rogue.js';
 import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe, venteDuDoublon } from '../js/inventaire.js';
@@ -320,15 +320,11 @@ for (const k of ['j:etoiles', 'j:legendes', 'j:vedettes']) {
     `par carte, avant : ${pc(parts[PHENOMENE])}`);
 }
 
-/* LE PACK DU JOUR N'EST JAMAIS VERROUILLÉ (1.0, J1-H) : soixante dates, des verrous, jamais un cadenas en vitrine. */
+/* LE PRIX AU NŒUD (V27, tranche 3) : le premier achat d'un nœud garde le prix de base, chacun des suivants monte de 40 % ; le
+   pack de la semaine et son rabais sont partis (le prix remis à zéro à chaque nœud en tient lieu, js/actes.js). */
 {
-  const verrous = { 'j:ere80': 'verrou', 'j:etoiles': 'verrou', 'j:gardien': 'verrou', 'j:defensif': 'verrou', 'j:legendes': 'verrou' };
-  const ouverts = Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, verrous[k] || true]));
-  const dates = Array.from({ length: 60 }, (_, i) => `2026-${1 + (i % 12)}-${1 + Math.floor(i / 2)}`);
-  const tires = dates.map(d => packDuJour(d, ouverts).pack);
-  const cadenas = tires.filter(k => ouverts[k] !== true);
-  exiger('le pack du jour n\'est jamais un pack verrouillé, et il est pur (même date, même pack)', cadenas.length === 0 && tires.every((k, i) => packDuJour(dates[i], ouverts).pack === k) && new Set(tires).size > 5,
-    `${new Set(tires).size} packs différents sur 60 dates · ${cadenas.length} cadenas`);
+  const b = prixDe('j:bronze'), suite = [0, 1, 2, 3].map(n => prixDe('j:bronze', hausseDesPacks(n)));
+  exiger('le prix d\'un pack au nœud : la base, puis +40 % par achat de ce nœud', suite[0] === b && suite[1] === Math.round(b * 1.4) && suite[3] === Math.round(b * 2.2), `Bronze : ${suite.join(' · ')} 🪙`);
 }
 /*
  * LES CARTES RARES SONT RARES (V16, tranche 6 — docs/refonte-v16.md § 4d ; V21 : le pack Personnel et l'adjoint d'un pack

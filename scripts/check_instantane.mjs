@@ -1,11 +1,11 @@
 /*
  * L'INSTANTANÉ D'UN GROS MATCH rejoue-t-il ce que la saison rejouée jouerait ?
  *
- * L'entracte d'un duel (V9) est une décision datée d'un soir déjà joué : le jeu
- * rejouait toute la saison de la graine pour la prendre (JP : *rend instantané,
- * c'est la base*). Le moteur retient maintenant son état au matin d'un gros
+ * Une décision datée d'un soir déjà joué (V9 : l'entracte d'un duel ; V27, tranche
+ * 6 : le choix d'avant le duel, pris après coup) : le jeu rejouait toute la saison
+ * de la graine pour la prendre (JP : *rend instantané, c'est la base*). Le moteur retient maintenant son état au matin d'un gros
  * match (`instantanes`, js/sim.js) et `rembobiner` le remet en place. Ce script
- * joue la même ligue deux fois : une fois rembobinée à chaque entracte, une fois
+ * joue la même ligue deux fois : une fois rembobinée au matin de chaque duel, une fois
  * rejouée de la graine avec les mêmes décisions et les mêmes dés, et exige des
  * saisons identiques, feuille par feuille, joueur par joueur.
  *
@@ -18,12 +18,15 @@ import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouer
 import { generateur } from '../js/util.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, verdict } from './verdict.mjs';
+import { poserLesRivaux } from '../js/actes.js';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const saisons = fs.readdirSync(DIR).filter(x => /^\d{4}.*\.json$/.test(x)).sort();
 const GROS = Number(process.env.GROS || 3);
+// V27 : les gros matchs sont les rivaux de la run, posés dans la cédule par le Rogue (le crochet `placer`).
+const EN_ACTES = { placer: X => poserLesRivaux(X) };
 
 const choix = generateur('check_instantane');
 const vestiaires = [], vus = new Set();
@@ -63,9 +66,9 @@ function empreinte(L, jusqua) {
   return out;
 }
 
-// Une ligue rembobinée à chaque entracte : trois plans par duel, pris l'un après l'autre comme au jeu.
+// Une ligue rembobinée au matin de chaque duel : le plan d'avant-match, pris après coup, un plan par duel.
 const des = { matins: [], soirs: [], series: {} };
-const A = creerLigue(equipes(), 82, { graine: 'inst', decisions: [], courbe: true, des, instantanes: true });
+const A = creerLigue(equipes(), 82, { graine: 'inst', ...EN_ACTES, decisions: [], courbe: true, des, instantanes: true });
 const decisions = [];
 let pris = 0, rembobines = 0, refus = 0;
 const jours = [];
@@ -76,30 +79,27 @@ while (!A.fini && pris < GROS) {
   if (!gros) continue;
   const r = A.jour - 1;
   jours.push(r);
-  for (const [p, cle] of [[1, PLANS_PRIS[pris % 3]], [2, PLANS_PRIS[(pris + 1) % 3]]]) {
-    const d = { jour: r, main: { jouees: [] }, duel: { p, plan: { cle } }, sel: `s${r}:${p}` };
-    const liste = [...A.decisions, d];
-    if (rembobiner(A, liste, r)) { rembobines++; jouerJusqua(A, r + 1); } else refus++;
-  }
+  const d = { jour: r, main: { jouees: [] }, duel: { p: 0, plan: { cle: PLANS_PRIS[pris % 3] } }, sel: `s${r}` };
+  if (rembobiner(A, [...A.decisions, d], r)) { rembobines++; jouerJusqua(A, r + 1); } else refus++;
   pris++;
 }
 const fin = Math.min(A.calendrier.length, A.jour + 5);
 jouerJusqua(A, fin);
-exiger('chaque entracte se rembobine (aucun rejeu de la graine)', rembobines === 2 * pris && !refus && pris > 0, `${pris} duels (journées ${jours.join(', ')}), ${rembobines} rembobinés, ${refus} refusés`);
+exiger("chaque choix d'avant-duel pris après coup se rembobine (aucun rejeu de la graine)", rembobines === pris && !refus && pris > 0, `${pris} duels (journées ${jours.join(', ')}), ${rembobines} rembobinés, ${refus} refusés`);
 exiger('l\'instantané se reprend après le rembobinage', !!A._instant || pris === 0);
 
 // La même ligue rejouée de la graine, avec les décisions de A et ses dés : ce que le jeu faisait avant.
-const B = creerLigue(equipes(), 82, { graine: 'inst', decisions: A.decisions.slice(), courbe: true, des: structuredClone(des) });
+const B = creerLigue(equipes(), 82, { graine: 'inst', ...EN_ACTES, decisions: A.decisions.slice(), courbe: true, des: structuredClone(des) });
 jouerJusqua(B, fin);
 const eA = empreinte(A, fin), eB = empreinte(B, fin);
 const diff = eA.findIndex((x, i) => x !== eB[i]);
 exiger('la saison rembobinée est la saison rejouée, au caractère près', diff < 0 && eA.length === eB.length,
   diff < 0 ? `${eA.length} lignes, ${fin} journées` : `ligne ${diff} :\n    ${String(eA[diff]).slice(0, 300)}\n    ${String(eB[diff]).slice(0, 300)}`);
 
-// Le témoin : sans les plans des entractes, la saison n'est pas la même — sinon le test ne prouve rien.
-const C = creerLigue(equipes(), 82, { graine: 'inst', decisions: A.decisions.filter(d => !d.duel), courbe: true, des: structuredClone(des) });
+// Le témoin : sans les plans d'avant-duel, la saison n'est pas la même — sinon le test ne prouve rien.
+const C = creerLigue(equipes(), 82, { graine: 'inst', ...EN_ACTES, decisions: A.decisions.filter(d => !d.duel), courbe: true, des: structuredClone(des) });
 jouerJusqua(C, fin);
-exiger('le témoin : sans les plans des entractes, la saison change', empreinte(C, fin).some((x, i) => x !== eA[i]));
+exiger("le témoin : sans les plans d'avant-duel, la saison change", empreinte(C, fin).some((x, i) => x !== eA[i]));
 
 // Un rembobinage refusé : une décision d'avant le matin retenu se rejoue de la graine.
 exiger('une décision d\'avant le matin retenu ne se rembobine pas', !rembobiner(A, A.decisions, 0));
@@ -124,14 +124,12 @@ for (let garde = 0; !SA.fini && garde < 40 && duelsS < 4; garde++) {
   const avec = sienne(SA), r = SA.ronde, k = SA.k;
   jouerMatchSeries(SA);
   if (!avec) continue;
-  for (const p of [1, 2]) {
-    const liste = [...SA.decisions, { ronde: r, match_no: k, main: { jouees: [] }, duel: { p, plan: { cle: PLANS_PRIS[(duelsS + p) % 3] } }, sel: `po${r}:${k}:${p}` }];
-    if (rembobinerSeries(SA, liste, r, k)) { rembS++; jouerMatchSeries(SA); }
-  }
+  const liste = [...SA.decisions, { ronde: r, match_no: k, main: { jouees: [] }, duel: { p: 0, plan: { cle: PLANS_PRIS[duelsS % 3] } }, sel: `po${r}:${k}` }];
+  if (rembobinerSeries(SA, liste, r, k)) { rembS++; jouerMatchSeries(SA); }
   duelsS++;
 }
-exiger('chaque entracte de séries se rembobine', duelsS > 0 && rembS === 2 * duelsS, `${duelsS} matchs de ta série, ${rembS} rembobinés`);
-const B2 = jouerJusqua(creerLigue(equipes(), 82, { graine: 'inst', decisions: A.decisions.slice(), courbe: true, des: structuredClone(des) }), Infinity);
+exiger("chaque choix d'avant-duel de séries se rembobine", duelsS > 0 && rembS === duelsS, `${duelsS} matchs de ta série, ${rembS} rembobinés`);
+const B2 = jouerJusqua(creerLigue(equipes(), 82, { graine: 'inst', ...EN_ACTES, decisions: A.decisions.slice(), courbe: true, des: structuredClone(des) }), Infinity);
 const SB = creerSeries(qualifies(B2), { ligue: B2, graine: B2.graine, decisions: SA.decisions.slice(), equipes: B2.teams, des: structuredClone(des.series) });
 while (!SB.fini && (SB.ronde < SA.ronde || (SB.ronde === SA.ronde && SB.k < SA.k))) jouerMatchSeries(SB);
 const sA = empreinteSeries(SA), sB = empreinteSeries(SB);

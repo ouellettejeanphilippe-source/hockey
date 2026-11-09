@@ -234,9 +234,9 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
     const L = creerLigue(teams, 82, { graine: 'chiffres-rejeu', decisions });
     while (!L.fini) {
       if (lire && L.jour % 4 === 0) {
-        const t = teams[0], avant = [t.cartes, t.effets, t._effetMatch, t._planMatch, t.speciales, t.perso];
+        const t = teams[0], avant = [t.cartes, t.effets, t._effetMatch, t.speciales, t.perso];
         chiffresDuSoir(t); motsDuSoir(t, null, null, []); effetEnChiffres({ volume: 1.1, defense: 0.9 }, t);
-        rendue = rendue && [t.cartes, t.effets, t._effetMatch, t._planMatch, t.speciales, t.perso].every((x, i) => x === avant[i]);
+        rendue = rendue && [t.cartes, t.effets, t._effetMatch, t.speciales, t.perso].every((x, i) => x === avant[i]);
       }
       jouerJournee(L);
     }

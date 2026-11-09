@@ -13,9 +13,8 @@
  *   caseVide   la place d'une carte, en pointillés ;
  *   grille     trois cartes de front (l'effectif, l'album, les trios), quatre pour la main ;
  *   cellules   deux ou trois chiffres séparés d'un filet (l'argent) ;
- *   jauge      une barre qui se remplit (l'expérience du coach) ;
  *   visage     un joueur en vignette, son état et son fait en vrais chiffres (la forme du groupe, ce qui court) ;
- *   billet     un match de la route, encoché sur les côtés ;
+ *   caseDeMatch un de tes matchs dans la saison en cases (le Calendrier, le placement de l'acte) ;
  *   marche     un rang de l'échelle du prestige ;
  *   podium     trois cartes, le premier au centre.
  * La case en carte des Lignes (`carteDeLaCase`, `.case-carte`, js/alignement.js) est le composant nommé de l'alignement du Rogue,
@@ -48,20 +47,21 @@ export const grille = (cartes, { n = 3, cls = '', attrs = '' } = {}) => `<div cl
 /** Des chiffres en cellules séparées d'un filet : [{ k, v, u }]. */
 export const cellules = items => `<div class="pl-cellules">${items.map(x => `<span class="pl-cellule"><small>${x.k}</small><b>${x.v}</b><small>${x.u || ''}</small></span>`).join('')}</div>`;
 
-/** Une jauge : la part remplie (0 à 1), ce qu'elle mesure en mots pour le lecteur d'écran. */
-export const jauge = (part, mot) => `<div class="pl-jauge" role="img" aria-label="${esc(mot)}"><i style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></i></div>`;
-
 /** Un joueur en vignette : son visage, son nom, son état, son fait. `ton` : feu, doute, blesse, or. */
 export const visage = ({ mug, nom, mot, fait = '', ton = '' }) => `<div class="pl-visage${ton ? ` pl-ton-${ton}` : ''}"><span class="rond-visage" aria-hidden="true">${mug}</span><b>${esc(nom)}</b><small>${esc(mot)}${fait ? `<br>${esc(fait)}` : ''}</small></div>`;
 
 /** Une rangée qui parle de quelqu'un : son visage (ou une icône), un titre, l'état dessous, un chiffre au bout. */
 export const rangeeVisage = ({ mug = '', ico = '', titre, sous = '', chiffre = '', ton = 'or', attrs = '' }) => `<div class="pl-rangee pl-ton-${ton}"${attrs}>${mug ? `<span class="rond-visage" aria-hidden="true">${mug}</span>` : ico ? `<span class="pl-rangee-ico" aria-hidden="true">${ico}</span>` : ''}<span class="pl-rangee-t"><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${chiffre ? `<span class="pl-rangee-c">${chiffre}</span>` : ''}</div>`;
 
-/** Un billet de la route : quand et où, l'écusson, le club, sa fiche. `cls` : pl-billet-soir, pl-billet-gros. */
-export const billet = ({ quand, ico, nom, pied = '', cls = '', attrs = '', coinHtml = '' }) => `<li class="pl-billet${cls ? ` ${cls}` : ''}"${attrs}><span class="pl-billet-q">${quand}</span><span class="pl-billet-i" aria-hidden="true">${ico}</span><span class="pl-billet-n">${nom}</span>${pied ? `<span class="pl-billet-p">${pied}</span>` : ''}${coinHtml}</li>`;
+/** Ton `n`-ième match (la maquette 3) : son numéro, l'écusson, le sigle, `bas` (le score, le renfort), `marques` (le proprio, l'accident : [{ quoi, titre }], dessinées à droite). `cls` : ok, choisi, fort, v, d, dp, ici, rival, marche. */
+export const caseDeMatch = ({ n, logo, sigle, bas = '', marques = [], cls = '', attrs = '' }) => `<button type="button" class="ac-case${cls ? ` ${cls}` : ''}"${attrs}><i>${n}</i>${logo}<b>${sigle}</b>${bas}${marques.length ? `<span class="ac-marques">${marques.map(x => `<span class="ac-m ac-m-${x.quoi}" title="${esc(x.titre)}"></span>`).join('')}</span>` : ''}</button>`;
 
 /** Une marche de l'échelle : son numéro ou ✓, son nom, ce qui manque ou ce qu'elle donne, un mot au bout. `etat` : fait, ici, suivant, loin. */
 export const marche = ({ num, nom, sous = '', bout = '', etat = 'loin' }) => `<div class="pl-marche pl-marche-${etat}"><i>${num}</i><span class="pl-marche-n">${esc(nom)}${sous ? `<small>${sous}</small>` : ''}</span><small class="pl-marche-b">${bout}</small></div>`;
 
 /** Le podium : trois cartes de joueur (déjà en `carteLigne`), la première au centre et plus haute. */
 export const podium = ([un, deux, trois]) => `<div class="pl-podium" role="group" aria-label="Le podium"><div class="pl-podium-2">${deux}</div><div class="pl-podium-1">${un}</div><div class="pl-podium-3">${trois}</div></div>`;
+
+/** Les cœurs du proprio (V27, la maquette 1) : dessinés, pleins ou vides, et lus en mots (« 1 cœur sur 2 ») — jamais des emojis dans un bouton. */
+const COEUR = 'M12 21s-9-5.6-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.4-9 12-9 12z';
+export const coeurs = (n, max = 2) => `<span class="pl-coeurs" role="img" aria-label="${n} cœur${n > 1 ? 's' : ''} sur ${max}">${Array.from({ length: max }, (_, i) => `<svg viewBox="0 0 24 22" aria-hidden="true"><path d="${COEUR}" class="${i < n ? 'plein' : 'vide'}"/></svg>`).join('')}</span>`;

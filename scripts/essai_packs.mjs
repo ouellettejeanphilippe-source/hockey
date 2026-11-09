@@ -81,16 +81,16 @@ const rnd = (() => { let x = Number(process.env.GRAINE || 7); return () => (x = 
 async function regler(max = 40) {
   for (let i = 0; i < max; i++) {
     const e = await etat();
-    // Le gros match se vit en direct (oct.) : au vestiaire à l'entracte, sinon « Passer à la fin », puis « Continuer » ; jamais de ✕.
+    // Le gros match se vit en direct (oct.) : la période suivante à l'entracte, sinon « Passer à la fin », puis « Continuer » ; jamais de ✕.
     if (await page.evaluate(() => { const m = document.getElementById('liveModal'); return !!m && m.style.display === 'flex'; })) {
-      const b = await page.$('#liveModal .live-entracte') || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
+      const b = await page.$('#liveModal .live-periode') || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
       if (b) await b.click().catch(() => {});
       await page.waitForTimeout(600); continue;
     }
     if (e.choix) {
       if (await page.$('#choixModal:not([hidden]) .pochette')) { await passerLaPile({ tout: true }); await page.waitForTimeout(800); const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) await f.click(); continue; }
-      // L'écran de combat (V5) : une carte de vestiaire à garder avant « Jouer » (la première ; un pari passe par le dé, plus bas).
-      if (await page.$('#choixModal:not([hidden]) .duel-prop')) { const v = await page.$('#choixModal .main-vest:not([aria-disabled="true"]) .tc-prendre'); if (v && await page.$('#choixModal .duel-prop[aria-disabled="true"]')) { await v.click(); await page.waitForTimeout(200); } await page.click('#choixModal .duel-prop[data-prop="garder"] .tc-prendre'); await page.waitForTimeout(1200); continue; }
+      // Le duel à un choix (V27, tranche 6) : Ton match, puis « Au match ».
+      if (await page.$('#choixModal:not([hidden]) .dl-sheet')) { await page.click('#choixModal .dl-jouer'); await page.waitForTimeout(1200); continue; }
       const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc [data-choix]'); if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .de-lancer:not([disabled]):not(.de-suite)')) { await page.focus('#choixModal .de-lancer'); await page.keyboard.press('Enter'); await page.waitForTimeout(2500); await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .tcj-signer') && e.choix === 'ballottage') { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
@@ -132,7 +132,8 @@ const versBoutique = async () => {
   // La boutique est un sous-onglet des Cartes : un toucher, sans liste.
   await page.click('#navbar .navtab[data-section="marche"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(300);
   // La boutique qui ne vient pas : on dit où l'écran en est (une fenêtre ouverte, le direct, la page) avant de tomber.
-  await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 }).catch(async e => {
+  // V27, tranche 3 : la boutique n'ouvre qu'à ses nœuds ; fermée, elle se montre quand même (`.pk-sheet`), sans packs.
+  await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 }).catch(async e => {
     console.log(`la boutique ne vient pas : ${JSON.stringify(await etat())} · direct : ${await page.evaluate(() => { const m = document.getElementById('liveModal'); return !!m && m.style.display === 'flex'; })} · page : ${await page.evaluate(() => (document.querySelector('#pageMarche .page-corps') || {}).dataset?.rendu || '(aucune)')} · section : ${await page.evaluate(() => (document.querySelector('#navbar .navtab.on') || {}).dataset?.section || '?')}`);
     await page.screenshot({ path: `${process.env.CAPTURES || 'scripts'}/packs-boutique.png` });
     throw e;
@@ -186,11 +187,10 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
     const meme = await page.evaluate(() => window.cap82.G.roster === window.cap82.G.ligue.you.roster); if (!meme) { pb++; log('   ⚠ après « Aligner au mieux », l\'écran ne montre plus l\'alignement du moteur'); }
   }
   await versBoutique();
-  // ouvrir « Voir tout » et prendre un pack de joueurs
-  if (await page.$('#pageMarche .pk-tout')) { await page.click('#pageMarche .pk-tout'); await page.waitForTimeout(200); }
+  // un pack de joueurs, s'il y en a un à sa portée (la boutique ouverte à son nœud)
   const packs = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack^="j:"]:not(.verrou):not(.pk-cher)', e => e.map(x => x.dataset.pack));
   const pack = packs[Math.floor(rnd() * packs.length)];
-  // Plus rien à sa portée (les jetons, la boutique fermée de la V5) : le tour passe, il n'attend pas un pack qui n'est pas là.
+  // Plus rien à sa portée (les jetons, les quatre achats du nœud, la boutique fermée entre deux nœuds) : le tour passe, il n'attend pas un pack qui n'est pas là.
   if (!pack) {
     log(`tour ${tour} : aucun pack de joueurs achetable`, await shot('sans-pack'));
     await club(); await regler();

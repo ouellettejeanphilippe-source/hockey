@@ -1,29 +1,29 @@
 /*
- * LES ROBOTS DU DUEL (V9, tranche 5 — docs/refonte-v9.md § 6.3 ; V17, docs/refonte-v17.md). Ce qu'un robot fait,
- * période par période, quand son adjoint propose ses plans (`propositionsDuDuel`, js/impact.js) : `toi.robotDuel`
- * (js/sim.js, `jouerEnPeriodes`) les appelle quand aucune décision n'est prise.
- *   - 'attentif' : prend la proposition qui rend le plus de buts nets sur la période, garde son plan si aucune ne rend ;
- *     double la mise quand il mène après deux périodes ;
- *   - 'distrait' : prend une proposition au hasard, ou garde ; double la mise au hasard ;
- *   - 'rien' : garde son plan, ne double jamais.
- * Le hasard du distrait est le sien (`clic`) : il ne touche pas aux dés du moteur ; la lecture de l'adjoint non plus
+ * LES ROBOTS DU DUEL (V27, tranche 6 ; docs/refonte-v27-6a.md). Le duel est un seul choix avant le match : ton plan fort,
+ * un parmi ceux que ton banc propose (`plansDuDuel`, js/impact.js), chiffrés contre leur jeu (`leurJeuDuDuel`,
+ * js/greffes.js) — les mêmes fonctions que l'écran du choix (js/saison.js `leDuel`). `toi.robotDuel` (js/greffes.js,
+ * `match`) l'appelle avant la 1re période quand aucune décision n'est prise.
+ *   - 'attentif' : prend le plan qui rend le plus de buts nets sur le match, Ton match si aucun ne rend ;
+ *   - 'distrait' : prend un plan au hasard, ou Ton match ;
+ *   - 'rien' : Ton match.
+ * Le hasard du distrait est le sien (`clic`) : il ne touche pas aux dés du moteur ; la lecture des plans non plus
  * (`avecHasardIsole`).
  */
-import { propositionsDuDuel } from '../../js/impact.js';
+import { plansDuDuel } from '../../js/impact.js';
 import { avecHasardIsole } from '../../js/sim.js';
 import '../../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
-/* Les lancers que le robot lit par proposition : moins que l'écran, assez pour classer trois plans. */
+/* Les lancers que le robot lit par plan : moins que l'écran, assez pour classer trois plans. */
 const LANCERS_LUS = Number(typeof process !== 'undefined' && process.env.LANCERS_LUS || 120);
-const lirePropositions = ({ toi, adv, intention, plan, pointage, k }) => avecHasardIsole('robot-duel', () => propositionsDuDuel(toi, adv, { intention, plan, pointage, k, n: LANCERS_LUS }));
+export const lirePlans = ({ toi, adv, intention }) => avecHasardIsole('robot-duel', () => plansDuDuel(toi, adv, { intention, n: LANCERS_LUS }));
 export function robotDuel(politique, clic = Math.random) {
-  if (politique === 'rien') return () => ({});
+  if (politique === 'rien') return () => ({ plan: null });
   if (politique === 'distrait') return x => {
-    const props = lirePropositions(x), i = Math.floor(clic() * (props.length + 1));
-    return { ...(props[i] ? { plan: { cle: props[i].cle, ...(props[i].vise ? { vise: props[i].vise } : {}), ...(props[i].force ? { force: props[i].force } : {}) } } : {}), snap: x.k === 2 && !x.serie && clic() < 0.5 };
+    const plans = lirePlans(x), i = Math.floor(clic() * (plans.length + 1));
+    return { plan: plans[i] ? plans[i].plan : null };
   };
   return x => {
-    const best = lirePropositions(x).sort((a, b) => b.net - a.net)[0];
-    return { ...(best && best.net > 0 ? { plan: { cle: best.cle, ...(best.vise ? { vise: best.vise } : {}), ...(best.force ? { force: best.force } : {}) } } : {}), snap: x.k === 2 && !x.serie && x.pointage.moi > x.pointage.lui };
+    const best = lirePlans(x).sort((a, b) => b.net - a.net)[0];
+    return { plan: best && best.net > 0 ? best.plan : null };
   };
 }

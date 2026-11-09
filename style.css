@@ -315,7 +315,7 @@ body :is(.hub-titre, .pr-k, .banc-tete, .live-tableau-titre, .vs-sec, .pk-rayon 
   background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 28%, var(--noir-pur)), transparent 88%);
   font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--blanc);
 }
-body .banc-tete > span:last-child, body .pk-rayon h3 .pk-rabais { color: var(--or); }
+body .banc-tete > span:last-child { color: var(--or); }
 /* L'HABILLAGE COMMUN DU PLATEAU (4 nov. 2026 ; JP : *pourquoi tu refais pas tout le UI au complet ?*). Une seule grammaire sur
    toutes les pages du Rogue, celle de la maquette A : l'en-tête sur le noir pur sans filet de couleur ; chaque segment, filtre ou
    onglet de page est un JETON — un petit bloc sombre, le choisi à la couleur du club, encre noire — jamais une pilule
@@ -3673,45 +3673,14 @@ a.spin-club:hover { background: var(--fond-2); }
 :is(.ej-soir, .hub-rangee) .mauvais { color: var(--mauvais); }
 .ej-detail { grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
 .ej-coach { display: flex; flex-direction: column; gap: var(--esp-1); }
-/* LE COACH EST UNE CARTE (V25 B2) : l'entraîneur sur une vraie carte de jeu aux couleurs de son vrai club, son niveau de
-   personnage en coin ; à côté, la jauge d'expérience, ses chiffres et sa règle. */
+/* LE COACH EST UNE CARTE (V25 B2) : l'entraîneur sur une vraie carte de jeu aux couleurs de son vrai club ; à côté, sa
+   philosophie et sa règle. */
 .ej-coach-haut { display: grid; grid-template-columns: minmax(0, 38%) minmax(0, 1fr); gap: var(--esp-3); align-items: center; padding: var(--esp-2) var(--esp-1) 0; }
 .ej-coach-cote { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
-.ej-coach-cote .pl-jauge { margin: 0 0 var(--esp-2); }
-.ej-rang b { font-size: var(--t-3); line-height: 1; margin-left: 2px; }
-.pl-jauge { position: relative; height: 6px; margin: var(--esp-2) var(--esp-3) var(--esp-3); border-radius: var(--r-1); background: var(--fond-3); }
-.pl-jauge i { display: block; height: 100%; border-radius: var(--r-1); background: var(--or); }
 .ej-coach-l { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
-/* LES POUVOIRS DU COACH (V21, js/alignement.js `coachHtml`) : une carte par pouvoir de son arbre — ouvert ou verrouillé (le niveau qui
-   l'ouvre), ce qu'il fait, sa force, et combien de fois il a joué cette saison. */
-/* V23, la nouvelle interface : ses trois pouvoirs en cartes de front, l'icône en grand ; ouvert, un filet or et ce qu'il fait ;
-   pas encore ouvert, éteint, le niveau qui l'ouvre au pied. */
-/* LE PLATEAU (nov. 2026) : ses trois pouvoirs en VRAIES cartes de jeu (`carteHtml`, js/composants.js `carteLigne`), trois de
-   front ; le coin dit combien de fois il a joué ou le niveau qui l'ouvre ; fermé, la carte s'éteint. */
-.pv-rang { margin-top: var(--esp-2); padding: 0 var(--esp-1); }
-/* TA MAIN D'ADJOINTS (V22, js/alignement.js `mainHtml`) : une seule rangée, les cases en poste puis la main, quatre cartes de
-   front au plus (l'onglet tient en un écran). Une carte prête se glisse (js/deposer.js) sur une case libre, ou « Poster » dessous. */
-.adj-zone { display: grid; grid-template-columns: repeat(4, minmax(0, 78px)); gap: var(--esp-2); align-items: start; }
-@media (min-width: 1000px) { .adj-zone { grid-template-columns: repeat(4, minmax(0, 120px)); } }
-.adj-carte { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
-.adj-carte .choix-option.tc { padding: 0; min-height: 0; }
-.adj-carte[data-etat="repos"] .tc { opacity: 0.55; filter: grayscale(0.6); }
-.adj-carte.glisse { opacity: 0.35; }
-.adj-sous { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); text-align: center; }
-.adj-carte[data-etat="poste"] .adj-sous { color: var(--or); }
-.adj-poster { align-self: center; }
-.adj-case { aspect-ratio: 5 / 7; display: grid; place-items: center; padding: var(--esp-2); border: 1px dashed var(--filet); background: none; color: var(--encre-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; border-radius: var(--r-1); }
-.adj-case.survol { border-color: var(--or); color: var(--or); }
-/* Personne dans la main : les cases libres n'ont pas besoin de la hauteur d'une carte. */
-/* Personne dans la main : la case libre reste en haut de sa zone, sans s'étirer (elle héritait d'une marge automatique). */
-.adj-zone { flex: none; }
-.adj-zone.sans { display: flex; align-items: flex-start; }
-.adj-zone.sans .adj-case { flex: 0 1 78px; margin: 0; aspect-ratio: auto; min-height: 56px; }
-/* Le verso d'une petite carte : son style seul, serré ; la réplique et la fiche vont dans la bande. */
-.adj-carte .tcv-corps { font-size: 9.5cqw; line-height: 1.2; gap: 2px; }
-.adj-carte .tcv-pied { display: none; }
-.adj-detail { margin: 0; font-size: var(--t-1); line-height: 1.4; color: var(--encre-2); }
-.adj-detail .bon { color: var(--bon); }
+/* TON BANC (V27, tranche 5, js/alignement.js `coachHtml`) : tes cinq cases en vraies cartes de jeu, cinq de front ; le coin dit
+   combien de soirs la pièce a joué ; une case libre en pointillés. */
+.pv-rang { margin-top: var(--esp-1); padding: 0 var(--esp-1); }
 /* Le fantôme d'une carte qu'on glisse : il suit le pointeur, par-dessus tout, sans capter le doigt. Posé sous `body`, il
    passe devant la règle de la carte qu'il copie (`.slot-carte` la met en `relative`, plus bas dans la feuille). */
 body > .fantome { position: fixed; z-index: 1000; margin: 0; pointer-events: none; transform: rotate(-3deg) scale(1.05); opacity: 0.92; }
@@ -4136,10 +4105,6 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-grille-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .pl-grille-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--esp-2); align-items: end; padding-top: var(--esp-1); }
 @media (min-width: 680px) { .pl-grille-3 { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
-.pl-eventail > :nth-child(1) { rotate: -4deg; }
-.pl-eventail > :nth-child(2) { rotate: -1deg; }
-.pl-eventail > :nth-child(3) { rotate: 2deg; }
-.pl-eventail > :nth-child(4) { rotate: 5deg; }
 /* Les cellules : des chiffres séparés d'un filet. */
 .pl-cellules { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 .pl-cellule { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--esp-1) 0; text-align: center; }
@@ -4169,21 +4134,6 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-rangee-t small { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-rangee-c { font: 900 var(--t-5)/1 var(--display); color: var(--pl-ton, var(--or)); font-variant-numeric: tabular-nums; }
 .pl-rangee-c small { font-size: var(--t-1); color: var(--encre-3); }
-/* Les billets de la route : quand et où, l'écusson, le sigle, son rang et sa fiche ; encochés ; ce soir cerné de blanc, le gros match d'or.
-   Nov. 2026 (le contenu, de zéro ; interface.md : jamais un glissement de côté) : trois billets de front, sans rail. */
-.pl-billets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); margin: 0; padding: 0; list-style: none; }
-.pl-billet { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 2px; min-width: 0; min-height: 104px; padding: var(--esp-2) var(--esp-2) var(--esp-2) var(--esp-3); border: 1px solid var(--filet-2); border-radius: var(--r-1); background: var(--fond-2); font: 800 var(--t-2)/1.1 var(--display); text-transform: uppercase; color: var(--encre); text-align: left; }
-.pl-billet::before, .pl-billet::after { content: ""; position: absolute; top: 50%; left: -6px; width: 11px; height: 11px; margin-top: -6px; border-radius: 50%; background: var(--fond-1); box-shadow: inset 0 0 0 1px var(--filet-2); }
-.pl-billet::after { left: auto; right: -6px; }
-.pl-billet-soir { border-color: var(--encre-3); box-shadow: inset 0 0 0 1px var(--encre-3); }
-.pl-billet-gros { border-color: var(--or); }
-.pl-billet-gros :is(.pl-billet-q, .pl-billet-p) { color: var(--or); }
-.pl-billet-q { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-billet-i { display: grid; place-items: center; }
-.pl-billet-n { max-width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pl-billet-p { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-/* Le palier 🎁 au bas du billet, à droite du pied (en tête, il couvrait « Ce soir · chez eux »). */
-.pl-billet .pl-coin { top: auto; bottom: var(--esp-1); right: var(--esp-1); border: 0; padding: 0; background: none; }
 /* Les marches de l'échelle : les faites cochées, la tienne cernée d'or, la prochaine dit ce qui manque, les lointaines en sourdine. */
 .pl-echelle { display: grid; gap: var(--esp-1); }
 .pl-marche { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 40px; padding: 0 var(--esp-2); border-radius: var(--r-1); background: var(--fond-1); font: 600 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; }
@@ -4202,7 +4152,6 @@ body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: re
 .pl-marche-loin { opacity: 0.6; }
 /* Le podium : le premier au centre et plus haut, sur l'or. */
 /* La tête de la boutique, en une ligne : tes jetons, jusqu'où tu signes (nov. 2026, le contenu, de zéro). */
-.pk-tete { font: 600 var(--t-3)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .pl-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); align-items: end; margin: var(--esp-3) 0 var(--esp-2); padding: var(--esp-2) var(--esp-2) 0; }
 .pl-podium-2 { width: 92%; justify-self: end; }
 .pl-podium-3 { width: 88%; }
@@ -4230,17 +4179,33 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-volet > * { flex: none; }
 /* LA JAUGE DU PROPRIO (V23, la nouvelle interface) : pas une boîte — une ligne de télé, le mandat et ton rang, et sous
    eux la ligue en jauge : ta place remplie (verte dans la cible, rouge dehors), le trait blanc de la cible. */
-.bu-run { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-1) var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) 0; border: 0; background: none; color: var(--encre); text-align: left; cursor: pointer; animation: tele-balaie 380ms var(--e-sortie) both; }
-.bu-run-k { color: var(--encre-2); font: 600 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; }
-.bu-run:not(.dans):not(.hors) .bu-run-rang small { color: var(--or); }
-.bu-run-rang { justify-self: end; font: 800 var(--t-7)/1 var(--display); font-variant-numeric: tabular-nums; }
-.bu-run-rang small { font-size: var(--t-1); color: var(--encre-3); }
+/* TA PLAQUE ET LA PISTE (V27, la maquette 1) : la languette de l'acte, le rang sur la cible, les cœurs, puis la piste des 82 matchs. */
+.bu-run { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); width: 100%; padding: var(--esp-1) 0 var(--esp-2); border: 0; background: none; color: var(--encre); text-align: left; cursor: pointer; animation: tele-balaie 380ms var(--e-sortie) both; }
+.bu-run-k { display: inline-flex; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.bu-run-k > * { padding: 5px var(--esp-2); background: var(--noir-pur); color: var(--encre-2); }
+.bu-run-k b { background: var(--or); color: var(--encre-sur-or); }
+.bu-run-rang { justify-self: end; font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; }
+.bu-run-rang sup { font-size: 0.45em; }
+.bu-run-rang small { font-size: var(--t-2); color: var(--encre-3); }
 .bu-run.dans .bu-run-rang { color: var(--bon); }
 .bu-run.hors .bu-run-rang { color: var(--mauvais); }
+.pl-coeurs { display: inline-flex; gap: 3px; }
+.pl-coeurs svg { width: 22px; height: 20px; }
+.pl-coeurs .plein { fill: var(--blanc); }
+.pl-coeurs .vide { fill: none; stroke: color-mix(in srgb, var(--blanc) 60%, transparent); stroke-width: 2; }
+.bu-piste { grid-column: 1 / -1; position: relative; height: 26px; margin: var(--esp-1) 0; }
+.bu-piste::before { content: ""; position: absolute; left: 0; right: 0; top: 12px; height: 2px; background: var(--fond-3); }
+.bu-piste .fait { position: absolute; left: 0; top: 12px; height: 2px; background: var(--or); }
+.bu-piste .fin-acte { position: absolute; top: 6px; width: 2px; height: 14px; background: var(--encre-3); }
+.bu-piste-moi, .bu-piste-mq { position: absolute; top: 0; display: grid; place-items: center; min-width: 26px; height: 26px; transform: translateX(-50%); border-radius: 50%; font: 800 var(--t-1)/1 var(--display); }
+.bu-piste-moi { background: var(--or); color: var(--encre-sur-or); font-variant-numeric: tabular-nums; }
+.bu-piste-mq { background: var(--fond-2); color: var(--encre-3); }
+.bu-piste-mq.rival { background: var(--eq-band, var(--fond-2)); box-shadow: 0 0 0 2px var(--or); }
+.bu-piste-mq.rival.joue { box-shadow: none; opacity: 0.7; }
+.bu-piste-mq.coupe { background: none; }
+.bu-run-rival { grid-column: 1 / -1; justify-self: start; display: inline-flex; align-items: center; gap: var(--esp-1); padding: 4px var(--esp-2); background: var(--noir-pur); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--or); }
 .bu-run-jauge { grid-column: 1 / -1; position: relative; height: 6px; background: var(--fond-3); }
 .bu-run-jauge i { position: absolute; inset: 0 auto 0 0; width: max(6px, calc(var(--p) * 100%)); background: var(--encre-3); transition: width 600ms var(--e-sortie); }
-.bu-run.dans .bu-run-jauge i { background: var(--bon); }
-.bu-run.hors .bu-run-jauge i { background: var(--mauvais); }
 .bu-run-jauge::after { content: ""; position: absolute; top: -3px; bottom: -3px; left: calc(var(--c) * 100%); width: 2px; background: var(--blanc); }
 /* L'AFFICHE DU SOIR (V23, la nouvelle interface ; JP : *je veux une nouvelle interface, pour vrai*) : bord à bord, coupée
    en biais aux couleurs des deux clubs (deux aplats, un trait noir entre eux), les écussons en grand, le sigle, la fiche ;
@@ -4257,6 +4222,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .bu-prochain-k > span { padding: var(--esp-1) var(--esp-3); background: var(--noir-pur); }
 .bu-prochain-k > .bu-prochain-no { background: var(--club-vif); color: var(--noir-pur); }
 .bu-prochain-k > .bu-prochain-gros { background: var(--or); color: var(--encre-sur-or); }
+.bu-prochain-k > .bu-prochain-jeu { background: var(--eq-stripe, var(--club-vif)); color: var(--noir-pur); }
 .bu-vedette { position: absolute; right: 0; top: calc(var(--esp-3) + 34px); padding: var(--esp-1) var(--esp-3); background: var(--noir-pur); font: 700 var(--t-1)/1.5 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }
 @media (min-width: 680px) { .bu-vedette { top: var(--esp-3); } }
 .bu-plaques { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); align-items: stretch; min-height: 88px; }
@@ -4297,10 +4263,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-hier-mot { min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .hub-hier-ligne .hub-hier-voir { padding-right: var(--esp-3); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.02em; text-transform: none; font-weight: 600; }
 .hub-hier-ligne.neuf { animation: hier-neuf 200ms var(--e-ressort) both; }
-/* LA ROUTE (V8) : deux semaines, un arrêt par match, le gros match en or, le lundi, le pack gratuit. */
-.bu-route { padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
-/* LE PLATEAU (nov. 2026) : chaque arrêt est un BILLET de match (js/composants.js `billet`) ; le palier 🎁 en coin. */
-.rt-pack { font-size: var(--t-3); }
+.bu-piste-mq.marche { background: none; color: var(--or); }
 @media (max-width: 1199.98px) {
   body.hub-docke .hub-sheet { overflow-y: auto; overscroll-behavior: contain; }
   body.hub-docke .hub-sheet > * { flex-shrink: 0; }
@@ -4541,7 +4504,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-msg-etat { flex: none; display: inline-flex; align-items: center; padding: 2px var(--esp-2); font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-transform: none; background: var(--or); color: var(--encre-sur-or); font-weight: 600; }
 .hub-msg-etat:empty { display: none; }
 .hub-msg.bloque .hub-msg-etat { background: var(--mauvais); color: var(--blanc); }
-.hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* LES MAISONS DE LA BOÎTE (V12 — docs/refonte-v12.md) : ses lignes rangées sous la maison de leur sujet. */
 .af-maison + .af-maison { margin-top: var(--esp-3); }
 .af-maison-tete { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-1); color: var(--encre-2); }
@@ -4575,11 +4537,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-situ-pese .hub-situ-quoi { color: var(--mauvais); }
 .hub-accident { padding-left: var(--esp-3); border-left: 3px solid var(--or); }
 .hub-accident .choix-puces { margin-top: var(--esp-1); }
-/* Le palier : trois dos de cartes ; « Voir les trois cartes » les retourne. */
-.hub-dos-rang { display: flex; gap: var(--esp-2); justify-content: center; }
-.hub-dos { display: grid; place-items: center; width: 46px; height: 64px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre-2); font-size: var(--t-4); }
-.hub-dos:nth-child(1) { transform: rotate(-6deg) translateY(3px); }
-.hub-dos:nth-child(3) { transform: rotate(6deg) translateY(3px); }
 .hub-mouvements { gap: var(--esp-1); }
 .hub-mv { font-size: var(--t-2); line-height: 1.4; }
 .hub-mv-j { margin-right: 3px; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
@@ -4592,25 +4549,45 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-rap-lignes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px var(--esp-3); font-size: var(--t-2); color: var(--encre-2); }
 .hub-rap-lignes b { color: var(--encre); font-family: var(--display); }
 
-/* ---- La saison en calendrier (js/saison.js, calendrierFiche) : des semaines de sept journées, une case par jour ---- */
-.calj-grille { display: flex; flex-direction: column; gap: 3px; }
-.calj-sem { display: grid; grid-template-columns: 24px repeat(7, minmax(0, 1fr)); gap: 3px; }
-.calj-s { align-self: center; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.04em; color: var(--encre-3); }
-.calj { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; min-height: 52px; padding: 3px 2px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--panneau); font: 700 var(--t-1)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); }
-.calj-n { position: absolute; top: 3px; left: 4px; font-size: var(--t-1); color: var(--encre-3); }
-.calj-r { color: var(--encre); white-space: nowrap; }
-.calj-ev { position: absolute; top: 2px; right: 3px; font-size: var(--t-1); line-height: 1; }
-.calj.conge { background: transparent; border-style: dashed; border-color: var(--filet-2); }
-.calj.v { background: color-mix(in srgb, var(--bon) 18%, var(--fond-1)); border-color: color-mix(in srgb, var(--bon) 55%, transparent); }
-.calj.v .calj-r { color: var(--bon); }
-.calj.d { background: color-mix(in srgb, var(--mauvais) 14%, var(--fond-1)); border-color: color-mix(in srgb, var(--mauvais) 45%, transparent); }
-.calj.d .calj-r { color: var(--mauvais); }
-.calj.dp { background: color-mix(in srgb, var(--attention) 14%, var(--fond-1)); border-color: color-mix(in srgb, var(--attention) 45%, transparent); }
-.calj.dp .calj-r { color: var(--attention); }
-.calj.ici { border: 2px solid var(--or); box-shadow: 0 0 14px -4px var(--or); }
-.calj[data-sommaire] { cursor: pointer; transition: transform var(--t-vite) var(--e-ressort); }
-.calj[data-sommaire]:hover { transform: translateY(-2px); }
-.calj .team-logo-img, .calj .team-logo-inline { flex: none; }
+/* ---- La saison en cases (V27, tranche 4 ; la maquette 3 ; js/composants.js `caseDeMatch`) : le Calendrier et le placement de l'acte ---- */
+.ac-grille { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; margin: var(--esp-2) 0; }
+.ac-case { position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; height: 58px; padding: 6px 0 0; border: 0; background: var(--fond-2); color: var(--encre-3); font-family: var(--display); }
+.ac-case > i { position: absolute; left: 4px; top: 5px; font: 700 var(--t-1)/1 var(--display); opacity: 0.8; }
+.ac-case > b { font-size: var(--t-1); font-weight: 900; letter-spacing: 0.04em; }
+.ac-case > small { font: 800 var(--t-1)/1 var(--display); font-variant-numeric: tabular-nums; }
+/* Au placement, seules les cases qui s'échangent gardent leurs couleurs ; les autres en sourdine. */
+.ac-placer .ac-case:not(.ok, .choisi, .rival) { color: var(--encre-3); }
+.ac-placer .ac-case:not(.ok, .choisi, .rival) .team-logo-img { filter: grayscale(0.85) brightness(0.7); opacity: 0.75; }
+.ac-case.ok { background: var(--fond-3); box-shadow: inset 0 0 0 2px var(--bleu); }
+.ac-case.ok::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: var(--eq-band); }
+.ac-case.fort { box-shadow: inset 0 0 0 3px var(--or); }
+.ac-case.choisi { background: var(--blanc); color: var(--noir-pur); }
+.ac-case.rival { background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 0 0 2px var(--or); }
+.ac-case.ici { box-shadow: inset 0 0 0 2px var(--encre); }
+.ac-case.v > small { color: var(--bon); }
+.ac-case.d > small { color: var(--mauvais); }
+.ac-case.dp > small { color: var(--attention); }
+.ac-case.marche::after { content: ""; position: absolute; right: 4px; top: 4px; width: 11px; height: 11px; background: var(--or); -webkit-mask: var(--sac) center / contain no-repeat; mask: var(--sac) center / contain no-repeat;
+  --sac: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.8'%3E%3Cpath d='M5 8h14l-1 12H6z'/%3E%3Cpath d='M9 8a3 3 0 0 1 6 0'/%3E%3C/svg%3E"); }
+/* Les marques de la case (JP, 8 nov. 2026 ; `marquesDesCases`, js/saison.js) : le proprio (la mallette) et l'accident passé (l'éclair), dessinés à droite, sous le sac, sans un mot. */
+.ac-marques { position: absolute; right: 4px; top: 19px; display: flex; flex-direction: column; gap: 2px; }
+.ac-m { width: 11px; height: 11px; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+.ac-m-proprio { --m: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.8'%3E%3Crect x='3' y='8' width='18' height='12'/%3E%3Cpath d='M9 8V5h6v3M3 13h18'/%3E%3C/svg%3E"); color: var(--encre); }
+.ac-m-accident { --m: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14 2 5 14h6l-2 8 10-13h-6z'/%3E%3C/svg%3E"); color: var(--attention); }
+.ac-case.rival .ac-m, .ac-case.choisi .ac-m { color: inherit; }
+/* Le renfort « +2 ✦ » suit le club : sur sa case, à l'affiche, au Face à face ; « Gratuit » sous un échange qui ne coûte rien. */
+.ac-renf, .ac-gratuit { padding: 1px 4px; background: var(--or); color: var(--sur-or); font: 900 var(--t-1)/1.2 var(--display); font-style: normal; white-space: nowrap; }
+.ac-case .ac-renf { position: absolute; z-index: 1; right: 0; top: 0; }
+.ac-gratuit { background: var(--bon); color: var(--noir-pur); }
+.ac-dernier { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: var(--esp-3); background: var(--noir-pur); color: var(--blanc); font-size: var(--t-5); }
+.ac-ech { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--eq-band); color: var(--eq-ink); font-family: var(--display); }
+.ac-ech .team-logo-img { grid-row: span 3; }
+.ac-ech b { font-size: var(--t-5); font-weight: 900; }
+.ac-ech small { font: 700 var(--t-1)/1 var(--display); }
+.ac-ech em { justify-self: start; }
+.ac-boutons { display: flex; gap: var(--esp-2); margin-top: var(--esp-3); }
+.ac-boutons .btn { flex: 1; min-height: 56px; }
+.ac-boutons .gold { flex: 2; }
 
 
 /* ---- Le journal de l'ouverture (js/saison.js, ouvrirJournal) : une une de journal, courte ---- */
@@ -4650,11 +4627,10 @@ body .hub-soir .hub-hier-recit { display: none; }
 .pr-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
 .pr-gros { font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
 .pr-gros small { font-size: var(--t-2); color: var(--encre-3); letter-spacing: 0; }
-.pr-mandat.dans .pr-gros { color: var(--bon); }
-.pr-mandat.hors .pr-gros { color: var(--mauvais); }
+.pr-coeurs.dans .pr-gros { color: var(--bon); }
+.pr-coeurs.hors .pr-gros { color: var(--mauvais); }
 /* LE PLATEAU (nov. 2026) : le mandat en citation, ton rang en gros à côté de la jauge de la ligue ; l'argent en trois cellules
    séparées d'un filet ; un rival par rangée, sa fiche contre toi au bout. */
-.pr-cite { margin: 0; font: 600 var(--t-3)/1.3 var(--corps); color: var(--encre); }
 .pr-rang { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-3); }
 .pr-rang .pr-gros { font-size: var(--t-7); }
 .pr-rang-txt { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
@@ -4662,10 +4638,6 @@ body .hub-soir .hub-hier-recit { display: none; }
 .pr-rang-txt .bu-run-jauge { grid-column: auto; }
 .pr-bloc .tuile-jauge { width: 100%; }
 .pr-bloc > small { font-size: var(--t-1); color: var(--encre-3); }
-.pr-plaques { display: grid; gap: var(--esp-1); }
-.pr-rival { display: flex; align-items: center; gap: var(--esp-2); min-height: 40px; padding: var(--esp-1) var(--esp-2); border-left: 4px solid var(--eq-band); border-radius: var(--r-1); background: color-mix(in srgb, var(--eq-band) 18%, var(--fond-2)); }
-.pr-rival b { flex: 1; min-width: 0; font: 800 var(--t-3)/1.1 var(--display); text-transform: none; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-.pr-rival small { font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.04em; color: var(--or); font-variant-numeric: tabular-nums; }
 .pr .hub-etat-l { font-size: var(--t-2); }
 .hub-titre-d { margin-left: auto; color: var(--encre-2); }
 .hub-etat { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
@@ -4786,10 +4758,6 @@ body .hub-volet .live-tableau td.eq, body .hub-volet .live-tableau td.role { fon
 .hub-chips button.on { color: var(--encre); border-bottom-color: var(--or); }
 
 /* ---- Tes matchs, un par bande : la journée, le verdict, le pointage, l'adversaire ---- */
-/* Le calendrier se feuillette (nov. 2026) : quatre semaines, « ‹ S5 – S8 › » seul en tête (le titre est parti, la journée est en en-tête). */
-.calj-nav-rang { display: flex; align-items: center; justify-content: center; gap: var(--esp-2); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.08em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
-.calj-nav { min-width: 44px; min-height: 44px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 800 var(--t-4)/1 var(--display); cursor: pointer; }
-.calj-nav:disabled { opacity: 0.35; cursor: default; }
 .hub-jeux { display: flex; flex-direction: column; border-top: 1px solid var(--filet-2); }
 .hub-jeu { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-2); border-bottom: 1px solid var(--filet-2); border-left: 3px solid transparent; font-size: var(--t-2); cursor: pointer; transition: background var(--t-vite); }
 .hub-jeu:hover, .hub-jeu:focus-visible { background: var(--fond-1); }
@@ -4885,37 +4853,9 @@ body .hub-volet .live-tableau td.eq, body .hub-volet .live-tableau td.role { fon
 .dep3-surveiller { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 /* Ton plan (V17) : six tuiles d'À faire, deux par rangée au téléphone, trois dès 700 px ; le nom et deux stats. */
 
-/* ---- Le deuxième entracte : le pointage, les buts, l'incident ---- */
-.ent2 { margin: var(--esp-1) 0 var(--esp-3); }
-/* LE TABLEAU (V23 ; JP : *feel sports broadcast*) : deux plaques aux couleurs des clubs, dos à dos, le pointage en gros sur l'ardoise noire au centre. */
-.ent2-score { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; border-radius: var(--r-1); overflow: hidden; background: var(--noir-pur); box-shadow: var(--relief); font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.ent2-eq { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; padding-left: var(--esp-2); background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 -3px 0 var(--eq-stripe); }
-.ent2-eq.eux { flex-direction: row-reverse; padding: 0 var(--esp-2) 0 0; }
-.ent2-eq i { flex: 1; min-width: 0; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ent2-eq.eux i { text-align: right; }
-.ent2-eq b { flex: none; min-width: 1.5em; padding: var(--esp-2); background: var(--noir-pur); color: var(--blanc); text-align: center; font-size: var(--t-7); font-variant-numeric: tabular-nums; }
-.ent2-note { margin: var(--esp-2) 0; text-align: center; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
-/* Les trois périodes en pastilles (docs/ecrans-rogue.md, E6) : jouées, à jouer, à venir. */
-.ent2-periodes { display: flex; justify-content: center; gap: var(--esp-1); margin: 0; padding: 0; list-style: none; }
-.ent2-periodes li { padding: 3px var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
-.ent2-periodes li.faite { background: var(--fond-2); color: var(--encre-2); }
-.ent2-periodes li.a-jouer { background: var(--encre); border-color: var(--encre); color: var(--sur-choisi); }
-/* LE POINTAGE EN TÊTE DU DUEL (E6) : aux couleurs de l'adversaire, sous le titre ; il reste quand l'intention se plie. */
-.duel-tete .ent2 { margin: 0; display: grid; gap: var(--esp-1); }
-.duel-tete .ent2-note { margin: 0; }
-/* Les buteurs se relisent au sommaire du match : la tête du duel reste un pointage. */
-.duel-tete .ent2-buts { display: none; }
 .hub-prev-fin { font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
 .pr-rang-txt .hub-prev-lancer { align-self: flex-start; }
 /* LES JAMBES (le volet de saison) : les plus usés d'abord, puis de quoi les ménager. */
-.ent2-stats { width: 100%; border-collapse: collapse; margin-top: var(--esp-2); font-size: var(--t-2); }
-.ent2-stats th, .ent2-stats td { padding: 3px var(--esp-1); text-align: right; font-variant-numeric: tabular-nums; }
-.ent2-stats tbody th { text-align: left; font-weight: 400; color: var(--encre-2); }
-.ent2-stats thead th { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-.ent2-stats thead tr:first-child th { text-align: center; border-bottom: 1px solid var(--filet-2); }
-.ent2-stats td:last-child { color: var(--encre-3); }
-.ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
-.ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: var(--r-1); }
 .live-ligne.ent2-marque { background: color-mix(in srgb, var(--violet) 14%, transparent); }
 
 /* ---- Tes lignes à forces égales : un petit tableau, une rangée par ligne ---- */
@@ -5111,8 +5051,11 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 /* ---- Le fil : des rangées de 44 px, l'heure à gauche en tabulaire, le texte en phrase, le plus récent en tête ---- */
 .live-feed { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--esp-2) var(--esp-3); display: flex; flex-direction: column; gap: 2px; }
 .live-feed:not(.tous) .live-ligne.mineur { display: none; }
-/* `flex: none` : dans une colonne qui défile, une rangée qui se comprime laisse son texte déborder sur la suivante. */
-.live-ligne { flex: none; display: flex; align-items: baseline; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); line-height: 1.4; animation: ligneIn var(--t-lent) var(--e-sortie); }
+/* `flex: none` : dans une colonne qui défile, une rangée qui se comprime laisse son texte déborder sur la suivante.
+   Toutes ses lignes ont la même hauteur (`--ligne`, une longueur : le petit texte d'une punition tirée la garde aussi),
+   et son haut et son bas sont la moitié des 44 px où un nom se touche moins la moitié d'une ligne : la zone d'un nom de la
+   dernière ligne ne déborde jamais sur la rangée suivante, quel que soit le genre de la rangée (le smoke le lit). */
+.live-ligne { --ligne: calc(1.4 * var(--t-2)); flex: none; display: flex; align-items: baseline; gap: var(--esp-2); min-height: 44px; padding: max(var(--esp-2), calc(22px - var(--ligne) / 2)) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); line-height: var(--ligne); animation: ligneIn var(--t-lent) var(--e-sortie); }
 @keyframes ligneIn { from { opacity: 0; } }
 .live-ligne .team-logo-img, .live-ligne .team-logo-inline { flex: none; align-self: center; }
 .live-txt { display: inline; }
@@ -5132,7 +5075,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-ligne.danger .live-jeu-mot { color: var(--attention); }
 .live-ligne.defense .live-jeu-mot { color: var(--bleu); }
 /* Un but : une rangée plus haute sur --fond-2, la plaque du club qui marque au flanc, « BUT » en or. */
-.live-ligne.but { padding: var(--esp-3); font-size: var(--t-3); }
+.live-ligne.but { --ligne: calc(1.4 * var(--t-3)); padding: max(var(--esp-3), calc(22px - var(--ligne) / 2)); font-size: var(--t-3); }
 .live-ligne.but.gagnant { box-shadow: inset 4px 0 0 var(--eq-stripe), inset 0 0 0 2px var(--or); }
 .live-but-mot { font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.08em; margin-right: var(--esp-1); color: var(--or); }
 .live-micro { color: var(--encre-2); }
@@ -5146,7 +5089,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 /* Le jeu physique (1.0) : un coup marquant porte la plaque du club qui frappe ; la bagarre est LA rangée du soir, en or si ton club la gagne. */
 .live-ligne.coup { box-shadow: inset 3px 0 0 var(--eq-stripe, var(--attention)); }
 .live-coup-mot { font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; margin-right: var(--esp-1); color: var(--attention); }
-.live-ligne.bagarre { padding: var(--esp-3); font-size: var(--t-3); background: var(--fond-2); box-shadow: inset 4px 0 0 var(--eq-stripe, var(--attention)); }
+.live-ligne.bagarre { --ligne: calc(1.4 * var(--t-3)); padding: max(var(--esp-3), calc(22px - var(--ligne) / 2)); font-size: var(--t-3); background: var(--fond-2); box-shadow: inset 4px 0 0 var(--eq-stripe, var(--attention)); }
 .live-ligne.bagarre.nous { box-shadow: inset 4px 0 0 var(--or), inset 0 0 0 1px var(--or); }
 .live-bag-mot { font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.08em; margin-right: var(--esp-1); color: var(--attention); }
 .live-ligne.bagarre.nous .live-bag-mot { color: var(--or); }
@@ -5158,7 +5101,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-controls .btn { flex: 1 1 120px; }
 .live-vitesse { flex: none; }
 .live-vitesse button { min-width: 44px; }
-.live-controls .live-suite, .live-controls .live-entracte, .live-controls .live-periode { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
+.live-controls .live-suite, .live-controls .live-periode { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
 /* En pause, « Reprendre » devient l'action : il passe à l'or. */
 #liveModal.en-pause .live-pause { background: var(--or); border-color: var(--or); color: var(--encre-sur-or); }
 
@@ -5180,19 +5123,16 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .banc-ico { font-size: var(--t-5); line-height: 1; }
 .banc-carte.joue { opacity: 1; filter: none; border-color: var(--club-vif); background: linear-gradient(180deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); box-shadow: 0 0 14px color-mix(in srgb, var(--club-vif) 45%, transparent); animation: banc-allume 420ms var(--e-sortie) both; animation-delay: calc(var(--i, 0) * 140ms + 150ms); }
 .banc-carte.joue small { color: var(--club-vif); }
-.banc-adjoint.joue { border-color: var(--or); box-shadow: 0 0 12px color-mix(in srgb, var(--or) 35%, transparent); }
-.banc-adjoint.joue small { color: var(--or); }
 .banc-regle.joue { border-color: var(--bon); box-shadow: 0 0 12px color-mix(in srgb, var(--bon) 35%, transparent); }
 .banc-regle.joue small { color: var(--bon); }
 /* V23, la nouvelle interface : à Ce soir, ton banc en jetons d'une ligne — l'icône, le nom, ce qu'il a fait ; l'écran tient en un.
    À l'entracte du duel (V23 A2), la même ligne sous les périodes, sans titre (l'entracte tient sous 1,3 écran) : ce qui a joué
    jusque-là s'allume en direct ; le titre reste dans l'aria-label. */
-.hub-soir .banc-soir, .ent2 .banc-soir { margin: 0; padding: 0; }
-.hub-soir .banc-tete, .ent2 .banc-tete { display: none; }
-.ent2 .banc-soir { margin-top: var(--esp-1); }
-:is(.hub-soir, .ent2) .banc-rang { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
-:is(.hub-soir, .ent2) .banc-carte { flex-direction: row; aspect-ratio: auto; gap: var(--esp-1); padding: var(--esp-1) var(--esp-2); }
-:is(.hub-soir, .ent2) .banc-ico { font-size: var(--t-3); }
+.hub-soir .banc-soir { margin: 0; padding: 0; }
+.hub-soir .banc-tete { display: none; }
+.hub-soir .banc-rang { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
+.hub-soir .banc-carte { flex-direction: row; aspect-ratio: auto; gap: var(--esp-1); padding: var(--esp-1) var(--esp-2); }
+.hub-soir .banc-ico { font-size: var(--t-3); }
 @keyframes banc-allume {
   from { opacity: 0.45; filter: grayscale(0.8); box-shadow: none; clip-path: inset(0 100% 0 0); }
   30% { opacity: 1; filter: none; }
@@ -5362,7 +5302,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 }
 .choix-main::-webkit-scrollbar { display: none; }
 .choix-main > .tc { flex: 0 0 min(72vw, 270px); scroll-snap-align: start; }
-.main-sheet .choix-main > .tc { flex-basis: min(64vw, 240px); }
 /* V25 B2 (JP, 5 nov. : *trois petites côte à côte*) : jusqu'à trois cartes tiennent de front, sans se balayer ni rien de coupé au
    bord ; à deux, elles se font face ; à quatre et plus, la main se balaie. Une petite carte retournée se RAPPROCHE pour se
    lire : son verso grossit par-dessus ses voisines, depuis son coin du côté du bord. */
@@ -5387,8 +5326,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-points i.on { background: var(--or); transform: scale(1.25); }
 @media (min-width: 640px) {
   .choix-main { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 250px)); justify-content: center; gap: var(--esp-4); margin: 0; padding: var(--esp-2) 0 var(--esp-1); overflow: visible; scroll-snap-type: none; }
-  .choix-main > .tc, .main-sheet .choix-main > .tc { flex: none; }
-  .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(160px, 180px)); gap: var(--esp-3); }
+  .choix-main > .tc { flex: none; }
 }
 /* ---- La carte de match (.tc) : le métal de sa rareté, une bannière de son genre, la gemme du coût, le dessin au trait ---- */
 .tc.tc-commune { --tc-bord: var(--filet); }
@@ -5548,12 +5486,6 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 }
 .tc-dos-marque { display: flex; flex-direction: column; align-items: center; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.3em; text-transform: uppercase; color: var(--encre); }
 .tc-dos-marque b { font-size: var(--t-5); letter-spacing: 0.02em; color: var(--or); }
-/* LA MAIN DU DUEL (Jalon M, B3 ; docs/ecrans-rogue.md, E6) : une rangée de cartons qui se balaie, deux cartes et le bord
-   de la troisième ; ce qu'elles font tient dans leurs puces, la phrase d'ambiance s'efface. */
-@media (max-width: 639.98px) {
-  .main-sheet .choix-main > .tc { flex-basis: 40vw; }
-  .main-sheet .choix-main > .tc .tc-texte { display: none; }
-}
 
 /* ---- La pochette de récompense (pochetteHtml, brancherPaquet) : posée PAR-DESSUS la bande, qui garde sa place, invisible et intouchable ---- */
 .pochette-scene { display: none; }
@@ -5650,61 +5582,8 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .paquet-pile .choix-points { flex-wrap: wrap; }
 .pile-tout { align-self: center; }
 
-/* ---- Le duel (.main-sheet, ouvrirDuel) : l'enjeu en une ligne, leur intention, les plans de l'adjoint, les deux clubs ---- */
-/* L'écran du duel : leur plan, puis les plans de l'adjoint ; ce qui se consulte, plié. */
-.main-etape { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre); }
-/* La mise : le pointage est déjà au tableau, son fait ne le redit pas (l'entracte tient en 1,3 écran). */
-.duel-mise .scene-fait { display: none; }
-.duel-mise { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid color-mix(in srgb, var(--or) 40%, var(--filet)); }
-.main-stats { display: flex; flex-direction: column; gap: var(--esp-2); }
-/* V23 : le tableau des deux clubs attend « Les chiffres » ; devant, le pointage, leur jeu et tes cartes. */
-.main-sheet:not(.chiffres) .main-stats { display: none; }
-.main-enjeu { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
-/* V23 : au duel, ton adjoint parle en une phrase ; le fait (« Avant la 1re contre… ») redisait l'intention juste au-dessus. */
-.duel-adjoint .scene-fait { display: none; }
-/* LE DUEL (V9) : leur intention, ton adjoint, la mise doublée. */
-/* LEUR INTENTION, UNE CARTE DE BOSS (V23 ; JP : *que les gros matchs, ça soit vraiment un jeu*) : leur jeu de la période,
-   au centre, encadré de rouge, une lueur à son arrivée (une fois : le décor ne boucle pas) ; ton adjoint répond dessous avec ses cartes. */
-.duel-intention { position: relative; align-self: center; width: min(100%, 320px); box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); text-align: center; border-radius: var(--r-2); background: color-mix(in srgb, var(--mauvais) 16%, var(--fond-1)); border: 2px solid var(--mauvais); box-shadow: var(--relief); animation: tele-balaie 420ms var(--e-sortie) both, boss-lueur 1.2s 420ms ease-out 1 both; }
-.duel-intention .main-etape { color: var(--mauvais); font-size: var(--t-1); letter-spacing: 0.16em; }
-.duel-intention .choix-puces { flex-direction: column; align-items: center; gap: 2px; }
-.duel-intention .puce { font: 700 var(--t-2)/1.25 var(--corps); background: none; border: 0; padding: 0; }
-@keyframes boss-lueur { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mauvais) 45%, transparent); } 50% { box-shadow: 0 0 22px 2px color-mix(in srgb, var(--mauvais) 30%, transparent); } }
-.duel-fait { margin: 0; font: 800 var(--t-5)/1.15 var(--display); letter-spacing: 0.02em; color: var(--encre); }
-.duel-pourquoi { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
-/*
- * TON ADJOINT À L'ENTRACTE (V17, à la EHM) : sa scène, puis ses plans en cartes de jeu (V25 B2), deux ou trois de front au
- * téléphone ; « Garder » est la dernière. « Jouer » sous une carte joue la période.
- */
-.duel-adjoint { display: flex; flex-direction: column; gap: var(--esp-2); }
-/* L'unité des plans, dite une fois (nov. 2026) : la répéter au bout de chaque ligne les faisait passer sur deux. */
-.duel-adjoint .scene { padding: var(--esp-2) var(--esp-3); }
-.duel-adjoint .scene-mot { font-size: var(--t-3); }
-.duel-unite { margin: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-/* V25 B2 : ses plans sont des cartes de jeu qu'il te tend, une à une (`tele-monte`) ; la main se balaie à quatre. */
-.duel-props > .choix-option { animation: tele-monte 320ms var(--e-sortie) both; }
-.duel-props > .choix-option:nth-child(2) { animation-delay: 70ms; }
-.duel-props > .choix-option:nth-child(3) { animation-delay: 140ms; }
-.duel-props > .choix-option:nth-child(4) { animation-delay: 210ms; }
-.duel-snap { align-self: flex-start; }
-.btn.duel-snap.on { background: var(--or); color: var(--encre-sur-or); border-color: var(--or); }
 .duel-avant { font-size: var(--t-2); line-height: 1.35; color: var(--encre); }
 .duel-avant small { color: var(--encre-2); }
-/* Dans la main, l'effet chiffré passe avant l'ambiance : à 1440 × 900, les puces restent au-dessus des boutons (le smoke le mesure). */
-.main-sheet .choix-option.tc .tc-puces { order: 1; }
-.main-sheet .choix-option.tc .tc-texte { order: 2; }
-.main-sheet .choix-option.tc .choix-option-non { order: 3; }
-.main-sheet .choix-option.tc .tc-quoi { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.main-sheet .choix-corps { gap: var(--esp-3); }
-.main-outils { display: flex; flex-wrap: wrap; gap: var(--esp-2); justify-content: center; }
-.main-outils .btn { min-height: 44px; padding: 0 var(--esp-3); font-size: var(--t-2); }
-/* Mon deck : une ligne par carte, le coût dans un rond d'or, la rareté au flanc ; une maudite, au flanc rouge. */
-/* Au bureau, la main tient sans défiler : cinq cartes sur une rangée, le récit sur deux lignes, les puces d'effet au-dessus des boutons (le smoke le mesure à 1440 × 900). */
-@media (min-width: 1000px) {
-  .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--esp-2); padding-top: 0; }
-  .main-sheet .choix-corps { gap: var(--esp-3); }
-  .main-sheet .choix-recit { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
-}
 
 /* ---- « Qui sort ? » (.choix-aln, ouvrirAlignement) : neuf rangées titrées, les cases en grille, la barre de décision en bas ---- */
 .choix-aln .choix-corps { gap: var(--esp-3); padding-top: var(--esp-3); }
@@ -6046,14 +5925,46 @@ a.bk-serie:hover, a.bk-serie:focus-visible { box-shadow: inset 0 0 0 1px var(--c
 .rg-run { display: flex; flex-direction: column; gap: var(--esp-2); margin: var(--esp-3) 0; padding: var(--esp-3) var(--esp-4); border-radius: var(--r-2); background: var(--fond-2); box-shadow: inset 3px 0 0 var(--filet); }
 .rg-run.gagnee { box-shadow: inset 3px 0 0 var(--or); }
 .rg-run.finie { box-shadow: inset 3px 0 0 var(--mauvais); }
-.rg-run.continue { box-shadow: inset 3px 0 0 var(--bon); }
 .rg-run-tete { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--esp-2); font: 800 var(--t-3)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
 .rg-run-tete small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
 .rg-run-mot { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
-.rg-run-suite { margin: 0; font-size: var(--t-1); line-height: 1.4; color: var(--encre-3); }
 .rg-run-boutons { display: flex; flex-wrap: wrap; gap: var(--esp-2); }
 .rg-run-boutons .btn { flex: 1 1 160px; }
-.rg-suivante, .rg-nouvelle { flex-basis: 100%; }
+/* LE SOIR DE FIN D'ACTE (V27, la maquette 6) : trois cellules, puis les étapes en marches. */
+.acte-fin { display: grid; gap: var(--esp-2); }
+.acte-fin .pl-cellules { background: var(--noir-pur); }
+.acte-fin .pl-cellule b { color: var(--bon); }
+.acte-fin.rate .pl-cellule:first-child b { color: var(--mauvais); }
+.acte-fin .pl-cellule:last-child b { color: var(--or); }
+.acte-etapes { display: grid; gap: var(--esp-1); }
+/* LE RIVAL ANNONCÉ (la maquette 2) : ses couleurs, son écusson en fond, son rang en force, son jeu ; puis sa fiche contre la tienne. */
+.rival-annonce { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; min-height: 200px; padding: var(--esp-3); background: linear-gradient(165deg, var(--eq-band), color-mix(in srgb, var(--eq-band) 35%, black) 60%, black); color: var(--blanc); }
+.rival-ecu { position: absolute; right: -40px; top: 10px; z-index: -1; opacity: 0.22; }
+.rival-annonce small { font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.1em; color: color-mix(in srgb, var(--blanc) 70%, transparent); }
+.rival-annonce b { font: 900 calc(var(--t-7) * 1.6)/0.9 var(--display); }
+.rival-jeu { display: flex; margin: var(--esp-2) calc(-1 * var(--esp-3)) calc(-1 * var(--esp-3)); background: var(--noir-pur); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.rival-jeu > span { padding: var(--esp-2) var(--esp-3); }
+.rival-jeu > span:first-child { flex: 1; background: var(--eq-stripe); color: var(--noir-pur); }
+.rival-fiche { display: grid; gap: 2px; margin-top: var(--esp-2); }
+.rival-l { display: grid; grid-template-columns: 36px minmax(0, 1fr) 76px minmax(0, 1fr) 36px; align-items: center; gap: var(--esp-2); min-height: 32px; font: 800 var(--t-2)/1 var(--display); }
+.rival-l > span { color: var(--encre-2); text-align: right; }
+.rival-l > span.eux { text-align: left; color: var(--encre-3); }
+.rival-l > span.fort { color: var(--or); }
+.rival-l > b { text-align: center; text-transform: uppercase; letter-spacing: 0.06em; }
+.rival-l > i { height: 8px; background: linear-gradient(to left, var(--bon) calc(var(--p) * 100%), var(--fond-3) 0); }
+.rival-l > i.eux { background: linear-gradient(to right, var(--eq-band) calc(var(--p) * 100%), var(--fond-3) 0); }
+/* L'ÉCRAN DE FIN (la maquette 8) : chaque acte et son rival, leurs médailles, puis le total. */
+.fin-lignes { display: grid; gap: 2px; }
+.fin-l { display: grid; grid-template-columns: minmax(0, 1fr) auto 48px; align-items: center; gap: var(--esp-2); min-height: 36px; padding: 0 var(--esp-2); background: var(--fond-2); font: 800 var(--t-2)/1 var(--display); }
+.fin-l.rate { box-shadow: inset 3px 0 0 var(--mauvais); }
+.fin-l .bon { color: var(--bon); }
+.fin-l .mal { color: var(--mauvais); }
+.fin-l .or { color: var(--or); text-align: right; }
+.fin-club { display: inline-flex; align-items: center; gap: var(--esp-1); }
+.fin-total { display: flex; align-items: stretch; margin-top: var(--esp-2); background: var(--noir-pur); }
+.fin-total span { flex: 1; padding: var(--esp-2) var(--esp-3); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-3)/1 var(--display); text-transform: uppercase; }
+.fin-total b { padding: 0 var(--esp-3); font: 900 var(--t-7)/1.3 var(--display); color: var(--or); }
+.rg-nouvelle { flex-basis: 100%; }
 /* « Ta run », la fenêtre de fin : des lignes étiquette · valeur. */
 .run-bilan { display: grid; gap: 1px; margin: var(--esp-1) 0 var(--esp-3); background: var(--filet); border: 1px solid var(--filet); }
 .run-l { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); min-height: 40px; padding: var(--esp-2) var(--esp-3); background: var(--fond-2); }
@@ -6148,7 +6059,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 @media (min-width: 640px) {
   .result-strip { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   #playoffsBtn { flex-basis: 150px; }
-  .rg-suivante, .rg-nouvelle { flex-basis: 160px; }
+  .rg-nouvelle { flex-basis: 160px; }
   .eq-tete { flex-wrap: nowrap; }
   .eq-tete-fiche { flex: 0 0 auto; text-align: right; white-space: nowrap; }
 }
@@ -6367,24 +6278,7 @@ body .pk-corps > :is(.pk-bareme-run, .pk-garantie) { order: 5; }
 .pk-garantie { border-left: 3px solid var(--or); padding-left: var(--esp-2); }
 .pr .pk-bareme-run { font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.03em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .pk-rayon h3 { display: flex; align-items: center; gap: var(--esp-2); margin: 0 0 var(--esp-2); padding-bottom: var(--esp-2); border-bottom: 1px solid var(--filet); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
-.pk-rabais { color: var(--or); }
 .pk-rangee { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); }
-/* Nov. 2026 : les quatre packs du début de front, deux par rangée, visibles sans défiler. */
-.pk-rayon-debut .pk-rangee { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.pk-rayon-debut .pk-tout { width: 100%; margin-top: var(--esp-3); }
-/* LE PLATEAU (nov. 2026 ; la direction A) : au Rogue, une pochette du début est une plaque de métal — la feuille du tier couvre la
-   tuile, le tier en haut à gauche, le nom et le contenu au pied, le PRIX en gros. */
-body .pk-rayon-debut .pk-tuile { position: relative; justify-content: flex-end; min-height: 168px; padding: var(--esp-3); border: 0; isolation: isolate; overflow: hidden; }
-body .pk-rayon-debut .pochette-scellee { position: absolute; inset: 0; z-index: -1; display: block; aspect-ratio: auto; opacity: 0.92; }
-body .pk-rayon-debut .pochette-scellee .pochette-corps { height: 100%; border-radius: var(--r-2); }
-body .pk-rayon-debut .pochette-scellee .pochette-face::after { content: ""; display: block; position: absolute; inset: 0; transform: none; animation: none; background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--noir-pur) 82%, transparent)); }
-body .pk-rayon-debut .pochette-ico { position: absolute; right: var(--esp-3); top: var(--esp-4); font-size: var(--t-5); color: color-mix(in srgb, var(--noir-pur) 60%, var(--pk-a)); }
-body .pk-rayon-debut .pochette-scellee .pochette-serie { top: var(--esp-4); bottom: auto; left: var(--esp-3); right: auto; padding: 2px var(--esp-2); border-radius: var(--r-1); letter-spacing: 0.2em; }
-body .pk-rayon-debut .pk-nom { font-size: var(--t-4); color: var(--blanc); }
-body .pk-rayon-debut .pk-n { color: var(--encre-2); }
-body .pk-rayon-debut .pk-prix { flex-direction: row; align-items: baseline; gap: var(--esp-1); margin-top: var(--esp-1); font-size: var(--t-6); color: var(--blanc); }
-body .pk-rayon-debut .pk-tuile.verrou { opacity: 0.7; }
-body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 /* LE PLATEAU (nov. 2026) : « Ton club » en une rangée de quatre — le porté cerné d'or, deux clubs à débloquer, « Et N › ». */
 .pk-rayon-club-rangee { margin-top: var(--esp-3); }
 .pk-club-rangee { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--esp-2); }
@@ -6405,7 +6299,6 @@ body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-s
 /* Ce qui est déjà à toi : à part, en bas, sous un filet d'or — le marché au-dessus, ton bien en dessous. */
 .pk-rayon-scelles { margin-top: var(--esp-3); padding: var(--esp-3); border: 1px solid color-mix(in srgb, var(--or) 45%, var(--filet)); border-top: 3px solid var(--or); border-radius: var(--r-2); background: radial-gradient(80% 60% at 50% 0, color-mix(in srgb, var(--or) 14%, transparent), transparent 70%), var(--panneau); box-shadow: var(--relief); scroll-margin-top: var(--esp-3); }
 .pk-rayon-scelles h3 { color: var(--or); }
-.pk-aller { margin-top: var(--esp-3); }
 /* La pochette : le métal du tier en jeton local (--pk-a). */
 .pk-tuile {
   --pk-a: var(--encre-3);
@@ -6419,7 +6312,6 @@ body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-s
 .pk-or { --pk-a: var(--or); }
 .pk-premium { --pk-a: var(--violet); }
 .pk-cartes { --pk-a: var(--bleu); }
-.pk-tuile.pk-jour { border-color: var(--or); box-shadow: inset 0 0 0 1px var(--or); }
 .pk-tuile.verrou { opacity: 0.45; --pk-a: var(--encre-3); }
 .pk-tuile.pk-cher { opacity: 0.6; }
 .pk-tuile.pk-cher .pk-prix { color: var(--encre-3); }
@@ -6435,10 +6327,8 @@ body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-s
 .pochette-ico { position: relative; font-size: var(--t-6); line-height: 1; color: color-mix(in srgb, var(--noir-pur) 78%, var(--pk-a)); }
 .pochette-scellee .pochette-serie { position: absolute; bottom: 0; left: 0; right: 0; max-width: none; padding: 3px 0; border-radius: 0; text-align: center; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; background: color-mix(in srgb, var(--noir-pur) 70%, transparent); color: var(--pk-a); }
 .pk-nom { font: 600 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
-.pk-n { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.03em; color: var(--encre-2); overflow-wrap: anywhere; }
 .pk-prix { display: flex; flex-direction: column; gap: 2px; margin-top: auto; font: 800 var(--t-4)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
 .pk-prix s { color: var(--encre-3); font-weight: 600; font-size: var(--t-2); }
-.pk-manque { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.03em; color: var(--mauvais); }
 /* La fiche d'un pack : par-dessus la boutique (z 5), au bas au téléphone, au centre dès qu'il y a la place. */
 .pk-fiche { position: absolute; inset: 0; z-index: 5; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--noir) 72%, transparent); }
 /* Dans une page du Club (le Marché en saison), la feuille grandit avec les rayons et défile : la fiche se pose sur l'ÉCRAN, dans la zone de la page (#hubModal), pas au bas des rayons (JP : *apparaît dans le bas de la page, invisible*). */
@@ -6472,12 +6362,91 @@ body .pk-rayon-debut .pk-tuile.verrou .pk-prix { font-size: var(--t-2); letter-s
   .pk-fiche { align-items: center; }
   .pk-fiche-carte { border-radius: var(--r-2); }
 }
-/* Au téléphone, le pack du jour se couche : sa pochette à gauche, ses mots à droite. */
-@media (max-width: 639.98px) {
-  .pk-rayon-jour .pk-rangee { grid-template-columns: minmax(0, 1fr); }
-  .pk-rayon-jour .pk-tuile { flex-direction: row; align-items: center; gap: var(--esp-3); }
-  .pk-rayon-jour .pochette-scellee { width: 84px; flex: none; }
-}
+
+/* LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; la maquette 5) : la bande du marché, la pièce parmi trois, les packs en plaques de métal. */
+.mk-bande { position: relative; display: grid; gap: var(--esp-1); padding: var(--esp-3); background: repeating-linear-gradient(115deg, color-mix(in srgb, var(--blanc) 6%, transparent) 0 22px, transparent 22px 52px), linear-gradient(90deg, color-mix(in srgb, var(--or) 24%, var(--noir-pur)), color-mix(in srgb, var(--or) 8%, var(--noir-pur))); color: var(--blanc); }
+.mk-bande.ferme { background: linear-gradient(90deg, var(--fond-3), var(--fond-1)); }
+.mk-k { display: inline-flex; justify-self: start; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.mk-k > * { padding: 5px var(--esp-2); background: var(--noir-pur); color: var(--encre-2); }
+.mk-k b { background: var(--or); color: var(--encre-sur-or); }
+.mk-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--esp-2); }
+.mk-titre { font: 900 var(--t-7)/0.95 var(--display); text-transform: uppercase; }
+.mk-caisse { font: 600 var(--t-2)/1 var(--display); color: var(--or); white-space: nowrap; }
+.mk-caisse b { font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; }
+.mk-pips { display: flex; gap: 4px; justify-self: end; }
+.mk-pips i { width: 16px; height: 8px; background: var(--filet); }
+.mk-pips i.on { background: var(--or); }
+.mk-signe { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-2); }
+.mk-section { display: grid; gap: var(--esp-2); }
+.mk-l { display: inline-flex; justify-self: start; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.mk-l > * { padding: 4px var(--esp-2); background: var(--noir-pur); color: var(--encre-2); }
+.mk-l b { background: var(--bleu); color: var(--noir); }
+.pl-carte.choisie .carton { box-shadow: 0 0 0 3px var(--or); }
+.mk-prendre, .mk-fermer { width: 100%; min-height: 48px; }
+.mk-rangee { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.pk-tuile.mk-pack { gap: 0; padding: 0; border: 0; border-radius: 0; background: var(--fond-2); text-align: center; overflow: hidden; }
+.mk-pack-nom { padding: var(--esp-2) var(--esp-1); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; background: linear-gradient(135deg, var(--pk-a), color-mix(in srgb, var(--pk-a) 45%, var(--noir-pur))); color: var(--blanc); }
+.mk-pack .pk-prix { padding: 6px 0; margin: 0; align-items: center; }
+
+/* LE BANC DE CINQ (V27, tranche 5 ; les maquettes 1 et 7) : cinq petites cartes de front ; celle qui joue s'allume, celle qui sort se barre. */
+.pl-grille-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-items: start; padding-top: var(--esp-1); }
+.pl-carte.joue .carton { box-shadow: 0 0 0 2px var(--blanc), 0 0 16px color-mix(in srgb, var(--blanc) 35%, transparent); }
+.pl-carte.joue::after { content: ""; position: absolute; top: -4px; right: -4px; z-index: 3; width: 11px; height: 11px; border-radius: 50%; background: var(--bon); box-shadow: 0 0 0 2px var(--noir-pur); }
+.pl-carte.sort .carton { opacity: 0.5; box-shadow: 0 0 0 2px var(--mauvais); }
+.pl-carte.sort::after { content: "✕"; position: absolute; top: 30%; left: 50%; translate: -50% 0; z-index: 3; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--mauvais); color: var(--noir-pur); font: 900 var(--t-3)/1 var(--display); }
+.fx-plus { color: var(--bon); }
+.fx-moins { color: var(--mauvais); }
+.pc-sheet { display: flex; flex-direction: column; gap: var(--esp-3); padding: 0 0 var(--esp-4); }
+.pc-bande { position: relative; isolation: isolate; overflow: hidden; display: grid; gap: var(--esp-1); padding: 48px var(--esp-4) var(--esp-4); background: linear-gradient(90deg, var(--eq-band, var(--fond-3)), color-mix(in srgb, var(--eq-band, var(--fond-3)) 45%, var(--noir-pur))); color: var(--blanc); }
+.pc-ecu { position: absolute; right: -20px; top: -6px; z-index: -1; opacity: 0.2; }
+.pc-k { position: absolute; top: var(--esp-3); left: 0; display: flex; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.pc-k > * { display: flex; align-items: center; gap: 6px; padding: 4px var(--esp-3); background: var(--noir-pur); }
+.pc-k b { background: var(--or); color: var(--encre-sur-or); }
+.pc-titre { font: 900 calc(var(--t-6) * 1.15)/0.95 var(--display); text-transform: uppercase; }
+.pc-bande .choix-fermer { position: absolute; top: var(--esp-2); right: var(--esp-2); }
+.pc-corps { display: grid; gap: var(--esp-3); padding: 0 var(--esp-4); }
+.pc-l { display: inline-flex; justify-self: start; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.pc-l > * { padding: 4px var(--esp-2); background: var(--noir-pur); color: var(--encre-2); }
+.pc-l b { background: var(--mauvais); color: var(--noir-pur); }
+.pc-echange { display: flex; align-items: stretch; background: var(--noir-pur); font: 900 var(--t-3)/1.1 var(--display); text-transform: uppercase; }
+.pc-echange b { padding: var(--esp-2) var(--esp-3); background: var(--blanc); color: var(--noir-pur); }
+.pc-echange svg { align-self: center; margin: 0 var(--esp-2); color: var(--blanc); }
+.pc-echange span { flex: 1; padding: var(--esp-2) var(--esp-3); background: var(--mauvais); color: var(--noir-pur); text-align: right; }
+.pc-boutons { display: flex; gap: var(--esp-2); margin-top: auto; padding: 0 var(--esp-4); }
+.pc-boutons .btn { flex: 1; min-height: 52px; }
+.pc-boutons .gold { flex: 2; }
+/* LE DUEL À UN CHOIX (V27, tranche 6 ; la maquette 4) : la languette, les deux plaques, ta chance, leur jeu ; tes plans ; l'enjeu. */
+.dl-sheet { display: flex; flex-direction: column; gap: var(--esp-3); padding: 0 0 var(--esp-4); }
+.dl-tete { position: relative; display: grid; padding-top: 40px; background: var(--noir-pur); }
+.dl-k { position: absolute; top: var(--esp-2); left: 0; display: flex; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.dl-k > * { padding: 4px var(--esp-3); background: var(--fond-3); }
+.dl-k b { background: var(--or); color: var(--encre-sur-or); }
+.dl-plaques { display: grid; grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr); min-height: 76px; }
+.dl-plaque { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--esp-2); align-content: center; align-items: center; padding: var(--esp-2); background: var(--eq-band); color: var(--eq-ink); min-width: 0; }
+.dl-plaque > :first-child { grid-row: 1 / 3; }
+.dl-plaque b { font: 900 var(--t-5)/0.95 var(--display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-plaque small { display: flex; align-items: center; gap: 4px; font: 700 var(--t-2)/1.1 var(--display); opacity: 0.9; }
+.dl-plaque.eux { grid-template-columns: minmax(0, 1fr) auto; text-align: right; }
+.dl-plaque.eux > :first-child { grid-column: 2; }
+.dl-plaque.eux b, .dl-plaque.eux small { grid-column: 1; justify-content: flex-end; }
+.dl-vs { display: grid; place-items: center; font: 900 var(--t-4)/1 var(--display); color: var(--blanc); }
+.dl-prono { display: flex; align-items: center; gap: var(--esp-2); padding: 6px var(--esp-3); font: 800 var(--t-3)/1 var(--display); color: var(--blanc); }
+.dl-barre { flex: 1; display: flex; height: 8px; background: var(--eq-band); }
+.dl-jeu { display: flex; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.dl-jeu > span { padding: var(--esp-2) var(--esp-3); }
+.dl-jeu > span:first-child { flex: 1; background: var(--eq-stripe, var(--fond-3)); color: var(--noir-pur); }
+.dl-corps { display: grid; gap: var(--esp-3); padding: 0 var(--esp-4); }
+.dl-l { display: inline-flex; justify-self: start; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.dl-l > * { padding: 4px var(--esp-2); background: var(--noir-pur); color: var(--encre-2); }
+.dl-l b { background: var(--club-vif); color: var(--noir-pur); }
+.dl-plans .pl-carte-l { display: flex; flex-direction: column; gap: 2px; }
+.dl-tonmatch { min-height: 48px; background: transparent; box-shadow: inset 0 0 0 1px var(--filet); }
+.dl-tonmatch.on { box-shadow: inset 0 0 0 2px var(--or); color: var(--or); }
+.dl-enjeu { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-1); }
+.dl-enjeu > span { display: block; padding: 0 var(--esp-2) var(--esp-2); background: var(--fond-2); font: 700 var(--t-2)/1.4 var(--display); }
+.dl-enjeu b { display: block; margin: 0 calc(-1 * var(--esp-2)) var(--esp-1); padding: 4px var(--esp-2); color: var(--noir-pur); text-transform: uppercase; letter-spacing: 0.06em; }
+.dl-gagne b { background: var(--bon); }
+.dl-perd b { background: var(--mauvais); }
 
 /* ---- Les cartes de la banque (js/inventaire.js) : la face d'un pack (`.tc`, Jalon U), son compte, ses boutons dessous ---- */
 .bq-carte { position: relative; display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; }

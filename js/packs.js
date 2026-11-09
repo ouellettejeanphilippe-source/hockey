@@ -84,10 +84,15 @@ export const PITIE = 12;   // V5 : la holo est rare ; la garantie arrive plus ta
 /*
  * LA DATE LIMITE DES ÉCHANGES (1.0, oct.). JP : *rendre impossible de prendre
  * des packs de joueurs après la date limite des échanges*. Comme la vraie
- * ligue, fin février : après ton 62e match, plus aucun joueur n'entre par un
- * pack. Le rappel d'un blessé (le ballottage), lui, reste ouvert.
+ * ligue, fin février : passé le marché de ton 68e match, plus aucun joueur
+ * n'entre par un pack. Le rappel d'un blessé (le ballottage), lui, reste ouvert.
+ * JP (8 nov. 2026) : la date limite passe du 62e au 68e match, pour que le
+ * nœud du 68e match (js/actes.js `NOEUDS_BOUTIQUE`) fasse encore signer ;
+ * celui du 82e ne vend plus que la pièce et les cartes. Le jeu et les deux
+ * robots lisent la même règle, `dateLimitePassee(joues)`.
  */
-export const DATE_LIMITE_MATCH = 62;
+export const DATE_LIMITE_MATCH = 68;
+export const dateLimitePassee = joues => joues > DATE_LIMITE_MATCH;
 
 /*
  * LES PACKS DE JOUEURS. \`famille\` dit où l'on pige ; \`choix\` : le pack se
@@ -165,28 +170,12 @@ export const PACKS_TOUS = Object.fromEntries(Object.entries(PACKS_JOUEURS).map((
 export const PACKS_DE_SERIE = ['j:hasard_argent', 'j:hasard_or', 'j:etoiles', 'j:legendes'];
 /* Le pack de la ronde `r` gagnée : « Les vedettes » (le déblocage) le montent d'un cran ; la Coupe, des Légendes. */
 export const packDeSerie = (r, vedettes = false) => PACKS_DE_SERIE[Math.min(PACKS_DE_SERIE.length - 1, r + (vedettes ? 1 : 0))];
-export const RAYONS = [
-  { cle: 'jour', nom: 'Le pack du jour', ico: '📆' },
-  { cle: 'hasard', nom: 'Au hasard', ico: '🎲', packs: ['j:bronze', 'j:argent', 'j:or', 'j:vedettes'] },
-  { cle: 'themes', nom: 'À ton choix', ico: '🎯', packs: ['j:epoque', 'j:specialistes', 'j:club', 'j:coach'] },
-];
-
-/*
- * LE PACK DU JOUR : un pack de la boutique, à 25 % de rabais, qui change
- * chaque jour (la date). `ouverts` (1.0) : ce que la boutique permet, clé →
- * true ou la raison du verrou — un pack verrouillé n'est jamais en vitrine.
- */
-export function packDuJour(date = new Date(), ouverts = null) {
-  const cle = typeof date === 'string' ? date : `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-  const tous = BOUTIQUE.filter(k => !ouverts || ouverts[k] === true);
-  return { pack: tous[Math.floor(hache('pack-du-jour', cle) * tous.length)], rabais: 0.75, date: cle };
-}
 export const prixDe = (cle, rabais = 1) => Math.max(1, Math.round((PACKS_TOUS[cle] || {}).prix * rabais));
 /*
  * LES PRIX MONTENT (JP : *trop de cartes, trop de cash, ça vire rapidement à être trop et j'ai rien à faire*). En
- * Rogue, chaque pack acheté dans la saison fait monter les suivants de `HAUSSE_PACK` de leur prix, comme la
- * relance de Balatro : le premier garde son prix, le cinquième de la saison coûte le double, et la saison suivante
- * repart au prix de base. L'argent garde un usage ; il cesse de tout acheter (docs/refonte-v5.md, phase 4 : les packs
+ * Rogue, chaque achat d'un nœud de la boutique fait monter les suivants de `HAUSSE_PACK` de leur prix, comme la
+ * relance de Balatro : le premier garde son prix, et le nœud suivant repart au prix de base (V27, tranche 3 :
+ * js/actes.js `NOEUDS_BOUTIQUE` ; avant, la hausse comptait toute la saison). L'argent garde un usage ; il cesse de tout acheter (docs/refonte-v5.md, phase 4 : les packs
  * ramenés à ~8 par saison). V9, tranche 8 : à 10 %, le gérant attentif en ouvrait encore 20 à 24 par saison, et sa
  * première Coupe tombait à la run 2 ; à 25 %, une dizaine. Le 27 oct. (JP, sa run 1 : onze packs Bronze dans la
  * saison 1, deux Piliers signés, 12e de 32 ; *on a été vraiment plus fort qu'on aurait dû*) : à 25 %, la première
@@ -195,7 +184,6 @@ export const prixDe = (cle, rabais = 1) => Math.max(1, Math.round((PACKS_TOUS[cl
  * (un nom, un écusson) ne compte pas.
  */
 const HAUSSE_PACK = 0.40;
-export const achatsDePacks = (decisions = []) => decisions.filter(d => d && d.achat && d.achat.prix > 0 && (d.achat.sorte === 'joueurs' || d.achat.sorte === 'cartes')).length;
 export const hausseDesPacks = n => 1 + HAUSSE_PACK * (n || 0);
 
 /* ---------- les chances affichées ---------- */
@@ -488,8 +476,8 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
 }
 
 /*
- * LA CARTE RARE D'UN PACK DE JOUEURS (V16, § 4d ; V21) : un pack qui porte des `cartes` en donne une — une retouche, le
- * stage du coach, un soin, l'échange d'un doublon — une fois sur `1 / RARE_DU_PACK`, jamais le gros du pack.
+ * LA CARTE RARE D'UN PACK DE JOUEURS (V16, § 4d ; V21) : un pack qui porte des `cartes` en donne une — une retouche,
+ * un soin, l'échange d'un doublon — une fois sur `1 / RARE_DU_PACK`, jamais le gros du pack.
  */
 const CATS_RARES = ['joueur', 'consommable'];
 export const RARE_DU_PACK = 0.25;

@@ -7,7 +7,7 @@
  *   1. UN MODE DANS LA FEUILLE : un sélecteur `mode-rogue` (ou `.mode-*` sur body) dans style.css, ou une classe de mode
  *      posée sur la page par le jeu (`classList.toggle('mode-…')`), ou `en-cartes` ;
  *   2. UN MODULE DE COMPOSANTS QUI MANQUE : js/composants.js exporte la grammaire (le bandeau, les jetons, la carte et sa
- *      ligne, le coin, la case vide, la grille, les cellules, la jauge, le visage, la rangée, le billet, la marche, le
+ *      ligne, le coin, la case vide, la grille, les cellules, le visage, la rangée, la case de match, la marche, le
  *      podium), js/plateau-rogue.js est parti et rien ne l'importe ;
  *   3. UNE PAGE DU ROGUE QUI REDESSINE : les pages de D1a (Joueurs, l'Album, tes cartes, les Lignes, le Palmarès, Ce soir)
  *      importent leurs composants de js/composants.js, et aucune n'écrit à la main une rangée d'onglets ou de filtres
@@ -38,7 +38,7 @@ exiger('le jeu ne pose ni `mode-rogue` ni `en-cartes`', !poses.length, poses.joi
 informer('style.css', `${lire('style.css').split('\n').length} lignes (la cible de D1 : sous 6 000, à la réécriture par sections)`);
 
 // 2. Le module de composants.
-const GRAMMAIRE = ['bandeau', 'jetons', 'carteLigne', 'coin', 'caseVide', 'grille', 'cellules', 'jauge', 'visage', 'rangeeVisage', 'billet', 'marche', 'podium'];
+const GRAMMAIRE = ['bandeau', 'jetons', 'carteLigne', 'coin', 'caseVide', 'grille', 'cellules', 'visage', 'rangeeVisage', 'caseDeMatch', 'marche', 'podium'];
 const comp = jeu.find(x => x.f === 'js/composants.js');
 exiger('js/composants.js existe', !!comp);
 const exportes = comp ? [...comp.t.matchAll(/^export const (\w+)/gm)].map(m => m[1]) : [];
@@ -53,7 +53,7 @@ const inutiles = exportes.filter(n => !sertA(n));
 exiger('chaque composant est importé par une page', !inutiles.length, inutiles.join(', ') || 'tous');
 
 // 3. Les pages de D1a sont faites des composants et n'en redessinent aucun.
-const PAGES = { 'js/joueurs.js': ['jetons', 'carteLigne', 'grille', 'coin'], 'js/cartable.js': ['jetons', 'coin'], 'js/inventaire.js': ['jetons'], 'js/alignement.js': ['carteLigne', 'grille', 'coin', 'jauge'], 'js/rogue-jeu.js': ['marche'], 'js/saison.js': ['bandeau', 'carteLigne', 'grille', 'cellules', 'visage', 'billet', 'coin'] };
+const PAGES = { 'js/joueurs.js': ['jetons', 'carteLigne', 'grille', 'coin'], 'js/cartable.js': ['jetons', 'coin'], 'js/inventaire.js': ['jetons'], 'js/alignement.js': ['carteLigne', 'grille', 'coin', 'caseVide'], 'js/rogue-jeu.js': ['marche'], 'js/saison.js': ['bandeau', 'carteLigne', 'grille', 'cellules', 'visage', 'caseDeMatch', 'coin'] };
 for (const [f, noms] of Object.entries(PAGES)) {
   const t = jeu.find(x => x.f === f).t;
   const imp = (t.match(/import \{([^}]*)\} from '\.\/composants\.js'/) || [, ''])[1].split(',').map(s => s.trim().split(/\s+as\s+/)[0]);

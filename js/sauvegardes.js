@@ -115,11 +115,11 @@ export function supprimer(id) {
   ecrireIndex(ix);
 }
 
-/* Les runs du Rogue en cours, retirées d'un coup (V10, la conversion au jeu neuf : js/rogue.js `convertirAuJeuNeuf`). Rend combien. */
+/* Les runs du Rogue en cours, retirées d'un coup (la conversion au jeu neuf : js/rogue.js `convertirAuJeuNeuf`). Rend leurs résumés (V27 : leurs médailles se versent). */
 export function retirerLesRuns() {
   const ix = lireIndex(), runs = ix.parties.filter(p => p.genre === 'rogue');
   for (const p of runs) supprimer(p.id);
-  return runs.length;
+  return runs.map(p => p.resume || null);
 }
 
 export function copier(id) {

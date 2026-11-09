@@ -101,9 +101,7 @@ scripts/mock_zones.mjs      le malus de zone ferme-t-il l'empilement ?
 scripts/sonde_aptitudes.mjs l'échelle des profils sur 330 vraies équipes
 scripts/sonde_gros_matchs.mjs combien de gros matchs par saison
 scripts/mesure_rogue.mjs, mesure_defilement.mjs   des mesures d'époque (S76-S77), gardées
-scripts/mesure_main.mjs   la main d'adjoints de l'attentif : les cartes qui ne jouent jamais un séjour, l'occupation des cases (nov. 2026)
 scripts/mesure_rythme.mjs le rythme d'une saison de l'attentif : les matchs où la saison demande quelque chose, le plus long trou, les quarts (nov. 2026)
-scripts/mesure_deck.mjs   la main du deck (20e, 40e, 60e) pesée en paires : la recrue, le nouveau rôle, la retouche, en victoires sur les soirs qui restent, contre la borne du niveau affiché (6 nov. 2026 ; `N`, `CLUBS`, `CLUB`)
 ```
 
 ### Vérifier (chacun passe par verdict.mjs et pose le code de sortie)
@@ -123,7 +121,6 @@ check_hauteur           un choix tient en un écran (V25 B2, 6 nov. 2026) : à 3
 check_lexique           un mot par idée, une icône par sens
 check_refonte           un gros changement se mesure à ce qui part (4 nov. 2026) : le diff de la branche contre main (le jeu retire au moins une ligne pour deux ajoutées, style.css sous la moitié), chaque nom de « Ce qui part » du devis parti, chaque fichier de « Ce qu'il touche » dans le diff ; à la main, avant la PR d'une refonte
 check_verite            la vérité des chiffres : un tirage pur lit la graine par entierDeGraine
-check_deck              le deck
 check_emojis            les émojis au trait
 check_speciales         les unités spéciales (AN 1-2, DN 1-2)
 check_fils              les fils de la saison citent des feuilles réelles

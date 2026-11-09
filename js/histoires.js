@@ -16,7 +16,7 @@
  *             jamais une stat du moteur —, et sa vraie saison (`vraie`, bornée : « cette année-là, 60 buts en 63 matchs »)
  *   options   deux cartes de jeu : { cle, nom, niveau (0 Soutien, 1 Régulier, 2 Pilier ; rien au-dessus, C0 q. 9), ...effet }
  *             dans la grammaire de js/effets.js ; les canaux du club seulement aux moments `gros` et `ronde` (C0 q. 4) ;
- *             `suite` plante l'épisode 2 ; les jetons et l'expérience restent à la décision
+ *             `suite` plante l'épisode 2 ; les jetons restent à la décision ; `gestes.piece`, une pièce pour ton banc
  *   rare      une fois par saison, à certains tirages (`CHANCE_RARE`) ; suiteDe : l'histoire dont elle est l'épisode 2
  *
  * UN SEUL TIRAGE, PUR : `tirer(graine, moment, faits, sorties)` — parmi les vraies qui ne se reposent pas, le plus haut de
@@ -28,6 +28,9 @@ import { nomCourt } from './recit.js';
 import { SEMAINE } from './inventaire.js';
 import { vraieMot } from './faits.js';
 import { hache, pct3 } from './util.js';
+import { PIECES_PAR_SAISON_DES_FOURCHES } from './pieces.js';
+/* Une fourche qui donne une pièce ne sort que si la saison en a donné moins de deux (V27, tranche 5 ; devis § 4.6). */
+const pieceDeFourche = f => (f.fourches || 0) < PIECES_PAR_SAISON_DES_FOURCHES;
 
 /* LE RYTHME (V20, nov. 2026, V23) : un lundi sur deux environ, le repos d'une histoire sortie, ses sorties par saison, la chance d'une rare. */
 export const CHANCE_HISTOIRE = 0.55, REPOS_HISTOIRE = 5, SORTIES_MAX = 2, CHANCE_RARE = 0.4;
@@ -59,7 +62,7 @@ export const HISTOIRES = {
     mots: (f, j) => `${court(j)}, ${pts(f.vedette.pts, f.vedette.m)}. ${avecVraie(f, j, ' : les') || 'Les'} commanditaires savent compter aussi.`,
     options: [
       { cle: 'medias', nom: 'La tournée des médias', niveau: 0, jetons: 20 },
-      { cle: 'glace', nom: 'Le garder pour la glace', niveau: 0, xp: 5 },
+      { cle: 'glace', nom: 'Le garder pour la glace', niveau: 0, jetons: 10 },
     ],
   },
   leMuet: {
@@ -90,7 +93,7 @@ export const HISTOIRES = {
     fait: f => `${f.puni.n} : ${f.puni.pun} punitions en ${f.puni.m} matchs`,
     mots: (f, j) => `${court(j)}, ${f.puni.pun} punitions en ${f.puni.m} matchs. Il nous coûte des avantages numériques, et les gars commencent à le lui dire en face.`,
     options: [
-      { cle: 'suspendre', nom: 'Le suspendre deux matchs', niveau: 0, gestes: { absents: 2 }, xp: 4 },
+      { cle: 'suspendre', nom: 'Le suspendre deux matchs', niveau: 0, jetons: 8, gestes: { absents: 2 } },
       { cle: 'amende', nom: 'Une amende', niveau: 0, jetons: 8 },
     ],
   },
@@ -133,18 +136,18 @@ export const HISTOIRES = {
     options: [
       { cle: 'monter', nom: 'Lui donner du temps de glace', niveau: 1,
         pari: { chance: 3 / 6, gagne: { duree: 8, lui: { lancers: 1.4, finition: 1.2 } }, perd: { duree: 8, lui: { finition: 0.6 } } }, suite: SUITE_PETIT },
-      { cle: 'murir', nom: 'Le laisser mûrir', niveau: 0, xp: 4 },
+      { cle: 'murir', nom: 'Le laisser mûrir', niveau: 0, jetons: 8 },
     ],
   },
   lePetitArrive: {
     de: 'an', ico: '🌟', titre: 'Le petit est arrivé', moment: 'lundi', famille: 'recrue', suiteDe: 'lePetit',
-    quand: f => { const x = suiteDe(f, 'lePetit', 'monter'); return !!x && x.m >= SUITE_PETIT && x.pts >= POINTS_PETIT; },
+    quand: f => { const x = suiteDe(f, 'lePetit', 'monter'); return !!x && x.m >= SUITE_PETIT && x.pts >= POINTS_PETIT && pieceDeFourche(f); },
     joueur: f => (suiteDe(f, 'lePetit', 'monter') || {}).joueur || null,
     fait: f => { const x = suiteDe(f, 'lePetit', 'monter'); return `${x.joueur.n} : ${pts(x.pts, x.m)} depuis qu'il joue plus`; },
     mots: (f, j) => { const x = suiteDe(f, 'lePetit', 'monter'); return `${court(j)}, ${pts(x.pts, x.m)} depuis qu'il joue plus. Tout le monde parle de lui à la télé ; le petit est devenu quelqu'un.`; },
     options: [
-      { cle: 'une', nom: 'La une le réclame', niveau: 1, jetons: 30, xp: 3 },
-      { cle: 'proteger', nom: 'Le protéger des caméras', niveau: 2, gestes: { adjoint: true } },
+      { cle: 'une', nom: 'La une le réclame', niveau: 1, jetons: 36 },
+      { cle: 'proteger', nom: 'Le protéger des caméras', niveau: 2, gestes: { piece: true } },
     ],
   },
   lePetitDoute: {
@@ -155,7 +158,7 @@ export const HISTOIRES = {
     mots: (f, j) => { const x = suiteDe(f, 'lePetit', 'monter'); return `${court(j)}, ${pts(x.pts, x.m)} depuis qu'on l'a monté. Il ne dort plus, il regarde ses présences en boucle. Je peux le prendre sous mon aile.`; },
     options: [
       { cle: 'aile', nom: 'Sous l\'aile du capitaine', niveau: 1, duree: 6, lui: { lancers: 1.3, finition: 1.2 }, gestes: { energie: -15 } },
-      { cle: 'redescendre', nom: 'Le renvoyer en bas de l\'alignement', niveau: 0, xp: 3 },
+      { cle: 'redescendre', nom: 'Le renvoyer en bas de l\'alignement', niveau: 0, jetons: 6 },
     ],
   },
   lesChapeaux: {
@@ -177,7 +180,7 @@ export const HISTOIRES = {
     options: [
       { cle: 'encore', nom: 'Encore le filet', niveau: 1, gestes: { gardienAux: 1 },
         pari: { chance: 4 / 6, gagne: { duree: 3, lui: { arrets: 0.8 } }, perd: { duree: 3, lui: { arrets: 1.15 } } } },
-      { cle: 'partant', nom: 'Retour au partant', niveau: 0, xp: 3 },
+      { cle: 'partant', nom: 'Retour au partant', niveau: 0, jetons: 6 },
     ],
   },
   leDosADos: {
@@ -210,7 +213,7 @@ export const HISTOIRES = {
     mots: (f, j) => { const b = blesse(f, x => !GRAVES.includes(x.genre) && x.m >= MI_CHEMIN[0] && x.m <= MI_CHEMIN[1]); return `${court(j)} est à mi-chemin : ${b.m} matchs encore sur sa table. Je peux le remettre sur ses patins jeudi, mais une blessure comme ça, ça se rappelle à toi.`; },
     options: [
       { cle: 'devancer', nom: 'Le remettre jeudi', niveau: 1, gestes: { soin: 2 }, duree: 8, lui: { blessure: 1.6 } },
-      { cle: 'guerir', nom: 'Le laisser guérir', niveau: 0, xp: 3, duree: 10, lui: { blessure: 0.7 } },
+      { cle: 'guerir', nom: 'Le laisser guérir', niveau: 0, jetons: 6, duree: 10, lui: { blessure: 0.7 } },
     ],
   },
   laPrime: {
@@ -243,27 +246,27 @@ export const HISTOIRES = {
     mots: (f, j) => `La date limite est vendredi, et on est à ${f.masse.libre} du plafond. J'ai une offre pour ${court(j)} : ${f.masse.lourd.sal}. ${avecVraie(f, j, '. ') || ''}Je l'écoute ou je raccroche ?`,
     options: [
       { cle: 'echanger', nom: 'L\'échanger', niveau: 2, gestes: { echange: 'lui', offres: 2 } },
-      { cle: 'garder', nom: 'On garde le groupe', niveau: 1, xp: 4, duree: 10, lui: { lancers: 1.5 } },
+      { cle: 'garder', nom: 'On garde le groupe', niveau: 1, jetons: 8, duree: 10, lui: { lancers: 1.5 } },
     ],
   },
-  leSejourGagnant: {
-    de: 'ad', ico: '🎯', titre: 'Le séjour gagnant', moment: 'lundi', famille: 'adjoint',
-    quand: f => !!f.sejourFini && f.sejourFini.v > f.sejourFini.d && !!f.vedette, joueur: f => f.vedette,
-    fait: f => `${f.sejourFini.ico} ${f.sejourFini.nom} · ${f.sejourFini.matchs} matchs, ${f.sejourFini.v}-${f.sejourFini.d}-${f.sejourFini.dp} · ${f.vedette.fait}`,
-    mots: (f, j) => `${f.sejourFini.ico} ${f.sejourFini.nom}, c'est fini : ${f.sejourFini.v}-${f.sejourFini.d}-${f.sejourFini.dp} en ${f.sejourFini.matchs} matchs, et ${court(j)} qui a tout mis dedans. Il m'a laissé un nom pour la main, ou un cahier pour le coach.`,
+  laPieceGagnante: {
+    de: 'ad', ico: '🎯', titre: 'La pièce qui fait gagner', moment: 'lundi', famille: 'banc',
+    quand: f => !!f.pieceChaude && f.pieceChaude.v > f.pieceChaude.d && !!f.vedette && pieceDeFourche(f), joueur: f => f.vedette,
+    fait: f => `${f.pieceChaude.ico} ${f.pieceChaude.nom} · ${f.pieceChaude.m} soirs, ${f.pieceChaude.v}-${f.pieceChaude.d} · ${f.vedette.fait}`,
+    mots: (f, j) => `${f.pieceChaude.ico} ${f.pieceChaude.nom}, ${f.pieceChaude.m} soirs sur les dix derniers, ${f.pieceChaude.v}-${f.pieceChaude.d} ces soirs-là, et ${court(j)} qui a tout mis dedans. J'ai un nom à te proposer pour le banc, ou on encaisse la prime.`,
     options: [
-      { cle: 'nom', nom: 'Il recommande quelqu\'un', niveau: 2, gestes: { adjoint: true } },
-      { cle: 'cahier', nom: 'Son cahier au coach', niveau: 2, xp: 8 },
+      { cle: 'nom', nom: "Il recommande quelqu'un", niveau: 2, gestes: { piece: true } },
+      { cle: 'cahier', nom: 'La prime du proprio', niveau: 2, jetons: 16 },
     ],
   },
-  leSejourRate: {
-    de: 'ca', ico: '🪑', titre: 'Le séjour qui a raté', moment: 'lundi', famille: 'adjoint',
-    quand: f => !!f.sejourFini && f.sejourFini.d > f.sejourFini.v && !!f.pire, joueur: f => f.pire,
-    fait: f => `${f.sejourFini.ico} ${f.sejourFini.nom} · ${f.sejourFini.matchs} matchs, ${f.sejourFini.v}-${f.sejourFini.d}-${f.sejourFini.dp} · jambes ${f.jambes} · ${f.pire.n} : ${f.pire.j}`,
-    mots: (f, j) => `${f.sejourFini.ico} ${f.sejourFini.nom} est parti sur ${f.sejourFini.v}-${f.sejourFini.d}-${f.sejourFini.dp}. Les gars n'ont jamais embarqué dans son style, et ${court(j)} est à ${f.pire.j} de jambes à force de courir après. On revient à nos affaires.`,
+  laPieceQuiRate: {
+    de: 'ca', ico: '🪑', titre: 'La pièce qui ne marche pas', moment: 'lundi', famille: 'banc',
+    quand: f => !!f.pieceChaude && f.pieceChaude.d > f.pieceChaude.v && !!f.pire, joueur: f => f.pire,
+    fait: f => `${f.pieceChaude.ico} ${f.pieceChaude.nom} · ${f.pieceChaude.m} soirs, ${f.pieceChaude.v}-${f.pieceChaude.d} · jambes ${f.jambes} · ${f.pire.n} : ${f.pire.j}`,
+    mots: (f, j) => `${f.pieceChaude.ico} ${f.pieceChaude.nom}, ${f.pieceChaude.v}-${f.pieceChaude.d} sur ses ${f.pieceChaude.m} derniers soirs. Les gars n'embarquent pas, et ${court(j)} est à ${f.pire.j} de jambes à force de courir après. On revient à nos affaires.`,
     options: [
-      { cle: 'base', nom: 'Retour aux trios d\'avant', niveau: 0, gestes: { energieTous: 8 } },
-      { cle: 'lecon', nom: 'Le coach encaisse la leçon', niveau: 0, xp: 5, gestes: { energie: -10 } },
+      { cle: 'base', nom: "Retour aux trios d'avant", niveau: 0, gestes: { energieTous: 8 } },
+      { cle: 'lecon', nom: 'Le coach encaisse la leçon', niveau: 0, jetons: 10, gestes: { energie: -10 } },
     ],
   },
   leMandat: {
@@ -296,7 +299,7 @@ export const HISTOIRES = {
     options: [
       { cle: 'souder', nom: 'Les garder ensemble', niveau: 2,
         pari: { chance: 4 / 6, gagne: { duree: 20, lui: { finition: 1.4, creation: 1.3 } }, perd: { duree: 8, lui: { finition: 0.7 } } }, suite: SUITE_DUO },
-      { cle: 'libre', nom: 'Garder les trios libres', niveau: 0, xp: 5 },
+      { cle: 'libre', nom: 'Garder les trios libres', niveau: 0, jetons: 10 },
     ],
   },
   leDuoNomme: {
@@ -307,7 +310,7 @@ export const HISTOIRES = {
     mots: (f, j) => { const x = suiteDe(f, 'leDuo', 'souder'); return `${court(j)} et son passeur, ${x.butsDuo} buts ensemble en ${x.m} matchs depuis qu'on les a soudés. Les partisans leur ont trouvé un nom, et je peux l'imprimer sur des chandails d'ici vendredi.`; },
     options: [
       { cle: 'chandails', nom: 'Les chandails du duo', niveau: 1, jetons: 30 },
-      { cle: 'glace', nom: 'Loin des caméras, sur la glace', niveau: 2, xp: 3, duree: 12, lui: { creation: 1.4, lancers: 1.7 } },
+      { cle: 'glace', nom: 'Loin des caméras, sur la glace', niveau: 2, jetons: 6, duree: 12, lui: { creation: 1.4, lancers: 1.7 } },
     ],
   },
   laRecrue: {
@@ -327,7 +330,7 @@ export const HISTOIRES = {
     mots: (f, j) => `Ça fait trente ans que j'ai mon siège, et ${court(j)}, à ${f.veteran.age} ans, c'est le seul qui joue encore comme quand j'ai commencé. ${pts(f.veteran.pts, f.veteran.m)}. Faites-lui une soirée avant qu'il parte.`,
     options: [
       { cle: 'soiree', nom: 'Une soirée en son honneur', niveau: 1, jetons: 15, duree: 6, lui: { finition: 1.2 } },
-      { cle: 'tranquille', nom: 'Le laisser tranquille, il joue', niveau: 1, xp: 5 },
+      { cle: 'tranquille', nom: 'Le laisser tranquille, il joue', niveau: 1, jetons: 10 },
     ],
   },
   laFete: {
@@ -337,7 +340,7 @@ export const HISTOIRES = {
     mots: (f, j) => `${f.serie} victoires de suite, et ${court(j)} qui remplit mes rues le soir. La ville veut un rassemblement sur la place, samedi midi. Je ferme la rue ou j'attends le défilé de juin ?`,
     options: [
       { cle: 'place', nom: 'Le rassemblement sur la place', niveau: 1, jetons: 25, gestes: { energieTous: -5 } },
-      { cle: 'juin', nom: 'Pas avant le défilé de juin', niveau: 0, xp: 4 },
+      { cle: 'juin', nom: 'Pas avant le défilé de juin', niveau: 0, jetons: 8 },
     ],
   },
   laLigue: {
@@ -346,7 +349,7 @@ export const HISTOIRES = {
     fait: f => `${f.coup.n} : une majeure de ${f.coup.min} minutes contre ${f.coup.adv} · ${f.n}e match`,
     mots: (f, j) => `La ligue a revu le geste de ${court(j)} contre ${f.coup.adv}, ${f.coup.min} minutes au cachot. Deux matchs, ou vous plaidez sa cause par téléphone et il joue mercredi.`,
     options: [
-      { cle: 'accepter', nom: 'Accepter la suspension', niveau: 0, gestes: { absents: 2 }, xp: 4 },
+      { cle: 'accepter', nom: 'Accepter la suspension', niveau: 0, jetons: 8, gestes: { absents: 2 } },
       { cle: 'plaider', nom: 'Plaider sa cause', niveau: 1, jetons: -8, duree: 6, lui: { lancers: 1.5 } },
     ],
   },
@@ -422,7 +425,7 @@ export const HISTOIRES = {
     mots: (f, j) => `Les séries. Je peux doubler le prix des billets, les gens paieront pour voir ${court(j)} ; ou je les laisse au prix de la saison et l'aréna sera plein à craquer dès le premier soir.`,
     options: [
       { cle: 'prix', nom: 'Le prix des séries', niveau: 1, jetons: 30 },
-      { cle: 'plein', nom: 'Plein à craquer, au prix régulier', niveau: 1, gestes: { energieTous: 10 }, xp: 2 },
+      { cle: 'plein', nom: 'Plein à craquer, au prix régulier', niveau: 1, jetons: 4, gestes: { energieTous: 10 } },
     ],
   },
   leurCoach: {
@@ -443,7 +446,7 @@ export const HISTOIRES = {
     options: [
       { cle: 'parle', nom: '{nom} parle au vestiaire', niveau: 2,
         pari: { chance: 4 / 6, gagne: { duree: 7, lui: { lancers: 1.3, finition: 1.2 } }, perd: { duree: 7, lui: { finition: 0.7 } } } },
-      { cle: 'coach', nom: 'Le coach ferme le vestiaire', niveau: 1, xp: 6 },
+      { cle: 'coach', nom: 'Le coach ferme le vestiaire', niveau: 1, jetons: 12 },
     ],
   },
   leBlesseDesSeries: {

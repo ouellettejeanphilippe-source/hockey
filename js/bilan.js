@@ -32,10 +32,10 @@ import { ficheDeClub, tauxDeClub } from './equipes.js';
 import { cap, ord, ordF, pct3, pmMatch, pythagore, varsEquipe } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
+let $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue, avantLesSeriesRogue;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue } = c);
+  ({ $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue, avantLesSeriesRogue } = c);
 }
 
 /* =====================================================================
@@ -940,7 +940,8 @@ export function runPlayoffs(top16, opts = {}) {
   RONDES = RONDES_PAR_N[Math.round(Math.log2(top16.length))] || RONDES_PAR_N[4];
   const decsSeries = (G.ligue && G.ligue.decisionsSeries) || [];
   const graineSeries = (G.ligue && G.ligue.graine) || 0;
-  // Un moteur rembobiné (`rembobinerSeries`, js/banc.js) se reprend tel quel ; sinon les séries naissent.
+  // Un moteur rembobiné (`rembobinerSeries`, js/banc.js) se reprend tel quel ; sinon les séries naissent (V27 : en Rogue, plus dures).
+  if (!opts.moteur && avantLesSeriesRogue) avantLesSeriesRogue(top16);
   const S = opts.moteur || creerSeries(top16, { ligue: (G.ligue && G.ligue.moteur) || null, graine: graineSeries, decisions: decsSeries, equipes: G.ligue ? G.ligue.teams : top16, des: G.ligue && G.ligue.des ? G.ligue.des.series : null, instantanes: G.bonus === 'ROGUE' });
   G.seriesMoteur = S;
   G.series = S.toutes;
@@ -1292,7 +1293,7 @@ function buildDuSoirHtml(f, A, B, jour) {
   const matchs = matchsJoues(G.ligue.calendrier);
   const moi = profilDuClub(matchs, toi, { avant: jour }), lig = profilDeLigue(matchs, toi, { avant: jour });
   const b = buildDuSoir(toi, jour, f);
-  const groupes = [['Pouvoirs du coach', b.pouvoirs], ['Événements', b.effets]]
+  const groupes = [['Ton banc', b.pieces], ['Événements', b.effets]]
     .filter(([, xs]) => xs.length).map(([k, xs]) => `<p><b>${k}</b> : ${xs.map(esc).join(' · ')}</p>`).join('');
   const lignes = ecartsDuSoir(f, A.isPlayer ? 'A' : 'B', moi, lig).map(r => ({
     k: r.nom, v: `${dire(r.soir, 0)}${r.moyenne != null ? ` · toi ${dire(r.moyenne)}` : ''}${r.ligue != null ? ` · ligue ${dire(r.ligue)}` : ''}`,

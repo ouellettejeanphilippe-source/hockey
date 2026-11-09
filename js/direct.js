@@ -209,13 +209,10 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  *   sansSortie un gros match : pas de ✕
  */
 /*
- * L'ENTRACTE D'UN DUEL (S70, V9 ; V25 : `pauses`, les fins de période où un gros match du 82-0 marque une pause). `arret` : la minute où le direct
- * s'arrête — 40, la fin de la deuxième période ; 20 aussi pour le duel (V9) — et
- * rend la main (`onArret`) sans révéler la suite : le choix rejoue la période
- * qui vient. `depuis` : le direct reprend à cette minute, ce qui précède posé
- * d'un coup dans le fil.
+ * LES ENTRACTES D'UN GROS MATCH (V25 ; V27, tranche 6 : le duel du Rogue aussi) : `pauses`, les fins de période où le direct
+ * marque une pause — le pointage, leur intention qui vient au duel, un seul bouton. Rien ne s'y décide : la feuille est jouée.
  */
-export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, arret = null, onArret = null, depuis = 0, pauses = null, sansSortie = false }) {
+export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, pauses = null, sansSortie = false }) {
   const modal = document.getElementById('liveModal');
   if (!modal || !f) { onTermine(); return; }
   const $ = id => modal.querySelector(id);
@@ -243,7 +240,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   let vitesse = Number(localStorage.getItem(CLE_VITESSE)) || 2;
   if (!VITESSES.includes(vitesse)) vitesse = 2;
 
-  let timer = null, termine = false, enPause = false, fini = false, enArret = false, rapide = false, pauseDePeriode = false;
+  let timer = null, termine = false, enPause = false, fini = false, enArret = false, rapide = false, pauseDePeriode = false, arret = null;
   const stop = () => { if (timer) { cancelAnimationFrame(timer); timer = null; } };
   const onglets = ongletsDePause(modal, [{ cle: 'fil', titre: 'Fil' }, { cle: 'stats', titre: 'Statistiques du match' }], () => statsDuMatch());
   const fermer = () => {
@@ -571,7 +568,6 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       });
       ligne('periode', `${P.tete} <b>${gA}-${gB}</b> · tirs ${tA_} – ${tB_}. ${P.couleur}`);
       son('periode');
-      if (arret != null && e.per === arret / 20 && onArret) { arreter(); return 0; }
       // V25 : les périodes vues du gros match du 82-0 — une pause à la fin de la 1re et de la 2e, sans rien demander.
       if (pauses && !rapide && pauses.includes(e.per * 20)) { entrePeriodes(e.per); return 0; }
       if (du && du.periodes[e.per]) ligne('periode cartes', motPeriode(e.per));
@@ -631,36 +627,19 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     t = enArret ? arret : f.ot ? Math.max(65, ...f.buts.filter(b => b.instant >= 60).map(b => b.instant)) : 60;
     majBoard();
   };
-  /* L'ARRÊT AU DEUXIÈME ENTRACTE : la main passe au choix, rien de plus n'est révélé. */
-  function arreter() {
-    enArret = true;
-    stop();
-    ligne('periode ent2-marque', arret === 20 ? '<b>🎬 Premier entracte.</b> Le vestiaire t\'attend : la deuxième période se jouera sur ton choix.'
-      : '<b>🎬 Deuxième entracte.</b> Le vestiaire t\'attend : la troisième période se jouera sur ton choix.');
-    boutons(`<button class="btn gold live-entracte">Au vestiaire — ton choix</button>`);
-    controls.querySelector('.live-entracte').onclick = () => {
-      if (termine) return;
-      termine = true;
-      onglets.fermer();
-      window.removeEventListener('keydown', clavier);
-      modal.style.display = 'none';
-      modal.classList.remove('en-pause');
-      document.body.style.overflow = '';
-      onArret();
-    };
-  }
   /*
-   * LES PÉRIODES VUES (V25 ; JP : *comme au devis, périodes vues sans choix*). Un gros match du 82-0 s'arrête à la fin de la
-   * 1re et de la 2e période (`pauses`) : le pointage et les onglets, puis une touche, et la période suivante part. Rien à
-   * décider, rien à rejouer : la feuille est jouée, l'horloge attend.
+   * LES PÉRIODES VUES (V25 ; JP : *comme au devis, périodes vues sans choix*). Un gros match s'arrête à la fin de la 1re et de
+   * la 2e période (`pauses`) : le pointage et les onglets, puis une touche, et la période suivante part. Au duel du Rogue (V27,
+   * tranche 6 ; JP : *aucune décision d'entracte*), leur intention de la période qui vient, et un seul bouton.
    */
   function entrePeriodes(per) {
     pauseDePeriode = true; enArret = true; arret = per * 20;
     stop();
     onglets.ouvrir();
     ligne('periode ent2-marque', `<b>🎬 Fin de la ${per === 1 ? '1re' : '2e'} période.</b> ${gA}-${gB} · tirs ${tA} – ${tB}.`);
-    // « Passer à la fin » reste là : il va au bout sans autre pause.
-    boutons(`<button class="btn gold live-periode">${per === 1 ? '2e' : '3e'} période ›</button><button class="btn live-fin">Passer à la fin</button>`);
+    if (du && du.periodes[per]) ligne('periode cartes', motPeriode(per));
+    // Au 82-0, « Passer à la fin » reste là : il va au bout sans autre pause ; au duel, un seul bouton.
+    boutons(`<button class="btn gold live-periode">${per === 1 ? '2e' : '3e'} période ›</button>${du ? '' : '<button class="btn live-fin">Passer à la fin</button>'}`);
     controls.querySelector('.live-periode').onclick = () => {
       if (termine) return;
       reprendreLaPeriode();
@@ -668,7 +647,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       dernier = performance.now();
       timer = requestAnimationFrame(tick);
     };
-    controls.querySelector('.live-fin').onclick = jusquAuBout;
+    if (!du) controls.querySelector('.live-fin').onclick = jusquAuBout;
   }
   /* La pause de période se lève : l'horloge repart où elle était. */
   function reprendreLaPeriode() {
@@ -712,15 +691,6 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   }
   controlesDuDirect();
 
-  // LA REPRISE APRÈS L'ENTRACTE : les deux premières périodes d'un coup, puis l'horloge.
-  if (depuis > 0) {
-    muet = true;
-    while (iEv < ev.length && ev[iEv].instant <= depuis && !fini) appliquer(ev[iEv++]);
-    muet = false;
-    t = depuis;
-    ligne('periode ent2-marque', `<b>🎬 ${depuis < 40 ? 'Deuxième' : 'Troisième'} période.</b> Ton choix est sur la glace.`);
-    majBoard();
-  }
   dernier = performance.now();
   timer = requestAnimationFrame(tick);
 }

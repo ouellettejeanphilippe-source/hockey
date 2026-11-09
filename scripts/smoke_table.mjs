@@ -424,6 +424,11 @@ await page.evaluate(({ haut, bas, col }) => {
    * l'autre. À chaque image, là où elles sont DESSINÉES (la transition en
    * cours comprise), le jeton qui porte le point et la rondelle ne sont
    * jamais à plus d'une case et demie l'un de l'autre.
+   *
+   * ET ÇA NE DÉPEND PAS DE LA MACHINE (nov. 2026). Il a échoué une fois en CI (8 images, 8,1 cases) : sur une machine
+   * chargée, la glissade de la rondelle partait après le minuteur du pas qui donne le point. Le jeu attend maintenant
+   * la rondelle dessinée (js/plateau.js, `pointRetenu`) ; relu avec le processeur freiné quatre fois (CDP
+   * `Emulation.setCPUThrottlingRate`) : 17 963 images, aucun écart.
    */
   const P = window.__point = { images: 0, ecarts: 0, pire: 0 };
   const cellule = document.querySelector('#tableModal .t-case');

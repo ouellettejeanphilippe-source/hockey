@@ -11,8 +11,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
-import { BUTIN_RIVAL } from '../js/sim.js';
-import { PLANS } from '../js/greffes.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC } from '../js/pieces.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 import { collesAuBord, MARGE } from './lib/bords.mjs';
@@ -83,7 +82,7 @@ const verifMarche = async (etape, { boutique = true } = {}) => {
     const hub = document.getElementById('hubModal');
     return { sec: document.body.dataset.section, nav: (document.querySelector('#navbar .navtab.on') || {}).dataset?.section,
       horsMarche: hub ? hub.querySelectorAll('[data-genre="boutique"], .pk-tuile, .pk-fiche, .pk-sheet').length : 0,
-      boutique: !!document.querySelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-tuile'),
+      boutique: !!document.querySelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-sheet'),
       hubVisible: !!hub && getComputedStyle(hub).display !== 'none' && hub.offsetParent !== null };
   });
   if (r.sec !== 'marche' || r.nav !== 'marche') erreurs.push(`${etape} : la section ouverte est « ${r.sec} » et la barre allume « ${r.nav} » (attendu : marche)`);
@@ -129,7 +128,7 @@ await page.addInitScript(cartes => {
   if (localStorage.getItem('essai80')) return;
   localStorage.setItem('essai80', '1');
   localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, i === 1 ? { v: { commune: 3 }, n: 3 } : { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
-  // V16 (tranche 6) : « Le stage du coach » attend dans l'inventaire permanent, pour monter le coach d'un cran (plus bas, 10c).
+  // V27, tranche 5 : « Le stage du coach » est parti avec son expérience ; une vieille sauvegarde qui en garde un ne plante pas.
   // « Une caisse de départ » et « Une grosse caisse » (+40 jetons) : les Harfangs puis le Pack Époque s'achètent quel que soit le
   // tirage de la saison (sans elles, une caisse de 22 ou 36 jetons laissait l'essai en panne devant le pack : une loterie ;
   // V23, les salaires des adjoints : 23 jetons après les Harfangs, sous les 26 de l'Époque).
@@ -154,15 +153,16 @@ if (crans.length !== 1 || !/Exigence 1/.test(crans[0]) || !/médailles/.test(cra
 await choix('.tc-prendre[data-choix="go"]');
 /*
  * TON ENTRAÎNEUR (V21, js/coachs-reels.js) : un loto de trois vraies cartes de coach-saison, de trois philosophies que
- * le prestige ouvre (ce méta est un Club de quartier, donc quatre) ; chacune dit son club et sa saison, et ses trois
- * pouvoirs avec le niveau qui ouvre chacun.
+ * le prestige ouvre (ce méta est un Club de quartier, donc quatre) ; chacune dit son club et sa saison, et sa pièce de
+ * départ (V27, tranche 5 : js/pieces.js `PIECE_DU_COACH`).
  */
 const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'caisse2', 'classeur1'], jalons: {} })].coachs;
 await page.waitForFunction(() => /Ton entraîneur/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
 const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
 console.log(`0. ton entraîneur : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 60)).join(' | ')}`);
-if (offerts.length !== Math.min(3, COACHS_ATTENDUS) || !offerts.every(t => /niveau 3/.test(t) && /niveau 5/.test(t) && /\d{4}-\d{2}/.test(t))) erreurs.push(`le loto de l'entraîneur offre ${offerts.length} carte(s) (attendu : 3), ou une carte ne dit pas sa saison et ses trois pouvoirs`);
+const departs = Object.values(PIECE_DU_COACH).map(k => PIECES[k].nom);
+if (offerts.length !== Math.min(3, COACHS_ATTENDUS) || !offerts.every(t => departs.some(n => t.includes(n)) && /\d{4}-\d{2}/.test(t))) erreurs.push(`le loto de l'entraîneur offre ${offerts.length} carte(s) (attendu : 3), ou une carte ne dit pas sa saison et sa pièce de départ`);
 await choix();
 /*
  * TON JOUEUR DE CONCESSION (JP, 18 oct. : *avoir un gros joueur dès la première run, mais difficile d'en avoir
@@ -255,13 +255,14 @@ const compterFeuilles = async ou => {
   const vues = await page.$$eval('.choix-sheet', ls => ls.filter(e => e.checkVisibility({ visibilityProperty: true })).map(e => (e.closest('[id]') || {}).id || e.className));
   feuilles.vues++; if (vues.length > 1) feuilles.empilees.push(`${ou} : ${vues.join(' + ')}`);
 };
-const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et le premier duel, photographiés une fois
+const captures = { duel: 0, duelPris: 0, entracte: 0 };   // le premier choix du duel (et son plan touché), le premier entracte, photographiés une fois
+const pieces = { vues: [], prises: [], capture: false };   // V27, tranche 5 : l'écran de la pièce, photographié une fois
+const placement = { vu: false, actes: [] };   // V27, tranche 4 : le calendrier de chaque acte, photographié une fois
 const afaire = { vu: false, lots: [], histoire: '', genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
-const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
-const intentionsVues = new Set();   // V17 : les intentions lues au duel, leurs puces jugées
+const combats = [];   // V27, tranche 6 : les duels choisis, leur soir et le plan pris
+const entractes = [];   // V27, tranche 6 : les entractes du direct d'un duel, leurs boutons
+const rivalVu = { lu: null };   // V27, tranche 6 : le rival annoncé, son jeu et sa fiche
 const veilles = [];   // V17 : un gros match ouvert avant son matin
-const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le plan pris (V17)
-const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée une fois, et sa scène
 // LES SCÈNES (Jalon M) : les choix d'À faire mis en scène citent leur voix ; on garde la première de chaque genre.
 // V10 (tranche 5) : les histoires (V25 C1 : js/histoires.js), la blessure (A4) ; la route (A3) se juge à son bloc.
 const SCENES = ['cartes', 'histoire', 'blessure'];
@@ -340,17 +341,55 @@ async function lireLeVerdict() {
   const v = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg, #choixModal:not([hidden]) .choix-sheet[data-msg]')].map(a => a.textContent.replace(/\s+/g, ' ').trim()).filter(x => /Objectif (atteint|raté|levé)/.test(x)).sort((a, b) => b.length - a.length)[0] || '');
   if (v.length > suivi.verdict.length) { suivi.verdict = v; if (/ en \d+ matchs/.test(v)) await page.screenshot({ path: `${DOSSIER}/rogue-verdict-proprio.png` }); }
 }
+let runMorte = false;
 async function regler() {
   for (let i = 0; i < 30; i++) {
+    // V27 (tranche 2) : la run morte en route (0 ❤️) — l'écran de fin est ouvert : plus rien à régler, la saison s'arrête là.
+    if (runMorte || await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]')) { runMorte = true; return; }
     await guetterBords('en jouant');
     await lireLeSuivi();
     // Le gros match se vit en direct (oct.) : au vestiaire à l'entracte, sinon « Passer à la fin », puis « Continuer » ; jamais de ✕.
     if (await page.evaluate(() => { const m = document.getElementById('liveModal'); return !!m && m.style.display === 'flex'; })) {
       if (await page.$('#liveModal .live-close:not([hidden])')) erreurs.push('le direct d\'un gros match garde son ✕');
     directs++;
-    const b = await page.$('#liveModal .live-entracte') || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
+    // V27, tranche 6 : l'entracte du duel montre le pointage, leur intention qui vient et un seul bouton.
+    // Le premier duel, on le laisse filer jusqu'à son premier entracte (« Passer à la fin » saute les pauses).
+    if (!captures.entracte && !(await page.$('#liveModal .live-close:not([hidden])'))) await page.waitForSelector('#liveModal .live-periode', { timeout: 90000 }).catch(() => {});
+    const per = await page.$('#liveModal .live-periode');
+    if (per) {
+      const ent = await page.evaluate(() => ({ boutons: document.querySelectorAll('#liveModal .live-controls button').length, ligne: [...document.querySelectorAll('#liveModal .live-feed .live-ligne')].slice(0, 3).map(e => e.textContent).join(' | ') }));
+      entractes.push(ent.boutons);
+      if (ent.boutons !== 1) erreurs.push(`l'entracte du duel a ${ent.boutons} boutons`);
+      if (!/⚔/.test(ent.ligne)) erreurs.push(`l'entracte du duel ne dit pas leur intention qui vient (« ${ent.ligne.trim().slice(0, 80)} »)`);
+      if (!captures.entracte++) { await page.waitForTimeout(300); await page.screenshot({ path: `${DOSSIER}/rogue-duel-entracte.png` }); }
+    }
+    const b = per || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
       if (b) await b.click().catch(() => {});
       await page.waitForTimeout(600); continue;
+    }
+    /*
+     * LE CALENDRIER DE L'ACTE (V27, tranche 4 ; la maquette 3) : la ligne de la boîte l'ouvre au premier soir de l'acte. On le
+     * photographie une fois, on touche une case qui s'échange puis l'une des siennes (deux touchers) et on valide : l'échange
+     * se voit dessous (son renfort ou « Gratuit »), et la décision `cedule` s'écrit.
+     */
+    if (await page.$('#hubModal .ac-placer')) {
+      const n0 = (await decisionsDuCombat()).length;
+      const lu = await page.evaluate(() => ({ cases: document.querySelectorAll('#hubModal .ac-placer .ac-case').length, ok: document.querySelectorAll('#hubModal .ac-placer .ac-case.ok').length }));
+      if (lu.ok) {
+        await page.click('#hubModal .ac-placer .ac-case.ok'); await page.waitForTimeout(200);
+        const parts = await page.$$('#hubModal .ac-placer .ac-case.ok');
+        if (parts.length) { await parts[parts.length - 1].click(); await page.waitForTimeout(200); }
+      }
+      const ech = await page.$$eval('#hubModal .ac-dernier .ac-ech', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim())).catch(() => []);
+      if (!placement.vu) { placement.vu = true; await page.screenshot({ path: `${DOSSIER}/rogue-calendrier-acte.png` }); }
+      placement.actes.push(`${lu.cases} cases, ${lu.ok} échangeables${ech.length ? ` · ${ech.join(' ⇄ ')}` : ''}`);
+      if (!lu.ok) erreurs.push('le calendrier de l\'acte n\'allume aucune case échangeable');
+      if (lu.ok && ech.length !== 2) erreurs.push('deux touchers n\'échangent pas deux adversaires');
+      await page.click('#hubModal .ac-placer .ac-valider');
+      await attendreDecisions(n0);
+      const d = (await decisionsDuCombat()).slice(n0).find(x => x.cedule);
+      if (!d || (lu.ok && !d.cedule.length)) erreurs.push('valider le calendrier n\'écrit pas la décision du placement');
+      continue;
     }
     // Rien ne passe par-dessus le Bureau après « Jour suivant » (oct., JP : *j'hais le modal avec le score de la veille*).
     if (await page.$('.passage')) erreurs.push('le bandeau télé du passage de la journée est revenu');
@@ -380,143 +419,86 @@ async function regler() {
       }
       await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue;
     }
-    if (await page.$('#choixModal:not([hidden]) .duel-prop')) {
+    /*
+     * LE RIVAL ANNONCÉ (V27, tranches 2 et 6 ; la maquette 2) : sa plaque, son rang en force, son jeu — son style lu dans ses
+     * vraies stats et son intention dominante —, puis ses trois lignes contre les tiennes, rang contre rang. Photographié une
+     * fois ; la ligne de la boîte se règle ensuite comme les autres.
+     */
+    if (!rivalVu.lu && await page.$('#choixModal:not([hidden]) .rival-annonce')) {
+      rivalVu.lu = await page.$eval('#choixModal', m => ({ jeu: [...m.querySelectorAll('.rival-jeu > span')].map(x => x.textContent.trim()),
+        lignes: [...m.querySelectorAll('.rival-fiche .rival-l')].map(l => l.querySelectorAll(':scope > span').length) }));
+      await page.waitForTimeout(400); await page.screenshot({ path: `${DOSSIER}/rogue-rival.png` });
+      if (rivalVu.lu.jeu.length !== 2 || !/^Son jeu : (des tireurs|des durs|un gros gardien)$/.test(rivalVu.lu.jeu[0])) erreurs.push(`le rival annoncé ne montre pas son style et son intention dominante (« ${rivalVu.lu.jeu.join(' | ')} »)`);
+      if (rivalVu.lu.lignes.length !== 3 || rivalVu.lu.lignes.some(n => n !== 2)) erreurs.push(`la fiche du rival n'a pas ses trois lignes, rang contre rang (${rivalVu.lu.lignes.join(', ')})`);
+    }
+    if (await page.$('#choixModal:not([hidden]) .dl-sheet')) {
       /*
-       * L'ÉCRAN DE COMBAT (V5) : l'avant-match n'est plus un arrêt à part. Dans un gros match, l'écran dit l'enjeu
-       * (les vrais chiffres de la run) et offre deux cartes de vestiaire ; on garde la première, et les plans de ton adjoint
-       * attendent ce choix (V17). Le plan touché émet l'avant-match puis la période, au même soir, dans cet ordre.
+       * LE DUEL À UN CHOIX (V27, tranche 6 ; la maquette 4) : les deux plaques, ta chance, leur jeu, deux ou trois plans de ton
+       * banc en vraies cartes (leur gain et leur prix du match dessous), « Ton match », ce que le duel rapporte et coûte, « Au
+       * match ». On prend tour à tour le premier plan, le deuxième, puis Ton match ; la décision du soir porte ce plan.
        */
-      const vest = await page.$$('#choixModal .main-vest:not([aria-disabled="true"])');
       // LE JOUR DU GROS MATCH, PAS LA VEILLE (V17) : l'écran s'ouvre le matin où il se joue.
       const journeeOuverte = ((await lireSauvegarde()).partie || {}).journee;
-      const enjeu = ((await page.textContent('#choixModal .main-enjeu').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
-      if (enjeu) {
-        const B = ((await lireSauvegarde()).partie || {}).rogue?.bareme || (await lireSauvegarde()).rogue?.bareme || null;
-        // V8 : un rival choisi paie son butin, un multiple de la prime de la run (`BUTIN_RIVAL`) ; une bête noire, la prime.
-        const primes = [1, ...BUTIN_RIVAL].map(x => Math.round(B ? B.grosMatch * x : 0));
-        if (B && !primes.some(x => enjeu.includes(`Victoire : +${x} 🪙`))) erreurs.push(`l'enjeu du combat (« ${enjeu} ») ne dit ni la prime de la run (+${B.grosMatch} 🪙) ni le butin d'un rival`);
-        if (!/Défaite : 😵 sonnés \d+ matchs/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas la défaite (« ${enjeu} »)`);
-        if (vest.length && vest.length !== 2) erreurs.push(`le combat offre ${vest.length} carte(s) de vestiaire au lieu de deux`);
-        if (vest.length && !(await page.$('#choixModal .duel-prop[aria-disabled="true"]'))) erreurs.push('les plans de l\'adjoint ne demandent pas de garder une carte de vestiaire');
-        // Le premier combat, photographié deux fois : l'intention en haut, puis la carte de vestiaire gardée.
-        const premierCombat = !captures.combat++;
-        if (premierCombat) {
-          await page.waitForTimeout(600);
-          await page.evaluate(() => document.querySelectorAll('#choixModal, #choixModal .choix-sheet, #choixModal .choix-corps').forEach(e => { e.scrollTop = 0; }));
-          await page.screenshot({ path: `${DOSSIER}/rogue-combat.png` });
-        }
-        // V25 B2 : la carte se garde par « Garder » dessous (toucher la carte la retourne).
-        if (vest.length) { await (await vest[0].$('.tc-prendre')).click({ timeout: 10000 }).catch(async e => { console.log(`la carte de vestiaire bouge :\n${await sonde(vest[0])}`); await page.screenshot({ path: `${DOSSIER}/rogue-vest-bouge.png` }); throw e; }); await page.waitForTimeout(250); }
-        if (premierCombat) await page.screenshot({ path: `${DOSSIER}/rogue-combat-vestiaire.png` });
-      }
-      /*
-       * SANS MAIN (V13-2, docs/refonte-v13.md) : le duel se joue à ton tableau ; ni cartes de match, ni élan, ni « Mon deck ».
-       */
-      const resteDeMain = await page.$$eval('#choixModal :is(.main-carte, .main-energie, .main-orbe, .main-deck, .main-reprendre, .deck-grille, .duel-cartes)', e => e.map(x => x.className.split(' ').filter(c => /^(main|deck|duel)-/.test(c))[0] || x.tagName));
-      if (resteDeMain.length) erreurs.push(`l'écran du duel montre encore la main : ${[...new Set(resteDeMain)].join(', ')}`);
-      if (/(^|[^\p{L}])élan([^\p{L}]|$)|Mon deck/iu.test(((await page.textContent('#choixModal .choix-sheet').catch(() => '')) || ''))) erreurs.push('l\'écran du duel parle encore d\'élan ou de deck');
-      /*
-       * LE DUEL (V9 ; V17, l'adjoint) : chaque période dit leur intention ; ton adjoint parle (sa voix, sa réplique entre
-       * guillemets, le fait) et propose deux ou trois plans en vraies stats de la période, plus « Garder ». On prend
-       * tour à tour sa première idée, sa deuxième, puis on garde ; la décision porte sa période et ce plan.
-       */
-      const duel = await page.$('#choixModal .duel-intention');
-      let pris = null;
-      if (duel) {
-        const fait = ((await page.textContent('#choixModal .duel-fait').catch(() => '')) || '').trim();
-        if (!fait) erreurs.push('le duel n\'annonce pas leur intention');
-        const lu = await page.$eval('#choixModal', m => ({
-          voix: (m.querySelector('.duel-adjoint .scene-de') || {}).textContent || '', mot: ((m.querySelector('.duel-adjoint .scene-mot') || {}).textContent || '').trim(),
-          props: [...m.querySelectorAll('.duel-prop')].map(b => ({ cle: b.dataset.prop, puces: b.querySelectorAll('.puce, .impact-l').length, on: b.getAttribute('aria-disabled') === 'true' })),
-          tableau: !!m.querySelector('.duel-tableau, .duel-tab-s, .duel-geste, .duel-verdict'),
-        }));
-        if (!/adjoint/i.test(lu.voix) || !/^«.+»$/.test(lu.mot)) erreurs.push(`l'adjoint ne parle pas au duel (« ${lu.voix} ${lu.mot} »)`);
-        const idees = lu.props.filter(x => x.cle !== 'garder');
-        if (idees.length < 2 || idees.length > 3 || !lu.props.some(x => x.cle === 'garder')) erreurs.push(`l'adjoint propose ${idees.length} plan(s) (${lu.props.map(x => x.cle).join(', ')}), et « Garder »`);
-        if (idees.some(x => !x.puces)) erreurs.push('un plan de l\'adjoint ne dit pas ses vraies stats');
-        if (lu.tableau) erreurs.push('le tableau du duel (systèmes, portes, geste) est encore à l\'écran');
-        /*
-         * LEURS PUCES (V17) : leur intention se lit comme ton plan, en vraies stats de la période, le canal qui la définit
-         * d'abord, ce qui est à eux sous « Eux : ». 🦂 : tes punitions ; ⛔ : tes tirs ; 🐗 : leurs tirs ; 🦈 et 🥷 : ton joueur visé.
-         */
-        const pu = await page.$eval('#choixModal .duel-intention', e => ({ etape: (e.querySelector('.main-etape') || {}).textContent || '', puces: [...e.querySelectorAll('.puce')].map(x => x.textContent.trim()) }));
-        const DEF = { '🦂': /^≈ \+.* punitions? pour toi/, '⛔': /^≈ −.* tirs? pour toi/, '🐗': /^Eux : ≈ \+.* tirs?/, '🦈': /: moins de tirs, des coups/, '🥷': /: moins de tirs, moins de chances/ };
-        const ico = Object.keys(DEF).find(k => pu.etape.includes(k));
-        intentionsVues.add(ico || '?');
-        // Un canal à sa borne (`DISCIPLINE_MAX` : un club déjà indiscipliné) ne bouge plus : la puce qui le définit manque alors, et rien d'autre ne passe devant elle.
-        const SON_CANAL = { '🦂': /punitions? pour toi/, '⛔': /tirs? pour toi/, '🐗': /^Eux : .*tirs?/, '🦈': /moins de tirs, des coups/, '🥷': /moins de tirs, moins de chances/ };
-        const absent = ico && !pu.puces.some(x => SON_CANAL[ico].test(x));
-        if (!ico || !pu.puces.length || (!absent && !DEF[ico].test(pu.puces[0]))) erreurs.push(`leur intention (${pu.etape.trim()}) ne dit pas d'abord ce qui la définit : ${pu.puces.join(' | ') || 'aucune puce'}`);
-        if (ico && ico !== '🥷' && !pu.puces.some(x => x.startsWith('Eux : '))) erreurs.push(`leur intention ${ico} ne dit pas ce qu'elle leur fait (« Eux : ») : ${pu.puces.join(' | ')}`);
-        if (pu.puces.some(x => /%/.test(x))) erreurs.push(`leur intention se dit en % : ${pu.puces.join(' | ')}`);
-        pris = periodes.length % 3 === 2 ? 'garder' : (idees[periodes.length % 3] || idees[0] || { cle: 'garder' }).cle;
-        /* LE GROS MATCH PLUS COURT (Jalon M, B3) : l'entracte de l'adjoint tient à 1,3 écran au plus, ses plans à l'écran. */
-        const h = await page.$eval('#choixModal', m => {
-          const els = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].filter(Boolean);
-          const r = Math.max(...els.map(e => e.scrollHeight / Math.max(1, e.clientHeight)));
-          return { r };
-        });
-        duelCourt.n++; duelCourt.max = Math.max(duelCourt.max, h.r);
-        if (h.r > 1.3) duelCourt.longs++;
-        if (!captures.duel++) { await page.waitForTimeout(400); await page.screenshot({ path: `${DOSSIER}/rogue-duel.png` }); }
-        if (/entracte/i.test(((await page.textContent('#choixModal .choix-titre').catch(() => '')) || '')) && !captures.entracte++) {
-          await page.waitForTimeout(300); await page.screenshot({ path: `${DOSSIER}/rogue-duel-entracte.png` });
-        }
-      }
-      /*
-       * LA MISE DOUBLÉE AU DOIGT (audit mobile, oct.) : touchée, elle prend l'or et sa coche — le survol collé d'un
-       * toucher lui donnait le fond sombre d'un bouton éteint. Touchée encore, elle se laisse (le robot ne double pas).
-       */
-      if (!mise.vue && await page.$('#choixModal .duel-snap')) {
-        mise.vue = true;
-        // LA SCÈNE (Jalon M, A1) : le capitaine la demande, entre guillemets, et le fait nomme le rival.
-        const sc = await page.$eval('#choixModal', m => ({ voix: (m.querySelector('.duel-mise .scene-de') || {}).textContent || '',
-          mot: (m.querySelector('.duel-mise .scene-mot') || {}).textContent || '', fait: (m.querySelector('.duel-mise .scene-fait') || {}).textContent || '',
-          rival: ((m.querySelector('.choix-irl') || {}).textContent || '').replace(/^Contre\s+/, '').trim() }));
-        mise.scene = `${sc.voix.trim()} ${sc.mot.trim()} — ${sc.fait.trim()}`;
-        if (!/^«.+»$/.test(sc.mot.trim()) || !/capitaine/i.test(sc.voix)) erreurs.push(`la mise doublée ne cite pas le capitaine (« ${sc.voix} ${sc.mot} »)`);
-        if (!sc.rival || !sc.fait.includes(sc.rival)) erreurs.push(`le fait de la mise doublée ne nomme pas le rival « ${sc.rival} » (« ${sc.fait} »)`);
-        await page.tap('#choixModal .duel-snap'); await page.waitForTimeout(300);
-        const lu = await page.$eval('#choixModal .duel-snap', b => {
-          const t = document.createElement('i'); t.style.background = 'var(--or)'; document.body.appendChild(t);
-          const or = getComputedStyle(t).backgroundColor; t.remove();
-          return { on: b.classList.contains('on'), fond: getComputedStyle(b).backgroundColor, or, txt: b.textContent.trim() };
-        });
-        mise.lu = `${lu.txt} · ${lu.fond}`;
-        if (!lu.on || !lu.txt.startsWith('✓')) erreurs.push(`la mise doublée touchée ne se coche pas (« ${lu.txt} »)`);
-        if (lu.fond !== lu.or) erreurs.push(`la mise doublée touchée n'a pas le fond de l'or (${lu.fond}, l'or ${lu.or})`);
-        await page.tap('#choixModal .duel-snap'); await page.waitForTimeout(300);
-        if (await page.$('#choixModal .duel-snap.on')) erreurs.push('la mise doublée touchée deux fois reste doublée');
-      }
-      const avantJouer = await decisionsDuCombat(), mains0 = avantJouer.filter(d => d.main).length;
-      await page.click(`#choixModal .duel-prop[data-prop="${pris || 'garder'}"] .tc-prendre`); await page.waitForTimeout(1500);
-      // Un dé à lancer d'abord : la décision s'écrit après lui.
-      if (!(await page.$('#choixModal:not([hidden]) .de-scene'))) await attendreDecisions(avantJouer.length);
-      if (duel && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
-        const ds = await decisionsDuCombat();
-        const dn = ds.slice().reverse().find(d => d.main && d.duel);
-        if (!dn) erreurs.push('la période du duel jouée n\'entre pas dans la sauvegarde');
-        else {
-          periodes.push(`${dn.duel.p + 1}:${pris}`);
-          if (dn.duel.p === 0 && journeeOuverte != null && dn.jour !== journeeOuverte) { veilles.push(`J${dn.jour + 1} ouvert à la journée ${journeeOuverte}`); }
-          const cle = dn.duel.plan ? dn.duel.plan.cle : 'garder';
-          if (cle !== pris) erreurs.push(`le plan « ${pris} » n'entre pas dans la décision de la période (${cle})`);
-          if (dn.duel.reponse || dn.duel.tactiques) erreurs.push('la période du duel part encore avec un geste ou un tableau');
-          if (dn.main.tirage || (dn.main.jouees || []).length) erreurs.push(`la période du duel part encore avec une main (${JSON.stringify(dn.main)})`);
-        }
-      }
-      if (enjeu && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
-        const ds = await decisionsDuCombat();
-        const iM = ds.findLastIndex(d => d.main), iA = iM >= 0 ? ds.findLastIndex(d => d.avant && d.jour === ds[iM].jour) : -1;
-        combats.push(iM >= 0 ? `J${ds[iM].jour + 1}${iA >= 0 ? ` ${ds[iA].avant.cle}:${ds[iA].avant.choix}` : ''}` : '?');
-        if (ds.filter(d => d.main).length !== mains0 + 1) erreurs.push('le combat confirmé n\'enregistre pas la main');
-        else if (vest.length && (iA < 0 || iA > iM)) erreurs.push('le combat n\'enregistre pas l\'avant-match puis la main, au même soir');
+      const lu = await page.$eval('#choixModal .dl-sheet', m => ({
+        plaques: m.querySelectorAll('.dl-plaque').length, prono: !!m.querySelector('.dl-prono'), jeu: ((m.querySelector('.dl-jeu') || {}).textContent || '').replace(/\s+/g, ' ').trim(),
+        k: ((m.querySelector('.dl-k b') || {}).textContent || '').trim(),
+        plans: [...m.querySelectorAll('[data-plan]')].map(b => ({ cle: b.dataset.plan, ligne: [...b.querySelectorAll('.pl-carte-l span')].map(x => x.textContent.trim()), carte: !!b.querySelector('.carton') })),
+        enjeu: ((m.querySelector('.dl-enjeu') || {}).textContent || '').replace(/\s+/g, ' ').trim(), tonMatch: !!m.querySelector('.dl-tonmatch'),
+        vieux: [...m.querySelectorAll('.duel-prop, .duel-snap, .duel-mise, .duel-intention, .main-enjeu, .main-vest')].length,
+      }));
+      if (lu.plaques !== 2 || !lu.tonMatch) erreurs.push(`l'écran du duel n'a pas ses deux plaques et « Ton match » (${JSON.stringify(lu)})`);
+      if (!/^Leur jeu : /.test(lu.jeu)) erreurs.push(`l'écran du duel ne montre pas leur jeu (« ${lu.jeu} »)`);
+      if (lu.plans.length < 2 || lu.plans.length > 3 || lu.plans.some(x => !x.carte || !x.ligne.length)) erreurs.push(`le banc propose ${lu.plans.length} plan(s), chacun sa carte et ses stats du match (${JSON.stringify(lu.plans)})`);
+      if (lu.vieux) erreurs.push(`l'écran du duel montre encore l'adjoint par période, la mise ou le vestiaire (${lu.vieux})`);
+      if (/rival/i.test(lu.k) && (!/1 pièce sur 3/.test(lu.enjeu) || !/médailles/.test(lu.enjeu) || /🪙|jeton/.test(lu.enjeu))) erreurs.push(`l'enjeu du rival ne dit pas ce qu'il paie (« ${lu.enjeu} »)`);
+      if (!/Sonnés \d+ matchs/.test(lu.enjeu)) erreurs.push(`l'enjeu du duel ne dit pas la défaite (« ${lu.enjeu} »)`);
+      /* L'ÉCRAN DU CHOIX TIENT : 1,3 écran au plus (le Jalon M, B3), ses plans à l'écran. */
+      const h = await page.$eval('#choixModal', m => Math.max(...[m, m.querySelector('.choix-sheet')].filter(Boolean).map(e => e.scrollHeight / Math.max(1, e.clientHeight))));
+      duelCourt.n++; duelCourt.max = Math.max(duelCourt.max, h);
+      if (h > 1.3) duelCourt.longs++;
+      if (!captures.duel++) { await page.waitForTimeout(500); await page.screenshot({ path: `${DOSSIER}/rogue-duel.png` }); }
+      const pris = combats.length % 3 === 2 ? null : (lu.plans[combats.length % 3] || lu.plans[0] || {}).cle || null;
+      if (pris) { await page.click(`#choixModal [data-plan="${pris}"]`); await page.waitForTimeout(200); }
+      if (pris && !(await page.$(`#choixModal [data-plan="${pris}"][aria-pressed="true"]`))) erreurs.push(`toucher le plan « ${pris} » ne le choisit pas`);
+      if (pris && !captures.duelPris++) await page.screenshot({ path: `${DOSSIER}/rogue-duel-plan.png` });
+      const avantJouer = await decisionsDuCombat();
+      await page.click('#choixModal .dl-jouer'); await page.waitForTimeout(1500);
+      await attendreDecisions(avantJouer.length);
+      const dn = (await decisionsDuCombat()).slice(avantJouer.length).find(d => d.main && d.duel);
+      if (!dn) erreurs.push('le choix du duel n\'entre pas dans la sauvegarde');
+      else {
+        combats.push(`J${dn.jour + 1}:${pris || 'match'}`);
+        if (journeeOuverte != null && dn.jour !== journeeOuverte) veilles.push(`J${dn.jour + 1} ouvert à la journée ${journeeOuverte}`);
+        if (dn.duel.p !== 0 || (dn.duel.plan ? dn.duel.plan.cle : null) !== pris) erreurs.push(`le plan « ${pris || 'Ton match'} » n'entre pas dans la décision du soir (${JSON.stringify(dn.duel)})`);
+        if (dn.duel.snap != null || dn.duel.reponse || (dn.main.jouees || []).length) erreurs.push(`le choix du duel part encore avec une mise, un geste ou une main (${JSON.stringify(dn)})`);
       }
       continue;
     }
-    // Une main de palier (des cartes .tc) : la première carte jouable.
-    const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc [data-choix]');
-    if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
+    /*
+     * PRENDRE UNE PIÈCE (V27, tranche 5 ; la maquette 7) : la bande de qui la donne et « Choisis ta pièce », les pièces en vraies
+     * cartes avec leur ligne ; banc plein, tes cinq pièces sous « Qui sort ? » et la bande de l'échange. On touche la première,
+     * celle qui sort si le banc est plein, puis « Prendre » : la décision porte la pièce (et `sort`).
+     */
+    if (await page.$('#choixModal:not([hidden]) .pc-sheet')) {
+      const lu = await page.evaluate(() => { const m = document.querySelector('#choixModal .pc-sheet');
+        return { titre: (m.querySelector('.pc-titre') || {}).textContent || '', offres: m.querySelectorAll('.pc-offres [data-pc] .carton').length, lignes: m.querySelectorAll('.pc-offres .pl-carte-l span').length,
+          banc: m.querySelectorAll('.pc-banc [data-sort] .carton').length, passer: !!m.querySelector('.pc-passer') }; });
+      pieces.vues.push(`${lu.titre} : ${lu.offres} offertes${lu.banc ? `, banc plein (${lu.banc})` : ''}`);
+      if (!lu.offres || lu.lignes !== lu.offres || (lu.banc && lu.banc !== CASES_DU_BANC)) erreurs.push(`l'écran de la pièce : ${JSON.stringify(lu)}`);
+      await page.click('#choixModal .pc-offres [data-pc]');
+      if (lu.banc) await page.click('#choixModal .pc-banc [data-sort]:last-child');
+      await page.waitForTimeout(200);
+      if (!pieces.capture) { pieces.capture = true; await page.screenshot({ path: `${DOSSIER}/rogue-piece.png` }); }
+      const n0 = (await decisionsDuCombat()).length;
+      await page.click('#choixModal .pc-prendre:not([disabled])').catch(() => erreurs.push('« Prendre » reste éteint sur l\'écran de la pièce'));
+      await page.waitForTimeout(800);
+      const d = (await decisionsDuCombat()).slice(n0).find(x => x.piece);
+      if (!d || !PIECES[d.piece.cle] || (lu.banc && !d.piece.sort)) erreurs.push(`la pièce prise n'écrit pas sa décision (${JSON.stringify(d || null)})`);
+      else pieces.prises.push(`${PIECES[d.piece.cle].ico}${d.piece.sort ? ` (${PIECES[d.piece.sort].ico} part)` : ''}`);
+      continue;
+    }
+    // V27, tranche 5b : la main du palier est partie ; si elle s'ouvre encore, c'est une erreur.
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]')) { erreurs.push("une main de palier s'ouvre encore (partie à la V27, tranche 5b)"); await page.click('#choixModal .choix-fermer').catch(() => {}); await page.waitForTimeout(300); continue; }
     // Un joueur offert (S78) : « Signer », puis « qui sort ? » — en liste (Jalon U), puis « Où joue ? » : une case, puis « Confirmer ».
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
     // Jalon R : la liste de signature (un pack rouvert de la boîte, un ballottage) : « Signer », puis « qui sort ? » (U18).
@@ -630,7 +612,7 @@ async function regler() {
       const mot = await t.evaluate(b => ({ txt: b.textContent.trim(), h: b.getBoundingClientRect().height }));
       if (mot.h > 60) barreA.longs.push(`« ${mot.txt.slice(0, 40)} » (${Math.round(mot.h)} px)`);
       await t.click({ timeout: 8000 }); await page.waitForTimeout(900);
-      const ou = await page.evaluate(() => (document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden])') ? 'porte' : ''));
+      const ou = await page.evaluate(() => (document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden]), #hubModal .ac-placer') ? 'porte' : ''));
       if (ou) barreA.vus++;
       if (!ou) afaire.sansPage.push(mot.txt.slice(0, 40));
       continue;
@@ -664,44 +646,41 @@ const versLOnglet = async (sec, pg) => {
   await page.waitForTimeout(400);
 };
 await versLOnglet('bureau', 'proprio');
-// Nov. 2026 : le mandat en mots vit au Proprio (`.pr-mandat`), la bande de Ce soir n'en garde que ton rang.
-const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat').catch(() => '');
-// Le contenu, de zéro (4 nov. 2026) : la suite du mandat (« Puis : … ») vit à l'infobulle du bloc, pas dans le texte.
-const suiteDuMandat = await page.getAttribute('#hubModal .af-onglet[data-maison="proprio"] .pr-mandat', 'title').catch(() => '');
+// V27 (tranche 2) : le contrôle de l'acte et les cœurs vivent au Proprio (`.pr-coeurs`) ; la plaque de Ce soir n'en garde que ton rang.
+const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .pr-coeurs').catch(() => '');
+const suiteDuMandat = await page.getAttribute('#hubModal .af-onglet[data-maison="proprio"] .pr-coeurs', 'title').catch(() => '');
 console.log(`5. le proprio : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
-if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le mandat de la run');
-// LE CONTENU PERMANENT (V12-2 ; nov. 2026 : la route des deux semaines est au Calendrier, plus chez le Coach) ; le Bureau ne la redit pas.
+if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le contrôle de l\'acte');
+// LE CONTENU PERMANENT (V12-2 ; V27, tranche 4 : le Calendrier est la saison en cases, un acte à la fois) ; ni le Coach ni le Bureau ne la redisent.
 await versLOnglet('ligue', 'saison');
-const routeOnglet = await page.$('#hubModal .hub-volet .bu-route');
+const casesCal = await page.$$eval('#hubModal .hub-volet .ac-grille .ac-case', e => e.length).catch(() => 0);
 await versLOnglet('club', 'entraineur');
-const routeCoach = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .bu-route');
+const routeCoach = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .ac-grille');
 await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
-const routeBoite = await page.$('#hubModal .hub-volet:not(:has(.af-onglet)) .bu-route, #hubModal .hub-carte .hub-etat');
-console.log(`5v. les sous-onglets : la route ${routeOnglet ? 'au Calendrier' : 'absente'}${routeCoach ? ', et encore chez le Coach' : ''} · le Bureau ${routeBoite ? 'la redit' : 'ne la redit pas'}`);
-if (!routeOnglet) erreurs.push('le Calendrier ne montre pas les deux semaines qui viennent');
-if (routeCoach) erreurs.push('le Coach montre encore la route (elle est au Calendrier)');
-if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leur sous-onglet');
+const routeBoite = await page.$('#hubModal .hub-volet:not(:has(.af-onglet)) .ac-grille, #hubModal .hub-carte .hub-etat');
+console.log(`5v. les sous-onglets : l'acte en ${casesCal} cases au Calendrier${routeCoach ? ', et encore chez le Coach' : ''} · le Bureau ${routeBoite ? 'la redit' : 'ne la redit pas'}`);
+if (casesCal < 20) erreurs.push('le Calendrier ne montre pas l\'acte en cases');
+if (routeCoach) erreurs.push('le Coach montre encore le calendrier (il est au Calendrier)');
+if (routeBoite) erreurs.push('le Bureau redit le calendrier ou le mandat, qui ont leur sous-onglet');
 {
-  // TON COACH, UN PERSONNAGE (V21) : au sous-onglet de l'entraîneur (V12-2) — son niveau, son expérience, ses trois pouvoirs,
-  // le premier ouvert, les deux autres au niveau qui les ouvre.
+  // TON COACH ET TON BANC (V27, tranche 5) : au sous-onglet de l'entraîneur — sa carte, puis ton banc de cinq cases, la pièce
+  // de départ dans la première, les autres libres.
   await versLOnglet('club', 'entraineur');
   await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
   const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-carte .carton:not(.tc-verso)').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
-  const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
-  const pouvoirs = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv:not(.adj)', e => e.map(x => ({ nom: (x.querySelector('.pv-nom b') || {}).textContent || '', ferme: x.classList.contains('ferme'), etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
-  const jauge = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .pl-jauge');
+  const cases = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .pv-rang > .pl-carte', e => e.map(x => ({ piece: !!x.querySelector('.carton'), nom: (x.querySelector('.tc-nom') || {}).textContent || '', etat: (x.querySelector('.pv-etat') || {}).textContent || '' }))).catch(() => []);
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
   console.log(`5c. ton coach : ${coachs || '(absent)'} · décision du jour 0 : ${d0 ? JSON.stringify(d0.coach) : '(aucune)'}`);
-  if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.talents)) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec son expérience et ses talents');
+  if (!d0 || !d0.coach.cle || !Array.isArray(d0.coach.banc) || d0.coach.banc.join() !== PIECE_DU_COACH[d0.coach.cle]) erreurs.push('le coach de la run n\'est pas posé au jour 0 avec sa pièce de départ');
   if (((sv0.partie || {}).decisions || []).some(x => x.patron)) erreurs.push('une décision de personnel (`patron`) reste dans la partie');
-  console.log(`5f. ses pouvoirs : ${pouvoirs.map(x => `${x.nom} (${x.etat})`).join(' | ') || '(aucun)'}`);
-  if (!/^Niveau\s?[1-5]$/.test(rangCoach) || !jauge) erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le niveau du coach et son expérience (« ${coachs} », « ${rangCoach} »)`);
-  if (pouvoirs.length !== 3 || pouvoirs[0].ferme || !pouvoirs.slice(1).every(x => x.ferme === /Niveau [35]/.test(x.etat))) erreurs.push(`le coach ne montre pas ses trois pouvoirs, le premier ouvert (${JSON.stringify(pouvoirs)})`);
+  console.log(`5f. ton banc : ${cases.map(x => (x.piece ? `${x.nom} (${x.etat})` : 'libre')).join(' | ') || '(aucun)'}`);
+  if (!coachs) erreurs.push('le sous-onglet de l\'entraîneur ne montre pas la carte du coach');
+  if (cases.length !== CASES_DU_BANC || !cases[0].piece || (d0 && cases[0].nom !== PIECES[PIECE_DU_COACH[d0.coach.cle]].nom)) erreurs.push(`le Coach ne montre pas ton banc de ${CASES_DU_BANC} cases, la pièce de départ dans la première (${JSON.stringify(cases)})`);
 }
-if (!/le mandat/.test(run || '')) erreurs.push('le Proprio ne dit pas le mandat de la run');
-if (!/Puis :/.test(suiteDuMandat || '')) erreurs.push('le mandat au Proprio ne dit pas sa suite (« Puis : … », à l\'infobulle)');
+if (!/Acte I+ · le contrôle/.test(run || '')) erreurs.push('le Proprio ne dit pas l\'acte et son contrôle');
+if (!/Rater le contrôle/.test(suiteDuMandat || '')) erreurs.push('le contrôle au Proprio ne dit pas ce qu\'il coûte (à l\'infobulle)');
 /*
  * « SEMAINE SUIVANTE » (V4) remplace « Jusqu'à la prochaine décision » : elle joue les journées une à une jusqu'à
  * la fin de la semaine, et s'arrête avant sur ce qui demande le joueur. On attend qu'elle ait fini (le bouton se
@@ -751,15 +730,15 @@ async function unJour() {
   }
   console.log(`5e. le jour par jour : ${vus.join(' · ') || '(aucune journée)'}`);
 }
-// Avancer un peu pour gagner des jetons (des semaines : V4). V5 : « Jusqu'à lundi » ne s'arrête plus en route, cinq
-// semaines suffisent — et la boutique de la première run montre encore ses quatre packs (avant le 20e match).
+// Avancer un peu pour gagner des jetons (des semaines : V4). V5 : « Jusqu'à lundi » ne s'arrête plus en route ; V27
+// (tranche 3) : il s'arrête au nœud de la boutique, qui ferme à ton match suivant.
 for (let i = 0; i < 5; i++) {
   await regler();
   await prochaineDecision();
 }
 await regler();
 await versMarche('boutique'); await page.waitForTimeout(200);
-const avant = (await page.textContent('#pageMarcheCorps .hub-page[data-genre="boutique"] .pk-tete')).replace(/\s+/g, ' ').trim();
+const avant = (await page.textContent('#pageMarcheCorps .hub-page[data-genre="boutique"] .mk-bande')).replace(/\s+/g, ' ').trim();
 await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(200);
 const jauge = async () => (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge()}`);
@@ -774,7 +753,8 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
   const svB = await lireSauvegarde();
   const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;
   const lu = [...bareme.matchAll(/(\d+)/g)].map(m => Number(m[1]));
-  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.grosMatch, B.objectif, B.serie] : null;
+  // V27, tranche 3 : la prime de série est en médailles ; le barème des jetons s'arrête à l'objectif du proprio.
+  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.objectif] : null;
   console.log(`5b. le barème à la boutique : ${bareme.replace(/\s+/g, ' ').trim() || '(absent)'} · attendu ${attendu ? attendu.join('/') : '?'}`);
   if (!bareme) erreurs.push('la boutique n\'écrit pas le barème des jetons de la run');
   else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème à la boutique (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
@@ -800,11 +780,9 @@ const dechirer = async () => {
 };
 const acheter = async (pack, capture) => {
   await versMarche('boutique');
-  await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-  // V5 : la boutique est ouverte en tout temps (JP : *accès au store en tout temps*).
-  if (await page.$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-mot', p => p.textContent.trim().startsWith('🔒')).catch(() => false)) erreurs.push('la boutique est fermée');
-  // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; « Voir les N packs » montre le reste.
-  if (!(await page.$(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`)) && await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout')) { await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tout'); await page.waitForTimeout(300); }
+  await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
+  // V27, tranche 3 : la boutique n'ouvre qu'à ses nœuds ; l'essai l'a amenée à un nœud ouvert.
+  if (await page.$('#pageMarche .hub-page[data-genre="boutique"] .mk-bande.ferme')) erreurs.push('la boutique est fermée au nœud');
   await page.click(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`);
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-fiche');
   // LA FICHE SE POSE SUR L'ÉCRAN (1.0, oct.) : JP la trouvait au bas des rayons, hors écran.
@@ -818,47 +796,58 @@ const acheter = async (pack, capture) => {
   await dechirer();
   return true;
 };
+/*
+ * LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; docs/refonte-v27-3.md). Entre deux nœuds, elle est fermée et dit dans combien de
+ * matchs elle rouvre, sans un pack ; l'essai avance jour par jour jusqu'au nœud suivant (l'avance s'y arrête), où elle
+ * s'ouvre : la bande du marché (tes jetons, quatre pastilles d'achat, jusqu'où tu signes), trois pièces en vraies cartes,
+ * les packs ouverts seulement, chacun à son prix de base.
+ */
+const joues = () => page.evaluate(() => { const G = window.cap82.G; return ((G.ligue.you && G.ligue.you._jours) || []).filter(j => j < G.journee).length; });
+const NOEUDS = [0, 14, 27, 41, 54, 68, 82];
 await versMarche('boutique');
-await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
+await verifMarche('la boutique au Marché');
+{
+  const k0 = await joues();
+  const ferme = !!(await page.$('#pageMarche .hub-page[data-genre="boutique"] .mk-bande.ferme'));
+  const packsFerme = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack]', e => e.length);
+  const bande = (await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .mk-bande')).replace(/\s+/g, ' ').trim();
+  console.log(`7. après ${k0} matchs, la boutique ${ferme ? 'fermée' : 'ouverte'} : « ${bande} »`);
+  if (ferme !== !NOEUDS.includes(k0)) erreurs.push(`après ${k0} matchs, la boutique devrait être ${NOEUDS.includes(k0) ? 'ouverte' : 'fermée'}`);
+  if (ferme && (packsFerme || !new RegExp(`Dans ${NOEUDS.find(k => k > k0) - k0} match`).test(bande))) erreurs.push(`la boutique fermée montre ${packsFerme} pack(s) ou ne dit pas quand elle rouvre : « ${bande} »`);
+  if (ferme) await page.screenshot({ path: `${DOSSIER}/rogue-boutique-fermee.png` });
+  // Jusqu'au nœud suivant, un jour à la fois (l'avance s'arrête au nœud).
+  for (let i = 0; i < 40 && !NOEUDS.includes(await joues()); i++) { await auBureau(); await regler(); if (!(await unJour())) await prochaineDecision(); }
+  await regler();
+}
+await versMarche('boutique');
+await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
 await verifMarche('la boutique ouverte');
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
-const nPacks = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
-// Nov. 2026 : la boutique ne dit que tes jetons et jusqu'où tu signes, dans son en-tête ; la masse salariale est au Proprio.
-const espace = ((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete').catch(() => '')) || '').match(/tu signes jusqu'à [^·]+/)?.[0] || '';
-// 1.0 (R5) : à la première run, quatre packs pour commencer, un bouton « Voir les N packs », et un pack impayable qui dit ce qui manque.
-const voirTout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
-console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}${voirTout ? ` · « ${(await voirTout.textContent()).trim()} »` : ''}`);
+const nPacks = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .mk-rangee .pk-tuile[data-pack]', e => e.length);
+// La bande dit tes jetons et jusqu'où tu signes ; la masse salariale est au Proprio.
+const espace = ((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .mk-bande').catch(() => '')) || '').match(/Tu signes jusqu'à .+/)?.[0] || '';
+const ouverte = await page.evaluate(() => { const m = document.querySelector('#pageMarche .hub-page[data-genre="boutique"]');
+  return { k: m.querySelector('.mk-k') ? m.querySelector('.mk-k').textContent.replace(/\s+/g, ' ').trim() : '', pips: m.querySelectorAll('.mk-pips i').length, faits: m.querySelectorAll('.mk-pips i.on').length,
+    pieces: m.querySelectorAll('[data-piece] .carton').length, prendre: ((m.querySelector('.mk-prendre') || {}).textContent || '').trim(), fermer: ((m.querySelector('.mk-fermer') || {}).textContent || '').trim(),
+    sousCle: m.querySelectorAll('.pk-tuile.verrou[data-pack]').length, prix: [...m.querySelectorAll('.mk-rangee .pk-tuile[data-pack]')].map(t => `${t.dataset.pack} ${t.querySelector('.pk-prix').textContent.trim()}`) }; });
+console.log(`7b. la boutique ouverte (${ouverte.k}) : ${nPacks} packs (${ouverte.prix.join(' · ')}) · ${ouverte.pieces} pièces, « ${ouverte.prendre} » · ${ouverte.faits}/${ouverte.pips} achats · « ${ouverte.fermer} » · ${(espace || '(pas de plafond)')}`);
 if (!espace) erreurs.push('la boutique ne dit pas jusqu\'où tu signes');
-if (nPacks !== 4 || !voirTout) erreurs.push(`la première run devrait ouvrir sur quatre packs et « Voir les N packs » : ${nPacks} packs, bouton ${voirTout ? 'présent' : 'absent'}`);
-else {
-  await page.screenshot({ path: `${DOSSIER}/rogue-boutique-debut.png` });
-  await voirTout.click(); await page.waitForTimeout(300);
-  // Les packs des rayons (le pack de la semaine et ton club à part).
-  const nTout = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon:not(.pk-rayon-jour):not(.pk-rayon-club) .pk-tuile[data-pack]', e => e.length);
-  const chers = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile.pk-cher .pk-manque', e => e.map(x => x.textContent.trim()));
-  // Un pack coûte plus que la caisse ? Alors sa tuile doit le dire. (À 84 🪙, aucun pack n'est impayable : rien à exiger.)
-  const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
-  const prixMax = Math.max(...await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
-  console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
-  // Jalon P2 : la boutique vend ses packs, tous mixtes ; V10 (les packs qui montent) : huit, dont deux ouverts à la première run.
-  if (nTout !== 8) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 8`);
-  const sousCle = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon:not(.pk-rayon-jour):not(.pk-rayon-club) .pk-tuile.verrou[data-pack]', e => e.map(x => `${x.dataset.pack} : ${x.title}`));
-  console.log(`7c. sous clé : ${sousCle.length} · ${sousCle.slice(0, 2).join(' · ')}`);
-  if (sousCle.length !== 6 || !sousCle.some(t => /^j:argent : Qualifie-toi pour les séries/.test(t))) erreurs.push(`à la première run, six packs sous clé, l'Argent aux séries : ${sousCle.join(' · ')}`);
-  if (prixMax > jetonsB && (!chers.length || !chers.every(t => /il te manque \d+/.test(t)))) erreurs.push('un pack impayable ne dit pas ce qui manque');
-  // Échap ferme la boutique (1.0, R5 ; U21 : c'est un sous-onglet, le retour mène au Bureau) ; on la rouvre pour continuer comme avant.
-  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
-  if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
-  await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-}
+// V10 (les packs qui montent) : à la première run, le Bronze et l'Époque ; un pack sous clé ne se montre pas à la boutique.
+if (nPacks !== 2 || ouverte.sousCle) erreurs.push(`à la première run, la boutique vend le Bronze et l'Époque, rien sous clé : ${ouverte.prix.join(' · ')}, ${ouverte.sousCle} sous clé`);
+if (ouverte.pieces !== 3 || ouverte.pips !== 4) erreurs.push(`la boutique ouverte : trois pièces et quatre pastilles d'achat (${ouverte.pieces} pièces, ${ouverte.pips} pastilles)`);
+if (ouverte.faits === 0 && !/^(Prendre · 32|Il te manque \d+ 🪙)$/.test(ouverte.prendre)) erreurs.push(`la pièce au premier achat d'un nœud coûte 32 🪙 : « ${ouverte.prendre} »`);
+if (!/^Fermer · (prochaine dans \d+|dernière boutique)$/.test(ouverte.fermer)) erreurs.push(`le bouton du bas ne dit pas la prochaine boutique : « ${ouverte.fermer} »`);
+// Échap ferme la boutique (1.0, R5 ; U21 : c'est un sous-onglet, le retour mène au Bureau) ; on la rouvre pour continuer comme avant.
+await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
+await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
 /*
  * TON CLUB À LA BOUTIQUE (1.0, oct.). JP : *même monnaie que les autres packs*. Les Harfangs (15 🪙) s'achètent au rayon
  * « Ton club » : la caisse baisse, le méta les garde, ils sont portés, et l'en-tête le dit.
  */
 {
-  const tout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
-  if (tout) { await tout.click(); await page.waitForTimeout(300); }
-  const avantJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  const avantJ = Number((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .mk-caisse b')) || 0);
   // Nov. 2026 : le rayon du club se plie en une rangée (le porté, deux clubs, « Et N › ») ; « Et N › » l'ouvre.
   const rangeeClub = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-club-plus[data-club-tout]');
   if (rangeeClub) { await rangeeClub.click(); await page.waitForTimeout(300); }
@@ -879,8 +868,8 @@ else {
   await auBureau();
   const mc = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}').club || {});
   const tete = await page.textContent('.tete-nom');
-  await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-  const apresJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-tete')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
+  await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
+  const apresJ = Number((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .mk-caisse b')) || 0);
   console.log(`7c. ton club à la boutique : les Harfangs · ${avantJ} → ${apresJ} 🪙 · porté : ${mc.club} · en-tête « ${tete} »`);
   if (mc.club !== 'harfangs' || tete !== 'Harfangs' || apresJ !== avantJ - PRIX_HARFANGS) erreurs.push(`les Harfangs achetés à la boutique (${avantJ} → ${apresJ} 🪙, méta ${mc.club}, en-tête « ${tete} »)`);
 }
@@ -892,7 +881,7 @@ else {
  */
 const NOMS_NIVEAUX = ['Soutien', 'Régulier', 'Pilier', 'Étoile', 'Phénomène'];
 await versMarche('boutique');
-await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 30000 });
 await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="j:bronze"]');
 await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-fiche');
 await page.screenshot({ path: `${DOSSIER}/rogue-fiche-bronze.png` });
@@ -1008,6 +997,28 @@ await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="bout
 await page.waitForTimeout(500);
 await verifMarche('après un pack signé');
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique-apres-pack.png` });
+/*
+ * LA PIÈCE PARMI TROIS (V27, tranches 3 et 5) : au même nœud, après un pack, la pièce coûte 32 × 1,4 = 45 🪙 ; prise, elle entre
+ * sur ton banc (une décision `piece`, son prix compté comme un achat du nœud), et la boutique la dit « Prise ».
+ */
+{
+  const lu = await page.evaluate(() => { const m = document.querySelector('#pageMarche .hub-page[data-genre="boutique"]');
+    return { prendre: ((m.querySelector('.mk-prendre') || {}).textContent || '').trim(), faits: m.querySelectorAll('.mk-pips i.on').length, jetons: Number((m.querySelector('.mk-caisse b') || {}).textContent || 0) }; });
+  const prix = Number((lu.prendre.match(/Prendre · (\d+)/) || [])[1]) || null;
+  console.log(`8p. la pièce après ${lu.faits} achat(s) : « ${lu.prendre} » · ${lu.jetons} 🪙`);
+  if (lu.faits >= 1 && prix != null && prix !== Math.round(32 * (1 + 0.4 * lu.faits))) erreurs.push(`la pièce après ${lu.faits} achat(s) du nœud coûte ${prix} 🪙 (attendu ${Math.round(32 * (1 + 0.4 * lu.faits))})`);
+  if (prix != null) {
+    const cle = await page.$eval('#pageMarche [data-piece]:nth-child(2)', x => x.dataset.piece);
+    await page.click('#pageMarche [data-piece]:nth-child(2)'); await page.waitForTimeout(200);
+    await page.click('#pageMarche .mk-prendre');
+    await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-sheet', { timeout: 120000 }); await page.waitForTimeout(800);
+    const d = ((await lireSauvegarde()).partie || {}).decisions.filter(x => /^bq:/.test(x.palier || ''));
+    const prise = await page.$eval('#pageMarche .mk-section .mk-l b', x => x.textContent.trim()).catch(() => '');
+    const apres = Number(await page.textContent('#pageMarche .mk-caisse b'));
+    console.log(`8q. la pièce prise : ${cle} · ${JSON.stringify(d)} · « ${prise} » · ${lu.jetons} → ${apres} 🪙`);
+    if (d.length !== 1 || !d[0].piece || d[0].piece.cle !== cle || d[0].achat.sorte !== 'piece' || d[0].achat.prix !== prix || prise !== 'Prise' || apres !== lu.jetons - prix) erreurs.push(`la pièce prise à la boutique : ${JSON.stringify(d)}, « ${prise} », ${lu.jetons} → ${apres} 🪙`);
+  } else if (!/Il te manque \d+ 🪙|Quatre achats faits/.test(lu.prendre)) erreurs.push(`la pièce impayable ne dit pas ce qui manque : « ${lu.prendre} »`);
+}
 await auBureau();
 await verifClubSansBoutique('le bureau du Club après un pack');
 await page.waitForTimeout(800);
@@ -1060,34 +1071,11 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   const portes = await page.$$eval('#navbar .navtab', e => e.filter(b => b.offsetParent).map(b => b.dataset.section)).catch(() => []);
   console.log(`10b. la barre : ${portes.join(' · ')}`);
   if (portes.join() !== 'bureau,lignes,club,marche,ligue') erreurs.push(`la barre du bas n'a pas ses cinq portes (le plateau, 4 nov. 2026) : ${portes.join(' · ')}`);
-  // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?* ; *j'hais les accordéons*) : une rangée
-  // sous la ligne du match, qui ouvre une feuille des six plans, celui en force le dit, 🥷 nomme les deux joueurs ; en toucher un
-  // écrit la décision.
+  // LE PLAN DU SOIR EST PARTI (V27, tranche 6b) : le Bureau n'a plus de plan à régler, ni accordéon ; le banc ne s'ouvre que sur le Coach.
   {
     if (await page.$('#hubModal details, #hubModal summary')) erreurs.push('le Bureau garde un accordéon (details / summary)');
-    // Nov. 2026 : ton plan est la première carte de ton banc du matin ; la toucher ouvre les six plans.
-    await page.click('#hubModal .bu-banc .banc-plan').catch(() => {});
-    await page.waitForTimeout(800);
-    const pl = await page.$$eval('#choixModal .choix-option[data-carte]', bs => bs.map(b => ({ cle: b.dataset.carte, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.tc-quoi') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree), .impact-l').length }))).catch(() => []);
-    await page.screenshot({ path: `${DOSSIER}/rogue-plan.png` });
-    const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
-    const autre = pl.find(x => !x.on && x.cle !== 'match');
-    let ecrit = null;
-    if (autre) {
-      const n0 = (await decisionsDuCombat()).length;
-      await page.click(`#choixModal .tc-prendre[data-choix="${autre.cle}"]`).catch(() => {});
-      await page.waitForTimeout(600); await attendreDecisions(n0);
-      ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
-    } else await page.click('#choixModal .choix-fermer').catch(() => {});
-    await auBureau();
-    const ligne = await page.$eval('#hubModal .bu-banc .banc-plan', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
-    console.log(`10d. ton plan : ${pl.length} tuiles · en force ${on.map(x => x.cle).join(', ') || 'aucune'} · 🥷 « ${ombre ? ombre.sous : ''} » · ${pl.filter(x => x.stats).length} en stats · touché ${autre ? autre.cle : '—'} → ${ecrit ? JSON.stringify(ecrit.plan) : 'rien d\'écrit'} · au Bureau « ${ligne.trim()} »`);
-    if (pl.length !== 6) erreurs.push(`le plan du Bureau montre ${pl.length} plans, pas six`);
-    if (on.length !== 1) erreurs.push(`le plan du Bureau marque ${on.length} plans en force, pas un`);
-    if (ombre && !/ suit /.test(ombre.sous)) erreurs.push('le plan 🥷 ne nomme pas leur vedette et ton joueur qui la suit');
-    if (pl.filter(x => x.cle !== 'match' && !x.stats).length) erreurs.push('un plan ne dit pas ses stats de match');
-    if (autre && !(ecrit && ecrit.plan.cle === autre.cle)) erreurs.push(`toucher le plan « ${autre.cle} » n'écrit pas sa décision`);
-    if (autre && !ligne.includes(PLANS[autre.cle].mot)) erreurs.push(`le Bureau ne dit pas le plan en force (« ${PLANS[autre.cle].mot} »)`);
+    if (await page.$('#hubModal .banc-plan, #hubModal [data-banc="plan"]')) erreurs.push('le Bureau montre encore le plan du soir');
+    console.log('10d. le plan du soir : parti, le banc du soir ouvre le Coach');
   }
   // La ligne du match, au Bureau, ouvre le face-à-face (JP, oct. : *les stats de confrontation, pas les lignes*).
   const ligneMatch = await page.$('#hubModal .bu-prochain');
@@ -1138,7 +1126,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
 }
 /*
  * UNE MAISON PAR SUJET (V12-3 ; V16, tranche 6). JP : *that philosophy should be for everything*. La masse salariale est
- * chez le proprio, les soins à l'infirmerie, les pouvoirs et le stage du coach chez l'entraîneur, les cartes de joueur
+ * chez le proprio, les soins à l'infirmerie, le banc chez l'entraîneur, les cartes de joueur
  * à l'effectif ; il n'y a plus de « Tes cartes » qui y renvoie.
  */
 {
@@ -1166,7 +1154,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     ici.infirmerie = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'infirmerie')); await fermerLaFeuille();
     await page.click('#pageJoueursCorps [data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   }
-  if (!(ici.entraineur || []).includes('consommable:stage')) erreurs.push('« Le stage du coach » ne se joue pas chez l\'entraîneur');
+  // V27, tranche 5 : le stage du coach est parti avec son expérience ; la vieille carte de l'inventaire ne paraît nulle part.
+  if (Object.values(ici).some(l => (l || []).includes('consommable:stage'))) erreurs.push('« Le stage du coach », parti, paraît encore');
   if (!(ici.joueurs || []).includes('consommable:echangeDoublon')) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif');
   // V12-4 : chaque sous-onglet tient en un écran (390 × 844) ; on mesure chacun, la feuille entière.
   const hauteur = () => page.$eval('#hubModal .hub-sheet', e => e.scrollHeight / Math.max(1, e.clientHeight)).catch(() => 0);
@@ -1186,11 +1175,11 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     // Trop long : ses blocs, du plus haut au plus bas, pour savoir quoi plier.
     if (ecrans[k] > 1.3) console.log(`    ▸ ${k} : ${await page.$eval(`#hubModal .af-onglet[data-maison="${k}"]`, o => [...o.querySelectorAll(':scope > *, :scope > * > *')].filter(e => e.offsetHeight > 30).map(e => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')} ${e.offsetHeight}`).join(' · ')).catch(() => '?')}`);
   }
-  // V21 : le personnel est parti ; aucune rangée d'adjoint au banc de l'entraîneur, ses pouvoirs seulement.
+  // V21 : le personnel est parti ; aucune rangée d'adjoint chez l'entraîneur, son banc seulement.
   {
     await versLOnglet('club', 'entraineur');
     const restes = await page.$$('#hubModal .af-onglet[data-maison="entraineur"] :is(.gens-l, .perso-l, [data-choix^="echelon:"])');
-    console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pouvoirs du coach seulement'}`);
+    console.log(`10p. le banc de l'entraîneur : ${restes.length ? `${restes.length} rangée(s) de personnel` : 'les pièces du banc seulement'}`);
     if (restes.length) erreurs.push('le sous-onglet de l\'entraîneur montre encore du personnel ou ses échelons');
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
@@ -1252,24 +1241,9 @@ for (const pack of ['j:bronze', 'j:epoque']) {
 // V16 : une retouche ne se joue plus au Marché (l'onglet « Tes places » est parti) : elle se pose au verso de son joueur (12b).
 let posee = null, nomModif = '';
 /*
- * LE STAGE DU COACH (V16, tranche 6 ; V21) : une carte rare qui donne de l'expérience au coach. Elle se joue chez
- * l'entraîneur ; sa décision porte ses points (`xpCoach`). Le proprio qui doute du coach était une histoire (`laTete`, partie à la V22).
+ * LE STAGE DU COACH est parti avec son expérience (V27, tranche 5) ; restent l'échange d'un doublon et les retouches, plus bas.
  */
 {
-  await versLOnglet('club', 'entraineur');
-  await deplierLesCartes('#hubModal .af-onglet[data-maison="entraineur"]');
-  const clesEntraineur = await cartesDeLaMaison('#hubModal .af-onglet[data-maison="entraineur"]', 'entraineur');
-  const jouer = clesEntraineur.includes('meta|consommable:stage|') ? await page.$('#choixModal [data-choix="meta|consommable:stage|"]') : null;
-  if (!jouer) erreurs.push('« Le stage du coach » ne se joue pas depuis le sous-onglet de l\'entraîneur');
-  else {
-    const n0 = (await decisions()).length;
-    await jouer.click();
-    await page.waitForTimeout(800);
-    await regler();
-    const ds = (await decisions()).slice(n0).find(x => x.xpCoach && x.joue);
-    console.log(`10c. le stage du coach : ${ds ? `+${ds.xpCoach} d'expérience` : '(rien)'}`);
-    if (!ds) erreurs.push('« Le stage du coach » n\'écrit pas sa décision d\'expérience');
-  }
   const versLEffectif = async () => {
     await versLOnglet('club', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
@@ -1427,6 +1401,7 @@ await unVisible(BUREAU, 20000);
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
 for (let i = 0; i < 200; i++) {
   await regler();
+  if (runMorte) break;
   // Deux « Voir le bilan » peuvent exister (le bureau et sa page) : c'est le visible qui compte.
   if (await page.locator('#hubModal .hub-suite:visible').count()) break;
   if (await page.$('.result .score') && await page.isVisible('.result .score')) break;
@@ -1434,13 +1409,15 @@ for (let i = 0; i < 200; i++) {
   const j = await page.$('#hubModal .hub-jour');
   if (j && await j.isVisible()) { await j.click(); await page.waitForTimeout(400); }
 }
+let meta = null;
+if (!runMorte) {
 await page.locator('#hubModal .hub-suite:visible, .result .score:visible').first().waitFor({ timeout: 120000 }).catch(async e => {
   console.log('DIAG', await page.evaluate(() => ({ sec: document.body.dataset.section, page: document.body.dataset.page, choix: (document.getElementById('choixModal') || {}).hidden, choixTxt: ((document.getElementById('choixModal') || {}).innerText || '').slice(0, 300), boutons: [...document.querySelectorAll('#hubModal button')].filter(b => b.offsetParent).map(b => b.className.split(' ').pop() + ':' + b.textContent.trim().slice(0, 25)) })));
   throw e;
 });
-// Ce qui reste à régler avant le bilan (un palier, un sommaire).
+// Ce qui reste à régler avant le bilan (une étape, un sommaire).
 await regler();
-// Prendre le dernier palier peut mener tout droit au bilan : on ne touche « Voir le bilan » que s'il est là.
+// Régler le dernier choix peut mener tout droit au bilan : on ne touche « Voir le bilan » que s'il est là.
 const suite = page.locator('#hubModal .hub-suite:visible').first();
 if (await suite.count()) await suite.click();
 await page.waitForSelector('.result .score', { timeout: 60000 });
@@ -1459,7 +1436,7 @@ await page.waitForTimeout(2500);
   const ecranRun = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="run"]');
   const svR = await lireSauvegarde();
   const sort = ((await page.textContent('#resultHost .rg-run').catch(() => '')) || '');
-  const finie = /Mandat manqué|run est gagnée/.test(sort);
+  const finie = /Pas de séries|Plus de cœurs|Éliminés|Perdu en finale|run est gagnée/.test(sort);
   const metaR = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
   console.log(`12c. « Ta run » : ${ecranRun ? 'ouvert' : 'fermé'} · run ${finie ? 'finie' : 'en cours'} · dernière run au méta : ${metaR.derniereRun ? JSON.stringify(metaR.derniereRun) : '(aucune)'}`);
   // LES GALONS GARDENT LEUR EFFET ET PERDENT LEUR ÉCRAN (V25 B2) : le cartable les grave, la carte du joueur les dit (« Gravé sur sa carte »,
@@ -1474,8 +1451,8 @@ await page.waitForTimeout(2500);
     await page.screenshot({ path: `${DOSSIER}/rogue-ta-run.png` });
     const txt = (await ecranRun.textContent()).replace(/\s+/g, ' ');
     const d = metaR.derniereRun || {};
-    if (/Mandat manqué/.test(sort) && !/Le proprio\s*« [^»]+ »/.test(txt)) erreurs.push(`« Ta run » ne cite pas le proprio : ${txt.slice(0, 160)}`);
-    if (!new RegExp(`${d.saisons}\\s*saison`).test(txt) || !txt.includes(`+${d.ecussons}`) || !txt.includes(`🏅 ${metaR.ecussons}`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
+    // V27, tranche 2 : l'écran de fin (la maquette 8) dit « Médailles » en cellule, puis « 558 médailles » à ton club.
+    if (!new RegExp(`Médailles ?${d.ecussons}\\b`).test(txt) || !txt.includes(`${metaR.ecussons} médailles`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
     if (!(svR.partie && svR.partie.rogue && svR.partie.rogue.taRunVue) && !(svR.rogue && svR.rogue.taRunVue)) erreurs.push('« Ta run » vu n\'est pas dans la sauvegarde (il se rouvrirait au rechargement)');
     await page.click('#choixModal:not([hidden]) .choix-fermer');
     await page.waitForTimeout(300);
@@ -1488,7 +1465,7 @@ const motRun = blocRun ? (await blocRun.textContent()).replace(/\s+/g, ' ').trim
 const rejouer = await page.isVisible('#replayBtn').catch(() => false);
 console.log(`13. la run au bilan : ${motRun.slice(0, 220) || '(rien)'}${rejouer ? ' · « Rejouer la saison » visible !' : ''}`);
 if (!blocRun || rejouer) erreurs.push('le bilan ne montre pas la run, ou garde « Rejouer la saison »');
-const meta = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
+meta = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
 const nCartable = (await cartable()).length;
 console.log(`14. fin de saison : ${meta.ecussons} écussons · ${meta.runs} run · ${meta.saisons} saison · jalons ${Object.keys(meta.jalons || {}).join(', ') || '(aucun)'} · collection ${(meta.collection || []).length} joueurs · cartable ${nCartable} cartes · personnel ${(meta.personnel || []).length} · inventaire permanent ${Object.values(meta.inventaire || {}).reduce((a, n) => a + n, 0)} · dernière équipe ${(meta.derniereEquipe || []).length}`);
 /*
@@ -1507,6 +1484,15 @@ console.log(`14. fin de saison : ${meta.ecussons} écussons · ${meta.runs} run 
   if (!P.records.club) erreurs.push('le panthéon ne garde pas le record du club');
   // Un galon se mérite : une poignée par saison, jamais tout l'alignement (la première règle des grands soirs en donnait 18).
   if (g.galons > 8) erreurs.push(`${g.galons} galons en une saison : un galon se mérite`);
+}
+} else {
+  // L'ÉCRAN DE FIN D'UNE RUN MORTE (V27, la maquette 8) : la cause en une ligne, les actes et leurs médailles, « Une run neuve ».
+  const fin = ((await page.textContent('#choixModal .choix-sheet[data-genre="run"]').catch(() => '')) || '').replace(/\s+/g, ' ');
+  await page.screenshot({ path: `${DOSSIER}/rogue-fin-de-run.png` });
+  console.log(`12. la run est morte en route : ${fin.slice(0, 200)}`);
+  if (!/Plus de cœurs/.test(fin) || !/Médailles/.test(fin) || !/Une run neuve/.test(fin)) erreurs.push(`l'écran de fin d'une run morte ne dit pas sa cause, ses médailles et « Une run neuve » : ${fin.slice(0, 160)}`);
+  meta = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
+  await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {});
 }
 await page.click('#menuBtn');
 await page.waitForSelector('#menuDepart');
@@ -1566,10 +1552,12 @@ console.log(`18. ton club : ${nClub} clubs · onglets ${JSON.stringify(parOnglet
 if ((m3.club || {}).club !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('club:harfangs')) erreurs.push(`le club remis n'est pas porté (méta ${(m3.club || {}).club}, en-tête « ${tete} »)`);
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
-console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
+console.log(`20b. duels (un choix chacun, son plan) : ${combats.length ? combats.join(' · ') : 'aucun cette run'} · le rival annoncé : ${rivalVu.lu ? rivalVu.lu.jeu.join(' | ') : 'jamais vu'}`);
+if (!rivalVu.lu) erreurs.push('le rival annoncé ne s\'est jamais ouvert');
+console.log(`20c. le calendrier de l'acte (V27, tranche 4) : ${placement.actes.join(' · ') || 'jamais ouvert'}`);
+if (!placement.actes.length) erreurs.push('le calendrier de l\'acte ne s\'est jamais ouvert au premier soir');
 if (veilles.length) erreurs.push(`un gros match s'ouvre avant le matin où il se joue : ${veilles.join(' · ')}`);
-console.log(`20d. leurs intentions lues, leurs puces jugées : ${[...intentionsVues].join(' ') || 'aucune'}`);
-console.log(`20d. périodes de duel jouées (période:plan pris) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
+console.log(`20d. les entractes du duel (boutons) : ${entractes.length ? entractes.join(' · ') : 'aucun cette run'}`);
 console.log(`20e. l'histoire de la semaine : ${afaire.histoire || 'jamais offerte'}`);
 console.log(`20s. ce qui court : ${suivi.pas.size} pas de l'objectif lus chez le proprio (${[...suivi.pas].slice(0, 3).join(' | ') || 'aucun'}) · verdict : ${suivi.verdict.slice(0, 160) || 'aucun'}`);
 // L'essai ne visite pas chaque matin (il saute aux gros matchs) : un objectif qui a bougé se dit au moins une fois dans
@@ -1589,7 +1577,7 @@ if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a réglé les choix que d
 if (afaire.horsBoite.size) erreurs.push(`un sous-onglet porte encore des choix : ${[...afaire.horsBoite].join(', ')}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 // LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.
-if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucun duel ne s'est rendu à sa troisième période (${periodes.join(' · ') || 'aucune période'})`);
+if (combats.length && !entractes.length) erreurs.push('aucun duel regardé ne s\'est arrêté à son entracte');
 // LE SOIR D'UN MATCH (JP, 17 oct.) : une page du soir qui suit un gros match est le sommaire du match.
 console.log(`20f. les pages du soir : ${soirs.pages}, dont ${soirs.match} sommaire(s) de match`);
 console.log(`20r. le gros match en direct : ${directs} geste(s) dans le direct`);
@@ -1603,7 +1591,7 @@ if (sommaireSimple) {
   if (!apres.feuille) erreurs.push('« Plus de détails » n\'ouvre pas la feuille du match');
 }
 if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été le sommaire d'un match (${soirs.pages} page(s) du soir)`);
-console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
+console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'}`);
 if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);
 // Depuis le départ de l'Avant-match (oct.), aucun écran ne cache « Jour suivant » à coup sûr : le flottant se juge quand il paraît.
 console.log(`20n. rien ne colle au bord (${MARGE} px) : ${bords.vus} écrans mesurés${bords.fautes.size ? `, ${bords.fautes.size} faute(s) : ${[...bords.fautes.values()].slice(0, 12).join(' | ')}` : ', aucun ne colle'}`);
@@ -1612,15 +1600,15 @@ console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix ouverts en
 if (barreA.longs.length) erreurs.push(`« Encore un choix » ne tient pas sur une ligne : ${barreA.longs.slice(0, 3).join(' · ')}`);
 console.log(`20k. une feuille à la fois : ${feuilles.vues} capture(s) · ${feuilles.empilees.length ? `empilées : ${feuilles.empilees.join(', ')}` : 'jamais deux'}`);
 if (feuilles.empilees.length) erreurs.push(`des feuilles s'empilent à l'écran : ${feuilles.empilees.join(', ')}`);
-console.log(`20j. le gros match plus court : ${duelCourt.n} entracte(s) de l'adjoint · la plus longue à ${duelCourt.max.toFixed(2).replace('.', ',')} écran · ${duelCourt.longs} au-dessus de 1,3`);
-if (duelCourt.longs) erreurs.push(`${duelCourt.longs} entracte(s) du duel font plus de 1,3 écran (${duelCourt.max.toFixed(2)})`);
-if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
-console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}${mise.scene ? ` | la mise : ${mise.scene}` : ''}`);
+console.log(`20j. le choix du duel tient : ${duelCourt.n} écran(s) · le plus long à ${duelCourt.max.toFixed(2).replace('.', ',')} écran · ${duelCourt.longs} au-dessus de 1,3`);
+if (duelCourt.longs) erreurs.push(`${duelCourt.longs} écran(s) du choix du duel font plus de 1,3 écran (${duelCourt.max.toFixed(2)})`);
+console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}`);
 {
-  // V21 : le coach de la saison — ses talents et son expérience.
+  // V27, tranche 5 : le banc de la saison — les pièces prises (un rival battu, la boutique, une fourche), et l'écran de la pièce.
   const sv = await lireSauvegarde().catch(() => null);
   const ds = (((sv && sv.partie) || {}).decisions || []);
-  console.log(`20p. le coach : ${ds.filter(d => d.talent).length} talent(s), ${ds.filter(d => d.xpCoach).length} gain(s) d'expérience`);
+  console.log(`20p. le banc : ${ds.filter(d => d.piece).length} pièce(s) prise(s) · l'écran de la pièce ${pieces.vues.join(' | ') || 'pas ouvert'} · ${pieces.prises.join(' ') || 'aucune prise à l\'écran'}`);
+  if (ds.some(d => d.talent || d.xpCoach || d.embauche || d.poste)) erreurs.push('une décision d\'avant le banc de cinq (talent, expérience, adjoint) est encore écrite');
 }
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();

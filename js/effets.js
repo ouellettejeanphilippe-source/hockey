@@ -1,20 +1,19 @@
 /*
  * LA GRAMMAIRE D'UN EFFET (V25 B1b, docs/refonte-v25.md § 4 B). Huit grammaires disaient la même chose : les canaux
- * d'un pouvoir (`effet`), le style d'un adjoint et la condition de son signal, les champs d'une réponse d'histoire
+ * d'un pouvoir (`effet`), le style d'un adjoint et la condition de son signal (V27 : fondus en pièces de banc), les champs d'une réponse d'histoire
  * (`gain`, `action`, `si`, le `bon` et le `prix` écrits à côté), ceux d'une carte de la banque. Il n'en reste qu'une,
- * dix cases, et tout ce qu'une carte de jeu fait s'écrit là :
+ * neuf cases, et tout ce qu'une carte de jeu fait s'écrit là :
  *
- *   quand    la seule forme de déclenchement : une fonction de ce qui est déjà joué (un pouvoir, le signal d'un
- *            adjoint : `quand(e)`), ou le nom d'un moment (`MOMENTS_SI`, js/sim.js ; l'état d'une série)
+ *   quand    la seule forme de déclenchement : une fonction de ce qui est déjà joué (une pièce de banc et son relais,
+ *            js/pieces.js : `quand(e)`), ou le nom d'un moment (`MOMENTS_SI`, js/sim.js ; l'état d'une série)
  *   canaux   les canaux du moteur sur ton club — volume, finition, defense, discipline, robustesse (additive, c'est
  *            écrit dans le canal), blessure, energie, F, D
  *   adv      les mêmes canaux, posés sur l'adversaire
  *   lui      ce qui va au joueur nommé : lancers, finition, creation, defense, blessure, arrets
  *   duree    en matchs
  *   jetons   versés une fois, à la décision, jamais sous un `quand` (la caisse reste recomptée des décisions)
- *   xp       l'expérience du coach, versée pareil
- *   gestes   les gestes d'aujourd'hui : soin (tousLesBlesses), absents, energie, energieTous, gardienAux, adjoint
- *            (une carte dans ta main), echange et offres (le doublon qui part, les joueurs offerts)
+ *   gestes   les gestes d'aujourd'hui : soin (tousLesBlesses), absents, energie, energieTous, gardienAux, piece
+ *            (une pièce pour ton banc, V27), echange et offres (le doublon qui part, les joueurs offerts)
  *   pari     { chance, gagne, perd } : deux effets de la même grammaire, tirés au dé
  *   suite    l'histoire qui suivra, en matchs
  *
@@ -27,16 +26,16 @@ import { motsEnChiffres, flechesDe } from './impact.js';
 import { facesDuPari } from './sim.js';
 import { cap } from './util.js';
 
-export const CASES = ['quand', 'canaux', 'adv', 'lui', 'duree', 'jetons', 'xp', 'gestes', 'pari', 'suite'];
+export const CASES = ['quand', 'canaux', 'adv', 'lui', 'duree', 'jetons', 'gestes', 'pari', 'suite'];
 export const CANAUX = ['volume', 'finition', 'defense', 'discipline', 'robustesse', 'blessure', 'energie', 'F', 'D'];
 export const CANAUX_LUI = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
-export const GESTES = ['soin', 'tousLesBlesses', 'absents', 'energie', 'energieTous', 'gardienAux', 'adjoint', 'echange', 'offres'];
+export const GESTES = ['soin', 'tousLesBlesses', 'absents', 'energie', 'energieTous', 'gardienAux', 'piece', 'echange', 'offres'];
 
 /* Un canal posé à sa valeur neutre ne fait rien (la robustesse est additive). */
 const neutre = (k, v) => v == null || (k === 'robustesse' ? v === 0 : Array.isArray(v) ? v.every(x => x === 1) : v === 1);
 const vide = o => !o || Object.entries(o).every(([k, v]) => neutre(k, v));
 /* Un effet qui ne fait rien : aucune case qui joue. */
-export const estVide = e => !e || (vide(e.canaux) && vide(e.adv) && vide(e.lui) && !e.jetons && !e.xp && !e.pari && !e.suite
+export const estVide = e => !e || (vide(e.canaux) && vide(e.adv) && vide(e.lui) && !e.jetons && !e.pari && !e.suite
   && !(e.gestes && Object.values(e.gestes).some(Boolean)));
 
 const plur = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
@@ -51,7 +50,7 @@ function motsDesGestes(g, qui = 'Le joueur visé', { offert = null } = {}) {
   if (g.energie) out.push({ txt: `${qui} : jambes ${signe(g.energie)}`, bon: g.energie > 0 });
   if (g.energieTous) out.push({ txt: `Toute l'équipe : jambes ${signe(g.energieTous)}`, bon: g.energieTous > 0 });
   if (g.gardienAux) out.push({ txt: `L'auxiliaire au filet ${plur(g.gardienAux, 'match')}`, bon: null });
-  if (g.adjoint) out.push(...(offert || [{ txt: 'Une carte d\'adjoint dans ta main', bon: true }]));
+  if (g.piece) out.push(...(offert || [{ txt: 'Une pièce pour ton banc', bon: true }]));
   if (g.echange) out.push({ txt: `Ton doublon le plus fourni part : ${plur(g.offres || 1, 'joueur')} de son époque, un signé`, bon: true });
   return out;
 }
@@ -85,15 +84,14 @@ export function motsDuPari(pari, qui = 'Ton joueur') {
 
 /*
  * LES MOTS D'UN EFFET : ses lignes `{ txt, bon }`, dérivées de ce qu'il fait, dans l'ordre où une carte les lit — les
- * jetons, l'expérience, les canaux (en vraies stats du club courant, js/impact.js), les gestes, le joueur nommé, le dé.
+ * jetons, les canaux (en vraies stats du club courant, js/impact.js), les gestes, le joueur nommé, le dé.
  * `qui` : le joueur nommé (son nom court) ; `cadre` : { part, par, eux } pour les canaux (une période, un soir) ;
- * `offert` : les lignes de la carte d'adjoint offerte, quand l'écran la connaît.
+ * `offert` : les lignes de la pièce offerte, quand l'écran la connaît.
  */
 export function motsDe(e, { qui = 'Ton joueur', cadre = null, offert = null } = {}) {
   if (!e) return [];
   const out = [];
   if (e.jetons) out.push({ txt: `${signe(e.jetons)} 🪙`, bon: e.jetons > 0 });
-  if (e.xp) out.push({ txt: `Ton coach : ${signe(e.xp)} d'expérience`, bon: e.xp > 0 });
   if (!vide(e.canaux)) out.push(...motsEnChiffres(e.canaux, e.duree || null, cadre));
   if (!vide(e.adv)) out.push(...motsEnChiffres(e.adv, e.duree || null, { ...(cadre || {}), eux: true }));
   out.push(...motsDesGestes(e.gestes, qui, { offert }));

@@ -1,121 +1,60 @@
 /**
- * LE ROGUE (S80) — le départ du classeur, la courbe, le cartable.
+ * LE ROGUE (S80 ; réécrit à la V27, tranche 2) — le départ du classeur, les exigences, la ligue, et la run en actes.
  *
- * JP : *le classeur, on peut piger x cartes aux départ, ou random, selon
- * upgrades* ; *je veux que ça prenne plusieurs saisons et upgrades gagner la
- * coupe, pis les upgrade de trio aident au début, mais les downgrade upgrade
- * sont plus forts late game* ; *envoyer cartes au cartable quand discard et
- * possible de discard les cartes de remplaçants ou débloquer des slots de
- * remplacement* ; puis *en roguelike, nouvelle saison veut dire continuer
- * avec base des cartes ramassé qui sont pas des consommables*.
+ * JP : *le classeur, on peut piger x cartes aux départ, ou random, selon upgrades* ; puis, le 7 nov. 2026 : *première
+ * Cup à rendre pas mal plus tough* ; *il faut vraiment bloquer le snowball* ; *Passer à 2 ❤️*. La run est maintenant
+ * UNE saison en quatre actes (docs/refonte-v27.md § 4.1 à 4.3, docs/refonte-v27-2.md) : ses blocs « deuxième saison »,
+ * « mandat » et « gardés » sont partis avec la deuxième saison.
  *
- *   node scripts/check_rogue.mjs                       (rapide : 10 runs par niveau, 2 campagnes)
- *   RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs   (la mesure du rapport, cinq ou six minutes)
+ *   node scripts/check_rogue.mjs            (rapide : 2 runs de l'attentif, une minute)
+ *   RUNS=8 node scripts/check_rogue.mjs     (plus de graines ; la profondeur, elle, est check_profondeur en CI)
  *
- * Quatre parties :
- *   1. LES INVARIANTS : les cases de réserve de plus (aucun mode ne les
- *      remplit, un réserviste qui y est monte quand un habillé se blesse),
- *      l'échelle de la fin de partie, l'amélioration qui grandit et le style
- *      qui ne grandit pas, le deck qui continue, le départ du classeur (pur,
- *      un nombre et un mode par niveau), le mandat du proprio, les jalons ;
- *   2. LA COURBE : des runs jouées par un robot (scripts/lib/rogue_sim.mjs),
- *      à cinq niveaux de déblocages — la Coupe par run, la Coupe à la
- *      première saison, les saisons par run, la première saison ;
- *   3. LES CAMPAGNES : de zéro, run après run, les écussons et les jalons
- *      achètent les déblocages — combien de runs avant la première Coupe ;
- *   2b. LE DUEL JOUÉ : la même première saison, sur les mêmes dés, le
- *      robot attentif qui répond aux intentions ou qui les laisse là
- *      (SAISONS_MAIN) ;
- *   (4. LA FORCE DES CARTES SELON LE MOMENT est partie avec la V13-2 : voir
- *      la note au bas du fichier.)
- *
- * Les runs et les campagnes se jouent en parallèle (un
- * travailleur chacun, FILS à la fois — 6 par défaut) : le moteur a son état
- * par module, donc par fil.
+ * Deux parties :
+ *   1. LES INVARIANTS, sans moteur : les cases de réserve de plus, l'échelle de la fin de partie, le départ du classeur
+ *      (pur, un nombre par niveau), la bande du départ, les jalons, les exigences et leurs leviers neufs (les contrôles,
+ *      les rivaux, les séries), la ligue qui monte ; les règles des actes (js/actes.js) : les contrôles proportionnels à
+ *      la ligue, le rang du soir aux bris d'égalité de l'écran, un cœur par contrôle raté, la run morte à 0 ❤️ ;
+ *   2. LA RUN EN ACTES, jouée par le robot de la profondeur (scripts/lib/rogue_actes.mjs) sur RUNS graines, un fil
+ *      chacune : un rival par acte au bon rang de force, jamais manquant, posé au dernier match de l'acte ; 82 matchs
+ *      à chaque club et un par jour après les échanges ; les cœurs recomptés.
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 import {
-  SLOTS, CASES_DE_BASE, RESERVES_EN_PLUS, casesDuMode, autoRoster, activeLineup, createTeam, getPlayerKey, getPersonKey,
+  SLOTS, CASES_DE_BASE, RESERVES_EN_PLUS, casesDuMode, autoRoster, activeLineup, createTeam, getPersonKey,
   echelleTardive, grandirEffet, JOURS_PAR_MATCH,
 } from '../js/sim.js';
 import {
-  DEBLOCAGES, departDuClasseur, lotosDeSaison, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, MANDAT_DE_LA_PREMIERE, mandatDe, mandatRempli, rangDuMandat,
+  DEBLOCAGES, departDuClasseur, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, exigencesOuvertes,
-  EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, gardesDeLaRun, GARDES_DE_SAISON, ESPACE_DE_DEPART, soutiensDuDepart,
-  ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN, etapeDeLaRun, ETAPE_APRES_LA_PREMIERE,
+  EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, ESPACE_DE_DEPART, soutiensDuDepart, bouchesTrousDuDepart, BANDE_DEPART,
+  ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN, ecussonsDesSeries,
 } from '../js/rogue.js';
+import { ACTES, COEURS, CONTROLES, RANGS_DES_RIVAUX, ETAPE_SERIES, controleDeLActe, etapeDesSeries, rangAuSoir, etatDeLaRun, parmiLesAdversaires,
+  NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, PRIX_PIECE, noeudOuvert, prochainNoeud, prixDeLaPiece, estUnAchat, piecesDuNoeud, renfortDe } from '../js/actes.js';
 import { EDITIONS } from '../js/rarete.js';
 import { NIVEAUX as NOMS_DE_NIVEAU } from '../js/niveaux.js';
-import { POUVOIRS } from '../js/pouvoirs.js';
+import { PIECES, PIECE_DU_COACH } from '../js/pieces.js';
 import { VOIES } from '../js/coachs.js';
 import { PACKS_TOUS, PACKS_DE_SERIE } from '../js/packs.js';
-import { jouerRun, acheterDans, metaAuNiveau, coutDuNiveau, classeurSynthetique, ORDRE_DEBLOCAGES, shard, groupe } from './lib/rogue_sim.mjs';
-import { exiger, borne, monte, informer, verdict } from './verdict.mjs';
+import { shard, groupe } from './lib/rogue_sim.mjs';
+import { exiger, monte, informer, verdict } from './verdict.mjs';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
-const RUNS = Number(process.env.RUNS ?? 10);
-const CAMPAGNES = Number(process.env.CAMPAGNES ?? 2);
-const RUNS_CAMPAGNE = Number(process.env.RUNS_CAMPAGNE ?? 14);
-/* Les premières saisons jouées deux fois, le duel joué puis laissé (Jalon P0, puis V13-2). */
-const SAISONS_MAIN = Number(process.env.SAISONS_MAIN ?? 12);
-/* Les niveaux : 0, puis les N premiers déblocages de l'ordre du robot ; le classeur de M runs jouées. */
-const NIVEAUX = [[0, 0], [6, 4], [11, 9], [16, 16], [ORDRE_DEBLOCAGES.length, 28]];
-const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
+const RUNS = Number(process.env.RUNS ?? 2);
 
-/* ---------- les travailleurs : un niveau, une campagne, le duel joué ---------- */
+/* ---------- le travailleur : une run en actes de l'attentif ---------- */
 if (!isMainThread) {
-  const t = workerData;
-  if (t.genre === 'niveau') {
-    const meta = metaAuNiveau(t.niveau);
-    const classeur = classeurSynthetique(meta, t.runsAvant, `classeur-${t.niveau}`);
-    const out = [];
-    for (let i = t.de; i < t.a; i++) {
-      const r = jouerRun({ ...meta, deblocages: meta.deblocages.slice(), jalons: {} }, { classeur, graine: `niveau${t.niveau}-${i}` });
-      out.push({ coupe: r.coupe, nSaisons: r.nSaisons, pts1: r.pts1, series1: r.series1, coupe1: !!r.saisons[0].coupe, depart: r.depart, valeurDepart: r.valeurDepart, s2: r.saisons[1] ? { valeur: r.saisons[1].valeur, mandat: r.saisons[1].mandat } : null });
-    }
-    parentPort.postMessage({ niveau: t.niveau, classeur: classeur.length, out });
-  } else if (t.genre === 'main') {
-    // LE DUEL JOUÉ (Jalon P0, puis V13-2) : la même première saison, sur les mêmes dés, le robot attentif qui répond aux
-    // intentions (le geste, le tableau) puis qui les laisse là (`mains: false`). Avant la V13-2, c'était la main de
-    // l'adjoint en séries, jouée ou non, sous le robot d'avant ; elle est partie, et le robot d'avant ne répond plus à rien.
-    const out = [];
-    for (let i = t.de; i < t.a; i++) {
-      const jouer = mains => jouerRun(metaAuNiveau(0), { graine: `main-${i}`, maxSaisons: 1, mains, politique: 'attentif' }).saisons[0];
-      const avec = jouer(true), sans = jouer(false);
-      if (avec.rang <= 16) out.push({ rang: avec.rang, avec: avec.rondes, sans: sans.rondes });
-    }
-    parentPort.postMessage({ main: out });
-  } else {
-    // UNE CAMPAGNE : de zéro, les écussons et les jalons achètent les déblocages, run après run.
-    const meta = { ecussons: 0, deblocages: [], jalons: {} };
-    const classeur = new Map();
-    let derniere = [], saisons = 0, premiere = null;
-    const joues = new Map();
-    const runs = [];
-    for (let r = 0; r < t.runs; r++) {
-      const niv = meta.deblocages.length;
-      // Les exigences (tranche 8) : le robot monte au plus haut cran que ses Coupes ont ouvert.
-      const res = jouerRun(meta, { classeur: [...classeur.values()], derniere, graine: `campagne${t.c}-run${r}`, jalons: true, joues, exigence: exigencesOuvertes(meta) });
-      for (const x of res.entrees) if (!classeur.has(getPlayerKey(x.p))) classeur.set(getPlayerKey(x.p), x);
-      derniere = res.equipe;
-      meta.ecussons += res.ecussons;
-      acheterDans(meta);
-      saisons += res.nSaisons;
-      runs.push({ niv, nSaisons: res.nSaisons, coupe: res.coupe, ecussons: res.ecussons });
-      if (res.coupe && premiere === null) premiere = { run: r + 1, saisons };
-    }
-    parentPort.postMessage({ c: t.c, runs, premiere, deblocages: meta.deblocages.length, jalons: Object.keys(meta.jalons || {}).length });
-  }
+  const { jouerLaRun } = await import('./lib/rogue_actes.mjs');
+  parentPort.postMessage(jouerLaRun('attentif', `rogue-${workerData.i}`));
 } else {
   const lancer = data => new Promise((resolve, reject) => {
-    const w = new Worker(fileURLToPath(import.meta.url), { workerData: data });
+    const w = new Worker(fileURLToPath(import.meta.url), { workerData: data, resourceLimits: { maxOldGenerationSizeMb: 2048 } });
     w.once('message', resolve); w.once('error', reject);
   });
-  const pct = x => `${Math.round(100 * x)} %`;
   const t0 = Date.now();
-  console.log('\n  Le Rogue (S80) : le départ du classeur, la courbe, le cartable\n');
+  console.log('\n  Le Rogue (V27) : le départ, les exigences, la ligue, la run en actes\n');
 
   /* ---------- 1. les invariants ---------- */
   exiger('23 cases de base, et les cases de réserve de plus après elles', CASES_DE_BASE.length === 23 && SLOTS.length === 23 + RESERVES_EN_PLUS
@@ -159,19 +98,14 @@ if (!isMainThread) {
     // 24 oct. (JP : *garder des joueurs de run en run devrait être fait dans une loto*) : des cases d'un niveau, plus de choix.
     const niveaux = [[], ['classeur1'], ['classeur1', 'classeur2', 'classeurTri'], ['classeur1', 'classeur2', 'classeur3', 'classeur4', 'classeurTri']];
     const D = niveaux.map(d => departDuClasseur({ deblocages: d }));
-    const L = niveaux.map(d => lotosDeSaison({ deblocages: d })), R = niveaux.map(d => gardesDeLaRun({ deblocages: d }));
     const nom = cases => cases.map(k => NOMS_DE_NIVEAU[k].nom).join('+');
     exiger('le départ du classeur : une case Régulier sans rien, une case par page (Pilier, Étoile), cinq cartes par loto au tri',
       nom(D[0].cases) === 'Régulier' && D[0].vues === 3 && nom(D[1].cases) === 'Pilier+Régulier' && nom(D[2].cases) === 'Étoile+Pilier+Régulier' && D[2].vues === 5
       && nom(D[3].cases) === 'Étoile+Étoile+Pilier+Pilier+Régulier' && !('mode' in D[3]) && !DEBLOCAGES.classeurChoix,
       D.map(x => `${nom(x.cases)} (${x.vues})`).join(' · '));
     exiger('le joueur de concession et les exigences retirent des cases, par le haut', nom(departDuClasseur({ deblocages: niveaux[2], vedette: 'x' }).cases) === 'Pilier+Régulier'
-      && nom(departDuClasseur({ deblocages: niveaux[2] }, 3).cases) === 'Pilier+Régulier' && nom(lotosDeSaison({ deblocages: niveaux[1] }, 3).cases) === 'Régulier',
+      && nom(departDuClasseur({ deblocages: niveaux[2] }, 3).cases) === 'Pilier+Régulier',
       nom(departDuClasseur({ deblocages: niveaux[2], vedette: 'x' }).cases));
-    // 7 nov. 2026 (JP : *bloquer le snowball*) : un loto Régulier (c'était trois), deux Réguliers gardés (c'était un Pilier et un Régulier).
-    exiger('entre deux saisons, un loto Régulier et un par page ; ceux qui restent : deux Réguliers, cinq au tri',
-      nom(L[0].cases) === 'Régulier' && nom(L[2].cases) === 'Étoile+Pilier+Régulier' && nom(R[0].cases) === 'Régulier+Régulier' && nom(R[3].cases) === 'Régulier+Régulier' && R[0].vues === 3 && R[2].vues === 5,
-      `${nom(L[2].cases)} · ${nom(R[2].cases)}`);
     const Gd = [[], ['garder1'], ['garder1', 'garder2'], ['garder1', 'garder2', 'garder3', 'classeurTri']].map(d => gardesDeLaDerniere({ deblocages: d }));
     exiger('de ta dernière équipe, un loto par case : Pilier, un deuxième Pilier, puis Étoile ; rien sans déblocage',
       nom(Gd[0].cases) === '' && nom(Gd[1].cases) === 'Pilier' && nom(Gd[2].cases) === 'Pilier+Pilier' && nom(Gd[3].cases) === 'Étoile+Pilier+Pilier' && Gd[3].vues === 5,
@@ -194,9 +128,24 @@ if (!isMainThread) {
     exiger('le budget du classeur : 25 M$ sans déblocage, le plafond débloqué le monte', budgetDuClasseur({ deblocages: [] }) === 25_000_000 && budgetDuClasseur({ deblocages: ['plafond1', 'plafond2'], ecussonsAVie: 0 }) === 32_000_000, '25 M$ · 32 M$');
     exiger('les cases de réserve de plus se débloquent une à une', reservesDeLaRun({ deblocages: [] }) === 0 && reservesDeLaRun({ deblocages: ['banc1'] }) === 1 && reservesDeLaRun({ deblocages: ['banc1', 'banc2'] }) === 2 && DEBLOCAGES.banc2.requis === 'banc1', '0 · 1 · 2');
     exiger('le barème d\'une run : 5 🪙 par victoire, 8 et 10 avec les commanditaires', baremeRogue({ deblocages: [] }).victoire === 5 && baremeRogue({ deblocages: ['commanditaire1'] }).victoire === 8 && baremeRogue({ deblocages: ['commanditaire1', 'commanditaire2'] }).victoire === 10, '5 · 8 · 10');
-    // 1.0 (J1-C) : la prime de série se verse — `resultatsRogue` (js/game.js) renvoie enfin `series`, que `jetonsDe` lit.
-    exiger('la prime de série : trois rondes gagnées valent 3 × 40 🪙, et rien sans ronde', jetonsDe({ series: 3 }, 0, 40, JETONS) === 40 + 3 * JETONS.serie && jetonsDe({}, 0, 40, JETONS) === 40 && JETONS.serie === 40,
-      `${jetonsDe({ series: 3 }, 0, 40, JETONS)} 🪙 avec trois rondes, ${jetonsDe({}, 0, 40, JETONS)} sans`);
+    // V27, tranche 3 : la prime de série est en médailles (20 🏅 la ronde, `ecussonsDesSeries`) ; en séries, la boutique est fermée.
+    exiger('la prime de série : en médailles (20 🏅 la ronde, 40 de plus pour la Coupe), plus en jetons', jetonsDe({ series: 3 }, 0, 40, JETONS) === 40 && !('serie' in JETONS) && ecussonsDesSeries(3, false) === 60 && ecussonsDesSeries(4, true) === 120,
+      `${jetonsDe({ series: 3 }, 0, 40, JETONS)} 🪙 avec trois rondes · ${ecussonsDesSeries(3, false)} 🏅`);
+    /*
+     * LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; docs/refonte-v27-3.md) : sept nœuds, ouverts jusqu'à ton match suivant ; le prix
+     * remis à zéro à chaque nœud ; quatre achats au plus, la pièce comprise ; la pièce à 32 🪙, puis à la hausse des packs ; trois
+     * pièces tirées de la graine, les mêmes pour la même graine ; ton club et l'ouverture d'un pack scellé ne comptent pas.
+     */
+    exiger('la boutique n\'ouvre qu\'à ses sept nœuds', NOEUDS_BOUTIQUE.join() === '0,14,27,41,54,68,82' && [0, 14, 27, 41, 54, 68, 82].every(k => noeudOuvert(k) === k) && [1, 13, 15, 40, 81, 83].every(k => noeudOuvert(k) === null)
+      && prochainNoeud(33) === 41 && prochainNoeud(0) === 14 && prochainNoeud(82) === null, `ouverte à ${NOEUDS_BOUTIQUE.join(' · ')} ; après le 33e, la prochaine au ${prochainNoeud(33)}e`);
+    exiger('le prix repart de zéro au nœud : la pièce 32 🪙 en premier, 45 après un pack', PRIX_PIECE === 32 && prixDeLaPiece(0) === 32 && prixDeLaPiece(1) === 45 && ACHATS_PAR_NOEUD === 4,
+      `${prixDeLaPiece(0)} · ${prixDeLaPiece(1)} · ${prixDeLaPiece(2)} · ${prixDeLaPiece(3)} 🪙 · ${ACHATS_PAR_NOEUD} achats au plus`);
+    exiger('un achat de nœud : un pack payé ou la pièce ; ton club et l\'ouverture d\'un scellé, non', estUnAchat({ achat: { sorte: 'joueurs', prix: 14 } }) && estUnAchat({ achat: { sorte: 'piece', prix: 32 } })
+      && !estUnAchat({ achat: { sorte: 'club', prix: 15 } }) && !estUnAchat({ achat: { sorte: 'joueurs', prix: 0, de: 'k:0' } }), 'pack · pièce · ni club ni scellé');
+    // V27, tranche 5 : trois pièces de banc (js/pieces.js), jamais une déjà sur ton banc.
+    const P0 = { cle: 'tortue', banc: ['verrou'] }, o1 = piecesDuNoeud(P0, 'g', 41), o2 = piecesDuNoeud(P0, 'g', 41), o3 = piecesDuNoeud(P0, 'g', 54);
+    exiger('trois pièces par nœud, pures, jamais une déjà sur ton banc, une autre offre au nœud suivant', o1.length === 3 && JSON.stringify(o1) === JSON.stringify(o2) && JSON.stringify(o1) !== JSON.stringify(o3) && o1.every(k => PIECES[k] && k !== 'verrou'),
+      o1.join(' · '));
     // 1.0 (J1-B) : un achat s'enregistre AVANT le butin — un ballottage de pack porte le palier `k:n:signe`, jamais l'achat lui-même,
     // donc le numéro d'achat suivant ne bouge pas et la dépense est comptée même sans signature.
     const achats = [{ jour: 3, palier: 'k:0', achat: { pack: 'j:hasard_bronze', n: 0, prix: 12, sorte: 'joueurs' } }, { jour: 3, palier: 'k:0:signe', ballottage: { i: 20, entre: 'x', sort: null } }];
@@ -208,19 +157,8 @@ if (!isMainThread) {
    */
   {
     const n = PRESTIGES.map((_, r) => coachsOuverts(r).length);
-    exiger('les coachs ouverts : trois au départ, un de plus par rang, les huit voies à la Dynastie', n[0] === 3 && n.every((x, i) => i === 0 || x > n[i - 1]) && n[n.length - 1] === VOIES.length && VOIES.every(k => POUVOIRS[k]), n.join(' · '));
+    exiger('les coachs ouverts : trois au départ, un de plus par rang, les huit voies à la Dynastie', n[0] === 3 && n.every((x, i) => i === 0 || x > n[i - 1]) && n[n.length - 1] === VOIES.length && VOIES.every(k => PIECE_DU_COACH[k]), n.join(' · '));
   }
-  // V5 : le mandat se lit au classement (un rang qui monte), plus une série gagnée.
-  const seuils = MANDATS.map(m => rangDuMandat(m, 32));
-  exiger('le mandat du proprio monte de saison en saison', seuils[0] == null && seuils.slice(1).every((s, i) => i === 0 || s < seuils[i]) && mandatDe(9) === MANDATS[MANDATS.length - 1]
-    && mandatRempli(1, { series: true, rang: 16 }) && !mandatRempli(2, { series: true, rang: 11 }) && mandatRempli(2, { series: true, rang: 10 }) && !mandatRempli(1, { series: false }) && mandatRempli(4, { series: true, rang: 3 }) && !mandatRempli(9, { series: true, rang: 4 }),
-    MANDATS.map((m, i) => `saison ${i + 1}${i === MANDATS.length - 1 ? '+' : ''} : ${m.mot}`).join(' · '));
-  // Nov. 2026 : la première saison de la première run, le proprio laisse bâtir (`MANDAT_DE_LA_PREMIERE`) ; la deuxième saison, et la deuxième run, les mandats de toujours.
-  const P1 = MANDAT_DE_LA_PREMIERE.top;
-  exiger('la première saison de la première run : finir dans les premiers, séries ou pas', mandatDe(1, 0, true) === MANDAT_DE_LA_PREMIERE && mandatRempli(1, { series: false, rang: P1, premiere: true })
-    && !mandatRempli(1, { series: false, rang: P1 + 1, premiere: true }) && !mandatRempli(1, { series: false, rang: P1 }) && mandatDe(2, 0, true) === MANDATS[1] && !mandatRempli(2, { series: false, rang: 5, premiere: true })
-    && mandatDe(1, EXIGENCES.findIndex(x => x.mandat) + 1, true) !== MANDAT_DE_LA_PREMIERE,
-  `saison 1 de la run 1 : ${MANDAT_DE_LA_PREMIERE.mot} · puis ${mandatDe(2, 0, true).mot}`);
   {
     const m = { deblocages: [], jalons: {} };
     const a = jalonsAtteints(m, { series: true, rondes: 1, pts: 101, saisonDeLaRun: 1 }).map(J => J.cle);
@@ -238,9 +176,9 @@ if (!isMainThread) {
   {
     const m0 = { deblocages: [] }, z = exigencesDe(0);
     const neutre = z.espace === 0 && z.prixPacks === 1 && z.medailles === 1 && plafondDeSaison(60e6, m0, 0) === 64e6 && baremeRogue(m0, 0).victoire === baremeRogue(m0).victoire
-      && mandatDe(1, 0) === MANDATS[0] && soutiensDuDepart(0, 1, 0) === soutiensDuDepart(0, 1) && departDuClasseur(m0, 0).n === departDuClasseur(m0).n && gardesDeLaRun(m0, 0).cases.length === GARDES_DE_SAISON.length;
+      && soutiensDuDepart(0, 1, 0) === soutiensDuDepart(0, 1) && departDuClasseur(m0, 0).n === departDuClasseur(m0).n && z.controles === 0 && z.rivaux === 0 && z.series === 0;
     exiger('au cran 0, les exigences ne changent rien', neutre);
-    const canaux = ['espace', 'prixPacks', 'classeur', 'soutiens', 'victoire', 'mandat', 'gardes'];
+    const canaux = ['espace', 'prixPacks', 'classeur', 'soutiens', 'victoire', 'controles', 'rivaux', 'series'];
     const fautes = [];
     EXIGENCES.forEach((E, i) => {
       const avant = exigencesDe(i), apres = exigencesDe(i + 1);
@@ -252,11 +190,11 @@ if (!isMainThread) {
     });
     exiger('chaque cran d\'exigence change un seul canal, s\'ajoute aux précédents et paie plus de médailles', !fautes.length, fautes.join(' · ') || EXIGENCES.map(E => E.nom).join(' · '));
     const n = EXIGENCES.length, X = exigencesDe(n);
-    const tout = plafondDeSaison(60e6, m0, n) === 60e6 && plafondDeSaison(60e6, { deblocages: ['plafond1', 'plafond2'] }, n) === 60e6 + ESPACE_DE_DEPART + 7e6 + X.espace
-      && plafondDeSaison(60e6, m0, 1) === 60e6 + ESPACE_DE_DEPART + EXIGENCES[0].espace && mandatDe(1, n) === MANDATS[1] && soutiensDuDepart(4, 1, n) === soutiensDuDepart(4, 1) + 3 && departDuClasseur(m0, n).n === 0
-      && baremeRogue(m0, n).victoire === baremeRogue(m0).victoire - 2 && gardesDeLaRun(m0, n).cases.length === GARDES_DE_SAISON.length - 1;
+    const tout = plafondDeSaison(60e6, m0, n) === Math.max(60e6, 60e6 + ESPACE_DE_DEPART + X.espace) && plafondDeSaison(60e6, { deblocages: ['plafond1', 'plafond2'] }, n) === 60e6 + ESPACE_DE_DEPART + 7e6 + X.espace
+      && plafondDeSaison(60e6, m0, 1) === 60e6 + ESPACE_DE_DEPART + EXIGENCES[0].espace && soutiensDuDepart(4, 1, n) === soutiensDuDepart(4, 1) + 3 && departDuClasseur(m0, n).n === 0
+      && baremeRogue(m0, n).victoire === baremeRogue(m0).victoire - 2 && X.controles === -2 && X.rivaux === 1 && X.series === 1;
     exiger('au plus haut cran, chaque canal mord (et le plafond jamais sous la masse)', tout,
-      `plafond ${plafondDeSaison(60e6, m0, n) / 1e6} M$ pour 60 M$ · mandat de la 1re saison : ${mandatDe(1, n).mot} · ${baremeRogue(m0, n).victoire} 🪙 par victoire · ${gardesDeLaRun(m0, n).cases.length} case(s) de gardés · médailles ×${String(X.medailles).replace('.', ',')}`);
+      `plafond ${plafondDeSaison(60e6, m0, n) / 1e6} M$ pour 60 M$ · ${baremeRogue(m0, n).victoire} 🪙 par victoire · contrôles ${X.controles} · rivaux +${X.rivaux} · séries +${X.series} · médailles ×${String(X.medailles).replace('.', ',')}`);
     const o = [exigencesOuvertes({}), exigencesOuvertes({ coupes: 1 }), exigencesOuvertes({ coupes: 4, exigence: 2 }), exigencesOuvertes({ coupes: 40, exigence: 99 })];
     exiger('les exigences s\'ouvrent à la première Coupe, puis un cran par Coupe gagnée au plus haut', o.join() === `0,1,3,${n}`, o.join(' · '));
   }
@@ -284,11 +222,6 @@ if (!isMainThread) {
       fautes.join(' · ') || `étapes ${etapes.join(' · ')} · éditions à l'étape 3 : ${somme(3)} crans pour ${n} joueurs`);
     exiger('un cran d\'exigence monte la ligue de ETAPES_PAR_CRAN niveaux, le prestige d\'un', niveauDeLigue(2, 0) === 2 && niveauDeLigue(4, 3) === 4 + 3 * ETAPES_PAR_CRAN && niveauDeLigue(0, 0) === 0,
       `Dynastie, cran 3 : niveau ${niveauDeLigue(4, 3)}`);
-    // La deuxième run est plus dure (31 oct.) : une étape de plus dès la deuxième, la même à la dixième — une marche, pas une pente.
-    // Lot 5 (nov. 2026) : seule la première saison de la première run joue la ligue nue ; sa deuxième saison porte la marche.
-    exiger('la première saison de la première run joue sa ligue nue ; dès sa deuxième saison et dès la deuxième run, une étape d\'édition de plus, la même ensuite',
-      etapeDeLaRun(1) === 0 && etapeDeLaRun(1, 2) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(2, 1) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(2) === ETAPE_APRES_LA_PREMIERE && etapeDeLaRun(10) === ETAPE_APRES_LA_PREMIERE && ligueDe(0, etapeDeLaRun(2)).etape === ETAPE_APRES_LA_PREMIERE && ligueDe(3, etapeDeLaRun(2)).etape === 1 + ETAPE_APRES_LA_PREMIERE,
-      `run 2 au niveau 0 : étape ${ligueDe(0, etapeDeLaRun(2)).etape}`);
     const club = { roster: Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { n: `j${i}`, v: n - i, _carte: { rar: 'rare' } }])) };
     habillerLaLigue([club], 0, p => p.v);
     const nu = Object.values(club.roster).every(p => !p._carte);
@@ -297,84 +230,68 @@ if (!isMainThread) {
     exiger('une ligue de niveau 0 n\'a aucune carte ; plus haut, ses clubs en portent', nu && habille === n, `${habille} cartes sur ${n} au niveau 6`);
   }
 
-  /* ---------- 2, 2b, 3 : les runs, le duel joué et les campagnes, en parallèle ---------- */
-  const taches = [];
-  for (const [niveau, runsAvant] of NIVEAUX) for (let de = 0; de < RUNS; de += Math.ceil(RUNS / 2)) taches.push({ genre: 'niveau', niveau, runsAvant, de, a: Math.min(RUNS, de + Math.ceil(RUNS / 2)) });
-  for (let c = 0; c < CAMPAGNES; c++) taches.push({ genre: 'campagne', c, runs: RUNS_CAMPAGNE });
-  for (let de = 0; de < SAISONS_MAIN; de += Math.ceil(SAISONS_MAIN / 2)) taches.push({ genre: 'main', de, a: Math.min(SAISONS_MAIN, de + Math.ceil(SAISONS_MAIN / 2)) });
   /*
-   * Au plus FILS travailleurs à la fois (6 par défaut) : à RUNS=40 CAMPAGNES=6,
-   * les dix-neuf d'un coup tenaient 8,6 Go et la machine a manqué de mémoire.
-   * Les campagnes, les plus longues, partent d'abord ; chaque résultat garde
-   * sa place, donc le rapport ne change pas.
-   */
-  const FILS = Math.max(1, Number(process.env.FILS) || Math.min(6, availableParallelism() - 1));
-  const resultats = new Array(taches.length);
-  const ordre = taches.map((t, k) => k).sort((a, b) => (taches[b].genre === 'campagne') - (taches[a].genre === 'campagne'));
-  let suivante = 0;
-  await Promise.all(Array.from({ length: Math.min(FILS, taches.length) }, async () => {
-    while (suivante < ordre.length) { const k = ordre[suivante++]; resultats[k] = await lancer(taches[k]); }
-  }));
-
-  /* 2. la courbe */
-  const parNiveau = new Map();
-  for (const r of resultats.filter(x => x.niveau !== undefined)) {
-    const x = parNiveau.get(r.niveau) || { classeur: r.classeur, out: [] };
-    x.out.push(...r.out); parNiveau.set(r.niveau, x);
-  }
-  const lignes = [];
-  for (const [niveau] of NIVEAUX) {
-    const { out, classeur } = parNiveau.get(niveau);
-    const L = { niveau, cout: coutDuNiveau(niveau), classeur, coupe: moy(out.map(o => o.coupe)), coupe1: moy(out.map(o => o.coupe1)), saisons: moy(out.map(o => o.nSaisons)),
-      pts1: moy(out.map(o => o.pts1)), series1: moy(out.map(o => o.series1)), depart: moy(out.map(o => o.depart)), valeurDepart: moy(out.map(o => o.valeurDepart)), s2: out.filter(o => o.s2).map(o => o.s2), n: out.length };
-    lignes.push(L);
-    informer(`${niveau} déblocages · ${L.cout} 🏅`, `Coupe par run ${pct(L.coupe)} · dès la 1re saison ${pct(L.coupe1)} · ${L.saisons.toFixed(2).replace('.', ',')} saisons par run · 1re saison ${L.pts1.toFixed(0)} pts, séries ${pct(L.series1)} · ${L.depart.toFixed(1).replace('.', ',')} carte(s) du classeur au départ, valeur ${L.valeurDepart.toFixed(1).replace('.', ',')} (${L.classeur} au classeur) · saison 2 : ${L.s2.length} runs, l'équipe vaut ${moy(L.s2.map(x => x.valeur)).toFixed(2).replace('.', ',')} en moyenne, mandat tenu ${pct(moy(L.s2.map(x => x.mandat)))} · ${L.n} runs`);
-  }
-  monte('la première saison monte avec les déblocages (points, à 4 près)', lignes.map(l => l.pts1), 4);
-  // Mesuré à soixante runs : 2 % par run, 0 % dès la première saison. Les bornes laissent une Coupe sur dix runs (le mode rapide).
-  borne('sans aucun déblocage, la Coupe par run est rare', lignes[0].coupe, 0, 0.1);
-  borne('sans aucun déblocage, la Coupe dès la première saison : presque jamais', lignes[0].coupe1, 0, 0.1);
-  exiger('tout débloqué, la Coupe se gagne bien plus souvent qu\'au départ', lignes[lignes.length - 1].coupe >= lignes[0].coupe + 0.1, `${pct(lignes[0].coupe)} → ${pct(lignes[lignes.length - 1].coupe)}`);
-
-  /*
-   * 2b. LE DUEL JOUÉ (Jalon P0, puis V13-2). Mesuré le 12 oct., la main de l'adjoint en séries : 1,00 ronde sans,
-   * 1,24 avec, à 270 premières saisons. Sans main (V13-2), ce qui se lit ici, c'est ce que vaut le duel bien joué
-   * (l'attentif) contre le duel laissé là, sur la même première saison. Les rangs diffèrent d'un bras à l'autre (les
-   * duels de saison comptent aussi) : on garde les saisons où le duel joué se qualifie.
+   * LES RÈGLES DES ACTES (V27, js/actes.js), sans moteur : les contrôles et les rivaux suivent la taille de la ligue ; le
+   * rang du soir est celui de l'écran Classement (les points, les victoires, le différentiel, les buts, puis le club) ;
+   * un cœur part par contrôle raté, la run meurt à 0 ❤️, et l'acte III n'en coûte aucun.
    */
   {
-    const q = resultats.filter(x => x.main).flatMap(x => x.main);
-    const finale = k => pct(moy(q.map(o => (o[k] >= 3 ? 1 : 0))));
-    informer('le duel joué, la même première saison sur les mêmes dés', q.length
-      ? `${q.length} saisons qualifiées sur ${SAISONS_MAIN} · rondes gagnées ${moy(q.map(o => o.sans)).toFixed(2).replace('.', ',')} le duel laissé, ${moy(q.map(o => o.avec)).toFixed(2).replace('.', ',')} joué · finale ${finale('sans')} laissé, ${finale('avec')} joué`
-      : `aucune saison qualifiée sur ${SAISONS_MAIN}`);
+    exiger('les actes, les cœurs et les contrôles du devis', ACTES.join() === '27,54,82' && COEURS === 2 && CONTROLES.join() === '20,15' && RANGS_DES_RIVAUX.join() === '7,3,0' && ETAPE_SERIES === 4,
+      `actes ${ACTES.join(' · ')} · ${COEURS} ❤️ · contrôles ${CONTROLES.join(' · ')} · rivaux ${RANGS_DES_RIVAUX.map(r => r + 1).join(' · ')} · séries +${ETAPE_SERIES}`);
+    exiger('les contrôles et les rivaux suivent la taille de la ligue', controleDeLActe(0, 32) === 20 && controleDeLActe(1, 32) === 15 && controleDeLActe(0, 24) === 15 && controleDeLActe(1, 24) === 11
+      && parmiLesAdversaires(7, 32) === 7 && parmiLesAdversaires(7, 24) === 5, `ligue de 24 : ${controleDeLActe(0, 24)} · ${controleDeLActe(1, 24)}`);
+    const n = EXIGENCES.length;
+    exiger('les exigences serrent les contrôles, montent les rivaux et durcissent les séries', controleDeLActe(0, 32, n) === 18 && controleDeLActe(1, 32, n) === 13 && etapeDesSeries(n) === ETAPE_SERIES + 1 && etapeDesSeries(0) === ETAPE_SERIES,
+      `au cran ${n} : ${controleDeLActe(0, 32, n)} · ${controleDeLActe(1, 32, n)} · séries +${etapeDesSeries(n)}`);
+    // Une ligue de quatre clubs sur une cédule écrite à la main : le rang du soir, ses bris d'égalité.
+    const T = ['A', 'B', 'C', 'D'].map(tag => ({ tag, season: '2000-01' })), [a, b, c, d] = T;
+    const m = (A, B, gfA, gfB, ot = false) => ({ A, B, gfA, gfB, ot, joue: true });
+    const cal = [[m(a, b, 3, 1), m(c, d, 2, 1, true)], [m(a, c, 1, 2), m(b, d, 4, 0)], [m(a, d, 0, 0), m(b, c, 0, 0)]];
+    cal[2] = [{ A: a, B: d }, { A: b, B: c }];
+    const rangs = T.map(t => rangAuSoir(cal, T, t, 1));
+    // Après deux soirs : A 2 pts (1 V, +1), B 2 pts (1 V, +2), C 4 pts, D 1 pt (DP) → C, B, A, D.
+    exiger('le rang du soir est celui de l\'écran : les points, les victoires, le différentiel', rangs.join() === '3,2,1,4', `A ${rangs[0]}e · B ${rangs[1]}e · C ${rangs[2]}e · D ${rangs[3]}e`);
+    // Les cœurs : un rival par soir ; à 4 clubs, les contrôles valent 3 et 2 (arrondi(20 × 4 / 32), arrondi(15 × 4 / 32)).
+    const rivaux = [{ acte: 0, jour: 0, adv: b }, { acte: 1, jour: 1, adv: c }];
+    const E = etatDeLaRun({ calendrier: cal, teams: T, you: a, rivaux, jour: 2 });
+    exiger('un contrôle raté coûte un cœur ; deux, la run', E.actes.length === 2 && E.actes[0].tenu === true && E.actes[1].tenu === false && E.coeurs === 1 && !E.mort
+      && etatDeLaRun({ calendrier: cal, teams: T, you: d, rivaux, jour: 2, exigence: EXIGENCES.length }).mort,
+      `A : ${E.actes.map(x => `${x.rang}e / ${x.cible} ${x.tenu ? '✓' : '✗'}`).join(' · ')} · ${E.coeurs} ❤️`);
+    // LE RENFORT (tranche 4, devis § 4.4), l'exemple fait à la main : Boston contre toi aux matchs 5, 33 et 70 (de 0 : 4, 32, 69).
+    const R1 = renfortDe([4, 32, 69], [39, 59, 69]), R2 = renfortDe([4, 32, 69], [19, 39, 69]);
+    exiger('le renfort : +1 par acte de recul, +1 au-delà du nœud du milieu, compté depuis la cédule d\'origine', R1 === 2 && R2 === 1 && renfortDe([4], [4]) === 0 && renfortDe([20], [10]) === 0 && renfortDe([60], [70]) === 1 && renfortDe([60], [66]) === 0,
+      `le 5 au 60 et le 33 au 40 : +${R1} ; puis le 60 ramené au 20 : +${R2}`);
+    exiger('un rival perdu ne coûte aucun cœur', E.actes[1].gagne === false && E.actes[0].gagne === true && E.coeurs === COEURS - 1, `rival I ${E.actes[0].gagne ? 'battu' : 'perdu'} · rival II ${E.actes[1].gagne ? 'battu' : 'perdu'}`);
+    // La bande du départ (devis § 4.9) : les bouche-trous tirés de `BANDE_DEPART` (du 40e au 60e centile) de leur saison.
+    const s = shard('1985-86').players.filter(p => groupe(p) === 'F' && (p.gp || 0) >= 30);
+    const ppm = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
+    const tri = s.slice().sort((x, y) => ppm(x) - ppm(y)), bande = new Set(tri.slice(Math.floor(tri.length * BANDE_DEPART[0]), Math.floor(tri.length * BANDE_DEPART[1])));
+    const pris = bouchesTrousDuDepart([s], { groupe, valeur: () => 0, personne: getPersonKey, piger: l => l[0] }).filter(p => groupe(p) === 'F');
+    exiger('les bouche-trous du départ sont pigés de la bande du départ de leur saison (BANDE_DEPART)', pris.length === 3 && pris.every(p => bande.has(p)), `${pris.length} attaquants, ${pris.filter(p => bande.has(p)).length} dans la bande`);
   }
 
-  /* 3. les campagnes */
-  const camp = resultats.filter(x => x.c !== undefined);
-  for (const r of camp) {
-    informer(`campagne ${r.c + 1}`, `${r.premiere ? `1re Coupe à la run ${r.premiere.run} (${r.premiere.saisons} saisons jouées)` : `pas de Coupe en ${RUNS_CAMPAGNE} runs`} · ${r.deblocages} déblocages et ${r.jalons} jalons au bout · saisons par run : ${r.runs.map(x => `${x.nSaisons}${x.coupe ? '🏆' : ''}`).join(' ')}`);
+  /* ---------- 2. la run en actes, jouée par l'attentif (un fil par graine, deux à la fois) ---------- */
+  const FILS = Math.max(1, Math.min(2, Number(process.env.FILS) || availableParallelism() - 1));
+  const runs = new Array(RUNS);
+  let suivante = 0;
+  await Promise.all(Array.from({ length: Math.min(FILS, RUNS) }, async () => {
+    while (suivante < RUNS) { const i = suivante++; runs[i] = await lancer({ i }); }
+  }));
+  for (const r of runs) {
+    informer(`run ${r.graine}`, `${r.actes.map((x, a) => `acte ${a + 1} : ${x.rang}e${x.tenu == null ? '' : x.tenu ? ' ✓' : ' ✗'}, rival ${x.rival ? 'battu' : 'perdu'}`).join(' · ')} · ${r.coeurs} ❤️${r.mort ? ` · morte à l'acte ${r.mort}` : r.rate ? ' · sans séries' : ` · ${r.rondes} ronde(s)${r.coupe ? ' 🏆' : ''}`} · ${r.s} s`);
   }
-  /*
-   * UNE PREMIÈRE RUN GAGNE PARFOIS (mesuré : une sur vingt environ, jamais dès
-   * sa première saison) : on juge la MÉDIANE des campagnes, pas chacune. Au
-   * mode rapide (deux campagnes), la moyenne des deux.
-   */
-  const premieres = camp.map(r => (r.premiere ? r.premiere.run : RUNS_CAMPAGNE + 1)).sort((a, b) => a - b);
-  const mediane = premieres.length % 2 ? premieres[(premieres.length - 1) / 2] : (premieres[premieres.length / 2 - 1] + premieres[premieres.length / 2]) / 2;
-  exiger('la première Coupe d\'une campagne demande plusieurs runs (la médiane : trois runs ou plus)', mediane >= 3, `médiane ${mediane} · ${camp.map(r => (r.premiere ? `run ${r.premiere.run}` : `> ${RUNS_CAMPAGNE}`)).join(' · ')}`);
-
-  /*
-   * 4. LA FORCE DES CARTES SELON LE MOMENT (S80) n'est plus mesurée. Elle jouait le même gros match au jour 3, au jour
-   * 75 et en finale avec trois bras : des améliorations (« Le tir affûté », « Le mur »), des cartes de trio du deck
-   * (« Les gâchettes »…) et des cartes sur l'adversaire (« Les provoquer »…), et jugeait JP (*les upgrade de trio
-   * aident au début, mais les downgrade upgrade sont plus forts late game*) : une carte sur l'adversaire vaut deux fois
-   * plus en finale qu'au jour 3, et y bat une carte de trio. Les améliorations qui grandissent sont parties à la V10
-   * (`MUTATIONS` n'en a plus aucune de `source: 'amelioration'` : le bras appliquait une modif qui n'existe plus) ; les
-   * deux autres bras se jouaient de la MAIN du duel, partie à la V13-2 (`simulerGrosMatch` d'une équipe `courbe` ne lit
-   * plus ses `cartes`). Les trois rendaient zéro à chaque moment : rien, dans le duel du Rogue, ne grandit plus avec le
-   * soir. L'échelle elle-même reste jugée plus haut (1.), sur `echelleTardive` et `grandirEffet`.
-   */
-  informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s (${RUNS} runs par niveau, ${CAMPAGNES} campagne(s) de ${RUNS_CAMPAGNE} runs, ${SAISONS_MAIN} saisons pour le duel joué)`);
+  const n = 32;
+  exiger('un rival par acte, jamais manquant, au rang de force voulu (un voisin au plus)', runs.every(r => r.rivaux.length === 3 && r.rivaux.every((x, a) => x.voulu === parmiLesAdversaires(RANGS_DES_RIVAUX[a], n) && Math.abs(x.rang - x.voulu) <= 1)),
+    runs.map(r => r.rivaux.map(x => `${x.rang + 1}e`).join('/')).join(' · '));
+  exiger('après les échanges, chaque club joue 82 matchs, jamais deux le même jour', runs.every(r => r.verif.doubles === 0 && r.verif.min === 82 && r.verif.max === 82 && r.verif.joursToi === 82),
+    runs.map(r => `${r.verif.min}–${r.verif.max}, ${r.verif.doubles} doublé`).join(' · '));
+  // Les cœurs recomptés : un par contrôle raté des actes I et II (et par élite perdue), jamais par un rival perdu.
+  const recompte = r => COEURS - r.actes.slice(0, 2).filter(x => x.tenu === false).length - r.elites.filter(e => e.gagnee === false).length;
+  exiger('les cœurs : un de moins par contrôle raté ou élite perdue, aucun pour un rival perdu ; à zéro, la run est morte', runs.every(r => Math.max(0, recompte(r)) === r.coeurs && (!!r.mort === (recompte(r) <= 0))),
+    runs.map(r => `${r.coeurs} ❤️ (${recompte(r)})`).join(' · '));
+  exiger('aucune élite à l\'acte I (JP, 8 nov. 2026), au plus une par acte', runs.every(r => r.elites.every(e => e.acte >= 2) && [2, 3].every(a => r.elites.filter(e => e.acte === a).length <= 1)),
+    runs.map(r => r.elites.map(e => `acte ${e.acte} (${Math.round(e.p * 100)} %)`).join(', ') || 'aucune').join(' · '));
+  monte('les actes se jouent dans l\'ordre (matchs cumulés)', runs[0].actes.map((x, a) => ACTES[a]));
+  informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s (${RUNS} run(s) en actes)`);
   verdict();
 }

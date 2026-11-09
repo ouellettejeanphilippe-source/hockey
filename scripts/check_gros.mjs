@@ -8,20 +8,22 @@
  *    périodes vues : la feuille garde leurs trois pointages, et il ne porte ni plan adverse, ni main adverse, ni
  *    entracte à choix ; une vieille décision d'entracte ne change aucun match.
  * 3. En séries, chaque match de ta série est un gros match en trois périodes.
- * 4. La saison en donne assez pour raconter, pas assez pour noyer.
- * 5. En Rogue, le duel (V9) et leur coach en séries (V23 F).
+ * 4. V27 (docs/refonte-v27-2.md) : les gros matchs d'une saison sont les trois rivaux des actes, posés dans la cédule
+ *    (js/actes.js `poserLesRivaux`, le crochet `placer`) ; sans eux (le 82-0), la saison n'en a plus aucun.
+ * 5. En Rogue, le duel à un choix (V27, tranche 6) et leur coach en séries (V23 F).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde, creerSeries, jouerMatchSeries, simulerGrosMatch,
-  activeLineup, SONNE, MISE_DOUBLEE, playGame, grainerHasard, feuilleVierge,
+  activeLineup, SONNE, playGame, grainerHasard, feuilleVierge,
 } from '../js/sim.js';
-import { POUVOIRS, persoAdverse, COACH_DU_STYLE, OMBRE } from '../js/pouvoirs.js';
+import { PIECE_DU_COACH, persoAdverse, COACH_DU_STYLE, OMBRE } from '../js/pieces.js';
 import { COACHS } from '../js/coachs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { exiger, borne, informer, verdict } from './verdict.mjs';
+import { poserLesRivaux } from '../js/actes.js';
+import { exiger, informer, verdict } from './verdict.mjs';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -49,6 +51,8 @@ function ligue(seed, joueur = true) {
   return out;
 }
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
+/* La saison en actes du Rogue : ses rivaux posés dans la cédule (V27). */
+const EN_ACTES = { placer: X => poserLesRivaux(X) };
 
 console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
 
@@ -84,11 +88,11 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   for (let L = 0; L < LIGUES; L++) {
     const graine = `gros-${L}`;
     const t0 = ligue(9200 + L);
-    const r0 = simulateLeague(t0, 82, { graine, decisions: [] });
+    const r0 = simulateLeague(t0, 82, { graine, decisions: [], ...EN_ACTES });
     const mb = (t0[0].minisBoss || [])[0];
     if (!mb) continue;
     const t1 = ligue(9200 + L);
-    const r1 = simulateLeague(t1, 82, { graine, decisions: [{ jour: mb.jour, entracte: { cle: 'garder' }, sel: 'a' }] });
+    const r1 = simulateLeague(t1, 82, { graine, decisions: [{ jour: mb.jour, entracte: { cle: 'garder' }, sel: 'a' }], ...EN_ACTES });
     essais++;
     if (texte(r0.calendrier) === texte(r1.calendrier)) memes++;
   }
@@ -117,12 +121,15 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   const n = []; let complets = 0, total = 0;
   for (let L = 0; L < LIGUES; L++) {
     const teams = ligue(9400 + L);
-    simulateLeague(teams, 82, { graine: `dose-${L}`, decisions: [] });
+    simulateLeague(teams, 82, { graine: `dose-${L}`, decisions: [], ...EN_ACTES });
     const mb = teams[0].minisBoss || [];
     n.push(mb.length); total += mb.length;
     complets += mb.filter(x => Array.isArray(x.periodes) && x.periodes.length === 3 && x.plan == null && !x.depistage && !x.apres40).length;
   }
-  borne('gros matchs par saison', moy(n), 5, 14, '');
+  exiger('trois gros matchs par saison : les rivaux des actes', n.every(x => x === 3), n.join(' · '));
+  const nu = ligue(9450);
+  simulateLeague(nu, 82, { graine: 'dose-82-0', decisions: [] });
+  exiger('au 82-0 (sans rivaux posés), la saison n\'a plus aucun gros match', !(nu[0].minisBoss || []).length, `${(nu[0].minisBoss || []).length}`);
   exiger('chaque gros match porte ses trois pointages de période, et ni plan ni dépistage', complets === total, `${complets}/${total}`);
 }
 
@@ -139,45 +146,50 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
 }
 
 /*
- * LE DUEL (V9, tranche 5 ; scripts/check_duel.mjs mesure sa force). Dans une ligue de Rogue (`courbe`), chaque gros
- * match se joue en trois périodes, sans plan à dépister ; la décision de la 2e période garde la 1re, celle de la 3e
- * les deux premières, et les journées d'avant ne bougent pas ; la mise doublée double les sonnés d'une défaite.
+ * LE DUEL À UN CHOIX (V27, tranche 6 ; scripts/check_duel.mjs mesure sa force). Dans une ligue de Rogue (`courbe`), chaque
+ * gros match se joue en trois périodes, sans plan à dépister ; le plan pris avant le match (la décision du soir, `main`)
+ * joue les trois périodes ; une vieille décision d'entracte (`duel.p` 1 ou 2, avec sa mise doublée, d'avant la V27) se
+ * relit sans planter et ne change aucun match ; un rival perdu laisse ses sonnés, sans doublement ; le rival montre son
+ * intention dominante dès son annonce, et le duel la joue.
  */
 {
-  let essais = 0, p1 = 0, p12 = 0, duels = 0, complets = 0, misesOk = 0;
+  let essais = 0, duels = 0, complets = 0, plans = 0, vieilles = 0, sonnes = 0, perdus = 0, dominantes = 0, rivaux = 0;
   for (let L = 0; L < LIGUES; L++) {
     const graine = `duel-${L}`;
     const base = ligue(9700 + L);
-    simulateLeague(base, 82, { graine, decisions: [], courbe: true });
+    const res0 = simulateLeague(base, 82, { graine, decisions: [], courbe: true, ...EN_ACTES });
     const mbs = base[0].minisBoss || [];
     duels += mbs.length;
     complets += mbs.filter(x => x.duel && x.duel.periodes.length === 3 && x.plan == null && !x.depistage).length;
+    for (const mb of mbs) if (!mb.gagne) { perdus++; if (mb.duree === SONNE.duree) sonnes++; }
+    const annonces = (res0.ligue && res0.ligue.rivaux) || [];
+    for (const R of annonces) { rivaux++; if (R.dominante && R.jeu && (mbs.find(x => x.jour === R.jour) || {}).duel?.dominante === R.dominante) dominantes++; }
     const mb = mbs[0];
     if (!mb) continue;
-    const jouer = decisions => { const teams = ligue(9700 + L); const res = simulateLeague(teams, 82, { graine, decisions, courbe: true }); return { teams, cal: res.calendrier }; };
-    const p0 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 0 }, sel: 's0' };
-    const dp1 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 1, plan: { cle: 'centre' } }, sel: 's1' };
+    const jouer = decisions => { const teams = ligue(9700 + L); const res = simulateLeague(teams, 82, { graine, decisions, courbe: true, ...EN_ACTES }); return { teams, cal: res.calendrier }; };
+    const p0 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 0, plan: { cle: 'centre' } }, sel: 's0' };
+    // Une vieille partie : ses décisions d'entracte, la mise doublée comprise.
+    const dp1 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 1, plan: { cle: 'tirer' } }, sel: 's1' };
     const dp2 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 2, snap: true }, sel: 's2' };
-    const r0 = jouer([p0]), r1 = jouer([p0, dp1]), r2 = jouer([p0, dp1, dp2]);
+    const r0 = jouer([p0]), r2 = jouer([p0, dp1, dp2]);
     const leSoir = r => r.cal[mb.jour].find(m => m.A === r.teams[0] || m.B === r.teams[0]);
-    const buts = (m, fin) => m.feuille.buts.filter(x => x.instant < fin).map(x => `${x.cote}@${x.instant.toFixed(3)}`).join(',');
+    const empreinte = r => r.cal.map(j => j.map(m => `${m.gfA}-${m.gfB}`).join(' ')).join('|');
     essais++;
-    if (buts(leSoir(r0), 20) === buts(leSoir(r1), 20)) p1++;
-    if (buts(leSoir(r1), 40) === buts(leSoir(r2), 40)) p12++;
+    if ((leSoir(r0).feuille.duel || { periodes: [] }).periodes.every(h => h.plan === 'centre')) plans++;
+    if (empreinte(r0) === empreinte(r2)) vieilles++;
     const avant = cal => cal.slice(0, mb.jour).map(j => j.map(m => `${m.gfA}-${m.gfB}`).join(' ')).join('|');
-    exiger(`ligue ${L} : les journées d'avant le duel ne bougent pas`, avant(r0.cal) === avant(r2.cal));
-    const mb2 = (r2.teams[0].minisBoss || []).find(x => x.jour === mb.jour);
-    if (mb2 && mb2.mise === MISE_DOUBLEE && (mb2.gagne || mb2.duree === SONNE.duree * MISE_DOUBLEE)) misesOk++;
+    exiger(`ligue ${L} : les journées d'avant le duel ne bougent pas`, avant(r0.cal) === avant(jouer([]).cal));
   }
   exiger('en Rogue, chaque gros match est un duel de trois périodes, sans plan à dépister', duels > 0 && complets === duels, `${complets}/${duels}`);
-  exiger('la décision de la 2e période garde la 1re', essais > 0 && p1 === essais, `${p1}/${essais}`);
-  exiger('la décision de la 3e garde les deux premières', p12 === essais, `${p12}/${essais}`);
-  exiger('la mise doublée double les sonnés d\'une défaite', misesOk === essais, `${misesOk}/${essais}`);
+  exiger('le plan pris avant le match joue ses trois périodes', essais > 0 && plans === essais, `${plans}/${essais}`);
+  exiger('une vieille décision d\'entracte (et sa mise doublée) se relit sans planter et ne change aucun match', vieilles === essais, `${vieilles}/${essais}`);
+  exiger('un duel perdu laisse ses sonnés, sans doublement', sonnes === perdus, `${sonnes}/${perdus} duels perdus · ${SONNE.duree} matchs`);
+  exiger('chaque rival montre son jeu et son intention dominante à son annonce, et son duel la joue', rivaux > 0 && dominantes === rivaux, `${dominantes}/${rivaux} rivaux`);
 }
 
 /*
- * LEUR COACH EN SÉRIES (V23 F, js/pouvoirs.js `persoAdverse`). Dans une ligue de Rogue, chaque adversaire des séries
- * porte un coach-personnage pur — une philosophie lue sur son style ou tirée de son nom —, dont le pouvoir I joue sa
+ * LEUR COACH EN SÉRIES (V23 F, js/pieces.js `persoAdverse`). Dans une ligue de Rogue, chaque adversaire des séries
+ * porte un coach-personnage pur — une philosophie lue sur son style ou tirée de son nom —, dont la pièce de départ joue sa
  * condition et son ombre le reste du temps ; la feuille le note (`ombre`) ; en saison, rien. Neutre en V : en paires
  * sur les mêmes dés, un match de séries contre un club avec son coach et sans, `N_LEUR` matchs par club, l'écart reste
  * sous `NEUTRE_V` victoires par saison (la difficulté de l'adversaire ne bouge pas, `.claude/rules/rogue.md`).
@@ -185,23 +197,25 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
 {
   const graine = 'leur-coach';
   const teams = ligue(9800);
-  const res = simulateLeague(teams, 82, { graine, decisions: [], courbe: true });
+  const res = simulateLeague(teams, 82, { graine, decisions: [], courbe: true, ...EN_ACTES });
   // Ton club dans les seize, quel que soit son rang : c'est sa série qu'on lit.
   const top = [teams[0], ...(res.standings || teams).filter(t => t !== teams[0])].slice(0, 16);
   const enSaison = teams.filter(t => !t.isPlayer && t.perso).length;
   const S = creerSeries(top, { ligue: res.ligue || null, graine, decisions: [], equipes: teams });
-  const avecCoach = teams.filter(t => !t.isPlayer && t.persoSeries && POUVOIRS[t.persoSeries.cle] && t.persoSeries.adverse).length;
+  const avecCoach = teams.filter(t => !t.isPlayer && t.persoSeries && PIECE_DU_COACH[t.persoSeries.cle] && t.persoSeries.adverse).length;
   for (let garde = 0; !S.fini && garde < 200; garde++) jouerMatchSeries(S);
   const toi = teams[0];
   const mienne = S.toutes.filter(x => x.A === toi || x.B === toi);
-  const notes = mienne.flatMap(x => x.feuilles.flatMap(f => (f.pouvoirs || []).filter(n => n.cote === (x.A === toi ? 'B' : 'A'))));
+  // Chaque note porte la pièce du coach de CETTE série : ton club peut passer une ronde et changer d'adversaire.
+  const notes = mienne.flatMap(x => x.feuilles.flatMap(f => (f.pieces || []).filter(n => n.cote === (x.A === toi ? 'B' : 'A'))
+    .map(n => ({ ...n, attendue: PIECE_DU_COACH[(x.A === toi ? x.B : x.A).persoSeries.cle] }))));
   const styles = new Set(teams.filter(t => t.persoSeries).map(t => t.persoSeries.cle));
   const duStyle = teams.filter(t => t.persoSeries && COACH_DU_STYLE[t.style]);
   exiger('leur philosophie se lit sur le style du club (offensif, défensif, robuste), pure', duStyle.length > 0 && duStyle.every(t => t.persoSeries.cle === COACH_DU_STYLE[t.style]) && teams.filter(t => t.persoSeries).every(t => persoAdverse(t).cle === t.persoSeries.cle),
     `${duStyle.length} clubs au style marqué · l'ombre joue l'inverse à ×${OMBRE}`);
-  exiger('en séries, chaque adversaire a son coach-personnage (un pouvoir), aucun en saison, et le tien reste le tien', avecCoach === teams.length - 1 && enSaison === 0 && !toi.persoSeries,
+  exiger('en séries, chaque adversaire a son coach-personnage (une pièce), aucun en saison, et le tien reste le tien', avecCoach === teams.length - 1 && enSaison === 0 && !toi.persoSeries,
     `${avecCoach} coachs adverses · ${[...styles].map(c => COACHS[c].ico).join(' ')} · ${mienne.length ? `ta série contre ${COACHS[(mienne[0].A === toi ? mienne[0].B : mienne[0].A).persoSeries.cle].nom}` : 'pas de série (hors des 16)'}`);
-  exiger('leur pouvoir joue sa condition et son ombre le reste du temps, la feuille le note', !mienne.length || (notes.some(n => !n.ombre) && notes.some(n => n.ombre) && notes.every(n => POUVOIRS[(mienne[0].A === toi ? mienne[0].B : mienne[0].A).persoSeries.cle][0].cle === n.cle)),
+  exiger('leur pièce joue sa condition et son ombre le reste du temps, la feuille le note', !mienne.length || (notes.some(n => !n.ombre) && notes.some(n => n.ombre) && notes.every(n => n.attendue === n.cle)),
     `${notes.filter(n => !n.ombre).length} périodes jouées, ${notes.filter(n => n.ombre).length} à l'ombre sur ${mienne.reduce((a, x) => a + x.feuilles.length, 0)} matchs`);
   // Neutre en V : le même match de séries, mêmes dés, leur coach contre aucun.
   const N_LEUR = Number(process.env.N_LEUR ?? 60), NEUTRE_V = 1.5;
@@ -220,7 +234,7 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
       const f = feuilleVierge();
       const r = g % 2 ? playGame(adv, you, 1, false, true, f) : playGame(you, adv, 1, false, true, f);
       const gf = g % 2 ? r.gfB : r.gfA, ga = g % 2 ? r.gfA : r.gfB;
-      return { net: gf - ga, notes: f.pouvoirs.filter(x => x.cote === (g % 2 ? 'A' : 'B')).length };
+      return { net: gf - ga, notes: f.pieces.filter(x => x.cote === (g % 2 ? 'A' : 'B')).length };
     };
     const a = jouer(false), b = jouer(true);
     d += b.net - a.net; n++; joues += b.notes;
