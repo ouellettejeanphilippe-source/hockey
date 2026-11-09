@@ -5052,9 +5052,10 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-feed { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--esp-2) var(--esp-3); display: flex; flex-direction: column; gap: 2px; }
 .live-feed:not(.tous) .live-ligne.mineur { display: none; }
 /* `flex: none` : dans une colonne qui défile, une rangée qui se comprime laisse son texte déborder sur la suivante.
-   Haut et bas, la moitié des 44 px où un nom se touche moins la moitié de sa ligne (1,4 em) : la zone d'un nom de la
-   dernière ligne ne déborde plus sur la rangée suivante (le smoke la lisait 4 px dans la suivante, 45 rangées par direct). */
-.live-ligne { flex: none; display: flex; align-items: baseline; gap: var(--esp-2); min-height: 44px; padding: max(var(--esp-2), calc(22px - 0.7em)) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); line-height: 1.4; animation: ligneIn var(--t-lent) var(--e-sortie); }
+   Toutes ses lignes ont la même hauteur (`--ligne`, une longueur : le petit texte d'une punition tirée la garde aussi),
+   et son haut et son bas sont la moitié des 44 px où un nom se touche moins la moitié d'une ligne : la zone d'un nom de la
+   dernière ligne ne déborde jamais sur la rangée suivante, quel que soit le genre de la rangée (le smoke le lit). */
+.live-ligne { --ligne: calc(1.4 * var(--t-2)); flex: none; display: flex; align-items: baseline; gap: var(--esp-2); min-height: 44px; padding: max(var(--esp-2), calc(22px - var(--ligne) / 2)) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); line-height: var(--ligne); animation: ligneIn var(--t-lent) var(--e-sortie); }
 @keyframes ligneIn { from { opacity: 0; } }
 .live-ligne .team-logo-img, .live-ligne .team-logo-inline { flex: none; align-self: center; }
 .live-txt { display: inline; }
@@ -5074,7 +5075,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-ligne.danger .live-jeu-mot { color: var(--attention); }
 .live-ligne.defense .live-jeu-mot { color: var(--bleu); }
 /* Un but : une rangée plus haute sur --fond-2, la plaque du club qui marque au flanc, « BUT » en or. */
-.live-ligne.but { padding: max(var(--esp-3), calc(22px - 0.7em)); font-size: var(--t-3); }
+.live-ligne.but { --ligne: calc(1.4 * var(--t-3)); padding: max(var(--esp-3), calc(22px - var(--ligne) / 2)); font-size: var(--t-3); }
 .live-ligne.but.gagnant { box-shadow: inset 4px 0 0 var(--eq-stripe), inset 0 0 0 2px var(--or); }
 .live-but-mot { font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.08em; margin-right: var(--esp-1); color: var(--or); }
 .live-micro { color: var(--encre-2); }
@@ -5088,7 +5089,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 /* Le jeu physique (1.0) : un coup marquant porte la plaque du club qui frappe ; la bagarre est LA rangée du soir, en or si ton club la gagne. */
 .live-ligne.coup { box-shadow: inset 3px 0 0 var(--eq-stripe, var(--attention)); }
 .live-coup-mot { font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; margin-right: var(--esp-1); color: var(--attention); }
-.live-ligne.bagarre { padding: max(var(--esp-3), calc(22px - 0.7em)); font-size: var(--t-3); background: var(--fond-2); box-shadow: inset 4px 0 0 var(--eq-stripe, var(--attention)); }
+.live-ligne.bagarre { --ligne: calc(1.4 * var(--t-3)); padding: max(var(--esp-3), calc(22px - var(--ligne) / 2)); font-size: var(--t-3); background: var(--fond-2); box-shadow: inset 4px 0 0 var(--eq-stripe, var(--attention)); }
 .live-ligne.bagarre.nous { box-shadow: inset 4px 0 0 var(--or), inset 0 0 0 1px var(--or); }
 .live-bag-mot { font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.08em; margin-right: var(--esp-1); color: var(--attention); }
 .live-ligne.bagarre.nous .live-bag-mot { color: var(--or); }
