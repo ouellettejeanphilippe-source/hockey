@@ -7343,6 +7343,8 @@ export function effetsEnCours(team, jour) {
 
 export const ELAN = { nom: 'La lancée', ico: '⬆', finition: 1.03, duree: 3 };
 export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
+/* Une élite perdue (V27, tranche 7 ; JP, 9 nov. 2026 : *Sonnés + jetons, pas de cœur*) : les sonnés durent plus longtemps. */
+export const SONNES_ELITE = 5;
 /*
  * APRÈS UN MATCH CONTRE TOI : la BÊTE NOIRE est le premier club qui t'a battu deux fois, jusqu'à ce que tu le battes
  * (un moment de carte, `MOMENTS_SI.beteNoire`) ; un gros match laisse l'élan ou les sonnés.
@@ -7359,7 +7361,7 @@ function grosMatchApres(toi, m, r, gros) {
   toi._dernierGros = r;
   const E = gagne ? ELAN : SONNE;
   // V27, tranche 6 : la mise doublée est partie (JP : *ça sert à rien*) ; l'élan ou les sonnés, trois matchs.
-  const duree = E.duree;
+  const duree = !gagne && gros.raison === 'elite' ? SONNES_ELITE : E.duree;
   (toi.effets = toi.effets || []).push({ debut: r + 1, fin: apresMatchs(toi, r + 1, duree), source: 'miniboss', nom: E.nom, ico: E.ico, finition: E.finition });
   // V25 : le pointage de chaque période (la feuille, `periodes`), à la place du plan, du contre et du pointage après deux.
   (toi.minisBoss = toi.minisBoss || []).push({ jour: r, adv, raison: gros.raison, gagne, duree,

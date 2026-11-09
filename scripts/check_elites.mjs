@@ -4,15 +4,16 @@
  * Ce juge en prouve deux choses :
  *
  *   1. LES RÈGLES, sur une vraie ligue en actes, sans jouer un match (quelques secondes, dans tout.mjs) :
- *      a. la récompense : `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, bornée à [10, 90], `p` borné à [0,25, 0,55]
+ *      a. la récompense : `J = arrondi(VALEUR_DU_RISQUE × (1 − p) / p) − PRIX_PIECE`, bornée à [10, 90], `p` borné à [0,25, 0,55]
  *         (les exemples du § 4.5 : 38 % → 90 🪙, le plafond ; 52 % → 51 🪙) ; tant qu'elle n'est pas au plafond, `p × (J + PRIX_PIECE)`
- *         vaut `(1 − p) × V_COEUR` à l'arrondi près : le risque d'un cœur est payé ;
+ *         vaut `(1 − p) × VALEUR_DU_RISQUE` à l'arrondi près : le risque est payé ;
  *      b. la proposition (`eliteDeLaSemaine`) : seulement un lundi, pour un match de cette semaine-là après le lundi,
  *         contre un club du top 8 en force au premier soir ; jamais à l'acte I, jamais la semaine d'un rival, jamais en
  *         séries ; prise (la décision `elite`, jouée par le crochet du Rogue), l'acte n'en propose plus, l'acte suivant oui ;
  *         son annonce porte la raison du duel, l'acte, `J` et une intention dominante, comme un rival ;
- *      c. le compte : une élite perdue coûte un cœur dans l'état de la run (`etatDeLaRun`), gagnée elle n'en coûte aucun et
- *         paie ses `J` jetons (`jetonsDesElites`) ; deux perdues tuent la run, et la fin nomme la seconde ;
+ *      c. le compte : une élite perdue ne coûte aucun cœur (JP, 9 nov. 2026 : *Sonnés + jetons, pas de cœur*), mais la moitié de
+ *         sa récompense en jetons (`perteDeLElite`) et des sonnés plus longs (`SONNES_ELITE`) ; gagnée, elle paie ses `J` jetons
+ *         (`jetonsDesElites`) ; deux élites perdues ne tuent pas la run ;
  *      d. les pièces « pour le battre » : une par ligne du jeu (tirs, durs, gardien), chacune son moment (`MOMENTS_SI`) ;
  *         chaque club porte les lignes où il est au 12e rang ou mieux (`sonJeu`), douze clubs par ligne dans une ligue de 32.
  *   2. LES ÉLITES EN PAIRES (§ 10), sur les runs de la profondeur (`LIRE=dossier`, les artefacts de profondeur.yml) : le
@@ -26,9 +27,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, MOMENTS_SI } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, MOMENTS_SI, SONNE, SONNES_ELITE } from '../js/sim.js';
 import { crochetDesActes, joursDe, acteDe, eliteDeLaSemaine, decisionDElite, recompenseDeLElite, elitesDe, etatDeLaRun, jetonsDesElites,
-  lignesFortes, parmiLesAdversaires, TOP_DES_ELITES, ELITES_PAR_ACTE, V_COEUR, PRIX_PIECE, COEURS } from '../js/actes.js';
+  lignesFortes, parmiLesAdversaires, TOP_DES_ELITES, ELITES_PAR_ACTE, VALEUR_DU_RISQUE, PART_PERDUE, perteDeLElite, PRIX_PIECE, COEURS } from '../js/actes.js';
 import { PIECES, piecesContre } from '../js/pieces.js';
 import { INTENTIONS } from '../js/greffes.js';
 import { SEMAINE } from '../js/inventaire.js';
@@ -43,8 +44,8 @@ const v1 = x => x.toFixed(1).replace('.', ',');
 {
   const ps = Array.from({ length: 91 }, (_, i) => 0.05 + i / 100);
   const J = ps.map(recompenseDeLElite);
-  const paye = ps.filter(p => p >= 0.25 && p <= 0.55).every(p => { const j = recompenseDeLElite(p); return j >= 90 || Math.abs(p * (j + PRIX_PIECE) - (1 - p) * V_COEUR) <= p; });
-  exiger(`la récompense : ${V_COEUR} × (1 − p) / p − ${PRIX_PIECE}, bornée à [10, 90], p borné à [0,25, 0,55] (38 % → 90 🪙, le plafond ; 52 % → 51 🪙)`,
+  const paye = ps.filter(p => p >= 0.25 && p <= 0.55).every(p => { const j = recompenseDeLElite(p); return j >= 90 || Math.abs(p * (j + PRIX_PIECE) - (1 - p) * VALEUR_DU_RISQUE) <= p; });
+  exiger(`la récompense : ${VALEUR_DU_RISQUE} × (1 − p) / p − ${PRIX_PIECE}, bornée à [10, 90], p borné à [0,25, 0,55] (38 % → 90 🪙, le plafond ; 52 % → 51 🪙)`,
     recompenseDeLElite(0.38) === 90 && recompenseDeLElite(0.52) === 51 && J.every(j => j >= 10 && j <= 90) && recompenseDeLElite(0.1) === recompenseDeLElite(0.25) && recompenseDeLElite(0.9) === recompenseDeLElite(0.55) && paye,
     `25 % → ${recompenseDeLElite(0.25)} · 38 % → ${recompenseDeLElite(0.38)} · 45 % → ${recompenseDeLElite(0.45)} · 52 % → ${recompenseDeLElite(0.52)} · 55 % → ${recompenseDeLElite(0.55)}`);
 }
@@ -99,18 +100,21 @@ const propositions = lundis.map(j => ({ j, e: eliteDeLaSemaine(L, j) })).filter(
   const jouer = gagne => { Object.assign(m, chez === gagne ? { gfA: 4, gfB: 1 } : { gfA: 1, gfB: 4 }, { joue: true }); };
   const etat = jour => etatDeLaRun({ calendrier: L.calendrier, teams: L.teams, you: toi, annonces: L.grosAnnonces, jour });
   jouer(false);
-  const perdue = etat(A.jour + 1), avant = etat(A.jour);
+  jouer(false);
+  const perdue = etat(A.jour + 1), avant = etat(A.jour), coutePerdue = jetonsDesElites(L.calendrier, toi, L.grosAnnonces, A.jour + 1);
   jouer(true);
   const gagnee = etat(A.jour + 1);
-  exiger('une élite perdue coûte un cœur ; gagnée, aucun, et elle paie ses jetons', avant.coeurs === COEURS && perdue.coeurs === COEURS - 1 && perdue.elites[0].gagne === false && gagnee.coeurs === COEURS && gagnee.elites[0].gagne
-    && jetonsDesElites(L.calendrier, toi, L.grosAnnonces, A.jour + 1) === 42 && jetonsDesElites(L.calendrier, toi, L.grosAnnonces, A.jour) === 0,
-    `perdue : ${perdue.coeurs} ❤️ · gagnée : ${gagnee.coeurs} ❤️, +${jetonsDesElites(L.calendrier, toi, L.grosAnnonces, A.jour + 1)} 🪙`);
+  // JP, 9 nov. 2026 : *Sonnés + jetons, pas de cœur*.
+  exiger(`une élite perdue ne coûte aucun cœur, mais la moitié de sa récompense (${PART_PERDUE}) ; gagnée, elle paie ses jetons`, avant.coeurs === COEURS && perdue.coeurs === COEURS && perdue.elites[0].gagne === false && gagnee.coeurs === COEURS && gagnee.elites[0].gagne
+    && coutePerdue === -perteDeLElite(42) && perteDeLElite(42) === 21 && jetonsDesElites(L.calendrier, toi, L.grosAnnonces, A.jour + 1) === 42 && jetonsDesElites(L.calendrier, toi, L.grosAnnonces, A.jour) === 0 && SONNES_ELITE > SONNE.duree,
+    `perdue : ${perdue.coeurs} ❤️, ${coutePerdue} 🪙, sonnés ${SONNES_ELITE} matchs · gagnée : ${gagnee.coeurs} ❤️, +${jetonsDesElites(L.calendrier, toi, L.grosAnnonces, A.jour + 1)} 🪙`);
   const deux = apres.find(e => e.acte === 2);
   L.placer(L, { jour: deux.jour, ...decisionDElite({ jour: deux.jour, J: 17 }) });
   const m2 = L.calendrier[deux.jour].find(x => x.A === toi || x.B === toi);
   jouer(false); Object.assign(m2, m2.A === toi ? { gfA: 0, gfB: 2 } : { gfA: 2, gfB: 0 }, { joue: true });
-  const morte = etat(deux.jour + 1);
-  exiger('deux élites perdues tuent la run, et la fin nomme la seconde', morte.mort && morte.coeurs === 0 && morte.fin && morte.fin.elite && morte.fin.jour === deux.jour, morte.fin ? `morte le jour ${morte.fin.jour} contre ${morte.fin.adv.tag}` : 'vivante');
+  const vivante = etat(deux.jour + 1);
+  exiger('deux élites perdues ne tuent pas la run : les cœurs restent aux contrôles des actes', !vivante.mort && vivante.coeurs === COEURS && vivante.elites.filter(e => !e.gagne).length === 2,
+    `${vivante.coeurs} ❤️ après deux élites perdues, ${jetonsDesElites(L.calendrier, toi, L.grosAnnonces, deux.jour + 1)} 🪙`);
 }
 
 /* ---------- 1d. pour le battre ---------- */
@@ -140,7 +144,7 @@ if (process.env.LIRE) {
     if (!p.length) return;
     const N = p.length, cA = p.filter(([a]) => a.coupe).length, cB = p.filter(([, b]) => b.coupe).length, mA = p.filter(([a]) => a.mort).length, mB = p.filter(([, b]) => b.mort).length;
     const prises = p.flatMap(([a]) => a.elites), gagnees = prises.filter(e => e.gagnee).length;
-    const detail = `${N} paires · Coupes ${cA} contre ${cB} · morts ${mA} contre ${mB} · ${prises.length} élites prises, ${gagnees} gagnées (${Math.round((100 * gagnees) / Math.max(1, prises.length))} %), ${v1(prises.reduce((s, e) => s + (e.gagnee ? e.J : 0), 0) / N)} 🪙 par run`;
+    const detail = `${N} paires · Coupes ${cA} contre ${cB} · morts ${mA} contre ${mB} · ${prises.length} élites prises, ${gagnees} gagnées (${Math.round((100 * gagnees) / Math.max(1, prises.length))} %), ${v1(prises.reduce((s, e) => s + (e.gagnee ? e.J : -perteDeLElite(e.J)), 0) / N)} 🪙 nets par run`;
     const ok = cA >= cB && mA - mB <= N / 8;
     if (juge && N >= 64) exiger(`${prend} (prend) contre ${refuse} (refuse) : au moins autant de Coupes, au plus une mort de plus sur huit`, ok, detail);
     else informer(`${prend} contre ${refuse}${juge ? ` — ${N} paires, non jugé (64 il faut)` : ''}`, detail);

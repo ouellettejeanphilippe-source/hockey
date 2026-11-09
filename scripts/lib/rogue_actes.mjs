@@ -168,7 +168,8 @@ export function jouerLaRun(nom, graine) {
     const e = out.elites.find(x => x.jour === jour);
     if (e) {
       e.gagnee = gagneLe(jour); e.duel = enDuel(jour);
-      if (!e.gagnee && !mort && --coeurs <= 0) mort = e.acte;
+      // Une élite perdue ne coûte plus de cœur (JP, 9 nov. 2026) : ses sonnés et ses jetons, que la caisse lit.
+
     }
     if (acte < 3 && jour === finActe[acte]) {
       const gagne = gagneLe(jour);

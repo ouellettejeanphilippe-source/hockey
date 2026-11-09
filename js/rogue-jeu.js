@@ -31,7 +31,7 @@ import { jouerSon } from './sons.js';
 import { pic } from './mouvement.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
 import { galonsDeLaSaison, grosGagnesDe } from './galons.js';
-import { etatDeLaRun, jetonsDesElites, etapeDesSeries, renfortsDe, MEDAILLES_ACTE, NOMS_DES_ACTES, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat, prixDeLaPiece, piecesDuNoeud } from './actes.js';
+import { etatDeLaRun, jetonsDesElites, perteDeLElite, etapeDesSeries, renfortsDe, MEDAILLES_ACTE, NOMS_DES_ACTES, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat, prixDeLaPiece, piecesDuNoeud } from './actes.js';
 import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { marche } from './composants.js';
@@ -115,7 +115,8 @@ export function jetonsRogue(j = G.journee || 0) {
   const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
   // S80 : le barème de la saison de la run (5 🪙 par victoire sans commanditaire) ; une vieille run garde celui de S79.
   const bareme = G.bonus === 'ROGUE' && G.rogue && G.rogue.bareme ? G.rogue.bareme : JETONS;
-  return jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart, bareme) + ventes;
+  // Une élite perdue retire ses jetons (tranche 7) : la caisse ne descend jamais sous zéro.
+  return Math.max(0, jetonsDe(L ? resultatsRogue(j) : {}, depenses, depart, bareme) + ventes);
 }
 
 /*
@@ -1444,11 +1445,10 @@ function sortDeLaRun() {
 /* La cause de la fin, en une ligne (devis § 4.11, la maquette 8) : le titre en gros, la ligne dessous. */
 const RONDES_PERDUES = ['Éliminés en première ronde', 'Éliminés en deuxième ronde', 'Éliminés en demi-finale', 'Perdu en finale'];
 function causeDeLaFin(E, f, s) {
-  // Plus de cœurs : ce qui les a coûtés, dans l'ordre (un contrôle raté, une élite perdue).
+  // Plus de cœurs : les deux contrôles ratés, dans l'ordre (une élite ne coûte plus de cœur, JP, 9 nov. 2026).
   if (E && E.mort) {
-    const perdus = [...E.actes.filter(x => x.tenu === false), ...E.elites.filter(x => !x.gagne)].sort((a, b) => a.jour - b.jour);
-    const mot = x => (x.elite ? `l'élite perdue contre ${x.adv.tag}` : `${x.rang}e, il fallait ${x.cible}e`);
-    return { titre: 'Plus de cœurs', ligne: cap(perdus.map(mot).join(', puis ')) };
+    const rates = E.actes.filter(x => x.tenu === false);
+    return { titre: 'Plus de cœurs', ligne: cap(rates.map(x => `${x.rang}e, il fallait ${x.cible}e`).join(', puis ')) };
   }
   if (!f.series) return { titre: 'Pas de séries', ligne: `${f.rang}e, il fallait ${nombreEnSeries((G.ligue.teams || []).length)}e` };
   return { titre: RONDES_PERDUES[Math.min(3, (s && s.rondes) || 0)], ligne: `${f.rang}e en saison` };
@@ -1518,9 +1518,9 @@ export function montrerLaFin(sort = sortDeLaRun()) {
   const c = causeDeLaFin(E, f, s), M = exigencesDe(exigenceDeLaRun()).medailles;
   const club = t => `<span class="fin-club">${getTeamLogoHtml(t.tag, t.season, 20)}${esc(t.tag)}</span>`;
   const rang = x => `${x.rang}<sup>e</sup>${x.cible ? ` / ${x.cible}` : ''}`;
-  // Les actes et les élites, dans l'ordre de la saison : une élite dit ce qu'elle a payé, ou le cœur qu'elle a coûté.
+  // Les actes et les élites, dans l'ordre de la saison : une élite dit ce qu'elle a payé ou coûté en jetons.
   const coups = E ? [...E.actes, ...E.elites].sort((a, b) => a.jour - b.jour) : [];
-  const lignes = coups.flatMap(x => (x.elite ? [`<div class="fin-l${x.gagne ? '' : ' rate'}"><span>${club(x.adv)} · Élite</span><span class="${x.gagne ? 'bon' : 'mal'}">${x.gagne ? `+${x.J} 🪙` : '−1 cœur'}</span><span class="or">0</span></div>`] : [
+  const lignes = coups.flatMap(x => (x.elite ? [`<div class="fin-l${x.gagne ? '' : ' rate'}"><span>${club(x.adv)} · Élite</span><span class="${x.gagne ? 'bon' : 'mal'}">${x.gagne ? `+${x.J} 🪙` : `−${perteDeLElite(x.J)} 🪙`}</span><span class="or">0</span></div>`] : [
     `<div class="fin-l${x.tenu === false ? ' rate' : ''}"><span>${NOMS_DES_ACTES[x.acte]}</span><span class="${x.tenu === false ? 'mal' : 'bon'}">${rang(x)}${x.tenu == null ? '' : x.tenu ? ' ✓' : ' ✗'}</span><span class="or">${x.tenu === false || x.acte === 2 ? '0' : `+${Math.round(MEDAILLES_ACTE.passe * M)}`}</span></div>`,
     `<div class="fin-l"><span>${club(x.adv)} · Rival</span><span class="${x.gagne ? 'bon' : 'mal'}">${x.gagne ? 'Battu' : 'Perdu'}</span><span class="or">${x.gagne ? `+${Math.round(MEDAILLES_ACTE.rival * M)}` : '0'}</span></div>`]));
   // La porte claque : la fin est un pic, comme la Coupe.

@@ -455,7 +455,7 @@ async function regler() {
       if (lu.plans.length < 2 || lu.plans.length > 3 || lu.plans.some(x => !x.carte || !x.ligne.length)) erreurs.push(`le banc propose ${lu.plans.length} plan(s), chacun sa carte et ses stats du match (${JSON.stringify(lu.plans)})`);
       if (lu.vieux) erreurs.push(`l'écran du duel montre encore l'adjoint par période, la mise ou le vestiaire (${lu.vieux})`);
       // L'ÉLITE (tranche 7) : son duel paie une pièce et ses jetons, et coûte un cœur.
-      if (/élite/i.test(lu.k)) { eliteVue.duel = lu.enjeu; if (!/🪙/.test(lu.enjeu) || !/−1 cœur/.test(lu.enjeu)) erreurs.push(`l'enjeu de l'élite ne dit pas ses jetons et son cœur (« ${lu.enjeu} »)`); await page.screenshot({ path: `${DOSSIER}/rogue-elite-duel.png` }); }
+      if (/élite/i.test(lu.k)) { eliteVue.duel = lu.enjeu; if (!/🪙/.test(lu.enjeu) || !/−d+ 🪙/.test(lu.enjeu) || !/Sonnés 5 matchs/.test(lu.enjeu)) erreurs.push(`l'enjeu de l'élite ne dit pas ses jetons et ses sonnés (« ${lu.enjeu} »)`); await page.screenshot({ path: `${DOSSIER}/rogue-elite-duel.png` }); }
       if (/rival/i.test(lu.k) && (!/1 pièce sur 3/.test(lu.enjeu) || !/médailles/.test(lu.enjeu) || /🪙|jeton/.test(lu.enjeu))) erreurs.push(`l'enjeu du rival ne dit pas ce qu'il paie (« ${lu.enjeu} »)`);
       if (!/Sonnés \d+ matchs/.test(lu.enjeu)) erreurs.push(`l'enjeu du duel ne dit pas la défaite (« ${lu.enjeu} »)`);
       /* L'ÉCRAN DU CHOIX TIENT : 1,3 écran au plus (le Jalon M, B3), ses plans à l'écran. */
@@ -608,7 +608,7 @@ async function regler() {
         enjeu: ((m.querySelector('.dl-enjeu') || {}).textContent || '').replace(/\s+/g, ' ').trim(), options: [...m.querySelectorAll('.tc-prendre')].map(b => b.dataset.choix) }));
       await page.screenshot({ path: `${DOSSIER}/rogue-elite.png` });
       if (!eliteVue.lu.annonce || !/^Ta chance : \d+ %$/.test(eliteVue.lu.prono)) erreurs.push(`l'écran de l'élite ne montre pas le club et ta vraie chance (${JSON.stringify(eliteVue.lu)})`);
-      if (!/\+\d+ 🪙/.test(eliteVue.lu.enjeu) || !/−1 cœur/.test(eliteVue.lu.enjeu)) erreurs.push(`l'écran de l'élite ne dit pas ce qu'elle rapporte et coûte (« ${eliteVue.lu.enjeu} »)`);
+      if (!/\+\d+ 🪙/.test(eliteVue.lu.enjeu) || !/−d+ 🪙/.test(eliteVue.lu.enjeu)) erreurs.push(`l'écran de l'élite ne dit pas ce qu'elle rapporte et coûte (« ${eliteVue.lu.enjeu} »)`);
       if (eliteVue.lu.options.join() !== 'prendre,non') erreurs.push(`l'élite propose « ${eliteVue.lu.options.join(', ')} » au lieu de la prendre ou d'un soir ordinaire`);
       const n0 = (await decisionsDuCombat()).length;
       await page.click('#choixModal:not([hidden]) .tc-prendre[data-choix="prendre"]').catch(() => {}); await attendreDecisions(n0);

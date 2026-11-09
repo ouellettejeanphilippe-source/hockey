@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, SITUATIONS, jouerJusqua, jouerMatchSeries, OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, getPlayerKey, effetsEnCours, OBJECTIF_RATE, periodeDe, MUTATIONS, ELAN, SONNE, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, jourEvenement, photoAlignement, fits, getPositionPenalty, nouvelleGraine, avecAVenir } from './sim.js';
+import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, SITUATIONS, jouerJusqua, jouerMatchSeries, OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, getPlayerKey, effetsEnCours, OBJECTIF_RATE, periodeDe, MUTATIONS, ELAN, SONNE, SONNES_ELITE, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, jourEvenement, photoAlignement, fits, getPositionPenalty, nouvelleGraine, avecAVenir } from './sim.js';
 import { suivisEnCours, lignePromesse, deDuChoix, leurJeuDuDuel, INTENTIONS } from './greffes.js';
 import { faitsDe } from './faits.js';
 import { HISTOIRES, tirer, sceneDe, nomDOption, sortiesDe } from './histoires.js';
@@ -41,7 +41,7 @@ import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { etatDeLaRun, jeuDuRival, RAISONS_DU_DUEL, NOMS_DES_ACTES, ACTES, COEURS, MEDAILLES_ACTE, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat,
-  acteDe, joursDe, renfortsDe, echangeables, echangerTesCases, brouillon, eliteDeLaSemaine, decisionDElite, lignesFortes } from './actes.js';
+  acteDe, joursDe, renfortsDe, echangeables, echangerTesCases, brouillon, eliteDeLaSemaine, decisionDElite, lignesFortes, perteDeLElite } from './actes.js';
 import { sceneDeLaBlessure, sceneDuButin } from './scenes.js';
 import { BANQUE } from './banque.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt, motsDeLObjectif, motDeBlessure } from './recit.js';
@@ -118,13 +118,13 @@ const leurJeuHtml = (ctx, J) => `<div class="duel-avant">${J.intention.ico} Leur
 /* Ce que le duel rapporte et coûte (devis § 4.7), sans mise : le rival, l'élite (et ses `J` jetons), un match de séries. */
 const enjeuDuDuel = (raison, J = 0) => ({
   gagne: [...(raison === 'serie' ? [] : ['1 pièce sur 3']), ...(J ? [`+${J} 🪙`] : []), `${ELAN.nom} ${ELAN.duree} matchs`, ...(raison === 'rival' ? [`+${MEDAILLES_ACTE.rival} médailles`] : [])],
-  perd: [raison === 'elite' ? '−1 cœur' : raison === 'serie' ? 'La série continue' : 'Aucun cœur', `Sonnés ${SONNE.duree} matchs`],
+  perd: raison === 'elite' ? [`−${perteDeLElite(J)} 🪙`, `Sonnés ${SONNES_ELITE} matchs`] : [raison === 'serie' ? 'La série continue' : 'Aucun cœur', `Sonnés ${SONNE.duree} matchs`],
 });
 /* Ce qu'un duel joué a laissé, en une ligne (Hier soir, le sommaire de la semaine) : son issue, ce qu'il paie ou coûte. */
 function motDuDuel(mb, J = 0) {
   const elite = mb.raison === 'elite', R = RAISONS_DU_DUEL[mb.raison] || RAISONS_DU_DUEL.rival, E = mb.gagne ? ELAN : SONNE;
   return [`${R.ico} ${elite ? `Élite ${mb.gagne ? 'gagnée' : 'perdue'}` : `Rival ${mb.gagne ? 'battu' : 'perdu'}`}`,
-    ...(mb.gagne ? [...(J ? [`+${J} 🪙`] : []), 'une pièce t\'attend'] : elite ? ['−1 cœur'] : []), `${E.ico} ${E.nom} ${mb.duree || E.duree} matchs`].join(' · ');
+    ...(mb.gagne ? [...(J ? [`+${J} 🪙`] : []), 'une pièce t\'attend'] : elite ? [`−${perteDeLElite(J)} 🪙`] : []), `${E.ico} ${E.nom} ${mb.duree || E.duree} matchs`].join(' · ');
 }
 
 /* « 1er », « 12e » : le rang d'un but ou d'une passe. */
@@ -897,14 +897,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${contre.length ? `<div class="rival-battre"><span class="dl-l"><span>Pour le battre</span></span>${grille(contre.map(k => (banc.includes(k) ? carteLigne(carteDePiece(k, { lecture: true }), 'Sur ton banc')
         : caseVide(`${PIECES[k].ico} ${ctx.esc(PIECES[k].nom)}`, ctx.esc(PIECES[k].quandMot)))))}</div>` : ''}`;
   };
-  /* Les jetons qu'un duel joué a payés : ceux d'une élite gagnée (son annonce les porte). */
-  const jetonsDuDuel = mb => (mb.gagne && mb.raison === 'elite' && ligue && ligue.grosAnnonces[mb.jour] ? ligue.grosAnnonces[mb.jour].J || 0 : 0);
+  /* Ce qu'une élite jouée a fait à la caisse : sa récompense J, gagnée ; perdue, sa moitié (son annonce porte J). */
+  const jetonsDuDuel = mb => (mb.raison === 'elite' && ligue && ligue.grosAnnonces[mb.jour] ? ligue.grosAnnonces[mb.jour].J || 0 : 0);
   /* L'ÉLITE DU LUNDI (tranche 7, js/actes.js `eliteDeLaSemaine`) : lue une fois par matin et par décision (son pronostic compte 300 matchs). */
   let eliteLue = null;
   const eliteOuverte = () => {
     const E = ctx.rogue && onDecision && ligue && jour < N && !(jour % SEMAINE) ? etatDuSoir() : null;
     if (!E || E.mort) return null;
-    if (!eliteLue || eliteLue.cle !== `${jour}|${decs.length}`) { const e = eliteDeLaSemaine(ligue, jour); eliteLue = { cle: `${jour}|${decs.length}`, e: e && { ...e, coeurs: E.coeurs } }; }
+    if (!eliteLue || eliteLue.cle !== `${jour}|${decs.length}`) { const e = eliteDeLaSemaine(ligue, jour); eliteLue = { cle: `${jour}|${decs.length}`, e: e && { ...e } }; }
     return eliteLue.e && !decs.some(d => d.palier === `el:${eliteLue.e.jour}`) ? eliteLue.e : null;
   };
   /*
@@ -2930,21 +2930,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     /*
      * LES ÉTAPES DE L'ACTE (V27, les maquettes 2, 6 et 8), d'abord et dans leur ordre. La fin d'un acte : ses trois cellules
      * (le contrôle, les cœurs, les médailles) et la marche des étapes ; la pièce d'un rival battu ou d'une élite gagnée ; le
-     * rival qui vient, sa plaque et son jeu. La run morte : la fin (un contrôle raté ou une élite perdue), et rien d'autre.
+     * rival qui vient, sa plaque et son jeu. La run morte : la fin (le second contrôle raté ; une élite ne coûte plus de cœur), et rien d'autre.
      */
     for (const st of etapes) {
       const { x } = st;
       if (st.genre === 'fin' || st.genre === 'acte') {
-        const el = !!x.elite, M = el ? 0 : Math.round(((x.tenu === false ? 0 : MEDAILLES_ACTE.passe) + (x.gagne ? MEDAILLES_ACTE.rival : 0)) * ctx.rogue.medailles());
-        const suite = el ? [{ nom: 'L\'élite', bout: 'Perdue', etat: 'fait' }] : [{ nom: 'Le rival', bout: x.gagne ? 'Battu' : 'Perdu', etat: 'fait' }, { nom: 'Le contrôle', bout: `${x.rang}e / ${x.cible}`, etat: 'fait' },
+        const M = Math.round(((x.tenu === false ? 0 : MEDAILLES_ACTE.passe) + (x.gagne ? MEDAILLES_ACTE.rival : 0)) * ctx.rogue.medailles());
+        const suite = [{ nom: 'Le rival', bout: x.gagne ? 'Battu' : 'Perdu', etat: 'fait' }, { nom: 'Le contrôle', bout: `${x.rang}e / ${x.cible}`, etat: 'fait' },
           ...(x.gagne ? [{ nom: 'Prendre une pièce', bout: '1 parmi 3', etat: 'ici' }] : []), ...(st.genre === 'fin' ? [] : [{ nom: `Le rival de l'${NOMS_DES_ACTES[x.acte + 1].toLowerCase()}`, bout: '?', etat: x.gagne ? 'suivant' : 'ici' }, { nom: 'Le marché', bout: 'Ouvert', etat: 'loin' }])];
         specs.push({ de: DE.proprio, ico: st.genre === 'fin' ? '🚪' : '⚔', genre: st.genre === 'fin' ? 'run' : 'acte',
-          titre: st.genre === 'fin' ? 'Fin de la run' : x.tenu ? 'La run continue' : 'Un cœur de moins', irl: `${NOMS_DES_ACTES[x.acte]} · ${ctx.teamShort(x.adv)} ${x.gagne ? 'battu' : el ? 'gagne l\'élite' : 'gagne'}`,
-          contexte: `<div class="acte-fin${x.tenu ? '' : ' rate'}">${cellules([el ? { k: 'Élite', v: 'Perdue' } : { k: 'Contrôle', v: `${x.rang}<sup>e</sup><small> / ${x.cible}</small>` }, { k: 'Cœurs', v: coeurs(x.coeurs, COEURS) }, { k: 'Médailles', v: `+${M}`, u: '🏅' }])}
+          titre: st.genre === 'fin' ? 'Fin de la run' : x.tenu ? 'La run continue' : 'Un cœur de moins', irl: `${NOMS_DES_ACTES[x.acte]} · ${ctx.teamShort(x.adv)} ${x.gagne ? 'battu' : 'gagne'}`,
+          contexte: `<div class="acte-fin${x.tenu ? '' : ' rate'}">${cellules([{ k: 'Contrôle', v: `${x.rang}<sup>e</sup><small> / ${x.cible}</small>` }, { k: 'Cœurs', v: coeurs(x.coeurs, COEURS) }, { k: 'Médailles', v: `+${M}`, u: '🏅' }])}
             <div class="acte-etapes">${suite.map((s, i) => marche({ num: s.etat === 'fait' ? '✓' : i + 1, nom: s.nom, bout: s.bout, etat: s.etat })).join('')}</div></div>`,
           options: [st.genre === 'fin' ? { cle: 'fin', nom: 'La fin de la run', ouvre: true } : { cle: 'suite', nom: x.tenu ? 'La run continue' : 'Encaisser' }],
-          // La fin ouvre son écran (une porte, `agir`) ; l'acte passé se referme par sa décision, qui verse ses médailles (une élite n'en verse pas).
-          agir: () => { if (!el) ctx.rogue.payerActe(x); quitter(); ctx.rogue.finir(); },
+          // La fin ouvre son écran (une porte, `agir`) ; l'acte passé se referme par sa décision, qui verse ses médailles.
+          agir: () => { ctx.rogue.payerActe(x); quitter(); ctx.rogue.finir(); },
           ...(st.genre === 'fin' ? {} : { decision: () => { ctx.rogue.payerActe(x); return { palier: `acte:${x.acte}` }; } }) });
       } else if (st.genre === 'piece') {
         // LE PRIX D'UN DUEL GAGNÉ (V27, tranches 5 et 7 ; la maquette 7) : une pièce parmi trois, de sa philosophie et des voisines, ou passer.
@@ -3182,7 +3182,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const J = (ligue.jeux && ligue.jeux.get(el.adv)) || jeuDuRival(teams, you, el.adv), quand = el.jour - jour === 1 ? 'demain' : `dans ${el.jour - jour} jours`;
       out.push({ id: `el:${el.jour}`, genre: 'elite', bloque: false, de: DE.depisteur, sujet: `Une élite contre ${ctx.teamShort(el.adv)}, ${quand} ?`,
         choix: { ico: '◆', irl: `${NOMS_DES_ACTES[el.acte]} · ton ${el.k + 1}e match · une élite par acte`, recit: '',
-          contexte: annonceHtml(el.adv, el.rang, J, null, `${pronoHtml(el.chance, you.tag, el.adv.tag)}${enjeuHtml(enjeuDuDuel('elite', el.J))}${el.coeurs === 1 ? '<div class="elite-dernier">Ton dernier cœur</div>' : ''}`),
+          contexte: annonceHtml(el.adv, el.rang, J, null, `${pronoHtml(el.chance, you.tag, el.adv.tag)}${enjeuHtml(enjeuDuDuel('elite', el.J))}`),
           options: [{ cle: 'prendre', ico: '◆', nom: 'En faire une élite', sous: `Ta chance : ${Math.round(el.chance * 100)} %` }, { cle: 'non', nom: 'Un soir ordinaire' }],
           decision: cle => (cle === 'prendre' ? decisionDElite(el) : { palier: `el:${el.jour}` }) } });
     }

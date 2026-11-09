@@ -571,8 +571,8 @@ export function jetonsDuRobot(c, base, depense) {
     if (pour > contre) W++; else if (m.ot) P++; else D++;
   }
   const B = baremeRogue(meta, exigence);
-  return base + W * B.victoire + P * B.prolongation + D * B.defaite + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total
-    + jetonsDesElites(L.calendrier, you, L.grosAnnonces, L.jour) - depense;
+  return Math.max(0, base + W * B.victoire + P * B.prolongation + D * B.defaite + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total
+    + jetonsDesElites(L.calendrier, you, L.grosAnnonces, L.jour) - depense);
 }
 /* Le pack que le robot achète avec `jetons`, au `n`-ième achat : celui que l'attentif lit, sinon l'ordre du robot d'avant. */
 export function packDuRobot(c, jetons, n) {

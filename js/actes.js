@@ -149,8 +149,8 @@ export function rangAuSoir(calendrier, teams, you, d) {
 }
 /*
  * L'ÉTAT DE LA RUN au soir où `jour` journées sont jouées, dans l'ordre du calendrier : les actes finis (le rival, battu ou
- * non ; le rang, la cible, le contrôle tenu) et les élites jouées (gagnées, ou un cœur de moins), les cœurs qui restent, la
- * run morte (0 ❤️) et ce qui l'a tuée (`fin`), l'acte en cours et son rival. `rivaux` : `L.rivaux` ; `annonces` : `L.grosAnnonces`.
+ * non ; le rang, la cible, le contrôle tenu) et les élites jouées (gagnées ou perdues ; une élite ne coûte plus de cœur, JP, 9 nov. 2026), les cœurs qui
+ * restent, la run morte (0 ❤️) et ce qui l'a tuée (`fin`), l'acte en cours et son rival. `rivaux` : `L.rivaux` ; `annonces` : `L.grosAnnonces`.
  */
 export function etatDeLaRun({ calendrier, teams, you, rivaux = [], annonces = {}, jour, exigence = 0 }) {
   const n = teams.length, joues = joursDe(calendrier, you).filter(j => j < jour).length;
@@ -164,7 +164,7 @@ export function etatDeLaRun({ calendrier, teams, you, rivaux = [], annonces = {}
     const cible = !elite && x.acte < 2 ? controleDeLActe(x.acte, n, exigence) : null;
     const tenu = elite ? null : cible == null ? null : rang <= cible;
     const coup = { acte: x.acte, jour: x.jour, adv: x.adv, gagne, ...(elite ? { elite, J: x.J } : { rang, cible, tenu }) };
-    if ((elite ? !gagne : tenu === false) && !fin && --coeurs <= 0) fin = coup;
+    if (tenu === false && !fin && --coeurs <= 0) fin = coup;
     (elite ? elites : actes).push(Object.assign(coup, { coeurs: Math.max(0, coeurs), mort: !!fin }));
   }
   const acte = Math.min(acteDe(joues), 2);
@@ -177,12 +177,15 @@ export function etatDeLaRun({ calendrier, teams, you, rivaux = [], annonces = {}
  * plus une par acte, aux actes II et III : le lundi, si ta semaine a un match contre un club du top 8 en force (au premier
  * soir, `L.parForce`), une ligne de la boîte propose d'en faire une élite — jamais la semaine du rival, jamais en séries ;
  * sans réponse, c'est un soir ordinaire. L'écran montre ta vraie chance, le pronostic du jour (`pronostic`), qui fixe sa
- * récompense : `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], `p` borné à [0,25, 0,55]. Prise (une
- * décision `elite`, jouée par le crochet du Rogue), elle est un duel ; gagnée, une pièce parmi trois et `J` 🪙 ; perdue,
- * −1 ❤️ et les sonnés. Le jeu et les robots lisent ces mêmes fonctions.
+ * récompense : `J = arrondi(VALEUR_DU_RISQUE × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], `p` borné à [0,25, 0,55]. Prise
+ * (une décision `elite`, jouée par le crochet du Rogue), elle est un duel ; gagnée, une pièce parmi trois et `J` 🪙 ; perdue
+ * (JP, 9 nov. 2026 : *Sonnés + jetons, pas de cœur*), les sonnés `SONNES_ELITE` matchs et `PART_PERDUE` de `J` en jetons
+ * (`perteDeLElite`), sans descendre la caisse sous zéro. Le jeu et les robots lisent ces mêmes fonctions.
  */
-export const TOP_DES_ELITES = 8, ELITES_PAR_ACTE = 1, V_COEUR = 90;
-export const recompenseDeLElite = chance => { const p = Math.min(0.55, Math.max(0.25, chance)); return Math.min(90, Math.max(10, Math.round((V_COEUR * (1 - p)) / p) - PRIX_PIECE)); };
+export const TOP_DES_ELITES = 8, ELITES_PAR_ACTE = 1, VALEUR_DU_RISQUE = 90, PART_PERDUE = 0.5;
+export const recompenseDeLElite = chance => { const p = Math.min(0.55, Math.max(0.25, chance)); return Math.min(90, Math.max(10, Math.round((VALEUR_DU_RISQUE * (1 - p)) / p) - PRIX_PIECE)); };
+/* Ce qu'une élite perdue coûte en jetons : la moitié de sa récompense, arrondie (J = 58 → 29). */
+export const perteDeLElite = J => Math.round((J || 0) * PART_PERDUE);
 /* Les élites prises (leurs annonces de duel). */
 export const elitesDe = annonces => Object.values(annonces || {}).filter(g => g.raison === 'elite');
 /* L'élite que le lundi `jour` propose : { jour, k, acte, adv, rang, chance, J }, ou null. */
@@ -209,9 +212,10 @@ function poserLElite(L, { jour, J }) {
   const adv = advDe(m, you), acte = acteDe(joursDe(L.calendrier, you).indexOf(jour)), jeu = L.jeux && L.jeux.get(adv);
   L.grosAnnonces[jour] = { jour, adv, raison: 'elite', acte, J, ...(jeu ? { dominante: dominanteDe(jeu, L.graine, acte, adv) } : {}) };
 }
-/* Les jetons des élites gagnées avant la journée `j` (la caisse du jeu et celle des robots). */
+/* Les jetons des élites jouées avant la journée `j` (la caisse du jeu et celle des robots) : `J` gagnées, `perteDeLElite` perdues ;
+   la caisse qui les lit ne descend jamais sous zéro. */
 export const jetonsDesElites = (calendrier, you, annonces, j) => elitesDe(annonces).filter(e => e.jour < j)
-  .reduce((a, e) => { const m = calendrier[e.jour].find(x => x.A === you || x.B === you); return a + (m && (m.A === you) === (m.gfA > m.gfB) ? e.J || 0 : 0); }, 0);
+  .reduce((a, e) => { const m = calendrier[e.jour].find(x => x.A === you || x.B === you); return a + (!m ? 0 : (m.A === you) === (m.gfA > m.gfB) ? e.J || 0 : -perteDeLElite(e.J)); }, 0);
 /*
  * LE JEU DU RIVAL (devis § 4.3 ; V27, tranche 6 : lu dans ses vraies stats, plus dans sa force). Trois lignes, chacune le
  * rang du club dans la ligue (de 1) et le tien à côté, sur les joueurs qu'il habille ce soir-là, dans leur vraie saison :
