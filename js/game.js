@@ -554,7 +554,7 @@ export const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_S
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S147';  // S147 (7 nov. 2026) : le coach grandit sur la run (`SEUILS_NIVEAU` 25, 70, 140, 240), un loto du cartable entre deux saisons, deux Réguliers gardés — une run en cours voit son coach à son niveau neuf. S146 (6 nov. 2026, V25 C1) : une seule banque d'histoires (js/histoires.js) et une porte (js/greffes.js `appliquerChoix`) ; les avant-matchs, les ajustements de séries, les choix de fil et les arcs sont partis : une vieille décision `avant`, `ajustement`, `fil` ou `dossier` ne joue plus rien, et une saison qui en portait se rejoue autrement. S145 (6 nov. 2026) : le nouveau rôle du deck se pose sur un de tes six meilleurs avants ou quatre meilleurs défenseurs, ses écarts doublés (`cibleMutation`, `MUTATIONS` de source `choix`) : une saison avec un rôle pris se rejoue autrement. S144 (nov. 2026, V25 B1) : la recrue ne progresse plus par sa carte (`effetCarte`, +1 % de précision après 41 matchs, est parti : une seule échelle, aucun effet isolé) ; une saison avec une recrue signée se rejoue autrement ; l'historique des versions : docs/moteur-recalibrer.md.
+const VERSION_MOTEUR = 'S148';  // S148 (8 nov. 2026) : la V27 sort (la run en actes, le banc de cinq, le duel à un choix) ; l'historique des versions : docs/moteur-recalibrer.md.
 export function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
