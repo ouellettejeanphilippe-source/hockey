@@ -125,7 +125,7 @@ export const PIECES = {
     quand: e => k3(e) && derriere(e), canaux: { F: [0.8, 0.95, 1.2, 1.45], volume: 1.35, finition: 1.1 } },
   /* ---------- le Showman ---------- */
   spectacle: { voie: 'etoiles', cadre: 2, genre: 'attaque', ico: '🌠', nom: 'Le spectacle', quandMot: 'En 3e, à un but près, sans dos-à-dos',
-    dit: 'Les vedettes sur la glace. C\'est pour ça que les gens ont payé leur billet.',
+    dit: 'Les vedettes sur la glace. C\'est pour ça que les gens ont payé leur place.',
     quand: e => k3(e) && serre(e) && !soirDe(e, 'dosADos'), canaux: { F: [1.4, 1, 0.85, 0.75], finition: 1.32 } },
   duo: { voie: 'etoiles', cadre: 3, genre: 'attaque', ico: '🎭', nom: 'Le duo vedette', quandMot: 'En 1re, à domicile, sans dos-à-dos',
     dit: 'Devant notre monde, le premier trio ouvre le bal.',
