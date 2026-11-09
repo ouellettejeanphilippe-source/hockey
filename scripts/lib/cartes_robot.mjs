@@ -160,16 +160,23 @@ export function coachDuRobot(loto, { politique, clic, fit }) {
 /*
  * L'ÉLITE DU ROBOT (V27, tranche 7 ; js/actes.js `eliteDeLaSemaine`) : le lundi, l'élite que l'écran propose, prise comme le
  * joueur la prend (la décision `elite`, `decisionDElite`). `elites` : 'toutes' (le glouton, même au dernier cœur), 'jamais'
- * (« premier », le naïf, le prudent), ou 'prudent' (l'attentif : ses deux cœurs, le contrôle de l'acte tenu au classement de
+ * (« premier », le naïf, le prudent), ou 'prudent' (l'attentif : le cœur qu'il peut se permettre, `MARGE_ELITE`, au classement de
  * l'écran, `etatDeLaRun`, et la chance que l'écran montre à `CHANCE_ELITE` ou plus — le réglage R1, 8 nov. 2026 ; ce n'est
  * pas une règle du jeu, l'élite reste proposée à toute chance ; 40 % au réglage R1, 50 % depuis la tranche 7, la mesure ci-dessous). Rend { e, d } (l'élite et sa décision), ou null.
  */
 export const CHANCE_ELITE = 0.50;
+/*
+ * PEUT-IL SE PERMETTRE LE CŒUR ? (tranche 7, la course 4 ; un levier de joueur attentif, pas une règle du jeu) : à ses deux
+ * cœurs, le contrôle de l'acte tenu ; à son dernier, seulement s'il est déjà sous la cible de l'acte avec `MARGE_ELITE` rangs
+ * d'avance au moins — le rang de sa plaque au lundi (`etatDeLaRun`, `rangAuSoir`). L'écran dit déjà « Ton dernier cœur ».
+ */
+const MARGE_ELITE = 4;
 export function eliteDuRobot(L, elites) {
   if (elites === 'jamais' || L.jour % SEMAINE) return null;
   const you = L.teams.find(t => t.isPlayer), n = L.teams.length;
   const E = etatDeLaRun({ calendrier: L.calendrier, teams: L.teams, you, rivaux: L.rivaux || [], annonces: L.grosAnnonces, jour: L.jour });
   const e = E.mort ? null : eliteDeLaSemaine(L);
-  if (!e || (elites === 'prudent' && (E.coeurs < COEURS || E.rang > aLaTaille(e.acte < 2 ? CONTROLES[e.acte] : 16, n) || e.chance < CHANCE_ELITE))) return null;
+  const cible = aLaTaille(e && e.acte < 2 ? CONTROLES[e.acte] : 16, n), permis = E.coeurs >= COEURS ? E.rang <= cible : E.rang <= cible - MARGE_ELITE;
+  if (!e || (elites === 'prudent' && (!permis || e.chance < CHANCE_ELITE))) return null;
   return { e, d: { jour: L.jour, ...decisionDElite(e) } };
 }
