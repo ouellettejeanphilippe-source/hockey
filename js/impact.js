@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, MUTATIONS, joueurDeMutation, badgesDeMutation, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PROFILS, PART_UNITE, penaliteAdaptee } from './sim.js';
+import { lectureDuMatch, attenduDeCote, tirageDuProfil, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, MUTATIONS, joueurDeMutation, badgesDeMutation, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PROFILS, PART_UNITE, penaliteAdaptee } from './sim.js';
 import { PLANS, cibleDuPlan } from './greffes.js';
 import { virgule } from './util.js';
 import { PIECES, bancDe, effetDuRelais } from './pieces.js';
@@ -78,13 +78,34 @@ function fenetre(volume, p) {
   return { long, tirs: r * long, buts: p * r * long };
 }
 
+/*
+ * LA PART DU MATCH À FORCES ÉGALES, comme `jouerPlage` la joue (js/sim.js) : période par période, ses mineures tirées
+ * au hasard (Poisson, le tiers du match chacune), au plus une fenêtre de deux minutes par deux minutes de la période, et
+ * jamais moins de la moitié de la période à forces égales. La moyenne d'une part bornée n'est pas la part de la
+ * moyenne : un soir de 7 punitions de chaque côté, la formule sur la moyenne perdait deux tirs par club (`check_chiffres`).
+ */
+const PERIODE = 20, FENETRES_MAX = Math.floor(PERIODE / AN_MINUTES);
+const loiDePoisson = (lambda, kMax) => { const p = [Math.exp(-lambda)]; for (let k = 1; k <= kMax; k++) p.push(p[k - 1] * lambda / k); return p; };
+function partDeForcesEgales(nPour, nContre, longA, longB) {
+  const kMax = 30, pA = loiDePoisson(nPour / 3, kMax), pB = loiDePoisson(nContre / 3, kMax);
+  let fe = 0;
+  for (let a = 0; a <= kMax; a++) for (let b = 0; b <= kMax; b++) {
+    const pr = pA[a] * pB[b];
+    if (pr < 1e-12) continue;
+    // Au-delà du plafond, le moteur garde les premières d'un ordre mêlé : chaque côté au prorata.
+    const n = a + b, garde = n > FENETRES_MAX ? FENETRES_MAX / n : 1;
+    fe += pr * Math.max(PERIODE / 2, PERIODE - garde * (a * longA + b * longB));
+  }
+  return 3 * fe / 60;
+}
 /* Les moyennes d'un match, lues d'une lecture du moteur. Les mêmes formules que `jouerPlage` (js/sim.js). */
 function moyennes(L) {
   const { A, B, occasions, p } = L;
-  const nPour = occasions * B.discipline, nContre = occasions * A.discipline;   // les avantages que A prend, ceux que A donne
+  // Les avantages que A prend, ceux que A donne : l'indiscipline de qui écope, et ce que l'autre attire (`tirageDuProfil`, oct. 2026).
+  const nPour = occasions * B.discipline * tirageDuProfil(A), nContre = occasions * A.discipline * tirageDuProfil(B);
   const wA = fenetre(A.avantage ? A.avantage.volume : 1, p.pour.AN);
   const wB = fenetre(B.avantage ? B.avantage.volume : 1, p.contre.AN);
-  const part = Math.max(0.5, (60 - nPour * wA.long - nContre * wB.long) / 60);
+  const part = partDeForcesEgales(nPour, nContre, wA.long, wB.long);
   const feA = attenduDeCote(A, B) * part * FE_TIRS, feB = attenduDeCote(B, A) * part * FE_TIRS;
   const dnA = DN_TIRS_MIN * nContre * wB.long, dnB = DN_TIRS_MIN * nPour * wA.long;
   const tirsPour = feA + nPour * wA.tirs + dnA, tirsContre = feB + nContre * wB.tirs + dnB;
@@ -148,8 +169,9 @@ function moyennes(L) {
     blessures: L.blessures, usure: L.usure,
     glaceF: glace('F'), glaceD: glace('D'),
     speciales: speciales(),
-    // Les minutes à forces égales du soir (ni avantage ni désavantage) : la glace de « Préparer le match » s'y lit.
-    minutesFE: 60 * part,
+    // Les minutes à forces égales du soir (ni avantage ni désavantage), à l'horloge : avec celles des unités spéciales, les
+    // soixante minutes. (Les tirs lisent `part`, ce que le moteur joue ; un soir chargé de punitions, il en joue un peu plus.)
+    minutesFE: Math.max(30, 60 - nPour * wA.long - nContre * wB.long),
   };
 }
 
