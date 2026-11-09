@@ -46,11 +46,12 @@ const uneAutre = cle => e => (e.pieces || []).some(x => x !== cle);
 const unRelais = cle => e => (e.relais || []).some(x => x !== cle);
 
 /*
- * LA FAMILLE (trente-trois pièces). Les vingt-quatre pouvoirs des huit coachs (I, II, l'ultime : leurs canaux et leur
+ * LA FAMILLE (trente-six pièces). Les vingt-quatre pouvoirs des huit coachs (I, II, l'ultime : leurs canaux et leur
  * condition, réglée à la présence) et les neuf adjoints (leur style d'un soir, leur relais) ; les idées du plan du soir
  * (tirer, fermer, coller, forechecker, rester discipliné) y sont déjà : le canonnier, le mur, le cogneur, le moine. Le
  * plan du soir lui-même est parti à la tranche 6b. `voie` : la philosophie qui l'offre d'abord (null : personne) ; `soir` : sa
- * condition est celle de la soirée entière (elle se lit par match) ; `genre` : la couleur de sa carte.
+ * condition est celle de la soirée entière (elle se lit par match) ; `genre` : la couleur de sa carte ; `contre` (tranche 7) :
+ * la ligne du jeu adverse à laquelle elle répond — trois pièces « pour le battre », une par ligne.
  */
 export const PIECES = {
   /* ---------- le Frelon ---------- */
@@ -166,6 +167,16 @@ export const PIECES = {
     dit: 'On paie des vedettes pour qu\'elles jouent. Mets-les sur la glace et laisse-les faire.',
     quand: chez, canaux: { F: [1.15, 1, 0.94, 0.88], finition: 1.06, blessure: 1.3 }, adv: { volume: 1.08 },
     relais: { mot: 'À domicile, chaque période', quand: e => soirDe(e, 'domicile'), cote: 'canaux', canal: 'finition' } },
+  /* ---------- pour le battre (tranche 7) : le jeu de l'adversaire du soir, lu dans ses vraies stats (`contre`, js/actes.js `sonJeu`) ---------- */
+  bloqueur: { voie: 'tortue', cadre: 2, genre: 'defense', ico: '🛡', nom: 'Le bloqueur', quandMot: 'Contre des tireurs', soir: true, contre: 'tirs',
+    dit: 'Ils tirent de partout ? Parfait. On se couche devant chaque rondelle, et leur gardien s\'ennuie.',
+    quand: e => soirDe(e, 'tireurs'), adv: { volume: 0.88 } },
+  patineur: { voie: 'choeur', cadre: 2, genre: 'tactique', ico: '⛸', nom: 'Le patineur', quandMot: 'Contre des durs', soir: true, contre: 'durs',
+    dit: 'Ils veulent frapper ? Qu\'ils nous attrapent d\'abord. Chaque coup en retard, c\'est un avantage numérique.',
+    quand: e => soirDe(e, 'durs'), canaux: { blessure: 0.7 }, adv: { discipline: 1.3 } },
+  trafic: { voie: 'rhinos', cadre: 2, genre: 'attaque', ico: '👥', nom: 'Le trafic', quandMot: 'Contre un gros gardien', soir: true, contre: 'gardien',
+    dit: 'Il arrête tout ce qu\'il voit. Alors on va lui cacher la rondelle : du monde devant lui, toute la soirée.',
+    quand: e => soirDe(e, 'grosGardien'), canaux: { volume: 1.1, finition: 1.03 } },
   // L'ANCIEN ARBITRE (V23 ; JP : *a coach or assistant that was a ref*) : hors des huit voies, le second maillon de la chaîne.
   // La plus forte (+3 V seule, +4,5 avec le canonnier) : elle garde sa force, mais sort rarement (`rarete`, JP, 8 nov. 2026),
   // et sa carte prend le cadre d'or des rares.
@@ -174,6 +185,8 @@ export const PIECES = {
     quand: ailleurs, canaux: { discipline: 0.8 }, adv: { discipline: 1.15 },
     relais: { mot: 'Quand une autre pièce relaie', quand: unRelais('arbitre'), chaine: true, cote: 'adv', canal: 'discipline' } },
 };
+/* Les pièces qui répondent aux lignes où un club est fort (js/actes.js `lignesFortes`) : « Pour le battre », sous l'annonce d'un duel. */
+export const piecesContre = fortes => Object.keys(PIECES).filter(k => fortes.includes(PIECES[k].contre));
 /* La pièce de départ de chaque coach : le premier pouvoir de sa philosophie, à sa maîtrise ; leur coach en séries la joue aussi. */
 export const PIECE_DU_COACH = { essaim: 'ruee', rapaces: 'riposte', tortue: 'verrou', rhinos: 'usure', souffle: 'souffle', choeur: 'sangfroid', profondeur: 'quatre', etoiles: 'spectacle' };
 

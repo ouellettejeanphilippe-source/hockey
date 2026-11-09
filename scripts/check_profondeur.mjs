@@ -97,9 +97,9 @@ if (!isMainThread) {
   exiger('chaque rival et chaque élite prise se jouent en duel', !sansDuel.length, sansDuel.length ? sansDuel.slice(0, 4).map(r => `${r.robot} ${r.graine}`).join(' · ') : `${runs.length * ACTES.length} rivaux, ${runs.reduce((a, r) => a + r.elites.length, 0)} élites`);
   const tropDElites = runs.filter(r => [1, 2, 3].some(a => r.elites.filter(e => e.acte === a).length > 1));
   exiger('au plus une élite par acte', !tropDElites.length, tropDElites.length ? tropDElites.slice(0, 4).map(r => `${r.robot} ${r.graine}`).join(' · ') : `${runs.reduce((a, r) => a + r.elites.length, 0)} élites prises`);
-  // Une run vivante a perdu exactement un cœur par contrôle raté des actes I et II et par élite perdue ; aucun pour un rival.
-  const malComptes = runs.filter(r => !r.mort && r.coeurs !== COEURS - r.actes.slice(0, 2).filter(a => a.tenu === false).length - r.elites.filter(e => e.gagnee === false).length);
-  exiger('les cœurs recomptés : un par contrôle raté et par élite perdue, aucun pour un rival', !malComptes.length, malComptes.length ? malComptes.slice(0, 4).map(r => `${r.robot} ${r.graine}`).join(' · ') : `${runs.filter(r => !r.mort).length} runs vivantes`);
+  // Une run vivante a perdu exactement un cœur par contrôle raté des actes I et II ; aucun pour un rival ni pour une élite (JP, 9 nov. 2026).
+  const malComptes = runs.filter(r => !r.mort && r.coeurs !== COEURS - r.actes.slice(0, 2).filter(a => a.tenu === false).length);
+  exiger('les cœurs recomptés : un par contrôle raté, aucun pour un rival ou une élite', !malComptes.length, malComptes.length ? malComptes.slice(0, 4).map(r => `${r.robot} ${r.graine}`).join(' · ') : `${runs.filter(r => !r.mort).length} runs vivantes`);
   const coupesMortes = runs.filter(r => r.coupe && (r.mort || r.rate));
   exiger('aucune Coupe pour une run morte ou qui a raté l\'acte III', !coupesMortes.length, `${coupesMortes.length}`);
 
@@ -159,7 +159,7 @@ if (!isMainThread) {
   };
   contre('place', 'le calendrier placé, jugé à la tranche 4 : −1 à +1 V, aide une graine sur quatre');
   contre('courbe', '*ETAPES_DES_ACTES* [0, 1, 2] contre [0, 0, 0] : la mesure tranche');
-  contre('prudent', 'les élites refusées, jugé à la tranche 7 : prendre gagne au moins autant de Coupes');
+  contre('prudent', 'les élites refusées, jugé par check_elites (tranche 7) : prendre gagne au moins autant de Coupes');
   if (!JUGE) informer('l\'essai court', `${nGraines} graine(s) ne prouvent rien : les bornes se jugent sur 64 graines, en CI (.github/workflows/profondeur.yml)`);
   const total = runs.reduce((a, r) => a + r.s, 0);
   informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s · ${total} s de runs (${presents.map(r => `${r} ${v1(moy(de(r).map(x => x.s)))} s`).join(', ')}) · à 64 graines sur quatre fils : ≈ ${Math.round((total / Math.max(1, nGraines)) * SUR / 4 / 60)} min`);

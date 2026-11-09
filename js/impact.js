@@ -700,19 +700,6 @@ const lireEffets = (effet, adv, cadre, max = 3) => {
     return tries.length ? tries : null;
   } catch { return null; }
 };
-/**
- * La précision d'un état du gros match (😵 sonnés, ⬆ la lancée) sur ton club, par match, sans seuil de bruit : son
- * nom le promet, le chiffre dit combien (nov. 2026 ; JP : *« Sonnés » : what makes more sense to you*). Sans club, en %.
- */
-export function ditDeLaFinition(f) {
-  const c = clubLu();
-  if (!c || !c.team) return `${signeDe(f - 1)}${Math.round(Math.abs(f - 1) * 100)} % de précision`;
-  try {
-    const sans = lire(c.team, c.lineup || null, c.adv || null, { n: N_EFFET }), avec = lire(c.team, c.lineup || null, c.adv || null, { effets: [{ finition: f }], n: N_EFFET });
-    const d = statsEntre(avec, sans).pctTir;
-    return `${signeDe(d)}${pts(d)} pt de précision par match`;
-  } catch { return `${signeDe(f - 1)}${Math.round(Math.abs(f - 1) * 100)} % de précision`; }
-}
 const MOTS_EUX = { volume: ['Leurs tirs', false], finition: ['Leur précision', false], discipline: ['Leurs punitions', true] };
 const QUOI_DU_RELAIS = { canaux: { volume: 'tes tirs', finition: 'ta précision', discipline: 'tes punitions', blessure: 'tes blessures' }, adv: { volume: 'leurs tirs', discipline: 'leurs punitions' } };
 /* LE RELAIS D'UNE PIÈCE, EN UNE LIGNE (V23 D) : son signal, puis ce qu'il ajoute la période — « Relais · Quand tu mènes : leurs tirs −10 % de plus, la période ». */

@@ -10,6 +10,7 @@
  *     l'écran Classement, `rangAuSoir`) doit tenir le 20e puis le 15e (R1, 8 nov. 2026 : au 12e, l'attentif mourait à l'acte II 13 fois sur 64), ramenés à la taille de la ligue, sinon −1 ❤️.
  *     L'acte III demande une place en séries. Tout se lit dans la cédule jouée (`etatDeLaRun`) : rien à sauvegarder,
  *     une reprise relit le même état.
+ *   - LES ÉLITES (tranche 7, docs/refonte-v27-7.md) : aux actes II et III, une au plus par acte, le lundi (`eliteDeLaSemaine`).
  * Pur : la cédule, les clubs, la graine. Le moteur n'importe pas ce module (check_couches).
  */
 import { teamStrength, getHiddenRatings, activeLineup } from './sim.js';
@@ -17,6 +18,8 @@ import { hache } from './util.js';
 import { exigencesDe, habillerLaLigue } from './rogue.js';
 import { hausseDesPacks } from './packs.js';
 import { piecesOffertes } from './pieces.js';
+import { pronostic } from './pronostic.js';
+import { SEMAINE } from './inventaire.js';
 
 export const ACTES = [27, 54, 82];
 export const RANGS_DES_RIVAUX = [7, 3, 0];
@@ -26,10 +29,10 @@ export const COEURS = 2;
 export const ETAPE_SERIES = 4;
 /* Les médailles d'un acte (devis § 4.8) : l'acte passé, le rival battu. */
 export const MEDAILLES_ACTE = { passe: 10, rival: 15 };
-/* Pourquoi un soir est un duel (V27 ; « rival » remplace les rivaux du proprio, l'élite vient à la tranche 7). */
+/* Pourquoi un soir est un duel (V27) : le rival de l'acte, ou l'élite que tu as prise (tranche 7). */
 export const RAISONS_DU_DUEL = {
-  rival: { ico: '⚔', nom: 'Le rival', mot: 'le rival de l\'acte' },
-  elite: { ico: '◆', nom: 'L\'élite', mot: 'un gros club, un cœur en jeu' },
+  rival: { ico: '⚔', nom: 'Le rival' },
+  elite: { ico: '◆', nom: 'L\'élite' },
 };
 export const NOMS_DES_ACTES = ['Acte I', 'Acte II', 'Acte III', 'Les séries'];
 
@@ -109,8 +112,12 @@ export function poserLesRivaux(L, { exigence = 0 } = {}) {
     const adv = advAu(jours[i]);
     L.rivaux.push({ acte: a, jour: jours[i], adv, voulu, rang: parForce.indexOf(adv) });
   });
-  // SON JEU, MONTRÉ DÈS L'ANNONCE (V27, tranche 6) : son style lu dans ses vraies stats, et l'intention qu'il annoncera le plus.
-  for (const R of L.rivaux) { R.jeu = jeuDuRival(L.teams, you, R.adv); R.dominante = dominanteDe(R.jeu, L.graine, R.acte, R.adv); }
+  // LE JEU DE CHAQUE CLUB, lu au premier soir dans ses vraies stats (tranches 6 et 7) : le rival le montre dès son annonce, avec
+  // l'intention qu'il annoncera le plus ; une pièce « pour le battre » lit les lignes où l'adversaire du soir est fort (`sonJeu`).
+  L.jeux = jeuxDeLaLigue(L.teams, you);
+  L.parForce = parForce;
+  for (const [T, J] of L.jeux) T.sonJeu = lignesFortes(J, n);
+  for (const R of L.rivaux) { R.jeu = L.jeux.get(R.adv); R.dominante = dominanteDe(R.jeu, L.graine, R.acte, R.adv); }
   for (const R of L.rivaux) L.grosAnnonces[R.jour] = { jour: R.jour, adv: R.adv, raison: 'rival', acte: R.acte, dominante: R.dominante };
   // Le moment « Contre un rival » (js/sim.js `MOMENTS_SI`) lit tes rivaux sur ton club.
   you.rivaux = L.rivaux.map(R => R.adv);
@@ -141,28 +148,74 @@ export function rangAuSoir(calendrier, teams, you, d) {
   return ordre.indexOf(you) + 1;
 }
 /*
- * L'ÉTAT DE LA RUN au soir où `jour` journées sont jouées : les actes finis (le rival, battu ou non ; le rang, la cible,
- * le contrôle tenu), les cœurs qui restent, la run morte (0 ❤️), l'acte en cours et son rival. `rivaux` : `L.rivaux`.
+ * L'ÉTAT DE LA RUN au soir où `jour` journées sont jouées, dans l'ordre du calendrier : les actes finis (le rival, battu ou
+ * non ; le rang, la cible, le contrôle tenu) et les élites jouées (gagnées ou perdues ; une élite ne coûte plus de cœur, JP, 9 nov. 2026), les cœurs qui
+ * restent, la run morte (0 ❤️) et ce qui l'a tuée (`fin`), l'acte en cours et son rival. `rivaux` : `L.rivaux` ; `annonces` : `L.grosAnnonces`.
  */
-export function etatDeLaRun({ calendrier, teams, you, rivaux = [], jour, exigence = 0 }) {
-  const n = teams.length, jours = joursDe(calendrier, you);
-  const joues = jours.filter(j => j < jour).length;
-  const actes = [];
-  let coeurs = COEURS, mort = false;
-  for (const R of rivaux) {
-    if (R.jour >= jour) break;
-    const m = calendrier[R.jour].find(x => x.A === you || x.B === you);
-    const gagne = !!m && (m.A === you) === (m.gfA > m.gfB);
-    const rang = rangAuSoir(calendrier, teams, you, R.jour);
-    const cible = R.acte < 2 ? controleDeLActe(R.acte, n, exigence) : null;
-    const tenu = cible == null ? null : rang <= cible;
-    if (tenu === false && !mort && --coeurs <= 0) mort = true;
-    actes.push({ acte: R.acte, jour: R.jour, adv: R.adv, gagne, rang, cible, tenu, coeurs, mort });
+export function etatDeLaRun({ calendrier, teams, you, rivaux = [], annonces = {}, jour, exigence = 0 }) {
+  const n = teams.length, joues = joursDe(calendrier, you).filter(j => j < jour).length;
+  const gagneLe = j => { const m = calendrier[j].find(x => x.A === you || x.B === you); return !!m && (m.A === you) === (m.gfA > m.gfB); };
+  const coups = [...rivaux, ...elitesDe(annonces)].filter(x => x.jour < jour).sort((a, b) => a.jour - b.jour);
+  const actes = [], elites = [];
+  let coeurs = COEURS, fin = null;
+  for (const x of coups) {
+    const gagne = gagneLe(x.jour), elite = x.raison === 'elite';
+    const rang = elite ? null : rangAuSoir(calendrier, teams, you, x.jour);
+    const cible = !elite && x.acte < 2 ? controleDeLActe(x.acte, n, exigence) : null;
+    const tenu = elite ? null : cible == null ? null : rang <= cible;
+    const coup = { acte: x.acte, jour: x.jour, adv: x.adv, gagne, ...(elite ? { elite, J: x.J } : { rang, cible, tenu }) };
+    if (tenu === false && !fin && --coeurs <= 0) fin = coup;
+    (elite ? elites : actes).push(Object.assign(coup, { coeurs: Math.max(0, coeurs), mort: !!fin }));
   }
   const acte = Math.min(acteDe(joues), 2);
-  return { actes, coeurs: Math.max(0, coeurs), mort, acte, joues, rival: rivaux.find(R => R.acte === acte) || null,
+  return { actes, elites, coeurs: Math.max(0, coeurs), mort: !!fin, fin, acte, joues, rival: rivaux.find(R => R.acte === acte) || null,
     cible: acte < 2 ? controleDeLActe(acte, n, exigence) : null, rang: joues ? rangAuSoir(calendrier, teams, you, jour - 1) : null };
 }
+
+/*
+ * LES ÉLITES (V27, tranche 7 ; devis § 4.5, docs/refonte-v27-7.md ; JP, 8 nov. 2026 : « Élite = risque plus clair »). Au
+ * plus une par acte, aux actes II et III : le lundi, si ta semaine a un match contre un club du top 8 en force (au premier
+ * soir, `L.parForce`), une ligne de la boîte propose d'en faire une élite — jamais la semaine du rival, jamais en séries ;
+ * sans réponse, c'est un soir ordinaire. L'écran montre ta vraie chance, le pronostic du jour (`pronostic`), qui fixe sa
+ * récompense : `J = arrondi(VALEUR_DU_RISQUE × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], `p` borné à [0,25, 0,55]. Prise
+ * (une décision `elite`, jouée par le crochet du Rogue), elle est un duel ; gagnée, une pièce parmi trois et `J` 🪙 ; perdue
+ * (JP, 9 nov. 2026 : *Sonnés + jetons, pas de cœur*), les sonnés `SONNES_ELITE` matchs et `PART_PERDUE` de `J` en jetons
+ * (`perteDeLElite`), sans descendre la caisse sous zéro. Le jeu et les robots lisent ces mêmes fonctions.
+ */
+export const TOP_DES_ELITES = 8, ELITES_PAR_ACTE = 1, VALEUR_DU_RISQUE = 90, PART_PERDUE = 0.5;
+export const recompenseDeLElite = chance => { const p = Math.min(0.55, Math.max(0.25, chance)); return Math.min(90, Math.max(10, Math.round((VALEUR_DU_RISQUE * (1 - p)) / p) - PRIX_PIECE)); };
+/* Ce qu'une élite perdue coûte en jetons : la moitié de sa récompense, arrondie (J = 58 → 29). */
+export const perteDeLElite = J => Math.round((J || 0) * PART_PERDUE);
+/* Les élites prises (leurs annonces de duel). */
+export const elitesDe = annonces => Object.values(annonces || {}).filter(g => g.raison === 'elite');
+/* L'élite que le lundi `jour` propose : { jour, k, acte, adv, rang, chance, J }, ou null. */
+export function eliteDeLaSemaine(L, jour = L.jour) {
+  const you = toiDe(L);
+  if (!you || !L.parForce || jour % SEMAINE || (L.rivaux || []).some(R => Math.floor(R.jour / SEMAINE) === jour / SEMAINE)) return null;
+  const jours = joursDe(L.calendrier, you), top = L.parForce.slice(0, parmiLesAdversaires(TOP_DES_ELITES, L.teams.length));
+  const advAu = j => advDe(L.calendrier[j].find(m => m.A === you || m.B === you), you);
+  const k = jours.findIndex(j => j > jour && j < jour + SEMAINE && top.includes(advAu(j)));
+  const acte = k < 0 ? 0 : acteDe(k);
+  if (acte < 1 || acte > 2 || elitesDe(L.grosAnnonces).filter(e => e.acte === acte).length >= ELITES_PAR_ACTE) return null;
+  const j = jours[k], m = L.calendrier[j].find(x => x.A === you || x.B === you), adv = advDe(m, you);
+  // Le pronostic (300 matchs du moteur) ne se calcule qu'une fois lu : l'écran le montre, le robot attentif le lit en dernier.
+  let chance = null;
+  const lire = () => { if (chance == null) { const pr = pronostic({ A: m.A, B: m.B, calendrier: L.calendrier, jourMatch: j, jourRevele: jour, graine: `${L.graine}:elite` }); chance = (m.A === you ? pr.vA : pr.vB) / pr.n; } return chance; };
+  return { jour: j, k, acte, adv, rang: L.parForce.indexOf(adv), get chance() { return lire(); }, get J() { return recompenseDeLElite(lire()); } };
+}
+/* La prendre : la décision du lundi ; la refuser porte le même palier, sans `elite`. */
+export const decisionDElite = e => ({ palier: `el:${e.jour}`, elite: { jour: e.jour, J: e.J } });
+/* L'annonce de son duel, posée par le crochet du Rogue (`crochetDesActes`) : son jeu et son intention dominante, comme un rival. */
+function poserLElite(L, { jour, J }) {
+  const you = toiDe(L), m = L.calendrier[jour].find(x => x.A === you || x.B === you);
+  if (!m) return;
+  const adv = advDe(m, you), acte = acteDe(joursDe(L.calendrier, you).indexOf(jour)), jeu = L.jeux && L.jeux.get(adv);
+  L.grosAnnonces[jour] = { jour, adv, raison: 'elite', acte, J, ...(jeu ? { dominante: dominanteDe(jeu, L.graine, acte, adv) } : {}) };
+}
+/* Les jetons des élites jouées avant la journée `j` (la caisse du jeu et celle des robots) : `J` gagnées, `perteDeLElite` perdues ;
+   la caisse qui les lit ne descend jamais sous zéro. */
+export const jetonsDesElites = (calendrier, you, annonces, j) => elitesDe(annonces).filter(e => e.jour < j)
+  .reduce((a, e) => { const m = calendrier[e.jour].find(x => x.A === you || x.B === you); return a + (!m ? 0 : (m.A === you) === (m.gfA > m.gfB) ? e.J || 0 : -perteDeLElite(e.J)); }, 0);
 /*
  * LE JEU DU RIVAL (devis § 4.3 ; V27, tranche 6 : lu dans ses vraies stats, plus dans sa force). Trois lignes, chacune le
  * rang du club dans la ligue (de 1) et le tien à côté, sur les joueurs qu'il habille ce soir-là, dans leur vraie saison :
@@ -180,17 +233,25 @@ const LIGNES_DU_JEU = [
   { k: 'durs', mot: 'des durs', nom: 'Durs', lire: (t, coups) => patineurs(t).reduce((a, p) => a + (coups ? p.ht || 0 : 0) + parMatch(p, p.pim) / (coups ? 2 : 1), 0) },
   { k: 'gardien', mot: 'un gros gardien', nom: 'Gardien', lire: t => { const g = Object.values(activeLineup(t)).filter(p => p && p.p === 'G').sort((a, b) => (b.gp || 0) - (a.gp || 0))[0]; return g ? g.sv || 0 : 0; } },
 ];
-export function jeuDuRival(teams, you, adv) {
+/* Le jeu de chaque club de la ligue, lu une fois (club → jeu) ; `jeuDuRival`, celui d'un seul, ce soir-là. */
+function jeuxDeLaLigue(teams, you) {
   const coups = teams.every(t => patineurs(t).some(p => p.ht != null));
-  const lignes = LIGNES_DU_JEU.map(({ k, mot, nom, lire }) => {
+  const lues = LIGNES_DU_JEU.map(({ k, mot, nom, lire }) => {
     const v = new Map(teams.map(t => [t, lire(t, coups)]));
     const tri = teams.slice().sort((a, b) => v.get(b) - v.get(a));
-    const max = v.get(tri[0]), min = v.get(tri[tri.length - 1]), part = x => Math.max(0.05, Math.min(1, (x - min) / ((max - min) || 1)));
-    return { k, mot, nom, rang: tri.indexOf(adv) + 1, rangToi: tri.indexOf(you) + 1, lui: part(v.get(adv)), toi: part(v.get(you)) };
+    const max = v.get(tri[0]), min = v.get(tri[tri.length - 1]), part = t => Math.max(0.05, Math.min(1, (v.get(t) - min) / ((max - min) || 1)));
+    return { k, mot, nom, tri, part };
   });
-  const fort = lignes.slice().sort((a, b) => a.rang - b.rang)[0];
-  return { cle: fort.k, mot: fort.mot, lignes };
+  return new Map(teams.map(adv => {
+    const lignes = lues.map(({ k, mot, nom, tri, part }) => ({ k, mot, nom, rang: tri.indexOf(adv) + 1, rangToi: tri.indexOf(you) + 1, lui: part(adv), toi: part(you) }));
+    const fort = lignes.slice().sort((a, b) => a.rang - b.rang)[0];
+    return [adv, { cle: fort.k, mot: fort.mot, lignes }];
+  }));
 }
+export const jeuDuRival = (teams, you, adv) => jeuxDeLaLigue(teams, you).get(adv);
+/* LES LIGNES OÙ UN CLUB EST FORT (tranche 7) : au 12e rang de la ligue ou mieux (ramené à sa taille) ; ce que lit une pièce « pour le battre ». */
+const TOP_DU_JEU = 12;
+export const lignesFortes = (jeu, n) => jeu.lignes.filter(l => l.rang <= aLaTaille(TOP_DU_JEU, n)).map(l => l.k);
 /*
  * SON INTENTION DOMINANTE (devis § 4.3) : celle des cinq qu'il annoncera le plus souvent (`POIDS_DOMINANTE`, js/greffes.js),
  * fixée à l'annonce de son style et de la graine — des tireurs foncent (l'assaut) ou collent ta vedette pour la contrer
@@ -269,11 +330,13 @@ export function echangerTesCases(L, k, q, joues) {
 /* Le brouillon d'un placement (l'écran, le robot) : la même ligue, sa cédule copiée. */
 export const brouillon = L => ({ ...L, calendrier: L.calendrier.map(jr => jr.map(m => ({ A: m.A, B: m.B }))) });
 /*
- * LE CROCHET DU ROGUE (`placer` de `creerLigue`) : à la création, les rivaux ; à une décision `cedule`, ses échanges, puis
- * chaque adversaire habillé à `etape` plus son renfort (`habillerLaLigue`), pour la saison qui reste, contre toi et les autres.
+ * LE CROCHET DU ROGUE (`placer` de `creerLigue`) : à la création, les rivaux ; à une décision `elite`, l'annonce de son duel ;
+ * à une décision `cedule`, ses échanges, puis chaque adversaire habillé à `etape` plus son renfort (`habillerLaLigue`), pour
+ * la saison qui reste, contre toi et les autres.
  */
 export const crochetDesActes = ({ exigence = 0, niveau = 0, etape = 0 } = {}) => (L, d) => {
   if (!d) { poserLesRivaux(L, { exigence }); return; }
+  if (d.elite) { poserLElite(L, d.elite); return; }
   const joues = joursDe(L.calendrier, toiDe(L)).filter(j => j < L.jour).length;
   for (const [k, q] of d.cedule) echangerTesCases(L, k, q, joues);
   const R = renfortsDe(L);

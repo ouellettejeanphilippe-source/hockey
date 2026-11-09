@@ -17,6 +17,7 @@ import { HISTOIRES, tirer } from '../../js/histoires.js';
 import { SEMAINE } from '../../js/inventaire.js';
 import { COACHS } from '../../js/coachs.js';
 import { PIECES, CASES_DU_BANC, bancDe, piecesOffertes, poserLaPiece } from '../../js/pieces.js';
+import { etatDeLaRun, eliteDeLaSemaine, decisionDElite } from '../../js/actes.js';
 
 const JETON = 0.01;   // une victoire vaut une centaine de jetons, à la louche (le barème : 5 par victoire, les packs à 12 et plus)
 /* Ce que vaut une conséquence, grossièrement, en victoires : une pièce, des jambes, un match d'infirmerie. */
@@ -154,4 +155,22 @@ export function coachDuRobot(loto, { politique, clic, fit }) {
   if (clic) return loto[Math.floor(clic() * loto.length)];
   if (politique === 'attentif' && fit) { const f = loto.map(fit); return loto[f.indexOf(Math.max(...f))]; }
   return loto[0];
+}
+
+/*
+ * L'ÉLITE DU ROBOT (V27, tranche 7 ; js/actes.js `eliteDeLaSemaine`) : le lundi, l'élite que l'écran propose, prise comme le
+ * joueur la prend (la décision `elite`, `decisionDElite`). `elites` : 'toutes' (le glouton), 'jamais' (« premier », le naïf,
+ * le prudent), ou 'prudent' (l'attentif : la chance que l'écran montre à `CHANCE_ELITE` ou plus). Depuis la décision de JP
+ * (9 nov. 2026 : *Sonnés + jetons, pas de cœur*), une élite ne met plus de cœur en jeu : l'attentif ne regarde plus ses
+ * cœurs ni son contrôle, seulement sa chance. Ce n'est pas une règle du jeu : l'élite reste proposée à toute chance (40 % au
+ * réglage R1, 50 % depuis la tranche 7). Rend { e, d } (l'élite et sa décision), ou null.
+ */
+export const CHANCE_ELITE = 0.50;
+export function eliteDuRobot(L, elites) {
+  if (elites === 'jamais' || L.jour % SEMAINE) return null;
+  const you = L.teams.find(t => t.isPlayer);
+  const E = etatDeLaRun({ calendrier: L.calendrier, teams: L.teams, you, rivaux: L.rivaux || [], annonces: L.grosAnnonces, jour: L.jour });
+  const e = E.mort ? null : eliteDeLaSemaine(L);
+  if (!e || (elites === 'prudent' && e.chance < CHANCE_ELITE)) return null;
+  return { e, d: { jour: L.jour, ...decisionDElite(e) } };
 }

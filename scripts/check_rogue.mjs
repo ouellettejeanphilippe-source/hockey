@@ -285,9 +285,9 @@ if (!isMainThread) {
     runs.map(r => r.rivaux.map(x => `${x.rang + 1}e`).join('/')).join(' · '));
   exiger('après les échanges, chaque club joue 82 matchs, jamais deux le même jour', runs.every(r => r.verif.doubles === 0 && r.verif.min === 82 && r.verif.max === 82 && r.verif.joursToi === 82),
     runs.map(r => `${r.verif.min}–${r.verif.max}, ${r.verif.doubles} doublé`).join(' · '));
-  // Les cœurs recomptés : un par contrôle raté des actes I et II (et par élite perdue), jamais par un rival perdu.
-  const recompte = r => COEURS - r.actes.slice(0, 2).filter(x => x.tenu === false).length - r.elites.filter(e => e.gagnee === false).length;
-  exiger('les cœurs : un de moins par contrôle raté ou élite perdue, aucun pour un rival perdu ; à zéro, la run est morte', runs.every(r => Math.max(0, recompte(r)) === r.coeurs && (!!r.mort === (recompte(r) <= 0))),
+  // Les cœurs recomptés : un par contrôle raté des actes I et II , jamais par un rival perdu ni par une élite perdue (JP, 9 nov. 2026).
+  const recompte = r => COEURS - r.actes.slice(0, 2).filter(x => x.tenu === false).length;
+  exiger('les cœurs : un de moins par contrôle raté, aucun pour un rival ou une élite perdus ; à zéro, la run est morte', runs.every(r => Math.max(0, recompte(r)) === r.coeurs && (!!r.mort === (recompte(r) <= 0))),
     runs.map(r => `${r.coeurs} ❤️ (${recompte(r)})`).join(' · '));
   exiger('aucune élite à l\'acte I (JP, 8 nov. 2026), au plus une par acte', runs.every(r => r.elites.every(e => e.acte >= 2) && [2, 3].every(a => r.elites.filter(e => e.acte === a).length <= 1)),
     runs.map(r => r.elites.map(e => `acte ${e.acte} (${Math.round(e.p * 100)} %)`).join(', ') || 'aucune').join(' · '));

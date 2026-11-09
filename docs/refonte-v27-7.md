@@ -1,0 +1,106 @@
+# V27, tranche 7 — Les élites, et les pièces « pour le battre »
+
+L'extrait de la tranche 7 du devis de la V27 (docs/refonte-v27.md, § 4.3, § 4.5, § 4.6, § 4.7, § 5, § 6, § 9, § 10, « Les tranches » et § 11), au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 8 nov. 2026. Le devis entier prime : cet extrait dit seulement ce que la tranche livre, ce qu'elle fait partir et comment on le prouve. Elle part de `origin/main` (la V27 sortie, PR #392) et va vers main en une PR.
+
+## 1. Ce que JP a dit
+
+- JP, 7 nov. 2026 (le devis, § 4.5) : l'élite est *un risque* — un cœur contre une pièce et des jetons, au plus une par acte.
+- JP, 8 nov. 2026, après la première mesure : *« Élite = risque plus clair »* — aucune élite à l'acte I, et l'écran d'une élite montre ta vraie chance de gagner, le pronostic du jour, celui qui fixe sa récompense.
+- Sur les maquettes (docs/maquettes/v27.html, 7 nov.) : *Maquettes ok* ; *montrer, pas dire*. La maquette 2 montrait, sous l'annonce du rival, « Pour le battre » : les pièces qui répondent à son style. La 6a (écart 6) l'avait laissé en attente : aucune pièce ne lisait le jeu d'un adversaire. Décision prise pour cette tranche : oui, quelques pièces, bien mesurées.
+
+## 2. Ce que le joueur ressent
+
+« Le lundi, mon dépisteur me dit que Philadelphie, le meilleur club de la ligue, vient jeudi. J'ai 22 % de chance ; si je gagne, 90 🪙 et une pièce ; si je perds, un cœur. Je le prends, ou c'est un soir ordinaire. » Le pic : la ligne de la boîte qu'on peut ignorer, et le soir de l'élite vécu comme un rival. Le jour ordinaire ne change pas : sans réponse, rien ne se passe. Et sous l'annonce d'un club, ce qui le bat : la pièce de ton banc qui répond à ses tirs, à ses durs ou à son gardien, ou celle qu'il reste à trouver.
+
+## 3. Les règles du jeu (ce que la tranche code ; le devis, § 4.5)
+
+- **La proposition** (*eliteDeLaSemaine*, js/actes.js) : seulement un lundi ; ta semaine a un match, après le lundi, contre un club du top 8 en force (lu au premier soir, *L.parForce*, ramené à la taille de la ligue) ; ce match est à l'acte II ou III ; l'acte n'a pas encore son élite (*ELITES_PAR_ACTE* 1) ; jamais la semaine d'un rival ; jamais en séries. Le premier tel match de la semaine est proposé.
+- **La ligne de la boîte** (js/saison.js, *eliteOuverte*) : le dépisteur, « Une élite contre Flyers 1985-86, dans 4 jours ? », dans la maison du match ; **elle ne bloque pas** : « Jour suivant » reste là, et sans réponse, c'est un soir ordinaire. Elle part le lendemain.
+- **Son écran** (la maquette 2 et la maquette 4 reprises : la plaque du club, puis la barre du duel) : le club, son rang en force, son jeu (« Son jeu : des durs ») ; **ta vraie chance**, le pronostic du jour (`pronostic`, 300 matchs du moteur), en barre aux couleurs des deux clubs (*pronoHtml*, la même que le duel) ; Gagné / Perdu (*enjeuHtml*, le même que le duel : « 1 pièce sur 3 · +90 🪙 · La lancée 3 matchs » ; « −1 cœur · Sonnés 3 matchs ») ; à ton dernier cœur, la bande rouge « Ton dernier cœur » ; ses trois lignes contre les tiennes et « Pour le battre ». Deux cartes : « En faire une élite » (sa chance dessous) et « Un soir ordinaire » ; le ✕ la laisse dans la boîte.
+- **Prise** : une décision `elite` (*decisionDElite* : le palier `el:<jour>`, le jour du match et ses jetons `J`), jouée par le crochet du Rogue (*crochetDesActes*, *poserLElite*) au matin où elle est prise (js/banc.js, *placerDuJour*) comme à chaque reprise : l'annonce du duel (raison `elite`, l'acte, `J`, une intention dominante tirée de son jeu comme un rival). L'affiche du soir dit « ◆ L'élite » et son jeu ; le matin du match, l'écran du duel à un choix s'ouvre (le même que le rival), son enjeu avec ses jetons. Refusée : le même palier, sans `elite`.
+- **Gagnée** : une pièce parmi trois (la même étape que le rival battu, *r:<jour>*, « Le prix de l'élite ») et `J` 🪙 dans la caisse (*jetonsDesElites*, lu par la caisse du jeu, *resultatsRogue*, et par celle des robots, *jetonsDuRobot*), l'élan 3 matchs.
+- **Perdue** (en temps réglementaire, en prolongation ou en fusillade ; JP, 9 nov. 2026 : *Sonnés + jetons, pas de cœur*) : **aucun cœur** ; les sonnés *SONNES_ELITE* 5 matchs (js/sim.js) et la moitié de sa récompense en jetons (*perteDeLElite*, *PART_PERDUE* 0,5 ; *jetonsDesElites* la retire, et la caisse du jeu comme celle des robots ne descend jamais sous zéro). Les cœurs restent aux contrôles des actes : *etatDeLaRun* range les élites jouées sans les compter, et la fin de la run ne cite plus d'élite.
+- **Hier soir et le sommaire de la semaine** disent le duel en une ligne (*motDuDuel*) : « ◆ Élite gagnée · +58 🪙 · une pièce t'attend · 🔥 La lancée 3 matchs », « ⚔ Rival perdu · 😵 Sonnés 3 matchs ».
+- **Pour le battre** (*piecesContre*, js/pieces.js ; *lignesFortes*, js/actes.js) : au premier soir, chaque club porte les lignes de son jeu (tirs, durs, gardien) où il est au 12e rang de la ligue ou mieux (*sonJeu*, *TOP_DU_JEU*) ; trois pièces neuves lisent l'adversaire du soir par trois moments neufs (`MOMENTS_SI` : *tireurs*, *durs*, *grosGardien*) : 🛡 **le bloqueur** contre des tireurs (leurs tirs ×0,88), ⛸ **le patineur** contre des durs (tes blessures ×0,7, leurs punitions ×1,3), 👥 **le trafic** contre un gros gardien (tes tirs ×1,1, ta précision ×1,03). Ce sont des pièces de la soirée, comme le canonnier. Sous l'annonce du rival et sur l'écran de l'élite, « Pour le battre » montre celles qui lui répondent : en vraie carte si elle est sur ton banc (« Sur ton banc »), sinon la case qui la nomme et dit sa condition. Un club fort dans aucune ligne n'en a pas.
+- **Les robots font ce que fait le joueur, par les mêmes fonctions** (*eliteDuRobot*, scripts/lib/cartes_robot.mjs) : l'élite que *eliteDeLaSemaine* propose, prise par la décision *decisionDElite*, que le moteur joue ; la pièce gagnée par *lundiDuRobot* ; les jetons par *jetonsDesElites* ; les cœurs par *etatDeLaRun*. La saison en actes (scripts/lib/rogue_actes.mjs) : l'attentif (`prudent` : deux cœurs, le contrôle de l'acte tenu, la chance que l'écran montre à *CHANCE_ELITE* 50 % ou plus — 40 % au réglage R1 ; voir l'écart 8), le glouton (toutes), « premier », le naïf et le prudent (jamais). La vieille saison (scripts/lib/rogue_sim.mjs, *jouerSaison*) : l'attentif comme dans la saison en actes.
+
+## 4. Les chiffres
+
+- **La récompense** : `J = arrondi(VALEUR_DU_RISQUE × (1 − p) / p) − PRIX_PIECE`, bornée à [10, 90], `p` la chance du pronostic du lundi bornée à [0,25, 0,55], *VALEUR_DU_RISQUE* 90 (60 jusqu'à la mesure en paires, écart 8 ; le haut de sa plage sûre), *PRIX_PIECE* 32. La borne haute de 90 est **gardée** : le § 9 ne lui donne pas de plage, et la monter ferait payer une élite à 25 % jusqu'à 238 🪙, de quoi pousser à prendre les plus mauvaises chances. Exemples faits (*recompenseDeLElite*) : 38 % → `90 × 0,62 / 0,38 = 146,8`, moins 32 = 115, ramené au plafond → **90 🪙** ; 52 % → 83,1 − 32 → **51 🪙** ; 50 % → 58 ; 55 % → 42 ; sous ≈ 45 %, le plafond. Hors du plafond, `p × (J + 32) ≈ (1 − p) × 90` : le cœur risqué est payé.
+- **Le top 8** : `parmiLesAdversaires(8, n)` clubs, du premier soir. Sur la ligue de `check_elites` : 13 lundis sur 31 proposent une élite, 7 à l'acte II, 6 à l'acte III.
+- **Pour le battre** : *TOP_DU_JEU* 12 (ramené à la taille de la ligue) : douze clubs par ligne dans une ligue de 32, donc une pièce « pour le battre » joue ≈ 12 soirs sur 31, 30 à 50 % des soirs comme les autres (`check_pouvoirs`). Son écart d'un soir se voit dans la feuille (le bloqueur : ≈ −3,5 tirs contre ; le patineur : ≈ +1 punition à eux ; le trafic : ≈ +3 tirs) ; mesurées en paires, chiffres au § 9.
+
+## 5. Les cas limites
+
+- **La semaine sans club du top 8**, l'acte qui a déjà son élite, la semaine du rival, les séries, l'acte I : aucune ligne.
+- **Le match contre le top 8 le lundi même** : pas proposé (le match doit venir après le lundi : l'élite prise se pose avant son matin, comme le placement du calendrier).
+- **Sans réponse** : la ligne part le lendemain ; le match se joue comme un soir ordinaire.
+- **Au dernier cœur** : rien de plus (une élite ne met plus de cœur en jeu ; « Ton dernier cœur » est parti avec la décision de JP).
+- **Deux élites perdues, ou une élite et un contrôle** : la run meurt au soir de la seconde ; l'étape « Fin de la run » de la boîte la nomme (« L'élite · Perdue »), sans verser les médailles d'un acte.
+- **L'élite gagnée** : son étape « Prendre une pièce » vient au matin suivant, comme un rival battu ; ses jetons sont dans la caisse dès ce matin.
+- **La vieille partie** : aucune décision `elite`, aucune annonce d'élite : l'état de la run est celui d'avant. Les clés de sauvegarde ne bougent pas (`check_sauvegardes`).
+- **Un club sans ligne forte** (ses trois rangs au-delà du 12e) : « Pour le battre » ne s'affiche pas. Le rival de l'acte I (8e en force) en a souvent une ou deux.
+- **Hors ligne** : aucun module n'entre ni ne part — `check_coquille`.
+- **Le clavier et la manette** : la ligne est un bouton de la boîte, ses deux options des cartes à « Prendre » — `essai_rogue`.
+
+## 6. Ce qu'il touche
+
+`js/actes.js` (les élites, le jeu de la ligue, *etatDeLaRun* réécrit), `js/sim.js` (trois moments, la décision `elite` jouée par le crochet), `js/pieces.js` (trois pièces, *piecesContre*), `js/saison.js` (la ligne et l'écran de l'élite, l'annonce et « Pour le battre », l'étape de la pièce et la fin, la ligne du duel d'hier ; la bannière et le dépistage du gros match partis), `js/gerant.js` (*pronoHtml*, *enjeuHtml*), `js/rogue-jeu.js` (la caisse, la cause de la fin, l'écran de fin), `js/banc.js`, `js/impact.js`, `style.css` ; `scripts/lib/rogue_actes.mjs`, `scripts/lib/rogue_sim.mjs`, `scripts/lib/cartes_robot.mjs`, `scripts/check_elites.mjs` (neuf), `scripts/check_profondeur.mjs`, `scripts/tout.mjs`, `scripts/essai_rogue.mjs` ; `.github/workflows/profondeur.yml` (le travail « juger » lance `check_elites` sur les runs) ; `.claude/rules/rogue.md`, `.claude/rules/vocabulaire.md`, `.claude/rules/tests.md` ; `LIVRAISON.md`, `docs/decisions.md`.
+
+Les règles fermes : rogue.md — deux lignes neuves, « Les élites » et « Pour le battre » ; « le gros match se règle le jour où il se joue » **tenue**, réécrite (sa languette sur l'affiche ; `ANNONCE_GROS`, qui n'existait plus, part de la règle). vocabulaire.md — **élite** et **pour le battre** entrent (le devis, § 7). tests.md — `check_elites`. moteur.md : rien (le moteur ne bouge pas : trois moments de plus dans la soirée, lus seulement par des pièces ; le 82-0 se rejoue au caractère près, `check_empreinte`). Les clés de sauvegarde ne bougent pas.
+
+## 7. Ce qui part
+
+Pris du § 8 du devis, « Les gros matchs choisis et les rivaux du proprio » : les élites remplacent ce qui restait, dans le jeu, du gros match d'avant les rivaux de l'acte — une bannière « Gros match · … » au-dessus de l'affiche et son dépistage (leur jeu, victoire et défaite, la note 🎬), qui redisaient ce que la languette de l'affiche et l'écran du duel disent déjà ; la ligne « Gros match gagné : la lancée pour 3 matchs » d'Hier soir et du sommaire, avec ses intentions par période d'avant la tranche 6 et la précision de l'état mesurée au moteur. Le neuf (la proposition, son écran, la ligne du duel d'hier, l'annonce partagée par le rival et l'élite) s'écrit depuis le § 4.5 et les maquettes 2 et 4, sans relire ces blocs : c'est une refonte de la place du duel dans la saison, pas une retouche.
+
+- `grosPourquoi`, `miniBoss`, `grosDepistage` et leurs classes `hub-gros-tete`, `hub-gros-dep`, `hub-gros-note` (la bannière du gros match au-dessus de l'affiche, et son dépistage) → la languette de l'affiche (« ⚔ Le rival », « ◆ L'élite », et son jeu, *prochainHtml*) et l'écran du duel ; hors du Rogue au jour le jour, le titre de l'affiche le dit (« ◆ L'élite · Match 31 »).
+- `hub-miniboss`, `hub-gros-detail`, `etatDuGros`, `motEntracte` (Hier soir : « Gros match gagné : La lancée pour 3 matchs », ses intentions par période) → *motDuDuel* et *hub-duel-hier* : une ligne, ce que le duel paie ou coûte (la pièce, les jetons de l'élite, le cœur).
+- `ditDeLaFinition`, `ditFinition` (la précision de la lancée et des sonnés, mesurée au moteur à chaque ligne) → rien : l'état du soir se lit à Ce soir, sous l'affiche (« 😵 Sonnés · 3 m »).
+- Le champ *mot* des raisons du duel (*RAISONS_DU_DUEL* : « le rival de l'acte », « un gros club, un cœur en jeu »), que seule la bannière lisait → rien ; trop court pour être cherché en mot entier, vérifié à la main.
+- La porte morte « Ouvrir la pochette · Un adjoint parmi trois » de la boîte (*messagesCourants*) et la maison *sp.cartes* / *sp.etat* (*maisonDe*) : plus aucun choix ne les porte depuis la tranche 5 → rien.
+- Dans les robots (hors du jeu, en italique) : la proposition d'élite que *jouerLaRun* calculait seul (son top 8, ses semaines de rival, son pronostic, sa formule de *J*, ses constantes *TOP_DES_ELITES*, *ELITES_PAR_ACTE*, *VALEUR_DU_RISQUE*, et l'annonce écrite à la main dans *L.grosAnnonces*) → *eliteDeLaSemaine* et la décision *decisionDElite*, par *eliteDuRobot* ; ses jetons versés à la main (*depense −= J*) → *jetonsDesElites* ; l'élite gagnée qui ne donnait aucune pièce au robot (son jour marqué d'avance dans *butins*) → la pièce par *lundiDuRobot*, comme le jeu.
+
+**Ce qui reste, et pourquoi** : *RAISONS_DU_DUEL* (son icône et son nom), *grosDuJour*, *rivalVu*, *mainOuverte*, *ouvrirDuelDuSoir* et l'écran du duel (*ouvrirLeDuel*, la tranche 6) — l'élite est un duel comme le rival ; *leurJeuHtml* (l'éclaireur des séries) ; la classe *hub-gros* (la fin d'un tournoi de Sur table la porte) ; *jeuDuRival* (le duel le lit sur les joueurs du soir) ; *CHANCE_ELITE* (le réglage R1 : le robot, pas le jeu) ; les cartes du jeu, telles quelles (JP).
+
+## 8. Les réglages
+
+| Constante | Valeur | Plage sûre | Au-delà |
+|---|---|---|---|
+| *VALEUR_DU_RISQUE* (était *V_COEUR*) | 90 🪙 (60 avant la mesure) | 40-90 | trop bas, l'élite ne vaut pas le risque ; trop haut, elle est obligatoire |
+| *PART_PERDUE* | 0,5 de `J` | 0,3-0,7 | à 0, perdre ne coûte que des sonnés ; à 1, autant que gagner rapporte |
+| *SONNES_ELITE* | 5 matchs | 4-6 | — |
+| *ELITES_PAR_ACTE* | 0 à l'acte I, 1 aux actes II et III | 0-1 | à 2, l'élite redevient une routine et les cœurs fondent |
+| *TOP_DES_ELITES* | 8 | 6-10 | à 4, presque jamais proposée ; à 12, une élite contre un club ordinaire |
+| *TOP_DU_JEU* | 12e rang | 10-14 | à 8, une pièce « pour le battre » joue un soir sur quatre (sous la présence) ; à 16, la moitié des soirs, et « fort » ne veut plus rien dire |
+| Le bloqueur | leurs tirs ×0,88 | 0,85-0,92 | voir § 9 (la mesure) |
+| Le patineur | tes blessures ×0,7, leurs punitions ×1,3 | 1,2-1,4 | — |
+| Le trafic | tes tirs ×1,1, ta précision ×1,03 | 1,08-1,14 | — |
+
+## 9. Les critères d'acceptation
+
+- [x] Les élites, les règles : la récompense à la formule et ses bornes ; la proposition le lundi seulement, le top 8, les actes II et III, jamais la semaine du rival ni en séries, une par acte ; prise, son annonce de duel ; perdue, un cœur ; gagnée, ses jetons ; deux perdues tuent la run — `check_elites` (une seconde, dans `tout.mjs`).
+- [ ] **Rouge** (écart 8) — les élites en paires : l'attentif qui les prend contre le prudent qui les refuse, mêmes dés, 64 graines : au moins autant de Coupes, au plus une mort de plus sur huit — `check_elites` (`LIRE`, en CI, `profondeur.yml`), `check_profondeur`.
+- [x] Les pièces « pour le battre » : une par ligne, chacune son moment ; douze clubs par ligne — `check_elites` ; elles jouent exactement les périodes que leur condition lit, rien hors de leurs soirs, se voient, 30 à 50 % des soirs, sous la borne d'un acte, jamais un piège — `check_pouvoirs` (`PIECES=bloqueur,patineur,trafic`) ; leurs moments reviennent — `check_moments_si`.
+- [x] Les écrans : la ligne et l'écran de l'élite, sa décision, son duel et son enjeu ; « Pour le battre » sous l'annonce du rival — `essai_rogue` (`CAPTURES_PAGES=1` : `rogue-elite.png`, `rogue-elite-duel.png`, `rogue-pour-le-battre.png`), le smoke (en CI).
+- [x] Rien de mort — `check_mort` ; pas une couche de peinture — `check_refonte docs/refonte-v27-7.md`.
+- [ ] **Rouge sur deux bornes** (écart 8 : un cœur perdu 39 sur 64, morts 9 sur 64 ; le reste vert) — la cible de la profondeur tient avec les élites jouées par le jeu et les trois pièces neuves — `check_profondeur` (en CI).
+- [ ] À juger par JP à l'essai : l'élite donne envie d'être prise quand la chance est bonne, et fait peur au dernier cœur ; « Pour le battre » donne une raison de choisir une pièce.
+
+## Les écarts avec le devis et la maquette
+
+1. **Le robot qui « prend chaque élite »** (§ 4.5, § 10) : `check_elites` juge l'attentif (qui les prend à 50 % de chance ou plus ; 40 % au réglage R1 de JP, écart 8) contre le prudent ; le glouton, qui les prend toutes, même au dernier cœur, se lit à côté sans être jugé — c'est le robot que JP a choisi de faire jouer comme un joueur attentif.
+2. **Les pièces contre un style de rival** (§ 4.3, § 6 : « un moment rare ») : elles lisent l'adversaire du soir, quel qu'il soit, et jouent 30 à 50 % des soirs comme les autres pièces (la consigne de la tranche) ; leur moment n'est pas rare, il est courant.
+3. **Un rival fort dans aucune ligne** (ses trois rangs au-delà du 12e) n'a pas de « Pour le battre » : montrer une pièce qui ne jouerait pas contre lui mentirait. La maquette 2 montrait une carte et deux cases à la boutique ; l'écran montre la carte de ton banc, ou la case qui nomme la pièce et sa condition (où la trouver n'est pas dit : le rival battu, la boutique ou une élite peuvent l'offrir).
+4. **La proposition pour un match après le lundi seulement** : le devis dit « ta semaine » ; un match le lundi même ne peut pas devenir une élite (la décision se pose avant son matin).
+5. **La bande « Son jeu » de l'annonce** prend la couleur du club et son encre (elle prenait sa rayure, noire chez quelques clubs comme Philadelphie : le texte disparaissait).
+6. **Pas d'écran de maquette pour l'élite** (la tranche 0 n'en avait pas) : il reprend la plaque de la maquette 2 et la barre et le Gagné / Perdu de la maquette 4.
+7. **Les élites dans la vieille saison des robots** (`jouerSaison`) : l'attentif y prend ses élites comme dans la saison en actes ; les mesures qui la lisent (`check_pouvoirs`, `check_moments_si`, `mesure_rythme`) voient donc quelques duels de plus.
+8. **La mesure en paires, et ce qui en a été décidé** (l'attentif à 50 % et *VALEUR_DU_RISQUE* 90, décisions prises après les deux premières courses ; la troisième course plus bas) (`profondeur.yml`, 64 graines, deux courses). Course 1, l'attentif à 40 % (le réglage R1) : 7 Coupes contre 11 pour le prudent qui refuse toutes les élites, 11 morts avant l'acte III contre 9, un cœur perdu dans 42 runs (borne 38) ; 78 élites prises, 65 % gagnées, 20 🪙 par run. Course 2, l'attentif à 50 % (*CHANCE_ELITE*, le robot, pas la règle du jeu) : 9 Coupes contre 11, 9 morts contre 9, un cœur perdu dans 39 runs ; 68 élites, 66 % gagnées. Le glouton (toutes) : 8 Coupes, 19 morts. Le reste de la profondeur est vert aux deux courses (l'attentif 7 puis 9 Coupes sur 64, la première médiane à la run 6 puis 5, « premier » 0, le naïf 1, +8,3 à +8,9 V en paires). Lu : une élite gagnée paie peu (≈ 13 à 20 🪙 par run et une pièce de plus) contre un cœur qui, perdu à l'acte II, fait mourir au contrôle ; et le prudent, sans aucune élite, meurt 9 fois (borne 8 : au réglage R1, l'attentif mourait 6 fois). **Décidé (JP l'a délégué, 9 nov.)** : garder 50 % au robot et payer l'élite plus cher (*VALEUR_DU_RISQUE* 90), sans toucher à la perte ; écarté : rendre une élite perdue moins mortelle (la perte, −1 cœur, est la règle de JP) ; jamais une borne baissée. Course 3 (l'attentif à 50 %, *VALEUR_DU_RISQUE* 90) : 7 Coupes contre 11 pour le prudent, 9 morts contre 9, un cœur perdu dans 40 runs sur 64 (borne 38) ; 69 élites prises, 45 gagnées (65 %), ≈ 44 🪙 par élite gagnée (≈ 18 à 60), 31 🪙 par run ; `check_elites` rouge (Coupes), `check_profondeur` rouge sur les cœurs (40) et les morts (9), le reste vert (l'attentif 7 Coupes sur 64, première médiane à la run 6, « premier » 0, le naïf 1). Payer l'élite plus cher n'a pas rendu les Coupes : 2 sur 64 d'écart avec la course 2 sont du hasard (± 2,7), mais le prudent reste devant aux trois courses. Ce qui tue, c'est le cœur, pas le prix : le prudent lui-même meurt 9 fois.
+
+## Les tranches
+
+La tranche 7 est une PR vers main. Après elle : la 8 (les fourches).
+
+## La décision de JP (9 nov. 2026) : *Sonnés + jetons, pas de cœur*
+
+Après quatre courses en paires (64 graines chacune), l'attentif qui prend ses élites ne battait jamais le prudent qui les refuse : à 40 % de chance, 7 Coupes contre 11 et 11 morts contre 9 ; à 50 %, 9 contre 11 et 9 contre 9 ; à 50 % avec *VALEUR_DU_RISQUE* 90, 7 contre 11 et 9 contre 9 ; avec une marge au dernier cœur, 7 contre 11 et 15 contre 9. JP a tranché : **une élite perdue ne coûte plus de cœur** ; elle coûte les sonnés 5 matchs et la moitié de sa récompense en jetons (exemple fait : J = 51 contre le 8e à 52 % ; perdue, −26 🪙). Le robot attentif garde sa chance à 50 % et ne regarde plus ses cœurs. La course qui le mesure tourne en CI à la PR.

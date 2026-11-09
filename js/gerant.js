@@ -1013,6 +1013,9 @@ export const carteDeBanqueHtml = (o, { cache = false } = {}) => carteHtml({
  * spec : { k, no, toi, eux ({ tag, nom, sous }), prono (ta chance, 0 à 1, ou null), jeu ({ mot, intention } ou null),
  *          plans (`plansDuDuel`, js/impact.js), gagne, perd (des lignes), onJouer({ plan }), onAuto (en séries) }
  */
+/* Ta chance contre eux, en barre (le pronostic du jour), et ce que le duel rapporte et coûte : le choix du duel, l'élite du lundi. */
+export const pronoHtml = (p, toi, eux) => `<div class="dl-prono" role="img" aria-label="${esc(`Ta chance : ${Math.round(p * 100)} %`)}" style="${varsEquipe(getTeamBand(eux))}"><b>${Math.round(p * 100)} %</b><span class="dl-barre"><i style="width:${Math.round(p * 100)}%;background:${getTeamBand(toi).bg}"></i></span><b>${100 - Math.round(p * 100)} %</b></div>`;
+export const enjeuHtml = x => `<div class="dl-enjeu"><span class="dl-gagne"><b>Gagné</b>${x.gagne.map(esc).join('<br>')}</span><span class="dl-perd"><b>Perdu</b>${x.perd.map(esc).join('<br>')}</span></div>`;
 export function ouvrirLeDuel(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
@@ -1040,14 +1043,14 @@ export function ouvrirLeDuel(spec) {
       <div class="dl-tete">
         <span class="dl-k"><b>${esc(spec.k)}</b><span>${esc(spec.no)}</span></span>
         <div class="dl-plaques">${plaque(spec.toi, 'toi')}<span class="dl-vs" aria-hidden="true">VS</span>${plaque(spec.eux, 'eux')}</div>
-        ${p != null ? `<div class="dl-prono" role="img" aria-label="${esc(`Ta chance : ${Math.round(p * 100)} %`)}" style="${varsEquipe(getTeamBand(spec.eux.tag))}"><b>${Math.round(p * 100)} %</b><span class="dl-barre"><i style="width:${Math.round(p * 100)}%;background:${getTeamBand(spec.toi.tag).bg}"></i></span><b>${100 - Math.round(p * 100)} %</b></div>` : ''}
+        ${p != null ? pronoHtml(p, spec.toi.tag, spec.eux.tag) : ''}
         ${spec.jeu ? `<div class="dl-jeu"><span>Leur jeu : ${esc(spec.jeu.mot)}</span><span>${spec.jeu.intention.ico} ${esc(spec.jeu.intention.nom)}</span></div>` : ''}
       </div>
       <div class="dl-corps">
         <span class="dl-l"><span>Ton plan</span><b>1 choix</b></span>
         <div class="pl-grille pl-grille-3 dl-plans">${spec.plans.map(carte).join('')}</div>
         <button type="button" class="btn dl-tonmatch${pris ? '' : ' on'}" aria-pressed="${!pris}">Ton match · aucun plan</button>
-        <div class="dl-enjeu"><span class="dl-gagne"><b>Gagné</b>${spec.gagne.map(esc).join('<br>')}</span><span class="dl-perd"><b>Perdu</b>${spec.perd.map(esc).join('<br>')}</span></div>
+        ${enjeuHtml(spec)}
       </div>
       <div class="pc-boutons">${spec.onAuto ? '<button type="button" class="btn dl-auto">Ton match, toute la série</button>' : ''}<button type="button" class="btn gold dl-jouer">Au match</button></div>
     </div>`;

@@ -55,7 +55,7 @@ import {
 } from '../../js/sim.js';
 import { PIECES, PIECE_DU_COACH, grandir, effetDuRelais, forceDeLaPiece } from '../../js/pieces.js';
 import { robotDuel } from './duel.mjs';
-import { lundiDuRobot, rondeDuRobot, coachDuRobot, pieceDuRobot, poserDuRobot } from './cartes_robot.mjs';
+import { lundiDuRobot, rondeDuRobot, coachDuRobot, pieceDuRobot, poserDuRobot, eliteDuRobot } from './cartes_robot.mjs';
 import { sortiesDe, memoireDeLaRun } from '../../js/histoires.js';
 import { lotoDesCoachs } from '../../js/coachs-reels.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
@@ -71,7 +71,7 @@ import {
   packsOuverts, monteeDesPacks,
   bouchesTrousDuDepart, vedettesDeConcession, alourdirLaPremiere, VRAIS_CONTRATS, PLAFOND_PREMIERE,
 } from '../../js/rogue.js';
-import { crochetDesActes, joursDe, noeudOuvert, ACHATS_PAR_NOEUD, prixDeLaPiece, piecesDuNoeud } from '../../js/actes.js';
+import { crochetDesActes, joursDe, noeudOuvert, ACHATS_PAR_NOEUD, prixDeLaPiece, piecesDuNoeud, jetonsDesElites } from '../../js/actes.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -559,7 +559,7 @@ export function lancerLaLigue(c, decisions, mains = true, etape = 0) {
 }
 /*
  * LES JETONS DU ROBOT, comme au jeu (`resultatsRogue`, js/rogue-jeu.js) : `base` (le départ), le barème des matchs joués,
- * (V27 : un rival ne paie aucun jeton), la prime des fils (V3.6 :
+ * (V27 : un rival ne paie aucun jeton ; une élite gagnée, ses `J`, `jetonsDesElites`), la prime des fils (V3.6 :
  * le Cheechoo, le jalon…) et la règle du coach, moins `depense` (V27 : le banc ne se paie plus).
  */
 export function jetonsDuRobot(c, base, depense) {
@@ -571,7 +571,8 @@ export function jetonsDuRobot(c, base, depense) {
     if (pour > contre) W++; else if (m.ot) P++; else D++;
   }
   const B = baremeRogue(meta, exigence);
-  return base + W * B.victoire + P * B.prolongation + D * B.defaite + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total - depense;
+  return Math.max(0, base + W * B.victoire + P * B.prolongation + D * B.defaite + primesDesFils(L.calendrier, you, L.jour).total + primesDuCoach(L.calendrier, you, L.jour).total
+    + jetonsDesElites(L.calendrier, you, L.grosAnnonces, L.jour) - depense);
 }
 /* Le pack que le robot achète avec `jetons`, au `n`-ième achat : celui que l'attentif lit, sinon l'ordre du robot d'avant. */
 export function packDuRobot(c, jetons, n) {
@@ -694,6 +695,9 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
       entrees.push(...cartes);
       if (signe) signes++;
     }
+    // L'ÉLITE DU LUNDI (V27, tranche 7) : l'attentif la prend comme la saison en actes (`eliteDuRobot`) ; les autres, jamais.
+    const el = attentif ? eliteDuRobot(L, 'prudent') : null;
+    if (el) decisions.push(el.d);
     jouerJournee(L);
     // La plus longue séquence de victoires (un jalon).
     for (const m of L.calendrier[L.jour - 1] || []) {

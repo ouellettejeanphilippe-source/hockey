@@ -11,8 +11,8 @@
  *   - LES CŒURS ET LES CONTRÔLES (§ 4.2) : `COEURS` 2 ; à la fin des actes I et II, le classement du soir (celui de
  *     l'écran, `rangAuSoir`) doit tenir le 20e puis le 15e rang (proportionnels à la taille de la ligue), sinon −1 ❤️ ;
  *     l'acte III demande une place en séries, sinon la run finit. À 0 ❤️, la run est morte.
- *   - LES ÉLITES (§ 4.5) : au plus une par acte, le lundi, contre un club du top 8 en force de la semaine, jamais la
- *     semaine d'un rival ; un duel ; gagnée, une pièce et `J` jetons (le pronostic du jour, `pronostic`) ; perdue, −1 ❤️.
+ *   - LES ÉLITES (§ 4.5 ; tranche 7) : celles que le jeu propose et joue (js/actes.js `eliteDeLaSemaine`, la décision `elite`) ;
+ *     gagnée, une pièce et `J` jetons (la caisse les lit, `jetonsDesElites`) ; perdue, −1 ❤️.
  *   - LE CALENDRIER PLACÉ (§ 4.4 ; tranche 4, docs/refonte-v27-4.md) : au premier soir de chaque acte, le robot « placé »
  *     met les plus faibles d'abord, par les échanges du jeu (js/actes.js `echangeables`, `echangerTesCases`, sur un
  *     `brouillon`) et la même décision `cedule`, que le moteur joue à son jour (`crochetDesActes`) ; le renfort
@@ -43,28 +43,18 @@
  * Tout est pur : la graine de la run, et le moteur sous sa graine. MESURE seulement, jamais lu par le jeu.
  */
 import { teamStrength, photoAlignement, getHiddenRatings, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries } from '../../js/sim.js';
-import { ACTES, COEURS, CONTROLES, ETAPE_SERIES, aLaTaille, parmiLesAdversaires, acteDe, joursDe, rangAuSoir, ACHATS_PAR_NOEUD, PRIX_PIECE, noeudOuvert, prixDeLaPiece, piecesDuNoeud,
+import { ACTES, COEURS, CONTROLES, ETAPE_SERIES, aLaTaille, acteDe, joursDe, rangAuSoir, ACHATS_PAR_NOEUD, noeudOuvert, prixDeLaPiece, piecesDuNoeud,
   echangeables, echangerTesCases, brouillon, renfortsDe } from '../../js/actes.js';
 import { dateLimitePassee } from '../../js/packs.js';
 import { jetonsDeDepart, habillerLaLigue, niveauDeLigue, rangDePrestige } from '../../js/rogue.js';
-import { pronostic } from '../../js/pronostic.js';
-import { SEMAINE } from '../../js/inventaire.js';
-import { lundiDuRobot, rondeDuRobot, pieceDuRobot, poserDuRobot } from './cartes_robot.mjs';
+import { lundiDuRobot, rondeDuRobot, pieceDuRobot, poserDuRobot, eliteDuRobot } from './cartes_robot.mjs';
 import {
   generateur, metaAuNiveau, vedetteDuRobot, vestiaire, ouvrirLaSaison, lancerLaLigue, jetonsDuRobot, packDuRobot, prixAuAchat, signerDuPack, lectureDuRobot,
 } from './rogue_sim.mjs';
 
 /* Les chiffres du § 5 et du § 9 que le jeu n'a pas encore (les actes, les rivaux, les contrôles et les cœurs : js/actes.js). */
 export { ACTES, COEURS };
-const TOP_DES_ELITES = 8, ELITES_PAR_ACTE = 1;
-/*
- * LE RÉGLAGE R1 (8 nov. 2026 ; docs/refonte-v27.md § 4.5, § 9) : l'attentif lit le pronostic du jour, la vraie chance que l'écran
- * de l'élite montre (js/pronostic.js `pronostic`, la même qui fixe sa récompense), et la refuse sous 40 %. Ce n'est pas une
- * règle du jeu : c'est le robot qui joue comme un joueur attentif. Le glouton prend tout, le prudent refuse tout.
- */
-const CHANCE_ELITE = 0.40;
 const ETAPES_DES_ACTES = [0, 0, 0];
-const V_COEUR = 60;
 
 /* Les robots de check_profondeur (§ 10). `elites` : 'prudent' (deux cœurs, le contrôle tenu, le pronostic à `CHANCE_ELITE` ou plus), 'toutes', 'jamais'. */
 export const ROBOTS = {
@@ -105,9 +95,7 @@ export function jouerLaRun(nom, graine) {
 
   // LES RIVAUX DES ACTES : posés dans la cédule par le jeu (js/actes.js `poserLesRivaux`, à la création de la ligue).
   const jours = joursDe(L.calendrier, you);
-  const advAu = j => advDe(L.calendrier[j].find(m => m.A === you || m.B === you), you);
   const force0 = new Map(opps.map(t => [t, forceDe(t)]));
-  const parForce = opps.slice().sort((a, b) => force0.get(b) - force0.get(a));
   const finActe = L.rivaux.map(R => R.jour);
   const rivaux = L.rivaux.map(R => ({ voulu: R.voulu, rang: R.rang }));
 
@@ -158,28 +146,13 @@ export function jouerLaRun(nom, graine) {
     }
     out.noeuds.push(packs);
   };
-  // L'ÉLITE DU LUNDI : le premier match de la semaine contre un club du top 8 en force, si l'acte n'en a pas eu.
-  const top = new Set(parForce.slice(0, parmiLesAdversaires(TOP_DES_ELITES, n)));
-  const semainesDesRivaux = new Set(finActe.map(j => Math.floor(j / SEMAINE)));
+  // L'ÉLITE DU LUNDI (tranche 7) : celle que l'écran propose (js/actes.js `eliteDeLaSemaine`), prise par la décision du jeu
+  // (scripts/lib/cartes_robot.mjs `eliteDuRobot`), que le moteur joue à son jour ; gagnée, sa pièce vient le lundi (`lundiDuRobot`).
   const elite = () => {
-    if (robot.elites === 'jamais' || mort || L.jour % SEMAINE || semainesDesRivaux.has(L.jour / SEMAINE)) return;
-    const k = jours.findIndex(j => j >= L.jour && j < L.jour + SEMAINE && top.has(advAu(j)));
-    if (k < 0 || finActe.includes(jours[k])) return;
-    const a = acteDe(k);
-    // JP, 8 nov. 2026 (« Élite = risque plus clair ») : aucune élite à l'acte I.
-    if (a === 0) return;
-    if (out.elites.filter(e => e.acte === a + 1).length >= ELITES_PAR_ACTE) return;
-    if (robot.elites === 'prudent' && (coeurs < COEURS || rangAuSoir(L.calendrier, L.teams, you, L.jour - 1) > (a < 2 ? aLaTaille(CONTROLES[a], n) : aLaTaille(16, n)))) return;
-    const j = jours[k], m = L.calendrier[j].find(x => x.A === you || x.B === you);
-    const pr = pronostic({ A: m.A, B: m.B, calendrier: L.calendrier, jourMatch: j, jourRevele: L.jour, graine: `${graine}:elite` });
-    const chance = (m.A === you ? pr.vA : pr.vB) / pr.n;
-    // L'attentif lit la vraie chance que l'écran montre (R1) : sous `CHANCE_ELITE`, il refuse.
-    if (robot.elites === 'prudent' && chance < CHANCE_ELITE) return;
-    const p = Math.min(0.55, Math.max(0.25, chance));
-    const J = Math.min(90, Math.max(10, Math.round((V_COEUR * (1 - p)) / p) - PRIX_PIECE));
-    L.grosAnnonces[j] = { jour: j, adv: advAu(j), raison: 'elite' };
-    etatCartes.butins.add(j);
-    out.elites.push({ acte: a + 1, jour: j, p: +p.toFixed(3), J, rangForce: parForce.indexOf(advAu(j)) });
+    const x = mort ? null : eliteDuRobot(L, robot.elites);
+    if (!x) return;
+    decisions.push(x.d);
+    out.elites.push({ acte: x.e.acte + 1, jour: x.e.jour, p: +Math.min(0.55, Math.max(0.25, x.e.chance)).toFixed(3), J: x.e.J, rangForce: x.e.rang });
   };
 
   let pts0 = 0;
@@ -195,7 +168,8 @@ export function jouerLaRun(nom, graine) {
     const e = out.elites.find(x => x.jour === jour);
     if (e) {
       e.gagnee = gagneLe(jour); e.duel = enDuel(jour);
-      if (e.gagnee) depense -= e.J; else if (!mort && --coeurs <= 0) mort = e.acte;
+      // Une élite perdue ne coûte plus de cœur (JP, 9 nov. 2026) : ses sonnés et ses jetons, que la caisse lit.
+
     }
     if (acte < 3 && jour === finActe[acte]) {
       const gagne = gagneLe(jour);
