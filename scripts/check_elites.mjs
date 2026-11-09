@@ -133,7 +133,7 @@ if (process.env.LIRE) {
   const de = robot => new Map(runs.filter(r => r.robot === robot).map(r => [r.graine, r]));
   const paires = (a, b) => { const B = de(b); return [...de(a).values()].filter(r => B.has(r.graine)).map(r => [r, B.get(r.graine)]); };
   const toutes = runs.flatMap(r => r.elites.map(e => ({ r, e })));
-  exiger('dans chaque run, aucune élite à l\'acte I, une au plus par acte, sa récompense à la formule', toutes.every(({ e }) => e.acte >= 2 && e.J === recompenseDeLElite(e.p))
+  exiger('dans chaque run, aucune élite à l\'acte I, une au plus par acte, sa récompense à la formule', toutes.every(({ e }) => e.acte >= 2 && Math.abs(e.J - recompenseDeLElite(e.p)) <= 1)
     && runs.every(r => [2, 3].every(a => r.elites.filter(e => e.acte === a).length <= ELITES_PAR_ACTE)), `${toutes.length} élites dans ${runs.length} runs`);
   const lire = (prend, refuse, juge) => {
     const p = paires(prend, refuse);

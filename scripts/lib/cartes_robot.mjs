@@ -164,7 +164,7 @@ export function coachDuRobot(loto, { politique, clic, fit }) {
  * l'écran, `etatDeLaRun`, et la chance que l'écran montre à `CHANCE_ELITE` ou plus — le réglage R1, 8 nov. 2026 ; ce n'est
  * pas une règle du jeu, l'élite reste proposée à toute chance). Rend { e, d } (l'élite et sa décision), ou null.
  */
-export const CHANCE_ELITE = 0.40;
+export const CHANCE_ELITE = 0.50;
 export function eliteDuRobot(L, elites) {
   if (elites === 'jamais' || L.jour % SEMAINE) return null;
   const you = L.teams.find(t => t.isPlayer), n = L.teams.length;
