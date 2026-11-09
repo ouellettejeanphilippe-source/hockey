@@ -199,14 +199,127 @@ img{display:block}
 .C .pour .manque{width:62px;height:86px;border:2px dashed #ffffff40;border-radius:8px;display:grid;place-items:center;font-size:11px;color:#ffffff88;text-align:center;font-weight:800;text-transform:uppercase}
 .C .combat{position:absolute;left:14px;right:14px;bottom:14px;height:62px;border-radius:14px;border:none;background:linear-gradient(#ff5a64,#c21d2c);color:#fff;font:900 28px/1 var(--titre);text-transform:uppercase;letter-spacing:.08em;box-shadow:0 6px 0 #6d0a13}
 
+/* ===================== LA BOUCLE (la feuille du soir, les trois portes) — dans la peau de A ===================== */
+.A .hud{position:absolute;left:10px;right:10px;top:10px;background:#000;border:4px solid #2b2f3d;padding:9px 10px;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#ffb400}
+.A .hud .coeurs .coeur{width:16px;height:14px}
+.A .hud .pts{color:#7cf0a5}
+.A .leur{position:absolute;left:10px;right:10px;top:62px;border:4px solid #fff;background:#3a0f16;box-shadow:0 0 0 4px #000}
+.A .leur .t{background:#fff;color:#3a0f16;font-size:8px;padding:6px 8px;display:flex;justify-content:space-between}
+.A .leur .corps{display:grid;grid-template-columns:72px 1fr;gap:10px;padding:8px}
+.A .leur .lignes{font-size:7px;line-height:2.1;color:#ffd0d6}
+.A .leur .lignes b{color:#fff}
+.A .leur .lignes .star{color:#ffb400}
+.A .jauge{position:absolute;left:10px;right:10px;top:236px;font-size:9px;display:flex;align-items:center;gap:8px}
+.A .jauge .b{flex:1;height:16px;background:#6f263d;border:3px solid #000;position:relative}
+.A .jauge .b i{position:absolute;inset:0 51% 0 0;background:#c8102e}
+.A .jauge .b u{position:absolute;top:-3px;bottom:-3px;left:41%;width:3px;background:#fff8;text-decoration:none}
+.A .jauge .gain{color:#7cf0a5}
+.A .ordre{position:absolute;left:10px;right:10px;top:270px;border:4px solid #fff;background:#10162a;box-shadow:0 0 0 4px #000}
+.A .ordre .t{background:#fff;color:#10162a;font-size:8px;padding:6px 8px}
+.A .trio{display:grid;grid-template-columns:22px 26px 1fr 64px 44px;align-items:center;gap:6px;padding:8px 8px;border-bottom:3px solid #000;font-size:8px}
+.A .trio:last-child{border-bottom:0}
+.A .trio .poignee{color:#7d8597;font-size:14px}
+.A .trio .n{width:24px;height:24px;background:#ffb400;color:#000;display:grid;place-items:center;font-size:10px}
+.A .trio .nom{line-height:1.7}
+.A .trio .nom small{display:block;color:#7cf0a5;font-size:7px}
+.A .trio .nom small.r{color:#ff8c91}
+.A .trio .jb{height:10px;background:#22283a;border:2px solid #000;position:relative}
+.A .trio .jb i{position:absolute;inset:0;background:#3ddc84;right:var(--v)}
+.A .trio .pr{color:#ffb400;text-align:right}
+.A .trio.leve{background:#24407a;outline:3px solid #ffb400;transform:translateX(6px)}
+.A .civil{position:absolute;left:10px;right:10px;top:604px;font-size:8px;display:flex;align-items:center;gap:8px}
+.A .civil .c{flex:1;height:46px;border:3px dashed #444b5e;display:grid;place-items:center;color:#7d8597;font-size:7px;text-align:center;line-height:1.6}
+.A .civil .c.mis{border-style:solid;border-color:#ff8c91;color:#ff8c91}
+/* les portes */
+.A .depist{position:absolute;left:10px;right:10px;top:62px;font-size:9px;text-align:center;color:#fff;line-height:1.8}
+.A .depist small{display:block;color:#7cf0a5;font-size:7px}
+.A .portes{position:absolute;left:10px;right:10px;top:110px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.A .porte{height:206px;border:4px solid #000;background:linear-gradient(#2b3350,#1a1f33);box-shadow:inset -4px -4px 0 #11152a,inset 4px 4px 0 #4a5684;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10px 4px;font-size:7px;text-align:center;line-height:1.7;position:relative}
+.A .porte img{width:54px;height:54px;image-rendering:auto}
+.A .porte .poignee{position:absolute;right:8px;top:96px;width:8px;height:8px;background:#ffb400;box-shadow:0 0 0 2px #000}
+.A .porte .n{font-size:16px;color:#ffb400}
+.A .porte .tag{background:#e5484d;color:#fff;padding:3px 4px;font-size:6px}
+.A .porte.ouverte{background:#000;outline:4px solid #ffb400;outline-offset:-2px}
+.A .ouverte-t{position:absolute;left:10px;right:10px;top:334px;font-size:8px;color:#ffb400;display:flex;justify-content:space-between}
+.A .dans{position:absolute;left:10px;right:10px;top:356px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.A .dans .k{position:relative}
+.A .dans .chip{position:absolute;left:-4px;right:-4px;bottom:-10px;background:#000;border:2px solid #7cf0a5;color:#7cf0a5;font-size:6px;text-align:center;padding:4px 0;line-height:1.5}
+.A .dans .plie{aspect-ratio:5/7;border:3px dashed #444b5e;display:grid;place-items:center;font-size:7px;color:#7d8597;text-align:center;line-height:1.8}
+.A .tirs{position:absolute;left:10px;right:10px;top:612px;background:#000;border:4px solid #2b2f3d;padding:8px 10px;font-size:7px;line-height:2;color:#cfd3dc}
+.A .tirs b{color:#7cf0a5}
+.A .bas{position:absolute;left:10px;right:10px;bottom:12px;display:grid;grid-template-columns:1fr 1fr 2fr;gap:8px}
+.A .bas .bt{height:56px}
+.A .bas .go{background:#ffb400;color:#1a1000;box-shadow:inset -4px -4px 0 #c47f00,inset 4px 4px 0 #ffe08a}
+
 .note{font:500 14px/1.5 var(--texte);color:#b9bcc6;max-width:390px;margin:0}
 .note b{color:var(--encre)}
 </style>
 
 <header class="tete">
   <h1>Le Rogue, un vrai jeu</h1>
-  <p>Trois directions, deux écrans chacune, au téléphone. Aucune n'a de barre d'onglets, d'en-tête de site ni de page qui défile : chaque moment est une scène qui tient dans l'écran, et le reste (le classement, le calendrier, l'album) s'ouvre par-dessus, comme le menu pause d'un jeu. Les cartes sont les vraies cartes du jeu, telles quelles ; la glace et les patineurs sont ceux de Sur glace. Les chiffres sont des exemples.</p>
+  <p>Le jeu neuf, mécanique et écrans ensemble (docs/refonte-v28.md). D'abord la boucle, ses deux écrans neufs : la feuille du soir et les trois portes. Puis trois directions pour la peau, deux écrans chacune : A l'arcade 16 bits, B la table de cartes, C la carte de la saison. Aucune n'a de barre d'onglets, d'en-tête de site ni de page qui défile. Les cartes sont les vraies cartes du jeu, telles quelles ; la glace et les patineurs sont ceux de Sur glace. Les chiffres sont des exemples.</p>
 </header>
+
+<!-- ===================================================== LA BOUCLE -->
+<section class="dir">
+  <h2>La boucle : la carte, la feuille, le match, les portes</h2>
+  <p>Le jeu neuf tient dans ces quatre écrans, et chacun est une règle : tu choisis ton chemin sur la carte de l'acte (C1, plus bas), tu lis leurs lignes et places tes trios sur la feuille du soir, tu regardes le match se jouer présence par présence sur la glace (A2), puis tu ouvres une des trois portes pour signer un joueur. Ici, la feuille et les portes, dans la peau de A.</p>
+  <div class="rangee">
+    <figure>
+      <div class="tel A">
+        <div class="arena" style="filter:brightness(.25)"></div>
+        <div class="hud"><span class="coeurs"><span class="coeur"></span><span class="coeur vide"></span></span><span>ACTE II · CASE 3/7</span><span class="pts">5/8 PTS</span><span class="piece" style="font-size:9px"><i></i>140</span></div>
+        <div class="leur">
+          <div class="t"><span>CE SOIR · AVALANCHE 2000-01</span><span>DES TIREURS</span></div>
+          <div class="corps">
+            <img class="carte" src="v28/c-roy.png" alt="">
+            <div class="lignes">
+              <span class="star">★ 1ER</span> <b>SAKIC · HEJDUK · TANGUAY</b><br>
+              2E <b>FORSBERG · DRURY · YELLE</b><br>
+              3E <b>REINPRECHT · PARKER · DINGMAN</b><br>
+              4E <b>MESSIER · WILLSIE · KLEMM</b><br>
+              DEVANT LE FILET <b>ROY · ,913</b>
+            </div>
+          </div>
+        </div>
+        <div class="jauge"><span>TA CHANCE</span><div class="b"><i></i><u></u></div><span class="gain">49% ▲8</span></div>
+        <div class="ordre">
+          <div class="t">TON ORDRE · LE ROULEMENT DE LA TORTUE</div>
+          <div class="trio leve"><span class="poignee">≡</span><span class="n">1</span><span class="nom">CHECKERS 🔧☯<small>CONTRE SAKIC · ACCORD LA TRAPPE</small></span><span class="jb"><i style="--v:8%"></i></span><span class="pr">×4</span></div>
+          <div class="trio"><span class="poignee">≡</span><span class="n">2</span><span class="nom">SNIPERS 🎯🅰<small>ACCORD LA PASSE ET LE TIR</small></span><span class="jb"><i style="--v:0%"></i></span><span class="pr">×4</span></div>
+          <div class="trio"><span class="poignee">≡</span><span class="n">3</span><span class="nom">PASSEURS 🅰🦍</span><span class="jb"><i style="--v:22%"></i></span><span class="pr">×4</span></div>
+          <div class="trio"><span class="poignee">≡</span><span class="n">4</span><span class="nom">PLOMBIERS 🪠👊<small class="r">BRIND'AMOUR · 62 DE JAMBES</small></span><span class="jb"><i style="--v:38%"></i></span><span class="pr">×3</span></div>
+        </div>
+        <div class="civil"><span>EN CIVIL</span><div class="c mis">SKJEI<br>BLESSÉ 2 M.</div><div class="c">GLISSE<br>UN JOUEUR</div><div class="c">GLISSE<br>UN JOUEUR</div></div>
+        <div class="bas"><div class="bt">LIGNES</div><div class="bt">BANC</div><div class="bt go">▶ AU MATCH</div></div>
+      </div>
+      <figcaption>La feuille du soir</figcaption>
+      <p class="note">Avant chaque match : <b>leurs lignes</b>, leur vedette en carte, <b>ta chance</b> (le seul endroit où elle se montre), et <b>tes quatre trios à placer</b> dans le roulement de ton coach. Ici, mettre tes checkers d'abord, contre Sakic, fait passer ta chance de 41 à 49 %. Contre un club de profondeur, l'ordre par force serait le bon.</p>
+    </figure>
+    <figure>
+      <div class="tel A">
+        <div class="arena" style="filter:brightness(.25)"></div>
+        <div class="hud"><span class="coeurs"><span class="coeur"></span><span class="coeur vide"></span></span><span>GAGNÉ 4-2</span><span class="pts">7/8 PTS</span><span class="piece" style="font-size:9px"><i></i>152</span></div>
+        <div class="depist">LE DÉPISTEUR<small>UN JOUEUR DANS UN DE CES VESTIAIRES</small></div>
+        <div class="portes">
+          <div class="porte"><span class="tag">LE CLUB AFFRONTÉ</span><img src="../../img/logos/COL.svg" alt=""><span>AVALANCHE<br>2000-01</span><span class="n">4</span><span>DANS TON<br>ESPACE</span><span class="poignee"></span></div>
+          <div class="porte ouverte"><span>&nbsp;</span><img src="../../img/logos/PIT.svg" alt=""><span>PENGUINS<br>2005-06</span><span class="n">5</span><span>DANS TON<br>ESPACE</span></div>
+          <div class="porte"><span>&nbsp;</span><img src="../../img/logos/NYR.svg" alt=""><span>RANGERS<br>1997-98</span><span class="n">2</span><span>DANS TON<br>ESPACE</span><span class="poignee"></span></div>
+        </div>
+        <div class="ouverte-t"><span>▶ PENGUINS 2005-06</span><span style="color:#7d8597">5 DE 23</span></div>
+        <div class="dans">
+          <div class="k"><img class="carte" src="v28/c-crosby.png" alt=""><span class="chip">🎯🅰 LA PASSE ET LE TIR</span></div>
+          <div class="k"><img class="carte" src="v28/c-lemieux.png" alt=""><span class="chip">LIEN PIT '06 ×2</span></div>
+          <div class="plie">+3 DANS<br>TON ESPACE<br>›</div>
+        </div>
+        <div class="tirs">CROSBY AU 2E TRIO, À LA PLACE DE RECCHI :<br>TIRS PAR PRÉSENCE <b>1,9 → 2,3</b> · MASSE <b>91,4 → 93,8 M$</b> / 95,5</div>
+        <div class="bas"><div class="bt">PASSER<br>+6</div><div class="bt">RELANCE</div><div class="bt go">SIGNER</div></div>
+      </div>
+      <figcaption>Les trois portes</figcaption>
+      <p class="note">Après chaque match, gagné ou perdu : <b>trois vrais vestiaires</b>, dont toujours <b>le club que tu viens d'affronter</b>. La porte ouverte ne montre que ceux qui tiennent sous ton plafond, avec <b>l'accord ou le lien</b> qu'ils allumeraient ; signer dit ce que ça change en tirs, pas en pourcentage.</p>
+    </figure>
+  </div>
+</section>
 
 <!-- ===================================================== A -->
 <section class="dir">
