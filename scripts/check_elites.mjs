@@ -5,7 +5,7 @@
  *
  *   1. LES RÈGLES, sur une vraie ligue en actes, sans jouer un match (quelques secondes, dans tout.mjs) :
  *      a. la récompense : `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, bornée à [10, 90], `p` borné à [0,25, 0,55]
- *         (les exemples du § 4.5 : 38 % → 66 🪙, 52 % → 23 🪙) ; tant qu'elle n'est pas au plafond, `p × (J + PRIX_PIECE)`
+ *         (les exemples du § 4.5 : 38 % → 90 🪙, le plafond ; 52 % → 51 🪙) ; tant qu'elle n'est pas au plafond, `p × (J + PRIX_PIECE)`
  *         vaut `(1 − p) × V_COEUR` à l'arrondi près : le risque d'un cœur est payé ;
  *      b. la proposition (`eliteDeLaSemaine`) : seulement un lundi, pour un match de cette semaine-là après le lundi,
  *         contre un club du top 8 en force au premier soir ; jamais à l'acte I, jamais la semaine d'un rival, jamais en
@@ -44,8 +44,8 @@ const v1 = x => x.toFixed(1).replace('.', ',');
   const ps = Array.from({ length: 91 }, (_, i) => 0.05 + i / 100);
   const J = ps.map(recompenseDeLElite);
   const paye = ps.filter(p => p >= 0.25 && p <= 0.55).every(p => { const j = recompenseDeLElite(p); return j >= 90 || Math.abs(p * (j + PRIX_PIECE) - (1 - p) * V_COEUR) <= p; });
-  exiger(`la récompense : ${V_COEUR} × (1 − p) / p − ${PRIX_PIECE}, bornée à [10, 90], p borné à [0,25, 0,55] (38 % → 66 🪙, 52 % → 23 🪙)`,
-    recompenseDeLElite(0.38) === 66 && recompenseDeLElite(0.52) === 23 && J.every(j => j >= 10 && j <= 90) && recompenseDeLElite(0.1) === recompenseDeLElite(0.25) && recompenseDeLElite(0.9) === recompenseDeLElite(0.55) && paye,
+  exiger(`la récompense : ${V_COEUR} × (1 − p) / p − ${PRIX_PIECE}, bornée à [10, 90], p borné à [0,25, 0,55] (38 % → 90 🪙, le plafond ; 52 % → 51 🪙)`,
+    recompenseDeLElite(0.38) === 90 && recompenseDeLElite(0.52) === 51 && J.every(j => j >= 10 && j <= 90) && recompenseDeLElite(0.1) === recompenseDeLElite(0.25) && recompenseDeLElite(0.9) === recompenseDeLElite(0.55) && paye,
     `25 % → ${recompenseDeLElite(0.25)} · 38 % → ${recompenseDeLElite(0.38)} · 45 % → ${recompenseDeLElite(0.45)} · 52 % → ${recompenseDeLElite(0.52)} · 55 % → ${recompenseDeLElite(0.55)}`);
 }
 

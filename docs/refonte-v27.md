@@ -151,11 +151,11 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **Le réglage de JP après la première mesure** (8 nov. 2026 ; JP a choisi « Élite = risque plus clair ») : **aucune élite à l'acte I** — elles s'ouvrent aux actes II et III —, et l'écran d'une élite montre **ta vraie chance de gagner**, le pronostic du jour (`pronostic`, js/pronostic.js), celui qui fixe sa récompense. Le robot de la profondeur (scripts/lib/rogue_actes.mjs) le joue depuis la tranche 2 ; l'écran vient avec les élites (tranche 7).
 - **Au plus une par acte, aux actes II et III** : le lundi, si ta semaine a un match contre un club **du top 8 en force**, l'écran peut proposer d'en faire une **élite** — un duel (§ 4.7) contre lui. **Jamais la semaine du rival, jamais en séries.**
 - La proposition est une ligne de la boîte, le lundi ; **sans réponse, c'est un soir ordinaire**. Prise, l'affiche du soir dit « Élite ».
-- **Gagnée** : **1 pièce de banc parmi 3**, ou passer, **et des jetons** qui montent avec la force du club battu : `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], avec `p` la chance que le pronostic du jour (`pronostic`, js/pronostic.js) te donne, bornée à [0,25, 0,55], et `V_COEUR` 60 🪙 (la valeur d'un cœur en jetons, le revenu d'un nœud ; un réglage, § 9). La règle : `p × récompense ≥ (1 − p) × V_COEUR`, la pièce comptée à son prix en boutique. Exemple fait : contre le 3e club en force, le pronostic dit 38 % ; `60 × 0,62 / 0,38 = 97,9`, moins 32 : **66 🪙 et une pièce parmi 3**. Contre le 8e, 52 % : `60 × 0,48 / 0,52 = 55,4`, moins 32 : **23 🪙 et une pièce**.
+- **Gagnée** : **1 pièce de banc parmi 3**, ou passer, **et des jetons** qui montent avec la force du club battu : `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], avec `p` la chance que le pronostic du jour (`pronostic`, js/pronostic.js) te donne, bornée à [0,25, 0,55], et `V_COEUR` 90 🪙 (la valeur d'un cœur en jetons ; 60 jusqu'à la tranche 7, monté au haut de sa plage après la mesure en paires, § 9). La règle : `p × récompense ≥ (1 − p) × V_COEUR`, la pièce comptée à son prix en boutique, tant que `J` n'est pas à son plafond de 90 (gardé : sous 45 % de chance, l'élite paie le plafond). Exemple fait : contre le 3e club en force, le pronostic dit 38 % ; `90 × 0,62 / 0,38 = 146,8`, moins 32 = 115, ramené au plafond : **90 🪙 et une pièce parmi 3**. Contre le 8e, 52 % : `90 × 0,48 / 0,52 = 83,1`, moins 32 : **51 🪙 et une pièce**.
 - **Perdue** (en temps réglementaire, en prolongation ou en fusillade) : −1 ❤️ et les sonnés (3 matchs).
 - À 1 ❤️, elle est proposée avec un avertissement (« Ton dernier cœur ») ; la prendre est un choix.
 - Les pièces n'ont pas de niveau (§ 4.6) : l'élite ne donne pas « un niveau au-dessus », elle donne une pièce **et** des jetons.
-- **L'attentif lit le pronostic** (le réglage R1, 8 nov. 2026, § 9 ; JP) : le robot de la profondeur ne prend une élite que si la chance que l'écran montre est d'au moins 40 % (`CHANCE_ELITE`, scripts/lib/rogue_actes.mjs, lue par la même fonction `pronostic`, sans copie). Ce n'est pas une règle du jeu : l'élite reste proposée à toute chance ; c'est le robot qui joue comme un joueur attentif. Le glouton prend tout, le prudent refuse tout.
+- **L'attentif lit le pronostic** (le réglage R1, 8 nov. 2026, § 9 ; JP) : le robot de la profondeur ne prend une élite que si la chance que l'écran montre est d'au moins 50 % (`CHANCE_ELITE`, scripts/lib/cartes_robot.mjs, lue par la même fonction `pronostic`, sans copie ; 40 % au réglage R1, monté à 50 % à la tranche 7 après deux courses en paires : à 40 %, 7 Coupes contre 11 pour le prudent et 11 morts contre 9 ; à 50 %, 9 contre 11 et 9 contre 9 — décision prise, docs/decisions.md). Ce n'est pas une règle du jeu : l'élite reste proposée à toute chance ; c'est le robot qui joue comme un joueur attentif. Le glouton prend tout, le prudent refuse tout.
 - **Mesurée en paires** : le robot qui prend chaque élite contre celui qui les refuse, les mêmes dés ; on juge le gain en Coupes et en morts, pas le taux de victoires (§ 10).
 
 ### 4.6 Le banc : cinq cases pour la run
@@ -291,7 +291,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
 - **Les séries** : chaque adversaire monte de *ETAPE_SERIES* 4 étapes d'édition (3 jusqu'au réglage R1, § 9) au premier match des séries, renfort compris en plus.
 - **La courbe de la ligue par acte** : *ETAPES_DES_ACTES* [0, 0, 0] (mesuré) ; [0, 1, 2] essayé, à trancher par la mesure de la tranche 1 (pas une question à JP : le juge décide).
 - **La boutique** : *NOEUDS_BOUTIQUE* [0, 14, 27, 41, 54, 68, 82] ; *ACHATS_PAR_NOEUD* 4 ; le prix d'un pack, `prixDe(cle, hausseDesPacks(n))` avec `n` les achats **de ce nœud** ; la pièce, `arrondi(PRIX_PIECE × hausseDesPacks(n))`, *PRIX_PIECE* 32.
-- **L'élite** : au plus *ELITES_PAR_ACTE* 1 ; `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], *V_COEUR* 60, `p` borné à [0,25, 0,55]. Exemple fait : § 4.5.
+- **L'élite** : au plus *ELITES_PAR_ACTE* 1 ; `J = arrondi(V_COEUR × (1 − p) / p) − PRIX_PIECE`, borné à [10, 90], *V_COEUR* 90 (60 jusqu'à la tranche 7), `p` borné à [0,25, 0,55]. Exemple fait : § 4.5.
 - **Les médailles** : 10 par acte passé, 15 par rival battu, 20 par ronde gagnée, 40 pour la Coupe.
 - **Le départ** : *BANDE_DEPART* [0,40, 0,60] de la saison du bouche-trou à son poste (il était [0,05, 0,25], puis [0,35, 0,55] jusqu'au réglage R1, § 9).
 - **Le banc** : *CASES_DU_BANC* 5 ; *PIECES_OFFERTES* 3 ; une pièce joue 30 à 50 % des soirs ; une fourche, une pièce au plus, deux par saison.
@@ -439,7 +439,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 | Le prix au nœud | remis à zéro | — | sans remise, l'équipe ne grandit pas aux actes II et III (mesuré) |
 | *ACHATS_PAR_NOEUD* | 4 | 3-5 | à 2, l'économie ne sert plus ; sans plafond, un nœud riche vide la boutique |
 | *PRIX_PIECE* | 32 🪙 | 24-40 | à 20, la pièce est obligatoire à chaque nœud ; à 50, on ne prend que des packs |
-| *V_COEUR* | 60 🪙 | 40-90 | trop bas, l'élite ne vaut pas le risque ; trop haut, elle est obligatoire |
+| *V_COEUR* | 90 🪙 (tranche 7 ; 60 avant) | 40-90 | trop bas, l'élite ne vaut pas le risque ; trop haut, elle est obligatoire |
 | *ELITES_PAR_ACTE* | 0 à l'acte I, 1 aux actes II et III (JP, 8 nov. : « Élite = risque plus clair ») | 0-1 | à 2, l'élite redevient une routine et les cœurs fondent ; à l'acte I, l'équipe du départ y perdait un cœur sans pouvoir le risquer en connaissance de cause |
 | *BANDE_DEPART* | 0,40 · 0,60 (R1, 8 nov. ; 0,35 · 0,55 avant) | 0,25-0,45 · 0,45-0,65 | à 0,05-0,25, l'équipe part au 31e rang et l'acte I tue ; au-dessus, la run 1 se gagne. Le deuxième levier de R1 |
 | *CASES_DU_BANC* | 5 | 4-6 | à 3, aucun combo ; à 7, tout se lit à la fois |
@@ -458,6 +458,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 | 2 | *CONTROLES* 20 · 15 | 6 · 3 ✗ · 3 ✗ | 44 ✗ | 6 ✓ | +8,3 · +9,2 ✗ |
 | 3 | *ETAPE_SERIES* 4 | 10 ✓ · 0 ✓ · 1 ✓ | 44 ✗ | 6 ✓ | +8,3 ✓ · +9,2 ✗ |
 | 4 | l'attentif lit le pronostic : *CHANCE_ELITE* 0,40 (le robot, pas le jeu ; JP) | 8 ✓ · 0 ✓ · 1 ✓ | 38 ✓ (la borne) | 6 ✓ | +8,4 ✓ · +9,2 ✗ |
+| 5 (tranche 7) | *CHANCE_ELITE* 0,50 (le robot ; à 0,40 : 7 Coupes contre 11 pour le prudent) puis *V_COEUR* 90 | voir docs/refonte-v27-7.md, écart 8 | | | |
 
 À la course 4, tout est vert sauf l'écart de l'attentif contre le naïf, +9,2 V sur une borne de 9 : les victoires de saison sont les mêmes depuis la course 2 (55,2 contre 46,0), l'écart-type de la moyenne en paires est d'≈ 1 V ; on le relira, sans bloquer la sortie (JP). Les cœurs perdus tombent pile sur la borne (38) : à relire aussi.
 

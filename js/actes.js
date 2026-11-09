@@ -181,7 +181,7 @@ export function etatDeLaRun({ calendrier, teams, you, rivaux = [], annonces = {}
  * décision `elite`, jouée par le crochet du Rogue), elle est un duel ; gagnée, une pièce parmi trois et `J` 🪙 ; perdue,
  * −1 ❤️ et les sonnés. Le jeu et les robots lisent ces mêmes fonctions.
  */
-export const TOP_DES_ELITES = 8, ELITES_PAR_ACTE = 1, V_COEUR = 60;
+export const TOP_DES_ELITES = 8, ELITES_PAR_ACTE = 1, V_COEUR = 90;
 export const recompenseDeLElite = chance => { const p = Math.min(0.55, Math.max(0.25, chance)); return Math.min(90, Math.max(10, Math.round((V_COEUR * (1 - p)) / p) - PRIX_PIECE)); };
 /* Les élites prises (leurs annonces de duel). */
 export const elitesDe = annonces => Object.values(annonces || {}).filter(g => g.raison === 'elite');
