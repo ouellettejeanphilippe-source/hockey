@@ -31,7 +31,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague, MOMENTS_SI } from '../js/sim.js';
-import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, PIECES_OFFERTES, bancDe, poserLaPiece, piecesOffertes, forceDeLaPiece, bancPlein } from '../js/pieces.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, PIECES_OFFERTES, POIDS_RARE, bancDe, poserLaPiece, piecesOffertes, poidsDuTirage, forceDeLaPiece, bancPlein } from '../js/pieces.js';
 import { maitriseDu, niveauDuCoach, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
 import { NIVEAUX } from '../js/niveaux.js';
 import { COACHS, VOIES } from '../js/coachs.js';
@@ -95,6 +95,16 @@ const f1 = (v, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
   const i = VOIES.indexOf('tortue'), permises = new Set([VOIES[i], VOIES[(i + 1) % VOIES.length], VOIES[(i + VOIES.length - 1) % VOIES.length], null]);
   exiger('le rival battu offre les pièces de la philosophie du coach et de ses voisines', voisines.every(k => permises.has(PIECES[k].voie)) && new Set(voisines.map(k => PIECES[k].voie)).size >= 3,
     [...new Set(voisines.map(k => PIECES[k].voie || 'hors des voies'))].join(', '));
+  /* La rare (JP, 8 nov. 2026 : l'arbitre) sort à son poids : au rival battu, sur 2000 graines, de ⅓ à ⅕ aussi souvent que la
+   * moyenne des ordinaires de la même offre, jamais zéro ; la même fonction pour la boutique, la fourche et les robots. */
+  const offres = Array.from({ length: 2000 }, (_, g) => piecesOffertes(P, `r${g}`, 'r:26', undefined, { voisines: true })).flat();
+  const compte = new Map();
+  for (const k of offres) compte.set(k, (compte.get(k) || 0) + 1);
+  const rares = Object.keys(PIECES).filter(k => poidsDuTirage(k) < 1), ord = [...compte].filter(([k]) => poidsDuTirage(k) === 1).map(([, n]) => n);
+  const moyOrd = ord.reduce((s, n) => s + n, 0) / ord.length, partRare = rares.map(k => (compte.get(k) || 0) / moyOrd);
+  exiger(`une pièce rare (${rares.map(k => PIECES[k].ico).join('')}) sort à son poids (${POIDS_RARE}) : de ⅕ à ⅓ d'une ordinaire, jamais zéro`,
+    rares.includes('arbitre') && rares.every(k => PIECES[k].rarete === 'rare' && PIECES[k].cadre === 3) && partRare.every(x => x >= 0.2 && x <= 1 / 3),
+    `${partRare.map(x => `×${x.toFixed(2)}`).join(', ')} d'une ordinaire au rival battu`);
   exiger('la maîtrise de l\'entraîneur règle sa pièce de départ seule, de ×0,9 à ×1,3', forceDeLaPiece({ cle: 'tortue', maitrise: 1.2 }, 'verrou') === 1.2 && forceDeLaPiece({ cle: 'tortue', maitrise: 1.2 }, 'mur') === 1
     && forceDeLaPiece({ cle: 'tortue', maitrise: 2 }, 'verrou') === 1.3 && forceDeLaPiece({ cle: 'tortue', maitrise: 0.5 }, 'verrou') === 0.9);
 }

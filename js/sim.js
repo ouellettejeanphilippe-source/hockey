@@ -1704,7 +1704,11 @@ function tirerPhysique(pA, pB, T0, T1, journal, track) {
     noter({ type: 'melee', cote: hasard() < 0.5 ? 'A' : 'B', instant: t, joueur: a, cible: b, minutes: MELEE_MINUTES });
   }
   if (journal) {
-    journal.coups.A += Math.round(coupsAttendus(pA) * frac); journal.coups.B += Math.round(coupsAttendus(pB) * frac);
+    // Arrondies sur le match, pas à chaque période : 19,2 attendues se jouaient 6 + 6 + 6 = 18 (−1,2 contre ce que
+    // l'écran annonce, `check_chiffres`). Le compte exact court à part (non énumérable : la feuille sauvée n'en garde rien).
+    const brut = journal._coupsExacts || Object.defineProperty(journal, '_coupsExacts', { value: { A: 0, B: 0 } })._coupsExacts;
+    brut.A += coupsAttendus(pA) * frac; brut.B += coupsAttendus(pB) * frac;
+    journal.coups.A = Math.round(brut.A); journal.coups.B = Math.round(brut.B);
     // V19 : ce que l'alignement donnerait sans carte de robustesse, et la part de glace du premier trio — le chiffre du Rhino et du Showman (js/chiffre.js) les lit.
     for (const [c, p] of [['A', pA], ['B', pB]]) {
       journal.coupsBase[c] += coupsAttendus(p, true) * frac;
@@ -2851,6 +2855,13 @@ export function tirageDe(profil) {
   profil._tirage = w ? s / w : 0;
   return profil._tirage;
 }
+/*
+ * CE QU'UN ALIGNEMENT ATTIRE, en facteur des occasions d'avantage numérique qu'il prend : le match le tire
+ * (`tirerMineures`) et la lecture des chiffres du soir le lit (js/impact.js `moyennes`), la même formule. Le club de
+ * référence d'une lecture (aucun patineur) est le club moyen : 1.
+ */
+export const tirageDuProfil = profil => (profil && profil.patineurs && profil.patineurs.length
+  ? borne(Math.exp(K_TIRAGE * (tirageDe(profil) - TIRAGE_CENTRE)), TIRAGE_MIN, TIRAGE_MAX) : 1);
 const DISCIPLINE_MAX = 1.8;
 
 /** Période d'un instant du match : 1, 2, 3, puis la prolongation. */
@@ -4931,9 +4942,8 @@ function jouerPlage(pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, jour
    * (`K_TIRAGE`). L'alignement qui attire prend donc plus d'avantages, celui qui n'attire rien, moins ; la ligue, elle,
    * ne bouge pas (un 0 est le club moyen). La feuille nomme qui l'a tirée (`tiree`).
    */
-  const tirage = profil => borne(Math.exp(K_TIRAGE * (tirageDe(profil) - TIRAGE_CENTRE)), TIRAGE_MIN, TIRAGE_MAX);
   const tirerMineures = (cote, puni, profite) => {
-    const n = poisson(occasions * (puni ? puni.discipline : 1) * (profite ? tirage(profite) : 1) * frac);
+    const n = poisson(occasions * (puni ? puni.discipline : 1) * (profite ? tirageDuProfil(profite) : 1) * frac);
     for (let k = 0; k < n; k++) mineures.push({ cote, puni, profite });
   };
   tirerMineures('A', pB, pA);   // `cote` = l'équipe qui PROFITE ; `puni` = l'alignement qui écope

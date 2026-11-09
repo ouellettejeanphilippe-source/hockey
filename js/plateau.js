@@ -198,6 +198,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   let vitesse = 1;
   let presse = false;
   let sansTransition = false;
+  let pointEnAttente = null;         // le point du porteur attend la rondelle dessinée : la promesse de sa glissade (majGlace)
   let pasCourant = null;             // { duree, depart, attend } — le pas qui se joue en ce moment
   let enPause = false;               // S75b : la question du ✕ est ouverte, rien n'avance
   const reprise = { lecture: false, ia: null };   // ce qui attend la fin de la pause
@@ -733,6 +734,26 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       jeton.style.setProperty('--tr', pos.r);
       jeton.style.setProperty('--tc', pos.c);
     }
+    /*
+     * ET IL L'ATTEND LÀ OÙ ELLE EST DESSINÉE (nov. 2026). Le pas qui donne la rondelle au receveur tombe à l'heure du
+     * minuteur ; sa glissade, elle, part au calcul de style qui suit le pas d'avant. Une machine chargée (une image de
+     * 200 ms) la faisait partir en retard : le receveur portait son point pendant qu'elle volait encore, jusqu'à huit
+     * cases plus loin (le smoke de Sur table, une fois en CI). Le point attend donc que la rondelle DESSINÉE soit à moins
+     * d'une case du jeton qui la tient ; sinon, la glace se redessine quand sa glissade finit.
+     */
+    const pointRetenu = el => {
+      const vol = coupe || !jeton.getAnimations ? [] : jeton.getAnimations().filter(a => a.playState === 'running');
+      if (!vol.length) return false;
+      const a = jeton.getBoundingClientRect(), b = el.getBoundingClientRect(), cote = a.width || 1;
+      if (Math.hypot(a.left + a.width / 2 - b.left - b.width / 2, a.top + a.height / 2 - b.top - b.height / 2) / cote <= 1) return false;
+      if (!pointEnAttente) {
+        pointEnAttente = Promise.all(vol.map(x => x.finished)).catch(() => {}).then(() => {
+          pointEnAttente = null;
+          if (!regles && grilleFaite) majGlace();
+        });
+      }
+      return true;
+    };
 
     // 3. Les pièces : on DÉPLACE les éléments, on ne les recrée pas.
     const couche = grille.querySelector('.t-pieces');
@@ -781,7 +802,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
         + (horsJeuIci ? ' horsjeu' : '');
       const nom = `<span class="t-nom-long">${esc(nomCourt(x.p))}</span><span class="t-nom-court">${esc(nomTrois(x.p))}</span>`;
       const role = x.gardien ? 'G' : esc(x.role);
-      const rond = tenueVue && ici.r === tenueVue.r && ici.c === tenueVue.c ? '<span class="t-rondelle" aria-label="a la rondelle"></span>' : '';
+      const rond = tenueVue && ici.r === tenueVue.r && ici.c === tenueVue.c && !pointRetenu(el) ? '<span class="t-rondelle" aria-label="a la rondelle"></span>' : '';
       const etat = x.gardien ? 'frais' : etatSouffle(m, x);
       const air = etat === 'vide' ? '<span class="t-vide-air" title="Vidé : deux cases de moins, un de moins à tous ses jets, plus d\'épaule">😮‍💨</span>'
         : etat === 'fatigue' ? '<span class="t-vide-air t-fatigue-air" title="Fatigué : une case de patin en moins">💨</span>' : '';

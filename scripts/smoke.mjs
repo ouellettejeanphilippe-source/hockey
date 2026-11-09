@@ -462,6 +462,17 @@ async function lireLeDirect(entracte) {
   // UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP).
   const ternes = await page.$$eval('#liveModal :is(.live-ligne.but, .live-but-ligne)', l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band') && !e.closest('[style*="--eq-band"]')).length);
   if (ternes) errors.push(`le direct : ${ternes} but(s) sans les couleurs du club qui marque`);
+  // v2 : une rangée du fil ne se comprime jamais sous son texte (JP : *problème affichage*, les jeux se chevauchaient) ; tout le
+  // fil, les jeux mineurs compris (V27, tranche 6 : le contrôle vivait après l'entracte à choix, parti).
+  const debordent = await page.$$eval('#liveModal .live-feed', fs => fs.flatMap(f => {
+    const tous = f.classList.contains('tous');
+    f.classList.add('tous');
+    const trop = [...f.querySelectorAll('.live-ligne')].filter(x => x.offsetParent && x.scrollHeight > x.clientHeight + 1)
+      .map(x => `${x.className.replace('live-ligne ', '')} « ${x.textContent.replace(/\s+/g, ' ').trim().slice(0, 60)} » ${x.scrollHeight}/${x.clientHeight}`);
+    if (!tous) f.classList.remove('tous');
+    return trop;
+  }));
+  if (debordent.length) errors.push(`le direct : ${debordent.length} rangée(s) du fil débordent sur la suivante (${debordent.slice(0, 3).join(' · ')})`);
   // LA GLACE (js/glace.js) : un point par tir au tableau, ni plus ni moins.
   const points = await page.$$eval('#liveModal .live-glace:not([hidden]) .gl-pt', e => e.length);
   const tirs = await page.$eval('#liveModal .live-tirs', e => (e.textContent.match(/\d+/g) || []).map(Number).reduce((x, y) => x + y, 0)).catch(() => -1);

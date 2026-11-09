@@ -169,6 +169,7 @@ Exemple fait à la main : Boston joue contre toi aux matchs 5 (acte I), 33 (acte
   - un rival battu : 1 parmi 3, tirée de la graine dans les pièces de sa philosophie et des voisines, ou passer ;
   - une élite gagnée : 1 parmi 3, ou passer (avec ses jetons) ;
   - la boutique : 1 parmi 3 à chaque nœud, contre des jetons (§ 4.8) ;
+  - **une pièce rare** (JP, 8 nov. 2026) : 🦓 l'ancien arbitre, la plus forte (+3 V seule, +4,5 avec le canonnier, sous sa borne), garde sa force mais sort plus rarement à chacune de ces offres : son poids au tirage est *POIDS_RARE* (§ 9), une ordinaire pèse 1 (`rarete`, `poidsDuTirage`, js/pieces.js, la même fonction `piecesOffertes` pour le jeu et les robots) ; sa carte prend le cadre d'or des rares, sans phrase de plus ;
   - une fourche d'histoire : **au plus une pièce par fourche, au plus deux par saison**.
 - **Banc plein** : tu choisis d'abord la pièce neuve, puis celle qui sort ; l'écran confirme « X part ». « Passer » est toujours là.
 
@@ -443,6 +444,7 @@ Dans cette partie, seul ce qui part est entre accents graves : *check_refonte* e
 | *BANDE_DEPART* | 0,40 · 0,60 (R1, 8 nov. ; 0,35 · 0,55 avant) | 0,25-0,45 · 0,45-0,65 | à 0,05-0,25, l'équipe part au 31e rang et l'acte I tue ; au-dessus, la run 1 se gagne. Le deuxième levier de R1 |
 | *CASES_DU_BANC* | 5 | 4-6 | à 3, aucun combo ; à 7, tout se lit à la fois |
 | *PIECES_OFFERTES* | 3 | 2-4 | — |
+| *POIDS_RARE* | 0,25 (JP, 8 nov. : l'arbitre devient rare) : au rival battu, il sort dans ≈ 7 % des offres au lieu de 23 % ; à la boutique, ≈ 2,5 % au lieu de 9 % | 0,15-0,4 | à 1, l'arbitre revient presque à chaque run ; sous 0,1, on ne le voit plus |
 | La présence d'une pièce | 30-50 % des soirs | 25-60 % | sous 25 %, elle ne se sent pas ; au-dessus de 60 %, elle vaut deux adjoints d'aujourd'hui |
 | *SEMAINES_ENTRE_FOURCHES* | 2 ou 3 (tiré) | 2-4 | à 1, on revient à 175 décisions ; à 4, une saison n'a que six fourches |
 | Les médailles | 10 · 15 · 20 · 40 | ±50 % | trop bas, la méta prend 30 runs ; trop haut, tout s'ouvre en 8 |

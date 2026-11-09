@@ -248,6 +248,9 @@ try {
 const roul = {};
 {
   const t = ligue(7100, 2)[0];
+  // Le matin de la journée 0, comme un club d'une ligue (`creerLigue`) : un effet daté ne joue qu'à son jour (`effetsActifs`),
+  // et un club hors d'une ligue n'a pas de jour ; sans lui, l'effet posé pour ce soir ne jouait jamais et la glace ne bougeait pas.
+  t.jourCourant = 0;
   const fx = e => (e ? [{ jour: 0, effet: { ...e, duree: 1 } }] : []);
   const glace = e => glaceDesLignes(t, fx(e)).F;
   const usure1 = e => { const u = usureDuSoir(t, fx(e)), L = activeLineup(t);

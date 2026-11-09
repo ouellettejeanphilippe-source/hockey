@@ -32,11 +32,12 @@ import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIF
 /* Les joueurs qu'un match peut toucher : les deux alignements, et le gardien de rappel. */
 const joueursDe = t => [...SLOTS.map(s => t.roster[s.i]).filter(Boolean), ...(t.rappelG ? [t.rappelG] : [])];
 
-/* Une photo des champs de chaque joueur, pour les lui rendre tels quels après. */
-function photographier(joueurs) {
+/* Une photo des champs de chaque joueur de ces clubs, pour les lui rendre tels quels après : leurs alignements, le gardien de
+ * rappel et leur club-école (un rappelé joue les matchs de la mesure ; sans sa photo, ses jambes et ses points restaient). */
+function photographier(clubs) {
   const vus = new Set();
   const out = [];
-  for (const p of joueurs) if (p && !vus.has(p)) { vus.add(p); out.push([p, { ...p }]); }
+  for (const p of clubs.flatMap(t => [...joueursDe(t), ...(t.ecole || [])])) if (p && !vus.has(p)) { vus.add(p); out.push([p, { ...p }]); }
   return out;
 }
 function rendre(photos) {
@@ -107,7 +108,7 @@ function remettre(c) {
 export function pronostic({ A, B, calendrier, jourMatch, jourRevele, n = 300, graine = 'pronostic' }) {
   const ctx = t => ({ jourMatch, jourRevele, joues: matchsAvant(calendrier, t, jourMatch), connus: matchsAvant(calendrier, t, jourRevele) });
   const cA = copieDuJour(A, ctx(A)), cB = copieDuJour(B, ctx(B));
-  const photos = photographier([...joueursDe(A), ...joueursDe(B)]);
+  const photos = photographier([A, B]);
   const scores = new Map();   // « gfA-gfB-p » -> fois
   let vA = 0, prol = 0, butsA = 0, butsB = 0;
   // Les gardiens de ce soir : la rotation du moteur est sans hasard (`pickGoalie`), la première feuille les dit.
@@ -149,7 +150,7 @@ export function prevision({ toi, calendrier, jourRevele, n = 8, graine = 'previs
   for (let j = jourRevele; j < calendrier.length; j++) for (const m of calendrier[j]) if (m.A === toi || m.B === toi) restants.push({ j, m });
   if (!restants.length) return null;
   const tous = [toi, ...new Set(restants.map(r => (r.m.A === toi ? r.m.B : r.m.A)))];
-  const photos = photographier(tous.flatMap(joueursDe));
+  const photos = photographier(tous);
   const copies = new Map();
   const pts = [], gf = [], ga = [];
   const parJoueur = new Map();   // joueur -> { b, a } sur les n saisons
@@ -208,7 +209,7 @@ export function jambesAVenir({ toi, calendrier, jourRevele, aVenir = [], proposi
   const tous = [toi, ...new Set(matchs.map(({ m }) => (m.A === toi ? m.B : m.A)))];
   const membres = new Map(tous.map(t => [t, joueursDe(t)]));
   const patineurs = membres.get(toi).filter(p => p.p !== 'G');
-  const photos = photographier([...membres.values()].flat());
+  const photos = photographier(tous);
   const essai = (decs, i) => {
     rendre(photos);
     const copies = new Map(tous.map(t => {
@@ -296,7 +297,7 @@ export function chancesDesObjectifs({ you, calendrier, jourRevele, cles, quoi = 
   const joues0 = matchsAvant(calendrier, you, suite[0].j);
   const copieToi = copieDuJour(you, { jourMatch: suite[0].j, jourRevele, joues: joues0, connus: matchsAvant(calendrier, you, jourRevele) });
   const copiesAdv = new Map(advs.map(t => [t, copieDuJour(t, { jourMatch: suite[0].j, jourRevele, joues: matchsAvant(calendrier, t, jourRevele), connus: matchsAvant(calendrier, t, jourRevele) })]));
-  const photos = photographier([...joueursDe(you), ...advs.flatMap(joueursDe)]);
+  const photos = photographier([you, ...advs]);
   const tient = Object.fromEntries(cles.map(k => [k, 0]));
   try {
     for (const p of joueursDe(you)) copieToi.poser(p);
