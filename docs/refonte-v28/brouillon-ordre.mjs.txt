@@ -1,0 +1,67 @@
+// Brouillon jetable n° 5 : la feuille du soir. Avant le match, tu vois leur ordre de trios et leur jeu ; tu choisis
+// l'ordre de tes quatre trios dans le roulement (le 1er saute deux fois par période). Des rôles s'enchaînent :
+// la zone gagnée donne la mise au jeu offensive à la présence suivante, le plombier vide les jambes du trio qu'il affronte,
+// le checker freine le meilleur tireur qu'il croise. Question : le meilleur ordre bat-il l'ordre par force,
+// et change-t-il selon le jeu de l'adversaire ? Les MÊMES dés pour chaque ordre comparé.
+let seed = 1;
+const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+const poisson = l => { let L = Math.exp(-l), k = 0, p = 1; do { k++; p *= rnd(); } while (p > L); return k - 1; };
+const P = { PRES: 5, T0: 2.0, K: 1.5, P0: 0.095, COUT: 30, REPOS: 15, ENTRACTE: 20, ZONE: Number(process.env.ZONE ?? 0.25), JMIN: 0.7,
+  PLOMB: Number(process.env.PLOMB ?? 12), CHECK: Number(process.env.CHECK ?? 0.25), SNIPE: 1.25 };
+const PATRON = [0, 1, 2, 3, 0];   // la place dans l'ordre qui saute à chaque présence d'une période
+const j = x => P.JMIN + (1 - P.JMIN) * Math.max(0, x) / 100;
+const T = (att, def, tir, r = {}) => ({ att, def, tir, ...r });
+const MOI = () => ({ nom: 'toi', trios: [T(16, 11, 17, { sniper: 1 }), T(14, 12, 14), T(12, 15, 11, { checker: 1 }), T(10, 12, 10, { plombier: 1 })],
+  paires: [{ att: 13, def: 15 }, { att: 12, def: 13 }, { att: 10, def: 11 }], g: 13 });
+const STYLES = {
+  vedettes: () => ({ trios: [T(19, 11, 20, { sniper: 1 }), T(13, 12, 13), T(11, 13, 10), T(10, 11, 9)], paires: [{ att: 13, def: 14 }, { att: 12, def: 13 }, { att: 10, def: 11 }], g: 13 }),
+  profondeur: () => ({ trios: [T(14, 13, 14), T(14, 13, 14), T(13, 13, 13), T(13, 13, 13)], paires: [{ att: 12, def: 14 }, { att: 12, def: 14 }, { att: 11, def: 12 }], g: 13 }),
+  tireurs: () => ({ trios: [T(17, 10, 17, { sniper: 1 }), T(16, 10, 16, { sniper: 1 }), T(13, 11, 13), T(11, 11, 10)], paires: [{ att: 14, def: 12 }, { att: 13, def: 11 }, { att: 11, def: 10 }], g: 12 }),
+  durs: () => ({ trios: [T(14, 12, 14), T(13, 13, 12, { plombier: 1 }), T(12, 14, 11, { checker: 1 }), T(11, 12, 10, { plombier: 1 })], paires: [{ att: 12, def: 15 }, { att: 11, def: 14 }, { att: 10, def: 12 }], g: 13 }),
+  gardien: () => ({ trios: [T(15, 11, 15), T(13, 12, 13), T(11, 14, 10), T(10, 11, 9)], paires: [{ att: 12, def: 14 }, { att: 11, def: 13 }, { att: 10, def: 11 }], g: 16 }),
+};
+function match(cA, oA, cB, oB) {
+  const E = [{ c: cA, o: oA, jt: [100, 100, 100, 100], jp: [100, 100, 100], b: 0 }, { c: cB, o: oB, jt: [100, 100, 100, 100], jp: [100, 100, 100], b: 0 }];
+  let zone = 0, n = 0;   // zone : +1 = offensive pour A
+  const trioDe = (X, k) => { const t = X.o[PATRON[k % P.PRES]]; return X.jt[t] > 25 ? t : X.jt.indexOf(Math.max(...X.jt)); };
+  const meilleurTireur = X => X.c.trios.reduce((m, t, i) => (t.tir > X.c.trios[m].tir ? i : m), 0);
+  const pres = prol => {
+    const [A, B] = E, ta = trioDe(A, n), tb = trioDe(B, n);
+    const pa = A.jp.indexOf(Math.max(...A.jp)), pb = B.jp.indexOf(Math.max(...B.jp));
+    const lam = (X, t, p, Y, u, q, z) => {
+      const a = X.c.trios[t], d = Y.c.trios[u];
+      const frein = d.checker && t === meilleurTireur(X) ? 1 - P.CHECK : 1;
+      const att = (0.7 * a.att * frein + 0.3 * X.c.paires[p].att) * j(X.jt[t]);
+      const def = (0.4 * d.def + 0.6 * Y.c.paires[q].def) * j(Y.jt[u]);
+      return P.T0 * Math.pow(att / def, P.K) * (1 + P.ZONE * z);
+    };
+    const pb_ = (X, t, Y, u) => Math.min(0.4, P.P0 * X.c.trios[t].tir * (X.c.trios[t].sniper ? P.SNIPE : 1) * ((Y.c.trios[u].checker && t === meilleurTireur(X)) ? 1 - P.CHECK / 2 : 1) / Y.c.g);
+    const na = poisson(lam(A, ta, pa, B, tb, pb, zone)), nb = poisson(lam(B, tb, pb, A, ta, pa, -zone));
+    let ga = 0, gb = 0;
+    for (let i = 0; i < na; i++) if (rnd() < pb_(A, ta, B, tb)) ga++;
+    for (let i = 0; i < nb; i++) if (rnd() < pb_(B, tb, A, ta)) gb++;
+    if (prol && ga && gb) rnd() < 0.5 ? gb = 0 : ga = 0;
+    A.b += ga; B.b += gb;
+    const cout = (X, t, Y, u) => P.COUT * (X.c.trios[t].plombier ? 0.7 : 1) + (Y.c.trios[u].plombier ? P.PLOMB : 0);
+    const ca = cout(A, ta, B, tb), cb = cout(B, tb, A, ta);
+    for (let i = 0; i < 4; i++) { A.jt[i] = i === ta ? A.jt[i] - ca : Math.min(100, A.jt[i] + P.REPOS); B.jt[i] = i === tb ? B.jt[i] - cb : Math.min(100, B.jt[i] + P.REPOS); }
+    for (let i = 0; i < 3; i++) { A.jp[i] = i === pa ? A.jp[i] - 34 : Math.min(100, A.jp[i] + 22); B.jp[i] = i === pb ? B.jp[i] - 34 : Math.min(100, B.jp[i] + 22); }
+    zone = ga || gb ? 0 : Math.sign(na - nb); n++;
+  };
+  for (let per = 0; per < 3; per++) { zone = 0; for (let k = 0; k < P.PRES; k++) pres(false); for (const X of E) { X.jt = X.jt.map(x => Math.min(100, x + P.ENTRACTE)); X.jp = X.jp.map(x => Math.min(100, x + P.ENTRACTE)); } }
+  for (let k = 0; k < 3 && E[0].b === E[1].b; k++) pres(true);
+  return E[0].b > E[1].b ? 1 : E[0].b < E[1].b ? 0 : (rnd() < 0.5 ? 1 : 0);
+}
+const perms = a => a.length <= 1 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map(r => [x, ...r]));
+const ORDRES = perms([0, 1, 2, 3]);
+const N = Number(process.env.N || 6000);
+const chance = (style, ordre) => { let w = 0; const leur = [0, 1, 2, 3]; for (let i = 0; i < N; i++) { seed = 1000 + i; w += match(MOI(), ordre, STYLES[style](), leur); } return w / N; };
+const nom = o => o.map(t => ['snipers', 'passeurs', 'checkers', 'plombiers'][t].slice(0, 4)).join('·');
+const meilleurs = {};
+for (const s of Object.keys(STYLES)) {
+  const r = ORDRES.map(o => ({ o, p: chance(s, o) })).sort((a, b) => b.p - a.p);
+  const base = r.find(x => x.o.join() === '0,1,2,3').p, pire = r[r.length - 1];
+  meilleurs[s] = r[0].o.join();
+  console.log(`${s.padEnd(11)} par force ${(100 * base).toFixed(1)} %  · meilleur ${nom(r[0].o)} ${(100 * r[0].p).toFixed(1)} % (${r[0].p - base >= 0 ? '+' : ''}${(100 * (r[0].p - base)).toFixed(1)})  · 2e ${nom(r[1].o)} ${(100 * r[1].p).toFixed(1)}  · pire ${nom(pire.o)} ${(100 * pire.p).toFixed(1)} %`);
+}
+console.log('meilleurs ordres distincts :', new Set(Object.values(meilleurs)).size, 'sur', Object.keys(STYLES).length);

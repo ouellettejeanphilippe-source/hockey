@@ -1,20 +1,29 @@
-// La cible de l'acte : la chance de la tenir selon la part de matchs gagnés. 17 % des matchs vont en prolongation (le perdant prend 1 point).
+// Brouillon jetable n° 4, repris après la revue : le rival compte double (4 points gagné, 2 en prolongation),
+// les séries en 3 de 5 partout, et un cœur qui reste rachète une série perdue (on la rejoue, une fois par cœur).
 const OT = 0.17;
-function dist(p, n) { // distribution des points sur n matchs
+const C = (a, b) => { let r = 1; for (let i = 0; i < b; i++) r = r * (a - i) / (i + 1); return r; };
+function points(p, nOrd, pRival) { // distribution des points d'un acte : nOrd matchs ordinaires et le rival, qui compte double
   let d = new Map([[0, 1]]);
-  for (let i = 0; i < n; i++) { const e = new Map(); for (const [pts, pr] of d) for (const [g, q] of [[2, p], [1, (1 - p) * OT], [0, (1 - p) * (1 - OT)]]) e.set(pts + g, (e.get(pts + g) || 0) + pr * q); d = e; }
+  const pas = (q, m) => { const e = new Map(); for (const [s, pr] of d) for (const [g, x] of [[2 * m, q], [m, (1 - q) * OT], [0, (1 - q) * (1 - OT)]]) e.set(s + g, (e.get(s + g) || 0) + pr * x); d = e; };
+  for (let i = 0; i < nOrd; i++) pas(p, 1);
+  pas(pRival, 2);
   return d;
 }
-const tenir = (p, n, c) => [...dist(p, n)].filter(([pts]) => pts >= c).reduce((a, [, pr]) => a + pr, 0);
-const serie = (p, k) => { let s = 0; const n = 2 * k - 1; const C = (a, b) => { let r = 1; for (let i = 0; i < b; i++) r = r * (a - i) / (i + 1); return r; }; for (let w = k; w <= n; w++) s += C(n, w) * p ** w * (1 - p) ** (n - w); return s; };
-console.log('part gagnée | cible 6 | cible 7 | cible 8 | (sur 6 matchs)');
-for (const p of [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8]) console.log(`${(p * 100).toFixed(0)} %`.padEnd(11), ...[6, 7, 8].map(c => `| ${(100 * tenir(p, 6, c)).toFixed(0)} %`.padEnd(9)));
-console.log('\nLa run : acte I à pI, II à pII, III à pIII, séries à pS (2 de 3, 2 de 3, 3 de 5)');
+const tenir = (p, pr, c) => [...points(p, 5, pr)].filter(([s]) => s >= c).reduce((a, [, x]) => a + x, 0);
+const serie = (p, k) => { let s = 0; const n = 2 * k - 1; for (let w = k; w <= n; w++) s += C(n, w) * p ** w * (1 - p) ** (n - w); return s; };
+// Trois rondes ; chaque série perdue se rachète par un cœur qui reste.
+function coupe(w, coeurs) { const f = (r, h) => r === 3 ? 1 : w * f(r + 1, h) + (1 - w) * (h > 0 ? f(r, h - 1) : 0); return f(0, coeurs); }
+const CIB = (process.env.CIBLES || '8,9,10').split(',').map(Number);
+console.log(`Les cibles ${CIB.join(' · ')} sur 14 (5 matchs et le rival double)`);
+console.log('part gagnée (ordinaires, rival 15 points plus bas) | cible I | II | III');
+for (const p of [0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75]) console.log(`${(p * 100).toFixed(0)} %`.padEnd(8), ...CIB.map(c => `| ${(100 * tenir(p, p - 0.15, c)).toFixed(0)} %`.padEnd(8)));
+console.log('\nLa run (rival 15 points sous l\'acte) : séries 3 de 5, un cœur restant rachète une série');
 for (const [a, b, c, s] of [[0.5, 0.5, 0.5, 0.45], [0.55, 0.6, 0.6, 0.5], [0.6, 0.65, 0.65, 0.55], [0.65, 0.7, 0.7, 0.6], [0.7, 0.75, 0.8, 0.7]]) {
-  const t1 = tenir(a, 6, 6), t2 = tenir(b, 6, 7), t3 = tenir(c, 6, 8);
-  const vivant = 1 - (1 - t1) * (1 - t2);            // 2 cœurs : mort seulement si les deux cibles I et II sont ratées
-  const series = vivant * t3;
-  const coupe = series * serie(s, 2) * serie(s, 2) * serie(s, 3);
-  const unCoeur = 1 - t1 * t2;
-  console.log(`${a}/${b}/${c}, séries ${s} : cibles ${(100*t1).toFixed(0)}·${(100*t2).toFixed(0)}·${(100*t3).toFixed(0)} % · un cœur perdu ${(100*unCoeur).toFixed(0)} % · mort avant III ${(100*(1-vivant)).toFixed(0)} % · en séries ${(100*series).toFixed(0)} % · Coupe ${(100*coupe).toFixed(1)} %`);
+  const t1 = tenir(a, a - 0.15, CIB[0]), t2 = tenir(b, b - 0.15, CIB[1]), t3 = tenir(c, c - 0.15, CIB[2]);
+  // Les cœurs à l'entrée des séries : 2, 1 ou 0 (mort à 0 avant l'acte III).
+  const h2 = t1 * t2, h1 = t1 * (1 - t2) + (1 - t1) * t2, mort = (1 - t1) * (1 - t2);
+  const w = serie(s, 3);
+  const cp = t3 * (h2 * coupe(w, 2) + h1 * coupe(w, 1));
+  const sans = t3 * (h2 + h1) * w ** 3;
+  console.log(`${a}/${b}/${c}, séries ${s} : cibles ${(100*t1).toFixed(0)}·${(100*t2).toFixed(0)}·${(100*t3).toFixed(0)} % · un cœur perdu ${(100*(1-h2)).toFixed(0)} % · mort avant III ${(100*mort).toFixed(0)} % · série gagnée ${(100*w).toFixed(0)} % · Coupe ${(100*cp).toFixed(1)} % (sans rachat ${(100*sans).toFixed(1)} %)`);
 }
