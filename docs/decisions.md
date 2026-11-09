@@ -3565,3 +3565,15 @@ Le devis réunit les deux : docs/refonte-v28.md ; les maquettes : docs/maquettes
 - le pronostic à chaque geste ;
 - le match de Sur table ou de Sur glace joué dans le Rogue ;
 - le simulateur calibré sous le match neuf.
+
+**Tranché par JP (9 nov. 2026)**, sur les quatre questions du devis.
+
+- **La boucle : oui.** L'acte devient une carte à chemins, chaque match se joue en trois temps : la feuille du soir, le match, les trois portes. Trois actes et les séries remplacent les 82 soirs.
+- **Le moteur : garder le simulateur.**
+  - Le moteur de présences part du devis, avec ses appels en plein match et ses mesures (la feuille du soir à +12 points valait pour lui).
+  - Le Rogue joue des matchs isolés avec le moteur calibré (`playGame`, les greffes, `simulerGrosMatch`). Le match se montre en temps forts tirés de sa feuille.
+  - Le banc de cinq et le duel à un choix de la V27 restent : ils passent par le simulateur.
+  - La tranche 0 mesure sur lui ce que vaut l'ordre des trios contre leurs lignes. L'appariement pesait peu à la V6 : si l'ordre ne pèse rien, la feuille du soir ne le présente pas comme un choix.
+- **L'allure : C partout.** La carte de la saison et des écrans illustrés, sans pixel art ; A (l'arcade 16 bits) et B (la table de cartes) sont écartés.
+- **L'ancien Rogue : gelé dès le 9 nov.**, jouable jusqu'au remplacement, puis supprimé. Les tranches 8 à 11 de la V27 et D1b s'arrêtent ; les médailles et le cartable sont gardés.
+- **« Ce qui part » passe de 86 à 58 noms** : les greffes, les pièces, les histoires et leurs juges restent avec le simulateur.
