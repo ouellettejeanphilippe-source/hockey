@@ -371,7 +371,7 @@ La pièce maîtresse. Chaque nom ci-dessous disparaît du jeu au remplacement (t
 
 ### Les histoires du lundi
 
-- `js/histoires.js`, `js/faits.js`, `js/scenes.js`, `lundiAHistoire`, `CHANCE_HISTOIRE`, `promettre`, `verdictsDuMatin` → les histoires de la carte, écrites de zéro avec `rogue-recit`, aux effets qui durent la run.
+- `js/histoires.js`, `js/faits.js`, `js/scenes.js`, `lundiAHistoire`, `CHANCE_HISTOIRE`, `promettre`, `verdictsDuMatin` → les histoires de la carte, écrites de zéro avec *rogue-recit*, aux effets qui durent la run.
 
 ### L'ancienne run
 
@@ -388,7 +388,7 @@ La pièce maîtresse. Chaque nom ci-dessous disparaît du jeu au remplacement (t
 
 Ils sont remplacés par *check_match*, *check_run*, *check_scene*, *check_neuf*, *mesure_run* et *essai_run*.
 
-**Le compte** : 76 noms, dont 10 fichiers du jeu (≈ 4 200 lignes), la plus grosse fonction du dépôt (≈ 3 000 lignes), la section du plateau de style.css (≈ 840 lignes) et 18 scripts. Tout script qui importe un module parti part ou se réécrit ; leur liste complète se fixe à la tranche 4.
+**Le compte** : 86 noms, dont 11 fichiers du jeu (≈ 4 300 lignes), la plus grosse fonction du dépôt (≈ 3 000 lignes), la section du plateau de style.css (≈ 840 lignes) et 18 scripts. Tout script qui importe un module parti part ou se réécrit ; leur liste complète se fixe à la tranche 4.
 
 **À vérifier à sa tranche avant de l'ajouter** (en italique, pour que *check_refonte* ne le compte pas encore) :
 
