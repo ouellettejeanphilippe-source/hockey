@@ -1,0 +1,118 @@
+// Brouillon jetable : le match en présences, pour vérifier que le noyau a un signal d'habileté avant de l'écrire au devis.
+// Rien du jeu n'est importé ; des clubs synthétiques, cotes sur 20.
+let seed = 12345;
+const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+const poisson = l => { let L = Math.exp(-l), k = 0, p = 1; do { k++; p *= rnd(); } while (p > L); return k - 1; };
+
+const P = { PRES: 5, T0: 2.0, K: 1.5, P0: 0.095, COUT: 30, REPOS: 15, ENTRACTE: 20, ZONE: 0.25, DOM: 1, JMIN: 0.7, ...JSON.parse(process.env.P || '{}') };
+
+// Un club : 4 trios {att, def, tir, rob}, 3 paires {att, def, rob}, un gardien {arr}.
+const club = (d = 0) => ({
+  trios: [ { att: 16 + d, def: 11 + d, tir: 17 + d, rob: 10 }, { att: 14 + d, def: 12 + d, tir: 14 + d, rob: 11 }, { att: 11 + d, def: 15 + d, tir: 11 + d, rob: 13 }, { att: 10 + d, def: 11 + d, tir: 10 + d, rob: 16 } ],
+  paires: [ { att: 13 + d, def: 15 + d }, { att: 12 + d, def: 13 + d }, { att: 10 + d, def: 11 + d } ],
+  g: { arr: 13 + d },
+});
+const j = x => P.JMIN + (1 - P.JMIN) * Math.max(0, x) / 100;
+// Tirs attendus de l'unité (trio a, paire pa) contre (trio b, paire pb).
+const tirs = (a, pa, ja, b, pb, jb, zone) => {
+  const att = (0.7 * a.att + 0.3 * pa.att) * j(ja), def = (0.4 * b.def + 0.6 * pb.def) * j(jb);
+  return P.T0 * Math.pow(att / def, P.K) * (1 + P.ZONE * zone);
+};
+const pBut = (a, g) => Math.min(0.35, P.P0 * (a.tir / g.arr));
+const chance = (t, p) => 1 - Math.exp(-t * p);
+
+function etat(c) { return { c, jt: [100, 100, 100, 100], jp: [100, 100, 100], buts: 0, tirs: 0 }; }
+const paireDe = E => E.jp.indexOf(Math.max(...E.jp));
+
+// Les coachs. Chacun rend l'indice du trio. `vu` : le trio adverse déjà envoyé (dernier changement), ou null.
+const coachs = {
+  rotation: (E, O, vu, ctx) => { for (let k = 0; k < 4; k++) { const i = (ctx.n + k) % 4; if (E.jt[i] > 0) return i; } return 0; },
+  frais: (E) => E.jt.indexOf(Math.max(...E.jt)),
+  // glouton : la meilleure différence de chance de but, tout de suite, sans prix pour les jambes.
+  glouton: (E, O, vu, ctx) => meilleur(E, O, vu, ctx, 0),
+  // bon : la même lecture, mais les jambes ont un prix (ne pas vider son premier trio), et la fin de match pèse.
+  bon: (E, O, vu, ctx) => meilleur(E, O, vu, ctx, Number(process.env.PRIX ?? 0.004)),
+};
+function meilleur(E, O, vu, ctx, prix) {
+  let best = 0, bv = -1e9;
+  const pe = paireDe(E), po = paireDe(O);
+  for (let i = 0; i < 4; i++) {
+    if (E.jt[i] <= 0) continue;
+    // Contre qui ? Celui qu'on voit, sinon la moyenne de leurs trios debout.
+    const eux = vu != null ? [vu] : [0, 1, 2, 3].filter(k => O.jt[k] > 0);
+    let v = 0;
+    for (const k of eux) {
+      const pour = chance(tirs(E.c.trios[i], E.c.paires[pe], E.jt[i], O.c.trios[k], O.c.paires[po], O.jt[k], ctx.zone), pBut(E.c.trios[i], O.c.g));
+      const contre = chance(tirs(O.c.trios[k], O.c.paires[po], O.jt[k], E.c.trios[i], E.c.paires[pe], E.jt[i], -ctx.zone), pBut(O.c.trios[k], E.c.g));
+      // L'état du pointage : en avance tard, un but contre coûte plus ; en retard, un but pour vaut plus.
+      const tard = ctx.n >= 10 ? 1.5 : 1;
+      const w = ctx.ecart > 0 ? [1, tard] : ctx.ecart < 0 ? [tard, 1] : [1, 1];
+      v += (w[0] * pour - w[1] * contre) / eux.length;
+    }
+    // Le prix des jambes : plus il reste de présences, plus vider un bon trio coûte.
+    const reste = 15 - ctx.n;
+    v -= prix * reste * Math.max(0, 60 - (E.jt[i] - P.COUT)) / 60 * (E.c.trios[i].att / 12);
+    if (v > bv) { bv = v; best = i; }
+  }
+  return best;
+}
+
+function match(cA, cB, polA, polB, stats) {
+  const A = etat(cA), B = etat(cB);   // A est à domicile : il voit le trio de B avant de choisir.
+  let zone = 0, n = 0;
+  const presence = (prol) => {
+    const ctxA = { n, zone, ecart: A.buts - B.buts }, ctxB = { n, zone: -zone, ecart: B.buts - A.buts };
+    const tb = coachs[polB](B, A, null, ctxB);
+    const ta = coachs[polA](A, B, P.DOM ? tb : null, ctxA);
+    const pa = paireDe(A), pb = paireDe(B);
+    const la = tirs(A.c.trios[ta], A.c.paires[pa], A.jt[ta], B.c.trios[tb], B.c.paires[pb], B.jt[tb], zone);
+    const lb = tirs(B.c.trios[tb], B.c.paires[pb], B.jt[tb], A.c.trios[ta], A.c.paires[pa], A.jt[ta], -zone);
+    const na = poisson(la), nb = poisson(lb);
+    let ga = 0, gb = 0;
+    for (let i = 0; i < na; i++) if (rnd() < pBut(A.c.trios[ta], B.c.g)) ga++;
+    for (let i = 0; i < nb; i++) if (rnd() < pBut(B.c.trios[tb], A.c.g)) gb++;
+    if (prol && ga + gb > 0) { if (ga && gb) { rnd() < 0.5 ? gb = 0 : ga = 0; } ga = Math.min(1, ga); gb = Math.min(1, gb); }
+    A.buts += ga; B.buts += gb; A.tirs += na; B.tirs += nb;
+    if (stats) { stats.usage[ta]++; }
+    // Les jambes : l'unité qui a joué paie (la robustesse d'en face en ajoute), le banc récupère.
+    const cout = (E, O, t, to) => P.COUT + Math.max(-8, Math.min(12, (O.c.trios[to].rob - E.c.trios[t].rob)));
+    for (let i = 0; i < 4; i++) { A.jt[i] = i === ta ? A.jt[i] - cout(A, B, ta, tb) : Math.min(100, A.jt[i] + P.REPOS); B.jt[i] = i === tb ? B.jt[i] - cout(B, A, tb, ta) : Math.min(100, B.jt[i] + P.REPOS); }
+    for (let i = 0; i < 3; i++) { A.jp[i] = i === pa ? A.jp[i] - 34 : Math.min(100, A.jp[i] + 22); B.jp[i] = i === pb ? B.jp[i] - 34 : Math.min(100, B.jp[i] + 22); }
+    zone = ga || gb ? 0 : Math.sign(na - nb);
+    n++;
+  };
+  for (let per = 0; per < 3; per++) {
+    zone = 0;
+    for (let k = 0; k < P.PRES; k++) presence(false);
+    for (const E of [A, B]) { E.jt = E.jt.map(x => Math.min(100, x + P.ENTRACTE)); E.jp = E.jp.map(x => Math.min(100, x + P.ENTRACTE)); }
+  }
+  let ot = false;
+  for (let k = 0; k < 6 && A.buts === B.buts; k++) { ot = true; presence(true); }
+  if (A.buts === B.buts) { ot = true; rnd() < 0.5 ? A.buts++ : B.buts++; }
+  return { a: A.buts, b: B.buts, ta: A.tirs, tb: B.tirs, ot };
+}
+
+function duel(nom, cA, cB, polA, polB, N = 20000) {
+  let w = 0, ga = 0, gb = 0, ta = 0, tb = 0, ot = 0;
+  const stats = { usage: [0, 0, 0, 0] };
+  for (let i = 0; i < N; i++) {
+    // On alterne la glace pour ne pas mesurer l'avantage du dernier changement à la place du coach.
+    const dom = i % 2 === 0;
+    const r = dom ? match(cA, cB, polA, polB, stats) : match(cB, cA, polB, polA, null);
+    const [x, y, tx, ty] = dom ? [r.a, r.b, r.ta, r.tb] : [r.b, r.a, r.tb, r.ta];
+    if (x > y) w++; ga += x; gb += y; ta += tx; tb += ty; if (r.ot) ot++;
+  }
+  const u = stats.usage.map(x => Math.round(100 * x / stats.usage.reduce((a, b) => a + b, 0)));
+  console.log(`${nom.padEnd(46)} gagne ${(100 * w / N).toFixed(1)} %  buts ${(ga / N).toFixed(2)}-${(gb / N).toFixed(2)}  tirs ${(ta / N).toFixed(1)}-${(tb / N).toFixed(1)}  prol. ${(100 * ot / N).toFixed(0)} %  glace ${u.join('/')}`);
+}
+const E = club(0);
+duel('rotation c. rotation (clubs égaux)', E, club(0), 'rotation', 'rotation');
+duel('frais c. rotation', E, club(0), 'frais', 'rotation');
+duel('glouton c. rotation', E, club(0), 'glouton', 'rotation');
+duel('bon coach c. rotation', E, club(0), 'bon', 'rotation');
+duel('bon coach c. glouton', E, club(0), 'bon', 'glouton');
+duel('bon coach c. bon coach', E, club(0), 'bon', 'bon');
+duel('club +1 partout, rotation c. rotation', club(1), club(0), 'rotation', 'rotation');
+duel('club +2 partout, rotation c. rotation', club(2), club(0), 'rotation', 'rotation');
+duel('club +4 partout, rotation c. rotation', club(4), club(0), 'rotation', 'rotation');
+duel('club −2, bon coach c. rotation', club(-2), club(0), 'bon', 'rotation');
