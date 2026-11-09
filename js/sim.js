@@ -5764,7 +5764,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._galon; delete p._si; delete p._soir; delete p._arcFx; delete p._arcSi; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.effetsCibles = [];
       t.suivis = []; t.retours = []; t.blessesQuiJouent = []; t.commotions = null;
-      t._gros = null; t._effetMatch = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t.rivaux = null; t.beteNoire = null;
+      t._gros = null; t._effetMatch = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t.rivaux = null; t.sonJeu = null; t.beteNoire = null;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
     }
     /*
@@ -6007,11 +6007,12 @@ export function rembobinerSeries(S, decisions, ronde, k) {
 }
 
 /*
- * LE CALENDRIER PLACÉ (V27, tranche 4) : une décision `cedule` échange des matchs à venir par le crochet du Rogue, sans dé,
+ * LE CALENDRIER PLACÉ (V27, tranche 4) et L'ÉLITE PRISE (tranche 7) : une décision `cedule` échange des matchs à venir, une
+ * décision `elite` annonce son duel, par le crochet du Rogue, sans dé,
  * une fois (l'écran la joue au matin où elle est prise, la journée ne la rejoue pas) ; les journées d'avant ne bougent pas.
  */
 export function jouerLaCedule(L, d) {
-  if (!d.cedule.length || !L.placer || (L.cedules = L.cedules || new Set()).has(d)) return;
+  if (!(d.cedule ? d.cedule.length : d.elite) || !L.placer || (L.cedules = L.cedules || new Set()).has(d)) return;
   L.cedules.add(d);
   L.placer(L, d);
   poserJours(L);
@@ -6034,7 +6035,7 @@ export function jouerJournee(L) {
       if (d.duel && d.duel.p > 0) continue;
       // LE CHOIX D'AVANT LE DUEL (`main`, vide depuis la V13-2 : elle marque le soir et porte ton plan des trois périodes).
       if (d.main) choixDuJour = choixDuDuel(d);
-      if (d.cedule) jouerLaCedule(L, d);
+      if (d.cedule || d.elite) jouerLaCedule(L, d);
       const t = teams[d.equipe || 0];
       if (t) appliquerDecision(t, d, graine);
       if (d.sel) sel = `${sel || ''}${d.sel}`;
@@ -6280,7 +6281,7 @@ function remettreANeuf(t) {
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0];
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
-  t._gros = null; t._effetMatch = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t.rivaux = null; t.beteNoire = null;
+  t._gros = null; t._effetMatch = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t.rivaux = null; t.sonJeu = null; t.beteNoire = null;
 }
 export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
   const avant = hasard;
@@ -6444,6 +6445,10 @@ export const MOMENTS_SI = {
   jambesLourdes: { mot: 'Les jambes lourdes', seuil: 86, parSaison: 16 },
   jambesFraiches: { mot: 'Les jambes fraîches', seuil: 88, parSaison: 23 },
   rival: { mot: 'Contre un rival', parSaison: 6 },
+  // Le jeu de l'adversaire du soir (V27, tranche 7) : un club au 12e rang de la ligue ou mieux à cette ligne (js/actes.js `sonJeu`).
+  tireurs: { mot: 'Contre des tireurs', parSaison: 35 },
+  durs: { mot: 'Contre des durs', parSaison: 26 },
+  grosGardien: { mot: 'Contre un gros gardien', parSaison: 35 },
   beteNoire: { mot: 'Contre ta bête noire', rare: true, parSaison: 3 },
   apresDefaite: { mot: 'Après une défaite', parSaison: 28 },
   enFeu: { mot: 'Après trois victoires', suite: 3, parSaison: 24 },
@@ -6460,6 +6465,7 @@ export const MOMENTS_SI = {
   egal: { mot: 'En 3e, à égalité', duel: true, rare: true, parSaison: 1 },
   derriere: { mot: 'En 3e, en retard', duel: true, rare: true, parSaison: 2 },
 };
+const joueFort = (adv, k) => !!(adv && Array.isArray(adv.sonJeu) && adv.sonJeu.includes(k));
 /** Les moments du soir d'un club : `L` son alignement, `adv` l'adversaire, `chez` s'il reçoit. */
 function momentsDuSoir(T, adv, L, { chez = true, series = false, jour = null } = {}) {
   const pat = Object.values(L || {}).filter(p => p && p.p !== 'G');
@@ -6479,6 +6485,7 @@ function momentsDuSoir(T, adv, L, { chez = true, series = false, jour = null } =
     dosADos: !series && jour !== null && dosADos(T, jour),
     jambesLourdes: pire < MOMENTS_SI.jambesLourdes.seuil, jambesFraiches: pire >= MOMENTS_SI.jambesFraiches.seuil,
     rival: !!(T && Array.isArray(T.rivaux) && T.rivaux.includes(adv)), beteNoire: !!adv && !!T && T.beteNoire === adv,
+    tireurs: joueFort(adv, 'tirs'), durs: joueFort(adv, 'durs'), grosGardien: joueFort(adv, 'gardien'),
     apresDefaite: suite < 0, enFeu: suite >= MOMENTS_SI.enFeu.suite, infirmerie,
     amoche: !!(T && T.effetsCibles && jour !== null && T.effetsCibles.some(x => x.source === 'blesse' && jour >= x.debut && jour < x.fin && pat.includes(x.joueur))),
     ...lu,

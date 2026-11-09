@@ -6,7 +6,7 @@
  */
 
 import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, payerJalons, ecussonsDesSeries, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, primesDesFils, primesDuCoach, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, motDeLaLigue, niveauDeLigue, habillerLaLigue, packsOuverts, monteeDesPacks } from './rogue.js';
-import { money, esc, hache } from './util.js';
+import { money, esc, hache, cap } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, matchsEntre } from './sim.js';
 import { coachDuJoueur } from './greffes.js';
 import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './banque.js';
@@ -31,7 +31,7 @@ import { jouerSon } from './sons.js';
 import { pic } from './mouvement.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
 import { galonsDeLaSaison, grosGagnesDe } from './galons.js';
-import { etatDeLaRun, etapeDesSeries, renfortsDe, MEDAILLES_ACTE, NOMS_DES_ACTES, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat, prixDeLaPiece, piecesDuNoeud } from './actes.js';
+import { etatDeLaRun, jetonsDesElites, etapeDesSeries, renfortsDe, MEDAILLES_ACTE, NOMS_DES_ACTES, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, noeudOuvert, prochainNoeud, estUnAchat, prixDeLaPiece, piecesDuNoeud } from './actes.js';
 import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { marche } from './composants.js';
@@ -84,12 +84,13 @@ function resultatsRogue(j) {
     const pour = m.A === toi ? m.gfA : m.gfB, contre = m.A === toi ? m.gfB : m.gfA;
     if (pour > contre) W++; else if (m.ot) P++; else D++;
   }
-  // V27 (devis § 4.3) : un rival battu ne paie aucun jeton — il paie en pièce et en médailles.
+  // V27 (devis § 4.3) : un rival battu ne paie aucun jeton — il paie en pièce et en médailles ; une élite gagnée paie ses `J` (§ 4.5).
   // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`) : (`place` ou `carte`, des vieilles parties).
   const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && (d.place || d.carte)).length;
   // V3.6 : la prime des fils (le Cheechoo, le jalon…), en Rogue seulement.
   // V23 : la règle du coach paie (`primesDuCoach`) ; V27, tranche 5 : le banc ne se paie plus.
-  const primes = G.bonus === 'ROGUE' ? primesDesFils(L.calendrier, toi, j).total + primesDuCoach(L.calendrier, toi, j).total : 0;
+  const primes = G.bonus === 'ROGUE' ? primesDesFils(L.calendrier, toi, j).total + primesDuCoach(L.calendrier, toi, j).total
+    + jetonsDesElites(L.calendrier, toi, (L.moteur && L.moteur.grosAnnonces) || {}, j) : 0;
   return { W, L: D, OTL: P, objectifs, primes };
 }
 /*
@@ -1412,7 +1413,7 @@ export function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
 function etatDuMoteur() {
   const L = G.ligue, M = L && L.moteur;
   if (G.bonus !== 'ROGUE' || !M || !L.you) return null;
-  return etatDeLaRun({ calendrier: M.calendrier, teams: M.teams, you: L.you, rivaux: M.rivaux || [], jour: Math.min(G.journee || 0, M.calendrier.length), exigence: exigenceDeLaRun() });
+  return etatDeLaRun({ calendrier: M.calendrier, teams: M.teams, you: L.you, rivaux: M.rivaux || [], annonces: M.grosAnnonces, jour: Math.min(G.journee || 0, M.calendrier.length), exigence: exigenceDeLaRun() });
 }
 /*
  * LES MÉDAILLES D'UN ACTE (devis § 4.8) : 10 l'acte passé, 15 le rival battu, au multiple des exigences ; payées une fois
@@ -1443,9 +1444,11 @@ function sortDeLaRun() {
 /* La cause de la fin, en une ligne (devis § 4.11, la maquette 8) : le titre en gros, la ligne dessous. */
 const RONDES_PERDUES = ['Éliminés en première ronde', 'Éliminés en deuxième ronde', 'Éliminés en demi-finale', 'Perdu en finale'];
 function causeDeLaFin(E, f, s) {
+  // Plus de cœurs : ce qui les a coûtés, dans l'ordre (un contrôle raté, une élite perdue).
   if (E && E.mort) {
-    const rates = E.actes.filter(x => x.tenu === false), d = rates.at(-1);
-    return { titre: 'Plus de cœurs', ligne: rates.length >= 2 ? 'Deux contrôles ratés' : `${d.rang}e, il fallait ${d.cible}e` };
+    const perdus = [...E.actes.filter(x => x.tenu === false), ...E.elites.filter(x => !x.gagne)].sort((a, b) => a.jour - b.jour);
+    const mot = x => (x.elite ? `l'élite perdue contre ${x.adv.tag}` : `${x.rang}e, il fallait ${x.cible}e`);
+    return { titre: 'Plus de cœurs', ligne: cap(perdus.map(mot).join(', puis ')) };
   }
   if (!f.series) return { titre: 'Pas de séries', ligne: `${f.rang}e, il fallait ${nombreEnSeries((G.ligue.teams || []).length)}e` };
   return { titre: RONDES_PERDUES[Math.min(3, (s && s.rondes) || 0)], ligne: `${f.rang}e en saison` };
@@ -1515,9 +1518,11 @@ export function montrerLaFin(sort = sortDeLaRun()) {
   const c = causeDeLaFin(E, f, s), M = exigencesDe(exigenceDeLaRun()).medailles;
   const club = t => `<span class="fin-club">${getTeamLogoHtml(t.tag, t.season, 20)}${esc(t.tag)}</span>`;
   const rang = x => `${x.rang}<sup>e</sup>${x.cible ? ` / ${x.cible}` : ''}`;
-  const lignes = ((E && E.actes) || []).flatMap(x => [
+  // Les actes et les élites, dans l'ordre de la saison : une élite dit ce qu'elle a payé, ou le cœur qu'elle a coûté.
+  const coups = E ? [...E.actes, ...E.elites].sort((a, b) => a.jour - b.jour) : [];
+  const lignes = coups.flatMap(x => (x.elite ? [`<div class="fin-l${x.gagne ? '' : ' rate'}"><span>${club(x.adv)} · Élite</span><span class="${x.gagne ? 'bon' : 'mal'}">${x.gagne ? `+${x.J} 🪙` : '−1 cœur'}</span><span class="or">0</span></div>`] : [
     `<div class="fin-l${x.tenu === false ? ' rate' : ''}"><span>${NOMS_DES_ACTES[x.acte]}</span><span class="${x.tenu === false ? 'mal' : 'bon'}">${rang(x)}${x.tenu == null ? '' : x.tenu ? ' ✓' : ' ✗'}</span><span class="or">${x.tenu === false || x.acte === 2 ? '0' : `+${Math.round(MEDAILLES_ACTE.passe * M)}`}</span></div>`,
-    `<div class="fin-l"><span>${club(x.adv)} · Rival</span><span class="${x.gagne ? 'bon' : 'mal'}">${x.gagne ? 'Battu' : 'Perdu'}</span><span class="or">${x.gagne ? `+${Math.round(MEDAILLES_ACTE.rival * M)}` : '0'}</span></div>`]);
+    `<div class="fin-l"><span>${club(x.adv)} · Rival</span><span class="${x.gagne ? 'bon' : 'mal'}">${x.gagne ? 'Battu' : 'Perdu'}</span><span class="or">${x.gagne ? `+${Math.round(MEDAILLES_ACTE.rival * M)}` : '0'}</span></div>`]));
   // La porte claque : la fin est un pic, comme la Coupe.
   setTimeout(() => pic(document.querySelector('.choix-sheet[data-genre="run"]')), 50);
   ouvrirChoix({

@@ -253,8 +253,8 @@ function ajouterDecision(avant, d) {
  * est joué pour être montré) reconstruit la ligue, et seulement jusqu'à
  * aujourd'hui : le passé se rejoue à l'identique de la graine, rien d'avance.
  */
-/* Le calendrier placé ce matin (V27, tranche 4) se voit tout de suite : la cédule et le renfort, avant le match du jour. */
-const placerDuJour = M => { for (const d of M.decisions) if (d.cedule && d.jour === M.jour) jouerLaCedule(M, d); };
+/* Le calendrier placé ce matin (V27, tranche 4) et l'élite prise (tranche 7) se voient tout de suite, avant le match du jour. */
+const placerDuJour = M => { for (const d of M.decisions) if ((d.cedule || d.elite) && d.jour === M.jour) jouerLaCedule(M, d); };
 async function continuerSaison(decisions, depuis, mot) {
   const L = G.ligue, M = L && L.moteur;
   const avant = new Set(L.decisions || []), apres = new Set(decisions);

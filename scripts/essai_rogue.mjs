@@ -262,6 +262,7 @@ const afaire = { vu: false, lots: [], histoire: '', genres: new Set(), formes: [
 const combats = [];   // V27, tranche 6 : les duels choisis, leur soir et le plan pris
 const entractes = [];   // V27, tranche 6 : les entractes du direct d'un duel, leurs boutons
 const rivalVu = { lu: null };   // V27, tranche 6 : le rival annoncé, son jeu et sa fiche
+const eliteVue = { lu: null, prise: null, duel: null, battre: null };   // V27, tranche 7 : l'élite du lundi, son écran, sa décision, son duel ; « Pour le battre »
 const veilles = [];   // V17 : un gros match ouvert avant son matin
 // LES SCÈNES (Jalon M) : les choix d'À faire mis en scène citent leur voix ; on garde la première de chaque genre.
 // V10 (tranche 5) : les histoires (V25 C1 : js/histoires.js), la blessure (A4) ; la route (A3) se juge à son bloc.
@@ -428,6 +429,9 @@ async function regler() {
       rivalVu.lu = await page.$eval('#choixModal', m => ({ jeu: [...m.querySelectorAll('.rival-jeu > span')].map(x => x.textContent.trim()),
         lignes: [...m.querySelectorAll('.rival-fiche .rival-l')].map(l => l.querySelectorAll(':scope > span').length) }));
       await page.waitForTimeout(400); await page.screenshot({ path: `${DOSSIER}/rogue-rival.png` });
+      // POUR LE BATTRE (tranche 7) : sous son annonce, les pièces qui répondent à ses lignes fortes, de ton banc ou à trouver.
+      const bt = await page.$('#choixModal .rival-battre');
+      if (bt) { eliteVue.battre = await bt.evaluate(e => [...e.querySelectorAll('.pl-carte')].map(c => c.textContent.replace(/\s+/g, ' ').trim())); await bt.scrollIntoViewIfNeeded(); await page.waitForTimeout(200); await page.screenshot({ path: `${DOSSIER}/rogue-pour-le-battre.png` }); }
       if (rivalVu.lu.jeu.length !== 2 || !/^Son jeu : (des tireurs|des durs|un gros gardien)$/.test(rivalVu.lu.jeu[0])) erreurs.push(`le rival annoncé ne montre pas son style et son intention dominante (« ${rivalVu.lu.jeu.join(' | ')} »)`);
       if (rivalVu.lu.lignes.length !== 3 || rivalVu.lu.lignes.some(n => n !== 2)) erreurs.push(`la fiche du rival n'a pas ses trois lignes, rang contre rang (${rivalVu.lu.lignes.join(', ')})`);
     }
@@ -450,6 +454,8 @@ async function regler() {
       if (!/^Leur jeu : /.test(lu.jeu)) erreurs.push(`l'écran du duel ne montre pas leur jeu (« ${lu.jeu} »)`);
       if (lu.plans.length < 2 || lu.plans.length > 3 || lu.plans.some(x => !x.carte || !x.ligne.length)) erreurs.push(`le banc propose ${lu.plans.length} plan(s), chacun sa carte et ses stats du match (${JSON.stringify(lu.plans)})`);
       if (lu.vieux) erreurs.push(`l'écran du duel montre encore l'adjoint par période, la mise ou le vestiaire (${lu.vieux})`);
+      // L'ÉLITE (tranche 7) : son duel paie une pièce et ses jetons, et coûte un cœur.
+      if (/élite/i.test(lu.k)) { eliteVue.duel = lu.enjeu; if (!/🪙/.test(lu.enjeu) || !/−1 cœur/.test(lu.enjeu)) erreurs.push(`l'enjeu de l'élite ne dit pas ses jetons et son cœur (« ${lu.enjeu} »)`); await page.screenshot({ path: `${DOSSIER}/rogue-elite-duel.png` }); }
       if (/rival/i.test(lu.k) && (!/1 pièce sur 3/.test(lu.enjeu) || !/médailles/.test(lu.enjeu) || /🪙|jeton/.test(lu.enjeu))) erreurs.push(`l'enjeu du rival ne dit pas ce qu'il paie (« ${lu.enjeu} »)`);
       if (!/Sonnés \d+ matchs/.test(lu.enjeu)) erreurs.push(`l'enjeu du duel ne dit pas la défaite (« ${lu.enjeu} »)`);
       /* L'ÉCRAN DU CHOIX TIENT : 1,3 écran au plus (le Jalon M, B3), ses plans à l'écran. */
@@ -589,6 +595,25 @@ async function regler() {
         afaire.lots.push(`${lu.genre}→${pris}`);
         if (!pris) erreurs.push(`« ${lu.sujet.trim()} » touché n'écrit aucune décision`);
       }
+      continue;
+    }
+    /*
+     * L'ÉLITE DU LUNDI (V27, tranche 7 ; devis § 4.5) : la ligne de la boîte, qui ne bloque pas, ouvre son écran — le club, son
+     * rang en force et son jeu, ta vraie chance, ce qu'elle rapporte et ce qu'elle coûte. Photographiée une fois et prise : son
+     * duel se joue comme un rival. Les suivantes restent sans réponse : un soir ordinaire.
+     */
+    if (!eliteVue.lu && await page.$('#hubModal .hub-msg[data-msg="elite"] .hub-msg-tete')) {
+      await page.click('#hubModal .hub-msg[data-msg="elite"] .hub-msg-tete'); await page.waitForTimeout(500);
+      eliteVue.lu = await page.$eval('#choixModal', m => ({ annonce: !!m.querySelector('.rival-annonce'), prono: (m.querySelector('.dl-prono') || { getAttribute: () => '' }).getAttribute('aria-label') || '',
+        enjeu: ((m.querySelector('.dl-enjeu') || {}).textContent || '').replace(/\s+/g, ' ').trim(), options: [...m.querySelectorAll('.tc-prendre')].map(b => b.dataset.choix) }));
+      await page.screenshot({ path: `${DOSSIER}/rogue-elite.png` });
+      if (!eliteVue.lu.annonce || !/^Ta chance : \d+ %$/.test(eliteVue.lu.prono)) erreurs.push(`l'écran de l'élite ne montre pas le club et ta vraie chance (${JSON.stringify(eliteVue.lu)})`);
+      if (!/\+\d+ 🪙/.test(eliteVue.lu.enjeu) || !/−1 cœur/.test(eliteVue.lu.enjeu)) erreurs.push(`l'écran de l'élite ne dit pas ce qu'elle rapporte et coûte (« ${eliteVue.lu.enjeu} »)`);
+      if (eliteVue.lu.options.join() !== 'prendre,non') erreurs.push(`l'élite propose « ${eliteVue.lu.options.join(', ')} » au lieu de la prendre ou d'un soir ordinaire`);
+      const n0 = (await decisionsDuCombat()).length;
+      await page.click('#choixModal:not([hidden]) .tc-prendre[data-choix="prendre"]').catch(() => {}); await attendreDecisions(n0);
+      eliteVue.prise = (await decisionsDuCombat()).slice(n0).find(x => x.elite) || null;
+      if (!eliteVue.prise || !/^el:\d+$/.test(eliteVue.prise.palier)) erreurs.push(`prendre l'élite n'écrit pas sa décision (${JSON.stringify(eliteVue.prise)})`);
       continue;
     }
     if (await page.$('#choixModal:not([hidden]) :is(button.tc-prendre, .tc-prendre):not([disabled])')) { await choix(); continue; }
@@ -1554,6 +1579,8 @@ console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison,
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. duels (un choix chacun, son plan) : ${combats.length ? combats.join(' · ') : 'aucun cette run'} · le rival annoncé : ${rivalVu.lu ? rivalVu.lu.jeu.join(' | ') : 'jamais vu'}`);
 if (!rivalVu.lu) erreurs.push('le rival annoncé ne s\'est jamais ouvert');
+console.log(`20c. l'élite du lundi : ${eliteVue.lu ? `${eliteVue.lu.prono} · ${eliteVue.lu.enjeu}` : 'jamais proposée'} · prise : ${eliteVue.prise ? `jour ${eliteVue.prise.elite.jour + 1}, ${eliteVue.prise.elite.J} 🪙` : 'non'} · son duel : ${eliteVue.duel || 'pas joué'} · pour le battre : ${eliteVue.battre ? eliteVue.battre.join(' / ') : 'rien'}`);
+if (!eliteVue.lu) erreurs.push('l\'élite du lundi ne s\'est jamais proposée');
 console.log(`20c. le calendrier de l'acte (V27, tranche 4) : ${placement.actes.join(' · ') || 'jamais ouvert'}`);
 if (!placement.actes.length) erreurs.push('le calendrier de l\'acte ne s\'est jamais ouvert au premier soir');
 if (veilles.length) erreurs.push(`un gros match s'ouvre avant le matin où il se joue : ${veilles.join(' · ')}`);

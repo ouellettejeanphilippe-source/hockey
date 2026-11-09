@@ -4424,18 +4424,12 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-actions > .btn.gold:not(.hub-suite), .hub-actions-rang .btn.gold { background: transparent; border-color: var(--or); color: var(--or); }
 .hub-actions > .btn.gold:not(.hub-suite):hover:not(:disabled), .hub-actions-rang .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 12%, transparent); }
 
-/* ---- Le gros match, le mini-boss ---- */
+/* ---- La fin d'un tournoi (Sur table) ---- */
 .hub-gros { margin: 0 0 var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--violet); border-radius: var(--r-2); background: color-mix(in srgb, var(--violet) 10%, var(--fond-1)); }
-.hub-gros.aux-couleurs { border-color: var(--eq-band); border-left-color: var(--eq-stripe); background: var(--eq-band); color: var(--eq-ink); }
-.hub-gros.aux-couleurs b { color: inherit; }
-.hub-gros-tete { font-size: var(--t-2); line-height: 1.4; }
-.hub-gros-note, .hub-gros-detail { font-size: var(--t-1); line-height: 1.4; margin-top: var(--esp-1); color: var(--encre-2); }
-.hub-gros-dep { display: flex; flex-direction: column; gap: var(--esp-2); }
-.hub-gros .choix-puces { margin-top: var(--esp-1); }
 /* Hier soir, en un bloc (js/saison.js `voletJourneeSeul`) : le résultat, son but gagnant, le drame, la une, autour de la ligue. */
 .hub-soir { display: flex; flex-direction: column; gap: var(--esp-2); }
 .hub-soir:empty { display: none; }
-.hub-soir > .hub-une, .hub-soir > .hub-miniboss { margin: 0; }
+.hub-soir > .hub-une, .hub-soir > .hub-duel-hier { margin: 0; }
 .hub-autour { display: grid; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--filet); font-size: var(--t-2); line-height: 1.4; color: var(--encre); }
 .hub-autour .hub-une-t { color: var(--encre-3); }
 .hub-autour p { margin: 0; }
@@ -4449,8 +4443,9 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-une-t { grid-row: 1 / span 3; align-self: stretch; display: flex; align-items: center; padding: 2px var(--esp-2); background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; writing-mode: horizontal-tb; transform: rotate(180deg); rotate: none; }
 .hub-une-but { color: var(--encre-2); font-style: italic; }
 .hub-une-voix { color: var(--encre-2); }
-.hub-miniboss { margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--mauvais); background: color-mix(in srgb, var(--mauvais) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
-.hub-miniboss.gagne { border-left-color: var(--bon); background: color-mix(in srgb, var(--bon) 10%, transparent); }
+/* Le duel d'hier en une ligne (tranche 7) : rouge perdu, vert gagné. */
+.hub-duel-hier { margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--mauvais); background: color-mix(in srgb, var(--mauvais) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
+.hub-duel-hier.gagne { border-left-color: var(--bon); background: color-mix(in srgb, var(--bon) 10%, transparent); }
 
 /* ---- Les actions : « Journée suivante » pleine largeur, les seconds rôles en contour sur une rangée ---- */
 .hub-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--esp-2); padding: var(--esp-3); border-bottom: 1px solid var(--filet); flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -5944,7 +5939,7 @@ a.bk-serie:hover, a.bk-serie:focus-visible { box-shadow: inset 0 0 0 1px var(--c
 .rival-annonce b { font: 900 calc(var(--t-7) * 1.6)/0.9 var(--display); }
 .rival-jeu { display: flex; margin: var(--esp-2) calc(-1 * var(--esp-3)) calc(-1 * var(--esp-3)); background: var(--noir-pur); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
 .rival-jeu > span { padding: var(--esp-2) var(--esp-3); }
-.rival-jeu > span:first-child { flex: 1; background: var(--eq-stripe); color: var(--noir-pur); }
+.rival-jeu > span:first-child { flex: 1; background: var(--eq-band); color: var(--eq-ink); }
 .rival-fiche { display: grid; gap: 2px; margin-top: var(--esp-2); }
 .rival-l { display: grid; grid-template-columns: 36px minmax(0, 1fr) 76px minmax(0, 1fr) 36px; align-items: center; gap: var(--esp-2); min-height: 32px; font: 800 var(--t-2)/1 var(--display); }
 .rival-l > span { color: var(--encre-2); text-align: right; }
@@ -5953,6 +5948,11 @@ a.bk-serie:hover, a.bk-serie:focus-visible { box-shadow: inset 0 0 0 1px var(--c
 .rival-l > b { text-align: center; text-transform: uppercase; letter-spacing: 0.06em; }
 .rival-l > i { height: 8px; background: linear-gradient(to left, var(--bon) calc(var(--p) * 100%), var(--fond-3) 0); }
 .rival-l > i.eux { background: linear-gradient(to right, var(--eq-band) calc(var(--p) * 100%), var(--fond-3) 0); }
+/* POUR LE BATTRE (tranche 7) : les pièces qui répondent à ses lignes fortes, sous son annonce ; l'élite à ton dernier cœur. */
+.rival-battre { display: grid; gap: var(--esp-2); margin-top: var(--esp-3); }
+.rival-battre .pl-vide { aspect-ratio: auto; min-height: 64px; padding: var(--esp-2); text-align: center; }
+.rival-annonce + .dl-prono { margin-top: var(--esp-2); }
+.elite-dernier { margin-top: var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--mauvais); color: var(--blanc); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; text-align: center; }
 /* L'ÉCRAN DE FIN (la maquette 8) : chaque acte et son rival, leurs médailles, puis le total. */
 .fin-lignes { display: grid; gap: 2px; }
 .fin-l { display: grid; grid-template-columns: minmax(0, 1fr) auto 48px; align-items: center; gap: var(--esp-2); min-height: 36px; padding: 0 var(--esp-2); background: var(--fond-2); font: 800 var(--t-2)/1 var(--display); }

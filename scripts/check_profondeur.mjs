@@ -159,7 +159,7 @@ if (!isMainThread) {
   };
   contre('place', 'le calendrier placé, jugé à la tranche 4 : −1 à +1 V, aide une graine sur quatre');
   contre('courbe', '*ETAPES_DES_ACTES* [0, 1, 2] contre [0, 0, 0] : la mesure tranche');
-  contre('prudent', 'les élites refusées, jugé à la tranche 7 : prendre gagne au moins autant de Coupes');
+  contre('prudent', 'les élites refusées, jugé par check_elites (tranche 7) : prendre gagne au moins autant de Coupes');
   if (!JUGE) informer('l\'essai court', `${nGraines} graine(s) ne prouvent rien : les bornes se jugent sur 64 graines, en CI (.github/workflows/profondeur.yml)`);
   const total = runs.reduce((a, r) => a + r.s, 0);
   informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s · ${total} s de runs (${presents.map(r => `${r} ${v1(moy(de(r).map(x => x.s)))} s`).join(', ')}) · à 64 graines sur quatre fils : ≈ ${Math.round((total / Math.max(1, nGraines)) * SUR / 4 / 60)} min`);

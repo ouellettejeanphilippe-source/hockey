@@ -23,6 +23,7 @@ on:
       - "scripts/lib/rogue_sim.mjs"
       - "scripts/lib/cartes_robot.mjs"
       - "scripts/check_profondeur.mjs"
+      - "scripts/check_elites.mjs"
       - ".github/workflows/profondeur.yml"
 
 permissions:
@@ -73,3 +74,8 @@ jobs:
 
       - name: La profondeur du Rogue, en actes (tous les robots, en paires)
         run: LIRE=runs node scripts/check_profondeur.mjs
+
+      # Les élites (tranche 7, docs/refonte-v27-7.md) : l'attentif qui les prend contre le prudent qui les refuse, les mêmes dés.
+      - name: Les élites, en paires
+        if: always()
+        run: LIRE=runs node scripts/check_elites.mjs
