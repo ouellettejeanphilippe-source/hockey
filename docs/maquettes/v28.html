@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquettes · un vrai jeu</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Barlow+Condensed:wght@600;700;800;900&family=Manrope:wght@500;700;800&display=swap">
+<style>
+/* V28 · Le Rogue a l'air d'un jeu (9 nov. 2026). Trois directions, deux écrans chacune, à 390 × 844.
+   Les cartes du jeu sont de vraies cartes rendues par js/cartes.js ; la glace et les sprites sont ceux de Sur glace.
+   Les chiffres sont des exemples. */
+:root{--fond:#07080b;--encre:#f4f1e8;--or:#f2c14e;--rouge:#e5484d;--vert:#3ddc84;--bleu:#58a6ff;
+  --pix:"Press Start 2P",monospace;--titre:"Barlow Condensed",system-ui,sans-serif;--texte:Manrope,system-ui,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fond);color:var(--encre);font-family:var(--texte);padding:28px 16px 60px}
+.tete{max-width:1300px;margin:0 auto 28px}
+.tete h1{font-family:var(--titre);font-weight:900;font-size:44px;text-transform:uppercase;margin:0 0 6px;letter-spacing:.01em}
+.tete p{margin:0;color:#b9bcc6;max-width:72ch;line-height:1.5}
+.dir{max-width:1300px;margin:0 auto 54px}
+.dir h2{font-family:var(--titre);font-weight:900;font-size:30px;text-transform:uppercase;margin:0 0 4px;color:var(--or)}
+.dir > p{margin:0 0 18px;color:#b9bcc6;max-width:80ch;line-height:1.5}
+.rangee{display:flex;flex-wrap:wrap;gap:28px}
+figure{margin:0;display:flex;flex-direction:column;gap:10px;max-width:100%}
+figcaption{font-family:var(--titre);font-weight:800;font-size:17px;text-transform:uppercase;color:#d7d9df}
+.tel{width:390px;height:844px;max-width:100%;overflow:hidden;border-radius:22px;position:relative;box-shadow:0 0 0 1px #262a33,0 30px 60px #0008}
+img{display:block}
+.lg{width:34px;height:34px;object-fit:contain}
+.carte{width:100%;height:auto;filter:drop-shadow(0 6px 10px #0009)}
+
+/* ===================== A · ARCADE 16 BITS ===================== */
+.A{background:#0a0c14;font-family:var(--pix);image-rendering:pixelated}
+.A .arena{position:absolute;inset:0;background:url(v28/glace-patinoire.png) center 40%/cover;filter:brightness(.42) saturate(1.1)}
+.A .jumbo{position:absolute;left:12px;right:12px;top:14px;background:#000;border:4px solid #2b2f3d;box-shadow:inset 0 0 0 3px #000,inset 0 0 0 6px #444b5e,0 6px 0 #000;padding:12px 12px 10px}
+.A .jumbo .l1{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#ffb400;text-shadow:0 0 6px #ff8a00aa}
+.A .jumbo .l2{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+.A .coeurs{display:flex;gap:6px}
+.A .coeur{width:22px;height:20px;background:
+  conic-gradient(from 0deg at 50% 50%, transparent 0 0) ;position:relative}
+.A .coeur::before{content:"";position:absolute;inset:0;background:var(--rouge);clip-path:polygon(0 25%,15% 0,35% 0,50% 18%,65% 0,85% 0,100% 25%,100% 50%,50% 100%,0 50%)}
+.A .coeur.vide::before{background:#3a2328}
+.A .piece{display:flex;align-items:center;gap:8px;font-size:12px;color:#ffe08a}
+.A .piece i{width:16px;height:16px;background:#ffcc33;box-shadow:inset -3px -3px 0 #c98a00,0 0 0 2px #000;border-radius:2px}
+.A .rang{font-size:12px;color:#7cf0a5}
+.A .rang small{color:#7d8597;font-size:8px}
+.A .piste{display:flex;align-items:center;gap:4px;margin-top:12px}
+.A .piste span{flex:1;height:8px;background:#22283a}
+.A .piste span.f{background:#ffb400}
+.A .piste span.on{background:#fff;animation:clig 1s steps(2) infinite}
+.A .piste b{width:18px;height:18px;background:#fff;color:#000;font-size:8px;display:grid;place-items:center}
+@keyframes clig{50%{opacity:.25}}
+.A .boite{position:absolute;left:12px;right:12px;border:4px solid #fff;background:#10162a;box-shadow:0 0 0 4px #000,8px 8px 0 #000}
+.A .boite .t{background:#fff;color:#10162a;font-size:9px;padding:6px 8px;letter-spacing:.05em}
+.A .vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 10px 6px;gap:8px}
+.A .vs .club{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:10px;text-align:center;line-height:1.5}
+.A .vs .club img{width:64px;height:64px;image-rendering:auto}
+.A .vs .x{font-size:22px;color:#ffb400;text-shadow:3px 3px 0 #000}
+.A .chance{display:flex;align-items:center;gap:8px;padding:6px 12px 14px;font-size:9px}
+.A .chance .barre{flex:1;height:14px;background:#ffb81c;border:2px solid #000;position:relative}
+.A .chance .barre i{position:absolute;inset:0 56% 0 0;background:#e85d1f}
+.A .banc{position:absolute;left:12px;right:12px;top:432px;background:#000c;border:4px solid #000;box-shadow:inset 0 0 0 3px #444b5e;padding:8px 10px 10px}
+.A .banc .t{font-size:8px;color:#7cf0a5;margin-bottom:8px}
+.A .banc .r{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.A .banc .r img{width:100%}
+.A .banc .r .v{aspect-ratio:5/7;border:3px dashed #444b5e;display:grid;place-items:center;color:#444b5e;font-size:14px}
+.A .commandes{position:absolute;left:12px;right:12px;bottom:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.A .bt{height:56px;border:4px solid #000;background:#2b3350;color:#fff;font-family:var(--pix);font-size:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:inset -4px -4px 0 #1a1f33,inset 4px 4px 0 #4a5684}
+.A .bt b{font-size:16px}
+.A .jouer{position:absolute;left:12px;right:12px;bottom:86px;height:70px;border:4px solid #000;background:#ffb400;color:#1a1000;font-family:var(--pix);font-size:16px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:inset -6px -6px 0 #c47f00,inset 6px 6px 0 #ffe08a,6px 6px 0 #000}
+.A .start{position:absolute;right:16px;top:150px;font-size:8px;background:#000;border:2px solid #fff;padding:6px 8px}
+/* A2 · le match */
+.A .match-glace{position:absolute;left:0;right:0;top:88px;bottom:178px;background:url(v28/glace-patinoire.png) center 60%/cover}
+.A .score{position:absolute;left:10px;right:10px;top:12px;height:64px;background:#000;border:4px solid #444b5e;display:grid;grid-template-columns:auto 1fr auto 1fr auto;align-items:center;gap:8px;padding:0 10px}
+.A .score .eq{font-size:11px;padding:6px 6px;color:#fff}
+.A .score .n{font-size:24px;color:#ffb400;text-align:center}
+.A .score .h{font-size:8px;text-align:center;color:#7cf0a5;line-height:1.7}
+.A .eclair{position:absolute;left:50%;top:330px;transform:translateX(-50%) rotate(-4deg);font-size:30px;color:#ffb400;text-shadow:4px 4px 0 #b3001b,8px 8px 0 #000;white-space:nowrap}
+.A .eclair small{display:block;font-size:10px;color:#fff;text-shadow:2px 2px 0 #000;text-align:center;margin-top:10px;transform:rotate(4deg)}
+.A .banc-live{position:absolute;left:0;right:0;bottom:66px;height:112px;background:#000;border-top:4px solid #2b2f3d;display:flex;gap:8px;align-items:center;padding:8px 10px}
+.A .banc-live .pc{width:62px;flex:none;position:relative}
+.A .banc-live .pc.eteinte{filter:grayscale(1) brightness(.4)}
+.A .banc-live .pc.joue::after{content:"JOUE";position:absolute;left:-2px;right:-2px;bottom:-4px;background:var(--vert);color:#000;font-size:7px;text-align:center;padding:3px 0;border:2px solid #000}
+.A .banc-live .ligne{flex:1;font-size:8px;line-height:1.8;color:#cfd3dc}
+.A .banc-live .ligne b{color:var(--vert)}
+.A .vitesse{position:absolute;left:12px;right:12px;bottom:10px;display:grid;grid-template-columns:1fr 1fr 2fr;gap:8px}
+.A .vitesse .bt{height:46px}
+
+/* ===================== B · LA TABLE DE CARTES ===================== */
+.B{background:radial-gradient(120% 80% at 50% 40%,#1d5c4a 0%,#0f3a2f 55%,#071d18 100%);font-family:var(--titre)}
+.B::before{content:"";position:absolute;inset:0;background:
+  repeating-linear-gradient(90deg,#ffffff06 0 2px,transparent 2px 6px),repeating-linear-gradient(0deg,#00000010 0 2px,transparent 2px 5px);pointer-events:none}
+.B .lignes-glace{position:absolute;inset:0;pointer-events:none;background:
+  radial-gradient(circle at 50% 50%,transparent 70px,#ffffff22 71px 73px,transparent 74px),
+  linear-gradient(transparent calc(50% - 1px),#e5484d55 calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px))}
+.B .hud{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start}
+.B .jeton-pile{display:flex;align-items:center;gap:8px;background:#0008;border-radius:999px;padding:6px 14px 6px 6px;font-size:22px;font-weight:900}
+.B .jeton-pile i{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle,#ffd86b 0 40%,#d99a16 41% 60%,#ffd86b 61%);box-shadow:0 3px 0 #8a5b00,0 6px 0 #6d4600}
+.B .acte{text-align:center;background:#0008;border-radius:14px;padding:6px 14px}
+.B .acte .k{font-size:12px;letter-spacing:.12em;color:#9ad7c2;font-weight:800}
+.B .acte .v{font-size:26px;font-weight:900;line-height:1}
+.B .coeurs{display:flex;gap:6px;background:#0008;border-radius:999px;padding:8px 12px}
+.B .coeurs span{font-size:22px;line-height:1;filter:drop-shadow(0 2px 0 #000)}
+.B .coeurs span.vide{opacity:.25}
+.B .eux{position:absolute;top:92px;left:0;right:0;display:flex;justify-content:center;gap:10px}
+.B .eux .dos{width:84px;height:118px;border-radius:9px;background:linear-gradient(135deg,#ffb81c,#c7861a);border:3px solid #111;box-shadow:0 8px 14px #0008;display:grid;place-items:center;transform:rotate(var(--r))}
+.B .eux .dos img{width:52px;height:52px}
+.B .eux-nom{position:absolute;top:220px;left:0;right:0;text-align:center;font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.B .eux-nom small{display:block;font-size:13px;color:#ffd38a;letter-spacing:.08em}
+.B .pot{position:absolute;top:268px;left:50%;transform:translateX(-50%);width:300px;background:#00000080;border:2px solid #ffffff22;border-radius:18px;padding:12px 16px;text-align:center}
+.B .pot .k{font-size:13px;letter-spacing:.14em;color:#9ad7c2;font-weight:800}
+.B .pot .duel{display:flex;justify-content:center;align-items:baseline;gap:14px;margin-top:2px}
+.B .pot .duel b{font-size:44px;font-weight:900;color:#fff}
+.B .pot .duel span{font-size:20px;color:#9ad7c2}
+.B .pot .duel b.leur{color:#ffd38a}
+.B .pot .bar{height:10px;border-radius:5px;background:#ffb81c;margin-top:6px;overflow:hidden}
+.B .pot .bar i{display:block;height:100%;width:44%;background:#ff6b2c}
+.B .tes{position:absolute;top:410px;left:0;right:0;display:flex;justify-content:center;gap:6px}
+.B .tes .j{width:104px;transform:rotate(var(--r)) translateY(var(--y,0))}
+.B .main{position:absolute;bottom:96px;left:0;right:0;height:140px}
+.B .main .pc{position:absolute;width:82px;bottom:0;left:50%;transform-origin:50% 160%;transform:translateX(calc(-50% + var(--x))) rotate(var(--r))}
+.B .main .pc.on{filter:drop-shadow(0 0 10px #3ddc84)}
+.B .main .libre{width:86px;height:118px;border:3px dashed #ffffff44;border-radius:10px;display:grid;place-items:center;color:#ffffff66;font-size:30px}
+.B .jouer{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:200px;height:64px;border-radius:16px;border:none;background:linear-gradient(#ff9d2c,#e2551b);color:#fff;font:900 30px/1 var(--titre);text-transform:uppercase;letter-spacing:.06em;box-shadow:0 6px 0 #8f2a06,0 12px 18px #0008}
+.B .coin{position:absolute;bottom:22px;width:56px;height:56px;border-radius:50%;background:#0009;border:2px solid #ffffff2a;display:grid;place-items:center;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;text-align:center;line-height:1}
+.B .coin.g{left:16px}.B .coin.d{right:16px}
+/* B2 · le pointage qui se compte */
+.B .tableau{position:absolute;top:84px;left:16px;right:16px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center}
+.B .tableau .eq img{width:58px;height:58px;margin:0 auto}
+.B .tableau .eq div{font-size:16px;font-weight:900;text-transform:uppercase;margin-top:4px}
+.B .tableau .pts{font-size:78px;font-weight:900;line-height:1;letter-spacing:-.02em}
+.B .tableau .pts em{font-style:normal;color:#ffd38a}
+.B .per{position:absolute;top:196px;left:0;right:0;text-align:center;font-size:15px;letter-spacing:.14em;color:#9ad7c2;font-weight:800}
+.B .chaine{position:absolute;top:236px;left:16px;right:16px;background:#00000088;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.B .chaine .k{font-size:13px;letter-spacing:.14em;color:#9ad7c2;font-weight:800}
+.B .chaine .calc{display:flex;align-items:center;justify-content:center;gap:8px;font-size:30px;font-weight:900}
+.B .chaine .calc .b{background:#2563eb;border-radius:10px;padding:2px 12px}
+.B .chaine .calc .r{background:#e5484d;border-radius:10px;padding:2px 12px}
+.B .chaine .calc .o{color:#ffd38a}
+.B .chaine .qui{display:flex;gap:8px;align-items:center}
+.B .chaine .qui img{width:66px}
+.B .chaine .qui p{margin:0;font:700 14px/1.35 var(--texte);color:#dfe6e3}
+.B .chaine .qui p b{color:#3ddc84}
+.B .but{position:absolute;top:500px;left:0;right:0;text-align:center;font-size:64px;font-weight:900;color:#ffd38a;text-shadow:0 5px 0 #b3001b,0 10px 20px #000;transform:rotate(-5deg)}
+.B .but small{display:block;font-size:20px;color:#fff;text-shadow:0 2px 0 #000;letter-spacing:.06em}
+.B .presences{position:absolute;bottom:96px;left:16px;right:16px;display:grid;grid-template-columns:repeat(15,1fr);gap:4px}
+.B .presences i{height:22px;border-radius:4px;background:#ffffff1c}
+.B .presences i.n{background:#3ddc84}.B .presences i.r{background:#e5484d}.B .presences i.e{background:#ffffff55}.B .presences i.on{outline:3px solid #fff}
+
+/* ===================== C · LA CARTE DE LA SAISON ===================== */
+.C{background:#0b1426;font-family:var(--titre)}
+.C .ciel{position:absolute;inset:0;background:
+  radial-gradient(60% 40% at 50% 0%,#2b4a86 0%,transparent 70%),
+  radial-gradient(80% 30% at 50% 100%,#14284d 0%,transparent 70%),
+  repeating-linear-gradient(115deg,#ffffff05 0 1px,transparent 1px 9px),#0b1426}
+.C .hud{position:absolute;top:0;left:0;right:0;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:linear-gradient(#000c,#0000)}
+.C .hud .coeurs{font-size:22px;letter-spacing:4px}
+.C .hud .acte{font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}
+.C .hud .acte small{color:#8fb3ff;font-size:13px;margin-left:6px}
+.C .hud .jt{font-size:20px;font-weight:900;color:#ffd16a}
+.C svg.chemin{position:absolute;inset:0}
+.C .noeud{position:absolute;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;transform:translate(-50%,-50%);background:#16233f;border:3px solid #3c5488;box-shadow:0 4px 0 #050a14}
+.C .noeud img{width:38px;height:38px}
+.C .noeud.fait{opacity:.45;border-color:#2a3a5e}
+.C .noeud.fait::after{content:"✓";position:absolute;right:-6px;bottom:-6px;width:22px;height:22px;border-radius:50%;background:#3ddc84;color:#000;font:900 14px/22px var(--titre);text-align:center}
+.C .noeud.ici{width:74px;height:74px;border-color:#fff;background:#24407a;box-shadow:0 0 0 6px #ffffff22,0 0 30px #58a6ff}
+.C .noeud.ici img{width:50px;height:50px}
+.C .noeud.boutique{background:#3b2a0a;border-color:#f2c14e;font-size:26px}
+.C .noeud.elite{background:#2f1240;border-color:#c48cff;font-size:24px;border-radius:12px;transform:translate(-50%,-50%) rotate(45deg)}
+.C .noeud.elite > *{transform:rotate(-45deg)}
+.C .noeud.rival{width:98px;height:98px;border-color:#e5484d;background:#3a0f16;box-shadow:0 0 0 6px #e5484d33,0 0 40px #e5484d88}
+.C .noeud.rival img{width:68px;height:68px}
+.C .etiq{position:absolute;transform:translateX(-50%);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#c9d6f5;white-space:nowrap;text-shadow:0 2px 0 #000}
+.C .etiq.r{color:#ff8c91;font-size:14px}
+.C .tiroir{position:absolute;left:0;right:0;bottom:0;height:196px;background:#060b16f0;border-top:2px solid #24345a;border-radius:22px 22px 0 0;padding:14px 14px 16px}
+.C .tiroir .k{font-size:13px;letter-spacing:.14em;color:#8fb3ff;font-weight:800;text-transform:uppercase}
+.C .tiroir .vs{display:flex;align-items:center;gap:10px;margin-top:6px}
+.C .tiroir .vs img{width:46px;height:46px}
+.C .tiroir .vs .nom{font-size:26px;font-weight:900;text-transform:uppercase;line-height:1}
+.C .tiroir .vs .nom small{display:block;font-size:13px;color:#9fb0cf;letter-spacing:.06em}
+.C .tiroir .vs .p{margin-left:auto;font-size:34px;font-weight:900;color:#ffd16a}
+.C .tiroir .rang{display:flex;gap:8px;margin-top:12px}
+.C .tiroir .rang .bt{flex:1;height:52px;border-radius:12px;background:#16233f;border:2px solid #2d4373;display:grid;place-items:center;font-size:16px;font-weight:800;text-transform:uppercase}
+.C .tiroir .rang .go{flex:2;background:linear-gradient(#5aa2ff,#2b6fe0);border:none;font-size:22px;font-weight:900;box-shadow:0 5px 0 #173c83}
+/* C2 · le rival, écran de combat */
+.C .vsfond{position:absolute;inset:0;background:linear-gradient(160deg,#6f263d 0 50%,#0b1426 50% 100%)}
+.C .vsfond::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(160deg,#ffffff08 0 2px,transparent 2px 14px)}
+.C .moi,.C .lui{position:absolute;display:flex;flex-direction:column;gap:6px}
+.C .lui{top:58px;right:14px;align-items:flex-end;text-align:right}
+.C .moi{bottom:208px;left:14px}
+.C .gros{font-size:44px;font-weight:900;text-transform:uppercase;line-height:.9;letter-spacing:-.01em;text-shadow:0 4px 0 #000}
+.C .sous{font-size:14px;letter-spacing:.12em;font-weight:800;text-transform:uppercase;color:#ffd0d6}
+.C .lui .logo{width:128px;height:128px;filter:drop-shadow(0 8px 0 #0008)}
+.C .vsx{position:absolute;top:300px;left:16px;transform:rotate(-12deg);font-size:96px;font-weight:900;color:#ffd16a;text-shadow:0 6px 0 #b3001b,0 12px 30px #000}
+.C .regle{position:absolute;top:322px;right:14px;width:230px;background:#000c;border-left:5px solid #e5484d;padding:10px 12px;font:700 14px/1.4 var(--texte)}
+.C .regle b{display:block;font:900 13px/1 var(--titre);letter-spacing:.12em;text-transform:uppercase;color:#ff8c91;margin-bottom:6px}
+.C .moi .cartes{display:flex;gap:6px}
+.C .moi .cartes img{width:92px}
+.C .pour{position:absolute;left:14px;right:14px;bottom:86px;display:flex;gap:8px;align-items:center}
+.C .pour .k{font-size:12px;letter-spacing:.14em;font-weight:800;text-transform:uppercase;color:#8fb3ff;width:70px;line-height:1.2}
+.C .pour img{width:62px}
+.C .pour .manque{width:62px;height:86px;border:2px dashed #ffffff40;border-radius:8px;display:grid;place-items:center;font-size:11px;color:#ffffff88;text-align:center;font-weight:800;text-transform:uppercase}
+.C .combat{position:absolute;left:14px;right:14px;bottom:14px;height:62px;border-radius:14px;border:none;background:linear-gradient(#ff5a64,#c21d2c);color:#fff;font:900 28px/1 var(--titre);text-transform:uppercase;letter-spacing:.08em;box-shadow:0 6px 0 #6d0a13}
+
+/* ===================== LA BOUCLE (la feuille du soir, les trois portes) — dans la peau de A ===================== */
+.A .hud{position:absolute;left:10px;right:10px;top:10px;background:#000;border:4px solid #2b2f3d;padding:9px 10px;display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#ffb400}
+.A .hud .coeurs .coeur{width:16px;height:14px}
+.A .hud .pts{color:#7cf0a5}
+.A .leur{position:absolute;left:10px;right:10px;top:62px;border:4px solid #fff;background:#3a0f16;box-shadow:0 0 0 4px #000}
+.A .leur .t{background:#fff;color:#3a0f16;font-size:8px;padding:6px 8px;display:flex;justify-content:space-between}
+.A .leur .corps{display:grid;grid-template-columns:72px 1fr;gap:10px;padding:8px}
+.A .leur .lignes{font-size:7px;line-height:2.1;color:#ffd0d6}
+.A .leur .lignes b{color:#fff}
+.A .leur .lignes .star{color:#ffb400}
+.A .jauge{position:absolute;left:10px;right:10px;top:236px;font-size:9px;display:flex;align-items:center;gap:8px}
+.A .jauge .b{flex:1;height:16px;background:#6f263d;border:3px solid #000;position:relative}
+.A .jauge .b i{position:absolute;inset:0 51% 0 0;background:#c8102e}
+.A .jauge .b u{position:absolute;top:-3px;bottom:-3px;left:41%;width:3px;background:#fff8;text-decoration:none}
+.A .jauge .gain{color:#7cf0a5}
+.A .ordre{position:absolute;left:10px;right:10px;top:270px;border:4px solid #fff;background:#10162a;box-shadow:0 0 0 4px #000}
+.A .ordre .t{background:#fff;color:#10162a;font-size:8px;padding:6px 8px}
+.A .trio{display:grid;grid-template-columns:22px 26px 1fr 64px 44px;align-items:center;gap:6px;padding:8px 8px;border-bottom:3px solid #000;font-size:8px}
+.A .trio:last-child{border-bottom:0}
+.A .trio .poignee{color:#7d8597;font-size:14px}
+.A .trio .n{width:24px;height:24px;background:#ffb400;color:#000;display:grid;place-items:center;font-size:10px}
+.A .trio .nom{line-height:1.7}
+.A .trio .nom small{display:block;color:#7cf0a5;font-size:7px}
+.A .trio .nom small.r{color:#ff8c91}
+.A .trio .jb{height:10px;background:#22283a;border:2px solid #000;position:relative}
+.A .trio .jb i{position:absolute;inset:0;background:#3ddc84;right:var(--v)}
+.A .trio .pr{color:#ffb400;text-align:right}
+.A .trio.leve{background:#24407a;outline:3px solid #ffb400;transform:translateX(6px)}
+.A .civil{position:absolute;left:10px;right:10px;top:604px;font-size:8px;display:flex;align-items:center;gap:8px}
+.A .civil .c{flex:1;height:46px;border:3px dashed #444b5e;display:grid;place-items:center;color:#7d8597;font-size:7px;text-align:center;line-height:1.6}
+.A .civil .c.mis{border-style:solid;border-color:#ff8c91;color:#ff8c91}
+/* les portes */
+.A .depist{position:absolute;left:10px;right:10px;top:62px;font-size:9px;text-align:center;color:#fff;line-height:1.8}
+.A .depist small{display:block;color:#7cf0a5;font-size:7px}
+.A .portes{position:absolute;left:10px;right:10px;top:110px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.A .porte{height:206px;border:4px solid #000;background:linear-gradient(#2b3350,#1a1f33);box-shadow:inset -4px -4px 0 #11152a,inset 4px 4px 0 #4a5684;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10px 4px;font-size:7px;text-align:center;line-height:1.7;position:relative}
+.A .porte img{width:54px;height:54px;image-rendering:auto}
+.A .porte .poignee{position:absolute;right:8px;top:96px;width:8px;height:8px;background:#ffb400;box-shadow:0 0 0 2px #000}
+.A .porte .n{font-size:16px;color:#ffb400}
+.A .porte .tag{background:#e5484d;color:#fff;padding:3px 4px;font-size:6px}
+.A .porte.ouverte{background:#000;outline:4px solid #ffb400;outline-offset:-2px}
+.A .ouverte-t{position:absolute;left:10px;right:10px;top:334px;font-size:8px;color:#ffb400;display:flex;justify-content:space-between}
+.A .dans{position:absolute;left:10px;right:10px;top:356px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.A .dans .k{position:relative}
+.A .dans .chip{position:absolute;left:-4px;right:-4px;bottom:-10px;background:#000;border:2px solid #7cf0a5;color:#7cf0a5;font-size:6px;text-align:center;padding:4px 0;line-height:1.5}
+.A .dans .plie{aspect-ratio:5/7;border:3px dashed #444b5e;display:grid;place-items:center;font-size:7px;color:#7d8597;text-align:center;line-height:1.8}
+.A .tirs{position:absolute;left:10px;right:10px;top:612px;background:#000;border:4px solid #2b2f3d;padding:8px 10px;font-size:7px;line-height:2;color:#cfd3dc}
+.A .tirs b{color:#7cf0a5}
+.A .bas{position:absolute;left:10px;right:10px;bottom:12px;display:grid;grid-template-columns:1fr 1fr 2fr;gap:8px}
+.A .bas .bt{height:56px}
+.A .bas .go{background:#ffb400;color:#1a1000;box-shadow:inset -4px -4px 0 #c47f00,inset 4px 4px 0 #ffe08a}
+
+.note{font:500 14px/1.5 var(--texte);color:#b9bcc6;max-width:390px;margin:0}
+.note b{color:var(--encre)}
+</style>
+
+<header class="tete">
+  <h1>Le Rogue, un vrai jeu</h1>
+  <p>Le jeu neuf, mécanique et écrans ensemble (docs/refonte-v28.md). D'abord la boucle, ses deux écrans neufs : la feuille du soir et les trois portes. Puis trois directions pour la peau, deux écrans chacune : A l'arcade 16 bits, B la table de cartes, C la carte de la saison. Aucune n'a de barre d'onglets, d'en-tête de site ni de page qui défile. Les cartes sont les vraies cartes du jeu, telles quelles ; la glace et les patineurs sont ceux de Sur glace. Les chiffres sont des exemples.</p>
+</header>
+
+<!-- ===================================================== LA BOUCLE -->
+<section class="dir">
+  <h2>La boucle : la carte, la feuille, le match, les portes</h2>
+  <p>Le jeu neuf tient dans ces quatre écrans, et chacun est une règle : tu choisis ton chemin sur la carte de l'acte (C1, plus bas), tu lis leurs lignes et places tes trios sur la feuille du soir, tu regardes le match se jouer présence par présence sur la glace (A2), puis tu ouvres une des trois portes pour signer un joueur. Ici, la feuille et les portes, dans la peau de A.</p>
+  <div class="rangee">
+    <figure>
+      <div class="tel A">
+        <div class="arena" style="filter:brightness(.25)"></div>
+        <div class="hud"><span class="coeurs"><span class="coeur"></span><span class="coeur vide"></span></span><span>ACTE II · CASE 3/7</span><span class="pts">5/8 PTS</span><span class="piece" style="font-size:9px"><i></i>140</span></div>
+        <div class="leur">
+          <div class="t"><span>CE SOIR · AVALANCHE 2000-01</span><span>DES TIREURS</span></div>
+          <div class="corps">
+            <img class="carte" src="v28/c-roy.png" alt="">
+            <div class="lignes">
+              <span class="star">★ 1ER</span> <b>SAKIC · HEJDUK · TANGUAY</b><br>
+              2E <b>FORSBERG · DRURY · YELLE</b><br>
+              3E <b>REINPRECHT · PARKER · DINGMAN</b><br>
+              4E <b>MESSIER · WILLSIE · KLEMM</b><br>
+              DEVANT LE FILET <b>ROY · ,913</b>
+            </div>
+          </div>
+        </div>
+        <div class="jauge"><span>TA CHANCE</span><div class="b"><i></i><u></u></div><span class="gain">49% ▲8</span></div>
+        <div class="ordre">
+          <div class="t">TON ORDRE · LE ROULEMENT DE LA TORTUE</div>
+          <div class="trio leve"><span class="poignee">≡</span><span class="n">1</span><span class="nom">CHECKERS 🔧☯<small>CONTRE SAKIC · ACCORD LA TRAPPE</small></span><span class="jb"><i style="--v:8%"></i></span><span class="pr">×4</span></div>
+          <div class="trio"><span class="poignee">≡</span><span class="n">2</span><span class="nom">SNIPERS 🎯🅰<small>ACCORD LA PASSE ET LE TIR</small></span><span class="jb"><i style="--v:0%"></i></span><span class="pr">×4</span></div>
+          <div class="trio"><span class="poignee">≡</span><span class="n">3</span><span class="nom">PASSEURS 🅰🦍</span><span class="jb"><i style="--v:22%"></i></span><span class="pr">×4</span></div>
+          <div class="trio"><span class="poignee">≡</span><span class="n">4</span><span class="nom">PLOMBIERS 🪠👊<small class="r">BRIND'AMOUR · 62 DE JAMBES</small></span><span class="jb"><i style="--v:38%"></i></span><span class="pr">×3</span></div>
+        </div>
+        <div class="civil"><span>EN CIVIL</span><div class="c mis">SKJEI<br>BLESSÉ 2 M.</div><div class="c">GLISSE<br>UN JOUEUR</div><div class="c">GLISSE<br>UN JOUEUR</div></div>
+        <div class="bas"><div class="bt">LIGNES</div><div class="bt">BANC</div><div class="bt go">▶ AU MATCH</div></div>
+      </div>
+      <figcaption>La feuille du soir</figcaption>
+      <p class="note">Avant chaque match : <b>leurs lignes</b>, leur vedette en carte, <b>ta chance</b> (le seul endroit où elle se montre), et <b>tes quatre trios à placer</b> dans le roulement de ton coach. Ici, mettre tes checkers d'abord, contre Sakic, fait passer ta chance de 41 à 49 %. Contre un club de profondeur, l'ordre par force serait le bon.</p>
+    </figure>
+    <figure>
+      <div class="tel A">
+        <div class="arena" style="filter:brightness(.25)"></div>
+        <div class="hud"><span class="coeurs"><span class="coeur"></span><span class="coeur vide"></span></span><span>GAGNÉ 4-2</span><span class="pts">7/8 PTS</span><span class="piece" style="font-size:9px"><i></i>152</span></div>
+        <div class="depist">LE DÉPISTEUR<small>UN JOUEUR DANS UN DE CES VESTIAIRES</small></div>
+        <div class="portes">
+          <div class="porte"><span class="tag">LE CLUB AFFRONTÉ</span><img src="../../img/logos/COL.svg" alt=""><span>AVALANCHE<br>2000-01</span><span class="n">4</span><span>DANS TON<br>ESPACE</span><span class="poignee"></span></div>
+          <div class="porte ouverte"><span>&nbsp;</span><img src="../../img/logos/PIT.svg" alt=""><span>PENGUINS<br>2005-06</span><span class="n">5</span><span>DANS TON<br>ESPACE</span></div>
+          <div class="porte"><span>&nbsp;</span><img src="../../img/logos/NYR.svg" alt=""><span>RANGERS<br>1997-98</span><span class="n">2</span><span>DANS TON<br>ESPACE</span><span class="poignee"></span></div>
+        </div>
+        <div class="ouverte-t"><span>▶ PENGUINS 2005-06</span><span style="color:#7d8597">5 DE 23</span></div>
+        <div class="dans">
+          <div class="k"><img class="carte" src="v28/c-crosby.png" alt=""><span class="chip">🎯🅰 LA PASSE ET LE TIR</span></div>
+          <div class="k"><img class="carte" src="v28/c-lemieux.png" alt=""><span class="chip">LIEN PIT '06 ×2</span></div>
+          <div class="plie">+3 DANS<br>TON ESPACE<br>›</div>
+        </div>
+        <div class="tirs">CROSBY AU 2E TRIO, À LA PLACE DE RECCHI :<br>TIRS PAR PRÉSENCE <b>1,9 → 2,3</b> · MASSE <b>91,4 → 93,8 M$</b> / 95,5</div>
+        <div class="bas"><div class="bt">PASSER<br>+6</div><div class="bt">RELANCE</div><div class="bt go">SIGNER</div></div>
+      </div>
+      <figcaption>Les trois portes</figcaption>
+      <p class="note">Après chaque match, gagné ou perdu : <b>trois vrais vestiaires</b>, dont toujours <b>le club que tu viens d'affronter</b>. La porte ouverte ne montre que ceux qui tiennent sous ton plafond, avec <b>l'accord ou le lien</b> qu'ils allumeraient ; signer dit ce que ça change en tirs, pas en pourcentage.</p>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================================================== A -->
+<section class="dir">
+  <h2>A · Arcade 16 bits</h2>
+  <p>Le Rogue prend la peau de Sur glace : la foule, la glace et les patineurs en pixel art, un tableau indicateur pour l'état de la run, des boîtes de menu à la NHL 94. Le match se regarde sur la vraie glace, avec ses patineurs : tes cartes de banc s'allument en bas quand elles jouent.</p>
+  <div class="rangee">
+    <figure>
+      <div class="tel A">
+        <div class="arena"></div>
+        <div class="jumbo">
+          <div class="l1"><span>ACTE II · MATCH 33</span><span class="piece"><i></i>140</span></div>
+          <div class="l2">
+            <div class="coeurs"><span class="coeur"></span><span class="coeur vide"></span></div>
+            <div class="rang">14<small>E</small> <small>/ 15 À TENIR</small></div>
+          </div>
+          <div class="piste"><span class="f"></span><span class="f"></span><span class="on"></span><span></span><span></span><b>⚔</b></div>
+        </div>
+        <div class="start">☰ PAUSE</div>
+        <div class="boite" style="top:196px">
+          <div class="t">▶ PROCHAIN MATCH · CHEZ EUX</div>
+          <div class="vs">
+            <div class="club"><img src="../../img/logos/MTL.svg" alt="">TOI<br><span style="color:#7cf0a5">17-12-3</span></div>
+            <div class="x">VS</div>
+            <div class="club"><img src="../../img/logos/BOS.svg" alt="">BOSTON<br><span style="color:#ffb400">'08</span></div>
+          </div>
+          <div class="chance"><span>44%</span><div class="barre"><i></i></div><span>56%</span></div>
+        </div>
+        <div class="banc"><div class="t">TON BANC · 2 JOUENT CE SOIR</div><div class="r"><img class="carte" src="v28/p-canonnier.png" alt=""><img class="carte" src="v28/p-mur.png" alt="" style="filter:grayscale(1) brightness(.5)"><img class="carte" src="v28/p-bloqueur.png" alt=""><img class="carte" src="v28/p-ruee.png" alt="" style="filter:grayscale(1) brightness(.5)"><div class="v">+</div></div></div>
+        <button class="jouer">▶ JOUER</button>
+        <div class="commandes">
+          <div class="bt"><b>≡</b>LIGNES</div>
+          <div class="bt"><b>♣</b>BANC</div>
+          <div class="bt"><b>★</b>CLUB</div>
+        </div>
+      </div>
+      <figcaption>A1 · Le vestiaire avant le match</figcaption>
+      <p class="note">Ce qui compte en haut, comme un tableau indicateur : tes <b>cœurs</b>, tes <b>jetons</b>, ton <b>rang</b> sur la cible, la piste de l'acte qui clignote. Un seul gros bouton. Les Lignes, le banc et le club, trois boutons de manette.</p>
+    </figure>
+    <figure>
+      <div class="tel A">
+        <div class="score">
+          <span class="eq" style="background:#c8102e">TOI</span><span class="n">2</span>
+          <span class="h">2E<br>12:40</span><span class="n">1</span><span class="eq" style="background:#00539b">NYI</span>
+        </div>
+        <div class="match-glace"></div>
+        <div class="eclair">BUT !<small>BRIND'AMOUR · 9E · 2-1</small></div>
+        <div class="banc-live">
+          <div class="pc joue"><img class="carte" src="v28/p-canonnier.png" alt=""></div>
+          <div class="pc eteinte"><img class="carte" src="v28/p-mur.png" alt=""></div>
+          <div class="pc joue"><img class="carte" src="v28/p-bloqueur.png" alt=""></div>
+          <div class="ligne"><b>LE CANONNIER</b><br>+4 TIRS CE SOIR<br><b>LE BLOQUEUR</b><br>−3 TIRS CONTRE</div>
+        </div>
+        <div class="vitesse"><div class="bt">×2</div><div class="bt">×8</div><div class="bt">»» LA FIN</div></div>
+      </div>
+      <figcaption>A2 · Le match, sur la glace de Sur glace</figcaption>
+      <p class="note">Le match qu'on regarde (le rival, l'élite, les séries) se joue <b>avec les patineurs de Sur glace</b> : les tirs et les buts de la feuille, mis en scène sur la vraie glace, au lieu des points et du fil de texte d'aujourd'hui.</p>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================================================== B -->
+<section class="dir">
+  <h2>B · La table de cartes</h2>
+  <p>Comme Balatro ou Marvel Snap : un seul écran, une table, et tout se passe dessus. Leurs cartes en haut, les tiennes en bas, ton banc en main. Au match, le pointage se compte sous tes yeux, carte par carte : tu vois ce que ton build fait.</p>
+  <div class="rangee">
+    <figure>
+      <div class="tel B">
+        <div class="lignes-glace"></div>
+        <div class="hud">
+          <div class="jeton-pile"><i></i>140</div>
+          <div class="acte"><div class="k">ACTE II</div><div class="v">33<span style="font-size:15px;color:#9ad7c2"> / 54</span></div></div>
+          <div class="coeurs"><span>❤️</span><span class="vide">❤️</span></div>
+        </div>
+        <div class="eux">
+          <div class="dos" style="--r:-6deg"><img src="../../img/logos/BOS.svg" alt=""></div>
+          <div class="dos" style="--r:0deg"><img src="../../img/logos/BOS.svg" alt=""></div>
+          <div class="dos" style="--r:6deg"><img src="../../img/logos/BOS.svg" alt=""></div>
+        </div>
+        <div class="eux-nom">Bruins 2007-08<small>Des tireurs · chez eux</small></div>
+        <div class="pot">
+          <div class="k">TIRS ATTENDUS</div>
+          <div class="duel"><b>31</b><span>contre</span><b class="leur">34</b></div>
+          <div class="bar"><i></i></div>
+        </div>
+        <div class="tes">
+          <img class="j carte" style="--r:-5deg;--y:8px" src="v28/c-ovechkin.png" alt="">
+          <img class="j carte" style="--r:0deg" src="v28/c-gretzky.png" alt="">
+          <img class="j carte" style="--r:5deg;--y:8px" src="v28/c-lemieux.png" alt="">
+        </div>
+        <div class="main">
+          <img class="pc carte on" style="--r:-14deg;--x:-117px" src="v28/p-canonnier.png" alt="">
+          <img class="pc carte" style="--r:-5deg;--x:-39px" src="v28/p-mur.png" alt="">
+          <img class="pc carte on" style="--r:5deg;--x:39px" src="v28/p-bloqueur.png" alt="">
+          <div class="pc libre" style="--r:14deg;--x:117px">+</div>
+        </div>
+        <div class="coin g">Lignes</div>
+        <button class="jouer">Jouer</button>
+        <div class="coin d">Menu</div>
+      </div>
+      <figcaption>B1 · La table avant le match</figcaption>
+      <p class="note">Leur club en dos de cartes, <b>ton premier trio</b> debout, <b>ton banc</b> en main (celles qui jouent ce soir brillent). Toucher une carte de la main la glisse dans une case ; les jetons sont une pile, les cœurs des pions.</p>
+    </figure>
+    <figure>
+      <div class="tel B">
+        <div class="lignes-glace"></div>
+        <div class="hud">
+          <div class="jeton-pile"><i></i>140</div>
+          <div class="acte"><div class="k">LE RIVAL</div><div class="v">54</div></div>
+          <div class="coeurs"><span>❤️</span><span class="vide">❤️</span></div>
+        </div>
+        <div class="tableau">
+          <div class="eq"><img src="../../img/logos/MTL.svg" alt=""><div>Toi</div></div>
+          <div class="pts">3<em> · </em>2</div>
+          <div class="eq"><img src="../../img/logos/COL.svg" alt=""><div>Colorado</div></div>
+        </div>
+        <div class="per">3E PÉRIODE · PRÉSENCE 12 SUR 15</div>
+        <div class="chaine">
+          <div class="k">CE QUI VIENT DE JOUER</div>
+          <div class="calc"><span class="b">2,0</span><span class="o">→</span><span class="b">2,4</span><span class="o">→</span><span class="r">2,9 tirs</span></div>
+          <div class="qui"><img class="carte" src="v28/p-ruee.png" alt=""><p><b>La ruée</b> : en 3e, à égalité ou derrière, tu tires plus.<br><b>Le canonnier relaie</b> : un tir de plus.</p></div>
+        </div>
+        <div class="but">BUT !<small>Gretzky · 3-2</small></div>
+        <div class="presences"><i class="n"></i><i class="e"></i><i class="r"></i><i class="e"></i><i class="n"></i><i class="e"></i><i class="e"></i><i class="r"></i><i class="e"></i><i class="n"></i><i class="e"></i><i class="n on"></i><i></i><i></i><i></i></div>
+        <button class="jouer" style="width:240px;font-size:24px">Suivante ›</button>
+      </div>
+      <figcaption>B2 · Le match qui se compte</figcaption>
+      <p class="note">Le match défile en <b>quinze présences</b> (la rangée du bas : vert, un but pour, rouge, un but contre). À chaque présence où une carte joue, son effet se calcule à l'écran, comme les jetons de Balatro, <b>en vrais tirs</b>.</p>
+    </figure>
+  </div>
+</section>
+
+<!-- ===================================================== C -->
+<section class="dir">
+  <h2>C · La carte de la saison</h2>
+  <p>Comme Slay the Spire : l'acte est une carte, ses matchs des cases sur un chemin, la boutique, l'élite et le rival y sont dessinés. Tu touches la case suivante, la scène s'ouvre. Le rival a son écran de combat, comme un boss.</p>
+  <div class="rangee">
+    <figure>
+      <div class="tel C">
+        <div class="ciel"></div>
+        <svg class="chemin" viewBox="0 0 390 844" aria-hidden="true">
+          <path d="M195 700 C 130 670, 110 640, 126 610 S 160 560, 150 520 S 250 470, 240 420 S 140 360, 150 318 S 260 260, 250 212 S 195 150, 195 118" fill="none" stroke="#3c5488" stroke-width="6" stroke-dasharray="2 14" stroke-linecap="round"/>
+          <path d="M195 700 C 130 670, 110 640, 126 610 S 160 560, 150 520" fill="none" stroke="#8fb3ff" stroke-width="6" stroke-linecap="round"/>
+          <path d="M240 420 C 300 390, 305 350, 290 318" fill="none" stroke="#3c5488" stroke-width="6" stroke-dasharray="2 14" stroke-linecap="round"/>
+        </svg>
+        <div class="hud"><span class="coeurs">❤️<span style="opacity:.25">❤️</span></span><span class="acte">Acte II<small>match 33</small></span><span class="jt">🪙 140</span></div>
+        <div class="noeud fait" style="left:195px;top:700px"><img src="../../img/logos/DET.svg" alt=""></div>
+        <div class="noeud fait" style="left:126px;top:610px"><img src="../../img/logos/OTT.svg" alt=""></div>
+        <div class="noeud ici" style="left:150px;top:520px"><img src="../../img/logos/BOS.svg" alt=""></div>
+        <div class="etiq" style="left:150px;top:562px;color:#fff">Ce soir</div>
+        <div class="noeud" style="left:240px;top:420px"><img src="../../img/logos/CHI.svg" alt=""></div>
+        <div class="noeud elite" style="left:290px;top:318px"><span>◆</span></div>
+        <div class="etiq" style="left:290px;top:354px;color:#d6b0ff">Élite</div>
+        <div class="noeud boutique" style="left:150px;top:318px">🛒</div>
+        <div class="etiq" style="left:150px;top:352px">Marché · 41</div>
+        <div class="noeud" style="left:250px;top:212px"><img src="../../img/logos/NYR.svg" alt=""></div>
+        <div class="noeud rival" style="left:195px;top:118px"><img src="../../img/logos/COL.svg" alt=""></div>
+        <div class="etiq r" style="left:195px;top:172px">Le rival · match 54</div>
+        <div class="tiroir">
+          <div class="k">Ce soir · chez eux</div>
+          <div class="vs"><img src="../../img/logos/BOS.svg" alt=""><div class="nom">Bruins<small>2007-08 · des tireurs</small></div><div class="p">44 %</div></div>
+          <div class="rang"><div class="bt">Lignes</div><div class="bt">Banc</div><div class="bt go">Jouer</div></div>
+        </div>
+      </div>
+      <figcaption>C1 · L'acte en carte</figcaption>
+      <p class="note">Les <b>14 matchs</b> d'avant le marché sont des cases du chemin ; les <b>soirs ordinaires</b> se jouent d'un toucher, en rafale jusqu'à la prochaine case qui compte (un marché, une élite, le rival). Plus de « Jour suivant » 186 fois.</p>
+    </figure>
+    <figure>
+      <div class="tel C">
+        <div class="vsfond"></div>
+        <div class="lui">
+          <div class="sous">Le rival de l'acte II</div>
+          <img class="logo" src="../../img/logos/COL.svg" alt="">
+          <div class="gros">Avalanche<br>2000-01</div>
+        </div>
+        <div class="regle"><b>Son jeu</b>Des tireurs. Leur 1er trio saute une présence sur deux.</div>
+        <div class="vsx">VS</div>
+        <div class="moi">
+          <div class="cartes"><img class="carte" src="v28/c-roy.png" alt=""><img class="carte" src="v28/c-gretzky.png" alt=""></div>
+          <div class="gros" style="font-size:36px">Toi · 14<sup style="font-size:18px">e</sup></div>
+        </div>
+        <div class="pour">
+          <div class="k">Pour le battre</div>
+          <img class="carte" src="v28/p-bloqueur.png" alt="">
+          <div class="manque">À trouver</div>
+          <div class="manque">À trouver</div>
+        </div>
+        <button class="combat">Au combat</button>
+      </div>
+      <figcaption>C2 · Le rival, comme un boss</figcaption>
+      <p class="note">L'écran d'avant le rival est un <b>écran de combat</b> : son écusson géant, son jeu en une ligne, tes vedettes en face, et les pièces qui le battent (la tienne allumée, celles qui manquent en pointillés).</p>
+    </figure>
+  </div>
+</section>
+</html>

@@ -23,6 +23,30 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 - [x] **A3 · La défensive** (7 nov.) — `check_suppression` étendu (le canal par joueur, vols moins revirements pondérés par la glace, par poste, en retenue 2013-2025 et en paires) : il ne tient pas — il ne bat pas le club seul (−0,1 %) ni ne se sépare du gardien (+0,2 %, intervalles à cheval sur zéro) ; la possession tombe comme le devis le prévoit, le moteur ne bouge pas — `check_suppression` (rouge, la mesure).
 - [ ] *Après* : D2, les autres modes, avec son devis (la V26).
 
+## Refonte · V28, le Rogue de zéro, mécanique et écrans ensemble (JP, 9 nov. : *un vrai plan clair qui en fait un roguelike complet, complexe pis le fun* ; *J'hais l'interface. On dirait pas un vrai jeu.* ; *interface et mécanique, pour un roguelike, c'est super intimement lié, un change l'autre*)
+
+Le devis : docs/refonte-v28.md. La boucle :
+- la carte de l'acte, à chemins ;
+- la feuille du soir ;
+- le match en quinze présences sur la glace de Sur glace ;
+- les trois portes.
+
+Puis trois actes, deux cœurs, des séries en 3 de 5, un HUD et un menu pause, les cartes telles quelles. 86 noms dans « Ce qui part ». Les maquettes : docs/maquettes/v28.html. **L'ancien Rogue est gelé** dès que JP dit oui.
+
+- [ ] **JP tranche les quatre questions du § 11** :
+  - la boucle ;
+  - le moteur des présences ;
+  - la direction (C pour la carte, A pour le reste) ;
+  - l'ancien Rogue gelé puis supprimé.
+- [ ] **0 · Le test d'un jour** — le moteur des présences sur de vrais clubs, trois robots, 64 actes — *mesure_run* (neuf) ; rouge, on change le noyau.
+- [~] **1 · Les écrans** :
+  - fait : trois directions sur deux écrans, plus la feuille du soir et les trois portes ;
+  - à faire : toutes les scènes dans la direction choisie ; JP tranche.
+- [ ] **2 · Un acte** — « Le Rogue neuf » à côté de l'ancien — la porte 2 (JP relance un deuxième acte), *check_match*, *check_scene*, *check_neuf*, *essai_run*.
+- [ ] **3 · La run** — trois actes et les séries, les robots — *mesure_run* en CI, *check_run*.
+- [ ] **4 · Le remplacement** — l'ancien Rogue part d'un coup — `check_refonte` sur la somme, `check_mort`, `check_sauvegardes`.
+- [ ] **5 · La méta** et **6 · le ménage du simulateur** — *mesure_run*, `check_empreinte`.
+
 ## Refonte · V27, le Rogue en roguelike (JP, 7 nov. : *calendrier réel pour toutes les équipes, mais tu choisis les équipes qui vont quand pour avoir duels plus tough aux bons endroits*)
 
 Le devis : docs/refonte-v27.md — une run = une saison en quatre actes, deux ❤️, un rival par acte annoncé avec son jeu, une élite par acte au plus, le banc de cinq et la pièce en boutique, la boutique à sept nœuds ; revu le 7 nov. (revue adverse : « À reprendre »), six décisions de JP appliquées, la Dynastie écrite dedans, la mise doublée partie, 94 noms dans « Ce qui part », quatre questions au § 11. Chaque tranche porte son extrait `docs/refonte-v27-<n>.md` et passe `check_refonte` dessus.
@@ -43,6 +67,7 @@ Le devis : docs/refonte-v27.md — une run = une saison en quatre actes, deux �
     - [x] **6a · Le duel à un choix** (8 nov., docs/refonte-v27-6a.md) — le rival montre son vrai jeu à son annonce et à l'affiche (son style lu dans ses vraies stats, son intention dominante) ; un seul choix avant le match (deux ou trois plans de ton banc, Ton match), le plan qui répond ; l'entracte à un bouton ; l'écran de combat, les propositions par période, les entractes à choix et la mise doublée partent — `check_duel` (réécrit), `check_gros`, `check_instantane`.
     - [x] **6b · Le plan du soir part** (8 nov., docs/refonte-v27-6b.md) — les matchs ordinaires n'ont plus de plan ; ses idées sont des pièces ; une vieille décision `plan` ne joue rien ; `check_plan_de_match` part (« Ton match ne change rien » passe à `check_duel`) — `check_graine`, `check_duel`.
 - [x] **7 · Les élites** (9 nov., docs/refonte-v27-7.md) — construites et mesurées en paires — `check_elites` (neuf). Le lundi des actes II et III, une ligne de la boîte (qui ne bloque pas) propose un club du top 8 de la semaine : ta vraie chance, `J` 🪙 et une pièce, ou un cœur ; prise, un duel. Trois pièces « pour le battre » (le bloqueur, le patineur, le trafic) lisent le jeu de l'adversaire du soir, et l'annonce d'un rival ou d'une élite les nomme. Le jeu et les deux robots passent par les mêmes fonctions (`eliteDeLaSemaine`, `decisionDElite`, `jetonsDesElites`, `etatDeLaRun`). La bannière et le dépistage du gros match partent.
+- *En attente (9 nov.)* : les tranches 8 à 11 ne se codent pas tant que JP n'a pas tranché la V28 (docs/refonte-v28.md § 11) ; s'il dit oui, elles partent avec l'ancien Rogue.
 - [ ] **8 · Les fourches** — une aux 2 ou 3 semaines, les autres en nouvelles d'Hier soir — `mesure_rythme`, `check_histoires`, `mesure_decisions` (neuf).
 - [ ] **9 · La méta en variété** — les déblocages de force partent et sont remboursés, les jalons et les exigences réécrits — `check_rogue`, `check_profondeur`.
 - [ ] **10 · L'ordre de Ce soir** — Hier soir en tête, en 1,0 écran — `check_plateau`, `check_hauteur`, `essai_rogue`.

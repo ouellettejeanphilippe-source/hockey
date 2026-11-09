@@ -3515,3 +3515,53 @@ JP, 7 nov. 2026 : *les pouvoirs du coach, les adjoints et la main du deck fondus
 **Course 4, écartée (9 nov. 2026).** L'attentif qui « peut se permettre le cœur » (un levier de joueur, pas une règle : à ses deux cœurs le contrôle tenu, à son dernier seulement avec 4 rangs d'avance sur la cible de l'acte, `MARGE_ELITE`) : 7 Coupes contre 11 pour le prudent, 15 morts contre 9 (dont 6 à l'acte III, de l'élite prise au dernier cœur), un cœur perdu dans 40 runs ; 92 élites prises, 62 gagnées (67 %), 42 🪙 par run. Il ne rattrape pas le prudent et meurt plus : retiré, la branche revient à la politique de la course 3. Ce qui reste à trancher par JP est la règle de la perte.
 
 **La décision de JP (9 nov. 2026) : *Sonnés + jetons, pas de cœur*.** Les quatre courses le montrent : avec un cœur en jeu, l'attentif qui prend ses élites ne bat jamais le prudent (course 1, 40 % : 7 Coupes contre 11, 11 morts contre 9 ; course 2, 50 % : 9 contre 11, 9 contre 9 ; course 3, 50 % et 90 🪙 : 7 contre 11, 9 contre 9 ; course 4, la marge au dernier cœur : 7 contre 11, 15 contre 9). Une élite perdue ne coûte plus de cœur : les sonnés 5 matchs (`SONNES_ELITE`, js/sim.js) et la moitié de sa récompense en jetons (`perteDeLElite`, `PART_PERDUE` 0,5, js/actes.js ; J = 51 perdue → −26 🪙), la caisse jamais sous zéro. `V_COEUR` devient `VALEUR_DU_RISQUE` (90 🪙 : il ne mesure plus un cœur, il échelonne la récompense). « Ton dernier cœur » part de l'écran de l'élite ; l'écran de fin ne cite plus d'élite. Le robot attentif garde 50 % de chance et ne regarde plus ses cœurs. Correction : le revert annoncé de la course 4 n'avait pas pris ; sa marge (`MARGE_ELITE`) est retirée ici, avec la condition sur les cœurs.
+
+## La V28 : le Rogue de zéro, mécanique et écrans ensemble (9 nov. 2026)
+
+**Ce que JP a dit** (9 nov. 2026), en trois temps :
+- *tu gardes tellement les anciennes mécaniques que tu bâtis sur ce qui marche pas […] pas juste un roguelike coat of paint sur un jeu qui marche pas* ;
+- quand un premier brouillon a refait la mécanique : *Je parle de l'interface. J'hais l'interface. On dirait pas un vrai jeu.* ;
+- quand un deuxième a refait l'interface seule : *interface et mécanique, pour un roguelike, c'est genre super intimement lié, un change l'autre.*
+
+Le devis réunit les deux : docs/refonte-v28.md ; les maquettes : docs/maquettes/v28.html. Rien n'est codé ; JP tranche quatre questions.
+
+**Pourquoi vingt refontes sont retombées sur le même jeu.** Elles changeaient l'un sans l'autre.
+- **La mécanique** : chaque système de décision posé sur le simulateur au jour le jour est mort de la même mesure :
+  - les événements à 0,03 V ;
+  - la main du duel, « un bonus sans décision » ;
+  - les systèmes de ligne « dans le bruit » ;
+  - le plan du soir « dominé » ;
+  - l'adjoint aux entractes à 0,5 V pour 40 % du temps ;
+  - le calendrier placé, « à peu près zéro ».
+- **L'interface** : chaque refonte repeignait la même charpente de site : l'en-tête, les cinq portes, les pages qui défilent, la boîte, « Jour suivant » 186 fois.
+- **Ce qui les liait** : un match simulé d'un trait ne peut que se relire, et une saison de 82 soirs ne peut que se feuilleter. Le noyau n'était jamais sur la table : chaque devis l'écrivait dans « ce qui ne bouge pas ». Les règles et une cinquantaine de juges encodaient l'ancien jeu.
+
+**Ce qui est proposé** : la boucle d'un roguelike, où chaque règle a son écran.
+- **La carte de l'acte** : un chemin à embranchements, avec des matchs contre de vrais clubs, l'élite, le marché, le vestiaire, une histoire, et le rival au bout. Choisir son chemin, c'est choisir qui on affronte et quand.
+- **La feuille du soir** avant chaque match : l'ordre de ses quatre trios contre leurs lignes, qui reste en civil.
+- **Le match** : quinze présences jouées par un moteur à lui, vues sur la glace de Sur glace.
+- **Trois portes après chaque match**, dont le club affronté, pour signer un joueur sous le plafond.
+- **La run** : trois actes, une cible en points, deux cœurs, des séries en 3 de 5.
+- **La coquille** : un HUD et un menu pause à la place des portes et de la boîte.
+- **Ce qui reste** : les cartes, le banc de cinq, le rival, l'élite, les deux cœurs.
+
+**Ce qui a été mesuré** (brouillons jetables, clubs synthétiques, à refaire sur de vrais clubs à la tranche 0) :
+- **Choisir son trio à chaque présence n'est pas un vrai choix** : « envoie le plus frais » est toujours bon. C'était le contre de la V6 et le matching de la V13 sous un autre nom.
+- **Fixer l'ordre de ses trios avant le match contre leurs lignes en est un** : +12 points contre un club à vedettes, +4 contre des tireurs, 0 contre la profondeur ; trois meilleurs ordres pour cinq jeux.
+- **Les trois relecteurs** ont corrigé :
+  - le moteur trop raide, *K* 1,5 → 0,75-1,0, et le gardien en (Tir/Arrêts)^0,25 ;
+  - la profondeur absente : le coût des jambes 30 → 40 ;
+  - le temps d'arrêt, qui était un faux choix : il devient un appel de variance ;
+  - le pronostic, qui jouait le club à ta place : il reste sur la feuille du soir seulement ;
+  - les portes, qui faisaient la boule de neige : trois portes après chaque match ;
+  - les séries en 2 de 3, qui finissaient la run sur des dés : en 3 de 5, un cœur rachète une série ;
+  - le vestiaire entier, illisible au téléphone : la porte ne montre que ceux qui tiennent sous le plafond ;
+  - une semaine : neuf touchers au plus, aucun sans décision.
+
+**Ce qui a été écarté** :
+- garder les 82 soirs et mieux choisir entre eux ;
+- refaire l'interface seule ;
+- un deck de cartes de tactique au match ;
+- le pronostic à chaque geste ;
+- le match de Sur table ou de Sur glace joué dans le Rogue ;
+- le simulateur calibré sous le match neuf.
