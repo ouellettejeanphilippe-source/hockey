@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V28 · tous les écrans</title>
+<style>
+/* V28, tranche 1 (10 nov. 2026) : toutes les scènes du Rogue neuf, direction C (JP, 9 nov. : « C partout »).
+   Dix-sept écrans à 390 × 844. Aucune barre d'onglets, aucun en-tête de site, aucune page qui défile : une scène, un HUD.
+   Les cartes sont de vraies cartes du jeu (js/cartes.js : cartonHtml, carteHtml, carteDePiece), à la série de leur saison.
+   Une seule run racontée d'un écran à l'autre : la run 7, les années 2000, Mike Babcock, l'acte II. */
+@font-face{font-family:"Barlow Condensed";font-weight:600;src:url(../../fonts/BarlowCondensed-600-latin.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:700;src:url(../../fonts/BarlowCondensed-700-latin.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:800;src:url(../../fonts/BarlowCondensed-800-latin.woff2) format("woff2")}
+@font-face{font-family:Manrope;font-weight:400 800;src:url(../../fonts/Manrope-latin.woff2) format("woff2")}
+:root{--nuit:#0b1426;--case:#16233f;--bord:#2d4373;--encre:#f2f5fb;--encre-2:#9fb0cf;--encre-3:#6f82a8;
+  --bleu:#5aa2ff;--bleu-2:#2b6fe0;--or:#ffd16a;--rouge:#ff5a64;--rouge-2:#c21d2c;--vert:#3ddc84;--mauve:#c48cff;
+  --titre:"Barlow Condensed",system-ui,sans-serif;--texte:Manrope,system-ui,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:#05080f;color:var(--encre);font-family:var(--texte);padding:28px 16px 60px}
+.tete{max-width:1300px;margin:0 auto 26px}
+.tete h1{font:800 44px/1 var(--titre);text-transform:uppercase;margin:0 0 8px}
+.tete p{margin:0 0 6px;color:var(--encre-2);max-width:80ch;line-height:1.5}
+.groupe{max-width:1300px;margin:0 auto 46px}
+.groupe h2{font:800 28px/1 var(--titre);text-transform:uppercase;color:var(--or);margin:0 0 16px}
+.rangee{display:flex;flex-wrap:wrap;gap:28px}
+figure{margin:0;display:flex;flex-direction:column;gap:10px;width:390px;max-width:100%}
+figcaption{font:800 17px/1.2 var(--titre);text-transform:uppercase;color:#d7deee}
+.note{font:500 13.5px/1.5 var(--texte);color:var(--encre-2);margin:0}
+.note b{color:var(--encre)}
+img{display:block;max-width:100%}
+
+/* ---------- le téléphone, la scène ---------- */
+.tel{width:390px;height:844px;max-width:100%;overflow:hidden;border-radius:22px;position:relative;box-shadow:0 0 0 1px #1c2740,0 30px 60px #0009;font-family:var(--titre);
+  background:radial-gradient(70% 34% at 50% 0,#27467f 0,transparent 72%),radial-gradient(90% 30% at 50% 100%,#14284d 0,transparent 70%),repeating-linear-gradient(115deg,#ffffff05 0 1px,transparent 1px 9px),var(--nuit)}
+.tel.rouge{background:linear-gradient(160deg,#6f263d 0 46%,transparent 46%),repeating-linear-gradient(160deg,#ffffff07 0 2px,transparent 2px 14px),var(--nuit)}
+.c{width:100%;height:auto;filter:drop-shadow(0 5px 8px #0009)}
+.abs{position:absolute}
+.k{font:800 12px/1 var(--titre);text-transform:uppercase;letter-spacing:.14em;color:#8fb3ff}
+.or{color:var(--or)}.vert{color:var(--vert)}.rougeT{color:var(--rouge)}.gris{color:var(--encre-2)}
+.t13{font:700 13.5px/1.45 var(--titre);text-transform:uppercase;letter-spacing:.03em}
+
+/* le HUD : les cœurs dessinés, l'acte, la cible, les jetons, la pause */
+.hud{position:absolute;inset:0 0 auto 0;height:54px;display:flex;align-items:center;gap:10px;padding:0 12px;background:linear-gradient(#000b,#0000);z-index:5}
+.hud .coeurs{display:flex;gap:4px}
+svg.co{width:22px;height:20px;fill:var(--rouge);flex:none}
+svg.co.vide{fill:#3a2a3a}
+.hud .acte{font:800 18px/1 var(--titre);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.hud .acte small{font-size:12px;color:#8fb3ff;margin-left:5px;letter-spacing:.08em}
+.hud .cible{margin-left:auto;font:800 18px/1 var(--titre);background:#0008;border:1px solid var(--bord);border-radius:999px;padding:5px 10px;white-space:nowrap}
+.hud .cible small{font-size:11px;color:var(--encre-2);letter-spacing:.08em;margin-left:3px}
+.hud .jt{display:flex;align-items:center;gap:5px;font:800 18px/1 var(--titre);color:var(--or)}
+.hud .droite{margin-left:auto}
+.piece-or{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,#ffe39a 0 38%,#d99a16 40% 62%,#ffd86b 64%);box-shadow:0 2px 0 #8a5b00;flex:none}
+.hud .pause{width:34px;height:34px;border-radius:10px;background:#0008;border:1px solid var(--bord);display:grid;place-items:center;flex:none}
+.hud .pause i{width:12px;height:13px;border-inline:4px solid var(--encre)}
+
+/* les boutons */
+.bas{position:absolute;left:14px;right:14px;bottom:14px;display:flex;gap:8px}
+.bt{flex:1;height:54px;border-radius:13px;background:var(--case);border:2px solid var(--bord);display:grid;place-items:center;align-content:center;font:800 17px/1 var(--titre);text-transform:uppercase;letter-spacing:.05em;color:var(--encre);text-align:center}
+.bt.go{flex:2;background:linear-gradient(var(--bleu),var(--bleu-2));border:none;font-size:22px;box-shadow:0 5px 0 #173c83}
+.bt.combat{flex:2;background:linear-gradient(var(--rouge),var(--rouge-2));border:none;font-size:22px;box-shadow:0 5px 0 #6d0a13}
+.bt.orB{flex:2;background:linear-gradient(#ffdf8c,#e7a92c);border:none;color:#241600;font-size:22px;box-shadow:0 5px 0 #8a5b00}
+.bt small{display:block;font-size:11px;color:var(--encre-2);letter-spacing:.08em;margin-top:3px}
+.bt.eteint{opacity:.45;border-style:dashed}
+
+.plaque{display:flex;align-items:center;gap:10px}
+.plaque img{width:46px;height:46px;flex:none}
+.plaque .nom{font:800 26px/1 var(--titre);text-transform:uppercase}
+.plaque .nom small{display:block;font:700 13px/1.2 var(--titre);color:var(--encre-2);letter-spacing:.06em;margin-top:3px}
+.panneau{background:#0a1224d9;border:1px solid var(--bord);border-radius:14px;padding:10px 12px}
+.jauge{display:flex;align-items:center;gap:8px;font:800 20px/1 var(--titre)}
+.jauge .b{flex:1;height:12px;border-radius:6px;overflow:hidden;background:var(--eux,#ffb81c);box-shadow:0 0 0 1px #fff3}
+.jauge .b i{display:block;height:100%;background:var(--toi,#c8102e)}
+.puce{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 8px;font:700 12px/1 var(--titre);text-transform:uppercase;letter-spacing:.05em;background:#0009;border:1px solid var(--bord);white-space:nowrap}
+.puce.v{border-color:var(--vert);color:var(--vert)}.puce.o{border-color:var(--or);color:var(--or)}.puce.r{border-color:var(--rouge);color:var(--rouge)}.puce.m{border-color:var(--mauve);color:var(--mauve)}
+.enjeu{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.enjeu div{border-radius:10px;padding:8px 10px;font:700 13px/1.35 var(--titre);text-transform:uppercase;letter-spacing:.03em}
+.enjeu .g{background:#0f3a2a;border:1px solid #1f7a55}.enjeu .p{background:#3a1218;border:1px solid #8a2a35}
+.enjeu b{display:block;font-size:11px;letter-spacing:.14em;margin-bottom:3px}
+.banc5{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.banc5 .eteinte{filter:grayscale(1) brightness(.45)}
+.banc5 .joue{position:relative}
+.banc5 .joue::after{content:"";position:absolute;inset:-3px;border:2px solid var(--vert);border-radius:8px;box-shadow:0 0 12px var(--vert)}
+.banc5 .joue b{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);z-index:1;background:#000;border:1px solid var(--vert);color:var(--vert);border-radius:999px;padding:2px 6px;font:800 11px/1 var(--titre);white-space:nowrap}
+.banc5 .vide{aspect-ratio:5/7;border:2px dashed #ffffff33;border-radius:8px}
+.plaf{height:16px;border-radius:8px;background:#ffffff14;position:relative;overflow:hidden}
+.plaf i{position:absolute;inset:0 auto 0 0;background:#5aa2ff}
+.plaf i.mort{background:repeating-linear-gradient(45deg,#ff5a64 0 5px,#8a2a35 5px 10px)}
+.plaf i.neuf{background:var(--or)}
+
+/* ---------- 1 · le départ ---------- */
+.pas{display:flex;gap:6px}
+.pas span{flex:1;height:30px;border-radius:8px;background:var(--case);border:1px solid var(--bord);display:grid;place-items:center;font:800 12px/1 var(--titre);text-transform:uppercase;letter-spacing:.06em;color:var(--encre-3)}
+.pas span.on{background:#24407a;border-color:#fff;color:#fff}
+.loto{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.loto p{margin:8px 0 0;font:700 12px/1.3 var(--titre);text-transform:uppercase;letter-spacing:.03em;text-align:center;color:var(--encre-2)}
+.loto p b{display:block;font-size:14px;color:var(--encre)}
+.loto .on img{outline:3px solid #fff;outline-offset:3px;border-radius:9px}
+
+/* ---------- 2 · la carte de l'acte ---------- */
+svg.chemin{position:absolute;inset:0;width:100%;height:100%}
+svg.chemin path{fill:none;stroke:#34497a;stroke-width:5;stroke-dasharray:2 12;stroke-linecap:round}
+svg.chemin path.pris{stroke:#8fb3ff;stroke-dasharray:none}
+svg.chemin path.offert{stroke:#fff;stroke-dasharray:2 10}
+.noeud{position:absolute;width:48px;height:48px;border-radius:50%;display:grid;place-items:center;transform:translate(-50%,-50%);background:var(--case);border:3px solid #3c5488;box-shadow:0 4px 0 #050a14}
+.noeud img{width:32px;height:32px}
+.noeud svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.noeud.fait{opacity:.6}
+.noeud.fait::after{content:"";position:absolute;right:-5px;bottom:-5px;width:18px;height:18px;border-radius:50%;background:var(--vert) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M4.5 9.5l3 3 6-6.5' fill='none' stroke='%23000' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E")}
+.noeud.saute{opacity:.26}
+.noeud.choisi{width:62px;height:62px;border-color:#fff;background:#24407a;box-shadow:0 0 0 6px #ffffff2b,0 0 30px #58a6ff}
+.noeud.choisi img{width:42px;height:42px}
+.noeud.marche{background:#3b2a0a;border-color:var(--or);color:var(--or)}
+.noeud.vest{background:#0f2f2a;border-color:var(--vert);color:var(--vert)}
+.noeud.hist{background:#1d2540;border-color:#9fb0cf;color:#dfe7fa}
+.noeud.elite{border-radius:12px;transform:translate(-50%,-50%) rotate(45deg);background:#2f1240;border-color:var(--mauve);box-shadow:0 0 0 5px #ffffff22,0 0 22px #c48cff}
+.noeud.elite img{transform:rotate(-45deg);width:30px;height:30px}
+.noeud.rival{width:84px;height:84px;border-color:var(--rouge);background:#3a0f16;box-shadow:0 0 0 6px #e5484d33,0 0 36px #e5484d88}
+.noeud.rival img{width:58px;height:58px}
+.etq{position:absolute;transform:translateX(-50%);font:700 11px/1 var(--titre);text-transform:uppercase;letter-spacing:.06em;color:#b9c6e6;white-space:nowrap;text-shadow:0 2px 0 #000,0 0 6px #0b1426}
+.tiroir{position:absolute;left:0;right:0;bottom:0;background:#060b16f2;border-top:2px solid #24345a;border-radius:22px 22px 0 0;padding:12px 14px 14px}
+.tiroir .deux{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 10px}
+.tiroir .opt{border-radius:12px;border:2px solid var(--bord);background:var(--case);padding:8px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.tiroir .opt.on{border-color:#fff;background:#1c3160}
+.tiroir .opt .l1{display:flex;align-items:center;gap:8px;font:800 18px/1 var(--titre);text-transform:uppercase;white-space:nowrap}
+.tiroir .opt .l1 img{width:30px;height:30px}
+.tiroir .opt .l2{font:700 12px/1.25 var(--titre);color:var(--encre-2);text-transform:uppercase;letter-spacing:.05em}
+.tiroir .opt .l3{display:flex;gap:5px;flex-wrap:wrap}
+
+/* ---------- 3 · le rival ---------- */
+.lui{position:absolute;top:66px;right:14px;display:flex;flex-direction:column;align-items:flex-end;text-align:right;gap:6px}
+.lui img{width:120px;height:120px;filter:drop-shadow(0 8px 0 #0008)}
+.gros{font:800 44px/.9 var(--titre);text-transform:uppercase;text-shadow:0 4px 0 #000}
+.sous{font:800 13px/1 var(--titre);letter-spacing:.12em;text-transform:uppercase;color:#ffd0d6}
+.vsx{position:absolute;font:800 92px/1 var(--titre);color:var(--or);text-shadow:0 6px 0 #b3001b,0 12px 30px #000;transform:rotate(-12deg)}
+.stat3{display:grid;grid-template-columns:34px 1fr 74px 1fr 34px;align-items:center;gap:6px;font:800 14px/1 var(--titre);text-transform:uppercase;padding:5px 0}
+.stat3 .bar{height:8px;border-radius:4px;background:#ffffff14;position:relative}
+.stat3 .bar i{position:absolute;top:0;bottom:0;border-radius:4px}
+.stat3 .bar.g i{right:0;background:#c8102e}.stat3 .bar.d i{left:0;background:#8fb3ff}
+.stat3 .m{text-align:center;color:var(--encre-2);letter-spacing:.08em;font-size:12px}
+.stat3 small{font-size:10px}
+.atrouver{position:relative}
+.atrouver img{filter:grayscale(1) brightness(.5)}
+.atrouver span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#000;border:1px solid #fff8;border-radius:999px;padding:3px 7px;font:800 10.5px/1 var(--titre);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+
+/* ---------- 4-5 · la feuille du soir ---------- */
+.leurs{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:center}
+.lignes{display:flex;flex-direction:column;gap:5px}
+.lignes div{display:grid;grid-template-columns:24px 1fr;gap:6px;align-items:baseline}
+.lignes b{font:800 12px/1 var(--titre);color:var(--encre-2);letter-spacing:.05em}
+.lignes .etoile b,.lignes .etoile span{color:var(--or)}
+.lignes span{font:700 13.5px/1 var(--titre);text-transform:uppercase;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trio{display:grid;grid-template-columns:24px 1fr auto 56px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #ffffff12}
+.trio:last-child{border-bottom:0}
+.trio .n{width:22px;height:22px;border-radius:6px;background:#24407a;display:grid;place-items:center;font:800 13px/1 var(--titre)}
+.trio .qui{font:700 15px/1 var(--titre);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trio .acc{font-size:13px;white-space:nowrap}
+.trio .acc.non{font:700 11px/1 var(--titre);color:var(--encre-3);text-transform:uppercase;letter-spacing:.05em}
+.jb{height:7px;border-radius:4px;background:#ffffff1c;overflow:hidden}
+.jb i{display:block;height:100%;background:var(--vert)}
+.jb.use i{background:#ffb347}
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.plans p{margin:6px 0 0;font:700 12.5px/1.25 var(--titre);text-align:center;text-transform:uppercase;letter-spacing:.03em}
+.plans .on img{outline:3px solid #fff;outline-offset:2px;border-radius:9px}
+
+/* ---------- 6 · le match ---------- */
+.score{position:absolute;inset:0 0 auto 0;height:92px;background:#000c;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 16px;border-bottom:2px solid #1c2740}
+.score .eq{display:flex;align-items:center;gap:8px;font:800 20px/1 var(--titre);text-transform:uppercase}
+.score .eq img{width:44px;height:44px}
+.score .eq.d{justify-content:flex-end}
+.score .n{font:800 56px/1 var(--titre);text-align:center}
+.score .n small{display:block;font:700 12px/1 var(--titre);letter-spacing:.12em;color:#8fb3ff;margin-top:2px}
+.glace{position:absolute;left:24px;right:24px;top:102px;height:340px}
+.but{position:absolute;left:0;right:0;text-align:center;font:800 62px/1 var(--titre);color:var(--or);text-shadow:0 5px 0 #b3001b,0 10px 22px #000;transform:rotate(-4deg)}
+.buteur{position:absolute;display:flex;align-items:center;gap:12px;background:#000d;border:1px solid var(--bord);border-radius:12px;padding:8px 12px 8px 8px}
+.buteur img{width:48px}
+.buteur b{font:800 21px/1 var(--titre);text-transform:uppercase;display:block}
+.buteur span{font:700 12.5px/1.3 var(--titre);color:var(--encre-2);text-transform:uppercase;letter-spacing:.05em}
+.fil{position:absolute;left:14px;right:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.fil div{height:24px;border-radius:6px;background:#ffffff12;position:relative;font:700 10px/24px var(--titre);color:var(--encre-3);text-align:center;letter-spacing:.1em}
+.fil i{position:absolute;top:3px;bottom:3px;width:5px;border-radius:2px;background:var(--vert)}
+.fil i.e{background:var(--rouge)}
+.fil u{position:absolute;top:-4px;bottom:-4px;width:3px;background:#fff}
+
+/* ---------- 7-8 · les portes ---------- */
+.portes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.porte{height:316px;border-radius:56px 56px 10px 10px;background:linear-gradient(#2a4379,#14244a);border:3px solid #4a67a8;box-shadow:inset 0 0 0 6px #0b1730,0 8px 0 #050a14;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:10px;padding:14px 6px 16px;text-align:center;position:relative}
+.porte img{width:66px;height:66px;position:absolute;top:50px}
+.porte .nom{font:800 17px/1 var(--titre);text-transform:uppercase}
+.porte .nom small{display:block;font-size:13px;color:var(--encre-2);margin-top:3px}
+.porte .n{font:800 36px/1 var(--titre);color:var(--or)}
+.porte .n small{display:block;font:700 10.5px/1.2 var(--titre);color:var(--encre-2);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+.porte .tag{position:absolute;top:-10px;background:var(--rouge);border-radius:999px;padding:4px 8px;font:800 10px/1 var(--titre);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.porte::after{content:"";position:absolute;right:12px;top:166px;width:9px;height:9px;border-radius:50%;background:var(--or);box-shadow:0 2px 0 #8a5b00}
+.grille3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 10px}
+.grille3 .it{position:relative}
+.grille3 .it.on img{outline:3px solid #fff;outline-offset:2px;border-radius:9px}
+.grille3 .coin{position:absolute;top:-7px;right:-5px;background:#000;border:1px solid var(--vert);border-radius:999px;padding:3px 6px;font-size:12px;line-height:1;box-shadow:0 0 10px #3ddc8488}
+.grille3 .sous{margin-top:5px;font:800 14px/1.15 var(--titre);text-align:center;color:var(--or);letter-spacing:.02em;text-transform:none}
+.grille3 .sous small{display:block;font:700 10.5px/1.2 var(--titre);text-transform:uppercase;letter-spacing:.04em;color:var(--vert);margin-top:2px;min-height:13px}
+.plie{aspect-ratio:5/7;border:2px dashed #ffffff33;border-radius:9px;display:grid;place-items:center;font:800 13px/1.3 var(--titre);text-transform:uppercase;text-align:center;color:var(--encre-2)}
+
+/* ---------- 9 · l'échange ---------- */
+.face{display:grid;grid-template-columns:1fr 40px 1fr;align-items:center;gap:6px}
+.face .qui{text-align:center}
+.face .qui img{width:128px;margin:0 auto}
+.face .qui b{display:block;font:800 12px/1 var(--titre);letter-spacing:.12em;margin-bottom:6px;text-transform:uppercase}
+.face .fl{font:800 30px/1 var(--titre);color:var(--or);text-align:center}
+.cmp{display:grid;grid-template-columns:1fr 92px 1fr;gap:5px 8px;font:800 18px/1 var(--titre);align-items:center}
+.cmp .m{font-size:11px;letter-spacing:.1em;color:var(--encre-2);text-transform:uppercase;text-align:center}
+.cmp .a{text-align:right}.cmp .mieux{color:var(--vert)}
+
+/* ---------- 10 · les lignes ---------- */
+.seg{display:flex;gap:6px}
+.seg span{flex:1;height:34px;border-radius:9px;background:var(--case);border:1px solid var(--bord);display:grid;place-items:center;font:800 13px/1 var(--titre);text-transform:uppercase;letter-spacing:.06em;color:var(--encre-2)}
+.seg span.on{background:#24407a;border-color:#fff;color:#fff}
+.ligne{display:grid;grid-template-columns:18px repeat(3,88px) 1fr;gap:8px;align-items:center;margin-bottom:10px}
+.ligne .v{writing-mode:vertical-rl;transform:rotate(180deg);font:800 12px/1 var(--titre);letter-spacing:.14em;color:#8fb3ff;text-transform:uppercase;text-align:center}
+.ligne .cs{position:relative}
+.ligne .cs.leve img{opacity:.3}
+.ligne .cs.leve::after{content:"D'ici";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:800 11px/1 var(--titre);text-transform:uppercase;letter-spacing:.08em;color:#fff;background:#000;border:1px solid #fff;border-radius:999px;padding:3px 7px}
+.ligne .ici{position:absolute;inset:-3px;border:3px dashed var(--vert);border-radius:10px;background:#3ddc8426;display:grid;place-items:end center;padding-bottom:5px}
+.ligne .ici span{background:#000;border:1px solid var(--vert);color:var(--vert);border-radius:999px;padding:3px 6px;font:800 10.5px/1 var(--titre);text-transform:uppercase;white-space:nowrap}
+.ligne .ici.non{border-color:#ffffff40;background:transparent}
+.ligne .ici.non span{border-color:#ffffff40;color:var(--encre-2)}
+.ligne .cote{font:700 11px/1.25 var(--titre);text-transform:uppercase;letter-spacing:.04em;color:var(--encre-2)}
+.ligne .cote b{display:block;font-size:17px;line-height:1.2;color:var(--encre);letter-spacing:0;white-space:nowrap}
+.ligne .cote .j{display:block;margin-top:6px;font:800 20px/1 var(--titre);color:var(--vert)}
+.ligne .cote .j.use{color:#ffb347}
+
+/* ---------- 11-13 · le marché, le vestiaire, l'histoire ---------- */
+.etal{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.etal .prix{margin-top:7px;height:30px;border-radius:8px;background:#000a;border:1px solid var(--or);display:flex;align-items:center;justify-content:center;gap:5px;font:800 18px/1 var(--titre);color:var(--or)}
+.etal p{margin:5px 0 0;font:700 11.5px/1.2 var(--titre);text-transform:uppercase;text-align:center;color:var(--encre-2)}
+.choixV{border-radius:16px;border:2px solid var(--bord);background:#0a1224d9;padding:12px 14px}
+.choixV.on{border-color:#fff;background:#152548}
+.choixV h3{margin:0 0 4px;font:800 24px/1 var(--titre);text-transform:uppercase}
+.choixV .sub{font:700 13px/1.3 var(--titre);color:var(--encre-2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px}
+.avap{display:grid;grid-template-columns:62px 1fr 30px 34px;gap:8px;align-items:center;font:800 14px/1 var(--titre);text-transform:uppercase;padding:5px 0}
+.bulle{background:#f2f5fb;color:#0b1426;border-radius:16px 16px 16px 4px;padding:12px 14px;font:700 17px/1.3 var(--texte)}
+.voix{display:inline-block;background:var(--or);color:#241600;border-radius:999px;padding:4px 10px;font:800 12px/1 var(--titre);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.reps{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.reps p{margin:6px 0 8px;font:700 13px/1.3 var(--titre);text-transform:uppercase;text-align:center;min-height:52px}
+.reps .prendre{height:42px;border-radius:10px;background:linear-gradient(#ffdf8c,#e7a92c);color:#241600;display:grid;place-items:center;font:800 16px/1 var(--titre);text-transform:uppercase;letter-spacing:.06em;box-shadow:0 4px 0 #8a5b00}
+
+/* ---------- 14-17 · la fin d'acte, les séries, la fin, la pause ---------- */
+.cellules{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cellules div{background:#0a1224d9;border:1px solid var(--bord);border-radius:12px;padding:10px 8px;text-align:center}
+.cellules b{display:block;font:800 30px/1 var(--titre)}
+.cellules small{display:block;font:700 11px/1.2 var(--titre);letter-spacing:.1em;text-transform:uppercase;color:var(--encre-2);margin-top:4px}
+.ronde{border-radius:14px;border:2px solid var(--bord);background:#0a1224d9;padding:10px 12px;display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center}
+.ronde img{width:44px;height:44px}
+.ronde .t{font:800 21px/1 var(--titre);text-transform:uppercase;white-space:nowrap}
+.ronde .t small{display:block;font:700 12px/1.2 var(--titre);color:var(--encre-2);letter-spacing:.06em;margin-top:3px}
+.ronde .pts{display:flex;gap:5px}
+.ronde .pts i{width:14px;height:14px;border-radius:50%;background:#ffffff1c}
+.ronde .pts i.g{background:var(--vert)}.ronde .pts i.p{background:var(--rouge)}
+.ronde.on{border-color:#fff;background:#152548}
+.ronde.fait{opacity:.6}
+.ronde.avenir{border-style:dashed;opacity:.7}
+.recap{display:grid;grid-template-columns:62px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #ffffff12;font:800 16px/1 var(--titre);text-transform:uppercase}
+.recap small{display:block;font:700 12px/1.2 var(--titre);color:var(--encre-2);letter-spacing:.04em;margin-top:3px}
+.voile{position:absolute;inset:0;background:#040810e6}
+.menu{position:absolute;left:28px;right:28px;top:168px;display:flex;flex-direction:column;gap:9px}
+.menu div{height:52px;border-radius:13px;background:var(--case);border:2px solid var(--bord);display:flex;align-items:center;justify-content:space-between;padding:0 16px;font:800 19px/1 var(--titre);text-transform:uppercase;letter-spacing:.05em}
+.menu div small{font:700 12px/1 var(--titre);color:var(--encre-2);letter-spacing:.08em}
+.menu div.on{background:linear-gradient(var(--bleu),var(--bleu-2));border:none;box-shadow:0 5px 0 #173c83}
+.menu div.q{border-color:#8a2a35;color:#ff9aa1;margin-top:10px}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="coeur" viewBox="0 0 24 22"><path d="M12 21.2 2.6 11.6a6.1 6.1 0 0 1 8.6-8.6l.8.8.8-.8a6.1 6.1 0 0 1 8.6 8.6z"/></symbol>
+  <symbol id="i-marche" viewBox="0 0 24 24"><path d="M4 9h16l-1.4 10H5.4z"/><path d="M8.5 9V7a3.5 3.5 0 0 1 7 0v2"/></symbol>
+  <symbol id="i-vest" viewBox="0 0 24 24"><path d="M12 7v10M7 12h10"/><rect x="4" y="4" width="16" height="16" rx="4"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 24 24"><path d="M5 5h14v10H10l-5 4z"/></symbol>
+  <symbol id="glace" viewBox="0 0 362 360">
+    <defs><linearGradient id="gl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef5fd"/><stop offset="1" stop-color="#d3e2f4"/></linearGradient></defs>
+    <rect x="3" y="3" width="356" height="354" rx="70" fill="url(#gl)" stroke="#1c2740" stroke-width="6"/>
+    <path d="M3 180h356" stroke="#d8323c" stroke-width="5"/><path d="M3 118h356M3 242h356" stroke="#2b5fc2" stroke-width="5"/>
+    <path d="M40 34h282M40 326h282" stroke="#d8323c" stroke-width="2"/>
+    <circle cx="181" cy="180" r="34" fill="none" stroke="#2b5fc2" stroke-width="2.5"/>
+    <g fill="none" stroke="#d8323c" stroke-width="2"><circle cx="96" cy="76" r="30"/><circle cx="266" cy="76" r="30"/><circle cx="96" cy="284" r="30"/><circle cx="266" cy="284" r="30"/></g>
+    <path d="M161 34a20 20 0 0 0 40 0z" fill="#a9cdf1" stroke="#d8323c" stroke-width="2"/><path d="M161 326a20 20 0 0 1 40 0z" fill="#a9cdf1" stroke="#d8323c" stroke-width="2"/>
+    <rect x="169" y="22" width="24" height="12" rx="2" fill="none" stroke="#1c2740" stroke-width="2.5"/><rect x="169" y="326" width="24" height="12" rx="2" fill="none" stroke="#1c2740" stroke-width="2.5"/>
+  </symbol>
+</svg>
+
+<header class="tete">
+  <h1>V28 · tous les écrans</h1>
+  <p>La tranche 1 du Rogue neuf (docs/refonte-v28.md) : dix-sept scènes à 390 × 844, dans la direction C que JP a choisie (la carte de la saison, des écrans illustrés, sans pixel art). Une scène par moment, plein écran, qui ne défile pas ; l'état dans le HUD ; le reste au menu pause. Les cartes sont les vraies cartes du jeu, à la série de leur saison.</p>
+  <p>Une seule run d'un écran à l'autre : la run 7, les années 2000, Mike Babcock derrière le banc, l'acte II. Les joueurs, leurs stats, leurs salaires, les lignes des Bruins, les pièces de banc et leurs effets sont ceux du jeu ; les pointages et les jetons sont des exemples.</p>
+  <p>La semaine d'une case de match : la carte, la feuille du soir, le match, les portes, l'échange, et retour à la carte.</p>
+</header>
+
+<!-- ============================================================ LE DÉPART, LA CARTE, LE RIVAL -->
+<section class="groupe">
+  <h2>Le départ, la carte et le rival</h2>
+  <div class="rangee">
+
+    <figure>
+      <div class="tel">
+        <div class="abs" style="left:14px;right:14px;top:22px">
+          <div class="k">Run 7 · les années 2000</div>
+          <div style="font:800 40px/1 var(--titre);text-transform:uppercase;margin-top:6px">Ton coach</div>
+          <div class="t13 gris" style="margin-top:4px">Un parmi trois. Il fait toute la run.</div>
+        </div>
+        <div class="abs pas" style="left:14px;right:14px;top:118px"><span class="on">1 · Ton coach</span><span>2 · Le camp</span><span>3 · L'acte I</span></div>
+        <div class="abs loto" style="left:14px;right:14px;top:166px">
+          <div class="on"><img class="c" src="v28/o-babcock.png" alt=""><p><b>Mike Babcock</b>Red Wings 2007-08<br>54-21-7 · la Coupe</p></div>
+          <div><img class="c" src="v28/o-lemaire.png" alt=""><p><b>Jacques Lemaire</b>Wild 2003-04<br>30-29-23</p></div>
+          <div><img class="c" src="v28/o-martin.png" alt=""><p><b>Jacques Martin</b>Sénateurs 2002-03<br>52-21-9</p></div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:412px;border-color:#fff">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font:800 22px/1 var(--titre);text-transform:uppercase">🐝 Le Frelon</b><span class="puce o">★ Phénomène</span></div>
+          <div class="t13 gris" style="margin-top:6px">1er aux tirs pour, cette saison-là.</div>
+          <div class="t13" style="margin-top:10px"><span class="k">Sa règle</span><br>35 tirs ou plus : <span class="or">+2 jetons</span> le soir.</div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:540px;display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:center">
+          <img class="c" src="v28/p-ruee.png" alt="">
+          <div class="t13"><span class="k">Sa pièce de départ · ×1,3</span><br><b style="font-size:18px">La ruée</b><br><span class="gris">En 3e, à égalité ou derrière d'un but</span><br><span class="vert">Tirs +40 %</span><br><span class="gris">La première des cinq cases de ton banc.</span></div>
+        </div>
+        <div class="abs t13 gris" style="left:14px;right:14px;top:690px;text-align:center">Ensuite, le camp : trois fois trois portes,<br>trois joueurs signés avant la première case.</div>
+        <div class="bas"><div class="bt go">Prendre Babcock</div></div>
+      </div>
+      <figcaption>1 · Le départ : ton coach, un parmi trois</figcaption>
+      <p class="note">La première minute de la run. Trois vraies cartes de coach-saison (le loto d'aujourd'hui) : <b>sa philosophie, sa règle, sa pièce de départ</b>. Puis le camp, qui est l'écran des trois portes joué trois fois : ta run a un visage avant sa première case.</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <svg class="chemin" viewBox="0 0 390 844" aria-hidden="true">
+          <path d="M140 578L90 516M140 578L195 516M250 578L195 516M250 578L300 516M90 516L130 454M195 516L130 454M195 516L260 454M300 516L260 454M130 454L70 392M130 454L195 392M260 454L195 392M260 454L320 392M70 392L130 330M195 392L130 330M195 392L260 330M320 392L260 330M130 330L70 268M130 330L195 268M260 330L195 268M260 330L320 268M70 268L130 206M195 268L130 206M195 268L260 206M320 268L260 206M130 206L195 112M260 206L195 112"/>
+          <path class="pris" d="M140 578L195 516"/>
+          <path class="offert" d="M195 516L130 454M195 516L260 454"/>
+        </svg>
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Acte II<small>Case 3 de 7</small></span>
+          <span class="cible">3<small>/ 8 pts</small></span>
+          <span class="jt"><i class="piece-or"></i>46</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="noeud rival" style="left:195px;top:112px"><img src="../../img/logos/COL.svg" alt=""></div>
+        <div class="etq rougeT" style="left:195px;top:160px;font-size:13px">Le rival · Avalanche 2000-01</div>
+        <div class="noeud" style="left:130px;top:206px"><img src="../../img/logos/PHI.svg" alt=""></div><div class="etq" style="left:130px;top:234px">Durs</div>
+        <div class="noeud" style="left:260px;top:206px"><img src="../../img/logos/DAL.svg" alt=""></div><div class="etq" style="left:260px;top:234px">Gardien</div>
+        <div class="noeud vest" style="left:70px;top:268px"><svg><use href="#i-vest"/></svg></div>
+        <div class="noeud marche" style="left:195px;top:268px"><svg><use href="#i-marche"/></svg></div>
+        <div class="noeud hist" style="left:320px;top:268px"><svg><use href="#i-hist"/></svg></div>
+        <div class="noeud" style="left:130px;top:330px"><img src="../../img/logos/NJD.svg" alt=""></div><div class="etq" style="left:130px;top:358px">Gardien</div>
+        <div class="noeud" style="left:260px;top:330px"><img src="../../img/logos/CHI.svg" alt=""></div><div class="etq" style="left:260px;top:358px">Tireurs</div>
+        <div class="noeud marche" style="left:70px;top:392px"><svg><use href="#i-marche"/></svg></div>
+        <div class="noeud hist" style="left:195px;top:392px"><svg><use href="#i-hist"/></svg></div>
+        <div class="noeud vest" style="left:320px;top:392px"><svg><use href="#i-vest"/></svg></div>
+        <div class="noeud choisi" style="left:130px;top:454px"><img src="../../img/logos/BOS.svg" alt=""></div>
+        <div class="noeud elite" style="left:260px;top:454px"><img src="../../img/logos/DET.svg" alt=""></div>
+        <div class="etq" style="left:260px;top:487px;color:var(--mauve)">Élite</div>
+        <div class="noeud saute" style="left:90px;top:516px"><img src="../../img/logos/NYI.svg" alt=""></div>
+        <div class="noeud fait" style="left:195px;top:516px"><img src="../../img/logos/OTT.svg" alt=""></div>
+        <div class="noeud saute" style="left:300px;top:516px"><img src="../../img/logos/CAR.svg" alt=""></div>
+        <div class="noeud fait" style="left:140px;top:578px"><img src="../../img/logos/TOR.svg" alt=""></div>
+        <div class="noeud saute" style="left:250px;top:578px"><img src="../../img/logos/BUF.svg" alt=""></div>
+        <div class="tiroir">
+          <div class="k">Ta prochaine case · une des deux</div>
+          <div class="deux">
+            <div class="opt on">
+              <div class="l1"><img src="../../img/logos/BOS.svg" alt="">Bruins 07-08</div>
+              <div class="l2">Des tireurs · chez eux</div>
+              <div class="l3"><span class="puce o">12 jetons</span><span class="puce">3 portes</span></div>
+            </div>
+            <div class="opt">
+              <div class="l1"><img src="../../img/logos/DET.svg" alt="">Red Wings 01-02</div>
+              <div class="l2">Élite · un gros gardien</div>
+              <div class="l3"><span class="puce m">Une pièce</span><span class="puce o">30 jetons</span></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px"><div class="bt">Lignes</div><div class="bt">Banc</div><div class="bt go">Y aller</div></div>
+        </div>
+      </div>
+      <figcaption>2 · La carte de l'acte (l'accueil)</figcaption>
+      <p class="note">Le chemin se lit de bas en haut et monte vers <b>le rival</b>, annoncé dès l'ouverture. Sept cases : cinq matchs et deux arrêts. À chaque rang, tu choisis : un club (son jeu en un mot sous l'écusson), une <b>élite</b> (le losange), le <b>marché</b>, le <b>vestiaire</b>, une <b>histoire</b>. Le tiroir compare les deux cases offertes : qui, son jeu, ce que ça paie. Le chemin pris reste dessiné.</p>
+    </figure>
+
+    <figure>
+      <div class="tel rouge">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Acte II<small>Le rival</small></span>
+          <span class="cible">0<small>/ 8 pts</small></span>
+          <span class="jt"><i class="piece-or"></i>22</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="lui">
+          <div class="sous">Au bout de l'acte II</div>
+          <img src="../../img/logos/COL.svg" alt="">
+          <div class="gros">Avalanche<br>2000-01</div>
+        </div>
+        <div class="vsx" style="left:14px;top:196px">VS</div>
+        <div class="abs panneau" style="left:14px;right:14px;top:322px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span class="k">Son jeu · rang dans la ligue</span><span class="puce r">Il annonce l'assaut</span></div>
+          <div class="stat3" style="padding:2px 0;font-size:11px;letter-spacing:.1em;color:var(--encre-2)"><span>Toi</span><span></span><span></span><span></span><span style="text-align:right">Lui</span></div>
+          <div class="stat3"><span>14<small>e</small></span><div class="bar g"><i style="width:48%"></i></div><span class="m">Tirs</span><div class="bar d"><i style="width:92%"></i></div><span class="or" style="text-align:right">2<small>e</small></span></div>
+          <div class="stat3"><span>9<small>e</small></span><div class="bar g"><i style="width:66%"></i></div><span class="m">Durs</span><div class="bar d"><i style="width:40%"></i></div><span style="text-align:right">17<small>e</small></span></div>
+          <div class="stat3"><span>11<small>e</small></span><div class="bar g"><i style="width:60%"></i></div><span class="m">Gardien</span><div class="bar d"><i style="width:88%"></i></div><span class="or" style="text-align:right">3<small>e</small></span></div>
+        </div>
+        <div class="abs" style="left:14px;top:478px;display:flex;gap:8px;align-items:flex-end">
+          <div style="width:86px"><img class="c" src="v28/c-sakic.png" alt=""></div>
+          <div style="width:86px"><img class="c" src="v28/c-roy2.png" alt=""></div>
+          <div style="padding-bottom:6px"><div class="k" style="margin-bottom:6px">Ses vedettes</div><div style="font:800 22px/1.05 var(--titre);text-transform:uppercase">Sakic · 118 pts<br>Roy · ,913</div></div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:618px">
+          <div class="k" style="margin-bottom:8px">Pour le battre</div>
+          <div style="display:grid;grid-template-columns:78px 78px 1fr;gap:10px;align-items:center">
+            <div><img class="c" src="v28/p-bloqueur.png" alt=""></div>
+            <div class="atrouver"><img class="c" src="v28/p-trafic.png" alt=""><span>À trouver</span></div>
+            <div class="t13 gris"><span class="vert">Le bloqueur</span> est sur ton banc : il joue contre des tireurs. <span style="color:var(--encre)">Le trafic</span>, contre un gros gardien, est à trouver.</div>
+          </div>
+        </div>
+        <div class="bas"><div class="bt combat">Voir la carte de l'acte</div></div>
+      </div>
+      <figcaption>3 · Le rival, annoncé à l'ouverture de l'acte</figcaption>
+      <p class="note">Un écran de combat : son écusson, <b>son jeu en trois vraies stats</b> (ton rang contre le sien), l'intention qu'il annonce, ses vedettes en cartes, et les pièces qui le battent, sur ton banc ou à trouver. Tu as l'acte pour bâtir contre lui ; son match compte double dans ta cible.</p>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ============================================================ LE MATCH -->
+<section class="groupe">
+  <h2>Le match : la feuille du soir, le match, les portes</h2>
+  <div class="rangee">
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Acte II<small>Case 3 de 7</small></span>
+          <span class="cible">3<small>/ 8 pts</small></span>
+          <span class="jt"><i class="piece-or"></i>46</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs plaque" style="left:14px;top:60px"><img src="../../img/logos/BOS.svg" alt=""><div class="nom">Bruins 2007-08<small>Des tireurs · chez eux</small></div></div>
+        <div class="abs panneau leurs" style="left:14px;right:14px;top:114px">
+          <img class="c" src="v28/c-savard.png" alt="">
+          <div class="lignes">
+            <div class="etoile"><b>1er</b><span>Savard · Sturm · Kessel</span></div>
+            <div><b>2e</b><span>Krejci · Lucic · Kobasew</span></div>
+            <div><b>3e</b><span>Metropolit · Axelsson · Schaefer</span></div>
+            <div><b>4e</b><span>Reich · Thornton · Nokelainen</span></div>
+            <div><b>D</b><span>Chara · Wideman</span></div>
+            <div><b>D</b><span>Ward · Ference</span></div>
+            <div><b>G</b><span>Thomas · ,921</span></div>
+          </div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:276px">
+          <div class="k" style="margin-bottom:6px">Ta chance</div>
+          <div class="jauge" style="--toi:#c8102e;--eux:#ffb81c"><span>44 %</span><div class="b"><i style="width:44%"></i></div><span class="or">56 %</span></div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:330px">
+          <div class="k" style="margin-bottom:2px">Tes lignes · leurs accords · leurs jambes</div>
+          <div class="trio"><span class="n">1</span><span class="qui">Koivu · Iginla · Alfredsson</span><span class="acc">🎯🅰</span><div class="jb"><i style="width:92%"></i></div></div>
+          <div class="trio"><span class="n">2</span><span class="qui">Fisher · Recchi · Hejduk</span><span class="acc non">Aucun</span><div class="jb"><i style="width:100%"></i></div></div>
+          <div class="trio"><span class="n">3</span><span class="qui">Draper · Holmstrom · Bégin</span><span class="acc">☯🔧</span><div class="jb"><i style="width:84%"></i></div></div>
+          <div class="trio"><span class="n">4</span><span class="qui">Pandolfo · Laraque · Brashear</span><span class="acc">🔧🪠</span><div class="jb use"><i style="width:58%"></i></div></div>
+          <div class="trio" style="grid-template-columns:24px 1fr 56px"><span class="n">D</span><span class="qui">Lidstrom · Souray · 4 autres</span><div class="jb"><i style="width:88%"></i></div></div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:566px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div class="panneau"><div class="k" style="margin-bottom:8px">Devant le filet</div><span class="puce v">Brodeur · 100</span> <span class="puce">Luongo</span></div>
+          <div class="panneau"><div class="k" style="margin-bottom:8px">En civil</div><span class="puce r">Markov · blessé, 2 matchs</span></div>
+        </div>
+        <div class="abs enjeu" style="left:14px;right:14px;top:644px">
+          <div class="g"><b class="vert">Gagné</b>2 points · 12 jetons<br>Des portes plus hautes</div>
+          <div class="p"><b class="rougeT">Perdu</b>1 point en prolongation<br>Des portes, une relance</div>
+        </div>
+        <div class="bas"><div class="bt">Lignes</div><div class="bt go">Au match</div></div>
+      </div>
+      <figcaption>4 · La feuille du soir</figcaption>
+      <p class="note">Avant chaque match : <b>leurs lignes</b>, leur vedette en carte, leur gardien ; <b>ta chance</b> en jauge aux couleurs des deux clubs (le seul endroit où elle se montre) ; tes lignes, une rangée chacune ; ton gardien ; qui reste en civil ; ce que le match paie. Un toucher pour jouer, « Lignes » pour changer. L'ordre des trios n'est pas un choix (mesuré à la tranche 0).</p>
+    </figure>
+
+    <figure>
+      <div class="tel rouge">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Acte II<small>Le rival</small></span>
+          <span class="cible">6<small>/ 8 pts</small></span>
+          <span class="jt"><i class="piece-or"></i>71</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs plaque" style="left:14px;top:62px"><img src="../../img/logos/COL.svg" alt="" style="width:58px;height:58px"><div class="nom">Avalanche 2000-01<small style="color:#ffd0d6">Le rival · il compte double · chez toi</small></div></div>
+        <div class="abs" style="left:14px;right:14px;top:134px;display:flex;justify-content:space-between;align-items:center"><span class="puce r">Il annonce l'assaut</span><span class="puce">Des tireurs</span><span class="puce">Roy · ,913</span></div>
+        <div class="abs" style="left:14px;right:14px;top:172px">
+          <div class="jauge" style="--toi:#c8102e;--eux:#236192"><span>47 %</span><div class="b"><i style="width:47%"></i></div><span>53 %</span></div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:214px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="k" style="color:#ffd0d6">Ton plan · un seul choix</span><span class="gris" style="font:700 12px/1 var(--titre);text-transform:uppercase;letter-spacing:.06em">Proposé par ton banc</span></div>
+          <div class="plans">
+            <div class="on"><img class="c" src="v28/j-plan-centre.png" alt=""><p><span class="vert">−4 tirs contre</span><br><span class="rougeT">−3 tirs pour</span><br><span class="or">Répond à l'assaut</span></p></div>
+            <div><img class="c" src="v28/j-plan-assaut.png" alt=""><p><span class="vert">+5 tirs</span><br><span class="rougeT">+1 punition</span></p></div>
+            <div><img class="c" src="v28/j-plan-ombre.png" alt=""><p><span class="vert">Sakic : −50 % de tirs</span><br><span class="rougeT">Koivu le suit</span></p></div>
+          </div>
+        </div>
+        <div class="abs bt" style="left:14px;right:14px;top:498px;height:44px;font-size:15px">Ton match · aucun plan</div>
+        <div class="abs enjeu" style="left:14px;right:14px;top:556px">
+          <div class="g"><b class="vert">Gagné</b>4 points à ta cible<br>Une pièce parmi trois</div>
+          <div class="p"><b class="rougeT">Perdu</b>Aucun point, aucun cœur<br>La cible reste à tenir</div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:650px">
+          <div class="k" style="margin-bottom:6px;color:#ffd0d6">Ton banc</div>
+          <div class="banc5" style="width:300px"><img class="c" src="v28/p-ruee.png" alt=""><img class="c" src="v28/p-mur.png" alt=""><img class="c" src="v28/p-canonnier.png" alt=""><img class="c" src="v28/p-bloqueur.png" alt=""><div class="vide"></div></div>
+        </div>
+        <div class="bas"><div class="bt">Lignes</div><div class="bt combat">Au combat</div></div>
+      </div>
+      <figcaption>5 · La feuille du soir, contre le rival</figcaption>
+      <p class="note">Contre le rival ou une élite, un choix de plus : <b>ton plan</b>, un parmi ceux que ton banc propose, chiffré en vrais tirs contre leur jeu (le duel à un choix de la V27, tel quel). Celui qui <b>répond</b> à leur intention est dit. L'enjeu est écrit avant de jouer.</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <div class="score">
+          <div class="eq"><img src="../../img/logos/MTL.svg" alt="">Toi</div>
+          <div class="n">2 · 1<small>2E · 12:40 · TIRS 19-22</small></div>
+          <div class="eq d">Boston<img src="../../img/logos/BOS.svg" alt=""></div>
+        </div>
+        <svg class="glace" viewBox="0 0 362 360" aria-hidden="true">
+          <use href="#glace"/>
+          <path d="M250 150 C 230 110, 205 80, 186 44" fill="none" stroke="#c8102e" stroke-width="3" stroke-dasharray="6 6" stroke-linecap="round"/>
+          <path d="M120 210 L250 150" fill="none" stroke="#c8102e" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round" opacity=".7"/>
+          <circle cx="250" cy="150" r="11" fill="#c8102e" stroke="#fff" stroke-width="3"/><circle cx="120" cy="210" r="8" fill="#c8102e" stroke="#fff" stroke-width="2" opacity=".8"/>
+          <circle cx="181" cy="30" r="9" fill="#ffb81c" stroke="#111" stroke-width="3"/><circle cx="186" cy="42" r="4.5" fill="#111"/>
+        </svg>
+        <div class="but" style="top:330px">But !</div>
+        <div class="buteur" style="left:14px;right:14px;top:452px"><img class="c" src="v28/c-iginla.png" alt=""><div><b>Iginla · 2-1</b><span>Koivu, Lidstrom · 12:40 de la 2e · son 2e du match</span></div></div>
+        <div class="fil" style="top:546px">
+          <div>1RE<i style="left:34%"></i><i class="e" style="left:71%"></i></div>
+          <div>2E<i style="left:62%"></i><u style="left:63%"></u></div>
+          <div>3E</div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:588px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="k">Ton banc</span><span class="vert" style="font:800 13px/1 var(--titre);text-transform:uppercase;letter-spacing:.05em">Deux pièces jouent ce soir</span></div>
+          <div class="banc5">
+            <div class="eteinte"><img class="c" src="v28/p-ruee.png" alt=""></div>
+            <div class="joue"><img class="c" src="v28/p-mur.png" alt=""><b>Leurs tirs −14 %</b></div>
+            <div class="eteinte"><img class="c" src="v28/p-canonnier.png" alt=""></div>
+            <div class="joue"><img class="c" src="v28/p-bloqueur.png" alt=""><b>Leurs tirs −12 %</b></div>
+            <div class="vide"></div>
+          </div>
+        </div>
+        <div class="bas"><div class="bt">Vitesse ×2</div><div class="bt go">À la fin</div></div>
+      </div>
+      <figcaption>6 · Le match, en temps forts</figcaption>
+      <p class="note">Le simulateur joue le match ; l'écran en montre <b>les temps forts</b> sur la glace : le but, d'où il part, qui marque, à quelle minute. Le fil des trois périodes garde chaque but. Sous la glace, <b>ton banc</b> : une pièce qui joue s'allume avec son chiffre (le mur après une défaite, le bloqueur contre des tireurs). Aucune décision pendant le match ; on peut aller à la fin d'un toucher.</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Acte II<small>Case 3 de 7</small></span>
+          <span class="cible" style="border-color:var(--vert)">5<small>/ 8 pts</small></span>
+          <span class="jt"><i class="piece-or"></i>58</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:60px;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center">
+          <div style="font:800 46px/1 var(--titre)" class="vert">4-2</div>
+          <div style="font:700 13.5px/1.4 var(--titre);text-transform:uppercase;letter-spacing:.03em"><b style="font-size:19px">Gagné à Boston</b><br><span class="vert">+2 points</span> · <span class="or">+12 jetons</span> · Iginla 2 buts<br><span class="gris">Ont joué : le mur, le bloqueur</span></div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:166px;text-align:center">
+          <div class="k">Gagné : des vestiaires d'une bande plus haute</div>
+          <div style="font:800 26px/1.1 var(--titre);text-transform:uppercase;margin-top:6px">Un joueur, dans un de ces vestiaires</div>
+        </div>
+        <div class="abs portes" style="left:14px;right:14px;top:254px">
+          <div class="porte"><span class="tag">Le club affronté</span><img src="../../img/logos/BOS.svg" alt=""><div class="nom">Bruins<small>2007-08</small></div><div class="n">20<small>dans ton espace</small></div></div>
+          <div class="porte"><img src="../../img/logos/PIT.svg" alt=""><div class="nom">Penguins<small>2005-06</small></div><div class="n">27<small>dans ton espace</small></div></div>
+          <div class="porte"><img src="../../img/logos/NYR.svg" alt=""><div class="nom">Rangers<small>2005-06</small></div><div class="n">22<small>dans ton espace</small></div></div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:596px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="k">Ton plafond</span><span style="font:800 16px/1 var(--titre)">86,1 <span class="gris">/ 95,5 M$</span> · <span class="or">ESPACE 9,4 M$</span></span></div>
+          <div class="plaf"><i style="width:90.2%"></i></div>
+        </div>
+        <div class="bas"><div class="bt">Passer<small>+6 jetons</small></div><div class="bt eteint">Relance<small>Après une défaite</small></div></div>
+      </div>
+      <figcaption>7 · Après le match : les trois portes</figcaption>
+      <p class="note">Le résultat en une bande (les points vers ta cible, les jetons, ce qui a joué), puis <b>trois vrais vestiaires</b>. L'un est toujours le club que tu viens d'affronter : choisir sa case sur la carte, c'est déjà choisir sa porte. Chaque porte dit combien de ses joueurs tiennent dans ton espace. Perdu, tu gagnes une relance ; passer rapporte des jetons.</p>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ============================================================ LE CLUB -->
+<section class="groupe">
+  <h2>Ton club : la porte ouverte, l'échange, les Lignes</h2>
+  <div class="rangee">
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Acte II<small>Case 3 de 7</small></span>
+          <span class="cible">5<small>/ 8 pts</small></span>
+          <span class="jt"><i class="piece-or"></i>58</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs plaque" style="left:14px;top:60px"><img src="../../img/logos/PIT.svg" alt=""><div class="nom">Penguins 2005-06<small>27 tiennent dans ton espace · 9,4 M$</small></div></div>
+        <div class="abs grille3" style="left:22px;right:22px;top:122px">
+          <div class="it on"><img class="c" src="v28/c-crosby2.png" alt=""><span class="coin">🎯🅰</span><div class="sous">9,1 M$<small>La passe et le tir</small></div></div>
+          <div class="it"><img class="c" src="v28/c-malone.png" alt=""><div class="sous">1,8 M$<small></small></div></div>
+          <div class="it"><img class="c" src="v28/c-armstrong.png" alt=""><div class="sous">0,9 M$<small></small></div></div>
+          <div class="it"><img class="c" src="v28/c-whitney.png" alt=""><div class="sous">2,2 M$<small></small></div></div>
+          <div class="it"><img class="c" src="v28/c-fleury.png" alt=""><div class="sous">2,3 M$<small></small></div></div>
+          <div class="it"><div class="plie">22 autres<br>dans ton<br>espace ›</div><div class="sous" style="color:var(--encre-3);font-size:11px;text-transform:uppercase;letter-spacing:.04em">Gonchar, 12,3 M$ :<br>hors de ton espace</div></div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:584px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font:800 22px/1 var(--titre);text-transform:uppercase">Sidney Crosby · C</b><span class="or" style="font:800 18px/1 var(--titre)">9,1 M$</span></div>
+          <div class="t13 gris" style="margin-top:6px">Cette année-là : 39 buts, 102 points en 81 matchs.<br>🅰 Passeur · au 2e trio, il allume <span class="vert">la passe et le tir</span> avec Hejduk.<br>Il prend presque tout ton espace.</div>
+        </div>
+        <div class="bas"><div class="bt">Retour</div><div class="bt go">Voir l'échange</div></div>
+      </div>
+      <figcaption>8 · La porte ouverte</figcaption>
+      <p class="note">Ceux qui tiennent dans ton espace, <b>en vraies cartes, trois de front</b>, les plus forts d'abord ; le reste est plié derrière une tuile, pour que l'écran ne défile pas. <b>Le coin d'une carte s'allume</b> quand elle allumerait un accord dans tes lignes ; son salaire est dessous.</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Signer<small>2e trio · centre</small></span>
+          <span class="jt droite"><i class="piece-or"></i>58</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs face" style="left:14px;right:14px;top:62px">
+          <div class="qui"><b class="vert">Il arrive</b><img class="c" src="v28/c-crosby2.png" alt=""></div>
+          <div class="fl">›‹</div>
+          <div class="qui"><b class="rougeT">Il sort</b><img class="c" src="v28/c-fisher.png" alt=""></div>
+        </div>
+        <div class="abs panneau cmp" style="left:14px;right:14px;top:276px">
+          <span class="a mieux">1,26</span><span class="m">Points / match</span><span>0,59</span>
+          <span class="a mieux">3,4</span><span class="m">Tirs / match</span><span>2,7</span>
+          <span class="a mieux">14,0 %</span><span class="m">% au tir</span><span>10,7 %</span>
+          <span class="a">9,1 M$</span><span class="m">Salaire</span><span class="mieux">2,9 M$</span>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:408px">
+          <div class="k" style="margin-bottom:8px">Ce que ça change à ton club, par match</div>
+          <div class="cmp" style="grid-template-columns:1fr auto 1fr"><span class="a">29,4</span><span class="m">Tirs&nbsp;&nbsp;›</span><span class="mieux">30,1</span><span class="a">9,1 %</span><span class="m">% au tir&nbsp;&nbsp;›</span><span class="mieux">9,6 %</span></div>
+          <div style="margin-top:8px"><span class="puce v">Il allume 🎯🅰 la passe et le tir, avec Hejduk</span></div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:540px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="k">Ton plafond</span><span style="font:800 16px/1 var(--titre)">93,7 <span class="gris">/ 95,5 M$</span></span></div>
+          <div class="plaf"><i style="width:87.1%"></i><i class="neuf" style="left:87.1%;width:9.5%"></i><i class="mort" style="left:96.6%;width:1.5%"></i></div>
+          <div class="t13 gris" style="margin-top:8px">Crosby : <span class="or">+9,1 M$</span>. Fisher sort : 2,9 M$, dont <span class="rougeT">1,4 M$ restent à ton plafond</span> jusqu'à la fin de la run. Ton espace : 9,4 › <span style="color:var(--encre)">1,8 M$</span>.<br>Fisher va à ton cartable.</div>
+        </div>
+        <div class="bas"><div class="bt">Retour</div><div class="bt orB">Signer</div></div>
+      </div>
+      <figcaption>9 · Signer : l'échange, et le plafond qui mord</figcaption>
+      <p class="note">L'arrivant face à celui qui sort, stat par stat. Ce que ça change se dit <b>en vraies stats de match</b>, jamais en pourcentage de victoire. Le plafond montre la part hachurée : <b>la moitié du salaire de celui qui sort reste</b> pour la run. La vedette d'une porte prend l'espace de deux bons joueurs.</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Tes lignes</span>
+          <span class="cible">Brashear<small>tenu</small></span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs seg" style="left:14px;right:14px;top:58px"><span class="on">Attaque</span><span>Défense</span><span>Filet · civil</span></div>
+        <div class="abs" style="left:14px;right:14px;top:104px">
+          <div class="ligne"><span class="v">1er</span>
+            <div class="cs"><img class="c" src="v28/c-koivu.png" alt=""></div><div class="cs"><img class="c" src="v28/c-iginla.png" alt=""></div><div class="cs"><img class="c" src="v28/c-alfredsson.png" alt=""><div class="ici non"><span>Rien</span></div></div>
+            <div class="cote"><b>🎯🅰</b>La passe et le tir<span class="j">92</span></div></div>
+          <div class="ligne"><span class="v">2e</span>
+            <div class="cs"><img class="c" src="v28/c-crosby2.png" alt=""></div><div class="cs"><img class="c" src="v28/c-recchi.png" alt=""><div class="ici non"><span>Rien</span></div></div><div class="cs"><img class="c" src="v28/c-hejduk.png" alt=""></div>
+            <div class="cote"><b>🎯🅰</b>La passe et le tir<span class="j">100</span></div></div>
+          <div class="ligne"><span class="v">3e</span>
+            <div class="cs"><img class="c" src="v28/c-draper.png" alt=""></div><div class="cs"><img class="c" src="v28/c-holmstrom.png" alt=""><div class="ici"><span>+ 🔧🪠</span></div></div><div class="cs"><img class="c" src="v28/c-begin.png" alt=""></div>
+            <div class="cote"><b>☯🔧</b>La trappe<span class="j">84</span></div></div>
+          <div class="ligne"><span class="v">4e</span>
+            <div class="cs"><img class="c" src="v28/c-pandolfo.png" alt=""></div><div class="cs"><img class="c" src="v28/c-laraque.png" alt=""></div><div class="cs leve"><img class="c" src="v28/c-brashear.png" alt=""></div>
+            <div class="cote"><b>🔧🪠</b>L'échec avant<span class="j use">58</span></div></div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;bottom:80px;display:grid;grid-template-columns:50px 1fr;gap:10px;align-items:center;border-color:#fff;padding:8px 10px">
+          <img class="c" src="v28/c-brashear.png" alt="">
+          <div class="t13" style="font-size:12.5px"><b style="font-size:16px">Tu tiens Brashear · 🪠 plombier</b><br><span class="gris">À la place de Holmstrom, </span><span class="vert">l'échec avant s'allume au 3e trio</span><span class="gris">. Le 4e le perd.</span></div>
+        </div>
+        <div class="bas"><div class="bt">Annuler</div><div class="bt go">Poser</div></div>
+      </div>
+      <figcaption>10 · Les Lignes : une carte tenue</figcaption>
+      <p class="note">Tes quatre trios en vraies cartes, sans défiler ; à droite de chacun, ses accords et ses jambes. Quand tu tiens une carte, <b>chaque case dit l'accord qu'elle y allumerait</b> avant que tu la poses, et ce que ça coûte ailleurs. « Aligner au mieux » n'existe plus ici : c'est ton casse-tête.</p>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ============================================================ LES ARRÊTS -->
+<section class="groupe">
+  <h2>Les arrêts de la carte : le marché, le vestiaire, une histoire</h2>
+  <div class="rangee">
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Le marché</span>
+          <span class="jt droite" style="font-size:26px"><i class="piece-or" style="width:24px;height:24px"></i>58</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:62px">
+          <div class="k" style="margin-bottom:10px">Une pièce de banc · une seule</div>
+          <div class="etal">
+            <div><img class="c" src="v28/p-verrou.png" alt=""><div class="prix"><i class="piece-or"></i>32</div><p>En avance d'un ou deux buts : leur précision −15 %</p></div>
+            <div><img class="c" src="v28/p-moine.png" alt=""><div class="prix"><i class="piece-or"></i>32</div><p>Après trois victoires : punitions −30 %</p></div>
+            <div><img class="c" src="v28/p-arbitre.png" alt=""><div class="prix"><i class="piece-or"></i>32</div><p>À l'étranger : punitions −20 %, les leurs +15 %</p></div>
+          </div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:350px">
+          <div class="k" style="margin-bottom:10px">Les pochettes</div>
+          <div class="etal">
+            <div><img class="c" src="v28/k-bronze.png" alt=""><div class="prix"><i class="piece-or"></i>14</div><p>Trois joueurs au hasard</p></div>
+            <div><img class="c" src="v28/k-epoque.png" alt=""><div class="prix"><i class="piece-or"></i>26</div><p>Un Pilier ou mieux, ton poste</p></div>
+            <div><div class="plie" style="aspect-ratio:auto;height:149px;font-size:12px">Argent<br>à débloquer</div><div class="prix" style="border-color:var(--bord);color:var(--encre-3)">—</div></div>
+          </div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:626px">
+          <div class="k" style="margin-bottom:8px">Ton banc · une case libre</div>
+          <div class="banc5" style="width:292px"><img class="c" src="v28/p-ruee.png" alt=""><img class="c" src="v28/p-mur.png" alt=""><img class="c" src="v28/p-canonnier.png" alt=""><img class="c" src="v28/p-bloqueur.png" alt=""><div class="vide" style="border-color:#fff"></div></div>
+        </div>
+        <div class="bas"><div class="bt go">Retour à la carte</div></div>
+      </div>
+      <figcaption>11 · Le marché</figcaption>
+      <p class="note">Une case de la carte, pas un onglet : on y passe si on choisit ce chemin. <b>Une pièce de banc parmi trois</b> (ce qu'elle fait, en vrais chiffres, dessous), les pochettes, tes jetons en gros, ton banc et sa case libre. Une pochette achetée s'ouvre comme aujourd'hui : sa pile, sa carte rare.</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Le vestiaire</span>
+          <span class="cible">Un des deux</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs choixV on" style="left:14px;right:14px;top:62px">
+          <h3>Reposer et soigner</h3>
+          <div class="sub">Tout le monde retrouve ses jambes. Un blessé revient.</div>
+          <div class="avap"><span>3e trio</span><div class="jb"><i style="width:84%"></i></div><span class="gris">84</span><span class="vert">100</span></div>
+          <div class="avap"><span>4e trio</span><div class="jb use"><i style="width:58%"></i></div><span class="gris">58</span><span class="vert">100</span></div>
+          <div class="avap"><span>Brodeur</span><div class="jb use"><i style="width:71%"></i></div><span class="gris">71</span><span class="vert">100</span></div>
+          <div style="margin-top:8px"><span class="puce v">Markov revient · il manquait 2 matchs</span></div>
+        </div>
+        <div class="abs choixV" style="left:14px;right:14px;top:306px">
+          <h3>Monter une carte</h3>
+          <div class="sub">Une carte de ton choix monte d'une édition.</div>
+          <div style="display:grid;grid-template-columns:104px 30px 104px 1fr;gap:8px;align-items:center">
+            <img class="c" src="v28/c-koivu.png" alt="">
+            <div class="or" style="font:800 30px/1 var(--titre);text-align:center">›</div>
+            <img class="c" src="v28/c-koivu-cadre.png" alt="">
+            <div class="t13" style="text-align:center"><span class="gris">Base</span><br>›<br><span class="vert">Cadre</span></div>
+          </div>
+          <div class="t13" style="margin-top:10px">Koivu : <span class="vert">son second badge monte d'un métal</span>.</div>
+          <div style="margin-top:8px"><span class="puce">Toucher une autre carte ›</span></div>
+        </div>
+        <div class="abs t13 gris" style="left:14px;right:14px;top:626px;text-align:center">Le rival est dans trois cases.<br>Tu ne repasses pas par un vestiaire avant lui.</div>
+        <div class="bas"><div class="bt go">Reposer et soigner</div></div>
+      </div>
+      <figcaption>12 · Le vestiaire : un des deux</figcaption>
+      <p class="note">Comme le feu de camp de Slay the Spire : <b>te soigner ou devenir plus fort</b>, jamais les deux. L'écran montre exactement ce que chaque choix donne (les jambes avant et après, le blessé qui revient ; la carte avant et après).</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Une histoire</span>
+          <span class="jt droite"><i class="piece-or"></i>58</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:66px">
+          <span class="voix">Le dépisteur</span>
+          <div class="bulle">« Hejduk a marqué dans tes quatre derniers matchs. Cinq buts. Il frappe à la porte du premier trio, tu lui ouvres ? »</div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:234px;display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center">
+          <img class="c" src="v28/c-hejduk.png" alt="">
+          <div>
+            <div style="font:800 26px/1 var(--titre);text-transform:uppercase">Milan Hejduk</div>
+            <div class="t13 gris" style="margin-top:6px">2e trio · 🎯 sniper<br>Chez toi : 5 buts en 4 matchs<br>Cette année-là : 50 buts en 82 matchs</div>
+          </div>
+        </div>
+        <div class="abs reps" style="left:34px;right:34px;top:392px">
+          <div><img class="c" src="v28/j-rep-glace.png" alt=""><p><span class="vert">4, 5 ou 6 : son badge monte d'un métal</span><br><span class="rougeT">1 à 3 : il doute 3 matchs</span></p><div class="prendre">Prendre</div></div>
+          <div><img class="c" src="v28/j-rep-murir.png" alt=""><p><span class="vert">+8 jetons</span><br><span class="gris">Rien ne change pour lui</span></p><div class="prendre">Prendre</div></div>
+        </div>
+      </div>
+      <figcaption>13 · Une histoire</figcaption>
+      <p class="note">Une case de la carte. Une voix du club, <b>un fait vrai de tes matchs joués</b> avec son chiffre, le joueur en carte, deux réponses en cartes de jeu (la banque d'aujourd'hui, telle quelle). Ce qu'elles font est écrit dessous. Le dé montre ses deux issues avant de rouler.</p>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ============================================================ LA FIN -->
+<section class="groupe">
+  <h2>La fin d'acte, les séries, la fin de la run, la pause</h2>
+  <div class="rangee">
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Acte II<small>Fini</small></span>
+          <span class="jt droite"><i class="piece-or"></i>83</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:66px;text-align:center">
+          <div class="k" style="color:var(--vert)">La cible est tenue</div>
+          <div style="font:800 46px/1 var(--titre);text-transform:uppercase;margin-top:6px;white-space:nowrap">La run continue</div>
+        </div>
+        <div class="abs cellules" style="left:14px;right:14px;top:150px">
+          <div><b class="vert">10 <span class="gris" style="font-size:18px">/ 8</span></b><small>Points de l'acte</small></div>
+          <div><b><svg class="co" style="width:30px;height:27px"><use href="#coeur"/></svg></b><small>1 cœur · gardé</small></div>
+          <div><b class="or">3-2</b><small>Le rival battu</small></div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:256px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><img src="../../img/logos/COL.svg" alt="" style="width:34px;height:34px"><div><div class="k">L'Avalanche battue te laisse une pièce</div><div style="font:800 22px/1 var(--titre);text-transform:uppercase;margin-top:3px">Une parmi trois</div></div></div>
+          <div class="etal">
+            <div><img class="c" src="v28/p-essaim.png" alt=""><p>En 3e, derrière :<br>tirs +35 %</p></div>
+            <div style="outline:3px solid #fff;outline-offset:4px;border-radius:10px"><img class="c" src="v28/p-bourdon.png" alt=""><p class="or">En 3e, quand tu mènes :<br>tirs +30 %</p></div>
+            <div><img class="c" src="v28/p-riposte.png" alt=""><p>Après une période perdue aux tirs : précision +28 %</p></div>
+          </div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:560px">
+          <div class="k" style="margin-bottom:8px">Ton banc · une case libre</div>
+          <div class="banc5" style="width:300px"><img class="c" src="v28/p-ruee.png" alt=""><img class="c" src="v28/p-mur.png" alt=""><img class="c" src="v28/p-canonnier.png" alt=""><img class="c" src="v28/p-bloqueur.png" alt=""><div class="vide" style="border-color:#fff"></div></div>
+        </div>
+        <div class="abs t13 gris" style="left:14px;right:14px;top:700px;text-align:center">Ensuite : l'acte III et son rival, les Devils 2000-01.</div>
+        <div class="bas"><div class="bt">Passer</div><div class="bt orB">Prendre</div></div>
+      </div>
+      <figcaption>14 · La fin d'acte</figcaption>
+      <p class="note">Le moment fort de l'acte : <b>la cible tenue ou ratée</b>, le cœur gardé ou perdu, le rival battu ou non, en trois cellules. Battu, il laisse une pièce parmi trois. Puis la carte de l'acte suivant s'ouvre sur son rival.</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <div class="hud">
+          <span class="coeurs"><svg class="co"><use href="#coeur"/></svg><svg class="co vide"><use href="#coeur"/></svg></span>
+          <span class="acte">Les séries<small>Demi-finale</small></span>
+          <span class="jt droite"><i class="piece-or"></i>12</span>
+          <span class="pause"><i></i></span>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:66px;text-align:center"><div style="font:800 15px/1.3 var(--titre);text-transform:uppercase;letter-spacing:.08em;color:var(--encre-2)">Trois rondes · trois victoires pour passer</div></div>
+        <div class="abs" style="left:14px;right:14px;top:104px;display:flex;flex-direction:column;gap:12px">
+          <div class="ronde avenir"><div style="width:44px;height:44px;border-radius:50%;border:2px dashed #ffffff55;display:grid;place-items:center;font:800 22px/1 var(--titre)">?</div><div class="t">La finale<small>Avalanche ou Devils</small></div><div class="pts"><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="ronde on"><img src="../../img/logos/DET.svg" alt=""><div class="t">Red Wings 2001-02<small>Un gros gardien · tu perds 1-2</small></div><div class="pts"><i class="p"></i><i class="g"></i><i class="p"></i><i></i><i></i></div></div>
+          <div class="ronde fait"><img src="../../img/logos/OTT.svg" alt=""><div class="t">Sénateurs 2005-06<small>Quart de finale · gagné 3-1</small></div><div class="pts"><i class="g"></i><i class="p"></i><i class="g"></i><i class="g"></i><i></i></div></div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:366px">
+          <div class="k" style="margin-bottom:6px">Match 4 · chez eux · ta chance</div>
+          <div class="jauge" style="--toi:#c8102e;--eux:#ffffff"><span>41 %</span><div class="b"><i style="width:41%"></i></div><span>59 %</span></div>
+          <div class="t13 gris" style="margin-top:10px">Tu perds 1-2 : une défaite et la série est perdue.<br>Koivu joue amoché · le 4e trio à 51 de jambes.</div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:520px;display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center;border-color:#8a2a35">
+          <svg class="co" style="width:38px;height:34px"><use href="#coeur"/></svg>
+          <div class="t13"><b style="font-size:17px">Ton dernier cœur</b><br><span class="gris">Une série perdue te le coûte, et tu la rejoues une fois contre le même club. Sans cœur, la run finit.</span></div>
+        </div>
+        <div class="bas"><div class="bt">Lignes</div><div class="bt go">La feuille du soir</div></div>
+      </div>
+      <figcaption>15 · Les séries</figcaption>
+      <p class="note">Après l'acte III : trois rondes en trois de cinq, de bas en haut comme la carte. La série en cours dit où tu en es, ce qui t'use, et ce que <b>ton dernier cœur</b> rachète. Chaque match passe par la feuille du soir.</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <div class="abs" style="left:14px;right:14px;top:30px;text-align:center">
+          <div class="k" style="color:var(--rouge)">La run est finie</div>
+          <div style="font:800 34px/1 var(--titre);text-transform:uppercase;margin-top:8px;white-space:nowrap">Éliminé en demi-finale</div>
+          <div style="font:700 14px/1.3 var(--titre);text-transform:uppercase;letter-spacing:.05em;color:var(--encre-2);margin-top:8px">Red Wings 2001-02 · la série rejouée, perdue 2-3</div>
+        </div>
+        <div class="abs panneau" style="left:14px;right:14px;top:132px">
+          <div class="recap"><span>Acte I</span><span class="rougeT">Cible ratée · 6 / 7<small>Un cœur perdu · rival perdu, Stars</small></span><span class="or">+5</span></div>
+          <div class="recap"><span>Acte II</span><span>Cible tenue · 10 / 8<small>Rival battu, Avalanche</small></span><span class="or">+25</span></div>
+          <div class="recap"><span>Acte III</span><span>Cible tenue · 9 / 9<small>Rival perdu, Devils</small></span><span class="or">+10</span></div>
+          <div class="recap" style="border-bottom:0"><span>Séries</span><span>Une ronde gagnée<small>Sénateurs 3-1, puis Red Wings deux fois</small></span><span class="or">+20</span></div>
+        </div>
+        <div class="abs" style="left:14px;right:14px;top:412px;display:grid;grid-template-columns:118px 1fr;gap:14px;align-items:center">
+          <img class="c" src="v28/c-iginla.png" alt="">
+          <div>
+            <div class="k">Ton joueur de la run</div>
+            <div style="font:800 28px/1 var(--titre);text-transform:uppercase;margin-top:5px">Jarome Iginla</div>
+            <div class="t13 gris" style="margin-top:6px">17 buts en 31 matchs<br>Signé au camp · Flames 2003-04<br><span class="vert">Sa carte entre à ton cartable</span></div>
+          </div>
+        </div>
+        <div class="abs cellules" style="left:14px;right:14px;top:618px">
+          <div><b class="or">60</b><small>Médailles</small></div>
+          <div><b>19</b><small>Cartes neuves</small></div>
+          <div><b>31</b><small>Matchs joués</small></div>
+        </div>
+        <div class="bas"><div class="bt">Le palmarès</div><div class="bt go">Une run neuve</div></div>
+      </div>
+      <figcaption>16 · La fin de la run</figcaption>
+      <p class="note">La cause en une ligne, puis <b>chaque acte en une rangée</b> (la cible, le rival, les médailles), ton joueur de la run en carte, et ce que tu gardes : les médailles, les cartes au cartable. Une run perdue rend ses médailles.</p>
+    </figure>
+
+    <figure>
+      <div class="tel">
+        <svg class="chemin" viewBox="0 0 390 844" aria-hidden="true"><path d="M140 578L195 516M195 516L130 454M195 516L260 454M130 454L70 392M130 454L195 392M260 454L320 392M195 392L130 330M195 392L260 330M130 330L195 268M260 330L195 268M195 268L130 206M195 268L260 206M130 206L195 112M260 206L195 112"/></svg>
+        <div class="noeud rival" style="left:195px;top:112px"><img src="../../img/logos/COL.svg" alt=""></div>
+        <div class="noeud choisi" style="left:130px;top:454px"><img src="../../img/logos/BOS.svg" alt=""></div>
+        <div class="voile"></div>
+        <div class="abs" style="left:28px;right:28px;top:70px">
+          <div class="k">Pause · run 7 · les années 2000</div>
+          <div style="font:800 40px/1 var(--titre);text-transform:uppercase;margin-top:6px">Acte II · case 3</div>
+          <div class="t13 gris" style="margin-top:6px">3 / 8 points · 1 cœur · 46 jetons</div>
+        </div>
+        <div class="menu">
+          <div class="on">Reprendre</div>
+          <div>Tes joueurs<small>23 · 86,1 M$</small></div>
+          <div>Ton coach et ton banc<small>4 pièces</small></div>
+          <div>L'album<small>212 cartes</small></div>
+          <div>Le palmarès<small>6 runs</small></div>
+          <div>Les règles</div>
+          <div>Les options</div>
+          <div class="q">Quitter la run</div>
+        </div>
+      </div>
+      <figcaption>17 · Le menu pause</figcaption>
+      <p class="note">Ce qui servait d'onglets vit ici, <b>par-dessus la scène</b> : tes joueurs, ton coach et ton banc, l'album, le palmarès, les règles. Il n'y a plus de classement ni de calendrier de ligue : ta cible et ta carte les remplacent.</p>
+    </figure>
+
+  </div>
+</section>
+</html>
