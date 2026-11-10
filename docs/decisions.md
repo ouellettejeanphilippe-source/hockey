@@ -3601,3 +3601,18 @@ Quatre robots le jouent sur 64 graines, aux mêmes dés :
 - **Un piège de mesure, corrigé** : `createTeam` tire la chance de saison de chaque club. Un match isolé la remet à zéro, comme l'exhibition ; sinon, deux effectifs identiques ne jouaient pas le même match sous les mêmes dés.
 
 **Ce que ça veut dire.** Dans le simulateur, le joueur ne lit pas le moteur : il lit sa carte. Le choix qui se sent est la cote au prix de son espace, à la FUT. Les décisions fines (l'ordre des lignes, l'ajustement d'un joueur à un trio) restent sous le bruit d'un match. La boucle tient si le plafond mord. Le réglage proposé : la moitié du salaire de celui qui sort reste au plafond pour la run, puis la difficulté se règle sur ce réglage.
+
+**Tranché par JP (10 nov. 2026)**, sur ces mesures :
+- **le plafond qui mord** : la moitié du salaire de celui qui sort reste au plafond pour la run ;
+- **la difficulté par des clubs plus forts**.
+
+Réglé sur 128 graines :
+- les adversaires (les affiches, les rivaux, les séries) montent de 0,25 en rang centile et portent 0, 1, 2 puis 4 étapes d'édition ; les portes ne bougent pas, sinon la boule de neige revient ;
+- celui qui joue bien gagne 10 à 12 Coupes sur 64, « premier » 1 ;
+- gérer son plafond paie 22 Coupes contre 14 au robot de la seule cote, mais seulement 3,5 points de cibles tenues.
+
+Ce qui a été essayé avant :
+- monter les adversaires dans les rangs seulement (0,15 à 0,35) laissait 16 à 23 Coupes au meilleur robot, parce que le haut de la décennie plafonne et qu'après 21 signatures ton club finit parmi les 5 % les plus forts ;
+- les étapes d'édition, le levier des séries plus dures de la V27, l'ont réglé.
+
+Le banc, les élites, les histoires et le marché ne sont pas encore joués par les robots ; la tranche 3 mesure ce qu'ils ajoutent à la lecture.
