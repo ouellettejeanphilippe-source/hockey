@@ -3577,3 +3577,27 @@ Le devis réunit les deux : docs/refonte-v28.md ; les maquettes : docs/maquettes
 - **L'allure : C partout.** La carte de la saison et des écrans illustrés, sans pixel art ; A (l'arcade 16 bits) et B (la table de cartes) sont écartés.
 - **L'ancien Rogue : gelé dès le 9 nov.**, jouable jusqu'au remplacement, puis supprimé. Les tranches 8 à 11 de la V27 et D1b s'arrêtent ; les médailles et le cartable sont gardés.
 - **« Ce qui part » passe de 86 à 58 noms** : les greffes, les pièces, les histoires et leurs juges restent avec le simulateur.
+
+## La V28, tranche 0 : ce que le simulateur récompense (10 nov. 2026)
+
+**Ce qui a été fait.** `scripts/mesure_run.mjs` joue la run en carte de la V28 sur le simulateur calibré (JP : le garder), sans écran. Le parcours :
+- une décennie et un coach ;
+- les bouche-trous du départ, puis le camp ;
+- trois actes de cinq matchs et un rival ;
+- trois portes de vrais vestiaires, la cible, deux cœurs, les séries en 3 de 5.
+
+Quatre robots le jouent sur 64 graines, aux mêmes dés :
+- « premier » prend la première carte ;
+- le robot du chiffre prend la meilleure cote ;
+- le robot malin prend la cote au prix de l'espace sous le plafond ;
+- un dernier robot essaie chaque candidat au moteur.
+
+**Ce qui a été mesuré** :
+- **L'ordre des trios n'est pas un choix.** L'ordre par défaut du simulateur est déjà le meilleur (+0,6 point pour le meilleur des 24, sur des dés tenus à l'écart), et un mauvais ordre coûte 23 points. La feuille du soir ne le propose donc pas (devis § 4.4).
+- **Une signature vaut ≈ 2 points de chance sur un match.** Essayer les candidats au moteur, même à 200 matchs, ne fait que choisir du bruit : +9 points au choix, −0,3 rejoués.
+- **Prendre la meilleure cote compte beaucoup** : 27 Coupes contre 11 pour « premier ».
+- **Lire au-delà de la cote ne paie que quand le plafond mord.** Les bouche-trous surpayés du départ libéraient de l'espace à chaque échange, et le malin ne faisait pas mieux que le robot du chiffre (27 contre 27, puis 19 contre 21, 13 contre 12 avec moins de portes). Quand celui qui sort ne libère que la moitié de son salaire, le malin gagne 31 Coupes contre 14.
+- **La run est trop facile sur chaque réglage** : la cible est de 4 à 12 Coupes pour celui qui joue bien.
+- **Un piège de mesure, corrigé** : `createTeam` tire la chance de saison de chaque club. Un match isolé la remet à zéro, comme l'exhibition ; sinon, deux effectifs identiques ne jouaient pas le même match sous les mêmes dés.
+
+**Ce que ça veut dire.** Dans le simulateur, le joueur ne lit pas le moteur : il lit sa carte. Le choix qui se sent est la cote au prix de son espace, à la FUT. Les décisions fines (l'ordre des lignes, l'ajustement d'un joueur à un trio) restent sous le bruit d'un match. La boucle tient si le plafond mord. Le réglage proposé : la moitié du salaire de celui qui sort reste au plafond pour la run, puis la difficulté se règle sur ce réglage.

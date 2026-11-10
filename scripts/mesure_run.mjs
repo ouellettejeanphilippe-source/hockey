@@ -15,9 +15,13 @@
  *
  *   LES ROBOTS, sur les mêmes dés : « premier » (la première affiche, le premier joueur de la première porte qui tient
  *   sous le plafond) ; le robot DU CHIFFRE (l'affiche la plus facile, le joueur à la meilleure cote, sans rien lire) ;
- *   le robot QUI LIT (il joue `N` matchs d'essai, les mêmes dés pour chaque candidat, contre le club médian de l'acte qui
- *   vient : il signe ce qui rend le plus, prend l'affiche haute quand sa chance passe `CHANCE_HAUTE`, relance des portes
- *   qui ne rendent rien, et choisit son plan au rival).
+ *   le robot MALIN (ce qu'une carte montre : la cote au prix de l'espace qu'elle prend, `PRIX_ESPACE` ; l'affiche haute
+ *   quand son club est au moins aussi fort ; le plan du rival lu à l'écran) ; et, à la demande (`ROBOTS=lit`), le robot
+ *   qui ESSAIE AU MOTEUR (`N` matchs d'essai par candidat) — mesuré le 10 nov. 2026 : il choisit du bruit (+9 points au
+ *   choix, −0,3 rejoués sur d'autres dés), un joueur ne vaut que ≈ 2 points de chance sur un match.
+ *
+ *   LES RÉGLAGES MESURÉS (docs/refonte-v28.md § 5) : `PORTES_APRES` (chaque match, `deux`, `rival`) et `RACHAT` (la part
+ *   du salaire de celui qui sort qui se libère ; à 0,5, le plafond mord).
  *
  *   L'ORDRE DES TRIOS (`ORDRE=1`, à part) : la feuille du soir range tes quatre trios ; ce que vaut le meilleur des 24
  *   ordres contre l'ordre de `autoRoster`, choisi sur une moitié des dés et jugé sur l'autre (sinon le maximum de 24
@@ -67,7 +71,12 @@ const RIVAUX = [0.65, 0.8, 0.92];
 const SERIES = [0.82, 1];
 const CAMP = [0.2, 0.6];
 const CHANCE_HAUTE = Number(process.env.CHANCE_HAUTE ?? 0.45);
-const ROBOTS = (process.env.ROBOTS || 'premier,chiffre,malin,lit').split(',');
+/* Quand les portes s'ouvrent : après `chaque` match, après le 2e et le 4e match de l'acte et le rival (`deux`), ou après le rival seulement (`rival`). */
+const PORTES_APRES = process.env.PORTES_APRES || 'chaque';
+/* La part du salaire de celui qui sort qui se libère (1 : tout ; 0,5 : la moitié reste au plafond, comme un rachat). */
+const RACHAT = Number(process.env.RACHAT ?? 1);
+const porteApres = m => PORTES_APRES === 'chaque' || (PORTES_APRES === 'deux' && (m === 1 || m === 3));
+const ROBOTS = (process.env.ROBOTS || 'premier,chiffre,malin').split(',');
 /* Le malin paie la cote au prix de l'espace qu'elle prend : un point de cote vaut `PRIX_ESPACE` M$ d'espace. */
 const PRIX_ESPACE = Number(process.env.PRIX_ESPACE ?? 1.5);
 
@@ -113,7 +122,7 @@ const dansLaBande = (clubs, [a, b]) => clubs.filter(c => c.rang >= a && c.rang <
 const pige = (rnd, l) => l[Math.floor(rnd() * l.length)];
 
 /* ---------- ton club ---------- */
-const masse = joueurs => joueurs.reduce((a, p) => a + (p.$ || 0), 0);
+const masse = joueurs => joueurs.reduce((a, p) => a + (p.$ || 0), 0) + (joueurs.mort || 0);
 function tonClub(joueurs, perso, politique) {
   const toi = createTeam('Rogue', 'YOU', autoRoster(joueurs), { isPlayer: true });
   toi.courbe = true;
@@ -154,12 +163,13 @@ function candidats(joueurs, porte, deja, plafond) {
     if (deja.has(getPersonKey(p))) continue;
     const g = groupe(p);
     const sortant = joueurs.filter(x => groupe(x) === g).sort((a, b) => v(a) - v(b))[0];
-    if (!sortant || m - (sortant.$ || 0) + (p.$ || 0) > plafond) continue;
+    if (!sortant || m - RACHAT * (sortant.$ || 0) + (p.$ || 0) > plafond) continue;
     out.push({ p, sortant, gain: v(p) - v(sortant), porte });
   }
   return out;
 }
-function signer(joueurs, c) { return [...joueurs.filter(x => x !== c.sortant), copie(c.p)]; }
+/* Signer : l'arrivant entre, celui qui sort part ; la part de son salaire qui ne se libère pas reste au plafond (`mort`). */
+function signer(joueurs, c) { const out = [...joueurs.filter(x => x !== c.sortant), copie(c.p)]; out.mort = (joueurs.mort || 0) + (1 - RACHAT) * (c.sortant.$ || 0); return out; }
 
 /* ---------- une run ---------- */
 export function jouerLaRun(robot, graine) {
@@ -190,7 +200,7 @@ export function jouerLaRun(robot, graine) {
     else if (robot === 'chiffre') c = tous[0].gain > 0 ? tous[0] : null;
     else if (robot === 'malin') {
       // Ce qu'une carte montre : sa cote et son salaire contre ceux de qui sort.
-      const note = x => x.gain - PRIX_ESPACE * Math.max(0, ((x.p.$ || 0) - (x.sortant.$ || 0)) / 1e6);
+      const note = x => x.gain - PRIX_ESPACE * Math.max(0, ((x.p.$ || 0) - RACHAT * (x.sortant.$ || 0)) / 1e6);
       const b = tous.filter(x => x.gain > 0).sort((a, b) => note(b) - note(a))[0];
       c = b && note(b) > 0 ? b : null;
     }
@@ -239,7 +249,7 @@ export function jouerLaRun(robot, graine) {
       if (r.gagne) { pts += 2; w++; } else if (r.ot) pts += 1;
       if (!r.gagne) relances++;
       const bandePortes = r.gagne && adv === haut ? [bande[1] - 0.1, Math.min(1, bande[1] + 0.15)] : bande;
-      ouvrir(bandePortes, adv, a + (m >= 3 ? 1 : 0), `a${a}m${m}`);
+      if (porteApres(m)) ouvrir(bandePortes, adv, a + (m >= 3 ? 1 : 0), `a${a}m${m}`);
     }
     // LE RIVAL : au sommet de l'acte, un duel ; il compte double.
     const rival = clubs[Math.round(RIVAUX[a] * (clubs.length - 1))];
@@ -353,10 +363,10 @@ if (process.env.ORDRE) {
     informer(`Les signatures de ${r}`, `${g.length} signées, ${(g.length / Math.max(1, de(r).length)).toFixed(1)} par run ; chacune, rejouée sur d'autres dés contre le club médian de l'acte : ${(100 * moy(g)) >= 0 ? '+' : ''}${(100 * moy(g)).toFixed(1)} points de chance${r === 'lit' ? ` (+${(100 * moy(de(r).flatMap(x => x.gains))).toFixed(1)} mesurés au choix)` : ''}`);
   }
   const gainsTenus = de('lit').flatMap(x => x.gainsHorsEchantillon);
-  const ecart = tenues('lit') - tenues('chiffre');
+  const ecart = tenues(ROBOTS.includes('lit') ? 'lit' : 'malin') - tenues('chiffre');
   const coupes = r => de(r).filter(x => x.coupe).length;
   if (JUGER) {
-    if (ROBOTS.includes('lit')) exiger('Lire paie (la porte 0)', ecart >= 0.05, `qui lit tient ses cibles ${(100 * ecart).toFixed(1)} points plus souvent que le robot du chiffre (5 au moins)`);
+    if (ROBOTS.includes('lit') && ROBOTS.includes('chiffre')) exiger('Lire paie (la porte 0)', ecart >= 0.05, `qui lit tient ses cibles ${(100 * ecart).toFixed(1)} points plus souvent que le robot du chiffre (5 au moins)`);
     if (ROBOTS.includes('lit')) borne('Une signature bien choisie, rejouée sur d\'autres dés (points de chance)', +(100 * moy(gainsTenus)).toFixed(1), 3, 100);
     else informer('La signature du robot du chiffre', `${(100 * moy(de('chiffre').flatMap(x => x.gainsHorsEchantillon))).toFixed(1)} point de chance chacune, rejouée sur d'autres dés`);
     if (ROBOTS.includes('lit')) borne('Les Coupes de qui lit, sur 64', Math.round(coupes('lit') * 64 / GRAINES), 4, 12);

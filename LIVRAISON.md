@@ -34,7 +34,12 @@ Le devis : docs/refonte-v28.md, tranché par JP le 9 nov. :
 58 noms dans « Ce qui part ». Les maquettes de départ : docs/maquettes/v28.html.
 
 - [x] **JP tranche les quatre questions** (9 nov.) : la boucle, oui ; le moteur, le simulateur ; l'allure, C partout ; l'ancien Rogue, gelé puis supprimé.
-- [ ] **0 · Le test d'un jour** — la run en carte jouée par le simulateur, de vrais clubs, trois robots, 64 graines ; ce que valent une porte, l'ordre des trios et le plan — *mesure_run* (neuf).
+- [~] **0 · Le test d'un jour** (10 nov.) — `scripts/mesure_run.mjs`, la run en carte sur le simulateur, de vrais clubs, 64 graines ; docs/refonte-v28.md § 5.
+  - L'ordre des trios n'est pas un choix (l'ordre par défaut est le meilleur ; un mauvais coûte 23 points).
+  - Une signature vaut ≈ 2 points de chance sur un match ; essayer au moteur ne lit que du bruit.
+  - Lire au-delà de la cote ne paie que si le plafond mord : le malin 31 Coupes contre 14 au robot du chiffre, quand la moitié du salaire de celui qui sort reste au plafond.
+  - Trop facile partout.
+  - **Reste** : JP tranche le plafond qui mord, puis la difficulté se règle (les bandes, les cibles, les séries) et la porte 0 se rejuge.
 - [~] **1 · Les écrans** — fait : C1 et C2 ; à faire : toutes les scènes en direction C ; JP tranche.
 - [ ] **2 · Un acte** — « Le Rogue neuf » à côté de l'ancien — la porte 2 (JP relance un deuxième acte), *check_scene*, *check_neuf*, *essai_run*.
 - [ ] **3 · La run** — trois actes et les séries, le banc remesuré sur six matchs — *mesure_run* en CI, *check_run*, `check_pouvoirs`.
