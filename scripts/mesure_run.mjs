@@ -23,6 +23,10 @@
  *   ordres contre l'ordre de `autoRoster`, choisi sur une moitié des dés et jugé sur l'autre (sinon le maximum de 24
  *   tirages bruités se mesure lui-même), sur des paires de vrais clubs.
  *
+ * UN SOIR, PAS UNE SAISON (js/sim.js, l'exhibition) : `createTeam` tire la chance de saison de chaque club (`luck`) ; ici
+ * chaque club qu'on crée (un candidat essayé, ton club après une signature, un ordre de trios) la remet à zéro, sinon deux
+ * effectifs identiques ne jouent pas le même match sous les mêmes dés et la comparaison ne mesure que ce tirage.
+ *
  * Simplifications de la tranche 0, dites : chaque match part de jambes fraîches et d'une infirmerie vide (l'usure d'un
  * match à l'autre se mesure à la tranche 3) ; les arrêts de la carte (le marché, le vestiaire, l'histoire) ne jouent pas.
  *
@@ -96,6 +100,7 @@ function clubsDe(decennie) {
       const pool = [...F, ...D, ...G];
       const team = createTeam(t, t, autoRoster(pool), { season: s });
       team.courbe = true;
+      team.luck = 0;
       tous.push({ s, t, team, pool, force: force(team) });
     }
   }
@@ -112,6 +117,7 @@ const masse = joueurs => joueurs.reduce((a, p) => a + (p.$ || 0), 0);
 function tonClub(joueurs, perso, politique) {
   const toi = createTeam('Rogue', 'YOU', autoRoster(joueurs), { isPlayer: true });
   toi.courbe = true;
+  toi.luck = 0;
   toi.perso = structuredClone(perso);
   toi.robotDuel = robotDuel(['lit', 'malin'].includes(politique) ? 'attentif' : 'rien');
   return toi;
@@ -283,6 +289,7 @@ function enOrdre(team, ordre) {
   }
   const t = createTeam(team.name, team.tag, roster, { isPlayer: true });
   t.courbe = true;
+  t.luck = 0;
   return t;
 }
 export function mesurerLOrdre(i) {
@@ -292,6 +299,7 @@ export function mesurerLOrdre(i) {
   const toi = pige(rnd, dansLaBande(clubs, [0.3, 0.7])), adv = pige(rnd, dansLaBande(clubs, [0.3, 0.7]));
   const base = createTeam(toi.t, toi.t, autoRoster(toi.pool), { isPlayer: true });
   base.courbe = true;
+  base.luck = 0;
   const choix = ORDRES.map(o => ({ o, p: chance(enOrdre(base, o), adv.team, `ordre:${i}:choix`, 200) })).sort((a, b) => b.p - a.p);
   const tenu = o => chance(enOrdre(base, o), adv.team, `ordre:${i}:tenu`, 400);
   return { decennie, toi: `${toi.t} ${toi.s}`, adv: `${adv.t} ${adv.s}`, defaut: tenu([0, 1, 2, 3]), meilleur: tenu(choix[0].o), pire: tenu(choix[choix.length - 1].o), ordre: choix[0].o.join('') };
