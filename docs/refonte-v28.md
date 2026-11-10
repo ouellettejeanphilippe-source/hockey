@@ -198,7 +198,8 @@ Chaque règle a son écran. Chaque écran est une scène plein écran qui ne dé
   - **L'une est toujours le club que tu viens d'affronter** (« je joue les Islanders 1982 pour Bossy »). La carte devient ainsi un choix de bâtisseur.
   - **Gagné**, les portes viennent d'une bande plus haute. **Perdu**, la même bande, plus **une relance**. Pas de boule de neige.
 - **La porte ouverte** montre en cartes, trois de front, ceux qui tiennent dans ton espace. Le coin de chaque carte dit l'accord qu'il allumerait. Les autres sont pliés.
-- **Signer** se fait par l'échange d'aujourd'hui (`choisirQuiSort`) : l'arrivant face à celui qui sort, le plafond. Ce que ça change se dit en vraies stats de match (`statsDe`, js/impact.js : les tirs, le % au tir), jamais en pourcentage de victoire.
+- **Signer** se fait par l'échange d'aujourd'hui (`choisirQuiSort`) : l'arrivant face à celui qui sort, le plafond.
+- **Le plafond mord** (JP, 10 nov. 2026, sur la tranche 0) : celui qui sort ne libère que **la moitié de son salaire** ; l'autre moitié reste au plafond pour la run, comme un rachat. Chaque signature devient un arbitrage entre la cote et l'espace qu'elle prend. Ce que ça change se dit en vraies stats de match (`statsDe`, js/impact.js : les tirs, le % au tir), jamais en pourcentage de victoire.
   - Celui qui sort va au cartable.
   - Passer rapporte des jetons.
   - Aucun joueur ne revient deux fois dans la run.
@@ -278,6 +279,22 @@ Chaque règle a son écran. Chaque écran est une scène plein écran qui ne dé
   - Le plafond est le levier que le simulateur récompense.
 - **Trop facile partout** : la cible est de 4 à 12 Coupes pour celui qui joue bien, 2 au plus pour « premier ». Les bandes de force, les cibles et les séries se règlent ensuite, sur le réglage gardé.
 - **Un piège de mesure, corrigé** : `createTeam` tire la chance de saison de chaque club ; un match isolé la remet à zéro, comme l'exhibition. Sans ça, deux effectifs identiques ne jouaient pas le même match sous les mêmes dés.
+
+**Le réglage retenu** (JP, 10 nov. 2026 : le plafond qui mord ; la difficulté par des clubs plus forts). La moitié du salaire de celui qui sort reste au plafond (`RACHAT` 0,5). Les adversaires sont plus forts, les portes ne bougent pas :
+- les affiches, les rivaux et les séries montent de 0,25 en rang centile dans la décennie (`DECALAGE`) ;
+- ils portent 0, 1 et 2 étapes d'édition aux actes I, II et III, et 4 en séries (`ETAPES`, `habillerLaLigue`).
+
+Sur 128 graines (deux jeux de 64), les mêmes dés :
+
+| | Malin | Chiffre | Premier |
+|---|---|---|---|
+| Coupes, premier jeu de 64 | 10 | 5 | 1 |
+| Coupes, second jeu de 64 | 12 | 9 | 1 |
+| Cibles tenues (les deux jeux) | 64 % | 60,5 % | 38 % |
+
+- **La difficulté tient** : celui qui joue bien gagne 10 à 12 Coupes sur 64 (cible : 4 à 12), « premier » 1 (cible : 2 au plus).
+- **Gérer son plafond paie, mais peu** : 22 Coupes contre 14 sur 128 graines, et 3,5 points de cibles tenues (le critère en demandait 5).
+- **Ce qui reste à mesurer** : les robots ne jouent encore ni le banc, ni les élites, ni les histoires, ni le marché. Le reste de ce que le joueur lit vit là ; la tranche 3 le mesure sur la run entière.
 
 **Ce que la tranche 0 mesurait au départ** (la question posée, gardée) :
 - ce que vaut une signature de porte, en points de chance sur un match ;
@@ -401,6 +418,9 @@ Chaque nom ci-dessous disparaît du jeu au remplacement (tranche 4), et *check_r
 | *CIBLES* | 7 · 8 · 9 sur 14 | ±1 chacune | le premier levier de la difficulté |
 | *COEURS* | 2 | 2 (JP) | ne se règle pas |
 | *PORTES* | 3 | 2-4 | à 1, pas de choix ; à 5, plus de manque |
+| *RACHAT*, la part du salaire de celui qui sort qui se libère | 0,5 (JP, 10 nov.) | 0,4-0,7 | à 1, le plafond ne mord pas et lire la cote suffit ; trop bas, on ne signe plus |
+| *DECALAGE*, les adversaires plus haut dans la décennie | 0,25 | 0,15-0,35 | mesuré : 0,15 laisse 14 Coupes au malin, 0,35 garde la boule de neige au chiffre |
+| *ETAPES*, les étapes d'édition des adversaires (actes I, II, III, séries) | 0 · 1 · 2 · 4 | ±1 chacune | sans elles, ton club finit plus fort que le haut de la décennie et gagne une Coupe sur trois |
 | La bande des portes | selon le club battu | — | trop haute après une victoire, la boule de neige revient |
 | La durée des temps forts | 30-60 s | 20-90 s | plus long, dix-huit matchs deviennent une corvée |
 | Les séries | 3 de 5, rachetées par un cœur | 2 de 3 à 4 de 7 | 2 de 3, la run finit sur des dés |
@@ -409,7 +429,7 @@ Chaque nom ci-dessous disparaît du jeu au remplacement (tranche 4), et *check_r
 
 Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est pas passée.
 
-- [~] **La porte 0, le test d'un jour** (10 nov. : rouge tel qu'écrit, vert avec le plafond qui mord ; à refaire sur le réglage gardé, la difficulté réglée) : le simulateur, de vrais clubs, la run en carte jouée par trois robots sur 64 graines, aucun écran — *mesure_run* (neuf). Rouge, on règle la carte et les portes avant tout écran.
+- [x] **La porte 0, le test d'un jour** (10 nov. ; le réglage retenu au § 5 : la difficulté tient, gérer son plafond paie 22 Coupes contre 14, mais 3,5 points de cibles au lieu de 5 — le reste se mesure à la tranche 3 avec le banc, les élites et les histoires) : le simulateur, de vrais clubs, la run en carte jouée par trois robots sur 64 graines, aucun écran — *mesure_run* (neuf). Rouge, on règle la carte et les portes avant tout écran.
   - Le robot qui lit (les portes par ce qu'elles allument, le chemin selon ses forces, le plan contre le rival) tient ses cibles au moins 5 points plus souvent que **le robot du chiffre**, qui prend toujours la carte la mieux cotée et le chemin le plus court.
   - Une signature de porte bien choisie déplace la chance du match suivant d'au moins 3 points en moyenne.
   - L'ordre des trios contre leurs lignes, mesuré en paires : si l'écart reste sous 2 points, la feuille du soir ne le présente pas comme un choix (§ 4.4).

@@ -47,7 +47,7 @@ import {
 } from '../js/sim.js';
 import '../js/greffes.js';
 import { PIECE_DU_COACH } from '../js/pieces.js';
-import { ESPACE_DE_DEPART } from '../js/rogue.js';
+import { ESPACE_DE_DEPART, habillerLaLigue, niveauDeLigue, rangDePrestige } from '../js/rogue.js';
 import { SAISONS, shard, generateur, groupe, vestiaire, metaAuNiveau } from './lib/rogue_sim.mjs';
 import { saisonFinie } from './lib/vestiaires.mjs';
 import { robotDuel } from './lib/duel.mjs';
@@ -71,10 +71,16 @@ const RIVAUX = [0.65, 0.8, 0.92];
 const SERIES = [0.82, 1];
 const CAMP = [0.2, 0.6];
 const CHANCE_HAUTE = Number(process.env.CHANCE_HAUTE ?? 0.45);
+/* La difficulté (JP, 10 nov. 2026 : des clubs plus forts) : les adversaires (les affiches, les rivaux, les séries) montent de `DECALAGE` en rang centile ; les portes, non, sinon la boule de neige revient. */
+const DECALAGE = Number(process.env.DECALAGE ?? 0.25);
+const decale = ([a, b]) => [Math.min(0.95, a + DECALAGE), Math.min(1, b + DECALAGE)];
+/* Plus forts que leur vraie saison : les étapes d'édition des adversaires, aux actes I, II, III et en séries (`habillerLaLigue`, js/rogue.js, comme les séries plus dures de la V27). */
+const ETAPES = (process.env.ETAPES || '0,1,2,4').split(',').map(Number);
+const LIGUE = niveauDeLigue(rangDePrestige(metaAuNiveau(0)), 0);
 /* Quand les portes s'ouvrent : après `chaque` match, après le 2e et le 4e match de l'acte et le rival (`deux`), ou après le rival seulement (`rival`). */
 const PORTES_APRES = process.env.PORTES_APRES || 'chaque';
-/* La part du salaire de celui qui sort qui se libère (1 : tout ; 0,5 : la moitié reste au plafond, comme un rachat). */
-const RACHAT = Number(process.env.RACHAT ?? 1);
+/* La part du salaire de celui qui sort qui se libère : 0,5, la moitié reste au plafond pour la run, comme un rachat (JP, 10 nov. 2026 : le plafond qui mord). */
+const RACHAT = Number(process.env.RACHAT ?? 0.5);
 const porteApres = m => PORTES_APRES === 'chaque' || (PORTES_APRES === 'deux' && (m === 1 || m === 3));
 const ROBOTS = (process.env.ROBOTS || 'premier,chiffre,malin').split(',');
 /* Le malin paie la cote au prix de l'espace qu'elle prend : un point de cote vaut `PRIX_ESPACE` M$ d'espace. */
@@ -137,16 +143,21 @@ function preparer(t) {
   for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { p.energie = 100; delete p._reserve; } }
   if (t.injured) t.injured.clear();
 }
-function jouer(toi, adv, graine, cle, visiteur = false) {
+/* L'adversaire habillé de ses étapes le temps d'un match, puis rendu : ses joueurs sont partagés avec les portes. */
+const habiller = (t, e) => { if (e > 0) habillerLaLigue([t], LIGUE, v, e); };
+const deshabiller = t => { for (const p of Object.values(t.roster)) if (p) delete p._carte; };
+function jouer(toi, adv, graine, cle, visiteur = false, etape = 0) {
   grainerHasard(`${graine}:${cle}`);
-  preparer(toi); preparer(adv);
+  preparer(toi); preparer(adv); habiller(adv, etape);
   const f = feuilleVierge();
   const r = playGame(visiteur ? adv : toi, visiteur ? toi : adv, 1, false, false, f);
+  deshabiller(adv);
   return { gagne: r.winner === toi, ot: !!r.ot };
 }
-function duel(toi, adv, graine, cle, moment = null) {
-  preparer(toi); preparer(adv);
+function duel(toi, adv, graine, cle, moment = null, etape = 0) {
+  preparer(toi); preparer(adv); habiller(adv, etape);
   const r = simulerGrosMatch(toi, adv, { graine, cle, ...(moment ? { moment } : {}) });
+  deshabiller(adv);
   return { gagne: r.gagne, ot: !!(r.feuille && r.feuille.ot) };
 }
 /* La chance d'un club contre un autre, sur `n` matchs aux dés fixés par `sel` (les mêmes pour chaque candidat). */
@@ -236,7 +247,7 @@ export function jouerLaRun(robot, graine) {
 
   // LES TROIS ACTES.
   for (let a = 0; a < 3; a++) {
-    const bande = BANDES[a], pool = dansLaBande(clubs, bande), mid = (bande[0] + bande[1]) / 2;
+    const bande = BANDES[a], affiches = decale(bande), pool = dansLaBande(clubs, affiches), mid = (affiches[0] + affiches[1]) / 2;
     let pts = 0, w = 0;
     for (let m = 0; m < MATCHS; m++) {
       const bas = pige(rnd, pool.filter(c => c.rang <= mid)), haut = pige(rnd, pool.filter(c => c.rang > mid));
@@ -245,15 +256,15 @@ export function jouerLaRun(robot, graine) {
       else if (robot === 'chiffre') adv = bas;
       else if (robot === 'malin') adv = force(toi) >= haut.force ? haut : bas;
       else adv = chance(toi, haut.team, `${graine}:a${a}m${m}:affiche`, 60) >= CHANCE_HAUTE ? haut : bas;
-      const r = jouer(toi, adv.team, `v28:${graine}`, `a${a}m${m}`, m % 2 === 1);
+      const r = jouer(toi, adv.team, `v28:${graine}`, `a${a}m${m}`, m % 2 === 1, ETAPES[a]);
       if (r.gagne) { pts += 2; w++; } else if (r.ot) pts += 1;
       if (!r.gagne) relances++;
       const bandePortes = r.gagne && adv === haut ? [bande[1] - 0.1, Math.min(1, bande[1] + 0.15)] : bande;
       if (porteApres(m)) ouvrir(bandePortes, adv, a + (m >= 3 ? 1 : 0), `a${a}m${m}`);
     }
     // LE RIVAL : au sommet de l'acte, un duel ; il compte double.
-    const rival = clubs[Math.round(RIVAUX[a] * (clubs.length - 1))];
-    const r = duel(toi, rival.team, `v28:${graine}`, `rival${a}`);
+    const rival = clubs[Math.round(Math.min(1, RIVAUX[a] + DECALAGE) * (clubs.length - 1))];
+    const r = duel(toi, rival.team, `v28:${graine}`, `rival${a}`, null, ETAPES[a]);
     if (r.gagne) { pts += 4; w++; } else if (r.ot) pts += 2;
     const tenu = pts >= CIBLES[a];
     out.actes.push({ pts, w, tenu, rival: r.gagne, force: force(toi) });
@@ -268,13 +279,13 @@ export function jouerLaRun(robot, graine) {
 
   // LES SÉRIES : trois rondes en 3 de 5, contre le haut de la décennie ; une série perdue se rachète par un cœur.
   if (!out.mort && !out.rate) {
-    const haut = dansLaBande(clubs, SERIES);
+    const haut = dansLaBande(clubs, decale(SERIES));
     const adversaires = [0, 1, 2].map(() => pige(rnd, haut)).sort((x, y) => x.force - y.force);
     let ronde = 0, essai = 0;
     while (ronde < 3) {
       let wa = 0, wb = 0, k = 0;
       while (wa < 3 && wb < 3) {
-        const r = duel(toi, adversaires[ronde].team, `v28:${graine}`, `s${ronde}e${essai}g${k++}`, { serie: true, ronde: ronde + 1 });
+        const r = duel(toi, adversaires[ronde].team, `v28:${graine}`, `s${ronde}e${essai}g${k++}`, { serie: true, ronde: ronde + 1 }, ETAPES[3]);
         if (r.gagne) wa++; else wb++;
       }
       if (wa === 3) { ronde++; out.rondes++; essai = 0; continue; }
@@ -319,7 +330,8 @@ export function mesurerLOrdre(i) {
 if (process.env.BRAS) {
   const [quoi, a, b] = process.env.BRAS.split(':');
   const res = [];
-  for (let g = Number(a); g < Number(b); g++) res.push(quoi === 'ordre' ? mesurerLOrdre(g) : jouerLaRun(quoi, g));
+  const g0 = Number(process.env.GRAINE0 ?? 0);
+  for (let g = Number(a); g < Number(b); g++) res.push(quoi === 'ordre' ? mesurerLOrdre(g0 + g) : jouerLaRun(quoi, g0 + g));
   process.stdout.write(JSON.stringify(res));
   process.exit(0);
 }
