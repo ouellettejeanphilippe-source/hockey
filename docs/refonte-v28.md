@@ -6,7 +6,7 @@ Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 9 nov.
 - **l'allure C partout** : la carte de la saison et des écrans illustrés, sans pixel art ;
 - **l'ancien Rogue est gelé**, puis supprimé.
 
-Ce texte applique ces décisions. Les maquettes de départ sont dans docs/maquettes/v28.html. Les écrans complets de la direction C se dessinent à la tranche 1. **Rien n'est codé.**
+Ce texte applique ces décisions. Les maquettes de départ sont dans docs/maquettes/v28.html. Les écrans complets de la direction C sont dans docs/maquettes/v28-ecrans.html (la tranche 1, 10 nov.) ; JP tranche dessus. **Rien n'est codé.**
 
 ## En une page
 
@@ -474,7 +474,16 @@ L'ancien Rogue est **gelé** dès le 9 nov. (JP) : plus aucun travail dessus. Le
 
 **1. Les écrans.**
 - Fait : les maquettes C1 et C2 (docs/maquettes/v28.html).
-- À faire : toutes les scènes du § 4.9 en direction C, avec les vraies cartes. *JP tranche ; aucune ligne de code.*
+- Fait (10 nov.) : dix-sept scènes en direction C, à 390 × 844, avec les vraies cartes à la série de leur saison (docs/maquettes/v28-ecrans.html). Une seule run d'un écran à l'autre : le départ, la carte de l'acte, le rival, la feuille du soir et son plan, le match, les portes, la porte ouverte, l'échange, les Lignes, le marché, le vestiaire, une histoire, la fin d'acte, les séries, la fin de run, le menu pause.
+- À faire : *JP tranche sur les maquettes ; aucune ligne de code.*
+- **Ce que les maquettes précisent**, que le § 4 ne disait pas, et que JP tranche avec elles :
+  - **Le départ** est une scène : ton coach, un parmi trois, avec sa règle et sa pièce de départ. Le camp est l'écran des trois portes, joué trois fois.
+  - **La carte** a des rangs de matchs et des rangs d'arrêts : chaque chemin compte bien cinq matchs et deux arrêts. Le tiroir du bas compare les deux cases offertes.
+  - **La feuille du soir** dit ce que le match paie, gagné et perdu, avant de jouer.
+  - **La porte ouverte** montre les cinq plus forts qui tiennent dans ton espace ; le reste est plié derrière une tuile, pour que l'écran ne défile pas. Le coin d'une carte s'allume pour l'accord ; son salaire est dessous.
+  - **Les Lignes** tiennent tes quatre trios sans défiler (des cartes de 88 px) ; la défense, le filet et les joueurs en civil sont à un toucher.
+  - **Le marché** ne soigne pas : le soin est au vestiaire, seul.
+  - **Les pages du menu pause** rouvrent les scènes : « Tes joueurs » ouvre les Lignes.
 
 **2. Un acte.** « Le Rogue neuf » s'ouvre du menu, à côté de l'ancien, avec :
 - la coquille (le HUD, le menu pause) ;
