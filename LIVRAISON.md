@@ -40,7 +40,7 @@ Le devis : docs/refonte-v28.md, tranché par JP le 9 nov. :
   - Lire au-delà de la cote ne paie que si le plafond mord : le malin 31 Coupes contre 14 au robot du chiffre, quand la moitié du salaire de celui qui sort reste au plafond.
   - Trop facile partout.
   - **Tranché par JP (10 nov.)** : le plafond qui mord ; la difficulté par des clubs plus forts. Réglé sur 128 graines (adversaires +0,25 en rang, 0 · 1 · 2 · 4 étapes d'édition) : le malin 10 à 12 Coupes sur 64, « premier » 1 ; lire le plafond paie 22 Coupes contre 14, 3,5 points de cibles. La porte 0 est passée ; le reste de la lecture se mesure à la tranche 3.
-- [~] **1 · Les écrans** — fait (10 nov.) : dix-sept scènes en direction C, à 390 × 844, avec les vraies cartes (docs/maquettes/v28-ecrans.html ; ce qu'elles précisent : docs/refonte-v28.md, tranche 1) ; à faire : JP tranche sur les maquettes, avant le code.
+- [x] **1 · Les écrans** (10 nov.) — dix-sept scènes en direction C, à 390 × 844, avec les vraies cartes (docs/maquettes/v28-ecrans.html ; ce qu'elles précisent : docs/refonte-v28.md, tranche 1). **Tranché par JP (10 nov.)** : *fais tout je suis tanné des maquettes* — elles font foi, et les tranches 2 à 5 s'enchaînent.
 - [ ] **2 · Un acte** — « Le Rogue neuf » à côté de l'ancien — la porte 2 (JP relance un deuxième acte), *check_scene*, *check_neuf*, *essai_run*.
 - [ ] **3 · La run** — trois actes et les séries, le banc remesuré sur six matchs — *mesure_run* en CI, *check_run*, `check_pouvoirs`.
 - [ ] **4 · Le remplacement** — l'ancien Rogue part d'un coup — `check_refonte` sur la somme, `check_mort`, `check_sauvegardes`.

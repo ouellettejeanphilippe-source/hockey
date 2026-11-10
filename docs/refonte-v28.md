@@ -433,8 +433,8 @@ Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est
   - Le robot qui lit (les portes par ce qu'elles allument, le chemin selon ses forces, le plan contre le rival) tient ses cibles au moins 5 points plus souvent que **le robot du chiffre**, qui prend toujours la carte la mieux cotée et le chemin le plus court.
   - Une signature de porte bien choisie déplace la chance du match suivant d'au moins 3 points en moyenne.
   - L'ordre des trios contre leurs lignes, mesuré en paires : si l'écart reste sous 2 points, la feuille du soir ne le présente pas comme un choix (§ 4.4).
-- [ ] **La porte 1, les écrans** — à juger par JP : chaque scène du § 4.9 en direction C, à 390 × 844 ; il tranche avant le code.
-- [ ] **La porte 2, un acte au téléphone** — à juger par JP : après un acte du « Rogue neuf », il en relance un deuxième.
+- [x] **La porte 1, les écrans** (JP, 10 nov. : *fais tout je suis tanné des maquettes*) : chaque scène du § 4.9 en direction C, à 390 × 844, docs/maquettes/v28-ecrans.html ; elles font foi.
+- [ ] **La porte 2, un acte au téléphone** — à juger par JP : après un acte du « Rogue neuf », il en relance un deuxième. Depuis *fais tout* (10 nov.), elle ne retient plus les tranches 3 à 5 : JP juge la run entière à l'essai.
 - [ ] **La run** — *check_run* (neuf), *essai_run* (neuf, à 390 px) :
   - trois actes de cinq matchs et un rival, deux arrêts par acte ;
   - la cible et les cœurs recomptés ;
@@ -475,7 +475,7 @@ L'ancien Rogue est **gelé** dès le 9 nov. (JP) : plus aucun travail dessus. Le
 **1. Les écrans.**
 - Fait : les maquettes C1 et C2 (docs/maquettes/v28.html).
 - Fait (10 nov.) : dix-sept scènes en direction C, à 390 × 844, avec les vraies cartes à la série de leur saison (docs/maquettes/v28-ecrans.html). Une seule run d'un écran à l'autre : le départ, la carte de l'acte, le rival, la feuille du soir et son plan, le match, les portes, la porte ouverte, l'échange, les Lignes, le marché, le vestiaire, une histoire, la fin d'acte, les séries, la fin de run, le menu pause.
-- À faire : *JP tranche sur les maquettes ; aucune ligne de code.*
+- **Tranché par JP (10 nov. 2026)** : *fais tout je suis tanné des maquettes*. Les dix-sept écrans font foi tels quels ; plus de tour de maquettes. Le code les reproduit, il ne s'en inspire pas.
 - **Ce que les maquettes précisent**, que le § 4 ne disait pas, et que JP tranche avec elles :
   - **Le départ** est une scène : ton coach, un parmi trois, avec sa règle et sa pièce de départ. Le camp est l'écran des trois portes, joué trois fois.
   - **La carte** a des rangs de matchs et des rangs d'arrêts : chaque chemin compte bien cinq matchs et deux arrêts. Le tiroir du bas compare les deux cases offertes.
@@ -506,6 +506,14 @@ L'ancien Rogue est **gelé** dès le 9 nov. (JP) : plus aucun travail dessus. Le
 2. **Le moteur** : un moteur de présences fait pour être vu, ou le simulateur ? — **Garder le simulateur.** Le moteur de présences, ses appels en plein match et ses mesures partent du devis. Le match se montre en temps forts, à partir de la feuille du simulateur.
 3. **L'allure** : A (l'arcade 16 bits), B (la table de cartes) ou C (la carte de la saison) ? — **C partout**, sans pixel art.
 4. **L'ancien Rogue** : gelé dès aujourd'hui, jouable jusqu'au remplacement, puis supprimé ; les runs en cours perdues, les médailles et le cartable gardés. — **Oui.**
+
+## 11b. Tranché par JP (10 nov. 2026, sur les écrans)
+
+*fais tout je suis tanné des maquettes.*
+
+- **Les maquettes font foi** (docs/maquettes/v28-ecrans.html) : les dix-sept scènes, et ce qu'elles précisent (tranche 1). Aucun autre tour de maquettes.
+- **Tout** : les tranches 2 à 5 s'enchaînent sans attendre un essai entre elles. Les tranches 2 et 3 se livrent ensemble (la run entière, jouable à côté de l'ancien Rogue) ; puis le remplacement ; puis la méta.
+- Ce qui reste à JP : l'essai au téléphone, sur la run entière (§ 10, « à juger par JP »).
 
 ## 12. Ce qui a été écarté
 
