@@ -63,7 +63,9 @@ const RIVAUX = [0.65, 0.8, 0.92];
 const SERIES = [0.82, 1];
 const CAMP = [0.2, 0.6];
 const CHANCE_HAUTE = Number(process.env.CHANCE_HAUTE ?? 0.45);
-const ROBOTS = (process.env.ROBOTS || 'premier,chiffre,lit').split(',');
+const ROBOTS = (process.env.ROBOTS || 'premier,chiffre,malin,lit').split(',');
+/* Le malin paie la cote au prix de l'espace qu'elle prend : un point de cote vaut `PRIX_ESPACE` M$ d'espace. */
+const PRIX_ESPACE = Number(process.env.PRIX_ESPACE ?? 1.5);
 
 /* ---------- les clubs de la décennie ---------- */
 const v = p => getHiddenRatings(p).v;
@@ -111,7 +113,7 @@ function tonClub(joueurs, perso, politique) {
   const toi = createTeam('Rogue', 'YOU', autoRoster(joueurs), { isPlayer: true });
   toi.courbe = true;
   toi.perso = structuredClone(perso);
-  toi.robotDuel = robotDuel(politique === 'lit' ? 'attentif' : 'rien');
+  toi.robotDuel = robotDuel(['lit', 'malin'].includes(politique) ? 'attentif' : 'rien');
   return toi;
 }
 
@@ -180,6 +182,12 @@ export function jouerLaRun(robot, graine) {
     let c = null;
     if (robot === 'premier') c = candidats(joueurs, portes[0], deja, plafond)[0] || null;
     else if (robot === 'chiffre') c = tous[0].gain > 0 ? tous[0] : null;
+    else if (robot === 'malin') {
+      // Ce qu'une carte montre : sa cote et son salaire contre ceux de qui sort.
+      const note = x => x.gain - PRIX_ESPACE * Math.max(0, ((x.p.$ || 0) - (x.sortant.$ || 0)) / 1e6);
+      const b = tous.filter(x => x.gain > 0).sort((a, b) => note(b) - note(a))[0];
+      c = b && note(b) > 0 ? b : null;
+    }
     else {
       // Qui lit : les trois meilleures cotes, et un de chaque autre porte, essayés au moteur sur les mêmes dés.
       const essai = [...new Set([...tous.slice(0, 3), ...portes.map(p => tous.find(x => x.porte === p)).filter(Boolean)])];
@@ -192,7 +200,7 @@ export function jouerLaRun(robot, graine) {
       if (best && best.p > base) { c = best; out.gains.push(best.p - base); }
     }
     // La mesure gardée, pour chaque robot : la même signature rejouée sur d'autres dés (le choix ne se mesure pas lui-même).
-    if (c) {
+    if (c && N_TENU > 0) {
       const sel2 = `${graine}:${cle}:tenu`;
       out.gainsHorsEchantillon.push(chance(tonClub(signer(joueurs, c), perso, robot), adv, sel2, N_TENU) - chance(toi, adv, sel2, N_TENU));
     }
@@ -219,6 +227,7 @@ export function jouerLaRun(robot, graine) {
       let adv;
       if (robot === 'premier') adv = rnd() < 0.5 ? bas : haut;
       else if (robot === 'chiffre') adv = bas;
+      else if (robot === 'malin') adv = force(toi) >= haut.force ? haut : bas;
       else adv = chance(toi, haut.team, `${graine}:a${a}m${m}:affiche`, 60) >= CHANCE_HAUTE ? haut : bas;
       const r = jouer(toi, adv.team, `v28:${graine}`, `a${a}m${m}`, m % 2 === 1);
       if (r.gagne) { pts += 2; w++; } else if (r.ot) pts += 1;
@@ -267,8 +276,9 @@ function permutations(a) { return a.length <= 1 ? [a] : a.flatMap((x, i) => perm
 const ORDRES = permutations([0, 1, 2, 3]);
 function enOrdre(team, ordre) {
   const roster = { ...team.roster };
-  for (const s of SLOTS.filter(x => x.group === 'F' && x.unit < 4)) {
-    const src = SLOTS.find(x => x.group === 'F' && x.unit === ordre[s.unit] && x.role === s.role);
+  const trio = x => x.group === 'F' && !x.scratch && ['AG', 'C', 'AD'].includes(x.role) && x.unit < 4;
+  for (const s of SLOTS.filter(trio)) {
+    const src = SLOTS.find(x => trio(x) && x.unit === ordre[s.unit] && x.role === s.role);
     roster[s.i] = team.roster[src.i];
   }
   const t = createTeam(team.name, team.tag, roster, { isPlayer: true });
