@@ -102,6 +102,7 @@ scripts/sonde_aptitudes.mjs l'échelle des profils sur 330 vraies équipes
 scripts/sonde_gros_matchs.mjs combien de gros matchs par saison
 scripts/mesure_rogue.mjs, mesure_defilement.mjs   des mesures d'époque (S76-S77), gardées
 scripts/mesure_rythme.mjs le rythme d'une saison de l'attentif : les matchs où la saison demande quelque chose, le plus long trou, les quarts (nov. 2026)
+scripts/mesure_run.mjs    la run en carte de la V28 jouée par des robots sur le simulateur (tranche 0) : premier, le robot du chiffre et celui qui lit, la cible, les cœurs, les séries, ce que vaut une signature rejouée sur d'autres dés ; `ORDRE=1` l'ordre des trios (nov. 2026)
 ```
 
 ### Vérifier (chacun passe par verdict.mjs et pose le code de sortie)

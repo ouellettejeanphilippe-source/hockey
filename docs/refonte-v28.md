@@ -178,7 +178,7 @@ Chaque règle a son écran. Chaque écran est une scène plein écran qui ne dé
 
   La jauge bouge pendant que tu places.
 - **Contre le rival ou une élite**, en plus : **ton plan**, un parmi deux ou trois que ton banc propose, ou « Ton match ». C'est le duel à un choix de la V27 (`plansDuDuel`), tel quel.
-- **Ce que la tranche 0 mesure**, parce que le simulateur ne joue pas la feuille comme un moteur fait exprès l'aurait jouée : l'ordre des trios contre leurs lignes passe par l'appariement du simulateur, qui pesait peu à la V6. S'il ne pèse rien, la feuille du soir reste l'écran des Lignes et du plan, sans faire semblant d'être un choix de plus. La décision vit alors dans la carte, les portes et le banc.
+- **L'ordre des trios n'est pas un choix (mesuré, tranche 0).** Sur 24 paires de vrais clubs, l'ordre que le simulateur donne par défaut (`autoRoster`) est déjà le meilleur : le meilleur des 24 ordres ne fait que +0,6 point de chance, sur des dés tenus à l'écart. Un mauvais ordre coûte 23 points. La feuille du soir ne propose donc pas de ranger ses trios ; elle montre tes lignes, ton gardien, qui reste en civil, et le plan contre le rival ou une élite.
 
 ### 4.5 Le match
 
@@ -258,7 +258,28 @@ Chaque règle a son écran. Chaque écran est une scène plein écran qui ne dé
 
 À force égale, un acte de six matchs tient à ≈ 80 % des dés. Le build doit donc creuser l'écart, et la tranche 0 mesure qu'il le fait.
 
-**Ce que la tranche 0 mesure**, sur le simulateur, de vrais clubs, les mêmes dés en paires :
+**Ce que la tranche 0 a mesuré** (10 nov. 2026, `scripts/mesure_run.mjs`, le simulateur, de vrais clubs, 64 graines, les mêmes dés pour chaque robot). Les robots :
+- « premier » prend la première carte ;
+- le robot **du chiffre** prend la meilleure cote ;
+- le robot **malin** prend la cote au prix de l'espace qu'elle prend sous le plafond, et l'affiche haute quand son club est aussi fort.
+
+| Réglage | Signatures par run | Malin | Chiffre | Premier |
+|---|---|---|---|---|
+| Des portes après chaque match, le salaire de celui qui sort libéré | ≈ 21 | 27 Coupes | 27 | 11 |
+| Après les matchs 2 et 4 et le rival | ≈ 12 | 19 | 21 | 7 |
+| Après le rival seulement | 6 | 13 | 12 | 4 |
+| **Après chaque match, la moitié du salaire de celui qui sort reste au plafond** (`RACHAT` 0,5) | ≈ 21 | **31** | 14 | 8 |
+
+- **Une signature vaut ≈ +2 points de chance** sur un match, rejouée sur d'autres dés. C'est l'accumulation qui pèse : la force du club passe de 160 à ≈ 189.
+- **Essayer au moteur ne lit rien** : à 200 matchs d'essai par candidat, le robot qui essaie choisit du bruit (+9 points au choix, −0,3 rejoués sur d'autres dés), et sa run s'effondre (0 Coupe).
+- **Lire au-delà de la cote ne paie que si le plafond mord.**
+  - Quand celui qui sort libère tout son salaire, les bouche-trous surpayés du départ laissent de l'espace à chaque échange, et le malin fait comme le robot du chiffre.
+  - Quand la moitié reste au plafond, le malin gagne **31 Coupes contre 14**.
+  - Le plafond est le levier que le simulateur récompense.
+- **Trop facile partout** : la cible est de 4 à 12 Coupes pour celui qui joue bien, 2 au plus pour « premier ». Les bandes de force, les cibles et les séries se règlent ensuite, sur le réglage gardé.
+- **Un piège de mesure, corrigé** : `createTeam` tire la chance de saison de chaque club ; un match isolé la remet à zéro, comme l'exhibition. Sans ça, deux effectifs identiques ne jouaient pas le même match sous les mêmes dés.
+
+**Ce que la tranche 0 mesurait au départ** (la question posée, gardée) :
 - ce que vaut une signature de porte, en points de chance sur un match ;
 - ce que vaut l'ordre des trios contre leurs lignes ;
 - ce que vaut le plan contre le rival ;
@@ -388,7 +409,7 @@ Chaque nom ci-dessous disparaît du jeu au remplacement (tranche 4), et *check_r
 
 Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est pas passée.
 
-- [ ] **La porte 0, le test d'un jour** : le simulateur, de vrais clubs, la run en carte jouée par trois robots sur 64 graines, aucun écran — *mesure_run* (neuf). Rouge, on règle la carte et les portes avant tout écran.
+- [~] **La porte 0, le test d'un jour** (10 nov. : rouge tel qu'écrit, vert avec le plafond qui mord ; à refaire sur le réglage gardé, la difficulté réglée) : le simulateur, de vrais clubs, la run en carte jouée par trois robots sur 64 graines, aucun écran — *mesure_run* (neuf). Rouge, on règle la carte et les portes avant tout écran.
   - Le robot qui lit (les portes par ce qu'elles allument, le chemin selon ses forces, le plan contre le rival) tient ses cibles au moins 5 points plus souvent que **le robot du chiffre**, qui prend toujours la carte la mieux cotée et le chemin le plus court.
   - Une signature de porte bien choisie déplace la chance du match suivant d'au moins 3 points en moyenne.
   - L'ordre des trios contre leurs lignes, mesuré en paires : si l'écart reste sous 2 points, la feuille du soir ne le présente pas comme un choix (§ 4.4).
