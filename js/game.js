@@ -1287,6 +1287,11 @@ export function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
     exhibition: () => { fermerMenu(); import('./exhibition.js').then(({ ouvrirExhibition }) => ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
     // SUR GLACE (31 oct. 2026, js/sur-glace.js) : la physique à la manette, chargée au clic ; aucune partie, retour au menu.
     glace: () => { fermerMenu(); import('./sur-glace.js').then(({ ouvrirSurGlace }) => ouvrirSurGlace(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
+    // Le Rogue neuf (V28) : la run en carte, chargée à la demande ; elle se referme sur le Menu, sa run gardée.
+    run: {
+      enCours: (() => { try { const r = JSON.parse(localStorage.getItem('cap82_run') || 'null'); return !!r && r.phase !== 'fin'; } catch { return false; } })(),
+      ouvrir: () => { fermerMenu(); import('./run-jeu.js').then(({ ouvrirRun }) => ouvrirRun({ onFerme: () => afficherMenu(contexteDuMenu({ vierge, enJeu })) })); },
+    },
     rogue: {
       // 1.0 (R7, R8) : la dernière run sur le carton, rien à la première visite.
       resume: () => {
@@ -1451,6 +1456,14 @@ function setupEvents() {
     () => { const b = document.querySelector('#exhibitionModal .exh-fermer'); if (!b) return false; b.click(); return true; },
     // Sur glace, pareil.
     () => { const b = document.querySelector('#glaceModal .sg-fermer'); if (!b) return false; b.click(); return true; },
+    // Le Rogue neuf : B ou Échap referme ce qui est ouvert par-dessus la scène, sinon ouvre la pause.
+    () => {
+      const r = document.getElementById('runModal');
+      if (!r) return false;
+      const b = r.querySelector('[data-a="reprendre"], [data-a^="fermer-"], [data-a="pause"]');
+      if (b) b.click();
+      return true;
+    },
     fermerRegles,
     // Le Menu en pleine partie : « Retour à la partie ». Au lancement, il est
     // l'écran titre, et rien n'est sous lui.

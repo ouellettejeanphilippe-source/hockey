@@ -214,6 +214,21 @@ jobs:
       - name: Un choix tient en un écran
         run: node scripts/check_hauteur.mjs http://localhost:8000
 
+      # La run en carte (V28, docs/refonte-v28.md § 10) : chaque scène du Rogue neuf ouverte à 390 × 844 depuis une vraie
+      # sauvegarde — aucune ne défile, rien du site ne dépasse, le HUD au même pixel, chaque cible de 44. Deux minutes.
+      - name: Une scène, jamais une page
+        run: node scripts/check_scene.mjs http://localhost:8000
+
+      # Une run entière jouée au doigt, du coach à l'écran de fin, le hasard semé : neuf touchers au plus par semaine
+      # gagnée, le pointage vu est celui gardé, la reprise, les médailles versées une fois. Une minute et demie.
+      - name: Une run au doigt
+        run: node scripts/essai_run.mjs http://localhost:8000
+
+      # Lire paie, sans gagner d'office : trois robots sur 64 graines, les mêmes dés (le malin 4 à 12 Coupes, « premier »
+      # au plus 2, le malin devant le robot du chiffre). Deux minutes sur quatre fils.
+      - name: La run en carte, mesurée
+        run: GRAINES=64 FILS=4 node scripts/mesure_run.mjs
+
   # La fusion par le CI (JP, 7 nov. 2026) : une PR verte se fusionne seule, comme l'auto-merge de GitHub.
   # main n'a pas de règle de protection, exprès : build-data.yml y pousse les données du lundi, et un dépôt
   # personnel ne laisse pas GitHub Actions contourner une protection. Une PR qui ne doit pas partir s'ouvre

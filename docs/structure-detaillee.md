@@ -102,7 +102,11 @@ scripts/sonde_aptitudes.mjs l'échelle des profils sur 330 vraies équipes
 scripts/sonde_gros_matchs.mjs combien de gros matchs par saison
 scripts/mesure_rogue.mjs, mesure_defilement.mjs   des mesures d'époque (S76-S77), gardées
 scripts/mesure_rythme.mjs le rythme d'une saison de l'attentif : les matchs où la saison demande quelque chose, le plus long trou, les quarts (nov. 2026)
-scripts/mesure_run.mjs    la run en carte de la V28 jouée par des robots sur le simulateur (tranche 0) : premier, le robot du chiffre et celui qui lit, la cible, les cœurs, les séries, ce que vaut une signature rejouée sur d'autres dés ; `ORDRE=1` l'ordre des trios (nov. 2026)
+scripts/mesure_run.mjs    la run en carte de la V28 mesurée sur ses robots (premier, le chiffre, le malin ; scripts/lib/run_robot.mjs), 64 graines, en CI : les Coupes, la première Coupe en médiane, l'acte III à 75 %
+scripts/check_run.mjs     les invariants de la run en carte : les actes, la cible, les cœurs, les portes, le plafond, la même graine, une run relue, une histoire relue (dans tout.mjs)
+scripts/check_neuf.mjs    aucun module js/run* ne s'appuie sur un nom de « Ce qui part » du devis V28, aucune ligue en coulisse (dans tout.mjs)
+scripts/check_scene.mjs   chaque scène de la run ouverte à 390 × 844 depuis une vraie sauvegarde : rien ne défile, le HUD fixe, les cibles de 44 (en CI)
+scripts/essai_run.mjs     une run entière jouée au doigt, le hasard semé : neuf touchers au plus, le pointage vu et gardé, la reprise, les médailles une fois (en CI)
 ```
 
 ### Vérifier (chacun passe par verdict.mjs et pose le code de sortie)
@@ -188,6 +192,8 @@ lib/gros.mjs                le hook UserPromptSubmit (.claude/settings.json) : q
 lib/cibles.mjs              les cibles de 44 px (smoke)
 lib/emojis.mjs              les émojis du jeu et les polices qui les rendent au trait
 lib/rogue_sim.mjs           une run Rogue jouée par un robot (check_rogue ; `politique`) et les gestes d'une saison que la run en actes partage
+lib/run_robot.mjs           les trois robots de la run en carte (V28), qui jouent par les fonctions de js/run.js
+lib/devis.mjs               lire un devis : la partie sous un titre, ses noms en code (check_refonte, check_neuf)
 lib/rogue_actes.mjs         la run en actes de la V27, jouée par les robots de check_profondeur (`ROBOTS` : l'attentif, « premier », le naïf, le glouton, les variantes)
 lib/cartes_robot.mjs        ce que les robots font du coach-personnage (talents, adjoints) et des histoires aux trois moments (V25 C2)
 lib/duel.mjs                les robots du duel : l'attentif, « Garder »

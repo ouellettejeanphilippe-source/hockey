@@ -20,6 +20,9 @@ js/fiche.js           la fiche d'un joueur : recto verso, ses rôles, l'impact, 
 js/banc.js            derrière le banc : les décisions en saison, le ballottage, l'écran de saison
 js/partie.js          l'écran « Nouvelle partie » (le brouillon)
 js/rogue-jeu.js       le Rogue à l'écran : jetons, boutique, packs, inventaire, départ, la run
+js/run.js             la run en carte de la V28, son cœur pur : l'état, la carte de l'acte, les portes, le plafond, les matchs isolés, le marché, le vestiaire, les histoires, les séries ; joué tel quel par les robots
+js/run-scenes.js      les scènes de la run, des fonctions pures (S, V) → HTML d'un plan de 390 × 844 (docs/maquettes/v28-ecrans.html)
+js/run-jeu.js         la coquille de la run : #runModal, l'échelle, la sauvegarde cap82_run, les gestes, les temps forts
 js/modes-table.js     le tournoi Sur table, ses règles, son bilan, le match d'exhibition au plateau
 js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, plateau) : MT.nom, chargerTable()
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard() ; il n'importe aucun module du Rogue

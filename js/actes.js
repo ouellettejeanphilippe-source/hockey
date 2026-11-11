@@ -258,7 +258,7 @@ export const lignesFortes = (jeu, n) => jeu.lignes.filter(l => l.rang <= aLaTail
  * (l'ombre) ; des durs chassent ou te poussent au cachot ; un gros gardien ferme le centre ou colle ta vedette.
  */
 const DOMINANTES = { tirs: ['assaut', 'ombre'], durs: ['chasse', 'cachot'], gardien: ['centre', 'ombre'] };
-const dominanteDe = (jeu, graine, acte, adv) => DOMINANTES[jeu.cle][hache(graine, 'dominante', acte, adv.tag) < 0.5 ? 0 : 1];
+export const dominanteDe = (jeu, graine, acte, adv) => DOMINANTES[jeu.cle][hache(graine, 'dominante', acte, adv.tag) < 0.5 ? 0 : 1];
 
 /*
  * LA BOUTIQUE À SES NŒUDS (V27, tranche 3 ; docs/refonte-v27.md § 4.8, docs/refonte-v27-3.md). Elle n'ouvre qu'à sept

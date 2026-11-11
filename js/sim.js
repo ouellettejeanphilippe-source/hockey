@@ -7222,12 +7222,13 @@ function poserGros(toi, adv, gros) {
  * entières était trop bruité : un gros match n'est « gros » que si le classement de la veille le dit, et chaque décision
  * déplace les suivants — il n'en restait qu'une vingtaine d'appariés. Ici, le même match, sur les mêmes dés.
  */
-export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', moment = null, plan, dominante = null, visiteur = false } = {}) {
+export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', moment = null, plan, dominante = null, visiteur = false, frais = true } = {}) {
   grainerHasard(`${graine}:${cle}`);
   // Des jambes fraîches des deux côtés : une carte qui rend de l'énergie écrit sur les joueurs, et la mesure d'un match ne doit pas hériter du précédent.
-  for (const t of [toi, adv]) for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) { p.energie = 100; delete p._reserve; } }
+  // `frais: false` (V28, js/run.js) : ton club garde ses jambes et son infirmerie d'une case à l'autre ; l'adversaire, lui, arrive frais.
+  for (const t of frais ? [toi, adv] : [adv]) for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) { p.energie = 100; delete p._reserve; } }
   // Une infirmerie vide aussi (V9) : un blessé d'un match de mesure ne doit pas manquer les suivants, sinon les matchs ne sont plus isolés.
-  for (const t of [toi, adv]) if (t.injured) t.injured.clear();
+  for (const t of frais ? [toi, adv] : [adv]) if (t.injured) t.injured.clear();
   // LE MOMENT (S80, scripts/check_rogue.mjs) : le même match au jour N de la saison, ou à une ronde des séries — l'échelle de la fin de partie suit.
   const m = moment || {};
   const gros = { jour: m.serie ? 0 : (m.jour || 0), serie: !!m.serie, ronde: m.ronde || 0, adv, raison: 'rival', graineMain: graine, cleMain: cle,

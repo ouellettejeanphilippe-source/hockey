@@ -135,6 +135,27 @@ export function pronostic({ A, B, calendrier, jourMatch, jourRevele, n = 300, gr
 }
 
 /*
+ * LA CHANCE D'UN SOIR ISOLÉ (V28, js/run.js) : la run n'a ni ligue ni calendrier. Les deux clubs tels qu'ils sont ce soir
+ * (leurs jambes, leur infirmerie), `n` matchs du moteur sur des copies, A à domicile ; rend les victoires de A. La jauge de
+ * la feuille du soir l'appelle par tranches (`graine` change à chaque tranche) pour ne pas figer l'écran.
+ */
+export function chanceDUnSoir({ A, B, n = 40, graine = 'soir' }) {
+  const photos = photographier([A, B]);
+  const nu = t => ({ ...t, injured: new Map(t.injured), injuriesLog: [], journal: null, luck: 0, _gros: null, _effetMatch: null, _advGros: null, _dernierGros: null });
+  const cA = nu(A), cB = nu(B);
+  let vA = 0;
+  try {
+    avecHasardIsole(`${graine}|${A.tag}|${B.tag}`, () => {
+      for (let i = 0; i < n; i++) {
+        cA.injured = new Map(A.injured); cB.injured = new Map(B.injured);
+        if (playGame(cA, cB, 1, false, false, null).winner === cA) vA++;
+      }
+    });
+  } finally { rendre(photos); }
+  return vA;
+}
+
+/*
  * LA PRÉVISION DU MOTEUR (1.0, oct.). JP : *je veux pas un ov qui décide
  * tout, mais un genre de prévision de ce que l'équipe doit faire donner, ou
  * un joueur, en fonction des positions et cie*. Pas une cote : tes matchs

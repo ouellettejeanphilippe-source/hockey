@@ -524,11 +524,12 @@ export const memoireDeLaRun = (avant = [], sorties = []) => [...avant, ...sortie
  * pas, le plus haut de son tirage ; une suite passe avant ; une rare ne se tire qu'à certains instants (`CHANCE_RARE`), une par
  * saison. Au lundi, seulement un lundi à histoire. Rien de vrai : null.
  */
-export function tirer(graine, moment, f, sorties = []) {
-  if (moment === 'lundi' && !lundiAHistoire(graine, Math.floor(f.jour / SEMAINE))) return null;
+export function tirer(graine, moment, f, sorties = [], { sansRythme = false, permis = () => true } = {}) {
+  // `sansRythme` (V28, js/run.js) : une case d'histoire de la carte en a toujours une, si un fait est vrai ; `permis` : celles que la run sait jouer.
+  if (moment === 'lundi' && !sansRythme && !lundiAHistoire(graine, Math.floor(f.jour / SEMAINE))) return null;
   const instant = instantDe(moment, f);
   const rareOk = k => !HISTOIRES[k].rare || (hache(String(graine), 'rare', instant) < CHANCE_RARE && !sorties.some(x => !x.avant && HISTOIRES[x.cle] && HISTOIRES[x.cle].rare));
-  const vraies = Object.keys(HISTOIRES).filter(k => HISTOIRES[k].moment === moment && HISTOIRES[k].quand(f) && !!HISTOIRES[k].joueur(f) && !auRepos(k, f, sorties) && rareOk(k));
+  const vraies = Object.keys(HISTOIRES).filter(k => permis(k) && HISTOIRES[k].moment === moment && HISTOIRES[k].quand(f) && !!HISTOIRES[k].joueur(f) && !auRepos(k, f, sorties) && rareOk(k));
   const suites = vraies.filter(k => HISTOIRES[k].suiteDe);
   const pool = suites.length ? suites : vraies;
   const h = k => hache(String(graine), 'histoire', instant, k);

@@ -3616,3 +3616,34 @@ Ce qui a été essayé avant :
 - les étapes d'édition, le levier des séries plus dures de la V27, l'ont réglé.
 
 Le banc, les élites, les histoires et le marché ne sont pas encore joués par les robots ; la tranche 3 mesure ce qu'ils ajoutent à la lecture.
+
+## La V28, tranches 2 et 3 : la run en carte dans le vrai jeu (11 nov. 2026)
+
+**Ce qui a été fait.** JP, 10 nov. : *fais tout je suis tanné des maquettes*. « Le Rogue neuf » s'ouvre du menu, à côté de l'ancien Rogue gelé : la run entière en scènes plein écran, d'après les dix-sept maquettes (docs/refonte-v28-2.md). Trois modules neufs : `js/run.js` (le cœur, pur), `js/run-scenes.js` (les scènes), `js/run-jeu.js` (la coquille).
+
+**Pourquoi un cœur pur.** Vingt refontes ont rouvert le Bureau et la cédule. Le cœur de la run est écrit sans DOM ni stockage, et les robots le jouent tel quel (`scripts/lib/run_robot.mjs`) : ce que `mesure_run` règle est ce que le joueur joue, jamais une copie. `check_neuf` refuse qu'un module `run*` nomme un des 56 noms qui partent.
+
+**Ce que le vrai moteur a changé à la tranche 0.** Le script de la tranche 0 jouait des matchs sans mémoire. Le cœur neuf garde les jambes, l'infirmerie et le banc d'un match à l'autre, et la run est redevenue trop facile (« premier » gagnait 14 Coupes sur 128). Cherché en paires, écarté : le journal, la fatigue, le jour courant, l'effectif de départ. Les causes : les pièces du banc jouent enfin leur condition, et les salaires.
+
+- **Le salaire de la run se lit sur l'échelle d'aujourd'hui.** Le `$` d'un joueur vient de sa saison : une médiane de 0,9 M$ avant 1989 (des estimations), 3,5 M$ dans les années 2020. Sous un même plafond, le malin gagnait 47 % des runs des années 2000 et aucune des années 2020. `prixDe` reporte le rang du salaire parmi les réguliers de la saison sur l'échelle des saisons 2021-22 à 2024-25. Le départ : 91,5 M$ sous 95,5 M$, dans chaque décennie.
+- **Une run se jouait d'abord dans une décennie à vrais contrats** (1990, 2000, 2010, 2020 ; `VRAIS_CONTRATS`) : sous le plafond qui mord, une run des années 1970 ne signait qu'une fois, des salaires estimés n'offrant aucune aubaine à lire. Défait le jour même par JP (ci-dessous).
+- **Les adversaires portent 1 · 2 · 3 · 7 étapes d'édition** (0 · 1 · 2 · 4 à la tranche 0). `RACHAT` 0,5 est la décision de JP, tenue ; `DECALAGE` reste à 0,25.
+
+Essayé sur 128 graines, les Coupes du malin : 0 · 1 · 2 · 4, 35 ; `RACHAT` 0,4, 28 ; 1 · 2 · 3 · 5, 36 (le chiffre 16) ; 1 · 2 · 3 · 6, 26 ; 1 · 2 · 4 · 6, 23 ; `DECALAGE` 0,3 avec 1 · 2 · 3 · 6, 17, mais « premier » en gagnait 3. Retenu, 1 · 2 · 3 · 7 : le malin 16 (8 sur 64), le chiffre 12, « premier » 0 ; les cibles tenues 59 %, 55 % et 32 %.
+
+**Toutes les années ensemble** (JP, 11 nov. 2026 : *Je veux garder l'aspect toutes les années ensemble*). Le monde d'une run couvre les 55 saisons finies des données (1970-71 à aujourd'hui), 1 366 clubs classés par leur force : une porte peut ouvrir le vestiaire des Canadiens de 1976-77, la suivante celui du Lightning de 2019-20. Ce qui le permet : le salaire de la run, lu sur une seule échelle, et la force des clubs, comparable d'une époque à l'autre comme au 82-0. Dans un monde mêlé, les aubaines viennent des saisons à vrais contrats et les joueurs d'avant coûtent leur valeur : le malin signe autant (18,8 fois par run). Sans rien régler de plus, sur 128 graines : le malin 14 Coupes (7 sur 64), le chiffre 11, « premier » 0 ; les cibles tenues 61 %, 53 % et 29 %.
+
+Ce que ça coûte : les 55 saisons se chargent à l'ouverture du Rogue (3 Mo la première fois, gardés par IndexedDB), et classer 1 366 clubs prenait cinq secondes à un processeur de téléphone simulé. Le classement se fait une fois par visite, un club ne se bâtit qu'à sa première affiche, et les forces se gardent d'une visite à l'autre (`cap82_run_monde`, un cache, signé par la version du jeu, celle des cotes et le nombre de saisons) : 2,4 s. Écarté : un monde tiré de douze saisons par run (moins cher, mais Gretzky 1985 n'aurait été là qu'une run sur cinq).
+
+**Ce qui se juge en plus.** La première Coupe du malin, en médiane, à sa sixième run (JP : pas avant la troisième ; les runs sont indépendantes, rien de la force ne suit de l'une à l'autre).
+
+**Ouvert : *tu peux exploser le jeu*.** Le devis demande qu'une run du malin sur dix joue son acte III à 75 % de chance moyenne ou plus. Dans le monde d'une décennie, 7 runs sur 64 y arrivaient (11 %) : c'était l'écart entre les décennies, pas un levier. Toutes les années ensemble, 8 sur 128 (6 %). Essayé sur 128 graines, sans y arriver : l'acte III à 2 étapes d'édition au lieu de 3 (8 runs, 6 %) ; les portes d'une affiche haute gagnée plus hautes, de [−0,1 ; +0,15] à [0 ; +0,25] (9 runs, 7 %) puis [+0,05 ; +0,3] (10 runs, 8 %) ; un robot qui monte une carte au vestiaire dès qu'il n'a rien à acheter (6 runs, 5 %). La raison : sous le plafond qui mord, la force d'un club plafonne (162 au départ, 193 à la fin, quel que soit le réglage), et rien dans la run ne grandit hors du plafond au-delà d'une édition ou d'une pièce. `mesure_run` imprime la part sans la juger ; le critère reste ouvert au devis. À trancher par JP : un levier qui grandit hors du plafond pour qui gagne (par exemple, un rival battu ouvre de l'espace), ou le critère revu.
+
+**Trois défauts que les juges ont trouvés.**
+- Le moteur datait chaque blessure du premier match, parce qu'un club rebâti à chaque signature ne compte pas ses matchs : les histoires d'infirmerie ne sortaient presque jamais. La run date la blessure en matchs joués.
+- Une run quittée puis rouverte ne lisait pas toujours la même histoire à sa case (6 fois sur 18). Deux causes : le dossier des blessures et les tirs du dernier match n'étaient pas gardés ; et un joueur signé chez le club affronté était relu comme le tien dans les vieilles feuilles. Le journal garde ton côté de chaque feuille, et chaque joueur se relit du sien. `check_run` relit chaque case d'histoire.
+- Un match fini aux tirs de barrage affichait 4-4 pour 4-5. `essai_run` compare chaque pointage vu à celui que la run garde.
+
+**Ce qui s'écarte des maquettes.** L'échange montre « Qui sort » à la place de « ce que ça change à ton club » : une signature vaut ≈ 2 points de chance, sous le bruit d'un match (tranche 0) ; l'écrire en chiffre aurait menti. La pochette Époque tire un attaquant, en attendant la méta.
+
+**Ce qui n'est pas fait.** Le banc remesuré sur un acte de six matchs (`check_pouvoirs`) passe à la tranche 4 : sa durée d'acte est celle de l'ancien Rogue, encore en jeu. Une coquille du devis, corrigée : `jeuDuRival` et `recompenseDeLElite` étaient comptées parmi ce qui part alors qu'elles déménagent (56 noms, pas 58).
