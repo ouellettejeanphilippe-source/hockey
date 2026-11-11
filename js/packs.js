@@ -1,187 +1,62 @@
 /**
- * LES PACKS (S79) — à la HUT, à la FUT, à MLB The Show… et à la boîte de
- * cartes du dépanneur.
+ * LES POCHETTES (S79 ; taillées à la V28, tranche 5b, docs/refonte-v28-5.md § 3.8) — les deux packs de joueurs que le
+ * marché d'une run en carte vend (js/run.js `POCHETTES`, `acheterLaPochette`) : le Bronze, trois vrais joueurs de toutes
+ * les époques ; l'Époque, un seul joueur d'une décennie, Pilier ou mieux.
  *
- * JP : *une variété de packs de cartes randoms digne de HUT, FUT ou MLB the
- * show mobile* ; puis : *pack d'équipe, pack d'année, pack par skill, pack par
- * trio, pack all random, avec des vrais pull rates de cartes de hockey,
- * pokemon, etc, que c'est du gambling pour le mode roguelike*.
+ * JP : *une variété de packs de cartes randoms digne de HUT, FUT ou MLB the show mobile […] avec des vrais pull rates de
+ * cartes de hockey, pokemon, etc* ; puis : *on limite les packs, tout en gardant des thématiques*. La boutique de l'ancien
+ * Rogue en vendait dix-huit (d'équipe, d'année, de décennie, par talent, le trio, les étoiles, les légendes, le garanti,
+ * le club, le coach, les métaux qui montaient) : partis avec elle. Une sorte de pochette neuve se mesurera d'abord dans
+ * la run, que les robots n'achètent pas encore.
  *
- * LES VRAIS TAUX. Une boîte « hobby » d'Upper Deck donne une Young Guns
- * toutes les quatre pochettes, une parallèle numérotée /100 par boîte, un
- * « 1 de 1 » dans une caisse sur cent ; un booster Pokémon donne une holo
- * rare toutes les trois pochettes, une ultra rare toutes les sept, une rare
- * secrète toutes les soixante-dix. Nos variantes (js/rarete.js) sont posées
- * sur ces barèmes, par TIER de pack :
+ * LE JOUEUR, PUIS SA FINITION (S80 ; JP : *packs selon les niveaux de joueurs, genre joueur moins bons plus fréquents*).
+ * Une carte se tire sur deux axes indépendants, comme dans une vraie boîte : le JOUEUR, par son niveau dans sa vraie
+ * saison (js/niveaux.js : Soutien, Régulier, Pilier, Étoile, Phénomène), puis l'ÉDITION de sa carte (js/rarete.js : Base,
+ * Cadre, Hors-cadre, Or, Holo), au barème du métal. La Holo est numérotée, comme les parallèles des séries de luxe ; le
+ * numéro est cosmétique. 1.0 — moins d'étoiles (JP : *les packs sont trop généreux en joueurs étoiles*) : une étoile ou
+ * mieux dans un pack Bronze sur quarante.
  *
- *   (le barème vit dans `TIERS`, plus bas : une table recopiée ici avait
- *   vieilli. Oct. 2026 : cinq éditions, Base, Cadre, Hors-cadre, Or, Holo.)
- *
- * Et la Holo est NUMÉROTÉE, comme les parallèles des séries de luxe : /99 (78 %),
- * /25 (16 %), /10 (5 %) — et le « 1 de 1 » (1 % des Holo). Le numéro est
- * COSMÉTIQUE : la Holo joue ce que la Holo joue (js/rarete.js), rien de plus —
- * la chasse ne casse pas le jeu.
- *
- * CHAQUE PACK AFFICHE SES CHANCES (\`chancesDe\`), en « 1 pack sur N » —
- * comme les packs de FUT depuis 2019. Et la GARANTIE (\`PITIE\`) : en mode
- * Rogue, `PITIE` packs de joueurs d'affilée sans Or ni Holo, et le suivant en
- * a une. Elle est dite dans la boutique.
- *
- * TOUT EST PUR : un pack se tire de la graine de la partie, de son genre et du
- * numéro de l'achat. Une partie reprise ouvre les mêmes packs.
- *
- * S80 — LE JOUEUR, PUIS SA FINITION. JP : *packs selon les niveaux de
- * joueurs, genre joueur moins bons plus fréquents, du moins, joueurs brisés
- * moins fréquents*. Une carte de pack se tire sur DEUX axes, comme dans une
- * vraie boîte : le JOUEUR (son niveau dans sa vraie saison, js/niveaux.js :
- * Soutien, Régulier, Pilier, Étoile, Phénomène) et la FINITION de sa carte
- * (la variante ci-dessus). Les deux sont indépendants : un Soutien peut
- * sortir en or, un Phénomène en base. Les taux du joueur, par carte (en %) :
- *
- *   tier      Soutien  Régulier  Pilier  Étoile  Phénomène   un Phénomène
- *   bronze       50       36       12      1,8      0,2       1 pack sur 167
- *   argent       36       38       21      4,4      0,6       1 pack sur 42
- *   or           24       38       30      7        1         1 pack sur 20
- *   premium      12       36       38     12        2         1 pack sur 9
- *
- * Avant (mesuré par scripts/check_packs.mjs), la moitié productive d'une
- * saison, à parts égales : un Phénomène sortait à 2,2 % par carte — d'un
- * pack Bronze sur 15, d'un Premium sur 8 — et un Soutien presque jamais
- * (6 %). Le Phénomène sort maintenant d'un Bronze sur 167, d'un Premium sur
- * 9 ; le Soutien fait la moitié d'un Bronze. Le tier compte enfin : le
- * meilleur joueur d'un pack est un Pilier ou mieux dans 37 % des Bronze
- * (73 % avant), 99 % des Premium (93 % avant). Les packs Étoiles et Légendes
- * restent des packs d'étoiles, avec leur part de Phénomènes à eux (8 et 10 %
- * par carte ; tirées à parts égales, une étoile sur cinq en était un, et
- * sept packs Étoiles sur dix en donnaient un) ; les packs par talent gardent
- * leur filtre et le Trio, sa vraie ligne : ni l'un ni l'autre ne tire de niveau.
+ * TOUT EST PUR : une pochette se tire de la graine de la run, de sa clé et du numéro de l'achat. Une run reprise garde
+ * les joueurs de sa pochette ouverte (leurs clés, `R.portes.joueurs`).
  */
 import { hache } from './util.js';
-import { COACHS, VOIES } from './coachs.js';
-import { getPlayerKey, getPersonKey, badgesDe, famillesDe } from './sim.js';
-import { coachDuJoueur } from './greffes.js';
-import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
-import { ageAtSeason } from './ratings.js';
-import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau, joueursHorsNiveau } from './niveaux.js';
+import { getPersonKey } from './sim.js';
+import { NIVEAUX, groupeDuJoueur, joueursParNiveau, joueursHorsNiveau } from './niveaux.js';
 import { statureDe, EDITIONS } from './rarete.js';
 
-/*
- * 1.0 — MOINS D'ÉTOILES (JP : *les packs sont trop généreux en joueurs étoiles*).
- * Au moins une étoile ou un phénomène par pack : Bronze 2,5 %, Argent 7 %, Or 16 %,
- * Premium 35 % (avant : 6, 18, 34, 60 %). La part retirée va aux réguliers et aux piliers.
- */
-export const TIERS = {
-  bronze: { nom: 'Bronze', n: 3, cotes: { commune: 84, peu: 11, hors: 3, rare: 1.8, legendaire: 0.2 }, niveaux: { soutien: 51, regulier: 37, pilier: 11.15, etoile: 0.8, phenomene: 0.05 } },
-  argent: { nom: 'Argent', n: 4, cotes: { commune: 74, peu: 17, hors: 5, rare: 3.5, legendaire: 0.5 }, niveaux: { soutien: 38, regulier: 39, pilier: 21.25, etoile: 1.6, phenomene: 0.15 } },
-  or: { nom: 'Or', n: 5, cotes: { commune: 62.5, peu: 23, hors: 7, rare: 6, legendaire: 1.5 }, niveaux: { soutien: 26, regulier: 40, pilier: 30.6, etoile: 3, phenomene: 0.4 } },
-  premium: { nom: 'Premium', n: 6, cotes: { commune: 52, peu: 26, hors: 9, rare: 10, legendaire: 3 }, niveaux: { soutien: 14, regulier: 40, pilier: 39, etoile: 6, phenomene: 1 } },
+/* LE MÉTAL des deux pochettes, le Bronze : ce qu'une carte tire d'édition (`cotes`) et de niveau (`niveaux`), en %. */
+export const METAL = {
+  cotes: { commune: 84, peu: 11, hors: 3, rare: 1.8, legendaire: 0.2 },
+  niveaux: { soutien: 51, regulier: 37, pilier: 11.15, etoile: 0.8, phenomene: 0.05 },
 };
 /* La numérotation d'une Holo (en % des Holo). */
 const NUMEROS = [['/99', 78], ['/25', 16], ['/10', 5], ['1 de 1', 1]];
-
 /*
- * LES PACKS DE JOUEURS. \`famille\` dit où l'on pige ; \`choix\` : le pack se
- * règle à l'achat (une franchise, une saison) ou au hasard. Les familles
- * hasard, équipe, année et ère tirent le NIVEAU aux taux de leur tier ;
- * \`niveaux\` les remplace pour les packs d'étoiles.
+ * LES DEUX POCHETTES, par leur clé de sauvegarde (`j:` : des joueurs). `n` : ses cartes ; `niveaux` : ses taux à elle, à
+ * la place de ceux du métal ; `epoque` : elle pige dans une décennie ; `poste` : elle vise un groupe (`params.poste`).
+ * Lot 5 (nov. 2026) : l'Époque, UN joueur, Pilier ou mieux, contre les trois au hasard du Bronze — le large contre le
+ * fort ; à trois joueurs au même métal, les deux se valaient. Leurs prix vivent dans la run (js/run.js `RUN.POCHETTES`).
  */
-const PACKS_JOUEURS = {
-  hasard_bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', prix: 12, texte: 'Trois vrais joueurs de toutes les époques.' },
-  hasard_argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', prix: 20, texte: 'Quatre vrais joueurs de toutes les époques.' },
-  hasard_or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', prix: 35, texte: 'Cinq vrais joueurs, de meilleures chances.' },
-  hasard_premium: { famille: 'hasard', nom: 'Pack Premium', ico: '💎', tier: 'premium', prix: 60, texte: 'Six vrais joueurs, les meilleures chances de la boutique.' },
-  equipe: { famille: 'equipe', nom: 'Pack d\'équipe', ico: '🏟', tier: 'argent', prix: 25, choix: 'franchise', texte: 'Quatre joueurs d\'une même franchise, toutes époques confondues.' },
-  annee: { famille: 'annee', nom: 'Pack d\'année', ico: '📅', tier: 'argent', prix: 25, choix: 'saison', texte: 'Quatre joueurs d\'une même saison.' },
-  ere70: { famille: 'ere', nom: 'Pack années 70', ico: '📻', tier: 'argent', prix: 22, decennie: 1970, texte: 'Quatre joueurs des années 70.' },
-  ere80: { famille: 'ere', nom: 'Pack années 80', ico: '📼', tier: 'argent', prix: 22, decennie: 1980, texte: 'Quatre joueurs des années 80.' },
-  ere90: { famille: 'ere', nom: 'Pack années 90', ico: '💾', tier: 'argent', prix: 22, decennie: 1990, texte: 'Quatre joueurs des années 90.' },
-  ere00: { famille: 'ere', nom: 'Pack années 2000', ico: '📀', tier: 'argent', prix: 22, decennie: 2000, texte: 'Quatre joueurs des années 2000.' },
-  ere10: { famille: 'ere', nom: 'Pack années 2010', ico: '📱', tier: 'argent', prix: 22, decennie: 2010, texte: 'Quatre joueurs des années 2010.' },
-  ere20: { famille: 'ere', nom: 'Pack années 2020', ico: '🛰', tier: 'argent', prix: 22, decennie: 2020, texte: 'Quatre joueurs des années 2020.' },
-  sniper: { famille: 'skill', nom: 'Pack Francs-tireurs', ico: '🎯', tier: 'argent', prix: 28, skill: 'sniper', texte: 'Quatre joueurs du Tir : le quart du haut à leurs points égaux.' },
-  passeur: { famille: 'skill', nom: 'Pack Passeurs', ico: '🪄', tier: 'argent', prix: 28, skill: 'passeur', texte: 'Quatre joueurs du Jeu : le quart du haut à leurs points égaux.' },
-  defensif: { famille: 'skill', nom: 'Pack Défensif', ico: '❄', tier: 'argent', prix: 25, skill: 'defensif', texte: 'Quatre joueurs de la Défense : le quart du haut à leurs points égaux.' },
-  dur: { famille: 'skill', nom: 'Pack Durs à cuire', ico: '🥊', tier: 'argent', prix: 22, skill: 'dur', texte: 'Quatre joueurs de la Robustesse : le quart du haut à leurs points égaux.' },
-  gardien: { famille: 'skill', nom: 'Pack Gardiens', ico: '🥅', tier: 'argent', prix: 30, skill: 'gardien', texte: 'Quatre gardiens partants au meilleur pourcentage d\'arrêts de leur saison.' },
-  recrue: { famille: 'skill', nom: 'Pack Recrues', ico: '🐣', tier: 'argent', prix: 22, skill: 'recrue', texte: 'Quatre joueurs à leur contrat d\'entrée.' },
-  veteran: { famille: 'skill', nom: 'Pack Vétérans', ico: '🧓', tier: 'argent', prix: 22, skill: 'veteran', texte: 'Quatre joueurs de 33 ans et plus.' },
-  trio: { famille: 'trio', nom: 'Pack Trio', ico: '🔗', tier: 'or', prix: 40, texte: 'Une vraie ligne d\'un même club-saison : son centre et ses deux ailiers — ou sa paire et son gardien.' },
-  etoiles: { famille: 'etoiles', nom: 'Pack Étoiles', ico: '⭐', tier: 'or', prix: 55, niveaux: { etoile: 92, phenomene: 8 }, texte: 'Cinq étoiles de leur saison : le 4 % du haut à leur poste.' },
-  legendes: { famille: 'legendes', nom: 'Pack Légendes', ico: '👑', tier: 'premium', prix: 75, niveaux: { etoile: 90, phenomene: 10 }, texte: 'Six étoiles d\'avant 1995.' },
-  garanti: { famille: 'hasard', nom: 'Pack garanti', ico: '🔒', tier: 'or', prix: 45, garanti: true, texte: 'Cinq joueurs, dont une Or ou mieux, garantie.' },
-  /*
-   * LES POCHETTES DE LA RUN EN CARTE (js/run.js `POCHETTES` : le Bronze et l'Époque, au marché). JP : *on limite les packs,
-   * tout en gardant des thématiques*. La boutique de l'ancien Rogue et ses packs qui montent sont partis (V28) ; les packs
-   * d'avant restent définis ici jusqu'à la tranche 5b, qui taille ce que la run ne tire plus.
-   */
-  bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', joueurs: 3, cartes: 1, prix: 14, texte: 'Trois vrais joueurs de toutes les époques.' },
-  argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', joueurs: 3, cartes: 2, prix: 22, texte: 'Trois vrais joueurs, et parfois une carte rare, de meilleures chances.' },
-  or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', joueurs: 4, cartes: 2, prix: 38, texte: 'Quatre vrais joueurs, et parfois une carte rare, les meilleures chances de la boutique.' },
-  // V10 : le pack à thème de la première run, au métal du Bronze.
-  // Nov. 2026 (docs/revue-rogue-2026-11.md § 2.6) : il vise aussi le poste qui manque (`poste`, `POSTES_DU_PACK`) — le
-  // Bronze reste le moins cher, au hasard ; l'Époque coûte plus et donne ce dont ton effectif a besoin.
-  // Lot 5 (nov. 2026, docs/decisions.md) : UN joueur, Pilier ou mieux (`niveaux`), contre les trois au hasard du Bronze —
-  // le large contre le fort. À trois joueurs au métal du Bronze, les deux packs se valaient (le robot qui n'achète que
-  // l'un ou que l'autre finissait à 1,5 V près, dans le bruit). À 26 🪙 (20 donnait la Coupe dès la run 1), sur l'effectif
-  // d'une première run, le Bronze seul perd 2,2 V par saison et l'Époque seule 1,8 V sur le mélange des deux.
-  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'bronze', choix: 'decennie', poste: true, joueurs: 1, niveaux: { pilier: 85, etoile: 13, phenomene: 2 }, cartes: 2, prix: 26, texte: 'Un joueur de la décennie et du poste de ton choix, Pilier ou mieux, et parfois une carte rare.' },
-  specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes de la famille de ton choix, le quart du haut à leurs points égaux, et parfois une carte rare.' },
-  club: { famille: 'equipe', nom: 'Pack Club', ico: '🏟', tier: 'argent', choix: 'franchise', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois joueurs de la franchise de ton choix, toutes époques confondues, et parfois une carte rare.' },
-  // V10 : le pack d'étoiles de la boutique, mixte comme les autres, que la Coupe ouvre (js/rogue.js `packsOuverts`).
-  vedettes: { famille: 'etoiles', nom: 'Pack Vedettes', ico: '🌟', tier: 'or', niveaux: { etoile: 92, phenomene: 8 }, joueurs: 3, cartes: 2, prix: 70, texte: 'Trois étoiles de leur saison, le 4 % du haut à leur poste, et parfois une carte rare.' },
-  coach: { famille: 'coach', nom: 'Pack du coach', ico: '📋', tier: 'argent', choix: 'coach', joueurs: 3, cartes: 2, prix: 30, texte: 'Trois joueurs de la couleur d\'un coach, et parfois une carte rare.' },
+export const PACKS_TOUS = {
+  'j:bronze': { nom: 'Pack Bronze', ico: '🥉', n: 3 },
+  'j:epoque': { nom: 'Pack Époque', ico: '📼', n: 1, niveaux: { pilier: 85, etoile: 13, phenomene: 2 }, epoque: true, poste: true },
 };
-/* Les décennies du Pack Époque, et les rôles du Pack Spécialistes, avec leur nom. */
 const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
-/* Les postes d'un pack qui vise le poste (`poste`, le Pack Époque) : le groupe du joueur (js/niveaux.js `groupeDuJoueur`). */
-const POSTES_DU_PACK = { F: 'Des avants', D: 'Des défenseurs', G: 'Des gardiens' };
+const POSTES = ['F', 'D', 'G'];
 
-/* LES CARTES RARES D'UN PACK DE JOUEURS (js/banque.js) : gardées dans ton inventaire. V21 : le Pack Personnel est parti
-   avec le personnel ; les adjoints ne sont pas des cartes de pack. V25 B1 : la carte se tire par NIVEAU, aux parts de
-   l'échelle (`NIVEAUX[k].tirage` : 55 · 30 · 12 · 3, le Soutien n'en sort pas). */
-
-/* Tous les packs, par clé : \`j:\` les joueurs. */
-export const PACKS_TOUS = Object.fromEntries(Object.entries(PACKS_JOUEURS).map(([k, P]) => [`j:${k}`, { ...P, sorte: 'joueurs', cle: k, n: P.joueurs || P.n || TIERS[P.tier].n + (P.famille === 'trio' ? -2 : 0) }]));
-
-/* LE MÉTAL D'UN PACK : celui de sa table. Les packs qui montent d'un métal en médailles (V10) sont partis avec les déblocages (V28, tranche 5). */
-export const tierDuPack = cle => (PACKS_TOUS[cle] && PACKS_TOUS[cle].tier) || 'argent';
-/* Le barème d'une carte de ce pack, en %, avec ce que les patrons y changent. */
-function cotesDuPack(cle, mods = {}) {
-  const c = { ...TIERS[tierDuPack(cle)].cotes };
-  if (mods.holo && mods.holo !== 1) {
-    const gain = (c.rare + c.legendaire) * (mods.holo - 1);
-    c.rare *= mods.holo; c.legendaire *= mods.holo; c.commune = Math.max(0, c.commune - gain);
-  }
-  if (mods.sansBase) { c.peu += c.commune; c.commune = 0; }
-  return c;
-}
-/* Le nombre de cartes d'un pack, avec la carte de plus d'un patron — jamais pour un trio : une ligne a trois joueurs. */
-export function cartesDuPack(cle, mods = {}) {
-  const P = PACKS_TOUS[cle];
-  if (!P) return 0;
-  return P.n + (P.sorte === 'joueurs' && P.famille !== 'trio' ? mods.carteExtra || 0 : 0);
-}
-/*
- * LES TAUX DU JOUEUR d'un pack (S80), par niveau, en % d'une carte — ou null
- * pour un pack qui ne tire pas de niveau (un talent, un trio). Un niveau
- * absent vaut 0.
- */
+/* Les taux du joueur d'une pochette, par niveau, en % d'une carte ; un niveau absent vaut 0. */
 export function niveauxDuPack(cle) {
   const P = PACKS_TOUS[cle];
-  if (!P || P.sorte !== 'joueurs' || P.famille === 'skill' || P.famille === 'trio') return null;
-  const t = { ...(P.niveaux || TIERS[tierDuPack(cle)].niveaux) };
-  // Le prestige ne multiplie plus les taux des Étoiles et des Phénomènes (JP, 7 nov. 2026 : *variété seulement* ; V28, tranche 5).
-  const tot = NIVEAUX.reduce((a, N) => a + (t[N.cle] || 0), 0) || 1;
+  if (!P) return null;
+  const t = P.niveaux || METAL.niveaux, tot = NIVEAUX.reduce((a, N) => a + (t[N.cle] || 0), 0) || 1;
   return Object.fromEntries(NIVEAUX.map(N => [N.cle, ((t[N.cle] || 0) / tot) * 100]));
 }
 
 /* ---------- les tirages ---------- */
-/* Une édition tirée aux cotes du pack, et son numéro si c'est une Holo. */
-function tirerVariante(cotes, ...parts) {
-  let r = hache('pack-var', ...parts) * 100;
-  let rar = 'commune';
-  for (const k of EDITIONS) { r -= cotes[k] || 0; if (r < 0) { rar = k; break; } }
-  let num = null;
+/* Une édition tirée au barème du métal, et son numéro si c'est une Holo. */
+function tirerVariante(...parts) {
+  let r = hache('pack-var', ...parts) * 100, rar = EDITIONS[0], num = null;
+  for (const k of EDITIONS) { r -= METAL.cotes[k] || 0; if (r < 0) { rar = k; break; } }
   if (rar === 'legendaire') {
     let x = hache('pack-num', ...parts) * 100;
     for (const [n, w] of NUMEROS) { x -= w; if (x < 0) { num = n; break; } }
@@ -191,10 +66,9 @@ function tirerVariante(cotes, ...parts) {
 }
 /* La part des cartes Soutien qui viennent des joueurs sans niveau (Jalon P2b) : la chance d'un régulier bouge à peine. */
 const PART_HORS_NIVEAU = 0.1;
-/* Un niveau tiré aux taux du pack (son rang dans NIVEAUX), de la graine et de mots. */
+/* Un niveau tiré aux taux de la pochette (son rang dans NIVEAUX), de la graine et de mots. */
 function tirerNiveau(taux, ...parts) {
-  let r = hache('pack-niveau', ...parts) * 100;
-  let dernier = 0;
+  let r = hache('pack-niveau', ...parts) * 100, dernier = 0;
   for (let k = 0; k < NIVEAUX.length; k++) {
     const w = taux[NIVEAUX[k].cle] || 0;
     if (w <= 0) continue;
@@ -204,178 +78,51 @@ function tirerNiveau(taux, ...parts) {
   }
   return dernier;
 }
-
 /*
- * LES JOUEURS D'UN PACK (S79, sortis de js/game.js en S80 pour se mesurer en
- * Node : scripts/check_packs.mjs). PURS : de la graine de la partie, du pack
- * et du numéro de l'achat — le reste est ce que le contrôleur fournit :
- *   saisons   les saisons des données (les étiquettes « 1981-82 ») ;
- *   shard(s)  la saison chargée : { players, byTeam } (async) ;
- *   libre(p)  ce que la partie permet : un salaire qu'une sortie ferait
- *             entrer, un joueur qui n'est ni dans la ligue ni déjà signé.
- * La FAMILLE du pack dit où l'on pige :
- *   hasard     n'importe quelle saison ;
- *   equipe     une franchise, toutes époques (choisie à l'achat, ou au hasard) ;
- *   annee      une saison (choisie, ou au hasard) ; ere : une décennie ;
- *   etoiles    les étoiles de leur saison ; legendes : d'avant 1995 ;
- *   skill      un talent lu dans les VRAIES fiches (\`SKILLS\`) ;
- *   trio       une vraie ligne d'un même club-saison.
- * Hors talent et trio, chaque carte tire d'abord son NIVEAU aux taux du pack
- * (\`niveauxDuPack\`), puis une saison, puis un joueur de ce niveau. Une saison
- * (ou un club-saison) sans joueur libre de ce niveau en laisse essayer une
- * autre ; après huit, le niveau d'en dessous — un club sans Phénomène, ou un
- * plafond qui ne laisse entrer aucune vedette, donne le niveau le plus proche,
- * jamais un meilleur tant qu'un moins bon existe. Puis, par-dessus chaque
- * joueur, sa VARIANTE au barème du tier (et le numéro d'une or) : les deux
- * axes ne se touchent pas. Chaque carte rend { p, niveau, rar, num }.
+ * LES JOUEURS D'UNE POCHETTE. PURS : de la graine, de la pochette et du numéro de l'achat ; le reste, le contrôleur le
+ * fournit — `saisons` (les étiquettes « 1981-82 »), `shard(s)` (la saison chargée : { players }, au besoin async),
+ * `libre(p)` (ce que la run permet : personne qu'elle a déjà vu), `params` ({ decennie, poste } : choisis, sinon tirés).
+ * Chaque carte tire d'abord son NIVEAU, puis une saison, puis un joueur de ce niveau. Une saison sans joueur libre de ce
+ * niveau en laisse essayer une autre ; après `ESSAIS_NIVEAU`, le niveau d'en dessous — jamais un meilleur tant qu'un moins
+ * bon existe. Puis l'ÉDITION, par-dessus : la plus brillante va au joueur de plus grande stature (V5, js/rarete.js
+ * `statureDe` : un holo dans un pack de Crosby et de deux Soutien, c'est le Crosby holo). Rend { cartes: [{ p, niveau,
+ * rar, num }], reglage }.
  */
 const ESSAIS_NIVEAU = 8;
-/*
- * LE DÉPISTEUR DU COACH (v2). Le coach de la run oriente le recrutement : à
- * niveau égal, un pack de joueurs tire DEUX candidats et garde celui qui
- * colle le mieux à sa philosophie, lu dans les vraies stats, jamais dans une
- * cote. V2.3 : ce qui colle, c'est SA COULEUR (`coachDuJoueur`) — l'Aigle
- * recrute des snipers, la Tortue des two-way et des défensifs —, au plus haut
- * palier d'abord.
- * Le niveau ne change pas : c'est le style qui penche, pas la qualité.
- */
-const scoreDeCouleur = coach => p => (coachDuJoueur(p) === coach ? 1 + ((badgesDe(p)[0] || {}).palier || 0) : 0);
-const recrueDuCoach = coach => (COACHS[coach] ? scoreDeCouleur(coach) : null);
-function recrue(pool, coach, graine, ...parts) {
-  const a = pool[Math.floor(hache(graine, 'pack-joueur', ...parts) * pool.length)];
-  const score = recrueDuCoach(coach);
-  if (!score || pool.length < 2) return a;
-  const b = pool[Math.floor(hache(graine, 'pack-joueur-coach', ...parts) * pool.length)];
-  return score(b) > score(a) ? b : a;
-}
-export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {}, garantie = false, saisons: toutes, shard, libre = () => true }) {
-  const P = PACKS_TOUS[cle];
-  const an = s => Number(String(s).slice(0, 4));
+export async function tirerJoueursDuPack(cle, { graine, n, params = {}, saisons: toutes, shard, libre = () => true }) {
+  const P = PACKS_TOUS[cle], an = s => Number(String(s).slice(0, 4)), reglage = { ...params };
   let saisons = toutes.slice();
-  const reglage = { ...params };
-  // L'ÉPOQUE : la décennie du pack, ou celle choisie à l'achat (Jalon P2), ou une tirée parmi celles des données.
-  if (P.famille === 'ere') {
+  // L'ÉPOQUE : la décennie choisie, ou une tirée parmi celles des données.
+  if (P.epoque) {
     const decs = DECENNIES.filter(d => saisons.some(s => an(s) >= d && an(s) < d + 10));
-    // `permis` : ce que les déblocages ouvrent (le hasard ne tombe jamais sur une décennie verrouillée).
-    const ouvertes = decs.filter(d => !reglage.permis || reglage.permis.includes(d));
-    const dec = P.decennie || (ouvertes.includes(Number(reglage.decennie)) ? Number(reglage.decennie) : ouvertes[Math.floor(hache(graine, 'pack-decennie', n) * ouvertes.length)]);
+    const dec = decs.includes(Number(reglage.decennie)) ? Number(reglage.decennie) : decs[Math.floor(hache(graine, 'pack-decennie', n) * decs.length)];
     reglage.decennie = dec;
     saisons = saisons.filter(s => an(s) >= dec && an(s) < dec + 10);
   }
-  if (P.famille === 'legendes') saisons = saisons.filter(s => an(s) < 1995);
-  if (P.famille === 'annee') {
-    if (!reglage.saison || !saisons.includes(reglage.saison)) reglage.saison = saisons[Math.floor(hache(graine, 'pack-annee', n) * saisons.length)];
-    saisons = [reglage.saison];
-  }
-  if (P.famille === 'equipe') {
-    if (!reglage.franchise || !FRANCHISES[reglage.franchise]) { const fs = Object.keys(FRANCHISES); reglage.franchise = fs[Math.floor(hache(graine, 'pack-equipe', n) * fs.length)]; }
-    // Les ÉTIQUETTES des saisons de la franchise (\`saisonsDeFranchise\` rend des paires [saison, code]).
-    saisons = saisonsDeFranchise(reglage.franchise, saisons).map(([s]) => s);
-  }
-  const cotes = cotesDuPack(cle, mods);
-  const nb = cartesDuPack(cle, mods);
-  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
-  const out = [];
-  const pris = p => out.some(x => getPersonKey(x.p) === getPersonKey(p));
-  const dispo = p => p && libre(p) && !pris(p);
-  if (P.famille === 'trio') {
-    // UNE VRAIE LIGNE : un club-saison tiré ; son meilleur centre et ses meilleurs ailiers — ou, une fois sur trois, sa première paire et son gardien.
-    for (let t = 0; t < 12 && !out.length; t++) {
-      const sa = saisons[Math.floor(hache(graine, 'pack-trio-saison', n, t) * saisons.length)];
-      const e = await shard(sa);
-      const clubs = Object.keys(e.byTeam);
-      const tag = clubs[Math.floor(hache(graine, 'pack-trio-club', n, t) * clubs.length)];
-      const eff = (e.byTeam[tag] || []).filter(p => (p.gp || 0) >= 30 && dispo(p)).sort((a, b) => prod(b) - prod(a));
-      const paire = hache(graine, 'pack-trio-genre', n, t) < 1 / 3;
-      const estD = p => groupeDuJoueur(p) === 'D';
-      const aile = c => eff.find(p => !estD(p) && p.p !== 'G' && (p.np === c || (p.p === c)));
-      const ligne = paire
-        ? [eff.filter(estD)[0], eff.filter(estD)[1], (e.byTeam[tag] || []).filter(p => p.p === 'G' && (p.gp || 0) >= 20 && dispo(p)).sort((a, b) => (b.gp || 0) - (a.gp || 0))[0]]
-        : [eff.find(p => !estD(p) && p.p !== 'G' && (p.np === 'C' || p.p === 'C')), aile('L') || aile('LW'), aile('R') || aile('RW')];
-      if (!ligne.every(Boolean) || new Set(ligne.map(getPersonKey)).size !== 3) continue;
-      ligne.forEach((p, i) => out.push({ p, niveau: niveauDe(p, e.players), ...tirerVariante(cotes, graine, cle, n, i) }));
-      reglage.club = `${tag} ${sa}`;
-    }
-  } else if (P.famille === 'skill') {
-    // UN TALENT : le quart du haut de sa saison à ce talent (ou tous ceux qui passent son filtre) — pas de niveau tiré.
-    // LE RÔLE : celui du pack, ou celui choisi à l'achat (Jalon P2), ou un tiré.
-    const roles = Object.keys(SKILLS).filter(k => !reglage.permis || reglage.permis.includes(k));
-    const skill = P.skill || (roles.includes(reglage.skill) ? reglage.skill : roles[Math.floor(hache(graine, 'pack-skill', n) * roles.length)]);
-    reglage.skill = skill;
-    const S = SKILLS[skill];
-    for (let t = 0; out.length < nb && t < nb * 5; t++) {
-      const sa = saisons[Math.floor(hache(graine, 'pack-saison', cle, n, t) * saisons.length)];
-      if (!sa) break;
-      const e = await shard(sa);
-      const c = e.players.filter(p => (p.gp || 0) >= S.min && (!S.groupe || groupeDuJoueur(p) === S.groupe) && (!S.skaters || p.p !== 'G')
-        && (!S.filtre || S.filtre(p, ageAtSeason(p.bd, p.s)))).sort((a, b) => S.score(b) - S.score(a));
-      let pool = (S.filtre ? c : c.slice(0, Math.ceil(c.length / 4))).filter(dispo);
-      if (!pool.length) continue;
-      pool.sort((a, b) => hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(a)) - hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(b)));
-      out.push({ p: pool[0], niveau: niveauDe(pool[0], e.players), ...tirerVariante(cotes, graine, cle, n, t) });
-    }
-  } else {
-    // LE NIVEAU D'ABORD : tiré aux taux du pack, puis une saison et un joueur de ce niveau.
-    // LE PACK DU COACH (Jalon P2) : seulement des joueurs de sa couleur (`coachDuJoueur`, leur meilleur rôle maîtrisé).
-    // Les huit coachs (`VOIES`).
-    const couleur = P.famille === 'coach' ? (VOIES.includes(reglage.coach) ? reglage.coach : VOIES[Math.floor(hache(graine, 'pack-coach', n) * VOIES.length)]) : null;
-    if (couleur) reglage.coach = couleur;
-    // LE POSTE CHOISI (nov. 2026, `P.poste`) : seulement des joueurs de ce groupe ; « Au hasard », tous.
-    const poste = P.poste && POSTES_DU_PACK[reglage.poste] ? reglage.poste : null;
-    if (P.poste) reglage.poste = poste;
-    const taux = niveauxDuPack(cle, mods);
-    const permis = NIVEAUX.map((N, k) => k).filter(k => taux[NIVEAUX[k].cle] > 0);
-    const essais = Math.min(ESSAIS_NIVEAU, saisons.length);
-    for (let c = 0; c < nb && saisons.length; c++) {
-      const voulu = tirerNiveau(taux, graine, cle, n, c);
-      // Le niveau voulu, puis ceux d'en dessous, puis — en dernier recours — ceux d'au-dessus.
-      const ordre = [...permis.filter(k => k <= voulu).reverse(), ...permis.filter(k => k > voulu)];
-      let carte = null;
-      for (const k of ordre) {
-        for (let e = 0; e < essais && !carte; e++) {
-          const sa = saisons[Math.floor(hache(graine, 'pack-saison', cle, n, c, k, e) * saisons.length)];
-          const sh = await shard(sa);
-          // TOUT SE PIGE (Jalon P2b) : une carte Soutien sur PART_HORS_NIVEAU vient de ceux qui n'ont pas de niveau.
-          const hors = k === 0 && hache(graine, 'pack-hors', cle, n, c, e) < PART_HORS_NIVEAU;
-          const pool = (P.famille === 'equipe'
-            ? (sh.byTeam[codeDeFranchise(reglage.franchise, sa)] || []).filter(p => (hors ? joueursHorsNiveau(sh.players).includes(p) : niveauDe(p, sh.players) === k))
-            : hors ? joueursHorsNiveau(sh.players) : joueursParNiveau(sh.players)[k]).filter(p => dispo(p) && (!couleur || coachDuJoueur(p) === couleur) && (!poste || groupeDuJoueur(p) === poste));
-          if (pool.length) carte = { p: recrue(pool, mods.coach, graine, cle, n, c, k, e), niveau: k };
-        }
-        if (carte) break;
+  // LE POSTE : seulement des joueurs de ce groupe ; sans lui, tous.
+  const poste = P.poste && POSTES.includes(reglage.poste) ? reglage.poste : null;
+  if (P.poste) reglage.poste = poste;
+  const taux = niveauxDuPack(cle), permis = NIVEAUX.map((N, k) => k).filter(k => taux[NIVEAUX[k].cle] > 0), essais = Math.min(ESSAIS_NIVEAU, saisons.length);
+  const out = [], dispo = p => p && libre(p) && !out.some(x => getPersonKey(x.p) === getPersonKey(p));
+  for (let c = 0; c < P.n && saisons.length; c++) {
+    const voulu = tirerNiveau(taux, graine, cle, n, c);
+    // Le niveau voulu, puis ceux d'en dessous, puis — en dernier recours — ceux d'au-dessus.
+    const ordre = [...permis.filter(k => k <= voulu).reverse(), ...permis.filter(k => k > voulu)];
+    let carte = null;
+    for (const k of ordre) {
+      for (let e = 0; e < essais && !carte; e++) {
+        const sh = await shard(saisons[Math.floor(hache(graine, 'pack-saison', cle, n, c, k, e) * saisons.length)]);
+        // TOUT SE PIGE : une carte Soutien sur `PART_HORS_NIVEAU` vient de ceux qui n'ont pas de niveau.
+        const hors = k === 0 && hache(graine, 'pack-hors', cle, n, c, e) < PART_HORS_NIVEAU;
+        const pool = (hors ? joueursHorsNiveau(sh.players) : joueursParNiveau(sh.players)[k]).filter(p => dispo(p) && (!poste || groupeDuJoueur(p) === poste));
+        if (pool.length) carte = { p: pool[Math.floor(hache(graine, 'pack-joueur', cle, n, c, k, e) * pool.length)], niveau: k };
       }
-      if (carte) out.push({ ...carte, ...tirerVariante(cotes, graine, cle, n, c) });
+      if (carte) break;
     }
+    if (carte) out.push({ ...carte, ...tirerVariante(graine, cle, n, c) });
   }
-  // LA GARANTIE : le pack garanti, ou la pitié de la run (\`PITIE\`) — la dernière carte monte à l'Or.
-  if ((P.garanti || garantie) && out.length && !out.some(x => x.rar === 'rare' || x.rar === 'legendaire')) out[out.length - 1].rar = 'rare';
-  /*
-   * V5 — LA BRILLANTE VA À LA VEDETTE DU PACK (js/rarete.js, \`statureDe\`). Les variantes tirées restent celles du pack
-   * (ses chances affichées ne bougent pas) ; elles se distribuent seulement par stature : la plus brillante au joueur
-   * de plus grande stature. Un holo dans un pack de Crosby et de trois Soutien, c'est le Crosby holo.
-   */
   const ordre = out.map((x, i) => ({ i, s: statureDe(x.p, x.niveau) })).sort((a, b) => b.s - a.s || a.i - b.i).map(o => o.i);
   const vars = out.map(x => ({ rar: x.rar, num: x.num })).sort((a, b) => EDITIONS.indexOf(b.rar) - EDITIONS.indexOf(a.rar));
   ordre.forEach((i, k) => { out[i].rar = vars[k].rar; out[i].num = vars[k].num; });
   return { cartes: out, reglage };
 }
-
-/*
- * LES TALENTS : lus dans les VRAIES fiches de la saison du joueur, jamais
- * dans une cote. \`score\` : plus c'est haut, mieux il correspond ; on pige
- * dans le quart du haut de sa saison (les réguliers seulement).
- * LES QUATRE FAMILLES (V9, tranche 4) : le Tir, le Jeu, la Défense et la
- * Robustesse se lisent à points égaux (\`famillesDe\`) — le quart du haut n'est
- * pas le talent brut, c'est le joueur que sa famille distingue à son niveau.
- * À tous les niveaux, donc à tous les salaires : les aubaines d'un plan. Les
- * clés d'avant restent, pour les vieilles parties.
- */
-export const SKILLS = {
-  sniper: { groupe: null, min: 30, skaters: true, score: p => famillesDe(p).tir },
-  passeur: { groupe: null, min: 30, skaters: true, score: p => famillesDe(p).jeu },
-  defensif: { groupe: null, min: 30, skaters: true, score: p => famillesDe(p).defense },
-  dur: { groupe: null, min: 30, skaters: true, score: p => famillesDe(p).robustesse },
-  gardien: { groupe: 'G', min: 20, score: p => p.sv || 0 },
-  recrue: { groupe: null, min: 20, filtre: p => !!p.elc, score: p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1) },
-  veteran: { groupe: null, min: 30, filtre: (p, age) => age >= 33, score: p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1) },
-};

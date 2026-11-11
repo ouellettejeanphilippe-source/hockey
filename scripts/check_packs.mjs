@@ -1,92 +1,53 @@
 /**
- * LES PACKS SELON LE NIVEAU DES JOUEURS (S80) — ce que ses taux promettent,
- * un pack le donne. (La boutique à ses nœuds, ses chances affichées, la carte
- * rare d'un pack, les crans achetés en médailles et la revente sont partis avec
- * l'ancien Rogue, V28, tranche 4 ; la run en carte ouvre deux pochettes à son
- * marché, par le même tirage.)
+ * LES POCHETTES SELON LE NIVEAU DES JOUEURS (S80 ; réécrit à la V28, tranche 5b) — ce que ses taux promettent, une pochette
+ * le donne. La boutique de l'ancien Rogue et ses dix-huit packs sont partis : la run en carte ouvre deux pochettes à son
+ * marché (le Bronze, l'Époque), par le tirage que ce juge éprouve.
  *
- * JP : *packs selon les niveaux de joueurs, genre joueur moins bons plus
- * fréquents, du moins, joueurs brisés moins fréquents*.
+ * JP : *packs selon les niveaux de joueurs, genre joueur moins bons plus fréquents, du moins, joueurs brisés moins fréquents*.
  *
- *   node scripts/check_packs.mjs              (PACKS=4000 par tier)
- *   PACKS=10000 node scripts/check_packs.mjs  (une lecture plus fine)
+ *   node scripts/check_packs.mjs              (PACKS=4000 pochettes de chaque sorte ; une vingtaine de secondes)
  *
- * Vérifie, sur les 55 vraies saisons, avec le tirage même du jeu
- * (`tirerJoueursDuPack`, js/packs.js — le contrôleur ne lui fournit que les
- * saisons, les shards et ce que la partie permet) :
- *   1. les NIVEAUX (js/niveaux.js) : des rangs, sans chevauchement, un
- *      Phénomène dans chaque groupe de chaque saison ; l'étoile d'avant et
- *      celle d'aujourd'hui ;
- *   2. les taux : chaque tier fait 100 % ;
- *   3. un pack est PUR : la même graine, le même pack, le même numéro d'achat
- *      rendent les mêmes cartes, même avec des shards rechargés ;
- *   4. les FRÉQUENCES observées par niveau collent aux taux affichés (par
- *      carte et par pack, à quatre écarts types), pour les quatre tiers, le
- *      garanti, les époques et l'année ; un pack Bronze donne un Phénomène
- *      moins d'une fois sur cent ;
- *   5. l'équipe (un club n'a pas toujours son Phénomène : le niveau d'en
- *      dessous), les étoiles et les légendes, les talents et le trio gardent
- *      leur règle ;
- *   6. le niveau et la variante sont deux axes : la finition d'un Soutien
- *      suit le même barème que celle d'une Étoile ;
- *   7. un plafond serré : jamais un salaire au-dessus, et le niveau descend ;
- *   8. avant et après : l'ancien tirage (la moitié productive, à parts
- *      égales) mesuré sur les mêmes niveaux.
+ * Vérifie, sur les 55 vraies saisons, avec le tirage même du jeu (`tirerJoueursDuPack`, js/packs.js — le contrôleur ne lui
+ * fournit que les saisons, les shards et ce que la run permet) :
+ *   1. les NIVEAUX (js/niveaux.js) : des rangs, sans chevauchement, un Phénomène dans chaque groupe de chaque saison ;
+ *   2. les taux et le barème du métal font 100 % ;
+ *   3. une pochette est PURE : la même graine, la même pochette, le même numéro d'achat rendent les mêmes cartes ;
+ *   4. le Bronze : trois joueurs, chacun au niveau de sa vraie saison, aux fréquences de ses taux (à quatre écarts types),
+ *      une étoile ou mieux moins d'une pochette sur vingt ;
+ *   5. l'Époque : un seul joueur, Pilier ou mieux, de la décennie choisie (ou d'une décennie tirée), du poste choisi ;
+ *   6. le niveau et l'édition sont deux axes : le barème des éditions tient, toutes cartes ensemble, chaque édition sort, et
+ *      la plus brillante d'une pochette va à son joueur de plus grande stature ;
+ *   7. ce que la run ne permet pas ne sort pas (`libre`), et personne ne sort deux fois d'une même pochette.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, TIERS, SKILLS, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, tierDuPack } from '../js/packs.js';
-import { COACHS, VOIES } from '../js/coachs.js';
+import { PACKS_TOUS, METAL, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, niveauParDefense, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey } from '../js/sim.js';
-import { coachDuJoueur } from '../js/greffes.js';
-import { EDITIONS } from '../js/rarete.js';
-import { ageAtSeason } from '../js/ratings.js';
-import { exiger, borne, informer, verdict } from './verdict.mjs';
+import { EDITIONS, statureDe } from '../js/rarete.js';
+import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5)).sort();
 const PACKS = Number(process.env.PACKS ?? 4000);
 
-/* Les shards, comme `getShard` (js/game.js) les rend : { players, byTeam }. */
-function chargeur() {
-  const C = new Map();
-  return async s => {
-    if (!C.has(s)) {
-      const sh = JSON.parse(fs.readFileSync(path.join(DIR, `${s}.json`), 'utf8'));
-      const byTeam = {};
-      for (const p of sh.players) (byTeam[p.t] = byTeam[p.t] || []).push(p);
-      C.set(s, { players: sh.players, byTeam });
-    }
-    return C.get(s);
-  };
-}
-const shard = chargeur();
-const tirer = (cle, n, o = {}) => tirerJoueursDuPack(cle, { graine: o.graine || `packs-${n}`, n, params: o.params || {}, mods: o.mods || {}, saisons: SAISONS, shard: o.shard || shard, libre: o.libre || (() => true) });
+/* Les shards, comme la run les rend : { players }. */
+const C = new Map();
+const shard = s => { if (!C.has(s)) C.set(s, { players: JSON.parse(fs.readFileSync(path.join(DIR, `${s}.json`), 'utf8')).players }); return C.get(s); };
+const tirer = (cle, n, o = {}) => tirerJoueursDuPack(cle, { graine: o.graine || `packs-${n}`, n, params: o.params || {}, saisons: SAISONS, shard, libre: o.libre || (() => true) });
 const pc = x => `${(x * 100).toFixed(x < 0.01 ? 2 : 1)} %`;
-const unSur = p => (p > 0 ? `1 sur ${Math.round(1 / p)}` : 'jamais');
+const an = x => Number(String(x.p.s).slice(0, 4));
 /* L'écart permis entre une fréquence observée et son taux : quatre écarts types, jamais moins d'un dixième de point. */
 const tolere = (p, n) => Math.max(0.001, 4 * Math.sqrt(p * (1 - p) / n));
-/* L'étoile d'AVANT S80 (js/game.js, S78-S79) : les points TOTAUX de tous les patineurs réguliers (4 %), le % d'arrêts des gardiens (8 %). */
-function etoileAvant(P) {
-  const gpMax = Math.max(1, ...P.map(x => x.gp || 0));
-  const minP = Math.min(40, Math.floor(gpMax * 0.5)), minG = Math.min(30, Math.floor(gpMax * 0.35));
-  const pts = x => x.pt ?? ((x.g || 0) + (x.a || 0));
-  const pat = P.filter(x => x.p !== 'G' && (x.gp || 0) >= minP).map(pts).sort((a, b) => b - a);
-  const gar = P.filter(x => x.p === 'G' && (x.gp || 0) >= minG).map(x => x.sv || 0).sort((a, b) => b - a);
-  const sPts = pat[Math.max(0, Math.ceil(pat.length * 0.04) - 1)], sSv = gar[Math.max(0, Math.ceil(gar.length * 0.08) - 1)];
-  return p => (p.p === 'G' ? (p.gp || 0) >= minG && (p.sv || 0) >= sSv : (p.gp || 0) >= minP && pts(p) >= sPts);
-}
 
-console.log(`\n  Les packs selon le niveau des joueurs (S80) — ${PACKS} packs par tier\n`);
-const t0 = Date.now();
+console.log(`\n  Les pochettes selon le niveau des joueurs — ${PACKS} pochettes de chaque sorte\n`);
 
 /* 1. Les niveaux. */
 {
   let chevauche = 0, sansPhenomene = [], parNiveau = NIVEAUX.map(() => 0), regs = 0;
-  let ancienne = 0, nouvelle = 0, communes = 0, dAvant = 0, dMaintenant = 0, parDefense = 0;
+  let parDefense = 0;
   for (const s of SAISONS) {
     const e = await shard(s);
     const par = joueursParNiveau(e.players);
@@ -98,15 +59,6 @@ const t0 = Date.now();
       if (!m[PHENOMENE].length) sansPhenomene.push(`${s} ${g}`);
       for (let k = 1; k < m.length; k++) if (m[k].length && m[k - 1].length && Math.min(...m[k]) < Math.max(...m[k - 1])) chevauche++;
     }
-    // L'étoile d'avant et celle d'aujourd'hui, une personne une fois.
-    const P = e.players, avant = etoileAvant(P);
-    const vus = new Set(), U = P.filter(p => !vus.has(getPersonKey(p)) && vus.add(getPersonKey(p)));
-    for (const p of U) {
-      const a = avant(p);
-      const b = niveauDe(p, P) >= ETOILE;
-      ancienne += a; nouvelle += b; communes += a && b;
-      if (groupeDuJoueur(p) === 'D') { dAvant += a; dMaintenant += b; }
-    }
   }
   exiger('les niveaux sont des rangs : aucun ne chevauche le suivant, aux points', !chevauche, `${SAISONS.length} saisons × 3 groupes, ${chevauche} chevauchement(s) ; ${parDefense} niveaux gagnés à la défense sur ${regs} réguliers`);
   exiger('chaque groupe de chaque saison a son Phénomène', !sansPhenomene.length, sansPhenomene.slice(0, 5).join(', ') || 'avants, défenseurs, gardiens');
@@ -115,261 +67,82 @@ const t0 = Date.now();
   const est = async (s, n) => (await phenomenes(s)).includes(n);
   exiger('Orr 1970-71, Gretzky 1981-82, Hasek 1997-98 sont des Phénomènes', await est('1970-71', 'Bobby Orr') && await est('1981-82', 'Wayne Gretzky') && await est('1997-98', 'Dominik Hasek'),
     `${(await phenomenes('1981-82')).join(', ')} (1981-82)`);
-  informer('l\'étoile avant / après S80', `${ancienne} → ${nouvelle} étoiles en ${SAISONS.length} saisons, ${communes} en commun · défenseurs ${dAvant} → ${dMaintenant}`);
 }
 
-/* 2. Les taux affichés. */
-const CLES_J = Object.keys(PACKS_TOUS).filter(k => PACKS_TOUS[k].sorte === 'joueurs');
-exiger('les taux de joueur de chaque tier font 100 %', Object.values(TIERS).every(T => Math.abs(NIVEAUX.reduce((a, N) => a + (T.niveaux[N.cle] || 0), 0) - 100) < 1e-9),
-  Object.entries(TIERS).map(([k, T]) => `${k} ${NIVEAUX.map(N => T.niveaux[N.cle]).join('/')}`).join(' · '));
+/* 2. Les taux et le barème font 100 %. */
+exiger('les taux de joueur du métal et le barème de ses éditions font 100 %', Math.abs(NIVEAUX.reduce((a, N) => a + (METAL.niveaux[N.cle] || 0), 0) - 100) < 1e-9 && Math.abs(EDITIONS.reduce((a, e) => a + (METAL.cotes[e] || 0), 0) - 100) < 1e-9,
+  `${NIVEAUX.map(N => METAL.niveaux[N.cle]).join(' / ')} · ${EDITIONS.map(e => METAL.cotes[e]).join(' / ')}`);
+exiger('deux pochettes, celles que le marché vend : le Bronze à trois joueurs, l\'Époque à un seul', Object.keys(PACKS_TOUS).join() === 'j:bronze,j:epoque' && PACKS_TOUS['j:bronze'].n === 3 && PACKS_TOUS['j:epoque'].n === 1);
 
-/* 3. Un pack est pur. */
+/* 3. Une pochette est pure. */
 {
-  const frais = chargeur();
-  let impurs = 0, total = 0;
-  const empreinte = r => JSON.stringify([r.reglage, r.cartes.map(x => [getPlayerKey(x.p), x.niveau, x.rar, x.num])]);
-  for (const cle of CLES_J) for (let n = 0; n < 12; n++) {
-    const params = PACKS_TOUS[cle].choix === 'franchise' ? { franchise: n % 2 ? 'MTL' : null } : PACKS_TOUS[cle].choix === 'saison' ? { saison: n % 2 ? '1985-86' : null } : {};
-    const a = empreinte(await tirer(cle, n, { graine: `pur-${n}`, params }));
-    const b = empreinte(await tirer(cle, n, { graine: `pur-${n}`, params }));
-    const c = empreinte(await tirer(cle, n, { graine: `pur-${n}`, params, shard: frais }));
-    total++;
-    if (a !== b || a !== c) impurs++;
-  }
-  exiger('un pack de joueurs est pur (graine, pack, numéro d\'achat)', !impurs, `${impurs} impur(s) sur ${total} packs, tirés trois fois (dont une avec les shards rechargés)`);
-  const x = await tirer('j:hasard_argent', 3, { graine: 'autre' }), y = await tirer('j:hasard_argent', 4, { graine: 'autre' });
-  exiger('un autre numéro d\'achat, un autre pack', empreinte(x) !== empreinte(y), 'j:hasard_argent n° 3 et n° 4');
+  const empreinte = r => r.cartes.map(x => `${getPlayerKey(x.p)}:${x.niveau}:${x.rar}:${x.num || ''}`).join('|');
+  let impurs = 0;
+  for (const cle of Object.keys(PACKS_TOUS)) for (let n = 0; n < 40; n++) if (empreinte(await tirer(cle, n)) !== empreinte(await tirer(cle, n))) impurs++;
+  exiger('une pochette est pure (la graine, la pochette, le numéro de l\'achat)', !impurs, `${impurs} impure(s) sur 80, tirées deux fois`);
+  exiger('un autre numéro d\'achat, une autre pochette', empreinte(await tirer('j:bronze', 3, { graine: 'g' })) !== empreinte(await tirer('j:bronze', 4, { graine: 'g' })));
 }
 
-/* 4. Les fréquences, contre les taux affichés. */
-async function mesurer(cle, nPacks, o = {}) {
-  const P = PACKS_TOUS[cle];
-  const compte = NIVEAUX.map(() => 0), var_ = NIVEAUX.map(() => ({})), meilleur = NIVEAUX.map(() => 0);
-  let cartes = 0, avecPhen = 0, avecEtoile = 0, faux = 0, horsSaisons = 0, trop = 0;
-  for (let n = 0; n < nPacks; n++) {
-    const params = o.params ? o.params(n) : {};
-    const r = await tirer(cle, n, { graine: o.graine || `f-${cle}`, params, libre: o.libre });
+/* 4 et 6. Le Bronze : ses niveaux, ses éditions, la brillante à la vedette. */
+const toutes = [];
+{
+  const taux = niveauxDuPack('j:bronze'), compte = NIVEAUX.map(() => 0), eds = Object.fromEntries(EDITIONS.map(e => [e, 0]));
+  let cartes = 0, faux = 0, doubles = 0, etoilees = 0, malRangees = 0, courtes = 0;
+  for (let n = 0; n < PACKS; n++) {
+    const r = await tirer('j:bronze', n);
+    if (r.cartes.length !== 3) courtes++;
+    if (new Set(r.cartes.map(x => getPersonKey(x.p))).size !== r.cartes.length) doubles++;
+    if (r.cartes.some(x => x.niveau >= ETOILE)) etoilees++;
+    // La plus brillante au joueur de plus grande stature : à édition plus haute, jamais une stature plus basse.
+    for (const a of r.cartes) for (const b of r.cartes) if (EDITIONS.indexOf(a.rar) > EDITIONS.indexOf(b.rar) && statureDe(a.p, a.niveau) < statureDe(b.p, b.niveau)) malRangees++;
     for (const x of r.cartes) {
-      cartes++;
-      compte[x.niveau]++;
-      var_[x.niveau][x.rar] = (var_[x.niveau][x.rar] || 0) + 1;
-      // Jalon P2b : un joueur sans niveau (sous le seuil d'un régulier, une seconde fiche) sort comme un Soutien.
-      const joueurs = (await shard(x.p.s)).players;
-      if (niveauDe(x.p, joueurs) !== x.niveau && !(x.niveau === 0 && joueursHorsNiveau(joueurs).includes(x.p))) faux++;
-      if (o.saisons && !o.saisons(x.p.s)) horsSaisons++;
-      if (o.libre && !o.libre(x.p)) trop++;
-    }
-    if (r.cartes.some(x => x.niveau === PHENOMENE)) avecPhen++;
-    if (r.cartes.some(x => x.niveau >= ETOILE)) avecEtoile++;
-    if (r.cartes.length) meilleur[Math.max(...r.cartes.map(x => x.niveau))]++;
-  }
-  return { P, cle, nPacks, cartes, compte, var_, meilleur, avecPhen, avecEtoile, faux, horsSaisons, trop };
-}
-const lignesTaux = [];
-function juger(m, { exact = true } = {}) {
-  const nv = niveauxDuPack(m.cle);
-  // La chance d'en trouver AU MOINS un dans le pack, de ses taux par carte et de son nombre de cartes (ce que la boutique d'avant affichait).
-  const nCartes = cartesDuPack(m.cle), auMoinsUn = taux => 1 - (1 - taux / 100) ** nCartes;
-  const obs = NIVEAUX.map((N, k) => m.compte[k] / m.cartes);
-  const ecarts = NIVEAUX.map((N, k) => ({ N, k, att: nv[N.cle] / 100, obs: obs[k] })).filter(x => x.att > 0 || x.obs > 0);
-  const hors = ecarts.filter(x => Math.abs(x.obs - x.att) > tolere(x.att || 0.001, m.cartes));
-  const pPhen = auMoinsUn(nv.phenomene || 0), oPhen = m.avecPhen / m.nPacks;
-  const pEt = nv.soutien || nv.regulier || nv.pilier ? auMoinsUn((nv.etoile || 0) + (nv.phenomene || 0)) : null;
-  const nom = m.P.nom;
-  lignesTaux.push(`${nom.padEnd(20)} ${ecarts.map(x => `${x.N.nom} ${pc(x.obs)} (${pc(x.att)})`).join(' · ')} · Phénomène ${unSur(oPhen)} des packs (attendu ${unSur(pPhen)})`);
-  exiger(`${nom} : chaque carte a le niveau de sa vraie saison`, !m.faux, `${m.cartes} cartes`);
-  if (!exact) return { oPhen, pPhen };
-  exiger(`${nom} : les niveaux par carte collent aux taux du pack`, !hors.length,
-    hors.length ? hors.map(x => `${x.N.nom} ${pc(x.obs)} au lieu de ${pc(x.att)}`).join(' · ') : `${m.cartes} cartes, ${ecarts.length} niveaux à 4 écarts types`);
-  exiger(`${nom} : un Phénomène par pack, comme ses taux le veulent`, Math.abs(oPhen - pPhen) <= tolere(pPhen, m.nPacks),
-    `${pc(oPhen)} des packs (attendu ${pc(pPhen)})${pEt != null ? ` · Étoile ou mieux ${pc(m.avecEtoile / m.nPacks)} (attendu ${pc(pEt)})` : ''}`);
-  return { oPhen, pPhen };
-}
-const mesures = {};
-for (const t of ['bronze', 'argent', 'or', 'premium']) {
-  const m = await mesurer(`j:hasard_${t}`, PACKS);
-  mesures[t] = { ...juger(m), pilierPlus: (m.meilleur[2] + m.meilleur[3] + m.meilleur[4]) / m.nPacks };
-}
-borne('un pack Bronze donne un Phénomène très rarement (par pack)', mesures.bronze.oPhen, 0, 0.01);
-juger(await mesurer('j:garanti', Math.round(PACKS / 2)));
-for (const k of ['j:ere70', 'j:ere20']) {
-  const d = PACKS_TOUS[k].decennie;
-  const m = await mesurer(k, Math.round(PACKS / 2), { saisons: s => Number(s.slice(0, 4)) >= d && Number(s.slice(0, 4)) < d + 10 });
-  exiger(`${PACKS_TOUS[k].nom} : toutes ses cartes sont de sa décennie`, !m.horsSaisons, `${m.cartes} cartes`);
-  juger(m);
-}
-{
-  const m = await mesurer('j:annee', Math.round(PACKS / 2), { params: n => ({ saison: n % 3 ? null : '1981-82' }) });
-  juger(m);
-}
-
-/* 5. L'équipe, les étoiles, les légendes, les talents, le trio. */
-{
-  // Une franchise n'a pas un Phénomène chaque saison : le niveau d'en dessous, jamais un meilleur.
-  const m = await mesurer('j:equipe', Math.round(PACKS / 2), { graine: 'equipe' });
-  const nv = niveauxDuPack('j:equipe');
-  const eq = juger(m, { exact: false });
-  const oEt = (m.compte[ETOILE] + m.compte[PHENOMENE]) / m.cartes, aEt = (nv.etoile + nv.phenomene) / 100;
-  exiger('Pack d\'équipe : jamais plus d\'étoiles qu\'affiché (le niveau descend, il ne monte pas)', oEt <= aEt + tolere(aEt, m.cartes) && eq.oPhen <= eq.pPhen + tolere(eq.pPhen, m.nPacks),
-    `Étoile ou mieux ${pc(oEt)} des cartes (affiché ${pc(aEt)}) · Phénomène ${pc(eq.oPhen)} des packs (affiché ${pc(eq.pPhen)})`);
-  const mtl = await mesurer('j:equipe', 400, { graine: 'mtl', params: () => ({ franchise: 'MTL' }) });
-  exiger('Pack d\'équipe choisi : tous du club choisi', (await Promise.all([0, 1, 2].map(async n => (await tirer('j:equipe', n, { params: { franchise: 'MTL' } })).cartes))).flat().every(x => x.p.t === 'MTL'), 'Canadiens de Montréal');
-  informer('Pack d\'équipe (Canadiens)', NIVEAUX.map((N, k) => `${N.nom} ${pc(mtl.compte[k] / mtl.cartes)}`).join(' · '));
-}
-for (const k of ['j:etoiles', 'j:legendes', 'j:vedettes']) {
-  const m = await mesurer(k, Math.round(PACKS / 2), { saisons: k === 'j:legendes' ? s => Number(s.slice(0, 4)) < 1995 : null });
-  const P = PACKS_TOUS[k];
-  exiger(`${P.nom} : que des étoiles${k === 'j:legendes' ? ', d\'avant 1995' : ''}`, m.compte.slice(0, ETOILE).every(c => !c) && !m.horsSaisons, `${m.cartes} cartes`);
-  juger(m);
-}
-{
-  // Les talents gardent leur filtre : le quart du haut de sa saison à son talent (ou son filtre : recrue, vétéran).
-  let hors = 0, cartes = 0;
-  for (const [sk, S] of Object.entries(SKILLS)) {
-    for (let n = 0; n < 60; n++) {
-      const r = await tirer(`j:${sk}`, n, { graine: `talent-${n}` });
-      for (const x of r.cartes) {
-        cartes++;
-        const e = await shard(x.p.s);
-        const c = e.players.filter(p => (p.gp || 0) >= S.min && (!S.groupe || groupeDuJoueur(p) === S.groupe) && (!S.skaters || p.p !== 'G')
-          && (!S.filtre || S.filtre(p, ageAtSeason(p.bd, p.s)))).sort((a, b) => S.score(b) - S.score(a));
-        const pool = S.filtre ? c : c.slice(0, Math.ceil(c.length / 4));
-        if (!pool.some(p => getPlayerKey(p) === getPlayerKey(x.p))) hors++;
-      }
+      cartes++; compte[x.niveau]++; eds[x.rar]++; toutes.push(x);
+      // Une carte Soutien sur dix vient de ceux qui n'ont pas de niveau dans leur saison (trop peu de matchs, ou la ligne d'un
+      // deuxième club la même année) : `joueursHorsNiveau`.
+      const P = shard(x.p.s).players;
+      if (niveauDe(x.p, P) !== x.niveau && !(x.niveau === 0 && joueursHorsNiveau(P).includes(x.p))) faux++;
     }
   }
-  exiger('les packs par talent gardent leur filtre', !hors && cartes > 0, `${cartes} cartes, ${hors} hors filtre (${Object.keys(SKILLS).length} talents)`);
-  let lignes = 0, bonnes = 0;
-  for (let n = 0; n < 60; n++) {
-    const r = await tirer('j:trio', n, { graine: `trio-${n}` });
-    lignes++;
-    if (r.cartes.length === 3 && new Set(r.cartes.map(x => `${x.p.t} ${x.p.s}`)).size === 1 && r.reglage.club) bonnes++;
-  }
-  exiger('le Pack Trio reste une vraie ligne d\'un même club-saison', bonnes === lignes, `${bonnes} / ${lignes}`);
+  exiger('Bronze : trois joueurs, personne deux fois', !courtes && !doubles, `${PACKS} pochettes, ${courtes} courte(s), ${doubles} doublon(s)`);
+  exiger('Bronze : chaque carte a le niveau de sa vraie saison', !faux, `${cartes} cartes, ${faux} fausse(s)`);
+  const hors = NIVEAUX.map((N, k) => [N.nom, compte[k] / cartes, taux[N.cle] / 100]).filter(([, o, p]) => Math.abs(o - p) > tolere(p, cartes));
+  exiger('Bronze : les niveaux par carte collent à ses taux', !hors.length, NIVEAUX.map((N, k) => `${N.nom} ${pc(compte[k] / cartes)} (${taux[N.cle]} %)`).join(' · '));
+  exiger('Bronze : une étoile ou mieux dans moins d\'une pochette sur vingt', etoilees / PACKS < 0.05 && etoilees > 0, `${etoilees} pochettes sur ${PACKS} (${pc(etoilees / PACKS)})`);
+  const horsEd = EDITIONS.filter(e => Math.abs(eds[e] / cartes - METAL.cotes[e] / 100) > tolere(METAL.cotes[e] / 100, cartes));
+  exiger('le barème des éditions tient, toutes cartes ensemble, et chaque édition sort', !horsEd.length && EDITIONS.every(e => eds[e] > 0), EDITIONS.map(e => `${e} ${pc(eds[e] / cartes)} (${METAL.cotes[e]} %)`).join(' · '));
+  exiger('la plus brillante d\'une pochette va à son joueur de plus grande stature', !malRangees, `${malRangees} carte(s) mal rangée(s)`);
+  exiger('une Holo porte son numéro, les autres aucun', toutes.every(x => (x.rar === 'legendaire') === !!x.num), `${toutes.filter(x => x.num).length} Holo numérotées`);
 }
 
-/*
- * 6. LA BRILLANTE VA AUX VEDETTES (V5 ; JP : *les holo, c'est généralement les vedettes*). Les variantes d'un pack
- * restent celles de son barème (le total ne bouge pas : les chances affichées tiennent), mais elles se donnent par
- * stature : un Étoile ou un Phénomène brille plus souvent qu'un Pilier, qui brille plus qu'un Soutien.
- */
+/* 5. L'Époque : un joueur, Pilier ou mieux, de sa décennie et de son poste. */
 {
-  const m = await mesurer('j:hasard_premium', PACKS, { graine: 'axes' });
-  const cotes = TIERS.premium.cotes;
-  const groupes = [['Soutien et Régulier', [0, 1]], ['Pilier', [2]], ['Étoile et Phénomène', [3, 4]]];
-  const lu = groupes.map(([nom, ks]) => {
-    const v = {}; let t = 0;
-    for (const k of ks) for (const [r, c] of Object.entries(m.var_[k])) { v[r] = (v[r] || 0) + c; t += c; }
-    return { nom, t, v };
-  });
-  const holo = g => ((g.v.rare || 0) + (g.v.legendaire || 0)) / g.t;
-  const tous = { t: 0, v: {} };
-  for (const g of lu) { tous.t += g.t; for (const [r, c] of Object.entries(g.v)) tous.v[r] = (tous.v[r] || 0) + c; }
-  const totalHors = Object.entries(cotes).filter(([r, w]) => Math.abs((tous.v[r] || 0) / tous.t - w / 100) > tolere(w / 100, tous.t)).map(([r]) => r);
-  exiger('le pack garde son barème de variantes, toutes cartes ensemble (Premium)', !totalHors.length, `${tous.t} cartes${totalHors.length ? ` — hors : ${totalHors.join(', ')}` : ''}`);
-  exiger('la brillante va aux vedettes : holo ou mieux, Soutien < Pilier < Étoile et Phénomène', holo(lu[0]) < holo(lu[1]) && holo(lu[1]) < holo(lu[2]),
-    lu.map(g => `${g.nom} : holo+ ${pc(holo(g))} (${g.t} cartes)`).join(' · '));
+  const PILIER = NIVEAUX.findIndex(N => N.cle === 'pilier'), N = Math.round(PACKS / 4);
+  let faibles = 0, plusieurs = 0, horsDec = 0, vides = 0;
+  const decs = new Set();
+  for (let n = 0; n < N; n++) {
+    const r = await tirer('j:epoque', n);
+    if (r.cartes.length !== 1) { plusieurs += r.cartes.length > 1 ? 1 : 0; vides += r.cartes.length ? 0 : 1; continue; }
+    const x = r.cartes[0];
+    if (x.niveau < PILIER) faibles++;
+    if (an(x) < r.reglage.decennie || an(x) >= r.reglage.decennie + 10) horsDec++;
+    decs.add(r.reglage.decennie);
+  }
+  exiger('Époque : un seul joueur, Pilier ou mieux, de la décennie tirée', !faibles && !plusieurs && !horsDec && !vides, `${N} pochettes · ${faibles} sous le Pilier · ${horsDec} hors de sa décennie · ${vides} vide(s)`);
+  exiger('Époque : sans choix, chaque décennie des données sort', decs.size >= 6, [...decs].sort().join(' · '));
+  const choisie = (await Promise.all(Array.from({ length: 60 }, (_, n) => tirer('j:epoque', n, { params: { decennie: 1980 } })))).flatMap(r => r.cartes);
+  exiger('Époque : la décennie choisie', choisie.length === 60 && choisie.every(x => an(x) >= 1980 && an(x) < 1990), `${choisie.length} joueurs des années 80`);
+  for (const g of ['F', 'D', 'G']) {
+    const po = (await Promise.all(Array.from({ length: 60 }, (_, n) => tirer('j:epoque', n, { params: { poste: g } })))).flatMap(r => r.cartes);
+    exiger(`Époque : le poste choisi (${g})`, po.length === 60 && po.every(x => groupeDuJoueur(x.p) === g), `${po.length} joueurs`);
+  }
 }
 
-/* 7. Un plafond serré : le niveau descend, le salaire jamais au-dessus. */
+/* 7. Ce que la run ne permet pas ne sort pas. */
 {
-  const max = 1_500_000;
-  const m = await mesurer('j:hasard_argent', Math.round(PACKS / 2), { graine: 'plafond', libre: p => p.$ > 0 && p.$ <= max });
-  exiger('sous un plafond serré, aucun salaire au-dessus', !m.trop && m.cartes === Math.round(PACKS / 2) * cartesDuPack('j:hasard_argent'), `${m.cartes} cartes à 1,5 M$ et moins`);
-  informer('Pack Argent sous 1,5 M$', NIVEAUX.map((N, k) => `${N.nom} ${pc(m.compte[k] / m.cartes)}`).join(' · ') + ' (le niveau d\'en dessous quand aucun joueur de ce niveau ne rentre)');
+  const vus = new Set(toutes.slice(0, 3000).map(x => getPersonKey(x.p)));
+  let interdits = 0, cartes = 0;
+  for (let n = 0; n < 400; n++) for (const x of (await tirer('j:bronze', n, { libre: p => !vus.has(getPersonKey(p)) })).cartes) { cartes++; if (vus.has(getPersonKey(x.p))) interdits++; }
+  exiger('ce que la run ne permet pas ne sort pas : personne qu\'elle a déjà vu', !interdits && cartes === 1200, `${cartes} cartes, ${interdits} interdite(s), ${vus.size} personnes écartées`);
 }
 
-/*
- * 8. Avant et après : l'ancien tirage (S79) — une saison au hasard par carte,
- * puis un joueur à parts égales dans sa moitié productive. Chaque carte tire
- * sa saison, donc les cartes sont indépendantes : la part de chaque niveau est
- * la MOYENNE, sur les saisons, de sa part dans la moitié productive. Calculée
- * exactement, pas échantillonnée.
- */
-{
-  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
-  const parts = NIVEAUX.map(() => 0);
-  let horsReguliers = 0, phenEtoiles = 0;
-  for (const s of SAISONS) {
-    const P = (await shard(s)).players;
-    const pool = ['F', 'D', 'G'].flatMap(g => {
-      const r = P.filter(p => groupeDuJoueur(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a));
-      return r.slice(0, Math.ceil(r.length / 2));
-    });
-    for (const p of pool) { const k = niveauDe(p, P); if (k < 0) horsReguliers += 1 / pool.length / SAISONS.length; else parts[k] += 1 / pool.length / SAISONS.length; }
-    // L'ancien Pack Étoiles : l'étoile d'avant, à parts égales.
-    const etoiles = P.filter(etoileAvant(P));
-    phenEtoiles += etoiles.filter(p => niveauDe(p, P) === PHENOMENE).length / etoiles.length / SAISONS.length;
-  }
-  const auMoins = (q, n) => 1 - (1 - q) ** n;
-  const TOUS = ['bronze', 'argent', 'or', 'premium'];
-  informer('avant S80 (la moitié productive), par carte', `${NIVEAUX.map((Nv, k) => `${Nv.nom} ${pc(parts[k])}`).join(' · ')} · hors réguliers ${pc(horsReguliers)}`);
-  informer('un Phénomène par pack, avant → maintenant', TOUS.map(t => `${TIERS[t].nom} ${unSur(auMoins(parts[PHENOMENE], TIERS[t].n))} → ${unSur(mesures[t].oPhen)}`).join(' · '));
-  // Ce qu'on signe : le meilleur joueur du pack.
-  const pilier = parts[2] + parts[3] + parts[4];
-  informer('le meilleur joueur est Pilier ou mieux, avant → maintenant', TOUS.map(t => `${TIERS[t].nom} ${pc(auMoins(pilier, TIERS[t].n))} → ${pc(mesures[t].pilierPlus)}`).join(' · '));
-  const nvE = niveauxDuPack('j:etoiles').phenomene / 100;
-  informer('le Pack Étoiles, avant → maintenant', `un Phénomène par carte ${pc(phenEtoiles)} → ${pc(nvE)} · par pack ${pc(auMoins(phenEtoiles, 5))} → ${pc(auMoins(nvE, 5))}`);
-  exiger('un Phénomène sort moins souvent qu\'avant, dans chaque tier', TOUS.every(t => mesures[t].oPhen < auMoins(parts[PHENOMENE], TIERS[t].n)) && nvE < phenEtoiles,
-    `par carte, avant : ${pc(parts[PHENOMENE])}`);
-}
-
-for (const l of lignesTaux) informer('mesuré (attendu)', l);
-informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
-/*
- * LES THÈMES (Jalon P2). JP : *on limite les packs, tout en gardant des thématiques*. Chaque thème tient sa promesse (la
- * décennie, le poste, le rôle, la franchise, la couleur du coach) ; le hasard d'un thème ne tombe jamais hors de ce qui
- * est permis. (La boutique à ses nœuds, la carte rare d'un pack et la revente sont parties avec l'ancien Rogue : la run
- * en carte ouvre la pochette Bronze et la pochette Époque à son marché.)
- */
-{
-  const an = x => Number(String(x.p.s).slice(0, 4));
-  const ep = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:epoque', n, { params: { decennie: 1980 } })))).flatMap(r => r.cartes);
-  exiger('Pack Époque : la décennie choisie', ep.length >= 4 * PACKS_TOUS['j:epoque'].n - 2 && ep.every(x => an(x) >= 1980 && an(x) < 1990), `${ep.length} joueurs des années 80`);
-  // Lot 5 (nov. 2026) : l'Époque est le pack du joueur fort — un seul, Pilier ou mieux (`niveaux`) — contre les trois au hasard du Bronze.
-  const forts = (await Promise.all(Array.from({ length: 12 }, (_, n) => tirer('j:epoque', n, { params: { decennie: [1980, 1990, 2000][n % 3], poste: ['F', 'D', 'G'][n % 3] } })))).flatMap(r => r.cartes);
-  exiger('Pack Époque : un seul joueur, Pilier ou mieux, contre trois au Bronze', PACKS_TOUS['j:epoque'].n === 1 && PACKS_TOUS['j:bronze'].n === 3 && forts.length === 12 && forts.every(x => x.niveau >= 2),
-    `${forts.length} joueurs : ${forts.filter(x => x.niveau >= 3).length} ★ Étoiles ou mieux, ${forts.filter(x => x.niveau < 2).length} sous Pilier`);
-  // Nov. 2026 (docs/revue-rogue-2026-11.md § 2.6) : le poste choisi, avec ou sans décennie ; au hasard, tous les groupes.
-  for (const g of ['G', 'D']) {
-    const po = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:epoque', n, { params: { poste: g, ...(g === 'D' ? { decennie: 1990 } : {}) } })))).flatMap(r => r.cartes);
-    exiger(`Pack Époque : le poste choisi (${g})`, po.length >= 4 * PACKS_TOUS['j:epoque'].n - 2 && po.every(x => groupeDuJoueur(x.p) === g && (g !== 'D' || (an(x) >= 1990 && an(x) < 2000))), `${po.length} joueurs, ${po.filter(x => groupeDuJoueur(x.p) === g).length} du poste`);
-  }
-  const sp = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:specialistes', n, { params: { skill: 'gardien' } })))).flatMap(r => r.cartes);
-  exiger('Pack Spécialistes : le rôle choisi', sp.length >= 10 && sp.every(x => x.p.p === 'G'), `${sp.length} gardiens`);
-  const permis = await Promise.all(Array.from({ length: 12 }, (_, n) => tirer('j:specialistes', n, { params: { permis: ['sniper', 'passeur'] } })));
-  exiger('le hasard d\'un thème ne tire que dans ce que les déblocages ouvrent', permis.every(r => ['sniper', 'passeur'].includes(r.reglage.skill)), permis.map(r => r.reglage.skill).join(' '));
-  const cl = (await Promise.all([0, 1, 2].map(n => tirer('j:club', n, { params: { franchise: 'MTL' } })))).flatMap(r => r.cartes);
-  exiger('Pack Club : la franchise choisie', cl.length >= 6 && cl.every(x => x.p.t === 'MTL'), `${cl.length} Canadiens`);
-  for (const coach of VOIES) {
-    const r = await Promise.all([0, 1, 2].map(n => tirer('j:coach', n, { params: { coach } })));
-    const joueurs = r.flatMap(x => x.cartes);
-    exiger(`Pack du coach ${COACHS[coach].nom} : ses joueurs de sa couleur`, joueurs.length >= 6 && joueurs.every(x => coachDuJoueur(x.p) === coach), `${joueurs.length} joueurs`);
-  }
-}
-
-/*
- * TOUT SE PIGE (Jalon P2b). JP : *faire que toutes les cartes et leurs variantes soient possibles avec tous les packs
- * combinés*. Le SUPPORT, pas un échantillon : chaque joueur-saison-club de chaque shard est dans un niveau, ou parmi
- * ceux sans niveau que les Soutien tirent (\`joueursHorsNiveau\`) ; et chaque tier donne chacune des quatre variantes.
- */
-{
-  let total = 0, manquants = [];
-  for (const sa of SAISONS) {
-    const e = await shard(sa);
-    const dedans = new Set([...joueursParNiveau(e.players).flat(), ...joueursHorsNiveau(e.players)]);
-    for (const p of e.players) { total++; if (!dedans.has(p)) manquants.push(`${p.n} ${sa} ${p.t}`); }
-  }
-  exiger('chaque joueur-saison-club des données peut sortir d\'un pack', !manquants.length, manquants.slice(0, 4).join(', ') || `${total} cartes de joueur, toutes au support`);
-  const variantes = ['bronze', 'argent', 'or'].every(t => EDITIONS.every(r => TIERS[t].cotes[r] > 0));
-  exiger('chaque édition (Base, Cadre, Hors-cadre, Or, Holo) sort de chaque pack au hasard', variantes, ['bronze', 'argent', 'or'].map(t => `${TIERS[t].nom} ${Object.values(TIERS[t].cotes).join('/')}`).join(' · '));
-  let hors = 0, cartes = 0;
-  for (let n = 0; n < 300; n++) for (const x of (await tirer('j:bronze', n, { graine: 'p2b' })).cartes) {
-    cartes++;
-    if (joueursHorsNiveau((await shard(x.p.s)).players).includes(x.p)) hors++;
-  }
-  borne('les joueurs sans niveau sortent, à petit poids (part des cartes d\'un Pack Bronze)', hors / cartes, 0.01, 0.1);
-}
-
-/* Les packs qui montent en médailles et le multiple de prestige des taux (V10) sont partis avec les déblocages (V28, tranche 5 : *variété seulement*). */
-verdict('Les packs selon le niveau des joueurs');
+verdict('Les pochettes');
