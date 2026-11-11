@@ -72,7 +72,7 @@ function fermer() {
 export async function ouvrirRun(c = {}) {
   ctx = c; V = {};
   racine = document.createElement('div');
-  racine.id = 'runModal'; racine.className = 'rn';
+  racine.id = 'runModal'; racine.className = 'rn-racine';
   racine.setAttribute('role', 'dialog'); racine.setAttribute('aria-modal', 'true'); racine.setAttribute('aria-label', 'Le Rogue');
   racine.innerHTML = '<div class="rn-plan"></div>';
   plan = racine.firstElementChild;
