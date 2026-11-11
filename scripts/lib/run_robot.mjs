@@ -94,7 +94,7 @@ function jouer(S, espion) {
 
 /*
  * UNE RUN ENTIÈRE. `relireA` (les invariants) : après ce nombre de matchs, la run est gardée, relue de sa sauvegarde
- * (`ouvrirSeance`) et continue : elle doit finir pareil. Rend { robot, graine, decennie, coach, actes, coeurs, fin, rondes,
+ * (`ouvrirSeance`) et continue : elle doit finir pareil. Rend { robot, graine, coach, actes, coeurs, fin, rondes,
  * coupe, signatures, forces, s, R }.
  */
 export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null } = {}) {
@@ -141,6 +141,6 @@ export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES
   }
   compte('fin', S);
   const R = S.R;
-  return { robot, graine, decennie: R.decennie, coach, actes: R.actes, coeurs: R.coeurs, fin: R.fin, rondes: R.fin ? R.fin.rondes : 0, coupe: !!(R.fin && R.fin.coupe),
+  return { robot, graine, coach, actes: R.actes, coeurs: R.coeurs, fin: R.fin, rondes: R.fin ? R.fin.rondes : 0, coupe: !!(R.fin && R.fin.coupe),
     signatures, forces: [...forces, forceDe(S)], s: Math.round((Date.now() - t0) / 1000), R };
 }

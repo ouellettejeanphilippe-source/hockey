@@ -23,8 +23,10 @@ import { nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
 import { notable, pic } from './mouvement.js';
 import { esc, hache } from './util.js';
+import { VERSION } from './version.js';
+import { RATINGS_VERSION } from './ratings.js';
 import {
-  RUN, creerLaRun, ouvrirSeance, figer, decennieDe, decenniesDe, allerA, chanceCeSoir, intentionCeSoir, jeuDe, jouerLeMatch, conclure, signer, passerLesPortes,
+  RUN, VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, forcesDuMonde, allerA, chanceCeSoir, intentionCeSoir, jeuDe, jouerLeMatch, conclure, signer, passerLesPortes,
   relancerLesPortes, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, acheterLaPiece, acheterLaPochette, avancer, reposer, monterUneCarte, echangerDeuxCases,
   choisirLeFilet, fixerLElite, allerAuMatchDeSerie, histoireDeLaCase, repondre, finir,
 } from './run.js';
@@ -39,8 +41,26 @@ const LARGEUR = 390, HAUTEUR = 844, ECHELLE_MAX = 1.25;
 const PAS = 2200, VITESSES = [1, 2, 4], TRANCHES = 4, TRANCHE = 30;
 
 let racine = null, plan = null, S = null, V = {}, ctx = null, minuterie = null;
-const SHARDS = new Map();
-const donnees = () => ({ saisons: state.index.seasons, shard: s => SHARDS.get(s) || null });
+/* Le monde d'une run : toutes les saisons (JP : *toutes les années ensemble*). La même fonction `shard` d'une run à l'autre : js/run.js ne classe les clubs qu'une fois par visite. */
+const SHARDS = new Map(), LOT = 6;
+const shardCharge = s => SHARDS.get(s) || null;
+const donnees = () => ({ saisons: state.index.seasons, shard: shardCharge, forces: forcesGardees() });
+/*
+ * LES FORCES DU MONDE, gardées d'une visite à l'autre (`cap82_run_monde`, un cache, pas une sauvegarde) : classer 1 400 clubs
+ * coûte cinq secondes à un téléphone. Elles valent pour une version du jeu, des cotes et un nombre de saisons ; sinon, on reclasse.
+ */
+const CLE_MONDE = 'cap82_run_monde';
+const signature = () => `${VERSION}:${RATINGS_VERSION}:${state.index.seasons.length}`;
+let forces = undefined;
+function forcesGardees() {
+  if (forces === undefined) { try { const m = JSON.parse(localStorage.getItem(CLE_MONDE) || 'null'); forces = m && m.v === signature() ? m.forces : null; } catch { forces = null; } }
+  return forces;
+}
+function garderLesForces() {
+  if (forces || !S) return;
+  forces = forcesDuMonde(S);
+  try { localStorage.setItem(CLE_MONDE, JSON.stringify({ v: signature(), forces })); } catch { /* le stockage plein : on reclassera */ }
+}
 const pause = ms => new Promise(ok => setTimeout(ok, ms));
 
 /* ---------- la sauvegarde ---------- */
@@ -54,11 +74,16 @@ function montrer(html, { rouge = false } = {}) {
   plan.className = `rn-plan${rouge ? ' rn-rouge' : ''}`;
   plan.innerHTML = html;
 }
-async function charger(decennie) {
-  const saisons = (decenniesDe(state.index.seasons).find(([d]) => d === decennie) || [null, []])[1];
+/* Charger chaque saison, `LOT` à la fois (IndexedDB les garde après la première visite) ; l'attente dit où on en est. */
+async function charger(mot) {
+  const saisons = state.index.seasons.filter(s => !SHARDS.has(s));
   // Les photos d'action des cartes (js/actions.js) : sans leur liste, chaque carton sort sans photo.
   await Promise.resolve(actionsDisponibles()).catch(() => null);
-  for (const s of saisons) if (!SHARDS.has(s)) SHARDS.set(s, await getShard(s));
+  for (let k = 0; k < saisons.length; k += LOT) {
+    montrer(sceneAttente(`${mot} ${Math.min(saisons.length, k + LOT)} saisons sur ${saisons.length}…`));
+    await Promise.all(saisons.slice(k, k + LOT).map(async s => { SHARDS.set(s, await getShard(s)); }));
+  }
+  if (saisons.length) { montrer(sceneAttente('On classe les clubs de toutes les époques…')); await pause(30); }
 }
 function fermer() {
   clearTimeout(minuterie);
@@ -82,10 +107,12 @@ export async function ouvrirRun(c = {}) {
   window.addEventListener('resize', echelle);
   racine.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled && racine.contains(b)) geste(b.dataset.a, b.dataset.v); });
   const R = lire();
-  if (R && R.v === 1) {
-    montrer(sceneAttente(`On rouvre les vestiaires des années ${R.decennie}…`));
-    await charger(R.decennie);
+  // Une run gardée d'une autre version (une seule décennie) ne se relit pas : la run neuve la remplace.
+  if (R && R.v === VERSION_DE_LA_RUN) {
+    montrer(sceneAttente('On rouvre les vestiaires…'));
+    await charger('On rouvre les vestiaires :');
     S = ouvrirSeance(donnees(), R);
+    garderLesForces();
     poserClubLu(() => ({ team: S.toi }));
     return entrer();
   }
@@ -95,16 +122,16 @@ async function versLeDepart() {
   S = null; V = {};
   montrer(sceneAttente('On sort les dossiers des coachs…'));
   const meta = lireMeta(), coachs = await chargerCoachs().catch(() => null), graine = nouvelleGraine();
-  V = { ecran: 'depart', graine, coach: 0, numero: (meta.runs || 0) + 1, decennie: decennieDe(graine, state.index.seasons),
+  V = { ecran: 'depart', graine, coach: 0, numero: (meta.runs || 0) + 1,
     loto: lotoDesCoachs(coachs, coachsOuverts(rangDePrestige(meta)), `${graine}:chef`, 3, coachsDuCartable()) };
   rendre();
 }
 async function commencer() {
-  const c = V.loto[V.coach], meta = lireMeta(), { graine, decennie, numero } = V;
-  montrer(sceneAttente(`On ouvre les vestiaires des années ${decennie}…`));
-  await charger(decennie);
-  await pause(30);
-  S = creerLaRun(donnees(), { graine, decennie, numero, jetons: jetonsDeDepart(meta), coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
+  const c = V.loto[V.coach], meta = lireMeta(), { graine, numero } = V;
+  montrer(sceneAttente('On ouvre les vestiaires…'));
+  await charger('On ouvre les vestiaires :');
+  S = creerLaRun(donnees(), { graine, numero, jetons: jetonsDeDepart(meta), coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
+  garderLesForces();
   poserClubLu(() => ({ team: S.toi }));
   coachAuCartable(c, numero);
   ecrireMeta({ ...lireMeta(), runs: numero });
@@ -346,7 +373,7 @@ const GESTES = {
 async function ouvrirLaPochette(cle) {
   const R = S.R, vus = new Set(R.vus);
   montrer(sceneAttente('On ouvre la pochette…'));
-  const r = await tirerJoueursDuPack(cle, { graine: `${R.graine}:pochette`, n: R.achats, params: { decennie: Number(R.decennie), poste: 'F' }, saisons: [...SHARDS.keys()].filter(s => s.slice(0, 3) === String(R.decennie).slice(0, 3)), shard: s => SHARDS.get(s), libre: p => !vus.has(getPersonKey(p)) }).catch(() => null);
+  const r = await tirerJoueursDuPack(cle, { graine: `${R.graine}:pochette`, n: R.achats, params: { poste: 'F' }, saisons: [...SHARDS.keys()], shard: shardCharge, libre: p => !vus.has(getPersonKey(p)) }).catch(() => null);
   R.achats++;
   if (!r || !r.cartes.length || !acheterLaPochette(S, cle, r.cartes.map(x => x.p))) { jouerSon('refus'); return entrer(); }
   jouerSon('donne');

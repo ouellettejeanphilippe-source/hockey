@@ -28,7 +28,7 @@ import { leurJeuDuDuel, appliquerChoix, deDuChoix } from './greffes.js';
 import { HISTOIRES, tirer } from './histoires.js';
 import { faitsDe } from './faits.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, piecesOffertes, poserLaPiece, piecesContre } from './pieces.js';
-import { JETONS, PRIME_COACH_MAX, VRAIS_CONTRATS, bouchesTrousDuDepart, habillerLaLigue, chiffresDuSoirDe, ecussonsDesSeries } from './rogue.js';
+import { JETONS, PRIME_COACH_MAX, bouchesTrousDuDepart, habillerLaLigue, chiffresDuSoirDe, ecussonsDesSeries } from './rogue.js';
 import { REGLES_DU_COACH } from './coachs.js';
 import { MEDAILLES_ACTE, PRIX_PIECE, jeuDuRival, lignesFortes, dominanteDe, recompenseDeLElite, perteDeLElite } from './actes.js';
 import { chanceDUnSoir } from './pronostic.js';
@@ -110,59 +110,62 @@ export function prixDe(S, p) {
 export const masseDe = S => Object.values(S.roster).reduce((a, p) => a + prixDe(S, p), 0) + (S.R.mort || 0);
 export const espaceDe = S => S.R.plafond - masseDe(S);
 
-/* ---------- les décennies et leurs clubs ---------- */
+/* ---------- le monde d'une run : toutes les années ensemble ---------- */
 /*
- * Les décennies jouables : cinq saisons au moins à l'index, depuis les vrais contrats (`VRAIS_CONTRATS`, 1990-91). Avant, les
- * salaires sont estimés, sans aubaine : mesuré le 11 nov. 2026, une run des années 1970 ne signait qu'une fois sous le
- * plafond qui mord. Ces époques attendent leur économie. [['1990', ['1990-91', …]], …]
+ * JP, 11 nov. 2026 : *Je veux garder l'aspect toutes les années ensemble*. Une run ne vit pas dans une décennie : ses
+ * portes, ses affiches, ses rivaux et ses séries se tirent de chaque saison finie des données, de 1970-71 à aujourd'hui,
+ * les Canadiens de 1976-77 à côté du Lightning de 2019-20. Le salaire de la run (`prixDe`) se lit déjà sur une seule
+ * échelle ; la force d'un club se compare d'une époque à l'autre, comme au 82-0 (ARCHITECTURE.md, la normalisation par
+ * époque). La run d'une seule décennie, essayée aux tranches 2 et 3, est défaite.
  */
-export function decenniesDe(saisons) {
-  const par = new Map();
-  for (const s of saisons) {
-    const d = `${s.slice(0, 3)}0`;
-    if (s < VRAIS_CONTRATS) continue;
-    (par.get(d) || par.set(d, []).get(d)).push(s);
-  }
-  return [...par].filter(([, ss]) => ss.length >= 5);
-}
-/* La décennie d'une run : tirée de sa graine. */
-export const decennieDe = (graine, saisons) => pigeDans(decenniesDe(saisons), graine, 'decennie')[0];
 /* Une saison finie : son joueur le plus assidu (jamais échangé) a joué 90 % du calendrier. La saison en cours ne donne ni club ni porte. */
 const saisonFinie = (s, joueurs) => joueurs.reduce((m, p) => (p.x ? m : Math.max(m, p.gp || 0)), 0) >= 0.9 * seasonGames(s);
 /*
- * LES CLUBS D'UNE DÉCENNIE, classés par leur force (le moins fort d'abord) : chaque vrai club de chaque saison finie, ses
+ * LES CLUBS DU MONDE, classés par leur force (le moins fort d'abord) : chaque vrai club de chaque saison finie, ses
  * douze meilleurs avants, ses six meilleurs défenseurs, ses deux gardiens les plus utilisés. `rang` : son rang centile.
- * `donnees.shard(s)` rend { players, byTeam }, déjà chargé.
+ * `donnees.shard(s)` rend { players, byTeam }, déjà chargé ; la même fonction `shard` d'une run à l'autre, pour que le
+ * classement ne se refasse pas (≈ 1 400 clubs, une seconde). `donnees.forces` (facultatif) : { 'saison:club': force },
+ * les forces d'une visite d'avant (`forcesDuMonde`), au nombre près : le classement est le même, sans rebâtir chaque club.
  */
-function classerLesClubs(donnees, decennie) {
-  const saisons = (decenniesDe(donnees.saisons).find(([d]) => d === decennie) || [null, []])[1];
-  const tous = [];
-  for (const s of saisons) {
-    const sh = donnees.shard(s);
-    if (!sh || !saisonFinie(s, sh.players)) continue;
-    for (const [t, ps] of Object.entries(sh.byTeam)) {
-      const ok = ps.filter(p => (p.gp || 0) >= 10);
-      const F = ok.filter(p => groupeDe(p) === 'F').sort((a, b) => v(b) - v(a)).slice(0, 12);
-      const D = ok.filter(p => groupeDe(p) === 'D').sort((a, b) => v(b) - v(a)).slice(0, 6);
-      const G = ok.filter(p => groupeDe(p) === 'G').sort((a, b) => (b.gp || 0) - (a.gp || 0)).slice(0, 2);
-      if (F.length < 12 || D.length < 6 || G.length < 2) continue;
-      const pool = [...F, ...D, ...G];
-      const team = createTeam(t, t, autoRoster(pool), { season: s });
-      team.courbe = true;
-      team.luck = 0;
-      tous.push({ s, t, team, pool, force: force(team) });
+const MONDES = new WeakMap();   // donnees.shard → [{ s, t, pool, force, rang }] : la force de chaque club se calcule une fois par visite
+const batir = (s, t, pool) => { const team = createTeam(t, t, autoRoster(pool), { season: s }); team.courbe = true; team.luck = 0; return team; };
+function classerLesClubs(donnees) {
+  let monde = MONDES.get(donnees.shard);
+  if (!monde || monde.n !== donnees.saisons.length) {
+    const tous = [];
+    for (const s of donnees.saisons) {
+      const sh = donnees.shard(s);
+      if (!sh || !saisonFinie(s, sh.players)) continue;
+      for (const [t, ps] of Object.entries(sh.byTeam)) {
+        const ok = ps.filter(p => (p.gp || 0) >= 10);
+        const F = ok.filter(p => groupeDe(p) === 'F').sort((a, b) => v(b) - v(a)).slice(0, 12);
+        const D = ok.filter(p => groupeDe(p) === 'D').sort((a, b) => v(b) - v(a)).slice(0, 6);
+        const G = ok.filter(p => groupeDe(p) === 'G').sort((a, b) => (b.gp || 0) - (a.gp || 0)).slice(0, 2);
+        if (F.length < 12 || D.length < 6 || G.length < 2) continue;
+        const pool = [...F, ...D, ...G];
+        // Une force déjà connue (`donnees.forces`, gardée par le jeu d'une visite à l'autre) ne se recalcule pas.
+        const connue = donnees.forces ? donnees.forces[`${s}:${t}`] : null;
+        tous.push({ s, t, pool, force: Number.isFinite(connue) ? connue : force(batir(s, t, pool)) });
+      }
     }
+    tous.sort((a, b) => a.force - b.force || (cleDuClub(a) < cleDuClub(b) ? -1 : 1));
+    tous.forEach((c, i) => { c.rang = i / Math.max(1, tous.length - 1); });
+    monde = { n: donnees.saisons.length, tous };
+    MONDES.set(donnees.shard, monde);
   }
-  tous.sort((a, b) => a.force - b.force || (cleDuClub(a) < cleDuClub(b) ? -1 : 1));
-  tous.forEach((c, i) => { c.rang = i / Math.max(1, tous.length - 1); });
-  return tous;
+  // Chaque séance a ses clubs à elle : un club ne se bâtit qu'à sa première affiche (une run en croise une cinquantaine sur 1 400).
+  return monde.tous.map(c => { let team = null; return { ...c, get team() { return team || (team = batir(c.s, c.t, c.pool)); } }; });
 }
+/* Les forces du monde d'une séance, à garder pour la prochaine visite. */
+export const forcesDuMonde = S => Object.fromEntries(S.clubs.map(c => [cleDuClub(c), c.force]));
 const dansLaBande = (clubs, [a, b]) => clubs.filter(c => c.rang >= a && c.rang <= b);
 const decale = ([a, b]) => [Math.min(0.95, a + RUN.DECALAGE), Math.min(1, b + RUN.DECALAGE)];
 
 /* ---------- la run neuve ---------- */
+/* La version d'une run gardée : 2 depuis que le monde mêle toutes les années (une run d'une seule décennie ne se relit pas). */
+export const VERSION_DE_LA_RUN = 2;
 /*
- * L'EFFECTIF DE DÉPART : les bouche-trous de la décennie (js/rogue.js `bouchesTrousDuDepart`, la bande de la V27, les pires
+ * L'EFFECTIF DE DÉPART : les bouche-trous de huit saisons tirées de la graine (js/rogue.js `bouchesTrousDuDepart`, la bande de la V27, les pires
  * contrats), puis ajustés au vrai plafond (JP, oct. 2026 : *de vrais joueurs, trop payés pour leur valeur*) : tant que la
  * masse dépasse le plafond moins l'espace de départ, le plus payé cède sa case au moins payé de sa bande, au même poste ;
  * puis le moins payé cède la sienne à un plus payé, sans passer la cible. Aucun salaire n'est touché.
@@ -198,15 +201,15 @@ function effectifDeDepart(S, graine) {
  * CRÉER LA RUN : `coach` est une carte de coach ({ id, n, saison, tag, cle, rang, maitrise }, js/coachs-reels.js) ou une
  * simple philosophie ({ cle }) pour un robot. Rend la séance, au camp, ses premières portes ouvertes.
  */
-export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, decennie = decennieDe(graine, donnees.saisons), numero = 1 }) {
-  const S = { R: null, donnees, clubs: classerLesClubs(donnees, decennie), roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null, robotDuel: null };
+export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1 }) {
+  const S = { R: null, donnees, clubs: classerLesClubs(donnees), roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null, robotDuel: null };
   S.roster = effectifDeDepart(S, graine);
   const masse = Object.values(S.roster).reduce((a, p) => a + prixDe(S, p), 0), cible = CAP - RUN.ESPACE;
-  // LE PLAFOND : ta masse de départ et son espace. Quand la décennie n'a pas d'assez gros contrats pour monter au vrai
-  // plafond (avant 1989-90, des salaires estimés), l'espace prend ce que ces contrats auraient libéré en sortant.
+  // LE PLAFOND : ta masse de départ et son espace. Si le départ n'a pas d'assez gros contrats pour monter au vrai
+  // plafond, l'espace prend ce que ces contrats auraient libéré en sortant.
   const plafond = Math.round((masse + RUN.ESPACE + RUN.RACHAT * Math.max(0, cible - masse)) / 100_000) * 100_000;
   const R = S.R = {
-    v: 1, graine: String(graine), numero, decennie,
+    v: VERSION_DE_LA_RUN, graine: String(graine), numero,
     coach: { maitrise: 1, ...coach }, banc: [PIECE_DU_COACH[coach.cle]],
     jetons, coeurs: RUN.COEURS, plafond, mort: 0,
     joueurs: [], vus: [], anciens: [],
@@ -222,7 +225,7 @@ export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, dec
 }
 /* Rouvrir une run gardée : les mêmes clubs, ton effectif relu de ses clés, ses jambes, ses éditions, ses blessés. */
 export function ouvrirSeance(donnees, R) {
-  const clubs = classerLesClubs(donnees, R.decennie);
+  const clubs = classerLesClubs(donnees);
   const parCle = new Map();
   const trouver = k => {
     const s = k.slice(0, k.indexOf('_'));

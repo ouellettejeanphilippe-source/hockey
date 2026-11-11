@@ -80,7 +80,7 @@ export function sceneDepart(V) {
   const c = V.loto[V.coach], C = COACHS[c.cle], regle = REGLES_DU_COACH[c.cle], piece = PIECE_DU_COACH[c.cle], k = niveauDuCoach(c.rang) - 1;
   const carte = x => carteHtml({ cle: 'coach', niveau: niveauDuCoach(x.rang) - 1, genreCarte: 'synergie', ico: COACHS[x.cle].ico, nomHtml: esc(x.n), typeHtml: esc(clubMot({ t: x.tag, s: x.saison })),
     statique: true, lecture: true, style: varsCarton(getTeamBand(x.tag)) });
-  return `<div style="left:14px;right:14px;top:22px"><div class="rn-k">Run ${V.numero} · les années ${V.decennie}</div><div class="rn-titre" style="margin-top:6px">Ton coach</div><div class="rn-t rn-gris" style="margin-top:4px">Un parmi trois. Il fait toute la run.</div></div>
+  return `<div style="left:14px;right:14px;top:22px"><div class="rn-k">Run ${V.numero} · toutes les époques</div><div class="rn-titre" style="margin-top:6px">Ton coach</div><div class="rn-t rn-gris" style="margin-top:4px">Un parmi trois. Il fait toute la run.</div></div>
   <div class="rn-pas" style="left:14px;right:14px;top:118px"><span class="rn-on">1 · Ton coach</span><span>2 · Le camp</span><span>3 · L'acte I</span></div>
   <div class="rn-loto" style="left:14px;right:14px;top:166px">${V.loto.map((x, i) => `<button type="button" class="${i === V.coach ? 'rn-on' : ''}" data-a="coach" data-v="${i}"><span class="rn-c">${carte(x)}</span><p><b>${esc(x.n)}</b>${esc(clubMot({ t: x.tag, s: x.saison }))}<br>${x.fiche.v}-${x.fiche.d}-${x.fiche.n}${x.coupe ? ' · la Coupe' : ''}</p></button>`).join('')}</div>
   <div class="rn-panneau rn-on" style="left:14px;right:14px;top:428px">
@@ -367,7 +367,7 @@ export function sceneMarche(S, V) {
   const pochette = (cle, mot, ico, metal, quoi) => { const prix = RUN.POCHETTES[cle], pris = M.pochettes.includes(cle), ok = !pris && R.jetons >= prix; return `<button type="button" data-a="pochette" data-v="${cle}"${ok ? '' : ' disabled'}><span class="rn-c" style="--pk-a:var(${metal})">${pochetteHtml({ etat: 'scellee', mot, ico })}</span><span class="rn-prix${ok ? '' : ' rn-non'}">${pris ? 'Ouverte' : `<i class="rn-piece"></i>${prix}`}</span><p>${quoi}</p></button>`; };
   return `${hud(S, { titre: 'Le marché', cible: false })}
   <div style="left:14px;right:14px;top:62px"><div class="rn-k" style="margin-bottom:10px">Une pièce de banc · une seule</div><div class="rn-etal">${M.pieces.map(piece).join('')}</div></div>
-  <div style="left:14px;right:14px;top:350px"><div class="rn-k" style="margin-bottom:10px">Les pochettes</div><div class="rn-etal">${pochette('j:bronze', 'Bronze', '🥉', '--attention', 'Trois joueurs au hasard')}${pochette('j:epoque', 'Époque', '🕰', '--rn-bleu', `Un pilier ou mieux des années ${R.decennie}`)}</div></div>
+  <div style="left:14px;right:14px;top:350px"><div class="rn-k" style="margin-bottom:10px">Les pochettes</div><div class="rn-etal">${pochette('j:bronze', 'Bronze', '🥉', '--attention', 'Trois joueurs au hasard')}${pochette('j:epoque', 'Époque', '🕰', '--rn-bleu', 'Un pilier ou mieux, d\'une époque au hasard')}</div></div>
   <div style="left:14px;right:14px;top:626px"><div class="rn-k" style="margin-bottom:8px">Ton banc${plein ? ' · plein : une pièce neuve en fait sortir une' : ' · une case libre'}</div>${banc(S, { libre: true, largeur: '292px' })}</div>
   ${V.piece && !M.piece ? bas(bt('Retour', 'quitter-marche'), bt('Prendre la pièce', 'acheter-piece', { cls: 'rn-orb', v: V.piece })) : bas(bt('Retour à la carte', 'quitter-marche', { cls: 'rn-go' }))}`;
 }
@@ -454,7 +454,7 @@ export function sceneFin(S, V) {
   const series = x ? `<div class="rn-recap"><span>Séries</span><span>${F.coupe ? 'La Coupe' : F.rondes ? `${F.rondes} ronde${F.rondes > 1 ? 's gagnées' : ' gagnée'}` : 'Aucune ronde gagnée'}<small>${x.faites.map(f => `${esc(surnom(f.t))} ${f.w}-${f.l}`).join(', ') || esc(clubMot(x.adv[0]))}</small></span><span class="rn-or">+${F.medailles - R.actes.reduce((a, y) => a + y.medailles, 0)}</span></div>` : '';
   const etoile = V.etoile;
   return `<div style="left:14px;right:14px;top:30px;text-align:center"><div class="rn-k ${F.coupe ? 'rn-vert' : 'rn-rg'}">${F.coupe ? 'Tu as gagné' : 'La run est finie'}</div><div class="rn-titre" style="margin-top:8px;white-space:nowrap">${CAUSES[F.cause]}</div>
-    <div class="rn-t rn-gris" style="margin-top:8px">Run ${R.numero} · les années ${R.decennie} · ${esc(R.coach.n || COACHS[R.coach.cle].nom)}</div></div>
+    <div class="rn-t rn-gris" style="margin-top:8px">Run ${R.numero} · ${esc(R.coach.n || COACHS[R.coach.cle].nom)}</div></div>
   <div class="rn-panneau" style="left:14px;right:14px;top:132px">${actes}${series}</div>
   ${etoile ? `<div style="left:14px;right:14px;top:430px;display:grid;grid-template-columns:118px 1fr;gap:14px;align-items:center">${carteJ(etoile.p)}<div><div class="rn-k">Ton joueur de la run</div><div class="rn-h" style="margin-top:5px">${esc(etoile.p.n)}</div><div class="rn-t rn-gris" style="margin-top:6px">${etoile.mot}<br><span class="rn-vert">Sa carte entre à ton cartable</span></div></div></div>` : ''}
   <div class="rn-cellules" style="left:14px;right:14px;top:636px"><div><b class="rn-or">${F.medailles}</b><small>Médailles</small></div><div><b>${R.vus.length - 23}</b><small>Joueurs signés</small></div><div><b>${F.matchs}</b><small>Matchs joués</small></div></div>
@@ -463,7 +463,7 @@ export function sceneFin(S, V) {
 export function scenePause(S, V) {
   const R = S.R;
   return `<div class="rn-voile"></div>
-  <div style="left:28px;right:28px;top:70px"><div class="rn-k">Pause · run ${R.numero} · les années ${R.decennie}</div><div class="rn-titre" style="margin-top:6px">${R.series ? 'Les séries' : `Acte ${ROMAINS[R.acte]} · case ${Math.min(RANG_DU_RIVAL, R.rang) + 1}`}</div>
+  <div style="left:28px;right:28px;top:70px"><div class="rn-k">Pause · run ${R.numero}</div><div class="rn-titre" style="margin-top:6px">${R.series ? 'Les séries' : `Acte ${ROMAINS[R.acte]} · case ${Math.min(RANG_DU_RIVAL, R.rang) + 1}`}</div>
     <div class="rn-t rn-gris" style="margin-top:6px">${R.series ? '' : `${R.pts} / ${RUN.CIBLES[R.acte]} points · `}${R.coeurs} cœur${R.coeurs > 1 ? 's' : ''} · ${R.jetons} jetons</div></div>
   <div class="rn-menu"><button type="button" class="rn-on" data-a="reprendre">Reprendre</button>
     <button type="button" data-a="lignes">Tes joueurs<small>23 · ${money(masseDe(S))}</small></button>
