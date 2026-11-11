@@ -28,7 +28,7 @@ const visible = el => (el.checkVisibility ? el.checkVisibility({ checkOpacity: t
 function coucheDuDessus() {
   const z = el => Number(getComputedStyle(el).zIndex) || 0;
   const ancre = document.body.classList.contains('hub-docke');
-  const couches = [...document.querySelectorAll('#menuDepart, #exhibitionModal, #pageRegles, .choix-modal, .modal-backdrop')]
+  const couches = [...document.querySelectorAll('#menuDepart, #exhibitionModal, #runModal, #pageRegles, .choix-modal, .modal-backdrop')]
     .filter(el => el.firstElementChild && !(ancre && el.id === 'hubModal') && visible(el));
   if (!couches.length) return document.body;
   return couches.sort((a, b) => z(b) - z(a) || Number(b.dataset.rang || 0) - Number(a.dataset.rang || 0))[0];
@@ -114,7 +114,7 @@ function lireManette() {
     if (!on) etat[k] = 0;
     else if (!etat[k] || maintenant >= etat[k]) { modeClavier(); deplacer(d); etat[k] = maintenant + (etat[k] ? 110 : 380); }
   }
-  for (const [i, action] of [[0, confirmer], [1, retour], [9, () => document.getElementById('menuBtn')?.click()]]) {
+  for (const [i, action] of [[0, confirmer], [1, retour], [9, () => (document.querySelector('#runModal [data-a="pause"]') || document.getElementById('menuBtn'))?.click()]]) {
     const k = `b:${i}`, on = appui(i);
     if (on && !etat[k]) { modeClavier(); action(); }
     etat[k] = on;

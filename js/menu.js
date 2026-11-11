@@ -169,6 +169,10 @@ function dessiner(m) {
     const glace = ctx.glace
       ? `<button type="button" class="menu-lien" data-menu="glace">Sur glace <small>un patineur, une rondelle, un filet : la physique, à la manette</small> ›</button>`
       : '';
+    // LE ROGUE NEUF (V28, js/run-jeu.js) : la run en carte, à côté de l'ancien Rogue jusqu'au remplacement.
+    const run = ctx.run
+      ? `<button type="button" class="menu-lien" data-menu="run">${ctx.run.enCours ? 'Le Rogue neuf · reprendre' : 'Le Rogue neuf'} <small>une carte, des portes, trois actes et les séries</small> ›</button>`
+      : '';
     const heros = peutContinuer;
     m.innerHTML = `<div class="menu-fond" aria-hidden="true"><div class="menu-glace"></div></div>
       <div class="menu-feuille">
@@ -182,7 +186,7 @@ function dessiner(m) {
         </button>` : ''}
         <section class="menu-modes" aria-label="Modes">${ordreModes.map(carte).join('')}</section>
         ${exhibition}
-        ${glace}
+        ${run}${glace}
         ${partiesBloc}
         ${pied}
       </div>`;
@@ -202,6 +206,7 @@ function dessiner(m) {
       }
       else if (quoi === 'exhibition' && ctx.exhibition) ctx.exhibition();
       else if (quoi === 'glace' && ctx.glace) ctx.glace();
+      else if (quoi === 'run' && ctx.run) ctx.run.ouvrir();
       else if (quoi === 'vestiaire' && ctx.rogue) ctx.rogue.vestiaire();
       else if (quoi === 'inventaire' && ctx.rogue && ctx.rogue.inventaire) ctx.rogue.inventaire();
       else if (quoi === 'options') ctx.options();

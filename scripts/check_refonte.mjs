@@ -29,6 +29,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { exiger, informer, verdict } from './verdict.mjs';
+import { sansCommentaires, partie, codes, motifDe } from './lib/devis.mjs';
 
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PEINTURE_MAX = 0.5;
@@ -57,27 +58,12 @@ function diff() {
 const estJeu = f => /^js\/.*\.js$/.test(f) || f === 'index.html' || f === 'sw.js';
 const estStyle = f => f === 'style.css';
 
-/** Le code sans ses commentaires : un nom qui ne survit que dans le journal des versions de sw.js est parti. */
-const sansCommentaires = src => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '').replace(/(^|[^:\\])\/\/.*$/gm, '$1');
-
 /** Les sources du jeu, où ce qui part ne doit plus être. */
 function sourcesDuJeu() {
   const fichiers = ['index.html', 'style.css', 'sw.js'];
   for (const f of fs.readdirSync(path.join(RACINE, 'js'))) if (f.endsWith('.js')) fichiers.push(`js/${f}`);
   return fichiers.map(f => ({ f, texte: sansCommentaires(fs.readFileSync(path.join(RACINE, f), 'utf8')) }));
 }
-
-/** La partie d'un devis dont le titre `## ` commence par ce mot, ses lignes. */
-function partie(devis, titre) {
-  const lignes = devis.split('\n');
-  const debut = lignes.findIndex(l => new RegExp(`^##\\s+(\\d+[a-z]?\\.\\s*)?${titre}`, 'i').test(l));
-  if (debut < 0) return null;
-  const corps = [];
-  for (let i = debut + 1; i < lignes.length && !/^##\s/.test(lignes[i]); i++) corps.push(lignes[i]);
-  return corps;
-}
-
-const codes = lignes => [...new Set((lignes || []).join('\n').match(/`[^`\n]+`/g) || [])].map(c => c.slice(1, -1).trim());
 
 // 1. La peinture.
 const par = diff();
@@ -105,8 +91,7 @@ if (!devisChemin || !fs.existsSync(path.resolve(RACINE, devisChemin))) {
   const partants = codes(partie(devis, 'Ce qui part'));
   exiger('« Ce qui part » est rempli', partants.length > 0, partants.length ? `${partants.length} noms` : `aucun nom en \`code\` sous « Ce qui part » de ${devisChemin} : une retouche, pas une refonte`);
   for (const nom of partants) {
-    const cle = nom.replace(/^\./, '').replace(/\(\)$/, '');
-    const motif = new RegExp(`(?<![\\w$-])${cle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w$-])`);
+    const cle = nom.replace(/^\./, '').replace(/\(\)$/, ''), motif = motifDe(nom);
     const encore = sources.filter(s => s.f !== cle && motif.test(s.texte)).map(s => s.f);
     const fichierParti = /\.(js|css|html|json|mjs)$/.test(cle) ? !fs.existsSync(path.join(RACINE, cle)) : true;
     exiger(`Parti : ${nom}`, !encore.length && fichierParti, encore.length ? `encore dans ${encore.join(', ')}` : fichierParti ? '' : 'le fichier existe encore');

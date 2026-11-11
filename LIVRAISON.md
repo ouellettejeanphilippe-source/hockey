@@ -31,7 +31,7 @@ Le devis : docs/refonte-v28.md, tranché par JP le 9 nov. :
 - **la direction C partout** ;
 - **l'ancien Rogue gelé**, puis supprimé.
 
-58 noms dans « Ce qui part ». Les maquettes de départ : docs/maquettes/v28.html.
+56 noms dans « Ce qui part ». Les maquettes de départ : docs/maquettes/v28.html.
 
 - [x] **JP tranche les quatre questions** (9 nov.) : la boucle, oui ; le moteur, le simulateur ; l'allure, C partout ; l'ancien Rogue, gelé puis supprimé.
 - [x] **0 · Le test d'un jour** (10 nov.) — `scripts/mesure_run.mjs`, la run en carte sur le simulateur, de vrais clubs, 64 graines ; docs/refonte-v28.md § 5.
@@ -41,8 +41,10 @@ Le devis : docs/refonte-v28.md, tranché par JP le 9 nov. :
   - Trop facile partout.
   - **Tranché par JP (10 nov.)** : le plafond qui mord ; la difficulté par des clubs plus forts. Réglé sur 128 graines (adversaires +0,25 en rang, 0 · 1 · 2 · 4 étapes d'édition) : le malin 10 à 12 Coupes sur 64, « premier » 1 ; lire le plafond paie 22 Coupes contre 14, 3,5 points de cibles. La porte 0 est passée ; le reste de la lecture se mesure à la tranche 3.
 - [x] **1 · Les écrans** (10 nov.) — dix-sept scènes en direction C, à 390 × 844, avec les vraies cartes (docs/maquettes/v28-ecrans.html ; ce qu'elles précisent : docs/refonte-v28.md, tranche 1). **Tranché par JP (10 nov.)** : *fais tout je suis tanné des maquettes* — elles font foi, et les tranches 2 à 5 s'enchaînent.
-- [ ] **2 · Un acte** — « Le Rogue neuf » à côté de l'ancien — la porte 2 (JP relance un deuxième acte), *check_scene*, *check_neuf*, *essai_run*.
-- [ ] **3 · La run** — trois actes et les séries, le banc remesuré sur six matchs — *mesure_run* en CI, *check_run*, `check_pouvoirs`.
+- [x] **2 · Un acte** et **3 · La run** (11 nov., docs/refonte-v28-2.md) — « Le Rogue neuf » s'ouvre du menu, à côté de l'ancien : la run entière (le coach, le camp, trois actes, les séries) en scènes plein écran d'après les dix-sept maquettes. `js/run.js` (le cœur, pur, joué tel quel par les robots), `js/run-scenes.js`, `js/run-jeu.js`, la section « 9d » de style.css — `check_run` et `check_neuf` (dans `tout.mjs`), `check_scene`, `essai_run` et `mesure_run` (en CI).
+  - Réglé de nouveau sur 128 graines : le salaire de la run sur l'échelle d'aujourd'hui, le départ à 91,5 M$ sous 95,5 M$, les décennies à vrais contrats (1990 à 2020), les adversaires à 1 · 2 · 3 · 7 étapes d'édition — le malin 8 Coupes sur 64, « premier » 0, la première Coupe à la run 6 en médiane.
+  - [ ] **La porte 2**, à juger par JP au téléphone : on dirait un jeu ; une case donne envie d'y aller ; une porte, de l'ouvrir ; perdre fait dire « j'aurais dû ».
+  - [ ] **Le banc remesuré** sur un acte de six matchs (`check_pouvoirs`) : passe à la tranche 4, avec le départ de la run en actes de 27 matchs.
 - [ ] **4 · Le remplacement** — l'ancien Rogue part d'un coup — `check_refonte` sur la somme, `check_mort`, `check_sauvegardes`.
 - [ ] **5 · La méta** — *mesure_run*.
 

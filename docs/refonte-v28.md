@@ -296,6 +296,12 @@ Sur 128 graines (deux jeux de 64), les mêmes dés :
 - **Gérer son plafond paie, mais peu** : 22 Coupes contre 14 sur 128 graines, et 3,5 points de cibles tenues (le critère en demandait 5).
 - **Ce qui reste à mesurer** : les robots ne jouent encore ni le banc, ni les élites, ni les histoires, ni le marché. Le reste de ce que le joueur lit vit là ; la tranche 3 le mesure sur la run entière.
 
+**Réglé de nouveau aux tranches 2 et 3** (11 nov. 2026, docs/refonte-v28-2.md) : le cœur neuf (`js/run.js`) joue le vrai moteur d'un match à l'autre, le banc, les élites, les histoires et le marché compris, et la run était redevenue trop facile.
+- **Le salaire de la run** : le rang du salaire d'un joueur dans sa saison, reporté sur l'échelle d'aujourd'hui (`prixDe`, `ECHELLE`) ; le départ à 91,5 M$ sous un plafond de 95,5 M$ dans chaque décennie.
+- **Les décennies à vrais contrats** : 1990, 2000, 2010, 2020 (`VRAIS_CONTRATS`) ; avant, les salaires sont estimés et le plafond ne se lit pas.
+- **`ETAPES` 1 · 2 · 3 · 7** ; `RACHAT` 0,5 et `DECALAGE` 0,25 tenus.
+- Sur 128 graines : le malin 16 Coupes (8 sur 64), le chiffre 12, « premier » 0 ; les cibles tenues 59 %, 55 % et 32 % ; la première Coupe du malin à sa sixième run en médiane ; sept de ses runs sur 64 jouent l'acte III à 75 % de chance ou plus.
+
 **Ce que la tranche 0 mesurait au départ** (la question posée, gardée) :
 - ce que vaut une signature de porte, en points de chance sur un match ;
 - ce que vaut l'ordre des trios contre leurs lignes ;
@@ -386,10 +392,10 @@ Chaque nom ci-dessous disparaît du jeu au remplacement (tranche 4), et *check_r
 
 - `scripts/check_plateau.mjs`, `scripts/check_composants.mjs`, `scripts/check_calendrier.mjs`, `scripts/check_profondeur.mjs`, `scripts/mesure_rythme.mjs`, `scripts/lib/rogue_actes.mjs` → *check_scene*, *check_run*, *check_neuf*, *mesure_run*, *essai_run*.
 
-**Le compte** : 58 noms, dont la plus grosse fonction du dépôt (`ouvrirSaison`, ≈ 3 000 lignes), 4 fichiers du jeu (≈ 2 070 lignes), la section du plateau de style.css (≈ 840 lignes) et 6 scripts.
+**Le compte** : 56 noms, dont la plus grosse fonction du dépôt (`ouvrirSaison`, ≈ 3 000 lignes), 4 fichiers du jeu (≈ 2 070 lignes), la section du plateau de style.css (≈ 840 lignes) et 6 scripts.
 
 **À vérifier à sa tranche avant de l'ajouter** (en italique, pour que *check_refonte* ne le compte pas encore) :
-- *js/actes.js* : ce qui y reste après le départ de la cédule (`jeuDuRival`, `recompenseDeLElite`, le prix de la pièce) déménage, et le fichier part s'il se vide ;
+- *js/actes.js* : ce qui y reste après le départ de la cédule (*jeuDuRival*, *recompenseDeLElite*, le prix de la pièce) déménage, et le fichier part s'il se vide — ces deux fonctions restent dans le jeu, la run en carte les lit (corrigé le 11 nov. : écrites entre accents graves, *check_refonte* les aurait comptées parties) ;
 - *js/banc-du-soir.js* : refait dans l'après-match, ou gardé ;
 - *ouvrirLeDuel* : son écran est refait dans la feuille du soir ;
 - *js/scenes.js* et les histoires dont le fait lit la ligue ;
@@ -420,7 +426,8 @@ Chaque nom ci-dessous disparaît du jeu au remplacement (tranche 4), et *check_r
 | *PORTES* | 3 | 2-4 | à 1, pas de choix ; à 5, plus de manque |
 | *RACHAT*, la part du salaire de celui qui sort qui se libère | 0,5 (JP, 10 nov.) | 0,4-0,7 | à 1, le plafond ne mord pas et lire la cote suffit ; trop bas, on ne signe plus |
 | *DECALAGE*, les adversaires plus haut dans la décennie | 0,25 | 0,15-0,35 | mesuré : 0,15 laisse 14 Coupes au malin, 0,35 garde la boule de neige au chiffre |
-| *ETAPES*, les étapes d'édition des adversaires (actes I, II, III, séries) | 0 · 1 · 2 · 4 | ±1 chacune | sans elles, ton club finit plus fort que le haut de la décennie et gagne une Coupe sur trois |
+| *ETAPES*, les étapes d'édition des adversaires (actes I, II, III, séries) | 1 · 2 · 3 · 7 (11 nov. ; 0 · 1 · 2 · 4 à la tranche 0) | ±1 chacune | sans elles, ton club finit plus fort que le haut de la décennie et gagne une Coupe sur trois |
+| Le départ : la masse, le plafond | 91,5 M$ sous 95,5 M$, sur l'échelle de salaires d'aujourd'hui | ±2 M$ d'espace | plus d'espace, le camp règle tout ; moins, on ne signe plus |
 | La bande des portes | selon le club battu | — | trop haute après une victoire, la boule de neige revient |
 | La durée des temps forts | 30-60 s | 20-90 s | plus long, dix-huit matchs deviennent une corvée |
 | Les séries | 3 de 5, rachetées par un cœur | 2 de 3 à 4 de 7 | 2 de 3, la run finit sur des dés |
@@ -435,7 +442,7 @@ Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est
   - L'ordre des trios contre leurs lignes, mesuré en paires : si l'écart reste sous 2 points, la feuille du soir ne le présente pas comme un choix (§ 4.4).
 - [x] **La porte 1, les écrans** (JP, 10 nov. : *fais tout je suis tanné des maquettes*) : chaque scène du § 4.9 en direction C, à 390 × 844, docs/maquettes/v28-ecrans.html ; elles font foi.
 - [ ] **La porte 2, un acte au téléphone** — à juger par JP : après un acte du « Rogue neuf », il en relance un deuxième. Depuis *fais tout* (10 nov.), elle ne retient plus les tranches 3 à 5 : JP juge la run entière à l'essai.
-- [ ] **La run** — *check_run* (neuf), *essai_run* (neuf, à 390 px) :
+- [x] **La run** (11 nov.) — *check_run* (neuf), *essai_run* (neuf, à 390 px) :
   - trois actes de cinq matchs et un rival, deux arrêts par acte ;
   - la cible et les cœurs recomptés ;
   - un rival par acte, annoncé avec son jeu ;
@@ -443,20 +450,20 @@ Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est
   - aucun joueur deux fois ;
   - le plafond jamais dépassé ;
   - aucune ligue jouée en coulisse.
-- [ ] **Lire paie, sans gagner d'office** — *mesure_run*, en CI :
+- [x] **Lire paie, sans gagner d'office** (11 nov. : 8 Coupes sur 64, la run 6 en médiane, 7 runs sur 64 à 75 %) — *mesure_run*, en CI :
   - le robot qui lit gagne la Coupe 4 à 12 fois sur 64, le robot du chiffre moins souvent en paires, « premier » au plus 2 fois ;
   - la première Coupe jamais avant la troisième run en médiane (JP) ;
   - au moins une run sur dix du robot qui lit finit l'acte III à 75 % de pronostic moyen ou plus (*tu peux exploser le jeu*).
-- [ ] **Le banc remesuré** : chaque pièce se voit le soir où elle joue et n'est jamais un piège sur un acte de six matchs ; le banc complet sous sa borne recalculée — `check_pouvoirs` (sa durée d'acte passe de 27 à 6).
-- [ ] **Une scène, jamais une page** — *check_scene* (neuf) :
+- [ ] **Le banc remesuré** (à la tranche 4, quand la run en actes de 27 matchs part) : chaque pièce se voit le soir où elle joue et n'est jamais un piège sur un acte de six matchs ; le banc complet sous sa borne recalculée — `check_pouvoirs` (sa durée d'acte passe de 27 à 6).
+- [x] **Une scène, jamais une page** (11 nov.) — *check_scene* (neuf) :
   - dans le Rogue, aucune scène ne défile ;
   - aucun en-tête de site ni barre d'onglets ;
   - le HUD toujours au même endroit ;
   - chaque cible fait 44 × 44.
-- [ ] **Neuf touchers** : une semaine gagnée en neuf touchers au plus, aucun sans décision — *essai_run*.
-- [ ] **Le match vu est le match joué** : chaque temps fort a le tireur, les passeurs et la minute de la feuille, au caractère près — le smoke (la règle du direct, tenue).
+- [x] **Neuf touchers** (11 nov. : six) : une semaine gagnée en neuf touchers au plus, aucun sans décision — *essai_run*.
+- [x] **Le match vu est le match joué** (11 nov.) : chaque temps fort a le tireur, les passeurs et la minute de la feuille, et le pointage vu est celui que la run garde — *essai_run*.
 - [ ] **Le moteur ne bouge pas** : l'empreinte est la même, le 82-0 se rejoue au but près — `check_empreinte`, `check_feuilles`, `check_graine`.
-- [ ] **Le neuf ne s'appuie pas sur l'ancien** : aucun fichier *run-* n'importe un module nommé au § 8 — *check_neuf*.
+- [x] **Le neuf ne s'appuie pas sur l'ancien** (11 nov.) : aucun fichier *run-* n'importe un module nommé au § 8 — *check_neuf*.
 - [ ] **Les vieilles parties** s'ouvrent, versent leurs médailles et commencent une run neuve — `check_sauvegardes`.
 - [ ] Pas une couche de peinture : ce qui part est parti ; le jeu retire au moins une ligne pour deux ajoutées ; style.css fait moins de la moitié du diff — `check_refonte` (sur la somme).
 - [ ] Rien de mort — `check_mort`.
