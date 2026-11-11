@@ -16,7 +16,7 @@ import { chargerCoachs, lotoDesCoachs } from './coachs-reels.js';
 import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages } from './rogue.js';
 import { VOIES } from './coachs.js';
 import { rayonsDuClub, prendreAuClub, nomDuClub } from './club.js';
-import { ajouterAuCartable, coachAuCartable, coachsDuCartable } from './cartable.js';
+import { ajouterAuCartable, coachAuCartable, coachsDuCartable, graverAuCartable } from './cartable.js';
 import { tirerJoueursDuPack } from './packs.js';
 import { sceneDe, nomDOption } from './histoires.js';
 import { motsDe } from './effets.js';
@@ -307,6 +307,8 @@ function apresLeMatch() {
   const res = V.match.res;
   clearTimeout(minuterie);
   conclure(S, res);
+  // Les galons du soir se gravent tout de suite : une run quittée ne les perd pas.
+  graverAuCartable(S.R.galons, S.R.graine);
   if (res.gagne && S.R.apres && S.R.apres.sorte !== 'match') pic(plan);
   jouerSon(res.gagne ? 'recompense' : 'arriere');
   garder();
@@ -333,6 +335,7 @@ function finDeLaRun() {
   const [p, n] = [...buts].sort((a, b) => b[1] - a[1])[0] || [];
   V.etoile = p ? { p, mot: `${n} but${n > 1 ? 's' : ''} en ${F.matchs} matchs` } : null;
   ajouterAuCartable(Object.values(S.roster).filter(Boolean).map(x => ({ cle: getPlayerKey(x), rar: 'commune' })), { doublons: false });
+  graverAuCartable(R.galons, R.graine);
   garder();
 }
 

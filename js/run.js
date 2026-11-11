@@ -519,6 +519,41 @@ export function jouerLeMatch(S, { plan, dominante = null } = {}) {
   deshabiller(adv); leverLeSoir(S, adv);
   return { ...res, cote: c.visiteur ? 'B' : 'A', adv: club };
 }
+/*
+ * LES GALONS (V28, tranche 5b, docs/refonte-v28-5.md § 3.6) : ce qu'un joueur fait chez toi se grave sur sa carte, au
+ * cartable. Le cœur les lit dans la feuille du soir et dans les comptes de la run (`R.comptes` : la clé du joueur → ses
+ * buts et ses points, gardés avec la run pour survivre à une reprise) et les garde (`R.galons`) ; la coquille les écrit
+ * (js/cartable.js `graverAuCartable`). Aucun effet au moteur. Les seuils, mesurés sur 48 runs du robot qui lit (22 matchs
+ * en moyenne ; le meilleur buteur d'une run marque 10,5 buts, son meilleur pointeur fait 21 points) : un chapeau dans une
+ * run sur deux, quatre points dans trois runs sur quatre (d'où cinq), 40 arrêts dans une victoire dans une run sur dix,
+ * dix buts et vingt points dans une run sur deux.
+ */
+export const GALONS = { CHAPEAU: 3, GRAND_SOIR: 5, MUR: 40, BUTS: 10, POINTS: 20 };
+function galonsDuSoir(S, res) {
+  const R = S.R, f = res.feuille, cote = res.cote, miens = new Set(Object.values(S.roster).filter(Boolean));
+  const buts = (f.buts || []).filter(x => !x.fusillade), pour = buts.filter(x => x.cote === cote), contre = buts.length - pour.length;
+  const b = new Map(), p = new Map(), plus = (m, j) => { if (j && miens.has(j)) m.set(j, (m.get(j) || 0) + 1); };
+  for (const x of pour) { plus(b, x.marqueur); plus(p, x.marqueur); for (const a of x.passeurs || []) plus(p, a); }
+  const out = [], graver = (j, type, extra) => out.push({ k: getPlayerKey(j), n: j.n, type, extra });
+  R.comptes = R.comptes || {};
+  for (const [j, n] of p) {
+    const k = getPlayerKey(j), c = R.comptes[k] = R.comptes[k] || [0, 0], nb = b.get(j) || 0, [b0, p0] = c;
+    c[0] += nb; c[1] += n;
+    if (nb >= GALONS.CHAPEAU) graver(j, 'chapeau', nb);
+    if (n >= GALONS.GRAND_SOIR) graver(j, 'grandMatch', n);
+    if (b0 < GALONS.BUTS && c[0] >= GALONS.BUTS) graver(j, 'dixButs', c[0]);
+    if (p0 < GALONS.POINTS && c[1] >= GALONS.POINTS) graver(j, 'vingtPoints', c[1]);
+  }
+  // Le but gagnant contre un rival : celui qui met ton club un but devant leur compte final.
+  const gagnant = R.case.sorte === 'rival' && res.gagne && pour[contre] ? pour[contre].marqueur : null;
+  if (gagnant && miens.has(gagnant)) graver(gagnant, 'bourreau', R.case.t);
+  const g = cote === 'A' ? f.gardienA : f.gardienB, arrets = (f.tirs[cote === 'A' ? 'B' : 'A'] || []).reduce((a, x) => a + x, 0) - contre;
+  if (res.gagne && g && miens.has(g)) {
+    if (contre === 0) graver(g, 'jeuBlanc', arrets);
+    if (arrets >= GALONS.MUR) graver(g, 'mur', arrets);
+  }
+  return out;
+}
 /* Les pièces de ton banc qui ont joué ce soir (à la feuille, ou en relais). */
 const piecesJouees = (f, cote) => [...new Set([...(f.pieces || []), ...(f.relais || [])].filter(x => x.cote === cote && PIECES[x.cle]).map(x => x.cle))];
 /*
@@ -551,6 +586,8 @@ export function conclure(S, res) {
   R.apres = { gagne: res.gagne, ot: res.ot, gf: res.gf, ga: res.ga, pts, jetons, prime, s: c.s, t: c.t, sorte: c.sorte, visiteur: !!c.visiteur,
     pieces: piecesJouees(f, res.cote), tirs: [tirsTotal(f, res.cote), tirsTotal(f, res.cote === 'A' ? 'B' : 'A')],
     ...(etoile && buts >= 2 ? { etoile: { n: etoile.n, buts } } : {}) };
+  const galons = galonsDuSoir(S, res);
+  if (galons.length) { R.apres.galons = galons; R.galons = [...(R.galons || []), ...galons]; }
   rebatir(S);
   if (serie) return conclureLaSerie(S, res);
   if (rival) return conclureLActe(S, res);
@@ -850,6 +887,8 @@ function conclureLaSerie(S, res) {
  */
 export function finir(S, cause) {
   const R = S.R, rondes = R.series ? R.series.faites.length : 0, coupe = cause === 'coupe';
+  // La Coupe se grave sur chaque carte de l'effectif qui la gagne.
+  if (coupe) R.galons = [...(R.galons || []), ...Object.values(S.roster).filter(Boolean).map(j => ({ k: getPlayerKey(j), n: j.n, type: 'coupe' }))];
   R.fin = { cause, rondes, coupe, medailles: Math.round((R.actes.reduce((a, x) => a + x.medailles, 0) + ecussonsDesSeries(rondes, coupe)) * reglesDe(R).prime), matchs: R.matchs.length };
   R.phase = 'fin';
   figer(S);

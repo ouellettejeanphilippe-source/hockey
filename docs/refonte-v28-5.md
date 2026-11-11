@@ -87,7 +87,30 @@ Au premier démarrage après la tranche (`m.solde`) :
 
 ### 3.6 Les galons d'une run courte (5b)
 
-Ce qu'un joueur a fait chez toi se grave sur sa carte, au cartable (`LEGENDES`, js/cartable.js) : dans un match (le chapeau, le grand soir, le jeu blanc, le mur), et sur la run (dix buts, quinze points, le but gagnant contre un rival, la Coupe). Aucun effet au moteur.
+Ce qu'un joueur a fait chez toi se grave sur sa carte, au cartable (`LEGENDES`, js/cartable.js), et y reste d'une run à l'autre. Aucun effet au moteur : c'est ce qu'on collectionne. Plus rien ne les écrivait depuis que l'ancien Rogue est parti ; la fiche les lisait encore.
+
+**Mesuré avant d'écrire** (le robot qui lit, 48 runs de 22 matchs en moyenne) : le meilleur buteur d'une run marque 10,5 buts, son meilleur pointeur fait 21 points.
+
+| Galon | Ce qu'il demande | Par run | Runs qui en voient un |
+|---|---|---|---|
+| 🎩 Le Chapeau | trois buts dans un match | 0,8 | 52 % |
+| ⭐ Le grand soir | cinq points dans un match (quatre : 1,9 par run, trois runs sur quatre — trop) | à mesurer | — |
+| 🔒 Le jeu blanc | ton gardien gagne sans accorder de but | 1,4 | 63 % |
+| 🗿 Le Mur | 40 arrêts dans une victoire (35 : 58 % des runs) | 0,1 | 10 % |
+| 🏵 Dix buts | dix buts dans la run (douze : 38 %) | — | 54 % |
+| 🏵 Vingt points | vingt points dans la run (quinze, le chiffre du premier jet : 79 %, trop) | — | 54 % |
+| 🏵 Le bourreau | le but gagnant contre un rival | ≈ 1,3 | — |
+| 🏵 La Coupe | être de l'effectif qui la gagne | 23 cartes, une run sur douze | 8 % |
+
+Un galon se grave une fois par sorte et par run sur une carte. Le soir d'un galon, l'écran d'après-match le dit (« 🎩 Le Chapeau, gravé sur sa carte ») ; l'écran de fin compte ceux de la run. Les comptes d'une run (les buts et les points de chacun) vivent dans la run gardée (`R.comptes`), pour survivre à une reprise.
+
+### 3.7 L'Album (5b)
+
+La quatrième page du Club : ton cartable. Les cartes de joueur que tu as signées ou tirées, les plus belles d'abord (l'édition, puis les galons, puis les copies), neuf par écran, qu'on feuillette ; un segment Joueurs | Entraîneurs ; un filtre « Gravées ». En tête : combien de cartes, de combien de clubs-saisons, combien de galons. Une carte touchée montre ce qui est gravé dessus et ses copies. Il charge les saisons qu'il montre, pas les cinquante-cinq.
+
+### 3.8 Les sortes de pochette : pas à cette tranche
+
+Le devis nommait « des pochettes » parmi la variété. Deux constats : les robots n'achètent jamais de pochette (le tirage est asynchrone, hors du cœur), donc rien ne mesure ce qu'une pochette vaut dans une run ; et une sorte qui tire de meilleurs joueurs est de la force, comme les pièces (3.2). Une sorte de pochette en médailles demande d'abord que la pochette entre dans la mesure. Ce qui se fait ici : les dix-huit packs que plus rien ne vend partent (js/packs.js ne garde que les deux pochettes du marché). À trancher par JP (§ 10).
 
 ## 4. Les chiffres
 
@@ -155,8 +178,9 @@ Aucun ne compte des Coupes sur 64 graines : c'est du bruit (±6).
 - **Ton club en médailles, ou en jetons** (3.2) : JP les voulait en jetons, *même monnaie que les autres packs* (oct. 2026). Livré en médailles : la boutique est partie, et un jeton d'une run en carte est de la force (une pièce de banc, une pochette). Revenir aux jetons se fait en une ligne (`prendreAuClub`), mais il faudrait un endroit de la run où les vendre.
 - **« Le plafond » et « une porte de moins » comme exigences** (3.4) : ils ne coûtent rien aujourd'hui ; ils reviennent avec le levier qui fera mordre le plafond.
 - **Des pièces en médailles** (3.2) : écartées, c'est de la force ; ou alors par familles de même cadre.
+- **Des sortes de pochette en médailles** (3.8) : pas faites ; les robots n'achètent pas de pochette, rien ne mesure ce qu'elle vaut.
 
 ## Les tranches
 
 - **5a** (livrée le 11 nov. 2026) : le solde et son écran ; la variété (les philosophies) ; ton club en médailles ; le prestige en titre et ses exploits ; les trois exigences mesurées ; le Club (Variété, Ton club, Palmarès) ; le cran au départ. Corrigé en chemin : « Une run neuve » plantait le départ après une run finie (la coquille lisait le club d'une run déjà rendue).
-- **5b** : l'Album ; les galons d'une run ; les sortes de pochette.
+- **5b** : l'Album (3.7) ; les galons d'une run courte (3.6) ; js/packs.js taillé à ses deux pochettes (3.8). Les sortes de pochette en médailles attendent que la pochette entre dans la mesure.

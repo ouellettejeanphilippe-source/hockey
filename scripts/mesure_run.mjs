@@ -8,7 +8,8 @@
  * graines ou plus :
  *
  *   le malin gagne la Coupe 4 à 12 fois sur 64 ; « premier », 2 fois au plus ; lire ne coûte pas (le robot du chiffre ne
- *   gagne pas nettement plus que le malin, en paires) ; sa première Coupe, en médiane, pas avant sa troisième run (JP, 7 nov.).
+ *   gagne pas nettement plus que le malin, en paires) ; sa première Coupe, en médiane, pas avant sa troisième run (JP, 7 nov.) ;
+ *   les galons d'une run courte (tranche 5b) : chaque sorte gravée dans 5 à 85 % des runs du malin, 4 à 14 galons par run.
  *
  * *Lire paie* (le devis : le chiffre moins souvent, en paires) s'imprime avec son bruit, sans se juger : mesuré le 11 nov.
  * 2026 sur sept façons de lire (le prix de l'espace de 0 à 6, l'affiche haute ou non, le banc lu ou non), le malin gagne
@@ -57,7 +58,8 @@ if (process.env.BRAS) {
     const iii = [];
     const espion = robot !== 'malin' ? undefined : (m, S) => { if (m === 'case' && S.R.phase === 'feuille' && S.R.acte === 2 && !S.R.series) { const c = chanceCeSoir(S, { n: N_CHANCE }); iii.push(c.v / c.n); } };
     const exigence = Number(process.env.EXIGENCE ?? 0);
-    res.push({ ...jouerLaRun(robot, g0 + g, { exigence, ...(espion ? { espion } : {}) }), R: undefined, iii, exigence });
+    const r = jouerLaRun(robot, g0 + g, { exigence, ...(espion ? { espion } : {}) });
+    res.push({ ...r, R: undefined, iii, exigence, galons: (r.R.galons || []).map(x => x.type) });
   }
   process.stdout.write(JSON.stringify(res));
   process.exit(0);
@@ -128,6 +130,11 @@ if (JUGER) {
     // La première Coupe, en médiane : les runs sont indépendantes (rien de la force ne suit d'une run à l'autre).
     const p = coupes('malin') / GRAINES, mediane = p > 0 ? Math.ceil(Math.log(0.5) / Math.log(1 - p)) : Infinity;
     exiger(`La première Coupe du malin, en médiane, pas avant la run ${RUN_DE_LA_COUPE}`, mediane >= RUN_DE_LA_COUPE, `à la run ${mediane} (${pct(p)} de Coupes par run)`);
+    // Les galons (tranche 5b) : chaque sorte se voit, aucune n'est de toutes les runs. La Coupe suit les Coupes, jugées plus haut.
+    const sortes = ['chapeau', 'grandMatch', 'jeuBlanc', 'mur', 'dixButs', 'vingtPoints', 'bourreau'], l = de('malin');
+    const part = t => l.filter(x => x.galons.includes(t)).length / l.length, parRun = moy(l.map(x => x.galons.length));
+    exiger('Les galons : chaque sorte se grave dans 5 à 85 % des runs du malin', sortes.every(t => part(t) >= 0.05 && part(t) <= 0.85), sortes.map(t => `${t} ${pct(part(t))}`).join(' · '));
+    borne('Les galons gravés par run du malin', Math.round(parRun * 10) / 10, 4, 14);
     const fortes = de('malin').filter(x => x.iii.length && moy(x.iii) >= EXPLOSE).length;
     informer(`Tu peux exploser le jeu (le devis : une run du malin sur dix à ${pct(EXPLOSE)} de chance à l'acte III ; ouvert)`, `${fortes} runs sur ${GRAINES} (${pct(fortes / GRAINES)}, la cible ${pct(PART_EXPLOSE)}) ; l'acte III moyen à ${pct(moy(de('malin').filter(x => x.iii.length).map(x => moy(x.iii))))}`);
   }

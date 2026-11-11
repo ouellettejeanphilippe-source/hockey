@@ -10,6 +10,7 @@ import { PLANS, INTENTIONS } from './greffes.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC } from './pieces.js';
 import { COACHS, REGLES_DU_COACH, VOIES } from './coachs.js';
 import { PRESTIGES, EXIGENCES, voiesOuvertes, prixDeLaVoie, ecussonsAVie, cranOuvert } from './rogue.js';
+import { LEGENDES } from './cartable.js';
 import { motDuRang, niveauDuCoach } from './coachs-reels.js';
 import { NIVEAUX, nomDuNiveau, groupeDuJoueur as groupeDe } from './niveaux.js';
 import { PRIX_PIECE } from './actes.js';
@@ -267,10 +268,12 @@ export function sceneMatch(S, V) {
 }
 
 /* ---------- les portes, la porte ouverte, l'échange ---------- */
+/* Le galon du soir (js/run.js `galonsDuSoir`), dit à la place du buteur : « 🎩 Le Chapeau, Lafleur », et « +1 » s'il y en a d'autres. */
+const galonsDuSoirHtml = a => { const l = a.galons || [], g = l[0]; return g ? `<span class="rn-or">${LEGENDES[g.type].ico} ${esc(LEGENDES[g.type].nom)}, ${esc(court(g))}${l.length > 1 ? ` +${l.length - 1}` : ''}</span>` : ''; };
 const bandeDuMatch = S => {
   const a = S.R.apres;
   if (!a) return '';
-  const gain = [a.pts ? `<span class="rn-vert">+${a.pts} point${a.pts > 1 ? 's' : ''}</span>` : '', a.jetons > 0 ? `<span class="rn-or">+${a.jetons + a.prime} jetons</span>` : a.jetons < 0 ? `<span class="rn-rg">${a.jetons} jetons</span>` : '', a.etoile ? `${esc(court(a.etoile))} ${a.etoile.buts} buts` : ''].filter(Boolean).join(' · ');
+  const gain = [a.pts ? `<span class="rn-vert">+${a.pts} point${a.pts > 1 ? 's' : ''}</span>` : '', a.jetons > 0 ? `<span class="rn-or">+${a.jetons + a.prime} jetons</span>` : a.jetons < 0 ? `<span class="rn-rg">${a.jetons} jetons</span>` : '', galonsDuSoirHtml(a) || (a.etoile ? `${esc(court(a.etoile))} ${a.etoile.buts} buts` : '')].filter(Boolean).join(' · ');
   return `<div class="rn-panneau" style="left:14px;right:14px;top:60px;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center"><div class="rn-titre ${a.gagne ? 'rn-vert' : 'rn-rg'}">${a.gf}-${a.ga}</div>
     <div class="rn-t"><b>${a.gagne ? 'Gagné' : a.ot ? 'Perdu en prolongation' : 'Perdu'} ${a.visiteur ? `à ${esc(ville(a.t))}` : `contre ${esc(surnom(a.t))}`}</b><br>${gain || 'Aucun point'}${a.pieces.length ? `<br><span class="rn-gris">Ont joué : ${a.pieces.map(k => esc(PIECES[k].nom.toLowerCase())).join(', ')}</span>` : ''}</div></div>`;
 };
@@ -467,7 +470,7 @@ export function sceneFin(S, V) {
   return `<div style="left:14px;right:14px;top:30px;text-align:center"><div class="rn-k ${F.coupe ? 'rn-vert' : 'rn-rg'}">${F.coupe ? 'Tu as gagné' : 'La run est finie'}</div><div class="rn-titre" style="margin-top:8px;white-space:nowrap">${CAUSES[F.cause]}</div>
     <div class="rn-t rn-gris" style="margin-top:8px">Run ${R.numero} · ${esc(R.coach.n || COACHS[R.coach.cle].nom)}</div></div>
   <div class="rn-panneau" style="left:14px;right:14px;top:132px">${actes}${series}</div>
-  ${etoile ? `<div style="left:14px;right:14px;top:430px;display:grid;grid-template-columns:118px 1fr;gap:14px;align-items:center">${carteJ(etoile.p)}<div><div class="rn-k">Ton joueur de la run</div><div class="rn-h" style="margin-top:5px">${esc(etoile.p.n)}</div><div class="rn-t rn-gris" style="margin-top:6px">${etoile.mot}<br><span class="rn-vert">Sa carte entre à ton cartable</span></div></div></div>` : ''}
+  ${etoile ? `<div style="left:14px;right:14px;top:430px;display:grid;grid-template-columns:118px 1fr;gap:14px;align-items:center">${carteJ(etoile.p)}<div><div class="rn-k">Ton joueur de la run</div><div class="rn-h" style="margin-top:5px">${esc(etoile.p.n)}</div><div class="rn-t rn-gris" style="margin-top:6px">${etoile.mot}<br><span class="rn-vert">Sa carte entre à ton cartable</span>${(R.galons || []).length ? `<br><span class="rn-or">🏵 ${R.galons.length} galon${R.galons.length > 1 ? 's gravés' : ' gravé'} cette run</span>` : ''}</div></div></div>` : ''}
   <div class="rn-cellules" style="left:14px;right:14px;top:636px"><div><b class="rn-or">${F.medailles}</b><small>Médailles${reglesDe(R).prime > 1 ? ` · ×${String(reglesDe(R).prime).replace('.', ',')}` : ''}</small></div><div><b>${R.vus.length - 23}</b><small>Joueurs signés</small></div><div><b>${F.matchs}</b><small>Matchs joués</small></div></div>
   <button type="button" class="rn-bande" style="left:14px;right:14px;top:716px" data-a="club">Le Club${medailles(V.medailles)}</button>
   ${bas(bt('Menu', 'quitter'), bt('Une run neuve', 'run-neuve', { cls: 'rn-go' }))}`;

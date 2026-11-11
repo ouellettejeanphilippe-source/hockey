@@ -97,17 +97,41 @@ export function coachAuCartable(carte, run = 0) {
 }
 export const coachsDuCartable = (c = lireCartable()) => c.coachs || {};
 /*
- * MOMENTS LÉGENDAIRES SUR LA CARTE (v2) : un exploit de saison — jeu blanc,
- * chapeau, grand match, mur — se grave sur la carte du joueur (`legendes`),
- * une fois par type et par saison de run. La carte le porte d'une run à
- * l'autre ; l'écran en tient compte à l'affichage.
+ * GRAVÉ SUR LA CARTE (v2 ; réécrit à la V28, tranche 5b, docs/refonte-v28-5.md § 3.6) : ce qu'un joueur a fait chez toi
+ * dans une run — dans un match (le chapeau, le grand soir, le jeu blanc, le mur) ou sur la run (dix buts, vingt points, le
+ * but gagnant contre un rival, la Coupe) — se grave sur sa carte (`legendes` : [{ type, run, extra }]), une fois par sorte
+ * et par run, et y reste. La run les lit (js/run.js `galonsDuSoir`), la coquille les écrit ici, la fiche et l'Album les
+ * relisent. Aucun effet au moteur. Les galons d'une saison de 82 soirs (40 buts, 50 passes) sont partis avec l'ancien Rogue.
  */
-/* Les moments légendaires : leur icône, leur nom et leur récit (le toast du soir, puis la fiche les relit — V2.2). */
 export const LEGENDES = {
-  mur: { ico: '🗿', nom: 'Le Mur', recit: m => `${m.extra} arrêts, victoire arrachée` },
+  mur: { ico: '🗿', nom: 'Le Mur', recit: m => (m.extra ? `${m.extra} arrêts, victoire arrachée` : 'une victoire arrachée') },
   jeuBlanc: { ico: '🔒', nom: 'Le jeu blanc', recit: () => 'la porte était fermée' },
-  chapeau: { ico: '🎩', nom: 'Le Chapeau', recit: m => `${m.extra} buts dans un match` },
-  grandMatch: { ico: '⭐', nom: 'Le grand soir', recit: m => `${m.extra} points dans un match` },
+  chapeau: { ico: '🎩', nom: 'Le Chapeau', recit: m => `${m.extra || 'trois'} buts dans un match` },
+  grandMatch: { ico: '⭐', nom: 'Le grand soir', recit: m => `${m.extra || 'plusieurs'} points dans un match` },
+  dixButs: { ico: '🏵', nom: 'Dix buts', recit: () => 'dix buts dans une run' },
+  vingtPoints: { ico: '🏵', nom: 'Vingt points', recit: () => 'vingt points dans une run' },
+  bourreau: { ico: '🏵', nom: 'Le bourreau', recit: m => `le but gagnant contre le rival${m.extra ? ` (${m.extra})` : ''}` },
+  coupe: { ico: '🏵', nom: 'La Coupe', recit: () => 'il était de l\'effectif' },
 };
-/* Ce qui est gravé sur la carte d'un joueur-saison : [{ type, saison }]. */
+/* Une carte garde au plus `GRAVURES_MAX` gravures, les plus récentes : la même carte peut revenir dans bien des runs. */
+const GRAVURES_MAX = 24;
+/*
+ * GRAVER les galons d'une run (`galons` : [{ k, type, extra }], `run` : sa graine). Une sorte ne se grave qu'une fois par
+ * run sur une carte : rappelée deux fois (après le match, puis à la fin de la run), la gravure ne se double pas. La carte
+ * entre au cartable si elle n'y était pas. Rend le nombre de gravures neuves.
+ */
+export function graverAuCartable(galons = [], run = '') {
+  const c = lireCartable();
+  let n = 0;
+  for (const g of galons) {
+    if (!g || !g.k || !LEGENDES[g.type]) continue;
+    const x = c.joueurs[g.k] = c.joueurs[g.k] || { v: { commune: 1 }, n: 1 };
+    if ((x.legendes || []).some(l => l.type === g.type && l.run === run)) continue;
+    x.legendes = [...(x.legendes || []), { type: g.type, run, ...(g.extra != null ? { extra: g.extra } : {}) }].slice(-GRAVURES_MAX);
+    n++;
+  }
+  if (n) ecrire(c);
+  return n;
+}
+/* Ce qui est gravé sur la carte d'un joueur-saison : [{ type, run, extra }] (une gravure d'avant porte `saison`). */
 export const legendesDe = (cle, c = lireCartable()) => ((c.joueurs[cle] || {}).legendes || []).filter(l => LEGENDES[l.type]);
