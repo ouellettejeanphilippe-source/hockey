@@ -111,10 +111,10 @@ function jouer(S, espion) {
  * (`ouvrirSeance`) et continue : elle doit finir pareil. Rend { robot, graine, coach, actes, coeurs, fin, rondes,
  * coupe, signatures, forces, s, R }.
  */
-export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null } = {}) {
+export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null, exigence = 0 } = {}) {
   const t0 = Date.now();
   const coach = COACHS[Math.floor(COACHS.length * (Number(graine) * 0.6180339887 % 1))];
-  let S = creerLaRun(donnees, { graine: `v28:${graine}`, coach: { cle: coach } });
+  let S = creerLaRun(donnees, { graine: `v28:${graine}`, coach: { cle: coach }, exigence });
   S.robotDuel = robotDuel(robot === 'malin' ? 'attentif' : 'rien');
   const forces = [forceDe(S)];
   let signatures = 0, relue = false;

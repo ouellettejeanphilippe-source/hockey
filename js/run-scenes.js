@@ -22,7 +22,7 @@ import { nomCourt } from './recit.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
   RUN, RANG_DU_RIVAL, RANGS_DE_DOS_A_DOS, casesOffertes, caseA, suivantes, masseDe, espaceDe, prixDe, masseApres, tient, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe,
-  dosADosA, piecesDuSoir, leurCoach,
+  dosADosA, piecesDuSoir, leurCoach, reglesDe,
 } from './run.js';
 
 /* ---------- les petites briques ---------- */
@@ -56,11 +56,11 @@ const badgeMot = p => { const b = badgesDe(p)[0]; return b ? `${b.ico} ${esc(b.n
 function hud(S, { titre = null, petit = '', cible = true, bourse = true, pause = true } = {}) {
   const R = S.R, enSerie = !!R.series;
   const nom = titre || (enSerie ? 'Les séries' : `Acte ${ROMAINS[R.acte]}`);
-  const tenue = !enSerie && R.pts >= RUN.CIBLES[R.acte];
+  const tenue = !enSerie && R.pts >= reglesDe(R).cibles[R.acte];
   return `<div class="rn-hud">
     <span class="rn-coeurs" role="img" aria-label="${R.coeurs} cœur${R.coeurs > 1 ? 's' : ''} sur ${RUN.COEURS}">${Array.from({ length: RUN.COEURS }, (_, i) => coeur(i < R.coeurs)).join('')}</span>
     <span class="rn-acte">${nom}${petit ? `<small>${petit}</small>` : ''}</span>
-    ${cible && !enSerie ? `<span class="rn-cible${tenue ? ' rn-on' : ''}">${R.pts}<small>/ ${RUN.CIBLES[R.acte]} pts</small></span>` : ''}
+    ${cible && !enSerie ? `<span class="rn-cible${tenue ? ' rn-on' : ''}">${R.pts}<small>/ ${reglesDe(R).cibles[R.acte]} pts</small></span>` : ''}
     ${bourse ? `<span class="rn-jt${cible && !enSerie ? '' : ' rn-droite'}"><i class="rn-piece"></i>${R.jetons}</span>` : ''}
     ${pause ? '<button type="button" class="rn-pause" data-a="pause" aria-label="Pause"><i></i></button>' : ''}
   </div>`;
@@ -111,7 +111,7 @@ function optionDe(S, c, i, on) {
   const duSoir = c.s ? piecesDuSoir(S, c).length : 0, banc = duSoir ? `<span class="rn-puce rn-m">${duSoir} pièce${duSoir > 1 ? 's jouent' : ' joue'}</span>` : '';
   const mot = { match: () => `${jeu.mot} · ${lieu}`, elite: () => `Élite · ${jeu.mot} · ${lieu}`, rival: () => `Le rival · il compte double · ${lieu}`,
     marche: () => 'Une pièce de banc, les pochettes', vestiaire: () => 'Te soigner, ou monter une carte', histoire: () => 'Quelqu\'un du club veut te parler' }[c.sorte]();
-  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span>${banc || `<span class="rn-puce">${RUN.PORTES} portes</span>`}`,
+  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span>${banc || `<span class="rn-puce">${reglesDe(S.R).portes} portes</span>`}`,
     elite: () => `<span class="rn-puce rn-o">Une pièce, des jetons</span>${banc}`,
     rival: () => `<span class="rn-puce rn-o">Une pièce · ${c.jetons} jetons</span>${banc}`,
     marche: () => `<span class="rn-puce rn-o">Pièce : ${PRIX_PIECE}</span>`, vestiaire: () => `<span class="rn-puce">${S.toi.injured.size} blessé${S.toi.injured.size > 1 ? 's' : ''}</span>`, histoire: () => '' }[c.sorte]();
@@ -182,7 +182,7 @@ const noms = ps => ps.map(p => esc(court(p))).join(' · ');
 function enjeuHtml(S) {
   const c = S.R.case;
   if (c.sorte === 'serie') return '';
-  const gagne = { match: `2 points · ${c.jetons} jetons<br>${c.haute ? 'Des portes plus hautes' : `${RUN.PORTES} portes`}`, rival: `4 points · ${c.jetons} jetons<br>Une pièce parmi trois`, elite: `2 points · ${c.J != null ? `${c.J} jetons` : 'des jetons'}<br>Une pièce parmi trois` }[c.sorte];
+  const gagne = { match: `2 points · ${c.jetons} jetons<br>${c.haute ? 'Des portes plus hautes' : `${reglesDe(S.R).portes} portes`}`, rival: `4 points · ${c.jetons} jetons<br>Une pièce parmi trois`, elite: `2 points · ${c.J != null ? `${c.J} jetons` : 'des jetons'}<br>Une pièce parmi trois` }[c.sorte];
   const perdu = { match: '1 point en prolongation<br>Des portes, une relance', rival: '2 points en prolongation<br>Aucun cœur de plus', elite: `Sonnés 5 matchs<br>${c.J != null ? `${Math.round(c.J / 2)} jetons de moins` : 'des jetons de moins'}` }[c.sorte];
   return `<div class="rn-enjeu" style="left:14px;right:14px;top:${c.sorte === 'match' ? 664 : 556}px"><div><b class="rn-vert">Gagné</b>${gagne}</div><div><b class="rn-rg">Perdu</b>${perdu}</div></div>`;
 }
@@ -472,7 +472,7 @@ export function scenePause(S, V) {
   const R = S.R;
   return `<div class="rn-voile"></div>
   <div style="left:28px;right:28px;top:70px"><div class="rn-k">Pause · run ${R.numero}</div><div class="rn-titre" style="margin-top:6px">${R.series ? 'Les séries' : `Acte ${ROMAINS[R.acte]} · case ${Math.min(RANG_DU_RIVAL, R.rang) + 1}`}</div>
-    <div class="rn-t rn-gris" style="margin-top:6px">${R.series ? '' : `${R.pts} / ${RUN.CIBLES[R.acte]} points · `}${R.coeurs} cœur${R.coeurs > 1 ? 's' : ''} · ${R.jetons} jetons</div></div>
+    <div class="rn-t rn-gris" style="margin-top:6px">${R.series ? '' : `${R.pts} / ${reglesDe(R).cibles[R.acte]} points · `}${R.coeurs} cœur${R.coeurs > 1 ? 's' : ''} · ${R.jetons} jetons</div></div>
   <div class="rn-menu"><button type="button" class="rn-on" data-a="reprendre">Reprendre</button>
     <button type="button" data-a="lignes">Tes joueurs<small>23 · ${money(masseDe(S))}</small></button>
     <button type="button" data-a="banc">Ton coach et ton banc<small>${R.banc.length} pièce${R.banc.length > 1 ? 's' : ''}</small></button>

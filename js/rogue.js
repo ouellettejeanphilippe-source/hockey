@@ -290,31 +290,37 @@ export function solderLAncienRogue() {
     const P = S && S.partie, R = (S && S.rogue) || {};
     if (!P || !P.graine) continue;
     const finies = R.series || null, rondes = finies ? finies.rondes : P.series ? P.series.ronde || 0 : 0, coupe = !!(finies && finies.coupe);
-    verse += payerEcussons(P.graine, 'series', ecussonsDesSeries(rondes, coupe) * exigencesDe(R.exigence || 0).medailles, { bilan: { ronde: rondes, coupe, exigence: R.exigence || 0 } });
+    // Le multiple du cran de l'ancienne run (huit crans au plus, à l'époque) ; ses crans n'ouvrent rien dans la run en carte.
+    verse += payerEcussons(P.graine, 'series', ecussonsDesSeries(rondes, coupe) * (1 + PRIME_EXIGENCE * Math.max(0, Math.min(8, R.exigence || 0))), { bilan: { ronde: rondes, coupe } });
   }
   return { runs: runs.length, verse };
 }
 export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 20 + (coupe ? 40 : 0);
 
 
+/*
+ * LES EXIGENCES 🔺 (V28, tranche 5, docs/refonte-v28-5.md § 3.4 ; le devis § 4.8 : *la cible, la bande des clubs, le plafond,
+ * une porte de moins*). Après ta première Coupe, une run peut se lancer à un cran : chaque cran ajoute sa règle à celles
+ * d'avant, par un levier de la run en carte (js/run.js `creerLaRun`, `reglesDe`), et ses médailles sont multipliées par
+ * 1 + `PRIME_EXIGENCE` par cran. La Coupe gagnée au plus haut cran ouvert ouvre le suivant (`payerEcussons`). Les huit crans
+ * de l'ancien Rogue (le prix des packs, le classeur, le barème, les contrôles) sont partis avec ce qu'ils réglaient.
+ */
 export const PRIME_EXIGENCE = 0.15;
-const EXIGENCES = [
-  { cle: 'ceinture', nom: 'La ceinture', texte: '2 M$ d\'espace de moins sous le plafond', espace: -2_000_000 },
-  { cle: 'agents', nom: 'Les agents', texte: 'les packs coûtent 25 % de plus', prixPacks: 0.25 },
-  { cle: 'classeur', nom: 'Le classeur fermé', texte: 'une case de moins au classeur', classeur: -1 },
-  { cle: 'vestiaire', nom: 'L\'effectif mince', texte: '3 cartes Soutien de plus au départ', soutiens: 3 },
-  { cle: 'commanditaires', nom: 'Les commanditaires boudent', texte: '2 jetons de moins par victoire', victoire: -2 },
-  { cle: 'impatient', nom: 'Le proprio impatient', texte: 'les contrôles des actes serrés de 2 rangs', controles: -2 },
-  { cle: 'partants', nom: 'Ceux qui partent', texte: 'les rivaux plus haut : le 6e, le 2e, le plus fort', rivaux: 1 },
-  { cle: 'serree', nom: 'La ceinture serrée', texte: 'les séries plus dures : 1 étape d\'édition de plus à chaque club', series: 1 },
+export const EXIGENCES = [
+  { cle: 'ceinture', nom: 'La ceinture', texte: '2 M$ d\'espace de moins au départ', espace: -2_000_000 },
+  { cle: 'calendrier', nom: 'Le calendrier relevé', texte: 'des adversaires plus hauts', decalage: 0.05 },
+  { cle: 'barre', nom: 'La barre monte', texte: 'un point de plus à tenir par acte', cible: 1 },
+  { cle: 'porte', nom: 'Une porte de moins', texte: 'deux portes après chaque match', portes: -1 },
 ];
-/* Ce que `n` crans exigent ensemble : chaque canal additionné, et le multiple des médailles. */
-function exigencesDe(n = 0) {
+/* Ce que `n` crans exigent ensemble : chaque levier additionné, et le multiple des médailles. */
+export function exigencesDe(n = 0) {
   const k = Math.max(0, Math.min(EXIGENCES.length, Math.floor(n || 0)));
-  const out = { n: k, espace: 0, prixPacks: 1, classeur: 0, soutiens: 0, victoire: 0, controles: 0, rivaux: 0, series: 0, medailles: 1 + PRIME_EXIGENCE * k };
-  for (const E of EXIGENCES.slice(0, k)) for (const c of ['espace', 'prixPacks', 'classeur', 'soutiens', 'victoire', 'controles', 'rivaux', 'series']) out[c] += E[c] || 0;
+  const out = { n: k, espace: 0, decalage: 0, cible: 0, portes: 0, medailles: 1 + PRIME_EXIGENCE * k };
+  for (const E of EXIGENCES.slice(0, k)) for (const c of ['espace', 'decalage', 'cible', 'portes']) out[c] += E[c] || 0;
   return out;
 }
+/* Le plus haut cran qu'un méta peut prendre : aucun avant sa première Coupe, puis un de plus que le plus haut gagné. */
+export const cranOuvert = m => ((m.coupes || 0) > 0 ? Math.min(EXIGENCES.length, (m.exigence || 0) + 1) : 0);
 /*
  * LA LIGUE QUI MONTE (V9, tranche 8 ; JP, 17 oct. : *les clubs des premières runs sont globalement plus faibles et
  * montent*). Le niveau de ta ligue suit ton prestige, et chaque cran d'exigence le monte de `ETAPES_PAR_CRAN`
