@@ -52,6 +52,7 @@ export const RUN = {
   RIVAUX: [0.65, 0.8, 0.92],
   SERIES: [0.82, 1],
   BANDE_DU_CAMP: [0.2, 0.6],
+  HAUTE: [-0.1, 0.15],            // une affiche haute gagnée : ses portes, depuis le haut de la bande de l'acte
   ELITE: [0.9, 1],                // un club du haut
   PASSER: 6,                      // les jetons d'une porte passée
   JETONS_DU_MATCH: [8, 16],       // une victoire, du bas au haut de la bande
@@ -478,7 +479,7 @@ export function conclure(S, res) {
   const bande = RUN.BANDES[R.acte];
   // L'élite gagnée laisse une pièce parmi trois (l'écran la règle avant les portes, `pieceReglee`).
   if (c.sorte === 'elite' && res.gagne) R.apres.offertes = piecesOffertes(S.toi.perso, R.graine, `elite${R.acte}`);
-  ouvrirLesPortes(S, { bande: res.gagne && c.haute ? [bande[1] - 0.1, Math.min(1, bande[1] + 0.15)] : bande, affronte: c, cle: `a${R.acte}r${R.rang}` });
+  ouvrirLesPortes(S, { bande: res.gagne && c.haute ? [bande[1] + RUN.HAUTE[0], Math.min(1, bande[1] + RUN.HAUTE[1])] : bande, affronte: c, cle: `a${R.acte}r${R.rang}` });
   R.phase = 'portes';
   figer(S);
   return R.phase;
