@@ -18,7 +18,7 @@
  * en trois lettres, comme celui d'un club de la ligue au tableau indicateur.
  */
 import { TEAM_COLORS, poserEcussonDuClub } from './logos.js';
-import { lireMeta, ecrireMeta, rangDePrestige, PRESTIGES } from './rogue.js';
+import { lireMeta } from './rogue.js';
 import { esc } from './util.js';
 
 /*
@@ -209,67 +209,25 @@ const CLUBS = {
     <text x="50" y="80" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="46" fill="${BLANC}" text-anchor="middle">R</text>`), 4),
 };
 /* Les deux rayons de l'écran « Ton club », dans l'ordre où on les lit : le club (son nom et son écusson), ses couleurs. */
-export const RAYONS_CLUB = [
+const RAYONS_CLUB = [
   { cle: 'club', titre: 'Le club', liste: CLUBS },
   { cle: 'palette', titre: 'Les couleurs', liste: PALETTES },
 ];
 const DEPART = { club: 'stars', palette: 'etoiles' };
-/*
- * LES ACHATS D'AVANT (un nom et un écusson vendus à part) : un nom acheté donne son club ; un écusson acheté donne
- * le club dont il était le motif. Le reste des vieux écussons n'a plus de club.
- */
-const ANCIENS = { 'ecusson:harfang': 'harfangs', 'ecusson:huard': 'huards', 'ecusson:loup': 'loupsgarous', 'ecusson:comete': 'cometes', 'ecusson:hache': 'bucherons', 'ecusson:flocon': 'blizzard', 'ecusson:eclair': 'tonnerre', 'ecusson:patte': 'ours', 'ecusson:couronne': 'royaux' };
-const clubDAvant = cle => (cle.startsWith('nom:') ? cle.slice(4) : ANCIENS[cle]);
-const rayon = cle => RAYONS_CLUB.find(R => R.cle === cle);
 
 /* Le choix du club dans le méta, complété : ce qui n'existe plus retombe sur le départ. */
-export function choixDuClub(m = lireMeta()) {
+function choixDuClub(m = lireMeta()) {
   const vieux = (m && m.club) || {};
   const c = { ...DEPART, ...vieux, club: vieux.club || vieux.nom || DEPART.club };
   for (const R of RAYONS_CLUB) if (!R.liste[c[R.cle]]) c[R.cle] = DEPART[R.cle];
   return c;
-}
-/* Un objet est à toi s'il est gratuit ou acheté (`m.club.pris`, « nom:harfangs »). */
-export const possede = (m, rayonCle, cle) => {
-  const pris = (m.club && m.club.pris) || [];
-  return !rayon(rayonCle).liste[cle].prix || pris.includes(`${rayonCle}:${cle}`) || (rayonCle === 'club' && pris.some(k => clubDAvant(k) === cle));
-};
-/* Ce que la boutique offre au rayon « Ton club » : tout ce qui n'est pas encore à toi. */
-export function offresDuClub(m = lireMeta()) {
-  const c = choixDuClub(m);
-  return RAYONS_CLUB.flatMap(R => Object.entries(R.liste).filter(([k]) => !possede(m, R.cle, k)).map(([k, o]) => ({
-    cle: `${R.cle}:${k}`, sorte: R.cle, nom: o.nom, prix: o.prix,
-    verrou: o.rang && rangDePrestige(m) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '',
-    apercu: ecussonDe({ ...c, [R.cle]: k }), ...(o.primary ? { nuance: [o.primary, o.secondary] } : {}) })));
-}
-/*
- * Le prendre au méta, une fois payé : les jetons, eux, se paient par la décision d'achat de la
- * boutique (js/rogue-jeu.js), comme un pack — c'est elle que la partie rejoue. Il est aussitôt porté.
- */
-export function prendre(cleOffre) {
-  const [r, k] = cleOffre.split(':');
-  const m = lireMeta();
-  if (!rayon(r) || !rayon(r).liste[k]) return;
-  if (!possede(m, r, k)) m.club = { ...(m.club || {}), pris: [...((m.club && m.club.pris) || []), cleOffre] };
-  m.club = { ...(m.club || {}), [r]: k };
-  ecrireMeta(m);
-  appliquerClub(m);
-}
-/* Porter ce qui est à toi (le vestiaire). Rend vrai si le club a changé. */
-export function porter(rayonCle, cle) {
-  const m = lireMeta();
-  if (!rayon(rayonCle) || !rayon(rayonCle).liste[cle] || !possede(m, rayonCle, cle)) return false;
-  m.club = { ...(m.club || {}), [rayonCle]: cle };
-  ecrireMeta(m);
-  appliquerClub(m);
-  return true;
 }
 
 let actuel = DEPART;
 export const nomDuClub = () => CLUBS[actuel.club].nom;
 export const courtDuClub = () => CLUBS[actuel.club].court;
 /* L'écusson d'un choix, pour un aperçu (l'écran « Ton club ») sans le porter. */
-export function ecussonDe(c) {
+function ecussonDe(c) {
   const P = PALETTES[c.palette], C = CLUBS[c.club];
   return C.svg(P.primary, P.secondary, c.club === 'stars' ? 'NHL STARS' : C.court);
 }

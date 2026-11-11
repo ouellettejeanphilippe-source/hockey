@@ -8,9 +8,9 @@
  * 2. auto-draft jusqu'à 23/23 dans le vestiaire de chaque tour (tirage
  *    VESTIAIRE : relances quand rien ne tient dans le budget, #freeCapBtn en
  *    dernier recours)
- * 3. #mainBtn actif, clic : l'écran de saison (une journée, les meneurs, un
- *    match en direct, la fin), le bilan : .result .score et 23 .rrow ; puis
- *    l'écran des séries jusqu'au tableau
+ * 3. #mainBtn actif, clic : la saison se simule d'un coup, droit au bilan
+ *    (.result .score et 23 .rrow) ; puis l'écran des séries, un match en
+ *    direct, jusqu'au tableau
  * 4. zéro erreur console
  * 5. le même parcours en tirage LOTO (#rrL quand rien ne tient dans le budget)
  * Écrit des captures dans scripts/smoke-*.png.
@@ -18,7 +18,6 @@
 
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
-import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 import { ciblesTropPetites } from './lib/cibles.mjs';
 
 // Playwright peut être installé globalement (npm root -g) plutôt que dans le dépôt
@@ -57,29 +56,17 @@ const errors = [];
 let barreAuRepechage = null;   // la barre au repêchage, pour la comparer au bilan (S67)
 let toastVu = false;           // le premier toast d'une signature, mesuré une fois (1.0, J2-17)
 
-/*
- * LES CHOIX FORCÉS (S66). Le proprio, les dilemmes et les séquences CACHENT
- * « Journée suivante » tant qu'on n'a pas choisi — c'est la mécanique. Le
- * parcours répond donc à chacun dès qu'il se présente (la première option),
- * et il note lesquels il a croisés : un choix forcé que le test ne verrait
- * jamais serait un choix qui ne s'affiche jamais.
- */
-const choixVus = new Map();
-const parisPris = [], parisDits = [], desLances = [];   // les paris pris, ce que la boîte en a dit, les dés lancés
 const _click = page.click.bind(page);
 const _wait = page.waitForSelector.bind(page);
 /*
- * LA COQUILLE (V7, docs/refonte-v7.md) : cinq sections — Bureau, Joueurs, Lignes,
- * Cartes, Ligue —, et des onglets internes pour le Bureau, les Cartes et la Ligue. Le
- * parcours y va comme un joueur : il touche la section, puis l'onglet interne
- * s'il y en a un. Les règles vivent dans le Menu. `clic` est `page.click`
- * (qui règle d'abord les choix forcés, plus bas) ou `_click`.
+ * LA COQUILLE (V7, docs/refonte-v7.md) : quatre sections — Bureau, Joueurs, Lignes, Ligue —, et des onglets internes
+ * pour la Ligue. Le parcours y va comme un joueur : il touche la section, puis l'onglet interne s'il y en a un. Les
+ * règles vivent dans le Menu. `clic` est `page.click` (qui revient d'abord à l'onglet du match, plus bas) ou `_click`.
  */
 const SECTION_DE = {
-  match: 'bureau', saison: 'ligue', alignement: 'lignes', joueurs: 'joueurs', repechage: 'joueurs', marche: 'cartes',
-  classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'ligue', cartable: 'cartes',
+  match: 'bureau', saison: 'ligue', alignement: 'lignes', joueurs: 'joueurs', repechage: 'joueurs',
+  classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'ligue',
 };
-// Le 82-0 : aucune carte hors du Rogue, donc pas de section Cartes (js/game.js, `sectionsDuMode`).
 const SECTIONS = ['bureau', 'joueurs', 'lignes', 'ligue'];
 async function aller(cle, clic = s => page.click(s)) {
   if (cle === 'regles') {
@@ -92,73 +79,10 @@ async function aller(cle, clic = s => page.click(s)) {
   await clic(`#navbar .navtab[data-section="${SECTION_DE[cle]}"]`);
   if (await page.$(`#sousNav:not([hidden]) .soustab[data-page="${cle}"]`)) await clic(`#sousNav .soustab[data-page="${cle}"]`);
 }
-const mainsVues = [];   // les plans d'avant-duel pris aux gros matchs et en séries (V27, tranche 6 : un seul choix)
 /* Le 82-0, c'est juste les joueurs (oct.) : « Commencer » mène droit à la roulette, sans carte d'identité (elle reste à Sur table). */
 async function sansIdentite() {
   await page.waitForTimeout(300);
   if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="identite"]')) errors.push('« Commencer » offre encore une carte d\'identité au 82-0');
-}
-/*
- * LE BALLOTTAGE (S66) n'est pas forcé : on y répond la première fois qu'une
- * offre se présente, et on vérifie que la réclamation entre dans la
- * sauvegarde sans rembobiner la saison. Il dépend d'une blessure longue, donc
- * on DIT si on l'a vu plutôt que de l'exiger (le rejeu est exigé dans
- * check_ballottage.mjs).
- */
-/*
- * UN JOUEUR OFFERT SE SIGNE, PUIS ON CHOISIT QUI SORT (S78). Toucher sa carte
- * ouvre sa fiche (un aperçu) : c'est « Signer » qui le prend, puis l'échange
- * (U18, JP : *signer doit toujours demander qui part*) — la meilleure sortie y est
- * proposée, cerclée d'or et touchée d'avance ; une case libre où personne ne sort
- * se signe sans question.
- */
-const ECHANGE = '#choixModal:not([hidden]) .choix-sheet[data-genre="echange"]';
-async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
-  const rangee = '#signatureModal:not([hidden]) .pcard:not(.locked)';
-  if (!(await page.$(`${rangee} .btn-sign:not([disabled])`))) { await _click(`${portee} .tcj-signer`); await sortirDansAlignement(); return; }
-  const libre = /personne ne sort/.test(await page.$eval(`${rangee} .pcard-dest`, x => x.textContent));
-  await _click(`${rangee} .btn-sign:not([disabled])`);
-  const qs = await page.waitForSelector(`${ECHANGE} .ech-q`, { timeout: 5000 }).catch(() => null);
-  if (libre) { if (qs) errors.push('une case libre, et « Signer » demande quand même qui sort'); else return; }
-  if (!qs) { errors.push('« Signer » pose le joueur sans demander qui sort'); return; }
-  await sortirDansAlignement();
-}
-/*
- * L'ÉCHANGE À LA YAHOO FANTASY (oct., JP : *alignement simple, mais quand tu choisis un joueur, t'as un comparatif en
- * haut entre les deux joueurs*). L'alignement en lignes simples, rien qui déborde à 390 px ; la sortie proposée, seule
- * cerclée d'or, est touchée d'avance ; toucher un autre joueur le met face à l'arrivant, stat par stat, et le bilan
- * dit sa case et la masse ; « Signer » décide. Une autre liste de l'alignement (une carte à poser) : la première case.
- */
-const alignementsVus = [];
-async function sortirDansAlignement() {
-  if (await page.$(ECHANGE)) return echangeDuChoix();
-  if (!(await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 3000 }).catch(() => null))) return false;
-  await _click('#choixModal .aln-ligne .aln-choisir:not([disabled])');
-  return true;
-}
-async function echangeDuChoix() {
-  await _wait(`${ECHANGE} .ech-q`, { timeout: 5000 });
-  await page.waitForTimeout(150);
-  const lu = await page.evaluate(() => {
-    const m = document.querySelector('#choixModal');
-    const corps = m.querySelector('.choix-corps');
-    return { n: m.querySelectorAll('.ech-q').length, permises: m.querySelectorAll('.ech-q:not([disabled])').length, sw: corps.scrollWidth, cw: corps.clientWidth,
-      proposees: m.querySelectorAll('.ech-q.meilleure').length, touchee: !!m.querySelector('.ech-q.meilleure.on'),
-      autre: !!m.querySelector('.ech-q:not(.meilleure):not([disabled])') };
-  });
-  if (lu.n < 6) errors.push(`l'échange ne montre que ${lu.n} lignes de l'alignement`);
-  if (lu.sw > lu.cw + 1) errors.push(`l'échange déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
-  if (!lu.permises) { errors.push('l\'échange : personne ne peut sortir'); await _click('#choixModal .choix-fermer'); return false; }
-  if (lu.proposees > 1 || (lu.proposees && !lu.touchee)) errors.push(`l'échange : la sortie proposée n'est pas seule et touchée d'avance (${lu.proposees}, touchée : ${lu.touchee})`);
-  await _click(lu.autre ? '#choixModal .ech-q:not(.meilleure):not([disabled])' : '#choixModal .ech-q:not([disabled])');
-  await page.waitForTimeout(150);
-  const cmp = await page.evaluate(() => { const m = document.querySelector('#choixModal'); return { deux: m.querySelectorAll('.cmp-qui:not(.vide)').length, lignes: m.querySelectorAll('.cmp-l').length,
-    bilan: ((m.querySelector('.cmp-bilan') || {}).textContent || '').replace(/\s+/g, ' ').trim() }; });
-  if (cmp.deux !== 2 || cmp.lignes < 6) errors.push(`le comparatif ne met pas les deux joueurs face à face, stat par stat (${JSON.stringify(cmp)})`);
-  if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(cmp.bilan)) errors.push(`le comparatif ne dit pas où il jouerait et la masse : « ${cmp.bilan} »`);
-  alignementsVus.push(cmp.bilan);
-  await _click('#choixModal .ech-signer:not([disabled])');
-  return true;
 }
 /*
  * UNE NOUVELLE PARTIE SE LANCE DU MENU (S79 ; 1.0, R1). L'en-tête n'a plus de
@@ -178,271 +102,12 @@ async function nouvelleSaison() {
   await _click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
   await _wait('#partieModal', { state: 'visible', timeout: 30000 });
 }
-const ballottage = { fait: false, mot: null };
-/*
- * À FAIRE (S78, V9). JP : *forcer que le joueur agisse avant de continuer* ;
- * puis *tous les choix au même endroit, même UI et UX*. Tant qu'un choix
- * bloque (une blessure, une case vide, un choix forcé), « Journée
- * suivante » devient « ⏳ Encore un choix… » ou « À régler… ». Le parcours règle
- * ces choix comme un joueur : la première option du choix ouvert, qui part
- * au toucher (le jour à jour est au Rogue). La case
- * vide s'éprouve d'abord (`guetterTrouHook`, posé par la saison). La main du
- * palier est partie (V27, tranche 5).
- */
-let guetterTrouHook = null;
-let sommairesVus = 0;
-/*
- * Un clic PAR SÉLECTEUR, qui tolère le redessin : le hub se redessine après
- * chaque geste (une réclamation, une décision), et une poignée d'élément prise
- * avant ne tient plus (« not attached to the DOM »).
- */
-async function toucher(sel) {
-  const el = await page.$(sel);
-  if (!el || !(await el.isVisible().catch(() => false))) return false;
-  try { await _click(sel, { timeout: 5000 }); } catch { return false; }
-  await page.waitForTimeout(350);
-  return true;
-}
-// LA BOÎTE VIT AU BUREAU (V7), sous l'affiche : d'ailleurs, ses messages ne se touchent qu'en revenant au Bureau.
-async function versLaBoite() {
-  const boite = await page.$('#hubModal .hub-boite');
-  if (!boite || await boite.isVisible().catch(() => false)) return;
-  await _click('#navbar .navtab[data-section="bureau"]').catch(() => {});
-  await page.waitForTimeout(200);
-}
-/* V21 : la ligne d'un choix l'ouvre en plein écran ; ses options y vivent. */
-const SA_PAGE = genre => `#choixModal:not([hidden]) .choix-sheet[data-msg="${genre}"]`;
-async function versSaPage(genre) {
-  if (await page.$(SA_PAGE(genre))) return true;
-  await versLaBoite();
-  if (!(await page.$(`#hubModal .hub-boite .hub-msg[data-msg="${genre}"] .hub-msg-tete`))) return false;
-  await _click(`#hubModal .hub-boite .hub-msg[data-msg="${genre}"] .hub-msg-tete`);
-  await page.waitForTimeout(250);
-  return true;
-}
-async function debloquer() {
-  for (let i = 0; i < 12; i++) {
-    if (await page.$('#choixModal:not([hidden]) .choix-sheet:not([data-msg])')) return;
-    if (await validerLeCalendrier()) continue;
-    if (!(await page.$('#hubModal .hub-traiter'))) return;
-    await versLaBoite();
-    if (await page.$('#hubModal .hub-msg.bloque[data-msg="trou"]')) {
-      await versSaPage('trou');
-      if (guetterTrouHook) await guetterTrouHook();
-      await toucher(`${SA_PAGE('trou')} .choix-option:not([aria-disabled="true"]):not(.ouvre) .tc-prendre`);
-      continue;
-    }
-    // Le ballottage se guette une fois : s'il a joué, le hub s'est redessiné, on repasse.
-    const avantBal = ballottage.fait;
-    await guetterBallottage();
-    if (ballottage.fait !== avantBal) continue;
-    if (await toucher('#choixModal:not([hidden]) .choix-sheet[data-msg] .choix-option:not([aria-disabled="true"]):not(.on) .tc-prendre')) continue;
-    // Le choix qui attend est plié : « Encore un choix » l'ouvre.
-    await toucher('#hubModal .hub-traiter');
-  }
-}
-/* LE CALENDRIER DE L'ACTE (V27, tranche 4) : sa ligne l'ouvre au premier soir de l'acte ; le parcours le valide tel quel, la vraie cédule. */
-async function validerLeCalendrier() {
-  if (!(await page.$('#hubModal .ac-placer .ac-valider'))) return false;
-  await _click('#hubModal .ac-placer .ac-valider');
-  await ecranPret();
-  return true;
-}
-async function guetterBallottage() {
-  if (ballottage.fait) return;
-  if (!(await page.$('#hubModal .hub-msg[data-msg="blessure"]'))) return;
-  await versSaPage('blessure');
-  const ouvrir = await page.$(`${SA_PAGE('blessure')} .tc-prendre[data-choix="rappel"]`);
-  if (!ouvrir || !(await ouvrir.isVisible())) return;
-  // Un choix forcé — ou n'importe quel plein écran, le sommaire de la journée compris (S78) — passe devant.
-  const force = await page.$('#choixModal:not([hidden]) .choix-sheet:not([data-msg="blessure"])');
-  if (force && (await force.isVisible())) return;
-  ballottage.fait = true;
-  const tete = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
-  await ouvrir.click();
-  await _wait('#signatureModal:not([hidden]) .pcard', { timeout: 5000 });
-  const qui = ((await page.textContent('#signatureModal .pcard .pcard-nom')) || '').replace(/\s+/g, ' ').trim();
-  await signerPuisSortir();
-  await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
-  await page.waitForTimeout(350);
-  const apres = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
-  const d = (await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisions || []; } catch { return []; } })).filter(x => x.ballottage);
-  if (!d.length) errors.push('la réclamation au ballottage n\'entre pas dans la sauvegarde');
-  if (tete && apres && tete[1] !== apres[1]) errors.push(`réclamer au ballottage rembobine la saison : journée ${tete[1]} puis ${apres[1]}`);
-  ballottage.mot = `${qui.slice(0, 70)} réclamé à la journée ${tete ? tete[1] : '?'}`;
-}
-/*
- * LE PAQUET (S77) : une récompense arrive scellée, par-dessus ses cartes
- * encore invisibles — les toucher, c'est toucher le paquet. On l'ouvre (un
- * toucher), puis LA PILE (1.0, oct.) : chaque carte en grand, passée d'un
- * geste — glissée, touchée, → — jusqu'à la bande (scripts/lib/paquet.mjs).
- * On exige ce que l'écran promet : autant de cartes vues dans la pile qu'il
- * en annonçait, chacune presque de la largeur du téléphone (80 % au moins),
- * puis les MÊMES cartes face visible dans la bande, prêtes à choisir.
- */
-const paquetsVus = [];
-async function ouvrirPaquet() {
-  const p = await page.$('#choixModal:not([hidden]) .pochette');
-  if (!p || !(await p.isVisible())) return false;
-  const annonce = Number(((await page.textContent('#choixModal .pochette-n')) || '').replace(/\D/g, '')) || 0;
-  const pile = await traverserPaquet(page);
-  const lu = await page.evaluate(() => ({
-    cartes: document.querySelectorAll('#choixModal .choix-main > .choix-option.tc').length,
-    dos: [...document.querySelectorAll('#choixModal .tc-dos')].filter(d => +getComputedStyle(d).opacity > 0.05).length,
-  }));
-  if (!pile.fini || lu.cartes !== annonce || lu.dos) errors.push(`le paquet annonce ${annonce} cartes et en montre ${lu.cartes} (${lu.dos} encore face cachée${pile.fini ? '' : ', jamais fini'})`);
-  errors.push(...fautesDePile(pile, page.viewportSize().width));
-  paquetsVus.push(`${lu.cartes} cartes`);
-  return true;
-}
-/*
- * LES CHOIX FORCÉS S'OUVRENT EN PLEIN ÉCRAN depuis S68 (`#choixModal`). On
- * range ce qu'on a croisé par son titre, et on exige que chaque option dise
- * son effet en puces — c'est ce que JP a demandé : *tout devrait être clair*.
- */
-/*
- * Après un choix, l'écran suivant est PRÊT quand quelque chose de visible
- * attend le joueur. Un « À régler » caché sous une page (le sommaire, hauteur
- * 0) ne compte pas : Playwright s'arrêtait sur lui et ne voyait pas la page.
- */
-const ecranPret = (timeout = 120000) => page.waitForFunction(() => {
-  // L'alignement aussi (1.0, oct.), et l'échange (qui sort, oct.) : ses lignes ne sont pas des `.choix-option`.
-  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .aln-choisir, #choixModal:not([hidden]) .ech-q, #choixModal:not([hidden]) .pochette, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
-  return [...document.querySelectorAll(sel)].some(el => {
-    const r = el.getBoundingClientRect();
-    if (r.width < 1 || r.height < 1) return false;
-    const s = getComputedStyle(el);
-    return s.display !== 'none' && s.visibility !== 'hidden' && Number(s.opacity) > 0;
-  });
-}, null, { timeout }).catch(async e => {
-  // Figé : on dit ce qui est à l'écran, sinon l'échec en CI ne s'explique pas.
-  const vu = await page.evaluate(() => [...document.querySelectorAll('dialog[open], .modal:not([hidden]), [id$="Modal"]:not([hidden])')]
-    .map(m => `${m.id || m.className} « ${(m.querySelector('h1, h2, h3, .choix-titre, .hub-titre')?.textContent || '').trim().slice(0, 80)} » [${[...m.querySelectorAll('button')].filter(b => b.offsetParent).map(b => b.className + ':' + b.textContent.trim().slice(0, 30)).slice(0, 12).join(' | ')}]`).join(' ;; ')).catch(() => '?');
-  throw new Error(`écran figé — ${vu} — erreurs : ${errors.slice(-5).join(" ;; ") || "aucune"} — ${e.message}`);
-});
-async function repondreAuxChoix() {
-  await ouvrirPaquet();
-  await guetterBallottage();
-  let rouvert = false;
-  for (let i = 0; i < 12; i++) {
-    if (await ouvrirPaquet()) continue;
-    if (await validerLeCalendrier()) continue;
-    // LE SOMMAIRE DE LA JOURNÉE (S78) : il se lit, puis « Retour au bureau » — sauf sous un choix ouvert, qui passe d'abord.
-    if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#hubModal .hub-page[data-genre="sommaire"]')) {
-      sommairesVus++;
-      await _click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer');
-      await page.waitForTimeout(250);
-      continue;
-    }
-    // QUI SORT, DANS L'ÉCHANGE (oct.) : ses lignes ne sont pas des `.choix-option`.
-    if (await page.$('#choixModal:not([hidden]) .choix-sheet:is([data-genre="alignement"], [data-genre="echange"])')) { await sortirDansAlignement(); await page.waitForTimeout(350); continue; }
-    const opt = await page.$('#choixModal:not([hidden]) :is(button.tc-prendre, .tc-prendre):not([disabled])');
-    if (!opt || !(await opt.isVisible())) {
-      /*
-       * UN CHOIX EN ATTENTE SE ROUVRE COMME UN JOUEUR LE ROUVRE (S77). Une
-       * récompense peut rester en attente derrière un autre plein écran (le
-       * palier refermé « Plus tard », un entracte) : l'écran le dit par
-       * « ⏳ Un choix t'attend » et cache « +10 jours » tant qu'on n'a pas
-       * choisi — c'est la règle. Le parcours attendait trente secondes un
-       * « +10 jours » qui ne pouvait pas venir (vu une fois en trois
-       * parcours pendant S77 — le smoke tire au hasard, la graine change) ;
-       * il touche le bouton, une fois, comme le ferait un kid.
-       */
-      const attente = !rouvert && await page.$('#hubModal .hub-choix-rouvrir');
-      if (attente && await attente.isVisible()) {
-        rouvert = true;
-        await attente.click();
-        await page.waitForTimeout(300);
-        continue;
-      }
-      // Un message qui bloque la journée (S78) : on le règle, puis on repasse.
-      if (await page.$('#hubModal .hub-traiter')) {
-        await debloquer();
-        if (await page.$('#choixModal:not([hidden]) :is(button.tc-prendre, .tc-prendre):not([disabled]), #hubModal .hub-page[data-genre="sommaire"]')) continue;
-      }
-      return;
-    }
-    /*
-     * LE DUEL À UN CHOIX (V27, tranche 6 ; la maquette 4) : les deux plaques, leur jeu, deux ou trois plans de ton banc, « Ton
-     * match » et « Au match » ; ni main, ni mise, ni adjoint par période. Le parcours prend le premier plan ; la décision du soir
-     * porte le duel, son plan et une main vide.
-     */
-    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="duel"]')) {
-      const lu = await page.$eval('#choixModal .dl-sheet', m => ({ plaques: m.querySelectorAll('.dl-plaque').length, plans: [...m.querySelectorAll('[data-plan]')].map(b => b.dataset.plan), jeu: !!m.querySelector('.dl-jeu'),
-        vieux: m.querySelectorAll('.duel-prop, .duel-snap, .duel-intention, .main-vest, .main-carte, .main-deck').length }));
-      if (lu.plaques !== 2 || !lu.jeu) errors.push(`l'écran du duel n'a pas ses deux plaques et leur jeu (${JSON.stringify(lu)})`);
-      if (lu.plans.length < 2 || lu.plans.length > 3) errors.push(`le banc propose ${lu.plans.length} plan(s) au duel au lieu de deux ou trois`);
-      if (lu.vieux) errors.push(`l'écran du duel montre encore la main, la mise ou l'adjoint par période (${lu.vieux})`);
-      const motJouer = lu.plans[0] || 'match';
-      if (lu.plans[0]) await _click(`#choixModal [data-plan="${motJouer}"]`);
-      await _click('#choixModal .dl-jouer');
-      await ecranPret();
-      await page.waitForTimeout(350);
-      const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
-      if (!d.length || !d.some(x => x.duel)) errors.push('le choix du duel n\'entre pas dans la sauvegarde');
-      if (d.some(x => x.main && !x.auto && (x.main.jouees || []).length)) errors.push('un choix du duel part avec des cartes jouées');
-      mainsVues.push(motJouer);
-      continue;      mainsVues.push(motJouer);
-      continue;
-    }
-    if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await signerPuisSortir(); await page.waitForTimeout(350); continue; }
-    const titre = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
-    const genre = /proprio|objectif/i.test(titre) ? 'hub-proprio' : /de suite/i.test(titre) ? 'hub-sequence' : 'hub-dilemme';
-    const sansPuce = await page.$$eval('#choixModal .choix-option', els => els.filter(e => !e.querySelector('.puce')).length);
-    if (sansPuce && genre !== 'hub-proprio') errors.push(`le choix « ${titre} » a ${sansPuce} option(s) sans effet chiffré`);
-    choixVus.set(genre, [...(choixVus.get(genre) || []), titre]);
-    // UN PARI SE TRANCHE AU CHOIX : la boîte dit tout de suite comment il a tourné.
-    const pari = /Pari/.test(await opt.evaluate(b => ((b.closest('.choix-option') || b).querySelector('.carton-club-nom') || {}).textContent || '').catch(() => ''));
-    await opt.click();
-    /*
-     * LE LANCER DE DÉ (1.0, oct.). Une réponse risquée ouvre le dé : ce qu'il faut (« sur 4, 5 ou 6 »),
-     * Entrée lance, le dé tombe. Ce qui se vérifie ne dépend pas de la face tirée : la face dit le
-     * verdict, et la boîte, qui lit le moteur (`deDuChoix` sur la décision sauvée), dit le même.
-     */
-    let de = null;
-    if (pari) {
-      try { await _wait('#choixModal:not([hidden]) .de-scene .de-lancer', { timeout: 5000 }); } catch { errors.push(`« ${titre} » : la réponse risquée n'ouvre pas le dé`); }
-      if (await page.$('#choixModal:not([hidden]) .de-lancer')) {
-        const besoin = ((await page.textContent('#choixModal .de-besoin')) || '').trim();
-        const k = (besoin.match(/\d/g) || []).length;
-        if (!/sur (un \d|(\d, )*\d ou \d)$/.test(besoin) || /%/.test(besoin)) errors.push(`le dé de « ${titre} » ne dit pas ses faces : « ${besoin} »`);
-        await page.focus('#choixModal .de-lancer');
-        await page.keyboard.press('Enter');
-        try { await _wait('#choixModal .de.pose', { timeout: 6000 }); } catch { errors.push(`le dé de « ${titre} » ne tombe pas`); }
-        de = await page.evaluate(() => {
-          const d = document.querySelector('#choixModal .de.pose');
-          return d ? { face: Number(d.dataset.face), gagne: d.classList.contains('gagne'), verdict: (document.querySelector('#choixModal .de-verdict') || {}).textContent || '' } : null;
-        });
-        if (de && de.gagne !== (de.face > 6 - k)) errors.push(`le dé de « ${titre} » montre ${de.face} pour ${besoin}, et dit ${de.gagne ? 'ça passe' : 'raté'}`);
-        if (de && !(de.face >= 1 && de.face <= 6)) errors.push(`le dé de « ${titre} » montre une face impossible : ${de.face}`);
-        if (de) desLances.push(`${titre} : ${de.face} ${de.gagne ? '✓' : '✗'}`);
-        await _click('#choixModal .de-suite');
-      }
-    }
-    await ecranPret();
-    await page.waitForTimeout(350);
-    if (pari) {
-      parisPris.push(titre);
-      const mot = await page.$eval('#hubModal .hub-msg[data-msg="pari"] .hub-msg-sujet', e => e.textContent.trim()).catch(() => '');
-      if (mot) parisDits.push(mot);
-      // Le message de CE pari (la boîte en garde plusieurs tant que leurs effets courent).
-      const sien = de ? await page.$$eval('#hubModal .hub-msg[data-msg="pari"] .hub-msg-sujet', (els, [t, seq]) => { const l = els.map(e => e.textContent.trim()); return l.find(x => x.startsWith(`${t} :`)) || (seq ? l.find(x => /de suite :/.test(x)) : '') || ''; }, [titre, genre === 'hub-sequence']).catch(() => '') : '';
-      if (de && !sien) errors.push(`le dé de « ${titre} » est tombé, et la boîte ne dit pas comment ce pari a tourné`);
-      else if (de && /a payé/.test(sien) !== de.gagne) errors.push(`le dé de « ${titre} » dit ${de.gagne ? 'ça passe' : 'raté'}, la boîte (le moteur) dit « ${sien} »`);
-      // La boîte se vide : l'événement réglé n'attend plus.
-      const reste = await page.$$eval('#hubModal .hub-choix-rouvrir', (els, t) => els.some(e => e.textContent.includes(t)), titre).catch(() => false);
-      if (de && reste) errors.push(`« ${titre} » réglé au dé attend encore dans la boîte`);
-    }
-  }
-}
 /*
  * LE DIRECT ET LE SOMMAIRE DISENT LES MÊMES BUTS (S79). JP : *le sommaire
  * post match et ce que je voyais dans le match, les buts sont pas au même
  * moment* — le sommaire donnait le temps écoulé, le direct le temps qu'il
  * reste. `finirDirect` lit les buts du fil (période, heure, marqueur) ;
- * `memesButs` les compare, au caractère près, au tableau de la journée et au
- * « Sommaire du match ». Un entracte au milieu n'y change rien : c'est le
- * même match, continué.
+ * `memesButs` les compare, au caractère près, au « Sommaire du match ».
  */
 const PERIODES = ['1re période', '2e période', '3e période', 'Prolongation'];
 let butsVusEnDirect = null;
@@ -457,13 +122,13 @@ const butsDuDirect = () => page.$$eval('#liveModal .live-feed .live-ligne', els 
   return out;
 });
 let glaceDuDirect = 0;
-async function lireLeDirect(entracte) {
-  butsVusEnDirect = { buts: await butsDuDirect(), entracte };
+async function lireLeDirect() {
+  butsVusEnDirect = { buts: await butsDuDirect() };
   // UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP).
   const ternes = await page.$$eval('#liveModal :is(.live-ligne.but, .live-but-ligne)', l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band') && !e.closest('[style*="--eq-band"]')).length);
   if (ternes) errors.push(`le direct : ${ternes} but(s) sans les couleurs du club qui marque`);
   // v2 : une rangée du fil ne se comprime jamais sous son texte (JP : *problème affichage*, les jeux se chevauchaient) ; tout le
-  // fil, les jeux mineurs compris (V27, tranche 6 : le contrôle vivait après l'entracte à choix, parti).
+  // fil, les jeux mineurs compris.
   const debordent = await page.$$eval('#liveModal .live-feed', fs => fs.flatMap(f => {
     const tous = f.classList.contains('tous');
     f.classList.add('tous');
@@ -509,91 +174,39 @@ async function butsDuSommaire(cle) {
   await page.waitForTimeout(150);
   return buts;
 }
-/*
- * ET ÇA RESTE VRAI APRÈS (S79). JP : *surtout, la simulation doit pas se faire
- * d'avance, pis rester ok après*. Le match vu en direct se relit au bilan,
- * après toutes les décisions du reste de la saison (et les entractes qui
- * rebâtissent la ligue jusqu'à leur soir) : les mêmes buts, au caractère près.
- */
-const aRelire = [];
+/* Le match de ta série vu en direct se relit à son sommaire : les mêmes buts, au caractère près. */
 let decideVu = false;
-async function memesButs(etiquette, serie = false) {
+async function memesButs(etiquette) {
   const vu = butsVusEnDirect;
   butsVusEnDirect = null;
   if (!vu) return;
   const lus = [];
-  // S79 : l'écran Match ne répète plus les buts d'hier (une ligne qui ouvre le sommaire) : le sommaire fait foi.
-  // Le « Sommaire du match » : le dernier match révélé (ta série : le plus haut numéro).
-  const cle = await page.evaluate(s => {
-    const els = [...document.querySelectorAll(s ? '#hubModal [data-sommaire^="series|"]' : '#hubModal .hub-hier[data-sommaire]')];
+  // Le « Sommaire du match » : le dernier match révélé de ta série (le plus haut numéro).
+  const cle = await page.evaluate(() => {
+    const els = [...document.querySelectorAll('#hubModal [data-sommaire^="series|"]')];
     const el = els.sort((a, b) => Number(a.dataset.sommaire.split('|')[2]) - Number(b.dataset.sommaire.split('|')[2])).pop();
     return el ? el.dataset.sommaire : null;
-  }, serie);
-  if (cle) {
-    lus.push(['le sommaire du match', await butsDuSommaire(cle)]);
-    // Le match de saison se relira au bilan, après toutes les décisions qui suivent.
-    if (!serie) aRelire.push({ etiquette, cle, buts: vu.buts });
-  } else errors.push(`${etiquette} : le match vu en direct n'a pas de sommaire à ouvrir`);
+  });
+  if (cle) lus.push(['le sommaire du match', await butsDuSommaire(cle)]);
+  else errors.push(`${etiquette} : le match vu en direct n'a pas de sommaire à ouvrir`);
   const direct = JSON.stringify(vu.buts);
   const faux = lus.filter(([, l]) => JSON.stringify(l) !== direct);
   if (faux.length) errors.push(`${etiquette} : ${faux.map(([q, l]) => `${q} (${l.join(' · ')})`).join(' et ')} ne dit pas les mêmes buts que le direct (${vu.buts.join(' · ')})`);
-  else console.log(`   ${etiquette} : le direct, ${lus.map(([q]) => q).join(' et ')} disent les mêmes ${vu.buts.length} buts, période, heure et marqueur${vu.entracte ? ' — entracte compris' : ''} (${propre(vu.buts.slice(0, 3).join(' · '))}${vu.buts.length > 3 ? ' …' : ''})`);
+  else console.log(`   ${etiquette} : le direct, ${lus.map(([q]) => q).join(' et ')} disent les mêmes ${vu.buts.length} buts, période, heure et marqueur (${propre(vu.buts.slice(0, 3).join(' · '))}${vu.buts.length > 3 ? ' …' : ''})`);
 }
-/*
- * FINIR UN DIRECT (S70 ; V27, tranche 6 : plus d'entracte à choix). Un duel s'arrête à ses entractes, un seul bouton (la
- * période suivante) ; « Passer à la fin » va au bout sans autre pause, et le fil se lit tel quel.
- */
+/* FINIR UN DIRECT (S70) : « Passer à la fin » va au bout sans pause de période, et le fil se lit tel quel. */
 async function finirDirect() {
-  if (await page.$('#liveModal .live-periode') && !(await page.$('#liveModal .live-fin'))) await _click('#liveModal .live-periode');
   await _click('#liveModal .live-fin');
   await _wait('#liveModal .live-suite', { timeout: 10000 });
-  await lireLeDirect(false);
+  await lireLeDirect();
 }
 async function versLeMatch() {
   const ou = await page.evaluate(() => ({ zone: document.body.dataset.zone, page: document.body.dataset.page }));
   if (ou.zone === 'hub' && ou.page !== 'match') { await aller('match', _click); await page.waitForTimeout(200); }
 }
 page.click = async (sel, opts) => {
-  if (typeof sel === 'string' && /hub-(jour|prochaine|regarder|banc|fin|suite|ronde)\b/.test(sel)) {
-    // Un plein écran d'abord (une main de match ouverte par-dessus la boîte, 1.0, R3), puis l'onglet Match.
-    await repondreAuxChoix(); await versLeMatch(); await repondreAuxChoix();
-    /*
-     * LA JOURNÉE PEUT S'ÊTRE BLOQUÉE ENTRE-TEMPS (S78) : un palier qui s'ouvre
-     * au clic précédent, refermé « Plus tard » par \`repondreAuxChoix\`, reste à
-     * traiter — « +10 » disparaît et « Fin de saison » se grise. Le parcours
-     * ne clique pas dans le vide : la boucle qui l'appelle voit le message.
-     */
-    if (/hub-(jour|prochaine|fin)\b/.test(sel) && await page.$('#hubModal .hub-traiter')) {
-      const b = await page.$(sel);
-      if (!b || !(await b.isVisible()) || await b.isDisabled()) return;
-    }
-    /*
-     * « JUSQU'À LA PROCHAINE DÉCISION » (S79) joue les journées une à une, et
-     * rend la main au navigateur entre deux paquets : le clic revient tout de
-     * suite. On attend qu'elle se soit arrêtée (le bouton se réactive, ou un
-     * plein écran — le sommaire, un choix — s'ouvre).
-     */
-    if (/hub-prochaine\b/.test(sel)) {
-      const r = await _click(sel, opts);
-      await page.waitForFunction(() => !document.querySelector('#hubModal .hub-prochaine[disabled]'), null, { timeout: 120000 }).catch(() => {});
-      await page.waitForTimeout(150);
-      return r;
-    }
-  }
-  // Un choix forcé ouvert par-dessus se règle avant tout autre clic dans l'écran
-  // — et avant un onglet de la barre, que le plein écran couvre aussi (S74b).
-  else if (typeof sel === 'string' && /^(#hubModal|\.navtab|#navbar|#sousNav)\b/.test(sel)) await repondreAuxChoix();
-  /*
-   * « À RÉGLER AVANT LE MATCH » PEUT S'ÊTRE RÉGLÉ EN ROUTE (1.0). Répondre aux
-   * choix ouverts, juste au-dessus, règle souvent le message qui bloquait : le
-   * bouton disparaît, et le clic attendait trente secondes un bouton parti
-   * (« ÉCHEC du clic #hubModal .hub-traiter », erreurs relevées : aucune). Un
-   * joueur ne toucherait pas un bouton qui n'est plus là ; le parcours non plus.
-   */
-  if (typeof sel === 'string' && /hub-traiter\b/.test(sel)) {
-    const b = await page.$(sel);
-    if (!b || !(await b.isVisible().catch(() => false))) return;
-  }
+  // Un bouton des séries se touche à l'onglet du match : on y revient d'abord, comme un joueur.
+  if (typeof sel === 'string' && /hub-(jour|regarder|fin|suite|ronde)\b/.test(sel)) await versLeMatch();
   try { return await _click(sel, opts); }
   catch (e) {
     // UN CLIC QUI ÉCHOUE LAISSE UNE TRACE (S74b) : l'écran, ce que dit
@@ -608,14 +221,6 @@ page.click = async (sel, opts) => {
     console.log(`\n   ÉCHEC du clic « ${sel} » : ${JSON.stringify(vu)}\n   erreurs relevées : ${errors.join(' | ') || 'aucune'}`);
     throw e;
   }
-};
-page.waitForSelector = async (sel, opts) => {
-  if (typeof sel === 'string' && /hub-(jour|prochaine|suite)\b/.test(sel)) {
-    // Le hub prêt, ou un plein écran à régler d'abord (un choix, un palier, un sommaire).
-    await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-suite, #choixModal:not([hidden]) .choix-sheet', opts);
-    await repondreAuxChoix();
-  }
-  return _wait(sel, opts);
 };
 let netErrors = 0;   // images externes (assets.nhle.com) : réseau, pas l'application
 // Les photos d'action (1.0) : sur le Web, elles viennent de img/actions ; seule l'application Android va à la LNH.
@@ -1385,7 +990,7 @@ console.log(`3. #mainBtn actif : ${enabled}`);
  */
 async function saisonDunCoup(etiquette) {
   await _wait('.result .score', { timeout: 120000 });
-  if (await page.$('#hubModal .hub-jour, #hubModal .hub-traiter')) errors.push(`${etiquette} : le 82-0 ouvre encore l'écran jour par jour`);
+  if (await page.$('#hubModal .hub-jour')) errors.push(`${etiquette} : le 82-0 ouvre encore l'écran jour par jour`);
   const rows = await page.$$eval('.rrow', r => r.length);
   if (rows !== 23) errors.push(`${etiquette} : le bilan compte ${rows} rangées, pas 23`);
 }
@@ -1413,7 +1018,6 @@ async function deuxCaptures(nom, voir = null) {
 }
 async function finirSeries() {
   for (let i = 0; i < 300; i++) {
-    await repondreAuxChoix();
     const suite = await page.$('#hubModal .hub-suite');
     if (suite && await suite.isVisible()) return;
     for (const sel of ['#hubModal .hub-fin', '#hubModal .hub-ronde', '#hubModal .hub-jour']) {
@@ -1470,14 +1074,6 @@ if (enabled) {
       console.log(`   le bilan par chapitres : ${ch.join(' · ')} · domicile ${d.join('-')}, route ${r.join('-')} · ${tuiles.length} chiffres`);
       await deuxCaptures('bilan-rythme', '#resultHost [data-bl="rythme"]');
     }
-  }
-  // AUCUNE CARTE HORS DU ROGUE : le Palmarès du 82-0 n'a pas d'album de cartes.
-  {
-    await aller('historique');
-    await page.waitForTimeout(300);
-    if (await page.$('.lb-vues [data-vue="album"]')) errors.push('le Palmarès du 82-0 offre encore l\'album des cartes');
-    await aller('match');
-    await page.waitForTimeout(300);
   }
   // Le bilan porte les tableaux les plus larges du jeu (onze colonnes) : s'il
   // y a un débordement quelque part, il est ici.
@@ -1790,18 +1386,11 @@ if (enabled) {
     // L'écran des séries : un match de plus dans la ronde, le tableau, puis
     // le prochain match en direct, puis tout jusqu'à la Coupe.
     await page.waitForSelector('#hubModal .hub-jour', { timeout: 20000 });
-    /*
-     * LES SÉRIES DU 82-0 SE REGARDENT (oct.) : match par match, sans cartes, sans plan, sans banc — tout ça
-     * est au Rogue. Le seul geste est « Match suivant ».
-     */
-    for (const [sel, quoi] of [['#hubModal .hub-vers-lignes', 'les Lignes du match'], ['#hubModal .hub-deck', 'le deck']]) {
-      if (await page.$(sel)) errors.push(`les séries du 82-0 offrent encore ${quoi}`);
-    }
+    // LES SÉRIES DU 82-0 SE REGARDENT (oct.) : match par match ; le seul geste est « Match suivant ».
     if (!(await page.$('#hubModal .boss-eclaireur'))) errors.push('les séries ne montrent pas le rapport d\'éclaireur de l\'adversaire');
     await page.waitForSelector('#hubModal .hub-jour', { timeout: 20000 });
     await page.click('#hubModal .hub-jour');
     await page.waitForTimeout(300);
-    await repondreAuxChoix();
 
     /*
      * LES SÉRIES SURVIVENT À UN RAFRAÎCHISSEMENT, comme la saison. Elles se
@@ -1844,29 +1433,10 @@ if (enabled) {
     if (lbApres !== lbAvant) errors.push(`le rafraîchissement a ajouté une entrée d'historique : ${lbAvant} puis ${lbApres}`);
     else console.log(`   reprise des séries : ${poApres} — ${poSauve.vus} match(s) révélé(s), ${lbApres} entrée(s) d'historique`);
 
-    await repondreAuxChoix();
     await aller('classement');
     const noeuds = await page.$$eval('#hubModal .bk-serie', l => l.length);
     await aller('match');
     await page.waitForTimeout(200);
-    /*
-     * L'ACCUEIL ENTRE LES MATCHS (1.0, oct.). JP : *en séries, montrer l'accueil entre les matchs*. Le duel
-     * ne couvre plus le bureau de la série : « ⚔ Ton plan · match N » le propose (V27, tranche 6 : un seul choix), et on le
-     * joue avant de regarder.
-     */
-    const mainSerie = await page.$('#hubModal .hub-duel-serie');
-    if (mainSerie) {
-      const mot = (await mainSerie.textContent()).trim();
-      if (await page.$('#choixModal:not([hidden])')) errors.push('séries : le duel du match s\'ouvre par-dessus l\'accueil au lieu d\'attendre « Ton plan »');
-      else console.log(`   séries : l'accueil entre les matchs, « ${mot} »`);
-      if (!/^⚔ Ton plan · match \d+$/.test(mot)) errors.push(`séries : le bouton du duel dit « ${mot} » au lieu de « ⚔ Ton plan · match N »`);
-      await mainSerie.click();
-      await _wait('#choixModal:not([hidden]) .dl-sheet', { timeout: 5000 });
-      if (!(await page.$('#choixModal .dl-jeu'))) errors.push('séries : le duel du match ne montre pas leur jeu');
-      await repondreAuxChoix();
-      await aller('match');
-      await page.waitForTimeout(200);
-    }
     const regarder = await page.$('#hubModal .hub-regarder');
     let xe = 'pas de match à regarder';
     if (regarder) {
@@ -1877,57 +1447,8 @@ if (enabled) {
       xe = (fil.match(/\(\d+(?:er|e) but\)/) || ['aucun but'])[0];
       await page.click('#liveModal .live-suite');
       await page.waitForTimeout(150);
-      await memesButs('séries, le match vu en direct', true);
+      await memesButs('séries, le match vu en direct');
     }
-    /*
-     * TON MATCH, TOUTE LA SÉRIE (1.0, J2-13 ; V27, tranche 6) : le duel qui s'ouvre se
-     * joue au plan de ton alignement, sans écran ; ses décisions portent `auto` (une main vide), et le
-     * duel du match d'après ne s'ouvre plus. Sans duel ouvert (série finie), rien à confier.
-     */
-    {
-      await page.waitForTimeout(400);
-      const mainOuverte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="duel"]');
-      const adj = await page.$('#choixModal:not([hidden]) .dl-auto');
-      if (mainOuverte && !adj) errors.push('le duel d\'un match de séries n\'offre pas « Ton match, toute la série »');
-      else if (adj) {
-        await deuxCaptures('adjoint', '#choixModal .dl-auto');
-        await adj.click();
-        await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
-        await page.waitForTimeout(600);
-        const dsA = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisionsSeries || []; } catch { return []; } });
-        const auto = dsA.filter(d => d.auto && d.main);
-        if (!auto.length) errors.push(`l'adjoint n'a rien décidé : ${JSON.stringify(dsA.slice(-2))}`);
-        else {
-          const r0 = auto[0].ronde;
-          let mainsAuto = 0;
-          for (let i = 0; i < 8; i++) {
-            const b = await page.$('#hubModal .hub-jour');
-            if (!b || !(await b.isVisible()) || await page.$('#hubModal .hub-ronde')) break;
-            if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="duel"]')) { errors.push('un duel s\'ouvre encore dans une série jouée à ton match'); break; }
-            if (await page.$('#choixModal:not([hidden])')) break;
-            await b.click();
-            await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
-            await page.waitForTimeout(700);
-            const dsB = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisionsSeries || []; } catch { return []; } });
-            mainsAuto = dsB.filter(d => d.auto && d.ronde === r0 && d.main).length;
-          }
-          console.log(`   l'adjoint joue la série : ${mainsAuto || auto.length} match(s) décidé(s) par lui`);
-          if (auto.some(d => (d.main.jouees || []).length)) errors.push(`l'adjoint joue encore des cartes de match : ${JSON.stringify(auto[0].main)}`);
-          // REPRENDRE LA SÉRIE (JP, oct. : *je pouvais plus choisir mes cartes en finale*) : la série se rend, le duel revient.
-          const rep = await page.$('#hubModal .hub-reprendre');
-          if (await page.$('#hubModal .hub-adjoint') && !rep) errors.push('une série confiée à l\'adjoint ne se reprend pas');
-          else if (rep && await rep.isVisible()) {
-            await rep.click();
-            await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
-            await page.waitForTimeout(600);
-            if (await page.$('#hubModal .hub-adjoint')) errors.push('« Reprendre la série » : l\'adjoint la joue encore');
-            else if (!(await page.$('#hubModal .hub-duel-serie'))) errors.push('« Reprendre la série » : le duel du match ne revient pas');
-            else console.log('   la série reprise : le duel du prochain match revient');
-          }
-        }
-      }
-    }
-    await repondreAuxChoix();
     await finirSeries();
     await page.waitForSelector('#hubModal .hub-suite', { timeout: 10000 });
     await page.click('#hubModal .hub-suite');
@@ -1962,7 +1483,6 @@ if (enabled) {
     await aller('joueurs');
     await page.waitForTimeout(250);
     if (!(await page.$('#pageJoueurs:not([hidden]) .jr-table tbody tr'))) errors.push('les Joueurs ne montrent pas le tableau de l\'effectif une fois la saison jouée');
-    if (await page.$('#navbar .navtab[data-section="cartes"]')) errors.push('la barre du 82-0 porte une section Cartes (aucune carte hors du Rogue)');
     await aller('match');
     await page.waitForTimeout(250);
   }
@@ -2179,23 +1699,6 @@ if (expRemplies < 23) errors.push(`le renfort de l'Express ne remplit que ${expR
 if (!expPret) errors.push('l\'Express ne débloque pas le bouton de simulation');
 await sansDebordement('express');
 
-/*
- * LES CHOIX FORCÉS CROISÉS (S66). Le proprio s'ouvre au jour 0 et le premier
- * dilemme à la journée 14 : une saison traversée les voit forcément. Les
- * séquences dépendent des résultats, elles s'informent.
- */
-console.log(`   ballottage : ${ballottage.mot || 'aucune offre croisée (il faut une blessure de quatre matchs et plus)'}`);
-console.log(`   qui sort, l'échange : ${alignementsVus.length ? `${alignementsVus.length} fois — « ${alignementsVus[0]} »` : 'pas croisé ce parcours-ci (il faut un ballottage ou une recrue)'}`);
-// Un paquet dépend d'une victoire en gros match ou d'une série gagnée : on dit ce qu'on a ouvert.
-console.log(`   paquets ouverts : ${paquetsVus.length ? paquetsVus.join(' · ') : 'aucun (pas de gros match gagné ni de série gagnée)'}`);
-// LE SOMMAIRE DE LA JOURNÉE (S78) : après une avance où ton club a joué, avant le retour au hub.
-console.log(`   sommaires de journée lus : ${sommairesVus}`);
-if (parisPris.length && !parisDits.length) errors.push(`${parisPris.length} pari(s) pris (${parisPris.slice(0, 3).join(' · ')}), et la boîte n'a jamais dit comment il a tourné`);
-else if (parisPris.length) console.log(`   paris tranchés : ${parisPris.length} pris, la boîte en dit ${parisDits.length} — « ${parisDits[0]} »`);
-if (parisPris.length && !desLances.length) errors.push(`${parisPris.length} pari(s) pris, et aucun dé lancé`);
-else if (desLances.length) console.log(`   dés lancés : ${desLances.length} — ${desLances.slice(0, 4).join(' · ')}`);
-console.log(`   choix d'avant-duel : ${mainsVues.length} (${mainsVues.slice(0, 6).join(" · ") || "aucune"})`);
-console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
 if (actionsLNH) errors.push(`la version Web a demandé ${actionsLNH} photo(s) d'action à la LNH (elles viennent de img/actions)`);
 
 console.log(`   la glace du direct : ${glaceDuDirect} point(s) posé(s) au dernier match regardé`);

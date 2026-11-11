@@ -75,22 +75,13 @@ export const money = n => {
   if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
   return (n < 0 ? '−' : '') + s.replace('.', ',') + ESPACE_INSECABLE + 'M$';
 };
-/*
- * LA JAUGE DU PLAFOND (Jalon U : un seul dessin) : un titre, « masse / plafond », la barre, et une ligne dessous
- * (`mot`, déjà échappé : des puces, une phrase). L'inventaire, la boutique, le départ du classeur, la liste de signature.
- */
-export const jaugePlafond = ({ titre = '💵 Masse salariale', masse = 0, cap = 1, mot = '' }) => `<div class="inv-plafond${masse > cap ? ' over' : ''}">
-    <div class="inv-pl-tete"><span>${esc(titre)}</span><b>${money(masse)} / ${money(cap)}</b></div>
-    <div class="inv-pl-barre" aria-hidden="true"><i style="width:${Math.min(100, Math.round((masse / Math.max(1, cap)) * 100))}%"></i></div>
-    ${mot ? `<div class="inv-pl-lignes">${mot}</div>` : ''}
-  </div>`;
 
 /*
  * LA PAGE DU CLUB (Jalon U : bâtie une fois) : « ‹ » pour revenir, l'icône, le titre et sa sous-ligne (déjà du HTML),
- * ce qui va au-dessus du corps (`haut`), le corps, le pied (`.choix-pied`, celui des fenêtres). Le Bureau (js/saison.js)
- * et le Marché (js/game.js) l'ouvrent ici ; « ‹ » et tout `.hub-page-fermer` appellent `fermer`. Rend la section.
+ * le corps, le pied (`.choix-pied`, celui des fenêtres). L'écran des séries (js/saison.js) l'ouvre ici ; « ‹ » et tout
+ * `.hub-page-fermer` appellent `fermer`. Rend la section.
  */
-export function pageDuClub({ genre, retour, ico = '', titre, sous = '', haut = '', corps = '', pied = '', fermer }) {
+export function pageDuClub({ genre, retour, ico = '', titre, sous = '', corps = '', pied = '', fermer }) {
   const el = document.createElement('section');
   el.className = 'hub-page';
   el.dataset.genre = genre;
@@ -99,7 +90,7 @@ export function pageDuClub({ genre, retour, ico = '', titre, sous = '', haut = '
       <button type="button" class="hub-page-retour" aria-label="${esc(retour)}" title="${esc(retour)}">‹</button>
       ${ico ? `<span class="hub-page-ico" aria-hidden="true">${ico}</span>` : ''}
       <div class="hub-page-titres"><h2 class="hub-page-titre">${titre}</h2>${sous ? `<div class="hub-page-sous">${sous}</div>` : ''}</div>
-    </div>${haut}
+    </div>
     <div class="hub-page-corps">${corps}</div>
     ${pied ? `<div class="choix-pied hub-page-pied">${pied}</div>` : ''}`;
   el.querySelectorAll('.hub-page-retour, .hub-page-fermer').forEach(b => { b.onclick = () => fermer(); });
@@ -172,6 +163,9 @@ export function hache(...parts) {
   h ^= h >>> 13; h = Math.imul(h, 2246822507) >>> 0; h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
 }
+
+/* Une semaine du calendrier, en journées : le repos d'une histoire sortie, la semaine des faits, le lundi d'un verdict. */
+export const SEMAINE = 7;
 
 /** Une icône en présentation texte (sans l'emoji en couleur) : elle se teinte de la couleur de son palier. */
 export const glyphe = ico => String(ico ?? '').replace(/\uFE0F/g, '\uFE0E');

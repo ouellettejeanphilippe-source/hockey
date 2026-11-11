@@ -1,17 +1,18 @@
 /*
- * LE PRONOSTIC NE TOUCHE À RIEN (S78, js/pronostic.js).
+ * LE PRONOSTIC NE TOUCHE À RIEN (S78, js/pronostic.js ; V28, tranche 4 : la chance d'un soir isolé).
  *
- * Le pronostic d'avant-match et les chances des objectifs du proprio
- * rejouent des matchs avec le vrai moteur, au milieu d'une saison déjà jouée
- * dont les séries continuent la suite du hasard. Ce script exige :
+ * La jauge de la feuille du soir (`chanceDUnSoir`, js/run.js) rejoue le match des dizaines de fois avec le vrai
+ * moteur, sur les deux vrais clubs tels qu'ils sont ce soir, pendant que la run continue la suite de son hasard.
+ * Ce script exige :
  *
- *   1. que les séries jouées APRÈS un pronostic soient identiques à celles
- *      jouées sans (le générateur de la saison n'a pas bougé) ;
+ *   1. que des séries jouées APRÈS un pronostic soient identiques à celles jouées sans (le générateur n'a pas bougé) ;
  *   2. que chaque joueur et chaque club retrouvent leurs champs à l'identique ;
- *   3. que le pronostic soit reproductible (même match, mêmes chiffres) ;
- *   4. que ses chiffres tiennent debout (un club fort gagne plus souvent) ;
+ *   3. que le pronostic soit reproductible (mêmes clubs, même graine, même compte) ;
+ *   4. que ses chiffres tiennent debout (le premier du classement gagne plus souvent contre le dernier) ;
  *   5. qu'il se calcule assez vite pour un écran (le temps est affiché).
- * (Les conseils d'avant-match de S79 sont partis avec les systèmes, V18.)
+ *
+ * Le pronostic d'une ligue au jour le jour, ses conditions et les chances des objectifs du proprio sont partis avec
+ * l'ancien Rogue : ce juge lit ce qui reste, sur les mêmes cinq exigences.
  *
  *   node scripts/check_pronostic.mjs
  */
@@ -19,10 +20,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, joueurDeLObjectif } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries } from '../js/sim.js';
 import { generateur } from '../js/util.js';
-import { pronostic, conditions, chancesDesObjectifs } from '../js/pronostic.js';
+import { chanceDUnSoir } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
+import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
@@ -59,54 +61,37 @@ const empreinte = equipes => JSON.stringify(equipes.map(t => ({
   joueurs: SLOTS.map(s => t.roster[s.i]).filter(Boolean).map(p => Object.keys(p).sort().map(k => `${k}:${JSON.stringify(p[k])}`).join(',')),
 })));
 
-let echecs = 0;
-const ok = (cond, quoi, detail = '') => { console.log(`  ${cond ? '✓' : '✗'} ${quoi.padEnd(78)} ${detail}`); if (!cond) echecs++; };
-
-// 1. Les séries après un pronostic = les séries sans pronostic.
+// 1 et 2. Les séries après un pronostic sont celles sans pronostic, et rien n'a bougé chez les clubs.
 const L1 = ligue();
 const s1 = playSeries(L1.standings[0], L1.standings[1], true);
 const L2 = ligue();
-const toi = L2.equipes[0];
-const jour = 30;
-const m = L2.calendrier.slice(jour).flat().find(x => x.A === toi || x.B === toi);
-const jm = L2.calendrier.findIndex(j => j.includes(m));
+const toi = L2.equipes[0], autre = L2.equipes[1];
+const N = 40;
 const avant = empreinte(L2.equipes);
-let t0 = performance.now();
-const pr = pronostic({ A: m.A, B: m.B, calendrier: L2.calendrier, jourMatch: jm, jourRevele: jour });
-const tPr = performance.now() - t0;
-t0 = performance.now();
-const ch = chancesDesObjectifs({ you: toi, calendrier: L2.calendrier, jourRevele: jour, cles: ['victoires', 'attaque', 'brigade', 'blanchissages', 'vedette', 'sequence', 'regulier', 'contrat'], quoi: { contrat: joueurDeLObjectif('contrat', toi) } });
-const tOb = performance.now() - t0;
+const t0 = performance.now();
+const v1 = chanceDUnSoir({ A: toi, B: autre, n: N, graine: 'juge' });
+const temps = performance.now() - t0;
 const apres = empreinte(L2.equipes);
-// Le même match, deux fois, AVANT les séries : elles blessent et fatiguent leurs clubs (V4.4 : le club du match en était un).
-const pr2 = pronostic({ A: m.A, B: m.B, calendrier: L2.calendrier, jourMatch: jm, jourRevele: jour });
+// Le même soir, deux fois, AVANT les séries : elles blessent et fatiguent leurs clubs.
+const v2 = chanceDUnSoir({ A: toi, B: autre, n: N, graine: 'juge' });
+const v3 = chanceDUnSoir({ A: toi, B: autre, n: N, graine: 'autre tranche' });
 const s2 = playSeries(L2.standings[0], L2.standings[1], true);
-ok(JSON.stringify(s1.feuilles.map(f => [f.buts.length, f.arrets])) === JSON.stringify(s2.feuilles.map(f => [f.buts.length, f.arrets])) && s1.wA === s2.wA && s1.wB === s2.wB,
-  'les séries jouées après le pronostic sont identiques', `${s1.wA}-${s1.wB} puis ${s2.wA}-${s2.wB}`);
-ok(avant === apres, 'chaque joueur et chaque club retrouvent leurs champs', avant === apres ? 'identiques' : 'DIFFÉRENTS');
+exiger('les séries jouées après le pronostic sont identiques',
+  JSON.stringify(s1.feuilles.map(f => [f.buts.length, f.arrets])) === JSON.stringify(s2.feuilles.map(f => [f.buts.length, f.arrets])) && s1.wA === s2.wA && s1.wB === s2.wB, `${s1.wA}-${s1.wB} puis ${s2.wA}-${s2.wB}`);
+exiger('chaque joueur et chaque club retrouvent leurs champs', avant === apres, avant === apres ? 'identiques' : 'DIFFÉRENTS');
 
-// 3. Reproductible.
-ok(pr.vA === pr2.vA && pr.prol === pr2.prol, 'le même match redonne le même pronostic', `${pr.vA}/${pr.n} puis ${pr2.vA}/${pr2.n}`);
+// 3. Reproductible : la graine de la tranche fait le compte.
+exiger('les mêmes clubs et la même graine redonnent le même pronostic', v1 === v2 && Number.isInteger(v1) && v1 >= 0 && v1 <= N, `${v1}/${N} puis ${v2}/${N}`);
+informer('une autre tranche, d\'autres dés', `${v3}/${N}`);
 
-// 4. Ça tient debout : le premier du classement contre le dernier.
+// 4. Ça tient debout : le premier du classement contre le dernier, sur plusieurs tranches.
 const fort = L2.standings[0], faible = L2.standings[L2.standings.length - 1];
-const jf = L2.calendrier.findIndex((j, i) => i >= 10 && j.some(x => (x.A === fort && x.B === faible) || (x.B === fort && x.A === faible)));
-if (jf >= 0) {
-  const mf = L2.calendrier[jf].find(x => (x.A === fort && x.B === faible) || (x.B === fort && x.A === faible));
-  const pf = pronostic({ A: mf.A, B: mf.B, calendrier: L2.calendrier, jourMatch: jf, jourRevele: jf });
-  const pctFort = (mf.A === fort ? pf.vA : pf.vB) / pf.n;
-  ok(pctFort > 0.5, 'le premier du classement gagne plus souvent contre le dernier', `${(100 * pctFort).toFixed(0)} %`);
-} else console.log('  · (le premier et le dernier ne se croisent pas après la journée 10)');
-const cA = conditions(pr, 'A');
-// Plausibles en moyenne sur cinq de tes matchs (un seul match peut opposer deux murs).
-const prs = [5, 15, 30, 45, 60].map(jj => { const mm = L2.calendrier.slice(jj).flat().find(x => x.A === toi || x.B === toi); return pronostic({ A: mm.A, B: mm.B, calendrier: L2.calendrier, jourMatch: L2.calendrier.findIndex(j => j.includes(mm)), jourRevele: jj, n: 100 }); });
-const moyA = prs.reduce((a, x) => a + x.butsA, 0) / prs.length, moyB = prs.reduce((a, x) => a + x.butsB, 0) / prs.length;
-ok(moyA > 1 && moyA < 6 && moyB > 1 && moyB < 6, 'des buts attendus plausibles (cinq matchs)', `${moyA.toFixed(2)} – ${moyB.toFixed(2)}`);
-ok(pr.prol / pr.n > 0.08 && pr.prol / pr.n < 0.35, 'une part de prolongations plausible', `${(100 * pr.prol / pr.n).toFixed(0)} %`);
-console.log(`  · conditions de A : gagne ${JSON.stringify(cA.gagne)} · perd ${JSON.stringify(cA.perd)}`);
-console.log(`  · chances des objectifs : ${Object.entries(ch).map(([k, x]) => `${k} ${(100 * x).toFixed(0)} %`).join(' · ')}`);
-ok(tPr < 2500, 'le pronostic d\'un match se calcule vite', `${tPr.toFixed(0)} ms (${pr.n} matchs)`);
-ok(tOb < 6000, 'les chances des objectifs se calculent vite', `${tOb.toFixed(0)} ms`);
+const TRANCHES = 5;
+let vFort = 0;
+for (let i = 0; i < TRANCHES; i++) vFort += chanceDUnSoir({ A: fort, B: faible, n: N, graine: `debout:${i}` });
+exiger('le premier du classement gagne plus souvent contre le dernier', vFort / (TRANCHES * N) > 0.5, `${(100 * vFort / (TRANCHES * N)).toFixed(0)} % de ${TRANCHES * N} matchs`);
 
-console.log(echecs ? `\n  ${echecs} échec(s).` : '\n  Le pronostic ne touche à rien.');
-process.exit(echecs ? 1 : 0);
+// 5. Assez vite pour un écran.
+exiger('la chance d\'un soir se calcule vite', temps < 2500, `${temps.toFixed(0)} ms (${N} matchs)`);
+
+verdict('Le pronostic ne touche à rien');

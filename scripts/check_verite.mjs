@@ -3,18 +3,17 @@
  * 27 oct. 2026 : *l'écran et le moteur disent des chiffres différents*).
  * Chaque affichage lit la valeur du moteur ; un test par accroc :
  *
- *   1. LA GRAINE COMPTE pour les tirages purs (situations,
- *      objectifs, ajustements) : une graine en base 36 valait 0 par
- *      `Number(graine)`, et toutes les runs tiraient pareil.
- *   2. LE COACH (V21) : son choix dit ses pouvoirs et les niveaux qui les
- *      ouvrent ; les adjoints offerts se tirent de la graine ; « Tes cartes
- *      jouées » ne se promet plus.
- *   3. LA PITIÉ : « au plus tard au N+1e pack » et le moteur garantit le
- *      N+1e, pas le Ne.
- *   4. LES MATCHS, PAS LES JOURNÉES : les paliers du personnel et la main du
- *      deck se comptent en matchs du club, et l'écran le dit.
- *   5. LE PLAFOND EFFECTIF : la jauge, la phrase du budget et le bilan lisent
- *      `plafondDeJauge`, jamais `MODE().cap` seul (le Rogue tord le plafond).
+ *   1. LA GRAINE COMPTE pour les tirages purs (les situations du
+ *      vestiaire) : une graine en base 36 valait 0 par `Number(graine)`,
+ *      et toutes les parties tiraient pareil.
+ *   2. LE COACH : chacun a sa pièce de départ, celle de sa philosophie, et
+ *      le départ de la run la montre ; les pièces offertes se tirent de la
+ *      graine.
+ *   3. LE PLAFOND EFFECTIF : la jauge, la phrase du budget et le bilan lisent
+ *      `plafondDeJauge`, jamais `MODE().cap` seul.
+ *
+ * La pitié des packs, la main du deck et les objectifs du proprio sont partis
+ * avec l'ancien Rogue (V28, tranche 4) : leurs trois accrocs aussi.
  *
  *   node scripts/check_verite.mjs
  */
@@ -22,19 +21,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exiger, verdict } from './verdict.mjs';
-import { chainesDe } from './lib/chaines.mjs';
 import { entierDeGraine } from '../js/util.js';
-import { objectifsOfferts, situationsDuJour, JOURS_SITUATIONS, PROFILS,
+import { situationsDuJour, JOURS_SITUATIONS, PROFILS,
   autoRoster, registerHiddenRatings, createTeam } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { COACHS, COACH_DU_ROLE } from '../js/coachs.js';
 import { PIECES, PIECE_DU_COACH, piecesOffertes } from '../js/pieces.js';
-import { PITIE, packsSansHolo } from '../js/packs.js';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
-const prose = f => chainesDe(lire(`js/${f}`));
 
 /* Une ligue de vrais clubs, comme les juges du moteur la bâtissent. */
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -65,8 +61,6 @@ function ligue(seed, n = 12) {
   exiger('la même graine donne le même entier, en chaîne ou en nombre', entierDeGraine(12345) === entierDeGraine('12345') && entierDeGraine(`${a}:q`) !== entierDeGraine(a));
   const teams = ligue(7), you = teams[0];
   you.isPlayer = true;
-  const oa = objectifsOfferts(a, 0).join(), ob = objectifsOfferts(b, 0).join();
-  exiger('deux graines, deux offres du proprio', oa !== ob, `${oa} / ${ob}`);
   const sa = situationsDuJour(you, a, JOURS_SITUATIONS[0], 0), sb = situationsDuJour(you, b, JOURS_SITUATIONS[0], 0);
   const cle = x => (x ? `${x.porte && x.porte.p ? x.porte.p.n : ''}|${x.pese && x.pese.p ? x.pese.p.n : ''}|${x.nom || x.cle || ''}` : '');
   exiger('deux graines, deux situations du vestiaire', !!sa && !!sb && JSON.stringify(sa) !== JSON.stringify(sb), `${cle(sa)} / ${cle(sb)}`);
@@ -74,35 +68,17 @@ function ligue(seed, n = 12) {
 
 /* ---------- 2. le coach ---------- */
 {
-  const sa = prose('saison.js'), g = prose('game.js');
-  // V27, tranche 5 : le loto de l'entraîneur dit sa pièce de départ, celle du code (js/pieces.js `PIECE_DU_COACH`).
-  const rj = lire('js/rogue-jeu.js');
-  exiger('le choix du coach dit sa pièce de départ', /PIECES\[PIECE_DU_COACH\[c\.cle\]\]/.test(rj) && Object.keys(COACHS).every(k => PIECES[PIECE_DU_COACH[k]] && PIECES[PIECE_DU_COACH[k]].voie === k),
+  // Le départ de la run dit la pièce de départ de l'entraîneur, celle du code (js/pieces.js `PIECE_DU_COACH`).
+  const scenes = lire('js/run-scenes.js');
+  exiger('le choix du coach dit sa pièce de départ', /PIECE_DU_COACH\[c\.cle\]/.test(scenes) && Object.keys(COACHS).every(k => PIECES[PIECE_DU_COACH[k]] && PIECES[PIECE_DU_COACH[k]].voie === k),
     Object.keys(COACHS).map(k => PIECES[PIECE_DU_COACH[k]] ? PIECES[PIECE_DU_COACH[k]].ico : '?').join(' '));
-  exiger('« tes cartes jouées » ne se promet plus', !sa.some(s => /cartes jouées viennent ici/.test(s)) && !g.some(s => /cartes de sa couleur/.test(s)));
   // Les pièces offertes se tirent de la graine : deux graines, deux offres ; la même, la même.
   const a = piecesOffertes(null, 'g1', 'bq0'), b = piecesOffertes(null, 'g2', 'bq0');
   exiger('deux graines, deux offres de pièces ; la même graine, la même offre', JSON.stringify(a) !== JSON.stringify(b) && JSON.stringify(a) === JSON.stringify(piecesOffertes(null, 'g1', 'bq0')), `${a.join(', ')} · ${b.join(', ')}`);
   exiger('les rôles de COACH_DU_ROLE existent', Object.entries(COACH_DU_ROLE).every(([g2, roles]) => Object.keys(roles).every(r => PROFILS[g2][r])));
 }
 
-/* ---------- 3. la pitié ---------- */
-{
-  const achats = n => Array.from({ length: n }, (_, i) => ({ achat: { sorte: 'joueurs', n: i + 1, meilleure: 'commune' } }));
-  exiger('PITIE packs sans Or ni Holo se comptent PITIE', packsSansHolo(achats(PITIE)) === PITIE && packsSansHolo([...achats(3), { achat: { sorte: 'joueurs', n: 4, meilleure: 'rare' } }]) === 0);
-  const m = prose('magasin.js').find(s => /au plus tard au/.test(s)) || '';
-  exiger('la boutique promet le PITIE + 1e pack', /PITIE \+ 1/.test(lire('js/magasin.js').split('au plus tard au')[1].slice(0, 20)), m.slice(0, 60));
-  exiger('le moteur garantit au PITIE + 1e (packsSansHolo >= PITIE)', /packsSansHolo\(decs\) >= PITIE\b/.test(lire('js/rogue-jeu.js')));
-}
-
-/* ---------- 4. les matchs, pas les journées ---------- */
-{
-  const inv = prose('inventaire.js');
-  exiger('la main du deck se dit « du Ne match », pas « de la journée »', inv.some(s => /^Main du $/.test(s)) && !inv.some(s => /Main de la journée/.test(s)));
-
-}
-
-/* ---------- 5. le plafond effectif ---------- */
+/* ---------- 3. le plafond effectif ---------- */
 {
   const rep = lire('js/repechage.js'), g = lire('js/game.js');
   const fautes = [];

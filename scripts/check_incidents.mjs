@@ -5,9 +5,9 @@
  *   1. chaque incident a une voix de `EXPEDITEURS`, un titre et au moins une option ;
  *   2. QUI : chaque histoire nomme un joueur, une vraie personne de ton effectif, lue dans les feuilles jouées (`joueurDuFait`,
  *      les situations), et son fait le dit ; aucune liste blanche (le maire s'accroche à ta vedette, C0 q. 6) ;
- *   3. QUAND : chaque effet dit sa durée en matchs, écrite dans l'option (jamais un défaut tacite), la fenêtre « Du 31e
- *      au 38e match » (`fenetreDuChoix`) est celle que le calendrier du club compte, et les matchs de la fenêtre sont
- *      joués dans les feuilles d'après.
+ *   3. QUAND : chaque effet dit sa durée en matchs, écrite dans l'option (jamais un défaut tacite), sa fenêtre est celle
+ *      que le calendrier du club compte, et les matchs de la fenêtre sont joués dans les feuilles d'après. (La phrase
+ *      « Du 31e au 38e match » de l'écran du choix est partie avec la boîte de l'ancien Rogue, V28, tranche 4.)
  * Les promesses de plus longue haleine ont leurs scripts : les fils suivis (`check_suivis`), le contrat d'un adjoint
  * (`check_contrats`), l'absence d'un blessé (`check_blessures`).
  *   node scripts/check_incidents.mjs        GRAINES=11,12
@@ -21,7 +21,6 @@ import {
 import { appliquerChoix } from '../js/greffes.js';
 import { HISTOIRES } from '../js/histoires.js';
 import { EXPEDITEURS, joueurDuFait } from '../js/vie-gm.js';
-import { fenetreDuChoix } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -154,12 +153,9 @@ const CANAUX = ['volume', 'finition', 'defense', 'discipline', 'blessure', 'ener
     if (o.pari) for (const z of ['gagne', 'perd']) if (!entier(o.pari[z].duree)) fautes.push(`${k}.${o.cle} : le pari (${z}) sans durée`);
   }
   exiger('chaque effet (et chaque issue de pari) dit sa durée en matchs, écrite dans l\'option', !fautes.length && n > 0, fautes.slice(0, 5).join(' · ') || `${n} options`);
-  const cas = [[0, 3, 'Du 1er au 3e match'], [30, 8, 'Du 31e au 38e match'], [5, 1, 'Au 6e match'], [0, 1, 'Au 1er match'], [12, 0, '']];
-  const mal = cas.filter(([j, d, att]) => fenetreDuChoix(j, d) !== att).map(([j, d, att]) => `${j}/${d} → « ${fenetreDuChoix(j, d)} », attendu « ${att} »`);
-  exiger('la fenêtre d\'un choix se dit en rangs de matchs', !mal.length, mal.join(' · ') || `${cas.length} cas`);
 }
 {
-  // La fenêtre dite = celle que le calendrier du club compte, et ses matchs sont joués dans les feuilles d'après.
+  // La fenêtre d'un effet = celle que le calendrier du club compte, et ses matchs sont joués dans les feuilles d'après.
   const fautes = [];
   let comptes = 0, joues = 0, candidats = 0;
   const teams = ligue(GRAINES[0]), you = teams[0];
@@ -179,12 +175,11 @@ const CANAUX = ['volume', 'finition', 'defense', 'discipline', 'blessure', 'ener
     const premier = matchsEntre(you, 0, e.debut) + 1, dernier = matchsEntre(you, 0, e.fin);
     comptes++;
     if (e.debut !== J0 || premier !== dejaJoues + 1 || dernier - premier + 1 !== o.duree) { fautes.push(`${cle}.${o.cle} : du ${premier}e au ${dernier}e match, ${o.duree} dits`); continue; }
-    if (fenetreDuChoix(dejaJoues, o.duree) !== (o.duree === 1 ? `Au ${premier}e match` : `Du ${premier === 1 ? '1er' : `${premier}e`} au ${dernier}e match`)) fautes.push(`${cle}.${o.cle} : la fenêtre dite n'est pas celle du calendrier`);
     // Les feuilles d'après : les matchs de la fenêtre sont ceux qui ont été joués, ni un de plus ni un de moins.
     const dedans = siens.filter(x => x.j >= e.debut && x.j < e.fin && x.m.feuille);
     if (e.fin <= L.calendrier.length) { joues++; if (dedans.length !== o.duree) fautes.push(`${cle}.${o.cle} : ${dedans.length} feuilles dans la fenêtre, ${o.duree} dits`); }
   }
-  exiger('la fenêtre dite (« Du 13e au 20e match ») est celle du calendrier du club, et ses matchs sont joués dans les feuilles d\'après', !fautes.length && (!candidats || (comptes > 0 && joues > 0)),
+  exiger('la fenêtre d\'un effet (sa durée dite, en matchs) est celle du calendrier du club, et ses matchs sont joués dans les feuilles d\'après', !fautes.length && (!candidats || (comptes > 0 && joues > 0)),
     fautes.slice(0, 4).join(' · ') || `${comptes} options, ${joues} fenêtres recomptées dans les feuilles`);
 }
 

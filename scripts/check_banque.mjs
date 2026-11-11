@@ -1,30 +1,26 @@
 /**
- * LA BANQUE DE CARTES ET LES PACKS (S79 ; V21) — ce que chaque carte promet, le moteur le joue ; la saison se rejoue
- * avec elles.
+ * CE QUE LE MOTEUR JOUE D'UNE DÉCISION DE CARTE (S79 ; V21 ; V28, tranche 4) — la saison se rejoue avec elles.
  *
  *   node scripts/check_banque.mjs
  *
- * V21 (docs/refonte-v21.md) : le personnel est parti ; la banque garde les cartes rares qui montent (les retouches, les
- * soins, l'échange d'un doublon ; le stage du coach est parti avec son expérience, V27, tranche 5), une fois sur quatre
- * dans un pack de joueurs. Les pièces du banc se mesurent dans check_pouvoirs. Vérifie :
- *   1. le registre : les deux familles qui restent, une règle pour chaque carte, une décision que le moteur lit ;
- *   2. les packs : des chances affichées pour chaque pack, des barèmes qui font 100 %, une carte rare pure ;
- *   2b. LA MASSE SALARIALE (`plafondDe`) : le contrat de télé et le rachat du dossier du proprio, au dollar ;
- *   3. le moteur : une pièce entre sur le banc du coach, et un SOIN raccourcit vraiment une
+ * Le registre de la banque (ses deux familles, la règle de chaque carte, la décision qu'elle devenait) et la carte rare
+ * d'un pack sont partis avec « Tes cartes » de l'ancien Rogue. Restent les canaux que le moteur joue toujours, pour la run
+ * en carte comme pour une vieille partie :
+ *   1. les barèmes des métaux des pochettes font 100 % ;
+ *   2. LA MASSE SALARIALE (`plafondDe`) : l'espace gagné et le rachat d'une vieille décision `plafond`, au dollar ;
+ *   3. le moteur : une pièce entre sur le banc du coach, un SOIN (le geste d'une histoire) raccourcit vraiment une
  *      blessure ; une histoire sur un joueur tient sur lui ;
  *   4. la saison se rejoue au but près avec ces décisions.
- * Le rachat du dossier du proprio (V16) est parti avec sa banque (V22) : ses valeurs d'essai font jouer le même canal (`plafondDe`) ;
- * l'histoire sur un joueur est une vraie histoire de js/histoires.js (V25 C1).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey } from '../js/sim.js';
-import { BANQUE, ORDRE_CATEGORIES, compteParCategorie, reglesDe, payloadDe, plafondDe } from '../js/banque.js';
+import { plafondDe } from '../js/banque.js';
 import { HISTOIRES } from '../js/histoires.js';
-import { PACKS_TOUS, TIERS, chancesDe, tirerCartesDuPack, BOUTIQUE } from '../js/packs.js';
+import { TIERS } from '../js/packs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { exiger, informer, verdict } from './verdict.mjs';
+import { exiger, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -50,43 +46,12 @@ function ligue(seed, n = 32) {
 }
 const fiche = t => `${t.W}-${t.L}-${t.OTL} ${t.GF}-${t.GA}`;
 
-console.log('\n  La banque de cartes et les packs (S79)\n');
+console.log('\n  Les décisions de carte que le moteur joue\n');
 
-/* 1. Le registre. */
-const compte = compteParCategorie();
-const total = Object.keys(BANQUE).length;
-informer('les cartes', `${total} en tout · ${ORDRE_CATEGORIES.map(c => `${c} ${compte[c]}`).join(' · ')}`);
-// V21 : le personnel est parti ; restent les retouches d'un joueur et les cartes rares qui montent ou soignent.
-const tirables = ORDRE_CATEGORIES.reduce((a, c) => a + compte[c], 0);
-exiger('deux familles, les retouches et les cartes rares, chacune garnie', ORDRE_CATEGORIES.join() === 'joueur,consommable' && ORDRE_CATEGORIES.every(c => compte[c] > 0) && tirables === total,
-  `${tirables} cartes`);
-const sansRegle = Object.keys(BANQUE).filter(id => !reglesDe(id).length);
-exiger('chaque carte dit sa règle', !sansRegle.length, sansRegle.slice(0, 5).join(', ') || 'toutes');
-const chiffres = Object.keys(BANQUE).filter(id => BANQUE[id].cat === 'consommable').filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
-exiger('les cartes rares se lisent en chiffres', !chiffres.length, chiffres.slice(0, 5).join(', ') || 'toutes');
-const CHAMPS = ['effet', 'gestes', 'surJoueur', 'mutation', 'gain', 'ballottage'];
-const sansDecision = Object.keys(BANQUE).filter(id => {
-  const p = payloadDe(id, { joueur: 'x' });
-  return !p || !Object.keys(p).some(k => CHAMPS.includes(k));
-});
-exiger('chaque carte devient une décision que le moteur (ou le méta) lit', !sansDecision.length, sansDecision.slice(0, 5).join(', ') || 'toutes');
-
-/* 2. Les packs. */
-const sansChances = Object.keys(PACKS_TOUS).filter(k => !chancesDe(k).length);
-exiger('chaque pack affiche ses chances', !sansChances.length, `${Object.keys(PACKS_TOUS).length} packs`);
+/* 1. Les pochettes. */
 exiger('les barèmes des tiers font 100 %', Object.values(TIERS).every(T => Math.abs(Object.values(T.cotes).reduce((a, b) => a + b, 0) - 100) < 1e-9), Object.keys(TIERS).join(' · '));
-let impurs = 0;
-const TIRS = 1500;
-for (let n = 0; n < TIRS; n++) for (const k of BOUTIQUE) {
-  const a = tirerCartesDuPack(k, `g${n}`, n);
-  if (JSON.stringify(a) !== JSON.stringify(tirerCartesDuPack(k, `g${n}`, n))) impurs++;
-}
-exiger('la carte rare d\'un pack est pure', !impurs, `${impurs} impur(s) sur ${TIRS * BOUTIQUE.length} packs`);
-const sansMaudite = !Object.values(BANQUE).some(c => c.rarete === 'maudite');
-exiger('aucune malédiction dans la banque (V16, tranche 6 : la taxe de luxe est partie avec la masse salariale)', sansMaudite);
-informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}`).join(' · '));
 
-/* 2b. La masse salariale (V16, tranche 6) : les réponses du dossier du proprio, au dollar, par la décision `plafond`. */
+/* 2. La masse salariale (V16, tranche 6) : une vieille décision `plafond` (le dossier du proprio d'avant), au dollar. */
 {
   const base = 82_000_000;
   // Les réponses d'un dossier de masse salariale, en valeurs d'essai (le contrat de télé, le rachat d'une part).
@@ -130,16 +95,17 @@ for (let s = 0; s < 6 && soinOk === null; s++) {
   if (!b) continue;
   const cle = getPlayerKey(b.player), gp1 = b.player.simGP;
   const c = ligue(500 + s, 16);
-  simulateLeague(c, 82, { graine: `soin-${s}`, decisions: [{ jour: b.jour + 1, equipe: 0, ...payloadDe('consommable:physio', { joueur: cle }) }] });
+  // Le geste d'une histoire (`gestes.soin`, js/greffes.js) : cinq matchs de moins à l'infirmerie.
+  simulateLeague(c, 82, { graine: `soin-${s}`, decisions: [{ jour: b.jour + 1, equipe: 0, gestes: { soin: 5, joueurs: [cle] } }] });
   const p2 = Object.values(c[0].roster).find(x => x && getPlayerKey(x) === cle);
   soinOk = { nom: b.player.n, games: b.games, gp1, gp2: p2 ? p2.simGP : 0 };
 }
-exiger('un soin rend un blessé plus tôt', soinOk && soinOk.gp2 > soinOk.gp1, soinOk ? `${soinOk.nom} (${soinOk.games} matchs) : ${soinOk.gp1} PJ puis ${soinOk.gp2} PJ avec la séance de physio` : 'aucune longue blessure trouvée');
+exiger('un soin rend un blessé plus tôt', soinOk && soinOk.gp2 > soinOk.gp1, soinOk ? `${soinOk.nom} (${soinOk.games} matchs) : ${soinOk.gp1} PJ puis ${soinOk.gp2} PJ avec un soin de cinq matchs` : 'aucune longue blessure trouvée');
 
 /* 4. La saison se rejoue. */
 const r1 = ligue(79, 16), r2 = ligue(79, 16);
 simulateLeague(r1, 82, { graine: 'banque', decisions: decs });
 simulateLeague(r2, 82, { graine: 'banque', decisions: decs });
-exiger('la saison se rejoue au but près avec les cartes', fiche(r1[0]) === fiche(r2[0]) && r1.every((t, i) => fiche(t) === fiche(r2[i])), `${fiche(r1[0])} puis ${fiche(r2[0])}`);
+exiger('la saison se rejoue au but près avec ces décisions', fiche(r1[0]) === fiche(r2[0]) && r1.every((t, i) => fiche(t) === fiche(r2[i])), `${fiche(r1[0])} puis ${fiche(r2[0])}`);
 
 verdict();

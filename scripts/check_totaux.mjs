@@ -14,11 +14,10 @@
  *   3. une borne qui mord se voit : un effet qui pousserait les tirs au-delà de
  *      PRESSION_MAX n'est pas annoncé plus fort que ce que le moteur jouera ;
  *   4. les mots affichés sont ces nombres, au pour cent près ;
- *   5. lire les totaux chaque matin ne change pas une seule journée ;
- *   6. ILS DISENT TOUT (V2.2) : les blessures et l'usure des jambes y sont, et
- *      ce que l'alignement fait ce soir — badges, affinité, jambes —
- *      se lit à côté des effets, chacun contre le même soir remis au neutre :
- *      l'affiche ne peut plus dire « aucun effet » un soir chargé.
+ *   5. lire les totaux chaque matin ne change pas une seule journée.
+ *
+ * Les mots de l'affiche du soir et l'alignement lu en trois parts (badges, affinité, jambes) sont partis avec le
+ * Bureau de l'ancien Rogue (V28, tranche 4), leur section aussi.
  *
  *   node scripts/check_totaux.mjs
  */
@@ -27,7 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue, totauxDuSoir, profilMatch, activeLineup, effetsActifs, SLOTS, getPlayerKey } from '../js/sim.js';
 import { deDuChoix } from '../js/greffes.js';
-import { motsDuSoir, alignementDuSoir, PARTS_DU_SOIR, motsDesTotaux, flechesDe } from '../js/impact.js';
+import { motsDesTotaux, flechesDe } from '../js/impact.js';
 import { HISTOIRES } from '../js/histoires.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin } from './lib/temoins.mjs';
@@ -146,44 +145,6 @@ const decisions = [
     return teams.map(x => `${x.W}-${x.L}-${x.OTL}-${x.GF}-${x.GA}`).join('|');
   };
   exiger('lire les totaux chaque matin ne change pas une seule journée', joue(true) === joue(false));
-}
-
-// 6. Les totaux disent tout : blessures, jambes, et l'alignement (V2.2).
-{
-  const teams = ligue(7700);
-  const L = creerLigue(teams, 82, { graine: 'totaux', decisions });
-  jouerJusqua(L, JOUR);
-  const t = teams[0];
-  const aVenir = decisions.filter(d => d.jour === JOUR && (d.equipe || 0) === 0);
-  const mots = motsDuSoir(t, null, null, aVenir), cles = new Set(mots.map(m => m.cle));
-  exiger('un soir chaud se lit aussi en blessures et en jambes d\'usure', cles.has('blessure') && cles.has('jambes'), mots.map(m => m.txt).join(' · '));
-  const avant = JSON.stringify([t.cartes, (t.effets || []).map(x => x.nom), t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
-  const al = alignementDuSoir(t, null, null, aVenir);
-  exiger('l\'alignement se lit en trois parts : badges, affinité, jambes', al.length === PARTS_DU_SOIR.length && al.every(x => Number.isFinite(x.ecart)), al.map(x => x.txt).join(' · '));
-  exiger('ton affinité joue ce soir (un écart de buts mesurable)', Math.abs(al.find(x => x.cle === 'affinite').ecart) >= 0.01, al.find(x => x.cle === 'affinite').txt);
-  // Des badges loin de la moyenne (Gretzky, Kurri, Anderson : Sniper Platine et Or) se lisent ; une équipe moyenne peut n'en rien tirer.
-  const edm = eq('EDM 1983-84', 'EDM', equipeReelle('1983-84', 'EDM'), '1983-84');
-  const bEdm = alignementDuSoir(edm).find(x => x.cle === 'badges');
-  exiger('des badges d\'élite se lisent en buts', Math.abs(bEdm.ecart) >= 0.01, `Oilers 1983-84 : ${bEdm.txt}`);
-  // Des jambes lourdes coûtent : la part des jambes devient négative quand les habillés sont à 70.
-  const habilles = Object.values(t.roster).filter(p => p && p.p !== 'G');
-  const sauve = habilles.map(p => [p, 'energie' in p, p.energie]);
-  habilles.forEach(p => { p.energie = 70; });
-  const lourd = alignementDuSoir(t, null, null, aVenir).find(x => x.cle === 'jambes');
-  sauve.forEach(([p, avait, v]) => { if (avait) p.energie = v; else delete p.energie; });
-  exiger('des jambes à 70 se lisent en buts perdus', lourd.ecart < -0.01, lourd.txt);
-  const apres = JSON.stringify([t.cartes, (t.effets || []).map(x => x.nom), t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
-  exiger('lire l\'alignement au neutre ne touche pas à l\'équipe', avant === apres);
-}
-{
-  const joue = lire => {
-    const teams = ligue(7800);
-    const L = creerLigue(teams, 82, { graine: 'totaux-neutre', decisions });
-    while (!L.fini) { if (lire && L.jour % 9 === 0) alignementDuSoir(teams[0], null, null, decisions.filter(d => d.jour === L.jour)); jouerJournee(L); }
-    bilanLigue(L);
-    return teams.map(x => `${x.W}-${x.L}-${x.OTL}-${x.GF}-${x.GA}`).join('|');
-  };
-  exiger('lire l\'alignement au neutre ne change pas une seule journée', joue(true) === joue(false));
 }
 
 /*

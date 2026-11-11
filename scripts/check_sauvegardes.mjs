@@ -4,7 +4,8 @@
  * sur un autre appareil ; et un fichier qui n'est pas une partie doit être
  * refusé, jamais écrit. Le stockage est un faux `localStorage` en mémoire :
  * le module ne touche pas au DOM, il n'a besoin que de ça. Et une partie d'avant la V16, qui nomme des cartes
- * parties, se relit et se rejoue.
+ * parties, se relit et se rejoue. Et une run de l'ancien Rogue (V28, tranche 4) se solde : elle quitte l'index, verse une
+ * fois les médailles qu'elle avait gagnées sans les toucher, et aucune clé de sauvegarde ne change de nom.
  *
  *   node scripts/check_sauvegardes.mjs
  */
@@ -59,12 +60,10 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
 /*
  * UNE PARTIE D'AVANT LA V16 (le grand départ, docs/refonte-v16.md) : ses décisions nomment des places, de l'équipement,
  * des clauses et le feu de l'atelier, que la banque et le moteur ne connaissent plus. Elle se relit sans planter : une
- * carte inconnue ne se montre plus nulle part et ne prend pas de case ; une modif inconnue ne joue pas ; un effet déjà
- * joué porte ses chiffres et se rejoue ; la saison se rejoue au but près.
+ * modif inconnue ne joue pas ; un effet déjà joué porte ses chiffres et se rejoue ; la saison se rejoue au but près.
+ * (« Tes cartes » et les cases du verso, où une carte inconnue ne devait plus se montrer, sont partis avec l'ancien Rogue.)
  */
 {
-  const { cartesDeLaPartie } = await import('../js/inventaire.js');
-  const { BANQUE, poseesSur } = await import('../js/banque.js');
   const { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey } = await import('../js/sim.js');
   const { TEMOINS, equipeReelle } = await import('./lib/vestiaires.mjs');
   const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(ps), { season: sa }); };
@@ -80,12 +79,9 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
     { jour: 10, equipe: 0, mutation: { cle: 'contrat_bonus', joueur: k } },
   ];
   const vieille = [...inconnues, effet];
-  const cartes = cartesDeLaPartie({ decisions: vieille, rogue: true });
-  exiger('une partie d\'avant la V16 : ses cartes inconnues ne se montrent plus', cartes.every(x => BANQUE[x.id]) && cartes.some(x => x.id === 'consommable:physio'), cartes.map(x => x.id).join(', ') || 'aucune');
-  exiger('une modif inconnue ne prend pas de case au verso', poseesSur(vieille, k).length === 0);
   const fiche = decisions => { const t = ligue(); simulateLeague(t, 82, { graine: 'reprise-v16', decisions: decisions.map(d => ({ ...d })) }); return t.map(x => `${x.W}-${x.L}-${x.OTL} ${x.GF}-${x.GA}`).join(' '); };
   const a = fiche(vieille), b = fiche(vieille), sans = fiche([effet]);
-  exiger('elle se rejoue au but près, son effet déjà joué compris', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);
+  exiger('une partie d\'avant la V16 se rejoue au but près, son effet déjà joué compris', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);
   exiger('ses places, son équipement et ses clauses ne jouent plus', a === sans, a === sans ? 'la même saison que sans elles' : `${a} contre ${sans}`);
 }
 
@@ -162,6 +158,88 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
   const a = fiche(vieilles), b = fiche(vieilles), sans = fiche([]);
   exiger('elle se rejoue au but près, deux passes identiques', a === b, `${a.split(' ').slice(0, 2).join(' ')} …`);
   exiger('ses choix d\'une banque partie ne jouent plus rien : la même saison que sans eux', a === sans, a === sans ? 'la même saison que sans eux' : `${a} contre ${sans}`);
+}
+
+/*
+ * UNE RUN DE L'ANCIEN ROGUE (V28, tranche 4, docs/refonte-v28.md § 6 ; JP, 9 nov. 2026 : *les runs en cours perdues, les
+ * médailles et le cartable gardés*). L'ancien Rogue est parti : au démarrage, ou quand un fichier d'avant s'importe,
+ * `solderLAncienRogue` (js/rogue.js) retire chaque partie du genre `rogue` de l'index et verse ce qu'elle avait gagné sans
+ * l'avoir touché — ses rondes de séries, payées d'un coup à la fin des séries par le jeu d'avant. Ce qu'on exige :
+ *   — la run quitte l'index et sa clé s'efface ; les parties des autres modes ne bougent pas, au caractère près ;
+ *   — ses rondes gagnées se versent au barème d'avant (20 la ronde, 40 la Coupe, au multiple de ses exigences) ;
+ *   — une fois : un deuxième démarrage ne verse rien, le même fichier réimporté non plus, et des séries que le jeu d'avant
+ *     avait déjà payées (la même clé, la graine de la run et l'étape `series`) ne se paient pas deux fois ;
+ *   — une run d'avant la saison en actes (un méta d'avant la V27) verse la moitié de ses points, lus dans son résumé ;
+ *   — le cartable et la run neuve ne sont pas touchés ; aucune clé de sauvegarde ne change de nom.
+ */
+{
+  const { lireMeta, ecrireMeta, solderLAncienRogue, ecussonsDesSeries, PRIME_EXIGENCE } = await import('../js/rogue.js');
+  const lireSource = async f => (await import('node:fs')).readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const depart = () => { memoire.clear(); memoire.set('cap82_cartable', JSON.stringify({ v: 1, joueurs: { '1993-94_MTL_8470000': { v: { commune: 1 }, n: 1 } }, migre: true })); };
+  const saison82 = { moteur: 'S148', bonus: 'SAISON', tirage: [{ season: '1993-94', team: 'MTL' }], roster: { 0: { n: 'Untel', s: '1993-94' } }, mode: 'CLASSIQUE', partie: { graine: 'g82', journee: 82, decisions: [] } };
+  // Une run en actes (V27) laissée en séries : deux rondes gagnées, elle regardait la troisième ; cran d'exigence 2.
+  const enSeries = { moteur: 'S148', bonus: 'ROGUE', tirage: [], roster: { 0: { n: 'Untel', s: '1993-94' } }, mode: 'CLASSIQUE',
+    rogue: { numero: 4, exigence: 2, coach: { cle: 'essaim' } }, partie: { graine: 'gRun1', journee: 82, decisions: [{ jour: 0, equipe: 0, coach: { cle: 'essaim' } }], series: { ronde: 2, revele: [] } } };
+  // Une run finie sur la Coupe, que le jeu d'avant n'a pas eu le temps de payer.
+  const coupe = { ...enSeries, rogue: { numero: 5, exigence: 0, series: { rondes: 4, coupe: true } }, partie: { ...enSeries.partie, graine: 'gRun2', series: { ronde: 3, revele: [] } } };
+  // Une run en saison : ses actes ont versé leurs médailles le soir même, rien ne reste à verser.
+  const enSaison = { ...enSeries, rogue: { numero: 6 }, partie: { graine: 'gRun3', journee: 31, decisions: [] } };
+
+  depart();
+  ecrireMeta({ ...lireMeta(), jeu: 'v27', ecussons: 10, ecussonsAVie: 25, runs: 6, deblocages: ['caisse1'] });
+  ecrirePartieActive(saison82, { etape: 'Bilan', qui: 'NHL Stars' });
+  const id82 = lireIndex().actif, texte82 = memoire.get(`cap82_partie_${id82}`);
+  const fichiers = [];
+  for (const run of [enSeries, coupe, enSaison]) { const id = importer(JSON.stringify({ format: 'cap82-partie', partie: run })); activer(id); fichiers.push(exporter(id).texte); }
+  const idsRuns = lireIndex().parties.filter(x => x.genre === 'rogue').map(x => x.id);
+  exiger('la vieille sauvegarde porte trois runs de l\'ancien Rogue et une partie du 82-0', idsRuns.length === 3 && lireIndex().parties.length === 4, lireIndex().parties.map(x => x.genre).join(', '));
+
+  const multiple = 1 + PRIME_EXIGENCE * 2;
+  const attendu = Math.round(ecussonsDesSeries(2, false) * multiple) + ecussonsDesSeries(4, true);
+  const r1 = solderLAncienRogue(), m1 = lireMeta(), ix1 = lireIndex();
+  exiger('les runs de l\'ancien Rogue quittent l\'index, leurs clés s\'effacent, l\'index ne pointe vers aucune partie retirée',
+    r1.runs === 3 && !ix1.parties.some(x => x.genre === 'rogue') && idsRuns.every(id => !memoire.has(`cap82_partie_${id}`)) && (ix1.actif === null || ix1.parties.some(x => x.id === ix1.actif)),
+    `${r1.runs} runs arrêtées · ${ix1.parties.length} partie(s) restent`);
+  exiger('la partie du 82-0 ne bouge pas, au caractère près', ix1.parties.length === 1 && ix1.parties[0].id === id82 && memoire.get(`cap82_partie_${id82}`) === texte82);
+  exiger(`leurs rondes de séries se versent au barème d'avant : 2 rondes au cran 2 (×${multiple}), la Coupe en 4 rondes, rien pour la run en saison`,
+    r1.verse === attendu && attendu === 52 + 120 && m1.ecussons === 10 + attendu && m1.ecussonsAVie === 25 + attendu && m1.coupes === 1 && m1.exigence === 0,
+    `${r1.verse} médailles versées (attendu ${attendu}) · ${m1.ecussons} 🏅 · ${m1.coupes} Coupe`);
+  exiger('le reste du méta ne bouge pas : les runs comptées, les déblocages', m1.runs === 6 && m1.deblocages.join() === 'caisse1' && m1.jeu === 'v27');
+  const r2 = solderLAncienRogue();
+  exiger('un deuxième démarrage ne solde plus rien', r2.runs === 0 && r2.verse === 0 && lireMeta().ecussons === m1.ecussons, `${r2.runs} run, ${r2.verse} médaille`);
+  // Le même fichier réimporté (un autre appareil, une copie gardée) : la run se solde encore, ses médailles non.
+  const idRe = importer(fichiers[0]);
+  const r3 = solderLAncienRogue();
+  exiger('le même fichier réimporté se solde sans verser deux fois', !!idRe && r3.runs === 1 && r3.verse === 0 && lireMeta().ecussons === m1.ecussons && !lireIndex().parties.some(x => x.genre === 'rogue'), `${r3.runs} run, ${r3.verse} médaille`);
+  exiger('le cartable et la run neuve ne sont pas touchés', JSON.parse(memoire.get('cap82_cartable')).joueurs['1993-94_MTL_8470000'].n === 1 && !memoire.has('cap82_run'));
+
+  // Des séries que le jeu d'avant avait déjà payées à leur fin : la même clé, rien de plus.
+  depart();
+  ecrireMeta({ ...lireMeta(), jeu: 'v27', ecussons: 200, recompenses: { 'gRun2:series': true } });
+  importer(JSON.stringify({ format: 'cap82-partie', partie: coupe }));
+  const r4 = solderLAncienRogue();
+  exiger('des séries déjà payées par le jeu d\'avant ne se paient pas deux fois', r4.runs === 1 && r4.verse === 0 && lireMeta().ecussons === 200, `${r4.verse} médaille`);
+
+  // Un méta d'avant la V27 : la run verse la moitié de ses points, lus dans son résumé, et le méta se convertit une fois.
+  depart();
+  ecrireMeta({ ecussons: 10, ecussonsAVie: 30, inventaire: {}, jeu: 'v21' });
+  ecrirePartieActive({ ...enSaison, partie: null }, { etape: 'Run 3 · Journée 40 / 165 · 21-15-4', qui: 'NHL Stars' });
+  const r5 = solderLAncienRogue(), m5 = lireMeta();
+  exiger('une run d\'avant la saison en actes verse la moitié de ses points, une fois', r5.runs === 1 && r5.verse === 23 && m5.ecussons === 33 && m5.jeu === 'v27' && solderLAncienRogue().verse === 0 && lireMeta().ecussons === 33,
+    `${r5.verse} médailles (21-15-4 : 46 points)`);
+
+  // Un joueur neuf : rien à solder, le méta prend la marque du jeu d'aujourd'hui sans rien inventer.
+  depart();
+  const r6 = solderLAncienRogue(), m6 = lireMeta();
+  exiger('sans vieille run, rien ne se solde et rien ne se verse', r6.runs === 0 && r6.verse === 0 && m6.ecussons === 0 && m6.runs === 0);
+
+  // Les clés de sauvegarde gardent leur nom : celles que le stockage a vues ici, et celles que les modules écrivent.
+  const vues = [...memoire.keys()].filter(k => !/^cap82_(parties|partie_[a-z0-9]+|rogue|cartable)$/.test(k));
+  const CLES = [['js/sauvegardes.js', /const INDEX = 'cap82_parties'/], ['js/sauvegardes.js', /const ANCIENNE = 'cap82_save'/], ['js/sauvegardes.js', /const cle = id => `cap82_partie_\$\{id\}`/],
+    ['js/rogue.js', /const CLE_META = 'cap82_rogue'/], ['js/cartable.js', /const CLE_CARTABLE = 'cap82_cartable'/], ['js/run-jeu.js', /const CLE = 'cap82_run'/]];
+  const bougees = [];
+  for (const [f, re] of CLES) if (!re.test(await lireSource(f))) bougees.push(`${f} ${re}`);
+  exiger('aucune clé de sauvegarde ne change de nom', !vues.length && !bougees.length, [...vues, ...bougees].join(' · ') || `${CLES.length} clés en place`);
 }
 
 verdict('Le fichier transférable');

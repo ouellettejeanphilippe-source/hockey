@@ -1,12 +1,13 @@
 /*
  * TES UNITÉS SPÉCIALES (V7, JP : *créer lignes avantages numériques à part*). Le moteur jouait déjà deux unités
  * d'avantage (65 et 35 % du temps) et deux de désavantage (60 et 40 %), rangées seules sur les vrais points de chacun
- * en avantage et en désavantage. Elles se voient maintenant dans les Lignes, et se choisissent. Ce script prouve :
+ * en avantage et en désavantage. L'onglet AN · DN des Lignes, où elles se choisissaient, est parti avec l'ancien Rogue
+ * (V28, tranche 4) ; le moteur les range toujours, et joue le choix qu'une vieille partie porte. Ce script prouve :
  *
  *   1. sans choix, rien ne bouge : le choix du moteur, posé tel quel, se lit au point près comme pas de choix ;
  *   2. un choix est joué tel quel (les deux unités échangées le sont dans le moteur) ;
  *   3. un choisi absent ou en double cède sa case au suivant du moteur : toujours cinq et quatre, personne deux fois ;
- *   4. les minutes se tiennent : avantage + désavantage + forces égales = 60, et chaque unité a sa part ;
+ *   4. (les minutes de chaque unité, que l'onglet affichait, sont parties avec lui) ;
  *   5. la décision se joue : posée comme décision du soir (`aVenir`), elle se lit comme posée sur l'équipe, et une
  *      forme abîmée est refusée (`specialesValides`) ; sortir les vedettes de l'avantage coûte des buts AU TOTAL
  *      (la part d'avantage d'un joueur se retire à forces égales selon sa vraie saison, pas selon ton choix) ;
@@ -16,9 +17,9 @@
  *   node scripts/check_speciales.mjs
  */
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, getPlayerKey, specialesDuSoir, specialesValides } from '../js/sim.js';
-import { chiffresDuSoir, specialesEnStats } from '../js/impact.js';
+import { chiffresDuSoir } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { exiger, borne, informer, verdict } from './verdict.mjs';
+import { exiger, informer, verdict } from './verdict.mjs';
 
 const eq = (saison, tag) => {
   const p = equipeReelle(saison, tag).flat().map(x => ({ ...x }));
@@ -51,15 +52,7 @@ exiger('un absent ou un doublon cède sa case : cinq et quatre, personne deux fo
   comble.AN.every(u => u.length === 5) && comble.DN.every(u => u.length === 4) && new Set(tous).size === tous.length && !cles(tous).includes(fantome),
   `AN ${comble.AN.map(u => u.length).join('+')} · DN ${comble.DN.map(u => u.length).join('+')} · ${new Set(tous).size} joueurs distincts en avantage`);
 
-// 4. Les minutes.
 T.speciales = null;
-const st = specialesEnStats(T, lu, adv), m = chiffresDuSoir(T, lu, adv);
-const somme = xs => xs.reduce((a, x) => a + x.minutes, 0);
-borne('avantage + désavantage + forces égales = 60 minutes', st.minutesFE + somme(st.AN) + somme(st.DN), 59.9, 60.1, ' min');
-exiger('chaque unité a sa part des minutes (65/35 en avantage, 60/40 en désavantage)',
-  Math.abs(somme(st.AN) - m.minutesAvantage) < 1e-6 && Math.abs(st.AN[0].minutes / somme(st.AN) - 0.65) < 1e-6 && Math.abs(st.DN[0].minutes / somme(st.DN) - 0.60) < 1e-6,
-  `AN ${st.AN.map(x => x.minutes.toFixed(1)).join(' + ')} · DN ${st.DN.map(x => x.minutes.toFixed(1)).join(' + ')} · FE ${st.minutesFE.toFixed(1)} min`);
-informer('les unités, par match', `AN1 ${st.AN[0].tirs.toFixed(1)} tirs à ${(st.AN[0].pctTir * 100).toFixed(1)} % · AN2 ${st.AN[1].tirs.toFixed(1)} · DN1 ${st.DN[0].contre.toFixed(1)} tirs contre à ${st.DN[0].pctArr.toFixed(3)}`);
 
 // 5. La décision du soir se lit comme posée ; une forme abîmée est refusée.
 const pire = (() => {

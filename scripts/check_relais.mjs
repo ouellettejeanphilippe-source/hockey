@@ -12,8 +12,8 @@
  *      relais (±2 tirs, ±0,3 but, ±0,5 punition, ±4 mises en échec, ±3 blessures par saison, au tiers d'un soir) ;
  *   4. (MESURE) la paire rend 1,2 à 1,6 fois la somme de ses pièces (la pièce de départ seule, la pièce à relais seule),
  *      en moyenne sur les huit voies, et aucun relais ne nuit ; le second maillon (🦓) ajoute ;
- *   5. la saison : la feuille garde chaque relais, le banc l'allume avec ses périodes (js/profil-style.js `banc`), et la
- *      même graine rejoue les mêmes relais (V27, tranche 6a : le banc ne paraît plus à l'entracte, qui se vit dans le direct).
+ *   5. la saison : la feuille garde chaque relais, celui d'une pièce du banc de ce soir-là (`feuille.banc`), et la même
+ *      graine rejoue les mêmes relais (le banc du soir du sommaire, js/banc-du-soir.js, est parti avec l'ancien Rogue).
  * `N` : matchs par club et par pièce (400, deux minutes sur quatre processus, `FILS`). `MESURE=0 N=20` (la CI, dix
  * secondes) : 1, 2, 3a et 5, sans les chiffres de valeur.
  */
@@ -22,7 +22,6 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague } from '../js/sim.js';
 import { PIECES, PIECE_DU_COACH, RELAIS_NIV, effetDuRelais, bancDeLaPeriode } from '../js/pieces.js';
 import { COACHS } from '../js/coachs.js';
-import { banc } from '../js/profil-style.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
@@ -189,15 +188,15 @@ if (MESURE) {
   const fautes = [];
   let cartes = 0;
   for (const { f, cote } of sA) {
-    const notes = (f.relais || []).filter(r => r.cote === cote), b = banc(A.toi, f);
+    const notes = (f.relais || []).filter(r => r.cote === cote), sur = (f.banc && f.banc[cote]) || [];
     for (const cle of new Set(notes.map(r => r.cle))) {
-      const c = b.find(x => x.cle === cle), ks = notes.filter(r => r.cle === cle).map(r => r.k);
+      const ks = notes.filter(r => r.cle === cle).map(r => r.k);
       cartes++;
-      if (!c || !c.joue || !c.relaie || !ks.every(k => c.periodes.includes(k))) fautes.push(`${PIECES[cle].nom} : ${c ? c.periodes.join('·') : 'absent'} contre ${ks.join('·')}`);
+      if (!sur.includes(cle) || !ks.every(k => k >= 0 && k <= 2)) fautes.push(`${PIECES[cle].nom} : relaie aux périodes ${ks.join('·')}, le banc du soir porte ${sur.join('·')}`);
     }
   }
   const empreinte = x => soirs(x).map(s => (s.f.relais || []).filter(r => r.cote === s.cote).map(r => `${r.cle}${r.k}${r.maillon}`).join(',')).join('/');
-  exiger('5. la feuille garde chaque relais, et le banc l\'allume avec ses périodes', relais.length > 0 && !fautes.length && cartes > 0, fautes.slice(0, 3).join(' ; ') || `${relais.length} relais sur la saison, ${cartes} cartes allumées · le second maillon ${relais.filter(r => r.maillon === 2).length} fois`);
+  exiger('5. la feuille garde chaque relais, d\'une pièce du banc de ce soir-là', relais.length > 0 && !fautes.length && cartes > 0, fautes.slice(0, 3).join(' ; ') || `${relais.length} relais sur la saison, ${cartes} pièces qui relaient un soir · le second maillon ${relais.filter(r => r.maillon === 2).length} fois`);
   exiger('5. la même graine rejoue les mêmes relais', empreinte(A) === empreinte(B) && relais.some(r => r.maillon === 2), `${sA.length} soirs`);
 }
 

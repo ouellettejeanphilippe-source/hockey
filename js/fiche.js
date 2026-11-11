@@ -7,18 +7,17 @@ import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD, glyphe, money, pct3, ord, pmMatch, virgule } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
-import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, matchsDeSaSaison, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS, AFFINITES, PROFILS } from './sim.js';
+import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, matchsDeSaSaison, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS, AFFINITES, PROFILS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml, motDeFamille } from './gerant.js';
+import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
 import { numeroDeCarte, sensRarete, tirageLimite, TAILLE_SERIE, serieDe, SERIES, photoAction, photoCouchee, dosDeCarton } from './cartes.js';
 import { creditPhoto } from './actions.js';
 import { NOM_VARIANTE, numeroEdition } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
-import { LEGENDES, legendesDe, histoireChezToi } from './cartable.js';
-import { GALONS, ICO_GALON, texteDuGalon } from './galons.js';
-import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsAEdition, varsEquipe, lesCotes } from './repechage.js';
+import { LEGENDES, legendesDe } from './cartable.js';
+import { cartonDe, destinationFor, identiteTag, mesure, rareteJoueur, sectionMods, signPlayer, slotShort, traitsAEdition, varsEquipe, lesCotes } from './repechage.js';
 import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, maxForPick, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
 /* =====================================================================
@@ -151,11 +150,6 @@ function surLaGlaceHtml(p) {
     lignes.push(li(`Il garde ses jambes ${n} départs de suite ; au suivant, elles baissent et il accorde plus.`));
     return `<ul class="glace">${lignes.join('')}</ul>`;
   }
-  // SON PROFIL (V9, le Rogue) : ses quatre familles, à ses points égaux.
-  if (G.bonus === 'ROGUE') {
-    const f = famillesDe(p);
-    lignes.push(li(`<b>À ses points égaux</b> : ${Object.keys(FAMILLES).map(k => `${esc(FAMILLES[k].nom)} ${motDeFamille(f[k])}`).join(', ')}.`));
-  }
   for (const b of badgesDe(p)) {
     const E = EFFETS_GLACE[b.cle], x = (EFFET_ROLE[b.cle] || 0) * maitrise(p, b.cle);
     const raison = raisonDuBadge(b);
@@ -247,7 +241,7 @@ export function statsSim(p, mode = 'saison') {
  * Ce qu'une feuille ne porte pas (la défaite en prolongation, le but en
  * avantage) n'est PAS posé à zéro : une case absente se tait, un zéro ment.
  */
-export const compteEnGrille = c => c && {
+const compteEnGrille = c => c && {
   GP: c.gp, G: c.g, A: c.a, PTS: c.pts, PM: c.pm, SH: c.sh, PIM: c.pim,
   W: c.w, L: c.l, GA: c.ga, SO: c.bl, SA: c.sa, SV: c.sv,
   // Oct. 2026 : les minutes, les points en avantage et en désavantage, le but gagnant, les coups, les blocs, les bagarres, les départs de qualité.
@@ -462,10 +456,7 @@ export function showPlayerModal(p, opts = {}) {
   const glace = surLaGlaceHtml(p);
   // GRAVÉ SUR SA CARTE (V2.2) : les moments légendaires d'une run se relisent ici, pas seulement dans un toast.
   const legendes = surTable() ? [] : legendesDe(getPlayerKey(p));
-  // V9 (tranche 7) : son histoire chez toi (`histoireChezToi`, js/cartable.js) et ses galons, gravés avec leur match et leur adversaire.
-  const chez = surTable() || G.bonus !== 'ROGUE' ? [] : histoireChezToi(getPlayerKey(p));
-  const galons = chez.flatMap(e => (e.galons || []).map(g => ({ ...g, run: e.run, s: e.s })));
-  const grave = legendes.length || galons.length ? `<div class="section-label">Gravé sur sa carte</div><ul class="glace">${galons.map(g => `<li class="bon">${ICO_GALON} <b>${esc(GALONS[g.cle].nom)}</b> · ${esc(texteDuGalon(g))} · run ${g.run}, saison ${g.s}</li>`).join('')}${legendes.map(l => `<li class="bon">${LEGENDES[l.type].ico} <b>${esc(LEGENDES[l.type].nom)}</b>${l.saison ? ` · saison ${l.saison} d'une run` : ''}</li>`).join('')}</ul>` : '';
+  const grave = legendes.length ? `<div class="section-label">Gravé sur sa carte</div><ul class="glace">${legendes.map(l => `<li class="bon">${LEGENDES[l.type].ico} <b>${esc(LEGENDES[l.type].nom)}</b>${l.saison ? ` · saison ${l.saison} d'une run` : ''}</li>`).join('')}</ul>` : '';
   const profil = grave + (glace ? `<div class="section-label">Sur la glace</div>${glace}` : '');
   // SES JAMBES, JOURNÉE PAR JOURNÉE (1.0, le suivi des jambes) : l'instantané du moteur de son club.
   const courbe = apres && opts.team ? courbeJambesHtml(courbeJambes(opts.team, p, opts.jambesJusqua ?? Infinity), { large: true }) : '';
@@ -543,7 +534,6 @@ export function showPlayerModal(p, opts = {}) {
   const td = (v, i) => `<td${i === enOr ? ' class="hl"' : ''}>${v}</td>`;
   const statsCarte = `<div class="cjv-table-wrap"><table class="cjv-table cjv-saisons"><thead><tr><th scope="col">Saison</th>${tetes.map((t, i) => `<th scope="col"${i === enOr ? ' class="hl"' : ''}>${t}</th>`).join('')}</tr></thead><tbody>
     <tr><th scope="row">${esc([p.s, p.t].filter(Boolean).join(' '))}</th>${vraie.map(td).join('')}</tr>
-    ${chez.filter(e => !(chezToi && G.rogue && e.run === G.rogue.numero && e.s === (G.rogue.saison || 1))).map(e => `<tr><th scope="row">Run ${e.run}, saison ${e.s}</th>${(G_ ? [e.gp, e.w, '—', e.so, '—', '—'] : [e.gp, e.g, e.a, e.pts, '—', '—']).map(td).join('')}</tr>`).join('')}
     ${chezToi ? `<tr><th scope="row">${esc(opts.team ? teamLabel(opts.team) : opts.sim === 'series' ? 'Séries' : 'Chez toi')}</th>${chezToi.map(td).join('')}</tr>` : ''}
   </tbody></table></div>${reste.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${reste.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${reste.map(([, v]) => `<td>${v}</td>`).join('')}</tr></tbody></table></div>` : ''}`;
   const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p) + coachTag(p)}${realTag(p)}`;
@@ -551,7 +541,7 @@ export function showPlayerModal(p, opts = {}) {
     ${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
     ${saCarte}
-    ${sectionMods(p, opts.attente || null)}`;
+    ${sectionMods(p)}`;
   const verso = versoDeCarte(p, numero, rarete, milieuVerso, serie, opts.num);
   const liens = `<div class="ext-links">
           <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ${ico('i-ext')}</a>
@@ -599,16 +589,6 @@ export function showPlayerModal(p, opts = {}) {
   }
   const carte = body.querySelector('.fiche-carte');
   brancherRetournement(carte);
-  // S80 : la fiche s'ouvre AU VERSO quand on y vient pour poser une carte — sans tourner, elle y est déjà.
-  if (opts.verso && carte) montrerFace(carte, true);
-  // LES CASES DU VERSO (S80) : « Poser ici » pose la carte en attente ; « + Poser une amélioration » ouvre tes cartes.
-  const poser = body.querySelector('[data-poser]');
-  if (poser && opts.attente) poser.onclick = () => opts.attente.poser();
-  const plus = body.querySelector('[data-plus]');
-  if (plus) plus.onclick = () => {
-    closeModal('hockeyCardModal');
-    choisirCarteAPoser(p, opts.rouvrir || (x => ouvrirVersoPourPoser(p, x)));
-  };
   modal.classList.toggle('au-dessus', apercu || !!opts.auDessus);
   ouvrirModale(modal);
 }

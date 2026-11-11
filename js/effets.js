@@ -71,13 +71,13 @@ export const motsSurLeJoueur = (canaux, qui, quand = '', court = qui) => Object.
     cle: 'surLui', mot: `${court} : ${FACE_DU_JOUEUR[k][v > 1 ? 0 : 1]}` }));
 
 /* Les faces gagnantes d'un dé, les plus hautes : « sur 4, 5 ou 6 ». Jamais une cote. */
-export const facesMot = k => { const f = Array.from({ length: k }, (_, i) => 7 - k + i); return `sur ${f.length > 1 ? `${f.slice(0, -1).join(', ')} ou ${f[f.length - 1]}` : `un ${f[0]}`}`; };
+const facesMot = k => { const f = Array.from({ length: k }, (_, i) => 7 - k + i); return `sur ${f.length > 1 ? `${f.slice(0, -1).join(', ')} ou ${f[f.length - 1]}` : `un ${f[0]}`}`; };
 /*
  * UN PARI SE DIT D'UNE SEULE FAÇON (V19, tranche 6 ; JP : *une seule lecture des choix*) : le dé et sa chance, ce qu'il donne
  * s'il tombe, ce qu'il donne sinon — en vraies stats, une puce verte et une puce rouge. Ses deux issues sont des effets
  * de la même grammaire ; l'audace d'une histoire vise son joueur (`lui`) : ce qui lui arrive se dit à son nom.
  */
-export function motsDuPari(pari, qui = 'Ton joueur') {
+function motsDuPari(pari, qui = 'Ton joueur') {
   const issue = e => { const m = motsDe(e, { qui }); return m.length ? m.map(x => x.txt).join(', ') : 'rien ne change'; };
   return [{ txt: `🎲 ${cap(facesMot(facesDuPari(pari.chance)))} : ${issue(pari.gagne)}`, bon: true }, { txt: `🎲 sinon : ${issue(pari.perd)}`, bon: false }];
 }

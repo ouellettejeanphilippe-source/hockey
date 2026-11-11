@@ -206,8 +206,6 @@ export function poserLaPiece(banc, cle, sort = null) {
   const i = b.indexOf(sort);
   return i < 0 ? b : b.map((k, j) => (j === i ? cle : k));
 }
-/* Le banc est-il plein ? Alors une pièce neuve demande celle qui sort. */
-export const bancPlein = perso => bancDe(perso).length >= CASES_DU_BANC;
 /*
  * LA RARETÉ D'UNE PIÈCE (JP, 8 nov. 2026 : l'arbitre devient une pièce rare). Une pièce `rarete: 'rare'` garde sa force,
  * mais pèse `POIDS_RARE` au tirage des offres (une ordinaire : 1) : chaque offre range les pièces par une course
@@ -231,7 +229,7 @@ export function piecesOffertes(perso, graine, cle, n = PIECES_OFFERTES, { voisin
 
 /* ---------- le jeu d'une période ---------- */
 /* Un effet grandi : chaque canal s'écarte de 1 (ou de 0, la robustesse) `f` fois plus. */
-export function grandir(effet, f) {
+function grandir(effet, f) {
   if (!effet) return null;
   const out = {};
   for (const [k, v] of Object.entries(effet)) {

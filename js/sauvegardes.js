@@ -21,11 +21,12 @@ const ANCIENNE = 'cap82_save';
 const cle = id => `cap82_partie_${id}`;
 const MAX_PARTIES = 24;
 
-/* Les trois familles de parties, telles que le menu les range. */
+/* Les trois modes, tels que le menu les range. Le 82-0 et Sur table gardent leurs parties ici ; le Rogue garde sa run à part
+   (`cap82_run`, js/run-jeu.js) : une partie du genre `rogue` est une run de l'ancien Rogue, soldée au démarrage (`retirerLesRuns`). */
 export const GENRES = {
   saison: { ico: '🏒', nom: 'Le 82-0', mot: 'Repêche 23 vrais joueurs, joue 82 matchs d\'un coup, vise la Coupe.' },
   table: { ico: '🎲', nom: 'Sur table', mot: 'Le match en jeu de plateau, geste par geste.' },
-  rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Ouvre des packs, bâtis ton club, survis au proprio. Perds : tu repars plus fort.' },
+  rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Une carte, des portes, trois actes et les séries. Perds : tu repars plus fort.' },
 };
 /* Le genre d'une sauvegarde, lu dans ce qu'elle porte. */
 const genreDe = data => (data && data.bonus === 'TABLE' ? 'table' : data && data.bonus === 'ROGUE' ? 'rogue' : 'saison');
@@ -115,11 +116,14 @@ export function supprimer(id) {
   ecrireIndex(ix);
 }
 
-/* Les runs du Rogue en cours, retirées d'un coup (la conversion au jeu neuf : js/rogue.js `convertirAuJeuNeuf`). Rend leurs résumés (V27 : leurs médailles se versent). */
+/*
+ * Les runs de l'ancien Rogue, retirées d'un coup (js/rogue.js `solderLAncienRogue`). Rend, pour chacune, son résumé du menu et
+ * ce que sa sauvegarde portait ({ resume, sauvegarde }) : de quoi verser ses médailles.
+ */
 export function retirerLesRuns() {
-  const ix = lireIndex(), runs = ix.parties.filter(p => p.genre === 'rogue');
-  for (const p of runs) supprimer(p.id);
-  return runs.map(p => p.resume || null);
+  const ix = lireIndex(), runs = ix.parties.filter(p => p.genre === 'rogue').map(p => ({ id: p.id, resume: p.resume || null, sauvegarde: lirePartie(p.id) }));
+  for (const r of runs) supprimer(r.id);
+  return runs.map(({ resume, sauvegarde }) => ({ resume, sauvegarde }));
 }
 
 export function copier(id) {
@@ -162,7 +166,8 @@ export function importer(texte) {
   try { f = JSON.parse(texte); } catch { return null; }
   if (!f || f.format !== FORMAT || !f.partie || typeof f.partie !== 'object') return null;
   const data = f.partie;
-  // Ce que `restoreSave` (js/game.js) exige pour reprendre : un tirage, ou une run Rogue.
+  // Ce que `restoreSave` (js/game.js) exige pour reprendre : un tirage. Une run de l'ancien Rogue n'en a pas : elle entre
+  // quand même, pour que le menu la solde aussitôt (ses médailles se versent, js/rogue.js `solderLAncienRogue`).
   if (!Array.isArray(data.tirage) || (!data.tirage.length && data.bonus !== 'ROGUE')) return null;
   const ix = lireIndex();
   const id = idNeuf();

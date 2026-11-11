@@ -16,8 +16,9 @@
  *   5. (V27, tranche 5b : l'offre de trois retouches au palier est partie avec la main du deck) ;
  *   6. une saison avec le mentor se rejoue au but près, et la remise à zéro les efface d'une saison
  *      à l'autre ;
- *   7 à 10. (venus de check_deck, parti à la V27, tranche 5b) une retouche gardée attend dans tes cartes et prend
- *      une case du verso ; tes cartes se jouent sans limite ; les doublons montent l'édition ; les missions du cartable.
+ *   7. (venu de check_deck, parti à la V27, tranche 5b) les doublons montent l'édition.
+ * Les retouches gardées dans tes cartes, leurs cases du verso, l'échange d'un doublon et les missions du cartable sont
+ * partis avec l'ancien Rogue (V28, tranche 4), leurs vérifications aussi.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,9 +29,7 @@ import {
 } from '../js/sim.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, COTES_PAR_STATURE, statureDe, traitsDeCarte, VARIANTE_PALIERS, EDITIONS, NOM_VARIANTE } from '../js/rarete.js';
 import { niveauDe } from '../js/niveaux.js';
-import { BANQUE, CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, payloadDe } from '../js/banque.js';
-import { monterLesDoublons, missionsDuCartable, decennieDe } from '../js/cartable.js';
-import { cartesDeLaPartie } from '../js/inventaire.js';
+import { monterLesDoublons } from '../js/cartable.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -146,49 +145,8 @@ simulateLeague([A.moi, ...ligue(78).slice(1)], 82, { graine: 'atelier', decision
 exiger('et la remise à zéro les efface', !poses(cible).length, `${cible.n} : ${poses(cible).join(', ') || 'rien'}`);
 
 /*
- * 7. UNE RETOUCHE SE GARDE, ET SE POSE AU VERSO (S80 ; V16 ; venu de check_deck, parti avec la main du deck à la V27,
- * tranche 5b). JP : *je veux que les upgrades de joueurs se fassent au verso de la carte, pas nécessairement quand on la
- * pige*. Gardée par une vieille partie (`garde`, une décision `deck` d'un palier), elle attend dans tes cartes ; posée,
- * elle en sort et prend une case : deux, trois pour une Or ou une Holo.
- */
-{
-  const garde = { jour: 20, equipe: 0, palier: 20, deck: 'atelier', garde: 'joueur:pinceau' };
-  const pose = { jour: 25, equipe: 0, joue: { src: 'partie', ref: 'deck:20', id: 'joueur:pinceau' }, mutation: { cle: 'pinceau', joueur: cibleCle } };
-  const poche1 = cartesDeLaPartie({ decisions: [garde] });
-  const poche2 = cartesDeLaPartie({ decisions: [garde, pose] });
-  exiger('une retouche gardée attend dans tes cartes, et en sort une fois posée', poche1.some(x => x.ref === 'deck:20' && x.id === 'joueur:pinceau') && !poche2.some(x => x.ref === 'deck:20'),
-    `${poche1.filter(x => x.ref.startsWith('deck:')).map(x => x.id).join(', ')} puis ${poche2.filter(x => x.ref.startsWith('deck:')).length}`);
-  const posees = poseesSur([garde, pose], cibleCle);
-  exiger('posée, elle prend une case de son verso', posees.length === 1 && posees[0].cle === 'pinceau' && casesLibres('commune', posees) === CASES_DE_BASE - 1, `${posees.length} posée, ${casesLibres('commune', posees)} libre`);
-  const lustre = [{ jour: 30, mutation: { cle: 'lustre', joueur: 'k', carte: { rar: 'rare', bonus: [] } } }];
-  exiger('deux cases, trois pour une Or ou une Holo ; le lustre qui fait une Or rend sa case',
-    casesDAmelioration('commune') === 2 && casesDAmelioration('peu') === 2 && casesDAmelioration('hors') === 2 && casesDAmelioration('rare') === 3 && casesDAmelioration('legendaire') === 3
-    && casesLibres('peu', poseesSur(lustre, 'k')) === 2 && !sePose('genou') && !sePose('tir_gun') && sePose('pinceau') && sePose('lustre'),
-    `Base ${casesDAmelioration('commune')} · Or ${casesDAmelioration('rare')} · Cadre lustré en Or : ${casesLibres('peu', poseesSur(lustre, 'k'))} libres`);
-}
-
-/*
- * 8. TES CARTES (V9, tranche 5b ; V16 ; venu de check_deck). Une carte se joue quand on veut, autant qu'on veut ; les
- * cartes reportées au jour 0 d'une saison neuve (`poche`) y entrent ; une vieille décision `adjoint` n'y met rien.
- */
-{
-  const ev = idsDe('consommable').filter(id => BANQUE[id].vie !== 'permanent').slice(0, 5);
-  const achat = { jour: 0, palier: 'k:1', achat: { pack: 'mixte', n: 1, prix: 25, sorte: 'cartes', cartes: ev } };
-  const p0 = cartesDeLaPartie({ decisions: [achat], rogue: true });
-  const joue = (ref, jour) => ({ jour, joue: { src: 'partie', ref, id: p0.find(x => x.ref === ref).id } });
-  const p1 = cartesDeLaPartie({ decisions: [achat, joue(p0[0].ref, 8), joue(p0[1].ref, 8), joue(p0[2].ref, 8)], rogue: true });
-  exiger('trois cartes se jouent le même jour : aucune limite par semaine', p0.length === ev.length && p1.length === ev.length - 3, `${p0.length} → ${p1.length}`);
-  const report = { jour: 0, poche: ev.slice(0, 2), report: true };
-  const poche = cartesDeLaPartie({ decisions: [report], rogue: true });
-  const apres = cartesDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], rogue: true });
-  exiger('les cartes de la saison d\'avant entrent au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
-  const avec = cartesDeLaPartie({ decisions: [{ jour: 21, palier: 'pp:10', adjoint: { cle: 'canonnier' } }, { jour: 31, palier: 'r:30', adjoint: { cle: 'mur' } }], rogue: true });
-  exiger('une vieille décision d\'adjoint ne met aucune carte dans tes cartes', avec.length === 0, avec.map(x => `${x.ref} ${x.id}`).join(' · ') || 'aucune carte');
-}
-
-/*
- * 9. LES DOUBLONS (Jalon P3 ; venu de check_deck). Trois doublons d'une édition la montent d'un cran, jusqu'à l'Or ; la
- * Holo ne sort pas des doublons. « L'échange d'un doublon » signe un joueur par la décision qui existe (`ballottage`).
+ * 7. LES DOUBLONS (Jalon P3 ; venu de check_deck). Trois doublons d'une édition la montent d'un cran, jusqu'à l'Or ; la
+ * Holo ne sort pas des doublons.
  */
 {
   const x = { v: { commune: 13 } };
@@ -201,22 +159,6 @@ exiger('et la remise à zéro les efface', !poses(cible).length, `${cible.n} : $
   const z = { v: { rare: 7 } };
   monterLesDoublons(z);
   exiger('la Holo ne sort pas des doublons', z.v.rare === 7 && !z.v.legendaire, JSON.stringify(z.v));
-  const p = payloadDe('consommable:echangeDoublon', { joueur: 'k', sortie: { i: 21, sort: 's' }, rar: 'peu' });
-  exiger('l\'échange d\'un doublon est une signature au ballottage', p && p.ballottage && p.ballottage.entre === 'k' && p.ballottage.i === 21 && p.ballottage.sort === 's', JSON.stringify(p));
-  exiger('sans joueur choisi, l\'échange ne décide rien', payloadDe('consommable:echangeDoublon', {}) === null);
-}
-
-/*
- * 10. LES MISSIONS DE COLLECTION (Jalon P4 ; venu de check_deck) se lisent sur le cartable : neuf cartes d'un
- * club-saison font une feuille, cinq Holo d'une décennie une extension, une carte par décennie du jeu les extensions toutes.
- */
-{
-  const joueurs = {};
-  for (let i = 0; i < 9; i++) joueurs[`1985-86_EDM_${i}`] = { v: { rare: 1 }, n: 1 };
-  joueurs['2005-06_CAR_1'] = { v: { commune: 1 }, n: 1 };
-  const ms = Object.fromEntries(missionsDuCartable({ joueurs }, [1980, 2000]).map(m => [m.cle, m]));
-  exiger('neuf cartes d\'un club-saison font une feuille ; cinq Holo d\'une décennie, une extension', ms.feuille.fait && ms.cinqHolo.fait && ms.holo.fait && !ms.or.fait && !ms.cent.fait, Object.values(ms).map(m => `${m.cle} ${m.n}/${m.but}`).join(' · '));
-  exiger('une carte de chaque décennie du jeu : toutes les extensions', ms.epoques.fait && !missionsDuCartable({ joueurs }, [1980, 1990, 2000]).find(m => m.cle === 'epoques').fait && decennieDe('1999-00') === 1990);
 }
 
 verdict();

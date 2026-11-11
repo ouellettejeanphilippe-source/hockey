@@ -10,8 +10,8 @@
  *      buts compté but par but, les punitions une à une, les coups lus à la source) ;
  *   2. sur toute la saison, les buts du profil refont ceux de la fiche du club (GF, GA) ;
  *   3. la moyenne de la ligue égale son recalcul, et ses tirs pour égalent ses tirs contre (une ligue fermée) ;
- *   4. le mot de style ne bouge pas pour un même historique, et ne vient que d'un écart franchi ;
- *   5. sans assez de matchs, ou sans ligue, il n'y a ni profil, ni mot, ni carton : aucun texte sans donnée ;
+ *   4. (le mot de style et ses cartons sont partis avec l'ancien Rogue, V28, tranche 4) ;
+ *   5. sans assez de matchs, ou sans ligue, il n'y a pas de profil : aucun chiffre sans donnée ;
  *   6. « ton build ce soir » relit les décisions du jour (une carte prise au jour 3 n'était pas active au jour 2)
  *      et ne dit « rien de réglé » que quand rien ne l'était ;
  *   7. lire le profil ne change pas une seule journée.
@@ -22,8 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue } from '../js/sim.js';
-import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle, chiffresDuMatch, buildDuSoir, buildVide, ecartsDuSoir, N_PROFIL, MIN_MATCHS, MIN_LIGUE, SEUILS } from '../js/profil-style.js';
-import { cartesDeStyle } from '../js/entracte.js';
+import { matchsJoues, profilDuClub, profilDeLigue, chiffresDuMatch, buildDuSoir, buildVide, ecartsDuSoir, N_PROFIL, MIN_MATCHS, MIN_LIGUE } from '../js/profil-style.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin } from './lib/temoins.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -56,7 +55,6 @@ const decisions = [
   { jour: 3, equipe: 0, ...temoin('fougue') },
   { jour: 0, equipe: 0, ...temoin('attaque') },
 ];
-const aplatir = x => JSON.stringify(x);
 const pres = (a, b, e = 1e-9) => Math.abs(a - b) < e;
 
 console.log('\n  LE PROFIL DE STYLE\n');
@@ -110,29 +108,10 @@ exiger('la ligue : les tirs, les buts et les punitions des autres clubs, recompt
   `${Lg.tirsPour.toFixed(2)} tirs · ${Lg.butsPour.toFixed(2)} buts · ${Lg.punitions.toFixed(2)} punitions sur ${k} côtés`);
 exiger('une ligue fermée : ses tirs contre égalent ses tirs pour', Math.abs(Lg.tirsPour - Lg.tirsContre) < 0.6, `${Lg.tirsPour.toFixed(2)} / ${Lg.tirsContre.toFixed(2)}`);
 
-// 4. Le mot de style : même historique, même mot ; chaque mot a son écart.
-const style = motDeStyle(P, Lg);
-exiger('le mot de style est le même pour le même historique', aplatir(style) === aplatir(motDeStyle(profilDuClub(matchs, toi), profilDeLigue(tout, toi))));
-const base = { n: 10, tirsPour: 28, tirsContre: 28, butsPour: 3, butsContre: 3, punitions: 3.8, coups: 22, rythme: 56 };
-const mot = p => motDeStyle({ ...base, ...p }, base).mots.join('|');
-exiger('un rythme sous la ligue de 4 tirs dit « jeu fermé »', mot({ rythme: 56 - SEUILS.rythme }) === 'jeu fermé');
-exiger('… et un rythme au-dessus dit « jeu ouvert »', mot({ rythme: 56 + SEUILS.rythme }) === 'jeu ouvert');
-exiger('des coups à +4 disent « jeu de contact »', mot({ coups: 22 + SEUILS.coups }) === 'jeu de contact');
-exiger('une punition de plus dit « indiscipliné », une de moins « discipliné »', mot({ punitions: 3.8 + SEUILS.punitions }) === 'indiscipliné' && mot({ punitions: 3.8 - SEUILS.punitions }) === 'discipliné');
-exiger('sous les seuils, aucun mot', mot({ rythme: 54, coups: 24, punitions: 4.3 }) === '');
-exiger('un jeu pauvre n\'est pas dit fermé : tirer moins sans que les autres tirent moins a sa propre note',
-  motDeStyle({ ...base, tirsPour: 24, tirsContre: 28, rythme: 52 }, base).note.includes('plus pauvre'));
-
 // 5. Aucun texte sans donnée suffisante.
 const peu = matchs.filter(m => m.A === toi || m.B === toi).slice(0, MIN_MATCHS - 1);
 exiger(`moins de ${MIN_MATCHS} matchs : pas de profil`, profilDuClub(peu, toi) === null);
 exiger(`moins de ${MIN_LIGUE} côtés de ligue : pas de moyenne`, profilDeLigue(matchsJoues(L.calendrier.slice(0, 1)).slice(0, 5), toi) === null);
-exiger('sans profil ou sans ligue, aucun mot et aucun carton', motDeStyle(null, Lg) === null && motDeStyle(P, null) === null
-  && cartesDeStyle({ profil: null, ligue: Lg, style }).length === 0 && cartesDeStyle({ profil: P, ligue: null, style }).length === 0);
-const cartons = cartesDeStyle({ profil: P, ligue: Lg, style });
-exiger('avec les données : deux cartons, sans cote ni pourcentage', cartons.length === 2 && !cartons.some(c => /%|cote/i.test(c.corps)), `${cartons.length} cartons`);
-const sansCoups = cartesDeStyle({ profil: { ...P, coups: null }, ligue: Lg, style: motDeStyle({ ...P, coups: null }, Lg) });
-exiger('une feuille sans mises en échec ne les affiche pas', !/Mises en échec/.test(sansCoups[1].corps));
 
 // 6. Ton build ce soir.
 const b2 = buildDuSoir(toi, 2), b3 = buildDuSoir(toi, 3);
@@ -155,5 +134,5 @@ const joue = lire => {
 };
 exiger('lire le profil chaque matin ne change pas une seule journée', joue(true) === joue(false));
 
-informer('ton profil, tel que l\'écran le montre', `${P.tirsPour.toFixed(1)} / ${P.tirsContre.toFixed(1)} tirs, ${P.butsPour.toFixed(2)} / ${P.butsContre.toFixed(2)} buts, ${P.punitions.toFixed(1)} punitions, ${P.coups.toFixed(0)} coups, rythme ${P.rythme.toFixed(1)} (ligue ${Lg.rythme.toFixed(1)}) : ${style.mots.join(' · ') || 'dans la moyenne'}`);
+informer('ton profil, tel que l\'écran le montre', `${P.tirsPour.toFixed(1)} / ${P.tirsContre.toFixed(1)} tirs, ${P.butsPour.toFixed(2)} / ${P.butsContre.toFixed(2)} buts, ${P.punitions.toFixed(1)} punitions, ${P.coups.toFixed(0)} coups, rythme ${P.rythme.toFixed(1)} (ligue ${Lg.rythme.toFixed(1)})`);
 verdict('Le profil de style');

@@ -76,8 +76,7 @@ export const NIVEAUX = [
 export const nomDuNiveau = k => `${k >= ETOILE ? '★ ' : ''}${(NIVEAUX[k] || NIVEAUX[0]).nom}`;
 /* Un niveau sûr, de 0 à 4 ; sans niveau, Régulier. */
 export const niveauSur = k => (Number.isInteger(k) && NIVEAUX[k] ? k : REGULIER);
-export const REGULIER = 1;
-export const PILIER = 2;
+const REGULIER = 1;
 export const ETOILE = 3;
 export const PHENOMENE = 4;
 
@@ -213,8 +212,6 @@ function saisonDe(joueurs) {
 export const niveauDe = (p, joueurs) => (p && joueurs ? saisonDe(joueurs).niveau(p) : -1);
 /* Vrai quand c'est sa défense, pas ses points, qui lui donne son niveau : la pastille le dit (« déf. »). */
 export const niveauParDefense = (p, joueurs) => !!(p && joueurs && saisonDe(joueurs).parDefense(p));
-/* Le seuil aux points (ou aux buts évités) du niveau `k` d'un groupe : la barre d'un joueur sans niveau (le ballottage). */
-export const seuilDuNiveau = (joueurs, g, k) => saisonDe(joueurs).seuils[g][k];
 /* Les réguliers d'une saison rangés par niveau (une personne une fois). */
 export const joueursParNiveau = joueurs => saisonDe(joueurs).parNiveau;
 export const joueursHorsNiveau = joueurs => saisonDe(joueurs).horsNiveau;

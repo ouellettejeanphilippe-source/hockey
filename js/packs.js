@@ -57,7 +57,6 @@
  * leur filtre et le Trio, sa vraie ligne : ni l'un ni l'autre ne tire de niveau.
  */
 import { hache } from './util.js';
-import { BANQUE, idsDe } from './banque.js';
 import { COACHS, VOIES } from './coachs.js';
 import { getPlayerKey, getPersonKey, badgesDe, famillesDe } from './sim.js';
 import { coachDuJoueur } from './greffes.js';
@@ -78,21 +77,7 @@ export const TIERS = {
   premium: { nom: 'Premium', n: 6, cotes: { commune: 52, peu: 26, hors: 9, rare: 10, legendaire: 3 }, niveaux: { soutien: 14, regulier: 40, pilier: 39, etoile: 6, phenomene: 1 } },
 };
 /* La numérotation d'une Holo (en % des Holo). */
-export const NUMEROS = [['/99', 78], ['/25', 16], ['/10', 5], ['1 de 1', 1]];
-/* En mode Rogue : PITIE packs de joueurs sans Or ni Holo, et le suivant en a une. */
-export const PITIE = 12;   // V5 : la holo est rare ; la garantie arrive plus tard aussi
-/*
- * LA DATE LIMITE DES ÉCHANGES (1.0, oct.). JP : *rendre impossible de prendre
- * des packs de joueurs après la date limite des échanges*. Comme la vraie
- * ligue, fin février : passé le marché de ton 68e match, plus aucun joueur
- * n'entre par un pack. Le rappel d'un blessé (le ballottage), lui, reste ouvert.
- * JP (8 nov. 2026) : la date limite passe du 62e au 68e match, pour que le
- * nœud du 68e match (js/actes.js `NOEUDS_BOUTIQUE`) fasse encore signer ;
- * celui du 82e ne vend plus que la pièce et les cartes. Le jeu et les deux
- * robots lisent la même règle, `dateLimitePassee(joues)`.
- */
-export const DATE_LIMITE_MATCH = 68;
-export const dateLimitePassee = joues => joues > DATE_LIMITE_MATCH;
+const NUMEROS = [['/99', 78], ['/25', 16], ['/10', 5], ['1 de 1', 1]];
 
 /*
  * LES PACKS DE JOUEURS. \`famille\` dit où l'on pige ; \`choix\` : le pack se
@@ -100,7 +85,7 @@ export const dateLimitePassee = joues => joues > DATE_LIMITE_MATCH;
  * hasard, équipe, année et ère tirent le NIVEAU aux taux de leur tier ;
  * \`niveaux\` les remplace pour les packs d'étoiles.
  */
-export const PACKS_JOUEURS = {
+const PACKS_JOUEURS = {
   hasard_bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', prix: 12, texte: 'Trois vrais joueurs de toutes les époques.' },
   hasard_argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', prix: 20, texte: 'Quatre vrais joueurs de toutes les époques.' },
   hasard_or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', prix: 35, texte: 'Cinq vrais joueurs, de meilleures chances.' },
@@ -150,10 +135,9 @@ export const PACKS_JOUEURS = {
 /* Les packs que la boutique vend (Jalon P2 ; V10 : les Vedettes, que la Coupe ouvre), dans son ordre. */
 export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:specialistes', 'j:club', 'j:coach', 'j:vedettes'];
 /* Les décennies du Pack Époque, et les rôles du Pack Spécialistes, avec leur nom. */
-export const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
-export const NOMS_SKILLS = { sniper: '🎯 Tir', passeur: '🪄 Jeu', defensif: '❄ Défense', dur: '🥊 Robustesse', gardien: '🥅 Gardiens', recrue: '🐣 Recrues', veteran: '🧓 Vétérans' };
+const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
 /* Les postes d'un pack qui vise le poste (`poste`, le Pack Époque) : le groupe du joueur (js/niveaux.js `groupeDuJoueur`). */
-export const POSTES_DU_PACK = { F: 'Des avants', D: 'Des défenseurs', G: 'Des gardiens' };
+const POSTES_DU_PACK = { F: 'Des avants', D: 'Des défenseurs', G: 'Des gardiens' };
 
 /* LES CARTES RARES D'UN PACK DE JOUEURS (js/banque.js) : gardées dans ton inventaire. V21 : le Pack Personnel est parti
    avec le personnel ; les adjoints ne sont pas des cartes de pack. V25 B1 : la carte se tire par NIVEAU, aux parts de
@@ -161,78 +145,7 @@ export const POSTES_DU_PACK = { F: 'Des avants', D: 'Des défenseurs', G: 'Des g
 
 /* Tous les packs, par clé : \`j:\` les joueurs. */
 export const PACKS_TOUS = Object.fromEntries(Object.entries(PACKS_JOUEURS).map(([k, P]) => [`j:${k}`, { ...P, sorte: 'joueurs', cle: k, n: P.joueurs || P.n || TIERS[P.tier].n + (P.famille === 'trio' ? -2 : 0) }]));
-/*
- * LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1). JP : *les récompenses devraient être des packs de joueurs*. Une série
- * gagnée donnait une carte rare jouable tout de suite : la main grossissait de ronde en ronde et emballait la run.
- * Elle donne maintenant un pack dont les joueurs vont au cartable — pour la saison suivante et les runs d'après,
- * jamais dans l'alignement des séries en cours. Par ronde gagnée (0, 1, 2), puis la Coupe.
- */
-export const PACKS_DE_SERIE = ['j:hasard_argent', 'j:hasard_or', 'j:etoiles', 'j:legendes'];
-/* Le pack de la ronde `r` gagnée : « Les vedettes » (le déblocage) le montent d'un cran ; la Coupe, des Légendes. */
-export const packDeSerie = (r, vedettes = false) => PACKS_DE_SERIE[Math.min(PACKS_DE_SERIE.length - 1, r + (vedettes ? 1 : 0))];
-export const prixDe = (cle, rabais = 1) => Math.max(1, Math.round((PACKS_TOUS[cle] || {}).prix * rabais));
-/*
- * LES PRIX MONTENT (JP : *trop de cartes, trop de cash, ça vire rapidement à être trop et j'ai rien à faire*). En
- * Rogue, chaque achat d'un nœud de la boutique fait monter les suivants de `HAUSSE_PACK` de leur prix, comme la
- * relance de Balatro : le premier garde son prix, et le nœud suivant repart au prix de base (V27, tranche 3 :
- * js/actes.js `NOEUDS_BOUTIQUE` ; avant, la hausse comptait toute la saison). L'argent garde un usage ; il cesse de tout acheter (docs/refonte-v5.md, phase 4 : les packs
- * ramenés à ~8 par saison). V9, tranche 8 : à 10 %, le gérant attentif en ouvrait encore 20 à 24 par saison, et sa
- * première Coupe tombait à la run 2 ; à 25 %, une dizaine. Le 27 oct. (JP, sa run 1 : onze packs Bronze dans la
- * saison 1, deux Piliers signés, 12e de 32 ; *on a été vraiment plus fort qu'on aurait dû*) : à 25 %, la première
- * Coupe de l'attentif retombait aux runs 1 et 4 ; à 40 %, aux runs 6 et 3, et il la regagne 27 % des runs (35 % :
- * 13 %, trop dur ; 50 % : runs 2 et 3, le bruit) — `check_profondeur`, 2 campagnes de 12 runs. Un achat de ton club
- * (un nom, un écusson) ne compte pas.
- */
-const HAUSSE_PACK = 0.40;
-export const hausseDesPacks = n => 1 + HAUSSE_PACK * (n || 0);
 
-/* ---------- les chances affichées ---------- */
-const unSur = p => (p <= 0 ? null : p >= 0.999 ? 1 : Math.max(2, Math.round(1 / p)));
-/*
- * « Or ou mieux : 1 pack sur 4 », « Holo : 1 pack sur 25 », « 1 de 1 : 1 pack
- * sur 2 500 » — la chance d'en trouver AU MOINS une dans le pack, pour son
- * nombre de cartes. \`mods\` : ce que les patrons changent (\`holo\`,
- * \`carteExtra\`, \`sansBase\`).
- */
-export function chancesDe(cle, mods = {}) {
-  const P = PACKS_TOUS[cle];
-  if (!P) return [];
-  if (P.sorte === 'cartes') {
-    const c = P.cotes;
-    const tot = c.commune + c.peu + c.rare + c.legendaire;
-    const r = (c.rare + c.legendaire) / tot, l = c.legendaire / tot;
-    const n = P.n;
-    return [
-      { nom: 'Rare ou mieux', txt: formatUnSur(1 - (1 - r) ** n), p: 1 - (1 - r) ** n },
-      { nom: 'Légendaire', txt: formatUnSur(1 - (1 - l) ** n), p: 1 - (1 - l) ** n },
-    ];
-  }
-  const c = cotesDuPack(cle, mods);
-  const n = cartesDuPack(cle, mods);
-  const r = (c.rare + c.legendaire) / 100, l = c.legendaire / 100, un = l * NUMEROS[3][1] / 100;
-  const pr = P.garanti ? 1 : 1 - (1 - r) ** n;
-  // S80 : le JOUEUR d'abord (son niveau), puis la FINITION de sa carte. Un pack d'étoiles ne dit pas « Étoile ou mieux » : c'est chaque carte.
-  const nv = niveauxDuPack(cle, mods);
-  const joueur = nv ? [
-    ...(nv.soutien || nv.regulier || nv.pilier ? [{ nom: '★ Étoile ou mieux', p: 1 - (1 - (nv.etoile + nv.phenomene) / 100) ** n }] : []),
-    { nom: '★ Phénomène', p: 1 - (1 - nv.phenomene / 100) ** n },
-  ].map(x => ({ ...x, txt: formatUnSur(x.p), niveau: true })) : [];
-  return [
-    ...joueur,
-    { nom: 'Cadre ou mieux', txt: formatUnSur(1 - (1 - (100 - c.commune) / 100) ** n), p: 1 - (1 - (100 - c.commune) / 100) ** n },
-    { nom: 'Or ou mieux', txt: P.garanti ? 'garantie' : formatUnSur(pr), p: pr },
-    { nom: 'Holo numérotée', txt: formatUnSur(1 - (1 - l) ** n), p: 1 - (1 - l) ** n },
-    { nom: '1 de 1', txt: formatUnSur(1 - (1 - un) ** n), p: 1 - (1 - un) ** n },
-  ];
-}
-function formatUnSur(p) {
-  const n = unSur(p);
-  if (n === null) return 'jamais';
-  if (n === 1) return 'dans chaque pack';
-  // Au-dessus d'une chance sur deux, « 1 pack sur 2 » mentirait : on dit le pourcentage.
-  if (p >= 0.5) return p >= 0.995 ? 'dans presque chaque pack' : `${Math.round(p * 100)} % des packs`;
-  return `1 pack sur ${n.toLocaleString('fr-CA')}`;
-}
 /*
  * LE MÉTAL D'UN PACK (V10, les packs qui montent) : le sien, ou celui du dessus quand son second cran est pris
  * (`mods.montee`, js/rogue.js `monteeDesPacks`) — le Bronze tire alors aux taux de l'Argent, au même prix.
@@ -243,7 +156,7 @@ export function tierDuPack(cle, mods = {}) {
   return ((mods.montee || {})[cle] || 0) >= 2 ? METAUX[Math.min(METAUX.length - 1, METAUX.indexOf(t) + 1)] : t;
 }
 /* Le barème d'une carte de ce pack, en %, avec ce que les patrons y changent. */
-export function cotesDuPack(cle, mods = {}) {
+function cotesDuPack(cle, mods = {}) {
   const c = { ...TIERS[tierDuPack(cle, mods)].cotes };
   if (mods.holo && mods.holo !== 1) {
     const gain = (c.rare + c.legendaire) * (mods.holo - 1);
@@ -473,55 +386,6 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
   const vars = out.map(x => ({ rar: x.rar, num: x.num })).sort((a, b) => EDITIONS.indexOf(b.rar) - EDITIONS.indexOf(a.rar));
   ordre.forEach((i, k) => { out[i].rar = vars[k].rar; out[i].num = vars[k].num; });
   return { cartes: out, reglage };
-}
-
-/*
- * LA CARTE RARE D'UN PACK DE JOUEURS (V16, § 4d ; V21) : un pack qui porte des `cartes` en donne une — une retouche,
- * un soin, l'échange d'un doublon — une fois sur `1 / RARE_DU_PACK`, jamais le gros du pack.
- */
-const CATS_RARES = ['joueur', 'consommable'];
-export const RARE_DU_PACK = 0.25;
-export function tirerCartesDuPack(cle, graine, n) {
-  const P = PACKS_TOUS[cle];
-  if (!P || !P.cartes) return [];
-  return hache(graine, 'pack-rare', cle, n) < RARE_DU_PACK ? tirerCartes({ n: 1, cats: CATS_RARES }, `${cle}:outils`, graine, n) : [];
-}
-function tirerCartes(P, cleCourte, graine, n) {
-  const out = [];
-  const cats = P.cats.filter(c => idsDe(c).length);
-  for (let t = 0; t < P.n; t++) {
-    const cat = cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * cats.length)];
-    const pool = idsDe(cat);
-    let r = hache(graine, 'pack-cartes', cleCourte, n, t) * 100;
-    let niv = 1;
-    for (let k = 0; k < NIVEAUX.length; k++) { r -= NIVEAUX[k].tirage; if (r < 0) { niv = k; break; } }
-    // Le niveau tiré, ou le plus proche en dessous qui a une carte dans cette famille.
-    for (let i = niv; i >= 0; i--) {
-      const c = pool.filter(id => BANQUE[id].niveau === i);
-      if (!c.length) continue;
-      out.push(c[Math.floor(hache(graine, 'pack-carte', cleCourte, n, t, NIVEAUX[i].cle) * c.length)]);
-      break;
-    }
-  }
-  return out;
-}
-/* LA BANQUE QU'ON PEUT COMPLÉTER (V2.2, la collection se complète) : une carte compte si un pack peut la donner (`CATS_RARES`). */
-export function sortDUnPack(id) {
-  const c = BANQUE[id];
-  return !!c && CATS_RARES.includes(c.cat);
-}
-/*
- * LA GARANTIE (Rogue) : combien de packs de joueurs d'affilée sans holo ni or
- * — lu dans les décisions d'achat (\`achat.meilleure\`). Au bout de PITIE packs
- * sans, le prochain (le PITIE + 1e) en garantit une — \`check_verite\`.
- */
-export function packsSansHolo(decisions = []) {
-  let n = 0;
-  for (const d of [...decisions].filter(x => x && (x.achat || x.rogue) && (x.achat || x.rogue).sorte === 'joueurs' && !(x.achat && x.achat.scelle)).sort((a, b) => (a.achat || a.rogue).n - (b.achat || b.rogue).n)) {
-    const m = (d.achat || d.rogue).meilleure;
-    n = m === 'rare' || m === 'legendaire' ? 0 : n + 1;
-  }
-  return n;
 }
 
 /*

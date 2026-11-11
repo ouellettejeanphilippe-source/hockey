@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, tirageDuProfil, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, MUTATIONS, joueurDeMutation, badgesDeMutation, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PROFILS, PART_UNITE, penaliteAdaptee } from './sim.js';
+import { lectureDuMatch, attenduDeCote, tirageDuProfil, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, MUTATIONS, joueurDeMutation, badgesDeMutation, MOMENTS_SI, SLOTS, getPositionPenalty, PROFILS, PART_UNITE, penaliteAdaptee } from './sim.js';
 import { PLANS, cibleDuPlan } from './greffes.js';
 import { virgule } from './util.js';
 import { PIECES, bancDe, effetDuRelais } from './pieces.js';
@@ -25,7 +25,7 @@ const N_EFFET = 400;
  * match : les tirs, la réussite au tir (les buts sur les tirs), les tirs contre, le % d'arrêts. Un choix se lit par
  * l'écart entre deux lectures du même soir, sous les mêmes dés.
  */
-export const statsDe = m => ({
+const statsDe = m => ({
   tirs: m.tirsPour, pctTir: m.tirsPour > 0 ? m.butsPour / m.tirsPour : 0,
   contre: m.tirsContre, pctArr: m.tirsContre > 0 ? 1 - m.butsContre / m.tirsContre : 0,
 });
@@ -109,10 +109,6 @@ function moyennes(L) {
   const feA = attenduDeCote(A, B) * part * FE_TIRS, feB = attenduDeCote(B, A) * part * FE_TIRS;
   const dnA = DN_TIRS_MIN * nContre * wB.long, dnB = DN_TIRS_MIN * nPour * wA.long;
   const tirsPour = feA + nPour * wA.tirs + dnA, tirsContre = feB + nContre * wB.tirs + dnB;
-  const glace = g => {
-    const u = (A.unites && A.unites[g]) || [], s = u.reduce((a, x) => a + x.presence, 0) || 1;
-    return u.map(x => 60 * x.presence / s);
-  };
   // Chaque tireur de ton club, par match : sa part des lancers lus, et la chance de chacun (FE, avantage, désavantage).
   const joueurs = new Map();
   for (const [mode, tirs] of [['FE', feA], ['AN', nPour * wA.tirs], ['DN', dnA]]) {
@@ -122,56 +118,14 @@ function moyennes(L) {
       joueurs.set(k, x);
     }
   }
-  /*
-   * CHAQUE UNITÉ, CE QU'ELLE CHANGE (V6, la note qui bouge). JP : *les buts pour, sur l'effectif, ça veut rien, pis
-   * c'est pas influencé par la stratégie on dirait* ; puis *un trio défensif pourrait être hyper pertinent et utile et
-   * dans les moins*. À forces égales, par match, ce qu'elle fait de plus qu'une unité neutre à sa place, face aux
-   * mêmes adversaires :
-   *   attaque  = ses lancers, mieux (ou moins bien) convertis qu'avec un tireur, une création et une qualité
-   *              neutres ; plus son volume : les lancers qu'elle prend au-delà de sa part de glace ;
-   *   défense  = les buts que sa défense sur la glace évite, contre une défense neutre devant les mêmes tireurs.
-   * Un trio de fermeture qui prend leur premier trio se lit à la défense qu'il fait, pas au +/− qu'il subit.
-   */
-  const U = L.unites;
-  const unites = g => {
-    if (!U || !U.pour.n) return [];
-    const nP = U.pour.n, nC = U.contre.n || 1, pnMoy = (U.pour.pn || 0) / nP, glace = U.glace[g] || [];
-    return Array.from({ length: Math.max(glace.length, U.pour[g].length, U.contre[g].length) }, (_, i) => {
-      const o = U.pour[g][i] || { n: 0, p: 0, pn: 0 }, d = U.contre[g][i] || { ev: 0 };
-      const attaque = feA * ((o.p - o.pn) + (o.n - (glace[i] || 0) * nP) * pnMoy) / nP;
-      const defense = feB * d.ev / nC;
-      // Ses vraies stats sur la glace, à forces égales (V7) : ses tirs et ceux d'en face par match, la réussite, les arrêts.
-      const c = U.contre[g][i] || { n: 0, p: 0 };
-      const stats = { tirs: feA * o.n / nP, pctTir: o.n ? o.p / o.n : 0, contre: feB * c.n / nC, pctArr: c.n ? 1 - c.p / c.n : 0 };
-      return { attaque, defense, net: attaque + defense, stats };
-    });
-  };
-  /*
-   * TES UNITÉS SPÉCIALES (V7) : chacune, par match, ses minutes et ses vraies stats — en avantage, ses tirs et sa
-   * réussite ; en désavantage, les tirs d'en face et tes arrêts. Comptées sur l'unité d'attaquants, qui monte avec sa
-   * paire.
-   */
-  const speciales = () => {
-    const S = L.speciales;
-    if (!S || !S.pour.n) return null;
-    const tirsAN = nPour * wA.tirs, tirsDN = nContre * wB.tirs;
-    const AN = POIDS_AN.map((w, i) => { const o = S.pour.F[i] || { n: 0, p: 0 }; return { minutes: nPour * wA.long * w, tirs: tirsAN * o.n / S.pour.n, pctTir: o.n ? o.p / o.n : 0 }; });
-    const DN = POIDS_DN.map((w, i) => { const c = S.contre.F[i] || { n: 0, p: 0 }; return { minutes: nContre * wB.long * w, contre: tirsDN * c.n / (S.contre.n || 1), pctArr: c.n ? 1 - c.p / c.n : 0 }; });
-    return { AN, DN };
-  };
   return {
-    joueurs, partDuFilet: L.partDuFilet, unitesF: unites('F'), unitesD: unites('D'),
-    tirsPour, tirsContre, rythme: tirsPour + tirsContre,
+    joueurs, partDuFilet: L.partDuFilet,
+    tirsPour, tirsContre,
     butsPour: feA * p.pour.FE + nPour * wA.buts + dnA * p.pour.DN,
     butsContre: feB * p.contre.FE + nContre * wB.buts + dnB * p.contre.DN,
     punitions: nContre, punitionsEux: nPour, minutesDesavantage: nContre * wB.long, minutesAvantage: nPour * wA.long,
-    coups: coupsAttendus(A), bagarres: L.bagarres,
+    coups: coupsAttendus(A),
     blessures: L.blessures, usure: L.usure,
-    glaceF: glace('F'), glaceD: glace('D'),
-    speciales: speciales(),
-    // Les minutes à forces égales du soir (ni avantage ni désavantage), à l'horloge : avec celles des unités spéciales, les
-    // soixante minutes. (Les tirs lisent `part`, ce que le moteur joue ; un soir chargé de punitions, il en joue un peu plus.)
-    minutesFE: Math.max(30, 60 - nPour * wA.long - nContre * wB.long),
   };
 }
 
@@ -203,17 +157,10 @@ function lire(team, lu, adv, opts) {
 /**
  * Ce que le soir d'un club vaut en nombres de match, avec ses effets du jour : tirs pour et contre, buts,
  * punitions, minutes à quatre contre cinq, mises en échec attendues. `adv` : l'adversaire ; sans lui, un club moyen.
+ * Les juges la lisent (`check_chiffres` la prouve égale à des milliers de vrais matchs, `check_au_mieux` y mesure le bouton).
  */
 export function chiffresDuSoir(team, lineup = null, adv = null, aVenir = []) {
   return lire(team, lineup, adv, { aVenir, n: N_BASE });
-}
-/*
- * Les mêmes nombres, sous des effets posés le temps de la lecture — sur ton club (`effets`) et sur l'adversaire moyen
- * (`effetsAdv`), comme `lectureDuMatch` les pose. C'est ainsi qu'un échange d'adjoint se lit pour TON club avant de le
- * prendre (le robot attentif, scripts/lib/rogue_sim.mjs) : son gain et son prix, sur ton effectif, pas en moyenne.
- */
-export function chiffresDuSoirSous(team, { effets = [], effetsAdv = [] } = {}) {
-  return lire(team, null, null, { effets, effetsAdv, n: N_BASE });
 }
 
 /*
@@ -441,114 +388,6 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
   return out.length ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
 }
 
-/**
- * Ce que le BUILD change ce soir : tous les effets actifs (cartes, patrons, coachs, moments) contre le même
- * alignement sans aucun. Remplace les « Tirs +14 % · Précision −3 % » du total du soir.
- * `aVenir` : les décisions du jour pas encore jouées.
- */
-export function motsDuSoir(team, lineup = null, adv = null, aVenir = []) {
-  if (!team) return [];
-  const avec = lire(team, lineup, adv, { aVenir, n: N_EFFET }), sans = lire(team, lineup, adv, { aVenir, nu: true, n: N_EFFET });
-  const vu = m => ({ ...statsDe(m), punitions: m.punitions });
-  const d = differences(avec, sans), mots = [...lignesDe(d, 'par match', 1, false, { sans: vu(sans), avec: vu(avec) }), ...horsFeuille(d)];
-  // Des effets qui jouent, trop petits pour une feuille : on le dit plutôt que de taire.
-  return mots.length || ![d.tirsPour, d.tirsContre, d.butsPour, d.butsContre, d.punitions, d.blessures, d.usure].some(x => Math.abs(x) > 1e-9) ? mots : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
-}
-/*
- * CE QUE LA FEUILLE NE DIT PAS (V2.2) : les blessures et l'usure des jambes jouent aussi ce soir (un adjoint, un
- * dos-à-dos). Les blessures se disent sur dix matchs — un soir en compte une sur cinquante.
- */
-function horsFeuille(d) {
-  const out = [];
-  const b = d.blessures * 10;
-  if (Math.abs(b) >= 0.05) out.push({ txt: `≈ ${signeDe(b)}${nb(b, 1)} ${mot(b, 'blessure', 'blessures')} par 10 matchs`, bon: b < 0, cle: 'blessure' });
-  if (Math.abs(d.usure) >= 0.1) out.push({ txt: `≈ ${signeDe(d.usure)}${nb(d.usure, 1)} ${mot(d.usure, 'jambe', 'jambes')} d'usure par match`, bon: d.usure < 0, cle: 'jambes' });
-  return out;
-}
-
-/*
- * CE QUE TON ALIGNEMENT FAIT CE SOIR (V2.2, les totaux du soir disent tout). Les effets ne sont pas tout : tes
- * badges, l'affinité de tes lignes et leurs jambes jouent aussi, et une affiche qui disait « aucun
- * effet » un soir chargé mentait par omission. Chacun se lit par différence (`neutre`, js/sim.js) : le soir tel
- * quel contre le même soir où cette part est au neutre. Un nombre par part, l'écart de buts par match — ce que
- * la part rapporte (ou coûte) au pointage.
- */
-export const PARTS_DU_SOIR = [
-  ['badges', 'Badges'], ['affinite', 'Affinité'], ['jambes', 'Jambes'],
-];
-export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
-  if (!team) return [];
-  const tel = lire(team, lineup, adv, { aVenir, n: N_EFFET });
-  return PARTS_DU_SOIR.map(([k, nom]) => {
-    const sans = lire(team, lineup, adv, { aVenir, neutre: { [k]: true }, n: N_EFFET });
-    const ecart = (tel.butsPour - tel.butsContre) - (sans.butsPour - sans.butsContre);
-    const d = statsEntre(tel, sans), m = motsDeStats(d, 2);
-    const txt = m.length ? `${nom} : ${m.map(x => x.txt).join(', ')} par match` : `${nom} : rien ce soir`;
-    return { txt, bon: Math.abs(ecart) >= 0.01 ? ecart > 0 : null, cle: k, ecart, d };
-  });
-}
-
-/*
- * CE QUI JOUE, UN PAR UN (V7, JP : *pas facile d'avoir numériquement quels trucs sont déjà actifs*). Le coach, chaque
- * patron, chaque carte de la saison et chaque effet qui court ce soir : le soir tel quel contre le même soir sans lui
- * seul, sous les mêmes dés. Rend [{ genre, ico, nom, reste, d (l'écart de stats, `statsDe`), mots }], le plus lourd d'abord,
- * et `.total` : l'écart de tous ensemble.
- */
-export function ceQuiJoue(team, lineup = null, adv = null, aVenir = []) {
-  if (!team) return [];
-  return avecAVenir(team, aVenir, () => {
-    const tel = lire(team, lineup, adv, { n: N_EFFET });
-    const j = team.jourCourant || 0;
-    const sources = [
-      ...(team.effets || []).map((e, i) => ({ champ: 'effets', i, e })).filter(({ e }) => j >= e.debut && j < e.fin && e.source !== 'match')
-        .map(({ champ, i, e }) => ({ champ, i, genre: 'effet', ico: e.ico, nom: e.nom, reste: matchsEntre(team, j, e.fin) })),
-    ].filter(s => s.nom);
-    const sansDes = retires => {
-      const avant = {};
-      for (const [champ, ix] of retires) { avant[champ] = team[champ]; team[champ] = team[champ].filter((_, k) => !ix.has(k)); }
-      try { return lire(team, lineup, adv, { n: N_EFFET }); } finally { Object.assign(team, avant); }
-    };
-    const r = sources.map(({ champ, i, ...s }) => {
-      const sans = sansDes([[champ, new Set([i])]]);
-      const d = differences(tel, sans);
-      const e = statsEntre(tel, sans);
-      return { ...s, d: e, poids: Math.max(...Object.keys(PAS_STAT).map(k => Math.abs(e[k]) / PAS_STAT[k])), mots: [...lignesDe(d), ...horsFeuille(d)] };
-    }).sort((a, b) => b.poids - a.poids);
-    // LE TOTAL (le Bureau) : le soir tel quel contre le même soir sans aucun d'eux, sous les mêmes dés — pas la somme des
-    // lignes, qui compterait deux fois ce qui se chevauche.
-    const parChamp = new Map();
-    for (const { champ, i } of sources) { if (!parChamp.has(champ)) parChamp.set(champ, new Set()); parChamp.get(champ).add(i); }
-    r.total = sources.length ? statsEntre(tel, sansDes([...parChamp])) : null;
-    return r;
-  });
-}
-
-/*
- * UNE SIGNATURE, EN CHIFFRES (V7, JP : *comparaison de joueur lorsque carte à ajouter, on a pas les lignes*). Un autre
- * alignement (`roster`, case → joueur) contre celui en vigueur, contre un club moyen : l'écart de stats par match (`statsDe`).
- */
-export function rosterEnStats(team, roster) {
-  if (!team || !team.roster) return null;
-  return statsEntre(lire(team, activeLineup({ ...team, roster }), null, { n: N_EFFET }), lire(team, activeLineup(team), null, { n: N_EFFET }));
-}
-
-/*
- * LA NOTE QUI BOUGE (V6, docs/refonte-v6.md). Chaque trio et chaque paire de ton club : ce qu'il fait de plus qu'une
- * unité neutre à sa place, à forces égales, par match, contre `adv` — en attaque, en défense, et les deux ensemble.
- * Il suit l'affinité de sa ligne, ses badges, ses jambes et ses cases.
- */
-/** Tes unités spéciales ce soir, en minutes et en vraies stats (voir `speciales` dans `moyennes`), et les minutes à forces égales. */
-export function specialesEnStats(team, lineup, adv, aVenir = []) {
-  if (!team) return null;
-  const m = lire(team, lineup, adv, { aVenir, n: N_BASE });
-  return m.speciales ? { ...m.speciales, minutesFE: m.minutesFE } : null;
-}
-export function unitesDuSoir(team, lineup, adv) {
-  if (!team) return null;
-  const m = lire(team, lineup, adv, { n: N_BASE });
-  return { F: m.unitesF, D: m.unitesD };
-}
-
 
 
 /*
@@ -660,24 +499,13 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
   return [...(ditQuelqueChose ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]), ...badges, ...qui, ...base];
 }
 
-/**
- * LA FENÊTRE D'UN CHOIX (V19, tranche 5 ; JP : *des dates, pour que ça joue plus*). Les matchs de ton club qu'un effet couvre,
- * dits en rangs : « Du 31e au 38e match ». `joues` : les matchs déjà joués ; `duree` : sa durée en matchs (`apresMatchs`,
- * js/sim.js, compte les mêmes). Rien sans durée.
- */
-export function fenetreDuChoix(joues, duree) {
-  if (!(duree >= 1)) return '';
-  const rang = n => (n === 1 ? '1er' : `${n}e`);
-  return duree === 1 ? `Au ${rang(joues + 1)} match` : `Du ${rang(joues + 1)} au ${rang(joues + duree)} match`;
-}
-
 /* ---- le club qu'on lit ---- */
 
 let CLUB = null;
 /** Le club dont on lit les effets (game.js le lui donne) : `() => ({ team, lineup, adv })`, ou `null` hors partie. */
 export function poserClubLu(f) { CLUB = f; }
 /** Le club lu en ce moment : `{ team, lineup, adv }`, ou `null`. */
-export const clubLu = () => (CLUB && CLUB()) || null;
+const clubLu = () => (CLUB && CLUB()) || null;
 /*
  * LES PIÈCES DU BANC EN VRAIES STATS (nov. 2026 ; JP : *adjoints and powers: real per-game stats* ; V27, tranche 5). Le
  * canonnier disait « Tes tirs +18 % », le plan « +1,7 tir par match » : on ne pouvait pas les comparer. Une pièce de la
@@ -767,7 +595,7 @@ export const motPenalite = a => (a.pen <= 0 ? '' : a.matchs > 0 ? `−${String(a
  * Le contrôleur (js/game.js) branche les deux lectures : le mode, et
  * l'échelle du jour (null avant la saison).
  */
-export const AFFICHAGE_COURBE = { actif: () => false, echelle: () => null };
+const AFFICHAGE_COURBE = { actif: () => false, echelle: () => null };
 const CRANS_COURBE = [0.5, 1, 1.5, 2];
 function motCourbe() {
   if (!AFFICHAGE_COURBE.actif()) return null;

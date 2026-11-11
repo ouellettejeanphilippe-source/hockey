@@ -5,8 +5,7 @@
  * signait la première carte permise du vestiaire, puis répondait à chaque
  * choix par la première option, a gagné la Coupe sur bureau (51-28-3, 16-4 en
  * séries) et fini 18e sur téléphone. Deux parties ne font pas une mesure. Ce
- * script la fait : N saisons du même robot, sous graine, avec et sans le
- * ballottage — le cadeau qu'une blessure de sept matchs apporte.
+ * script la fait : N saisons du même robot, sous graine.
  *
  * LE ROBOT, exactement comme le test de fumée le joue :
  *   - la roulette sort une saison puis un club, uniformément (pas d'identité) ;
@@ -22,46 +21,35 @@
  *   - la saison : aucune carte jouée, aucune préparation, aucun changement de
  *     ligne ; à l'entracte d'un gros match, « Garder le cap » — c'est ce que
  *     joue le moteur quand personne ne choisit ;
- *   - le ballottage (passe `BALLOTTAGE=1`) : à chaque blessure d'au moins
- *     sept matchs chez un habillé, réclamer le PREMIER candidat offert, à la
- *     case de réserve de son groupe (celui qui l'occupait est libéré) ;
  *   - les séries : sans carte.
  *
- * Le ballottage se lit dans `js/ballottage.js` (`candidatsBallottage`), la
- * fonction pure que le jeu et ce script partagent. Tant qu'elle n'existe pas,
- * la passe avec ballottage est sautée et le rapport le dit.
+ * La passe « avec ballottage » (réclamer à chaque blessure longue) est partie
+ * avec le ballottage du jour à jour de l'ancien Rogue (V28, tranche 4).
  *
  * `MIN_SAL` (775 000 $) et la règle du budget du choix vivent dans js/game.js,
  * qui touche au DOM : ils sont recopiés ici (cinq lignes), à garder en phase.
  *
- *   node scripts/check_robot.mjs                 40 saisons, deux passes
+ *   node scripts/check_robot.mjs                 40 saisons
  *   SAISONS=10 FILS=4 node scripts/check_robot.mjs
- *   MODE=rogue node scripts/check_robot.mjs      « premier » dans la run en actes (scripts/lib/rogue_actes.mjs)
  *
  * Cibles (LIVRAISON.md) : la Coupe au plus 5 % des saisons, les séries entre
- * 20 et 50 %, et le ballottage au plus +3 victoires.
+ * 20 et 65 %.
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import {
-  SLOTS, CASES_DE_BASE, CAP, fits, getPositionPenalty, getPersonKey, getPlayerKey, registerHiddenRatings,
-  createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, autoRoster,
+  CASES_DE_BASE, CAP, fits, getPositionPenalty, getPersonKey, registerHiddenRatings,
+  createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, photoAlignement, autoRoster,
   ecoleDe,
 } from '../js/sim.js';
-import { SAISONS, shard, generateur, groupe } from './lib/rogue_sim.mjs';
-import { jouerLaRun } from './lib/rogue_actes.mjs';
+import { groupeDuJoueur as groupe } from '../js/niveaux.js';
+import { SAISONS, shard, generateur } from './lib/shards.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
 const MIN_SAL = 775_000;                 // js/game.js:74 — le salaire plancher d'une case
-const BLESSURE_LONGUE = 7;               // la blessure qui ouvre le ballottage au robot
-const RESERVE_DE = { F: 'Réserve F', D: 'Réserve D', G: 'Réserve' };   // js/game.js `RESERVE_DE`
 const copie = p => ({ ...p });
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
-
-/* La fonction pure du ballottage, si elle existe déjà. */
-let candidatsBallottage = null;
-try { ({ candidatsBallottage } = await import('../js/ballottage.js')); } catch { candidatsBallottage = null; }
 
 /* La colonne du vestiaire où une carte s'affiche (js/game.js, vue « par poste »). */
 const COLONNES = ['AG', 'C', 'AD', 'DG', 'DD', 'G'];
@@ -110,7 +98,7 @@ function alignementRobot(rnd) {
   return { roster, masse, roulettes, complet: !libres().length };
 }
 
-/* 31 vrais clubs, comme `buildOpponents` (copie de scripts/lib/rogue_sim.mjs, qui ne l'exporte pas). */
+/* 31 vrais clubs, comme `buildOpponents` (js/game.js). */
 function adversaires(rnd, exclus, n = 31) {
   const out = [], vus = new Set();
   while (out.length < n) {
@@ -132,13 +120,10 @@ function adversaires(rnd, exclus, n = 31) {
   return out;
 }
 
-const masseDe = roster => Object.values(roster).filter(Boolean).reduce((a, p) => a + (p.$ || 0), 0);
-
 /*
- * UNE SAISON DU ROBOT. `ballottage` : réclamer à chaque blessure longue.
- * Rend la fiche, le rang, les séries, et le nombre de joueurs réclamés.
+ * UNE SAISON DU ROBOT. Rend la fiche, le rang et les séries.
  */
-async function jouerSaisonRobot(n, ballottage) {
+async function jouerSaisonRobot(n) {
   const rnd = generateur('robot', n);
   const { roster, masse, roulettes, complet } = alignementRobot(rnd);
   if (!complet) return { n, complet: false, roulettes };
@@ -147,41 +132,7 @@ async function jouerSaisonRobot(n, ballottage) {
   const opps = adversaires(rnd, exclus);
   const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }];
   const L = creerLigue([you, ...opps], 82, { graine: `robot:${n}`, decisions });
-  // Ce que le ballottage du jeu lit : les clubs de la ligue (saison|club) et la graine.
-  L.cles = opps.map(t => `${t.season}|${t.tag}`);
-  let shards = null;
-  const reclames = [];
-  const aReclamer = [];   // les blessés longs vus hier soir : on réclame le matin
-  let vus = 0;
-  while (!L.fini) {
-    if (ballottage && candidatsBallottage && aReclamer.length) {
-      shards = shards || new Map(SAISONS.map(s => [s, shard(s)]));
-      for (const blesse of aReclamer.splice(0)) {
-        const g = groupe(blesse);
-        const slot = SLOTS.find(s => s.scratch && s.role === RESERVE_DE[g]);
-        if (!slot) continue;
-        const sort = you.roster[slot.i] || null;
-        const budget = Math.min(CAP - masseDe(you.roster) + (sort ? sort.$ || 0 : 0), CAP * 0.03);
-        let offerts = [];
-        try { offerts = await candidatsBallottage({ shards, ligue: L, blesse, budget, graine: L.graine, at: L.jour, niveauMax: 1 }) || []; }
-        catch (e) { informer('ballottage', `candidatsBallottage a échoué : ${e.message}`); offerts = []; }
-        if (!offerts.length) continue;
-        const p = copie(offerts[0]);   // un joueur de shard (`.p` est sa POSITION, pas un emballage)
-        if (!fits(p, slot)) continue;
-        registerHiddenRatings(p);
-        connaitre(p);
-        decisions.push({ jour: L.jour, ballottage: { i: slot.i, entre: getPlayerKey(p), sort: sort ? getPlayerKey(sort) : null, rar: 'commune' }, sel: `b${L.jour}` });
-        reclames.push({ jour: L.jour, entre: p.n, pts: points(p), $: p.$, sort: sort ? sort.n : null });
-      }
-    }
-    jouerJournee(L);
-    // Les blessures de la journée : un habillé absent pour sept matchs ou plus ouvre le ballottage.
-    for (const b of you.injuriesLog.slice(vus)) {
-      const i = Object.entries(you.roster).find(([, p]) => p === b.player)?.[0];
-      if (b.games >= BLESSURE_LONGUE && i !== undefined && !SLOTS[i].scratch) aReclamer.push(b.player);
-    }
-    vus = you.injuriesLog.length;
-  }
+  while (!L.fini) jouerJournee(L);
   const b = bilanLigue(L);
   const rang = b.standings.indexOf(you) + 1;
   let rondes = 0, coupe = false, finale = false;
@@ -192,77 +143,46 @@ async function jouerSaisonRobot(n, ballottage) {
     coupe = S.champion === you;
     finale = S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A === you || s.B === you));
   }
-  return { n, complet: true, roulettes, masse, W: you.W, L: you.L, OTL: you.OTL, pts: you.PTS, rang, series: rang <= 16, rondes, coupe, finale, reclames };
+  return { n, complet: true, roulettes, masse, W: you.W, L: you.L, OTL: you.OTL, pts: you.PTS, rang, series: rang <= 16, rondes, coupe, finale };
 }
 
 /* ---------- les travailleurs ---------- */
 if (!isMainThread) {
-  const { de, a, ballottage } = workerData;
+  const { de, a } = workerData;
   const out = [];
-  for (let n = de; n < a; n++) out.push(await jouerSaisonRobot(n, ballottage));
+  for (let n = de; n < a; n++) out.push(await jouerSaisonRobot(n));
   parentPort.postMessage(out);
 } else {
   const N = Math.max(1, Number(process.env.SAISONS) || 40);
-  const MODE = process.env.MODE || 'saison';
   const FILS = Math.max(1, Number(process.env.FILS) || Math.min(6, availableParallelism() - 1));
   const pct = x => `${Math.round(100 * x)} %`;
   const t0 = Date.now();
 
-  if (MODE === 'rogue') {
-    /*
-     * LE ROBOT DU ROGUE (V27, tranche 1 ; docs/refonte-v27.md § 10) : « premier », qui signe la première carte qui
-     * entre, dans la run en actes de la vraie première run (scripts/lib/rogue_actes.mjs `jouerLaRun`). Il ne gagne pas
-     * la Coupe : au plus 2 runs sur 64. Une dizaine de secondes la run.
-     */
-    console.log(`\n  « premier » dans la run en actes · ${N} runs\n`);
-    const runs = [];
-    for (let n = 0; n < N; n++) runs.push(jouerLaRun('premier', `robot:${n}`));
-    const coupes = runs.filter(r => r.coupe).length;
-    informer('runs jouées', `${N} · ${pct(moy(runs.map(r => (r.mort || r.rate ? 0 : 1))))} jouent les séries · ${pct(moy(runs.map(r => (r.mort ? 1 : 0))))} meurent de leurs cœurs`);
-    borne('Coupe par run, « premier »', coupes / N, 0, 2 / 64);
-    verdict(`Le robot du Rogue · ${((Date.now() - t0) / 1000).toFixed(0)} s`);
-  } else {
-    console.log(`\n  Le robot « premier Signer » · ${N} saisons · ${FILS} travailleurs\n`);
-    const lancer = data => new Promise((resolve, reject) => {
-      const w = new Worker(fileURLToPath(import.meta.url), { workerData: data });
-      w.once('message', resolve); w.once('error', reject);
-    });
-    const passes = [false];
-    if (candidatsBallottage) passes.push(true);
-    else informer('ballottage', 'module js/ballottage.js absent, passe sautée');
-    const taille = Math.max(1, Math.ceil(N / FILS));
-    const taches = [];
-    for (const ballottage of passes) for (let de = 0; de < N; de += taille) taches.push({ de, a: Math.min(N, de + taille), ballottage });
-    const resultats = new Array(taches.length);
-    let suivante = 0;
-    await Promise.all(Array.from({ length: Math.min(FILS, taches.length) }, async () => {
-      while (suivante < taches.length) { const k = suivante++; resultats[k] = await lancer(taches[k]); }
-    }));
-    const par = { sans: [], avec: [] };
-    taches.forEach((t, k) => par[t.ballottage ? 'avec' : 'sans'].push(...resultats[k]));
+  console.log(`\n  Le robot « premier Signer » · ${N} saisons · ${FILS} travailleurs\n`);
+  const lancer = data => new Promise((resolve, reject) => {
+    const w = new Worker(fileURLToPath(import.meta.url), { workerData: data });
+    w.once('message', resolve); w.once('error', reject);
+  });
+  const taille = Math.max(1, Math.ceil(N / FILS));
+  const taches = [];
+  for (let de = 0; de < N; de += taille) taches.push({ de, a: Math.min(N, de + taille) });
+  const resultats = new Array(taches.length);
+  let suivante = 0;
+  await Promise.all(Array.from({ length: Math.min(FILS, taches.length) }, async () => {
+    while (suivante < taches.length) { const k = suivante++; resultats[k] = await lancer(taches[k]); }
+  }));
 
-    const lire = (nom, rs) => {
-      const ok = rs.filter(r => r.complet);
-      exiger(`${nom} : chaque robot finit ses 23`, ok.length === rs.length, `${ok.length}/${rs.length}, ${moy(ok.map(r => r.roulettes)).toFixed(1)} roulettes par alignement`);
-      informer(`${nom} : fiche moyenne`, `${moy(ok.map(r => r.W)).toFixed(1)}-${moy(ok.map(r => r.L)).toFixed(1)}-${moy(ok.map(r => r.OTL)).toFixed(1)} · ${moy(ok.map(r => r.pts)).toFixed(0)} pts · rang ${moy(ok.map(r => r.rang)).toFixed(1)} · masse ${(moy(ok.map(r => r.masse)) / 1e6).toFixed(1)} M$`);
-      informer(`${nom} : les séries`, `${pct(moy(ok.map(r => r.series ? 1 : 0)))} en séries · ${pct(moy(ok.map(r => r.finale ? 1 : 0)))} en finale · ${ok.filter(r => r.coupe).length} Coupe(s) sur ${ok.length}`);
-      return ok;
-    };
-    const sans = lire('sans ballottage', par.sans);
-    borne('Coupe du robot', moy(sans.map(r => r.coupe ? 1 : 0)), 0, 0.05);
-    // 0,65 et non 0,5 (1.0, mesuré 0,60) : ce robot signe toujours le meilleur pointeur abordable, un club
-    // au-dessus de la moyenne. La vraie garde est la Coupe (plus haut) : la saison est le build check, les séries les boss.
-    borne('séries du robot', moy(sans.map(r => r.series ? 1 : 0)), 0.2, 0.65);
-    if (par.avec.length) {
-      const avec = lire('avec ballottage', par.avec);
-      const parN = new Map(sans.map(r => [r.n, r]));
-      const deltas = avec.filter(r => parN.has(r.n)).map(r => r.W - parN.get(r.n).W);
-      const nReclames = moy(avec.map(r => r.reclames.length));
-      informer('apport du ballottage', `${deltas.length ? (moy(deltas) >= 0 ? '+' : '−') + Math.abs(moy(deltas)).toFixed(1) : '?'} victoire(s) par saison · ${nReclames.toFixed(1)} réclamé(s) par saison · Coupe ${pct(moy(avec.map(r => r.coupe ? 1 : 0)))}`);
-      borne('le ballottage ne vaut pas plus de trois victoires', moy(deltas), -3, 3, ' V');
-      const ex = avec.flatMap(r => r.reclames).slice(0, 3).map(x => `${x.entre} (${x.pts} pts, ${(x.$ / 1e6).toFixed(2)} M$)`);
-      if (ex.length) informer('réclamés, par exemple', ex.join(' · '));
-    }
-    verdict(`Le robot « premier Signer » · ${((Date.now() - t0) / 1000).toFixed(0)} s`);
-  }
+  const lire = (nom, rs) => {
+    const ok = rs.filter(r => r.complet);
+    exiger(`${nom} : chaque robot finit ses 23`, ok.length === rs.length, `${ok.length}/${rs.length}, ${moy(ok.map(r => r.roulettes)).toFixed(1)} roulettes par alignement`);
+    informer(`${nom} : fiche moyenne`, `${moy(ok.map(r => r.W)).toFixed(1)}-${moy(ok.map(r => r.L)).toFixed(1)}-${moy(ok.map(r => r.OTL)).toFixed(1)} · ${moy(ok.map(r => r.pts)).toFixed(0)} pts · rang ${moy(ok.map(r => r.rang)).toFixed(1)} · masse ${(moy(ok.map(r => r.masse)) / 1e6).toFixed(1)} M$`);
+    informer(`${nom} : les séries`, `${pct(moy(ok.map(r => r.series ? 1 : 0)))} en séries · ${pct(moy(ok.map(r => r.finale ? 1 : 0)))} en finale · ${ok.filter(r => r.coupe).length} Coupe(s) sur ${ok.length}`);
+    return ok;
+  };
+  const saisons = lire('le robot', resultats.flat());
+  borne('Coupe du robot', moy(saisons.map(r => r.coupe ? 1 : 0)), 0, 0.05);
+  // 0,65 et non 0,5 (1.0, mesuré 0,60) : ce robot signe toujours le meilleur pointeur abordable, un club
+  // au-dessus de la moyenne. La vraie garde est la Coupe (plus haut) : la saison est le build check, les séries les boss.
+  borne('séries du robot', moy(saisons.map(r => r.series ? 1 : 0)), 0.2, 0.65);
+  verdict(`Le robot « premier Signer » · ${((Date.now() - t0) / 1000).toFixed(0)} s`);
 }

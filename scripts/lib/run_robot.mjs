@@ -13,7 +13,7 @@
  * `espion(moment, S, x)` : appelé aux moments d'une run ('portes', 'signe', 'match', 'case', 'fin'), pour les invariants.
  */
 import { getHiddenRatings, energieDe } from '../../js/sim.js';
-import { groupeDe } from '../../js/ballottage.js';
+import { groupeDuJoueur as groupeDe } from '../../js/niveaux.js';
 import { CASES_DU_BANC, PIECE_DU_COACH } from '../../js/pieces.js';
 import { PRIX_PIECE } from '../../js/actes.js';
 import {
@@ -21,7 +21,7 @@ import {
   apresLaFinDActe, pieceReglee, prendreLaPiece, prixDe, acheterLaPiece, avancer, reposer, monterUneCarte, allerAuMatchDeSerie, chanceCeSoir, fixerLElite, forceDe,
   ouvrirSeance, figer, rebatir, histoireDeLaCase, repondre,
 } from '../../js/run.js';
-import { SAISONS, shard } from './rogue_sim.mjs';
+import { SAISONS, shard } from './shards.mjs';
 import { robotDuel } from './duel.mjs';
 
 export const DONNEES = { saisons: SAISONS, shard };

@@ -24,7 +24,6 @@
  */
 
 import { periodeDe, BAGARRE_JAMBES, ELAN_DUREE } from './sim.js';
-import { INTENTIONS, PLANS } from './greffes.js';
 import { tempsRestant, NOM_PERIODE, nomCourt, profil, motDeBlessure } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { causeDuBut } from './causes.js';
@@ -209,8 +208,9 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  *   sansSortie un gros match : pas de ✕
  */
 /*
- * LES ENTRACTES D'UN GROS MATCH (V25 ; V27, tranche 6 : le duel du Rogue aussi) : `pauses`, les fins de période où le direct
- * marque une pause — le pointage, leur intention qui vient au duel, un seul bouton. Rien ne s'y décide : la feuille est jouée.
+ * LES ENTRACTES D'UN GROS MATCH (V25) : `pauses`, les fins de période où le direct marque une pause — le pointage, une
+ * touche. Rien ne s'y décide : la feuille est jouée. (Le duel de l'ancien Rogue y disait leur intention ; la run en carte
+ * montre ses temps forts dans sa propre scène, js/run-scenes.js.)
  */
 export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, pauses = null, sansSortie = false }) {
   const modal = document.getElementById('liveModal');
@@ -367,16 +367,6 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   feed.innerHTML = '';
   etat.innerHTML = '';
   ligne('debut', `${ctx.esc(com.debut())} <b>${ctx.esc(cap(ctx.teamShort(A)))}</b> contre <b>${ctx.esc(ctx.teamShort(B))}</b>${titre ? `, ${ctx.esc(titre.toLowerCase())}` : ''}${sousTitre ? `, ${ctx.esc(sousTitre.toLowerCase())}` : ''}.`);
-  /*
-   * LE DUEL (V9 ; V17) : chaque période dit leur intention et ton plan — la 1re avant la mise au jeu, les suivantes
-   * au début de leur période.
-   */
-  const du = f.duel || null;
-  const motPeriode = k => {
-    const h = du.periodes[k], I = INTENTIONS[h.intention.cle], P = PLANS[h.plan] || PLANS.match;
-    return `⚔ <b>${['1re', '2e', '3e'][k]} période</b> · ${I.ico} ${ctx.esc(I.nom)}${h.intention.cible ? ` sur ${ctx.esc(nom(h.intention.cible))}` : ''} — ton plan : ${P.ico} ${ctx.esc(P.nom)}`;
-  };
-  if (du && du.periodes[0]) ligne('debut cartes', motPeriode(0));
 
   const statsDuMatch = () => {
     const per = [1, 2, 3, 4].filter(k => k < 4 || st.tirs.A[4] + st.tirs.B[4] > 0);
@@ -570,7 +560,6 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       son('periode');
       // V25 : les périodes vues du gros match du 82-0 — une pause à la fin de la 1re et de la 2e, sans rien demander.
       if (pauses && !rapide && pauses.includes(e.per * 20)) { entrePeriodes(e.per); return 0; }
-      if (du && du.periodes[e.per]) ligne('periode cartes', motPeriode(e.per));
       return PAUSE_PERIODE;
     }
     if (e.type === 'tb') {
@@ -629,17 +618,15 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   };
   /*
    * LES PÉRIODES VUES (V25 ; JP : *comme au devis, périodes vues sans choix*). Un gros match s'arrête à la fin de la 1re et de
-   * la 2e période (`pauses`) : le pointage et les onglets, puis une touche, et la période suivante part. Au duel du Rogue (V27,
-   * tranche 6 ; JP : *aucune décision d'entracte*), leur intention de la période qui vient, et un seul bouton.
+   * la 2e période (`pauses`) : le pointage et les onglets, puis une touche, et la période suivante part.
    */
   function entrePeriodes(per) {
     pauseDePeriode = true; enArret = true; arret = per * 20;
     stop();
     onglets.ouvrir();
     ligne('periode ent2-marque', `<b>🎬 Fin de la ${per === 1 ? '1re' : '2e'} période.</b> ${gA}-${gB} · tirs ${tA} – ${tB}.`);
-    if (du && du.periodes[per]) ligne('periode cartes', motPeriode(per));
-    // Au 82-0, « Passer à la fin » reste là : il va au bout sans autre pause ; au duel, un seul bouton.
-    boutons(`<button class="btn gold live-periode">${per === 1 ? '2e' : '3e'} période ›</button>${du ? '' : '<button class="btn live-fin">Passer à la fin</button>'}`);
+    // « Passer à la fin » reste là : il va au bout sans autre pause.
+    boutons(`<button class="btn gold live-periode">${per === 1 ? '2e' : '3e'} période ›</button><button class="btn live-fin">Passer à la fin</button>`);
     controls.querySelector('.live-periode').onclick = () => {
       if (termine) return;
       reprendreLaPeriode();
@@ -647,7 +634,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       dernier = performance.now();
       timer = requestAnimationFrame(tick);
     };
-    if (!du) controls.querySelector('.live-fin').onclick = jusquAuBout;
+    controls.querySelector('.live-fin').onclick = jusquAuBout;
   }
   /* La pause de période se lève : l'horloge repart où elle était. */
   function reprendreLaPeriode() {

@@ -25,7 +25,7 @@
 import { getTraits } from './traits.js';
 import { seasonLancers } from './ratings.js';
 import { pct3 } from './util.js';
-import { OBJECTIFS, MATCHS_OBJECTIF, BLESSURES } from './sim.js';
+import { BLESSURES } from './sim.js';
 
 /** Hachage stable d'une chaîne, pour tirer une tournure sans hasard vivant. */
 function graine(str) {
@@ -420,13 +420,5 @@ export function filsDeSaison(calendrier, you, jusqua = Infinity) {
   return { journal, fils: [...fils.values()].sort((x, y) => y.poids - x.poids) };
 }
 
-/* Ce que le moteur a fait, dit à l'écran (V25 A1 : sortis de js/sim.js). */
-/* Ce que l'objectif dit à l'écran : son nom et son nom court, le joueur et sa cible quand il en nomme un. */
-export function motsDeLObjectif(cle, quoi = null) {
-  const O = OBJECTIFS[cle];
-  if (!O) return null;
-  if (!O.joueur || !quoi) return { nom: O.nom, court: O.court, cible: O.cible };
-  return { nom: `${quoi.n} fait ${quoi.cible} points en ${MATCHS_OBJECTIF} matchs`, court: `${quoi.n} à ${quoi.cible} points`, cible: quoi.cible };
-}
 /* La blessure en mots : « une commotion cérébrale après un coup marquant ». */
 export const motDeBlessure = genre => { const B = BLESSURES[genre]; return B ? `${B.nom}${B.cause ? ` ${B.cause}` : ''}` : 'une blessure'; };

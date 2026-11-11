@@ -28,7 +28,6 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, joueursDeLigne, activeLineup,
   energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_C, ENERGIE_RECUP_JOUR, JOURS_PAR_MATCH,
   SLOTS, getPlayerKey, fits, photoAlignement, usureDuSoir, glaceDesLignes, ecoleDe } from '../js/sim.js';
-import { jambesAVenir } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 
@@ -168,10 +167,10 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
  * 4. LE SUIVI ET LE MÉNAGEMENT (1.0, le suivi des jambes). Deux ligues jumelles (la même graine) jouées
  * jusqu'au matin d'un match de ton club. Ce qui doit tenir, sans dépendre d'un tirage :
  *   - la courbe lit le moteur : l'instantané du matin est l'énergie de chaque joueur ;
- *   - l'usure prévue (« Préparer le match », `usureDuSoir`) est celle que `depenserEnergie` retire ;
- *   - la mesure (`jambesAVenir`) ne touche à rien : la ligue où on l'a lancée joue la suite au but près ;
+ *   - l'usure prévue (`usureDuSoir`) est celle que `depenserEnergie` retire ;
  *   - le repos rend des jambes : mis en réserve le soir d'un match, le plus usé a plus de jambes le
- *     lendemain que son jumeau qui a joué, et la mesure l'avait dit.
+ *     lendemain que son jumeau qui a joué.
+ * (La mesure d'un ménagement à venir, `jambesAVenir`, est partie avec le jour à jour de l'ancien Rogue.)
  */
 {
   const club = () => {
@@ -209,25 +208,11 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
   const cle = getPlayerKey(toiA.roster[s0.i]);
   const cases = photoAlignement(toiA.roster);
   [cases[s0.i], cases[sub.i]] = [cases[sub.i], cases[s0.i]];
-  const m = jambesAVenir({ toi: toiA, calendrier: LA.calendrier, jourRevele: r, propositions: [{ jour: r, cases }] });
-  const rend = m.propositions[0].get(cle) - m.base.get(cle);
-  exiger('la mesure dit qu\'un soir de repos rend des jambes', rend > 0, `${toiA.roster[s0.i].n} : ${signe(rend)} jambes au matin de la journée ${m.horizon + 1}`);
-
-  // B se repose, A joue ; la mesure a tourné dans A seulement.
+  // B se repose, A joue.
   LB.decisions.push({ jour: r, cases });
   jouerJournee(LA); jouerJournee(LB);
   const pA = toiA.jourLignes[r + 1].energie[cle], pB = toiB.jourLignes[r + 1].energie[cle];
   exiger('un repos remonte les jambes le lendemain', pB > pA && pB >= snap[cle], `${snap[cle]} ce matin → ${pB} reposé, ${pA} s'il joue`);
-  // La ligue A (mesurée toutes les sept journées, aucune décision) contre une troisième jumelle jamais mesurée.
-  const C = club(), LC = creerLigue(C, 82, { graine: 'suivi' });
-  while (LC.jour < r + 1) jouerJournee(LC);
-  let mesures = 1;
-  while (LA.jour < 100) {
-    if (LA.jour % 7 === 0) { usureDuSoir(toiA); jambesAVenir({ toi: toiA, calendrier: LA.calendrier, jourRevele: LA.jour, propositions: [{ jour: LA.jour, piece: { cle: 'canonnier' } }, { jour: LA.jour, cases }] }); mesures++; }
-    jouerJournee(LA); jouerJournee(LC);
-  }
-  const sig = L => L.teams.map(t => `${t.W}-${t.L}-${t.OTL}-${t.GF}-${t.GA}`).join('|');
-  exiger('la mesure ne touche à rien : la saison mesurée joue la suite au but près', sig(LA) === sig(LC), `${mesures} mesures, ${LA.jour} journées`);
 }
 
 const P = paires('pousse'), Rr = paires('roule');

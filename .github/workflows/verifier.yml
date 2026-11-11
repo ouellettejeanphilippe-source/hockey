@@ -7,13 +7,14 @@ name: Vérifier
 #   check_graine    la même graine rejoue la même saison (un `Math.random`
 #                   glissé dans js/sim.js la fait échouer)
 #   check_ballottage la seule décision qui fait ENTRER un joueur neuf se
-#                   rejoue aussi, et les journées d'avant ne bougent pas (S66)
-#   check_blessures une blessure se règle (ça ne bloque plus une fois la case comblée,
-#                   même après rechargement) et son retour ne bouge que deux joueurs
+#                   rejoue aussi, et les journées d'avant ne bougent pas (S66) ;
+#                   le moteur la joue toujours pour une vieille partie
+#   check_blessures le remplaçant de la ligue tient après un rechargement, le
+#                   nombre de blessés de la vraie LNH, la robustesse qui blesse
 #                   (lancé par `tout.mjs`)
 #   check_gros      les gros matchs (S70 ; V25) : une ligue sans joueur n'en a pas,
 #                   au 82-0 ils se jouent en trois périodes vues (ni plan, ni main
-#                   adverse, ni entracte à choix), en Rogue c'est le duel
+#                   adverse, ni entracte à choix) ; en séries, leur coach
 #   check_commentaire le commentateur (S70) : aucun gabarit oublié, un match
 #                   ne radote pas, la même graine redit la même chose
 #   check_feuilles  les quatre égalités de la feuille de match, sur une ligue
@@ -43,9 +44,9 @@ name: Vérifier
 #                   une pièce par case, la rondelle toujours jouable, le
 #                   porteur jamais au sol, un match qui finit sur un gagnant —
 #                   et les règles écrites comparées aux gestes réellement joués
-#   check_pouvoirs  le coach-personnage (V21) : chaque pouvoir joue ses
-#                   périodes et rien d'autre, se voit dans la feuille, se
-#                   rejoue pareil ; les niveaux, les talents, les bienfaits
+#   check_pouvoirs  le banc de cinq (V27, tranche 5) : chaque pièce joue ses
+#                   périodes et rien d'autre, se rejoue pareil ; le banc pur,
+#                   la pièce de départ du coach, les vrais entraîneurs
 #   check_lancee    la lancée et le doute du Rogue (V3.6) : absents du 82-0,
 #                   la même graine rejoue, et l'effet se voit dans les buts
 #   check_actions   les photos d'action (1.0) : la liste, le recadrage 5:7,
@@ -54,6 +55,9 @@ name: Vérifier
 #                   loto, saison, séries, zéro erreur console
 #   smoke_table     le même, en mode bonus : le tournoi, le plateau, un match
 #                   joué geste par geste, le bilan
+#   check_hauteur   un choix en cartes (ton identité) tient en un écran
+#   check_scene, essai_run, mesure_run   la run en carte, le Rogue (V28) : chaque
+#                   scène à 390 × 844, une run au doigt, trois robots sur 64 graines
 #
 # Tous passent par `scripts/verdict.mjs`, qui pose le code de sortie : un
 # chiffre qu'on imprime sans le juger est un chiffre que personne ne relit.
@@ -88,9 +92,6 @@ jobs:
 
       - name: Le moteur se rejoue sur sa graine
         run: node scripts/check_graine.mjs
-
-      - name: L'entracte d'un duel se rembobine, sans rejouer la saison
-        run: node scripts/check_instantane.mjs
 
       - name: Un match qui change fait monter la version du moteur
         run: node scripts/check_empreinte.mjs
@@ -155,16 +156,16 @@ jobs:
       - name: La glace des tirs
         run: node scripts/check_glace.mjs
 
-      # Le coach-personnage (V21) : ses pouvoirs par période, ses niveaux, ses
-      # talents et ses bienfaits, en paires sur les mêmes dés. Sans les bornes
-      # (cinq minutes à N=600, à la main). Dix secondes.
-      - name: Les pouvoirs du coach
+      # Le banc de cinq (V27, tranche 5) : les tables des pièces, le banc pur, chaque pièce sur ses périodes et rien
+      # hors d'elles, en paires sur les mêmes dés. Sans les bornes ni la présence (quelques minutes à N=600, à la
+      # main). Une demi-minute.
+      - name: Les pièces du banc
         run: MESURE=0 N=20 node scripts/check_pouvoirs.mjs
 
-      # Le relais des adjoints (V23 D, 4 nov. 2026) : chaque adjoint relaie exactement les périodes que son signal lit,
-      # à deux maillons, la feuille le garde et le banc l'allume. Sans les chiffres de valeur (deux minutes à N=400,
-      # à la main). Dix secondes.
-      - name: Le relais des adjoints
+      # Le relais des pièces (V23 D, 4 nov. 2026) : chaque pièce relaie exactement les périodes que son signal lit,
+      # à deux maillons, et la feuille le garde. Sans les chiffres de valeur (deux minutes à N=400, à la main).
+      # Dix secondes.
+      - name: Le relais des pièces
         run: MESURE=0 N=20 node scripts/check_relais.mjs
 
       # Zéro code inutile (1.0, jalon 3) : aucune déclaration morte, aucun
@@ -178,9 +179,9 @@ jobs:
         run: node scripts/check_css.mjs
 
       # Les vérifications rapides (moins de quinze secondes chacune) qui ne
-      # tournaient nulle part : le deck, l'identité, l'atelier, le dépistage,
-      # les totaux du soir, les blessures. `scripts/tout.mjs` les enchaîne et sort en échec si
-      # une seule échoue. Une demi-minute.
+      # tournaient nulle part : l'identité, l'atelier, le dépistage, les totaux
+      # du soir, les blessures, la run en carte. `scripts/tout.mjs` les enchaîne
+      # et sort en échec si une seule échoue.
       - name: Les vérifications rapides
         run: node scripts/tout.mjs
 
@@ -204,17 +205,12 @@ jobs:
       - name: Test de fumée du mode bonus « Sur table »
         run: node scripts/smoke_table.mjs http://localhost:8000
 
-      # Le plateau du Rogue (4 nov. 2026) : une run lancée, les douze pages lues contre le contrat de la maquette
-      # (l'affiche-héros, la main de cartes, les grilles, les jetons, aucune pilule blanche, les cinq portes). Une minute.
-      - name: Le plateau du Rogue, contre la maquette
-        run: node scripts/check_plateau.mjs http://localhost:8000
-
-      # Un choix tient en un écran (V25 B2, 6 nov. 2026) : une scène, un joueur nommé et trois cartes de jeu de front à 390 × 844,
-      # chaque nom lisible, la carte retournée qui se rapproche. Une vingtaine de secondes.
+      # Un choix tient en un écran (V25 B2, 6 nov. 2026) : ton identité, trois cartes de jeu de front à 390 × 844,
+      # chaque nom lisible, la carte retournée qui se rapproche, « Prendre » qui rend la carte. Une dizaine de secondes.
       - name: Un choix tient en un écran
         run: node scripts/check_hauteur.mjs http://localhost:8000
 
-      # La run en carte (V28, docs/refonte-v28.md § 10) : chaque scène du Rogue neuf ouverte à 390 × 844 depuis une vraie
+      # La run en carte (V28, docs/refonte-v28.md § 10) : chaque scène du Rogue ouverte à 390 × 844 depuis une vraie
       # sauvegarde — aucune ne défile, rien du site ne dépasse, le HUD au même pixel, chaque cible de 44. Deux minutes.
       - name: Une scène, jamais une page
         run: node scripts/check_scene.mjs http://localhost:8000

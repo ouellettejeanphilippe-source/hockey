@@ -2,7 +2,7 @@
  * LES FAITS (V25 C1, docs/refonte-v25.md § 4 C ; docs/refonte-v25-c1.md). Ce qu'une histoire lit avant de s'ouvrir, et
  * ce que sa voix dit en chiffres, sortait de l'écran (js/saison.js `faitsDuLundi`, `faitsDesJoueurs`, `faitsDuProprio`)
  * et de la banque (js/dossiers.js `faitsDeLaCourse`, `faitsDuDernier`, `faitsDesSuites`) ; le robot en gardait une
- * copie (scripts/lib/cartes_robot.mjs). Il n'en reste qu'une lecture, PURE : `faitsDe({ ligue, you, jour, run, series })`
+ * copie. Il n'en reste qu'une lecture, PURE : `faitsDe({ ligue, you, jour, run, series })`
  * rend un objet lu dans les feuilles déjà jouées (le journal du club), le classement du matin et la cédule déjà connue,
  * rien d'avance ; l'écran, le moteur et les robots lisent le même.
  *
@@ -27,14 +27,13 @@ import { joueurDuFait } from './vie-gm.js';
 import { FILS } from './recit.js';
 import { COACHS } from './coachs.js';
 import { PIECES, PIECE_DU_COACH } from './pieces.js';
-import { SEMAINE } from './inventaire.js';
-import { money, ord, ordF, pct3 } from './util.js';
+import { money, ord, ordF, pct3, SEMAINE } from './util.js';
 
 /* Les faits d'un joueur se lisent sur ses FENETRE_JOUEUR derniers matchs ; la chicane, à PUNITIONS_CHICANE punitions. */
 export const FENETRE_JOUEUR = 10, PUNITIONS_CHICANE = 4;
 /* Le petit qui pousse : POINTS_PETIT points sur ses derniers matchs ; le duo : BUTS_DUO buts ensemble ; le vieux : AGE_VETERAN ans. */
 const POINTS_PETIT = 4, BUTS_DUO = 5, AGE_VETERAN = 35;
-/* Le gardien en vue du galon : de MUR_DE à MUR_A victoires (le galon 🏵 Le mur est à 30, js/galons.js). */
+/* Le gardien en vue du galon : de MUR_DE à MUR_A victoires (le galon 🏵 Le mur de l'ancien Rogue était à 30). */
 const MUR_DE = 26, MUR_A = 29;
 /* La pièce chaude : jouée PIECE_CHAUDE soirs au moins sur tes FENETRE_JOUEUR derniers matchs. */
 const PIECE_CHAUDE = 5;
@@ -145,7 +144,7 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
       if (recent && (cb || cp) && (!jalon || (cb || cp) > jalon.total)) jalon = { ...qui(p), quoi: cb ? 'buts' : 'points', total: cb || cp, m: x.e.n, sal: p.$ ? money(p.$) : null };
     }
   }
-  // LE MUR EN VUE : ton gardien à MUR_DE..MUR_A victoires chez toi (compté comme js/galons.js : un match gagné, son gardien).
+  // LE MUR EN VUE : ton gardien à MUR_DE..MUR_A victoires chez toi (un match gagné, son gardien).
   const gardiens = SLOTS.filter(sl => sl.group === 'G' && !sl.scratch).map(sl => you.roster[sl.i]).filter(Boolean);
   const murEnVue = gardiens.map(g => ({ g, v: feuilles.filter(x => x.e.win && x.e.gardien === g).length, departs: feuilles.filter(x => x.e.gardien === g).length }))
     .filter(x => x.v >= MUR_DE && x.v <= MUR_A).map(x => ({ ...qui(x.g), v: x.v, departs: x.departs }))[0] || null;

@@ -33,7 +33,7 @@ import { REGLES_DU_COACH } from './coachs.js';
 import { MEDAILLES_ACTE, PRIX_PIECE, jeuDuRival, lignesFortes, dominanteDe, recompenseDeLElite, perteDeLElite } from './actes.js';
 import { chanceDUnSoir } from './pronostic.js';
 import { seasonGames } from './ratings.js';
-import { groupeDe } from './ballottage.js';
+import { groupeDuJoueur as groupeDe } from './niveaux.js';
 import { EDITIONS } from './rarete.js';
 import { hache } from './util.js';
 
@@ -710,7 +710,7 @@ const jouable = k => HISTOIRES[k].options.every(o => !o.canaux && !o.adv && !o.s
  * null si aucun fait n'est vrai. Rend { cle, H, f, joueur, joueurs } ; `joueur` est celui de ton club qu'elle nomme.
  */
 export function histoireDeLaCase(S) {
-  const f = faitsDeLaRun(S), cle = tirer(S.R.graine, 'lundi', f, S.R.histoires, { sansRythme: true, permis: jouable });
+  const f = faitsDeLaRun(S), cle = tirer(S.R.graine, 'lundi', f, S.R.histoires, { permis: jouable });
   if (!cle) return null;
   const H = HISTOIRES[cle], cles = (H.joueurs ? H.joueurs(f) : [H.joueur(f)]).filter(Boolean).map(x => x.cle);
   const auClub = k => Object.values(S.roster).find(p => p && getPlayerKey(p) === k) || null;

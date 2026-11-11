@@ -1,80 +1,31 @@
 /**
- * LE MODE ROGUE (S77).
+ * LE MÉTA DU ROGUE (S77 ; V28, tranche 4 : la run en carte est le Rogue).
  *
  * JP : *mode rogue like, que tu pars avec des joueurs de marde et gagne des
- * cartes/unlock avec packs, monnaie, etc?* ; puis, au choix proposé : *c'est
- * toujours une saison, mais tu gardes des trucs de saison en saison genre*,
- * et « collection + déblocages ».
+ * cartes/unlock avec packs, monnaie, etc?* La run elle-même vit ailleurs : son cœur pur dans js/run.js, ses scènes
+ * dans js/run-scenes.js, sa coquille dans js/run-jeu.js. Ce module garde ce qui la sert et ce qui reste d'une run à
+ * l'autre :
  *
- * UNE RUN, C'EST UNE SAISON. On part avec vingt-trois PLOMBIERS — de vrais
- * joueurs, les moins productifs de leurs saisons — et on bâtit en jouant :
- * chaque résultat rapporte des JETONS 🪙, et la BOUTIQUE du hub vend des
- * packs (trois vrais joueurs, tu en signes un ; trois cartes de match, tu en
- * gardes une). S79 : la MASSE SALARIALE reste (JP : *garder aspect masse
- * salariale même en roguelike, mais avec cartes qui peuvent le manipuler*) —
- * un plafond de 82 M$, et le proprio pour le tordre (V16, tranche 6 : une décision `plafond` ; V22 : le dossier de la masse est parti, le canal reste).
+ *   - LE MÉTA (`cap82_rogue`) : les médailles 🏅 gagnées, payées une seule fois par étape (`payerEcussons`), le
+ *     prestige du club (`PRESTIGES`, `rangDePrestige`, les coachs qu'il ouvre), les déblocages déjà achetés et leur
+ *     table (`DEBLOCAGES` : leurs prix font les médailles à vie d'un vieux méta, la caisse ajoute aux jetons du départ) ;
+ *   - LE DÉPART D'UNE RUN : les bouche-trous (`bouchesTrousDuDepart`), les jetons (`JETONS`, `jetonsDeDepart`), ce que
+ *     la règle du coach lit dans une feuille (`chiffresDuSoirDe`, `PRIME_COACH_MAX`) ;
+ *   - LA LIGUE HABILLÉE (`habillerLaLigue`) : les éditions des adversaires, selon le niveau ;
+ *   - L'ANCIEN ROGUE, SOLDÉ (`solderLAncienRogue`) : une vieille run en cours est abandonnée, ses médailles gagnées
+ *     et pas encore payées le sont, une fois.
  *
- * CE QUI RESTE D'UNE RUN À L'AUTRE (le « méta », `cap82_rogue`) :
- *   - les ÉCUSSONS 🏅 gagnés à la fin de chaque run (les points de la saison,
- *     les rondes des séries, la Coupe) ;
- *   - les DÉBLOCAGES qu'ils achètent au vestiaire : garder des joueurs de ta
- *     dernière équipe (« tu gardes des trucs de saison en saison »), des
- *     jetons de départ, des packs neufs, de meilleurs
- *     plombiers ;
- *   - la COLLECTION : chaque joueur tiré d'un pack entre dans ton cartable,
- *     qu'on l'ait signé ou non — c'est ça, une carte qu'on a tirée.
- *
- * TOUT CE QUI SE REJOUE EST PUR : les jetons se DÉDUISENT des résultats et
- * des achats (jamais stockés), et le contenu d'un pack se tire de la graine
- * de la ligue et du numéro de l'achat. Une run reprise retrouve les mêmes
- * packs. Seul le méta est un état, et il ne touche pas au moteur.
+ * Le jour à jour, la boutique à ses nœuds, le classeur du départ, le barème et le Bureau sont partis avec l'ancien
+ * Rogue (docs/refonte-v28.md § 8). Seul le méta est un état, et il ne touche pas au moteur.
  */
-import { hache } from './util.js';
-import { VOIES, REGLES_DU_COACH, COACHS } from './coachs.js';
-import { filsDeSaison } from './recit.js';
-import { EDITIONS, NOM_VARIANTE } from './rarete.js';
+import { retirerLesRuns } from './sauvegardes.js';
+import { VOIES } from './coachs.js';
+import { EDITIONS } from './rarete.js';
 import { PACKS_TOUS, BOUTIQUE } from './packs.js';
 import { BANQUE } from './banque.js';
-import { REGULIER, PILIER, ETOILE } from './niveaux.js';
 
 const CLE_META = 'cap82_rogue';
 
-/* ---------- les jetons ---------- */
-/*
- * CALIBRÉ (scripts/mesure_rogue.mjs) : des plombiers font 12 à 33 points ; seize joueurs de
- * pack dès le premier jour, 74 à 90 — la bulle des séries. Une run doit donc en signer une
- * vingtaine en cours de saison : environ 25 packs sur 82 matchs, cinq dans les vingt premiers.
- */
-/*
- * LA PRIME D'UN FIL (V3.6, JP : *si des trucs arrivent random, genre justement Cheechoo, c'est là que ça
- * pourrait proc un bonus*). En Rogue, le soir où un fil NAÎT et fait la une (`filsDeSaison`, js/recit.js),
- * sa voix paie : les partisans s'arrachent le chandail du Cheechoo, le proprio verse une prime au jalon.
- * Rien de neuf dans le moteur : ce sont des jetons, déduits des feuilles jouées comme les victoires. Le
- * Cheechoo paie le plus parce qu'il est le plus rare ; seul ce qui sort de l'ordinaire paie (pas le duo, pas un
- * jalon de 30 buts) ; la saison plafonne (`PRIME_FILS_MAX`) pour que le
- * hasard pimente la run sans la rendre facile (check_rogue).
- */
-export const PRIMES_DES_FILS = {
-  feu: { jetons: 10, mot: 'Les partisans s\'arrachent son chandail' },
-  recrue: { jetons: 5, mot: 'Le chandail de la recrue se vend' },
-  jalon: { jetons: 5, mot: 'Le proprio verse une prime', seuil: 40 },
-  course: { jetons: 5, mot: 'Les cotes d\'écoute montent', rythme: 50 },
-};
-export const PRIME_FILS_MAX = 30;
-/** Les primes des fils jusqu'à la journée `j` (non comprise) : { total, parJour: Map(journée → { jetons, mot }) }. */
-export function primesDesFils(calendrier, you, j = Infinity) {
-  const parJour = new Map();
-  let total = 0;
-  for (const e of filsDeSaison(calendrier, you, j).journal) {
-    const a = e.fils[0], P = a.neuf && PRIMES_DES_FILS[a.sorte];
-    // Seulement ce qui sort de l'ordinaire : un jalon de 40 buts et plus, un rythme de 50 buts.
-    if (!P || total >= PRIME_FILS_MAX || (P.seuil && !(a.unite === 'buts' && a.seuil >= P.seuil)) || (P.rythme && !(a.g != null && a.rythme >= P.rythme))) continue;
-    const n = Math.min(P.jetons, PRIME_FILS_MAX - total);
-    total += n;
-    parJour.set(e.j, { jetons: n, mot: P.mot });
-  }
-  return { total, parJour };
-}
 /*
  * LES CHIFFRES D'UN SOIR, de ton côté, lus dans sa feuille (V23) : ce que la règle du coach lit. Les tirs de barrage ne
  * comptent pas pour un buteur. Le but gagnant : celui qui met ton club un but devant le compte final de l'adversaire.
@@ -93,63 +44,14 @@ export function chiffresDuSoirDe(f, cote) {
     butGagnantTard: !!gagnant && gagnant.instant >= 40,
   };
 }
-/* Tes soirs joués avant la journée `j` : { j, f, cote }. */
-const tesSoirs = (calendrier, you, j) => (calendrier || []).slice(0, Math.max(0, Math.min(j, (calendrier || []).length)))
-  .flatMap((jour, i) => jour.filter(m => m.feuille && (m.A === you || m.B === you)).map(m => ({ j: i, f: m.feuille, cote: m.A === you ? 'A' : 'B' })));
 /*
  * LA PRIME DU COACH (V23, js/coachs.js `REGLES_DU_COACH`) : le soir où ton club joue le hockey de ton coach, il paie.
  * Jusqu'à la journée `j` (non comprise) : { total, parJour: Map(journée → { jetons, mot }) }. Plafonnée par saison
  * (`PRIME_COACH_MAX`) pour qu'une saison parfaite ne fasse pas la caisse.
  */
 export const PRIME_COACH_MAX = 50;
-export function primesDuCoach(calendrier, you, j = Infinity, cle = you && you.perso && you.perso.cle) {
-  const parJour = new Map();
-  let total = 0;
-  const R = cle && REGLES_DU_COACH[cle];
-  if (!R) return { total, parJour };
-  for (const x of tesSoirs(calendrier, you, j)) {
-    if (total >= PRIME_COACH_MAX || !R.lit(chiffresDuSoirDe(x.f, x.cote))) continue;
-    const n = Math.min(R.jetons, PRIME_COACH_MAX - total);
-    total += n;
-    parJour.set(x.j, { jetons: n, mot: `${COACHS[cle].ico} ${COACHS[cle].nom} : ${R.dit}` });
-  }
-  return { total, parJour };
-}
-/* V27, tranche 3 : la prime de série est en médailles (`ecussonsDesSeries`, 20 🏅 la ronde) ; en séries, la boutique est fermée. */
-export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, objectif: 20 };
-/*
- * Les jetons à un moment de la saison : ce que les résultats ont rapporté,
- * moins ce que la boutique a coûté. `res` : W, L, OTL (matchs révélés), les
- * objectifs réussis, les primes.
- */
-export function jetonsDe(res, depenses, depart = JETONS.depart, bareme = JETONS) {
-  const r = res || {};
-  const B = bareme || JETONS;
-  return depart + (r.W || 0) * B.victoire + (r.OTL || 0) * B.prolongation + (r.L || 0) * B.defaite
-    + (r.objectifs || 0) * B.objectif + (r.primes || 0) - (depenses || 0);
-}
-/*
- * LE BARÈME D'UNE RUN (S80). Une run dure maintenant plusieurs saisons : ce
- * qui la rend forte, c'est l'équipe qui CONTINUE, pas une première saison
- * qui achète vingt-cinq packs. Mesuré (scripts/check_rogue.mjs, un robot,
- * soixante runs sans aucun déblocage) : au barème de S79 (8 🪙 par
- * victoire), la run gagnait la Coupe une fois sur douze ; à 5 🪙, une fois
- * sur vingt ; à 4 🪙, une fois sur cinquante — presque jamais — et la
- * première saison fait les séries une fois sur douze. La défaite et la
- * prolongation paient comme avant (2 et 4 🪙) : une équipe faible perd
- * souvent, c'est son revenu, et le couper faisait des runs mortes d'avance.
- * Le COMMANDITAIRE, au vestiaire, rend ce qu'il faut : 8, puis 10 🪙 par
- * victoire.
- *
- * 5 🪙 DEPUIS LA FUSION DES PACKS PAR NIVEAU (S80) : un pack Bronze ou Argent
- * donne maintenant surtout des joueurs de soutien, et la même courbe, remesurée
- * à 4 🪙, repoussait la première Coupe d'une campagne à la septième run (une
- * campagne sur six n'y arrivait pas en quatorze). JP veut que la Coupe prenne
- * plusieurs saisons et des déblocages, pas qu'elle soit hors d'atteinte. Le barème est fixé au départ de chaque saison
- * (`G.rogue.bareme`) : un déblocage acheté en cours de route ne change pas
- * les jetons déjà gagnés.
- */
-export const baremeRogue = (m, exigence = 0) => ({ ...JETONS, victoire: Math.max(1, 5 + (aDebloque(m, 'commanditaire1') ? 3 : 0) + (aDebloque(m, 'commanditaire2') ? 2 : 0) + exigencesDe(exigence).victoire) });
+/* Les jetons d'une run : la caisse de départ, et ce qu'un match perdu laisse (une victoire paie selon le club, js/run.js `RUN`). */
+export const JETONS = { depart: 40, prolongation: 4, defaite: 2 };
 
 /*
  * L'UPGRADE, EN MÉDAILLES : chaque pack de la boutique monte de deux crans au vestiaire, au même prix en jetons —
@@ -163,7 +65,7 @@ const CRANS_DE_PACK = [
 ];
 const cleDeCran = (pack, i) => `monte_${pack.slice(2)}_${i + 1}`;
 /* ---------- les déblocages (le vestiaire) ---------- */
-export const DEBLOCAGES = {
+const DEBLOCAGES = {
   // 24 oct. (JP : *garder des joueurs de run en run devrait être fait dans une loto*) : chacun ouvre une case d'un niveau (`gardesDeLaDerniere`).
   garder1: { ico: '🤝', nom: 'Garder un Pilier', prix: 40, texte: 'Au début d\'une run, un loto de trois Piliers de ta dernière équipe : tu en gardes un.' },
   garder2: { ico: '🤝', nom: 'Garder un deuxième Pilier', prix: 120, requis: 'garder1', texte: 'Un deuxième loto Pilier, de ta dernière équipe.' },
@@ -211,92 +113,6 @@ for (const k of BOUTIQUE) {
   });
 }
 
-/* Le plafond que le vestiaire ajoute au départ d'une run. */
-export const plafondDuVestiaire = m => (aDebloque(m, 'plafond1') ? 3_000_000 : 0) + (aDebloque(m, 'plafond2') ? 4_000_000 : 0);
-/*
- * LE PLAFOND D'UNE RUN (S79) : 82 M$, la référence du budget du classeur.
- * LE PLAFOND QUI MORD (V9, tranche 4 ; docs/refonte-v9.md § 6.2). Celui d'une
- * saison est ta masse de départ, plus `ESPACE_DE_DEPART` (et ce que les
- * déblocages ajoutent) : on hérite d'un club en reconstruction, ses pires
- * contrats et presque aucun espace. Chaque signature fait partir quelqu'un ou
- * une part de la masse : le choix du 82-0, où le meilleur coûte et la place a
- * un prix. Avant, 82 M$ et au moins 12 M$ d'espace : rien ne forçait un choix.
- */
-export const PLAFOND_ROGUE = 82_000_000;
-export const ESPACE_DE_DEPART = 4_000_000;
-/*
- * LA PREMIÈRE RUN (JP, oct. 2026 : *plafond initial devrait être le plafond réel de la ligue, mais tricher en
- * mettant des joueurs sur payé* ; puis *ça doit être de vrais joueurs, trop payés pour leur valeur*). Son plafond est
- * le vrai plafond de la LNH 2025-26 (95,5 M$, la référence des salaires en dollars d'aujourd'hui). Ses bouche-trous
- * ont de vrais contrats (`VRAIS_CONTRATS` et après, `isReal`), les pires de leur bande de valeur ; puis
- * `alourdirLaPremiere` échange le moins payé contre un plus payé du même poste, de la même bande et des mêmes
- * saisons, tant qu'il reste plus de `ESPACE_DE_DEPART` dessous. Aucun salaire n'est touché. Mesuré sur 150 départs :
- * la pige des vrais contrats seule laissait de 4 à 28 M$ d'espace (7 en médiane), à valeur égale (50 contre 51).
- */
-export const PLAFOND_PREMIERE = 95_500_000;
-export const VRAIS_CONTRATS = '1990-91';
-export function alourdirLaPremiere(roster, reserve, { fixes, personne, cible = PLAFOND_PREMIERE - ESPACE_DE_DEPART }) {
-  const siens = new Set(fixes.map(personne));
-  const pris = new Set(Object.values(roster).filter(Boolean).map(personne));
-  const vus = new Set();
-  let masse = Object.values(roster).reduce((a, p) => a + ((p && p.$) || 0), 0);
-  for (;;) {
-    const [i, p] = Object.entries(roster).filter(([k, q]) => q && !vus.has(k) && !siens.has(personne(q)))
-      .sort((a, b) => (a[1].$ || 0) - (b[1].$ || 0) || (a[0] < b[0] ? -1 : 1))[0] || [];
-    if (!p) return roster;
-    vus.add(i);
-    const q = reserve.filter(x => x.p === p.p && x.np === p.np && !pris.has(personne(x)) && (x.$ || 0) > (p.$ || 0) && masse - (p.$ || 0) + (x.$ || 0) <= cible)
-      .sort((a, b) => (b.$ || 0) - (a.$ || 0) || (personne(a) < personne(b) ? -1 : 1))[0];
-    if (!q) continue;
-    roster[i] = q; pris.delete(personne(p)); pris.add(personne(q)); masse += (q.$ || 0) - (p.$ || 0);
-  }
-}
-/*
- * LES CASES DU CLASSEUR (JP, 24 oct.). Chaque carte que le classeur donne est une CASE d'un niveau : un loto de
- * trois cartes de ce niveau (cinq avec le tri), tirées au hasard, dont tu gardes une — ou aucune (`lotoDeCase`).
- * Sans rien, une case Régulier ; chaque page en ajoute une (`PAGES_DU_CLASSEUR`). Les cases se rangent du plus haut
- * niveau au plus bas, et ce qui en retire (les exigences, ton joueur de concession) part du haut.
- */
-const PAGES_DU_CLASSEUR = [['classeur1', PILIER], ['classeur2', ETOILE], ['classeur3', PILIER], ['classeur4', ETOILE]];
-const CARTES_PAR_LOTO = 3, CARTES_PAR_LOTO_TRI = 5;
-function casesDuClasseur(m, base, retire) {
-  const cases = [...base, ...PAGES_DU_CLASSEUR.filter(([k]) => aDebloque(m, k)).map(([, n]) => n)].sort((a, b) => b - a);
-  return cases.slice(Math.min(cases.length, Math.max(0, retire)));
-}
-const vuesDuLoto = m => (aDebloque(m, 'classeurTri') ? CARTES_PAR_LOTO_TRI : CARTES_PAR_LOTO);
-/*
- * Le loto d'une case : dans l'ordre du tirage, jusqu'à `vues` cartes du niveau de la case (la case ★ Étoile prend
- * aussi les Phénomènes, un joueur hors niveau compte en Soutien) ; si aucune n'est là, celles du niveau d'en
- * dessous. `cartes` : [{ niveau, … }], déjà filtrées (le budget, les personnes). Rend { niveau, cartes }.
- */
-export function lotoDeCase(cartes, niveau, vues) {
-  const de = x => Math.max(0, Math.min(ETOILE, x.niveau));
-  for (let k = niveau; k >= 0; k--) {
-    const l = cartes.filter(x => de(x) === k);
-    if (l.length) return { niveau: k, cartes: l.slice(0, vues) };
-  }
-  return { niveau, cartes: [] };
-}
-/*
- * LE DÉPART DU CLASSEUR (S80) : ses cases. Ton joueur de concession (`vedettesDeConcession`) prend la case du haut :
- * il est ta carte de départ, et les pages du classeur en ajoutent (mesuré : en plus d'elle, l'attentif gagnait sa
- * première Coupe dès la run 2 — `check_profondeur`).
- */
-export function departDuClasseur(m, exigence = 0) {
-  const cases = casesDuClasseur(m, [REGULIER], (m.vedette ? 1 : 0) - exigencesDe(exigence).classeur);
-  return { cases, n: cases.length, vues: vuesDuLoto(m) };
-}
-/*
- * LE BUDGET DU CLASSEUR : ce que ses cartes peuvent coûter ensemble. Le
- * plafond de la run, moins l'espace qu'elle garde au départ, moins ce que
- * coûtent des plombiers (mesuré V9 : les pires contrats de leur tranche, 43 à
- * 74 M$, 57 en médiane ; on en garde 53, et le budget reste à 25 M$). Sans ça,
- * trois vedettes du classeur feraient monter le plafond (`ESPACE_DE_DEPART`)
- * et la masse salariale ne voudrait plus rien dire. 25 M$ sans déblocage :
- * deux vedettes, ou quatre bons joueurs.
- */
-const RESERVE_PLOMBIERS = 53_000_000;
-export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESPACE_DE_DEPART - RESERVE_PLOMBIERS + PRESTIGES[rangDePrestige(m)].classeur;
 /*
  * LES BOUCHE-TROUS DU DÉPART (JP, 18 oct. : *défenseurs trop forts sur nouvelle run, ça devrait être plus bas*).
  * Mesuré sur 60 départs : tirés par leurs POINTS, comme les attaquants, les défenseurs sortaient au 35e rang de valeur
@@ -312,7 +128,7 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
 const BOUCHES_TROUS = { F: { par: 'points', n: 3 }, D: { par: 'valeur', n: 2 }, G: { par: 'valeur', n: 1 } };
 const PART_DES_PIRES = 1 / 3;
 /* R1 (8 nov. 2026) : 0,35-0,55 la faisait partir au 28e (la borne) et l'acte I tuait l'attentif 18 fois sur 64. */
-export const BANDE_DEPART = [0.40, 0.60];
+const BANDE_DEPART = [0.40, 0.60];
 const pointsParMatch = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
 export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, plus = false, exclus = new Set(), reserve = null }) {
   const out = [], pris = new Set(exclus);
@@ -333,29 +149,6 @@ export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger,
       }
     }
   });
-  return out;
-}
-/*
- * TON JOUEUR DE CONCESSION (JP, 18 oct. : *pour renforcer le feeling d'affection, avoir un gros joueur dès la première
- * run, mais difficile d'en avoir d'autres* ; *tu choisis un des joueurs de concession*). À la première run, trois
- * vraies Étoiles (pas de Phénomène, pas de gardien), une par poste d'avant ou de défense si possible, sur des contrats
- * qui se paient : le tiers le moins cher des Étoiles tirées. Tu en prends une ; il revient au départ de chaque run et
- * de chaque saison (`meta.vedette`, sa clé). Les autres restent rares : le prestige ouvre les packs.
- *   candidats   [{ p, niveau }] des saisons tirées ; piger(liste, cle) : en rend un ; personne(p) : la personne
- */
-const VEDETTES_OFFERTES = 3;
-export function vedettesDeConcession(candidats, { piger, personne }) {
-  const etoiles = candidats.filter(x => x.niveau === ETOILE && x.p.p !== 'G' && (x.p.$ || 0) > 0).map(x => x.p).sort((a, b) => (a.$ || 0) - (b.$ || 0));
-  const abordables = etoiles.slice(0, Math.max(VEDETTES_OFFERTES, Math.ceil(etoiles.length / 3)));
-  const out = [], vus = new Set();
-  // Un défenseur dans le lot quand il y en a : trois profils, pas trois fois le même.
-  const parPoste = [abordables.filter(p => !['D', 'LD', 'RD'].includes(p.p)), abordables.filter(p => ['D', 'LD', 'RD'].includes(p.p)), abordables];
-  for (const [i, l] of [parPoste[0], parPoste[1], parPoste[0], parPoste[2], parPoste[2]].entries()) {
-    if (out.length >= VEDETTES_OFFERTES) break;
-    const libres = l.filter(p => !vus.has(personne(p)));
-    const p = libres.length ? piger(libres, `v${i}`) : null;
-    if (p) { out.push(p); vus.add(personne(p)); }
-  }
   return out;
 }
 /*
@@ -399,81 +192,6 @@ export function rangDePrestige(m) {
   let r = 0;
   while (r + 1 < PRESTIGES.length && e >= PRESTIGES[r + 1].min && (!PRESTIGES[r + 1].jalon || (m.jalons || {})[PRESTIGES[r + 1].jalon])) r++;
   return r;
-}
-/* Les cases de réserve de plus d'une run (js/sim.js `RESERVES_EN_PLUS`). */
-export const reservesDeLaRun = m => (aDebloque(m, 'banc2') ? 2 : aDebloque(m, 'banc1') ? 1 : 0);
-/*
- * LE TIRAGE DU CLASSEUR, pur : les clés du classeur (celles qu'on peut
- * prendre), la graine de la run. Rend l'ordre dans lequel les cartes se
- * montrent — les `vues` premières sont celles du hasard et du tri.
- */
-export function tirageDuClasseur(cles, graine) {
-  return cles.slice().sort().map(k => [hache(graine, 'classeur', k), k]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
-}
-
-/*
- * LE VESTIAIRE TIRÉ DU CLASSEUR (1.0). JP : *le jeu doit me forcer à utiliser
- * un max de variété de cartes de joueurs, de tous les niveaux. Ils doivent
- * donc tous venir de mes cartes à partir de la deuxième run, tout en gardant
- * le concept que l'équipe doit commencer la saison faible […] je dois
- * commencer avec des joueurs de soutien et en progressant, en avoir moins.*
- *
- * Dès que ton cartable a des cartes, tes plombiers sont TES cartes Soutien
- * (niveau Soutien, ou sans niveau : moins d'une demi-saison). Le quota de
- * Soutien baisse avec le prestige du club (trois de moins par rang) et avec
- * la saison de la run (trois de moins par saison) ; les autres cases vont à
- * tes cartes Régulier. Les cartes choisies (gardés, classeur) comptent dans
- * le quota selon leur niveau. Ce que le classeur n'a pas, des plombiers de la
- * ligue le comblent.
- *
- * LE GOÛT D'ESSAYER : le tirage prend d'abord les cartes qui ont joué le
- * moins de runs (`r`, js/cartable.js), au hasard entre elles — une carte
- * neuve passe avant une habituée — et une carte qui finit sa première saison
- * avec toi paie sa PRIME DE DÉCOUVERTE.
- */
-export const COMPOSITION_DEPART = { F: 14, D: 7, G: 2 };
-export const SOUTIENS_DEPART = 23, SOUTIENS_MOINS_RANG = 3, SOUTIENS_MOINS_SAISON = 3, SOUTIENS_MIN = 5;
-export const soutiensDuDepart = (rang, saison = 1, exigence = 0) => Math.min(SOUTIENS_DEPART, Math.max(SOUTIENS_MIN, SOUTIENS_DEPART - SOUTIENS_MOINS_RANG * (rang || 0) - SOUTIENS_MOINS_SAISON * ((saison || 1) - 1)) + exigencesDe(exigence).soutiens);
-/* Soutien : le niveau 0, ou pas de niveau (−1, un joueur de moins d'une demi-saison). */
-export const estSoutien = niveau => niveau <= 0;
-/*
- * LE TIRAGE (pur). `fixes` : les cartes déjà prises ({ p, niveau, groupe }) ;
- * `cartes` : les candidates ({ cle, p, niveau, groupe, r }) ; `quota` : les
- * Soutien voulus ; `budget` : la masse que l'équipe ne dépasse pas. Rend les
- * cartes tirées et ce qui manque par groupe (pour les plombiers de la ligue).
- */
-export function tirageDuDepart({ fixes = [], cartes = [], quota, budget = Infinity, graine = '', personne = c => c.cle }) {
-  const besoin = { ...COMPOSITION_DEPART };
-  let soutiens = 0, autres = 0;
-  const pris = new Set();
-  for (const f of fixes) {
-    besoin[f.groupe] = Math.max(0, (besoin[f.groupe] || 0) - 1);
-    if (estSoutien(f.niveau)) soutiens++; else autres++;
-    pris.add(personne(f));
-  }
-  const total = Object.values(COMPOSITION_DEPART).reduce((a, n) => a + n, 0);
-  let auDessus = Math.max(0, total - Math.max(quota, soutiens) - autres);
-  const ordre = cartes.slice().sort((a, b) => (a.r || 0) - (b.r || 0) || hache(graine, 'depart', a.cle) - hache(graine, 'depart', b.cle));
-  const tires = [];
-  const prendre = c => { tires.push(c); pris.add(personne(c)); besoin[c.groupe]--; };
-  // Les cases au-dessus du quota : tes cartes Régulier, les moins jouées d'abord.
-  for (const c of ordre) {
-    if (auDessus <= 0) break;
-    if (c.niveau !== 1 || !(besoin[c.groupe] > 0) || pris.has(personne(c))) continue;
-    prendre(c); auDessus--;
-  }
-  // Le reste : tes cartes Soutien.
-  for (const c of ordre) if (estSoutien(c.niveau) && besoin[c.groupe] > 0 && !pris.has(personne(c))) prendre(c);
-  // Le plafond : la plus chère des Régulier tirées laisse sa place à une Soutien de son groupe (ou à un plombier).
-  const masse = () => [...fixes, ...tires].reduce((a, c) => a + ((c.p && c.p.$) || 0), 0);
-  for (let garde = 0; masse() > budget && garde < 30; garde++) {
-    const cher = tires.filter(c => !estSoutien(c.niveau)).sort((a, b) => (b.p.$ || 0) - (a.p.$ || 0))[0];
-    if (!cher) break;
-    tires.splice(tires.indexOf(cher), 1); pris.delete(personne(cher)); besoin[cher.groupe]++;
-    const rempl = ordre.find(c => estSoutien(c.niveau) && c.groupe === cher.groupe && !pris.has(personne(c)) && (c.p.$ || 0) < (cher.p.$ || 0));
-    if (rempl) prendre(rempl);
-  }
-  return { tires, manque: Object.fromEntries(Object.entries(besoin).map(([g, n]) => [g, Math.max(0, n)])) };
 }
 
 /* ---------- le méta ---------- */
@@ -528,119 +246,8 @@ export function lireMeta() {
   try { return rembourserLesPartis({ ...META_VIDE(), ...(JSON.parse(localStorage.getItem(CLE_META) || 'null') || {}) }); } catch { return META_VIDE(); }
 }
 export function ecrireMeta(m) { try { localStorage.setItem(CLE_META, JSON.stringify(m)); } catch { /* ignore */ } }
-export const aDebloque = (m, cle) => (m.deblocages || []).includes(cle);
-/*
- * LE PANTHÉON DU CLUB (V9, tranche 7 — docs/refonte-v9.md § 6.8), d'une run à l'autre (`meta.pantheon`) : les records
- * d'une saison chez toi, les trophées que tes joueurs ont gagnés (ce que les colonnes décident, js/bilan.js), et les
- * chandails retirés — un joueur qui compte `CHANDAIL_GALONS` galons chez toi, toutes runs confondues. La même saison
- * gravée deux fois (un rechargement) ne double rien. Rend ce qui est neuf.
- */
-const CHANDAIL_GALONS = 3;
-export const RECORDS = {
-  buts: { nom: 'Buts en une saison', de: j => (j.gardien ? 0 : j.g) },
-  passes: { nom: 'Passes en une saison', de: j => (j.gardien ? 0 : j.a) },
-  points: { nom: 'Points en une saison', de: j => (j.gardien ? 0 : j.pts) },
-  victoires: { nom: 'Victoires d\'un gardien', de: j => (j.gardien ? j.w : 0) },
-};
-export function graverAuPantheon({ run = 0, saison = 1, joueurs = [], trophees = [], pts = 0 } = {}) {
-  const m = lireMeta();
-  const P = m.pantheon = { records: {}, trophees: [], chandails: [], ...(m.pantheon || {}) };
-  const ici = { run, saison }, neuf = { records: [], trophees: [], chandails: [] };
-  for (const [k, R] of Object.entries(RECORDS)) {
-    const j = joueurs.slice().sort((a, b) => (R.de(b) || 0) - (R.de(a) || 0))[0];
-    const n = j ? R.de(j) || 0 : 0;
-    if (n > 0 && (!P.records[k] || n > P.records[k].n)) { P.records[k] = { n, nom: j.nom, cle: j.cle, ...ici }; neuf.records.push(k); }
-  }
-  if (pts > 0 && (!P.records.club || pts > P.records.club.n)) { P.records.club = { n: pts, ...ici }; neuf.records.push('club'); }
-  for (const t of trophees) if (!P.trophees.some(x => x.run === run && x.saison === saison && x.nom === t.nom)) { P.trophees.push({ ...t, ...ici }); neuf.trophees.push(t); }
-  for (const j of joueurs) if ((j.galonsCarriere || 0) >= CHANDAIL_GALONS && !P.chandails.some(x => x.cle === j.cle)) {
-    const c = { cle: j.cle, nom: j.nom, galons: j.galonsCarriere, ...ici };
-    P.chandails.push(c); neuf.chandails.push(c);
-  }
-  ecrireMeta(m);
-  return neuf;
-}
-/* Combien de joueurs on garde : zéro, un, deux, trois selon les déblocages. */
-/*
- * CEUX QUI TE SUIVENT D'UNE RUN À L'AUTRE (24 oct.) : comme le classeur, une case d'un niveau par déblocage, un loto
- * de ta dernière équipe (`lotoDeCase`), du plus haut niveau au plus bas ; plus rien au choix. Mesuré (check_rogue,
- * trois campagnes de 14 runs) : une première case Régulier laissait deux campagnes sur trois sans une saison 2 de
- * toute la campagne ; une case Pilier rend la courbe d'avant (une Coupe, à la run 14 au lieu de la 11).
- */
-const CASES_DE_LA_DERNIERE = [['garder1', PILIER], ['garder2', PILIER], ['garder3', ETOILE]];
-export const gardesDeLaDerniere = m => ({ cases: CASES_DE_LA_DERNIERE.filter(([k]) => aDebloque(m, k)).map(([, n]) => n).sort((a, b) => b - a), vues: vuesDuLoto(m) });
+const aDebloque = (m, cle) => (m.deblocages || []).includes(cle);
 export const jetonsDeDepart = m => JETONS.depart + (aDebloque(m, 'caisse1') ? 20 : 0) + (aDebloque(m, 'caisse2') ? 20 : 0);
-/* Un déblocage s'achète si on en a les moyens et si ce qu'il demande est déjà pris. */
-export function peutAcheter(m, cle) {
-  const D = DEBLOCAGES[cle];
-  if (!D || aDebloque(m, cle)) return false;
-  if (D.requis && !aDebloque(m, D.requis)) return false;
-  if (D.pack && packsOuverts(m)[D.pack] !== true) return false;
-  return (m.ecussons || 0) >= D.prix;
-}
-export function acheterDeblocage(cle) {
-  const m = lireMeta();
-  if (!peutAcheter(m, cle)) return false;
-  m.ecussons -= DEBLOCAGES[cle].prix;
-  m.deblocages = [...(m.deblocages || []), cle];
-  ecrireMeta(m);
-  return true;
-}
-/*
- * LES PERMANENTS D'UN PACK (S79) : les cartes rares permanentes vont au méta, UNE fois par achat (`recus[cle]`) — une
- * ouverture ne paie pas deux fois. Et une carte permanente qu'on joue le quitte.
- */
-export function recevoirPermanents(ids = [], cleRecu = '') {
-  const m = lireMeta();
-  m.recus = m.recus || {};
-  if (cleRecu && m.recus[cleRecu]) return false;
-  if (cleRecu) m.recus[cleRecu] = true;
-  m.inventaire = m.inventaire || {};
-  for (const id of ids) m.inventaire[id] = (m.inventaire[id] || 0) + 1;
-  const cles = Object.keys(m.recus);
-  if (cles.length > 400) for (const x of cles.slice(0, cles.length - 400)) delete m.recus[x];
-  ecrireMeta(m);
-  return true;
-}
-export function retirerDuMeta(id) {
-  const m = lireMeta();
-  m.inventaire = m.inventaire || {};
-  const n = m.inventaire[id] || 0;
-  if (n <= 1) delete m.inventaire[id]; else m.inventaire[id] = n - 1;
-  ecrireMeta(m);
-}
-/* La collection : les joueurs (clés) et les cartes tirés des packs. Un ensemble : pas de doublon. */
-export function ajouterCollection({ joueurs = [], cartes = [] } = {}) {
-  const m = lireMeta();
-  const J = new Set(m.collection || []), C = new Set(m.cartes || []);
-  for (const k of joueurs) J.add(k);
-  for (const k of cartes) C.add(String(k).replace(/\+$/, ''));
-  m.collection = [...J]; m.cartes = [...C];
-  ecrireMeta(m);
-}
-/*
- * LES ÉCUSSONS D'UNE RUN : la saison (un par tranche de deux points), les
- * séries (V27 : vingt par ronde gagnée, quarante de plus pour la Coupe). Payés UNE fois
- * par run et par étape (`recompenses[cle]`) : un rechargement du bilan ne
- * paie pas deux fois.
- */
-/*
- * LES MISSIONS DE COLLECTION PAYENT (Jalon P4, js/cartable.js `missionsDuCartable`) : une fois chacune, en médailles
- * gagnées à vie (elles comptent au prestige). Rend celles qui viennent d'être payées.
- */
-export function payerMissions(missions = []) {
-  const m = lireMeta();
-  m.missions = m.missions || {};
-  const neuves = missions.filter(x => x.fait && !m.missions[x.cle]);
-  if (!neuves.length) return [];
-  for (const x of neuves) {
-    m.missions[x.cle] = true;
-    m.ecussonsAVie = ecussonsAVie(m) + x.medailles;
-    m.ecussons = (m.ecussons || 0) + x.medailles;
-  }
-  ecrireMeta(m);
-  return neuves;
-}
 export function payerEcussons(cleRun, etape, n, { equipe = null, bilan = null } = {}) {
   const m = lireMeta();
   const k = `${cleRun}:${etape}`;
@@ -662,24 +269,36 @@ export function payerEcussons(cleRun, etape, n, { equipe = null, bilan = null } 
   return Math.round(n);
 }
 const ecussonsDeLaSaison = pts => Math.floor((pts || 0) / 2);
-/* La prime de découverte : un écusson par carte qui finit sa première saison avec toi (js/cartable.js `decouvrir`). */
-export const PRIME_DECOUVERTE = 1;
+/*
+ * L'ANCIEN ROGUE, SOLDÉ (V28, tranche 4, docs/refonte-v28.md § 6 ; JP, 9 nov. 2026 : *les runs en cours perdues, les médailles
+ * et le cartable gardés*). L'ancien Rogue est parti : une run en cours ne se rejoue pas. Au démarrage (et quand un fichier
+ * d'avant s'importe), chaque partie du genre `rogue` est retirée de l'index (js/sauvegardes.js `retirerLesRuns`) et verse
+ * ce qu'elle avait gagné sans l'avoir touché, lu dans sa sauvegarde seule :
+ *   - une run d'avant la saison en actes (un méta d'avant la V27) : la moitié de ses points, comme une saison finie
+ *     (`convertirAuJeuNeuf`) ;
+ *   - une run en actes (V27) : ses actes et sa saison ont versé leurs médailles le soir même ; restent ses rondes de séries,
+ *     payées d'un coup à la fin des séries. Finies, leur compte est écrit (`rogue.series`) ; en cours, ce sont les rondes
+ *     d'avant celle qu'elle regardait (`partie.series.ronde`). La même clé que le jeu d'avant (`payerEcussons`, la graine de
+ *     la run et l'étape `series`) : des séries déjà payées ne se paient pas deux fois.
+ * Rend { runs, verse } : combien de runs se sont arrêtées, et les médailles versées.
+ */
+export function solderLAncienRogue() {
+  const runs = retirerLesRuns(), converti = convertirAuJeuNeuf(lireMeta(), runs.map(r => r.resume));
+  if (converti) { ecrireMeta(converti.meta); return { runs: runs.length, verse: converti.verse }; }
+  let verse = 0;
+  for (const { sauvegarde: S } of runs) {
+    const P = S && S.partie, R = (S && S.rogue) || {};
+    if (!P || !P.graine) continue;
+    const finies = R.series || null, rondes = finies ? finies.rondes : P.series ? P.series.ronde || 0 : 0, coupe = !!(finies && finies.coupe);
+    verse += payerEcussons(P.graine, 'series', ecussonsDesSeries(rondes, coupe) * exigencesDe(R.exigence || 0).medailles, { bilan: { ronde: rondes, coupe, exigence: R.exigence || 0 } });
+  }
+  return { runs: runs.length, verse };
+}
 export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 20 + (coupe ? 40 : 0);
 
 
-/*
- * LES EXIGENCES (V9, tranche 8 ; JP, 17 oct. : *les exigences*). Mesuré (scripts/check_profondeur.mjs) : après sa
- * première Coupe, le gérant attentif gagnait la Coupe à chaque run, 19 sur 19, souvent dès la première saison. Ni un
- * plafond borné, ni des jalons sans cadeau, ni une ligue des meilleurs vrais clubs n'y changeaient presque rien : ce qui
- * pèse, ce sont ses packs en saison et son classeur, et sa façon de mener. Comme l'Ascension de Slay the Spire : après
- * ta première Coupe, au départ d'une run, tu montes les exigences du proprio d'un cran. Chaque cran ajoute la sienne à
- * celles d'avant, par un canal qui existe (le plafond, le prix des packs, le classeur, le quota de Soutien, le barème,
- * les contrôles des actes, le rang des rivaux, les séries — V27, docs/refonte-v27.md § 4.9), et paie `PRIME_EXIGENCE` de médailles de plus. La Coupe gagnée à un cran ouvre le suivant
- * (`m.exigence`, le plus haut cran gagné). Celui qui découvre le jeu n'en voit rien ; l'expert garde un défi.
- */
-export const ICO_EXIGENCE = '🔺';
 export const PRIME_EXIGENCE = 0.15;
-export const EXIGENCES = [
+const EXIGENCES = [
   { cle: 'ceinture', nom: 'La ceinture', texte: '2 M$ d\'espace de moins sous le plafond', espace: -2_000_000 },
   { cle: 'agents', nom: 'Les agents', texte: 'les packs coûtent 25 % de plus', prixPacks: 0.25 },
   { cle: 'classeur', nom: 'Le classeur fermé', texte: 'une case de moins au classeur', classeur: -1 },
@@ -690,14 +309,12 @@ export const EXIGENCES = [
   { cle: 'serree', nom: 'La ceinture serrée', texte: 'les séries plus dures : 1 étape d\'édition de plus à chaque club', series: 1 },
 ];
 /* Ce que `n` crans exigent ensemble : chaque canal additionné, et le multiple des médailles. */
-export function exigencesDe(n = 0) {
+function exigencesDe(n = 0) {
   const k = Math.max(0, Math.min(EXIGENCES.length, Math.floor(n || 0)));
   const out = { n: k, espace: 0, prixPacks: 1, classeur: 0, soutiens: 0, victoire: 0, controles: 0, rivaux: 0, series: 0, medailles: 1 + PRIME_EXIGENCE * k };
   for (const E of EXIGENCES.slice(0, k)) for (const c of ['espace', 'prixPacks', 'classeur', 'soutiens', 'victoire', 'controles', 'rivaux', 'series']) out[c] += E[c] || 0;
   return out;
 }
-/* Le plus haut cran qu'une run peut prendre : aucun avant ta première Coupe, puis un de plus que le plus haut gagné. */
-export const exigencesOuvertes = m => ((m && m.coupes) ? Math.min(EXIGENCES.length, (m.exigence || 0) + 1) : 0);
 /*
  * LA LIGUE QUI MONTE (V9, tranche 8 ; JP, 17 oct. : *les clubs des premières runs sont globalement plus faibles et
  * montent*). Le niveau de ta ligue suit ton prestige, et chaque cran d'exigence le monte de `ETAPES_PAR_CRAN`
@@ -709,23 +326,13 @@ export const exigencesOuvertes = m => ((m && m.coupes) ? Math.min(EXIGENCES.leng
  * faibles d'un tirage plus large » : le tri n'a jamais trié (NaN), et trier pour vrai donnait la Coupe au robot dès
  * la run 1 (JP, 27 oct. : *on a été vraiment plus fort qu'on aurait dû*) — retiré, docs/decisions.md.
  */
-export const NIVEAUX_PLEINS = 2;
-export const ETAPES_PAR_CRAN = 2;
-export const niveauDeLigue = (rang = 0, exigence = 0) => Math.max(0, (rang || 0) + ETAPES_PAR_CRAN * (exigence || 0));
+const NIVEAUX_PLEINS = 2;
 /* L'étape des éditions d'un niveau de ligue, plus celle de la run. */
-export const ligueDe = (niveau, etapeDeRun = 0) => ({ etape: Math.max(0, (niveau || 0) - NIVEAUX_PLEINS) + (etapeDeRun || 0) });
+const ligueDe = (niveau, etapeDeRun = 0) => ({ etape: Math.max(0, (niveau || 0) - NIVEAUX_PLEINS) + (etapeDeRun || 0) });
 /* L'édition d'un adversaire, au rang `r` de son club (0 : son meilleur) sur `n` : un tiers de plus du club par étape. */
-export function editionDansLaLigue(etape, r, n) {
+function editionDansLaLigue(etape, r, n) {
   const tiers = r < n / 3 ? 2 : r < (2 * n) / 3 ? 1 : 0;
   return EDITIONS[Math.min(EDITIONS.length - 1, Math.floor(((etape || 0) + (etape ? tiers : 0)) / 3))];
-}
-/* La ligue en mots, pour le départ d'une run : « des clubs de toute l'histoire », « 8 Hors-cadre et 15 Cadre par club ». */
-export function motDeLaLigue(niveau, n = 23, etapeDeRun = 0) {
-  const { etape } = ligueDe(niveau, etapeDeRun);
-  if (!etape) return 'des clubs de toute l\'histoire';
-  const compte = new Map();
-  for (let r = 0; r < n; r++) { const e = editionDansLaLigue(etape, r, n); if (e !== 'commune') compte.set(e, (compte.get(e) || 0) + 1); }
-  return `des clubs de toute l'histoire, et leurs cartes : ${[...compte].map(([e, k]) => `${k} ${NOM_VARIANTE[e]}`).join(', ')} par club`;
 }
 /* Habiller la ligue : les cartes des adversaires, selon le niveau ; `valeur(p)` classe chaque club, son meilleur d'abord. */
 export function habillerLaLigue(adversaires, niveau, valeur, etapeDeRun = 0) {
@@ -734,83 +341,4 @@ export function habillerLaLigue(adversaires, niveau, valeur, etapeDeRun = 0) {
     const js = Object.values((t && t.roster) || {}).filter(Boolean).sort((a, b) => valeur(b) - valeur(a));
     js.forEach((p, r) => { const e = editionDansLaLigue(etape, r, js.length); if (e === 'commune') delete p._carte; else p._carte = { rar: e }; });
   }
-}
-/*
- * LE PLAFOND D'UNE SAISON (V9, tranche 4, « le plafond qui mord ») : ta masse de départ, plus l'espace de départ et ce
- * que les déblocages ajoutent, moins ce que les exigences en retirent (jamais sous ta masse). Le jeu et les robots.
- */
-export const plafondDeSaison = (masse, m, exigence = 0) => Math.ceil(((masse || 0) + Math.max(0, ESPACE_DE_DEPART + plafondDuVestiaire(m) + exigencesDe(exigence).espace)) / 100_000) * 100_000;
-
-/* ---------- les jalons (S80) ---------- */
-/*
- * D'AUTRES FAÇONS DE DÉBLOQUER. JP : *ajouter des façons de débloquer etc*.
- * Les écussons s'achètent au vestiaire ; les JALONS, eux, se gagnent en
- * jouant — la première fois qu'on fait les séries, qu'on gagne une ronde,
- * qu'on tient trois saisons dans une run. Chacun paie UNE fois, pour
- * toujours (`m.jalons`) : un déblocage offert s'il n'est pas déjà pris (et
- * que ce qu'il demande l'est), sinon des écussons. Tout se lit dans les
- * résultats de la saison : rien n'est tiré, rien n'est simulé d'avance.
- * `faits` : { series, rondes, pts, premier, finale, coupe, saisonDeLaRun,
- * serieMax (la plus longue séquence de victoires), cartes (au cartable) }.
- */
-export const JALONS = [
-  { cle: 'series', ico: '🎟', nom: 'Faire les séries', texte: 'Qualifie-toi pour les séries.', si: f => f.series, recompense: { deblocage: 'classeur1', ecussons: 30 }, pack: 'j:argent' },
-  { cle: 'ronde', ico: '🥊', nom: 'Gagner une ronde', texte: 'Gagne une série des séries.', si: f => (f.rondes || 0) >= 1, recompense: { deblocage: 'banc1', ecussons: 40 }, pack: 'j:specialistes' },
-  { cle: 'dixDeSuite', ico: '🔥', nom: 'Dix de suite', texte: 'Gagne dix matchs de suite en saison.', si: f => (f.serieMax || 0) >= 10, recompense: { ecussons: 35 } },
-  { cle: 'cent', ico: '💯', nom: 'Cent points', texte: 'Fais 100 points en une saison.', si: f => (f.pts || 0) >= 100, recompense: { deblocage: 'classeurTri', ecussons: 50 }, pack: 'j:club' },
-  { cle: 'deuxSaisons', ico: '📅', nom: 'La deuxième saison', texte: 'Joue la deuxième saison d\'une run.', si: f => (f.saisonDeLaRun || 1) >= 2, recompense: { ecussons: 30 } },
-  { cle: 'troisSaisons', ico: '🗓', nom: 'La troisième saison', texte: 'Joue la troisième saison d\'une run.', si: f => (f.saisonDeLaRun || 1) >= 3, recompense: { deblocage: 'garder1', ecussons: 45 } },
-  { cle: 'premier', ico: '🥇', nom: 'Premier de la ligue', texte: 'Finis une saison au premier rang.', si: f => !!f.premier, recompense: { ecussons: 60 } },
-  { cle: 'finale', ico: '🏟', nom: 'La finale', texte: 'Atteins la finale de la Coupe.', si: f => !!f.finale, recompense: { deblocage: 'plafond1', ecussons: 60 }, pack: 'j:or' },
-  { cle: 'coupe', ico: '🏆', nom: 'La Coupe', texte: 'Gagne la Coupe Stanley.', si: f => !!f.coupe, recompense: { deblocage: 'classeur4', ecussons: 120 }, pack: 'j:vedettes' },
-  { cle: 'cartable', ico: '📒', nom: 'Cent cartes', texte: 'Aie 100 cartes de joueur dans ton cartable.', si: f => (f.cartes || 0) >= 100, recompense: { ecussons: 20 } },
-  // 1.0 : le goût d'essayer — des cartes différentes, et tous les niveaux dans la même équipe.
-  { cle: 'essais', ico: '🧪', nom: 'Cinquante essais', texte: 'Fais jouer 50 cartes différentes en Rogue.', si: f => (f.joues || 0) >= 50, recompense: { ecussons: 40 } },
-  // V10 : le Pack du coach s'ouvre quand un coach a toute ta confiance.
-  // V27, tranche 5 (devis § 4.9) : le coach au sommet est parti avec son expérience ; le même jalon est le banc plein.
-  { cle: 'coachIII', ico: '📋', nom: 'Le banc plein', texte: 'Pose cinq pièces sur ton banc.', si: f => !!f.bancPlein, recompense: { ecussons: 40 }, pack: 'j:coach' },
-  { cle: 'tousNiveaux', ico: '🌈', nom: 'Tous les niveaux', texte: 'Finis une saison avec un joueur de chaque niveau, de Soutien à Phénomène.', si: f => (f.niveaux || 0) >= 5, recompense: { ecussons: 50 } },
-];
-/*
- * LES PACKS QUI MONTENT (V10 — docs/refonte-v10.md § 12). JP : *tu commences avec des packs un peu poches, pis plus
- * ça avance, tu débloques de meilleurs packs, ou bien t'as un système d'upgrade de packs, ou les bons packs arrivent
- * quand tu réussis x, ou tout ça*. La boutique d'une première run vend `BOUTIQUE_DE_DEPART` ; un pack de plus s'ouvre
- * avec son jalon (`pack`), une fois pour toutes, et sa clé se voit (« 🔒 Qualifie-toi pour les séries. »). Rend, pour
- * chaque pack de la boutique, true ou la raison du verrou ; un pack hors boutique (une vieille partie, une série
- * gagnée) reste ouvert.
- */
-const BOUTIQUE_DE_DEPART = ['j:bronze', 'j:epoque'];
-export function packsOuverts(m = {}) {
-  const out = Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, true]));
-  for (const J of JALONS) if (J.pack && !BOUTIQUE_DE_DEPART.includes(J.pack) && !(m.jalons || {})[J.cle]) out[J.pack] = J.texte;
-  return out;
-}
-export const monteeDesPacks = m => Object.fromEntries(BOUTIQUE.map(k => [k, CRANS_DE_PACK.filter((_, i) => aDebloque(m, cleDeCran(k, i))).length]));
-/* Les jalons que ces faits atteignent et qui n'ont pas encore payé. */
-export const jalonsAtteints = (m, faits) => JALONS.filter(J => !(m.jalons || {})[J.cle] && J.si(faits || {}));
-/* Ce qu'un jalon donnera, en mots, selon ce que tu possèdes déjà. */
-export function recompenseDe(m, J) {
-  const d = J.recompense.deblocage && DEBLOCAGES[J.recompense.deblocage];
-  const offert = d && !aDebloque(m, J.recompense.deblocage) && (!d.requis || aDebloque(m, d.requis));
-  const pack = J.pack && PACKS_TOUS[J.pack] ? ` · ${PACKS_TOUS[J.pack].ico} le ${PACKS_TOUS[J.pack].nom} s'ouvre` : '';
-  return offert ? { deblocage: J.recompense.deblocage, mot: `${d.ico} ${d.nom}, offert${pack}` } : { ecussons: J.recompense.ecussons || 0, mot: `+${J.recompense.ecussons || 0} 🏅${pack}` };
-}
-/*
- * PAYER LES JALONS atteints : une fois chacun (`m.jalons`). Rend ce qui a
- * été payé, pour le dire à l'écran.
- */
-export function payerJalons(faits) {
-  const m = lireMeta();
-  m.jalons = m.jalons || {};
-  const payes = [];
-  for (const J of jalonsAtteints(m, faits)) {
-    const r = recompenseDe(m, J);
-    m.jalons[J.cle] = true;
-    if (r.deblocage) {
-      m.deblocages = [...(m.deblocages || []), r.deblocage];
-    } else { m.ecussonsAVie = ecussonsAVie(m) + r.ecussons; m.ecussons = (m.ecussons || 0) + r.ecussons; }
-    payes.push({ ...J, mot: r.mot });
-  }
-  if (payes.length) ecrireMeta(m);
-  return payes;
 }

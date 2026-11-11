@@ -6,27 +6,18 @@
 
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, estD as isD, glyphe, money, pct3, varsCarton } from './util.js';
-import { badgesDe, getPlayerKey, MUTATIONS, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, avecAVenir } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, specialesEnStats, lignesDeLaPiece, penaliteAffichee } from './impact.js';
-import { COACHS, REGLES_DU_COACH } from './coachs.js';
-import { primesDuCoach } from './rogue.js';
-import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, bancDe } from './pieces.js';
-import { carteHtml, carteDePiece } from './cartes.js';
-import { carteLigne, caseVide, grille, coin } from './composants.js';
+import { esc, estD as isD, glyphe, money } from './util.js';
+import { badgesDe, SLOTS, CASES_DE_BASE, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lienDePaire, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne } from './sim.js';
+import { alignementAuMieux, penaliteAffichee } from './impact.js';
 import { glisserDeposer } from './deposer.js';
-import { jambesHtml, motDuBadge, puces } from './gerant.js';
+import { motDuBadge } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
-import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
-import { $, G, TEAMFULL, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setOption, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
-import { ajusterCartes, cartonDe, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort, varsEquipe } from './repechage.js';
+import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setOption, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
+import { ajusterCartes, lesCotes, pastilleNiveau, rareteJoueur, slotShort } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
-import { poseesSur } from './banque.js';
-import { decisionsDeLaPartie } from './rogue-jeu.js';
-import { NIVEAUX, nomDuNiveau } from './niveaux.js';
 
-/* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
+/* La carte d'un joueur de l'alignement : sa fiche de saison une fois la ligue lancée, sa carte sinon. */
 function ouvrirCarteDe(p) {
   const L = G.ligue;
   if (L) ouvrirFiche(p, L.you, porteeRevele('saison') === 'jour' ? 'jour' : 'saison');
@@ -152,21 +143,6 @@ export function syncSortOptions() {
   sort.value = G.sortBy;
 }
 
-/** La fiche d'un joueur à ce jour, telle que le banc la lit : « 12-18-30 · +7 », « 14-6 · ,918 ». */
-const nomDeFamille = n => String(n || '').trim().split(' ').pop();
-function ficheDuJour(p) {
-  // Un blessé : qui joue sa case ce soir ; un réserviste qui monte : où (`G.banc.remplace`, js/banc.js).
-  if (G.banc && G.banc.remplace && G.banc.remplace.has(p)) { const q = G.banc.remplace.get(p); return q ? `${nomDeFamille(q.n)} le remplace` : 'personne pour le remplacer'; }
-  const pour = G.banc && G.banc.monte && G.banc.monte.get(p);
-  if (pour) { const sl = SLOTS.find(x => G.roster[x.i] === pour); return sl ? `Ce soir : ${slotShort(sl)}` : ''; }
-  const c = G.banc && G.banc.compte.get(p);
-  if (!c || !c.gp) return 'aucun match';
-  // 1,000 : un blanchissage en début de saison s'écrivait « 1.000 » (le remplacement ne visait que « 0. »).
-  // CHAQUE CHIFFRE DIT CE QU'IL EST (JP : *−3, ça veut dire quoi ?*) : « 0-1-1 · −3 » se lisait comme une pénalité.
-  if (p.p === 'G') return `${c.w} V · ${c.l} D · ${c.sa ? pct3(c.sv / c.sa) : '—'}`;
-  return `${c.g} B · ${c.a} A · diff. ${c.pm > 0 ? '+' : c.pm < 0 ? '−' : ''}${Math.abs(c.pm)}`;
-}
-
 function slotTags(p, zoneEcartTag, penTag) {
   if (surTable()) {
     // Le plateau ne lit ni zone ni pénalité : la case porte le gabarit, le
@@ -202,12 +178,11 @@ function slotTags(p, zoneEcartTag, penTag) {
  * en trois choses (LIVRAISON.md, jalon C) : son RÔLE (une icône et un mot),
  * son NIVEAU (la pastille, son rang dans sa saison) et sa ZONE (✓ chez lui,
  * ▼ trop bas, ▲ trop haut) — plus ↔ hors poste, 🩹 blessé, un trophée s'il
- * en a un, et derrière le banc ses JAMBES. Sa production : ses PTS (ou V)
- * au repêchage, sa fiche à ce jour derrière le banc ; le visage et tout le reste sont dans la fiche, à un toucher.
+ * en a un. Sa production : ses PTS (ou V) ; le visage et tout le reste sont dans la fiche, à un toucher.
  */
 /* La forme courte d'une cote, dans une rangée : le tir, les passes, la défense d'un patineur, les arrêts d'un gardien ; le reste est à l'hexagone de sa fiche. */
 const COURT_DE_COTE = { tir: 'T', jeu: 'P', defense: 'D', arrets: 'Arrêts' };
-function piecesDuJoueur(p, s, { ecart, penTag, blesseTag }) {
+function celluleJoueur(p, s, { ecart, penTag }) {
   // LE RÔLE EN MOTS, COMME À LA SIGNATURE (Jalon U, JP : *refaire l'alignement plus comme la page signature*) : la même
   // étiquette que la rangée du vestiaire (`roleTag`) — « Passeur Or », le second badge en icône, les modifs posées.
   const tag = roleTag(p);
@@ -223,67 +198,26 @@ function piecesDuJoueur(p, s, { ecart, penTag, blesseTag }) {
   })() : '';
   const c = lesCotes(p);
   const cle = chiffreCle(p);
-  return {
-    role: tag ? `<span class="slot-roles cell-role">${tag}</span>` : '',
-    niveau: pastilleNiveau(p),
-    cotes: c ? `<small class="cell-cote" title="${esc(c.map(x => `${x.mot} ${x.v}`).join(' · '))} (cotes sur 20, dans sa saison : un appui, le niveau et le rôle se lisent d'abord)">${c.filter(x => x.cle in COURT_DE_COTE).map(x => `${COURT_DE_COTE[x.cle]} ${x.v}`).join(' · ')}</small>` : '',
-    verdicts: `${blesseTag}${marque}${zoneTag(p, true)}${penTag}${traits.length ? `<span class="cell-trait" title="${esc(traits.map(t => t.short || t.nom || '').join(' · '))}">${traits.map(t => t.icon).join('')}</span>` : ''}${departs}`,
-    prod: `<span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${cle.mot}`)}">${G.banc ? esc(ficheDuJour(p)) : `<span class="pcard-big"><b>${esc(cle.v)}</b> <span>${esc(cle.u)}</span></span>`}</span>`,
-    sec: !G.banc && p.p !== 'G' && cle.u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : '',
-    jambes: G.banc ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100, { gardien: p.p === 'G' }) : '',
-  };
-}
-function celluleJoueur(p, s, o) {
-  const x = piecesDuJoueur(p, s, o);
-  // Trois rangées : le rôle et son mot ; le niveau et la zone ; le chiffre clé (sa fiche à ce jour derrière le banc).
-  return `<div class="cell-l1">${x.role}</div>
-        <div class="slot-tags cell-l2">${x.niveau}${x.cotes}${x.verdicts}</div>
-        <div class="cell-l3">${x.prod}${x.sec}</div>
-        ${x.jambes}`;
-}
-/* Sous sa carte (le Rogue) : son badge et son niveau ; son chiffre clé ; ses verdicts ; ses jambes. Ses cotes sont à l'hexagone
-   de sa fiche, à un toucher (JP, 30 oct. : *que les infos sous la carte soient moins longues*). */
-function celluleCarte(p, s, o) {
-  const x = piecesDuJoueur(p, s, o);
-  // LE PLATEAU (nov. 2026, la maquette A) : au téléphone, UNE ligne sous la carte — le poste, ses jambes, ses verdicts (style.css
-  // ne montre qu'elle sous 1000 px) ; le badge, le niveau, le chiffre clé et le mot des jambes restent pour le grand écran.
-  return `<div class="sc-ligne">${esc(positionLabel(p).split(' / ').join('/'))}${x.jambes}${x.verdicts}</div>
-        <div class="sc-qui">${x.role}${x.niveau}</div>
-        <div class="sc-cle">${x.prod}${x.sec}</div>
-        <div class="sc-verdicts">${x.verdicts}</div>
-        ${x.jambes}`;
+  const cotes = c ? `<small class="cell-cote" title="${esc(c.map(x => `${x.mot} ${x.v}`).join(' · '))} (cotes sur 20, dans sa saison : un appui, le niveau et le rôle se lisent d'abord)">${c.filter(x => x.cle in COURT_DE_COTE).map(x => `${COURT_DE_COTE[x.cle]} ${x.v}`).join(' · ')}</small>` : '';
+  const verdicts = `${marque}${zoneTag(p, true)}${penTag}${traits.length ? `<span class="cell-trait" title="${esc(traits.map(t => t.short || t.nom || '').join(' · '))}">${traits.map(t => t.icon).join('')}</span>` : ''}${departs}`;
+  const sec = p.p !== 'G' && cle.u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : '';
+  // Trois rangées : le rôle et son mot ; le niveau et la zone ; le chiffre clé.
+  return `<div class="cell-l1">${tag ? `<span class="slot-roles cell-role">${tag}</span>` : ''}</div>
+        <div class="slot-tags cell-l2">${pastilleNiveau(p)}${cotes}${verdicts}</div>
+        <div class="cell-l3"><span class="cell-prod slot-faits" title="${esc(`Son chiffre clé : ${cle.mot}`)}"><span class="pcard-big"><b>${esc(cle.v)}</b> <span>${esc(cle.u)}</span></span></span>${sec}</div>`;
 }
 
 /*
- * SA CARTE DANS LA CASE (oct., JP : *intégrer plus les cartes dans l'alignement* ; *c'est pas plus simple d'avoir une
- * ligne de trois cartes, même sur mobile ?*). En Rogue, la case EST sa carte, debout : le carton de sa série et de son
- * édition (`cartonDe`), qui dit déjà son nom, son club et sa photo ; à son pied, les cartes posées sur lui (une
- * retouche, un soin…), que son verso détaille. Un trio se lit en trois cartes de front, une paire en deux. Hors du
- * Rogue, aucune carte : la rangée et le visage.
- */
-function carteDeLaCase(p) {
-  const posees = poseesSur(decisionsDeLaPartie(), getPlayerKey(p)).map(x => MUTATIONS[x.cle]).filter(Boolean);
-  const pastilles = posees.length ? `<span class="slot-posees" aria-hidden="true">${posees.map(M => `<i>${M.ico}</i>`).join('')}</span>` : '';
-  return `<button type="button" class="slot-carte slot-fiche" style="${varsEquipe(p)}" title="${esc(['Sa carte', ...posees.map(M => M.nom)].join(' · '))}" aria-label="La carte de ${esc(p.n)}">${cartonDe(p)}${pastilles}</button>`;
-}
-
-/*
- * LA CASE, DEUX COMPOSANTS (V25 D1, docs/refonte-v25-d1.md). Ce que la case en carte et la case en rangée partagent — le
- * socle (sa place dans SLOTS, les couleurs de son club, son édition), la bande, les verdicts, le toucher — reste un ; ce qui
- * diffère, la case, est deux composants, jamais une classe de mode posée sur l'autre : `caseEnCarte` (le Rogue : sa carte
- * debout, `carteDeLaCase`, une ligne dessous) et `caseEnRangee` (le 82-0 et Sur table : le visage, le nom, la rangée).
- *
  * LA CASE D'ABORD LISIBLE (S78 ; JP : *améliorer l'alignement pour que l'information soit plus claire*) : elle garde ce qui
- * DÉCIDE d'un alignement, chacun une fois — la bande (sa case, son salaire), son nom, sa production ou sa fiche à ce jour,
- * les verdicts (🩹 blessé, sa zone, ▼ ▲ hors de sa zone, ↔ hors position, ses icônes). Le reste est à sa fiche, à un toucher.
+ * DÉCIDE d'un alignement, chacun une fois — la bande (sa case, son salaire), son nom, sa production, les verdicts (sa zone,
+ * ▼ ▲ hors de sa zone, ↔ hors position, ses icônes). Le reste est à sa fiche, à un toucher. La case en carte, debout, était au
+ * Rogue d'avant : la run en carte a ses Lignes (js/run-scenes.js).
  */
-const slotEl = s => (G.bonus === 'ROGUE' && !surTable() ? caseEnCarte : caseEnRangee)(s);
-
 /** Le socle d'une case : sa classe, son rang dans SLOTS (le glisser-déposer le relit, `permuter`), son club, son édition. */
-function socleDeCase(s, p, cls = '') {
+function socleDeCase(s, p) {
   const el = document.createElement('div');
   const pen = p ? penaliteAffichee(p, s).pen : 0;
-  el.className = ['slot', cls, p ? '' : 'empty', G.selectedSlot === s.i ? 'selected' : '', !p && G.target === s.i ? 'target' : '', pen > 0 ? 'oop' : ''].filter(Boolean).join(' ');
+  el.className = ['slot', p ? '' : 'empty', G.selectedSlot === s.i ? 'selected' : '', !p && G.target === s.i ? 'target' : '', pen > 0 ? 'oop' : ''].filter(Boolean).join(' ');
   el.dataset.case = s.i;
   if (!p) return el;
   el.style.setProperty('--slot-line', couleurVive(p.t));
@@ -300,20 +234,14 @@ function socleDeCase(s, p, cls = '') {
   return el;
 }
 
-/** Les verdicts d'une case : blessé, lancée ou doute, hors position (↔, sans chiffre : l'échelle des cotes ne s'affiche pas), hors de sa zone (▼ ▲). */
+/** Les verdicts d'une case : hors position (↔, sans chiffre : l'échelle des cotes ne s'affiche pas), hors de sa zone (▼ ▲). */
 function verdictsDeCase(p, s) {
   const adapt = penaliteAffichee(p, s);
-  const restent = G.banc && G.banc.blesses.has(p) ? G.banc.blesses.get(p) : 0;
-  const blesseTag = restent ? `<span class="tag tag-pen" title="Blessé : il lui reste ${restent} match${restent > 1 ? 's' : ''}. Un réserviste prend sa place le soir du match.">🩹 ${restent}</span>` : '';
-  const lancee = G.banc && G.banc.lancees ? G.banc.lancees.get(p) : null;
-  const lanceeTag = !lancee ? '' : lancee === 'doute'
-    ? '<span class="tag tag-doute" title="Il doute : un vrai marqueur sans but depuis dix matchs finit moins bien, jusqu\'à son prochain but">Doute</span>'
-    : `<span class="tag tag-lancee" title="${lancee === 'vive' ? 'Sur une lancée vive (l\'étincelle) : il finit beaucoup mieux tant qu\'il marque' : 'Sur sa lancée : il finit mieux tant qu\'il marque'}">${lancee === 'vive' ? '☄ Vive' : 'Lancée'}</span>`;
   const penTag = !surTable() && adapt.pen > 0 ? `<span class="tag tag-pen" title="${adapt.matchs ? `Hors de sa position naturelle, mais il s'y adapte : la pénalité fond en jouant ici (${adapt.matchs} m.)` : 'Hors de sa position naturelle : il rend moins ici, et s\'y fera en jouant là'}">↔</span>` : '';
   const ecart = zoneEcart(p, s);
   const zoneEcartTag = surTable() ? '' : ecart === 'sous' ? `<span class="tag tag-pen" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
     : ecart === 'dessus' ? `<span class="tag tag-zone-up" title="${esc(ZONE_DESSUS_TITLE)}">▲</span>` : '';
-  return { ecart, penTag, blesseTag, lanceeTag, zoneEcartTag };
+  return { ecart, penTag, zoneEcartTag };
 }
 
 /** La bande : ses positions, son salaire (un renfort ne coûte rien). */
@@ -325,55 +253,23 @@ const bandeDeCase = p => `<div class="slot-band${estRenfort(p) ? ' off' : ''}">
       </div>`;
 
 /*
- * LA CASE EN CARTE (oct., JP : *c'est pas plus simple d'avoir une ligne de trois cartes, même sur mobile ?*). En Rogue, la case
- * EST sa carte, debout (`carteDeLaCase`) ; un trio se lit en trois cartes de front, une paire en deux ; dessous, une ligne. Le
- * ✕ RELÂCHE un réserviste (S80 ; sa carte va au cartable) ; un habillé ne se retire pas. Une case de réserve à débloquer se
- * voit, grisée, et dit où la débloquer.
- */
-function caseEnCarte(s) {
-  const p = G.roster[s.i];
-  const el = socleDeCase(s, p, 'case-carte');
-  if (p) {
-    const v = verdictsDeCase(p, s);
-    const relachable = s.scratch && !estRenfort(p);
-    el.innerHTML = `
-      ${relachable ? `<button class="slot-remove slot-relacher" title="Relâcher ${esc(p.n)} : sa carte va à ton cartable" aria-label="Relâcher ${esc(p.n)}">✕</button>` : ''}
-      ${carteDeLaCase(p)}
-      ${bandeDeCase(p)}
-      <div class="slot-inner">${celluleCarte(p, s, { ecart: v.ecart, penTag: v.penTag, blesseTag: v.blesseTag + v.lanceeTag })}</div>`;
-    // La carte l'ouvre ; une case déjà choisie, toucher une carte la déplace là : le geste passe à la case.
-    el.querySelector('.slot-fiche').addEventListener('click', ev => { if (G.selectedSlot !== null) return; ev.stopPropagation(); ouvrirCarteDe(p); });
-    el.querySelector('.slot-relacher')?.addEventListener('click', ev => { ev.stopPropagation(); relacherReserviste(s); });
-  } else if (s.extra && !caseOuverte(s)) {
-    el.classList.add('verrou');
-    el.innerHTML = `<div class="slot-role">🔒 ${esc(s.role)}</div><div class="slot-sub">Aux déblocages</div>`;
-    el.onclick = () => toast('Cette case de réserve se débloque aux déblocages, dans le menu (ou par un jalon).');
-    return el;
-  } else {
-    el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${s.scratch ? 'Case libre' : esc(s.label)}</div>`;
-  }
-  el.onclick = toucherLaCase(s, p, true);
-  return el;
-}
-
-/*
  * LA CASE EN RANGÉE (le 82-0, Sur table) : pas debout comme la carte du vestiaire, une rangée aux couleurs du club — le visage,
  * l'écusson et le nom (U19 ; LE NOM OUVRE SA CARTE, 1.0), puis la cellule du joueur ; sur table, les nombres du plateau et rien de
  * ce qu'il ne lit pas. Le ✕ retire un joueur avant la saison : la prochaine signature comble sa case sans faire tourner la roulette.
  */
-function caseEnRangee(s) {
+function slotEl(s) {
   const p = G.roster[s.i];
   const el = socleDeCase(s, p);
   if (p) {
     const v = verdictsDeCase(p, s);
     el.innerHTML = `
-      ${estRenfort(p) || G.banc ? '' : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
+      ${estRenfort(p) ? '' : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
       ${bandeDeCase(p)}
       <div class="slot-inner">
         <span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>
         <span class="slot-qui"><span class="slot-logo" aria-hidden="true">${getTeamLogoHtml(p.t, 20)}</span><button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button></span>
-        ${surTable() ? `<div class="slot-meta slot-faits">${G.banc ? ficheDuJour(p) : slotAxesTexte(p)}</div>
-        <div class="slot-tags">${v.blesseTag}${slotTags(p, v.zoneEcartTag, v.penTag)}</div>` : celluleJoueur(p, s, { ecart: v.ecart, penTag: v.penTag, blesseTag: v.blesseTag + v.lanceeTag })}
+        ${surTable() ? `<div class="slot-meta slot-faits">${slotAxesTexte(p)}</div>
+        <div class="slot-tags">${slotTags(p, v.zoneEcartTag, v.penTag)}</div>` : celluleJoueur(p, s, v)}
       </div>`;
     el.querySelector('.slot-fiche').addEventListener('click', ev => { ev.stopPropagation(); ouvrirCarteDe(p); });
     el.querySelector('.slot-remove')?.addEventListener('click', ev => {
@@ -390,23 +286,19 @@ function caseEnRangee(s) {
     // Sur table, la case vide ne promet pas de zone : le plateau n'en lit pas.
     el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">${surTable() ? '' : esc(s.label)}</div>`;
   }
-  el.onclick = toucherLaCase(s, p, false);
+  el.onclick = toucherLaCase(s, p);
   return el;
 }
 
-/** Le toucher d'une case, le même pour les deux : la choisir, puis l'autre case déplace ou permute ; une case vide se vise. */
-const toucherLaCase = (s, p, enCarte) => () => {
+/** Le toucher d'une case : la choisir, puis l'autre case déplace ou permute ; une case vide se vise. */
+const toucherLaCase = (s, p) => () => {
   if (estRenfort(p)) { toast('Les renforts sont fournis : tu ne peux pas les déplacer.', 'warn'); return; }
   if (G.selectedSlot !== null) {
     if (G.selectedSlot === s.i) G.selectedSlot = null;
     else { permuter(G.selectedSlot, s.i); return; }
   } else if (p) {
     G.selectedSlot = s.i;
-    toast(enCarte ? 'Touche une autre carte pour la déplacer ou les permuter, ou tiens-la et glisse-la.' : 'Touche une autre case pour déplacer ou permuter, ou glisse-la.');
-  } else if (enCarte) {
-    // En saison, le Rogue n'a pas de vestiaire où piger : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
-    toast('Case libre : un joueur signé à la boutique pourra y entrer sans que personne sorte. Tu peux aussi y déplacer un joueur.');
-    return;
+    toast('Touche une autre case pour déplacer ou permuter, ou glisse-la.');
   } else {
     G.target = (G.target === s.i ? null : s.i);
     // Retirer sa visée rend la main à la première case vide.
@@ -452,15 +344,13 @@ function permuter(src, dst) {
 /*
  * LA CARTE SE GLISSE (oct., JP : *possibilité de drag and drop les cartes*). Au doigt, un appui tenu la soulève ; à la
  * souris, elle part dès qu'elle bouge. La case dessous s'allume, en rouge si son poste la refuse ; tenue sur l'onglet
- * Attaque, Défense ou Filet · réserve, elle l'ouvre. Lâchée, elle déplace ou permute, comme au toucher. Au Rogue, le
- * fantôme est sa carte ; ailleurs, sa rangée.
+ * Attaque, Défense ou Filet · réserve, elle l'ouvre. Lâchée, elle déplace ou permute, comme au toucher.
  */
 glisserDeposer({
-  prise: '#rosterBoard .slot[data-case]:not(.empty, .verrou, .renfort)',
-  cible: '#rosterBoard .slot[data-case]:not(.verrou)',
+  prise: '#rosterBoard .slot[data-case]:not(.empty, .renfort)',
+  cible: '#rosterBoard .slot[data-case]',
   permis: (de, vers) => !refusDe(+de.dataset.case, +vers.dataset.case),
   deposer: (de, vers) => permuter(+de.dataset.case, +vers.dataset.case),
-  fantome: el => el.querySelector('.slot-carte') || el,
   passe: '.seg-effectif button',
   // L'onglet s'ouvre sans redessiner l'alignement (l'onglet n'est que du style) : la carte qu'on porte reste la même.
   ouvrir: o => setOption('effectif', o.dataset.val),
@@ -566,16 +456,12 @@ function lineEl(title, slots, group, unit, cls = '') {
       chemHtml = `<span class="line-chem">${filled}/${slots.length} comblés</span>`;
     }
   } else {
-    // Une case cadenassée (S80, le Rogue) ne compte pas : elle n'est pas à combler.
-    const filled = slots.filter(s => G.roster[s.i]).length, ouvertes = slots.filter(caseOuverte).length;
-    chemHtml = `<span class="line-chem">${filled}/${ouvertes} comblés</span>`;
+    chemHtml = `<span class="line-chem">${slots.filter(s => G.roster[s.i]).length}/${slots.length} comblés</span>`;
   }
 
   // QUI EST CETTE UNITÉ (S79) : « Trio de snipers », « Paire classique » — les icônes sont dans les cases.
   const id = (group === 'F' || group === 'D') && !surTable() ? identiteUnite(G.roster, group, unit) : null;
   const idHtml = id ? `<span class="line-id" title="${esc(id.roles.join(' · '))}">${esc(id.nom)}</span>` : '';
-  // LE PLATEAU (la maquette A) : au téléphone, le nom du trio debout dans sa colonne dit son identité en un mot (« 1er · passeurs »).
-  const court = id ? `<span class="line-court">· ${esc(id.nom.replace(/^(Trio de |Trio |Paire de |Paire )/i, '').toLowerCase())}</span>` : '';
   // D'OÙ ILS VIENNENT (1.0) : la puce se voit même sans la carte, pour qu'on apprenne à bâtir pour elle ; la carte d'origine la paie.
   const orig = (group === 'F' || group === 'D') && !surTable() ? puceOrigine(origineUnite(G.roster, group, unit), group) : '';
   /*
@@ -585,19 +471,10 @@ function lineEl(title, slots, group, unit, cls = '') {
    * stat, jamais une cote — dès que l'unité est complète.
    */
   const patineurs = (group === 'F' || group === 'D') && !surTable() ? slots.map(s => G.roster[s.i]).filter(p => p && p.p !== 'G') : [];
-  // Derrière le banc, LE CHIFFRE DU MOTEUR (V6) remplace les points additionnés : il suit l'affinité et les cases.
-  const note = (group === 'F' || group === 'D') && patineurs.length === slots.length ? noteDesUnites() : null;
-  const u = note ? (group === 'D' ? note.D : note.F)[unit] : null;
-  // Ses vraies stats sur la glace (V7, JP : *des lancers, précision de lancer, pourcentage d'arrêt*) : à forces égales, par match.
-  // Dites en mots (oct., JP : *je comprends pas les tirs rouges et verts*) : « 5,7–8,0 » se lisait comme un intervalle, et
-  // le sens ne vivait que dans une bulle qu'un téléphone n'ouvre pas. Ses tirs, en vert s'il en tire plus qu'il en donne.
-  const st = u && u.stats;
-  const prodHtml = st && st.tirs + st.contre > 0
-    ? `<span class="line-net" title="${esc(`Sur la glace, à forces égales, par match contre ${teamShort(G.banc.prochain.adv)} : ${v1(st.tirs)} tirs (${v1(st.pctTir * 100)} % de précision), ${v1(st.contre)} tirs contre (${pct3(st.pctArr)} d'arrêts).`)}">Tirs <b class="${st.tirs >= st.contre ? 'bon' : 'mauvais'}">${v1(st.tirs)}</b> pour · <b>${v1(st.contre)}</b> contre</span>`
-    : patineurs.length && patineurs.length === slots.length
+  const prodHtml = patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
-  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}${court}</span>${idHtml}${prodHtml}${orig}${chemHtml}</div>`;
+  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${prodHtml}${orig}${chemHtml}</div>`;
   const row = document.createElement('div');
   row.className = 'line-slots' + (cls ? ' ' + cls : '');
   slots.forEach(s => row.appendChild(slotEl(s)));
@@ -606,21 +483,6 @@ function lineEl(title, slots, group, unit, cls = '') {
   // L'AFFINITÉ SOUS SON UNITÉ (V18). Sur table, rien : le plateau ne la lit pas.
   if ((group === 'F' || group === 'D') && !surTable() && patineurs.length === slots.length) wrap.appendChild(affiniteEl(unit, group));
   return wrap;
-}
-
-/*
- * LA NOTE QUI BOUGE (V6). Derrière le banc, ce que le moteur ferait de chaque unité contre ton prochain
- * adversaire, sur tes cases d'aujourd'hui (le blessé cède la sienne) et tes lignes en vigueur (js/impact.js
- * `unitesDuSoir`). Une lecture par rendu : la mémoire d'impact.js la garde le temps d'un écran.
- */
-function noteDesUnites() {
-  const b = G.banc, L = G.ligue;
-  if (!b || !L || !L.you || !b.prochain || surTable()) return null;
-  try {
-    const lu = activeLineup({ ...L.you, roster: G.roster, injured: b.blesses, jourCourant: b.jour });
-    // Les unités spéciales du banc, posées le temps de la lecture.
-    return auSoirDuBanc(L.you, () => unitesDuSoir(L.you, lu, b.prochain.adv));
-  } catch { return null; }
 }
 
 /*
@@ -650,32 +512,23 @@ function affiniteEl(unit, groupe) {
  * ALIGNER AU MIEUX (oct.). JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le
  * gossage*. Un bouton : le meilleur alignement (js/impact.js `alignementAuMieux`). JP : *considérer positions,
  * stratégie, etc.* : les trios lisent le poste et le côté, la zone de chacun, les minutes de la ligne et l'affinité de
- * ses joueurs, et le moteur tranche sur les buts d'un soir ; jamais pire que l'alignement de l'IA. Derrière le banc, un
- * blessé reste en réserve, et rien ne joue avant « Retour au match ». (V18 : l'offensif et le défensif sont partis avec
- * les systèmes qui les faisaient pencher.)
+ * ses joueurs, et le moteur tranche sur les buts d'un soir ; jamais pire que l'alignement de l'IA. (V18 : l'offensif et
+ * le défensif sont partis avec les systèmes qui les faisaient pencher.)
  */
 function alignerAuMieux() {
-  // En Rogue, la lecture joue le moteur du Rogue.
-  const plan = G.bonus === 'ROGUE';
   const tous = SLOTS.map(s => G.roster[s.i]).filter(Boolean);
-  const blesse = p => !!(G.banc && G.banc.blesses && G.banc.blesses.has(p));
-  const roster = alignementAuMieux(tous.filter(p => !blesse(p)), { plan });
-  // Les autres (blessés, surplus) vont en réserve, dans les cases ouvertes ; sans place pour tous, rien ne bouge.
+  const roster = alignementAuMieux(tous);
+  // Le surplus va en réserve ; sans place pour tous, rien ne bouge.
   const places = new Set(Object.values(roster));
-  const reste = tous.filter(p => !places.has(p)), libres = SLOTS.filter(s => s.scratch && caseOuverte(s) && !roster[s.i]);
+  const reste = tous.filter(p => !places.has(p)), libres = CASES_DE_BASE.filter(s => s.scratch && !roster[s.i]);
   if (reste.length > libres.length) { toast('Pas assez de cases de réserve pour réaligner : rien n\'a bougé.', 'bad'); return; }
   reste.forEach((p, k) => { roster[libres[k].i] = p; });
-  /*
-   * EN PLACE, JAMAIS UN OBJET NEUF (V4.4). JP : *des fois, le joueur pigé d'un pack s'ajoute pas*. En pleine saison,
-   * `G.roster` est l'objet même que le moteur aligne (`appliquerAlignement`). Le remplacer détachait l'écran du
-   * moteur : la signature suivante entrait dans l'alignement du moteur, pas dans celui qu'on voit, et la photo du
-   * banc d'après l'en retirait pour de bon.
-   */
+  // En place, jamais un objet neuf : `G.roster` est l'objet que la saison alignera.
   for (const k of Object.keys(G.roster)) delete G.roster[k];
   Object.assign(G.roster, roster);
   saveGame();
   render();
-  toast(`Le meilleur alignement : c'est fait.${G.banc ? ' Il joue dès que tu quittes les Lignes.' : ''}`);
+  toast('Le meilleur alignement : c\'est fait.');
 }
 function boutonAuMieux() {
   const b = document.createElement('button');
@@ -688,225 +541,12 @@ function boutonAuMieux() {
   return b;
 }
 
-/*
- * DEVANT LE FILET (1.0, C4). Derrière le banc, un seul réglage du soir : qui garde le filet. La glace de chaque trio,
- * l'appariement et la consigne du match sont partis à la V18 (JP : *ça aussi, enlever*) ; les minutes suivent le
- * moteur, ses coachs et ses adjoints.
- */
-function filetEl() {
-  const b = G.banc;
-  const el = document.createElement('section');
-  el.className = 'plan-match';
-  el.innerHTML = `<div class="pm-tete"><b>Devant le filet</b><span>${esc(teamShort(b.prochain.adv))} · ${b.prochain.domicile ? 'chez toi' : 'chez eux'}</span></div>${filetHtml()}`;
-  el.querySelectorAll('[data-filet]').forEach(x => { x.onclick = () => { b.filet = x.dataset.filet; render(); }; });
-  return el;
-}
-
-/*
- * TES UNITÉS SPÉCIALES (V7, JP : *créer lignes avantages numériques à part*). Le moteur en joue deux d'avantage (trois
- * attaquants, deux défenseurs ; 65 et 35 % du temps) et deux de désavantage (deux et deux ; 60 et 40 %), rangées sur
- * les vrais points de chacun en avantage et en désavantage. Derrière le banc, elles se voient et se choisissent :
- * chacune dit ses minutes et ses vraies stats du soir ; toucher un joueur ouvre ceux qui peuvent prendre sa place
- * (un joueur déjà dans la situation y échange sa case). « Le choix du moteur » revient au rangement automatique.
- * Le choix part avec la décision du banc (`speciales`, js/sim.js `unitesSpeciales`).
- */
-const SIT = {
-  AN: { titre: 'Avantage numérique', court: 'AN', stat: p => p.ppp },
-  DN: { titre: 'Désavantage numérique', court: 'DN', stat: p => p.shp },
-};
-/* « 1 pt AN », « 27 pts AN » : ses vrais points dans la situation, sur sa saison. */
-const ptsDe = (S, n) => `${n ?? '—'} ${n === 1 || n === 0 ? 'pt' : 'pts'} ${S.court}`;
-const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
-function unitesSpecialesEl() {
-  const b = G.banc;
-  const el = document.createElement('section');
-  el.className = 'unites-speciales';
-  const lu = avecLeBanc((you, l, adv, aVenir) => ({ u: specialesDuSoir(you, l), st: specialesEnStats(you, l, adv, aVenir), l }));
-  if (!lu) return el;
-  const { u, st, l } = lu;
-  const patineurs = Object.values(l).filter(p => p && p.p !== 'G');
-  const statDe = (sit, i) => {
-    const x = st && st[sit] && st[sit][i];
-    if (!x) return '';
-    return sit === 'AN' ? `≈ ${mmss(x.minutes)} · ${v1(x.tirs)} tirs · ${v1(x.pctTir * 100)} % de précision` : `≈ ${mmss(x.minutes)} · ${v1(x.contre)} tirs contre · ${pct3(x.pctArr)} d'arrêts`;
-  };
-  const rangee = (sit, i, j, p) => {
-    const S = SIT[sit], n = S.stat(p);
-    return `<button type="button" class="us-j" data-sit="${sit}" data-u="${i}" data-i="${j}"><span class="us-pos">${esc(positionLabel(p))}</span><span class="us-nom">${formatName(p.n)}</span>${n != null ? `<span class="us-stat">${ptsDe(S, n)}</span>` : ''}</button>`;
-  };
-  el.innerHTML = `<div class="pm-tete"><b>Unités spéciales</b>${b.speciales ? '<button type="button" class="btn us-auto">Le choix du moteur</button>' : '<span>le choix du moteur</span>'}</div>
-    ${['AN', 'DN'].map(sit => `<div class="pm-k">${SIT[sit].titre}</div>${u[sit].map((js, i) => `<div class="us-unite">
-      <div class="us-tete"><b>${SIT[sit].court} ${i + 1}</b><span class="us-stats">${statDe(sit, i)}</span></div>
-      <div class="us-joueurs">${js.map((p, j) => rangee(sit, i, j, p)).join('')}</div></div>`).join('')}`).join('')}`;
-  const auto = el.querySelector('.us-auto');
-  if (auto) auto.onclick = () => { b.speciales = null; render(); };
-  const cles = js => js.map(getPlayerKey);
-  el.querySelectorAll('.us-j').forEach(x => {
-    x.onclick = () => {
-      const sit = x.dataset.sit, i = Number(x.dataset.u), j = Number(x.dataset.i), S = SIT[sit];
-      const actuel = u[sit][i][j];
-      // Le choix avec `q` à la place d'`actuel` ; un joueur déjà dans la situation y échange sa case avec lui.
-      const avec = q => {
-        const choix = { AN: u.AN.map(cles), DN: u.DN.map(cles) }, k = getPlayerKey(q);
-        for (const v of [0, 1]) { const w = choix[sit][v].indexOf(k); if (w >= 0) choix[sit][v][w] = getPlayerKey(actuel); }
-        choix[sit][i][j] = k;
-        return choix;
-      };
-      const habilles = new Set(Object.values(l).filter(Boolean));
-      // L'unité lue avec `q` dedans, une fois par joueur : la case, la barre et le comparatif lisent la même.
-      const lus = new Map();
-      const apresAvec = q => {
-        if (!lus.has(q)) { const r = avecLeBanc((you, ll, adv) => specialesEnStats(you, ll, adv, aVenirDuBanc({ speciales: avec(q) }))); lus.set(q, r && r[sit][i]); }
-        return lus.get(q);
-      };
-      choisirSpeciale({
-        roster: G.roster, sortant: actuel, unite: `${S.court} ${i + 1}`,
-        joue: q => (q.p === 'G' ? 'gardien' : !habilles.has(q) ? 'pas habillé ce soir' : ''),
-        sous: q => ptsDe(S, S.stat(q)),
-        ou: q => { const v = [0, 1].find(k => u[sit][k].includes(q)); return v == null ? '' : `${S.court} ${v + 1}`; },
-        // L'écart de L'UNITÉ touchée, en vraies stats de la situation : en avantage ses tirs et sa réussite, en
-        // désavantage les tirs d'en face et tes arrêts. Sur tout le match, six minutes d'avantage se perdaient (« ≈ pareil »).
-        ecart: q => {
-          const a = apresAvec(q), d = st && st[sit][i];
-          if (!a || !d) return null;
-          return sit === 'AN' ? { tirs: a.tirs - d.tirs, pctTir: a.pctTir - d.pctTir, contre: 0, pctArr: 0 } : { tirs: 0, pctTir: 0, contre: a.contre - d.contre, pctArr: a.pctArr - d.pctArr };
-        },
-        dans: `en ${S.court} ${i + 1}`,
-        avantApres: q => {
-          const a = apresAvec(q), d = st && st[sit][i];
-          if (!a || !d) return '';
-          const fl = (x, y, f) => `${f(x)} → <b>${f(y)}</b>`;
-          return `${S.court} ${i + 1} : ${sit === 'AN'
-            ? `${fl(d.tirs, a.tirs, v1)} tirs · ${fl(d.pctTir * 100, a.pctTir * 100, v1)} % de précision`
-            : `${fl(d.contre, a.contre, v1)} tirs contre · ${fl(d.pctArr, a.pctArr, pct3)} d'arrêts`} par match`;
-        },
-        onChoix: q => { b.speciales = avec(q); render(); },
-      });
-    };
-  });
-  return el;
-}
-
-/*
- * LE SOIR DU BANC (V7). Ton équipe ce soir en vraies stats (l'onglet Équipe d'avant) est partie à l'Avant-match
- * (V18-5, docs/ecrans-rogue.md : *ses chiffres par match vont à l'avant-match*) ; derrière le banc restent ce qui se
- * règle — le filet et les unités spéciales —, lus par différence dans le moteur (js/impact.js), avec les lignes du banc.
- */
-const v1 = x => x.toFixed(1).replace('.', ',');
-/*
- * LE SOIR DU BANC, POSÉ LE TEMPS D'UNE LECTURE : le prochain match, avec ce qui se règle ici (le filet, les unités
- * spéciales) à la place de ce qui était décidé. `plan` remplace le filet ou les unités le temps d'essayer.
- */
-function aVenirDuBanc(plan = {}) {
-  const b = G.banc, L = G.ligue, you = L.you, j = b.prochain.j ?? b.jour;
-  // EN SÉRIES (V7), le match de ta série : ses décisions déjà prises (un ajustement, une main), sans celles que le banc règle.
-  if (b.serie) {
-    return [...(L.decisionsSeries || []).filter(d => d.ronde === b.serie.ronde && d.match_no === b.serie.k && !d.entracte && !(d.duel && d.duel.p > 0) && !d.cases && !d.filet),
-      { filet: b.filet, speciales: b.speciales || null, ...plan }];
-  }
-  return [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !(d.duel && d.duel.p > 0) && !(d.jour === j && d.filet)),
-    { jour: j, filet: b.filet, speciales: b.speciales || null, ...plan }];
-}
-/*
- * Le soir du banc posé sur ton club le temps d'une lecture : les unités spéciales qu'on essaie et, en séries, le match
- * qui vient (`jourCourant` à l'infini : le moteur lit `effetsSerie`, que chaque match de série repart à vide).
- */
-function auSoirDuBanc(you, fn) {
-  const b = G.banc, serie = !!b.serie;
-  const jc = you.jourCourant, es = you.effetsSerie, avant = you.speciales;
-  you.speciales = b.speciales || null;
-  if (serie) { you.jourCourant = Infinity; you.effetsSerie = []; }
-  try { return fn(); } finally { you.jourCourant = jc; you.effetsSerie = es; you.speciales = avant; }
-}
-function avecLeBanc(fn) {
-  const b = G.banc, L = G.ligue, you = L && L.you;
-  if (!b || !you || !b.prochain || surTable()) return null;
-  const j = b.prochain.j ?? b.jour;
-  const aVenir = aVenirDuBanc();
-  try {
-    return auSoirDuBanc(you, () => { you.jourCourant = j; return fn(you, activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j }), b.prochain.adv, aVenir); });
-  } catch { return null; }
-}
-/*
- * LE PERSONNAGE DU MATIN : celui que le moteur a joué, plus les décisions de la journée pas encore jouée (une pièce prise
- * ce matin) — le moteur ne les applique qu'en jouant la journée (`avecAVenir`, js/sim.js).
- */
-function persoDuMatin() {
-  const L = G.ligue, you = L && L.you, M = L && L.moteur;
-  if (!you) return null;
-  if (!M || M.fini) return you.perso || null;
-  return avecAVenir(you, (L.decisions || []).filter(d => d.jour === M.jour && !d.equipe), () => you.perso) || null;
-}
-/*
- * TON COACH ET TON BANC (V27, tranche 5 ; js/pieces.js). L'entraîneur en carte (sa vraie carte, sa maîtrise, sa règle),
- * puis ton banc de cinq cases, pour la run : chaque pièce en vraie carte de jeu (`carteDePiece`), son verso dit ce qu'elle
- * fait et sa réplique, son coin combien de soirs elle a joué cette saison (lu dans tes feuilles), sa condition dessous ; une
- * case libre en pointillés. Rien ne se pose ici : une pièce arrive d'un rival battu, de la boutique ou d'une fourche.
- */
-export function coachHtml() {
-  if (G.bonus !== 'ROGUE' || !G.rogue) return '';
-  const L = G.ligue, you = L && L.you;
-  const perso = persoDuMatin() || (G.rogue.coach ? { cle: G.rogue.coach, banc: [PIECE_DU_COACH[G.rogue.coach]] } : null);
-  const C = perso && COACHS[perso.cle];
-  if (!C) return '';
-  // Combien de soirs chaque pièce a joué cette saison (à la feuille ou en relais), dans tes feuilles déjà jouées.
-  const soirs = new Map();
-  for (const m of (L && L.calendrier ? L.calendrier.flat() : [])) {
-    if (!m.feuille || (m.A !== you && m.B !== you)) continue;
-    const cote = m.A === you ? 'A' : 'B';
-    for (const k of new Set([...(m.feuille.pieces || []), ...(m.feuille.relais || [])].filter(x => x.cote === cote).map(x => x.cle))) soirs.set(k, (soirs.get(k) || 0) + 1);
-  }
-  const banc = bancDe(perso);
-  const carte = k => carteLigne(carteDePiece(k, { statique: true, texteHtml: `« ${esc(PIECES[k].dit)} »`, pucesHtml: puces(lignesDeLaPiece(k)) }), `<span class="pv-nom">${esc(PIECES[k].quandMot)}</span>`,
-    { cls: 'pv', coins: coin(soirs.get(k) ? `${soirs.get(k)} soirs` : 'Pas encore', { ton: soirs.get(k) ? 'or' : 'gris', cls: 'pl-coin-petit pv-etat' }) });
-  const vides = Array.from({ length: Math.max(0, CASES_DU_BANC - banc.length) }, () => caseVide('Case<br>libre'));
-  /*
-   * LE COACH EST UNE CARTE (V25 B2) : l'entraîneur sur une vraie carte de jeu, aux couleurs de son vrai club (`varsCarton`),
-   * son niveau d'entraîneur en cadre (`NIVEAUX[k].maitrise`), son club et sa saison en type, sa philosophie et la force
-   * qu'il donne à sa pièce de départ au verso ; sa règle à côté, en chiffres (« ≤ 24 tirs contre → +2 🪙 · 1 fois »).
-   */
-  const chef = perso.chef;
-  const kMaitrise = NIVEAUX.findIndex(N => N.maitrise === (perso.maitrise || 1));
-  const maitrise = (perso.maitrise || 1) !== 1 && kMaitrise >= 0 ? nomDuNiveau(kMaitrise) : '';
-  const depart = PIECES[PIECE_DU_COACH[perso.cle]];
-  const carteCoach = carteLigne(carteHtml({ cle: 'coach', niveau: kMaitrise >= 0 ? kMaitrise : undefined, genreCarte: 'synergie', ico: C.ico, nomHtml: esc(chef ? chef.n : C.nom),
-    typeHtml: esc(chef ? `${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}` : C.nom), statique: true, style: chef ? varsCarton(getTeamBand(chef.tag)) : '',
-    texteHtml: `${C.ico} ${esc(C.nom)}${maitrise ? `<br>${esc(maitrise)} · ${esc(depart.nom)} ×${String(perso.maitrise).replace('.', ',')}` : ''}` }),
-  `<span class="pv-nom">${esc(C.nom)}</span>`, { cls: 'ej-coach-carte' });
-  const R = REGLES_DU_COACH[perso.cle];
-  return `<div class="ej-coach">
-    <div class="ej-coach-haut">${carteCoach}<div class="ej-coach-cote">
-    <div class="ej-coach-l">${esc(C.mot)}</div>
-    ${R ? (x => `<div class="ej-coach-l ej-regle" title="La règle ${esc(C.de)} : elle paie le soir où ton club joue son hockey">${C.ico} ${esc(R.dit)} → +${R.jetons} 🪙 · ${x.parJour.size} fois</div>`)(primesDuCoach(L && L.calendrier, you, Infinity, perso.cle)) : ''}
-    </div></div>
-    <div class="ej-case-l">Ton banc · ${banc.length} sur ${CASES_DU_BANC}</div>
-    ${grille([...banc.map(carte), ...vides], { n: 5, cls: 'pv-rang' })}
-  </div>`;
-}
-/* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */
-function filetHtml() {
-  const b = G.banc, F = b.filetEtat;
-  if (!F) return '';
-  const gardien = cle => Object.values(G.roster).find(p => p && getPlayerKey(p) === cle) || null;
-  const choix = b.filet === 'auto' ? F.rotation : b.filet;
-  const bouton = qui => {
-    const g = gardien(F[qui]);
-    const e = g ? ((b.energie || {})[getPlayerKey(g)] ?? 100) : 100;
-    // Ses jambes, avec la règle des gardiens en infobulle (`jambesHtml`) : elles tombent par départs de suite.
-    return `<button type="button" class="pm-btn${choix === qui ? ' on' : ''}" data-filet="${qui === F.rotation ? 'auto' : qui}" aria-pressed="${choix === qui}"><b>${g ? esc(g.n) : 'Le rappel'}</b><small>${g && Number.isFinite(g.sv) ? pct3(g.sv) : '—'}${qui === F.rotation ? ' · son tour' : ''}</small>${g ? jambesHtml(e, { gardien: true }) : ''}</button>`;
-  };
-  return `<div class="pm-seg pm-filet">${bouton('partant')}${bouton('aux')}</div>`;
-}
-
 export function renderRoster() {
   const host = $('rosterBoard');
   if (!host) return;
   host.innerHTML = '';
-  // Le bouton d'alignement sert partout où l'alignement se règle : au repêchage, et derrière le banc en pleine saison
-  // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
-  if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
-  if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you && G.banc.filetEtat) host.appendChild(filetEl());
-  if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(unitesSpecialesEl());
+  // Le bouton d'alignement sert où l'alignement se règle, au repêchage — jamais sur table, ni au bilan.
+  if (!surTable() && !G.done && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
 
   UNIT_NAMES_F.forEach((name, u) => {
     const slots = SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch);
@@ -917,9 +557,7 @@ export function renderRoster() {
     host.appendChild(lineEl(name, slots, 'D', u, 'pair'));
   });
   host.appendChild(lineEl('Gardiens', SLOTS.filter(s => s.group === 'G' && !s.scratch), null, null, 'pair'));
-  // Les réservistes : les trois de toujours, les cases débloquées de la run (S80), et la prochaine à débloquer, grisée.
-  const prochaine = G.bonus === 'ROGUE' ? SLOTS.find(s => s.extra && !caseOuverte(s)) : null;
-  host.appendChild(lineEl('Réservistes', SLOTS.filter(s => s.scratch && (caseOuverte(s) || s === prochaine)), null, null));
+  host.appendChild(lineEl('Réservistes', CASES_DE_BASE.filter(s => s.scratch), null, null));
   ajusterCartes(host);
 }
 
@@ -976,11 +614,6 @@ export function renderMain() {
   const b = $('mainBtn');
   const reste = slotsLeft();
   const over = capLeft() < 0;
-  if (G.banc) {
-    b.disabled = reste > 0;
-    b.textContent = G.banc.serie ? `Retour aux séries · match ${G.banc.serie.k + 1}` : `Retour au match · journée ${G.banc.jour}`;
-    return;
-  }
   b.disabled = reste > 0 || G.done || over;
   // UNE JAUGE, PAS UN BOUTON ÉTEINT (1.0, J2-6f) : « 14 / 23 · encore 9 » se remplit à chaque signature.
   const total = totalCases();

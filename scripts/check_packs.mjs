@@ -1,6 +1,9 @@
 /**
- * LES PACKS SELON LE NIVEAU DES JOUEURS (S80) — ce que la boutique affiche,
- * les packs le donnent.
+ * LES PACKS SELON LE NIVEAU DES JOUEURS (S80) — ce que ses taux promettent,
+ * un pack le donne. (La boutique à ses nœuds, ses chances affichées, la carte
+ * rare d'un pack, les crans achetés en médailles et la revente sont partis avec
+ * l'ancien Rogue, V28, tranche 4 ; la run en carte ouvre deux pochettes à son
+ * marché, par le même tirage.)
  *
  * JP : *packs selon les niveaux de joueurs, genre joueur moins bons plus
  * fréquents, du moins, joueurs brisés moins fréquents*.
@@ -14,8 +17,7 @@
  *   1. les NIVEAUX (js/niveaux.js) : des rangs, sans chevauchement, un
  *      Phénomène dans chaque groupe de chaque saison ; l'étoile d'avant et
  *      celle d'aujourd'hui ;
- *   2. les taux affichés : chaque tier fait 100 %, chaque pack par niveau
- *      affiche ses chances de joueur, les packs par talent et le trio non ;
+ *   2. les taux : chaque tier fait 100 % ;
  *   3. un pack est PUR : la même graine, le même pack, le même numéro d'achat
  *      rendent les mêmes cartes, même avec des shards rechargés ;
  *   4. les FRÉQUENCES observées par niveau collent aux taux affichés (par
@@ -34,11 +36,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, tirerCartesDuPack, hausseDesPacks, RARE_DU_PACK, sortDUnPack, BOUTIQUE, tierDuPack, prixDe } from '../js/packs.js';
-import { PRESTIGES, JALONS, DEBLOCAGES, packsOuverts, monteeDesPacks, peutAcheter } from '../js/rogue.js';
+import { PACKS_TOUS, TIERS, SKILLS, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, tierDuPack } from '../js/packs.js';
+import { PRESTIGES } from '../js/rogue.js';
 import { COACHS, VOIES } from '../js/coachs.js';
-import { VENTE, valeurDe, venteDuDoublon } from '../js/inventaire.js';
-import { BANQUE, idsDe } from '../js/banque.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, niveauParDefense, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey } from '../js/sim.js';
 import { coachDuJoueur } from '../js/greffes.js';
@@ -123,12 +123,6 @@ const t0 = Date.now();
 const CLES_J = Object.keys(PACKS_TOUS).filter(k => PACKS_TOUS[k].sorte === 'joueurs');
 exiger('les taux de joueur de chaque tier font 100 %', Object.values(TIERS).every(T => Math.abs(NIVEAUX.reduce((a, N) => a + (T.niveaux[N.cle] || 0), 0) - 100) < 1e-9),
   Object.entries(TIERS).map(([k, T]) => `${k} ${NIVEAUX.map(N => T.niveaux[N.cle]).join('/')}`).join(' · '));
-const parNiveauAffiche = CLES_J.filter(k => niveauxDuPack(k));
-const sansNiveau = CLES_J.filter(k => !niveauxDuPack(k));
-exiger('chaque pack par niveau affiche ses chances de Phénomène, les talents et le trio non',
-  parNiveauAffiche.every(k => chancesDe(k).some(x => x.niveau && /Phénomène/.test(x.nom))) && sansNiveau.every(k => !chancesDe(k).some(x => x.niveau))
-  && sansNiveau.every(k => ['skill', 'trio'].includes(PACKS_TOUS[k].famille)),
-  `${parNiveauAffiche.length} par niveau · ${sansNiveau.length} sans (${sansNiveau.map(k => k.slice(2)).join(', ')})`);
 
 /* 3. Un pack est pur. */
 {
@@ -175,20 +169,21 @@ async function mesurer(cle, nPacks, o = {}) {
 const lignesTaux = [];
 function juger(m, { exact = true } = {}) {
   const nv = niveauxDuPack(m.cle);
-  const ch = chancesDe(m.cle);
+  // La chance d'en trouver AU MOINS un dans le pack, de ses taux par carte et de son nombre de cartes (ce que la boutique d'avant affichait).
+  const nCartes = cartesDuPack(m.cle), auMoinsUn = taux => 1 - (1 - taux / 100) ** nCartes;
   const obs = NIVEAUX.map((N, k) => m.compte[k] / m.cartes);
   const ecarts = NIVEAUX.map((N, k) => ({ N, k, att: nv[N.cle] / 100, obs: obs[k] })).filter(x => x.att > 0 || x.obs > 0);
   const hors = ecarts.filter(x => Math.abs(x.obs - x.att) > tolere(x.att || 0.001, m.cartes));
-  const pPhen = ch.find(x => /Phénomène/.test(x.nom)).p, oPhen = m.avecPhen / m.nPacks;
-  const cEt = ch.find(x => /Étoile ou mieux/.test(x.nom));
+  const pPhen = auMoinsUn(nv.phenomene || 0), oPhen = m.avecPhen / m.nPacks;
+  const pEt = nv.soutien || nv.regulier || nv.pilier ? auMoinsUn((nv.etoile || 0) + (nv.phenomene || 0)) : null;
   const nom = m.P.nom;
-  lignesTaux.push(`${nom.padEnd(20)} ${ecarts.map(x => `${x.N.nom} ${pc(x.obs)} (${pc(x.att)})`).join(' · ')} · Phénomène ${unSur(oPhen)} des packs (affiché ${unSur(pPhen)})`);
+  lignesTaux.push(`${nom.padEnd(20)} ${ecarts.map(x => `${x.N.nom} ${pc(x.obs)} (${pc(x.att)})`).join(' · ')} · Phénomène ${unSur(oPhen)} des packs (attendu ${unSur(pPhen)})`);
   exiger(`${nom} : chaque carte a le niveau de sa vraie saison`, !m.faux, `${m.cartes} cartes`);
   if (!exact) return { oPhen, pPhen };
-  exiger(`${nom} : les niveaux par carte collent aux taux affichés`, !hors.length,
+  exiger(`${nom} : les niveaux par carte collent aux taux du pack`, !hors.length,
     hors.length ? hors.map(x => `${x.N.nom} ${pc(x.obs)} au lieu de ${pc(x.att)}`).join(' · ') : `${m.cartes} cartes, ${ecarts.length} niveaux à 4 écarts types`);
-  exiger(`${nom} : un Phénomène par pack, comme affiché`, Math.abs(oPhen - pPhen) <= tolere(pPhen, m.nPacks),
-    `${pc(oPhen)} des packs (affiché ${pc(pPhen)}, « ${ch.find(x => /Phénomène/.test(x.nom)).txt} »)${cEt ? ` · Étoile ou mieux ${pc(m.avecEtoile / m.nPacks)} (affiché ${pc(cEt.p)})` : ''}`);
+  exiger(`${nom} : un Phénomène par pack, comme ses taux le veulent`, Math.abs(oPhen - pPhen) <= tolere(pPhen, m.nPacks),
+    `${pc(oPhen)} des packs (attendu ${pc(pPhen)})${pEt != null ? ` · Étoile ou mieux ${pc(m.avecEtoile / m.nPacks)} (attendu ${pc(pEt)})` : ''}`);
   return { oPhen, pPhen };
 }
 const mesures = {};
@@ -320,57 +315,15 @@ for (const k of ['j:etoiles', 'j:legendes', 'j:vedettes']) {
     `par carte, avant : ${pc(parts[PHENOMENE])}`);
 }
 
-/* LE PRIX AU NŒUD (V27, tranche 3) : le premier achat d'un nœud garde le prix de base, chacun des suivants monte de 40 % ; le
-   pack de la semaine et son rabais sont partis (le prix remis à zéro à chaque nœud en tient lieu, js/actes.js). */
-{
-  const b = prixDe('j:bronze'), suite = [0, 1, 2, 3].map(n => prixDe('j:bronze', hausseDesPacks(n)));
-  exiger('le prix d\'un pack au nœud : la base, puis +40 % par achat de ce nœud', suite[0] === b && suite[1] === Math.round(b * 1.4) && suite[3] === Math.round(b * 2.2), `Bronze : ${suite.join(' · ')} 🪙`);
-}
-/*
- * LES CARTES RARES SONT RARES (V16, tranche 6 — docs/refonte-v16.md § 4d ; V21 : le pack Personnel et l'adjoint d'un pack
- * sont partis) : un pack de joueurs donne une carte qui monte une fois sur `1 / RARE_DU_PACK` — jamais le gros du pack.
- */
-{
-  let packs = 0, rares = 0, horsFamille = 0;
-  for (const cle of BOUTIQUE.filter(k => PACKS_TOUS[k].cartes)) for (let n = 0; n < 1000; n++) {
-    const ids = tirerCartesDuPack(cle, `rares-${cle}`, n);
-    packs++;
-    if (ids.length) rares++;
-    if (ids.length > 1 || ids.some(id => !['joueur', 'consommable'].includes(BANQUE[id].cat))) horsFamille++;
-  }
-  exiger('une carte rare sort d\'un pack de joueurs une fois sur quatre, et c\'est une carte qui monte', Math.abs(rares / packs - RARE_DU_PACK) < 0.03 && !horsFamille,
-    `${(100 * rares / packs).toFixed(1)} % des packs (cible ${100 * RARE_DU_PACK} %) · ${horsFamille} hors famille`);
-}
-
-for (const l of lignesTaux) informer('mesuré (affiché)', l);
+for (const l of lignesTaux) informer('mesuré (attendu)', l);
 informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
 /*
- * LA BANQUE SE COMPLÈTE (V2.2). Son dénominateur ne compte que ce qu'un pack de la boutique peut donner
- * (`sortDUnPack`) : chaque carte tirée d'un pack en est, et aucune carte « hors pack » (les cartes de saison, les
- * événements, les malédictions qui ne sont pas la taxe de luxe) n'en sort jamais, sur des milliers d'ouvertures.
+ * LES THÈMES (Jalon P2). JP : *on limite les packs, tout en gardant des thématiques*. Chaque thème tient sa promesse (la
+ * décennie, le poste, le rôle, la franchise, la couleur du coach) ; le hasard d'un thème ne tombe jamais hors de ce qui
+ * est permis. (La boutique à ses nœuds, la carte rare d'un pack et la revente sont parties avec l'ancien Rogue : la run
+ * en carte ouvre la pochette Bronze et la pochette Époque à son marché.)
  */
 {
-  const tirees = new Set();
-  for (const cle of BOUTIQUE) for (let n = 0; n < 1500; n++) for (const id of tirerCartesDuPack(cle, `banque-${cle}`, n)) tirees.add(id);
-  const horsPackTirees = [...tirees].filter(id => !sortDUnPack(id));
-  exiger('aucune carte « hors pack » ne sort d\'un pack', horsPackTirees.length === 0, horsPackTirees.slice(0, 5).join(', ') || `${tirees.size} cartes différentes tirées`);
-  const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id));
-  // V10 : les cartes de saison sont parties ; V13-2, les malédictions aussi ; V16, les places, l'équipement, les clauses et
-  // le feu. Ce qui n'en sort pas ne compte pas au dénominateur.
-  exiger('ce qui se gagne en jouant ne compte pas au dénominateur', horsPack.every(id => BANQUE[id].niveau == null), `${horsPack.length} carte(s) hors pack`);
-  const jamais = Object.keys(BANQUE).filter(id => sortDUnPack(id) && !tirees.has(id));
-  informer('cartes comptées qu\'on n\'a pas encore vu sortir', `${jamais.length} sur ${Object.keys(BANQUE).filter(sortDUnPack).length} (1 500 ouvertures par pack)`);
-}
-
-/*
- * LA BOUTIQUE DU JALON P (P2). JP : *on limite les packs, tout en gardant des thématiques* ; *les cartes de match,
- * événements, etc. avec les cartes de joueurs*. Sept packs, tous mixtes ; chaque thème tient sa promesse (la décennie,
- * le rôle, la franchise, la couleur du coach — ses joueurs ET ses cartes) ; le hasard d'un thème ne tombe jamais sur
- * ce que les déblocages ferment ; et aucune carte que les packs d'avant donnaient ne se perd dans la fusion.
- */
-{
-  exiger(`la boutique vend ${BOUTIQUE.length} packs, tous mixtes (des joueurs et des cartes)`, BOUTIQUE.length === 8 && BOUTIQUE.every(k => PACKS_TOUS[k] && PACKS_TOUS[k].sorte === 'joueurs' && PACKS_TOUS[k].n >= (k === 'j:epoque' ? 1 : 2) && PACKS_TOUS[k].cartes >= 1),
-    BOUTIQUE.map(k => `${PACKS_TOUS[k].nom} ${PACKS_TOUS[k].n}+${PACKS_TOUS[k].cartes}`).join(' · '));
   const an = x => Number(String(x.p.s).slice(0, 4));
   const ep = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:epoque', n, { params: { decennie: 1980 } })))).flatMap(r => r.cartes);
   exiger('Pack Époque : la décennie choisie', ep.length >= 4 * PACKS_TOUS['j:epoque'].n - 2 && ep.every(x => an(x) >= 1980 && an(x) < 1990), `${ep.length} joueurs des années 80`);
@@ -394,20 +347,6 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
     const joueurs = r.flatMap(x => x.cartes);
     exiger(`Pack du coach ${COACHS[coach].nom} : ses joueurs de sa couleur`, joueurs.length >= 6 && joueurs.every(x => coachDuJoueur(x.p) === coach), `${joueurs.length} joueurs`);
   }
-  // Les événements ont quitté la banque pour les histoires (js/histoires.js) : aucun pack n'en donne.
-  const apres = new Set();
-  for (const cle of BOUTIQUE) for (let n = 0; n < 6000; n++) for (const id of tirerCartesDuPack(cle, `fusion-${cle}`, n)) apres.add(id);
-  exiger('aucun pack ne donne un événement', ![...apres].some(id => BANQUE[id].cat === 'evenement'), `${apres.size} cartes sorties des packs`);
-  const comptees = Object.keys(BANQUE).filter(sortDUnPack);
-  exiger(`chaque carte que la banque compte sort d'un des ${BOUTIQUE.length} packs`, comptees.every(id => apres.has(id)), `${comptees.filter(id => !apres.has(id)).slice(0, 5).join(', ') || `${comptees.length} sur ${comptees.length}`}`);
-  // L'économie ne fuit pas : les cartes d'un pack mixte, revendues, valent au plus 40 % de son prix (majoré, la famille la plus chère).
-  const fuites = BOUTIQUE.filter(k => {
-    const P = PACKS_TOUS[k];
-    // V25 B1 : la carte rare se tire par niveau, aux parts de l'échelle (`NIVEAUX[k].tirage`).
-    const parNiveau = k => Math.max(0, ...Object.keys(BANQUE).filter(id => BANQUE[id].niveau === k).map(valeurDe));
-    return P.cartes * NIVEAUX.reduce((a, N, k) => a + (N.tirage / 100) * parNiveau(k), 0) > 0.4 * P.prix;
-  });
-  exiger('les cartes d\'un pack mixte ne se revendent pas plus de 40 % de son prix', !fuites.length, fuites.join(', ') || 'aucune fuite');
 }
 
 /*
@@ -443,29 +382,10 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   exiger('aucun rang ne ferme le hasard : un Phénomène peut sortir de chaque pack, dès le Club de garage', !fermes.length,
     fermes.slice(0, 3).join(' · ') || `Bronze au garage : ${niveauxDuPack('j:bronze', { prestige: PRESTIGES[0] }).phenomene.toFixed(2).replace('.', ',')} % par carte`);
   exiger('le prestige ajoute, il ne retire rien', PRESTIGES.every(Pr => Pr.etoile >= 1 && Pr.phenomene >= 1), PRESTIGES.map(Pr => `${Pr.etoile}/${Pr.phenomene}`).join(' · '));
-  const neuf = packsOuverts({});
-  const ouverts0 = BOUTIQUE.filter(k => neuf[k] === true);
-  exiger('une première run : la boutique vend le Bronze et l\'Époque, le reste est sous clé', ouverts0.join() === 'j:bronze,j:epoque', ouverts0.map(k => PACKS_TOUS[k].nom).join(' · '));
-  const cles = BOUTIQUE.filter(k => neuf[k] !== true).map(k => ({ k, J: JALONS.find(J => J.pack === k) }));
-  exiger('chaque pack sous clé dit son jalon, et s\'ouvre avec lui', cles.every(({ k, J }) => J && neuf[k] === J.texte && packsOuverts({ jalons: { [J.cle]: true } })[k] === true),
-    cles.map(({ k, J }) => `${PACKS_TOUS[k].ico} ${J ? J.nom : '?'}`).join(' · '));
   const un = { 'j:bronze': 1 }, deux = { 'j:bronze': 2 };
-  exiger('le premier cran : un joueur de plus, au même prix', cartesDuPack('j:bronze', { montee: un }) === cartesDuPack('j:bronze') + 1 && prixDe('j:bronze', 1) === PACKS_TOUS['j:bronze'].prix,
+  exiger('le premier cran : un joueur de plus', cartesDuPack('j:bronze', { montee: un }) === cartesDuPack('j:bronze') + 1,
     `${cartesDuPack('j:bronze')} → ${cartesDuPack('j:bronze', { montee: un })} joueurs`);
   exiger('le second : les taux du métal du dessus', tierDuPack('j:bronze', { montee: deux }) === 'argent' && niveauxDuPack('j:bronze', { montee: deux }).etoile === niveauxDuPack('j:argent').etoile,
     `Bronze ++ : ${TIERS[tierDuPack('j:bronze', { montee: deux })].nom}`);
-  const m = { ecussons: 9999, deblocages: [], jalons: {} };
-  exiger('un cran ne s\'achète que sur un pack ouvert, et le second après le premier', peutAcheter(m, 'monte_bronze_1') && !peutAcheter(m, 'monte_bronze_2') && !peutAcheter(m, 'monte_argent_1')
-    && peutAcheter({ ...m, jalons: { series: true } }, 'monte_argent_1') && monteeDesPacks({ deblocages: ['monte_bronze_1', 'monte_bronze_2'] })['j:bronze'] === 2,
-    `${Object.keys(DEBLOCAGES).filter(k => DEBLOCAGES[k].pack).length} crans`);
-}
-/*
- * LA REVENTE D'UN DOUBLON (7 nov. 2026) : à son édition, pas à 2 🪙 pour tous. `VENTE` est par niveau depuis la V25 B1 ;
- * l'édition se lit à son rang dans `EDITIONS`, aux mêmes valeurs que les raretés d'avant (1 · 1 · 1 · 2 · 5).
- */
-{
-  const prix = EDITIONS.map(e => venteDuDoublon(e));
-  exiger('un doublon se revend à son édition : Base à Holo, 1 · 1 · 1 · 2 · 5 🪙', prix.join() === '1,1,1,2,5', prix.join(' · '));
-  exiger('une Holo numérotée multiplie son prix : 1 de 1 vaut dix fois une Holo', venteDuDoublon('legendaire', '1 de 1') === 50 && venteDuDoublon('legendaire', '/25') === 10, `${venteDuDoublon('legendaire', '1 de 1')} 🪙`);
 }
 verdict('Les packs selon le niveau des joueurs');

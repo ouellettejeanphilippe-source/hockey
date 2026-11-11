@@ -13,14 +13,6 @@
  * Tout est PUR : le même contexte et la même graine redonnent le même tirage, sans `hasard()`.
  */
 
-import { nomCourt } from './recit.js';
-
-/** Hachage stable d'une chaîne (le même que js/recit.js), pour tirer sans hasard vivant. */
-function graine(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return (h >>> 0) / 4294967296;
-}
 
 
 /**
@@ -74,32 +66,4 @@ export function joueurDuFait(sorte, feuilles, habilles) {
     return d ? { p: d[0], fait: `${d[0].n} : ${d[1]} punition${d[1] > 1 ? 's' : ''} en ${feuilles.length} matchs` } : null;
   }
   return null;
-}
-
-/*
- * LES FILS DE LA SAISON, DITS PAR QUELQU'UN (V3.3). Le fil qui a fait la une hier soir (`filsDeSaison`,
- * js/recit.js) arrive dans la boîte d'une voix qui a une raison d'en parler : la course et le duo, l'analyste ;
- * le Cheechoo et la séquence, les partisans ; le jalon, le proprio ; la disette, l'entraîneur, puis le joueur
- * lui-même quand elle finit ; la recrue, le capitaine ; le retour, le physio. Le FAIT est celui du fil, au
- * caractère près (check_fils le recompte) ; la voix ajoute une opinion, jamais un chiffre.
- */
-const VOIX_DES_FILS = {
-  course: { de: 'an', mots: ['À ce rythme-là, on va parler de {nom} jusqu\'au printemps.', 'Les gardiens de la ligue commencent à voir {nom} dans leur soupe.', 'Je l\'ai dit en ondes et je le répète : surveillez {nom}.', '{nom} joue avec l\'aplomb d\'un gars qui sait où est le filet.'] },
-  feu: { de: 'pt', mots: ['On scande son nom dans les gradins. Personne n\'avait vu ça venir.', 'Les gradins se lèvent dès qu\'il saute sur la glace.', 'Un joueur de soutien qui fait lever la foule : on ne s\'en lasse pas.'] },
-  jalon: { de: 'pr', mots: ['Mes félicitations à {nom}. Ce genre de soirée fait vendre des billets.', 'Transmettez mes félicitations au vestiaire, et à {nom} en premier.', 'On se souviendra de cette soirée. Je fais encadrer la feuille de match.'] },
-  sequence: { de: 'pt', mots: ['Les gradins attendent {nom} à chaque présence.', 'Chaque soir, on se demande si ce sera le bon. Et chaque soir, il répond.'], fin: { de: 'an', mots: ['Toutes les séquences finissent un jour. Ce qui compte, c\'est la suivante.', 'Belle séquence. Reste à voir s\'il repart tout de suite.'] } },
-  disette: { de: 'en', mots: ['Je le garde où il est. Les rondelles vont finir par rentrer.', 'Il travaille. Je ne change rien pour l\'instant, mais je regarde.', 'Ce n\'est pas la volonté qui manque. C\'est la rondelle qui ne veut pas.'], fin: { de: 'joueur', mots: ['Enfin. Je dormais mal.', 'Ça fait du bien. Merci aux gars de m\'avoir attendu.', 'Je ne comptais plus. Les journalistes, eux, comptaient.'] } },
-  duo: { de: 'an', mots: ['Ces deux-là se trouvent les yeux fermés.', '{passeur} lui dépose la rondelle sur la palette ; il n\'a qu\'à finir.', 'Séparer {nom} et {passeur} ? Je ne m\'y risquerais pas.'] },
-  recrue: { de: 'ca', mots: ['Le petit n\'a peur de rien. On l\'aime bien dans le vestiaire.', 'Il pose des questions et il écoute les réponses. Ça paraît.', 'Il joue comme s\'il avait dix ans dans la ligue.'] },
-  retour: { de: 'ph', mots: ['Le corps a tenu. On le surveille encore quelques jours.', 'Il a fait tout ce qu\'on lui demandait pendant son absence. Ça paie.'] },
-};
-
-/** Le message d'un fil : { de, sujet, mot } — `sujet` est le fait du fil, `mot` ce qu'en dit sa voix. */
-export function messageDuFil(a) {
-  const v0 = VOIX_DES_FILS[a.sorte];
-  const v = a.fini && v0.fin ? v0.fin : v0;
-  const de = v.de === 'joueur' ? { ico: '🏒', nom: a.joueur.n } : EXPEDITEURS[v.de];
-  const mot = v.mots[Math.floor(graine(`${a.texte}|${a.jour}`) * v.mots.length) % v.mots.length]
-    .replace(/\{nom\}/g, nomCourt(a.joueur.n)).replace(/\{passeur\}/g, a.passeur ? nomCourt(a.passeur.n) : '');
-  return { de, sujet: a.texte, mot };
 }

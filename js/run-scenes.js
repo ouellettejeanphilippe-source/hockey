@@ -10,14 +10,13 @@ import { PLANS, INTENTIONS } from './greffes.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC } from './pieces.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
 import { motDuRang, niveauDuCoach } from './coachs-reels.js';
-import { NIVEAUX, nomDuNiveau } from './niveaux.js';
+import { NIVEAUX, nomDuNiveau, groupeDuJoueur as groupeDe } from './niveaux.js';
 import { PRIX_PIECE } from './actes.js';
 import { lignesDeLaPiece, motsDeStats } from './impact.js';
 import { cartonDe, varsEquipe } from './repechage.js';
 import { carteHtml, carteDePiece, pochetteHtml } from './cartes.js';
 import { getTeamBand, getTeamLogoHtml } from './logos.js';
 import { NOM_VARIANTE } from './rarete.js';
-import { groupeDe } from './ballottage.js';
 import { TEAMFULL } from './game.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
@@ -364,7 +363,7 @@ export function sceneBanc(S) {
 export function sceneMarche(S, V) {
   const R = S.R, M = R.marche, plein = R.banc.length >= CASES_DU_BANC;
   const piece = k => { const ok = !M.piece && R.jetons >= PRIX_PIECE; return `<button type="button" class="${V.piece === k ? 'rn-on' : ''}" data-a="voir-piece" data-v="${k}"${ok ? '' : ' disabled'}>${carteP(k)}<span class="rn-prix${ok ? '' : ' rn-non'}">${M.piece ? 'Prise' : `<i class="rn-piece"></i>${PRIX_PIECE}`}</span><p>${ligneDe(k)}</p></button>`; };
-  const pochette = (cle, mot, ico, metal, quoi) => { const prix = RUN.POCHETTES[cle], pris = M.pochettes.includes(cle), ok = !pris && R.jetons >= prix; return `<button type="button" data-a="pochette" data-v="${cle}"${ok ? '' : ' disabled'}><span class="rn-c" style="--pk-a:var(${metal})">${pochetteHtml({ etat: 'scellee', mot, ico })}</span><span class="rn-prix${ok ? '' : ' rn-non'}">${pris ? 'Ouverte' : `<i class="rn-piece"></i>${prix}`}</span><p>${quoi}</p></button>`; };
+  const pochette = (cle, mot, ico, metal, quoi) => { const prix = RUN.POCHETTES[cle], pris = M.pochettes.includes(cle), ok = !pris && R.jetons >= prix; return `<button type="button" data-a="pochette" data-v="${cle}"${ok ? '' : ' disabled'}><span class="rn-c" style="--pk-a:var(${metal})">${pochetteHtml({ mot, ico })}</span><span class="rn-prix${ok ? '' : ' rn-non'}">${pris ? 'Ouverte' : `<i class="rn-piece"></i>${prix}`}</span><p>${quoi}</p></button>`; };
   return `${hud(S, { titre: 'Le marché', cible: false })}
   <div style="left:14px;right:14px;top:62px"><div class="rn-k" style="margin-bottom:10px">Une pièce de banc · une seule</div><div class="rn-etal">${M.pieces.map(piece).join('')}</div></div>
   <div style="left:14px;right:14px;top:350px"><div class="rn-k" style="margin-bottom:10px">Les pochettes</div><div class="rn-etal">${pochette('j:bronze', 'Bronze', '🥉', '--attention', 'Trois joueurs au hasard')}${pochette('j:epoque', 'Époque', '🕰', '--rn-bleu', 'Un pilier ou mieux, d\'une époque au hasard')}</div></div>

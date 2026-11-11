@@ -11,12 +11,11 @@
  *      aucune chaîne de l'écran ne le déclenche.
  *   2. UNE ICÔNE À DEUX SENS dans les familles d'étiquettes qu'on voit en
  *      jouant (CLAUDE.md) : les rôles, les traits, les archétypes d'une fiche,
- *      les styles de gardien, la carrure, l'agressivité, les coachs, les
- *      mesures d'équipe du classement. « Two-way » en attaque et en défense,
- *      c'est le même sens ; 🎯 sniper et 🎯 précision, deux. Les icônes
- *      réservées (`ICONES`) ne portent que leur sens. Les postes du
- *      personnel, les voix et les maisons du Bureau se LISENT (leurs doublons
- *      attendent les tranches 3 et 4, qui les refont).
+ *      les styles de gardien, la carrure, l'agressivité, les coachs.
+ *      « Two-way » en attaque et en défense, c'est le même sens ; 🎯 sniper
+ *      et 🎯 précision, deux. Les icônes réservées (`ICONES`) ne portent que
+ *      leur sens. Les pièces du banc et les voix se LISENT (leurs doublons se
+ *      disent, ils ne jugent pas).
  *   3. LES CLÉS NE BOUGENT PAS : renommer l'affichage, jamais une clé de
  *      sauvegarde (`coach`, `patron`, `chef`, `ecussons`, `vestiaire`…).
  *
@@ -99,25 +98,17 @@ informer('prose lue', `${prose.length} chaînes et lignes`);
     noter('🪨', 'carrure costaud', 'carrure'); noter('🪶', 'carrure léger', 'carrure');
   });
   famille('coach', () => { for (const C of Object.values(COACHS)) noter(C.ico, `coach ${C.nom}`, 'coach'); });
-  // Les maisons du Bureau (`MAISONS`) et les mesures d'équipe du classement (`MESURES`), locales à js/saison.js : lues dans la source.
-  famille('mesure', () => {
-    const src = lire('js/saison.js');
-    const bloc = (nom) => (src.match(new RegExp(`const ${nom} = \\{([\\s\\S]*?)\\n  \\};`)) || [])[1] || '';
-    const maisons = [...bloc('MAISONS').matchAll(/(\w+): \{ ico: '([^']+)', titre: '((?:[^'\\]|\\.)+)'/g)];
-    const mesures = [...bloc('MESURES').matchAll(/(\w+): \{ ico: '([^']+)', nom: '((?:[^'\\]|\\.)+)'/g)];
-    exiger('les maisons du Bureau et les mesures d\'équipe se lisent dans js/saison.js', maisons.length >= 5 && mesures.length >= 5, `${maisons.length} maisons, ${mesures.length} mesures`);
-    for (const [, , ico, nom] of mesures) noter(ico, `mesure ${nom}`, 'mesure');
-    // Les postes, les voix et les maisons, lus à part : leurs doublons se disent, ils ne jugent pas encore.
+  // Les pièces du banc et les voix, lues à part : leurs doublons se disent, ils ne jugent pas encore. (Les maisons du Bureau
+  // et les mesures d'équipe du classement sont parties avec l'ancien Rogue, V28, tranche 4.)
+  {
     const lus = new Map();
     const lireIco = (ico, quoi) => { const k = ico.replace(/️/g, ''); if (!lus.has(k)) lus.set(k, new Set()); lus.get(k).add(quoi); };
-    // V27, tranche 5 : les pièces du banc (les pouvoirs du coach et ses adjoints d'avant), à la place des postes.
     for (const P of Object.values(PIECES)) lireIco(P.ico, `pièce ${P.nom}`);
     for (const V of Object.values(EXPEDITEURS)) lireIco(V.ico, `voix ${V.nom}`);
-    for (const [, , ico, titre] of maisons) lireIco(ico, `maison ${titre}`);
     for (const [ico, m] of sens) if (lus.has(ico)) for (const q of m.keys()) lus.get(ico).add(q);
     const partages = [...lus].filter(([, q]) => q.size > 1).map(([ico, q]) => `${ico} ${[...q].join(' / ')}`);
-    informer('postes, voix et maisons qui partagent une icône (V21)', partages.length ? partages.join(' · ') : 'aucun');
-  });
+    informer('pièces et voix qui partagent une icône (V21)', partages.length ? partages.join(' · ') : 'aucun');
+  }
   const doublons = [...sens].filter(([, m]) => m.size > 1).map(([ico, m]) => `${ico} = ${[...m.keys()].join(' / ')}`);
   informer('icônes lues', `${sens.size} icônes dans ${familles.size} familles`);
   exiger('une icône = un sens', doublons.length === 0, doublons.join(' · ') || 'aucun doublon');
@@ -135,7 +126,7 @@ informer('prose lue', `${prose.length} chaînes et lignes`);
   // Les clés que les sauvegardes et la méta portent ; l'affichage se renomme, elles non.
   const cles = [
     ['js/coachs.js', /\bessaim: \{/], ['js/pieces.js', /\bperso\b/],
-    ['js/rogue.js', /cle: 'vestiaire'/], ['js/rogue.js', /ecussons/], ['js/vie-gm.js', /\bad: \{ ico/], ['js/saison.js', /\bentraineur: \{ ico/],
+    ['js/rogue.js', /cle: 'vestiaire'/], ['js/rogue.js', /ecussons/], ['js/vie-gm.js', /\bad: \{ ico/],
   ];
   const manquent = cles.filter(([f, re]) => !re.test(lire(f))).map(([f, re]) => `${f} ${re}`);
   exiger('les clés de sauvegarde gardent leur nom', manquent.length === 0, manquent.join(' · ') || `${cles.length} clés en place`);
