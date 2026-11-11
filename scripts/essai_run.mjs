@@ -89,7 +89,7 @@ for (let pas = 0; pas < PAS_MAX && !fin; pas++) {
       await ouvrir();
       const apres = await run();
       reprise = { ok: !!apres && apres.phase === avant.phase && apres.rang === avant.rang && apres.matchs.length === avant.matchs.length && apres.joueurs.length === 23, mot: `${avant.phase}, case ${avant.rang + 1}` };
-      touchers = 0;
+      debut = null;   // la semaine coupée par la pause ne se compte pas
     }
     if (debut && debut.gagne && debut.signe && debut.match) semaines.push(touchers - debut.t);
     debut = { t: touchers, gagne: false, signe: false, match: false };

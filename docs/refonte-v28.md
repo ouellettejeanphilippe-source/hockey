@@ -211,7 +211,7 @@ Chaque règle a son écran. Chaque écran est une scène plein écran qui ne dé
   - Pendant qu'une carte est tenue, chaque case dit l'accord qu'elle allumerait.
 - **Ton coach** (la V27) : sa philosophie, sa règle (des jetons le soir où ton club joue son hockey), sa maîtrise et sa pièce de départ.
 - **Le banc de cinq** (la V27) : les pièces (`PIECES`, js/pieces.js), leurs conditions, leur relais. Elles viennent du rival battu, de l'élite gagnée, du marché et d'une histoire. Leurs bornes ont été posées pour un acte de 27 soirs ; elles se remesurent sur un acte de six matchs (la tranche 0).
-- **Une époque par run** : la run tire une décennie, d'où ses portes viennent d'abord. Deux runs ne se ressemblent pas.
+- **Toutes les années ensemble** (JP, 11 nov. 2026 : *Je veux garder l'aspect toutes les années ensemble*) : les portes, les affiches, les rivaux et les séries d'une run se tirent de chaque saison des données, les Canadiens de 1976-77 à côté du Lightning de 2019-20. « Une époque par run » (la run tirait une décennie), essayée aux tranches 2 et 3, est défaite.
 
 ### 4.8 L'économie
 
@@ -281,7 +281,7 @@ Chaque règle a son écran. Chaque écran est une scène plein écran qui ne dé
 - **Un piège de mesure, corrigé** : `createTeam` tire la chance de saison de chaque club ; un match isolé la remet à zéro, comme l'exhibition. Sans ça, deux effectifs identiques ne jouaient pas le même match sous les mêmes dés.
 
 **Le réglage retenu** (JP, 10 nov. 2026 : le plafond qui mord ; la difficulté par des clubs plus forts). La moitié du salaire de celui qui sort reste au plafond (`RACHAT` 0,5). Les adversaires sont plus forts, les portes ne bougent pas :
-- les affiches, les rivaux et les séries montent de 0,25 en rang centile dans la décennie (`DECALAGE`) ;
+- les affiches, les rivaux et les séries montent de 0,25 en rang centile parmi tous les clubs (`DECALAGE`) ;
 - ils portent 0, 1 et 2 étapes d'édition aux actes I, II et III, et 4 en séries (`ETAPES`, `habillerLaLigue`).
 
 Sur 128 graines (deux jeux de 64), les mêmes dés :
@@ -298,9 +298,10 @@ Sur 128 graines (deux jeux de 64), les mêmes dés :
 
 **Réglé de nouveau aux tranches 2 et 3** (11 nov. 2026, docs/refonte-v28-2.md) : le cœur neuf (`js/run.js`) joue le vrai moteur d'un match à l'autre, le banc, les élites, les histoires et le marché compris, et la run était redevenue trop facile.
 - **Le salaire de la run** : le rang du salaire d'un joueur dans sa saison, reporté sur l'échelle d'aujourd'hui (`prixDe`, `ECHELLE`) ; le départ à 91,5 M$ sous un plafond de 95,5 M$ dans chaque décennie.
-- **Les décennies à vrais contrats** : 1990, 2000, 2010, 2020 (`VRAIS_CONTRATS`) ; avant, les salaires sont estimés et le plafond ne se lit pas.
+- **Toutes les années ensemble** (JP, 11 nov.) : le monde d'une run couvre les 55 saisons finies des données (1 366 clubs). La run d'une seule décennie à vrais contrats (1990 à 2020), essayée d'abord, est défaite : le salaire de la run, lu sur une seule échelle, suffit à mêler les époques.
 - **`ETAPES` 1 · 2 · 3 · 7** ; `RACHAT` 0,5 et `DECALAGE` 0,25 tenus.
-- Sur 128 graines : le malin 16 Coupes (8 sur 64), le chiffre 12, « premier » 0 ; les cibles tenues 59 %, 55 % et 32 % ; la première Coupe du malin à sa sixième run en médiane ; sept de ses runs sur 64 jouent l'acte III à 75 % de chance ou plus.
+- Sur 128 graines, toutes les années ensemble : le malin 14 Coupes (7 sur 64), le chiffre 11, « premier » 0 ; les cibles tenues 61 %, 53 % et 29 % ; la première Coupe du malin à sa sixième run en médiane.
+- **Ouvert : *tu peux exploser le jeu*.** 8 runs du malin sur 128 (6 %) jouent l'acte III à 75 % de chance moyenne ou plus ; le critère en demande une sur dix. Essayé sans y arriver : l'acte III à 2 étapes d'édition (6 %), des portes plus hautes après une affiche haute gagnée (7 à 8 %), un robot qui monte une carte au vestiaire (5 %). Sous le plafond qui mord, la force d'un club plafonne ; il faut un levier de plus, à trancher par JP (docs/decisions.md).
 
 **Ce que la tranche 0 mesurait au départ** (la question posée, gardée) :
 - ce que vaut une signature de porte, en points de chance sur un match ;
@@ -425,7 +426,7 @@ Chaque nom ci-dessous disparaît du jeu au remplacement (tranche 4), et *check_r
 | *COEURS* | 2 | 2 (JP) | ne se règle pas |
 | *PORTES* | 3 | 2-4 | à 1, pas de choix ; à 5, plus de manque |
 | *RACHAT*, la part du salaire de celui qui sort qui se libère | 0,5 (JP, 10 nov.) | 0,4-0,7 | à 1, le plafond ne mord pas et lire la cote suffit ; trop bas, on ne signe plus |
-| *DECALAGE*, les adversaires plus haut dans la décennie | 0,25 | 0,15-0,35 | mesuré : 0,15 laisse 14 Coupes au malin, 0,35 garde la boule de neige au chiffre |
+| *DECALAGE*, les adversaires plus haut parmi tous les clubs | 0,25 | 0,15-0,35 | mesuré : 0,15 laisse 14 Coupes au malin, 0,35 garde la boule de neige au chiffre |
 | *ETAPES*, les étapes d'édition des adversaires (actes I, II, III, séries) | 1 · 2 · 3 · 7 (11 nov. ; 0 · 1 · 2 · 4 à la tranche 0) | ±1 chacune | sans elles, ton club finit plus fort que le haut de la décennie et gagne une Coupe sur trois |
 | Le départ : la masse, le plafond | 91,5 M$ sous 95,5 M$, sur l'échelle de salaires d'aujourd'hui | ±2 M$ d'espace | plus d'espace, le camp règle tout ; moins, on ne signe plus |
 | La bande des portes | selon le club battu | — | trop haute après une victoire, la boule de neige revient |
@@ -450,7 +451,7 @@ Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est
   - aucun joueur deux fois ;
   - le plafond jamais dépassé ;
   - aucune ligue jouée en coulisse.
-- [x] **Lire paie, sans gagner d'office** (11 nov. : 8 Coupes sur 64, la run 6 en médiane, 7 runs sur 64 à 75 %) — *mesure_run*, en CI :
+- [~] **Lire paie, sans gagner d'office** (11 nov., toutes les années ensemble : 7 Coupes sur 64, la run 6 en médiane ; **le troisième point reste ouvert**, 6 % des runs au lieu d'une sur dix) — *mesure_run*, en CI :
   - le robot qui lit gagne la Coupe 4 à 12 fois sur 64, le robot du chiffre moins souvent en paires, « premier » au plus 2 fois ;
   - la première Coupe jamais avant la troisième run en médiane (JP) ;
   - au moins une run sur dix du robot qui lit finit l'acte III à 75 % de pronostic moyen ou plus (*tu peux exploser le jeu*).
@@ -499,7 +500,7 @@ L'ancien Rogue est **gelé** dès le 9 nov. (JP) : plus aucun travail dessus. Le
 
 *Le joueur voit vingt minutes de jeu complètes.* Juge : la porte 2, *check_scene*, *check_neuf*, *essai_run*.
 
-**3. La run.** Trois actes et les séries ; les élites, les histoires sur la carte, une époque par run ; les robots en CI ; le banc remesuré. Juge : *mesure_run*, *check_run*, `check_pouvoirs`, JP.
+**3. La run.** Trois actes et les séries ; les élites, les histoires sur la carte, toutes les années ensemble (JP, 11 nov. ; « une époque par run » est défaite) ; les robots en CI ; le banc remesuré. Juge : *mesure_run*, *check_run*, `check_pouvoirs`, JP.
 
 **4. Le remplacement.** « Le Rogue neuf » devient le Rogue. Tout le § 8 part d'un coup, avec ses règles et ses juges ; la vieille run est versée. Juge : `check_refonte` sur la somme, `check_mort`, `check_coquille`, `check_sauvegardes`, `tout.mjs`.
 
