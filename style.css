@@ -5394,6 +5394,33 @@ body.run-ouverte { overflow: hidden; }
   .rn-jauge div i { transition: none; }
 }
 
+/* Le Club, entre deux runs (V28, tranche 5) : ses médailles, son segment, la grille des philosophies, les écussons et les couleurs, le cran du départ. */
+.rn-medaille { width: 16px; height: 20px; flex: none; background: linear-gradient(var(--rn-rouge) 0 34%, transparent 34%), radial-gradient(circle at 50% 66%, color-mix(in srgb, var(--rn-or) 60%, var(--blanc)) 0 3px, var(--rn-or) 3.5px 6.5px, transparent 7px); clip-path: polygon(22% 0, 78% 0, 78% 30%, 100% 30%, 100% 100%, 0 100%, 0 30%, 22% 30%); }
+.rn-hud .rn-md { margin-left: auto; }
+.rn-racine .rn-versclub { height: 44px; min-width: 96px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 10px; border: 1px solid var(--rn-bord); border-radius: var(--r-2); background: var(--rn-case); }
+.rn-versclub img, .rn-versclub svg { width: 26px; height: 26px; flex: none; }
+.rn-seg, .rn-crans { display: flex; gap: 6px; }
+.rn-racine .rn-seg button, .rn-racine .rn-crans button { flex: 1; min-width: 0; height: 44px; display: grid; place-items: center; align-content: center; gap: 3px; border: 1px solid var(--rn-bord); border-radius: var(--r-1); background: var(--rn-case); font: 800 var(--t-2)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--rn-encre-2); }
+.rn-racine .rn-seg .rn-on, .rn-racine .rn-crans .rn-on { border-color: var(--blanc); background: var(--rn-case-2); color: var(--blanc); }
+.rn-racine .rn-crans button { font-size: var(--t-1); }
+.rn-crans b { font-size: var(--t-4); color: var(--blanc); }
+.rn-racine .rn-crans button:disabled { opacity: 0.4; }
+.rn-voies { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; }
+.rn-racine .rn-voies button, .rn-racine .rn-clubs button { display: block; width: 100%; }
+.rn-voies .rn-on .rn-c { outline: 3px solid var(--blanc); outline-offset: 3px; border-radius: var(--r-1); }
+.rn-voies .rn-fermee .rn-c { opacity: 0.45; filter: saturate(0.3); }
+.rn-apercu { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; }
+.rn-apercu > svg { display: block; width: 64px; height: 64px; }
+.rn-clubs svg { display: block; width: 100%; height: 50px; }
+.rn-clubs { display: grid; grid-template-columns: repeat(5, 1fr); grid-auto-rows: 64px; gap: 10px; }
+.rn-racine .rn-clubs button { height: 64px; padding: 6px; border: 1px solid var(--rn-bord); border-radius: var(--r-2); background: var(--rn-case); overflow: hidden; }
+.rn-couleurs { display: grid; grid-template-columns: repeat(7, 44px); justify-content: space-between; gap: 9px 0; }
+.rn-racine .rn-couleurs button { width: 44px; height: 44px; border: 2px solid var(--rn-bord); border-radius: 50%; background: linear-gradient(135deg, var(--a) 0 50%, var(--b) 50%); }
+.rn-racine .rn-clubs .rn-on, .rn-racine .rn-couleurs .rn-on { border-color: var(--blanc); box-shadow: 0 0 0 2px var(--blanc); }
+.rn-racine .rn-clubs .rn-porte, .rn-racine .rn-couleurs .rn-porte { border-color: var(--rn-vert); }
+.rn-clubs .rn-fermee svg, .rn-racine .rn-couleurs .rn-fermee { opacity: 0.4; }
+.rn-racine .rn-bande { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border: 1px solid var(--rn-bord); border-radius: var(--r-2); background: var(--rn-case); font: 800 var(--t-3)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; }
+
 /* == 10. SUR TABLE : le plateau, le tournoi, la feuille de match du plateau == */
 /* Le bloc est gardé, dédoublonné et ramené aux jetons : la glace garde ses
    jetons --glace-* (une patinoire est blanche dans les trois palettes), les

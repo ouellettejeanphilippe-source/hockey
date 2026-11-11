@@ -27,7 +27,7 @@ for (const robot of ['premier', 'chiffre', 'malin']) {
       const R = S.R;
       if (m === 'portes') {
         const cles = R.portes.clubs.map(c => `${c.s}:${c.t}`);
-        if (!R.portes.pochette) faute(cles.length === reglesDe(R).portes && new Set(cles).size === cles.length, `${ici} : ${cles.length} portes, ${new Set(cles).size} différentes`);
+        if (!R.portes.pochette) faute(cles.length === RUN.PORTES && new Set(cles).size === RUN.PORTES, `${ici} : ${cles.length} portes, ${new Set(cles).size} différentes`);
         if (R.apres && R.portes.tour === 0 && !R.portes.pochette) faute(cles[0] === `${R.apres.s}:${R.apres.t}`, `${ici} : la première porte n'est pas le club affronté`);
       }
       // Une case d'histoire : la séance gardée puis relue lit la même histoire, sur le même joueur.

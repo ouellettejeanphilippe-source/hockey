@@ -8,7 +8,8 @@
 import { SLOTS, activeLineup, badgesDe, energieDe, getHiddenRatings, getPlayerKey, periodeDe, PALIERS } from './sim.js';
 import { PLANS, INTENTIONS } from './greffes.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC } from './pieces.js';
-import { COACHS, REGLES_DU_COACH } from './coachs.js';
+import { COACHS, REGLES_DU_COACH, VOIES } from './coachs.js';
+import { PRESTIGES, EXIGENCES, voiesOuvertes, prixDeLaVoie, ecussonsAVie, cranOuvert } from './rogue.js';
 import { motDuRang, niveauDuCoach } from './coachs-reels.js';
 import { NIVEAUX, nomDuNiveau, groupeDuJoueur as groupeDe } from './niveaux.js';
 import { PRIX_PIECE } from './actes.js';
@@ -83,7 +84,7 @@ export function sceneDepart(V) {
     statique: true, lecture: true, style: varsCarton(getTeamBand(x.tag)) });
   return `<div style="left:14px;right:14px;top:22px"><div class="rn-k">Run ${V.numero} · toutes les époques</div><div class="rn-titre" style="margin-top:6px">Ton coach</div><div class="rn-t rn-gris" style="margin-top:4px">Un parmi trois. Il fait toute la run.</div></div>
   <div class="rn-pas" style="left:14px;right:14px;top:118px"><span class="rn-on">1 · Ton coach</span><span>2 · Le camp</span><span>3 · L'acte I</span></div>
-  <div class="rn-loto" style="left:14px;right:14px;top:166px">${V.loto.map((x, i) => `<button type="button" class="${i === V.coach ? 'rn-on' : ''}" data-a="coach" data-v="${i}"><span class="rn-c">${carte(x)}</span><p><b>${esc(x.n)}</b>${esc(clubMot({ t: x.tag, s: x.saison }))}<br>${x.fiche.v}-${x.fiche.d}-${x.fiche.n}${x.coupe ? ' · la Coupe' : ''}</p></button>`).join('')}</div>
+  <div class="rn-loto" style="left:14px;right:14px;top:166px">${V.loto.map((x, i) => `<button type="button" class="${i === V.coach ? 'rn-on' : ''}" data-a="coach" data-v="${i}"><span class="rn-c">${carte(x)}</span><p>${x.nouvelle ? '<span class="rn-puce rn-v">Nouveau</span>' : ''}<b>${esc(x.n)}</b>${esc(clubMot({ t: x.tag, s: x.saison }))}<br>${x.fiche.v}-${x.fiche.d}-${x.fiche.n}${x.coupe ? ' · la Coupe' : ''}</p></button>`).join('')}</div>
   <div class="rn-panneau rn-on" style="left:14px;right:14px;top:428px">
     <div style="display:flex;justify-content:space-between;align-items:baseline"><b class="rn-h">${C.ico} ${esc(C.nom)}</b><span class="rn-puce rn-o">${esc(nomDuNiveau(k))}</span></div>
     <div class="rn-t rn-gris" style="margin-top:6px">${esc(motDuRang(c.cle, c.rang))}, cette saison-là.</div>
@@ -91,6 +92,8 @@ export function sceneDepart(V) {
   </div>
   <div class="rn-panneau" style="left:14px;right:14px;top:560px;display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:center">${carteP(piece)}
     <div class="rn-t"><span class="rn-k">Sa pièce de départ${NIVEAUX[k].maitrise !== 1 ? ` · ×${String(NIVEAUX[k].maitrise).replace('.', ',')}` : ''}</span><br><b>${esc(PIECES[piece].nom)}</b><br><span class="rn-gris">${ligneDe(piece)}</span></div></div>
+  <button type="button" class="rn-versclub" style="right:14px;top:18px" data-a="club" aria-label="Le Club, ${V.medailles} médailles">${logo('YOU', 26)}${medailles(V.medailles)}</button>
+  ${V.cranMax > 0 ? `<div class="rn-crans" style="left:14px;right:14px;top:700px">${Array.from({ length: EXIGENCES.length + 1 }, (_, n) => `<button type="button" class="${n === V.cran ? 'rn-on' : ''}" data-a="cran" data-v="${n}"${n > V.cranMax ? ' disabled' : ''}><b>${n}</b>${n ? esc(EXIGENCES[n - 1].court) : 'Sans exigence'}</button>`).join('')}</div>` : ''}
   ${bas(bt('Menu', 'quitter'), bt(`Prendre ${esc(court({ n: c.n }))}`, 'prendre-coach', { cls: 'rn-go' }))}`;
 }
 
@@ -111,7 +114,7 @@ function optionDe(S, c, i, on) {
   const duSoir = c.s ? piecesDuSoir(S, c).length : 0, banc = duSoir ? `<span class="rn-puce rn-m">${duSoir} pièce${duSoir > 1 ? 's jouent' : ' joue'}</span>` : '';
   const mot = { match: () => `${jeu.mot} · ${lieu}`, elite: () => `Élite · ${jeu.mot} · ${lieu}`, rival: () => `Le rival · il compte double · ${lieu}`,
     marche: () => 'Une pièce de banc, les pochettes', vestiaire: () => 'Te soigner, ou monter une carte', histoire: () => 'Quelqu\'un du club veut te parler' }[c.sorte]();
-  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span>${banc || `<span class="rn-puce">${reglesDe(S.R).portes} portes</span>`}`,
+  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span>${banc || `<span class="rn-puce">${RUN.PORTES} portes</span>`}`,
     elite: () => `<span class="rn-puce rn-o">Une pièce, des jetons</span>${banc}`,
     rival: () => `<span class="rn-puce rn-o">Une pièce · ${c.jetons} jetons</span>${banc}`,
     marche: () => `<span class="rn-puce rn-o">Pièce : ${PRIX_PIECE}</span>`, vestiaire: () => `<span class="rn-puce">${S.toi.injured.size} blessé${S.toi.injured.size > 1 ? 's' : ''}</span>`, histoire: () => '' }[c.sorte]();
@@ -182,7 +185,7 @@ const noms = ps => ps.map(p => esc(court(p))).join(' · ');
 function enjeuHtml(S) {
   const c = S.R.case;
   if (c.sorte === 'serie') return '';
-  const gagne = { match: `2 points · ${c.jetons} jetons<br>${c.haute ? 'Des portes plus hautes' : `${reglesDe(S.R).portes} portes`}`, rival: `4 points · ${c.jetons} jetons<br>Une pièce parmi trois`, elite: `2 points · ${c.J != null ? `${c.J} jetons` : 'des jetons'}<br>Une pièce parmi trois` }[c.sorte];
+  const gagne = { match: `2 points · ${c.jetons} jetons<br>${c.haute ? 'Des portes plus hautes' : `${RUN.PORTES} portes`}`, rival: `4 points · ${c.jetons} jetons<br>Une pièce parmi trois`, elite: `2 points · ${c.J != null ? `${c.J} jetons` : 'des jetons'}<br>Une pièce parmi trois` }[c.sorte];
   const perdu = { match: '1 point en prolongation<br>Des portes, une relance', rival: '2 points en prolongation<br>Aucun cœur de plus', elite: `Sonnés 5 matchs<br>${c.J != null ? `${Math.round(c.J / 2)} jetons de moins` : 'des jetons de moins'}` }[c.sorte];
   return `<div class="rn-enjeu" style="left:14px;right:14px;top:${c.sorte === 'match' ? 664 : 556}px"><div><b class="rn-vert">Gagné</b>${gagne}</div><div><b class="rn-rg">Perdu</b>${perdu}</div></div>`;
 }
@@ -465,8 +468,85 @@ export function sceneFin(S, V) {
     <div class="rn-t rn-gris" style="margin-top:8px">Run ${R.numero} · ${esc(R.coach.n || COACHS[R.coach.cle].nom)}</div></div>
   <div class="rn-panneau" style="left:14px;right:14px;top:132px">${actes}${series}</div>
   ${etoile ? `<div style="left:14px;right:14px;top:430px;display:grid;grid-template-columns:118px 1fr;gap:14px;align-items:center">${carteJ(etoile.p)}<div><div class="rn-k">Ton joueur de la run</div><div class="rn-h" style="margin-top:5px">${esc(etoile.p.n)}</div><div class="rn-t rn-gris" style="margin-top:6px">${etoile.mot}<br><span class="rn-vert">Sa carte entre à ton cartable</span></div></div></div>` : ''}
-  <div class="rn-cellules" style="left:14px;right:14px;top:636px"><div><b class="rn-or">${F.medailles}</b><small>Médailles</small></div><div><b>${R.vus.length - 23}</b><small>Joueurs signés</small></div><div><b>${F.matchs}</b><small>Matchs joués</small></div></div>
+  <div class="rn-cellules" style="left:14px;right:14px;top:636px"><div><b class="rn-or">${F.medailles}</b><small>Médailles${reglesDe(R).prime > 1 ? ` · ×${String(reglesDe(R).prime).replace('.', ',')}` : ''}</small></div><div><b>${R.vus.length - 23}</b><small>Joueurs signés</small></div><div><b>${F.matchs}</b><small>Matchs joués</small></div></div>
+  <button type="button" class="rn-bande" style="left:14px;right:14px;top:716px" data-a="club">Le Club${medailles(V.medailles)}</button>
   ${bas(bt('Menu', 'quitter'), bt('Une run neuve', 'run-neuve', { cls: 'rn-go' }))}`;
+}
+
+/* ---------- le Club : entre deux runs (V28, tranche 5, docs/refonte-v28-5.md § 3.1) ---------- */
+/* Les médailles ont leur dessin, jamais la pièce des jetons. */
+const medailles = n => `<span class="rn-jt rn-md"><i class="rn-medaille"></i>${n}</span>`;
+const PAGES_DU_CLUB = [['variete', 'Variété'], ['club', 'Ton club'], ['palmares', 'Palmarès']];
+/*
+ * LE CLUB (`C` : ce que la coquille en sait — { meta, rang, nom, page, voie, coachs, rayons, rayon, objet }). Sa tête
+ * remplace le HUD : ton écusson, ton nom, ton rang, tes médailles ; trois pages en segment, chacune tient en un écran.
+ */
+export function sceneClub(C) {
+  const page = { variete: pageVariete, club: pageTonClub, palmares: pagePalmares }[C.page] || pageVariete;
+  return `<div class="rn-hud">${logo('YOU', 34)}<span class="rn-acte">${esc(C.nom)}<small>${esc(PRESTIGES[C.rang].nom)}</small></span>${medailles(C.meta.ecussons || 0)}</div>
+  <div class="rn-seg" style="left:14px;right:14px;top:62px">${PAGES_DU_CLUB.map(([k, mot]) => `<button type="button" class="${C.page === k ? 'rn-on' : ''}" data-a="page" data-v="${k}">${mot}</button>`).join('')}</div>
+  ${page(C)}`;
+}
+/* Variété : les huit philosophies en grille, celle qu'on touche dessous ; l'achat répond sur place. */
+function pageVariete(C) {
+  const m = C.meta, ouvertes = voiesOuvertes(m), prix = prixDeLaVoie(m), v = C.voie, P = COACHS[v], regle = REGLES_DU_COACH[v], ouverte = ouvertes.includes(v);
+  const piece = PIECE_DU_COACH[v], x = C.coachs && C.coachs[v], manque = ouverte || prix == null ? 0 : Math.max(0, prix - (m.ecussons || 0));
+  const carte = k => `<button type="button" class="${k === v ? 'rn-on' : ''}${ouvertes.includes(k) ? '' : ' rn-fermee'}" data-a="voir-voie" data-v="${k}" aria-label="${esc(COACHS[k].nom)}${ouvertes.includes(k) ? '' : ', à ouvrir'}"><span class="rn-c">${
+    carteHtml({ cle: k, niveau: 0, genreCarte: 'synergie', ico: COACHS[k].ico, nomHtml: esc(COACHS[k].nom), typeHtml: 'Philosophie', lecture: true, statique: true })}</span></button>`;
+  return `<div class="rn-k" style="left:14px;top:120px">${ouvertes.length} de ${VOIES.length} philosophies${prix != null ? ` · la prochaine : ${prix}` : ''}</div>
+  <div class="rn-voies" style="left:14px;right:14px;top:144px">${VOIES.map(carte).join('')}</div>
+  <div class="rn-panneau rn-on" style="left:14px;right:14px;top:418px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><b class="rn-h">${P.ico} ${esc(P.nom)}</b><span class="rn-puce ${ouverte ? 'rn-v' : 'rn-o'}">${ouverte ? (m.nouvelle === v ? 'Nouvelle' : 'Ouverte') : `À ouvrir · ${prix}`}</span></div>
+    <div class="rn-t rn-gris" style="margin-top:6px">${esc(P.mot)}</div>
+    ${regle ? `<div class="rn-t" style="margin-top:8px"><span class="rn-k">Sa règle</span><br>${esc(regle.dit.charAt(0).toUpperCase() + regle.dit.slice(1))} : <span class="rn-or">+${regle.jetons} jetons</span> le soir.</div>` : ''}
+    <div style="display:grid;grid-template-columns:62px 1fr;gap:12px;align-items:center;margin-top:10px">${carteP(piece)}<div class="rn-t"><span class="rn-k">Sa pièce de départ</span><br><b>${esc(PIECES[piece].nom)}</b><br><span class="rn-gris">${ligneDe(piece)}</span></div></div>
+    ${x ? `<div class="rn-t rn-gris" style="margin-top:8px">${x.n} entraîneurs au loto, dont ${esc(x.exemple)}.</div>` : ''}
+  </div>
+  ${bas(bt('Retour', 'fermer-club'), ouverte || prix == null ? bt('Une run neuve', 'run-neuve', { cls: 'rn-go' }) : bt(manque ? `Il te manque ${manque}` : `Ouvrir · ${prix}`, 'ouvrir-voie', { cls: 'rn-go', v, off: manque > 0 }))}`;
+}
+/* Ton club : son écusson et son nom (vendus ensemble), ses couleurs ; un acquis se porte d'un toucher. */
+function pageTonClub(C) {
+  const R = C.rayons.find(r => r.cle === C.rayon) || C.rayons[0], o = R.objets.find(x => x.cle === C.objet) || R.objets.find(x => x.porte) || R.objets[0];
+  const manque = o.acquis ? 0 : Math.max(0, o.prix - (C.meta.ecussons || 0));
+  const etat = o.porte ? 'Porté' : o.acquis ? 'À toi' : o.verrou ? `Demande le rang ${o.verrou}` : `${o.prix} médailles`;
+  const tuile = x => `<button type="button" class="${[x.cle === o.cle ? 'rn-on' : '', x.porte ? 'rn-porte' : '', x.acquis ? '' : 'rn-fermee'].filter(Boolean).join(' ')}" data-a="voir-objet" data-v="${x.cle}" aria-label="${esc(x.nom)}"${
+    x.nuance ? ` style="--a:${x.nuance[0]};--b:${x.nuance[1]}"></button>` : `>${x.apercu}</button>`}`;
+  const action = o.porte ? bt('Porté', 'prendre-objet', { cls: 'rn-go', v: o.cle, off: true })
+    : bt(o.acquis ? 'Porter' : o.verrou ? 'Rang trop bas' : manque ? `Il te manque ${manque}` : `Acheter · ${o.prix}`, 'prendre-objet', { cls: 'rn-go', v: o.cle, off: !o.acquis && (!!o.verrou || manque > 0) });
+  return `<div class="rn-seg" style="left:14px;right:14px;top:118px">${C.rayons.map(r => `<button type="button" class="${r.cle === R.cle ? 'rn-on' : ''}" data-a="rayon" data-v="${r.cle}">${r.cle === 'club' ? 'Écusson' : 'Couleurs'}</button>`).join('')}</div>
+  <div class="rn-panneau rn-apercu" style="left:14px;right:14px;top:174px">${o.apercu}<div><b class="rn-h">${esc(o.nom)}</b><div class="rn-t rn-gris" style="margin-top:5px">${esc(etat)}</div></div></div>
+  <div class="${R.cle === 'club' ? 'rn-clubs' : 'rn-couleurs'}" style="left:14px;right:14px;top:268px">${R.objets.map(tuile).join('')}</div>
+  ${bas(bt('Retour', 'fermer-club'), action)}`;
+}
+/* Palmarès : tes runs, l'échelle du prestige (le rang d'après dit ce qui manque), tes exigences, la trace du solde. */
+function pagePalmares(C) {
+  const m = C.meta, M = m.meilleur, cran = cranOuvert(m);
+  const meilleur = !M ? 'Aucune run finie' : M.coupe ? 'La Coupe' : M.ronde ? `${M.ronde} ronde${M.ronde > 1 ? 's gagnées' : ' gagnée'} en séries` : `${M.pts} points en trois actes`;
+  const echelon = (P, i) => `<div class="rn-recap"><span>${i + 1}</span><span${i > C.rang ? ' class="rn-gris"' : ''}>${esc(P.nom)}<small>${i <= C.rang ? esc(P.texte) : `${P.min} médailles à vie${P.exploit ? ` · ${P.exploit}` : ''}`}</small></span><span class="${i === C.rang ? 'rn-or' : 'rn-gris'}">${i === C.rang ? 'Ton rang' : i < C.rang ? 'Fait' : ''}</span></div>`;
+  return `<div class="rn-cellules" style="left:14px;right:14px;top:118px"><div><b>${m.runs || 0}</b><small>Runs</small></div><div><b>${m.coupes || 0}</b><small>Coupes</small></div><div><b class="rn-or">${ecussonsAVie(m)}</b><small>Médailles à vie</small></div></div>
+  <div class="rn-panneau" style="left:14px;right:14px;top:200px"><div class="rn-k" style="margin-bottom:2px">Le prestige</div>${PRESTIGES.map(echelon).join('')}</div>
+  <div class="rn-panneau" style="left:14px;right:14px;top:520px">
+    <div class="rn-recap"><span>Record</span><span>${esc(meilleur)}</span><span></span></div>
+    <div class="rn-recap"><span>Exigence</span><span>${(m.coupes || 0) > 0 ? `Cran ${m.exigence || 0} gagné<small>Le cran ${cran} est ouvert${cran ? ` : ${esc(EXIGENCES[cran - 1].texte)}` : ''}</small>` : 'Fermée<small>La première Coupe ouvre le cran 1</small>'}</span><span></span></div>
+    ${m.solde && (m.solde.rendu || m.arret) ? `<div class="rn-recap"><span>Solde</span><span>L'ancien Rogue<small>${m.solde.rendu} médailles remboursées${m.arret && m.arret.verse ? `, ${m.arret.verse} versées à l'arrêt` : ''}</small></span><span></span></div>` : ''}
+  </div>
+  ${bas(bt('Retour', 'fermer-club'))}`;
+}
+/*
+ * LE SOLDE DE L'ANCIEN ROGUE, une fois (`s` : { avant, rendu, familles, voies, arret, apres }) : ce que l'arrêt de la vieille
+ * run a versé, chaque famille de déblocages remboursée, les philosophies gardées ; « tu avais, tu as ».
+ */
+export function sceneSolde(s) {
+  const lignes = [
+    ...(s.arret ? [`<div class="rn-recap"><span>Arrêt</span><span>${s.arret.runs} run${s.arret.runs > 1 ? 's arrêtées' : ' arrêtée'}<small>Ses médailles gagnées, pas encore payées</small></span><span class="rn-or">+${s.arret.verse}</span></div>`] : []),
+    ...s.familles.map(f => `<div class="rn-recap"><span>×${f.n}</span><span>${esc(f.nom)}<small>Remboursé à son prix</small></span><span class="rn-or">+${f.prix}</span></div>`),
+    ...(s.voies.length ? [`<div class="rn-recap"><span>×${s.voies.length}</span><span>${s.voies.length > 1 ? 'Philosophies gardées' : 'Philosophie gardée'}<small>${s.voies.map(v => esc(COACHS[v].nom)).join(', ')}</small></span><span class="rn-vert">À toi</span></div>`] : []),
+  ];
+  return `<div style="left:14px;right:14px;top:30px"><div class="rn-k">Une fois</div><div class="rn-titre" style="margin-top:8px">L'ancien Rogue est parti</div>
+    <div class="rn-t rn-gris" style="margin-top:8px">Tes médailles achetaient de la force. Elles ouvrent maintenant de la variété : ce que tu avais acheté t'est rendu.</div></div>
+  <div class="rn-panneau" style="left:14px;right:14px;top:150px">${lignes.join('')}</div>
+  <div class="rn-cellules" style="left:14px;right:14px;top:636px"><div><b>${s.avant - (s.arret ? s.arret.verse : 0)}</b><small>Tu avais</small></div><div><b class="rn-or">+${s.rendu + (s.arret ? s.arret.verse : 0)}</b><small>Rendu</small></div><div><b class="rn-or">${s.apres}</b><small>Tu as</small></div></div>
+  ${bas(bt('Au Club', 'solde-club'), bt('Continuer', 'solde-depart', { cls: 'rn-go' }))}`;
 }
 export function scenePause(S, V) {
   const R = S.R;

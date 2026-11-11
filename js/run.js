@@ -164,11 +164,11 @@ export const forcesDuMonde = S => Object.fromEntries(S.clubs.map(c => [cleDuClub
 const dansLaBande = (clubs, [a, b]) => clubs.filter(c => c.rang >= a && c.rang <= b);
 /*
  * LES RÈGLES QU'UNE RUN PORTE : celles de `RUN`, durcies par son cran d'exigence (js/rogue.js `exigencesDe`) — la cible de
- * chaque acte, le décalage des adversaires, le nombre de portes, le multiple de ses médailles. Écrites à sa création, elles
- * ne bougent plus : une run gardée garde ses règles. Une run d'avant les exigences lit `RUN`.
+ * chaque acte, les étapes d'édition des adversaires, le multiple de ses médailles. Écrites à sa création, elles ne bougent
+ * plus : une run gardée garde ses règles. Une run d'avant les exigences lit `RUN`.
  */
-export const reglesDe = R => (R && R.regles) || { exigence: 0, cibles: RUN.CIBLES, decalage: RUN.DECALAGE, portes: RUN.PORTES, prime: 1 };
-const decale = (S, [a, b]) => { const d = reglesDe(S.R).decalage; return [Math.min(0.95, a + d), Math.min(1, b + d)]; };
+export const reglesDe = R => (R && R.regles) || { exigence: 0, cibles: RUN.CIBLES, etapes: RUN.ETAPES, prime: 1 };
+const decale = ([a, b]) => [Math.min(0.95, a + RUN.DECALAGE), Math.min(1, b + RUN.DECALAGE)];
 
 /* ---------- la run neuve ---------- */
 /* La version d'une run gardée : 2 depuis que le monde mêle toutes les années (une run d'une seule décennie ne se relit pas). */
@@ -179,14 +179,14 @@ export const VERSION_DE_LA_RUN = 2;
  * masse dépasse le plafond moins l'espace de départ, le plus payé cède sa case au moins payé de sa bande, au même poste ;
  * puis le moins payé cède la sienne à un plus payé, sans passer la cible. Aucun salaire n'est touché.
  */
-function effectifDeDepart(S, graine, espace) {
+function effectifDeDepart(S, graine) {
   const saisons = melange([...new Set(S.clubs.map(c => c.s))], graine, 'depart').slice(0, 8);
   const reserve = [];
   const bt = bouchesTrousDuDepart(saisons.map(s => S.donnees.shard(s).players), {
     groupe: groupeDe, valeur: v, personne: getPersonKey, reserve,
     piger: (liste, cle) => pigeDans(liste, graine, 'bouche-trou', cle),
   });
-  const roster = autoRoster(bt.map(copie)), cible = CAP - espace;
+  const roster = autoRoster(bt.map(copie)), cible = CAP - RUN.ESPACE;
   const pris = new Set(Object.values(roster).filter(Boolean).map(getPersonKey));
   const masse = () => Object.values(roster).reduce((a, p) => a + prixDe(S, p), 0);
   const ordre = (a, b) => (getPersonKey(a) < getPersonKey(b) ? -1 : 1);
@@ -212,15 +212,15 @@ function effectifDeDepart(S, graine, espace) {
  */
 export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1, exigence = 0 }) {
   const S = { R: null, donnees, clubs: classerLesClubs(donnees), roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null, robotDuel: null };
-  const E = exigencesDe(exigence), espace = Math.max(0, RUN.ESPACE + E.espace);
-  S.roster = effectifDeDepart(S, graine, espace);
-  const masse = Object.values(S.roster).reduce((a, p) => a + prixDe(S, p), 0), cible = CAP - espace;
+  const E = exigencesDe(exigence);
+  S.roster = effectifDeDepart(S, graine);
+  const masse = Object.values(S.roster).reduce((a, p) => a + prixDe(S, p), 0), cible = CAP - RUN.ESPACE;
   // LE PLAFOND : ta masse de départ et son espace. Si le départ n'a pas d'assez gros contrats pour monter au vrai
   // plafond, l'espace prend ce que ces contrats auraient libéré en sortant.
-  const plafond = Math.round((masse + espace + RUN.RACHAT * Math.max(0, cible - masse)) / 100_000) * 100_000;
+  const plafond = Math.round((masse + RUN.ESPACE + RUN.RACHAT * Math.max(0, cible - masse)) / 100_000) * 100_000;
   const R = S.R = {
     v: VERSION_DE_LA_RUN, graine: String(graine), numero,
-    regles: { exigence: E.n, cibles: RUN.CIBLES.map(c => c + E.cible), decalage: RUN.DECALAGE + E.decalage, portes: Math.max(1, RUN.PORTES + E.portes), prime: E.medailles },
+    regles: { exigence: E.n, cibles: RUN.CIBLES.map(c => c + E.cible), etapes: RUN.ETAPES.map(e => e + E.etapes), prime: E.medailles },
     coach: { maitrise: 1, ...coach }, banc: [PIECE_DU_COACH[coach.cle]],
     jetons, coeurs: RUN.COEURS, plafond, mort: 0,
     joueurs: [], vus: [], anciens: [],
@@ -332,7 +332,7 @@ const clubDe = (S, x) => (x ? S.clubs.find(c => c.s === x.s && c.t === x.t) || n
  * run : les actes II et III visent tous deux le sommet, et une run sur six retrouvait son rival d'avant (11 nov. 2026).
  */
 function rivalDe(S, a) {
-  const cible = Math.min(1, RUN.RIVAUX[a] + reglesDe(S.R).decalage), n = S.clubs.length, deja = new Set(S.R.actes.map(cleDuClub));
+  const cible = Math.min(1, RUN.RIVAUX[a] + RUN.DECALAGE), n = S.clubs.length, deja = new Set(S.R.actes.map(cleDuClub));
   const k = Math.round(cible * (n - 1)), autour = S.clubs.slice(Math.max(0, k - 4 - deja.size), Math.min(n, k + 5)).filter(c => !deja.has(cleDuClub(c)));
   return pigeDans(autour, S.R.graine, 'rival', a);
 }
@@ -347,7 +347,7 @@ function jetonsDuMatch(club, [bas, haut]) {
  * élite. Aucun club deux fois sur la carte. Une case : { sorte, s, t, haute, visiteur, jetons }.
  */
 function carteDeLActe(S, a) {
-  const g = S.R.graine, bande = decale(S, RUN.BANDES[a]), mid = (bande[0] + bande[1]) / 2;
+  const g = S.R.graine, bande = decale(RUN.BANDES[a]), mid = (bande[0] + bande[1]) / 2;
   // Aucune franchise deux fois sur la carte : trois écussons des Oilers de trois saisons se lisaient comme le même club.
   const rival = rivalDe(S, a), pris = new Set([rival.t]);
   const pool = dansLaBande(S.clubs, bande);
@@ -466,8 +466,8 @@ export function piecesDuSoir(S, c, rang = S.R.rang) {
 
 /* ---------- le match ---------- */
 /* L'adversaire de la case en cours, habillé de ses étapes d'édition le temps d'un match, puis rendu : ses joueurs sont ceux des portes. */
-const etapeDe = R => RUN.ETAPES[R.phase === 'series' || (R.case && R.case.sorte === 'serie') ? 3 : R.acte];
-const habiller = (t, e) => { if (e > 0) habillerLaLigue([t], 0, v, e); };
+const etapeDe = R => reglesDe(R).etapes[R.phase === 'series' || (R.case && R.case.sorte === 'serie') ? 3 : R.acte];
+const habiller = (t, e) => { if (e > 0) habillerLaLigue([t], e, v); };
 const deshabiller = t => { for (const p of Object.values(t.roster)) if (p) delete p._carte; };
 function fraisEtSain(t) {
   for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { p.energie = 100; delete p._reserve; } }
@@ -594,7 +594,7 @@ function ouvrirLesPortes(S, { bande, affronte = null, cle, tour = 0 }) {
   const R = S.R, a = affronte && tour === 0 ? clubDe(S, affronte) : null;
   const pris = new Set(a ? [cleDuClub(a)] : []), clubs = a ? [a] : [];
   const pool = dansLaBande(S.clubs, bande);
-  for (let k = 0, n = reglesDe(R).portes; clubs.length < n && k < 40; k++) {
+  for (let k = 0; clubs.length < RUN.PORTES && k < 40; k++) {
     const c = pigeDans(pool, R.graine, 'porte', cle, tour, k);
     if (c && !pris.has(cleDuClub(c))) { pris.add(cleDuClub(c)); clubs.push(c); }
   }
@@ -812,7 +812,7 @@ export function repondre(S, h, choix) {
 
 /* ---------- les séries, la fin ---------- */
 function ouvrirLesSeries(S) {
-  const R = S.R, haut = dansLaBande(S.clubs, decale(S, RUN.SERIES)), pris = new Set();
+  const R = S.R, haut = dansLaBande(S.clubs, decale(RUN.SERIES)), pris = new Set();
   const adv = [];
   for (let k = 0; adv.length < 3 && k < 60; k++) { const c = pigeDans(haut, R.graine, 'serie', k); if (!pris.has(cleDuClub(c))) { pris.add(cleDuClub(c)); adv.push(c); } }
   adv.sort((a, b) => a.force - b.force);
