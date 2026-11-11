@@ -16,7 +16,7 @@ import { chargerCoachs, lotoDesCoachs } from './coachs-reels.js';
 import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages } from './rogue.js';
 import { VOIES } from './coachs.js';
 import { rayonsDuClub, prendreAuClub, nomDuClub } from './club.js';
-import { ajouterAuCartable, coachAuCartable, coachsDuCartable, graverAuCartable } from './cartable.js';
+import { ajouterAuCartable, albumDuCartable, coachAuCartable, coachsDuCartable, graverAuCartable } from './cartable.js';
 import { tirerJoueursDuPack } from './packs.js';
 import { sceneDe, nomDOption } from './histoires.js';
 import { motsDe } from './effets.js';
@@ -35,6 +35,7 @@ import {
 import {
   sceneAttente, sceneDepart, sceneCarte, sceneAnnonce, sceneFeuille, sceneMatch, scenePortes, scenePorte, sceneEchange, sceneLignes, sceneBanc, sceneMarche,
   sceneVestiaire, sceneHistoire, sceneFinDActe, scenePieceGagnee, sceneSeries, sceneFin, scenePause, jaugeDeCeSoir, sceneClub, sceneSolde,
+  ALBUM_PAR_PAGE, listeDeLAlbum,
 } from './run-scenes.js';
 
 const CLE = 'cap82_run';
@@ -162,6 +163,23 @@ function versLeClub(retour) {
     V.club.coachs = par;
     if (V.ecran === 'club') rendre();
   }).catch(() => {});
+}
+/*
+ * L'ALBUM (tranche 5b) : le cartable à plat, et les joueurs des saisons que la page montre — six cartes, six saisons au
+ * plus, jamais les cinquante-cinq. Une saison pas encore chargée laisse sa tuile vide le temps d'arriver.
+ */
+function ouvrirLAlbum() {
+  V.club.album = { ...albumDuCartable(), seg: 'joueurs', page: 0, vue: null, joueurs: new Map() };
+  chargerLaPageDeLAlbum();
+}
+async function chargerLaPageDeLAlbum() {
+  const A = V.club && V.club.album;
+  if (!A || A.seg === 'coachs') return;
+  const ici = listeDeLAlbum(A).slice(A.page * ALBUM_PAR_PAGE, (A.page + 1) * ALBUM_PAR_PAGE).filter(x => !A.joueurs.has(x.k));
+  if (!ici.length) return;
+  await Promise.all([...new Set(ici.map(x => x.saison))].filter(s => !SHARDS.has(s) && state.index.seasons.includes(s)).map(async s => { SHARDS.set(s, await getShard(s)); })).catch(() => {});
+  for (const x of ici) A.joueurs.set(x.k, ((shardCharge(x.saison) || {}).players || []).find(p => getPlayerKey(p) === x.k) || null);
+  if (V.club && V.club.album === A && V.ecran === 'club' && V.club.page === 'album') rendre();
 }
 function relireLeClub() { const meta = lireMeta(); Object.assign(V.club, { meta, rang: rangDePrestige(meta), nom: nomDuClub(), rayons: rayonsDuClub(meta) }); }
 function fermerLeClub() {
@@ -350,7 +368,10 @@ const GESTES = {
   // le Club, entre deux runs
   club: () => { versLeClub(S ? 'fin' : 'depart'); },
   'fermer-club': () => { fermerLeClub(); },
-  page: v => { V.club.page = v; },
+  page: v => { V.club.page = v; if (v === 'album') ouvrirLAlbum(); },
+  'album-seg': v => { Object.assign(V.club.album, { seg: v, page: 0, vue: null }); chargerLaPageDeLAlbum(); },
+  'album-page': v => { const A = V.club.album; A.page = Math.max(0, Math.min(Math.ceil(listeDeLAlbum(A).length / ALBUM_PAR_PAGE) - 1, A.page + Number(v))); A.vue = null; chargerLaPageDeLAlbum(); },
+  'voir-carte': v => { V.club.album.vue = v; },
   'voir-voie': v => { V.club.voie = v; },
   'ouvrir-voie': v => { if (ouvrirUneVoie(v).ok) { jouerSon('valide'); notable(); relireLeClub(); } else jouerSon('refus'); },
   rayon: v => { V.club.rayon = v; V.club.objet = null; },
@@ -450,7 +471,7 @@ async function ouvrirLaPochette(cle) {
   entrer();
 }
 /* Les gestes qui se jouent sans run : le départ, le Club, le solde. */
-const SANS_RUN = new Set(['coach', 'prendre-coach', 'quitter', 'cran', 'club', 'fermer-club', 'page', 'voir-voie', 'ouvrir-voie', 'rayon', 'voir-objet', 'prendre-objet', 'solde-depart', 'solde-club', 'run-neuve']);
+const SANS_RUN = new Set(['coach', 'prendre-coach', 'quitter', 'cran', 'club', 'fermer-club', 'page', 'album-seg', 'album-page', 'voir-carte', 'voir-voie', 'ouvrir-voie', 'rayon', 'voir-objet', 'prendre-objet', 'solde-depart', 'solde-club', 'run-neuve']);
 function geste(a, v) {
   if (!GESTES[a] || (!S && !SANS_RUN.has(a))) return;
   jouerSon('tap');

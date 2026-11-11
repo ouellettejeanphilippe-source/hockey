@@ -26,7 +26,7 @@ globalThis.localStorage = {
 const { lireMeta, ecrireMeta, PRESTIGES, EXIGENCES, PRIME_EXIGENCE, ecussonsAVie, rangDePrestige, voiesOuvertes, prixDeLaVoie, ouvrirUneVoie, payerEcussons,
   exigencesDe, cranOuvert, solderLesDeblocages } = await import('../js/rogue.js');
 const { rayonsDuClub, prendreAuClub, nomDuClub } = await import('../js/club.js');
-const { LEGENDES, graverAuCartable, legendesDe, ajouterAuCartable } = await import('../js/cartable.js');
+const { LEGENDES, graverAuCartable, legendesDe, ajouterAuCartable, albumDuCartable, coachAuCartable } = await import('../js/cartable.js');
 const { lotoDesCoachs } = await import('../js/coachs-reels.js');
 const { VOIES } = await import('../js/coachs.js');
 const { RUN, creerLaRun, reglesDe } = await import('../js/run.js');
@@ -190,6 +190,22 @@ const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), .
   exiger('une carte garde ses 24 gravures les plus récentes', legendesDe(K).length === 24 && legendesDe(K)[23].run === 'run39', `${legendesDe(K).length} gravures`);
   const recits = Object.entries(LEGENDES).flatMap(([t, L]) => [L.recit({ type: t, extra: 4 }), L.recit({ type: t })]);
   exiger('chaque galon a son nom, son icône et un récit qui se lit, même gravé avant la V28 (sans son chiffre)', Object.values(LEGENDES).every(L => L.nom && L.ico) && recits.every(x => typeof x === 'string' && x.length > 5 && !/undefined|null/.test(x)), `${Object.keys(LEGENDES).length} sortes`);
+}
+
+/* ---------- 7b. l'Album : le cartable à plat ---------- */
+{
+  neuf(null);
+  exiger('un cartable vide fait un album vide', albumDuCartable().cartes.length === 0 && albumDuCartable().coachs.length === 0 && albumDuCartable().galons === 0);
+  ajouterAuCartable([{ cle: '1976-77_MTL_1', rar: 'commune' }, { cle: '1976-77_MTL_2', rar: 'rare' }, { cle: '1984-85_EDM_3', rar: 'commune' }, { cle: '1984-85_EDM_3', rar: 'commune' }, { cle: '1992-93_PIT_4', rar: 'legendaire', num: 12 }]);
+  graverAuCartable([{ k: '1976-77_MTL_1', type: 'chapeau', extra: 3 }, { k: '1976-77_MTL_1', type: 'coupe' }], 'r1');
+  coachAuCartable({ id: '1976-77_MTL', n: 'Scotty Bowman', cle: 'etoiles', rang: 1, fiche: '60-8-12' }, 1);
+  coachAuCartable({ id: '1976-77_MTL', n: 'Scotty Bowman', cle: 'etoiles', rang: 1, fiche: '60-8-12' }, 2);
+  coachAuCartable({ id: '1998-99_STL', n: 'Joel Quenneville', cle: 'tortue', rang: 6 }, 3);
+  const A = albumDuCartable();
+  exiger('l\'Album range les plus belles d\'abord : l\'édition, puis les gravures, puis les copies', A.cartes.map(x => x.k.split('_')[2]).join('') === '4213' && A.cartes[0].ed === 'legendaire' && A.cartes[2].legendes.length === 2 && A.cartes[3].n === 2,
+    A.cartes.map(x => `${x.k} ${x.ed} ×${x.n} ${x.legendes.length} gravure(s)`).join(' · '));
+  exiger('il compte ses cartes, leurs clubs-saisons et ses galons, sans charger une saison', A.cartes.length === 4 && A.clubs === 3 && A.galons === 2 && A.cartes[1].saison === '1976-77' && A.cartes[1].club === 'MTL');
+  exiger('les entraîneurs y sont, les plus joués d\'abord, avec leur club et leur saison', A.coachs.length === 2 && A.coachs[0].n === 'Scotty Bowman' && A.coachs[0].r === 2 && A.coachs[0].tag === 'MTL' && A.coachs[0].saison === '1976-77', A.coachs.map(x => `${x.n} ${x.r} run(s)`).join(' · '));
 }
 
 /* ---------- 8. jamais de la force ---------- */

@@ -5420,6 +5420,11 @@ body.run-ouverte { overflow: hidden; }
 .rn-racine .rn-clubs .rn-revetu, .rn-racine .rn-couleurs .rn-revetu { border-color: var(--rn-vert); }
 .rn-clubs .rn-fermee svg, .rn-racine .rn-couleurs .rn-fermee { opacity: 0.4; }
 .rn-solde .rn-recap { padding: 6px 0; }
+.rn-album { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 10px; }
+.rn-racine .rn-album button { position: relative; display: block; width: 100%; }
+.rn-album .rn-on .rn-c { outline: 3px solid var(--blanc); outline-offset: 3px; border-radius: var(--r-1); }
+.rn-album .rn-vide { aspect-ratio: 5 / 7; border: 1px dashed var(--rn-bord); border-radius: var(--r-1); filter: none; }
+.rn-album .rn-tag { position: absolute; top: 4px; right: 4px; }
 .rn-racine .rn-bande { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border: 1px solid var(--rn-bord); border-radius: var(--r-2); background: var(--rn-case); font: 800 var(--t-3)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* == 10. SUR TABLE : le plateau, le tournoi, la feuille de match du plateau == */

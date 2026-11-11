@@ -6,8 +6,8 @@
  *   1. les scènes du devis sont toutes là : le départ, le camp, la porte ouverte, l'échange, le rival annoncé, la carte,
  *      les Lignes, le banc, la feuille du soir, le duel, le match, le marché, le vestiaire, l'histoire, la fin d'acte, les
  *      séries, la fin, la pause ; et celles d'entre deux runs (tranche 5), ouvertes d'un méta semé : le départ d'un club
- *      qui a gagné (ses crans, la philosophie neuve), le Club (la variété, ton club, ses couleurs, le palmarès), le solde
- *      d'un méta d'avant ;
+ *      qui a gagné (ses crans, la philosophie neuve), le Club (la variété, ton club, ses couleurs, l'Album d'un cartable
+ *      semé et ses pages, le palmarès), le solde d'un méta d'avant ;
  *   2. aucune ne défile, et rien du site ne dépasse : ni en-tête, ni barre d'onglets (chaque point de l'écran est dans
  *      la scène) ;
  *   3. le HUD est toujours au même endroit (ses cœurs au même pixel) ;
@@ -101,11 +101,11 @@ async function mesurer(page, nom) {
   if (petites.length) fautes.cibles.push(`${nom} : ${petites.slice(0, 3).join(' | ')}`);
   if (DOSSIER) await page.screenshot({ path: `${DOSSIER}/scene-${String(vues.length).padStart(2, '0')}-${nom.replace(/[^a-zà-ü]+/gi, '-')}.png` });
 }
-async function ouvrir(R, meta = null) {
+async function ouvrir(R, meta = null, cartable = null) {
   const page = await browser.newPage({ viewport: { width: LARGEUR, height: HAUTEUR }, deviceScaleFactor: 1, hasTouch: true, reducedMotion: 'reduce' });
   page.on('pageerror', e => erreurs.push(e.message));
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(([r, m]) => { localStorage.clear(); if (r) localStorage.setItem('cap82_run', JSON.stringify(r)); if (m) localStorage.setItem('cap82_rogue', JSON.stringify(m)); }, [R, meta]);
+  await page.evaluate(([r, m, c]) => { localStorage.clear(); if (r) localStorage.setItem('cap82_run', JSON.stringify(r)); if (m) localStorage.setItem('cap82_rogue', JSON.stringify(m)); if (c) localStorage.setItem('cap82_cartable', JSON.stringify(c)); }, [R, meta, cartable]);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
   await page.click('#menuDepart [data-menu="rogue"]');
@@ -134,13 +134,21 @@ const meta = { present: [] };
 {
   const RICHE = { ecussons: 300, ecussonsAVie: 900, voies: ['rapaces'], nouvelle: 'rapaces', coupes: 2, exigence: 1, cran: 1, runs: 12, jalons: { series: true, ronde: true },
     meilleur: { pts: 27, ronde: 3, coupe: true }, club: { club: 'harfangs', palette: 'etoiles', pris: ['club:harfangs'] }, recompenses: {}, solde: { avant: 0, rendu: 0, familles: [], voies: [], vu: true } };
-  const page = await ouvrir(null, RICHE);
+  // Son cartable : l'effectif d'une vraie run (des éditions, des copies, deux gravures), deux entraîneurs.
+  const source = saves.portes || saves.camp, eds = ['legendaire', 'rare', 'hors', 'peu'];
+  const CARTABLE = { v: 1, migre: true, joueurs: Object.fromEntries(source.joueurs.map((j, i) => [j.k, { v: { [eds[i] || 'commune']: 1 }, n: 1 + (i % 5 === 0 ? 2 : 0),
+    ...(i < 2 ? { legendes: [{ type: 'chapeau', run: 'a', extra: 3 }, { type: 'dixButs', run: 'a' }, { type: 'coupe', run: 'a' }, { type: 'bourreau', run: 'b', extra: 'MTL' }] } : {}) }])),
+    coachs: { '1976-77_MTL': { n: 'Scotty Bowman', cle: 'etoiles', rang: 1, fiche: '60-8-12', r: 4 }, '1998-99_STL': { n: 'Joel Quenneville', cle: 'tortue', rang: 6, fiche: '37-32-13', r: 1 } } };
+  const page = await ouvrir(null, RICHE, CARTABLE);
   await mesurer(page, 'le départ, ses crans');
   meta.present.push(['les crans du départ', await page.$$eval('#runModal .rn-crans [data-a="cran"]', l => l.length) === 4 && await page.$$eval('#runModal .rn-crans [data-a="cran"]:not([disabled])', l => l.length) === 3]);
   meta.present.push(['« Nouveau » au loto', await page.$$eval('#runModal .rn-loto .rn-puce', l => l.some(x => /Nouveau/.test(x.textContent)))]);
-  for (const [nom, a, v] of [['le Club : la variété', 'club'], ['ton club', 'page', 'club'], ['ton club : les couleurs', 'rayon', 'palette'], ['le palmarès', 'page', 'palmares']]) {
+  for (const [nom, a, v] of [['le Club : la variété', 'club'], ['ton club', 'page', 'club'], ['ton club : les couleurs', 'rayon', 'palette'], ['l\'Album', 'page', 'album'], ['l\'Album, la page suivante', 'album-page', '1'], ['l\'Album : les gravées', 'album-seg', 'gravees'], ['l\'Album : les entraîneurs', 'album-seg', 'coachs'], ['le palmarès', 'page', 'palmares']]) {
     if (!await geste(page, a, v)) { fautes.defile.push(`${nom} : un geste manque (${a})`); continue; }
+    // L'Album charge les saisons de sa page : ses six cartes arrivent, aucune tuile ne reste vide.
+    if (nom.startsWith('l\'Album') && a !== 'album-seg') await page.waitForFunction(() => !document.querySelector('#runModal .rn-album .rn-vide'), null, { timeout: 20000 }).catch(() => {});
     await mesurer(page, nom);
+    if (nom === 'l\'Album') meta.present.push(['l\'Album montre six vraies cartes, la plus belle d\'abord, et dit ses gravures', await page.$$eval('#runModal .rn-album .tc', l => l.length) === 6 && !await page.$('#runModal .rn-album .rn-vide') && /Holo/.test(await page.$eval('#runModal .rn-panneau.rn-on', el => el.textContent)) && /bourreau/i.test(await page.$eval('#runModal .rn-panneau.rn-on', el => el.textContent))]);
   }
   // Le Club se ferme sur le départ, là d'où on venait.
   await geste(page, 'fermer-club');
@@ -185,7 +193,7 @@ await browser.close();
 
 const VOULUES = ['le départ', 'le camp', 'la porte ouverte', 'l\'échange', 'le rival annoncé', 'la carte de l\'acte', 'les Lignes', 'les Lignes, une carte tenue', 'le banc', 'la pause', 'la feuille du soir',
   'le match', 'le match fini', 'la feuille du duel', 'les trois portes', 'le marché', 'le vestiaire', 'une histoire', 'la fin d\'acte', 'les séries', 'la fin de run',
-  'le départ, ses crans', 'le Club : la variété', 'ton club', 'ton club : les couleurs', 'le palmarès', 'le solde', 'le Club, après une run'];
+  'le départ, ses crans', 'le Club : la variété', 'ton club', 'ton club : les couleurs', 'l\'Album', 'l\'Album, la page suivante', 'l\'Album : les gravées', 'l\'Album : les entraîneurs', 'le palmarès', 'le solde', 'le Club, après une run'];
 exiger('chaque scène du devis s\'ouvre', VOULUES.every(n => vues.includes(n)), VOULUES.filter(n => !vues.includes(n)).join(', ') || `${vues.length} scènes`);
 exiger('entre deux runs : les crans et la philosophie neuve au départ, le Club qui se ferme d\'où on vient, le solde puis le départ', meta.present.every(x => x[1]), meta.present.filter(x => !x[1]).map(x => x[0]).join(' · ') || `${meta.present.length} repères`);
 exiger('aucune scène ne défile : un plan de 390 × 844', !fautes.defile.length, fautes.defile.slice(0, 4).join(' · '));

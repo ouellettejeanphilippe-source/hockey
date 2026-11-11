@@ -78,14 +78,15 @@ const plafond = (S, { neuf = 0, mort = 0 } = {}) => {
 
 /* ---------- l'attente, le départ ---------- */
 export const sceneAttente = mot => `<div class="rn-attente"><i></i><span>${esc(mot)}</span></div>`;
+/* La carte d'un entraîneur (`x` : sa philosophie, son rang, son nom, son club et sa saison) : au loto du départ, à l'Album. */
+const carteDuCoachHtml = x => carteHtml({ cle: 'coach', niveau: niveauDuCoach(x.rang) - 1, genreCarte: 'synergie', ico: COACHS[x.cle].ico, nomHtml: esc(x.n), typeHtml: esc(clubMot({ t: x.tag, s: x.saison })),
+  statique: true, lecture: true, style: varsCarton(getTeamBand(x.tag)) });
 /* Le départ : ton coach, un parmi trois (le loto d'aujourd'hui), sa règle, sa pièce de départ. */
 export function sceneDepart(V) {
   const c = V.loto[V.coach], C = COACHS[c.cle], regle = REGLES_DU_COACH[c.cle], piece = PIECE_DU_COACH[c.cle], k = niveauDuCoach(c.rang) - 1;
-  const carte = x => carteHtml({ cle: 'coach', niveau: niveauDuCoach(x.rang) - 1, genreCarte: 'synergie', ico: COACHS[x.cle].ico, nomHtml: esc(x.n), typeHtml: esc(clubMot({ t: x.tag, s: x.saison })),
-    statique: true, lecture: true, style: varsCarton(getTeamBand(x.tag)) });
   return `<div style="left:14px;right:14px;top:22px"><div class="rn-k">Run ${V.numero} · toutes les époques</div><div class="rn-titre" style="margin-top:6px">Ton coach</div><div class="rn-t rn-gris" style="margin-top:4px">Un parmi trois. Il fait toute la run.</div></div>
   <div class="rn-pas" style="left:14px;right:14px;top:118px"><span class="rn-on">1 · Ton coach</span><span>2 · Le camp</span><span>3 · L'acte I</span></div>
-  <div class="rn-loto" style="left:14px;right:14px;top:166px">${V.loto.map((x, i) => `<button type="button" class="${i === V.coach ? 'rn-on' : ''}" data-a="coach" data-v="${i}"><span class="rn-c">${carte(x)}</span><p>${x.nouvelle ? '<span class="rn-puce rn-v">Nouveau</span>' : ''}<b>${esc(x.n)}</b>${esc(clubMot({ t: x.tag, s: x.saison }))}<br>${x.fiche.v}-${x.fiche.d}-${x.fiche.n}${x.coupe ? ' · la Coupe' : ''}</p></button>`).join('')}</div>
+  <div class="rn-loto" style="left:14px;right:14px;top:166px">${V.loto.map((x, i) => `<button type="button" class="${i === V.coach ? 'rn-on' : ''}" data-a="coach" data-v="${i}"><span class="rn-c">${carteDuCoachHtml(x)}</span><p>${x.nouvelle ? '<span class="rn-puce rn-v">Nouveau</span>' : ''}<b>${esc(x.n)}</b>${esc(clubMot({ t: x.tag, s: x.saison }))}<br>${x.fiche.v}-${x.fiche.d}-${x.fiche.n}${x.coupe ? ' · la Coupe' : ''}</p></button>`).join('')}</div>
   <div class="rn-panneau rn-on" style="left:14px;right:14px;top:428px">
     <div style="display:flex;justify-content:space-between;align-items:baseline"><b class="rn-h">${C.ico} ${esc(C.nom)}</b><span class="rn-puce rn-o">${esc(nomDuNiveau(k))}</span></div>
     <div class="rn-t rn-gris" style="margin-top:6px">${esc(motDuRang(c.cle, c.rang))}, cette saison-là.</div>
@@ -479,13 +480,13 @@ export function sceneFin(S, V) {
 /* ---------- le Club : entre deux runs (V28, tranche 5, docs/refonte-v28-5.md § 3.1) ---------- */
 /* Les médailles ont leur dessin, jamais la pièce des jetons. */
 const medailles = n => `<span class="rn-jt rn-md"><i class="rn-medaille"></i>${n}</span>`;
-const PAGES_DU_CLUB = [['variete', 'Variété'], ['club', 'Ton club'], ['palmares', 'Palmarès']];
+const PAGES_DU_CLUB = [['variete', 'Variété'], ['club', 'Ton club'], ['album', 'Album'], ['palmares', 'Palmarès']];
 /*
  * LE CLUB (`C` : ce que la coquille en sait — { meta, rang, nom, page, voie, coachs, rayons, rayon, objet }). Sa tête
  * remplace le HUD : ton écusson, ton nom, ton rang, tes médailles ; trois pages en segment, chacune tient en un écran.
  */
 export function sceneClub(C) {
-  const page = { variete: pageVariete, club: pageTonClub, palmares: pagePalmares }[C.page] || pageVariete;
+  const page = { variete: pageVariete, club: pageTonClub, album: pageAlbum, palmares: pagePalmares }[C.page] || pageVariete;
   return `<div class="rn-hud">${logo('YOU', 34)}<span class="rn-acte">${esc(C.nom)}<small>${esc(PRESTIGES[C.rang].nom)}</small></span>${medailles(C.meta.ecussons || 0)}</div>
   <div class="rn-seg" style="left:14px;right:14px;top:62px">${PAGES_DU_CLUB.map(([k, mot]) => `<button type="button" class="${C.page === k ? 'rn-on' : ''}" data-a="page" data-v="${k}">${mot}</button>`).join('')}</div>
   ${page(C)}`;
@@ -522,6 +523,31 @@ function pageTonClub(C) {
   ${bas(bt('Retour', 'fermer-club'), action)}`;
 }
 /* Palmarès : tes runs, l'échelle du prestige (le rang d'après dit ce qui manque), tes exigences, la trace du solde. */
+/*
+ * L'Album (tranche 5b) : ton cartable, six cartes par écran, les plus belles d'abord ; celle qu'on touche dit son édition,
+ * ses copies et ce qui est gravé dessus. `A` (`C.album`) : l'album à plat (js/cartable.js `albumDuCartable`), le segment,
+ * la page, la carte vue, et les joueurs des saisons déjà chargées (`A.joueurs` : la clé → le joueur).
+ */
+export const ALBUM_PAR_PAGE = 6;
+export const listeDeLAlbum = A => (A.seg === 'coachs' ? A.coachs : A.seg === 'gravees' ? A.cartes.filter(x => x.legendes.length) : A.cartes);
+function pageAlbum(C) {
+  const A = C.album, liste = listeDeLAlbum(A), pages = Math.max(1, Math.ceil(liste.length / ALBUM_PAR_PAGE)), page = Math.min(A.page, pages - 1);
+  const ici = liste.slice(page * ALBUM_PAR_PAGE, (page + 1) * ALBUM_PAR_PAGE), id = x => x.k || x.id, vue = ici.find(x => id(x) === A.vue) || ici[0];
+  const tuile = x => { const p = x.k && A.joueurs.get(x.k); return `<button type="button" class="${x === vue ? 'rn-on' : ''}" data-a="voir-carte" data-v="${esc(id(x))}" aria-label="${esc(x.k ? (p ? p.n : x.k) : x.n)}">${
+    x.k ? (p ? `<span class="rn-c rn-cj" style="${varsEquipe(p)}">${cartonDe(p, { rar: x.ed })}</span>` : '<span class="rn-c rn-vide"></span>') : `<span class="rn-c">${carteDuCoachHtml(x)}</span>`}${x.k && x.legendes.length ? `<span class="rn-tag">${x.legendes.length} 🏵</span>` : ''}</button>`; };
+  const gravures = l => l.slice(-3).reverse().map(g => `${LEGENDES[g.type].ico} <b>${esc(LEGENDES[g.type].nom)}</b> · ${esc(LEGENDES[g.type].recit(g))}`).join('<br>') + (l.length > 3 ? `<br><span class="rn-gris">et ${l.length - 3} de plus</span>` : '');
+  const detail = !vue ? '' : vue.k ? (() => { const p = A.joueurs.get(vue.k); return `<div style="display:flex;justify-content:space-between;align-items:baseline"><b class="rn-h">${esc(p ? p.n : '…')}</b><span class="rn-puce rn-o">${esc(NOM_VARIANTE[vue.ed])}${vue.n > 1 ? ` · ${vue.n} copies` : ''}</span></div>
+      <div class="rn-t rn-gris" style="margin-top:5px">${esc(clubMot({ t: vue.club, s: vue.saison }))}</div><div class="rn-t" style="margin-top:8px">${vue.legendes.length ? gravures(vue.legendes) : '<span class="rn-gris">Rien de gravé encore : un chapeau, un jeu blanc, dix buts dans une run s\'y graveront.</span>'}</div>`; })()
+    : `<div style="display:flex;justify-content:space-between;align-items:baseline"><b class="rn-h">${esc(vue.n)}</b><span class="rn-puce rn-o">${vue.r || 1} run${(vue.r || 1) > 1 ? 's' : ''}</span></div>
+      <div class="rn-t rn-gris" style="margin-top:5px">${esc(clubMot({ t: vue.tag, s: vue.saison }))}${vue.fiche ? ` · ${esc(vue.fiche)}` : ''}</div><div class="rn-t" style="margin-top:8px">${COACHS[vue.cle].ico} <b>${esc(COACHS[vue.cle].nom)}</b> · ${esc(motDuRang(vue.cle, vue.rang))}</div>`;
+  const segs = [['joueurs', `Joueurs · ${A.cartes.length}`], ['gravees', `Gravées · ${A.cartes.filter(x => x.legendes.length).length}`], ['coachs', `Entraîneurs · ${A.coachs.length}`]];
+  return `<div class="rn-k" style="left:14px;right:14px;top:120px">${A.cartes.length} carte${A.cartes.length > 1 ? 's' : ''} de ${A.clubs} club${A.clubs > 1 ? 's' : ''}-saison${A.clubs > 1 ? 's' : ''} · ${A.galons} galon${A.galons > 1 ? 's' : ''}</div>
+  <div class="rn-seg" style="left:14px;right:14px;top:142px">${segs.map(([k, mot]) => `<button type="button" class="${A.seg === k ? 'rn-on' : ''}" data-a="album-seg" data-v="${k}">${mot}</button>`).join('')}</div>
+  ${ici.length ? `<div class="rn-album" style="left:14px;right:14px;top:198px">${ici.map(tuile).join('')}</div>
+  <div class="rn-panneau rn-on" style="left:14px;right:14px;top:560px">${detail}</div>`
+    : `<div class="rn-panneau" style="left:14px;right:14px;top:198px"><div class="rn-t rn-gris">${A.seg === 'gravees' ? 'Aucune carte gravée encore. Un chapeau, un jeu blanc, dix buts dans une run se gravent sur la carte du joueur.' : A.seg === 'coachs' ? 'Aucun entraîneur encore : celui que tu prends au départ d\'une run entre ici.' : 'Ton album est vide. Un joueur signé dans une run y entre, à la fin de la run.'}</div></div>`}
+  ${bas(bt('Retour', 'fermer-club'), bt('‹', 'album-page', { v: '-1', off: page <= 0 }), bt(`${page + 1} / ${pages} ›`, 'album-page', { v: '1', cls: 'rn-go', off: page >= pages - 1 }))}`;
+}
 function pagePalmares(C) {
   const m = C.meta, M = m.meilleur, cran = cranOuvert(m);
   const meilleur = !M ? 'Aucune run finie' : M.coupe ? 'La Coupe' : M.ronde ? `${M.ronde} ronde${M.ronde > 1 ? 's gagnées' : ' gagnée'} en séries` : `${M.pts} points en trois actes`;
