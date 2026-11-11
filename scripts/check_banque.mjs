@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey } from '../js/sim.js';
 import { plafondDe } from '../js/banque.js';
 import { HISTOIRES } from '../js/histoires.js';
-import { TIERS } from '../js/packs.js';
+import { METAL } from '../js/packs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, verdict } from './verdict.mjs';
 
@@ -49,7 +49,7 @@ const fiche = t => `${t.W}-${t.L}-${t.OTL} ${t.GF}-${t.GA}`;
 console.log('\n  Les décisions de carte que le moteur joue\n');
 
 /* 1. Les pochettes. */
-exiger('les barèmes des tiers font 100 %', Object.values(TIERS).every(T => Math.abs(Object.values(T.cotes).reduce((a, b) => a + b, 0) - 100) < 1e-9), Object.keys(TIERS).join(' · '));
+exiger('le barème du métal des pochettes fait 100 %', Math.abs(Object.values(METAL.cotes).reduce((a, b) => a + b, 0) - 100) < 1e-9, Object.values(METAL.cotes).join(' · '));
 
 /* 2. La masse salariale (V16, tranche 6) : une vieille décision `plafond` (le dossier du proprio d'avant), au dollar. */
 {

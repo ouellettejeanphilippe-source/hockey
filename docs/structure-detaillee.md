@@ -160,7 +160,7 @@ check_relais            le relais des pièces (V23 D ; V27, tranche 5) : en pair
 check_moments_si        les moments (MOMENTS_SI, js/sim.js) : un effet d'un moment ne joue que son soir, rien ne se lit d'avance, chaque moment arrive dans des runs du robot malin ; une demi-minute, en CI (GRAINES)
 check_duel              le duel à un choix (V27, tranche 6) : le plan joue les trois périodes, la dominante du rival, aucun trio de plans dominé, le meilleur plan contre Ton match sous 60 % ; une minute (N, TRIOS=0)
 check_effets            chaque effet d'une réponse d'histoire, en paires : il se voit dans la feuille d'un soir où il joue, sa force bornée par son niveau ; une vingtaine de minutes (N, IDS, DETAIL=1)
-check_packs             les packs selon le niveau des joueurs : ce que ses taux promettent, un pack le donne ; une demi-minute (PACKS)
+check_packs             les deux pochettes du marché selon le niveau des joueurs : pures, aux taux de leur métal, l'Époque un Pilier ou mieux de sa décennie et de son poste, la brillante à la vedette ; une seconde et demie, dans tout.mjs (PACKS)
 ```
 
 À lancer à part (trop lents pour `tout.mjs`, ou à la main) :

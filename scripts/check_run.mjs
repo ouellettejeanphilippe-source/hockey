@@ -5,12 +5,15 @@
  *   trois actes de cinq matchs et un rival, deux arrêts par acte ; la cible et les cœurs recomptés ; un rival par acte, au
  *   sommet ; trois portes après chaque match, l'une le club affronté, jamais deux fois la même ; aucun joueur deux fois ; le
  *   plafond jamais dépassé ; la même graine rejoue la même run ; une run gardée puis relue finit pareil, et lit la même
- *   histoire à sa case (les blessures datées en matchs de la run, chaque joueur relu de son côté de la feuille).
+ *   histoire à sa case (les blessures datées en matchs de la run, chaque joueur relu de son côté de la feuille) ; les galons
+ *   d'une run (tranche 5b) : des sortes connues, chacune à son seuil, dix buts et vingt points une fois par joueur et
+ *   recomptés, la Coupe sur tout l'effectif.
  *
  *   node scripts/check_run.mjs            `GRAINES` graines (3), les trois robots : une dizaine de secondes
  */
 import { getPersonKey } from '../js/sim.js';
-import { RUN, masseDe, RANG_DU_RIVAL, figer, ouvrirSeance, histoireDeLaCase, reglesDe } from '../js/run.js';
+import { RUN, GALONS, masseDe, RANG_DU_RIVAL, figer, ouvrirSeance, histoireDeLaCase, reglesDe } from '../js/run.js';
+import { LEGENDES } from '../js/cartable.js';
 import { jouerLaRun, DONNEES } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -18,7 +21,7 @@ const GRAINES = Number(process.env.GRAINES ?? 3);
 const fautes = [];
 const faute = (ok, mot) => { if (!ok && fautes.length < 12) fautes.push(mot); };
 const runs = [];
-const histoires = { lues: 0, vraies: 0, autres: [] };
+const histoires = { lues: 0, vraies: 0, autres: [] }, galons = [];
 const dite = h => (h ? `${h.cle} · ${h.joueur.n}` : 'aucune');
 for (const robot of ['premier', 'chiffre', 'malin']) {
   for (let g = 0; g < GRAINES; g++) {
@@ -68,10 +71,20 @@ for (const robot of ['premier', 'chiffre', 'malin']) {
     faute(R.fin.cause !== 'coeurs' || R.coeurs === 0, `${ici} : finie sans cœur, avec ${R.coeurs}`);
     faute(R.banc.length <= 5 && new Set(R.banc).size === R.banc.length, `${ici} : un banc de ${R.banc.length}`);
     faute(R.jetons >= 0, `${ici} : ${R.jetons} jetons`);
+    // Les galons (tranche 5b) : des sortes connues, sur des joueurs de la run ; un chapeau a ses trois buts, dix buts et vingt
+    // points se gravent une fois par joueur et se recomptent, la Coupe grave tout l'effectif et rien sans elle.
+    const G = R.galons || [], de = t => G.filter(g => g.type === t), une = t => new Set(de(t).map(g => g.k)).size === de(t).length;
+    galons.push(...G.map(g => g.type));
+    faute(G.every(g => LEGENDES[g.type] && R.vus.length && typeof g.k === 'string' && typeof LEGENDES[g.type].recit(g) === 'string' && !/undefined/.test(LEGENDES[g.type].recit(g))), `${ici} : un galon inconnu ou sans récit`);
+    faute(de('chapeau').every(g => g.extra >= GALONS.CHAPEAU) && de('grandMatch').every(g => g.extra >= GALONS.GRAND_SOIR) && de('mur').every(g => g.extra >= GALONS.MUR), `${ici} : un galon de match sous son seuil`);
+    faute(une('dixButs') && une('vingtPoints') && de('dixButs').every(g => (R.comptes[g.k] || [0])[0] >= GALONS.BUTS) && de('vingtPoints').every(g => (R.comptes[g.k] || [0, 0])[1] >= GALONS.POINTS), `${ici} : dix buts ou vingt points gravés deux fois, ou sans le compte`);
+    faute(de('coupe').length === (R.fin.coupe ? 23 : 0), `${ici} : ${de('coupe').length} galons de la Coupe`);
+    faute(de('bourreau').length <= R.actes.filter(x => x.rival).length, `${ici} : plus de bourreaux que de rivaux battus`);
   }
 }
 exiger('chaque run tient ses règles : les actes, la cible, les cœurs, les portes, le plafond, personne deux fois', !fautes.length, fautes.join(' · ') || `${runs.length} runs lues`);
 exiger('le sommet de la carte est le rival', RANG_DU_RIVAL === 7);
+informer('les galons gravés', Object.keys(LEGENDES).map(t => `${LEGENDES[t].nom} ${galons.filter(x => x === t).length}`).join(' · '));
 exiger('une histoire relue d\'une run gardée est la même', histoires.lues > 0 && !histoires.autres.length, histoires.autres.join(' · ') || `${histoires.lues} cases d'histoire, ${histoires.vraies} avec un fait vrai`);
 exiger('les cases d\'histoire ont une histoire à dire', histoires.vraies >= histoires.lues / 2, `${histoires.vraies} sur ${histoires.lues}`);
 

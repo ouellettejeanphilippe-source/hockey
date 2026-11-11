@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-3.6.0';  // 3.6.0 : la V28, tranche 5a — la méta réécrite : le Club entre deux runs (les philosophies, ton club, le palmarès), trois crans d'exigence, le solde des déblocages d'avant ; « Une run neuve » ne plante plus après une run finie
+const VERSION = 'cap82-3.7.0';  // 3.7.0 : la V28, tranche 5b — l'Album (le cartable au Club), les galons d'une run courte gravés sur la carte, js/packs.js taillé à ses deux pochettes
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

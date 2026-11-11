@@ -456,7 +456,7 @@ export function showPlayerModal(p, opts = {}) {
   const glace = surLaGlaceHtml(p);
   // GRAVÉ SUR SA CARTE (V2.2) : les moments légendaires d'une run se relisent ici, pas seulement dans un toast.
   const legendes = surTable() ? [] : legendesDe(getPlayerKey(p));
-  const grave = legendes.length ? `<div class="section-label">Gravé sur sa carte</div><ul class="glace">${legendes.map(l => `<li class="bon">${LEGENDES[l.type].ico} <b>${esc(LEGENDES[l.type].nom)}</b>${l.saison ? ` · saison ${l.saison} d'une run` : ''}</li>`).join('')}</ul>` : '';
+  const grave = legendes.length ? `<div class="section-label">Gravé sur sa carte</div><ul class="glace">${legendes.map(l => `<li class="bon">${LEGENDES[l.type].ico} <b>${esc(LEGENDES[l.type].nom)}</b> · ${esc(LEGENDES[l.type].recit(l))}</li>`).join('')}</ul>` : '';
   const profil = grave + (glace ? `<div class="section-label">Sur la glace</div>${glace}` : '');
   // SES JAMBES, JOURNÉE PAR JOURNÉE (1.0, le suivi des jambes) : l'instantané du moteur de son club.
   const courbe = apres && opts.team ? courbeJambesHtml(courbeJambes(opts.team, p, opts.jambesJusqua ?? Infinity), { large: true }) : '';

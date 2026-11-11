@@ -3707,3 +3707,21 @@ Ce que ça coûte : les 55 saisons se chargent à l'ouverture du Rogue (3 Mo la 
 - `check_lexique` gardait la clé `vestiaire` d'un cran de l'ancien Rogue : aucune sauvegarde ne la porte (une run gardait le numéro de son cran, et aucune ne reste). Il garde la clé du méta et ses médailles à vie.
 
 **Ce qui reste (5b)** : l'Album (le cartable dans le Club), les galons à l'échelle d'une run courte, les sortes de pochette, la taille de js/packs.js.
+
+## La V28, tranche 5b : l'Album, les galons d'une run courte, les pochettes taillées (11 nov. 2026)
+
+**Ce qui a été fait.** Le cartable a de nouveau un écran : l'Album, quatrième page du Club. Ce qu'un joueur fait chez toi dans une run se grave sur sa carte. js/packs.js ne garde que les deux pochettes que le marché vend. Le détail : docs/refonte-v28-5.md § 3.6 à 3.8.
+
+**Les galons, à l'échelle d'une run.** Ceux de l'ancien Rogue comptaient une saison de 82 soirs (40 buts, 50 passes) : dans une run de 22 matchs, personne ne les aurait gravés. Mesuré sur 48 runs du robot qui lit : le meilleur buteur d'une run marque 10,5 buts, son meilleur pointeur fait 21 points. Les seuils en sortent : dix buts et vingt points (une run sur deux en voit un), trois buts dans un match (une run sur deux), cinq points dans un match (une run sur cinq ; à quatre points c'était trois runs sur quatre, trop), 40 arrêts dans une victoire (une run sur dix ; à 35, plus d'une sur deux), le jeu blanc (63 %), le but gagnant contre un rival (77 %), la Coupe (8 %, tout l'effectif). Huit galons par run en moyenne, du courant au rare : c'est ce qu'on collectionne. Le premier jet du devis disait « quinze points » : 79 % des runs, écarté. `mesure_run` juge la fréquence (chaque sorte dans 5 à 85 % des runs, 4 à 14 par run) : un seuil déplacé qui rendrait un galon banal ou introuvable rougit.
+
+**Aucun effet au moteur.** Un galon ne change ni une cote ni un match. Les anciens défis gravaient une retouche qui jouait (le coup d'œil, le marteau) : une force gagnée en jouant bien est une boule de neige, que la V28 a bloquée. Ces retouches restent lues sur les cartes qui les portent, rien n'en grave de neuves.
+
+**Les comptes vivent dans la run gardée.** Les buts et les points de chacun (`R.comptes`) s'écrivent avec la run : le journal des feuilles se résume à la sauvegarde, et une run reprise aurait recompté de zéro. `check_run` rejoue une run gardée puis relue : mêmes galons.
+
+**L'Album charge les saisons de sa page, pas les cinquante-cinq.** La clé d'une carte dit sa saison et son club : l'ordre, les comptes et le feuilletage se font sans rien charger ; six cartes, six saisons au plus. Les plus belles d'abord (l'édition, puis les gravures, puis les copies), parce qu'un album rangé par saison ouvre sur une page de cartes de base.
+
+**Les sortes de pochette en médailles : pas faites, et pourquoi.** Le devis les nommait parmi la variété. Les robots n'achètent jamais de pochette (le tirage se fait hors du cœur), donc aucune mesure ne dit ce qu'une pochette vaut dans une run ; et une sorte qui tire de meilleurs joueurs est de la force, comme les pièces de banc écartées à la 5a. Vendre une sorte neuve sans la mesurer aurait été livrer un réglage à l'aveugle. La question va à JP : faire entrer la pochette dans la mesure, ou garder deux pochettes.
+
+**js/packs.js, de 381 à 128 lignes.** La boutique de l'ancien Rogue vendait dix-huit packs ; depuis la tranche 4 plus rien ne les vendait, mais ils restaient définis, avec leurs tirages (le trio, les talents, l'équipe, l'année, la garantie, le dépisteur du coach). Le fichier est réécrit autour du Bronze et de l'Époque, aux mêmes dés qu'avant (les mêmes mots de hachage : une graine tire la même pochette). Son juge passe de 375 à 148 lignes et d'une demi-minute à une seconde et demie : il entre dans `tout.mjs`.
+
+**Trouvé en chemin.** Une carte de l'Album cassait le module des scènes (une fonction déplacée à moitié) sans qu'aucun juge rapide ne le voie : `check_mort` et `check_css` lisent le texte, pas la syntaxe, et `node --check` ne lit pas un fichier `.js` comme un module. Le navigateur l'a dit ; `check_scene` l'aurait dit au CI. Rien à corriger dans le jeu, mais à savoir : après une retouche de js/run-scenes.js, on ouvre la page.
