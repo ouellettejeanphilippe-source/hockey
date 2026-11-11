@@ -1,5 +1,8 @@
 # Les écrans du Rogue, refaits à neuf
 
+> Note du 11 nov. 2026 : ce document décrit l'ancien Rogue (le Bureau, la boutique, la run sur la cédule), parti à la V28, tranche 4 (docs/refonte-v28-4.md).
+> Le Rogue d'aujourd'hui : docs/refonte-v28.md et .claude/rules/rogue.md.
+
 18 octobre 2026. Après le jeu de cartes neuf (docs/refonte-v10.md), JP a tranché : *les écrans du Rogue refaits à neuf, maquettes d'abord*. Le Jalon M (docs/mise-en-scene-et-mobile.md) y passe : ses tranches 6 à 8 attendaient ces écrans.
 
 ## Le principe

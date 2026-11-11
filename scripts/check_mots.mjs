@@ -8,7 +8,7 @@
  *   2. chaque réponse se DIT : `motsDe` rend au moins une ligne, chacune verte, rouge ou grise, sans accolade oubliée,
  *      et une issue de pari se dit à son nom ;
  *   3. les jetons et l'expérience se versent une fois, à la décision : jamais sous un `quand`, jamais dans une issue de
- *      pari (la caisse reste recomptée des décisions, `check_rogue`, `check_verite`).
+ *      pari (`check_verite`).
  *
  *   node scripts/check_mots.mjs            (une dizaine de secondes ; CLUBS=6 en lit plus)
  */

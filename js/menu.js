@@ -2,12 +2,13 @@
  * L'ÉCRAN TITRE et la PAUSE.
  *
  * Au boot : Continuer (s'il y a une partie), une carte par mode
- * (une action primaire), Exhibition, Parties, Options, Règles.
+ * (une action primaire), Exhibition, Parties, Options, Règles. Le Rogue
+ * n'a pas de partie dans l'index : sa carte ouvre la run en carte
+ * (js/run-jeu.js), « Continuer » quand une run est gardée.
  *
  * En partie : ce n'est plus le lanceur. Retour à la partie, Options,
  * Règles, Parties, puis « Quitter vers le titre ». Les modes ne
  * s'empilent plus par-dessus le match.
- * En run Rogue seulement : Inventaire et Vestiaire, deux liens.
  *
  * Parties : chaque partie s'exporte en fichier (à transférer sur un autre
  * appareil, un téléphone ou un ordinateur) et un tel fichier s'importe sous
@@ -30,10 +31,10 @@ function livrer(nom, texte) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
   return `${nom} téléchargé.`;
 }
-/* Un fichier entre : une partie de plus au menu, ou le mot qui dit pourquoi non. */
+/* Un fichier entre : une partie de plus au menu, ou le mot qui dit pourquoi non. Une run de l'ancien Rogue se solde aussitôt. */
 function recevoir(texte) {
-  const id = importer(texte);
-  return id ? 'Partie importée.' : 'Ce fichier n\'est pas une partie de Cap 82-0.';
+  if (!importer(texte)) return 'Ce fichier n\'est pas une partie de Cap 82-0.';
+  return (ctxCourant.rogue && ctxCourant.rogue.solder()) || 'Partie importée.';
 }
 
 function quand(t) {
@@ -86,8 +87,10 @@ function dessiner(m) {
     const G = GENRES[g];
     const d = derniereDuGenre(g);
     const reprise = d && !(d.resume && d.resume.vierge) ? d : null;
-    const extra = g === 'rogue' && ctx.rogue ? ctx.rogue.resume() : '';
-    const primaire = reprise
+    const extra = g === 'rogue' ? ctx.rogue.resume() : '';
+    // Le Rogue (V28) : sa run vit hors de l'index ; une seule action, qui la reprend ou ouvre son départ.
+    const primaire = g === 'rogue' ? `<button type="button" class="btn go" data-menu="rogue">${ctx.rogue.enCours ? 'Continuer' : 'Commencer'}</button>`
+      : reprise
       ? `<button type="button" class="btn go" data-menu="reprendre" data-id="${reprise.id}">Continuer<small>${esc(ligneResume(reprise) || quand(reprise.maj))}</small></button>`
       : `<button type="button" class="btn go" data-menu="nouvelle" data-genre="${g}">Commencer</button>`;
     const secondaire = reprise
@@ -139,11 +142,6 @@ function dessiner(m) {
       <span class="menu-version">Version ${esc(VERSION)}</span>
     </nav>`;
 
-  const liensRogue = ctx.enJeu && active && active.genre === 'rogue' && ctx.rogue
-    ? [ctx.rogue.inventaire ? '<button type="button" class="menu-lien" data-menu="inventaire">🎒 Tes cartes</button>' : '',
-      ctx.rogue.vestiaire ? '<button type="button" class="menu-lien" data-menu="vestiaire">Déblocages</button>' : ''].join('')
-    : '';
-
   if (ctx.enJeu) {
     m.innerHTML = `<div class="menu-fond" aria-hidden="true"><div class="menu-glace"></div></div>
       <div class="menu-feuille">
@@ -156,7 +154,6 @@ function dessiner(m) {
           ${active ? `<span class="mc-quoi">${GENRES[active.genre] ? GENRES[active.genre].ico : ''} ${esc(active.titre)}${ligneResume(active) ? ' · ' + esc(ligneResume(active)) : ''}</span>` : ''}
         </button>
         ${pied}
-        ${liensRogue}
         ${partiesBloc}
         <button type="button" class="menu-lien" data-menu="titre">Quitter vers le titre</button>
       </div>`;
@@ -168,10 +165,6 @@ function dessiner(m) {
     // SUR GLACE (31 oct. 2026, js/sur-glace.js) : le terrain de jeu de la physique, un lien comme l'exhibition.
     const glace = ctx.glace
       ? `<button type="button" class="menu-lien" data-menu="glace">Sur glace <small>un patineur, une rondelle, un filet : la physique, à la manette</small> ›</button>`
-      : '';
-    // LE ROGUE NEUF (V28, js/run-jeu.js) : la run en carte, à côté de l'ancien Rogue jusqu'au remplacement.
-    const run = ctx.run
-      ? `<button type="button" class="menu-lien" data-menu="run">${ctx.run.enCours ? 'Le Rogue neuf · reprendre' : 'Le Rogue neuf'} <small>une carte, des portes, trois actes et les séries</small> ›</button>`
       : '';
     const heros = peutContinuer;
     m.innerHTML = `<div class="menu-fond" aria-hidden="true"><div class="menu-glace"></div></div>
@@ -186,7 +179,7 @@ function dessiner(m) {
         </button>` : ''}
         <section class="menu-modes" aria-label="Modes">${ordreModes.map(carte).join('')}</section>
         ${exhibition}
-        ${run}${glace}
+        ${glace}
         ${partiesBloc}
         ${pied}
       </div>`;
@@ -200,15 +193,10 @@ function dessiner(m) {
       if (quoi === 'continuer') ctx.continuer();
       else if (quoi === 'titre') { fermerMenu(); if (ctx.titre) ctx.titre(); else afficherMenu({ ...ctx, enJeu: false }); }
       else if (quoi === 'reprendre') { if (ctx.enJeu && id === lireIndex().actif) ctx.continuer(); else ctx.reprendre(id); }
-      else if (quoi === 'nouvelle') {
-        if (b.dataset.genre === 'rogue' && ctx.rogue) ctx.rogue.nouvelle();
-        else ctx.nouvelle(b.dataset.genre);
-      }
+      else if (quoi === 'nouvelle') ctx.nouvelle(b.dataset.genre);
+      else if (quoi === 'rogue') ctx.rogue.ouvrir();
       else if (quoi === 'exhibition' && ctx.exhibition) ctx.exhibition();
       else if (quoi === 'glace' && ctx.glace) ctx.glace();
-      else if (quoi === 'run' && ctx.run) ctx.run.ouvrir();
-      else if (quoi === 'vestiaire' && ctx.rogue) ctx.rogue.vestiaire();
-      else if (quoi === 'inventaire' && ctx.rogue && ctx.rogue.inventaire) ctx.rogue.inventaire();
       else if (quoi === 'options') ctx.options();
       else if (quoi === 'regles') ctx.regles();
       else if (quoi === 'copier') { copier(id); dessiner(m); }

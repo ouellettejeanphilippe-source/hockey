@@ -16,9 +16,10 @@
  *   4. SES CHIFFRES SONT CEUX DU CODE : chaque nombre qu'elle annonce se
  *      reconstruit ici depuis sa constante — une règle recopiée est une règle
  *      qui ment tôt ou tard.
- *   5. CHAQUE CHOIX DIT QUI LE DEMANDE (Jalon M, js/scenes.js) : une scène
- *      parle par une voix d'EXPEDITEURS, sa réplique ne dit aucun chiffre, et
- *      son fait porte chaque nombre qu'elle a reçu.
+ *   5. CHAQUE HISTOIRE DIT QUI LA DEMANDE (js/histoires.js `sceneDe`) : sa scène
+ *      parle par une voix d'EXPEDITEURS, sa réplique nomme le joueur et ne dit
+ *      que le chiffre du fait, et son fait porte ses nombres. (Les scènes de
+ *      la blessure et du butin, js/scenes.js, sont parties avec l'ancien Rogue.)
  *
  *   node scripts/check_clarte.mjs
  */
@@ -29,7 +30,7 @@ import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
 import {
   PROFILS, AGRESSIVITES, CAP, REROLLS, MODES, PART_UNITE, AFFINITES, SPEC_MULT, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX,
-  PART_SANS_AUX, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, OBJECTIF_RATE, ADAPT_MATCHS,
+  PART_SANS_AUX, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ADAPT_MATCHS, SONNES_ELITE,
   SLOTS, getPositionPenalty, K_ROB, ROB_ORDINAIRE, DISSUASION, EFFET_ROLE, EFFET_PALIER, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE,
   BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE, BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, LANCEE, POIDS_AN, POIDS_DN
 } from '../js/sim.js';
@@ -38,15 +39,12 @@ import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX, nomDuNiveau } from '../js/niveaux.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
-import { GALONS, GALONS_MAX } from '../js/galons.js';
-import { JETONS, baremeRogue, ESPACE_DE_DEPART, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN, ecussonsDesSeries } from '../js/rogue.js';
-import { ACTES, RANGS_DES_RIVAUX, CONTROLES, COEURS, ETAPE_SERIES, MEDAILLES_ACTE, NOEUDS_BOUTIQUE, ACHATS_PAR_NOEUD, PRIX_PIECE } from '../js/actes.js';
+import { JETONS, PRIME_COACH_MAX, ecussonsDesSeries } from '../js/rogue.js';
+import { RUN, RANG_DU_RIVAL } from '../js/run.js';
+import { MEDAILLES_ACTE, PRIX_PIECE, PART_PERDUE, recompenseDeLElite } from '../js/actes.js';
 import { COACHS, REGLES_DU_COACH } from '../js/coachs.js';
-import { CASES_DU_BANC, PIECES_OFFERTES, PIECES_PAR_SAISON_DES_FOURCHES, RELAIS_NIV } from '../js/pieces.js';
-import { RAPPEL_MATCHS } from '../js/ballottage.js';
-import { DATE_LIMITE_MATCH, hausseDesPacks } from '../js/packs.js';
+import { CASES_DU_BANC, PIECES_OFFERTES, RELAIS_NIV } from '../js/pieces.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaBlessure, sceneDuButin } from '../js/scenes.js';
 import { HISTOIRES, sceneDe } from '../js/histoires.js';
 import { nomCourt } from '../js/recit.js';
 
@@ -117,7 +115,6 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     ['un joueur sans badge qui défend le lit sur sa fiche', /Sans badge qui défend/.test(src('fiche.js'))],
     ['l\'agressivité d\'une ligne est celle de ses joueurs (`agressiviteDeLigne`), sans menu', /agressiviteDeLigne\(G\.roster, unit\)/.test(src('alignement.js')) && sans('alignement.js', /data-agr/)],
     ['le niveau, la zone et le badge disent chacun à quoi ils servent', /ne joue pas au match|ne jouent? pas/.test(lire('index.html')) && /Il dit sa saison ; au match/.test(src('repechage.js')) && /Elle dit OÙ il joue/.test(src('game.js')) && /Il dit CE QU'IL FAIT au match/.test(src('gerant.js'))],
-    ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('alignement.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
   ];
   for (const [nom, ok] of faits) exiger(nom, ok);
 }
@@ -189,8 +186,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // V27, tranche 4 (8 nov. 2026) : 2 740 — le calendrier placé et son renfort, une phrase.
   borne('la page des règles est courte', mots, 300, 2740, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
-    [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
-    [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
+    [/le tour est dû/, 'le retrait au loto'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
   const encoreTu = taisait.filter(([re]) => !re.test(brut)).map(([, nom]) => nom);
   exiger('la page dit ce qu\'elle taisait (V2.2)', encoreTu.length === 0, encoreTu.join(' · ') || `${taisait.length} sujets dits`);
   // L'IMPACT EN CHIFFRES DE MATCH (js/impact.js) : un effet se lit en tirs et en buts par match ; la page le dit, et ne le dit plus en « Tirs +8 % ».
@@ -198,19 +194,19 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   exiger('la page ne lit plus un effet en pourcentage (« Tirs +8 % »)', !/(Tirs|Précision|Buts contre) [+−]\d+ ?%/.test(texte), 'plus de « Tirs +8 % »');
   const partis = [[/archétype/i, 'l\'archétype'], [/un match sur six/i, '« un match sur six »'], [/PENCHANT/, 'le PENCHANT'], [/franc-tireur|fabricant de jeu/i, 'les profils de S68'],
     [/chimie de trio/i, 'la chimie de trio de S72'], [/Trio d'énergie/i, 'le Trio d\'énergie'],
-    [/système/i, 'les systèmes de ligne (V18)'], [/consigne du match/i, 'la consigne du match (V18)'], [/secondes par présence/i, 'la glace en secondes (V18)'], [/\bfit\b/i, 'le fit (V18)']];
+    [/système/i, 'les systèmes de ligne (V18)'], [/consigne du match/i, 'la consigne du match (V18)'], [/secondes par présence/i, 'la glace en secondes (V18)'], [/\bfit\b/i, 'le fit (V18)'],
+    // V28, tranche 4 : l'ancien Rogue est parti, la page ne le décrit plus.
+    [/boutique|nœud/i, 'la boutique à ses nœuds'], [/ballottage/i, 'le ballottage'], [/proprio/i, 'le proprio et ses objectifs'], [/classeur/i, 'le classeur'], [/Préparer le match/, '« Préparer le match »'],
+    [/onglet AN/, 'l\'onglet AN · DN'], [/ajustement de série/i, 'l\'ajustement de série'], [/commanditaire/i, 'les commanditaires'], [/exigences/i, 'les exigences (elles reviennent avec la méta)'], [/galon|chandail/i, 'les galons']];
   const encore = partis.filter(([re]) => re.test(texte)).map(([, nom]) => nom);
   exiger('la page ne parle plus de ce qui est parti', encore.length === 0, encore.join(' · ') || 'rien de parti');
 
   // Chaque chiffre annoncé, reconstruit depuis sa constante.
   const brille = stature => COTES_PAR_STATURE[stature].rare + COTES_PAR_STATURE[stature].legendaire;
   const minSal = Number((lire('js/game.js').match(/const MIN_SAL = ([\d_]+);/) || [])[1].replace(/_/g, ''));
-  // Le ballottage vit dans js/banc.js depuis le découpage de js/game.js (1.0, J3-6).
-  const coutBal = Number((lire('js/banc.js').match(/const COUT_BALLOTTAGE_ROGUE = (\d+);/) || [])[1]);
-  const plafBal = Number((lire('js/banc.js').match(/const PLAFOND_BALLOTTAGE = ([\d.]+);/) || [])[1]);
+  const EN_MOTS = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept'];
   const slot = role => SLOTS.find(s => s.role === role && !s.scratch);
   const pen = (p, role) => getPositionPenalty(p, slot(role));
-  const B = baremeRogue({});
   const ecrits = [
     [`<strong>${REROLLS.season}</strong> relances d'année, <strong>${REROLLS.team}</strong> d'équipe et <strong>${REROLLS.pass}</strong> « passer »`, 'les relances'],
     [`<strong>${nombre(CAP / 1e6)} M$</strong>`, 'le plafond'],
@@ -252,39 +248,30 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`${INTENTIONS.ombre.ico} l'ombre suit ta vedette, ${INTENTIONS.chasse.ico} la chasse vise ton défenseur, ${INTENTIONS.centre.ico} il ferme le centre, ${INTENTIONS.assaut.ico} il lance de partout, ${INTENTIONS.cachot.ico} il cherche tes punitions`, 'les intentions'],
     [`un plan qui répond à leur intention (${Object.entries(PLANS).filter(([, P]) => P.repond).map(([, P]) => `${P.ico} à ${P.repond.map(k => INTENTIONS[k].ico).join(' et ')}`).join(', ')}) ramène ce qu'elle te fait à la force d'un soir ordinaire`, 'le plan qui répond'],
     ['<strong>Un seul choix, avant le match</strong>', 'le duel à un choix'],
-    // V9, tranche 7 : les galons (js/galons.js) et le chandail retiré (`CHANDAIL_GALONS`, js/rogue.js).
-    [`${GALONS.buts.seuil} buts, ${GALONS.passes.seuil} passes, ${GALONS.victoires.seuil} victoires, un point dans ${GALONS.grandsSoirs.seuil} gros matchs gagnés ou ${GALONS.recrue.seuil} points d'une recrue montent son badge d'un métal pour la run (${['zéro', 'un', 'deux', 'trois'][GALONS_MAX]} au plus) ; ${['zéro', 'un', 'deux', 'trois', 'quatre'][Number((lire('js/rogue.js').match(/const CHANDAIL_GALONS = (\d+);/) || [])[1])]} retirent son chandail`, 'les galons'],
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
-    // V27, tranche 3 (js/actes.js) : la boutique à ses nœuds, le prix remis à zéro, quatre achats, la pièce parmi trois.
-    [`qu'avant ton 1er match, puis après tes ${NOEUDS_BOUTIQUE.slice(1, -1).map(k => `${k}e`).join(', ')} et ${NOEUDS_BOUTIQUE.at(-1)}e matchs`, 'les nœuds de la boutique'],
-    [`montent de ${Math.round((hausseDesPacks(1) - 1) * 100)} % à chaque achat, ${['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq'][ACHATS_PAR_NOEUD]} achats au plus ; une pièce de banc parmi trois, une seule, à ${PRIX_PIECE} jetons au premier achat`, 'le prix au nœud'],
-    [`une ronde de séries gagnée paie ${ecussonsDesSeries(1, false)} médailles`, 'la prime de série'],
     // V23 D, V27 : le relais d'une pièce (`RELAIS_NIV`, une seule force : une pièce n'a pas de niveau).
     [`rejoue la période, ${nombre(RELAIS_NIV)} fois`, 'le relais'],
-    [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs.`, 'l\'objectif raté'],
-    [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],
-    [`de ${RAPPEL_MATCHS[0]} à ${RAPPEL_MATCHS[1]} matchs dans sa saison`, 'le rappel au ballottage'],
-    [`Passé le marché de ton ${DATE_LIMITE_MATCH}e match, la date limite des échanges`, 'la date limite'],
-    [`${JETONS.depart} jetons et ${nombre(ESPACE_DE_DEPART / 1e6)} M$ sous le plafond`, 'le départ Rogue'],
-    [`une victoire ${B.victoire} jetons (${B.victoire + 3}, puis ${B.victoire + 5} avec les commanditaires), une défaite en prolongation ${B.prolongation}, une défaite ${B.defaite}, un objectif du proprio ${B.objectif}.`, 'le barème des jetons'],
-    [`une réclamation coûte ${coutBal} jetons`, 'la réclamation Rogue'],
-    // V27, tranche 2 (js/actes.js) : la run en actes, ses rivaux, ses cœurs et ses contrôles, les séries plus dures.
-    [`tes matchs 1 à ${ACTES[0]}, ${ACTES[0] + 1} à ${ACTES[1]}, ${ACTES[1] + 1} à ${ACTES[2]}, puis les séries`, 'les actes'],
-    [`le ${RANGS_DES_RIVAUX[0] + 1}e club de la ligue en force, puis le ${RANGS_DES_RIVAUX[1] + 1}e, puis le plus fort`, 'les rivaux'],
-    [`Battu, il donne ${MEDAILLES_ACTE.rival} médailles`, 'le rival battu'],
-    [`<strong>${['zéro', 'un', '2', 'trois'][COEURS]} cœurs</strong> : à la fin de l'acte I, il faut être ${CONTROLES[0]}e ou mieux, à la fin de l'acte II, ${CONTROLES[1]}e ou mieux`, 'les cœurs et les contrôles'],
-    [`où chaque club monte de ${ETAPE_SERIES} étapes d'édition`, 'les séries plus dures'],
-    [`<strong>Les exigences</strong> ${ICO_EXIGENCE} :`, 'l\'icône des exigences'],
-    [`paie ${nombre(PRIME_EXIGENCE * 100)} % de médailles de plus : ${EXIGENCES.map(E => E.texte).join(' ; ')}.`, 'les exigences'],
-    // La ligue qui monte (tranche 8, puis le 27 oct.) : des clubs de toute l'histoire aux premiers rangs, puis les éditions.
-    [`des clubs de toute l'histoire aux ${NIVEAUX_PLEINS === 2 ? 'deux' : NIVEAUX_PLEINS} premiers rangs`, 'les premières ligues'],
-    [`Un cran d'exigence en vaut ${ETAPES_PAR_CRAN}.`, 'la ligue et les exigences'],
-    [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
+    // V28 (js/run.js `RUN`) : la run en carte, son départ, ses actes, sa cible et ses cœurs, les étapes d'édition des clubs.
+    [`${JETONS.depart} jetons et ${nombre(RUN.ESPACE / 1e6)} M$ d'espace sous le plafond`, 'le départ de la run'],
+    [`<strong>Le camp</strong> : ${EN_MOTS[RUN.CAMP]} tours de portes`, 'le camp'],
+    [`${EN_MOTS[RUN.MATCHS]} matchs et ${EN_MOTS[RANG_DU_RIVAL - RUN.MATCHS]} arrêts`, 'la carte d\'un acte'],
+    [`${RUN.CIBLES[0]} points à l'acte I, ${RUN.CIBLES[1]} à l'acte II, ${RUN.CIBLES[2]} à l'acte III, sur ${2 * RUN.MATCHS + 4}`, 'la cible'],
+    [`<strong>${RUN.COEURS} cœurs</strong>`, 'les cœurs'],
+    [`${RUN.ETAPES[0]}, ${RUN.ETAPES[1]} puis ${RUN.ETAPES[2]} étapes d'édition, ${RUN.ETAPES[3]} en séries`, 'les clubs qui montent'],
+    [`<strong>${RUN.PORTES}</strong> vrais vestiaires`, 'les portes'],
+    [`ne libère que ${nombre(RUN.RACHAT * 100)} % de son salaire`, 'le rachat'],
+    [`Passer paie ${RUN.PASSER} jetons`, 'la porte passée'],
+    [`une pièce de banc parmi trois, ${PRIX_PIECE} jetons, et deux pochettes de joueurs, ${Object.values(RUN.POCHETTES).join(' et ')} jetons`, 'le marché'],
+    [`une victoire paie de ${RUN.JETONS_DU_MATCH[0]} à ${RUN.JETONS_DU_MATCH[1]} jetons selon la force du club, le rival ${RUN.JETONS_DU_RIVAL}, une défaite en prolongation ${JETONS.prolongation}, une défaite ${JETONS.defaite}`, 'les jetons d\'un match'],
+    [`${PRIME_COACH_MAX} jetons au plus par run`, 'le plafond de la règle du coach'],
+    [`de ${recompenseDeLElite(0.99)} à ${recompenseDeLElite(0.01)} jetons`, 'la récompense d\'une élite'],
+    [`${{ 0.5: 'la moitié' }[PART_PERDUE] || '?'} de cette somme en moins et ton club sonné ${SONNES_ELITE} matchs`, 'l\'élite perdue'],
+    [`${RUN.MEDAILLES_ACTE_JOUE} par acte joué, ${MEDAILLES_ACTE.passe} si sa cible est tenue, ${MEDAILLES_ACTE.rival} de plus pour son rival battu, ${ecussonsDesSeries(1, false)} par ronde de séries gagnée, ${ecussonsDesSeries(0, true)} de plus pour la Coupe`, 'les médailles'],
     // V27, tranche 5 : le coach et son banc de cinq (js/pieces.js).
     [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],
     [`<strong>Ton banc</strong> a <strong>${CASES_DU_BANC}</strong> cases, pour toute la run`, 'le banc'],
-    [`un rival battu en offre une parmi <strong>${PIECES_OFFERTES}</strong>, la boutique en vend une à chaque nœud, une histoire en donne une (${['zéro', 'une', 'deux', 'trois'][PIECES_PAR_SAISON_DES_FOURCHES]} par saison au plus)`, 'd\'où viennent les pièces'],
+    [`un rival battu ou une élite gagnée en offre une parmi <strong>${PIECES_OFFERTES}</strong>, le marché en vend une`, 'd\'où viennent les pièces'],
     // V23 : le niveau de l'entraîneur, de Soutien à ★ Phénomène, fait sa maîtrise (js/niveaux.js `NIVEAUX[k].maitrise`).
     [`son rang dans cette lecture fait son niveau et la force de sa pièce de départ, de ×${nombre(NIVEAUX[0].maitrise)} au Soutien à ×${nombre(NIVEAUX[4].maitrise)} au ★ Phénomène`, 'la maîtrise de l\'entraîneur'],
     // V23 : la règle du coach (js/coachs.js), dite par ses constantes.
@@ -320,34 +307,22 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   // aussi et son second rend plein, la Holo les deux de deux métaux.
   exiger('les éditions sont celles que la page dit', JSON.stringify(VARIANTE_PALIERS) === JSON.stringify({ commune: [0, 0], peu: [0, 1], hors: [1, 1], rare: [1, 1], legendaire: [2, 2] })
     && VARIANTE_PLEINE.rare && VARIANTE_PLEINE.legendaire && !VARIANTE_PLEINE.peu && !VARIANTE_PLEINE.hors, EDITIONS.map(r => NOM_VARIANTE[r]).join(' · '));
-  // Les commanditaires : +3 puis +2 (js/rogue.js, `baremeRogue`).
-  const parVictoire = d => baremeRogue({ deblocages: d }).victoire;
-  exiger('les commanditaires valent +3 puis +2 par victoire', parVictoire([]) === B.victoire && parVictoire(['commanditaire1']) === B.victoire + 3 && parVictoire(['commanditaire1', 'commanditaire2']) === B.victoire + 5,
-    `${parVictoire([])} · ${parVictoire(['commanditaire1'])} · ${parVictoire(['commanditaire1', 'commanditaire2'])}`);
+  // Les séries de la run, lues dans sa source (trois victoires, trois rondes : pas des réglages de `RUN`).
+  exiger('les séries de la run sont trois rondes en 3 de 5, comme la page le dit', /trois rondes en 3 de 5/.test(brut) && /x\.w === 3/.test(lire('js/run.js')) && /x\.l === 3/.test(lire('js/run.js')) && /x\.ronde === 3/.test(lire('js/run.js')));
   const manquants = ecrits.filter(([t]) => !brut.includes(t)).map(([t, nom]) => `${nom} (« ${t.slice(0, 70)} »)`);
   exiger('chaque chiffre de la page vient de sa constante', manquants.length === 0, manquants.join(' · ') || `${ecrits.length} chiffres vérifiés`);
 }
 
 /*
  * ---------- 5. chaque choix dit qui le demande ----------
- * Chaque scène, sur des faits fabriqués (toutes les situations, quarante graines) : sa voix est une voix d'EXPEDITEURS,
- * sa réplique n'est pas vide et ne dit ni chiffre ni gabarit (le motif de check_fils), son fait porte chaque nombre
- * reçu. Et chaque réplique écrite, pas seulement celles que les graines pigent.
+ * Chaque histoire vraie sur des faits fabriqués : sa voix est une voix d'EXPEDITEURS, sa réplique nomme le joueur et ne
+ * dit que des nombres reçus, son fait en dit au moins un. (Les scènes de l'ancien Rogue — la blessure, le butin, le
+ * proprio — sont parties avec lui, V28, tranche 4.)
  */
 {
   const voix = new Set(Object.values(EXPEDITEURS));
   const fautes = [];
-  const juger = (nom, sc, nombres) => {
-    if (!voix.has(sc.de)) fautes.push(`${nom} : la voix « ${sc.de && sc.de.nom} » n'est pas d'EXPEDITEURS`);
-    if (!sc.mot || /\d|\{/.test(sc.mot)) fautes.push(`${nom} : « ${sc.mot} »`);
-    for (const x of nombres) if (!sc.fait.includes(String(x))) fautes.push(`${nom} : le fait « ${sc.fait} » ne dit pas ${x}`);
-  };
   let n = 0;
-  // A4 à A6 (V10, tranche 5 ; V20 : les routes sont parties).
-  for (let g = 0; g < 40; g++) {
-    for (const [k, t] of [[3, 3], [9, 12]]) { juger('la blessure', sceneDeLaBlessure({ joueur: 'Al Secord', n: k, total: t, ou: 'T2 · ailier gauche', adv: 'Wild 2010-11', graine: g }), ['Al Secord', k, ...(t > k ? [t] : []), 'T2 · ailier gauche', 'Wild 2010-11']); n++; }
-    for (const [pour, contre] of [[4, 2], [6, 1]]) { juger('le butin', sceneDuButin({ pour, contre, adv: 'Bruins 1995-96', graine: g }), [pour, contre, 'Bruins 1995-96']); n++; }
-  }
   /*
    * LES HISTOIRES (V25 C1, js/histoires.js ; JP, C0 q. 1 : la réplique dit le chiffre du fait, jamais une stat du moteur) : sur
    * des faits fabriqués aux nombres distincts, la réplique NOMME le joueur et ne dit que des nombres reçus ; le fait aussi, et
@@ -375,10 +350,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     if (!nombres.length) fautes.push(`l'histoire ${cle} : « ${sc.fait} » ne dit aucun fait`);
     n++;
   }
-  const repliques = Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m])));
-  for (const [ou, m] of repliques) if (!m || /\d|\{/.test(m)) fautes.push(`${ou} : « ${m} »`);
-  informer('les scènes', `${n} scènes jouées, ${repliques.length} répliques écrites`);
-  exiger('chaque choix dit qui le demande : une voix, une réplique qui nomme et ne dit que le chiffre du fait, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers, les dilemmes');
+  informer('les scènes', `${n} histoires jouées`);
+  exiger('chaque histoire dit qui la demande : une voix, une réplique qui nomme et ne dit que le chiffre du fait, un fait qui porte ses nombres', fautes.length === 0 && n >= 10, fautes.slice(0, 4).join(' · ') || `${n} histoires vraies sur les faits fabriqués`);
 }
 
 verdict('La clarté');

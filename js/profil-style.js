@@ -20,23 +20,12 @@
 
 import { tirsTotal } from './sim.js';
 import { virgule } from './util.js';
-import { PIECES, bancDe } from './pieces.js';
-import { COACHS, REGLES_DU_COACH } from './coachs.js';
-import { chiffresDuSoirDe } from './rogue.js';
 
 /** Combien de derniers matchs le profil lit. */
 export const N_PROFIL = 10;
 /** Sous ce nombre de matchs de toi, ou de côtés de la ligue, aucun profil : un chiffre trop mince n'est pas un style. */
 export const MIN_MATCHS = 5;
 export const MIN_LIGUE = 30;
-
-/*
- * LES SEUILS DU MOT. Chacun est un peu plus que deux fois l'erreur d'une
- * moyenne de dix matchs (rythme : écart type d'un match ≈ 7 tirs, soit ≈ 2,2 sur
- * dix ; punitions ≈ 1,9, soit ≈ 0,6) : en dessous, c'est du hasard et on ne le
- * baptise pas.
- */
-export const SEUILS = { rythme: 4, coups: 4, punitions: 1, tirs: 2 };
 
 /* Les matchs joués d'un calendrier, à plat, avec leur journée. */
 export function matchsJoues(calendrier) {
@@ -94,68 +83,18 @@ export function profilDeLigue(matchs, club, { avant = Infinity } = {}) {
   return lignes.length < MIN_LIGUE ? null : moyenne(lignes);
 }
 
-/**
- * Le mot de style, lu sur les écarts à la ligue : `{ mots, note }` ou null sans
- * profil. `mots` peut être vide (« dans la moyenne ») ; `note` dit, quand les
- * chiffres le montrent, que tu tires moins sans que les autres tirent moins —
- * le cas où un choix défensif ne donne pas un match fermé.
- */
-export function motDeStyle(p, l) {
-  if (!p || !l) return null;
-  const mots = [];
-  const dr = p.rythme - l.rythme;
-  if (dr <= -SEUILS.rythme) mots.push('jeu fermé');
-  else if (dr >= SEUILS.rythme) mots.push('jeu ouvert');
-  if (p.coups != null && l.coups != null && p.coups - l.coups >= SEUILS.coups) mots.push('jeu de contact');
-  const dp = p.punitions - l.punitions;
-  if (dp >= SEUILS.punitions) mots.push('indiscipliné');
-  else if (dp <= -SEUILS.punitions) mots.push('discipliné');
-  let note = null;
-  if (p.tirsPour - l.tirsPour <= -SEUILS.tirs && p.tirsContre - l.tirsContre >= -SEUILS.tirs / 2) note = 'Tu tires moins, mais les autres ne tirent pas moins : un jeu plus pauvre, pas plus fermé.';
-  else if (p.tirsContre - l.tirsContre <= -SEUILS.tirs && p.tirsPour - l.tirsPour >= SEUILS.tirs / 2) note = 'Tu tires plus et ils tirent moins : tu as la rondelle.';
-  return { mots, note };
-}
-
 /** Un nombre de match, à la québécoise : « 27,4 ». */
 export const dire = (x, d = 1) => (x == null ? '—' : virgule(x.toFixed(d)));
 
 /**
- * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les pièces du banc qui ont joué (V27, la feuille les garde) et les
- * effets en cours (les histoires, les paris). Tout se relit de la feuille et des effets datés de l'équipe : rien n'est
- * stocké, rien n'est deviné.
+ * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les effets en cours qu'une vieille partie porte. Tout se relit des
+ * effets datés de l'équipe : rien n'est stocké, rien n'est deviné. (Les pièces du banc d'un coach-personnage sont
+ * parties d'ici avec l'ancien Rogue : la run en carte montre son banc elle-même.)
  */
-export function buildDuSoir(team, jour, feuille = null) {
+export function buildDuSoir(team, jour) {
   const nomIco = x => `${x.ico ? `${x.ico} ` : ''}${x.nom}`;
-  const cote = feuille && feuille.B === team ? 'B' : 'A';
-  const pieces = ((feuille && feuille.pieces) || []).filter(x => x.cote === cote).map(x => `${nomIco(x)} (${x.k + 1}${x.k ? 'e' : 're'})`);
   const effets = ((team && team.effets) || []).filter(e => e.nom && e.source !== 'match' && jour >= e.debut && jour < e.fin).map(nomIco);
-  const unique = xs => [...new Set(xs)];
-  return { pieces, effets: unique(effets) };
-}
-
-/**
- * TON BANC CE SOIR (V23, docs/refonte-v23.md § A ; V27, tranche 5 : le banc de cinq) : la règle de ton coach, puis chaque
- * pièce du banc de ce soir-là (`feuille.banc`, posé avant le match), avec ce qu'elle a fait. Une pièce « joue » si elle
- * est à la feuille (`feuille.pieces`) ou si elle y a relayé (`feuille.relais`), avec ses périodes ; les autres restent au
- * banc, éteintes, leur condition à lire. Rien n'est deviné : la feuille fait foi.
- * Rend [{ genre: 'regle'|'piece', cle, ico, nom, dit, joue, periodes: [k…], relaie, jetons }].
- */
-export function banc(team, feuille) {
-  if (!team || !feuille) return [];
-  const cote = feuille.B === team ? 'B' : 'A';
-  const perso = team.perso;
-  const avant = x => x.cote === cote;
-  const notes = (feuille.pieces || []).filter(avant), relais = (feuille.relais || []).filter(avant);
-  const sur = (feuille.banc && feuille.banc[cote]) || bancDe(perso);
-  const pieces = sur.filter(cle => PIECES[cle]).map(cle => {
-    const P = PIECES[cle], miennes = notes.filter(x => x.cle === cle), relaie = relais.filter(x => x.cle === cle);
-    return { genre: 'piece', cle, ico: P.ico, nom: P.nom, dit: P.quandMot, joue: miennes.length + relaie.length > 0,
-      periodes: [...new Set([...miennes, ...relaie].map(x => x.k))].sort((a, b) => a - b), relaie: relaie.length > 0 };
-  });
-  // V23 : la règle du coach (js/coachs.js `REGLES_DU_COACH`), allumée le soir où elle paie.
-  const R = perso && REGLES_DU_COACH[perso.cle];
-  const regle = R ? [{ genre: 'regle', ico: COACHS[perso.cle].ico, nom: R.dit, dit: `La règle ${COACHS[perso.cle].de} : +${R.jetons} 🪙 le soir où ton club la tient`, joue: R.lit(chiffresDuSoirDe(feuille, cote)), periodes: [], jetons: R.jetons }] : [];
-  return [...regle, ...pieces];
+  return { effets: [...new Set(effets)] };
 }
 
 /** Le build du soir est-il vide ? */

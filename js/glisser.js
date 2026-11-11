@@ -28,7 +28,7 @@ const actif = liste => liste.findIndex(b => b.getAttribute('aria-selected') === 
 /* Le doigt part de quelque chose qui a son propre geste en largeur. */
 function aSonGeste(el) {
   for (let x = el; x && x !== document.body; x = x.parentElement) {
-    if (x.matches('input, textarea, select, canvas, #tableModal, .pochette-scene, .choix-main, [role="tablist"]')) return true;
+    if (x.matches('input, textarea, select, canvas, #tableModal, .choix-main, [role="tablist"]')) return true;
     if (x.scrollWidth > x.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(x).overflowX)) return true;
   }
   return false;
@@ -115,7 +115,7 @@ export function brancherGlisser() {
     if (ev.touches.length !== 1) return;
     const t = ev.touches[0], cible = ev.target;
     const feuille = cible.closest && cible.closest(FEUILLE);
-    const tirable = !!feuille && !cible.closest('input, textarea, select, canvas, .pochette-scene') && auHaut(cible, feuille);
+    const tirable = !!feuille && !cible.closest('input, textarea, select, canvas') && auHaut(cible, feuille);
     const balayable = !aSonGeste(cible);
     if (!tirable && !balayable) return;
     geste = { x: t.clientX, y: t.clientY, t0: ev.timeStamp, cible, feuille: tirable ? feuille : null, balayable, mode: null, sens: 0, vers: null, indice: null };

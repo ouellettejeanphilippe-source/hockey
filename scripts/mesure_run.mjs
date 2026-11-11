@@ -4,10 +4,16 @@
  * Les robots (scripts/lib/run_robot.mjs) jouent la run entière par les fonctions du jeu (js/run.js) : le camp, la carte de
  * chaque acte, les matchs isolés du simulateur, les portes, le marché, le vestiaire, le rival en duel, les séries. Les mêmes
  * graines pour chacun : « premier », le robot du CHIFFRE (la meilleure cote, l'affiche la plus facile), le MALIN (la cote au
- * prix de l'espace, l'affiche haute quand son club la vaut, le plan du duel). On juge, à 32 graines ou plus :
+ * prix de l'espace, l'affiche haute quand son club est nettement plus fort, le plan du duel, le banc lu). On juge, à 32
+ * graines ou plus :
  *
- *   le malin gagne la Coupe 4 à 12 fois sur 64 ; « premier », 2 fois au plus ; le malin plus souvent que le robot du chiffre ;
- *   sa première Coupe, en médiane, pas avant sa troisième run (JP, 7 nov.).
+ *   le malin gagne la Coupe 4 à 12 fois sur 64 ; « premier », 2 fois au plus ; lire ne coûte pas (le robot du chiffre ne
+ *   gagne pas nettement plus que le malin, en paires) ; sa première Coupe, en médiane, pas avant sa troisième run (JP, 7 nov.).
+ *
+ * *Lire paie* (le devis : le chiffre moins souvent, en paires) s'imprime avec son bruit, sans se juger : mesuré le 11 nov.
+ * 2026 sur sept façons de lire (le prix de l'espace de 0 à 6, l'affiche haute ou non, le banc lu ou non), le malin gagne
+ * 5 à 8 Coupes sur 64 et le robot du chiffre 8 ; l'écart est sous le bruit (±6). Le critère reste ouvert au devis, avec
+ * celui d'en dessous : le plafond ne force pas encore de vrai choix (docs/decisions.md).
  *
  * *Tu peux exploser le jeu* (le devis demande une run du malin sur dix à 75 % de chance moyenne à l'acte III) se mesure et
  * s'imprime, sans se juger : depuis que le monde mêle toutes les années (JP, 11 nov. 2026), 5 à 8 % des runs y arrivent,
@@ -82,7 +88,17 @@ for (const r of ROBOTS) {
 if (JUGER) {
   if (ROBOTS.includes('malin')) borne('Les Coupes du malin, sur 64', sur64('malin'), 4, 12);
   if (ROBOTS.includes('premier')) borne('Les Coupes de « premier », sur 64', sur64('premier'), 0, 2);
-  if (ROBOTS.includes('malin') && ROBOTS.includes('chiffre')) exiger('Lire paie : le malin gagne plus de Coupes que le robot du chiffre, sur les mêmes graines', coupes('malin') > coupes('chiffre'), `${coupes('malin')} contre ${coupes('chiffre')}`);
+  if (ROBOTS.includes('malin') && ROBOTS.includes('chiffre')) {
+    // LIRE, EN PAIRES : la même graine, les deux robots. L'écart en Coupes et son bruit (deux écarts-types de la somme des
+    // paires). « Le malin en gagne plus » se jugeait d'une simple inégalité : à 64 graines, c'était pile ou face (8 contre 7
+    // le 11 nov. au matin, 6 contre 8 le soir, sans que le jeu ait changé de nature). On exige ce qui se mesure : lire ne
+    // COÛTE pas ; « lire paie » s'imprime, et reste ouvert au devis tant que l'écart est sous le bruit.
+    const d = de('malin').map(m => { const c = de('chiffre').find(x => x.graine === m.graine); return c ? (m.coupe ? 1 : 0) - (c.coupe ? 1 : 0) : null; }).filter(x => x !== null);
+    const ecart = d.reduce((a, x) => a + x, 0), m = ecart / d.length, bruit = 2 * Math.sqrt(d.reduce((a, x) => a + (x - m) ** 2, 0) * d.length / Math.max(1, d.length - 1));
+    const mot = `${coupes('malin')} Coupes contre ${coupes('chiffre')} : un écart de ${ecart > 0 ? '+' : ''}${ecart}, le bruit à ±${bruit.toFixed(1)}`;
+    exiger('Lire ne coûte pas : le robot du chiffre ne gagne pas nettement plus de Coupes que le malin, sur les mêmes graines', ecart > -bruit, mot);
+    informer('Lire paie (le devis : le chiffre moins souvent, en paires ; ouvert)', ecart > bruit ? `oui · ${mot}` : `pas démontré, l'écart est sous le bruit · cibles tenues ${pct(tenues('malin'))} contre ${pct(tenues('chiffre'))}`);
+  }
   if (ROBOTS.includes('malin')) {
     // La première Coupe, en médiane : les runs sont indépendantes (rien de la force ne suit d'une run à l'autre).
     const p = coupes('malin') / GRAINES, mediane = p > 0 ? Math.ceil(Math.log(0.5) / Math.log(1 - p)) : Infinity;

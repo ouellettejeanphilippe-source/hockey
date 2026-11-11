@@ -3,7 +3,7 @@
  * sans DOM : le jeu (js/run-jeu.js) et les robots (scripts/mesure_run.mjs, scripts/check_run.mjs) jouent par ces mêmes
  * fonctions, jamais une copie.
  *
- *   LA RUN : une décennie tirée de la graine, un coach (sa pièce de départ sur le banc), 23 bouche-trous de la décennie, puis
+ *   LA RUN : un coach (sa pièce de départ sur le banc), 23 bouche-trous de toutes les époques, puis
  *   le camp (`CAMP` fois trois portes). Trois actes : une carte de sept rangs (cinq de matchs, deux d'arrêts) qui monte vers
  *   le rival. Un match se joue isolé par le simulateur (`playGame`) ; l'élite, le rival et les séries en duel
  *   (`simulerGrosMatch`, ton plan). Après chaque match, trois portes : trois vrais vestiaires, dont le club affronté. Signer
@@ -11,8 +11,8 @@
  *   La cible de l'acte (`CIBLES`, sur 14 : 2 la victoire, 1 la défaite en prolongation, le rival double), `COEURS` cœurs,
  *   puis les séries : trois rondes en 3 de 5, une série perdue rachetée par un cœur.
  *
- *   L'ÉTAT : `R`, un objet JSON (la sauvegarde) ; la séance `S` le porte avec ce qui ne se garde pas (les clubs classés de la
- *   décennie, ton club bâti, les feuilles). `figer(S)` écrit l'effectif dans `R` ; `ouvrirSeance` le relit.
+ *   L'ÉTAT : `R`, un objet JSON (la sauvegarde) ; la séance `S` le porte avec ce qui ne se garde pas (les clubs classés de toutes
+ *   les saisons, ton club bâti, les feuilles). `figer(S)` écrit l'effectif dans `R` ; `ouvrirSeance` le relit.
  *
  *   LES PHASES (`R.phase`) : camp → annonce → carte → feuille → portes → carte … → (le rival) finacte → portes → annonce …
  *   → series → fin ; les arrêts : marche, vestiaire, histoire.
@@ -22,18 +22,18 @@
  */
 import {
   SLOTS, CAP, SONNE, SONNES_ELITE, createTeam, autoRoster, registerHiddenRatings, getHiddenRatings, getPersonKey, getPlayerKey, teamStrength,
-  avecHasardIsole, feuilleVierge, playGame, simulerGrosMatch, activeLineup, depenserEnergie, recupererEnergie, energieDe, fits, accordsDeLigne, tirsTotal, effetsDesJoueurs,
+  avecHasardIsole, feuilleVierge, playGame, simulerGrosMatch, activeLineup, depenserEnergie, recupererEnergie, energieDe, fits, accordsDeLigne, tirsTotal, effetsDesJoueurs, momentsDuSoir,
 } from './sim.js';
 import { leurJeuDuDuel, appliquerChoix, deDuChoix } from './greffes.js';
 import { HISTOIRES, tirer } from './histoires.js';
 import { faitsDe } from './faits.js';
-import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, piecesOffertes, poserLaPiece, piecesContre } from './pieces.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, piecesOffertes, poserLaPiece, piecesContre, persoAdverse } from './pieces.js';
 import { JETONS, PRIME_COACH_MAX, bouchesTrousDuDepart, habillerLaLigue, chiffresDuSoirDe, ecussonsDesSeries } from './rogue.js';
 import { REGLES_DU_COACH } from './coachs.js';
-import { MEDAILLES_ACTE, PRIX_PIECE, jeuDuRival, lignesFortes, dominanteDe, recompenseDeLElite, perteDeLElite } from './actes.js';
+import { MEDAILLES_ACTE, PRIX_PIECE, jeuDuRival, dominanteDe, recompenseDeLElite, perteDeLElite } from './actes.js';
 import { chanceDUnSoir } from './pronostic.js';
 import { seasonGames } from './ratings.js';
-import { groupeDe } from './ballottage.js';
+import { groupeDuJoueur as groupeDe } from './niveaux.js';
 import { EDITIONS } from './rarete.js';
 import { hache } from './util.js';
 
@@ -46,9 +46,9 @@ export const RUN = {
   CAMP: 3,                        // les tours de portes avant la première case
   RACHAT: 0.5,                    // la part du salaire de celui qui sort qui se libère (JP, 10 nov.)
   ESPACE: 4_000_000,              // l'espace de départ sous le plafond
-  DECALAGE: 0.25,                 // les adversaires plus haut dans la décennie, en rang centile
+  DECALAGE: 0.25,                 // les adversaires plus haut parmi tous les clubs, en rang centile
   ETAPES: [1, 2, 3, 7],           // leurs étapes d'édition aux actes I, II, III et en séries (mesuré le 11 nov. 2026 : le malin 9 Coupes sur 64)
-  BANDES: [[0.15, 0.55], [0.3, 0.7], [0.45, 0.85]],   // les bandes de force des portes, en rang centile parmi les clubs de la décennie
+  BANDES: [[0.15, 0.55], [0.3, 0.7], [0.45, 0.85]],   // les bandes de force des portes, en rang centile parmi tous les clubs
   RIVAUX: [0.65, 0.8, 0.92],
   SERIES: [0.82, 1],
   BANDE_DU_CAMP: [0.2, 0.6],
@@ -64,6 +64,8 @@ export const RUN = {
 const LARGEURS = [2, 3, 2, 3, 2, 3, 2];
 const RANGS_D_ARRETS = [3, 5];
 const RANG_DE_L_ELITE = 2;
+/* Trois matchs en trois soirs : les deuxième et troisième rangs d'un acte se jouent sans jour de repos, ce sont ses dos-à-dos (`poserLeSoir`). */
+export const RANGS_DE_DOS_A_DOS = [1, 2];
 const ARRETS = ['marche', 'histoire', 'vestiaire'];
 export const RANG_DU_RIVAL = LARGEURS.length;
 const ACTES = 3;
@@ -308,6 +310,8 @@ export function rebatir(S) {
   if (S.robotDuel) toi.robotDuel = S.robotDuel;
   // Les sonnés d'une élite perdue (js/sim.js `SONNE`) : un effet d'équipe, compté en matchs joués.
   toi.jourCourant = R.matchs.length;
+  // Le club compte ses matchs comme la run : le registre des blessures (l'infirmerie) et le genre d'une blessure s'y lisent.
+  toi.games = R.matchs.length;
   toi.effets = R.sonnes > 0 ? [{ debut: 0, fin: R.matchs.length + R.sonnes, source: 'miniboss', nom: SONNE.nom, ico: SONNE.ico, finition: SONNE.finition }] : [];
   S.toi = toi;
   return toi;
@@ -315,10 +319,13 @@ export function rebatir(S) {
 
 /* ---------- la carte de l'acte ---------- */
 const clubDe = (S, x) => (x ? S.clubs.find(c => c.s === x.s && c.t === x.t) || null : null);
-/* Le rival d'un acte : un club autour de son rang (`RIVAUX`, décalé), tiré de la graine. */
+/*
+ * Le rival d'un acte : un club autour de son rang (`RIVAUX`, décalé), tiré de la graine. Jamais deux fois le même dans une
+ * run : les actes II et III visent tous deux le sommet, et une run sur six retrouvait son rival d'avant (11 nov. 2026).
+ */
 function rivalDe(S, a) {
-  const cible = Math.min(1, RUN.RIVAUX[a] + RUN.DECALAGE), n = S.clubs.length;
-  const k = Math.round(cible * (n - 1)), autour = S.clubs.slice(Math.max(0, k - 4), Math.min(n, k + 5));
+  const cible = Math.min(1, RUN.RIVAUX[a] + RUN.DECALAGE), n = S.clubs.length, deja = new Set(S.R.actes.map(cleDuClub));
+  const k = Math.round(cible * (n - 1)), autour = S.clubs.slice(Math.max(0, k - 4 - deja.size), Math.min(n, k + 5)).filter(c => !deja.has(cleDuClub(c)));
   return pigeDans(autour, S.R.graine, 'rival', a);
 }
 /* Ce qu'une victoire paie contre ce club : du bas au haut de la bande des affiches. */
@@ -375,15 +382,78 @@ function ouvrirLActe(S, a) {
 /* ---------- les clubs lus : son jeu, son intention, pour le battre ---------- */
 /*
  * LE JEU D'UN CLUB (js/actes.js `jeuDuRival`) : trois lignes de vraies stats, son rang et le tien parmi les clubs de SA
- * saison ; son style en un mot ; pour un duel, son intention dominante et les pièces qui lui répondent.
+ * saison ; son style en un mot (`cle`, `mot`) ; pour un duel, son intention dominante ; la pièce qui lui répond. Son style
+ * est sa ligne au meilleur rang parmi les clubs de sa saison, SANS toi : il ne change pas quand ton club change, et c'est
+ * lui que le moteur lit le soir du match (`poserLeSoir` : « Contre des tireurs » joue où la case dit « Tireurs »).
  */
+const ligueDe = (S, club) => S.clubs.filter(c => c.s === club.s).map(c => c.team);
+function styleDe(S, club) {
+  if (!S.styles) S.styles = new Map();
+  const k = cleDuClub(club);
+  if (!S.styles.has(k)) { const { cle, mot } = jeuDuRival(ligueDe(S, club), null, club.team); S.styles.set(k, { cle, mot }); }
+  return S.styles.get(k);
+}
 export function jeuDe(S, x) {
   const club = clubDe(S, x);
   if (!club) return null;
-  const ligue = S.clubs.filter(c => c.s === club.s).map(c => c.team);
-  const jeu = jeuDuRival([...ligue, S.toi], S.toi, club.team);
-  const fortes = lignesFortes(jeu, ligue.length + 1);
-  return { ...jeu, fortes, dominante: dominanteDe(jeu, S.R.graine, S.R.acte, club.team), contre: piecesContre(fortes) };
+  const jeu = { ...jeuDuRival([...ligueDe(S, club), S.toi], S.toi, club.team), ...styleDe(S, club) };
+  return { ...jeu, dominante: dominanteDe(jeu, S.R.graine, S.R.acte, club.team), contre: piecesContre([jeu.cle]) };
+}
+
+/* ---------- le soir, dit au moteur ---------- */
+/*
+ * Une pièce de banc attend son moment (js/sim.js `MOMENTS_SI`), que le moteur lisait dans la cédule d'une ligue. La run n'a
+ * pas de cédule : elle pose le soir sur les deux clubs le temps d'un match (`poserLeSoir`), puis le lève.
+ *   - le rival de l'acte, et le jeu de l'adversaire : son style, le mot de sa case et de son annonce (`jeuDe`) ;
+ *   - ta suite : après une défaite, après trois victoires ; ta bête noire : le club qui t'a battu deux fois sans que tu le
+ *     battes (une série qui tourne mal) ;
+ *   - l'infirmerie : le registre des blessures, compté en matchs de la run (`rebatir`, `guerir`) ;
+ *   - le dos-à-dos : les deuxième et troisième matchs de l'acte (`RANGS_DE_DOS_A_DOS`), joués sans jour de repos (`avancer`) ;
+ *   - leur coach en séries (V23 F, js/pieces.js `persoAdverse`) : sa pièce de départ, et son ombre hors de sa condition.
+ */
+const suiteDe = R => { let n = 0; for (let i = R.matchs.length - 1; i >= 0; i--) { const g = R.matchs[i].gagne; if (n && (n > 0) !== g) break; n += g ? 1 : -1; } return n; };
+function beteNoireDe(R) {
+  const perdus = new Map();
+  let bete = null;
+  for (const m of R.matchs) {
+    const k = cleDuClub(m);
+    if (m.gagne) { perdus.delete(k); if (bete === k) bete = null; } else { perdus.set(k, (perdus.get(k) || 0) + 1); if (!bete && perdus.get(k) >= 2) bete = k; }
+  }
+  return bete;
+}
+export const dosADosA = (c, rang) => !!c && (c.sorte === 'match' || c.sorte === 'elite') && RANGS_DE_DOS_A_DOS.includes(rang);
+/* Le registre des blessures suit l'infirmerie : un joueur soigné (le vestiaire, une histoire) ou parti n'y compte plus. */
+function accorderLeRegistre(S) {
+  const n = S.R.matchs.length, dernier = new Map();
+  for (const b of S.toi.injuriesLog || []) if (b.player && (!dernier.has(b.player) || dernier.get(b.player).at <= b.at)) dernier.set(b.player, b);
+  for (const [p, b] of dernier) b.games = Math.min(b.games, (S.toi.injured.get(p) || 0) + n - b.at);
+}
+function poserLeSoir(S, adv) {
+  const R = S.R, c = R.case, toi = S.toi;
+  accorderLeRegistre(S);
+  toi._suite = suiteDe(R);
+  toi.rivaux = c.sorte === 'rival' ? [adv] : null;
+  toi.beteNoire = beteNoireDe(R) === cleDuClub(c) ? adv : null;
+  adv.sonJeu = [styleDe(S, clubDe(S, c)).cle];
+  if (dosADosA(c, R.rang)) toi._jours = [0, 1];
+  if (c.sorte === 'serie') adv.persoSeries = persoAdverse(adv);
+}
+function leverLeSoir(S, adv) { delete S.toi._jours; adv.sonJeu = null; adv.persoSeries = null; }
+/* Leur coach, en séries : sa philosophie et sa pièce (l'écran le nomme sur la feuille du soir). */
+export const leurCoach = (S, c) => (c && c.sorte === 'serie' ? persoAdverse(clubDe(S, c).team) : null);
+/*
+ * TES PIÈCES DU SOIR : celles de ton banc dont la condition se lit avant le match (`soir`, js/pieces.js : le lieu, le jeu
+ * d'en face, ta suite, le dos-à-dos), contre le club d'une case — les moments tels que le moteur les lira. Une pièce qui
+ * attend le pointage (« En 3e, derrière ») ne se sait qu'en jouant.
+ */
+export function piecesDuSoir(S, c, rang = S.R.rang) {
+  const R = S.R, avant = [R.case, R.rang], adv = clubDe(S, c).team;
+  R.case = c; R.rang = rang;
+  poserLeSoir(S, adv);
+  const soir = momentsDuSoir(S.toi, adv, activeLineup(S.toi), { chez: !c.visiteur, series: c.sorte === 'serie', jour: 1 });
+  leverLeSoir(S, adv);
+  [R.case, R.rang] = avant;
+  return R.banc.filter(k => PIECES[k] && PIECES[k].soir && PIECES[k].quand({ k: 0, moi: 0, lui: 0, tirsMoi: 0, tirsLui: 0, der: null, series: !!soir.series, gros: c.sorte !== 'match', soir, pieces: [], relais: [] }));
 }
 
 /* ---------- le match ---------- */
@@ -408,12 +478,12 @@ function cleDuMatch(R) {
  */
 export function chanceCeSoir(S, { n = 40, tranche = 0 } = {}) {
   const R = S.R, adv = clubDe(S, R.case).team, e = etapeDe(R);
-  fraisEtSain(adv); habiller(adv, e);
+  fraisEtSain(adv); habiller(adv, e); poserLeSoir(S, adv);
   S.toi.jourCourant = R.matchs.length;
   effetsDesJoueurs(S.toi, R.matchs.length);
   const A = R.case.visiteur ? adv : S.toi, B = R.case.visiteur ? S.toi : adv;
   const vA = chanceDUnSoir({ A, B, n, graine: `chance:${R.graine}:${cleDuMatch(R)}:${tranche}` });
-  deshabiller(adv);
+  deshabiller(adv); leverLeSoir(S, adv);
   return { v: R.case.visiteur ? n - vA : vA, n };
 }
 /* Leur intention annoncée et les plans que ton banc propose se lisent par js/impact.js `plansDuDuel` (l'écran) ; ici, leur jeu du duel. */
@@ -425,7 +495,7 @@ export const intentionCeSoir = (S, dominante) => leurJeuDuDuel(S.toi, clubDe(S, 
  */
 export function jouerLeMatch(S, { plan, dominante = null } = {}) {
   const R = S.R, c = R.case, club = clubDe(S, c), adv = club.team, cle = cleDuMatch(R);
-  fraisEtSain(adv); habiller(adv, etapeDe(R));
+  fraisEtSain(adv); habiller(adv, etapeDe(R)); poserLeSoir(S, adv);
   S.toi.jourCourant = R.matchs.length;
   effetsDesJoueurs(S.toi, R.matchs.length);
   let res;
@@ -438,7 +508,7 @@ export function jouerLeMatch(S, { plan, dominante = null } = {}) {
     const r = avecHasardIsole(`run:${R.graine}:${cle}`, () => playGame(c.visiteur ? adv : S.toi, c.visiteur ? S.toi : adv, 1, false, false, f));
     res = { gagne: r.winner === S.toi, ot: !!r.ot, gf: c.visiteur ? r.gfB : r.gfA, ga: c.visiteur ? r.gfA : r.gfB, feuille: f };
   }
-  deshabiller(adv);
+  deshabiller(adv); leverLeSoir(S, adv);
   return { ...res, cote: c.visiteur ? 'B' : 'A', adv: club };
 }
 /* Les pièces de ton banc qui ont joué ce soir (à la feuille, ou en relais). */
@@ -593,10 +663,10 @@ export function apresLesPortes(S) {
   figer(S);
   return R.phase;
 }
-/* La case est faite : un jour de repos, et le rang suivant s'offre. */
+/* La case est faite : un jour de repos, et le rang suivant s'offre ; avant un dos-à-dos de l'acte, aucun repos. */
 export function avancer(S) {
   const R = S.R;
-  recupererEnergie(S.toi);
+  if (!RANGS_DE_DOS_A_DOS.includes(R.rang + 1)) recupererEnergie(S.toi);
   R.chemin = [...(R.chemin || []), R.ou];
   Object.assign(R, { rang: R.rang + 1, case: null, apres: null, marche: null, phase: 'carte' });
   figer(S);
@@ -710,7 +780,7 @@ const jouable = k => HISTOIRES[k].options.every(o => !o.canaux && !o.adv && !o.s
  * null si aucun fait n'est vrai. Rend { cle, H, f, joueur, joueurs } ; `joueur` est celui de ton club qu'elle nomme.
  */
 export function histoireDeLaCase(S) {
-  const f = faitsDeLaRun(S), cle = tirer(S.R.graine, 'lundi', f, S.R.histoires, { sansRythme: true, permis: jouable });
+  const f = faitsDeLaRun(S), cle = tirer(S.R.graine, 'lundi', f, S.R.histoires, { permis: jouable });
   if (!cle) return null;
   const H = HISTOIRES[cle], cles = (H.joueurs ? H.joueurs(f) : [H.joueur(f)]).filter(Boolean).map(x => x.cle);
   const auClub = k => Object.values(S.roster).find(p => p && getPlayerKey(p) === k) || null;
@@ -751,7 +821,8 @@ export function allerAuMatchDeSerie(S) {
 function conclureLaSerie(S, res) {
   const R = S.R, x = R.series;
   if (res.gagne) x.w++; else x.l++;
-  recupererEnergie(S.toi);
+  // Deux matchs en deux soirs, puis un jour de repos : les matchs pairs d'une série se jouent sur les jambes de la veille.
+  if ((x.w + x.l) % 2 === 0) recupererEnergie(S.toi);
   R.case = null;
   if (x.w === 3) {
     x.faites.push({ ...x.adv[x.ronde], w: x.w, l: x.l });
@@ -759,7 +830,7 @@ function conclureLaSerie(S, res) {
     if (x.ronde === 3) return finir(S, 'coupe');
   } else if (x.l === 3) {
     // Une série perdue coûte un cœur et se rejoue une fois contre le même club ; sans cœur, la run finit.
-    if (R.coeurs > 0 && x.essai === 0) { R.coeurs--; Object.assign(x, { essai: 1, w: 0, l: 0, rejouee: true }); } else return finir(S, 'serie');
+    if (R.coeurs > 0 && x.essai === 0) { R.coeurs--; Object.assign(x, { essai: 1, w: 0, l: 0 }); } else return finir(S, 'serie');
   }
   R.phase = 'series';
   figer(S);

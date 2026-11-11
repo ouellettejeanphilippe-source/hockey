@@ -39,6 +39,8 @@ const serre = e => Math.abs(e.moi - e.lui) <= 1;
 const perduAuxTirs = e => !!e.der && e.der.tirsMoi < e.der.tirsLui;
 const soirDe = (e, ...ms) => !!e.soir && ms.some(m => e.soir[m]);
 /* À domicile, ou à l'étranger, un soir sans dos-à-dos (41 soirs sur 82 en tout : la présence se règle sous la moitié). */
+/* Les soirs qui usent (la famille du Souffle) : deux matchs en deux soirs, les jambes lourdes, ou le rival au bout de l'acte. */
+const usant = e => soirDe(e, 'dosADos', 'jambesLourdes', 'rival');
 const chez = e => soirDe(e, 'domicile') && !soirDe(e, 'dosADos');
 const ailleurs = e => soirDe(e, 'visiteur') && !soirDe(e, 'dosADos');
 /* Le signal d'un relais : une autre pièce joue la période, ou une autre relaie (le second maillon). */
@@ -65,9 +67,9 @@ export const PIECES = {
     dit: 'Cinq gars au filet, des rebonds partout. Leur gardien va voir des abeilles.',
     quand: e => k3(e) && derriere(e), canaux: { volume: 1.35, finition: 1.05 } },
   /* ---------- l'Aigle ---------- */
-  riposte: { voie: 'rapaces', cadre: 2, genre: 'attaque', ico: '🦅', nom: 'La riposte', quandMot: 'Après une période perdue aux tirs, à deux buts près',
+  riposte: { voie: 'rapaces', cadre: 2, genre: 'attaque', ico: '🦅', nom: 'La riposte', quandMot: 'Après une période perdue aux tirs, à un but près',
     dit: 'Ils ont eu la rondelle ? Correct. La prochaine qu\'on touche, elle rentre.',
-    quand: e => perduAuxTirs(e) && Math.abs(e.moi - e.lui) <= 2, canaux: { finition: 1.28 } },
+    quand: e => perduAuxTirs(e) && serre(e), canaux: { finition: 1.34 } },
   tueur: { voie: 'rapaces', cadre: 3, genre: 'attaque', ico: '🗡', nom: 'Le tueur', quandMot: 'En 2e ou en 3e, en avance d\'un seul but',
     dit: 'Un but d\'avance, c\'est rien. Deux, c\'est un match. Va chercher le deuxième.',
     quand: e => e.k > 0 && e.moi - e.lui === 1, canaux: { finition: 1.3 } },
@@ -77,10 +79,10 @@ export const PIECES = {
   /* ---------- la Tortue ---------- */
   verrou: { voie: 'tortue', cadre: 2, genre: 'defense', ico: '🐢', nom: 'Le verrou', quandMot: 'En 2e ou en 3e, en avance d\'un ou deux buts',
     dit: 'On a le but. Maintenant, on ferme la porte et on jette la clé.',
-    quand: e => e.k > 0 && e.moi > e.lui && e.moi - e.lui <= 2, canaux: { defense: 0.85 } },
+    quand: e => e.k > 0 && e.moi > e.lui && e.moi - e.lui <= 2, canaux: { defense: 0.78 } },
   tranchee: { voie: 'tortue', cadre: 3, genre: 'defense', ico: '⛏', nom: 'La tranchée', quandMot: 'En 1re, à l\'étranger, sans dos-à-dos',
     dit: 'Leur foule veut un but en partant. On va leur faire attendre longtemps.',
-    quand: e => e.k === 0 && ailleurs(e), adv: { volume: 0.75 } },
+    quand: e => e.k === 0 && ailleurs(e), adv: { volume: 0.7 } },
   forteresse: { voie: 'tortue', cadre: 4, genre: 'defense', ico: '🏰', nom: 'La forteresse', quandMot: 'En 3e, quand tu mènes',
     dit: 'Vingt minutes. Personne dans l\'enclave, personne derrière nous.',
     quand: e => k3(e) && mene(e), canaux: { defense: 0.7 }, adv: { volume: 0.8 } },
@@ -90,14 +92,14 @@ export const PIECES = {
     quand: e => k3(e) && e.moi <= e.lui && e.lui - e.moi <= 1, canaux: { robustesse: 3.1 }, adv: { finition: 0.9 } },
   choc: { voie: 'rhinos', cadre: 3, genre: 'tactique', ico: '💥', nom: 'Le choc', quandMot: 'En 1re, à domicile, sans dos-à-dos',
     dit: 'La première présence, tu finis ta mise en échec. La foule va s\'occuper du reste.',
-    quand: e => e.k === 0 && chez(e), canaux: { robustesse: 2.8 }, adv: { finition: 0.94 } },
+    quand: e => e.k === 0 && chez(e), canaux: { robustesse: 3.1 }, adv: { finition: 0.94 } },
   charge: { voie: 'rhinos', cadre: 4, genre: 'attaque', ico: '🐂', nom: 'La charge', quandMot: 'En 3e, derrière',
     dit: 'On défonce la porte. Au filet, et fort.',
     quand: e => k3(e) && derriere(e), canaux: { volume: 1.25, robustesse: 1 }, adv: { finition: 0.88 } },
   /* ---------- le Doc ---------- */
-  souffle: { voie: 'souffle', cadre: 2, genre: 'defense', ico: '🫁', nom: 'Le second souffle', quandMot: 'En 3e, un soir de dos-à-dos ou de jambes lourdes',
+  souffle: { voie: 'souffle', cadre: 2, genre: 'defense', ico: '🫁', nom: 'Le second souffle', quandMot: 'En 3e : dos-à-dos, jambes lourdes ou contre le rival',
     dit: 'Ils sont aussi brûlés que nous. La différence, c\'est qu\'on s\'est préparés pour ça.',
-    quand: e => k3(e) && soirDe(e, 'dosADos', 'jambesLourdes'), canaux: { volume: 1.2, defense: 0.78 } },
+    quand: e => k3(e) && usant(e), canaux: { volume: 1.2, defense: 0.78 } },
   rotation: { voie: 'souffle', cadre: 3, genre: 'defense', ico: '🩺', nom: 'La rotation', quandMot: 'À l\'étranger, sans dos-à-dos', soir: true,
     dit: 'Des présences courtes, on ne force personne. Personne ne revient de voyage sur une civière.',
     quand: ailleurs, canaux: { blessure: 0.6 } },
@@ -118,9 +120,9 @@ export const PIECES = {
   quatre: { voie: 'profondeur', cadre: 2, genre: 'defense', ico: '🪜', nom: 'Les quatre trios', quandMot: 'En 2e ou en 3e, à égalité',
     dit: 'Le quatrième trio saute sur la glace comme le premier. C\'est comme ça qu\'on gagne en troisième.',
     quand: e => e.k > 0 && e.moi === e.lui, canaux: { F: [0.8, 0.95, 1.2, 1.45], defense: 0.82 } },
-  atelier: { voie: 'profondeur', cadre: 3, genre: 'defense', ico: '🛠', nom: 'L\'atelier', quandMot: 'Un soir de dos-à-dos ou de jambes lourdes', soir: true,
+  atelier: { voie: 'profondeur', cadre: 3, genre: 'defense', ico: '🛠', nom: 'L\'atelier', quandMot: 'Dos-à-dos, jambes lourdes ou contre le rival', soir: true,
     dit: 'On a regardé la vidéo dans l\'autobus. Chacun sait où aller.',
-    quand: e => soirDe(e, 'dosADos', 'jambesLourdes'), canaux: { volume: 1.12, defense: 0.93 } },
+    quand: usant, canaux: { volume: 1.12, defense: 0.93 } },
   releve: { voie: 'profondeur', cadre: 4, genre: 'attaque', ico: '🔄', nom: 'La relève', quandMot: 'En 3e, derrière',
     dit: 'Tout le monde joue, tout le monde pousse. On roule les quatre trios jusqu\'au bout.',
     quand: e => k3(e) && derriere(e), canaux: { F: [0.8, 0.95, 1.2, 1.45], volume: 1.35, finition: 1.1 } },
@@ -151,10 +153,10 @@ export const PIECES = {
     dit: 'Finis tes mises en échec. Ils vont lever la tête, et c\'est là qu\'ils vont rater.',
     quand: ailleurs, canaux: { robustesse: 1.6, discipline: 1.4 }, adv: { finition: 0.98 },
     relais: { mot: 'Après une période perdue aux tirs', quand: perduAuxTirs, cote: 'canaux', canal: 'robustesse' } },
-  preparateur: { voie: 'souffle', cadre: 1, genre: 'defense', ico: '🏃', nom: 'Le préparateur', quandMot: 'Un soir de dos-à-dos ou de jambes lourdes', soir: true,
+  preparateur: { voie: 'souffle', cadre: 1, genre: 'defense', ico: '🏃', nom: 'Le préparateur', quandMot: 'Dos-à-dos, jambes lourdes ou contre le rival', soir: true,
     dit: 'Des présences courtes, du repos, de l\'eau. On ne gagne rien à l\'infirmerie.',
-    quand: e => soirDe(e, 'dosADos', 'jambesLourdes'), canaux: { blessure: 0.6, energie: 0.85, volume: 0.95 },
-    relais: { mot: 'Un soir de dos-à-dos, de jambes lourdes ou d\'infirmerie pleine', quand: e => soirDe(e, 'dosADos', 'jambesLourdes', 'infirmerie'), cote: 'canaux', canal: 'blessure' } },
+    quand: usant, canaux: { blessure: 0.6, energie: 0.85, volume: 0.95 },
+    relais: { mot: 'Quand l\'infirmerie déborde', quand: e => soirDe(e, 'infirmerie'), cote: 'canaux', canal: 'blessure' } },
   moine: { voie: 'choeur', cadre: 1, genre: 'tactique', ico: '🧘', nom: 'Le moine', quandMot: 'Après trois victoires ou un soir de dos-à-dos', soir: true,
     dit: 'Les bâtons sur la glace, la bouche fermée. L\'arbitre ne nous verra pas de la soirée.',
     quand: e => soirDe(e, 'enFeu', 'dosADos'), canaux: { discipline: 0.7, robustesse: -1, volume: 0.97 },
@@ -185,8 +187,8 @@ export const PIECES = {
     quand: ailleurs, canaux: { discipline: 0.8 }, adv: { discipline: 1.15 },
     relais: { mot: 'Quand une autre pièce relaie', quand: unRelais('arbitre'), chaine: true, cote: 'adv', canal: 'discipline' } },
 };
-/* Les pièces qui répondent aux lignes où un club est fort (js/actes.js `lignesFortes`) : « Pour le battre », sous l'annonce d'un duel. */
-export const piecesContre = fortes => Object.keys(PIECES).filter(k => fortes.includes(PIECES[k].contre));
+/* Les pièces qui répondent au style d'un club (js/actes.js `jeuDuRival` : sa ligne au meilleur rang) : « Pour le battre », sous son annonce. */
+export const piecesContre = styles => Object.keys(PIECES).filter(k => styles.includes(PIECES[k].contre));
 /* La pièce de départ de chaque coach : le premier pouvoir de sa philosophie, à sa maîtrise ; leur coach en séries la joue aussi. */
 export const PIECE_DU_COACH = { essaim: 'ruee', rapaces: 'riposte', tortue: 'verrou', rhinos: 'usure', souffle: 'souffle', choeur: 'sangfroid', profondeur: 'quatre', etoiles: 'spectacle' };
 
@@ -206,8 +208,6 @@ export function poserLaPiece(banc, cle, sort = null) {
   const i = b.indexOf(sort);
   return i < 0 ? b : b.map((k, j) => (j === i ? cle : k));
 }
-/* Le banc est-il plein ? Alors une pièce neuve demande celle qui sort. */
-export const bancPlein = perso => bancDe(perso).length >= CASES_DU_BANC;
 /*
  * LA RARETÉ D'UNE PIÈCE (JP, 8 nov. 2026 : l'arbitre devient une pièce rare). Une pièce `rarete: 'rare'` garde sa force,
  * mais pèse `POIDS_RARE` au tirage des offres (une ordinaire : 1) : chaque offre range les pièces par une course
@@ -231,7 +231,7 @@ export function piecesOffertes(perso, graine, cle, n = PIECES_OFFERTES, { voisin
 
 /* ---------- le jeu d'une période ---------- */
 /* Un effet grandi : chaque canal s'écarte de 1 (ou de 0, la robustesse) `f` fois plus. */
-export function grandir(effet, f) {
+function grandir(effet, f) {
   if (!effet) return null;
   const out = {};
   for (const [k, v] of Object.entries(effet)) {

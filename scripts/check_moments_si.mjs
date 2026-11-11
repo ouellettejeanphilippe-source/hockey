@@ -8,24 +8,36 @@
  *      soir où son moment arrive : la saison diverge au plus tôt ce soir-là, jamais avant.
  *   2. RIEN D'AVANCE : les moments d'un soir sont ceux d'une ligue jouée jusqu'à lui ; jouée jusqu'au bout, la même
  *      ligue dit les mêmes moments de ce soir-là.
- *   3. CHAQUE MOMENT REVIENT : dans une saison de run (le robot attentif, un club par graine), un moment courant est
- *      vrai pour ton club au moins `MIN_PAR_SAISON` soirs (en médiane) ; un moment rare (les séries, la bête noire, le
- *      duel, qui compte ses périodes) arrive au moins une fois dans les saisons mesurées. Un moment qui n'arrive jamais
- *      ferait une carte morte ; un moment vrai presque tous les soirs n'en est pas un (`PART_MAX`). Un moment `choix` (jouer un blessé) dépend d'un geste que les robots ne font pas : il
- *      est nommé, pas compté.
+ *   3. CHAQUE MOMENT REVIENT : dans une run en carte (le robot malin, scripts/lib/run_robot.mjs, une run par graine), un
+ *      moment courant est vrai pour ton club au moins `MIN_PAR_RUN` soir (en médiane) ; un moment rare (les séries, la
+ *      bête noire, le duel, qui compte ses périodes) arrive au moins une fois dans les runs mesurées. Un moment qui
+ *      n'arrive jamais ferait une carte morte ; un moment vrai presque tous les soirs n'en est pas un (`PART_MAX`). Un
+ *      moment `choix` (jouer un blessé) dépend d'un geste que les robots ne font pas : il est nommé, pas compté.
+ *      La run joue des matchs isolés, sans cédule : elle pose elle-même le soir sur les deux clubs (js/run.js
+ *      `poserLeSoir` : le rival, le jeu d'en face, ta suite, la bête noire, l'infirmerie, les dos-à-dos de « trois matchs
+ *      en trois soirs »). Un écart à la saison de 82 soirs se NOMME, avec sa raison, et le juge échoue s'il cesse d'être
+ *      vrai : un moment rare dans une run (`RARES_DANS_LA_RUN`), un moment vrai presque tous les soirs (`TROP_DANS_LA_RUN`).
  *
- *   node scripts/check_moments_si.mjs        (GRAINES=1,2,3,4 par défaut : un club par graine)
+ *   node scripts/check_moments_si.mjs        (GRAINES=1,2,3,4,5,6,7,8 par défaut : une run par graine)
  */
 import { MOMENTS_SI, effetsDeSaison, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { jouerSaison, shard, metaAuNiveau } from './lib/rogue_sim.mjs';
-import { NIVEAUX_PLEINS } from '../js/rogue.js';
+import { jouerLaRun } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
-const MIN_PAR_SAISON = 3;
-// Un moment vrai presque tous les soirs n'en est pas un : au plus les trois quarts des soirs d'une saison.
+// Trois soirs sur une saison de 82 (la borne d'avant), ramenés à une run d'une vingtaine de soirs : un soir par run.
+const MIN_PAR_RUN = 1;
+// Un moment vrai presque tous les soirs n'en est pas un : au plus les trois quarts des soirs d'une run.
 const PART_MAX = 0.75;
-const GRAINES = (process.env.GRAINES || '1,2,3,4').split(',').map(Number);
+const GRAINES = (process.env.GRAINES || '1,2,3,4,5,6,7,8').split(',').map(Number);
+/*
+ * UN ÉCART NOMMÉ (V28, tranche 4, « le banc remesuré » ; mesuré le 11 nov. 2026 sur des runs du robot malin). Une run fait
+ * une vingtaine de soirs coupés d'arrêts : deux blessés à la fois y sont rares (l'infirmerie, 5 à 10 % des soirs). Elle se
+ * juge comme un moment rare ; une seule pièce la lit, en relais (🏃 le préparateur). `TROP_DANS_LA_RUN` nommerait un moment
+ * vrai presque tous les soirs : depuis « trois matchs en trois soirs », plus aucun (les jambes fraîches, 73 % des soirs).
+ */
+const RARES_DANS_LA_RUN = { infirmerie: 'deux blessés à la fois : une run d\'une vingtaine de soirs en voit peu' };
+const TROP_DANS_LA_RUN = {};
 const CLES = Object.keys(MOMENTS_SI);
 const med = a => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor((b.length - 1) / 2)] : 0; };
 
@@ -103,19 +115,17 @@ function soirs(L) {
 /* ---------- 3. Chaque moment revient ---------- */
 {
   const parMoment = Object.fromEntries(CLES.map(k => [k, []]));
-  const clubs = Object.values(shard('2005-06').byTeam).filter(ps => ps.length >= 23);
-  const joue = (i, graine) => {
-    const joueurs = clubs[i % clubs.length].filter(p => (p.gp || 0) >= 10).map(p => ({ ...p }));
-    const etat = { roster: autoRoster(joueurs), variantes: new Map(), jetons: 0 };
-    const r = jouerSaison(metaAuNiveau(0), etat, { graine, saison: 1, politique: 'attentif', ligue: NIVEAUX_PLEINS });
+  parMoment.soirs = [];
+  const joue = graine => {
     const n = Object.fromEntries(CLES.map(k => [k, 0]));
     let soirsJoues = 0;
-    for (const jour of r.L.calendrier) for (const m of jour) {
-      if (!m.feuille || (m.A !== r.you && m.B !== r.you)) continue;
+    jouerLaRun('malin', graine, { espion: (quoi, S, res) => {
+      if (quoi !== 'match') return;
       soirsJoues++;
-      for (const k of m.feuille.moments[cote(m, r.you)] || []) if (k in n) n[k]++;
+      const f = res.feuille;
+      for (const k of (f.moments && f.moments[res.cote]) || []) if (k in n) n[k]++;
       // Le duel : l'intention de chaque période, et la 3e selon le pointage après deux.
-      const du = m.feuille.duel;
+      const du = f.duel;
       if (du && du.periodes) {
         for (const P of du.periodes) if (P.intention && P.intention.cle in n) n[P.intention.cle]++;
         if (du.periodes.length >= 2) {
@@ -123,27 +133,34 @@ function soirs(L) {
           n[moi > lui ? 'mene' : moi === lui ? 'egal' : 'derriere']++;
         }
       }
-    }
+    } });
     for (const k of CLES) parMoment[k].push(n[k]);
-    parMoment.soirs = [...(parMoment.soirs || []), soirsJoues];
+    parMoment.soirs.push(soirsJoues);
   };
-  GRAINES.forEach((g, i) => joue(i, g));
+  GRAINES.forEach(joue);
   const somme = a => a.reduce((x, y) => x + y, 0);
-  // Les séries se jouent hors du calendrier de la saison (`jouerSaison`) : `check_si` les éprouve (le printemps).
-  const courants = CLES.filter(k => !MOMENTS_SI[k].rare && !MOMENTS_SI[k].choix), rares = CLES.filter(k => MOMENTS_SI[k].rare && k !== 'series');
-  // UN RARE PEUT MANQUER PAR TIRAGE (oct. 2026) : la chasse est 2 % des périodes de duel (0,3 de score sauf un club sans dur ou
-  // un marqueur chaud) ; sur quatre saisons, une graine en donnait deux, un dé de plus dans le moteur zéro. Tant qu'un rare
-  // manque, on joue d'autres saisons, quatre au plus : un moment rare qui n'arrive jamais en huit saisons est mort.
-  const SAISONS_DE_PLUS = 4;
-  for (let g = 1; g <= SAISONS_DE_PLUS && rares.some(k => somme(parMoment[k]) < 1); g++) joue(GRAINES.length + g - 1, GRAINES.length + g);
-  informer('les soirs par saison (médiane ; les rares, au total)', [...courants.map(k => `${k} ${med(parMoment[k])}`), ...rares.map(k => `${k} Σ${somme(parMoment[k])}`)].join(' · '));
+  const rare = k => !!MOMENTS_SI[k].rare || k in RARES_DANS_LA_RUN;
+  const courants = CLES.filter(k => !rare(k) && !MOMENTS_SI[k].choix), rares = CLES.filter(rare);
+  // UN RARE PEUT MANQUER PAR TIRAGE (oct. 2026) : la chasse est 2 % des périodes de duel. Tant qu'un rare manque, on joue
+  // d'autres runs, quatre au plus : un moment rare qui n'arrive jamais en douze runs est mort.
+  const RUNS_DE_PLUS = 4;
+  for (let g = 1; g <= RUNS_DE_PLUS && rares.some(k => somme(parMoment[k]) < 1); g++) joue(Math.max(...GRAINES) + g);
+  const nSoirs = somme(parMoment.soirs);
+  exiger('des runs sont jouées, et leurs soirs lus', parMoment.soirs.length >= GRAINES.length && nSoirs >= 10 * GRAINES.length, `${parMoment.soirs.length} runs, ${nSoirs} soirs`);
+  informer('les soirs par run (médiane ; les rares, au total)', [...courants.map(k => `${k} ${med(parMoment[k])}`), ...rares.map(k => `${k} Σ${somme(parMoment[k])}`)].join(' · '));
   informer('dépend d\'un choix du joueur, pas compté', CLES.filter(k => MOMENTS_SI[k].choix).join(', '));
-  const peu = courants.filter(k => med(parMoment[k]) < MIN_PAR_SAISON), jamais = rares.filter(k => somme(parMoment[k]) < 1);
-  exiger(`chaque moment courant revient au moins ${MIN_PAR_SAISON} fois par saison de run`, peu.length === 0, peu.map(k => `${k} ${med(parMoment[k])}`).join(' · ') || `${courants.length} moments, ${GRAINES.length} saisons`);
+  informer('rare dans une run', Object.entries(RARES_DANS_LA_RUN).map(([k, r]) => `${k} (${somme(parMoment[k])} soirs sur ${nSoirs}) : ${r}`).join(' · '));
+  informer('vrai presque tous les soirs de la run', Object.entries(TROP_DANS_LA_RUN).map(([k, r]) => `${k} (${somme(parMoment[k])} soirs sur ${nSoirs}) : ${r}`).join(' · ') || 'aucun');
+  const peu = courants.filter(k => med(parMoment[k]) < MIN_PAR_RUN), jamais = rares.filter(k => somme(parMoment[k]) < 1);
+  exiger(`chaque moment courant revient au moins ${MIN_PAR_RUN} fois par run`, peu.length === 0, peu.map(k => `${k} ${med(parMoment[k])}`).join(' · ') || `${courants.length} moments, ${parMoment.soirs.length} runs`);
   // Le lieu est la moitié des soirs par construction : il n'est pas jugé ici.
-  const partout = courants.filter(k => !['domicile', 'visiteur'].includes(k) && med(parMoment[k]) > PART_MAX * med(parMoment.soirs));
-  exiger(`aucun moment courant n'est vrai plus des trois quarts des soirs`, partout.length === 0, partout.map(k => `${k} ${med(parMoment[k])} sur ${med(parMoment.soirs)}`).join(' · ') || `sur ${med(parMoment.soirs)} soirs`);
-  exiger('chaque moment rare arrive au moins une fois', jamais.length === 0, jamais.join(', ') || `${rares.length} moments rares, ${parMoment.soirs.length} saisons`);
+  const partout = courants.filter(k => !['domicile', 'visiteur'].includes(k) && !(k in TROP_DANS_LA_RUN) && somme(parMoment[k]) > PART_MAX * nSoirs);
+  exiger('aucun autre moment courant n\'est vrai plus des trois quarts des soirs', partout.length === 0, partout.map(k => `${k} ${somme(parMoment[k])} sur ${nSoirs}`).join(' · ') || `sur ${nSoirs} soirs`);
+  exiger('chaque moment rare arrive au moins une fois', jamais.length === 0, jamais.join(', ') || `${rares.length} moments rares, ${parMoment.soirs.length} runs`);
+  // LES ÉCARTS NE POURRISSENT PAS : un moment redevenu courant, ou qui n'est plus vrai partout, quitte sa liste.
+  const courantsRevenus = Object.keys(RARES_DANS_LA_RUN).filter(k => med(parMoment[k]) >= MIN_PAR_RUN), calmes = Object.keys(TROP_DANS_LA_RUN).filter(k => somme(parMoment[k]) <= PART_MAX * nSoirs);
+  exiger('les écarts nommés sont encore vrais (sinon : retire-les de RARES_DANS_LA_RUN ou de TROP_DANS_LA_RUN)', !courantsRevenus.length && !calmes.length && [...Object.keys(RARES_DANS_LA_RUN), ...Object.keys(TROP_DANS_LA_RUN)].every(k => k in MOMENTS_SI),
+    [...courantsRevenus.map(k => `${k} revient chaque run (médiane ${med(parMoment[k])})`), ...calmes.map(k => `${k} n'est plus vrai partout`)].join(' · ') || `${Object.keys(RARES_DANS_LA_RUN).length} rare, ${Object.keys(TROP_DANS_LA_RUN).length} trop présent`);
 }
 
 verdict('Les moments');

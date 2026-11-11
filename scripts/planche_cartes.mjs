@@ -13,7 +13,6 @@
  *   cartes-fiche-1.png, -2.png   le carton à la taille de la fiche, une série chacune ;
  *   cartes-mini.png              la carte mini des choix (`carteMiniHtml`) ;
  *   cartes-verso.png             le dos de la fiche, cinq séries ;
- *   cartes-banque.png            les cartes de la banque, par catégorie (js/banque.js) ;
  *   cartes-actions.png           avec --actions : les séries modernes, en Cadre
  *                                (le portrait) puis en édition haute (la photo
  *                                d'action, <dossier>/<id>.webp, au format 5:7) ;
@@ -171,23 +170,6 @@ await planche(page, 'verso', 5, 330, async p => {
   document.querySelector('#hockeyCardModal .close-btn, #hockeyCardModal [data-fermer]')?.click();
 });
 
-
-// 6 bis. Les cartes de la banque (V3) : une rangée par catégorie, de la commune à la légendaire, dans leur costume.
-await planche(page, 'banque', 6, 212, async p => {
-  const { BANQUE, reglesDe, CATEGORIES } = await import('/js/banque.js');
-  const { puces } = await import('/js/gerant.js');
-  const { carteHtml } = await import('/js/cartes.js');
-  const esc = t => String(t).replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));
-  for (const cat of ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'saison']) {
-    const ids = Object.keys(BANQUE).filter(id => BANQUE[id].cat === cat);
-    const choix = [1, 2, 3, 4].flatMap(k => ids.filter(id => BANQUE[id].niveau === k).slice(0, 2)).slice(0, 6);
-    for (const id of choix) {
-      const c = BANQUE[id], d = document.createElement('div');
-      d.innerHTML = carteHtml({ cle: id, niveau: c.niveau, ico: c.ico, nomHtml: esc(c.nom), typeHtml: esc(CATEGORIES[c.cat].un), texteHtml: esc(c.texte || ''), pucesHtml: puces(reglesDe(id)), famille: c.cat });
-      p.appendChild(d.firstElementChild);
-    }
-  }
-});
 
 // 7. Les photos d'action, si on en a.
 if (ACTIONS) {

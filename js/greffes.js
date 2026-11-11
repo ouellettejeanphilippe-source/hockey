@@ -20,10 +20,8 @@ import { PIECES, PIECE_DU_COACH, bancDe, poserLaPiece, bancDuSoir, bancDeLaPerio
 import { COACHS, coachDesRoles } from './coachs.js';
 import { HISTOIRES, nomDOption } from './histoires.js';
 import { FENETRE_JOUEUR } from './faits.js';
-import { SEMAINE } from './inventaire.js';
 import { nomCourt } from './recit.js';
-import { pct3 } from './util.js';
-import { estD, hache } from './util.js';
+import { estD, hache, pct3, SEMAINE } from './util.js';
 import {
   brancherGreffes, SLOTS, getPlayerKey, famillesDe, profilsDe, badgeGardien, apresMatchs, JOUR_SERIES, jourDeSerie,
   rendreJambes, MOMENTS_SI, deDuPari, cleDuPari, effetsDesJoueurs, activeLineup, ENV_MESURE,
@@ -167,21 +165,6 @@ function texteDuVerdict(t, s, depuis, avant) {
   const unite = s.mesure === 'arrets' ? 'départ' : 'match';
   return `${nomCourt(s.joueur.n)} : ${apres} depuis « ${nomDOption(HISTOIRES[s.cle].options.find(o => o.cle === s.choix) || { nom: s.choix }, s.joueur)} » ; ${s.mesure === 'sante' ? `${y.m} ${unite}${y.m > 1 ? 's' : ''} joués avant` : `${motDeMesure(s, y)} avant`}.`;
 }
-/*
- * OÙ EN EST UNE PROMESSE (oct. 2026) : ses matchs joués depuis le choix et ce que leurs feuilles disent déjà (`n`), avec ce
- * qu'elles disaient avant le dernier (`avant`, et `bouge` quand la ligne change) : l'écran le dit chaque matin, à sa maison,
- * et Hier soir quand il bouge. Pur.
- */
-export function suivisEnCours(team) {
-  const j = feuillesDuClub(team);
-  return (team.suivis || []).filter(s => !s.fait).map(s => {
-    const f = j.slice(s.matchs0, s.matchs0 + s.duree);
-    const n = mesureDuSuivi(s, f), avant = mesureDuSuivi(s, f.slice(0, -1));
-    return { ...s, n, avant, joues: f.length, bouge: motDeMesure(s, n) !== motDeMesure(s, avant) };
-  });
-}
-/* Une promesse en une ligne de vrais chiffres : « 🥶 La disette · Bure : 2 buts, 15 tirs en 4 matchs · 4/8 matchs ». */
-export const lignePromesse = x => `${x.ico} ${x.titre} · ${nomCourt(x.joueur.n)} : ${motDeMesure(x, x.n)} · ${x.joues}/${x.duree} matchs`;
 /* Le joueur d'une promesse est-il encore à toi ? Échangé, relâché, réclamé : la promesse ne peut plus se tenir. */
 const encoreChezToi = (t, p) => Object.values(t.roster || {}).some(x => x && getPlayerKey(x) === getPlayerKey(p));
 /* Le verdict de chaque promesse finie, le lundi (en séries, le lendemain) : un message de la même voix, dans `t.retours`. */

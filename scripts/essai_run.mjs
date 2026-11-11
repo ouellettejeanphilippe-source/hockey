@@ -43,7 +43,7 @@ await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.evaluate(() => { try { localStorage.clear(); } catch { /* rien à vider */ } });
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
-const ouvrir = async () => { await page.click('#menuDepart [data-menu="run"]'); await page.waitForSelector('#runModal .rn-plan [data-a]', { timeout: 60000 }); };
+const ouvrir = async () => { await page.click('#menuDepart [data-menu="rogue"]'); await page.waitForSelector('#runModal .rn-plan [data-a]', { timeout: 60000 }); };
 await ouvrir();
 
 const run = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_run') || 'null'); } catch { return null; } });

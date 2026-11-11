@@ -2,23 +2,19 @@
  * LES JOUEURS (V7, docs/refonte-v7.md). JP : *même EHM, qui a cent fois plus d'infos, est plus clair*. Une question :
  * qui j'ai, et dans quel état ? L'effectif en un tableau, à la EHM : où il joue, ses jambes, ce qu'il a fait (ta saison
  * à ce jour, ou sa vraie saison), son salaire. Les avants, les défenseurs, les gardiens. Un en-tête trie ; un nom
- * ouvre la fiche. Rien d'autre : les lignes se règlent dans l'onglet Lignes. En Rogue, le filtre 🩹 est l'infirmerie (V18-5,
- * docs/ecrans-rogue.md ; EHM : les blessés vivent dans l'effectif) : qui est blessé, qui joue sa case, ce qui le soigne.
+ * ouvre la fiche. Rien d'autre : les lignes se règlent dans l'onglet Lignes.
  *
  * Des vraies stats seulement (PJ, B, A, PTS, +/−, tirs, précision, mises en échec et blocs quand la ligue les comptait ;
  * V, D, % d'arrêts, moyenne, et les départs de qualité comptés dans tes feuilles), jamais une cote.
  */
 import { SLOTS, badgesDe, PALIERS, getPlayerKey } from './sim.js';
 import { esc, money, pct3, virgule } from './util.js';
-import { $, G, capHitDuJour, displayStats, headshotHtml } from './game.js';
-import { hubActif } from './coquille.js';
+import { $, G, blessesAuJour, capHitDuJour, displayStats, headshotHtml } from './game.js';
 import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
-import { blessesAuJour } from './rogue-jeu.js';
-import { slotShort, cartonDe, varsEquipe } from './repechage.js';
-import { carteLigne, grille, jetons, coin } from './composants.js';
+import { slotShort } from './repechage.js';
 
 const GROUPES = [['F', 'Avants'], ['D', 'Défenseurs'], ['G', 'Gardiens']];
-const etat = { groupe: 'F', source: 'saison', tri: { F: ['pts', false], D: ['pts', false], G: ['pctArr', false], B: ['pts', false] } };
+const etat = { groupe: 'F', source: 'saison', tri: { F: ['pts', false], D: ['pts', false], G: ['pctArr', false] } };
 
 const pct1 = x => `${virgule((x * 100).toFixed(1))}`;
 /* Ce qu'il a fait : ta saison à ce jour (les feuilles révélées), sinon sa vraie saison. */
@@ -41,8 +37,6 @@ const COLONNES = {
   F: [['jambes', 'Jambes'], ['pj', 'PJ'], ['tg', 'TG'], ['b', 'B'], ['a', 'A'], ['pts', 'PTS'], ['pm', '+/−'], ['tirs', 'Tirs'], ['pctTir', '% tir'], ['coups', 'MÉ'], ['blocs', 'BL'], ['sal', '$']],
   G: [['jambes', 'Jambes'], ['pj', 'PJ'], ['v', 'V'], ['d', 'D'], ['pctArr', '% arr.'], ['moy', 'Moy.'], ['dq', 'DQ'], ['sal', '$']],
 };
-/* Nov. 2026 (JP : *where the infos are*) : en Rogue, six colonnes, jamais un glissement — le reste vit à la fiche du joueur. */
-const COURTES = { F: ['jambes', 'pj', 'pts', 'pm', 'sal'], G: ['jambes', 'pj', 'pctArr', 'moy', 'sal'] };
 const FORMAT = {
   pm: x => (x > 0 ? `+${x}` : x < 0 ? `−${-x}` : '0'),
   pctTir: x => (x == null ? '—' : pct1(x)),
@@ -61,10 +55,8 @@ export function remplirJoueurs() {
   if (!host) return;
   const L = G.ligue, jour = Math.min(G.journee || 0, L && L.calendrier ? L.calendrier.length : 0);
   const enSaison = !!(L && L.you && jour > 0);
-  // En Rogue (le contenu de zéro, 4 nov. 2026), la grille lit ta saison ; la vraie saison vit au verso de la carte et à la fiche.
-  if (G.bonus === 'ROGUE') etat.source = 'saison';
   const compte = enSaison && etat.source === 'saison' ? compteRevele('jour') : null;
-  const energie = (G.banc && G.banc.energie) || (L && L.you && ((L.you.jourLignes || [])[jour] || {}).energie) || null;
+  const energie = (L && L.you && ((L.you.jourLignes || [])[jour] || {}).energie) || null;
   const blesses = new Map(enSaison ? blessesAuJour(jour).map(b => [b.p, b.reste]) : []);
   const rangees = SLOTS.filter(s => G.roster[s.i]).map(s => {
     const p = G.roster[s.i];
@@ -73,7 +65,7 @@ export function remplirJoueurs() {
   const groupeDe = r => (r.p.p === 'G' ? 'G' : r.p.p === 'D' ? 'D' : 'F');
   const g = etat.groupe;
   // Les départs de qualité se comptent dans tes feuilles : la vraie saison d'un gardien ne les a pas.
-  const cols = COLONNES[g === 'G' ? 'G' : 'F'].filter(([k]) => (k !== 'jambes' || energie) && (k !== 'dq' || compte) && (G.bonus !== 'ROGUE' || COURTES[g === 'G' ? 'G' : 'F'].includes(k)));
+  const cols = COLONNES[g === 'G' ? 'G' : 'F'].filter(([k]) => (k !== 'jambes' || energie) && (k !== 'dq' || compte));
   const [cle, asc] = etat.tri[g];
   const val = r => { const v = r.st[cle]; return v == null ? -Infinity : v; };
   const vues = rangees.filter(r => groupeDe(r) === g).sort((x, y) => (asc ? val(x) - val(y) : val(y) - val(x)) || x.s.i - y.s.i);
@@ -83,69 +75,22 @@ export function remplirJoueurs() {
     return `<div class="jr-qui"><span class="rond-visage jr-visage" aria-hidden="true">${headshotHtml(r.p)}</span><div class="jr-qui-txt"><button type="button" class="jr-nom" data-i="${r.s.i}"><b>${esc(r.p.n)}</b>${bl ? ` <span class="jr-bl" title="Blessé">🩹 ${bl} m.</span>` : ''}</button>
       <small class="jr-sous">${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}" title="${esc(`${b.nom} ${PALIERS[b.palier].nom}`)}">${b.ico}</i>` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}</small></div></div>`;
   };
-  // V12-3 : les rappels (le club-école, un ancien, l'échange d'un doublon) se jouent ici, sous le tableau ; jouée, on revient ici.
-  const hub = enSaison ? hubActif() : null, maison = hub && hub.maison;
-  // V18-5 : l'infirmerie (l'écran de saison prête ses blessés du jour, js/saison.js `infirmerieHtml`) et ses cartes de soin.
-  const infirmerie = hub && hub.infirmerie;
-  if (g === 'B' && !infirmerie) etat.groupe = 'F';
-  if (etat.groupe !== g) { remplirJoueurs(); return; }
-  const filtres = [...GROUPES.map(([k, t]) => [k, t, rangees.filter(r => groupeDe(r) === k).length]), ...(infirmerie ? [['B', '🩹 Blessés', blesses.size]] : [])];
   const barre = `<div class="jr-barre">
-      ${jetons(filtres.map(([cle, mot, n]) => ({ cle, mot, n, on: cle === g })), 'groupe')}
-      ${enSaison && g !== 'B' ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
+      <div class="seg" role="tablist">${GROUPES.map(([k, t]) => `<button type="button" role="tab" data-groupe="${k}" class="${k === g ? 'on' : ''}" aria-selected="${k === g}">${t} <span>${rangees.filter(r => groupeDe(r) === k).length}</span></button>`).join('')}</div>
+      ${enSaison ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
     </div>`;
-  // LE PLATEAU : en Rogue, les filtres sont des jetons (js/composants.js), les blessés sur le rouge ; la source aussi.
-  // Le contenu, de zéro (4 nov. 2026) : une rangée de jetons, les filtres ; la vraie saison vit au verso de la carte et à la fiche.
-  const barrePlateau = `<div class="jr-barre">${jetons(filtres.map(([k, t, n]) => ({ cle: k, mot: t, n, on: k === g, cls: k === 'B' ? 'pl-ton-rouge' : '' })), 'groupe')}</div>`;
-  const cartes = maison ? maison.html(g === 'B' ? 'infirmerie' : 'joueurs') : '';
-  /*
-   * LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu* ; *ça permet de mieux voir les cartes*) : en Rogue, ton
-   * effectif est une grille de VRAIES cartes, trois de front (`cartonDe`, la même carte que les Lignes et l'Album), la stat du
-   * tri en coin, ses jambes en barre, sa case et ses badges en une ligne dessous ; toucher la carte ouvre sa fiche. Le tri se
-   * choisit en segment (les points, les jambes, le salaire ; le % d'arrêts aux gardiens). Hors du Rogue, le tableau.
-   */
-  if (G.bonus === 'ROGUE' && g !== 'B') {
-    const TRIS = g === 'G' ? [['pctArr', '% arr.'], ['jambes', 'Jambes'], ['sal', '$']] : [['pts', 'Points'], ['jambes', 'Jambes'], ['sal', '$']];
-    const triOk = TRIS.some(([k]) => k === cle) ? cle : TRIS[0][0];
-    if (triOk !== cle) { etat.tri[g] = [triOk, triOk === 'moy']; remplirJoueurs(); return; }
-    // Le coin porte le chiffre seul (le jeton du tri dit l'unité).
-    const coinDe = r => { const v = r.st[cle]; if (cle === 'jambes' && v == null) return ''; const f = FORMAT[cle] ? FORMAT[cle](v, r.st) : v ?? '—'; return coin(cle === 'jambes' ? Math.round(v) : f, { ton: blesses.has(r.p) ? 'rouge' : 'or' }); };
-    const carte = r => {
-      const [b, b2] = badgesDe(r.p), bl = blesses.get(r.p), j = r.st.jambes;
-      return carteLigne(cartonDe(r.p), `${bl ? `🩹 ${bl} m. · ` : ''}${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}" title="${esc(`${b.nom} ${PALIERS[b.palier].nom}`)}">${b.ico}</i>` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}`,
-        { coins: coinDe(r), cls: `pl-carte-touche jr-carte${r.s.scratch ? ' pl-carte-reserve' : ''}${bl ? ' pl-carte-blesse' : ''}`, attrs: ` data-i="${r.s.i}" role="button" tabindex="0" style="${varsEquipe(r.p)}" aria-label="La fiche de ${esc(r.p.n)}"`,
-          barre: j != null ? { part: j / 100, cls: j >= 80 ? 'frais' : j < 60 ? 'use' : '' } : null });
-    };
-    host.innerHTML = `${barrePlateau}
-      <div class="jr-tri">${jetons(TRIS.map(([k, t]) => ({ cle: k, mot: t, on: k === cle })), 'tri', { role: 'button' })}</div>
-      ${grille(vues.map(carte))}${cartes}`;
-    host.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; remplirJoueurs(); }; });
-    host.querySelectorAll('[data-source]').forEach(b => { b.onclick = () => { etat.source = b.dataset.source; remplirJoueurs(); }; });
-    host.querySelectorAll('[data-tri]').forEach(b => { b.onclick = () => { etat.tri[g] = [b.dataset.tri, false]; remplirJoueurs(); }; });
-    host.querySelectorAll('.maison-jouer[data-id], .maison-vendre[data-id]').forEach(b => {
-      b.onclick = () => maison.jouer({ src: b.dataset.src || 'partie', id: b.dataset.id, ref: b.dataset.ref, vendre: b.classList.contains('maison-vendre') }, () => { G.pageVoulue = 'joueurs'; });
-    });
-    host.querySelectorAll('.jr-carte').forEach(b => {
-      b.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); b.click(); } };
-      b.onclick = () => { const p = G.roster[Number(b.dataset.i)]; if (!p) return; if (L) ouvrirFiche(p, L.you, porteeRevele('saison') === 'jour' ? 'jour' : 'saison'); else showPlayerModal(p, {}); };
-    });
-    return;
-  }
-  host.innerHTML = g === 'B' ? `${G.bonus === 'ROGUE' ? barrePlateau : barre}${infirmerie() || '<p class="jr-pied">Personne à l\'infirmerie.</p>'}${cartes}` : `${barre}
+  host.innerHTML = `${barre}
     <div class="jr-scroll"><table class="jr-table">
       <thead><tr><th class="jr-col-nom">Joueur</th>${cols.map(([k, t]) => `<th data-tri="${k}" class="${k === cle ? 'on' : ''}" role="button" tabindex="0">${t}${k === cle ? (asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
       <tbody>${vues.map(r => `<tr class="${r.s.scratch ? 'reserve' : ''}${blesses.has(r.p) ? ' blesse' : ''}"><td class="jr-col-nom">${nom(r)}</td>${cols.map(([k]) => `<td${k === cle ? ' class="on"' : ''}>${FORMAT[k] ? FORMAT[k](r.st[k], r.st) : r.st[k] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
     </table></div>
-    <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En gris : la réserve.' : ''}</p>${cartes}`;
+    <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En gris : la réserve.' : ''}</p>`;
   host.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; remplirJoueurs(); }; });
   host.querySelectorAll('[data-source]').forEach(b => { b.onclick = () => { etat.source = b.dataset.source; remplirJoueurs(); }; });
   host.querySelectorAll('[data-tri]').forEach(th => {
     const trier = () => { const k = th.dataset.tri, [c0, a0] = etat.tri[g]; etat.tri[g] = [k, c0 === k ? !a0 : k === 'moy']; remplirJoueurs(); };
     th.onclick = trier;
     th.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trier(); } };
-  });
-  host.querySelectorAll('.maison-jouer[data-id], .maison-vendre[data-id]').forEach(b => {
-    b.onclick = () => maison.jouer({ src: b.dataset.src || 'partie', id: b.dataset.id, ref: b.dataset.ref, vendre: b.classList.contains('maison-vendre') }, () => { G.pageVoulue = 'joueurs'; });
   });
   host.querySelectorAll('.jr-nom').forEach(b => {
     b.onclick = () => {

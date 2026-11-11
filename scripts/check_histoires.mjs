@@ -12,8 +12,8 @@
  *      réplique qui dit le nom court du joueur nommé et ne dit que des nombres reçus (le chiffre du fait, jamais une stat
  *      du moteur), et un fait qui nomme le joueur et porte un nombre ; aucune accolade oubliée ;
  *   3. le tirage, pur : la même graine, le même moment et les mêmes faits rendent la même histoire, toujours une vraie, et
- *      rien quand rien n'est vrai ; les lundis d'une histoire, une semaine sur deux environ (`lundiAHistoire`), jamais plus de
- *      `DISETTE_MAX` de suite sans (V25 C2) ; jamais
+ *      rien quand rien n'est vrai (le rythme du lundi, un lundi sur deux, est parti avec la saison de 82 soirs : V28,
+ *      tranche 4) ; jamais
  *      pendant son repos (`REPOS_HISTOIRE` semaines) ni sur un joueur qu'elle a déjà nommé, `SORTIES_MAX` fois par saison au
  *      plus, et elle revient ; une rare par saison ; chaque moment a son pool ; une suite passe avant le tirage ;
  *   3b. la mémoire de la run (V25 C2) : d'une saison à l'autre, jamais la même histoire sur le même joueur ; elle revient
@@ -21,12 +21,12 @@
  *   4. chacune s'ouvre : sur des lundis, des matins de gros match et des rondes fabriqués, chaque histoire sort.
  *   node scripts/check_histoires.mjs
  */
-import { HISTOIRES, MOMENTS, tirer, sceneDe, nomDOption, lundiAHistoire, memoireDeLaRun, DISETTE_MAX, CHANCE_HISTOIRE, REPOS_HISTOIRE, SORTIES_MAX, CHANCE_RARE } from '../js/histoires.js';
+import { HISTOIRES, MOMENTS, tirer, sceneDe, nomDOption, memoireDeLaRun, REPOS_HISTOIRE, SORTIES_MAX, CHANCE_RARE } from '../js/histoires.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
 import { CASES, GESTES, CANAUX_LUI, estVide } from '../js/effets.js';
 import { nomCourt } from '../js/recit.js';
 import { MOMENTS_SI } from '../js/sim.js';
-import { SEMAINE } from '../js/inventaire.js';
+import { SEMAINE } from '../js/util.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const cles = Object.keys(HISTOIRES);
@@ -126,14 +126,6 @@ const F = plein();
 
 /* ---------- 3. le tirage ---------- */
 {
-  const grilles = Array.from({ length: 60 }, (_, g) => Array.from({ length: 26 }, (_, w) => (lundiAHistoire(`h${g}`, w) ? 1 : 0)));
-  const part = grilles.flat().reduce((a, b) => a + b, 0) / (60 * 26);
-  exiger(`les lundis d'une histoire : environ une semaine sur deux (${CHANCE_HISTOIRE}), purs, jamais le premier, pas les mêmes d'une graine à l'autre`,
-    part > 0.45 && part < 0.65 && new Set(grilles.map(l => l.join(''))).size === 60 && !lundiAHistoire('h0', 0) && lundiAHistoire('h7', 9) === lundiAHistoire('h7', 9), `${(100 * part).toFixed(0)} % des lundis`);
-  // V25 C2 : jamais plus de DISETTE_MAX lundis de suite sans histoire (le premier, la semaine 0, n'en a jamais).
-  const disette = Math.max(...grilles.map(l => Math.max(...l.slice(1).join('').split('1').map(x => x.length))));
-  exiger(`jamais plus de ${DISETTE_MAX} lundis de suite sans histoire`, disette <= DISETTE_MAX, `au plus ${disette} de suite sur 60 saisons`);
-
   // Des matins fabriqués : chaque fait balaie ses valeurs, sur une graine qui ne se répète pas.
   let x = 7;
   const r = () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
@@ -167,7 +159,6 @@ const F = plein();
       const f = matin(jour, 'lundi');
       const a = tirer(g, 'lundi', f, sorties), b = tirer(g, 'lundi', f, sorties.slice());
       if (a !== b) purs = false;
-      if (!lundiAHistoire(g, w)) { if (a) nul = false; continue; }
       const possibles = vraies('lundi', f, sorties);
       if (!possibles.length && a) nul = false;
       if (!a) continue;
@@ -197,7 +188,7 @@ const F = plein();
     }
   }
   exiger('pur : la même graine, le même moment et les mêmes faits rendent la même histoire', purs);
-  exiger('l\'histoire rendue est toujours vraie ; rien de vrai, ou pas un lundi à histoire : null', vrai && nul);
+  exiger('l\'histoire rendue est toujours vraie ; rien de vrai : null', vrai && nul);
   exiger(`jamais pendant son repos (${REPOS_HISTOIRE} semaines), ${SORTIES_MAX} fois par saison au plus, jamais deux fois la même au gros match ou à la ronde, et elle revient`, repos && revenus > 0, `${revenus} retours sur 300 saisons`);
   exiger('jamais la même histoire sur le même joueur', memeJoueur === 0, `${memeJoueur} fois`);
   exiger(`une rare par saison au plus (${CHANCE_RARE} de chance à son tirage)`, raresParSaison === 0, `${raresParSaison} saisons à deux rares`);

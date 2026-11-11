@@ -18,7 +18,6 @@ import { apresMatch } from './apres-match.js';
 import { panelDe } from './panel-tv.js';
 import { deck, liste, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { matchsJoues, profilDuClub, profilDeLigue, buildDuSoir, buildVide, ecartsDuSoir, dire } from './profil-style.js';
-import { bancDuSoirHtml } from './banc-du-soir.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { nomDuClub, courtDuClub } from './club.js';
 import { ouvrirSeries, saisonDesFeuilles } from './saison.js';
@@ -32,10 +31,10 @@ import { ficheDeClub, tauxDeClub } from './equipes.js';
 import { cap, ord, ordF, pct3, pmMatch, pythagore, varsEquipe } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
-let $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue, avantLesSeriesRogue;
+let $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard;
 
 export function brancherBilan(c) {
-  ({ $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue, avantLesSeriesRogue } = c);
+  ({ $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard } = c);
 }
 
 /* =====================================================================
@@ -181,7 +180,7 @@ function equipeEtoiles(teams) {
 }
 
 /* Les gagnants des trophées, ce que les colonnes décident : [{ d, x }] (V9, tranche 7 : le panthéon les garde). */
-export const gagnantsDesTrophees = stats => TROPHEES.map(d => {
+const gagnantsDesTrophees = stats => TROPHEES.map(d => {
   const x = (stats[d.cle] || [])[0];
   return x ? { d, x } : null;
 }).filter(Boolean);
@@ -940,9 +939,7 @@ export function runPlayoffs(top16, opts = {}) {
   RONDES = RONDES_PAR_N[Math.round(Math.log2(top16.length))] || RONDES_PAR_N[4];
   const decsSeries = (G.ligue && G.ligue.decisionsSeries) || [];
   const graineSeries = (G.ligue && G.ligue.graine) || 0;
-  // Un moteur rembobiné (`rembobinerSeries`, js/banc.js) se reprend tel quel ; sinon les séries naissent (V27 : en Rogue, plus dures).
-  if (!opts.moteur && avantLesSeriesRogue) avantLesSeriesRogue(top16);
-  const S = opts.moteur || creerSeries(top16, { ligue: (G.ligue && G.ligue.moteur) || null, graine: graineSeries, decisions: decsSeries, equipes: G.ligue ? G.ligue.teams : top16, des: G.ligue && G.ligue.des ? G.ligue.des.series : null, instantanes: G.bonus === 'ROGUE' });
+  const S = creerSeries(top16, { ligue: (G.ligue && G.ligue.moteur) || null, graine: graineSeries, decisions: decsSeries, equipes: G.ligue ? G.ligue.teams : top16, des: G.ligue && G.ligue.des ? G.ligue.des.series : null });
   G.seriesMoteur = S;
   G.series = S.toutes;
   const vus = opts.depuis && opts.depuis.revele;
@@ -965,10 +962,10 @@ export function runPlayoffs(top16, opts = {}) {
 
 /*
  * LA FIN DES SÉRIES : le champion connu, la Coupe entre dans l'historique, le
- * tableau se dessine, le mode Rogue paie ses écussons. Appelée quand le
- * dernier match est joué ET montré — jamais avant.
+ * tableau se dessine. Appelée quand le dernier match est joué ET montré — jamais
+ * avant. `fanfare` : la Coupe sonne la première fois, pas à une reprise qui a tout vu.
  */
-function finDesSeries(S, host, rogue = true) {
+function finDesSeries(S, host, fanfare = true) {
   while (!S.fini) jouerMatchSeries(S);
   const champion = S.champion;
   const n = S.nRondes;
@@ -1005,15 +1002,12 @@ function finDesSeries(S, host, rogue = true) {
       band.classList.toggle('or', coupe);
       band.classList.toggle('out', !coupe);
     }
-    // La fanfare du 82-0 la première fois (le Rogue joue la sienne à l'écran de la run).
-    if (coupe && rogue && G.bonus !== 'ROGUE') jouerSon('coupe');
+    if (coupe && fanfare) jouerSon('coupe');
   }
-  // Le Rogue paie ses écussons une fois (`rogue`) ; une reprise qui a tout vu lui redit quand même le sort de la run (S80).
-  if (finDesSeriesRogue) finDesSeriesRogue((G.series || []).filter(x => x.winner && x.winner.isPlayer).length, !!(champion && champion.isPlayer), { payer: rogue });
 }
 
 /* L'écran des séries, sur le moteur EN MÉMOIRE : ouvrir, rouvrir après une décision, reprendre. */
-export function ouvrirEcranSeries(depuis = null) {
+function ouvrirEcranSeries(depuis = null) {
   const S = G.seriesMoteur, host = $('playoffsSection');
   if (!S || !host) return;
   ouvrirSeries({
@@ -1027,15 +1021,6 @@ export function ouvrirEcranSeries(depuis = null) {
       fiche: (p, t, html) => lienJoueur(p, t, porteeRevele('series'), html),
     },
     depuis,
-    // LES COMBATS DE BOSS (S69) : entre deux rounds, on règle tout.
-    graine: S.graine, decisions: S.decisions,
-    // LE DECK DE MATCH (S74) se déduit aussi des décisions de la saison.
-    decisionsSaison: (G.ligue && G.ligue.decisions) || [],
-    // V25 C2 : les histoires des saisons d'avant de la run.
-    histoiresDeLaRun: (G.rogue && G.rogue.histoires) || [],
-    // Les cartes, les plans et le banc des séries sont au Rogue ; la saison de base ne fait que jouer ses matchs.
-    onDecision: G.bonus === 'ROGUE' ? deciderSerie || null : null,
-    onBanc: G.bonus === 'ROGUE' ? bancSerie || null : null,
     onRevele: etat => { G.seriesVues = etat; saveGame(); },
     // Le tableau dessiné, on y va : il était en bas d'un bilan de 8 800 px (S74, l'agent de test).
     onTermine: () => {
@@ -1217,20 +1202,6 @@ function sommaireDeSaison(jour, k, soir = {}) {
   }
   sommaireDeMatch({ f: m.feuille, A: m.A, B: m.B, mode: porteeRevele('saison'), avant, titre: `Journée ${jour + 1}`, pied: 'saison régulière', fiche, jour, ...soir });
 }
-/*
- * LE SOIR D'UN MATCH, AU BUREAU (JP, 17 oct. : *au lieu de modal de victoire, montrer sommaire ?*) : la page du soir
- * est le sommaire du match lui-même — ses cartons, ses buts par période — et ce que le soir a changé pour ton club
- * (`apres` : le rang, les jetons, le gros match, les blessures, les nouvelles) monte sous le pointage, avec son bouton
- * (`boutons`) et sa fermeture (`onFerme`). Rend false hors du bureau : la page d'avant prend le relais.
- */
-export function sommaireDuSoir(jour, k, { apres = '', boutons = '', onFerme = null } = {}) {
-  const hub = hubActif();
-  const m = G.ligue && G.ligue.calendrier && (G.ligue.calendrier[jour] || [])[k];
-  if (!hub || !hub.ouvrirPage || document.body.dataset.zone !== 'hub' || !m || !m.feuille) return false;
-  // La page du soir garde son genre (`sommaire`) : c'est elle qu'on ferme avant la journée suivante.
-  sommaireDeSaison(jour, k, { apres, boutons, onFerme, genre: 'sommaire' });
-  return true;
-}
 
 // Tout ce qui porte `data-sommaire` ouvre un sommaire : « saison|jour|k »
 // ou « series|iSerie|iMatch ». Un seul écouteur, comme pour les fiches.
@@ -1283,7 +1254,7 @@ export function cleDeSommaire(feuille) {
  * la passe dans la saison ou dans les séries, comme au tableau indicateur.
  */
 /**
- * « TON BUILD CE SOIR » : ce qui jouait ta formation ce soir-là (les pouvoirs du coach, les événements, les cartes)
+ * « TON BUILD CE SOIR » : ce qui jouait ta formation ce soir-là (les événements d'une vieille partie)
  * et ce que le match a donné, contre ta moyenne d'avant et contre la ligue.
  * Ce que chaque carte a fait se dit juste dessous (`saillantsHtml`).
  */
@@ -1292,9 +1263,8 @@ function buildDuSoirHtml(f, A, B, jour) {
   if (!toi || !Number.isFinite(jour) || !G.ligue) return '';
   const matchs = matchsJoues(G.ligue.calendrier);
   const moi = profilDuClub(matchs, toi, { avant: jour }), lig = profilDeLigue(matchs, toi, { avant: jour });
-  const b = buildDuSoir(toi, jour, f);
-  const groupes = [['Ton banc', b.pieces], ['Événements', b.effets]]
-    .filter(([, xs]) => xs.length).map(([k, xs]) => `<p><b>${k}</b> : ${xs.map(esc).join(' · ')}</p>`).join('');
+  const b = buildDuSoir(toi, jour);
+  const groupes = b.effets.length ? `<p><b>Événements</b> : ${b.effets.map(esc).join(' · ')}</p>` : '';
   const lignes = ecartsDuSoir(f, A.isPlayer ? 'A' : 'B', moi, lig).map(r => ({
     k: r.nom, v: `${dire(r.soir, 0)}${r.moyenne != null ? ` · toi ${dire(r.moyenne)}` : ''}${r.ligue != null ? ` · ligue ${dire(r.ligue)}` : ''}`,
   }));
@@ -1479,7 +1449,6 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(A.tag))}"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
       <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(B.tag))}"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
     </div>
-    ${bancDuSoirHtml(f, A, B, esc)}
     ${apres}
     ${deck(etoiles, { cle: 'match' })}
     ${parPeriode}

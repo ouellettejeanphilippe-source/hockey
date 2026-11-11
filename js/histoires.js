@@ -25,15 +25,14 @@
  */
 import { EXPEDITEURS } from './vie-gm.js';
 import { nomCourt } from './recit.js';
-import { SEMAINE } from './inventaire.js';
 import { vraieMot } from './faits.js';
-import { hache, pct3 } from './util.js';
+import { hache, pct3, SEMAINE } from './util.js';
 import { PIECES_PAR_SAISON_DES_FOURCHES } from './pieces.js';
 /* Une fourche qui donne une pièce ne sort que si la saison en a donné moins de deux (V27, tranche 5 ; devis § 4.6). */
 const pieceDeFourche = f => (f.fourches || 0) < PIECES_PAR_SAISON_DES_FOURCHES;
 
-/* LE RYTHME (V20, nov. 2026, V23) : un lundi sur deux environ, le repos d'une histoire sortie, ses sorties par saison, la chance d'une rare. */
-export const CHANCE_HISTOIRE = 0.55, REPOS_HISTOIRE = 5, SORTIES_MAX = 2, CHANCE_RARE = 0.4;
+/* LE RYTHME (V20, nov. 2026, V23) : le repos d'une histoire sortie, ses sorties par saison, la chance d'une rare. */
+export const REPOS_HISTOIRE = 5, SORTIES_MAX = 2, CHANCE_RARE = 0.4;
 /* La deuxième moitié : trois histoires ne s'ouvrent qu'après MI_SAISON matchs ; la course est perdue à RETARD_FOND points des séries. */
 const MI_SAISON = 41, RETARD_FOND = 8;
 /* Les suites : le petit lit ses SUITE_PETIT matchs d'après et POINTS_PETIT points ; le duo, SUITE_DUO matchs et BUTS_DUO buts ensemble. */
@@ -486,20 +485,6 @@ export const MOMENTS = ['lundi', 'gros', 'ronde'];
 /* Le sel d'un tirage : le lundi et le gros match par les matchs joués, la ronde par son rang (l'écran et le robot tirent pareil). */
 const instantDe = (moment, f) => (moment === 'ronde' ? `ronde:${f.ronde ? f.ronde.k : 0}` : `${moment}:${f.n}`);
 /*
- * LES LUNDIS D'UNE HISTOIRE (V20) : tirés de la graine et de la semaine, `CHANCE_HISTOIRE` en moyenne, jamais la première.
- * V25 C2 : jamais plus de `DISETTE_MAX` lundis de suite sans histoire — le suivant en a une (mesuré, `mesure_rythme` : six
- * lundis vides de suite, une saison sur cent, laissaient le premier quart sans histoire). Le tirage ne fait qu'en ajouter.
- */
-export const DISETTE_MAX = 3;
-export function lundiAHistoire(graine, w) {
-  if (w < 1) return false;
-  for (let k = 1, sans = 0; ; k++) {
-    const oui = sans >= DISETTE_MAX || hache(String(graine), 'histoire', String(k)) < CHANCE_HISTOIRE;
-    if (k === w) return oui;
-    sans = oui ? 0 : sans + 1;
-  }
-}
-/*
  * UNE HISTOIRE SE REPOSE (nov. 2026) : sortie, `REPOS_HISTOIRE` semaines avant de revenir, sur un AUTRE joueur que celui
  * qu'elle a déjà nommé (une run ne revoit jamais la même histoire sur le même joueur), `SORTIES_MAX` fois par saison ; un
  * gros match et une ronde ne revoient jamais la même ; une rare, une fois par saison. `sorties` : celles de la saison, { cle, joueur, j },
@@ -511,22 +496,15 @@ function auRepos(k, f, sorties) {
   if (cetteSaison.length >= SORTIES_MAX || cetteSaison.some(x => f.jour - x.j <= REPOS_HISTOIRE * SEMAINE)) return true;
   return !!lui && siennes.some(x => x.joueur === lui.cle);
 }
-/*
- * LES SORTIES D'UNE SAISON (V25 C2), lues dans ses décisions : une histoire du lundi ou d'un gros match à son jour, celle
- * d'une ronde après la saison (`N` + la ronde). L'écran, ses séries et les robots les lisent pareil.
- */
-export const sortiesDe = (decisions, N = 0) => decisions.filter(d => d && d.moment && d.moment.famille === 'histoire')
-  .map(d => ({ cle: d.moment.cle, choix: d.moment.choix, joueur: d.moment.joueur || null, joueurs: d.moment.joueurs || [], j: Number.isFinite(d.jour) ? d.jour : N + (d.ronde || 0) }));
 /* LA MÉMOIRE D'UNE RUN (V25 C2) : les histoires des saisons d'avant ne comptent que pour « jamais la même sur le même joueur ». */
 export const memoireDeLaRun = (avant = [], sorties = []) => [...avant, ...sorties.filter(x => x.joueur).map(x => ({ cle: x.cle, joueur: x.joueur, avant: true }))];
 /*
  * LE TIRAGE, PUR : la graine, le moment, les faits et les sorties de la saison. Parmi les vraies de ce moment qui ne se reposent
  * pas, le plus haut de son tirage ; une suite passe avant ; une rare ne se tire qu'à certains instants (`CHANCE_RARE`), une par
- * saison. Au lundi, seulement un lundi à histoire. Rien de vrai : null.
+ * saison. Rien de vrai : null. Une case d'histoire de la carte (V28, js/run.js) en a toujours une, si un fait est vrai : le
+ * rythme du lundi (un lundi sur deux, tiré de la graine) est parti avec la saison de 82 soirs. `permis` : celles que la run sait jouer.
  */
-export function tirer(graine, moment, f, sorties = [], { sansRythme = false, permis = () => true } = {}) {
-  // `sansRythme` (V28, js/run.js) : une case d'histoire de la carte en a toujours une, si un fait est vrai ; `permis` : celles que la run sait jouer.
-  if (moment === 'lundi' && !sansRythme && !lundiAHistoire(graine, Math.floor(f.jour / SEMAINE))) return null;
+export function tirer(graine, moment, f, sorties = [], { permis = () => true } = {}) {
   const instant = instantDe(moment, f);
   const rareOk = k => !HISTOIRES[k].rare || (hache(String(graine), 'rare', instant) < CHANCE_RARE && !sorties.some(x => !x.avant && HISTOIRES[x.cle] && HISTOIRES[x.cle].rare));
   const vraies = Object.keys(HISTOIRES).filter(k => permis(k) && HISTOIRES[k].moment === moment && HISTOIRES[k].quand(f) && !!HISTOIRES[k].joueur(f) && !auRepos(k, f, sorties) && rareOk(k));

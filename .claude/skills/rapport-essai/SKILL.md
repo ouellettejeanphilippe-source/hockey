@@ -16,13 +16,13 @@ Chaque reproche se cite tel quel, en italique, comme le journal le fait (JP : *�
 ## 2. Lire le terrain
 
 - Sur glace : `.claude/rules/sur-glace.md`, `docs/sur-glace.md` (ce qui est fait, partiel, à faire) et les entrées « Sur glace » de `docs/journal/2026-11.md` — un reproche qui revient après une correction le dit.
-- Rogue : `.claude/rules/rogue.md`, la dernière `docs/refonte-v*.md`, `docs/ecrans-rogue.md`.
+- Rogue : `.claude/rules/rogue.md`, `.claude/rules/interface.md` (« Le Rogue : des scènes, jamais des pages »), la dernière `docs/refonte-v*.md` (aujourd'hui `docs/refonte-v28.md` et ses extraits ; `docs/refonte-v28-4.md` dit ce qui est parti avec l'ancien Rogue), les maquettes `docs/maquettes/v28-ecrans.html`.
 
 ## 3. Ramener chaque reproche à sa cause
 
-Pour chacun : le fichier, la fonction ou la constante qui le fait, et pourquoi. Lis le code ; ne devine pas. Si tu ne trouves pas la cause, dis-le et propose comment la trouver (une mesure, une image, une question à JP).
+Pour chacun : le fichier, la fonction ou la constante qui le fait, et pourquoi (au Rogue : la règle dans `js/run.js` et son objet `RUN`, la scène dans `js/run-scenes.js`, le geste dans `js/run-jeu.js`, une pièce dans `js/pieces.js`). Lis le code ; ne devine pas. Si tu ne trouves pas la cause, dis-le et propose comment la trouver (une mesure, une image, une question à JP).
 
-Range-les par domaine (Sur glace : le patin, la lame, le jeu physique, le gardien, les règles, l'IA, l'image, le son ; Rogue : le soir, la semaine, la saison, la run, l'économie, les écrans).
+Range-les par domaine (Sur glace : le patin, la lame, le jeu physique, le gardien, les règles, l'IA, l'image, le son ; Rogue : le soir — la feuille, le match, le duel ; la semaine — la carte, les portes, l'échange ; l'acte — la cible, le rival, les arrêts ; la run — le banc, les cœurs, les séries ; l'économie — les jetons, le marché, le plafond ; les scènes).
 
 ## 4. Le rapport
 
@@ -38,7 +38,7 @@ Range-les par domaine (Sur glace : le patin, la lame, le jeu physique, le gardie
 **À trancher par JP** : <les choix de goût>
 ```
 
-« Qui » nomme l'agent qui s'en charge : `glace-sensations`, `glace-ia`, `glace-graphiste`, `glace-son`, `glace-perf` ; `rogue-design`, `rogue-equilibre`, `rogue-economie`, `rogue-ux` (un écran, un parcours, ce qui ne répond pas), `rogue-recit` (une histoire, une voix).
+« Qui » nomme l'agent qui s'en charge : `glace-sensations`, `glace-ia`, `glace-graphiste`, `glace-son`, `glace-perf` ; `rogue-design`, `rogue-equilibre`, `rogue-economie`, `rogue-ux` (une scène, un parcours, ce qui ne répond pas), `rogue-recit` (une histoire, une voix). « La preuve », au Rogue : `check_run` (une règle de la run), `check_scene` (une scène), `essai_run` (un parcours au doigt), `mesure_run` (la difficulté), `check_pouvoirs` (une pièce de banc).
 
 ## 5. Ensuite
 

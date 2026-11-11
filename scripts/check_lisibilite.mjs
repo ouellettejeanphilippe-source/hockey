@@ -4,12 +4,14 @@
  * GM Connected*). Lu dans style.css, sans navigateur :
  *
  *   1. AUCUNE BOUCLE DANS LE DÉCOR. Une animation `infinite` n'est permise que pour ce qui charge (`spin`,
- *      `voile-glisse`), pour les cartes, les paquets et le walkout (leurs finitions), et pour Sur table. Une boucle
+ *      `voile-glisse`), pour les cartes (leurs finitions), et pour Sur table. Une boucle
  *      neuve est un décor qui crie : elle entre dans la liste blanche, ou elle part.
  *   2. UNE SEULE ENTRÉE POUR LE DÉCOR : un fondu. Les keyframes d'entrée d'un écran, d'une feuille, d'une rangée ou
  *      d'un panneau ne bougent pas (ni `transform`, ni `letter-spacing`).
- *   3. LES CARTES GARDENT LEURS FINITIONS : le scintillement, le prisme, le reflet, le paquet et leur entrée
- *      (`carte-entre`) existent et servent. Les nettoyer par erreur est le seul échec qu'on ne veut pas.
+ *   3. LES CARTES GARDENT LEURS FINITIONS : le scintillement, le prisme, le reflet et leur entrée (`carte-entre`)
+ *      existent et servent. Les nettoyer par erreur est le seul échec qu'on ne veut pas. (Le paquet de récompense qui
+ *      flottait, luisait et se déchirait, son walkout et l'entrée d'« Hier soir » sont partis avec l'ancien Rogue, V28,
+ *      tranche 4 : la run en carte vend des pochettes scellées, sans animation.)
  *   4. LE MOUVEMENT S'ÉTEINT POUR QUI LE DEMANDE (`prefers-reduced-motion`).
  *   5. DES SURFACES PLATES (JP : *penser comme GM Connected*) : la surface de base (`--panneau`, `--relief`) est un aplat sans
  *      ombre, et ni les onglets, ni la barre, ni les boutons, ni les choix ne portent de dégradé ; l'onglet ouvert est un bloc
@@ -22,8 +24,7 @@
  *      La recommandée n'a pas de macaron : elle est la PREMIÈRE de la liste (le rang dit la recommandation).
  *   7. AUCUN ACCORDÉON (JP, 28 oct. : *j'hais les accordéons*). Aucun `<details>` ni `<summary>` dans AUCUN fichier de js/
  *      (`SANS_PLI` les lit tous, y compris ceux qu'on écrira) ni dans index.html. Une info courte est un bloc toujours visible ;
- *      une longue liste défile dans sa feuille, se charge à l'approche, ou s'ouvre en page ou en feuille par une rangée
- *      (`rangeeHtml`, js/saison.js ; `ouvrirChoix`).
+ *      une longue liste défile dans sa feuille, se charge à l'approche, ou s'ouvre en page ou en feuille.
  *
  *   node scripts/check_lisibilite.mjs
  */
@@ -56,7 +57,7 @@ informer('feuille lue', `${keyframes.size} @keyframes, ${regles.length} règles`
 {
   const LISTE_BLANCHE = {
     'le chargement': ['spin', 'voile-glisse'],
-    'les cartes, les paquets, le walkout': ['ed-scintille', 'ed-prisme', 'ed-balaie', 'paquet-flotte', 'paquet-pouls', 'paquet-reflet', 'wo-rayons', 'fc-attend'],
+    'les cartes': ['ed-scintille', 'ed-prisme', 'ed-balaie'],
     'Sur table': ['t-vise', 't-sifflet-point'],
   };
   const permises = new Set(Object.values(LISTE_BLANCHE).flat());
@@ -74,21 +75,21 @@ informer('feuille lue', `${keyframes.size} @keyframes, ${regles.length} règles`
 
 /* 2. L'entrée du décor : un fondu. */
 {
-  const ENTREES = ['ecran-entre', 'panneau-monte', 'feuille-entre', 'rangee-entre', 'ligneIn', 'hier-neuf', 'logo-entre'];
+  const ENTREES = ['ecran-entre', 'panneau-monte', 'feuille-entre', 'rangee-entre', 'ligneIn', 'logo-entre'];
   const manquent = ENTREES.filter(n => !keyframes.has(n));
   const bougent = ENTREES.filter(n => keyframes.has(n) && /transform|letter-spacing|scale|translate/.test(keyframes.get(n)));
-  exiger('les sept entrées du décor existent', manquent.length === 0, manquent.join(' · ') || ENTREES.join(' · '));
+  exiger('les six entrées du décor existent', manquent.length === 0, manquent.join(' · ') || ENTREES.join(' · '));
   exiger('une entrée du décor est un fondu : ni déplacement, ni zoom', bougent.length === 0, bougent.join(' · ') || 'opacité seulement');
   const longues = [];
-  for (const r of regles) for (const m of r.corps.matchAll(/animation:\s*(ecran-entre|panneau-monte|feuille-entre|rangee-entre|hier-neuf|logo-entre)\s+(\d+)ms/g)) if (Number(m[2]) > 300 && !/\.menu-logo/.test(r.sel)) longues.push(`${m[1]} ${m[2]} ms sur ${r.sel.split('\n').pop().slice(0, 40)}`);
+  for (const r of regles) for (const m of r.corps.matchAll(/animation:\s*(ecran-entre|panneau-monte|feuille-entre|rangee-entre|logo-entre)\s+(\d+)ms/g)) if (Number(m[2]) > 300 && !/\.menu-logo/.test(r.sel)) longues.push(`${m[1]} ${m[2]} ms sur ${r.sel.split('\n').pop().slice(0, 40)}`);
   exiger('une entrée du décor dure 300 ms au plus (le logo de l\'écran titre, une seule fois, fait exception)', longues.length === 0, longues.join(' · ') || 'toutes courtes');
 }
 
 /* 3. Les cartes gardent leurs finitions. */
 {
-  const FINITIONS = ['ed-scintille', 'ed-prisme', 'ed-balaie', 'paquet-flotte', 'paquet-pouls', 'paquet-reflet', 'wo-rayons', 'carte-entre'];
+  const FINITIONS = ['ed-scintille', 'ed-prisme', 'ed-balaie', 'carte-entre'];
   const perdues = FINITIONS.filter(n => !keyframes.has(n) || !regles.some(r => new RegExp(`animation:[^;]*\\b${n}\\b`).test(r.corps)));
-  exiger('les cartes gardent leurs finitions (scintillement, prisme, reflet, paquet, entrée)', perdues.length === 0, perdues.join(' · ') || `${FINITIONS.length} animations de cartes en place`);
+  exiger('les cartes gardent leurs finitions (scintillement, prisme, reflet, entrée)', perdues.length === 0, perdues.join(' · ') || `${FINITIONS.length} animations de cartes en place`);
   const carte = /\.spin-card[^{}]*\{[^{}]*animation:\s*carte-entre/.test(css) && /\.pcard\.cj-apparait[^{}]*\{[^{}]*animation:\s*carte-entre/.test(css);
   exiger('une carte entre en montant, pas en fondu', carte && /transform/.test(keyframes.get('carte-entre') || ''), 'la roulette et la carte tirée');
 }

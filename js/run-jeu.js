@@ -32,7 +32,7 @@ import {
 } from './run.js';
 import {
   sceneAttente, sceneDepart, sceneCarte, sceneAnnonce, sceneFeuille, sceneMatch, scenePortes, scenePorte, sceneEchange, sceneLignes, sceneBanc, sceneMarche,
-  sceneVestiaire, sceneHistoire, sceneFinDActe, scenePieceGagnee, sceneSeries, sceneFin, scenePause,
+  sceneVestiaire, sceneHistoire, sceneFinDActe, scenePieceGagnee, sceneSeries, sceneFin, scenePause, jaugeDeCeSoir,
 } from './run-scenes.js';
 
 const CLE = 'cap82_run';
@@ -200,11 +200,19 @@ async function calculerLaChance() {
     const r = chanceCeSoir(S, { n: TRANCHE, tranche: k });
     v += r.v; n += r.n;
     V.chance = { v, n };
-    if (!V.ecran && !V.pause) rendre();
+    majDeLaJauge();
   }
+  // L'élite : sa récompense suit ta chance, la feuille la redit une fois le calcul fini.
+  const elite = S.R.case.sorte === 'elite' && S.R.case.J == null;
   fixerLElite(S, v / n);
   garder();
-  if (!V.ecran && !V.pause) rendre();
+  if (elite && !V.ecran && !V.pause) rendre();
+}
+/* La jauge se remplit SUR PLACE : refaire la scène à chaque tranche remplaçait le bouton sous le doigt (un toucher perdu). */
+function majDeLaJauge() {
+  if (V.ecran || V.pause) return;
+  const el = plan.querySelector('.rn-jauge');
+  if (el) el.outerHTML = jaugeDeCeSoir(S, V); else rendre();
 }
 
 /* ---------- le match, en temps forts ---------- */

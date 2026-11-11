@@ -55,7 +55,13 @@ for (const robot of ['premier', 'chiffre', 'malin']) {
       faute(pts === x.pts && x.tenu === (pts >= RUN.CIBLES[a]), `${ici}, acte ${a + 1} : ${x.pts} points notés, ${pts} recomptés`);
       faute(ms.filter(m => m.sorte === 'elite').length <= 1 && (a > 0 || !ms.some(m => m.sorte === 'elite')), `${ici}, acte ${a + 1} : trop d'élites`);
     });
-    const rates = R.actes.filter((x, a) => !x.tenu && a < 2).length, rejouees = R.series && R.series.rejouee ? 1 : 0;
+    // Les cœurs, recomptés des matchs seuls : une cible manquée aux actes I et II, et chaque série perdue puis rejouée (une
+    // série perdue se rachète une fois par cœur ; la dernière perdue, si la run finit là, n'en coûte pas).
+    faute(new Set(R.actes.map(x => `${x.s}:${x.t}`)).size === R.actes.length, `${ici} : le même rival à deux actes`);
+    const rates = R.actes.filter((x, a) => !x.tenu && a < 2).length;
+    let perdues = 0, w = 0, l = 0;
+    for (const m of R.matchs.filter(m => m.sorte === 'serie')) { if (m.gagne) w++; else l++; if (w === 3 || l === 3) { if (l === 3) perdues++; w = 0; l = 0; } }
+    const rejouees = perdues - (R.fin && R.fin.cause === 'serie' ? 1 : 0);
     faute(R.coeurs === RUN.COEURS - rates - rejouees, `${ici} : ${R.coeurs} cœurs, ${RUN.COEURS - rates - rejouees} recomptés`);
     faute(['coeurs', 'cible', 'serie', 'coupe'].includes(R.fin && R.fin.cause), `${ici} : une fin sans cause`);
     faute(R.fin.cause !== 'coupe' || (R.series && R.series.faites.length === 3), `${ici} : une Coupe sans trois rondes`);

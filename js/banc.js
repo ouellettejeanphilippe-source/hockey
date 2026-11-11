@@ -1,296 +1,26 @@
 /*
- * DERRIÈRE LE BANC (sorti de js/game.js en 1.0) : les décisions en saison —
- * permuter, monter un réserviste, le trio de fermeture, poser une
- * amélioration — et l'écran de saison qui les reçoit.
+ * LA SAISON DU 82-0 (sorti de js/game.js en 1.0) : la ligue se crée, joue ses 82 matchs d'un coup, et le bilan se compose ;
+ * les séries se regardent ensuite match par match (js/bilan.js, js/saison.js). Une partie reprise se REJOUE de sa graine.
+ *
+ * Le jour à jour — derrière le banc, les décisions en saison, le ballottage sur blessure, l'écran de saison — était au
+ * Rogue d'avant : il est parti avec lui (V28, tranche 4). Le moteur joue toujours les décisions qu'une vieille partie du 82-0
+ * porte (js/sim.js) : rien ne s'y ajoute plus.
  */
 
-import { lanceesDuSoir, getHiddenRatings, compterFeuilles, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue, rembobiner, rembobinerSeries, jouerLaCedule } from './sim.js';
-import { ajouterAuCartable } from './cartable.js';
+import { getHiddenRatings, getPlayerKey, photoAlignement, connaitre, poserAlignementDuJour, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
-import { BANQUE } from './banque.js';
-import { COACHS } from './coachs.js';
-import { PIECES, PIECE_DU_COACH } from './pieces.js';
-import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
-import { money, esc } from './util.js';
-import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
-import { getTeamLogoHtml, getTeamBand } from './logos.js';
-import { ouvrirSaison } from './saison.js';
-import { JETONS, niveauDeLigue, habillerLaLigue, exigencesDe } from './rogue.js';
-import { crochetDesActes } from './actes.js';
-import { $, G, MODE, TEAMFULL, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, headshotHtml, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
-import { apercuJoueur, carteAuCartable, carteMiniHtml, cartonDe, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort, varsEquipe } from './repechage.js';
-import { renderMain, coachHtml } from './alignement.js';
-import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, payerLActe, montrerLaFin, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi, echangeDHistoire } from './rogue-jeu.js';
-import { syncOptionsUI } from './partie.js';
-import { lienJoueur, porteeRevele } from './fiche.js';
-
-/* ======================================================================
-   DERRIÈRE LE BANC — les choix en saison
-   ======================================================================
-   JP : *faire que ya plus de choix à faire pendant la saison* ; *ça peut être
-   nice de pouvoir faire des lockdown lines qui bloquent mieux les
-   adversaires*. La saison se jouait d'un coup et l'écran révélait ; ce qu'on
-   avait signé au repêchage était l'alignement des 82 matchs, blessures
-   comprises. Le moteur étant déterministe, une décision au jour k rejoue les
-   k premières journées à l'identique et diverge ensuite (`simulateLeague`,
-   `decisions`) — c'est ce qui permet de fermer l'écran de saison, de
-   toucher à ses trios, et de reprendre exactement là.
-
-   Ce qu'on voit derrière le banc est CE QUI EST ARRIVÉ, jamais ce qui va
-   arriver : les fiches se cumulent des feuilles des journées révélées
-   (`compterFeuilles`), les blessés sont ceux du jour avec les matchs qu'il
-   leur reste. Les compteurs `sim*` des joueurs, eux, portent la fin de la
-   saison — on ne les lit pas ici.
-   ====================================================================== */
-
-/** L'écran de saison se retire ; l'alignement s'ouvre avec les fiches à ce jour. */
-function ouvrirBanc(jour) {
-  const L = G.ligue;
-  if (!L || !L.calendrier) return;
-  const vus = L.calendrier.slice(0, jour);
-  const compte = compterFeuilles(vus.flat().map(m => m.feuille));
-  const miens = vus.map(j => j.find(m => m.A === L.you || m.B === L.you)).filter(Boolean);
-  const fiche = { W: 0, L: 0, OTL: 0 };
-  for (const m of miens) {
-    const gagne = (m.A === L.you) === (m.gfA > m.gfB);
-    if (gagne) fiche.W++; else if (m.ot) fiche.OTL++; else fiche.L++;
-  }
-  // Les blessés à ce jour, comme l'écran de saison les compte (`at` est le
-  // numéro du match de l'équipe, pas de la journée).
-  const joues = miens.length;
-  const blesses = new Map();
-  for (const b of (L.you.injuriesLog || [])) {
-    const reste = b.at + b.games - (joues + 1);
-    if (b.at <= joues + 1 && reste > 0) blesses.set(b.player, reste);
-  }
-  /*
-   * QUI JOUE À LA PLACE D'UN BLESSÉ, dit dans l'alignement même. JP : *quand
-   * un joueur est descendu ou remonté, genre blessure, le faire dans la page
-   * alignement*. `activeLineup` sur tes cases d'aujourd'hui : le blessé garde
-   * la sienne (il y revient), et sa case nomme celui qui la joue ce soir.
-   */
-  const remplace = new Map(), monte = new Map();
-  const ce_soir = activeLineup({ ...L.you, injured: blesses, jourCourant: jour });
-  for (const s of SLOTS) {
-    const p = G.roster[s.i], q = ce_soir[s.i];
-    if (s.scratch || !p || !blesses.has(p) || q === p) continue;
-    remplace.set(p, q || null);
-    if (q) monte.set(q, p);
-  }
-  let prochain = null;
-  for (let j = jour; j < L.calendrier.length && !prochain; j++) {
-    const m = L.calendrier[j].find(x => x.A === L.you || x.B === L.you);
-    if (m) prochain = { j, adv: m.A === L.you ? m.B : m.A, domicile: m.A === L.you };
-  }
-  const derniere = (L.decisions || [])[L.decisions.length - 1] || {};
-  /*
-   * LES RÉGLAGES EN VIGUEUR SE LISENT SUR L'ÉQUIPE, jamais sur la dernière
-   * décision : celle-ci peut être une CARTE, qui ne porte ni fermeture ni
-   * unités spéciales — et le banc remettrait alors tout à « auto » en
-   * écrivant sa décision, donc effacerait un choix en silence.
-   */
-  G.banc = {
-    jour, compte, blesses, remplace, monte, prochain, fiche, N: L.calendrier.length,
-    fermeture: L.you.fermeture ?? derniere.fermeture ?? 'auto',
-    // TES UNITÉS SPÉCIALES (V7) : celles qu'on a choisies, ou null — le moteur range seul.
-    speciales: L.you.speciales || null,
-    // Les jambes de chacun au jour du banc (S68).
-    energie: ((L.you.jourLignes || [])[jour] || {}).energie || {},
-    // LE SOIR DU MATCH (V7 : « Préparer le match » vit ici) : le filet déjà choisi pour ce soir-là.
-    filet: (prochain && ((L.decisions || []).filter(d => d.jour === prochain.j && d.filet).pop() || {}).filet) || 'auto',
-    filetEtat: ((L.you.jourLignes || [])[jour] || {}).filet || null,
-    // LA LANCÉE (V3.6, Rogue) : qui la porte au prochain match, sur l'alignement de ce soir — la case le dit.
-    lancees: lanceesDuSoir(L.you, ce_soir),
-  };
-  $('game').classList.add('banc');
-  // V18-5 : derrière le banc, l'onglet Équipe n'existe pas (ses chiffres sont à l'Avant-match) ; on ouvre l'attaque.
-  if (document.body.dataset.effectif === 'E') {
-    document.body.dataset.effectif = 'F';
-    document.querySelectorAll('.seg-effectif button').forEach(b => b.classList.toggle('on', b.dataset.val === 'F'));
-  }
-  G.selectedSlot = null; G.target = null;
-  setView('roster');
-  render();
-  // Le panneau du banc est la première chose à voir : on remonte après le
-  // rendu, pas avant (l'écran de saison vient de rendre le défilement au corps).
-  requestAnimationFrame(() => window.scrollTo(0, 0));
-}
-
-/** Retour au match : la décision entre dans la liste, la saison se rejoue de la graine et reprend là. */
-export async function reprendreSaison() {
-  const b = G.banc;
-  if (!b || !G.ligue) return;
-  // LES RÉSERVISTES RELÂCHÉS (S80) : leur carte va au cartable, et la décision les nomme (la reprise les exclut des adversaires rebâtis).
-  const relaches = (b.relaches || []).filter(x => !Object.values(G.roster).some(p => p && getPlayerKey(p) === x.sort));
-  for (const x of relaches) carteAuCartable(x.sort);
-  if (relaches.length) toast(`${relaches.length > 1 ? `${relaches.length} réservistes relâchés` : 'Un réserviste relâché'} : ${relaches.length > 1 ? 'leurs cartes sont' : 'sa carte est'} dans ton cartable.`);
-  // EN SÉRIES (S69), le banc renvoie aux séries : c'est une décision de série.
-  if (b.serie) {
-    G.banc = null;
-    $('game').classList.remove('banc');
-    // V7 : le soir part avec l'alignement — ses unités spéciales, son filet.
-    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture,
-      speciales: b.speciales || null, filet: b.filet, ...(relaches.length ? { relache: relaches } : {}) });
-    return;
-  }
-  // Le SEL (S68) : des dés neufs pour la suite, voir `simulateLeague`.
-  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, speciales: b.speciales || null, sel: nouvelleGraine() };
-  // Une décision de banc du même jour remplacée garde ses relâchés : ils sont partis pour de bon.
-  const avant = (G.ligue.decisions || []).filter(x => x.jour === b.jour && x.jour !== 0 && x.cases && Array.isArray(x.relache)).flatMap(x => x.relache);
-  if (avant.length || relaches.length) d.relache = [...avant, ...relaches];
-  // On ne remplace que la décision de BANC du même jour : une carte, un plan
-  // du soir ou un dilemme pris ce jour-là restent. V4.4 : une signature (un pack, le ballottage) ou une blessure
-  // réglée porte aussi des cases, mais avec son palier : elle reste, sinon le pack redemandait sa signature.
-  let decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0 || !x.cases || x.palier !== undefined || !!x.ballottage);
-  /*
-   * LE FILET DU SOIR (V7) : il vaut pour le match de ce soir-là (`_filetForce`). Réglé derrière le banc, il remplace
-   * celui du même soir ; le jour du match, il va dans la décision du banc.
-   */
-  if (b.prochain) {
-    const soir = b.prochain.j, avaient = decisions.some(x => x.jour === soir && x.filet);
-    if ((b.filet && b.filet !== 'auto') || avaient) {
-      decisions = decisions.filter(x => !(x.jour === soir && x.filet && !x.cases && x.palier === undefined));
-      const plan = { filet: b.filet || 'auto' };
-      if (soir === b.jour) Object.assign(d, plan);
-      else decisions.push({ jour: soir, ...plan, sel: nouvelleGraine() });
-    }
-  }
-  decisions.push(d);
-  G.banc = null;
-  $('game').classList.remove('banc');
-  renderMain();
-  // La MÊME saison, avec une décision de plus : elle garde son entrée d'historique.
-  await continuerSaison(decisions, b.jour, 'La saison reprend avec ton alignement…');
-}
+import { runPlayoffs, nombreEnSeries, renderResult } from './bilan.js';
+import { habillerLaLigue } from './rogue.js';
+import { $, G, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, saveGame, slotsLeft } from './game.js';
+import { getShard, poserCartes } from './repechage.js';
 
 /*
- * PRENDRE UNE CARTE DE SAISON. C'est une DÉCISION comme le banc : elle entre
- * dans `G.ligue.decisions`, donc dans la sauvegarde, et la saison se rejoue
- * de la graine avec elle. Un palier ne se prend qu'une fois — le filtre
- * enlève une carte déjà prise au même PALIER, pour qu'un rechargement ou un
- * double clic n'en empile pas deux.
- *
- * `palier` et `jour` sont deux choses : le palier est l'offre, le jour est
- * l'instant où elle entre en vigueur. Rejouer depuis le PALIER rembobinerait
- * la saison pour qui a laissé passer l'offre et l'a prise vingt journées
- * plus tard ; on rejoue donc depuis le jour courant.
+ * LE VOILE DE L'ATTENTE (S74b). Une partie reprise rejoue sa saison — deux à quatre secondes de calcul sur un téléphone.
+ * Un voile le dit, peint AVANT le calcul (deux images d'animation : le calcul bloque le fil, et un voile posé juste avant
+ * ne serait jamais dessiné).
  */
-/*
- * UN MOMENT (S66) : plan du soir, dilemme, séquence, objectif, verdict du
- * proprio. Une seule porte d'entrée : la décision entre dans la liste (en
- * remplaçant celle du même palier, ou le plan du même soir), et la saison se
- * rejoue de la graine depuis la journée où on est.
- */
-/*
- * UNE DÉCISION À LA FOIS. Une décision datée d'une journée déjà jouée rejoue la saison sous le voile, en
- * plusieurs secondes : un pack acheté là, puis signé avant la fin du calcul, faisait partir la signature d'une
- * liste qui n'avait pas encore l'achat — la dernière des deux à finir effaçait l'autre, et la boîte redemandait
- * la signature d'un pack déjà signé (JP : *les packs s'ouvrent en double, sur le coup et dans la boîte*).
- * Chaque décision attend que la précédente ait fini.
- */
-let decisionEnCours = Promise.resolve();
-function deciderSaison(d, depuis) {
-  const suite = decisionEnCours.then(() => deciderMaintenant(d, depuis)).catch(e => {
-    // L'écran de saison s'est fermé pour décider : une erreur ne le laisse pas fermé pour de bon (oct. : le bureau
-    // disparaissait, « Au club » ne menait plus nulle part). On le dit, et l'écran se rouvre sur la ligue en mémoire.
-    console.error(e);
-    if (G.ligue && G.ligue.moteur) { G.done = true; ouvrirEcranSaison(depuis); }
-  });
-  decisionEnCours = suite;
-  return suite;
-}
-/*
- * PLUSIEURS DÉCISIONS D'UN COUP (V5, l'écran de combat) : l'avant-match puis la main, dans cet ordre, chacune
- * comme si elle était prise seule — son filtre, son sel — et la saison ne reprend qu'une fois.
- */
-async function deciderMaintenant(ds, depuis) {
-  if (!G.ligue) return;
-  let decisions = G.ligue.decisions || [];
-  const prises = [];
-  for (const d0 of Array.isArray(ds) ? ds : [ds]) {
-    const { liste, d } = ajouterDecision(decisions, d0);
-    decisions = liste;
-    prises.push(d);
-  }
-  await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
-  // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
-  if (prises.some(d => d.ballottage || d.plafond || d.achat)) renderCap();
-  prises.forEach(confirmerDecision);
-}
-function ajouterDecision(avant, d) {
-  // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
-  if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
-  if (d.ballottage && d.ballottage.entre) ajouterAuCartable([{ cle: d.ballottage.entre, rar: d.ballottage.rar || 'commune', num: d.ballottage.num || null }], { doublons: false });
-  // S80 : celui qui laisse sa place n'est pas perdu — sa carte va au cartable (JP : *envoyer cartes au cartable quand discard*).
-  if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
-  const decisions = avant.filter(x =>
-    !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
-    // LES GROS MATCHS (S70) : un avant-match par soir. Une vieille décision d'entracte (le 82-0 d'avant la V25) tombe.
-    && !(d.avant && x.avant && x.jour === d.jour) && !x.entracte
-    // LE DUEL (V27, tranche 6) : un choix d'avant-match par soir ; une vieille décision d'entracte (`duel.p` 1 ou 2) tombe.
-    && !(d.main && x.main && x.jour === d.jour) && !(x.duel && x.duel.p > 0));
-  // UNE DÉCISION QUI NE TOUCHE QUE LE DECK DE MATCH (une récompense, un
-  // ménage) ne tire pas de dés neufs : le moteur ne la lit pas, les matchs ne
-  // doivent pas bouger (S74).
-  // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
-  // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
-  // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
-  // V9 : ni la carte prise à un palier (`place`), ni « Attendre » le physio (`attend`).
-  // V13-2 : ni le butin d'un gros match, pris (`place`) ou passé (`r:<jour>` seul).
-  const deckSeul = !d.coach && ((d.cedule && !d.cedule.length) || d.recompense !== undefined || (typeof d.palier === 'string' && d.palier.startsWith('r:')) || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || !!d.place || !!d.attend || (!!d.garde && !d.mutation));
-  // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
-  decisions.push(deckSeul ? { ...d } : { ...d, sel: d.sel || nouvelleGraine() });
-  return { liste: decisions, d };
-}
-
-/*
- * UNE DÉCISION S'APPLIQUE À PARTIR D'AUJOURD'HUI (S79). La ligue ne joue que
- * ce qui est révélé : une décision datée d'aujourd'hui ou plus tard entre dans
- * la liste de la ligue EN MÉMOIRE, et l'écran se rouvre sur la même journée —
- * rien n'est rejoué, pas de voile. Seule une décision datée d'une journée
- * DÉJÀ jouée (l'entracte d'un gros match qu'on regarde en direct : le soir
- * est joué pour être montré) reconstruit la ligue, et seulement jusqu'à
- * aujourd'hui : le passé se rejoue à l'identique de la graine, rien d'avance.
- */
-/* Le calendrier placé ce matin (V27, tranche 4) et l'élite prise (tranche 7) se voient tout de suite, avant le match du jour. */
-const placerDuJour = M => { for (const d of M.decisions) if ((d.cedule || d.elite) && d.jour === M.jour) jouerLaCedule(M, d); };
-async function continuerSaison(decisions, depuis, mot) {
-  const L = G.ligue, M = L && L.moteur;
-  const avant = new Set(L.decisions || []), apres = new Set(decisions);
-  const touchees = [...decisions.filter(d => !avant.has(d)), ...(L.decisions || []).filter(d => !apres.has(d))];
-  const jourMin = touchees.length ? Math.min(...touchees.map(d => d.jour)) : Infinity;
-  /*
-   * RIEN NE SE REJOUE DE LA GRAINE QUI PEUT SE REMBOBINER (oct. 2026 ; JP : *rend instantané, c'est la base*) :
-   * l'entracte d'un duel est daté de son soir, déjà joué pour être montré. Le moteur a retenu ce matin-là
-   * (`rembobiner`, js/sim.js) : il y revient, et seule cette journée se rejoue — check_instantane.
-   */
-  const rembobine = M && jourMin < M.jour && rembobiner(M, decisions, Math.min(jourMin, depuis || 0));
-  if (rembobine) jouerJusqua(M, depuis || 0);
-  if (M && (rembobine || jourMin >= M.jour)) {
-    L.decisions = M.decisions = decisions;
-    placerDuJour(M);
-    // Le joueur signé (un pack, le ballottage) entre dans l'alignement tout de suite (S79), avec sa carte.
-    poserAlignementDuJour(M);
-    poserCartesArrivees(decisions);
-    G.done = true;
-    ouvrirEcranSaison(depuis);
-    saveGame();
-    return;
-  }
-  G.done = false;
-  renderMain();
-  await sousVoile(mot, () => runSeason({ adversaires: L.adversaires, graine: L.graine, depuis, decisions, reprise: true }));
-}
-
-/*
- * LE VOILE DE L'ATTENTE (S74b). Une décision rejoue la saison — deux à quatre
- * secondes de calcul sur un téléphone — et l'écran disparaissait sans un mot
- * entre le choix et la saison rouverte. Un voile le dit, peint AVANT le calcul
- * (deux images d'animation : le calcul bloque le fil, et un voile posé juste
- * avant ne serait jamais dessiné).
- */
-function voile(on, mot = 'La saison reprend avec ton choix…') {
+function voile(on, mot) {
   let v = $('voile');
   if (!v) {
     v = document.createElement('div');
@@ -309,83 +39,8 @@ export async function sousVoile(mot, f) {
   try { return await f(); } finally { voile(false); }
 }
 
-/*
- * CE QUE TU VIENS DE FAIRE, DIT (S74). L'agent de test : « rien ne confirme
- * qu'on a pris une récompense, fait le ménage ou amélioré un joueur », et une
- * recrue restait en réserve sans qu'on sache qu'il fallait la monter.
- */
-function confirmerDecision(d) {
-  const M = d.mutation && MUTATIONS[d.mutation.cle];
-  const qui = cle => { const p = Object.values(G.roster).find(x => x && getPlayerKey(x) === cle) || ballottageVu.get(cle); return p ? p.n : 'ton joueur'; };
-  let mot = null;
-  // Le pack d'une série gagnée (Jalon P1) : il s'ouvre, et ses joueurs vont au cartable.
-  if (d.packSerie) { ouvrirPackDeSerie(d.packSerie, d.ronde); return; }
-  // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
-  if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans tes cartes : pose-la au verso d'un joueur, quand tu veux.`;
-  else if (d.joue && M) mot = `${M.ico} ${M.nom} : posée au verso de ${qui(d.mutation.joueur)}.`;
-  // S80 : une signature dit où va celui qui sort — ou qu'il n'y en a pas.
-  else if (d.ballottage && d.ballottage.ecole) mot = `📟 ${qui(d.ballottage.entre)} monte du club-école : gratuit, hors plafond.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
-  else if (d.ballottage && d.ballottage.entre) mot = d.ballottage.sort ? `📒 ${qui(d.ballottage.entre)} prend la place de ${qui(d.ballottage.sort)} : la carte de ${qui(d.ballottage.sort)} va à ton cartable.` : `🪑 ${qui(d.ballottage.entre)} entre dans une case de réserve libre : personne ne sort.`;
-  else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
-  // V27, tranche 5 : une pièce qui entre sur ton banc, et celle qui en sort.
-  const P = d.piece && PIECES[d.piece.cle], S = d.piece && PIECES[d.piece.sort];
-  if (P) mot = `${P.ico} ${P.nom} sur ton banc${S ? ` : ${S.nom} part` : ''}.`;
-  if (mot) toast(mot);
-}
-
-/*
- * LE BALLOTTAGE (S66). JP : *ballottage sur blessure*. Quand un joueur se
- * blesse pour de bon, trois vrais joueurs pas chers sont au ballottage : de la
- * même position, des MÊMES saisons que la ligue, mais de clubs qui n'y sont
- * pas, et personne qui y joue déjà. En réclamer un le met dans la case de
- * réserve de sa position ; celui qui l'occupait est libéré, et le plafond
- * compte toujours. Le tirage est PUR (la graine et le match), donc la même
- * blessure offre les mêmes trois noms à la reprise.
- */
-const RESERVE_DE = { F: 'Réserve F', D: 'Réserve D', G: 'Réserve' };
-export const POSTE_GROUPE = { F: 'Avant', D: 'Défenseur', G: 'Gardien' };
-const PLAFOND_BALLOTTAGE = 0.03;          // la part du plafond qu'un joueur réclamé peut coûter
-export const groupeDe = groupeDuBallottage;
+/* Les joueurs qu'une vieille partie nomme hors du vestiaire (un réclamé, un relâché), retrouvés dans leurs shards : clé → joueur. */
 export const ballottageVu = new Map();
-/* En Rogue, une réclamation coûte des jetons (1.0) : un dépanneur, pas un cadeau. En saison, rien. */
-const COUT_BALLOTTAGE_ROGUE = 10;
-const coutBallottage = () => (G.bonus === 'ROGUE' ? COUT_BALLOTTAGE_ROGUE : 0);
-/*
- * UN RAPPEL NE LIBÈRE JAMAIS UN BLESSÉ (V8, la run du 14 oct. : « qui sort ? » d'un rappel relâchait pour de bon un joueur
- * absent cinq matchs). Le réserviste d'une case de réserve est souvent un blessé qu'on y a descendu ; tant qu'il l'est,
- * sa case n'est pas à prendre, et le rappel ne s'offre pas — monter un réserviste et remanier restent.
- */
-const blesseAu = (p, at) => !!p && (G.ligue.you.injuriesLog || []).some(b => getPlayerKey(b.player) === getPlayerKey(p) && b.at <= at && at < b.at - 1 + b.games);
-function candidatsBallottage(blesse, at) {
-  const L = G.ligue;
-  if (!L || !blesse || !L.cles) return null;
-  const g = groupeDe(blesse);
-  const slot = SLOTS.find(s => s.scratch && s.role === RESERVE_DE[g]);
-  if (!slot || blesseAu(G.roster[slot.i], at)) return null;
-  const sort = G.roster[slot.i] || null;
-  const budget = Math.min(capLeft() + (sort ? sort.$ : 0), MODE().cap * PLAFOND_BALLOTTAGE);
-  // 1.0 (J1-D) : la fonction pure (js/ballottage.js), qui n'offre que des réguliers — jamais une vedette à son contrat d'entrée.
-  const out = candidatsPurs({ shards: G.shards, ligue: L, blesse, budget, at });
-  for (const p of out) ballottageVu.set(getPlayerKey(p), p);
-  const ligne = ligneDuChoix;
-  // Le joueur et sa rareté voyagent avec l'offre (S76) : le ballottage se
-  // présente en CARTES de joueur, portrait et métal compris, comme la recrue.
-  return {
-    i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, cout: coutBallottage(),
-    candidats: out.map(p => ({ cle: getPlayerKey(p), p, nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, poste: POSTE_GROUPE[g], salaire: money(p.$), ligne: ligne(p), rarete: rareteJoueur(p) })),
-  };
-}
-/* Le rappel du club-école pour `blesse` (js/ballottage.js) : la même case de réserve que le ballottage, un vrai joueur, gratuit, hors plafond. */
-function rappelEcole(blesse, at) {
-  const L = G.ligue;
-  if (!L || !blesse || !L.cles) return null;
-  const slot = SLOTS.find(s => s.scratch && s.role === RESERVE_DE[groupeDe(blesse)]);
-  const p = slot && !blesseAu(G.roster[slot.i], at) ? rappelDuClubEcole({ shards: G.shards, ligue: L, blesse, at }) : null;
-  if (!p) return null;
-  ballottageVu.set(getPlayerKey(p), p);
-  const sort = G.roster[slot.i] || null;
-  return { i: slot.i, sort: sort ? getPlayerKey(sort) : null, p, cle: getPlayerKey(p) };
-}
 
 /* La personne d'une clé de joueur-saison (« saison_club_id » → « saison_id ») : `getPersonKey` sans l'objet. */
 export function personneDeCle(cle) {
@@ -393,7 +48,7 @@ export function personneDeCle(cle) {
   return parts.length === 3 ? `${parts[0]}_${parts[2]}` : `${parts[0]}_${parts.slice(2).join('_')}`;
 }
 /*
- * À la reprise : les joueurs d'un ballottage (réclamés et libérés), les réservistes relâchés (S80)
+ * À la reprise d'une vieille partie : les joueurs d'un ballottage (réclamés et libérés), les réservistes relâchés (S80)
  * et — 1.0, oct. — tout joueur qu'un alignement daté nomme sans qu'il soit encore au vestiaire
  * se retrouvent dans leurs shards. Sans eux, la case du jour 0 restait vide à la reprise et le
  * premier soir se jouait autrement (JP : *faut vraiment que le passé soit gelé*).
@@ -415,77 +70,6 @@ export async function connaitreBallottages(decisions) {
 }
 
 /*
- * UNE DÉCISION DE SÉRIES (S69) : trios, filet, ajustement entre
- * deux rounds. Elle remplace celle du même genre au même match, porte son
- * sel, et les séries se rejouent — la saison d'abord, qui pose le
- * générateur, puis les rondes jusqu'où on les avait regardées.
- */
-export async function deciderSerie(d) {
-  if (!G.ligue) return;
-  const meme = x => x.ronde === d.ronde && x.match_no === d.match_no && (
-    (d.cases && x.cases) || (d.ajustement && x.ajustement)
-    // S74 : un choix d'avant-match par match (V27, tranche 6 : le duel à un choix), une récompense par série.
-    || (d.main && x.main) || (d.recompense !== undefined && x.recompense !== undefined)
-    // Une vieille décision d'entracte d'un duel (`duel.p` 1 ou 2, d'avant la V27) tombe.
-    || !!(x.duel && x.duel.p > 0)
-    // Reprendre la série retire ce que l'adjoint a posé pour ce match ; la lui redonner retire la reprise.
-    || (d.reprise && x.auto) || (d.auto && x.reprise)
-    // Une vieille décision d'entracte (le 82-0 d'avant la V25) tombe.
-    || !!x.entracte);
-  // Une récompense de série ne touche que le deck, une reprise que l'écran : pas de dés neufs (S74).
-  const avant = G.ligue.decisionsSeries || [];
-  G.ligue.decisionsSeries = [...avant.filter(x => !meme(x)), d.recompense !== undefined || d.reprise ? { ...d } : { ...d, sel: nouvelleGraine() }];
-  const vues = G.seriesVues;
-  saveGame();
-  /*
-   * EN AVANT (S79) : une décision pour un match PAS ENCORE JOUÉ (ou une
-   * récompense, que le moteur ne lit pas) entre dans le moteur des séries en
-   * mémoire, et l'écran se rouvre — rien n'est rejoué. Seul l'entracte d'un
-   * match qu'on regarde (joué pour être montré) reconstruit, jusque-là.
-   */
-  const S = G.seriesMoteur;
-  const pasJoue = S && (d.match_no < 0 || d.ronde > S.ronde || (d.ronde === S.ronde && d.match_no >= S.k));
-  const retire = avant.filter(meme);
-  const retireJoue = S && retire.some(x => x.match_no >= 0 && (x.ronde < S.ronde || (x.ronde === S.ronde && x.match_no < S.k)));
-  if (pasJoue && !retireJoue) {
-    S.decisions = G.ligue.decisionsSeries;
-    ouvrirEcranSeries(vues);
-    if (d.recompense !== undefined) confirmerDecision(d);
-    return;
-  }
-  // L'entracte d'un duel de séries : le moteur revient au matin de ce match (`rembobinerSeries`), rien d'autre ne se rejoue.
-  const avantLui = x => x.match_no >= 0 && (x.ronde < d.ronde || (x.ronde === d.ronde && x.match_no < d.match_no));
-  if (S && !retire.some(avantLui) && rembobinerSeries(S, G.ligue.decisionsSeries, d.ronde, d.match_no)) {
-    runPlayoffs(G.ligue.teams.slice(0, nombreEnSeries(G.ligue.teams.length)), { depuis: vues, moteur: S });
-    if (d.recompense !== undefined) confirmerDecision(d);
-    return;
-  }
-  G.done = false;
-  renderMain();
-  await sousVoile('Les séries reprennent avec ton choix…', async () => {
-    await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Infinity, decisions: G.ligue.decisions, reprise: true });
-    reprendreSeries(vues);
-  });
-  if (d.recompense !== undefined) confirmerDecision(d);
-}
-/*
- * Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. V7 : « Préparer le
- * match » y est fondu — `soir` (js/saison.js, `soirDeSerie`) dit le prochain match de ta série et ce qui y est déjà
- * réglé (le filet, les jambes des gardiens), et l'onglet Lignes le règle comme en saison.
- */
-export function bancSerie(ronde, k, soir = null) {
-  if (!G.ligue || !G.ligue.calendrier) return;
-  ouvrirBanc(G.ligue.calendrier.length);
-  if (!G.banc) return;
-  G.banc.serie = { ronde, k };
-  if (soir) {
-    G.banc.prochain = { j: Infinity, adv: soir.adv, domicile: soir.domicile };
-    Object.assign(G.banc, { filet: soir.filet, filetEtat: soir.filetEtat, speciales: soir.speciales || null, energie: { ...G.banc.energie, ...soir.energie } });
-  }
-}
-
-
-/*
  * REPRENDRE LES SÉRIES APRÈS UN RAFRAÎCHISSEMENT. La saison vient d'être
  * rejouée en entier : le classement est donc le même, les appariements sont
  * les mêmes, et surtout le générateur est à l'endroit exact où `playSeries`
@@ -501,9 +85,8 @@ export function reprendreSeries(vues) {
 }
 
 export async function runSeason(opts = {}) {
-  if (G.banc && !opts.adversaires) { await reprendreSaison(); return; }
   // UNE REPRISE N'EST JAMAIS REFUSÉE (oct.) : la saison en cours se rejoue avec l'alignement qu'elle a, case vide
-  // comprise (un blessé, un relâché) — le refus laissait l'écran de saison fermé pour de bon, sur une page vide.
+  // comprise (un blessé, un relâché) — le refus laissait l'écran fermé pour de bon, sur une page vide.
   if (!opts.reprise && (slotsLeft() > 0 || G.done || (capLeft() < 0 && !opts.adversaires))) return;
   if (!opts.reprise) alignementAuCartable();
   // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
@@ -532,15 +115,13 @@ export async function runSeason(opts = {}) {
   await new Promise(r => setTimeout(r, 20));
 
   let opponents = [];
-  // LA LIGUE QUI MONTE (V9, tranche 8, js/rogue.js `ligueDe`) : en Rogue, son niveau suit le prestige et les exigences de la run.
-  const niveau = G.bonus === 'ROGUE' && G.rogue ? niveauDeLigue(G.rogue.prestige || 0, G.rogue.exigence || 0) : 0;
   if (opts.adversaires) {
     opponents = opts.adversaires.map(a => createTeam(a.name, a.tag, a.roster, { season: a.season, ecole: a.ecole || [] }));
   } else {
     try { opponents = await buildOpponents(31); } catch { opponents = []; }
   }
-  // Leurs cartes : les éditions de la ligue en Rogue, aucune ailleurs (une ligue d'avant n'en laisse pas).
-  habillerLaLigue(opponents, niveau, p => getHiddenRatings(p).v);
+  // Aucune carte chez les adversaires du 82-0 : une ligue d'avant, ou la run en carte, n'en laisse pas sur leurs joueurs.
+  habillerLaLigue(opponents, 0, p => getHiddenRatings(p).v);
   // TU ES LA 33e ÉQUIPE. Une saison fixée met dans la ligue TOUS ses vrais
   // clubs, et la tienne par-dessus : trente-trois en 2024-25, vingt-deux en
   // 1985-86. C'était le club le plus faible qui cédait sa place pour garder
@@ -549,37 +130,14 @@ export async function runSeason(opts = {}) {
   // voir `simulateLeague`), donc plus personne n'est retranché.
 
   const you = createTeam(nomDuClub(), 'YOU', G.roster, { isPlayer: true });
-  // LES DÉCISIONS EN SAISON (voir `simulateLeague`) : la décision 0 est
-  // l'alignement du repêchage, les suivantes viennent du banc. Une reprise
-  // rejoue exactement les mêmes.
-  const decisions = opts.decisions && opts.decisions.length
-    ? opts.decisions
-    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' },
-      // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées continuent, en décisions du jour 0.
-      ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
-      // LE COACH DE LA RUN (V27, tranche 5, js/pieces.js) : son entraîneur et sa pièce de départ, posée dans la première case.
-      ...(G.bonus === 'ROGUE' && G.rogue && COACHS[(G.rogue.perso || {}).cle || G.rogue.coach]
-        ? [{ jour: 0, coach: G.rogue.perso && G.rogue.perso.cle ? { ...G.rogue.perso } : { cle: G.rogue.coach, banc: [PIECE_DU_COACH[G.rogue.coach]] }, rogue: { depart: true } }] : [])];
-  // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
+  // LES DÉCISIONS (voir `simulateLeague`) : la décision 0 est l'alignement du repêchage. Une reprise rejoue exactement
+  // celles que la partie porte.
+  const decisions = opts.decisions && opts.decisions.length ? opts.decisions : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' }];
   poserCartes(decisions);
-  /*
-   * LA LIGUE NE SE JOUE PAS D'AVANCE (S79). JP : *tu devrais jamais simuler
-   * d'avance*. Elle se CRÉE ici — les équipes, la cédule, le hasard — et ne
-   * joue que les journées déjà révélées (une reprise : la sauvegarde, ou une
-   * décision prise après un match déjà joué pour le direct). L'écran de saison
-   * joue chaque journée suivante au moment de la révéler (`ouvrirSaison`,
-   * `ligue`), et le bilan se compose à la dernière (`terminerSaison`).
-   */
   let r = null, teams, leaders = [], calendrier = [], graine = null, moteur = null;
   if (opponents.length) {
-    // S80 : une ligue Rogue porte la courbe de la fin de partie (js/sim.js `echelleTardive`).
-    // V27 (js/actes.js) : en Rogue, les rivaux des actes se posent dans la cédule, avant le premier soir ; le placement, à son jour.
-    const exigence = (G.bonus === 'ROGUE' && G.rogue && G.rogue.exigence) || 0;
-    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE', des: desPrec, instantanes: G.bonus === 'ROGUE',
-      placer: G.bonus === 'ROGUE' ? crochetDesActes({ exigence, niveau }) : null });
+    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, des: desPrec });
     jouerJusqua(moteur, opts.depuis || 0);
-    placerDuJour(moteur);
-    // Un joueur signé aujourd'hui est dans l'alignement dès maintenant, pas au matin (S79).
     poserAlignementDuJour(moteur);
     teams = moteur.teams;
     calendrier = moteur.calendrier;
@@ -610,11 +168,14 @@ export async function runSeason(opts = {}) {
 
   if (!moteur) {
     // La saison solo (aucun adversaire) : `simulate` a tout joué, il n'y a rien à révéler.
-    G.journee = calendrier.length; saveGame(); finDeSaisonRogue();
+    G.journee = calendrier.length; saveGame();
     renderResult(r, you, teams, leaders, calendrier);
     return;
   }
-  ouvrirEcranSaison(opts.depuis || 0);
+  // LA SAISON SE JOUE D'UN COUP (oct.). JP : *le mode saison, c'est le mode 82-0 comme les sites du genre* : les 82 matchs
+  // filent au bilan, puis les séries match par match.
+  terminerSaison();
+  saveGame();
 }
 
 /*
@@ -622,122 +183,11 @@ export async function runSeason(opts = {}) {
  * dernière journée — jamais avant, puisque rien n'était joué d'avance.
  */
 function terminerSaison() {
-  const L = G.ligue, M = L && L.moteur;
-  if (!M) return;
+  const L = G.ligue, M = L.moteur;
   jouerJusqua(M, Infinity);
   const b = bilanLigue(M);
   const you = L.you;
   L.teams = b.standings;
-  const r = {
-    W: you.W, L: you.L, OTL: you.OTL, GF: you.GF, GA: you.GA, points: you.PTS,
-  };
   G.journee = M.calendrier.length;
-  finDeSaisonRogue();
-  renderResult(r, you, b.standings, b.leaders, M.calendrier);
-  // LA RUN AU BILAN (S80) : la saison de la run, le mandat du proprio, la suite.
-  majRunRogue();
+  renderResult({ W: you.W, L: you.L, OTL: you.OTL, GF: you.GF, GA: you.GA, points: you.PTS }, you, b.standings, b.leaders, M.calendrier);
 }
-
-/*
- * L'ÉCRAN DE SAISON, sur la ligue EN MÉMOIRE : ouvrir, rouvrir après une
- * décision, reprendre une partie — sans jamais rejouer ce qui est joué.
- */
-function ouvrirEcranSaison(depuis = 0) {
-  const L = G.ligue, M = L.moteur;
-  const { you, teams, calendrier, graine } = L;
-  const decisions = L.decisions;
-  // Une saison reprise APRÈS sa dernière journée va droit au bilan : rouvrir
-  // l'écran sur « journée 82 sur 82 » ferait relire un écran déjà fini.
-  // LA SAISON DE BASE SE JOUE D'UN COUP (oct.). JP : *le mode saison, c'est le mode 82-0 comme les sites
-  // du genre* : les 82 matchs filent au bilan, puis les séries match par match. Le jour à jour, la boîte,
-  // les gros matchs, les cartes et le banc en saison, c'est le Rogue.
-  if (G.bonus === 'ROGUE' && calendrier.length && depuis < calendrier.length) {
-    ouvrirSaison({
-      calendrier, teams, you, enSeries: nombreEnSeries(teams.length), epoque: G.epoque,
-      // LA LIGUE EN MÉMOIRE (S79) : l'écran joue chaque journée au moment de la révéler.
-      ligue: M,
-      ctx: {
-        esc, teamLabel, teamShort, tagCourt, sommaireDuSoir, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml, rarete: rareteJoueur,
-        // Le bouton du son du plateau bascule la même préférence que les options.
-        basculerSons: () => { setOption('sons', G.sons ? 'off' : 'on'); syncOptionsUI(); },
-        /*
-         * UN NOM SE CLIQUE PENDANT LA SAISON, SANS DÉVOILER LA FIN. Le mode
-         * 'jour' fait lire les feuilles RÉVÉLÉES au moment du clic — les
-         * compteurs `sim*`, eux, portent les 82 matchs dès que le moteur a
-         * joué. Les meneurs, la feuille d'une équipe et le fil du match en
-         * direct passent tous par là (ils partagent ce `ctx`).
-         */
-        fiche: (p, t, html) => lienJoueur(p, t, porteeRevele('saison'), html),
-        // UNE CASE SE NOMME PAR SON RANG, et `slotShort` en est le seul
-        // propriétaire : l'alerte de blessure le lit plutôt que d'écrire sa
-        // propre version (« 2e trio · AD », jamais « Top 6 »).
-        slotShort,
-        // UN JOUEUR SE NOMME PAR CE QU'IL EST (S79) : ses positions, son rôle, sa saison.
-        quiEst,
-        // LE BALLOTTAGE (S66) : trois joueurs offerts sur une vraie blessure.
-        ballottage: candidatsBallottage,
-        // LE RAPPEL DU CLUB-ÉCOLE (oct.) : toujours quelqu'un, un vrai joueur faible, gratuit et hors plafond.
-        rappelEcole,
-        // OÙ IL JOUE (S80) : « 3e paire », dit à côté d'un nom (les dilemmes, le ballottage, un nouveau rôle).
-        ouJoue: p => ouJoue(p),
-        // LA CARTE MINI (S78) : un joueur offert se voit en carte de joueur.
-        carteMini: carteMiniHtml,
-        // LE PLATEAU (nov. 2026 ; JP : *garder les cartes actuelles du jeu*) : le carton d'un joueur de la ligue, tel quel, pour le
-        // podium des meneurs ; ses couleurs de club posées dessus.
-        carton: p => `<span class="carton-seul" style="${varsEquipe(p)}">${cartonDe(p)}</span>`,
-        // Sa fiche en aperçu, et « qui sort ? » quand il arrive (S78).
-        apercu: apercuJoueur,
-        // S79 : toute signature de la saison (ballottage, recrue) respecte le plafond effectif, et dit ce que libère chaque sortie.
-        // S80 : une case de réserve libre (Rogue) s'offre d'abord — personne ne sort.
-        quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), ...o }),
-        listeSignature: o => ouvrirListeSignature({ bloque: bloqueParLePlafond, ...o }),
-        listeJoueurs: ouvrirListeJoueurs,
-        // LE MODE ROGUE (S77) : la run, pour le Club — rien de la boutique (elle est au Marché).
-        rogue: G.bonus === 'ROGUE' ? {
-          // Le barème de la run, tel que `jetonsRogue` le compte (`G.rogue.bareme`) ; V27 : son cran d'exigence, que les
-          // contrôles des actes lisent (js/actes.js).
-          bareme: () => (G.rogue && G.rogue.bareme) || JETONS, exigence: () => (G.rogue && G.rogue.exigence) || 0,
-          medailles: () => exigencesDe((G.rogue && G.rogue.exigence) || 0).medailles,
-          // La fin d'un acte verse ses médailles ; la run morte ouvre son écran de fin (js/rogue-jeu.js).
-          payerActe: x => payerLActe(x), finir: () => montrerLaFin(),
-          // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
-          jetons: j => jetonsRogue(j),
-          // V16 (tranche 6) : ce que le proprio lit le lundi, pour la masse salariale et la tête du coach.
-          masse: j => masseDuLundi(j), coachs: j => coachsDuLundi(j),
-          // V25 C1 (js/faits.js) : la vraie saison d'un joueur lit son shard déjà chargé (ses doublons, le compte de son club) ;
-          // le nom d'un club par son code ; l'échange d'une histoire (la date limite : il part, un joueur de son époque signé).
-          shard: s => G.shards.get(s) || null, nom: code => TEAMFULL[code] || code, echange: o => echangeDHistoire(o),
-          // V25 C2 : les histoires des saisons d'avant de la run — une run ne revoit jamais la même sur le même joueur.
-          histoires: () => (G.rogue && G.rogue.histoires) || [] } : null,
-        // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
-        // Chacune s'ouvre dans une page du Marché (js/game.js) : `page` = { dans, fermer }.
-        boutique: { ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
-        // Le jeu de cartes du Rogue (V16 : le personnel et les cartes rares) : les paliers et le Bureau en lisent la présence.
-        inventaire: true,
-        // Ton coach et sa confiance, ton personnel : au sous-onglet de l'entraîneur (V12-2).
-        coachHtml: () => coachHtml(),
-        maison: { cartes: (k, j) => cartesDeLaMaison(k, j), jouer: (item, j, decider) => jouerDeLaMaison(item, j, decider) },
-        // Une maison hors de l'écran de saison (Joueurs) : la coquille l'ouvre.
-        allerA: k => montrerPage(k),
-      },
-      onTermine: () => terminerSaison(),
-      depuis,
-      // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
-      // la reprise a besoin de connaître.
-      onJour: j => { G.journee = j; saveGame(); if (G.bonus === 'ROGUE') renderCap(); majEntete(); },
-      // La graine : les histoires, les pièces offertes et le dé se tirent d'elle (sans toucher au hasard du moteur).
-      graine,
-      // Les épisodes de case vide déjà encaissés, pour qu'un trou ne retende
-      // pas sa carte à chaque reprise (voir `trousFaits`, js/saison.js).
-      trousPris: (decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('trou:'))
-        .map(d => Number(d.palier.slice(5))),
-      // DERRIÈRE LE BANC : l'écran se retire, l'alignement s'ouvre avec les
-      // fiches à ce jour, et « Retour au match » rejoue la saison depuis la
-      // graine avec la décision (voir `ouvrirBanc`).
-      onBanc: j => ouvrirBanc(j),
-      decisions,
-      onDecision: deciderSaison,
-    });
-  } else { terminerSaison(); saveGame(); }
-}
-

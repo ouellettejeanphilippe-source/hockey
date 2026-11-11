@@ -2,13 +2,13 @@
 
 ## Le projet en une phrase
 
-Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (le jour à jour, le duel joué au plan que ton adjoint propose, ton coach-personnage et ses pouvoirs, la boutique, la run), **Sur table**, l'exhibition et **Sur glace** (un match 2D à la manette, à la physique crédible et aux règles complètes : deux vrais clubs, l'IA des neuf autres, la passe, le hors-jeu, les punitions, les tirs de barrage).
+Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (une run en carte, comme Slay the Spire : la carte de l'acte, la feuille du soir, le match en temps forts, trois portes ; trois actes et les séries ; ton coach et son banc de cinq pièces, le marché, le plafond qui mord), **Sur table**, l'exhibition et **Sur glace** (un match 2D à la manette, à la physique crédible et aux règles complètes : deux vrais clubs, l'IA des neuf autres, la passe, le hors-jeu, les punitions, les tirs de barrage).
 
 Un site statique, publié sur GitHub Pages depuis main, web seulement (JP, 4 nov. 2026 : *oublie APK et exe, on développe maintenant web only* ; l'application Android et l'exe Windows sont partis). Aucun backend, aucune dépendance npm, aucun framework.
 
 ## Où on travaille
 
-Le Rogue, tout le temps, sauf si JP demande expressément un autre mode. Le 82-0, Sur table et l'exhibition sont faits : les stats, un peu de hasard, rien de plus. Une mesure, un équilibrage, un correctif se jugent d'abord en Rogue (`scripts/lib/rogue_sim.mjs`, `check_rogue`, `essai_rogue`).
+Le Rogue, tout le temps, sauf si JP demande expressément un autre mode. Le 82-0, Sur table et l'exhibition sont faits : les stats, un peu de hasard, rien de plus. Une mesure, un équilibrage, un correctif se jugent d'abord en Rogue (`scripts/lib/run_robot.mjs`, `mesure_run`, `check_run`, `essai_run`). Le Rogue est la run en carte de la V28 (`docs/refonte-v28.md`) ; l'ancien Rogue (le Bureau, le jour à jour, la boutique) est parti le 11 nov. 2026.
 
 ## Où vivent les règles
 
@@ -18,7 +18,7 @@ Ce fichier garde ce qui vaut partout. Les règles fermes de chaque terrain viven
 |---|---|---|
 | Les cotes et les données | `.claude/rules/donnees.md` | js/ratings.js, data/, scripts/build_*.py, inferer_* |
 | Le moteur des matchs | `.claude/rules/moteur.md` | js/sim.js, game.js, impact.js, causes.js |
-| Le Rogue : le jeu, l'économie, les textes | `.claude/rules/rogue.md` | js/rogue*.js, packs, cartes, pouvoirs, adjoints, dossiers, saison, gerant, sim |
+| Le Rogue : la run, le banc, l'économie, les textes | `.claude/rules/rogue.md` | js/run*.js, rogue, pieces, actes, coachs, histoires, packs, cartes, sim |
 | Sur glace | `.claude/rules/sur-glace.md` | js/physique.js, glace-ia.js, sur-glace.js, sprites.js, sons-glace.js |
 | Sur table | `.claude/rules/sur-table.md` | js/table.js, plateau.js, tournoi.js |
 | L'interface | `.claude/rules/interface.md` | js/, style.css, index.html |
@@ -29,7 +29,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 
 ## Les agents et les commandes
 
-Dans `.claude/agents/`, des spécialistes à qui confier une question de leur terrain (l'outil Agent) : pour Sur glace, `glace-sensations` (le patin, la manette, la caméra), `glace-ia` (les neuf autres, les gardiens), `glace-graphiste` (les sprites 16 bits), `glace-son` (la foule, les sons), `glace-perf` (le téléphone) ; pour le Rogue, `rogue-design` (le fun, les vrais choix, la courbe d'une run), `rogue-equilibre` (les bornes, mesurées en paires), `rogue-economie` (les jetons, les packs, les médailles), `rogue-ux` (le parcours, une info une maison, ce que l'écran répond, le pouce à 390 px), `rogue-recit` (les histoires du lundi, les voix, les scènes). Dans `.claude/skills/`, quatre commandes : `/refonte <sujet>` (un gros changement mené pour qu'il en soit un, ci-dessous), `/equilibrer <sujet>` (mesurer et proposer un réglage), `/rapport-essai <glace|rogue> <notes>` (les reproches d'un essai ramenés à leur cause) et `/revue-design <devis>` (un devis jugé avant le code, sur le gabarit `docs/gabarits/devis.md`). `rogue-ux`, `rogue-recit`, `/revue-design` et le gabarit sont adaptés de Claude-Code-Game-Studios (Donchitos, licence MIT).
+Dans `.claude/agents/`, des spécialistes à qui confier une question de leur terrain (l'outil Agent) : pour Sur glace, `glace-sensations` (le patin, la manette, la caméra), `glace-ia` (les neuf autres, les gardiens), `glace-graphiste` (les sprites 16 bits), `glace-son` (la foule, les sons), `glace-perf` (le téléphone) ; pour le Rogue, `rogue-design` (le fun, les vrais choix, la courbe d'une run), `rogue-equilibre` (les bornes, mesurées en paires), `rogue-economie` (les jetons, les packs, les médailles), `rogue-ux` (le parcours, une info une maison, ce que l'écran répond, le pouce à 390 px), `rogue-recit` (les histoires de la carte, les voix). Dans `.claude/skills/`, quatre commandes : `/refonte <sujet>` (un gros changement mené pour qu'il en soit un, ci-dessous), `/equilibrer <sujet>` (mesurer et proposer un réglage), `/rapport-essai <glace|rogue> <notes>` (les reproches d'un essai ramenés à leur cause) et `/revue-design <devis>` (un devis jugé avant le code, sur le gabarit `docs/gabarits/devis.md`). `rogue-ux`, `rogue-recit`, `/revue-design` et le gabarit sont adaptés de Claude-Code-Game-Studios (Donchitos, licence MIT).
 
 ## Le studio (Claude Code Game Studios 1.2.0)
 
@@ -71,7 +71,7 @@ js/                   le jeu, un module ES natif par sujet — la carte fichier 
 scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs, portraits.mjs, actions.mjs, recrues.mjs → data/recrues.json
                       la vraie saison recrue…), vérifications (check_*.mjs, smoke*.mjs, tout.mjs qui enchaîne les rapides), les essais à la
                       main (essai_*.mjs), calibration (calibrate_sim, mock_*, *_calibre, inferer_glace et inferer_gestes : ce que la ligue ne comptait pas),
-                      verdict.mjs (le juge partagé), lib/ (mort.mjs la mesure du code mort, rogue_sim.mjs la run jouée par un robot…) ;
+                      verdict.mjs (le juge partagé), lib/ (mort.mjs la mesure du code mort, run_robot.mjs les robots qui jouent la run en carte…) ;
                       la liste complète : docs/structure-detaillee.md
 docs/                 l'historique et la référence (voir docs/README.md)
 ```
@@ -91,7 +91,7 @@ JP (11 oct. 2026) : Claude fusionne quand le CI est vert. Après avoir ouvert un
 
 ## Avant de pousser
 
-**Avant de pousser** (JP, 13 oct. : *c'est nécessaire de tester ici et en CI ?*) : ne relance pas ici ce que `verifier` refait. Ici, seulement `node scripts/tout.mjs` et `check_mort` (quelques secondes, un rouge en CI coûte une demi-heure), plus ce que le CI ne fait pas, quand le changement touche leur terrain : `essai_rogue`, `essai_packs`, `essai_achat` pour la signature, la boutique ou le jour à jour du Rogue ; `check_rogue`, `check_banque`, `check_cartes` quand on touche au moteur ou aux cartes. Le smoke, smoke_table, `check_gros`, `check_graine`, `check_feuilles` : le CI.
+**Avant de pousser** (JP, 13 oct. : *c'est nécessaire de tester ici et en CI ?*) : ne relance pas ici ce que `verifier` refait. Ici, seulement `node scripts/tout.mjs` et `check_mort` (quelques secondes, un rouge en CI coûte une demi-heure), plus ce que le CI ne fait pas, quand le changement touche leur terrain : `essai_run` et `check_scene` (un serveur statique d'abord) pour les scènes ou la coquille du Rogue ; `FILS=3 node scripts/check_pouvoirs.mjs` et `check_moments_si` quand on touche au banc, aux moments ou à la carte de l'acte ; `GRAINES=64 FILS=3 node scripts/mesure_run.mjs` quand un réglage de la run bouge (jamais plus de trois fils ici). Le smoke, smoke_table, `check_gros`, `check_graine`, `check_feuilles` : le CI.
 
 Chaque script, son temps et ses variables : `.claude/rules/tests.md`.
 

@@ -35,9 +35,11 @@ const lire = f => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 const normaliser = p => posix.normalize(p).replace(/^\//, '');
 
 const ROGUE = new Set(['js/greffes.js', 'js/pieces.js', 'js/actes.js', 'js/coachs.js', 'js/coachs-reels.js',
-  'js/histoires.js', 'js/faits.js', 'js/vie-gm.js', 'js/scenes.js', 'js/recit.js', 'js/rogue.js', 'js/rogue-jeu.js',
-  'js/impact.js', 'js/banque.js', 'js/packs.js', 'js/cartable.js', 'js/galons.js', 'js/inventaire.js',
-  'js/saison.js', 'js/gerant.js', 'js/direct.js', 'js/game.js', 'js/composants.js']);
+  'js/histoires.js', 'js/faits.js', 'js/vie-gm.js', 'js/recit.js', 'js/rogue.js', 'js/run.js', 'js/run-scenes.js',
+  'js/run-jeu.js', 'js/impact.js', 'js/banque.js', 'js/packs.js', 'js/cartable.js',
+  'js/saison.js', 'js/gerant.js', 'js/direct.js', 'js/game.js']);
+// Une liste qui nomme un fichier parti ne garde plus rien : chaque nom doit exister.
+for (const f of ROGUE) { try { readFileSync(new URL(`../${f}`, import.meta.url)); } catch { exiger(`${f}, de la liste ROGUE, existe`, false, 'fichier absent'); } }
 
 /** Les modules atteints depuis `depart`, de proche en proche. */
 function atteints(depart) {

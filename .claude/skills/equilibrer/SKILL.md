@@ -1,31 +1,32 @@
 ---
 name: equilibrer
-description: "Mesure l'équilibre d'un sujet du Rogue (un coach, un pouvoir, un adjoint, une carte, un pack, le duel, la courbe des runs) avec les juges du dépôt, en paires, et propose un réglage chiffré. Ne change rien sans accord."
-argument-hint: "[sujet : pouvoirs | adjoints | cartes | packs | duel | runs | economie | <nom d'un coach, d'un pouvoir ou d'une carte>]"
+description: "Mesure l'équilibre d'un sujet du Rogue (la run en carte, ses portes et son plafond, le banc et ses pièces, le marché, le duel, l'élite, les histoires) avec les juges du dépôt, en paires, et propose un réglage chiffré. Ne change rien sans accord."
+argument-hint: "[sujet : carte | portes | banc | marché | histoires | duel | run | <nom d'un coach ou d'une pièce>]"
 user-invocable: true
 ---
 
 # Équilibrer — le Rogue, mesuré
 
-Le sujet : `$ARGUMENTS` (vide : la courbe des runs et les pouvoirs, les deux « À faire » d'équilibre de `PLAN.md`).
+Le sujet : `$ARGUMENTS` (vide : la run et le banc, `mesure_run` puis `check_pouvoirs`).
 
 ## 1. Lire avant de mesurer
 
-- `.claude/rules/rogue.md` : les bornes du sujet (la rareté d'une carte, les 2,5 V et 4 V d'un pouvoir, les ±1,5 V d'un adjoint, les 60 % du duel, la première Coupe à la run 3 ou plus tard).
-- `PLAN.md`, « À faire » : les déséquilibres déjà connus et leurs chiffres.
-- Le code du sujet : la constante qui le règle, son fichier.
+- `.claude/rules/rogue.md` : les bornes du sujet (les Coupes des trois robots sur 64 graines, la première Coupe du malin à la run 3 ou plus tard, la présence de 30 à 50 % d'une pièce et ses bornes sur un acte, les 60 % du duel, les bornes de l'élite, la borne en victoires d'une réponse d'histoire).
+- `docs/refonte-v28-4.md` (« Le banc remesuré », « Ce qui reste ouvert ») et `docs/decisions.md` (« tu peux exploser le jeu ») : ce qui est déjà mesuré et ce qui reste ouvert. Les lignes d'équilibre de « À faire » dans `PLAN.md` datent de l'ancien Rogue.
+- Le code du sujet : la constante qui le règle, son fichier. Les leviers de la run sont l'objet `RUN` de `js/run.js` (la cible `CIBLES` 7·8·9, le plafond `RACHAT`, les étapes d'édition `ETAPES`, les bandes, les jetons du marché) ; **2 ❤️** ne se règle pas (JP, 7 nov. 2026).
 
 ## 2. Choisir le juge le plus court qui répond
 
 | Sujet | Juge | Le court | Le plein |
 |---|---|---|---|
-| pouvoirs, adjoints, un coach | `check_pouvoirs` | `MESURE=0 N=20` (10 s) · `COACHS=a,b` | `N=600` (~5 min) |
-| cartes | `check_cartes` · `check_effets` | `IDS=…` pour cibler | ~20 min |
-| packs, economie | `check_packs` · `mesure_rogue` · `check_rogue` | `RUNS=10 CAMPAGNES=2` | `RUNS=40 CAMPAGNES=6` |
-| duel | `check_duel` | `N=200` | `N=1200` (~6 min) |
-| runs | `check_profondeur` | `GRAINES=2 FILS=1` (4 min, rien de statistique jugé) | en CI (`profondeur.yml`, 64 graines) |
+| run, carte, portes | `check_run` · `mesure_run` | `node scripts/check_run.mjs` (10 s) · `GRAINES=8 FILS=2 node scripts/mesure_run.mjs` (les bornes s'impriment sans se juger) | `GRAINES=64 FILS=3 node scripts/mesure_run.mjs` (cinq à six minutes ; jamais plus de 3 fils ici) ; `REGLAGES='{"RACHAT":0.6}'` essaie un levier de `RUN` sans toucher au code |
+| banc, une pièce, un coach | `check_pouvoirs` · `check_relais` | `MESURE=0 N=20` (une demi-minute, sans les bornes) · `PIECES=a,b` | `FILS=3 node scripts/check_pouvoirs.mjs` (huit minutes) · `node scripts/check_relais.mjs` (deux minutes) |
+| un moment (le `quand` d'une pièce) | `check_moments_si` | `node scripts/check_moments_si.mjs` (30 s) | le même |
+| duel, élite | `check_duel` · `check_elites` | `N=200` · une seconde | `N=1200` (une minute) |
+| marché | `check_packs` · `check_run` | une demi-minute · 10 s | `mesure_run` avec `REGLAGES` (les jetons d'un match, d'une porte passée) ; les robots y achètent une pièce, jamais une pochette : ce que vaut une pochette dans une run ne se mesure pas encore |
+| histoires | `check_histoires` · `check_mots` · `check_effets` | quelques secondes · `IDS=d:<histoire>` pour cibler | `check_effets` (une vingtaine de minutes) |
 
-Dis la commande et sa durée avant de la lancer. Plus de cinq minutes : demande d'abord. Un repère décimal se juge sur la médiane de plusieurs graines (`GRAINES=1,2,3`), jamais sur une seule.
+Dis la commande et sa durée avant de la lancer. Plus de cinq minutes : demande d'abord. Un repère se juge sur plusieurs graines (64 pour `mesure_run` ; sous 32, rien ne se juge), jamais sur une seule.
 
 ## 3. Lancer et lire
 
@@ -42,10 +43,10 @@ Mesuré : <commande> — <durée>, <N, graines>
 
 | Ce qu'on mesure | Borne | Mesuré | État |
 |---|---|---|---|
-| <pouvoir, carte…> | <±V> | <V [intervalle]> | sous la borne / au-dessus / mort / piège |
+| <pièce, plan, levier de la run…> | <±V, Coupes sur 64…> | <mesuré [intervalle]> | sous la borne / au-dessus / mort / piège |
 
 **Le problème** : <une phrase, chiffrée>
-**Le réglage proposé** : `<CONSTANTE>` (<fichier>) de <avant> à <après> — effet attendu : <V>
+**Le réglage proposé** : `<CONSTANTE>` (<fichier>) de <avant> à <après> — effet attendu : <V, Coupes>
 **La preuve** : <le juge, et ce qu'il doit dire après>
 **À trancher par JP** : <s'il y a lieu>
 ```

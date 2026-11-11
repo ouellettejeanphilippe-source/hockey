@@ -1,5 +1,8 @@
 # Équilibrer sans casser le jeu
 
+> Note du 11 nov. 2026 : ce document décrit l'ancien Rogue (le Bureau, la boutique, la run sur la cédule), parti à la V28, tranche 4 (docs/refonte-v28-4.md).
+> Le Rogue d'aujourd'hui : docs/refonte-v28.md et .claude/rules/rogue.md.
+
 9 octobre 2026. JP : *je me demande s'il n'y a pas moyen que le code soit mieux organisé, et que changer certaines mécaniques ait moins de chance de briser le jeu lorsqu'on tente d'équilibrer*.
 
 ## Le diagnostic, mesuré

@@ -1,7 +1,7 @@
 /*
  * LES ROBOTS DU DUEL (V27, tranche 6 ; docs/refonte-v27-6a.md). Le duel est un seul choix avant le match : ton plan fort,
  * un parmi ceux que ton banc propose (`plansDuDuel`, js/impact.js), chiffrés contre leur jeu (`leurJeuDuDuel`,
- * js/greffes.js) — les mêmes fonctions que l'écran du choix (js/saison.js `leDuel`). `toi.robotDuel` (js/greffes.js,
+ * js/greffes.js) — les mêmes fonctions que la feuille du duel (js/run-jeu.js, js/run-scenes.js `sceneFeuille`). `toi.robotDuel` (js/greffes.js,
  * `match`) l'appelle avant la 1re période quand aucune décision n'est prise.
  *   - 'attentif' : prend le plan qui rend le plus de buts nets sur le match, Ton match si aucun ne rend ;
  *   - 'distrait' : prend un plan au hasard, ou Ton match ;

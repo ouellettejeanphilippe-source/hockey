@@ -20,21 +20,14 @@
  * Hors du moteur : rien ici ne touche une saison. La collection du Rogue
  * (`cap82_rogue.collection`, S77) y entre une fois, en cartes de base.
  */
-import { NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
-import { coin, jetons } from './composants.js';
-import { COACHS } from './coachs.js';
+import { EDITIONS } from './rarete.js';
 
 const CLE_CARTABLE = 'cap82_cartable';
 const VIDE = () => ({ v: 1, joueurs: {}, migre: false });
-/* Les éditions et leurs noms : ceux de la carte (js/rarete.js), jamais une copie ; le numéro dit le rang (oct. 2026 : plus de diamants). */
-const VARIANTES = EDITIONS.map(r => [r, NOM_VARIANTE[r]]);
-const sensDe = r => `Édition ${numeroEdition(r)} · ${NOM_VARIANTE[r]}`;
 const RANG = Object.fromEntries(EDITIONS.map((r, i) => [r, i]));
-/* Une feuille de cartable : neuf pochettes, comme une page de classeur. */
-const PAR_FEUILLE = 9;
 
 function ecrire(c) { try { localStorage.setItem(CLE_CARTABLE, JSON.stringify(c)); } catch { /* ignore */ } }
-export function lireCartable() {
+function lireCartable() {
   let c = null;
   try { c = JSON.parse(localStorage.getItem(CLE_CARTABLE) || 'null'); } catch { c = null; }
   if (!c || typeof c.joueurs !== 'object') c = VIDE();
@@ -66,8 +59,6 @@ export function monterLesDoublons(x) {
   }
   return montees;
 }
-/* Ce que la boîte dit d'une montée : « Gaborik monte : Base → Cadre (trois doublons) ». */
-export const motDeMontee = (m, nom) => `${nom} monte : ${NOM_VARIANTE[m.de]} → ${NOM_VARIANTE[m.a]} (${FUSION} doublons)`;
 /*
  * DES CARTES ENTRENT AU CARTABLE. `doublons` : une copie de plus compte (un
  * pack) ; sinon (l'alignement au départ d'une saison, une signature déjà
@@ -92,47 +83,6 @@ export function ajouterAuCartable(entrees = [], { doublons = true } = {}) {
   return montees;
 }
 /*
- * UN DOUBLON DONNÉ (Jalon P3, « L'échange d'un doublon ») : une copie de moins, la variante la plus basse d'abord ;
- * la carte reste au cartable (il en reste au moins une). Rend vrai si une copie est partie.
- */
-export function donnerUnDoublon(cle) {
-  const c = lireCartable(), x = c.joueurs[cle];
-  if (!x || (x.n || 0) < 2) return false;
-  const rar = EDITIONS.find(r => (x.v[r] || 0) > 1) || EDITIONS.find(r => (x.v[r] || 0) > 0);
-  x.v[rar] -= 1;
-  if (!x.v[rar]) delete x.v[rar];
-  x.n -= 1;
-  ecrire(c);
-  return true;
-}
-/*
- * LES ANCIENNES PARTIES (une fois) : les joueurs qui ont porté tes couleurs
- * (l'historique, que l'album de S74 lit aussi) entrent au cartable en cartes
- * de base — un cartable qui commence vide après cent saisons mentirait.
- */
-export function migrerHistorique(cles = []) {
-  const c = lireCartable();
-  if (c.hist) return;
-  c.hist = true;
-  ecrire(c);
-  ajouterAuCartable(cles.map(cle => ({ cle })), { doublons: false });
-}
-/*
- * LES RUNS JOUÉES PAR CARTE (1.0) : `r` compte les runs Rogue où la carte a
- * porté tes couleurs, `der` la dernière (une run ne compte qu'une fois, même
- * sur trois saisons). Le départ tire d'abord les cartes les moins jouées
- * (js/rogue.js `tirageDuDepart`).
- */
-export function marquerJouees(cles = [], run = 0) {
-  const c = lireCartable();
-  for (const k of cles) {
-    const x = c.joueurs[k];
-    if (!x || x.der === run) continue;
-    x.r = (x.r || 0) + 1; x.der = run;
-  }
-  ecrire(c);
-}
-/*
  * LES CARTES DE COACH (V21 ; JP : *c'est comme les cartes de joueurs*). Ton entraîneur, une vraie carte de coach-saison
  * (js/coachs-reels.js), entre au cartable le jour où sa run commence, et y reste ; `coachs` : son id (« 1976-77_MTL ») → ce
  * que l'album en dit sans recharger data/coachs.json, `r` ses runs, `der` la dernière. Le loto du départ tire d'abord
@@ -146,39 +96,6 @@ export function coachAuCartable(carte, run = 0) {
   ecrire(c);
 }
 export const coachsDuCartable = (c = lireCartable()) => c.coachs || {};
-/* Les cartes différentes qui ont joué au moins une run. */
-export const cartesJouees = (c = lireCartable()) => Object.values(c.joueurs).filter(x => (x.r || 0) > 0).length;
-/*
- * LA PRIME DE DÉCOUVERTE (1.0) : une carte qui finit une saison avec toi pour
- * la première fois la paie, une fois pour toujours (`d`). Rend les cartes
- * découvertes.
- */
-export function decouvrir(cles = []) {
-  const c = lireCartable();
-  const neuves = cles.filter(k => c.joueurs[k] && !c.joueurs[k].d);
-  for (const k of neuves) c.joueurs[k].d = 1;
-  if (neuves.length) ecrire(c);
-  return neuves;
-}
-/*
- * LES MODIFS SUR LA CARTE (1.0). JP : les cartes de modif *intégrées de façon
- * plus harmonieuse dans la loop* — la réponse retenue : elles vont SUR la
- * carte du joueur. Une amélioration, un style, un contrat ou une édition posés
- * en Rogue restent sur sa carte (`mods`), d'une run à l'autre ; la carte les
- * porte chaque fois qu'elle rejoue (js/rogue-jeu.js `reportDesCartes`).
- */
-export function poserSurLesCartes(parCle = {}) {
-  const c = lireCartable();
-  let change = false;
-  for (const [k, mods] of Object.entries(parCle)) {
-    const x = c.joueurs[k];
-    if (!x) continue;
-    const tous = [...new Set([...(x.mods || []), ...mods])];
-    if (tous.length !== (x.mods || []).length) { x.mods = tous; change = true; }
-  }
-  if (change) ecrire(c);
-}
-export const modsDe = (cle, c = lireCartable()) => ((c.joueurs[cle] || {}).mods || []).slice();
 /*
  * MOMENTS LÉGENDAIRES SUR LA CARTE (v2) : un exploit de saison — jeu blanc,
  * chapeau, grand match, mur — se grave sur la carte du joueur (`legendes`),
@@ -194,270 +111,3 @@ export const LEGENDES = {
 };
 /* Ce qui est gravé sur la carte d'un joueur-saison : [{ type, saison }]. */
 export const legendesDe = (cle, c = lireCartable()) => ((c.joueurs[cle] || {}).legendes || []).filter(l => LEGENDES[l.type]);
-export function ajouterLegendesAuCartable(moments = [], saison = 0) {
-  if (!moments.length) return;
-  const c = lireCartable();
-  let change = false;
-  for (const m of moments) {
-    if (!m.cle || !m.type) continue;
-    const x = c.joueurs[m.cle];
-    if (!x) continue;
-    const legendes = x.legendes || [];
-    if (!legendes.find(l => l.type === m.type && l.saison === saison)) {
-      legendes.push({ type: m.type, saison });
-      x.legendes = legendes;
-      change = true;
-    }
-  }
-  if (change) ecrire(c);
-}
-/* La meilleure variante obtenue d'une carte. */
-export const meilleureVariante = x => [...EDITIONS].reverse().find(r => x && x.v && x.v[r]) || 'commune';
-/*
- * SON HISTOIRE CHEZ TOI (V9, tranche 7 — docs/refonte-v9.md § 6.8). Une ligne par saison de run (`chez`) :
- * { run, s, gp, g, a, pts } (un gardien : { gp, w, so }), ses gros matchs gagnés habillé (`gros`) et ses galons
- * (`galons`, js/galons.js), gravés avec leur match et leur adversaire. Elle ne repart jamais à zéro. La même saison
- * rejouée (un rechargement) réécrit sa ligne : rien ne compte deux fois. Un galon neuf donne une copie de plus de sa
- * meilleure édition — la carte monte par ses exploits (`monterLesDoublons`). Rend { neufs, montees }.
- */
-export function graverLaSaison(lignes = [], run = 0, s = 1) {
-  const c = lireCartable(), neufs = [];
-  for (const l of lignes) {
-    const x = c.joueurs[l.cle];
-    if (!x) continue;
-    const chez = x.chez = x.chez || [];
-    const i = chez.findIndex(e => e.run === run && e.s === s);
-    const avant = i >= 0 ? chez[i] : null;
-    const ligne = { run, s, ...l.stats, ...((l.galons || []).length ? { galons: l.galons } : {}) };
-    if (i >= 0) chez[i] = ligne; else chez.push(ligne);
-    for (const g of l.galons || []) if (!(avant && (avant.galons || []).some(y => y.cle === g.cle))) neufs.push({ cle: l.cle, galon: g });
-  }
-  ecrire(c);
-  const montees = ajouterAuCartable(neufs.map(x => ({ cle: x.cle, rar: meilleureVariante(c.joueurs[x.cle]) })));
-  return { neufs, montees };
-}
-/* Son histoire chez toi, saison après saison ; ses galons d'une run (le report de la saison suivante), ou de toute sa carrière. */
-export const histoireChezToi = (cle, c = lireCartable()) => ((c.joueurs[cle] || {}).chez || []).slice();
-export const galonsDe = (cle, run = null, c = lireCartable()) => histoireChezToi(cle, c).filter(e => run === null || e.run === run).flatMap(e => e.galons || []);
-/* Les comptes du cartable : joueurs, copies, doublons, par variante, numérotées. */
-function comptesDuCartable(c = lireCartable()) {
-  const xs = Object.values(c.joueurs);
-  const parVariante = Object.fromEntries(VARIANTES.map(([r]) => [r, xs.filter(x => x.v && x.v[r]).length]));
-  const copies = xs.reduce((a, x) => a + (x.n || 1), 0);
-  return { joueurs: xs.length, copies, doublons: copies - xs.length, parVariante, numerotees: xs.filter(x => (x.num || []).length).length };
-}
-/* La clé d'un joueur-saison-club : « saison_club_id ». */
-const partsDe = cle => { const [s, t] = String(cle).split('_'); return { s, t }; };
-/*
- * LES EXTENSIONS (Jalon P4). JP : *des cartables style Pokémon Pocket, mettre l'accent sur la collection*. Chaque
- * décennie de saisons est une extension (Vintage 70, Rétro 80, Années 2000…), avec sa complétion : tes cartes sur
- * tous les joueurs-saisons de ses shards.
- */
-export const decennieDe = saison => Math.floor(Number(String(saison).slice(0, 4)) / 10) * 10;
-const nomExtension = d => (d < 1980 ? `Vintage ${String(d).slice(2)}` : d < 2000 ? `Rétro ${String(d).slice(2)}` : `Années ${d}`);
-/*
- * LES MISSIONS DE COLLECTION (Jalon P4) : chacune paie ses médailles une fois (js/rogue.js `payerMissions`). Pures :
- * elles se lisent sur le cartable et les décennies que le jeu connaît.
- */
-const MISSIONS = [
-  // Nov. 2026 (le contenu, de zéro) : le nom dit la mission, sa phrase est partie — « La première Or · 0 / 1 · 🏅 15 ».
-  { cle: 'holo', nom: 'La première Or', medailles: 15, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && (x.v.rare || x.v.legendaire)).length },
-  { cle: 'feuille', nom: 'Neuf d\'un club, une saison', medailles: 30, but: PAR_FEUILLE,
-    compte: c => Math.max(0, ...[...ensembles(c).parSaison.values()].flatMap(m => [...m.values()].map(l => l.length))) },
-  { cle: 'cent', nom: 'Cent cartes', medailles: 40, but: 100, compte: c => Object.keys(c.joueurs).length },
-  { cle: 'or', nom: 'Une Holo', medailles: 40, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && x.v.legendaire).length },
-  { cle: 'cinqHolo', nom: 'Cinq Or d\'une extension', medailles: 60, but: 5,
-    compte: c => { const n = {}; for (const [k, x] of Object.entries(c.joueurs)) if (x.v && (x.v.rare || x.v.legendaire)) { const d = decennieDe(partsDe(k).s); n[d] = (n[d] || 0) + 1; } return Math.max(0, ...Object.values(n)); } },
-  { cle: 'epoques', nom: 'Une carte par extension', medailles: 80, but: d => d.length,
-    compte: (c, d) => new Set(Object.keys(c.joueurs).map(k => decennieDe(partsDe(k).s)).filter(x => d.includes(x))).size },
-];
-/* Où en est chaque mission : { cle, nom, medailles, but, n, fait }. `decennies` : celles des saisons du jeu. */
-export function missionsDuCartable(c = lireCartable(), decennies = []) {
-  return MISSIONS.map(M => {
-    const but = typeof M.but === 'function' ? M.but(decennies) : M.but;
-    const n = Math.min(but, M.compte(c, decennies));
-    return { cle: M.cle, nom: M.nom, medailles: M.medailles, but, n, fait: but > 0 && n >= but };
-  });
-}
-/* Les ensembles : saison → club → clés ; club → saison → clés. */
-function ensembles(c = lireCartable()) {
-  const parSaison = new Map(), parClub = new Map();
-  for (const cle of Object.keys(c.joueurs)) {
-    const { s, t } = partsDe(cle);
-    if (!s || !t) continue;
-    if (!parSaison.has(s)) parSaison.set(s, new Map());
-    const ms = parSaison.get(s); if (!ms.has(t)) ms.set(t, []); ms.get(t).push(cle);
-    if (!parClub.has(t)) parClub.set(t, new Map());
-    const mc = parClub.get(t); if (!mc.has(s)) mc.set(s, []); mc.get(s).push(cle);
-  }
-  return { parSaison, parClub };
-}
-
-/* Les missions de collection, en tête des extensions, une ligne chacune : le nom, où elle en est, ce qu'elle paie. */
-function missionsHtml(ms, esc) {
-  return `<section class="ct-missions" aria-label="Missions de collection"><div class="ct-missions-t">Missions · ${ms.filter(m => m.fait).length} / ${ms.length}</div>
-    ${ms.map(m => `<div class="ct-mission${m.fait ? ' faite' : ''}"><span class="ct-mission-nom">${m.fait ? '✓ ' : ''}${esc(m.nom)}</span><span class="ct-mission-n">${m.fait ? `🏅 ${m.medailles}` : `${m.n} / ${m.but} · 🏅 ${m.medailles}`}</span></div>`).join('')}</section>`;
-}
-
-/* ---------- la page ---------- */
-const etat = { vue: 'equipe' };
-const pochetteVide = () => '<span class="ct-trou" aria-hidden="true"></span>';
-/* Une feuille : les cartes dans leurs pochettes, les cases vides restent des pochettes. */
-function feuilleHtml(cellules, index, total, titre, esc) {
-  const trous = PAR_FEUILLE - cellules.length;
-  const nom = titre ? `<span>${esc(titre)}</span>` : '';
-  const libre = trous ? `<span>${trous} pochette${trous > 1 ? 's' : ''} libre${trous > 1 ? 's' : ''}</span>` : '';
-  return `<section class="ct-feuille">
-      <div class="ct-anneaux" aria-hidden="true"><span class="ct-anneau"></span><span class="ct-anneau"></span><span class="ct-anneau"></span></div>
-      <div class="ct-feuille-corps">
-        <div class="ct-poches">${cellules.join('')}${pochetteVide().repeat(trous)}</div>
-        <p class="ct-folio"><b>Feuille ${index + 1}${total > 1 ? ` / ${total}` : ''}</b>${nom}${libre}</p>
-      </div>
-    </section>`;
-}
-function pagesDe(cellules, titre, esc) {
-  const total = Math.ceil(cellules.length / PAR_FEUILLE);
-  let out = '';
-  for (let i = 0; i < cellules.length; i += PAR_FEUILLE) out += feuilleHtml(cellules.slice(i, i + PAR_FEUILLE), i / PAR_FEUILLE, total, titre, esc);
-  return out;
-}
-/*
- * LE CARTABLE, dans `host`. ctx :
- *   esc, equipe [{ p, cle, mini, edCle }], titreSaison ('À la journée 20'…),
- *   fiche(cle, p), ficheEquipe(p),
- *   charger(saison) → Promise(entrée de shard : { players, byTeam }),
- *   mini(p, rar), cleDe(p), club(tag) → nom, logo(tag, px), band(tag) (tes coachs), vraie(p) → ligne de sa vraie saison,
- *   saisons (celles du jeu : les extensions et leur complétion).
- */
-export function rendreCartable(host, ctx) {
-  if (!host) return;
-  const esc = ctx.esc;
-  const c = lireCartable();
-  const k = comptesDuCartable(c);
-  const { parSaison, parClub } = ensembles(c);
-  const coachs = Object.entries(coachsDuCartable(c)).filter(([, x]) => COACHS[x.cle]), nCoachs = coachs.length;
-  if (etat.vue === 'coachs' && !nCoachs) etat.vue = 'equipe';
-  const decennies = [...new Set((ctx.saisons || []).map(decennieDe))];
-  const parDecennie = new Map();
-  for (const s of parSaison.keys()) { const d = decennieDe(s); parDecennie.set(d, (parDecennie.get(d) || 0) + [...parSaison.get(s).values()].reduce((a, l) => a + l.length, 0)); }
-  // SON ÉDITION ET SA MONTÉE, à la Marvel Snap (oct. 2026) : sa meilleure édition, et la barre de ses doublons vers la suivante.
-  const gemmes = x => {
-    const b = meilleureVariante(x), suite = MONTE[b], n = Math.max(0, ((x && x.v && x.v[b]) || 1) - 1);
-    return `<span class="ct-ed v-${b}">${esc(NOM_VARIANTE[b])}</span>${suite ? `<span class="ct-prog" title="${esc(`${n} doublon${n > 1 ? 's' : ''} sur ${FUSION} : la carte monte en ${NOM_VARIANTE[suite]}`)}"><i style="width:${Math.round((n / FUSION) * 100)}%"></i></span>` : ''}`;
-  };
-  // Nov. 2026 (le contenu, de zéro) : les comptes en une ligne — le chiffre, l'unité une fois.
-  const tete = `<div class="ct-tete">
-      <div class="ct-comptes">
-        <span class="ct-total"><b>${k.joueurs}</b> carte${k.joueurs > 1 ? 's' : ''}${k.doublons ? ` · <b>${k.doublons}</b> doublon${k.doublons > 1 ? 's' : ''}` : ''}</span>
-        <span class="ct-vars">${VARIANTES.map(([r, nom]) => `<span class="ct-var v-${r}" title="${esc(sensDe(r))}">${esc(nom)} <b>${k.parVariante[r]}</b></span>`).join('')}${k.numerotees ? `<span class="ct-var v-num">№ Numérotées <b>${k.numerotees}</b></span>` : ''}</span>
-      </div>
-    </div>
-    ${jetons([['equipe', 'Ton équipe', ctx.equipe.length], ['extensions', 'Extensions', parDecennie.size], ['clubs', 'Clubs', parClub.size], ...(nCoachs ? [['coachs', 'Coachs', nCoachs]] : [])]
-      .map(([cle, mot, n]) => ({ cle, mot: esc(mot), n, on: etat.vue === cle })), 'vue', { cls: 'ct-vues' })}`;
-  let corps = '';
-  let nav = '';
-  if (etat.vue === 'equipe') {
-    // LE PLATEAU (nov. 2026) : son édition en coin de la pochette dès Cadre (jamais « Base »), « ×2 » en coin pour un doublon ;
-    // AUCUNE ligne sous la carte (sa saison chez toi vit à Joueurs et à la fiche — l'entorse à la carte des infos, assumée,
-    // docs/ecrans-rogue.md « Le contenu, de zéro »).
-    const cartes = ctx.equipe.map(x => { const n = (c.joueurs[x.cle] || {}).n || 1; return `<button type="button" class="ct-carte" data-ct-equipe="${esc(x.cle)}" data-edition="${esc(x.edCle || 'commune')}">${x.edCle && x.edCle !== 'commune' && NOM_VARIANTE[x.edCle] ? coin(esc(NOM_VARIANTE[x.edCle]), { cote: 'gauche', cls: 'pl-coin-petit' }) : ''}${n > 1 ? coin(`×${n}`, { cote: 'droite', cls: 'pl-coin-petit' }) : ''}${x.mini}</button>`; });
-    const nPages = Math.ceil(cartes.length / PAR_FEUILLE);
-    const clesEq = new Set(ctx.equipe.map(x => x.cle));
-    const autres = Object.keys(c.joueurs).filter(cle => !clesEq.has(cle)).length;
-    nav = nPages > 1 ? `<div class="ct-nav"><button type="button" class="ct-nav-btn" data-feuille="avant" aria-label="Feuille précédente" disabled>‹</button><span class="ct-nav-mot">Feuille 1 / ${nPages}</span><button type="button" class="ct-nav-btn" data-feuille="apres" aria-label="Feuille suivante">›</button></div>` : '';
-    corps = cartes.length
-      ? `<p class="ct-mot">${esc(ctx.titreSaison || 'Tes joueurs')}</p><div class="ct-reliure">${pagesDe(cartes, 'Ton équipe', esc)}</div>${autres ? `<button type="button" class="ct-autres">Les autres débloqués · ${autres}</button>` : ''}`
-      : '<p class="ct-vide">Pas encore d\'alignement.</p>';
-  } else if (etat.vue === 'coachs') {
-    // TES ENTRAÎNEURS (V21) : une carte par coach-saison, aux couleurs de son club ; ses runs chez toi dessous.
-    const cartes = coachs.sort((a, b) => (b[1].r || 0) - (a[1].r || 0) || a[1].n.localeCompare(b[1].n, 'fr')).map(([id, x]) => {
-      const [saison, tag] = id.split('_'), C = COACHS[x.cle], b = ctx.band(tag), f = x.fiche || {};
-      return `<div class="ct-carte"><span class="ct-coach" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">${ctx.logo(tag, 40)}<b>${esc(x.n)}</b><span>${esc(ctx.club(tag))}</span><span>${esc(saison)}</span><span class="ct-coach-philo">${C.ico} ${esc(C.nom)}</span></span>
-        <span class="ct-stats"><span class="ct-ligne ct-vraie"><i>Vraie</i>${f.v}-${f.d}-${f.n}${x.coupe ? ' · 🏆' : ''}${x.jack ? ' · Jack Adams' : ''}</span><span class="ct-ligne ct-sim"><i>Chez toi</i>${x.r || 0} run${(x.r || 0) > 1 ? 's' : ''}</span></span></div>`;
-    });
-    corps = `<p class="ct-mot">Tes entraîneurs : le loto du départ tire d'abord ici, les moins joués d'abord.</p><div class="ct-reliure">${pagesDe(cartes, 'Tes coachs', esc)}</div>`;
-  } else {
-    const nSaisons = d => (ctx.saisons || []).filter(s => decennieDe(s) === d).length;
-    const groupes = etat.vue === 'extensions'
-      ? [...parDecennie.entries()].sort((a, b) => b[0] - a[0]).map(([d, n]) => ({ id: `e:${d}`, titre: nomExtension(d), n, sous: `${nSaisons(d)} saison${nSaisons(d) > 1 ? 's' : ''}` }))
-      : [...parClub.entries()].sort((a, b) => (ctx.club(a[0]) || a[0]).localeCompare(ctx.club(b[0]) || b[0], 'fr')).map(([t, m]) => ({ id: `c:${t}`, titre: ctx.club(t) || t, n: [...m.values()].reduce((a, l) => a + l.length, 0), sous: `${m.size} saison${m.size > 1 ? 's' : ''}` }));
-    corps = groupes.length
-      ? `${etat.vue === 'extensions' ? missionsHtml(missionsDuCartable(c, decennies), esc) : '<p class="ct-mot">Tes joueurs débloqués, club par club.</p>'}
-        ${groupes.map(g => `<section class="ct-set" data-set="${esc(g.id)}">
-          <div class="ct-set-tete"><span class="ct-set-nom">${esc(g.titre)}</span><span class="ct-set-sous">${esc(g.sous)}</span><b class="ct-set-n">${g.n}</b></div>
-          <div class="ct-set-corps"><p class="ct-charge">On ouvre le cartable…</p></div>
-        </section>`).join('')}`
-      : '<p class="ct-vide">Rien de débloqué encore. Joue une saison, ou ouvre un pack : les cartes entrent ici.</p>';
-  }
-  host.innerHTML = `<div class="ct">${tete}${nav}<div class="ct-corps">${corps}</div></div>`;
-  host.querySelectorAll('[data-vue]').forEach(b => { b.onclick = () => { etat.vue = b.dataset.vue; rendreCartable(host, ctx); }; });
-  const autresBtn = host.querySelector('.ct-autres');
-  if (autresBtn) autresBtn.onclick = () => { etat.vue = 'extensions'; rendreCartable(host, ctx); };
-  host.querySelectorAll('[data-ct-equipe]').forEach(b => {
-    b.onclick = () => { const x = ctx.equipe.find(y => y.cle === b.dataset.ctEquipe); if (x) ctx.ficheEquipe(x.p); };
-  });
-  const avant = host.querySelector('[data-feuille="avant"]');
-  const apres = host.querySelector('[data-feuille="apres"]');
-  if (avant && apres) {
-    const feuilles = [...host.querySelectorAll('.ct-corps > .ct-reliure > .ct-feuille')];
-    const mot = host.querySelector('.ct-nav-mot');
-    let i = 0;
-    const aller = (n, defiler) => {
-      i = Math.max(0, Math.min(feuilles.length - 1, n));
-      avant.disabled = i === 0;
-      apres.disabled = i === feuilles.length - 1;
-      if (mot) mot.textContent = `Feuille ${i + 1} / ${feuilles.length}`;
-      if (defiler && feuilles[i]) feuilles[i].scrollIntoView({ block: 'start' });
-    };
-    avant.onclick = () => aller(i - 1, true);
-    apres.onclick = () => aller(i + 1, true);
-  }
-  // UN ENSEMBLE SE REMPLIT en approchant de l'écran (JP, 28 oct. : *j'hais les accordéons*, plus de pli) : ses saisons se chargent, ses cartes se posent dans les pochettes, sa complétion se compte.
-  const remplir = async det => {
-    const id = det.dataset.set, corpsSet = det.querySelector('.ct-set-corps');
-    const [genre, val] = [id.slice(0, 1), id.slice(2)];
-    // Une extension : toutes ses saisons, club par club ; ses saisons sans carte se chargent aussi, pour la complétion.
-    const saisonsExt = genre === 'e' ? (ctx.saisons || []).filter(s => decennieDe(s) === Number(val)) : [];
-    const paires = genre === 'e' ? [...parSaison.entries()].filter(([s]) => decennieDe(s) === Number(val)).sort((a, b) => b[0].localeCompare(a[0]))
-      .flatMap(([s, m]) => [...m.entries()].sort((a, b) => (ctx.club(a[0]) || a[0]).localeCompare(ctx.club(b[0]) || b[0], 'fr')).map(([t, cles]) => ({ s, t, cles })))
-      : [...(parClub.get(val) || new Map()).entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([s, cles]) => ({ s, t: val, cles }));
-    const entrees = new Map();
-    for (const s of new Set([...paires.map(x => x.s), ...saisonsExt])) { try { entrees.set(s, await ctx.charger(s)); } catch { /* saison indisponible */ } }
-    const morceaux = [];
-    for (const { s, t, cles } of paires) {
-      const e = entrees.get(s);
-      const club = (e && e.byTeam && e.byTeam[t]) || [];
-      const parCle = new Map(club.map(p => [ctx.cleDe(p), p]));
-      const cartes = cles.map(cle => ({ cle, p: parCle.get(cle), x: c.joueurs[cle] })).filter(y => y.p).sort((a, b) => a.p.n.localeCompare(b.p.n, 'fr'));
-      const total = club.length;
-      const titre = genre === 'e' ? `${s} · ${ctx.club(t) || t}` : s;
-      morceaux.push(`<div class="ct-page-tete"><b>${esc(titre)}</b><span class="ct-completion${total && cles.length >= total ? ' complet' : ''}">${cles.length}${total ? ` / ${total}` : ''}</span>${total ? `<span class="ct-barre" aria-hidden="true"><i style="width:${Math.min(100, Math.round((cles.length / total) * 100))}%"></i></span>` : ''}</div>`);
-      if (!cartes.length) { morceaux.push('<p class="ct-vide">Ces cartes ne se chargent pas.</p>'); continue; }
-      const html = cartes.map(y => `<button type="button" class="ct-carte" data-cle="${esc(y.cle)}">${ctx.mini(y.p, meilleureVariante(y.x))}<span class="ct-badges">${gemmes(y.x)}${(y.x.n || 1) > 1 ? `<span class="ct-double">×${y.x.n}</span>` : ''}${(y.x.num || []).map(n => `<span class="ct-num">${esc(n)}</span>`).join('')}</span><span class="ct-stats"><span class="ct-ligne ct-vraie"><i>Vraie</i>${esc(ctx.vraie(y.p))}</span></span></button>`);
-      morceaux.push(pagesDe(html, titre, esc));
-    }
-    corpsSet.innerHTML = morceaux.length ? `<div class="ct-reliure">${morceaux.join('')}</div>` : '<p class="ct-vide">Cette saison n\'a pas pu se charger.</p>';
-    if (genre === 'e') {
-      const total = saisonsExt.reduce((a, s) => a + (((entrees.get(s) || {}).players || []).length), 0);
-      const n = paires.reduce((a, x) => a + x.cles.length, 0);
-      const sous = det.querySelector('.ct-set-n');
-      if (total && sous) sous.textContent = `${n} / ${total}`;
-    }
-    corpsSet.querySelectorAll('[data-cle]').forEach(b => {
-      b.onclick = () => {
-        const { s, t } = partsDe(b.dataset.cle);
-        const e = entrees.get(s);
-        const p = e && (e.byTeam[t] || []).find(q => ctx.cleDe(q) === b.dataset.cle);
-        if (p) ctx.fiche(b.dataset.cle, p);
-      };
-    });
-  };
-  const ensemblesVus = [...host.querySelectorAll('.ct-set')];
-  const racine = host.querySelector('.ct-corps');
-  if (ensemblesVus.length && racine && typeof IntersectionObserver === 'function') {
-    const veille = new IntersectionObserver(vus => {
-      for (const v of vus) if (v.isIntersecting) { veille.unobserve(v.target); remplir(v.target); }
-    }, { root: racine, rootMargin: '400px 0px' });
-    ensemblesVus.forEach(e => veille.observe(e));
-  } else ensemblesVus.forEach(remplir);
-}

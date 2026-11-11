@@ -102,7 +102,7 @@ async function ouvrir(R) {
   await page.evaluate(r => { localStorage.clear(); if (r) localStorage.setItem('cap82_run', JSON.stringify(r)); }, R);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
-  await page.click('#menuDepart [data-menu="run"]');
+  await page.click('#menuDepart [data-menu="rogue"]');
   await page.waitForSelector('#runModal .rn-plan [data-a]', { timeout: 60000 });
   return page;
 }

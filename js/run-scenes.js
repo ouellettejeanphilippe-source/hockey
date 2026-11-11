@@ -10,18 +10,19 @@ import { PLANS, INTENTIONS } from './greffes.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC } from './pieces.js';
 import { COACHS, REGLES_DU_COACH } from './coachs.js';
 import { motDuRang, niveauDuCoach } from './coachs-reels.js';
-import { NIVEAUX, nomDuNiveau } from './niveaux.js';
+import { NIVEAUX, nomDuNiveau, groupeDuJoueur as groupeDe } from './niveaux.js';
 import { PRIX_PIECE } from './actes.js';
 import { lignesDeLaPiece, motsDeStats } from './impact.js';
 import { cartonDe, varsEquipe } from './repechage.js';
 import { carteHtml, carteDePiece, pochetteHtml } from './cartes.js';
 import { getTeamBand, getTeamLogoHtml } from './logos.js';
 import { NOM_VARIANTE } from './rarete.js';
-import { groupeDe } from './ballottage.js';
 import { TEAMFULL } from './game.js';
+import { nomCourt } from './recit.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
-  RUN, RANG_DU_RIVAL, casesOffertes, caseA, suivantes, masseDe, espaceDe, prixDe, masseApres, tient, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe,
+  RUN, RANG_DU_RIVAL, RANGS_DE_DOS_A_DOS, casesOffertes, caseA, suivantes, masseDe, espaceDe, prixDe, masseApres, tient, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe,
+  dosADosA, piecesDuSoir, leurCoach,
 } from './run.js';
 
 /* ---------- les petites briques ---------- */
@@ -41,7 +42,7 @@ const surnom = t => String(TEAMFULL[t] || t).split(/ (?:de |du |des |d['’])/)[
 const ville = t => String(TEAMFULL[t] || t).split(/ (?:de |du |des |d['’])/)[1] || surnom(t);
 const clubMot = c => `${surnom(c.t)} ${c.s}`;
 const clubCourt = c => `${surnom(c.t)} ${c.s.slice(2, 4)}-${c.s.slice(5)}`;
-const court = p => String((p && p.n) || '').trim().split(' ').slice(-1)[0];
+const court = p => nomCourt(p && p.n);
 const jetons = n => `<span class="rn-jt"><i class="rn-piece"></i>${n}</span>`;
 const jambes = ps => (ps.length ? Math.round(ps.reduce((a, p) => a + energieDe(p), 0) / ps.length) : 100);
 const couleurs = (toi, eux) => `--toi:${getTeamBand(toi).bg};--eux:${getTeamBand(eux).bg === getTeamBand(toi).bg ? getTeamBand(eux).stripe : getTeamBand(eux).bg}`;
@@ -97,18 +98,22 @@ export function sceneDepart(V) {
 const X_DES_CASES = { 2: [130, 260], 3: [70, 195, 320] }, Y_DES_RANGS = [578, 516, 454, 392, 330, 268, 206], Y_DU_RIVAL = 112;
 const xy = (r, i) => (r >= RANG_DU_RIVAL ? [195, Y_DU_RIVAL] : [X_DES_CASES[S_LARGEURS[r]][i], Y_DES_RANGS[r]]);
 const S_LARGEURS = [2, 3, 2, 3, 2, 3, 2];
+/* Le milieu de chaque intervalle entre deux cases d'un rang : où un rang dit ce qu'il est (son dos-à-dos). */
+const entreLesCases = r => { const xs = X_DES_CASES[S_LARGEURS[r]]; return xs.slice(1).map((x, i) => (x + xs[i]) / 2); };
 const MOT_DU_JEU = { tirs: 'Tireurs', durs: 'Durs', gardien: 'Gardien' };
 const SORTE_CLS = { marche: 'rn-marche', vestiaire: 'rn-vest', histoire: 'rn-hist', elite: 'rn-elite', rival: 'rn-rival' };
 function styleDe(S, c) { if (!S.jeux) S.jeux = new Map(); const k = `${c.s}:${c.t}`; if (!S.jeux.has(k)) S.jeux.set(k, jeuDe(S, c)); return S.jeux.get(k); }
 /* Ce qu'une case offre, dans le tiroir : qui, son jeu, ce que ça paie. */
 function optionDe(S, c, i, on) {
   const tete = c.s ? `${logo(c.t, 30)}${esc(clubCourt(c))}` : `${icone(c.sorte)}${{ marche: 'Le marché', vestiaire: 'Le vestiaire', histoire: 'Une histoire' }[c.sorte]}`;
-  const jeu = c.s ? styleDe(S, c) : null, lieu = c.visiteur ? 'chez eux' : 'chez toi';
-  const mot = { match: () => `${jeu.mot} · ${lieu}`, elite: () => `Élite · ${jeu.mot}`, rival: () => `Le rival · il compte double · ${lieu}`,
+  const jeu = c.s ? styleDe(S, c) : null, lieu = `${c.visiteur ? 'chez eux' : 'chez toi'}${dosADosA(c, S.R.rang) ? ' · dos-à-dos' : ''}`;
+  // Tes pièces dont la condition se lit déjà (le lieu, son jeu, ta suite, le dos-à-dos) : le chemin se choisit aussi par ton banc.
+  const duSoir = c.s ? piecesDuSoir(S, c).length : 0, banc = duSoir ? `<span class="rn-puce rn-m">${duSoir} pièce${duSoir > 1 ? 's jouent' : ' joue'}</span>` : '';
+  const mot = { match: () => `${jeu.mot} · ${lieu}`, elite: () => `Élite · ${jeu.mot} · ${lieu}`, rival: () => `Le rival · il compte double · ${lieu}`,
     marche: () => 'Une pièce de banc, les pochettes', vestiaire: () => 'Te soigner, ou monter une carte', histoire: () => 'Quelqu\'un du club veut te parler' }[c.sorte]();
-  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span><span class="rn-puce">${RUN.PORTES} portes</span>`,
-    elite: () => '<span class="rn-puce rn-m">Une pièce</span><span class="rn-puce rn-o">Des jetons</span>',
-    rival: () => `<span class="rn-puce rn-m">Une pièce</span><span class="rn-puce rn-o">${c.jetons} jetons</span>`,
+  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span>${banc || `<span class="rn-puce">${RUN.PORTES} portes</span>`}`,
+    elite: () => `<span class="rn-puce rn-o">Une pièce, des jetons</span>${banc}`,
+    rival: () => `<span class="rn-puce rn-o">Une pièce · ${c.jetons} jetons</span>${banc}`,
     marche: () => `<span class="rn-puce rn-o">Pièce : ${PRIX_PIECE}</span>`, vestiaire: () => `<span class="rn-puce">${S.toi.injured.size} blessé${S.toi.injured.size > 1 ? 's' : ''}</span>`, histoire: () => '' }[c.sorte]();
   return `<button type="button" class="rn-opt${on ? ' rn-on' : ''}" data-a="voir-case" data-v="${i}"><b>${tete}</b><span>${esc(mot.charAt(0).toUpperCase() + mot.slice(1))}</span><i>${puces}</i></button>`;
 }
@@ -137,6 +142,7 @@ export function sceneCarte(S, V) {
   return `<svg class="rn-chemin" viewBox="0 0 390 844" aria-hidden="true"><path d="${liens.join('')}"/>${pris.length ? `<path class="rn-pris" d="${pris.join('')}"/>` : ''}${offerts.length ? `<path class="rn-offert" d="${offerts.join('')}"/>` : ''}</svg>
   ${hud(S, { petit: R.rang >= RANG_DU_RIVAL ? 'Le rival' : `Case ${R.rang + 1} de ${RANG_DU_RIVAL}` })}
   ${noeud(R.carte.rival, RANG_DU_RIVAL, 0)}${R.carte.rangs.map((rang, r) => rang.map((c, i) => noeud(c, r, i)).join('')).join('')}
+  ${RANGS_DE_DOS_A_DOS.filter(r => r >= R.rang).map(r => entreLesCases(r).map(x => `<span class="rn-etq" style="left:${x}px;top:${Y_DES_RANGS[r] - 6}px">Dos-à-dos</span>`).join('')).join('')}
   <div class="rn-tiroir"><div class="rn-k">Ta prochaine case${offertes.length > 1 ? ' · une des deux' : ''}</div>
     <div class="rn-deux">${offertes.map(i => optionDe(S, caseA(S, R.rang, i), i, i === vue)).join('')}</div>
     <div style="display:flex;gap:8px">${bt('Lignes', 'lignes')}${bt('Banc', 'banc')}${bt('Y aller', 'aller', { cls: 'rn-go', v: vue })}</div></div>`;
@@ -184,11 +190,13 @@ const jaugeHtml = (V, toi, eux) => {
   const pc = V.chance ? Math.round((100 * V.chance.v) / V.chance.n) : null;
   return `<div class="rn-jauge" style="${couleurs(toi, eux)}"><span>${pc == null ? '…' : `${pc} %`}</span><div><i style="width:${pc == null ? 50 : pc}%"></i></div><span>${pc == null ? '…' : `${100 - pc} %`}</span></div>`;
 };
+/* La jauge de ce soir, seule : la coquille la remplace sur place pendant que ta chance se calcule, sans refaire la scène. */
+export const jaugeDeCeSoir = (S, V) => jaugeHtml(V, 'YOU', S.R.case.t);
 export function sceneFeuille(S, V) {
   const R = S.R, c = R.case, club = S.clubs.find(x => x.s === c.s && x.t === c.t), duel = c.sorte !== 'match';
   const jeu = styleDe(S, c), eux = lignesDuClub(club.team), moi = lignesDuClub(S.toi), vedette = vedettesDe(club)[0];
-  const lieu = c.visiteur ? 'chez eux' : 'chez toi';
-  const sous = { match: `${jeu.mot} · ${lieu}`, rival: `Le rival · il compte double · ${lieu}`, elite: `Élite · ${jeu.mot} · ${lieu}`, serie: `Match ${R.series ? R.series.w + R.series.l + 1 : 1} · ${lieu}` }[c.sorte];
+  const lieu = `${c.visiteur ? 'chez eux' : 'chez toi'}${dosADosA(c, R.rang) ? ' · dos-à-dos' : ''}`, leur = leurCoach(S, c);
+  const sous = { match: `${jeu.mot} · ${lieu}`, rival: `Le rival · il compte double · ${lieu}`, elite: `Élite · ${jeu.mot} · ${lieu}`, serie: `Match ${R.series ? R.series.w + R.series.l + 1 : 1} · ${lieu}${leur ? ` · leur coach : ${COACHS[leur.cle].nom}` : ''}` }[c.sorte];
   const petit = { match: `Case ${R.rang + 1} de ${RANG_DU_RIVAL}`, rival: 'Le rival', elite: 'L\'élite', serie: ['Quart de finale', 'Demi-finale', 'La finale'][R.series ? R.series.ronde : 0] }[c.sorte];
   const filet = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => S.roster[s.i]).filter(Boolean), aux = S.toi._filetMatch === 'aux';
   const civil = [...S.toi.injured].map(([p, m]) => `<span class="rn-puce rn-r">${esc(court(p))} · blessé, ${m} match${m > 1 ? 's' : ''}</span>`);
@@ -364,7 +372,7 @@ export function sceneBanc(S) {
 export function sceneMarche(S, V) {
   const R = S.R, M = R.marche, plein = R.banc.length >= CASES_DU_BANC;
   const piece = k => { const ok = !M.piece && R.jetons >= PRIX_PIECE; return `<button type="button" class="${V.piece === k ? 'rn-on' : ''}" data-a="voir-piece" data-v="${k}"${ok ? '' : ' disabled'}>${carteP(k)}<span class="rn-prix${ok ? '' : ' rn-non'}">${M.piece ? 'Prise' : `<i class="rn-piece"></i>${PRIX_PIECE}`}</span><p>${ligneDe(k)}</p></button>`; };
-  const pochette = (cle, mot, ico, metal, quoi) => { const prix = RUN.POCHETTES[cle], pris = M.pochettes.includes(cle), ok = !pris && R.jetons >= prix; return `<button type="button" data-a="pochette" data-v="${cle}"${ok ? '' : ' disabled'}><span class="rn-c" style="--pk-a:var(${metal})">${pochetteHtml({ etat: 'scellee', mot, ico })}</span><span class="rn-prix${ok ? '' : ' rn-non'}">${pris ? 'Ouverte' : `<i class="rn-piece"></i>${prix}`}</span><p>${quoi}</p></button>`; };
+  const pochette = (cle, mot, ico, metal, quoi) => { const prix = RUN.POCHETTES[cle], pris = M.pochettes.includes(cle), ok = !pris && R.jetons >= prix; return `<button type="button" data-a="pochette" data-v="${cle}"${ok ? '' : ' disabled'}><span class="rn-c" style="--pk-a:var(${metal})">${pochetteHtml({ mot, ico })}</span><span class="rn-prix${ok ? '' : ' rn-non'}">${pris ? 'Ouverte' : `<i class="rn-piece"></i>${prix}`}</span><p>${quoi}</p></button>`; };
   return `${hud(S, { titre: 'Le marché', cible: false })}
   <div style="left:14px;right:14px;top:62px"><div class="rn-k" style="margin-bottom:10px">Une pièce de banc · une seule</div><div class="rn-etal">${M.pieces.map(piece).join('')}</div></div>
   <div style="left:14px;right:14px;top:350px"><div class="rn-k" style="margin-bottom:10px">Les pochettes</div><div class="rn-etal">${pochette('j:bronze', 'Bronze', '🥉', '--attention', 'Trois joueurs au hasard')}${pochette('j:epoque', 'Époque', '🕰', '--rn-bleu', 'Un pilier ou mieux, d\'une époque au hasard')}</div></div>

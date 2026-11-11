@@ -26,9 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, playGame, feuilleVierge,
   grainerHasard, activeLineup, profilMatch, coupsAttendus, MUTATIONS } from '../js/sim.js';
-import { chiffresDuSoir, effetEnChiffres, motsDuSoir, motsEnChiffres, motsDeMutationEnChiffres, poserClubLu } from '../js/impact.js';
-import { BANQUE, reglesDe } from '../js/banque.js';
-import { pucesDeFace, FACE_MAX } from '../js/gerant.js';
+import { chiffresDuSoir, effetEnChiffres, motsEnChiffres, motsDeMutationEnChiffres, poserClubLu } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { temoin, effetTemoin } from './lib/temoins.mjs';
@@ -171,33 +169,13 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
   exiger('sans club, les mots d\'avant ; avec lui, des matchs et la durée', avant.some(m => m.txt.includes('%')) && apres.some(m => m.txt.includes('par match')) && apres.some(m => m.duree), `${avant[0].txt} → ${apres.map(m => m.txt).join(' | ')}`);
 }
 
-/* 3b. Tout ce que le joueur lit, pour un club : la banque entière et les cartes de match. Rien ne plante, rien ne dit un pourcentage d'effet. */
+/* 3b. Ce que le joueur lit d'une modif, pour un club. Rien ne plante, rien ne dit un pourcentage d'effet. (La banque de cartes et leurs faces sont parties avec « Tes cartes » de l'ancien Rogue.) */
 {
   const [A] = ligue(21, 1);
   poserClubLu(() => ({ team: A }));
   const t0 = Date.now();
-  // Ce qui reste en pourcentage n'est pas un effet de match : un prix, une chance de pari, un rabais, une maîtrise de système, un salaire.
-  const AUTRE = /Packs|Plafond|salaire|🪙|aîtrise|holo|🎲|de viser juste/;
   const fautes = [];
   let lues = 0;
-  for (const id of Object.keys(BANQUE)) {
-    try { for (const m of reglesDe(id)) { lues++; if (/%/.test(m.txt) && !AUTRE.test(m.txt)) fautes.push(`${id} : ${m.txt}`); } } catch (e) { fautes.push(`${id} : ${e.message}`); }
-  }
-  // UNE CARTE, UNE IDÉE (V6, phase 4) : sa face dit au plus FACE_MAX choses, en mots ; le reste attend « Les chiffres ».
-  const face = mots => (pucesDeFace(mots).match(/<span class="puce [^"]*">/g) || []).filter(x => !/detail|duree/.test(x));
-  const deTrop = [], enChiffres = [];
-  let pliees = 0;
-  for (const [id, c] of Object.entries(BANQUE)) {
-    const mots = reglesDe(id);
-    const f = face(mots);
-    if (f.length > FACE_MAX) deTrop.push(`${c.nom} (${f.length})`);
-    if (mots.filter(m => !m.duree).length > FACE_MAX) pliees++;
-    // Une seule langue : un chiffre de match sur la face est un chiffre de trop.
-    const vus = (pucesDeFace(mots).match(/<span class="puce [^"]*">[^<]*/g) || []).filter(x => !/detail|duree|en-mots/.test(x) && /≈/.test(x));
-    if (vus.length) enChiffres.push(c.nom);
-  }
-  exiger(`une carte dit au plus ${FACE_MAX} choses sur sa face`, deTrop.length === 0, deTrop.slice(0, 4).join(' · ') || `${Object.keys(BANQUE).length} cartes, ${pliees} pliées`);
-  exiger('la face d\'une carte parle en mots, ses chiffres de match attendent « Les chiffres »', enChiffres.length === 0, enChiffres.slice(0, 4).join(' · ') || 'aucun chiffre sur une face');
   // JP : *« +25 déf », ça veut rien dire.* Un rôle se dit par le badge qu'il gagne ou perd, jamais en points de profil.
   const POINTS = /\p{Extended_Pictographic}\S* [\p{L}' -]+ [+−]\d+$/u;
   const muettes = [], aLui = [];
@@ -222,7 +200,7 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
   for (const k of Object.keys(MUTATIONS)) { motsDeMutationEnChiffres(k); motsDeMutationEnChiffres(k, null, { deja: true }); }
   poserClubLu(null);
   exiger('lire une modif la pose le temps de la lecture, puis rend chaque joueur tel quel', champs() === avant, `${Object.keys(MUTATIONS).length} modifs lues deux fois`);
-  exiger('la banque, les cartes de match et les modifs, lues pour un club : aucun pourcentage d\'effet, aucune erreur', fautes.length === 0, fautes.slice(0, 4).join(' · ') || `${lues} lignes en ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  exiger('les modifs, lues pour un club : aucun pourcentage d\'effet, aucune erreur', fautes.length === 0, fautes.slice(0, 4).join(' · ') || `${lues} lignes en ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 }
 
 /* 4. Lire ne change rien. */
@@ -235,7 +213,7 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
     while (!L.fini) {
       if (lire && L.jour % 4 === 0) {
         const t = teams[0], avant = [t.cartes, t.effets, t._effetMatch, t.speciales, t.perso];
-        chiffresDuSoir(t); motsDuSoir(t, null, null, []); effetEnChiffres({ volume: 1.1, defense: 0.9 }, t);
+        chiffresDuSoir(t); effetEnChiffres({ volume: 1.1, defense: 0.9 }, t);
         rendue = rendue && [t.cartes, t.effets, t._effetMatch, t.speciales, t.perso].every((x, i) => x === avant[i]);
       }
       jouerJournee(L);
