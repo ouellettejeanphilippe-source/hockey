@@ -145,6 +145,7 @@ check_maj               la mise à jour de la version Web : la version qui tourn
 check_couches           les couches du moteur (V25 A1) : js/sim.js n'importe aucun module du Rogue, js/greffes.js pose chaque crochet que le moteur lit
 check_elites            les règles des élites, sans jouer un match : la récompense et ses bornes, ce qu'une élite perdue coûte, les trois pièces « pour le battre », un style par club
 check_neuf              aucun module js/run* ne s'appuie sur un nom de « Ce qui part » du devis V28, aucune ligue en coulisse, le cœur sans DOM ni stockage
+check_meta              la méta du Rogue sans navigateur (V28, tranche 5) : les philosophies et leurs prix, la case « Nouveau » du loto, ton club, le prestige et ses exploits, les exigences et les règles qu'une run porte, le solde des déblocages d'avant, la même run le méta vide ou plein ; quatre secondes
 check_run               les invariants de la run en carte, jouée par ses trois robots : les actes, la cible, les cœurs, les portes, le plafond, la même graine, une run relue, une histoire relue (GRAINES)
 ```
 

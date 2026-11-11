@@ -40,7 +40,7 @@ export const REGLES_DU_COACH = {
   profondeur: { jetons: 2, dit: 'quatre buteurs ou plus', lit: s => s.buteurs >= 4 },
   etoiles: { jetons: 2, dit: 'un joueur à trois points ou plus', lit: s => s.pointsMax >= 3 },
 };
-/* Les huit voies d'une run, dans l'ordre où le prestige les ouvre (js/rogue.js `coachsOuverts`). */
+/* Les huit voies d'une run : les trois premières ouvertes au départ, les cinq autres en médailles (js/rogue.js `voiesOuvertes`). */
 export const VOIES = ['tortue', 'essaim', 'rhinos', 'rapaces', 'souffle', 'choeur', 'profondeur', 'etoiles'];
 
 const ROLE_BON = 55;

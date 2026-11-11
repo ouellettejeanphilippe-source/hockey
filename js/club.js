@@ -5,10 +5,14 @@
  * notre équipe puis des logos, ce soient des choses qu'on débloque au fur et à
  * mesure ; on ne serait pas imposé d'avoir le nom NHL Stars, le noir puis
  * l'orange*. Les NHL Stars restent le club de départ (noir, blanc, orange,
- * l'étoile) ; le reste s'achète en jetons 🪙 à la boutique, au rayon « Ton
- * club », comme les packs (JP : *même monnaie que les autres packs*), et se
- * porte au vestiaire. Les plus beaux demandent un rang de prestige — comme les dos de cartes de Balatro ou les
+ * l'étoile) ; le reste s'achète au Club, entre deux runs (V28, tranche 5 : la scène « Ton club », js/run-scenes.js), et se
+ * porte aussitôt. Les plus beaux demandent un rang de prestige — comme les dos de cartes de Balatro ou les
  * tenues de Hades : ça ne change rien au jeu, ça dit le chemin parcouru.
+ *
+ * LA MONNAIE : les médailles 🏅. JP (oct. 2026) les voulait en jetons, à la boutique, *même monnaie que les autres packs* ;
+ * la boutique est partie avec l'ancien Rogue, et dans une run en carte un jeton dépensé sur une couleur est un jeton de
+ * moins pour une pièce de banc : l'habit y coûterait de la force. Les médailles ne paient que de la variété
+ * (docs/refonte-v28-5.md § 3.3 et § 10 : à trancher par JP).
  *
  * Tout est COSMÉTIQUE : aucune cote, aucun effet. Le choix vit dans le méta
  * (`m.club`) et vaut dans tous les modes. `appliquerClub` le pose là où
@@ -18,7 +22,7 @@
  * en trois lettres, comme celui d'un club de la ligue au tableau indicateur.
  */
 import { TEAM_COLORS, poserEcussonDuClub } from './logos.js';
-import { lireMeta } from './rogue.js';
+import { lireMeta, ecrireMeta, rangDePrestige, PRESTIGES } from './rogue.js';
 import { esc } from './util.js';
 
 /*
@@ -221,6 +225,48 @@ function choixDuClub(m = lireMeta()) {
   const c = { ...DEPART, ...vieux, club: vieux.club || vieux.nom || DEPART.club };
   for (const R of RAYONS_CLUB) if (!R.liste[c[R.cle]]) c[R.cle] = DEPART[R.cle];
   return c;
+}
+
+/*
+ * LES ACHATS D'AVANT (un nom et un écusson vendus à part, puis en jetons à la boutique de l'ancien Rogue) : un nom acheté
+ * donne son club ; un écusson acheté donne le club dont il était le motif. Tout ce qui était acquis le reste.
+ */
+const ANCIENS = { 'ecusson:harfang': 'harfangs', 'ecusson:huard': 'huards', 'ecusson:loup': 'loupsgarous', 'ecusson:comete': 'cometes', 'ecusson:hache': 'bucherons', 'ecusson:flocon': 'blizzard', 'ecusson:eclair': 'tonnerre', 'ecusson:patte': 'ours', 'ecusson:couronne': 'royaux' };
+const clubDAvant = cle => (cle.startsWith('nom:') ? cle.slice(4) : ANCIENS[cle]);
+const rayon = cle => RAYONS_CLUB.find(R => R.cle === cle);
+/* Un objet est à toi s'il est gratuit ou acquis (`m.club.pris` : « club:harfangs », « palette:glacier »). */
+const possede = (m, rayonCle, cle) => {
+  const pris = (m.club && m.club.pris) || [];
+  return !rayon(rayonCle).liste[cle].prix || pris.includes(`${rayonCle}:${cle}`) || (rayonCle === 'club' && pris.some(k => clubDAvant(k) === cle));
+};
+/*
+ * LES RAYONS DE « TON CLUB » (V28, tranche 5 : la scène du Club, js/run-scenes.js). Chaque objet avec son état — porté,
+ * acquis, son prix en médailles 🏅 (c'étaient des jetons de la boutique), ou le rang de prestige qu'il demande — et son
+ * aperçu : l'écusson aux couleurs portées, ou les deux teintes d'une couleur.
+ */
+export function rayonsDuClub(m = lireMeta()) {
+  const c = choixDuClub(m), rang = rangDePrestige(m);
+  return RAYONS_CLUB.map(R => ({ cle: R.cle, titre: R.titre, objets: Object.entries(R.liste).map(([k, o]) => ({
+    cle: k, nom: o.nom, prix: o.prix, acquis: possede(m, R.cle, k), porte: c[R.cle] === k, verrou: o.rang && rang < o.rang ? PRESTIGES[o.rang].nom : '',
+    apercu: ecussonDe({ ...c, [R.cle]: k }), ...(o.primary ? { nuance: [o.primary, o.secondary] } : {}) })) }));
+}
+/*
+ * PRENDRE un objet du Club : acquis, il se porte ; sinon il se paie en médailles, puis se porte. Rend { ok } ou ce qui
+ * l'empêche : { manque } (les médailles qu'il faut encore), { verrou } (le rang qu'il demande).
+ */
+export function prendreAuClub(rayonCle, cle) {
+  const m = lireMeta(), o = rayon(rayonCle) && rayon(rayonCle).liste[cle];
+  if (!o) return { ok: false };
+  if (!possede(m, rayonCle, cle)) {
+    if (o.rang && rangDePrestige(m) < o.rang) return { ok: false, verrou: PRESTIGES[o.rang].nom };
+    if ((m.ecussons || 0) < o.prix) return { ok: false, manque: o.prix - (m.ecussons || 0) };
+    m.ecussons -= o.prix;
+    m.club = { ...(m.club || {}), pris: [...((m.club && m.club.pris) || []), `${rayonCle}:${cle}`] };
+  }
+  m.club = { ...(m.club || {}), [rayonCle]: cle };
+  ecrireMeta(m);
+  appliquerClub(m);
+  return { ok: true };
 }
 
 let actuel = DEPART;

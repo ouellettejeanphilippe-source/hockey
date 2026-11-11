@@ -28,7 +28,7 @@ import { leurJeuDuDuel, appliquerChoix, deDuChoix } from './greffes.js';
 import { HISTOIRES, tirer } from './histoires.js';
 import { faitsDe } from './faits.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, piecesOffertes, poserLaPiece, piecesContre, persoAdverse } from './pieces.js';
-import { JETONS, PRIME_COACH_MAX, bouchesTrousDuDepart, habillerLaLigue, chiffresDuSoirDe, ecussonsDesSeries } from './rogue.js';
+import { JETONS, PRIME_COACH_MAX, bouchesTrousDuDepart, habillerLaLigue, chiffresDuSoirDe, ecussonsDesSeries, exigencesDe } from './rogue.js';
 import { REGLES_DU_COACH } from './coachs.js';
 import { MEDAILLES_ACTE, PRIX_PIECE, jeuDuRival, dominanteDe, recompenseDeLElite, perteDeLElite } from './actes.js';
 import { chanceDUnSoir } from './pronostic.js';
@@ -162,6 +162,12 @@ function classerLesClubs(donnees) {
 /* Les forces du monde d'une séance, à garder pour la prochaine visite. */
 export const forcesDuMonde = S => Object.fromEntries(S.clubs.map(c => [cleDuClub(c), c.force]));
 const dansLaBande = (clubs, [a, b]) => clubs.filter(c => c.rang >= a && c.rang <= b);
+/*
+ * LES RÈGLES QU'UNE RUN PORTE : celles de `RUN`, durcies par son cran d'exigence (js/rogue.js `exigencesDe`) — la cible de
+ * chaque acte, les étapes d'édition des adversaires, le multiple de ses médailles. Écrites à sa création, elles ne bougent
+ * plus : une run gardée garde ses règles. Une run d'avant les exigences lit `RUN`.
+ */
+export const reglesDe = R => (R && R.regles) || { exigence: 0, cibles: RUN.CIBLES, etapes: RUN.ETAPES, prime: 1 };
 const decale = ([a, b]) => [Math.min(0.95, a + RUN.DECALAGE), Math.min(1, b + RUN.DECALAGE)];
 
 /* ---------- la run neuve ---------- */
@@ -204,8 +210,9 @@ function effectifDeDepart(S, graine) {
  * CRÉER LA RUN : `coach` est une carte de coach ({ id, n, saison, tag, cle, rang, maitrise }, js/coachs-reels.js) ou une
  * simple philosophie ({ cle }) pour un robot. Rend la séance, au camp, ses premières portes ouvertes.
  */
-export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1 }) {
+export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1, exigence = 0 }) {
   const S = { R: null, donnees, clubs: classerLesClubs(donnees), roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null, robotDuel: null };
+  const E = exigencesDe(exigence);
   S.roster = effectifDeDepart(S, graine);
   const masse = Object.values(S.roster).reduce((a, p) => a + prixDe(S, p), 0), cible = CAP - RUN.ESPACE;
   // LE PLAFOND : ta masse de départ et son espace. Si le départ n'a pas d'assez gros contrats pour monter au vrai
@@ -213,6 +220,7 @@ export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, num
   const plafond = Math.round((masse + RUN.ESPACE + RUN.RACHAT * Math.max(0, cible - masse)) / 100_000) * 100_000;
   const R = S.R = {
     v: VERSION_DE_LA_RUN, graine: String(graine), numero,
+    regles: { exigence: E.n, cibles: RUN.CIBLES.map(c => c + E.cible), etapes: RUN.ETAPES.map(e => e + E.etapes), prime: E.medailles },
     coach: { maitrise: 1, ...coach }, banc: [PIECE_DU_COACH[coach.cle]],
     jetons, coeurs: RUN.COEURS, plafond, mort: 0,
     joueurs: [], vus: [], anciens: [],
@@ -458,8 +466,8 @@ export function piecesDuSoir(S, c, rang = S.R.rang) {
 
 /* ---------- le match ---------- */
 /* L'adversaire de la case en cours, habillé de ses étapes d'édition le temps d'un match, puis rendu : ses joueurs sont ceux des portes. */
-const etapeDe = R => RUN.ETAPES[R.phase === 'series' || (R.case && R.case.sorte === 'serie') ? 3 : R.acte];
-const habiller = (t, e) => { if (e > 0) habillerLaLigue([t], 0, v, e); };
+const etapeDe = R => reglesDe(R).etapes[R.phase === 'series' || (R.case && R.case.sorte === 'serie') ? 3 : R.acte];
+const habiller = (t, e) => { if (e > 0) habillerLaLigue([t], e, v); };
 const deshabiller = t => { for (const p of Object.values(t.roster)) if (p) delete p._carte; };
 function fraisEtSain(t) {
   for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { p.energie = 100; delete p._reserve; } }
@@ -556,13 +564,13 @@ export function conclure(S, res) {
 }
 /* La fin d'un acte : la cible tenue ou non, le cœur, le rival ; les médailles de l'acte. Le rival battu laisse une pièce parmi trois. */
 function conclureLActe(S, res) {
-  const R = S.R, a = R.acte, tenu = R.pts >= RUN.CIBLES[a];
+  const R = S.R, a = R.acte, cible = reglesDe(R).cibles[a], tenu = R.pts >= cible;
   const medailles = RUN.MEDAILLES_ACTE_JOUE + (tenu ? MEDAILLES_ACTE.passe - RUN.MEDAILLES_ACTE_JOUE : 0) + (res.gagne ? MEDAILLES_ACTE.rival : 0);
   if (!tenu && a < ACTES - 1) R.coeurs--;
   const fin = !tenu && (a === ACTES - 1 || R.coeurs <= 0) ? (a === ACTES - 1 ? 'cible' : 'coeurs') : null;
-  R.actes.push({ pts: R.pts, cible: RUN.CIBLES[a], tenu, rival: res.gagne, s: R.case.s, t: R.case.t, gf: res.gf, ga: res.ga, medailles, coeur: !tenu && a < ACTES - 1 });
+  R.actes.push({ pts: R.pts, cible, tenu, rival: res.gagne, s: R.case.s, t: R.case.t, gf: res.gf, ga: res.ga, medailles, coeur: !tenu && a < ACTES - 1 });
   R.apres = { ...R.apres, acte: true, tenu, fin,
-    offertes: !fin && res.gagne ? piecesOffertes(S.toi.perso, R.graine, `rival${a}`, RUN.PORTES, { voisines: true }) : [] };
+    offertes: !fin && res.gagne ? piecesOffertes(S.toi.perso, R.graine, `rival${a}`, undefined, { voisines: true }) : [] };
   R.phase = 'finacte';
   figer(S);
   return R.phase;
@@ -842,7 +850,7 @@ function conclureLaSerie(S, res) {
  */
 export function finir(S, cause) {
   const R = S.R, rondes = R.series ? R.series.faites.length : 0, coupe = cause === 'coupe';
-  R.fin = { cause, rondes, coupe, medailles: R.actes.reduce((a, x) => a + x.medailles, 0) + ecussonsDesSeries(rondes, coupe), matchs: R.matchs.length };
+  R.fin = { cause, rondes, coupe, medailles: Math.round((R.actes.reduce((a, x) => a + x.medailles, 0) + ecussonsDesSeries(rondes, coupe)) * reglesDe(R).prime), matchs: R.matchs.length };
   R.phase = 'fin';
   figer(S);
   return R.phase;

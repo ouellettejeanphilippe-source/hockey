@@ -13,7 +13,9 @@ import { actionsDisponibles } from './actions.js';
 import { avecHasardIsole, getPersonKey, getPlayerKey, nouvelleGraine, periodeDe } from './sim.js';
 import { plansDuDuel, poserClubLu } from './impact.js';
 import { chargerCoachs, lotoDesCoachs } from './coachs-reels.js';
-import { coachsOuverts, ecrireMeta, jetonsDeDepart, lireMeta, payerEcussons, rangDePrestige } from './rogue.js';
+import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages } from './rogue.js';
+import { VOIES } from './coachs.js';
+import { rayonsDuClub, prendreAuClub, nomDuClub } from './club.js';
 import { ajouterAuCartable, coachAuCartable, coachsDuCartable } from './cartable.js';
 import { tirerJoueursDuPack } from './packs.js';
 import { sceneDe, nomDOption } from './histoires.js';
@@ -28,11 +30,11 @@ import { RATINGS_VERSION } from './ratings.js';
 import {
   RUN, VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, forcesDuMonde, allerA, chanceCeSoir, intentionCeSoir, jeuDe, jouerLeMatch, conclure, signer, passerLesPortes,
   relancerLesPortes, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, acheterLaPiece, acheterLaPochette, avancer, reposer, monterUneCarte, echangerDeuxCases,
-  choisirLeFilet, fixerLElite, allerAuMatchDeSerie, histoireDeLaCase, repondre, finir,
+  choisirLeFilet, fixerLElite, allerAuMatchDeSerie, histoireDeLaCase, repondre, finir, reglesDe,
 } from './run.js';
 import {
   sceneAttente, sceneDepart, sceneCarte, sceneAnnonce, sceneFeuille, sceneMatch, scenePortes, scenePorte, sceneEchange, sceneLignes, sceneBanc, sceneMarche,
-  sceneVestiaire, sceneHistoire, sceneFinDActe, scenePieceGagnee, sceneSeries, sceneFin, scenePause, jaugeDeCeSoir,
+  sceneVestiaire, sceneHistoire, sceneFinDActe, scenePieceGagnee, sceneSeries, sceneFin, scenePause, jaugeDeCeSoir, sceneClub, sceneSolde,
 } from './run-scenes.js';
 
 const CLE = 'cap82_run';
@@ -113,7 +115,7 @@ export async function ouvrirRun(c = {}) {
     await charger('On rouvre les vestiaires :');
     S = ouvrirSeance(donnees(), R);
     garderLesForces();
-    poserClubLu(() => ({ team: S.toi }));
+    poserClubLu(() => (S ? { team: S.toi } : null));
     return entrer();
   }
   return versLeDepart();
@@ -121,20 +123,63 @@ export async function ouvrirRun(c = {}) {
 async function versLeDepart() {
   S = null; V = {};
   montrer(sceneAttente('On sort les dossiers des coachs…'));
-  const meta = lireMeta(), coachs = await chargerCoachs().catch(() => null), graine = nouvelleGraine();
-  V = { ecran: 'depart', graine, coach: 0, numero: (meta.runs || 0) + 1,
-    loto: lotoDesCoachs(coachs, coachsOuverts(rangDePrestige(meta)), `${graine}:chef`, 3, coachsDuCartable()) };
+  const solde = soldeAMontrer(), meta = lireMeta(), coachs = await chargerCoachs().catch(() => null), graine = nouvelleGraine(), cranMax = cranOuvert(meta);
+  V = { ecran: solde ? 'solde' : 'depart', solde, graine, coach: 0, numero: (meta.runs || 0) + 1, medailles: meta.ecussons || 0, cranMax, cran: Math.min(meta.cran || 0, cranMax),
+    loto: lotoDesCoachs(coachs, voiesOuvertes(meta), `${graine}:chef`, 3, coachsDuCartable(), meta.nouvelle || null) };
   rendre();
 }
+/*
+ * LE SOLDE DE L'ANCIEN ROGUE (js/rogue.js `solderLesDeblocages`), une fois : fait au premier départ ou à la première visite
+ * du Club ; son écran seulement s'il a quelque chose à dire (un remboursement, des philosophies gardées, une run arrêtée).
+ */
+function soldeAMontrer() {
+  solderLesDeblocages();
+  const m = lireMeta(), s = m.solde;
+  if (!s || s.vu) return null;
+  if (!s.rendu && !s.voies.length && !m.arret) { ecrireMeta({ ...m, solde: { ...s, vu: true } }); return null; }
+  return { ...s, arret: m.arret || null, apres: m.ecussons || 0 };
+}
+const soldeVu = () => { const m = lireMeta(); if (m.solde) ecrireMeta({ ...m, solde: { ...m.solde, vu: true } }); V.solde = null; };
+/*
+ * LE CLUB, entre deux runs (docs/refonte-v28-5.md § 3.1) : ce que ses scènes lisent (`V.club`), relu du méta après chaque
+ * achat. `retour` : d'où on vient (le départ, ou l'écran de fin).
+ */
+function versLeClub(retour) {
+  const solde = soldeAMontrer(), meta = lireMeta();
+  if (solde) { V.solde = solde; V.apresLeSolde = retour; V.ecran = 'solde'; return; }
+  V.ecran = 'club';
+  V.club = { retour, page: 'variete', voie: VOIES.find(v => !voiesOuvertes(meta).includes(v)) || VOIES[0], rayon: 'club', objet: null, coachs: null };
+  relireLeClub();
+  // Les entraîneurs de chaque philosophie : combien au loto, et le mieux classé (son nom, sa saison).
+  chargerCoachs().then(d => {
+    if (!V.club) return;
+    const par = {};
+    for (const [saison, clubs] of Object.entries(d || {})) for (const [n, cle, rang] of Object.values(clubs)) {
+      const x = par[cle] = par[cle] || { n: 0, rang: Infinity, exemple: '' };
+      x.n++;
+      if (rang < x.rang) { x.rang = rang; x.exemple = `${n} ${saison}`; }
+    }
+    V.club.coachs = par;
+    if (V.ecran === 'club') rendre();
+  }).catch(() => {});
+}
+function relireLeClub() { const meta = lireMeta(); Object.assign(V.club, { meta, rang: rangDePrestige(meta), nom: nomDuClub(), rayons: rayonsDuClub(meta) }); }
+function fermerLeClub() {
+  const retour = V.club ? V.club.retour : V.apresLeSolde;
+  V.club = null;
+  V.medailles = lireMeta().ecussons || 0;
+  V.ecran = retour === 'depart' ? 'depart' : null;
+}
 async function commencer() {
-  const c = V.loto[V.coach], meta = lireMeta(), { graine, numero } = V;
+  const c = V.loto[V.coach], { graine, numero, cran } = V;
   montrer(sceneAttente('On ouvre les vestiaires…'));
   await charger('On ouvre les vestiaires :');
-  S = creerLaRun(donnees(), { graine, numero, jetons: jetonsDeDepart(meta), coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
+  S = creerLaRun(donnees(), { graine, numero, exigence: V.cran || 0, coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
   garderLesForces();
-  poserClubLu(() => ({ team: S.toi }));
+  poserClubLu(() => (S ? { team: S.toi } : null));
   coachAuCartable(c, numero);
-  ecrireMeta({ ...lireMeta(), runs: numero });
+  // La run compte ; son cran est celui qu'on proposera la prochaine fois ; la philosophie neuve a eu sa case au loto.
+  ecrireMeta({ ...lireMeta(), runs: numero, cran: cran || 0, nouvelle: null });
   V = {};
   garder();
   rendre();
@@ -143,6 +188,8 @@ async function commencer() {
 /* ---------- la scène du moment ---------- */
 const piece = () => S.R.apres && (S.R.apres.offertes || []).length > 0;
 function rendre() {
+  if (V.ecran === 'solde' && V.solde) return montrer(sceneSolde(V.solde));
+  if (V.ecran === 'club' && V.club) return montrer(sceneClub(V.club));
   if (!S) return montrer(V.ecran === 'depart' ? sceneDepart(V) : sceneAttente('Un instant…'));
   const R = S.R;
   const dessous = () => {
@@ -279,9 +326,8 @@ function histoireVue(h) {
 /* La run finie : ses médailles versées une fois (js/rogue.js `payerEcussons`), son joueur de la run, ses cartes au cartable. */
 function finDeLaRun() {
   const R = S.R, F = R.fin;
-  payerEcussons(R.graine, 'run', F.medailles, { bilan: { ronde: F.rondes, coupe: F.coupe, pts: R.actes.reduce((a, x) => a + x.pts, 0) } });
-  if (F.coupe) ecrireMeta({ ...lireMeta(), coupes: (lireMeta().coupes || 0) + (R.coupeComptee ? 0 : 1) });
-  R.coupeComptee = true;
+  payerEcussons(R.graine, 'run', F.medailles, { bilan: { ronde: F.rondes, coupe: F.coupe, series: !!R.series, exigence: reglesDe(R).exigence, pts: R.actes.reduce((a, x) => a + x.pts, 0) } });
+  V.medailles = lireMeta().ecussons || 0;
   const buts = new Map();
   for (const e of S.journal) for (const b of e.feuille.buts || []) if (b.marqueur && !b.fusillade && Object.values(S.roster).includes(b.marqueur)) buts.set(b.marqueur, (buts.get(b.marqueur) || 0) + 1);
   const [p, n] = [...buts].sort((a, b) => b[1] - a[1])[0] || [];
@@ -297,6 +343,18 @@ const GESTES = {
   coach: v => { V.coach = Number(v); },
   'prendre-coach': () => { commencer(); return false; },
   quitter: () => { fermer(); return false; },
+  cran: v => { V.cran = Math.min(Number(v) || 0, V.cranMax || 0); },
+  // le Club, entre deux runs
+  club: () => { versLeClub(S ? 'fin' : 'depart'); },
+  'fermer-club': () => { fermerLeClub(); },
+  page: v => { V.club.page = v; },
+  'voir-voie': v => { V.club.voie = v; },
+  'ouvrir-voie': v => { if (ouvrirUneVoie(v).ok) { jouerSon('valide'); notable(); relireLeClub(); } else jouerSon('refus'); },
+  rayon: v => { V.club.rayon = v; V.club.objet = null; },
+  'voir-objet': v => { V.club.objet = v; },
+  'prendre-objet': v => { if (prendreAuClub(V.club.rayon, v).ok) { jouerSon('valide'); notable(); relireLeClub(); } else jouerSon('refus'); },
+  'solde-depart': () => { const retour = V.apresLeSolde; soldeVu(); V.ecran = retour === 'fin' ? null : 'depart'; },
+  'solde-club': () => { const retour = V.apresLeSolde || 'depart'; soldeVu(); versLeClub(retour); },
   'run-neuve': () => { oublier(); versLeDepart(); return false; },
   // la pause
   pause: () => { V.pause = true; },
@@ -388,8 +446,10 @@ async function ouvrirLaPochette(cle) {
   garder();
   entrer();
 }
+/* Les gestes qui se jouent sans run : le départ, le Club, le solde. */
+const SANS_RUN = new Set(['coach', 'prendre-coach', 'quitter', 'cran', 'club', 'fermer-club', 'page', 'voir-voie', 'ouvrir-voie', 'rayon', 'voir-objet', 'prendre-objet', 'solde-depart', 'solde-club', 'run-neuve']);
 function geste(a, v) {
-  if (!GESTES[a] || (!S && !['coach', 'prendre-coach', 'quitter'].includes(a))) return;
+  if (!GESTES[a] || (!S && !SANS_RUN.has(a))) return;
   jouerSon('tap');
   if (a !== 'abandonner') V.sur = false;
   if (GESTES[a](v) !== false) rendre();

@@ -37,7 +37,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PACKS_TOUS, TIERS, SKILLS, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, tierDuPack } from '../js/packs.js';
-import { PRESTIGES } from '../js/rogue.js';
 import { COACHS, VOIES } from '../js/coachs.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, niveauParDefense, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey } from '../js/sim.js';
@@ -372,20 +371,5 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   borne('les joueurs sans niveau sortent, à petit poids (part des cartes d\'un Pack Bronze)', hors / cartes, 0.01, 0.1);
 }
 
-/*
- * LES PACKS QUI MONTENT (V10 — docs/refonte-v10.md § 12). JP : *tu commences avec des packs un peu poches, pis plus
- * ça avance, tu débloques de meilleurs packs … ou tout ça* ; *sans empêcher un random Crosby saison 1*.
- */
-{
-  const avecNiveaux = Object.keys(PACKS_TOUS).filter(k => niveauxDuPack(k));
-  const fermes = PRESTIGES.flatMap((Pr, r) => avecNiveaux.filter(k => !(niveauxDuPack(k, { prestige: Pr }).phenomene > 0)).map(k => `${Pr.nom} · ${PACKS_TOUS[k].nom}`));
-  exiger('aucun rang ne ferme le hasard : un Phénomène peut sortir de chaque pack, dès le Club de garage', !fermes.length,
-    fermes.slice(0, 3).join(' · ') || `Bronze au garage : ${niveauxDuPack('j:bronze', { prestige: PRESTIGES[0] }).phenomene.toFixed(2).replace('.', ',')} % par carte`);
-  exiger('le prestige ajoute, il ne retire rien', PRESTIGES.every(Pr => Pr.etoile >= 1 && Pr.phenomene >= 1), PRESTIGES.map(Pr => `${Pr.etoile}/${Pr.phenomene}`).join(' · '));
-  const un = { 'j:bronze': 1 }, deux = { 'j:bronze': 2 };
-  exiger('le premier cran : un joueur de plus', cartesDuPack('j:bronze', { montee: un }) === cartesDuPack('j:bronze') + 1,
-    `${cartesDuPack('j:bronze')} → ${cartesDuPack('j:bronze', { montee: un })} joueurs`);
-  exiger('le second : les taux du métal du dessus', tierDuPack('j:bronze', { montee: deux }) === 'argent' && niveauxDuPack('j:bronze', { montee: deux }).etoile === niveauxDuPack('j:argent').etoile,
-    `Bronze ++ : ${TIERS[tierDuPack('j:bronze', { montee: deux })].nom}`);
-}
+/* Les packs qui montent en médailles et le multiple de prestige des taux (V10) sont partis avec les déblocages (V28, tranche 5 : *variété seulement*). */
 verdict('Les packs selon le niveau des joueurs');

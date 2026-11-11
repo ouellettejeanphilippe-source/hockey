@@ -39,13 +39,14 @@ export function carteDuCoach(donnees, saison, tag) {
   return { id: `${saison}_${tag}`, n, saison, tag, cle, rang, niv: niveauDuCoach(rang), maitrise: maitriseDu(rang), fiche: { gp, v, d, n: nulles }, coupe: !!coupe, jack: !!jack };
 }
 /*
- * LE LOTO DE L'ENTRAÎNEUR : trois vraies cartes, de trois philosophies que le prestige ouvre (`ouverts`), tirées de la
+ * LE LOTO DE L'ENTRAÎNEUR : trois vraies cartes, de trois philosophies ouvertes (`ouverts`, js/rogue.js `voiesOuvertes`), tirées de la
  * graine — la même graine, les mêmes trois. Comme le classeur des joueurs, il tire d'abord dans ton cartable
  * (`cartable` : id → { r }, js/cartable.js `coachsDuCartable`), les moins jouées d'abord, `DU_CARTABLE` au plus ; le
- * reste, des cartes neuves (`neuf`). Une carte prise entre au cartable.
+ * reste, des cartes neuves (`neuf`). Une carte prise entre au cartable. `nouvelle` : la philosophie qu'on vient d'ouvrir en
+ * médailles a sa case au loto suivant (`nouvelle: true` sur sa carte).
  */
 export const DU_CARTABLE = 2;
-export function lotoDesCoachs(donnees, ouverts, graine, n = 3, cartable = {}) {
+export function lotoDesCoachs(donnees, ouverts, graine, n = 3, cartable = {}, nouvelle = null) {
   const cartes = [];
   for (const [saison, clubs] of Object.entries(donnees || {})) for (const tag of Object.keys(clubs)) if (ouverts.includes(clubs[tag][1])) cartes.push([saison, tag]);
   const triees = cartes.sort((a, b) => hache(String(graine), 'coach', a.join()) - hache(String(graine), 'coach', b.join()));
@@ -56,10 +57,12 @@ export function lotoDesCoachs(donnees, ouverts, graine, n = 3, cartable = {}) {
     for (const [saison, tag] of liste) {
       if (out.length >= max) return;
       const c = carteDuCoach(donnees, saison, tag);
-      if (!out.some(x => x.cle === c.cle)) out.push({ ...c, neuf });
+      if (!out.some(x => x.cle === c.cle)) out.push({ ...c, neuf, ...(c.cle === nouvelle ? { nouvelle: true } : {}) });
     }
   };
-  prendre(siennes, Math.min(DU_CARTABLE, n - 1), false);
+  // La philosophie qu'on vient d'ouvrir (js/rogue.js `ouvrirUneVoie`) a sa case, une carte neuve, avant le cartable.
+  if (nouvelle && ouverts.includes(nouvelle)) prendre(triees.filter(([saison, tag]) => donnees[saison][tag][1] === nouvelle && !cartable[id([saison, tag])]), 1, true);
+  prendre(siennes, Math.min(out.length + DU_CARTABLE, n - 1), false);
   prendre(triees.filter(x => !cartable[id(x)]), n, true);
   return out;
 }

@@ -470,7 +470,7 @@ Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est
 - [x] **Le match vu est le match joué** (11 nov.) : chaque temps fort a le tireur, les passeurs et la minute de la feuille, et le pointage vu est celui que la run garde — *essai_run*.
 - [x] **Le moteur ne bouge pas** (11 nov.) : l'empreinte est la même, le 82-0 se rejoue au but près — `check_empreinte`, `check_feuilles`, `check_graine`.
 - [x] **Le neuf ne s'appuie pas sur l'ancien** (11 nov.) : aucun fichier *run-* n'importe un module nommé au § 8 — *check_neuf*.
-- [x] **Les vieilles parties** (11 nov.) s'arrêtent, versent leurs médailles une fois, et le Rogue ouvre une run neuve — `check_sauvegardes`. L'écran de ce qui est versé (§ 6) vient à la tranche 5 ; aujourd'hui, un mot.
+- [x] **Les vieilles parties** (11 nov.) s'arrêtent, versent leurs médailles une fois, et le Rogue ouvre une run neuve — `check_sauvegardes`. L'écran de ce qui est versé (§ 6) est venu à la tranche 5a : le solde, une fois (`sceneSolde`).
 - [x] Pas une couche de peinture (11 nov. : le jeu retire cinq lignes pour une ajoutée, les 56 noms sont partis) : ce qui part est parti ; le jeu retire au moins une ligne pour deux ajoutées ; style.css fait moins de la moitié du diff — `check_refonte` (sur la somme).
 - [x] Rien de mort (11 nov.) — `check_mort`.
 - [ ] À juger par JP à l'essai, au téléphone :
@@ -509,7 +509,7 @@ L'ancien Rogue est **gelé** dès le 9 nov. (JP) : plus aucun travail dessus. Le
 
 **4. Le remplacement.** « Le Rogue neuf » devient le Rogue. Tout le § 8 part d'un coup, avec ses règles et ses juges ; la vieille run est versée. Juge : `check_refonte` sur la somme, `check_mort`, `check_coquille`, `check_sauvegardes`, `tout.mjs`.
 
-**5. La méta.** La variété en médailles, les exigences sur les leviers neufs, les galons à l'échelle d'une run. Juge : *mesure_run*.
+**5. La méta.** La variété en médailles, les exigences sur les leviers neufs, les galons à l'échelle d'une run. Juge : *mesure_run*. — **5a livrée le 11 nov. 2026** (docs/refonte-v28-5.md) : le Club entre deux runs (les philosophies, ton club, le palmarès), trois crans d'exigence mesurés (la cible et la force des clubs ; « le plafond » et « une porte de moins » ne coûtent rien aujourd'hui et attendent), le solde des déblocages d'avant ; juges : *check_meta*, `check_scene`, `essai_run`, `CRANS=1` de *mesure_run*. Reste **5b** : l'Album, les galons, les sortes de pochette.
 
 **Ensuite**, du contenu, une PR à la fois : des rivaux, des pièces, des histoires, la Dynastie réécrite sur la carte, le défi du jour.
 

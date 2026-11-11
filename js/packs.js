@@ -110,15 +110,14 @@ const PACKS_JOUEURS = {
   legendes: { famille: 'legendes', nom: 'Pack Légendes', ico: '👑', tier: 'premium', prix: 75, niveaux: { etoile: 90, phenomene: 10 }, texte: 'Six étoiles d\'avant 1995.' },
   garanti: { famille: 'hasard', nom: 'Pack garanti', ico: '🔒', tier: 'or', prix: 45, garanti: true, texte: 'Cinq joueurs, dont une Or ou mieux, garantie.' },
   /*
-   * LA BOUTIQUE DU JALON P (P2). JP : *on limite les packs, tout en gardant des thématiques* ; *je veux que les cartes
-   * de match, événements, etc. soient avec les cartes de joueurs*. Sept packs (\`BOUTIQUE\`), tous MIXTES : des
-   * joueurs (\`joueurs\`) et des cartes de la banque (\`cartes\`), le thème choisi à l'achat (\`choix\`). Les packs
-   * d'avant restent définis : une vieille partie les ouvre encore ; ils ne se vendent plus.
+   * LES POCHETTES DE LA RUN EN CARTE (js/run.js `POCHETTES` : le Bronze et l'Époque, au marché). JP : *on limite les packs,
+   * tout en gardant des thématiques*. La boutique de l'ancien Rogue et ses packs qui montent sont partis (V28) ; les packs
+   * d'avant restent définis ici jusqu'à la tranche 5b, qui taille ce que la run ne tire plus.
    */
   bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', joueurs: 3, cartes: 1, prix: 14, texte: 'Trois vrais joueurs de toutes les époques.' },
   argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', joueurs: 3, cartes: 2, prix: 22, texte: 'Trois vrais joueurs, et parfois une carte rare, de meilleures chances.' },
   or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', joueurs: 4, cartes: 2, prix: 38, texte: 'Quatre vrais joueurs, et parfois une carte rare, les meilleures chances de la boutique.' },
-  // V10 : le pack à thème de la première run, au métal du Bronze ; ses crans le montent (js/rogue.js `CRANS_DE_PACK`).
+  // V10 : le pack à thème de la première run, au métal du Bronze.
   // Nov. 2026 (docs/revue-rogue-2026-11.md § 2.6) : il vise aussi le poste qui manque (`poste`, `POSTES_DU_PACK`) — le
   // Bronze reste le moins cher, au hasard ; l'Époque coûte plus et donne ce dont ton effectif a besoin.
   // Lot 5 (nov. 2026, docs/decisions.md) : UN joueur, Pilier ou mieux (`niveaux`), contre les trois au hasard du Bronze —
@@ -132,8 +131,6 @@ const PACKS_JOUEURS = {
   vedettes: { famille: 'etoiles', nom: 'Pack Vedettes', ico: '🌟', tier: 'or', niveaux: { etoile: 92, phenomene: 8 }, joueurs: 3, cartes: 2, prix: 70, texte: 'Trois étoiles de leur saison, le 4 % du haut à leur poste, et parfois une carte rare.' },
   coach: { famille: 'coach', nom: 'Pack du coach', ico: '📋', tier: 'argent', choix: 'coach', joueurs: 3, cartes: 2, prix: 30, texte: 'Trois joueurs de la couleur d\'un coach, et parfois une carte rare.' },
 };
-/* Les packs que la boutique vend (Jalon P2 ; V10 : les Vedettes, que la Coupe ouvre), dans son ordre. */
-export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:specialistes', 'j:club', 'j:coach', 'j:vedettes'];
 /* Les décennies du Pack Époque, et les rôles du Pack Spécialistes, avec leur nom. */
 const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
 /* Les postes d'un pack qui vise le poste (`poste`, le Pack Époque) : le groupe du joueur (js/niveaux.js `groupeDuJoueur`). */
@@ -146,18 +143,11 @@ const POSTES_DU_PACK = { F: 'Des avants', D: 'Des défenseurs', G: 'Des gardiens
 /* Tous les packs, par clé : \`j:\` les joueurs. */
 export const PACKS_TOUS = Object.fromEntries(Object.entries(PACKS_JOUEURS).map(([k, P]) => [`j:${k}`, { ...P, sorte: 'joueurs', cle: k, n: P.joueurs || P.n || TIERS[P.tier].n + (P.famille === 'trio' ? -2 : 0) }]));
 
-/*
- * LE MÉTAL D'UN PACK (V10, les packs qui montent) : le sien, ou celui du dessus quand son second cran est pris
- * (`mods.montee`, js/rogue.js `monteeDesPacks`) — le Bronze tire alors aux taux de l'Argent, au même prix.
- */
-const METAUX = ['bronze', 'argent', 'or', 'premium'];
-export function tierDuPack(cle, mods = {}) {
-  const P = PACKS_TOUS[cle], t = (P && P.tier) || 'argent';
-  return ((mods.montee || {})[cle] || 0) >= 2 ? METAUX[Math.min(METAUX.length - 1, METAUX.indexOf(t) + 1)] : t;
-}
+/* LE MÉTAL D'UN PACK : celui de sa table. Les packs qui montent d'un métal en médailles (V10) sont partis avec les déblocages (V28, tranche 5). */
+export const tierDuPack = cle => (PACKS_TOUS[cle] && PACKS_TOUS[cle].tier) || 'argent';
 /* Le barème d'une carte de ce pack, en %, avec ce que les patrons y changent. */
 function cotesDuPack(cle, mods = {}) {
-  const c = { ...TIERS[tierDuPack(cle, mods)].cotes };
+  const c = { ...TIERS[tierDuPack(cle)].cotes };
   if (mods.holo && mods.holo !== 1) {
     const gain = (c.rare + c.legendaire) * (mods.holo - 1);
     c.rare *= mods.holo; c.legendaire *= mods.holo; c.commune = Math.max(0, c.commune - gain);
@@ -165,40 +155,22 @@ function cotesDuPack(cle, mods = {}) {
   if (mods.sansBase) { c.peu += c.commune; c.commune = 0; }
   return c;
 }
-/*
- * Le nombre de cartes d'un pack, avec la carte de plus d'un patron et celle de son premier cran (V10) — jamais pour
- * un trio : une ligne a trois joueurs.
- */
+/* Le nombre de cartes d'un pack, avec la carte de plus d'un patron — jamais pour un trio : une ligne a trois joueurs. */
 export function cartesDuPack(cle, mods = {}) {
   const P = PACKS_TOUS[cle];
   if (!P) return 0;
-  return P.n + (P.sorte === 'joueurs' && P.famille !== 'trio' ? (mods.carteExtra || 0) + (((mods.montee || {})[cle] || 0) >= 1 ? 1 : 0) : 0);
+  return P.n + (P.sorte === 'joueurs' && P.famille !== 'trio' ? mods.carteExtra || 0 : 0);
 }
 /*
  * LES TAUX DU JOUEUR d'un pack (S80), par niveau, en % d'une carte — ou null
  * pour un pack qui ne tire pas de niveau (un talent, un trio). Un niveau
  * absent vaut 0.
  */
-export function niveauxDuPack(cle, mods = {}) {
+export function niveauxDuPack(cle) {
   const P = PACKS_TOUS[cle];
   if (!P || P.sorte !== 'joueurs' || P.famille === 'skill' || P.famille === 'trio') return null;
-  const t = { ...(P.niveaux || TIERS[tierDuPack(cle, mods)].niveaux) };
-  /*
-   * LE PRESTIGE DU CLUB (v2, js/rogue.js `PRESTIGES`) : il multiplie les taux
-   * des Étoiles et des Phénomènes — V10 : jamais sous 1, aucun rang ne ferme le
-   * hasard. Ce qu'on leur ajoute vient des piliers ; un pack d'étoiles, qui n'a pas de piliers, ne touche qu'à ses
-   * Phénomènes, et la différence va à ses Étoiles.
-   */
-  const pr = mods.prestige;
-  if (pr) {
-    const avecPiliers = (t.pilier || 0) > 0;
-    for (const k of avecPiliers ? ['etoile', 'phenomene'] : ['phenomene']) {
-      const avant = t[k] || 0, apres = avant * (pr[k] ?? 1);
-      const vers = avecPiliers ? 'pilier' : 'etoile';
-      const delta = Math.min(apres - avant, t[vers] || 0);
-      t[k] = avant + delta; t[vers] = (t[vers] || 0) - delta;
-    }
-  }
+  const t = { ...(P.niveaux || TIERS[tierDuPack(cle)].niveaux) };
+  // Le prestige ne multiplie plus les taux des Étoiles et des Phénomènes (JP, 7 nov. 2026 : *variété seulement* ; V28, tranche 5).
   const tot = NIVEAUX.reduce((a, N) => a + (t[N.cle] || 0), 0) || 1;
   return Object.fromEntries(NIVEAUX.map(N => [N.cle, ((t[N.cle] || 0) / tot) * 100]));
 }

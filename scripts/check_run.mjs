@@ -10,7 +10,7 @@
  *   node scripts/check_run.mjs            `GRAINES` graines (3), les trois robots : une dizaine de secondes
  */
 import { getPersonKey } from '../js/sim.js';
-import { RUN, masseDe, RANG_DU_RIVAL, figer, ouvrirSeance, histoireDeLaCase } from '../js/run.js';
+import { RUN, masseDe, RANG_DU_RIVAL, figer, ouvrirSeance, histoireDeLaCase, reglesDe } from '../js/run.js';
 import { jouerLaRun, DONNEES } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -52,7 +52,7 @@ for (const robot of ['premier', 'chiffre', 'malin']) {
       const ms = R.matchs.filter(m => m.acte === a && m.sorte !== 'serie'), rival = ms.filter(m => m.sorte === 'rival');
       faute(ms.length === RUN.MATCHS + 1 && rival.length === 1 && ms.at(-1).sorte === 'rival', `${ici}, acte ${a + 1} : ${ms.length} matchs, ${rival.length} rival`);
       const pts = ms.reduce((t, m) => t + (m.gagne ? 2 : m.ot ? 1 : 0) * (m.sorte === 'rival' ? 2 : 1), 0);
-      faute(pts === x.pts && x.tenu === (pts >= RUN.CIBLES[a]), `${ici}, acte ${a + 1} : ${x.pts} points notés, ${pts} recomptés`);
+      faute(pts === x.pts && x.tenu === (pts >= reglesDe(R).cibles[a]), `${ici}, acte ${a + 1} : ${x.pts} points notés, ${pts} recomptés`);
       faute(ms.filter(m => m.sorte === 'elite').length <= 1 && (a > 0 || !ms.some(m => m.sorte === 'elite')), `${ici}, acte ${a + 1} : trop d'élites`);
     });
     // Les cœurs, recomptés des matchs seuls : une cible manquée aux actes I et II, et chaque série perdue puis rejouée (une

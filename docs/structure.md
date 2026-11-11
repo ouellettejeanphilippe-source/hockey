@@ -20,8 +20,8 @@ js/fiche.js           la fiche d'un joueur : recto verso, ses rôles, l'impact, 
 js/banc.js            la saison du 82-0 : la ligue se crée, joue ses 82 matchs d'un coup, le bilan se compose ; une partie reprise se rejoue de sa graine (le jour à jour est parti avec l'ancien Rogue)
 js/partie.js          l'écran « Nouvelle partie » (le brouillon)
 js/run.js             la run en carte de la V28, son cœur pur : l'état, la carte de l'acte, les portes, le plafond, les matchs isolés, le marché, le vestiaire, les histoires, les séries ; joué tel quel par les robots
-js/run-scenes.js      les scènes de la run, des fonctions pures (S, V) → HTML d'un plan de 390 × 844 (docs/maquettes/v28-ecrans.html)
-js/run-jeu.js         la coquille de la run : #runModal, l'échelle, la sauvegarde cap82_run, les gestes, les temps forts
+js/run-scenes.js      les scènes de la run, des fonctions pures (S, V) → HTML d'un plan de 390 × 844 (docs/maquettes/v28-ecrans.html), et celles d'entre deux runs : le Club (Variété, Ton club, Palmarès), le solde (`sceneClub`, `sceneSolde`)
+js/run-jeu.js         la coquille de la run : #runModal, l'échelle, la sauvegarde cap82_run, les gestes, les temps forts ; le départ (le loto, le cran), le Club et le solde, sans run en cours
 js/modes-table.js     le tournoi Sur table, ses règles, son bilan, le match d'exhibition au plateau
 js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, plateau) : MT.nom, chargerTable()
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard() ; il n'importe aucun module du Rogue
@@ -58,13 +58,13 @@ js/cartes.js          le gabarit des cartes (recto, verso, finitions) ; une cart
 js/effets.js          la grammaire d'un effet (V25 B1b) : neuf cases, et `motsDe` qui dérive les lignes d'une carte de ce que le moteur joue
 js/rarete.js          les éditions d'une carte de joueur (Base → Holo) et leurs paliers
 js/lexique.js         le lexique : un mot par idée (coach, entraîneur, adjoint, vestiaire, classeur…) et les icônes réservées — `check_lexique`
-js/banque.js          la banque de cartes d'avant : les retouches de l'atelier et les cartes rares (trois soins, l'échange d'un doublon), que la run en carte ne tire pas ; `plafondDe`, le plafond des vieilles parties
+js/banque.js          `plafondDe`, le plafond des vieilles parties du 82-0 ; la banque de cartes d'avant (les retouches, les cartes rares) est partie à la V28, tranche 5
 js/coachs.js          les coachs : huit philosophies, leur identité, la règle de chacun (`REGLES_DU_COACH`), la couleur d'un joueur lue sur ses rôles
-js/packs.js           les packs de joueurs, leurs niveaux et leurs taux (`TIERS`, `tirerJoueursDuPack`) : huit définis, la run en carte en ouvre deux en pochettes à son marché (le Bronze, l'Époque) — `check_packs`
+js/packs.js           les packs de joueurs, leurs niveaux et leurs taux (`TIERS`, `tirerJoueursDuPack`) : la run en carte en ouvre deux en pochettes à son marché (le Bronze, l'Époque) ; la boutique et les packs qui montent sont partis, les packs d'avant se taillent à la tranche 5b — `check_packs`
 js/niveaux.js         le niveau d'un joueur dans sa saison : Soutien → Phénomène ; ses cotes sur 20 (`axes20`, `cote20`), lues par la fiche, Sur table et Sur glace
-js/rogue.js           le méta du Rogue (`cap82_rogue`) : les médailles 🏅 payées une fois (`payerEcussons`), le prestige (`PRESTIGES`), les tables des déblocages et des exigences (elles attendent la V28, tranche 5), le départ d'une run (les bouche-trous, les jetons), ce que la règle du coach lit dans une feuille (`chiffresDuSoirDe`), la ligue habillée (`habillerLaLigue`), l'ancien Rogue soldé (`solderLAncienRogue`)
+js/rogue.js           le méta du Rogue (`cap82_rogue`, réécrit à la V28, tranche 5) : les médailles 🏅 payées une fois (`payerEcussons`), la variété (`voiesOuvertes`, `ouvrirUneVoie`), le prestige en titre (`PRESTIGES`), les exigences (`EXIGENCES`, `exigencesDe`, `cranOuvert`), les deux soldes de l'ancien Rogue (`solderLAncienRogue`, `solderLesDeblocages`), et ce que la run lit pour se bâtir (les bouche-trous, les jetons, la règle du coach, `habillerLaLigue`) — `check_meta`
 js/actes.js           ce que la run lit d'un acte et d'un club, en fonctions pures : les médailles d'un acte (`MEDAILLES_ACTE`), le prix d'une pièce (`PRIX_PIECE`), la récompense d'une élite et ce qu'elle coûte perdue, le jeu d'un club lu dans ses vraies stats (`jeuDuRival`) et son intention dominante (`dominanteDe`) — `check_elites`
-js/club.js            ton club : les noms, les couleurs et les écussons, cosmétiques, et le choix porté (`appliquerClub`) ; où ils se gagnent se réécrit avec la méta (V28, tranche 5)
+js/club.js            ton club : les noms, les couleurs et les écussons, cosmétiques, le choix porté (`appliquerClub`) ; ils s'achètent en médailles au Club, entre deux runs (`rayonsDuClub`, `prendreAuClub`) — `check_meta`
 js/cartable.js        le cartable : tes cartes de joueur d'une partie à l'autre, les doublons qui montent une carte (`monterLesDoublons`), tes entraîneurs (`coachAuCartable`)
 js/recadrage.js       le recadrage d'un portrait (scripts/portraits.mjs le lit)
 js/actions.js         les photos d'action : actionSrc(id, saison, club) pour une carte, celle de sa saison d'abord (img/actions)

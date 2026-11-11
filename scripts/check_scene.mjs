@@ -5,7 +5,9 @@
  *
  *   1. les scènes du devis sont toutes là : le départ, le camp, la porte ouverte, l'échange, le rival annoncé, la carte,
  *      les Lignes, le banc, la feuille du soir, le duel, le match, le marché, le vestiaire, l'histoire, la fin d'acte, les
- *      séries, la fin, la pause ;
+ *      séries, la fin, la pause ; et celles d'entre deux runs (tranche 5), ouvertes d'un méta semé : le départ d'un club
+ *      qui a gagné (ses crans, la philosophie neuve), le Club (la variété, ton club, ses couleurs, le palmarès), le solde
+ *      d'un méta d'avant ;
  *   2. aucune ne défile, et rien du site ne dépasse : ni en-tête, ni barre d'onglets (chaque point de l'écran est dans
  *      la scène) ;
  *   3. le HUD est toujours au même endroit (ses cœurs au même pixel) ;
@@ -44,7 +46,7 @@ const SUITES = {
   histoire: [],
   finacte: [],
   series: [],
-  fin: [],
+  fin: [['le Club, après une run', [['club']]]],
 };
 const NOMS = { camp: 'le camp', annonce: 'le rival annoncé', carte: 'la carte de l\'acte', 'feuille-match': 'la feuille du soir', 'feuille-rival': 'la feuille du duel', portes: 'les trois portes',
   marche: 'le marché', vestiaire: 'le vestiaire', histoire: 'une histoire', finacte: 'la fin d\'acte', series: 'les séries', fin: 'la fin de run' };
@@ -67,7 +69,7 @@ exiger('une sauvegarde par sorte de scène, tirée de vraies runs', Object.keys(
 
 /* ---------- le navigateur ---------- */
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
-const erreurs = [], fautes = { defile: [], dehors: [], hud: [], cibles: [], bord: [] }, vues = [];
+const erreurs = [], fautes = { defile: [], dehors: [], hud: [], cibles: [], bord: [], couvert: [] }, vues = [];
 let hud0 = null;
 if (DOSSIER) fs.mkdirSync(DOSSIER, { recursive: true });
 
@@ -82,24 +84,28 @@ async function mesurer(page, nom) {
     for (let x = 6; x < L; x += 54) for (let y = 6; y < H; y += 52) { const el = document.elementFromPoint(x, y); if (!el || !racine.contains(el)) dehors++; }
     const coeurs = plan.querySelector('.rn-hud .rn-coeurs'), rc = coeurs && coeurs.getBoundingClientRect();
     const bords = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled).map(el => ({ el, b: el.getBoundingClientRect() })).filter(({ b }) => b.width > 0 && (b.left < -0.5 || b.top < -0.5 || b.right > L + 0.5 || b.bottom > H + 0.5)).map(({ el }) => `${el.dataset.a}${el.dataset.v ? `=${el.dataset.v}` : ''}`);
-    return { defile: de.scrollHeight > H + 1 || de.scrollWidth > L + 1 || racine.scrollHeight > racine.clientHeight + 1 || plan.scrollHeight > plan.clientHeight + 1,
+    // Un panneau ne passe jamais sous le compte ni sous les boutons du bas : ce qui déborde se lit à moitié.
+    const boite = el => el.getBoundingClientRect(), dessous = [...plan.querySelectorAll('.rn-cellules, .rn-bas')].map(boite);
+    const couverts = [...plan.querySelectorAll('.rn-panneau')].map(boite).filter(p => p.height > 0 && dessous.some(d => d.top > p.top && p.bottom > d.top + 1 && p.left < d.right && p.right > d.left)).length;
+    return { couverts, defile: de.scrollHeight > H + 1 || de.scrollWidth > L + 1 || racine.scrollHeight > racine.clientHeight + 1 || plan.scrollHeight > plan.clientHeight + 1,
       plan: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)], dehors, hud: rc ? [Math.round(rc.left), Math.round(rc.top)] : null, bords };
   }, { L: LARGEUR, H: HAUTEUR });
   if (!m) { fautes.defile.push(`${nom} : aucune scène`); return; }
   vues.push(nom);
   if (m.defile || m.plan.join() !== `0,0,${LARGEUR},${HAUTEUR}`) fautes.defile.push(`${nom} (${m.plan.join(' ')})`);
   if (m.dehors) fautes.dehors.push(`${nom} : ${m.dehors} points hors de la scène`);
+  if (m.couverts) fautes.couvert.push(`${nom} : ${m.couverts} panneau${m.couverts > 1 ? 'x' : ''}`);
   if (m.hud) { if (!hud0) hud0 = m.hud; else if (m.hud.join() !== hud0.join()) fautes.hud.push(`${nom} : ${m.hud.join(',')} au lieu de ${hud0.join(',')}`); }
   if (m.bords.length) fautes.bord.push(`${nom} : ${m.bords.slice(0, 3).join(', ')}`);
   const petites = await ciblesTropPetites(page);
   if (petites.length) fautes.cibles.push(`${nom} : ${petites.slice(0, 3).join(' | ')}`);
   if (DOSSIER) await page.screenshot({ path: `${DOSSIER}/scene-${String(vues.length).padStart(2, '0')}-${nom.replace(/[^a-zà-ü]+/gi, '-')}.png` });
 }
-async function ouvrir(R) {
+async function ouvrir(R, meta = null) {
   const page = await browser.newPage({ viewport: { width: LARGEUR, height: HAUTEUR }, deviceScaleFactor: 1, hasTouch: true, reducedMotion: 'reduce' });
   page.on('pageerror', e => erreurs.push(e.message));
   await page.goto(BASE, { waitUntil: 'networkidle' });
-  await page.evaluate(r => { localStorage.clear(); if (r) localStorage.setItem('cap82_run', JSON.stringify(r)); }, R);
+  await page.evaluate(([r, m]) => { localStorage.clear(); if (r) localStorage.setItem('cap82_run', JSON.stringify(r)); if (m) localStorage.setItem('cap82_rogue', JSON.stringify(m)); }, [R, meta]);
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
   await page.click('#menuDepart [data-menu="rogue"]');
@@ -118,6 +124,37 @@ const geste = async (page, a, v = null) => {
 {
   const page = await ouvrir(null);
   await mesurer(page, 'le départ');
+  await page.close();
+}
+/*
+ * ENTRE DEUX RUNS (tranche 5, docs/refonte-v28-5.md). Un club qui a gagné : deux Coupes (ses crans), une philosophie tout
+ * juste ouverte (sa case au loto), des médailles à dépenser. Puis un méta d'avant la V28, qui ouvre sur son solde.
+ */
+const meta = { present: [] };
+{
+  const RICHE = { ecussons: 300, ecussonsAVie: 900, voies: ['rapaces'], nouvelle: 'rapaces', coupes: 2, exigence: 1, cran: 1, runs: 12, jalons: { series: true, ronde: true },
+    meilleur: { pts: 27, ronde: 3, coupe: true }, club: { club: 'harfangs', palette: 'etoiles', pris: ['club:harfangs'] }, recompenses: {}, solde: { avant: 0, rendu: 0, familles: [], voies: [], vu: true } };
+  const page = await ouvrir(null, RICHE);
+  await mesurer(page, 'le départ, ses crans');
+  meta.present.push(['les crans du départ', await page.$$eval('#runModal .rn-crans [data-a="cran"]', l => l.length) === 4 && await page.$$eval('#runModal .rn-crans [data-a="cran"]:not([disabled])', l => l.length) === 3]);
+  meta.present.push(['« Nouveau » au loto', await page.$$eval('#runModal .rn-loto .rn-puce', l => l.some(x => /Nouveau/.test(x.textContent)))]);
+  for (const [nom, a, v] of [['le Club : la variété', 'club'], ['ton club', 'page', 'club'], ['ton club : les couleurs', 'rayon', 'palette'], ['le palmarès', 'page', 'palmares']]) {
+    if (!await geste(page, a, v)) { fautes.defile.push(`${nom} : un geste manque (${a})`); continue; }
+    await mesurer(page, nom);
+  }
+  // Le Club se ferme sur le départ, là d'où on venait.
+  await geste(page, 'fermer-club');
+  meta.present.push(['le Club se ferme sur le départ', !!await page.$('#runModal [data-a="prendre-coach"]')]);
+  await page.close();
+}
+{
+  // Le solde le plus chargé : les neuf familles de déblocages, une run arrêtée, les cinq philosophies d'une Dynastie.
+  const AVANT = { jeu: 'v27', ecussons: 232, ecussonsAVie: 1700, deblocages: ['caisse1', 'garder1', 'plafond1', 'classeur1', 'monte_bronze_1', 'banc1', 'commanditaire1', 'packGardiens', 'plombiersPlus'], coupes: 1, runs: 20,
+    jalons: { series: true, ronde: true, finale: true }, arret: { runs: 2, verse: 172 }, recompenses: {} };
+  const page = await ouvrir(null, AVANT);
+  await mesurer(page, 'le solde');
+  await geste(page, 'solde-depart');
+  meta.present.push(['le solde vu, le départ suit', !!await page.$('#runModal [data-a="prendre-coach"]')]);
   await page.close();
 }
 for (const [cle, suites] of Object.entries(SUITES)) {
@@ -147,10 +184,13 @@ for (const [cle, suites] of Object.entries(SUITES)) {
 await browser.close();
 
 const VOULUES = ['le départ', 'le camp', 'la porte ouverte', 'l\'échange', 'le rival annoncé', 'la carte de l\'acte', 'les Lignes', 'les Lignes, une carte tenue', 'le banc', 'la pause', 'la feuille du soir',
-  'le match', 'le match fini', 'la feuille du duel', 'les trois portes', 'le marché', 'le vestiaire', 'une histoire', 'la fin d\'acte', 'les séries', 'la fin de run'];
+  'le match', 'le match fini', 'la feuille du duel', 'les trois portes', 'le marché', 'le vestiaire', 'une histoire', 'la fin d\'acte', 'les séries', 'la fin de run',
+  'le départ, ses crans', 'le Club : la variété', 'ton club', 'ton club : les couleurs', 'le palmarès', 'le solde', 'le Club, après une run'];
 exiger('chaque scène du devis s\'ouvre', VOULUES.every(n => vues.includes(n)), VOULUES.filter(n => !vues.includes(n)).join(', ') || `${vues.length} scènes`);
+exiger('entre deux runs : les crans et la philosophie neuve au départ, le Club qui se ferme d\'où on vient, le solde puis le départ', meta.present.every(x => x[1]), meta.present.filter(x => !x[1]).map(x => x[0]).join(' · ') || `${meta.present.length} repères`);
 exiger('aucune scène ne défile : un plan de 390 × 844', !fautes.defile.length, fautes.defile.slice(0, 4).join(' · '));
 exiger('rien du site ne dépasse : ni en-tête, ni barre d\'onglets', !fautes.dehors.length, fautes.dehors.slice(0, 4).join(' · '));
+exiger('aucun panneau ne passe sous le compte ni sous les boutons du bas', !fautes.couvert.length, fautes.couvert.slice(0, 4).join(' · '));
 exiger('le HUD est toujours au même endroit', !fautes.hud.length && !!hud0, fautes.hud.slice(0, 4).join(' · ') || `ses cœurs à ${hud0 ? hud0.join(',') : '?'}`);
 exiger('chaque cible fait 44 × 44', !fautes.cibles.length, fautes.cibles.slice(0, 5).join(' · '));
 exiger('chaque cible tient dans l\'écran', !fautes.bord.length, fautes.bord.slice(0, 4).join(' · '));
