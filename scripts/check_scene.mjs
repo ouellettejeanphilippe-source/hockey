@@ -148,7 +148,7 @@ const meta = { present: [] };
     // L'Album charge les saisons de sa page : ses six cartes arrivent, aucune tuile ne reste vide.
     if (nom.startsWith('l\'Album') && a !== 'album-seg') await page.waitForFunction(() => !document.querySelector('#runModal .rn-album .rn-vide'), null, { timeout: 20000 }).catch(() => {});
     await mesurer(page, nom);
-    if (nom === 'l\'Album') meta.present.push(['l\'Album montre six vraies cartes, la plus belle d\'abord, et dit ses gravures', await page.$$eval('#runModal .rn-album .tc', l => l.length) === 6 && !await page.$('#runModal .rn-album .rn-vide') && /Holo/.test(await page.$eval('#runModal .rn-panneau.rn-on', el => el.textContent)) && /bourreau/i.test(await page.$eval('#runModal .rn-panneau.rn-on', el => el.textContent))]);
+    if (nom === 'l\'Album') meta.present.push(['l\'Album montre six vraies cartes, la plus belle d\'abord, et dit ses gravures', await page.$$eval('#runModal .rn-album .carton', l => l.length) === 6 && !await page.$('#runModal .rn-album .rn-vide') && /Holo/.test(await page.$eval('#runModal .rn-panneau.rn-on', el => el.textContent)) && /bourreau/i.test(await page.$eval('#runModal .rn-panneau.rn-on', el => el.textContent))]);
   }
   // Le Club se ferme sur le départ, là d'où on venait.
   await geste(page, 'fermer-club');

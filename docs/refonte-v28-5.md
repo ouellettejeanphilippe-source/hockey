@@ -93,14 +93,16 @@ Ce qu'un joueur a fait chez toi se grave sur sa carte, au cartable (`LEGENDES`, 
 
 | Galon | Ce qu'il demande | Par run | Runs qui en voient un |
 |---|---|---|---|
-| 🎩 Le Chapeau | trois buts dans un match | 0,8 | 52 % |
-| ⭐ Le grand soir | cinq points dans un match (quatre : 1,9 par run, trois runs sur quatre — trop) | à mesurer | — |
+| 🏵 Le bourreau | le but gagnant contre un rival | 1,3 | 77 % |
 | 🔒 Le jeu blanc | ton gardien gagne sans accorder de but | 1,4 | 63 % |
+| 🏵 Dix buts | dix buts dans la run (douze : 38 % des runs) | 1,0 | 54 % |
+| 🏵 Vingt points | vingt points dans la run (quinze, le chiffre du premier jet : 79 %, trop) | 1,4 | 54 % |
+| 🎩 Le Chapeau | trois buts dans un match | 0,8 | 52 % |
+| ⭐ Le grand soir | cinq points dans un match (quatre : 1,9 par run, trois runs sur quatre, trop) | 0,25 | 19 % |
 | 🗿 Le Mur | 40 arrêts dans une victoire (35 : 58 % des runs) | 0,1 | 10 % |
-| 🏵 Dix buts | dix buts dans la run (douze : 38 %) | — | 54 % |
-| 🏵 Vingt points | vingt points dans la run (quinze, le chiffre du premier jet : 79 %, trop) | — | 54 % |
-| 🏵 Le bourreau | le but gagnant contre un rival | ≈ 1,3 | — |
-| 🏵 La Coupe | être de l'effectif qui la gagne | 23 cartes, une run sur douze | 8 % |
+| 🏵 La Coupe | être de l'effectif qui la gagne | 23 cartes | 8 % |
+
+Huit galons par run en moyenne, du courant au rare. `mesure_run` les juge : chaque sorte gravée dans 5 à 85 % des runs du robot qui lit, 4 à 14 galons par run.
 
 Un galon se grave une fois par sorte et par run sur une carte. Le soir d'un galon, l'écran d'après-match le dit (« 🎩 Le Chapeau, gravé sur sa carte ») ; l'écran de fin compte ceux de la run. Les comptes d'une run (les buts et les points de chacun) vivent dans la run gardée (`R.comptes`), pour survivre à une reprise.
 
@@ -138,6 +140,7 @@ Le devis nommait « des pochettes » parmi la variété. Deux constats : les rob
 - `js/coachs.js`, `scripts/check_lexique.mjs`, `scripts/check_packs.mjs`, `scripts/check_run.mjs`, `scripts/lib/run_robot.mjs`, `scripts/tout.mjs` : les mots et les juges qui suivent.
 - `.claude/rules/rogue.md`, `.claude/rules/vocabulaire.md`, `.claude/rules/interface.md` : l'économie, les mots et les scènes du Club.
 - `scripts/check_sauvegardes.mjs`, `scripts/check_scene.mjs`, `scripts/essai_run.mjs`, `scripts/mesure_run.mjs`, et un juge neuf, *check_meta* (dans `tout.mjs`).
+- **5b** : `js/cartable.js` (les galons gravés, l'album à plat), `js/fiche.js` (la gravure dit son récit), `js/packs.js` (réécrit autour des deux pochettes), `scripts/check_packs.mjs` (réécrit), `scripts/check_banque.mjs`.
 
 ## 7. Ce qui part
 
@@ -149,9 +152,16 @@ Les noms en police de code sont partis du jeu ; les champs et les clés au nom t
 - `BOUTIQUE` et les packs qui montent (les *mods* de *tierDuPack*, le *montee* de *cartesDuPack*, le bloc du prestige de *niveauxDuPack*, js/packs.js) → les deux pochettes du marché, telles quelles.
 - `BANQUE` et son registre (*construire*, les mutations ; js/banque.js, les cartes rares) → rien : on monte une carte au vestiaire de la carte.
 
+**À la 5b**, js/packs.js réécrit de zéro :
+
+- `PACKS_JOUEURS` et ses dix-huit packs que plus rien ne vendait (les clés *hasard_bronze* à *hasard_premium*, *equipe*, *annee*, *ere70* à *ere20*, *sniper*, *passeur*, *defensif*, *dur*, *gardien*, *recrue*, *veteran*, *trio*, *etoiles*, *legendes*, *garanti*, *argent*, *or*, *specialistes*, *club*, *vedettes*, *coach*) → les deux pochettes du marché (*PACKS_TOUS* : le Bronze, l'Époque).
+- `TIERS` (quatre métaux), `tierDuPack`, `cotesDuPack`, `cartesDuPack` → un seul métal, le Bronze (*METAL*).
+- `SKILLS` (les talents d'un pack), `POSTES_DU_PACK`, le trio, l'équipe, l'année, les légendes, la garantie → rien.
+- `recrueDuCoach`, `scoreDeCouleur` (le dépisteur du coach, que la run n'appelait plus) → rien.
+
 ## 7b. Ce qui reste, et pourquoi
 
-*plafondDe* (une vieille partie du 82-0 le lit) ; *payerEcussons*, *ecussonsAVie*, *rangDePrestige* (les médailles et le titre) ; *solderLAncienRogue* (un vieux fichier peut encore s'importer) ; *bouchesTrousDuDepart*, *habillerLaLigue*, *chiffresDuSoirDe* (la run les joue) ; le cartable et js/club.js (JP : gardés) ; les packs d'avant de js/packs.js, que plus rien ne vend : la tranche 5b les taille avec les sortes de pochette.
+*plafondDe* (une vieille partie du 82-0 le lit) ; *payerEcussons*, *ecussonsAVie*, *rangDePrestige* (les médailles et le titre) ; *solderLAncienRogue* (un vieux fichier peut encore s'importer) ; *bouchesTrousDuDepart*, *habillerLaLigue*, *chiffresDuSoirDe* (la run les joue) ; le cartable et js/club.js (JP : gardés) ; à la 5b, *tirerJoueursDuPack* et *niveauxDuPack* (le marché tire ses pochettes par eux, aux mêmes dés qu'avant : une run reprise relit la même pochette).
 
 ## 8. Les réglages
 
@@ -171,6 +181,13 @@ Aucun ne compte des Coupes sur 64 graines : c'est du bruit (±6).
 - [x] **Les médailles se dépensent** : une philosophie achetée a sa case au loto suivant ; un achat sans médailles est refusé et dit ce qui manque ; l'achat se relit ; les exploits d'une run font monter le rang — *check_meta*, `essai_run` (le Club ouvert de l'écran de fin, une philosophie payée une fois, « Nouveau » au départ suivant).
 - [x] **Une scène, jamais une page** : le Club et ses trois pages, le départ avec son cran, la fin avec sa bande, l'écran du solde le plus chargé : 390 × 844, des cibles de 44, rien qui défile, aucun panneau sous le compte — `check_scene` (28 scènes, deux métas semés).
 - [x] Rien de mort, et ce qui part est parti — `check_mort`, `check_refonte` (sur la somme).
+
+**La 5b** :
+
+- [x] **Un galon se grave, une fois, et se relit** : une fois par sorte et par run, 24 au plus par carte, chacun son récit, même gravé avant la V28 — *check_meta* ; dans une run, chaque galon à son seuil, dix buts et vingt points une fois par joueur et recomptés, la Coupe sur tout l'effectif, une run gardée puis relue les garde — `check_run`.
+- [x] **Chaque sorte de galon se voit, aucune n'est de toutes les runs** : 5 à 85 % des runs du robot qui lit, 4 à 14 galons par run — `mesure_run`.
+- [x] **L'Album montre le cartable** : les plus belles d'abord, six vraies cartes par écran, la carte touchée dit ses gravures ; il ne charge que les saisons de sa page — *check_meta* (l'ordre et les comptes), `check_scene` (quatre scènes de plus : 32).
+- [x] **Les deux pochettes tirent comme avant** : pures, aux taux de leur métal, l'Époque un Pilier ou mieux de sa décennie et de son poste — `check_packs` (réécrit, une seconde et demie, dans `tout.mjs`).
 
 ## 10. À trancher par JP (rien ne bloque le code)
 
