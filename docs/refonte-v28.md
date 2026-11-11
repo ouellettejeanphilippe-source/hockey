@@ -304,6 +304,7 @@ Sur 128 graines (deux jeux de 64), les mêmes dés :
 - Sur 128 graines, toutes les années ensemble : le malin 14 Coupes (7 sur 64), le chiffre 11, « premier » 0 ; les cibles tenues 61 %, 53 % et 29 % ; la première Coupe du malin à sa sixième run en médiane.
 - **Réglé à la tranche 4** (11 nov., docs/refonte-v28-4.md) : le banc branché (les moments posés par la run), trois matchs en trois soirs, cinq pièces réglées. Sur 64 graines : le malin 5 Coupes, le chiffre 8, « premier » 0 ; les cibles tenues 58 %, 57 % et 30 %. **Lire paie à l'acte I (67 % contre 53 %), pas sur la run** : l'écart en Coupes entre le malin et le chiffre est sous le bruit de 64 graines (±6), quelle que soit la façon de lire essayée ; passé le camp, le plafond ne force plus à renoncer. Ouvert, avec le point suivant.
 - **Ouvert : *tu peux exploser le jeu*.** À la tranche 4 : 4 runs du malin sur 64 (6 %) jouent l'acte III à 75 % de chance moyenne ou plus. Aux tranches 2 et 3 : 8 runs sur 128 (6 %) ; le critère en demande une sur dix. Essayé sans y arriver : l'acte III à 2 étapes d'édition (6 %), des portes plus hautes après une affiche haute gagnée (7 à 8 %), un robot qui monte une carte au vestiaire (5 %). Sous le plafond qui mord, la force d'un club plafonne ; il faut un levier de plus, à trancher par JP (docs/decisions.md).
+- **Tranché par JP le 11 nov. 2026**, après la mesure de deux leviers sur 384 graines (docs/decisions.md) : *lire paie* déjà (le robot qui lit tient 61 % de ses cibles contre 53 %, +7,8 points en paires, bruit ±4,4 : 64 graines ne pouvaient pas le voir) et *tu peux exploser le jeu* s'accepte à 7 % (6,5 % mesurés, borné de 5 à 12 %). Le prix qui suit la valeur et moins de candidats par porte, mesurés, ne faisaient pas mieux et faisaient reculer les runs qui explosent (2 à 4 %) : écartés. Les deux points ci-dessus ne sont plus ouverts.
 
 **Ce que la tranche 0 mesurait au départ** (la question posée, gardée) :
 - ce que vaut une signature de porte, en points de chance sur un match ;
@@ -456,10 +457,11 @@ Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est
   - aucun joueur deux fois ;
   - le plafond jamais dépassé ;
   - aucune ligue jouée en coulisse.
-- [~] **Lire paie, sans gagner d'office** (11 nov., tranche 4 : le malin 5 Coupes sur 64, la run 9 en médiane, « premier » 0 ; **deux points restent ouverts, à trancher par JP** — le chiffre en gagne 8, un écart sous le bruit : lire paie à l'acte I, 67 % contre 53 %, pas sur la run ; et 6 % des runs au lieu d'une sur dix) — *mesure_run*, en CI (il exige que lire ne coûte pas, et imprime le reste avec son bruit) :
-  - le robot qui lit gagne la Coupe 4 à 12 fois sur 64, le robot du chiffre moins souvent en paires, « premier » au plus 2 fois ;
+- [x] **Lire paie, sans gagner d'office** (tranché par JP le 11 nov. 2026, après la mesure de deux leviers ; docs/decisions.md) — *mesure_run* : en CI sur 64 graines (les Coupes, la première Coupe, lire ne coûte pas), à la main sur 384 (`GRAINES=384 FILS=3 ROBOTS=malin,chiffre` : lire paie, exploser) :
+  - le robot qui lit gagne la Coupe 4 à 12 fois sur 64, « premier » au plus 2 fois ;
+  - lire paie : en paires, le robot qui lit tient plus de cibles que le robot du chiffre, au-delà du bruit (61 % contre 53 % sur 384 graines, +7,8 points, bruit ±4,4). Le premier jet du critère comptait des Coupes en paires : à 384 graines encore, leur écart reste sous son bruit (46 contre 35, ±15) ;
   - la première Coupe jamais avant la troisième run en médiane (JP) ;
-  - au moins une run sur dix du robot qui lit finit l'acte III à 75 % de pronostic moyen ou plus (*tu peux exploser le jeu*).
+  - *tu peux exploser le jeu* : 5 à 12 % des runs du robot qui lit jouent l'acte III à 75 % de pronostic moyen ou plus (6,5 % mesurés ; le premier jet en demandait une sur dix, JP accepte 7 %).
 - [x] **Le banc remesuré** (11 nov., tranche 4 : 27 vérifications vertes à l'échantillon plein ; la run pose le soir au moteur, trois matchs en trois soirs, cinq pièces réglées) : chaque pièce se voit le soir où elle joue et n'est jamais un piège sur un acte de six matchs ; le banc complet sous sa borne recalculée — `check_pouvoirs` (sa durée d'acte passe de 27 à 6).
 - [x] **Une scène, jamais une page** (11 nov.) — *check_scene* (neuf) :
   - dans le Rogue, aucune scène ne défile ;
