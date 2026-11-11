@@ -98,6 +98,8 @@ export function sceneDepart(V) {
 const X_DES_CASES = { 2: [130, 260], 3: [70, 195, 320] }, Y_DES_RANGS = [578, 516, 454, 392, 330, 268, 206], Y_DU_RIVAL = 112;
 const xy = (r, i) => (r >= RANG_DU_RIVAL ? [195, Y_DU_RIVAL] : [X_DES_CASES[S_LARGEURS[r]][i], Y_DES_RANGS[r]]);
 const S_LARGEURS = [2, 3, 2, 3, 2, 3, 2];
+/* Le milieu de chaque intervalle entre deux cases d'un rang : où un rang dit ce qu'il est (son dos-à-dos). */
+const entreLesCases = r => { const xs = X_DES_CASES[S_LARGEURS[r]]; return xs.slice(1).map((x, i) => (x + xs[i]) / 2); };
 const MOT_DU_JEU = { tirs: 'Tireurs', durs: 'Durs', gardien: 'Gardien' };
 const SORTE_CLS = { marche: 'rn-marche', vestiaire: 'rn-vest', histoire: 'rn-hist', elite: 'rn-elite', rival: 'rn-rival' };
 function styleDe(S, c) { if (!S.jeux) S.jeux = new Map(); const k = `${c.s}:${c.t}`; if (!S.jeux.has(k)) S.jeux.set(k, jeuDe(S, c)); return S.jeux.get(k); }
@@ -140,7 +142,7 @@ export function sceneCarte(S, V) {
   return `<svg class="rn-chemin" viewBox="0 0 390 844" aria-hidden="true"><path d="${liens.join('')}"/>${pris.length ? `<path class="rn-pris" d="${pris.join('')}"/>` : ''}${offerts.length ? `<path class="rn-offert" d="${offerts.join('')}"/>` : ''}</svg>
   ${hud(S, { petit: R.rang >= RANG_DU_RIVAL ? 'Le rival' : `Case ${R.rang + 1} de ${RANG_DU_RIVAL}` })}
   ${noeud(R.carte.rival, RANG_DU_RIVAL, 0)}${R.carte.rangs.map((rang, r) => rang.map((c, i) => noeud(c, r, i)).join('')).join('')}
-  ${R.rang <= RANGS_DE_DOS_A_DOS[1] ? `<span class="rn-etq" style="left:195px;top:${Y_DES_RANGS[RANGS_DE_DOS_A_DOS[1]] - 6}px">Dos-à-dos</span>` : ''}
+  ${RANGS_DE_DOS_A_DOS.filter(r => r >= R.rang).map(r => entreLesCases(r).map(x => `<span class="rn-etq" style="left:${x}px;top:${Y_DES_RANGS[r] - 6}px">Dos-à-dos</span>`).join('')).join('')}
   <div class="rn-tiroir"><div class="rn-k">Ta prochaine case${offertes.length > 1 ? ' · une des deux' : ''}</div>
     <div class="rn-deux">${offertes.map(i => optionDe(S, caseA(S, R.rang, i), i, i === vue)).join('')}</div>
     <div style="display:flex;gap:8px">${bt('Lignes', 'lignes')}${bt('Banc', 'banc')}${bt('Y aller', 'aller', { cls: 'rn-go', v: vue })}</div></div>`;

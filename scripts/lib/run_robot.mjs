@@ -6,20 +6,21 @@
  *
  *   « premier »  la première case offerte, le premier joueur de la première porte qui tient sous le plafond, aucun plan ;
  *   le CHIFFRE   l'affiche la plus facile, le joueur à la meilleure cote, sans rien lire, aucun plan ;
- *   le MALIN     ce qu'une carte montre : la cote au prix de l'espace qu'elle prend (`PRIX_ESPACE`), l'affiche haute quand
- *                son club est au moins aussi fort, l'élite à 50 % de chance ou plus, le plan du duel lu à l'écran
- *                (scripts/lib/duel.mjs), le marché et le vestiaire selon son état.
+ *   le MALIN     ce que l'écran montre : la cote au prix de l'espace qu'elle prend (`PRIX_ESPACE`), l'affiche haute quand
+ *                son club est nettement plus fort (`MARGE_HAUTE`), jamais un soir de dos-à-dos, l'élite de même, le plan
+ *                du duel lu à l'écran (scripts/lib/duel.mjs), la pièce qui répond au rival de l'acte ou la plus haute
+ *                (`pieceLue`), le marché et le vestiaire selon son état.
  *
  * `espion(moment, S, x)` : appelé aux moments d'une run ('portes', 'signe', 'match', 'case', 'fin'), pour les invariants.
  */
 import { getHiddenRatings, energieDe } from '../../js/sim.js';
 import { groupeDuJoueur as groupeDe } from '../../js/niveaux.js';
-import { CASES_DU_BANC, PIECE_DU_COACH } from '../../js/pieces.js';
+import { PIECES, CASES_DU_BANC, PIECE_DU_COACH } from '../../js/pieces.js';
 import { PRIX_PIECE } from '../../js/actes.js';
 import {
   RUN, creerLaRun, casesOffertes, caseA, allerA, jouerLeMatch, conclure, vestiaireDe, sortantsPour, masseApres, signer, passerLesPortes, apresLesPortes,
   apresLaFinDActe, pieceReglee, prendreLaPiece, prixDe, acheterLaPiece, avancer, reposer, monterUneCarte, allerAuMatchDeSerie, chanceCeSoir, fixerLElite, forceDe,
-  ouvrirSeance, figer, rebatir, histoireDeLaCase, repondre,
+  ouvrirSeance, figer, rebatir, histoireDeLaCase, repondre, jeuDe, dosADosA,
 } from '../../js/run.js';
 import { SAISONS, shard } from './shards.mjs';
 import { robotDuel } from './duel.mjs';
@@ -27,7 +28,8 @@ import { robotDuel } from './duel.mjs';
 export const DONNEES = { saisons: SAISONS, shard };
 /* Le malin paie la cote au prix de l'espace qu'elle prend : un point de cote vaut `PRIX_ESPACE` M$ d'espace. */
 const PRIX_ESPACE = Number(process.env.PRIX_ESPACE ?? 1.5);
-const CHANCE_ELITE = 0.5;
+/* Le malin ne cherche l'affiche haute que si son club est nettement plus fort (mesuré le 11 nov. 2026 : à force égale, il manquait sa cible de l'acte III). */
+const MARGE_HAUTE = 1.05;
 const v = p => getHiddenRatings(p).v;
 const COACHS = Object.keys(PIECE_DU_COACH);
 
@@ -58,10 +60,20 @@ function reglerLesPortes(S, robot, espion) {
   if (c && signer(S, c.p, c.sortant, { auMieux: true })) espion('signe', S, c); else passerLesPortes(S);
   apresLesPortes(S);
 }
-/* Une pièce offerte : la première, s'il reste une case sur le banc. */
+/*
+ * LA PIÈCE QU'ON PREND, parmi les offertes. Le chiffre prend la première. Le malin lit ce que l'écran montre : la pièce qui
+ * répond au rival de l'acte (« Pour le battre », sous son annonce : son match compte double), sinon la carte du plus haut
+ * niveau (ses diamants).
+ */
+function pieceLue(S, robot, offertes) {
+  if (robot !== 'malin') return offertes[0];
+  const rival = S.R.phase !== 'finacte' && S.R.carte ? S.R.carte.rival : null, contre = rival ? jeuDe(S, rival).contre : [];
+  return offertes.find(k => contre.includes(k)) || offertes.slice().sort((a, b) => PIECES[b].cadre - PIECES[a].cadre)[0];
+}
+/* Une pièce offerte : s'il reste une case sur le banc. */
 function reglerLaPiece(S, robot) {
   const o = (S.R.apres && S.R.apres.offertes) || [];
-  if (o.length && robot !== 'premier' && S.R.banc.length < CASES_DU_BANC) prendreLaPiece(S, o[0]);
+  if (o.length && robot !== 'premier' && S.R.banc.length < CASES_DU_BANC) prendreLaPiece(S, pieceLue(S, robot, o));
   pieceReglee(S);
 }
 /* La case du rang : « premier » la première ; le chiffre, la plus facile ; le malin, l'affiche haute si son club la vaut. */
@@ -72,10 +84,12 @@ function choisirLaCase(S, robot) {
     const sansElite = cases.filter(x => x.c.sorte !== 'elite');
     if (robot === 'chiffre') return (sansElite.find(x => !x.c.haute) || sansElite[0] || cases[0]).i;
     const club = x => S.clubs.find(k => k.s === x.c.s && k.t === x.c.t);
+    // Un dos-à-dos se joue sur les jambes de la veille : le malin n'y cherche ni l'élite ni l'affiche haute.
+    const las = dosADosA(cases[0].c, R.rang);
     const elite = cases.find(x => x.c.sorte === 'elite');
-    if (elite && R.coeurs >= 2 && forceDe(S) >= club(elite).force) return elite.i;
+    if (elite && !las && R.coeurs >= 2 && forceDe(S) >= club(elite).force) return elite.i;
     const haute = sansElite.find(x => x.c.haute);
-    return (haute && forceDe(S) >= club(haute).force ? haute : sansElite.find(x => !x.c.haute) || sansElite[0] || cases[0]).i;
+    return (haute && !las && forceDe(S) >= club(haute).force * MARGE_HAUTE ? haute : sansElite.find(x => !x.c.haute) || sansElite[0] || cases[0]).i;
   }
   // Un arrêt : le marché quand la pièce se paie et tient sur le banc ; le vestiaire quand le club est usé ou blessé ; sinon l'histoire.
   const joueurs = Object.values(S.roster).filter(Boolean);
@@ -123,7 +137,7 @@ export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES
     else if (R.phase === 'finacte') { reglerLaPiece(S, robot); apresLaFinDActe(S); }
     else if (R.phase === 'marche') {
       const M = R.marche;
-      if (robot !== 'premier' && !M.piece && R.jetons >= PRIX_PIECE && R.banc.length < CASES_DU_BANC) acheterLaPiece(S, M.pieces[0]);
+      if (robot !== 'premier' && !M.piece && R.jetons >= PRIX_PIECE && R.banc.length < CASES_DU_BANC) acheterLaPiece(S, pieceLue(S, robot, M.pieces));
       avancer(S);
     } else if (R.phase === 'vestiaire') {
       const joueurs = Object.values(S.roster).filter(Boolean);

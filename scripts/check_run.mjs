@@ -57,6 +57,7 @@ for (const robot of ['premier', 'chiffre', 'malin']) {
     });
     // Les cœurs, recomptés des matchs seuls : une cible manquée aux actes I et II, et chaque série perdue puis rejouée (une
     // série perdue se rachète une fois par cœur ; la dernière perdue, si la run finit là, n'en coûte pas).
+    faute(new Set(R.actes.map(x => `${x.s}:${x.t}`)).size === R.actes.length, `${ici} : le même rival à deux actes`);
     const rates = R.actes.filter((x, a) => !x.tenu && a < 2).length;
     let perdues = 0, w = 0, l = 0;
     for (const m of R.matchs.filter(m => m.sorte === 'serie')) { if (m.gagne) w++; else l++; if (w === 3 || l === 3) { if (l === 3) perdues++; w = 0; l = 0; } }

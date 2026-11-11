@@ -1,6 +1,6 @@
 # Plan
 
-État au 31 octobre 2026 : version 2.9.2 (`sw.js`), moteur S136 (`js/game.js`), cotes v30 (`js/ratings.js`), refonte V21 (le coach, un personnage). **Le plan de travail courant est `LIVRAISON.md`**, avec son journal ; ce fichier ne garde que l'état court et les décisions. L'histoire de chaque décision est dans `docs/decisions.md`, les « À faire » d'avant la 1.0 dans `docs/plan-historique.md`, le journal par sprint (S7 à S80) et par mois dans `docs/journal/`, le plan de la 1.0 et ses jalons dans `docs/livraison-1.0.md`.
+État au 11 novembre 2026 : version 3.5.0 (`sw.js`), moteur S148 (`js/game.js`), cotes v31 (`js/ratings.js`), refonte V28 (le Rogue est une run en carte ; l'ancien Rogue est parti). **Le plan de travail courant est `LIVRAISON.md`**, avec son journal ; ce fichier ne garde que l'état court et les décisions. L'histoire de chaque décision est dans `docs/decisions.md`, les « À faire » d'avant la 1.0 dans `docs/plan-historique.md`, le journal par sprint (S7 à S80) et par mois dans `docs/journal/`, le plan de la 1.0 et ses jalons dans `docs/livraison-1.0.md`.
 
 ## Fait
 
@@ -9,6 +9,7 @@
 - **Jeu** (J1 à J9, les sprints S7 à S80) : roulette, vestiaire et loto, saison au jour le jour, séries match par match, gros matchs, mode Rogue, Sur table, exhibition, packs, cartable, album.
 - **La 1.0** (28 septembre au 15 octobre 2026) : livrée — les cases de `LIVRAISON.md`, jalons 0 à 5, `v1.0.0`, l'APK.
 - **Les refontes V3 à V22** (octobre 2026, `docs/refonte-v*.md`) : le Rogue refait — les fils et la lancée (V3), la boîte où tout se règle (V4), le duel en trois périodes et les plans (V9, V13, V17), le jeu de cartes neuf et les moments (V10), une maison par sujet (V12), les histoires du lundi (V20), le coach-personnage et ses pouvoirs (V21), la banque d'événements et les adjoints refaits à neuf — une main, des séjours, un style (V22), l'affinité à la place des systèmes de ligne (V18), les cotes sur 20 et l'hexagone (27 au 30 oct.).
+- **Les refontes V23 à V28** (novembre 2026) : le banc de cinq, le duel à un choix, les élites (V27) ; puis **la V28**, le Rogue refait de zéro, mécanique et écrans ensemble (JP, 9 nov. : *un change l'autre*) — une run en carte comme Slay the Spire (la carte de l'acte, la feuille du soir, le match en temps forts, trois portes ; trois actes, deux cœurs, des séries en 3 de 5 ; toutes les années ensemble ; le plafond qui mord), sur le simulateur gardé ; l'ancien Rogue (le Bureau, le jour à jour, la boutique, 56 noms et 20 000 lignes) supprimé le 11 nov. (`docs/refonte-v28.md`, `docs/refonte-v28-4.md`).
 
 ## À faire
 
@@ -19,8 +20,8 @@ Une ligne chacun. Ce qui est engagé vit dans `LIVRAISON.md` ; le reste attend l
 - [ ] **S5** — Étendre avant 1970 (le +/- manque avant les années 1960 ; le temps de glace s'infère maintenant).
 - [ ] **S8** — Vrais classements pour `check_ratings.mjs` (Hockey Databank).
 - [ ] **La possession par joueur** : les vols et les revirements sont dans les shards (2005-06+) et à la fiche, mais la possession se lit au club ; un canal par joueur serait une mécanique neuve, à mesurer en paires avant. *Mesuré (V25 A3, 7 nov. 2026, `check_suppression`) : en retenue 2013-2025, les vols moins les revirements ne battent pas la cote défensive du club et ne s'ajoutent pas au gardien ; la possession par joueur n'entre pas.* Pas les mises au jeu ni le clutch tant que le moteur ne les joue pas.
-- [ ] `check_profondeur` : rouge tant que la première Coupe arrive avant la run 3, ou qu'après elle l'attentif gagne d'office (docs/refonte-v9.md § 21). Le 31 oct. 2026, l'attentif rebat le robot d'avant de 6,4 V par saison (il lit ses adjoints et son coach sur son effectif) ; reste posée la question d'un juge de run plutôt que du +5 V par saison. Depuis la deuxième run plus dure (31 oct., `ETAPE_APRES_LA_PREMIERE`), sa première Coupe arrive aux runs 3, 4, 3 et 6 : les juges de campagne sont verts. Le 2 nov. 2026 (docs/revue-rogue-2026-11.md) : six vérifications vertes, mais l'attentif ne rebat plus le robot d'avant que de 5,1 V par saison (± 1,0), les deux gagnent leur première Coupe à la même run (6 et 4), et les trois premières runs ne durent qu'une saison.
-- [ ] `check_pouvoirs` à l'échantillon plein (N=600, hors du CI), le 2 nov. 2026 (docs/revue-rogue-2026-11.md) : tout sous sa borne (le duo vedette à +2,3 V ; le prof de discipline est parti avec le staff, V22), un seul rouge — 🦏 L'usure (+3,8 mises en échec) et 💥 Le choc (+2,8) ne se voient pas dans la feuille (±4 voulus).
+- [ ] **Lire paie, et *tu peux exploser le jeu*** (V28, à trancher par JP) : mesuré le 11 nov. 2026 (`mesure_run`, 64 graines), le robot qui lit gagne 6 à 8 Coupes et le robot du chiffre 8 ; aucune run ne joue l'acte III à 75 % de chance. Le plafond ne force pas encore de vrai choix : il faut un levier de plus (docs/decisions.md, docs/refonte-v28-4.md).
+- [x] `check_pouvoirs` à l'échantillon plein (N=600, hors du CI) : vert le 11 nov. 2026, le banc remesuré sur un acte de six matchs (docs/refonte-v28-4.md) ; l'usure et le choc, qui ne se voyaient pas le 2 nov., se voient.
 
 ## Décisions prises
 

@@ -319,10 +319,13 @@ export function rebatir(S) {
 
 /* ---------- la carte de l'acte ---------- */
 const clubDe = (S, x) => (x ? S.clubs.find(c => c.s === x.s && c.t === x.t) || null : null);
-/* Le rival d'un acte : un club autour de son rang (`RIVAUX`, décalé), tiré de la graine. */
+/*
+ * Le rival d'un acte : un club autour de son rang (`RIVAUX`, décalé), tiré de la graine. Jamais deux fois le même dans une
+ * run : les actes II et III visent tous deux le sommet, et une run sur six retrouvait son rival d'avant (11 nov. 2026).
+ */
 function rivalDe(S, a) {
-  const cible = Math.min(1, RUN.RIVAUX[a] + RUN.DECALAGE), n = S.clubs.length;
-  const k = Math.round(cible * (n - 1)), autour = S.clubs.slice(Math.max(0, k - 4), Math.min(n, k + 5));
+  const cible = Math.min(1, RUN.RIVAUX[a] + RUN.DECALAGE), n = S.clubs.length, deja = new Set(S.R.actes.map(cleDuClub));
+  const k = Math.round(cible * (n - 1)), autour = S.clubs.slice(Math.max(0, k - 4 - deja.size), Math.min(n, k + 5)).filter(c => !deja.has(cleDuClub(c)));
   return pigeDans(autour, S.R.graine, 'rival', a);
 }
 /* Ce qu'une victoire paie contre ce club : du bas au haut de la bande des affiches. */

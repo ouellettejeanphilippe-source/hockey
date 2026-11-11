@@ -39,7 +39,7 @@ Les constantes, leur valeur, leur plage sûre, ce qui casse au-delà.
 Chacun vérifiable, avec le script qui le prouve, existant ou à écrire (nommé) :
 
 - [ ] … — `check_…`
-- [ ] … — `essai_rogue` (…)
+- [ ] … — `check_scene`, `essai_run` (…)
 - [ ] Pas une couche de peinture : ce qui part est parti, le jeu retire autant qu'il ajoute — `check_refonte` (un gros changement)
 - [ ] À juger par JP à l'essai : … (seulement ce qui ne se mesure pas)
 

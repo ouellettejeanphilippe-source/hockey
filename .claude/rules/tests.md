@@ -61,4 +61,4 @@ Depuis oct. 2026 : `node scripts/check_effets.mjs` (une vingtaine de minutes ; `
 
 Depuis la V19 : `node scripts/check_prolongation.mjs` (dans `tout.mjs`) — la prolongation, les tirs de barrage et la mort subite.
 
-Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer » du 82-0, 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (sans réseau ; l'application Android simulée est partie le 4 nov. 2026, web seulement). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
+Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer » du 82-0, 40 saisons ; `SAISONS`, `FILS`). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (sans réseau ; l'application Android simulée est partie le 4 nov. 2026, web seulement). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
