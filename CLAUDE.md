@@ -47,6 +47,14 @@ JP (4 nov. 2026) : *ça fait une bonne vingtaine de fois qu'on retravaille le UI
 - **Un gros changement se mesure à ce qui part**, jamais à ce qu'on ajoute par-dessus — `check_refonte <devis>` : le jeu (js/, index.html, sw.js) retire au moins une ligne pour deux qu'il ajoute, style.css fait moins de la moitié du diff, chaque nom de « Ce qui part » est parti. Rouge, ce n'est pas encore une refonte : on continue, on ne baisse pas la borne.
 - **Rien à faire partir ?** Alors ce n'est pas une refonte : on le dit à JP en une ligne avant de coder, avec ce qu'on propose. Jamais une retouche livrée sous le nom d'une refonte, jamais la taille négociée à la baisse en silence.
 
+## Une décision de design se demande
+
+JP (11 nov. 2026) : *Ask user, always*. Ce jour-là, trois décisions de jeu avaient été prises puis signalées après coup, dans des PR déjà fusionnées (la monnaie de ton club, le solde à plein prix, des sortes de pochette pas faites).
+
+- **Une décision de jeu ou de design se pose à JP avant le code**, par une question (l'outil de question : deux à quatre options courtes, celle qu'on recommande en premier, chacune avec ce qu'elle coûte) : une monnaie, un prix, un réglage qui change ce que le joueur vit, une chose du devis qu'on ne ferait pas ou qu'on ferait autrement. Jamais décidée, livrée, puis rangée sous « à trancher ».
+- **La question se suffit** : elle redit le chiffre ou le constat dont elle dépend ; JP ne voit parfois qu'elle.
+- **Ce qui continue sans demander** : mesurer, corriger un bogue, écrire un juge, tenir les documents, et la fusion au CI vert (ci-dessous).
+
 ## Avant de coder
 
 - `LIVRAISON.md` — ce qui est ouvert et le journal récent. Coche les cases au fur et à mesure ; une entrée de journal est un fichier neuf dans `docs/journal/entrees/` (`AAAA-MM-JJ-sujet.md`), selon la règle écrite en tête du journal de `LIVRAISON.md` — jamais une ligne ajoutée en tête d'un fichier partagé, pour que deux PR n'entrent jamais en conflit. Le plan de la 1.0 et ses jalons, tous livrés : `docs/livraison-1.0.md`.
