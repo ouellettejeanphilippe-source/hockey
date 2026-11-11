@@ -123,10 +123,11 @@ informer('prose lue', `${prose.length} chaînes et lignes`);
 
 /* ---------- 3. les clés ne bougent pas ---------- */
 {
-  // Les clés que les sauvegardes et la méta portent ; l'affichage se renomme, elles non.
+  // Les clés que les sauvegardes et la méta portent ; l'affichage se renomme, elles non. (La clé `vestiaire` d'une exigence
+  // de l'ancien Rogue est partie avec ses crans, V28 tranche 5 : une run ne gardait que le numéro de son cran, et aucune ne reste.)
   const cles = [
     ['js/coachs.js', /\bessaim: \{/], ['js/pieces.js', /\bperso\b/],
-    ['js/rogue.js', /cle: 'vestiaire'/], ['js/rogue.js', /ecussons/], ['js/vie-gm.js', /\bad: \{ ico/],
+    ['js/rogue.js', /CLE_META = 'cap82_rogue'/], ['js/rogue.js', /ecussons/], ['js/rogue.js', /ecussonsAVie/], ['js/vie-gm.js', /\bad: \{ ico/],
   ];
   const manquent = cles.filter(([f, re]) => !re.test(lire(f))).map(([f, re]) => `${f} ${re}`);
   exiger('les clés de sauvegarde gardent leur nom', manquent.length === 0, manquent.join(' · ') || `${cles.length} clés en place`);

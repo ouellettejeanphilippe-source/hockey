@@ -175,8 +175,9 @@ export function payerEcussons(cleRun, etape, n, { bilan = null } = {}) {
  * Seuls deux leviers COÛTENT, mesurés un à un (11 nov. 2026, le robot qui lit, 64 graines) : la cible (+1 : 52 % de cibles
  * tenues contre 58) et la force des clubs (une étape d'édition de plus : 55 %). Moins d'espace, des adversaires plus hauts,
  * une porte de moins, un rachat plus dur ne coûtent rien aujourd'hui : un cran qui ne coûte pas serait une prime gratuite.
- * Trois crans, mesurés ensemble sur 128 graines : 59 % de cibles tenues sans exigence, puis 51 %, 46 % et 32 % ; un
- * quatrième (une étape de plus) n'ajoutait rien de mesurable.
+ * Trois crans, mesurés ensemble sur 128 graines (`CRANS=1`, scripts/mesure_run.mjs) : 59 % de cibles tenues sans exigence,
+ * puis 51 %, 46 % et 33 % ; 61, 64, 65 et 58 médailles par run, la prime comprise : monter ne paie pas plus, ça se mérite.
+ * Un quatrième (une étape de plus) n'ajoutait rien de mesurable.
  * Les huit crans de l'ancien Rogue (le prix des packs, le classeur, le barème, les contrôles) sont partis avec lui.
  */
 export const PRIME_EXIGENCE = 0.15;
@@ -216,7 +217,7 @@ export const convertirAuJeuNeuf = (m, resumes = []) => {
  * (js/sauvegardes.js `retirerLesRuns`) et verse ce qu'elle avait gagné sans l'avoir touché :
  *   - une run d'avant la saison en actes : la moitié de ses points (`convertirAuJeuNeuf`) ;
  *   - une run en actes (V27) : ses rondes de séries, au multiple de son cran d'alors, sous la même clé que le jeu d'avant
- *     (des séries déjà payées ne se paient pas deux fois).
+ *     (des séries déjà payées ne se paient pas deux fois), sa Coupe et ses exploits au palmarès.
  * Le méta garde ce qui s'est arrêté (`arret`), pour l'écran du solde. Rend { runs, verse }.
  */
 export function solderLAncienRogue() {
@@ -227,7 +228,10 @@ export function solderLAncienRogue() {
       const P = S && S.partie, R = (S && S.rogue) || {};
       if (!P || !P.graine) continue;
       const finies = R.series || null, rondes = finies ? finies.rondes : P.series ? P.series.ronde || 0 : 0, coupe = !!(finies && finies.coupe);
-      verse += payerEcussons(P.graine, 'series', ecussonsDesSeries(rondes, coupe) * (1 + PRIME_EXIGENCE * Math.max(0, Math.min(8, R.exigence || 0))));
+      const gain = payerEcussons(P.graine, 'series', ecussonsDesSeries(rondes, coupe) * (1 + PRIME_EXIGENCE * Math.max(0, Math.min(8, R.exigence || 0))));
+      verse += gain;
+      // Ce que ces séries pas encore payées avaient gagné au palmarès : la Coupe, et les exploits du prestige (quatre rondes alors).
+      if (gain) { const m = lireMeta(); ecrireMeta({ ...m, coupes: (m.coupes || 0) + (coupe ? 1 : 0), jalons: { ...(m.jalons || {}), series: true, ronde: true, ...(rondes >= 3 ? { finale: true } : {}) } }); }
     }
   }
   if (runs.length) { const m = lireMeta(); ecrireMeta({ ...m, arret: { runs: (m.arret ? m.arret.runs : 0) + runs.length, verse: (m.arret ? m.arret.verse : 0) + verse } }); }

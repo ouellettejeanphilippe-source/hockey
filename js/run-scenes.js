@@ -509,7 +509,7 @@ function pageTonClub(C) {
   const R = C.rayons.find(r => r.cle === C.rayon) || C.rayons[0], o = R.objets.find(x => x.cle === C.objet) || R.objets.find(x => x.porte) || R.objets[0];
   const manque = o.acquis ? 0 : Math.max(0, o.prix - (C.meta.ecussons || 0));
   const etat = o.porte ? 'Porté' : o.acquis ? 'À toi' : o.verrou ? `Demande le rang ${o.verrou}` : `${o.prix} médailles`;
-  const tuile = x => `<button type="button" class="${[x.cle === o.cle ? 'rn-on' : '', x.porte ? 'rn-porte' : '', x.acquis ? '' : 'rn-fermee'].filter(Boolean).join(' ')}" data-a="voir-objet" data-v="${x.cle}" aria-label="${esc(x.nom)}"${
+  const tuile = x => `<button type="button" class="${[x.cle === o.cle ? 'rn-on' : '', x.porte ? 'rn-revetu' : '', x.acquis ? '' : 'rn-fermee'].filter(Boolean).join(' ')}" data-a="voir-objet" data-v="${x.cle}" aria-label="${esc(x.nom)}"${
     x.nuance ? ` style="--a:${x.nuance[0]};--b:${x.nuance[1]}"></button>` : `>${x.apercu}</button>`}`;
   const action = o.porte ? bt('Porté', 'prendre-objet', { cls: 'rn-go', v: o.cle, off: true })
     : bt(o.acquis ? 'Porter' : o.verrou ? 'Rang trop bas' : manque ? `Il te manque ${manque}` : `Acheter · ${o.prix}`, 'prendre-objet', { cls: 'rn-go', v: o.cle, off: !o.acquis && (!!o.verrou || manque > 0) });
@@ -534,18 +534,19 @@ function pagePalmares(C) {
 }
 /*
  * LE SOLDE DE L'ANCIEN ROGUE, une fois (`s` : { avant, rendu, familles, voies, arret, apres }) : ce que l'arrêt de la vieille
- * run a versé, chaque famille de déblocages remboursée, les philosophies gardées ; « tu avais, tu as ».
+ * run a versé, chaque famille de déblocages remboursée, les philosophies gardées ; « tu avais, tu as ». Onze lignes au
+ * plus (l'arrêt, neuf familles, les philosophies), chacune sur une ligne, pour tenir au-dessus du compte (`.rn-solde`).
  */
 export function sceneSolde(s) {
   const lignes = [
-    ...(s.arret ? [`<div class="rn-recap"><span>Arrêt</span><span>${s.arret.runs} run${s.arret.runs > 1 ? 's arrêtées' : ' arrêtée'}<small>Ses médailles gagnées, pas encore payées</small></span><span class="rn-or">+${s.arret.verse}</span></div>`] : []),
-    ...s.familles.map(f => `<div class="rn-recap"><span>×${f.n}</span><span>${esc(f.nom)}<small>Remboursé à son prix</small></span><span class="rn-or">+${f.prix}</span></div>`),
+    ...(s.arret ? [`<div class="rn-recap"><span>Arrêt</span><span>${s.arret.runs} run${s.arret.runs > 1 ? 's arrêtées' : ' arrêtée'}, ses séries payées</span><span class="rn-or">+${s.arret.verse}</span></div>`] : []),
+    ...s.familles.map(f => `<div class="rn-recap"><span>×${f.n}</span><span>${esc(f.nom)}</span><span class="rn-or">+${f.prix}</span></div>`),
     ...(s.voies.length ? [`<div class="rn-recap"><span>×${s.voies.length}</span><span>${s.voies.length > 1 ? 'Philosophies gardées' : 'Philosophie gardée'}<small>${s.voies.map(v => esc(COACHS[v].nom)).join(', ')}</small></span><span class="rn-vert">À toi</span></div>`] : []),
   ];
   return `<div style="left:14px;right:14px;top:30px"><div class="rn-k">Une fois</div><div class="rn-titre" style="margin-top:8px">L'ancien Rogue est parti</div>
-    <div class="rn-t rn-gris" style="margin-top:8px">Tes médailles achetaient de la force. Elles ouvrent maintenant de la variété : ce que tu avais acheté t'est rendu.</div></div>
-  <div class="rn-panneau" style="left:14px;right:14px;top:150px">${lignes.join('')}</div>
-  <div class="rn-cellules" style="left:14px;right:14px;top:636px"><div><b>${s.avant - (s.arret ? s.arret.verse : 0)}</b><small>Tu avais</small></div><div><b class="rn-or">+${s.rendu + (s.arret ? s.arret.verse : 0)}</b><small>Rendu</small></div><div><b class="rn-or">${s.apres}</b><small>Tu as</small></div></div>
+    <div class="rn-t rn-gris" style="margin-top:8px">Tes médailles achetaient de la force. Elles ouvrent maintenant de la variété : ce que tu avais acheté t'est rendu, à son prix.</div></div>
+  <div class="rn-panneau rn-solde" style="left:14px;right:14px;top:150px">${lignes.join('')}</div>
+  <div class="rn-cellules" style="left:14px;right:14px;top:636px"><div><b>${Math.max(0, s.avant - (s.arret ? s.arret.verse : 0))}</b><small>Tu avais</small></div><div><b class="rn-or">+${s.rendu + (s.arret ? s.arret.verse : 0)}</b><small>Rendu</small></div><div><b class="rn-or">${s.apres}</b><small>Tu as</small></div></div>
   ${bas(bt('Au Club', 'solde-club'), bt('Continuer', 'solde-depart', { cls: 'rn-go' }))}`;
 }
 export function scenePause(S, V) {

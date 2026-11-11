@@ -115,7 +115,7 @@ export async function ouvrirRun(c = {}) {
     await charger('On rouvre les vestiaires :');
     S = ouvrirSeance(donnees(), R);
     garderLesForces();
-    poserClubLu(() => ({ team: S.toi }));
+    poserClubLu(() => (S ? { team: S.toi } : null));
     return entrer();
   }
   return versLeDepart();
@@ -176,7 +176,7 @@ async function commencer() {
   await charger('On ouvre les vestiaires :');
   S = creerLaRun(donnees(), { graine, numero, exigence: V.cran || 0, coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
   garderLesForces();
-  poserClubLu(() => ({ team: S.toi }));
+  poserClubLu(() => (S ? { team: S.toi } : null));
   coachAuCartable(c, numero);
   // La run compte ; son cran est celui qu'on proposera la prochaine fois ; la philosophie neuve a eu sa case au loto.
   ecrireMeta({ ...lireMeta(), runs: numero, cran: cran || 0, nouvelle: null });

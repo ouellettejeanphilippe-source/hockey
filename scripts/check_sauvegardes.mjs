@@ -86,16 +86,19 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
 }
 
 /*
- * UNE MÉTA D'AVANT LA TRANCHE 6 (V16, docs/refonte-v16.md § 4d) : ses cartes de masse salariale, ses soins de trop,
- * son congédiement et ses rappels sont partis de la banque. Chacun rend ses médailles, une fois ; les cartes rares
- * qui restent, elle les garde.
+ * UN MÉTA D'AVANT LA V28 (tranche 5, docs/refonte-v28-5.md § 3.5) : ses déblocages, son inventaire de cartes rares et ses
+ * cartes d'avant sont lus tels quels (aucune clé ne change de nom, rien ne plante), puis soldés une fois : les déblocages
+ * remboursés à leur prix d'alors, l'inventaire effacé (le remboursement des cartes parties à la V16, `rembourserLesPartis`,
+ * est parti avec lui). Le détail du solde se juge dans `check_meta`.
  */
 {
-  const { lireMeta, ecrireMeta } = await import('../js/rogue.js');
-  ecrireMeta({ ecussons: 10, inventaire: { 'plafond:grosEspace': 2, 'consommable:congediement': 1, 'consommable:chirurgie': 1 } });
-  const m = lireMeta();
-  exiger('une méta d\'avant la tranche 6 : ses cartes parties rendent leurs médailles, les rares restent',
-    m.ecussons === 19 && Object.keys(m.inventaire).join() === 'consommable:chirurgie', `${m.ecussons} 🏅 · ${Object.keys(m.inventaire).join(', ')}`);
+  const { lireMeta, ecrireMeta, solderLesDeblocages } = await import('../js/rogue.js');
+  ecrireMeta({ ecussons: 10, deblocages: ['caisse1'], inventaire: { 'plafond:grosEspace': 2, 'consommable:congediement': 1, 'consommable:chirurgie': 1 }, cartes: ['x'] });
+  const lu = lireMeta();
+  exiger('un méta d\'avant la V28 se lit tel quel : ses médailles, ses déblocages, son inventaire', lu.ecussons === 10 && lu.deblocages.join() === 'caisse1' && Object.keys(lu.inventaire).length === 3 && [...memoire.keys()].includes('cap82_rogue'));
+  const s = solderLesDeblocages(), m = lireMeta();
+  exiger('il se solde une fois : la caisse de départ remboursée (30), l\'inventaire et les déblocages partis, sous la même clé',
+    !!s && s.rendu === 30 && m.ecussons === 40 && !m.inventaire && !m.deblocages && !m.cartes && solderLesDeblocages() === null && lireMeta().ecussons === 40, `${m.ecussons} 🏅 · ${Object.keys(m).join(', ')}`);
 }
 
 /*
@@ -202,7 +205,7 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
     `${r1.runs} runs arrêtées · ${ix1.parties.length} partie(s) restent`);
   exiger('la partie du 82-0 ne bouge pas, au caractère près', ix1.parties.length === 1 && ix1.parties[0].id === id82 && memoire.get(`cap82_partie_${id82}`) === texte82);
   exiger(`leurs rondes de séries se versent au barème d'avant : 2 rondes au cran 2 (×${multiple}), la Coupe en 4 rondes, rien pour la run en saison`,
-    r1.verse === attendu && attendu === 52 + 120 && m1.ecussons === 10 + attendu && m1.ecussonsAVie === 25 + attendu && m1.coupes === 1 && m1.exigence === 0,
+    r1.verse === attendu && attendu === 52 + 120 && m1.ecussons === 10 + attendu && m1.ecussonsAVie === 25 + attendu && m1.coupes === 1 && m1.exigence === 0 && m1.jalons.finale === true,
     `${r1.verse} médailles versées (attendu ${attendu}) · ${m1.ecussons} 🏅 · ${m1.coupes} Coupe`);
   exiger('le reste du méta ne bouge pas : les runs comptées, les déblocages', m1.runs === 6 && m1.deblocages.join() === 'caisse1' && m1.jeu === 'v27');
   const r2 = solderLAncienRogue();

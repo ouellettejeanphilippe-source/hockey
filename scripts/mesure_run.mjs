@@ -27,11 +27,15 @@
  *   GRAINES=8 FILS=2 node scripts/mesure_run.mjs   l'essai court : les bornes s'impriment sans se juger
  *   ROBOTS=malin GRAINE0=64 …                      quelques robots, un autre jeu de graines
  *   REGLAGES='{"RACHAT":0.6}' …                    un réglage de js/run.js `RUN`, le temps d'une mesure
+ *   CRANS=1 GRAINES=128 FILS=3 …                   les exigences (js/rogue.js `EXIGENCES`) : le malin à chaque cran, sur les
+ *                                                  mêmes graines — chaque cran doit COÛTER (la part des cibles tenues baisse
+ *                                                  d'un cran au suivant ; jugé à 128 graines ou plus, six minutes sur trois fils)
  * Mesure seulement : jamais lu par le jeu.
  */
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { RUN, chanceCeSoir } from '../js/run.js';
+import { EXIGENCES } from '../js/rogue.js';
 import { jouerLaRun } from './lib/run_robot.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -52,13 +56,14 @@ if (process.env.BRAS) {
     // La chance de chaque match de l'acte III, lue à la feuille du soir comme l'écran (le malin seulement : c'est lui qu'on juge).
     const iii = [];
     const espion = robot !== 'malin' ? undefined : (m, S) => { if (m === 'case' && S.R.phase === 'feuille' && S.R.acte === 2 && !S.R.series) { const c = chanceCeSoir(S, { n: N_CHANCE }); iii.push(c.v / c.n); } };
-    res.push({ ...jouerLaRun(robot, g0 + g, espion ? { espion } : {}), R: undefined, iii });
+    const exigence = Number(process.env.EXIGENCE ?? 0);
+    res.push({ ...jouerLaRun(robot, g0 + g, { exigence, ...(espion ? { espion } : {}) }), R: undefined, iii, exigence });
   }
   process.stdout.write(JSON.stringify(res));
   process.exit(0);
 }
-const lancer = bras => new Promise((ok, ko) => {
-  const p = spawn(process.execPath, [ICI], { env: { ...process.env, BRAS: bras } });
+const lancer = (bras, exigence = 0) => new Promise((ok, ko) => {
+  const p = spawn(process.execPath, [ICI], { env: { ...process.env, BRAS: bras, EXIGENCE: String(exigence) } });
   let txt = '';
   p.stdout.on('data', x => { txt += x; });
   p.stderr.on('data', x => process.stderr.write(x));
@@ -71,11 +76,31 @@ async function enParallele(taches) {
   return res.flat();
 }
 const pas = Math.max(1, Math.ceil(GRAINES / FILS));
-const tranches = robot => Array.from({ length: Math.ceil(GRAINES / pas) }, (_, k) => () => lancer(`${robot}:${k * pas}:${Math.min(GRAINES, (k + 1) * pas)}`));
+const tranches = (robot, exigence = 0) => Array.from({ length: Math.ceil(GRAINES / pas) }, (_, k) => () => lancer(`${robot}:${k * pas}:${Math.min(GRAINES, (k + 1) * pas)}`, exigence));
 const pct = x => `${Math.round(100 * x)} %`;
 const moy = l => (l.length ? l.reduce((a, x) => a + x, 0) / l.length : 0);
 
-const runs = await enParallele(ROBOTS.flatMap(tranches));
+/*
+ * LES CRANS D'EXIGENCE (V28, tranche 5, docs/refonte-v28-5.md § 3.4) : le malin à chaque cran, sur les mêmes graines. Un
+ * cran qui ne coûte rien serait une prime gratuite (15 % de médailles de plus) : la part des cibles tenues doit baisser
+ * d'un cran au suivant. Mesuré le 11 nov. 2026 sur 128 graines : 59 %, 51 %, 46 %, 33 % ; 61, 64, 65 et 58 médailles par run.
+ */
+if (process.env.CRANS) {
+  const tous = await enParallele(EXIGENCES.map((_, k) => k).concat(EXIGENCES.length).flatMap(n => tranches('malin', n)));
+  const parts = [];
+  for (let n = 0; n <= EXIGENCES.length; n++) {
+    const l = tous.filter(x => x.exigence === n), part = moy(l.flatMap(x => x.actes.map(a => (a.tenu ? 1 : 0))));
+    parts.push(part);
+    informer(n ? `Cran ${n} · ${EXIGENCES[n - 1].nom}` : 'Sans exigence', `cibles tenues ${pct(part)} · ${l.filter(x => x.coupe).length} Coupes sur ${l.length} · sans cœur ${l.filter(x => x.fin && x.fin.cause === 'coeurs').length} · ${moy(l.map(x => x.fin ? x.fin.medailles : 0)).toFixed(0)} médailles par run`);
+  }
+  if (GRAINES >= 128) {
+    exiger('chaque cran coûte : la part des cibles tenues baisse d\'un cran au suivant', parts.every((x, k) => k === 0 || x < parts[k - 1]), parts.map(pct).join(' → '));
+    exiger('le dernier cran reste jouable : une cible sur cinq tenue, au moins', parts[parts.length - 1] >= 0.2, pct(parts[parts.length - 1]));
+  } else informer('L\'essai court', `${GRAINES} graines : ${parts.map(pct).join(' → ')} ; les crans ne se jugent qu'à 128 graines ou plus`);
+  verdict('Les crans d\'exigence (V28, tranche 5)');
+  process.exit(process.exitCode || 0);
+}
+const runs = await enParallele(ROBOTS.flatMap(r => tranches(r)));
 const de = r => runs.filter(x => x.robot === r);
 const coupes = r => de(r).filter(x => x.coupe).length;
 const sur64 = r => Math.round(coupes(r) * 64 / GRAINES);

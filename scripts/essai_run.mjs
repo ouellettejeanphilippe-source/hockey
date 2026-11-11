@@ -7,7 +7,8 @@
  *   2. une semaine gagnée (y aller, jouer, signer un joueur d'une porte) tient en neuf touchers au plus ;
  *   3. le match vu est le match joué : le pointage final de la scène est celui que la run garde ;
  *   4. quitter au menu et rouvrir reprend la run où elle était ;
- *   5. la fin verse ses médailles une fois ; aucune erreur de page.
+ *   5. la fin verse ses médailles une fois ; le Club s'ouvre de l'écran de fin et une philosophie s'y paie une fois (ou
+ *      dit ce qui manque) ; aucune erreur de page.
  *
  *   node scripts/essai_run.mjs http://localhost:8000 [dossier]      (deux minutes ; `GRAINE=…` un autre tirage)
  */
@@ -46,6 +47,7 @@ await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
 const ouvrir = async () => { await page.click('#menuDepart [data-menu="rogue"]'); await page.waitForSelector('#runModal .rn-plan [data-a]', { timeout: 60000 }); };
 await ouvrir();
 
+const medailles0 = x => (x && x.ecussons) || 0;
 const run = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_run') || 'null'); } catch { return null; } });
 const meta = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_rogue') || 'null'); } catch { return null; } });
 const la = (a, v = null) => page.$(v == null ? `#runModal [data-a="${a}"]:not([disabled])` : `#runModal [data-a="${a}"][data-v="${v}"]:not([disabled])`);
@@ -137,6 +139,32 @@ if (DOSSIER) await page.screenshot({ path: `${DOSSIER}/essai-run-fin.png` });
 const m1 = await meta();
 if (fin) { await toucher('quitter', null, 500); await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 10000 }).catch(() => {}); await ouvrir().catch(() => {}); }
 const m2 = await meta();
+/*
+ * LE CLUB, APRÈS LA RUN (tranche 5) : la bande de l'écran de fin y mène. Avec 40 médailles, on ouvre une philosophie : elles
+ * se paient une fois, et le départ de la run suivante lui donne sa case, « Nouveau ». Avec moins, le bouton dit ce qui manque
+ * et ne se touche pas. Les deux branches se jugent : ce que la run a payé ne décide pas du verdict.
+ */
+const club = { ouvert: false, mot: 'la bande du Club manque à l\'écran de fin' };
+if (fin && await toucher('club', null, 500)) {
+  const avant = medailles0(m2), riche = avant >= 40;
+  club.ouvert = !!await la('page', 'palmares');
+  if (DOSSIER) await page.screenshot({ path: `${DOSSIER}/essai-run-club.png` });
+  if (riche) {
+    const paye = await toucher('ouvrir-voie', null, 500), m3 = await meta();
+    await toucher('fermer-club', null, 400);
+    const revenu = !!await la('run-neuve');
+    await toucher('run-neuve', null, 1500);
+    await page.waitForSelector('#runModal [data-a="prendre-coach"]', { timeout: 30000 }).catch(() => {});
+    const nouveau = await page.$$eval('#runModal .rn-loto .rn-puce', l => l.some(x => /Nouveau/.test(x.textContent))).catch(() => false);
+    club.ok = paye && medailles0(m3) === avant - 40 && (m3.voies || []).length === 1 && revenu && nouveau;
+    club.mot = `${avant} médailles, une philosophie ouverte à 40 : il en reste ${medailles0(m3)} · ${revenu ? 'retour à l\'écran de fin' : 'pas de retour'} · ${nouveau ? '« Nouveau » au loto suivant' : 'rien au loto suivant'}`;
+  } else {
+    const ferme = !await la('ouvrir-voie') && !!await page.$('#runModal [data-a="ouvrir-voie"][disabled]'), texte = ferme ? await page.$eval('#runModal [data-a="ouvrir-voie"]', el => el.textContent.trim()) : '';
+    await toucher('fermer-club', null, 400);
+    club.ok = ferme && new RegExp(`manque ${40 - avant}\\b`).test(texte) && !!await la('run-neuve') && medailles0(await meta()) === avant;
+    club.mot = `${avant} médailles : « ${texte} », rien de payé`;
+  }
+}
 await browser.close();
 
 const medailles = x => (x && (x.ecussons ?? x.medailles)) || 0;
@@ -146,6 +174,7 @@ exiger(`une semaine gagnée tient en ${TOUCHERS_MAX} touchers au plus`, semaines
 exiger('le match vu est le match joué', matchs > 0 && !ecarts.length, ecarts.slice(0, 3).join(' · ') || `${matchs} pointages relus`);
 exiger('quitter au menu et rouvrir reprend la run', !!reprise && reprise.ok, reprise ? reprise.mot : 'jamais essayé');
 exiger('la fin verse ses médailles une fois', !!fin && medailles(m1) >= (fin.fin ? fin.fin.medailles : 1) && medailles(m2) === medailles(m1), `${medailles(m1)} médailles, ${medailles(m2)} après avoir rouvert la fin`);
+exiger('le Club s\'ouvre de l\'écran de fin, et une philosophie s\'y paie une fois (ou dit ce qui manque)', club.ouvert && !!club.ok, club.mot);
 exiger('aucune erreur de page', !erreurs.length, [...new Set(erreurs)].slice(0, 3).join(' · '));
 informer('le tirage', `GRAINE=${GRAINE}`);
 verdict('Une run au doigt');

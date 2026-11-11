@@ -110,15 +110,14 @@ const PACKS_JOUEURS = {
   legendes: { famille: 'legendes', nom: 'Pack Légendes', ico: '👑', tier: 'premium', prix: 75, niveaux: { etoile: 90, phenomene: 10 }, texte: 'Six étoiles d\'avant 1995.' },
   garanti: { famille: 'hasard', nom: 'Pack garanti', ico: '🔒', tier: 'or', prix: 45, garanti: true, texte: 'Cinq joueurs, dont une Or ou mieux, garantie.' },
   /*
-   * LA BOUTIQUE DU JALON P (P2). JP : *on limite les packs, tout en gardant des thématiques* ; *je veux que les cartes
-   * de match, événements, etc. soient avec les cartes de joueurs*. Sept packs (\`BOUTIQUE\`), tous MIXTES : des
-   * joueurs (\`joueurs\`) et des cartes de la banque (\`cartes\`), le thème choisi à l'achat (\`choix\`). Les packs
-   * d'avant restent définis : une vieille partie les ouvre encore ; ils ne se vendent plus.
+   * LES POCHETTES DE LA RUN EN CARTE (js/run.js `POCHETTES` : le Bronze et l'Époque, au marché). JP : *on limite les packs,
+   * tout en gardant des thématiques*. La boutique de l'ancien Rogue et ses packs qui montent sont partis (V28) ; les packs
+   * d'avant restent définis ici jusqu'à la tranche 5b, qui taille ce que la run ne tire plus.
    */
   bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', joueurs: 3, cartes: 1, prix: 14, texte: 'Trois vrais joueurs de toutes les époques.' },
   argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', joueurs: 3, cartes: 2, prix: 22, texte: 'Trois vrais joueurs, et parfois une carte rare, de meilleures chances.' },
   or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', joueurs: 4, cartes: 2, prix: 38, texte: 'Quatre vrais joueurs, et parfois une carte rare, les meilleures chances de la boutique.' },
-  // V10 : le pack à thème de la première run, au métal du Bronze ; ses crans le montent (js/rogue.js `CRANS_DE_PACK`).
+  // V10 : le pack à thème de la première run, au métal du Bronze.
   // Nov. 2026 (docs/revue-rogue-2026-11.md § 2.6) : il vise aussi le poste qui manque (`poste`, `POSTES_DU_PACK`) — le
   // Bronze reste le moins cher, au hasard ; l'Époque coûte plus et donne ce dont ton effectif a besoin.
   // Lot 5 (nov. 2026, docs/decisions.md) : UN joueur, Pilier ou mieux (`niveaux`), contre les trois au hasard du Bronze —

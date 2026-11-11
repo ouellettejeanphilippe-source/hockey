@@ -3677,3 +3677,33 @@ Ce que ça coûte : les 55 saisons se chargent à l'ouverture du Rogue (3 Mo la 
 - « Prendre Sr. » pour John Ferguson Sr. : les scènes lisent le nom court partagé (`nomCourt`).
 
 **Ce qui reste hors de cette tranche** : la page des déblocages, l'album, ton club et le palmarès vivaient dans le Bureau ; ils se réécrivent avec la méta (tranche 5). D'ici là les médailles s'accumulent sans se dépenser. Trois juges hors CI étaient rouges ou cassés avant la tranche (`check_robot`, `check_banque`, `check_situations`) : nommés dans l'extrait, pas touchés.
+
+## La V28, tranche 5a : la méta, de la variété seulement (11 nov. 2026)
+
+**Ce qui a été fait.** La méta du Rogue est réécrite sur la run en carte (JP, 7 nov. : le prestige, *variété seulement* ; 10 nov. : *fais tout je suis tanné des maquettes*). Les médailles se dépensent au Club, entre deux runs : une philosophie de coach (cinq à ouvrir, 40 à 120), un nom avec son écusson, des couleurs. Le prestige est un titre. Trois crans d'exigence s'ouvrent après une Coupe. Les déblocages de l'ancien Rogue sont remboursés, une fois. Le détail : docs/refonte-v28-5.md.
+
+**Pourquoi rien de ce qu'on achète ne gagne un match.** L'ancien Rogue vendait de la force : la caisse de départ, le plafond indexé, les joueurs gardés, le classeur, les packs qui montent. Une run en carte doit se gagner dans la run (JP : la première Coupe pas avant la troisième run, par le jeu, pas par les achats). `check_meta` joue la même graine avec un méta vide et un méta plein : la même run.
+
+**Écarté : vendre les pièces de banc avec leur philosophie.** Le devis nommait « des pièces » parmi la variété. Mesuré par `rogue-economie` : ouvrir une philosophie avec ses trois pièces fait passer de 39 % à 54 % la part des offres qui montrent une pièce du plus haut cadre. C'est de la force. Les trente-six pièces sont aux offres dès la première run ; une philosophie ouvre ses entraîneurs au loto, rien d'autre.
+
+**Un cran doit coûter : deux leviers sur six.** Le devis listait quatre leviers d'exigence : la cible, la bande des clubs, le plafond, une porte de moins. Chacun mesuré seul (le robot qui lit, 64 graines ; 58 % de cibles tenues sans rien) : la cible +1 → 52 % ; une étape d'édition de plus aux adversaires → 55 % ; 2 M$ d'espace de moins → 66 % ; aucun espace → 60 % ; les adversaires plus hauts dans la bande → 59 % ; deux portes au lieu de trois → 59 % ; un rachat plus dur → 63 %. Seules la cible et la force des clubs coûtent. Un cran qui ne coûte pas serait une prime gratuite de 15 % : « le plafond » et « une porte de moins » ne sont pas des crans aujourd'hui. C'est le même constat que « lire ne paie pas en Coupes » (tranche 4) : rien ne manque aux portes, le plafond ne force pas à renoncer. Ils reviendront avec le levier que JP doit trancher.
+
+**Trois crans, mesurés ensemble** (128 graines, `CRANS=1 GRAINES=128 FILS=3 node scripts/mesure_run.mjs`) : 59 % de cibles tenues sans exigence, puis 51 %, 46 % et 33 % ; 13, 10, 10 et 4 Coupes ; 61, 64, 65 et 58 médailles par run, la prime de 15 % par cran comprise. La prime compense à peu près ce que le cran coûte : on ne monte pas pour les médailles. Un quatrième cran (une étape de plus) a été écrit puis retiré : il n'ajoutait rien de mesurable. Le premier jet, écrit avant les mesures (l'espace, le décalage, la cible, une porte), a été jeté : deux de ses quatre crans ne coûtaient rien.
+
+**Le prestige plafonnait au deuxième rang.** Les rangs demandent un exploit (jouer les séries, gagner une ronde, jouer la finale), et depuis la run en carte plus rien ne les écrivait. La fin d'une run les écrit (`payerEcussons`, son `bilan`). Les coachs par rang, le budget du classeur et les taux des packs sont partis : le rang ne garde que quelques écussons et couleurs.
+
+**Le solde, à plein prix.** Le devis (§ 6) dit : *le prix des déblocages qui partent*. Chaque déblocage acheté est remboursé à son prix d'alors, lu dans une table figée (`PRIX_D_AVANT`) ; les médailles à vie ne bougent pas, elles comptaient déjà ces achats. Un méta qui avait tout acheté reçoit 4 520 médailles pour 2 290 à dépenser (400 de philosophies, 580 de clubs, 1 310 de couleurs). Plafonner le solde à ce qui reste à acheter est une décision de JP, pas la mienne : la lettre du devis est livrée, la question est posée.
+
+**Ton club en médailles, pas en jetons.** JP (oct. 2026) vendait le nom et les couleurs en jetons, à la boutique, *même monnaie que les autres packs*. La boutique est partie avec l'ancien Rogue. Dans une run en carte, un jeton sert à une pièce de banc ou à une pochette : une couleur achetée en jetons coûterait de la force, et un joueur qui veut gagner ne l'achèterait jamais. En médailles, l'habit ne se paie qu'en variété. C'est un écart à ses mots d'octobre : il est écrit en tête de js/club.js, au devis (§ 10) et dans la PR, à trancher.
+
+**Le Club ne s'ouvre qu'entre deux runs.** Du départ et de l'écran de fin, jamais du menu pause : rien de ce qu'on y achète ne vaut pour la run en cours, et une page de plus dans la pause aurait fait croire le contraire (`rogue-ux`).
+
+**Trouvé en chemin, corrigé.**
+
+- **« Une run neuve » plantait le départ après une run finie** (tranches 2 à 4, en ligne depuis le 11 nov.). La coquille donnait au lecteur des effets une fonction qui lisait le club de la run en cours ; la run rendue, le départ dessinait la pièce du coach et lisait un club qui n'existait plus. `essai_run` s'arrêtait à l'écran de fin : il touche maintenant « Une run neuve » et attend le départ.
+- L'écran du solde le plus chargé (neuf familles, une run arrêtée, cinq philosophies) passait sous son compte. `check_scene` ne le voyait pas : rien ne défilait. Il exige maintenant qu'aucun panneau ne passe sous le compte ni sous les boutons du bas, et il a été vu rouge sur le défaut avant d'être vu vert.
+- La tuile de l'écusson porté s'affichait vide : sa classe (`rn-porte`, « porté ») était celle d'une porte du camp, avec sa poignée. Elle s'appelle `rn-revetu`.
+- Une run d'avant finie sur une Coupe pas encore payée ne la comptait plus au palmarès (`solderLAncienRogue`) : elle la compte, avec ses exploits.
+- `check_lexique` gardait la clé `vestiaire` d'un cran de l'ancien Rogue : aucune sauvegarde ne la porte (une run gardait le numéro de son cran, et aucune ne reste). Il garde la clé du méta et ses médailles à vie.
+
+**Ce qui reste (5b)** : l'Album (le cartable dans le Club), les galons à l'échelle d'une run courte, les sortes de pochette, la taille de js/packs.js.

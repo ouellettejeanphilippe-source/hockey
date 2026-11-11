@@ -5,10 +5,14 @@
  * notre équipe puis des logos, ce soient des choses qu'on débloque au fur et à
  * mesure ; on ne serait pas imposé d'avoir le nom NHL Stars, le noir puis
  * l'orange*. Les NHL Stars restent le club de départ (noir, blanc, orange,
- * l'étoile) ; le reste s'achète en jetons 🪙 à la boutique, au rayon « Ton
- * club », comme les packs (JP : *même monnaie que les autres packs*), et se
- * porte au vestiaire. Les plus beaux demandent un rang de prestige — comme les dos de cartes de Balatro ou les
+ * l'étoile) ; le reste s'achète au Club, entre deux runs (V28, tranche 5 : la scène « Ton club », js/run-scenes.js), et se
+ * porte aussitôt. Les plus beaux demandent un rang de prestige — comme les dos de cartes de Balatro ou les
  * tenues de Hades : ça ne change rien au jeu, ça dit le chemin parcouru.
+ *
+ * LA MONNAIE : les médailles 🏅. JP (oct. 2026) les voulait en jetons, à la boutique, *même monnaie que les autres packs* ;
+ * la boutique est partie avec l'ancien Rogue, et dans une run en carte un jeton dépensé sur une couleur est un jeton de
+ * moins pour une pièce de banc : l'habit y coûterait de la force. Les médailles ne paient que de la variété
+ * (docs/refonte-v28-5.md § 3.3 et § 10 : à trancher par JP).
  *
  * Tout est COSMÉTIQUE : aucune cote, aucun effet. Le choix vit dans le méta
  * (`m.club`) et vaut dans tous les modes. `appliquerClub` le pose là où

@@ -5417,8 +5417,9 @@ body.run-ouverte { overflow: hidden; }
 .rn-couleurs { display: grid; grid-template-columns: repeat(7, 44px); justify-content: space-between; gap: 9px 0; }
 .rn-racine .rn-couleurs button { width: 44px; height: 44px; border: 2px solid var(--rn-bord); border-radius: 50%; background: linear-gradient(135deg, var(--a) 0 50%, var(--b) 50%); }
 .rn-racine .rn-clubs .rn-on, .rn-racine .rn-couleurs .rn-on { border-color: var(--blanc); box-shadow: 0 0 0 2px var(--blanc); }
-.rn-racine .rn-clubs .rn-porte, .rn-racine .rn-couleurs .rn-porte { border-color: var(--rn-vert); }
+.rn-racine .rn-clubs .rn-revetu, .rn-racine .rn-couleurs .rn-revetu { border-color: var(--rn-vert); }
 .rn-clubs .rn-fermee svg, .rn-racine .rn-couleurs .rn-fermee { opacity: 0.4; }
+.rn-solde .rn-recap { padding: 6px 0; }
 .rn-racine .rn-bande { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border: 1px solid var(--rn-bord); border-radius: var(--r-2); background: var(--rn-case); font: 800 var(--t-3)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* == 10. SUR TABLE : le plateau, le tournoi, la feuille de match du plateau == */
