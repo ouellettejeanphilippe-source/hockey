@@ -8,7 +8,7 @@
  * adjoints du staff sont partis (V22), jamais des cartes de la banque. Restent ici les
  * cartes rares (V16, tranche 6, § 4d) : les retouches d'édition de l'atelier, trois soins et l'échange d'un doublon (le
  * stage du coach est parti avec son expérience, V27, tranche 5).
- * La masse salariale et le congédiement sont des dossiers du proprio (js/dossiers.js). Les cartes de match sont parties avec la main du duel (V13-2,
+ * La masse salariale d'une vieille décision se lit toujours ici (`plafondDe`). Les cartes de match sont parties avec la main du duel (V13-2,
  * docs/refonte-v13.md). Presque chaque carte attend son MOMENT (`si`, `MOMENTS_SI`, js/sim.js). Chaque carte a un identifiant
  * (\`cat:cle\`), une catégorie, une rareté, une durée de vie, et sa RÈGLE en chiffres de match (\`reglesDe\`) :
  * « ≈ +0,2 but marqué par match », « ≈ −2 blessures par saison », jamais un pourcentage, jamais « un peu ».
@@ -49,7 +49,7 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
   return { cap, lignes, facteurs, ltir, ecole };
 }
 
-/* V10 (tranche 6) : les événements ont quitté la banque ; ce qui arrive au club est un dossier d'À faire (js/dossiers.js). */
+/* V10 (tranche 6) : les événements ont quitté la banque ; depuis la V25, ce qui arrive au club est une histoire (js/histoires.js). */
 
 /* ---------- LES CONSOMMABLES : une utilisation ---------- */
 /*

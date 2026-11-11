@@ -3,9 +3,8 @@
  * vie d'un DG-coach (courriels, dilemmes, points de presse) : elle est partie, sans être reprise (JP : *les événements,
  * c'est encore à chier : supprime la banque, pas le système*). Il reste :
  *
- *   EXPEDITEURS     qui écrit dans la boîte : une seule distribution de voix
+ *   EXPEDITEURS     qui parle dans une histoire : une seule distribution de voix
  *   joueurDuFait    le joueur qu'un fait vise, lu dans les feuilles déjà jouées
- *   VOIX_DES_FILS   les fils de la saison, dits par quelqu'un (la une, la boîte)
  *
  * V25 C1 : le choix qu'un fil fort ouvrait (`CHOIX_DES_FILS`, V9) est parti ; les histoires de js/histoires.js lisent les
  * mêmes faits (le duo, la recrue, la disette) et passent par la porte de js/greffes.js.

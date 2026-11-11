@@ -210,7 +210,8 @@ Chaque règle a son écran. Chaque écran est une scène plein écran qui ne dé
   - « Aligner au mieux » quitte le Rogue : les Lignes sont le casse-tête.
   - Pendant qu'une carte est tenue, chaque case dit l'accord qu'elle allumerait.
 - **Ton coach** (la V27) : sa philosophie, sa règle (des jetons le soir où ton club joue son hockey), sa maîtrise et sa pièce de départ.
-- **Le banc de cinq** (la V27) : les pièces (`PIECES`, js/pieces.js), leurs conditions, leur relais. Elles viennent du rival battu, de l'élite gagnée, du marché et d'une histoire. Leurs bornes ont été posées pour un acte de 27 soirs ; elles se remesurent sur un acte de six matchs (la tranche 0).
+- **Le banc de cinq** (la V27) : les pièces (`PIECES`, js/pieces.js), leurs conditions, leur relais. Elles viennent du rival battu, de l'élite gagnée et du marché. Leurs bornes ont été posées pour un acte de 27 soirs ; remesurées sur un acte de six matchs à la tranche 4 (docs/refonte-v28-4.md).
+- **Le soir se dit au moteur** (tranche 4) : la run n'a pas de cédule, elle pose le temps du match ce que les pièces attendent — le rival, le jeu de l'adversaire (son style, un seul : le mot de sa case), ta suite, ta bête noire, l'infirmerie, leur coach en séries. **Trois matchs en trois soirs** : les deuxième et troisième rangs de chaque acte se jouent sans jour de repos, ce sont ses dos-à-dos ; en séries, un jour de repos tous les deux matchs.
 - **Toutes les années ensemble** (JP, 11 nov. 2026 : *Je veux garder l'aspect toutes les années ensemble*) : les portes, les affiches, les rivaux et les séries d'une run se tirent de chaque saison des données, les Canadiens de 1976-77 à côté du Lightning de 2019-20. « Une époque par run » (la run tirait une décennie), essayée aux tranches 2 et 3, est défaite.
 
 ### 4.8 L'économie
@@ -301,7 +302,8 @@ Sur 128 graines (deux jeux de 64), les mêmes dés :
 - **Toutes les années ensemble** (JP, 11 nov.) : le monde d'une run couvre les 55 saisons finies des données (1 366 clubs). La run d'une seule décennie à vrais contrats (1990 à 2020), essayée d'abord, est défaite : le salaire de la run, lu sur une seule échelle, suffit à mêler les époques.
 - **`ETAPES` 1 · 2 · 3 · 7** ; `RACHAT` 0,5 et `DECALAGE` 0,25 tenus.
 - Sur 128 graines, toutes les années ensemble : le malin 14 Coupes (7 sur 64), le chiffre 11, « premier » 0 ; les cibles tenues 61 %, 53 % et 29 % ; la première Coupe du malin à sa sixième run en médiane.
-- **Ouvert : *tu peux exploser le jeu*.** 8 runs du malin sur 128 (6 %) jouent l'acte III à 75 % de chance moyenne ou plus ; le critère en demande une sur dix. Essayé sans y arriver : l'acte III à 2 étapes d'édition (6 %), des portes plus hautes après une affiche haute gagnée (7 à 8 %), un robot qui monte une carte au vestiaire (5 %). Sous le plafond qui mord, la force d'un club plafonne ; il faut un levier de plus, à trancher par JP (docs/decisions.md).
+- **Réglé à la tranche 4** (11 nov., docs/refonte-v28-4.md) : le banc branché (les moments posés par la run), trois matchs en trois soirs, cinq pièces réglées. Sur 64 graines : le malin 8 Coupes, le chiffre 8, « premier » 0 ; les cibles tenues 64 %, 59 % et 31 %. **Lire paie en cibles, pas en Coupes** : l'écart en Coupes entre le malin et le chiffre est sous le bruit de 64 graines (±6), quelle que soit la façon de lire essayée ; le plafond ne force pas à renoncer. Ouvert, avec le point suivant.
+- **Ouvert : *tu peux exploser le jeu*.** À la tranche 4 : 6 runs du malin sur 64 (9 %) jouent l'acte III à 75 % de chance moyenne ou plus. Aux tranches 2 et 3 : 8 runs sur 128 (6 %) ; le critère en demande une sur dix. Essayé sans y arriver : l'acte III à 2 étapes d'édition (6 %), des portes plus hautes après une affiche haute gagnée (7 à 8 %), un robot qui monte une carte au vestiaire (5 %). Sous le plafond qui mord, la force d'un club plafonne ; il faut un levier de plus, à trancher par JP (docs/decisions.md).
 
 **Ce que la tranche 0 mesurait au départ** (la question posée, gardée) :
 - ce que vaut une signature de porte, en points de chance sur un match ;
@@ -395,6 +397,8 @@ Chaque nom ci-dessous disparaît du jeu au remplacement (tranche 4), et *check_r
 
 **Le compte** : 56 noms, dont la plus grosse fonction du dépôt (`ouvrirSaison`, ≈ 3 000 lignes), 4 fichiers du jeu (≈ 2 070 lignes), la section du plateau de style.css (≈ 840 lignes) et 6 scripts.
 
+**Vérifié à la tranche 4** (11 nov., docs/refonte-v28-4.md) : *js/actes.js* reste (le jeu du rival, l'élite, le prix de la pièce, les médailles d'un acte), sa cédule est partie ; *js/banc-du-soir.js* et *js/scenes.js* sont partis ; *ouvrirLeDuel* est parti, le duel est une scène de la feuille du soir ; les gabarits *hub-* que le tournoi de Sur table partage restent ; dans js/sim.js, les objectifs du proprio, l'instantané, le crochet *placer* et *jouerLaCedule* sont partis. La liste d'origine :
+
 **À vérifier à sa tranche avant de l'ajouter** (en italique, pour que *check_refonte* ne le compte pas encore) :
 - *js/actes.js* : ce qui y reste après le départ de la cédule (*jeuDuRival*, *recompenseDeLElite*, le prix de la pièce) déménage, et le fichier part s'il se vide — ces deux fonctions restent dans le jeu, la run en carte les lit (corrigé le 11 nov. : écrites entre accents graves, *check_refonte* les aurait comptées parties) ;
 - *js/banc-du-soir.js* : refait dans l'après-match, ou gardé ;
@@ -430,6 +434,7 @@ Chaque nom ci-dessous disparaît du jeu au remplacement (tranche 4), et *check_r
 | *ETAPES*, les étapes d'édition des adversaires (actes I, II, III, séries) | 1 · 2 · 3 · 7 (11 nov. ; 0 · 1 · 2 · 4 à la tranche 0) | ±1 chacune | sans elles, ton club finit plus fort que le haut de la décennie et gagne une Coupe sur trois |
 | Le départ : la masse, le plafond | 91,5 M$ sous 95,5 M$, sur l'échelle de salaires d'aujourd'hui | ±2 M$ d'espace | plus d'espace, le camp règle tout ; moins, on ne signe plus |
 | La bande des portes | selon le club battu | — | trop haute après une victoire, la boule de neige revient |
+| *RANGS_DE_DOS_A_DOS*, les rangs d'un acte joués sans jour de repos | le 2e et le 3e (tranche 4) | un ou deux rangs | un seul, la famille de la fatigue joue 14 % des soirs ; le rival en plus, huit pièces ne jouent jamais le match qui compte double |
 | La durée des temps forts | 30-60 s | 20-90 s | plus long, dix-huit matchs deviennent une corvée |
 | Les séries | 3 de 5, rachetées par un cœur | 2 de 3 à 4 de 7 | 2 de 3, la run finit sur des dés |
 
@@ -451,11 +456,11 @@ Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est
   - aucun joueur deux fois ;
   - le plafond jamais dépassé ;
   - aucune ligue jouée en coulisse.
-- [~] **Lire paie, sans gagner d'office** (11 nov., toutes les années ensemble : 7 Coupes sur 64, la run 6 en médiane ; **le troisième point reste ouvert**, 6 % des runs au lieu d'une sur dix) — *mesure_run*, en CI :
+- [~] **Lire paie, sans gagner d'office** (11 nov., tranche 4 : le malin 8 Coupes sur 64, la run 6 en médiane, « premier » 0 ; **deux points restent ouverts, à trancher par JP** — le chiffre en gagne autant, 8 : lire paie en cibles tenues, 64 % contre 59 %, pas en Coupes ; et 9 % des runs au lieu d'une sur dix) — *mesure_run*, en CI (il exige que lire ne coûte pas, et imprime le reste avec son bruit) :
   - le robot qui lit gagne la Coupe 4 à 12 fois sur 64, le robot du chiffre moins souvent en paires, « premier » au plus 2 fois ;
   - la première Coupe jamais avant la troisième run en médiane (JP) ;
   - au moins une run sur dix du robot qui lit finit l'acte III à 75 % de pronostic moyen ou plus (*tu peux exploser le jeu*).
-- [ ] **Le banc remesuré** (à la tranche 4, quand la run en actes de 27 matchs part) : chaque pièce se voit le soir où elle joue et n'est jamais un piège sur un acte de six matchs ; le banc complet sous sa borne recalculée — `check_pouvoirs` (sa durée d'acte passe de 27 à 6).
+- [x] **Le banc remesuré** (11 nov., tranche 4 : 27 vérifications vertes à l'échantillon plein ; la run pose le soir au moteur, trois matchs en trois soirs, cinq pièces réglées) : chaque pièce se voit le soir où elle joue et n'est jamais un piège sur un acte de six matchs ; le banc complet sous sa borne recalculée — `check_pouvoirs` (sa durée d'acte passe de 27 à 6).
 - [x] **Une scène, jamais une page** (11 nov.) — *check_scene* (neuf) :
   - dans le Rogue, aucune scène ne défile ;
   - aucun en-tête de site ni barre d'onglets ;
@@ -463,11 +468,11 @@ Les portes d'abord : une tranche ne commence pas tant que la porte d'avant n'est
   - chaque cible fait 44 × 44.
 - [x] **Neuf touchers** (11 nov. : six) : une semaine gagnée en neuf touchers au plus, aucun sans décision — *essai_run*.
 - [x] **Le match vu est le match joué** (11 nov.) : chaque temps fort a le tireur, les passeurs et la minute de la feuille, et le pointage vu est celui que la run garde — *essai_run*.
-- [ ] **Le moteur ne bouge pas** : l'empreinte est la même, le 82-0 se rejoue au but près — `check_empreinte`, `check_feuilles`, `check_graine`.
+- [x] **Le moteur ne bouge pas** (11 nov.) : l'empreinte est la même, le 82-0 se rejoue au but près — `check_empreinte`, `check_feuilles`, `check_graine`.
 - [x] **Le neuf ne s'appuie pas sur l'ancien** (11 nov.) : aucun fichier *run-* n'importe un module nommé au § 8 — *check_neuf*.
-- [ ] **Les vieilles parties** s'ouvrent, versent leurs médailles et commencent une run neuve — `check_sauvegardes`.
-- [ ] Pas une couche de peinture : ce qui part est parti ; le jeu retire au moins une ligne pour deux ajoutées ; style.css fait moins de la moitié du diff — `check_refonte` (sur la somme).
-- [ ] Rien de mort — `check_mort`.
+- [x] **Les vieilles parties** (11 nov.) s'arrêtent, versent leurs médailles une fois, et le Rogue ouvre une run neuve — `check_sauvegardes`. L'écran de ce qui est versé (§ 6) vient à la tranche 5 ; aujourd'hui, un mot.
+- [x] Pas une couche de peinture (11 nov. : le jeu retire cinq lignes pour une ajoutée, les 56 noms sont partis) : ce qui part est parti ; le jeu retire au moins une ligne pour deux ajoutées ; style.css fait moins de la moitié du diff — `check_refonte` (sur la somme).
+- [x] Rien de mort (11 nov.) — `check_mort`.
 - [ ] À juger par JP à l'essai, au téléphone :
   - on dirait un jeu ;
   - une case donne envie d'y aller ;

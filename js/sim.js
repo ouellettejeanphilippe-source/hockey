@@ -6383,7 +6383,7 @@ function effetDesPaliersGagnes(p, champ) {
  *     carte), ×1,5 au dernier, puis ×1,6 · ×1,75 · ×1,9 · ×2 aux quatre
  *     rondes des séries. « Le tir affûté » (précision +8 %) vaut +4 % en
  *     octobre, +8 % en janvier, +12 % en avril, +16 % en finale.
- * Mesuré (scripts/check_rogue.mjs, le même match sur les mêmes dés) : au
+ * Mesuré en son temps (par check_rogue, parti avec l'ancien Rogue ; le même match sur les mêmes dés) : au
  * troisième soir, une carte de synergie vaut plus qu'une carte qui vise
  * l'adversaire ; en finale, c'est l'inverse, et une amélioration vaut deux
  * fois plus qu'en octobre. Commencer à ×1 ne suffisait pas : une carte qui
@@ -7024,7 +7024,7 @@ export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', mome
   for (const t of frais ? [toi, adv] : [adv]) for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) { p.energie = 100; delete p._reserve; } }
   // Une infirmerie vide aussi (V9) : un blessé d'un match de mesure ne doit pas manquer les suivants, sinon les matchs ne sont plus isolés.
   for (const t of frais ? [toi, adv] : [adv]) if (t.injured) t.injured.clear();
-  // LE MOMENT (S80, scripts/check_rogue.mjs) : le même match au jour N de la saison, ou à une ronde des séries — l'échelle de la fin de partie suit.
+  // LE MOMENT (S80) : le même match au jour N de la saison, ou à une ronde des séries — l'échelle de la fin de partie suit.
   const m = moment || {};
   const gros = { jour: m.serie ? 0 : (m.jour || 0), serie: !!m.serie, ronde: m.ronde || 0, adv, raison: 'rival', graineMain: graine, cleMain: cle,
     // LE DUEL (V9 ; V27, tranche 6) : une équipe de Rogue (`courbe`) joue ses trois périodes au `plan` pris avant (null : Ton

@@ -190,6 +190,8 @@ const jaugeHtml = (V, toi, eux) => {
   const pc = V.chance ? Math.round((100 * V.chance.v) / V.chance.n) : null;
   return `<div class="rn-jauge" style="${couleurs(toi, eux)}"><span>${pc == null ? '…' : `${pc} %`}</span><div><i style="width:${pc == null ? 50 : pc}%"></i></div><span>${pc == null ? '…' : `${100 - pc} %`}</span></div>`;
 };
+/* La jauge de ce soir, seule : la coquille la remplace sur place pendant que ta chance se calcule, sans refaire la scène. */
+export const jaugeDeCeSoir = (S, V) => jaugeHtml(V, 'YOU', S.R.case.t);
 export function sceneFeuille(S, V) {
   const R = S.R, c = R.case, club = S.clubs.find(x => x.s === c.s && x.t === c.t), duel = c.sorte !== 'match';
   const jeu = styleDe(S, c), eux = lignesDuClub(club.team), moi = lignesDuClub(S.toi), vedette = vedettesDe(club)[0];
