@@ -18,9 +18,11 @@ import { carteHtml, carteDePiece, pochetteHtml } from './cartes.js';
 import { getTeamBand, getTeamLogoHtml } from './logos.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { TEAMFULL } from './game.js';
+import { nomCourt } from './recit.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
-  RUN, RANG_DU_RIVAL, casesOffertes, caseA, suivantes, masseDe, espaceDe, prixDe, masseApres, tient, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe,
+  RUN, RANG_DU_RIVAL, RANGS_DE_DOS_A_DOS, casesOffertes, caseA, suivantes, masseDe, espaceDe, prixDe, masseApres, tient, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe,
+  dosADosA, piecesDuSoir, leurCoach,
 } from './run.js';
 
 /* ---------- les petites briques ---------- */
@@ -40,7 +42,7 @@ const surnom = t => String(TEAMFULL[t] || t).split(/ (?:de |du |des |d['’])/)[
 const ville = t => String(TEAMFULL[t] || t).split(/ (?:de |du |des |d['’])/)[1] || surnom(t);
 const clubMot = c => `${surnom(c.t)} ${c.s}`;
 const clubCourt = c => `${surnom(c.t)} ${c.s.slice(2, 4)}-${c.s.slice(5)}`;
-const court = p => String((p && p.n) || '').trim().split(' ').slice(-1)[0];
+const court = p => nomCourt(p && p.n);
 const jetons = n => `<span class="rn-jt"><i class="rn-piece"></i>${n}</span>`;
 const jambes = ps => (ps.length ? Math.round(ps.reduce((a, p) => a + energieDe(p), 0) / ps.length) : 100);
 const couleurs = (toi, eux) => `--toi:${getTeamBand(toi).bg};--eux:${getTeamBand(eux).bg === getTeamBand(toi).bg ? getTeamBand(eux).stripe : getTeamBand(eux).bg}`;
@@ -102,12 +104,14 @@ function styleDe(S, c) { if (!S.jeux) S.jeux = new Map(); const k = `${c.s}:${c.
 /* Ce qu'une case offre, dans le tiroir : qui, son jeu, ce que ça paie. */
 function optionDe(S, c, i, on) {
   const tete = c.s ? `${logo(c.t, 30)}${esc(clubCourt(c))}` : `${icone(c.sorte)}${{ marche: 'Le marché', vestiaire: 'Le vestiaire', histoire: 'Une histoire' }[c.sorte]}`;
-  const jeu = c.s ? styleDe(S, c) : null, lieu = c.visiteur ? 'chez eux' : 'chez toi';
-  const mot = { match: () => `${jeu.mot} · ${lieu}`, elite: () => `Élite · ${jeu.mot}`, rival: () => `Le rival · il compte double · ${lieu}`,
+  const jeu = c.s ? styleDe(S, c) : null, lieu = `${c.visiteur ? 'chez eux' : 'chez toi'}${dosADosA(c, S.R.rang) ? ' · dos-à-dos' : ''}`;
+  // Tes pièces dont la condition se lit déjà (le lieu, son jeu, ta suite, le dos-à-dos) : le chemin se choisit aussi par ton banc.
+  const duSoir = c.s ? piecesDuSoir(S, c).length : 0, banc = duSoir ? `<span class="rn-puce rn-m">${duSoir} pièce${duSoir > 1 ? 's jouent' : ' joue'}</span>` : '';
+  const mot = { match: () => `${jeu.mot} · ${lieu}`, elite: () => `Élite · ${jeu.mot} · ${lieu}`, rival: () => `Le rival · il compte double · ${lieu}`,
     marche: () => 'Une pièce de banc, les pochettes', vestiaire: () => 'Te soigner, ou monter une carte', histoire: () => 'Quelqu\'un du club veut te parler' }[c.sorte]();
-  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span><span class="rn-puce">${RUN.PORTES} portes</span>`,
-    elite: () => '<span class="rn-puce rn-m">Une pièce</span><span class="rn-puce rn-o">Des jetons</span>',
-    rival: () => `<span class="rn-puce rn-m">Une pièce</span><span class="rn-puce rn-o">${c.jetons} jetons</span>`,
+  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span>${banc || `<span class="rn-puce">${RUN.PORTES} portes</span>`}`,
+    elite: () => `<span class="rn-puce rn-o">Une pièce, des jetons</span>${banc}`,
+    rival: () => `<span class="rn-puce rn-o">Une pièce · ${c.jetons} jetons</span>${banc}`,
     marche: () => `<span class="rn-puce rn-o">Pièce : ${PRIX_PIECE}</span>`, vestiaire: () => `<span class="rn-puce">${S.toi.injured.size} blessé${S.toi.injured.size > 1 ? 's' : ''}</span>`, histoire: () => '' }[c.sorte]();
   return `<button type="button" class="rn-opt${on ? ' rn-on' : ''}" data-a="voir-case" data-v="${i}"><b>${tete}</b><span>${esc(mot.charAt(0).toUpperCase() + mot.slice(1))}</span><i>${puces}</i></button>`;
 }
@@ -136,6 +140,7 @@ export function sceneCarte(S, V) {
   return `<svg class="rn-chemin" viewBox="0 0 390 844" aria-hidden="true"><path d="${liens.join('')}"/>${pris.length ? `<path class="rn-pris" d="${pris.join('')}"/>` : ''}${offerts.length ? `<path class="rn-offert" d="${offerts.join('')}"/>` : ''}</svg>
   ${hud(S, { petit: R.rang >= RANG_DU_RIVAL ? 'Le rival' : `Case ${R.rang + 1} de ${RANG_DU_RIVAL}` })}
   ${noeud(R.carte.rival, RANG_DU_RIVAL, 0)}${R.carte.rangs.map((rang, r) => rang.map((c, i) => noeud(c, r, i)).join('')).join('')}
+  ${R.rang <= RANGS_DE_DOS_A_DOS[1] ? `<span class="rn-etq" style="left:195px;top:${Y_DES_RANGS[RANGS_DE_DOS_A_DOS[1]] - 6}px">Dos-à-dos</span>` : ''}
   <div class="rn-tiroir"><div class="rn-k">Ta prochaine case${offertes.length > 1 ? ' · une des deux' : ''}</div>
     <div class="rn-deux">${offertes.map(i => optionDe(S, caseA(S, R.rang, i), i, i === vue)).join('')}</div>
     <div style="display:flex;gap:8px">${bt('Lignes', 'lignes')}${bt('Banc', 'banc')}${bt('Y aller', 'aller', { cls: 'rn-go', v: vue })}</div></div>`;
@@ -186,8 +191,8 @@ const jaugeHtml = (V, toi, eux) => {
 export function sceneFeuille(S, V) {
   const R = S.R, c = R.case, club = S.clubs.find(x => x.s === c.s && x.t === c.t), duel = c.sorte !== 'match';
   const jeu = styleDe(S, c), eux = lignesDuClub(club.team), moi = lignesDuClub(S.toi), vedette = vedettesDe(club)[0];
-  const lieu = c.visiteur ? 'chez eux' : 'chez toi';
-  const sous = { match: `${jeu.mot} · ${lieu}`, rival: `Le rival · il compte double · ${lieu}`, elite: `Élite · ${jeu.mot} · ${lieu}`, serie: `Match ${R.series ? R.series.w + R.series.l + 1 : 1} · ${lieu}` }[c.sorte];
+  const lieu = `${c.visiteur ? 'chez eux' : 'chez toi'}${dosADosA(c, R.rang) ? ' · dos-à-dos' : ''}`, leur = leurCoach(S, c);
+  const sous = { match: `${jeu.mot} · ${lieu}`, rival: `Le rival · il compte double · ${lieu}`, elite: `Élite · ${jeu.mot} · ${lieu}`, serie: `Match ${R.series ? R.series.w + R.series.l + 1 : 1} · ${lieu}${leur ? ` · leur coach : ${COACHS[leur.cle].nom}` : ''}` }[c.sorte];
   const petit = { match: `Case ${R.rang + 1} de ${RANG_DU_RIVAL}`, rival: 'Le rival', elite: 'L\'élite', serie: ['Quart de finale', 'Demi-finale', 'La finale'][R.series ? R.series.ronde : 0] }[c.sorte];
   const filet = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => S.roster[s.i]).filter(Boolean), aux = S.toi._filetMatch === 'aux';
   const civil = [...S.toi.injured].map(([p, m]) => `<span class="rn-puce rn-r">${esc(court(p))} · blessé, ${m} match${m > 1 ? 's' : ''}</span>`);

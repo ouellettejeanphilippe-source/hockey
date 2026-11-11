@@ -10,7 +10,8 @@
  *      sort, et sans elle rien ne bouge ; trois offertes, pures, jamais une déjà posée, celles du rival battu de la
  *      philosophie du coach et de ses voisines ; la maîtrise ne règle que la pièce de départ ; les vrais entraîneurs ;
  *   3. LA PRÉSENCE (§ 4.6) : sur des runs en carte (le robot malin, scripts/lib/run_robot.mjs), chaque pièce se lit 30 à 50 % des soirs
- *      (`PRESENCE`), sauf celles d'un moment rare (`rare` : les séries, le gros match) ;
+ *      (`PRESENCE`), sauf celles d'un moment rare (`rare` : les séries, le gros match) ; une pièce « pour le battre »
+ *      (`contre`) répond à un style que la carte montre et que le chemin choisit : au moins un soir par acte (`CONTRE_MIN`) ;
  *   4. EN PAIRES, match par match (CLAUDE.md) : deux copies d'un même vrai club, le même match sur les mêmes dés, une fois
  *      avec un banc vide (trois périodes, aucune pièce), une fois avec la pièce seule. Chaque pièce :
  *        a. joue exactement les périodes que sa condition lit dans la feuille (la pièce de la soirée, les trois) ;
@@ -57,8 +58,8 @@ const VISIBLE = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
  */
 const ACTE = 6, ACTE_D_AVANT = 27, BUTS_PAR_V = 6;
 const BORNE_ACTE_V = 2.5 * ACTE / 82, BORNE_ULTIME_V = 4 * ACTE / 82, PIEGE_V = -0.5 * ACTE / ACTE_D_AVANT, BANC_MAX_V = 5 * ACTE / ACTE_D_AVANT;
-/* La présence (§ 4.6) : 30 à 50 % des soirs. */
-const PRESENCE = [0.3, 0.5];
+/* La présence (§ 4.6) : 30 à 50 % des soirs ; une pièce « pour le battre », au moins un soir par acte de `ACTE` matchs. */
+const PRESENCE = [0.3, 0.5], CONTRE_MIN = 1 / ACTE;
 const CANAUX = new Set(['volume', 'finition', 'defense', 'discipline', 'blessure', 'robustesse', 'F', 'energie']);
 const GENRES = new Set(['attaque', 'defense', 'tactique', 'synergie']);
 const somme = a => (a || []).reduce((x, y) => x + y, 0);
@@ -256,7 +257,7 @@ const file = [...taches], faits = [];
 await Promise.all(Array.from({ length: Math.min(FILS, file.length) }, async () => { while (file.length) faits.push(...await lancer([file.shift()])); }));
 const rendus = faits;
 const mesures = rendus.filter(x => 'cle' in x).sort((a, b) => QUELLES.indexOf(a.cle) - QUELLES.indexOf(b.cle));
-const pres = MESURE ? presences([1, 2, 3, 4, 5, 6, 7, 8]) : null;
+const pres = MESURE ? presences(Array.from({ length: 16 }, (_, i) => i + 1)) : null;
 const nomDe = m => `${PIECES[m.cle].ico} ${PIECES[m.cle].nom}`;
 for (const m of mesures) {
   const s = m.soirs || 1;
@@ -272,8 +273,8 @@ exiger('a. chaque pièce joue exactement les périodes que sa condition lit dans
 exiger('b. hors de ses périodes, rien : la même feuille', mesures.every(m => !m.horsDiff), mesures.filter(m => m.horsDiff).map(m => `${nomDe(m)} (${m.horsDiff})`).join(', ') || 'aucune feuille changée');
 exiger('chaque pièce joue des soirs', mesures.every(m => m.soirs > 0), mesures.filter(m => !m.soirs).map(nomDe).join(', ') || 'toutes');
 if (MESURE) {
-  const horsBande = mesures.filter(m => !PIECES[m.cle].rare && (m.presence < PRESENCE[0] || m.presence > PRESENCE[1]));
-  exiger(`3. chaque pièce se lit ${PRESENCE[0] * 100} à ${PRESENCE[1] * 100} % des soirs (sauf un moment rare)`, !horsBande.length, horsBande.map(m => `${nomDe(m)} ${Math.round(m.presence * 100)} %`).join(', ') || 'toutes');
+  const horsBande = mesures.filter(m => !PIECES[m.cle].rare && (m.presence < (PIECES[m.cle].contre ? CONTRE_MIN : PRESENCE[0]) || m.presence > PRESENCE[1]));
+  exiger(`3. chaque pièce se lit ${PRESENCE[0] * 100} à ${PRESENCE[1] * 100} % des soirs (sauf un moment rare ; « pour le battre », au moins un soir par acte)`, !horsBande.length, horsBande.map(m => `${nomDe(m)} ${Math.round(m.presence * 100)} %`).join(', ') || 'toutes');
   exiger('c. chaque pièce se voit dans la feuille d\'un soir où elle joue', mesures.every(m => m.vue >= 1), mesures.filter(m => m.vue < 1).map(m => `${nomDe(m)} (${m.vue.toFixed(2)})`).join(', ') || 'toutes');
   const borne = m => (PIECES[m.cle].cadre === 4 ? BORNE_ULTIME_V : BORNE_ACTE_V);
   exiger(`d. sur un acte, une pièce rend au plus le net d'un pouvoir d'avant sur la même durée (${f1(BORNE_ACTE_V, 2)} V ; l'ultime, ${f1(BORNE_ULTIME_V, 2)} V)`, mesures.every(m => m.vActe <= borne(m)),

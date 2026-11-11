@@ -54,9 +54,6 @@ export function jeuDuRival(teams, you, adv) {
   const fort = lignes.slice().sort((a, b) => a.rang - b.rang)[0];
   return { cle: fort.k, mot: fort.mot, lignes };
 }
-/* LES LIGNES OÙ UN CLUB EST FORT (tranche 7) : au 12e rang sur 32 ou mieux, ramené à `n` clubs ; ce que lit une pièce « pour le battre ». */
-const TOP_DU_JEU = 12;
-export const lignesFortes = (jeu, n) => jeu.lignes.filter(l => l.rang <= Math.round((TOP_DU_JEU * n) / 32)).map(l => l.k);
 /*
  * SON INTENTION DOMINANTE : celle des cinq qu'il annoncera le plus souvent (`POIDS_DOMINANTE`, js/greffes.js), fixée par son
  * style et la graine — des tireurs foncent (l'assaut) ou collent ta vedette pour la contrer (l'ombre) ; des durs chassent ou

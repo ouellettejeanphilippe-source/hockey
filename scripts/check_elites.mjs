@@ -9,7 +9,8 @@
  *   b. ce qu'elle coûte perdue (JP, 9 nov. 2026 : *Sonnés + jetons, pas de cœur*) : la moitié de sa récompense en jetons
  *      (`perteDeLElite`) et des sonnés plus longs (`SONNES_ELITE`) ;
  *   c. les pièces « pour le battre » : une par ligne du jeu (tirs, durs, gardien), chacune son moment (`MOMENTS_SI`) ;
- *      chaque club porte les lignes où il est au 12e rang ou mieux (`lignesFortes`), douze clubs par ligne sur 32.
+ *      chaque club a un style, un seul (sa ligne au meilleur rang, `jeuDuRival`), et les trois styles existent dans une
+ *      ligue : c'est ce style que la run pose le soir du match (js/run.js `poserLeSoir`), le mot de sa case.
  *
  * La proposition du lundi sur la cédule (`eliteDeLaSemaine`), l'élite annoncée par le crochet des actes, l'état de la run
  * en actes et les paires de la profondeur sont partis avec l'ancien Rogue (V28, tranche 4) ; l'élite de la carte (une au
@@ -21,7 +22,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, MOMENTS_SI, SONNE, SONNES_ELITE } from '../js/sim.js';
-import { recompenseDeLElite, jeuDuRival, lignesFortes, VALEUR_DU_RISQUE, PART_PERDUE, perteDeLElite, PRIX_PIECE } from '../js/actes.js';
+import { recompenseDeLElite, jeuDuRival, VALEUR_DU_RISQUE, PART_PERDUE, perteDeLElite, PRIX_PIECE } from '../js/actes.js';
 import { PIECES, piecesContre } from '../js/pieces.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, verdict } from './verdict.mjs';
@@ -69,11 +70,11 @@ exiger(`une élite perdue coûte la moitié de sa récompense (${PART_PERDUE}), 
   const teams = ligue(71), toi = teams[0], n = teams.length;
   const lignes = ['tirs', 'durs', 'gardien'], moments = { tirs: 'tireurs', durs: 'durs', gardien: 'grosGardien' };
   const parLigne = lignes.map(k => piecesContre([k]));
-  const fortes = new Map(teams.map(T => [T, lignesFortes(jeuDuRival(teams, toi, T), n)]));
-  const forts = lignes.map(k => teams.filter(T => fortes.get(T).includes(k)).length);
-  exiger('une pièce « pour le battre » par ligne du jeu, chacune son moment ; chaque club porte les lignes où il est au 12e rang ou mieux',
+  const styles = teams.map(T => jeuDuRival(teams, toi, T).cle);
+  const forts = lignes.map(k => styles.filter(x => x === k).length);
+  exiger('une pièce « pour le battre » par ligne du jeu, chacune son moment ; chaque club a un style, et les trois styles existent',
     parLigne.every(l => l.length === 1) && lignes.every((k, i) => PIECES[parLigne[i][0]].soir && MOMENTS_SI[moments[k]] && PIECES[parLigne[i][0]].quand({ soir: { [moments[k]]: true } }) && !PIECES[parLigne[i][0]].quand({ soir: {} }))
-    && forts.every(x => x === 12),
+    && styles.every(x => lignes.includes(x)) && forts.every(x => x >= n / 8) && forts.reduce((a, x) => a + x, 0) === n,
     lignes.map((k, i) => `${k} : ${PIECES[parLigne[i][0]].ico} ${PIECES[parLigne[i][0]].nom}, ${forts[i]} clubs`).join(' · '));
 }
 
