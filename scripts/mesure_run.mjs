@@ -12,7 +12,7 @@
  *
  * *Lire paie* (le devis : le chiffre moins souvent, en paires) s'imprime avec son bruit, sans se juger : mesuré le 11 nov.
  * 2026 sur sept façons de lire (le prix de l'espace de 0 à 6, l'affiche haute ou non, le banc lu ou non), le malin gagne
- * 6 à 8 Coupes sur 64 et le robot du chiffre 8 ; l'écart est sous le bruit (±7). Le critère reste ouvert au devis, avec
+ * 5 à 8 Coupes sur 64 et le robot du chiffre 8 ; l'écart est sous le bruit (±6). Le critère reste ouvert au devis, avec
  * celui d'en dessous : le plafond ne force pas encore de vrai choix (docs/decisions.md).
  *
  * *Tu peux exploser le jeu* (le devis demande une run du malin sur dix à 75 % de chance moyenne à l'acte III) se mesure et

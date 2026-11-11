@@ -80,17 +80,18 @@ Les bornes sont celles de la V27, ramenées de 27 soirs à 6 au même rythme ; a
 
 | 64 graines | Malin | Chiffre | Premier |
 |---|---|---|---|
-| Coupes | 8 | 8 | 0 |
-| Cibles tenues | 64 % | 59 % | 31 % |
-| Acte I · II · III | 67 · 55 · 72 % | 53 · 59 · 68 % | 44 · 27 · 17 % |
-| Runs finies sans cœur | 11 | 17 | 28 |
-| Rondes de séries gagnées par run | 0,70 | 0,69 | 0,03 |
+| Coupes | 5 | 8 | 0 |
+| Cibles tenues | 58 % | 57 % | 30 % |
+| Acte I · II · III | 67 · 50 · 56 % | 53 · 56 · 62 % | 44 · 27 · 14 % |
+| Runs finies sans cœur | 12 | 17 | 28 |
+| Rondes de séries gagnées par run | 0,58 | 0,59 | 0,02 |
 
-- **La difficulté tient** : le malin 8 Coupes (la cible : 4 à 12), « premier » aucune, la première Coupe à la sixième run en médiane.
-- **Lire paie en cibles, pas en Coupes.** Le malin tient ses cibles 5 points plus souvent (c'était le critère de la porte 0) et perd moins de cœurs ; mais il gagne autant de Coupes que le robot du chiffre. Sept façons de lire ont été essayées (le prix de l'espace sous le plafond de 0 à 6, l'affiche haute ou non, le banc lu ou non) : 6 à 8 Coupes à chaque fois, sauf une sortie à 13 que ses voisines démentent. À 64 graines, le bruit sur l'écart est de ±6 Coupes. Le « 8 contre 7 » des tranches 2 et 3, et le « 14 contre 11 » sur 128 graines, étaient donc sous le bruit : `mesure_run` jugeait une inégalité à pile ou face.
-- **Le juge corrigé** : il exige ce qui se mesure (*lire ne coûte pas* : le robot du chiffre ne gagne pas nettement plus, en paires, à deux écarts-types) et imprime *lire paie* avec son bruit, sans le juger. Le critère du devis (« le robot du chiffre moins souvent en paires ») reste **ouvert**, à côté de *tu peux exploser le jeu* (6 runs sur 64, 9 % ; la cible, 10 %).
-- **Pourquoi lire ne paie pas plus** : les deux robots signent presque à chaque porte (19 signatures sur 21 occasions) et finissent aussi forts (192 et 194). Une bonne affaire (une forte cote à petit salaire dans sa saison) se trouve à presque chaque porte : le plafond ne force pas à renoncer. C'est le même manque que *tu peux exploser le jeu*, et la même décision pour JP : un levier de plus.
+- **La difficulté tient** : le malin 5 Coupes (la cible : 4 à 12), « premier » aucune, la première Coupe à la neuvième run en médiane.
+- **Lire paie à l'acte I, et s'efface ensuite.** Sur les trois mesures de la journée (avant et après le correctif du rival), le malin tient la cible de l'acte I 66 à 67 % du temps, le robot du chiffre 53 %, et finit moins souvent sans cœur (11 ou 12 runs contre 17). Sur la run entière, rien de mesurable : 58 % de cibles tenues contre 57 %, et 5 à 8 Coupes contre 8 selon la mesure. Sept façons de lire ont été essayées sur les mêmes graines (le prix de l'espace sous le plafond de 0 à 6, l'affiche haute ou non, le banc lu ou non) : 6 à 8 Coupes à chaque fois, sauf une sortie à 13 que ses voisines démentent. À 64 graines, le bruit sur l'écart en Coupes est de ±6. Le « 8 contre 7 » des tranches 2 et 3, et le « 14 contre 11 » sur 128 graines, étaient donc sous le bruit : `mesure_run` jugeait une inégalité à pile ou face.
+- **Le juge corrigé** : il exige ce qui se mesure (*lire ne coûte pas* : le robot du chiffre ne gagne pas nettement plus, en paires, à deux écarts-types ; ici −3 pour un bruit de ±6) et imprime *lire paie* avec son bruit, sans le juger. Le critère du devis (« le robot du chiffre moins souvent en paires ») reste **ouvert**, à côté de *tu peux exploser le jeu* (4 runs sur 64, 6 % ; la cible, 10 %).
+- **Pourquoi lire ne paie pas plus** : les deux robots signent presque à chaque porte (19 signatures sur 21 occasions) et finissent aussi forts (193 et 193). Une bonne affaire (une forte cote à petit salaire dans sa saison) se trouve à presque chaque porte : passé le camp, le plafond ne force plus à renoncer. C'est le même manque que *tu peux exploser le jeu*, et la même décision pour JP : un levier de plus.
 - **Le robot qui lit, lui, lit plus** (scripts/lib/run_robot.mjs) : la pièce qui répond au rival de l'acte, sinon la plus haute ; ni élite ni affiche haute un soir de dos-à-dos ; l'affiche haute seulement quand son club est nettement plus fort (5 %).
+- **Une mesure à 64 graines bouge de 3 Coupes pour un rien** : le seul correctif du rival (quelques runs changent d'adversaire) a fait passer le malin de 8 à 5. La bande de 4 à 12 est large pour cela ; elle ne dit pas plus.
 
 ## Le sort de chaque juge
 
