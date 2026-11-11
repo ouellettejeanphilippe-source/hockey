@@ -189,13 +189,16 @@ Aucun ne compte des Coupes sur 64 graines : c'est du bruit (±6).
 - [x] **L'Album montre le cartable** : les plus belles d'abord, six vraies cartes par écran, la carte touchée dit ses gravures ; il ne charge que les saisons de sa page — *check_meta* (l'ordre et les comptes), `check_scene` (quatre scènes de plus : 32).
 - [x] **Les deux pochettes tirent comme avant** : pures, aux taux de leur métal, l'Époque un Pilier ou mieux de sa décennie et de son poste — `check_packs` (réécrit, une seconde et demie, dans `tout.mjs`).
 
-## 10. À trancher par JP (rien ne bloque le code)
+## 10. Tranché par JP (11 nov. 2026)
 
-- **Le solde, à plein prix ou plafonné** (3.5) : la lettre du devis est le plein prix. Un méta qui avait tout acheté reçoit 4 520 médailles pour 2 290 à dépenser.
-- **Ton club en médailles, ou en jetons** (3.2) : JP les voulait en jetons, *même monnaie que les autres packs* (oct. 2026). Livré en médailles : la boutique est partie, et un jeton d'une run en carte est de la force (une pièce de banc, une pochette). Revenir aux jetons se fait en une ligne (`prendreAuClub`), mais il faudrait un endroit de la run où les vendre.
-- **« Le plafond » et « une porte de moins » comme exigences** (3.4) : ils ne coûtent rien aujourd'hui ; ils reviennent avec le levier qui fera mordre le plafond.
-- **Des pièces en médailles** (3.2) : écartées, c'est de la force ; ou alors par familles de même cadre.
-- **Des sortes de pochette en médailles** (3.8) : pas faites ; les robots n'achètent pas de pochette, rien ne mesure ce qu'elle vaut.
+Les quatre questions de la tranche, posées à JP une fois les deux moitiés en ligne :
+
+- **Le solde, à plein prix** (3.5) : comme livré. Un méta qui avait tout acheté reçoit 4 520 médailles pour 2 290 à dépenser ; pas de plafond.
+- **Ton club, en médailles** (3.2) : comme livré. Ses mots d'octobre (*même monnaie que les autres packs*) valaient pour la boutique en jetons, partie ; un jeton d'une run sert aux pièces de banc et aux pochettes.
+- **Deux pochettes** (3.8) : on reste au Bronze et à l'Époque ; pas de sorte de pochette en médailles.
+- **« Lire paie » et « tu peux exploser le jeu »** (tranche 4) : mesurer deux leviers avant de changer le jeu — le prix qui suit la valeur de plus près, moins de candidats par porte. La mesure et sa suite : docs/decisions.md.
+
+Restent sans objet tant que le plafond ne mord pas : « le plafond » et « une porte de moins » comme exigences (3.4) ; des pièces en médailles (3.2), écartées, c'est de la force.
 
 ## Les tranches
 
