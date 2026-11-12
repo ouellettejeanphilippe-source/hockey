@@ -14,8 +14,8 @@
  * *Lire paie* et *tu peux exploser le jeu* se jugent à `GRAND` graines (384), à la main : à 64 graines leur bruit les
  * noie (JP, 11 nov. 2026, après la mesure de deux leviers, docs/decisions.md).
  *   — Lire paie : en paires, le robot qui lit tient plus de cibles que le robot du chiffre, au-delà de deux écarts-types.
- *     Mesuré sur 384 graines : 61 % contre 53 %, +7,8 points (bruit ±4,4). En Coupes, l'écart reste sous son bruit à cette
- *     taille (46 contre 35, bruit ±15) : le critère se juge en cibles tenues. À 64 graines, on exige seulement que lire ne
+ *     Mesuré sur 384 graines : 61 % contre 54 %, +7,6 points (bruit ±4,3). En Coupes, l'écart reste sous son bruit à cette
+ *     taille (45 contre 36, bruit ±15) : le critère se juge en cibles tenues. À 64 graines, on exige seulement que lire ne
  *     coûte pas.
  *   — Tu peux exploser le jeu : 5 à 12 % des runs du malin jouent l'acte III à 75 % de chance moyenne. Le devis en
  *     demandait une sur dix ; mesuré, 6,5 % (25 sur 384), et JP l'accepte (« Accepter 7 % »).

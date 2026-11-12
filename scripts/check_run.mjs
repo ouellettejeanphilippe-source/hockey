@@ -7,7 +7,7 @@
  *   plafond jamais dépassé ; la même graine rejoue la même run ; une run gardée puis relue finit pareil, et lit la même
  *   histoire à sa case (les blessures datées en matchs de la run, chaque joueur relu de son côté de la feuille) ; les galons
  *   d'une run (tranche 5b) : des sortes connues, chacune à son seuil, dix buts et vingt points une fois par joueur et
- *   recomptés, la Coupe sur tout l'effectif.
+ *   recomptés, la Coupe sur tout l'effectif ; une run ne dépend pas de celles jouées avant elle dans la même session.
  *
  *   node scripts/check_run.mjs            `GRAINES` graines (3), les trois robots : une dizaine de secondes
  */
@@ -93,5 +93,13 @@ const sans = r => JSON.stringify({ ...r.R, filet: undefined });
 const a = jouerLaRun('malin', 1), b = jouerLaRun('malin', 1), c = jouerLaRun('malin', 1, { relireA: 7 });
 exiger('la même graine rejoue la même run', sans(a) === sans(b));
 exiger('une run gardée puis relue finit pareil', sans(a) === sans(c), `${a.R.matchs.length} matchs contre ${c.R.matchs.length}, ${a.R.fin.cause} contre ${c.R.fin.cause}`);
+// Une run ne dépend pas de celles jouées avant elle dans la même session (11 nov. 2026) : la graine 68 du robot du chiffre,
+// puis la 39, puis la 68 de nouveau. Avant le correctif, l'adversaire n'arrivait « frais » qu'à moitié (ses jambes, pas sa
+// lancée ni sa mémoire de blessures) et un joueur signé était recopié avec ce qu'un match d'avant lui avait laissé : la 39
+// changeait la 68 (18 matchs et une cible manquée, ou 12 matchs et plus de cœur).
+const seule = jouerLaRun('chiffre', 68);
+jouerLaRun('chiffre', 39);
+const apres = jouerLaRun('chiffre', 68);
+exiger('une run ne dépend pas de celles jouées avant elle', sans(seule) === sans(apres), `${seule.R.matchs.length} matchs (${seule.R.fin.cause}), puis ${apres.R.matchs.length} matchs (${apres.R.fin.cause}) après une autre run`);
 informer('les runs', runs.map(r => `${r.robot} ${r.graine} : ${r.fin.cause}, ${r.R.matchs.length} matchs`).join(' · '));
 verdict('La run en carte');

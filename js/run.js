@@ -22,8 +22,7 @@
  */
 import {
   SLOTS, CAP, SONNE, SONNES_ELITE, createTeam, autoRoster, registerHiddenRatings, getHiddenRatings, getPersonKey, getPlayerKey, teamStrength,
-  avecHasardIsole, feuilleVierge, playGame, simulerGrosMatch, activeLineup, depenserEnergie, recupererEnergie, energieDe, fits, accordsDeLigne, tirsTotal, effetsDesJoueurs, momentsDuSoir,
-} from './sim.js';
+  avecHasardIsole, feuilleVierge, playGame, simulerGrosMatch, activeLineup, depenserEnergie, recupererEnergie, energieDe, fits, accordsDeLigne, tirsTotal, effetsDesJoueurs, momentsDuSoir, remettreAZero } from './sim.js';
 import { leurJeuDuDuel, appliquerChoix, deDuChoix } from './greffes.js';
 import { HISTOIRES, tirer } from './histoires.js';
 import { faitsDe } from './faits.js';
@@ -72,7 +71,13 @@ const ACTES = 3;
 
 /* ---------- les petits outils ---------- */
 const v = p => getHiddenRatings(p).v;
-const copie = p => { const c = { ...p }; registerHiddenRatings(c); return c; };
+/*
+ * UN JOUEUR QUI ENTRE DANS TON EFFECTIF est une copie, remise à zéro (js/sim.js `remettreAZero`) : l'original, celui de sa
+ * saison, a pu jouer contre toi ou contre une run d'avant dans la même session, et garder ses jambes, sa lancée, son état
+ * du soir ou sa mémoire de blessures. Mesuré le 11 nov. 2026 : sans ça, 23 runs sur 384 changeaient selon celles jouées
+ * avant elles dans le même processus (docs/decisions.md).
+ */
+const copie = p => { const c = { ...p }; remettreAZero(c); delete c._carte; registerHiddenRatings(c); return c; };
 const force = t => { const f = teamStrength(t); return f.att + f.def + f.g; };
 const cleDuClub = c => `${c.s}:${c.t}`;
 const pigeDans = (liste, ...mots) => liste[Math.min(liste.length - 1, Math.floor(hache(...mots) * liste.length))];
@@ -469,8 +474,13 @@ export function piecesDuSoir(S, c, rang = S.R.rang) {
 const etapeDe = R => reglesDe(R).etapes[R.phase === 'series' || (R.case && R.case.sorte === 'serie') ? 3 : R.acte];
 const habiller = (t, e) => { if (e > 0) habillerLaLigue([t], e, v); };
 const deshabiller = t => { for (const p of Object.values(t.roster)) if (p) delete p._carte; };
+/*
+ * L'ADVERSAIRE ARRIVE FRAIS ET SAIN, à chaque match : ses joueurs sont ceux de leur saison, partagés par toutes les runs
+ * d'une session. Leurs jambes et l'infirmerie ne suffisaient pas : la lancée, l'état du soir et la mémoire des blessures
+ * d'un match d'avant, de cette run ou d'une autre, changeaient le match. Tout se remet à zéro, comme au premier matin.
+ */
 function fraisEtSain(t) {
-  for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { p.energie = 100; delete p._reserve; } }
+  for (const s of SLOTS) { const p = t.roster[s.i]; if (p) remettreAZero(p); }
   if (t.injured) t.injured.clear();
 }
 const estUnDuel = c => ['rival', 'elite', 'serie'].includes(c.sorte);

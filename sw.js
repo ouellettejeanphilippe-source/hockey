@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-3.7.0';  // 3.7.0 : la V28, tranche 5b — l'Album (le cartable au Club), les galons d'une run courte gravés sur la carte, js/packs.js taillé à ses deux pochettes
+const VERSION = 'cap82-3.7.1';  // 3.7.1 : une run ne dépend plus de celles jouées avant elle dans la session — l'adversaire arrive vraiment frais, un joueur signé entre remis à zéro
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
