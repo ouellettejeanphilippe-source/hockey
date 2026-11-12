@@ -3731,3 +3731,65 @@ Ce que ça coûte : les 55 saisons se chargent à l'ouverture du Rogue (3 Mo la 
 **Ce que JP a tranché**, les deux moitiés de la tranche 5 en ligne : le solde des déblocages reste à plein prix (jusqu'à 4 520 médailles) ; ton club reste en médailles, au Club ; on reste à deux pochettes, sans sorte en médailles ; pour « lire paie » et « tu peux exploser le jeu », mesurer deux leviers avant de changer le jeu (le prix qui suit la valeur de plus près, moins de candidats par porte).
 
 **Pourquoi une règle neuve.** JP : *Ask user, always*. Ces questions lui avaient été posées en prose, à la fin de messages et de PR déjà fusionnées : la monnaie de ton club, le solde et les pochettes étaient décidés et en ligne avant qu'il réponde. Il a confirmé les trois, mais l'ordre était le mauvais : une décision de jeu lui revient avant le code. La règle est dans `CLAUDE.md` (« Une décision de design se demande ») : une question, des options courtes, celle qu'on recommande en premier. Il en a fixé la portée lui-même : les décisions de jeu et de design ; mesurer, corriger un bogue et fusionner au CI vert continuent sans demander.
+
+## Lire paie : il fallait 384 graines, pas un levier de plus (11 nov. 2026)
+
+**La question.** Depuis la tranche 4, deux critères du devis restaient ouverts : *lire paie* (le robot qui lit devait battre le robot du chiffre) et *tu peux exploser le jeu* (une run sur dix à 75 % de chance à l'acte III). Sur 64 graines, le robot qui lit gagnait 5 à 8 Coupes et celui du chiffre 8 ; la tranche 4 en concluait que le plafond ne forçait pas à renoncer et qu'il fallait un levier de plus. JP (11 nov.) : mesurer deux leviers avant de changer le jeu.
+
+**Les deux leviers**, essayés sur une copie du cœur de la run, sans toucher au jeu, le robot qui lit et le robot du chiffre sur les mêmes graines :
+
+- **Le prix d'un joueur suit sa valeur de plus près** : le rang qui fait le prix mêle le rang du salaire et le rang de la valeur (la dose, de 0 à 1). Aujourd'hui la corrélation de rang entre le prix et la valeur est de 0,67 chez les avants, 0,52 chez les défenseurs, 0,49 chez les gardiens, et dans un club sur trois un des trois meilleurs avants coûte moins que l'avant médian.
+- **Moins de candidats par porte** : une porte ne montre que 8, 5 ou 3 joueurs de son vestiaire, tirés de la graine, au lieu des vingt.
+
+**Ce que 128 graines ont dit, puis dédit.**
+
+| Réglage (graines 0 à 127) | Coupes du malin sur 64 | Ses cibles tenues | L'écart au chiffre, en cibles tenues | Runs qui explosent |
+|---|---|---|---|---|
+| Le jeu d'aujourd'hui | 6,5 | 59 % | +2,6 points (±6,8) | 6 % |
+| Le prix, dose 0,15 | 8,0 | 56 % | +6,0 (±7,3) | 3 % |
+| Le prix, dose 0,25 | 3,5 | 52 % | +7,6 (±7,5) | 2 % |
+| Le prix, dose 0,5 | 0,5 | 30 % | +4,7 (±5,4) | 0 % |
+| Le prix, dose 0,75 | 0 | 25 % | +6,0 (±4,1) | 0 % |
+| 8 candidats | 3,0 | 48 % | +3,9 (±7,3) | 1 % |
+| 5 candidats | 1,0 | 37 % | +3,6 (±6,7) | 0 % |
+| 3 candidats | 0 | 35 % | +4,4 (±6,3) | 0 % |
+
+À forte dose le prix étouffe la run (trois signatures par run à 0,75, une seule à 1). Les candidats ne séparent jamais les robots. Restait la dose 0,25, juste au-dessus de son bruit, et la dose 0,15, où le robot du chiffre tombait à 3 Coupes contre 16 (un écart de +13, bruit ±8,4).
+
+Rejouées sur 128 graines neuves, puis 128 autres : la dose 0,25 ne fait pas mieux que le jeu d'aujourd'hui sur ces mêmes graines (+4,9 contre +5,5), et à la dose 0,15 l'écart de Coupes s'inverse puis revient (−2, puis +4). Un résultat au bord du bruit parmi dix réglages essayés : c'était le hasard.
+
+**Ce que 384 graines disent du jeu d'aujourd'hui** (la mesure en trois blocs de 128 graines, les chiffres montrés à JP).
+
+| Sur 384 graines | Le jeu d'aujourd'hui | Le prix, dose 0,15 |
+|---|---|---|
+| Cibles tenues, le malin · le chiffre | 61 % · 54 % | 55 % · 51 % |
+| L'écart, en paires | **+7,6 points (bruit ±4,3)** | +4,3 (±4,2) |
+| Coupes sur 64, le malin · le chiffre | 7,8 · 6,0 | 5,0 · 2,5 |
+| Runs du malin qui explosent | 6,8 % (26 sur 384) | 2,9 % (11 sur 384) |
+
+**Le juge, d'un seul tenant sur le vrai code** (`GRAINES=384 FILS=3 ROBOTS=malin,chiffre node scripts/mesure_run.mjs`, sept vérifications vertes) : 61 % de cibles tenues contre 54 %, +7,6 points en paires (bruit ±4,3) ; 45 Coupes contre 36 (bruit ±15,1) ; 25 runs sur 384 à 75 % de chance à l'acte III (6,5 %). Ce sont les chiffres de référence, ceux qu'on relance. Au premier passage, ce juge différait d'une run sur 384 de la mesure en trois blocs (46 Coupes contre 47) : c'était une fuite d'état entre les runs d'un même processus, trouvée et corrigée le jour même (la section suivante) ; les chiffres ci-dessus sont ceux du code corrigé.
+
+**Lire paie déjà.** L'écart de 7,6 points de cibles tenues vaut trois écarts-types et demi. Il ne se voyait pas à 64 graines parce que son bruit y est de ±10 points, et parce que le juge comptait des Coupes : à 384 graines encore, l'écart de Coupes (45 contre 36) reste sous son bruit (±15). La conclusion de la tranche 4, « lire ne paie pas en Coupes, il faut un levier », tirait une cause d'une mesure trop courte. Les deux robots signent bien à presque chaque porte (97 %) ; ce n'est pas là que la lecture se joue, c'est dans ce qu'on signe et sur quelle affiche on va.
+
+**Les deux leviers font reculer « exploser le jeu ».** Serrer le prix ou les portes rend la run plus dure pour tout le monde : 2 à 4 % de runs qui explosent au lieu de 7 %, et le robot qui lit sort de sa borne de Coupes dès la dose 0,25. Aucun ne répond à ce critère.
+
+**JP a tranché** (les deux questions posées avec ces chiffres) : *ne rien changer* pour lire paie ; *accepter 7 %* pour exploser le jeu. Le juge suit : `mesure_run` exige à 384 graines que le robot qui lit tienne plus de cibles que le robot du chiffre, en paires, au-delà de deux écarts-types, et que 5 à 12 % de ses runs jouent l'acte III à 75 % de chance ; à 64 graines, en CI, il les imprime sans les juger et exige seulement que lire ne coûte pas.
+
+**Ce qu'on en garde pour mesurer.** Un écart entre deux robots demande des centaines de graines (à 128, ±7 points de cibles tenues). Un résultat au bord de son bruit se rejoue sur des graines neuves avant de se proposer. Et quand dix réglages s'essaient, l'un d'eux passe son bruit par hasard.
+
+## Une run ne dépend plus de celles jouées avant elle (11 nov. 2026)
+
+**Le symptôme.** Le juge `mesure_run` sur 384 graines et la même mesure en trois blocs de 128 différaient d'une Coupe. Rejouées avec le vrai robot dans deux découpages (trois processus de 128 graines, neuf de 43), **23 graines sur 384 ne rejouaient pas la même run**. La graine 68 du robot du chiffre, seule : 18 matchs, une cible manquée ; après la graine 39 : 12 matchs, plus de cœur.
+
+**La cause.** Les joueurs d'une saison sont des objets partagés par toutes les runs d'une session. Après une seule run, 324 d'entre eux gardaient quelque chose : leurs jambes (53 encore fatigués), leur état du soir et leur lancée (320), leur mémoire de blessures (10). Deux fuites dans js/run.js :
+
+- `fraisEtSain` remettait l'adversaire « frais et sain » avant chaque match, mais à moitié : ses jambes et son infirmerie, pas sa lancée, ni son état du soir, ni ses blessures passées. Un club recroisé, dans la même run ou dans une autre, ne jouait plus le même match.
+- `copie` recopiait tel quel le joueur qui entrait dans ton effectif : signé après avoir joué contre toi ou contre une run d'avant, il arrivait avec ce que ce match lui avait laissé.
+
+Dans le jeu, ça se voyait peu (il faut recroiser le même joueur-saison dans la même session, sur 27 000), mais la promesse « la même graine rejoue la même run » n'était tenue que dans un processus neuf, et chaque mesure à plusieurs runs par processus était contaminée à 6 %.
+
+**Le correctif.** Les deux passent par la remise à zéro du moteur (`remettreAZero`, js/sim.js, celle du premier matin d'une ligue) : l'adversaire arrive ainsi à chaque match, un joueur signé entre ainsi. Ton propre effectif garde ses jambes, sa lancée et ses blessés d'une case à l'autre, comme avant : ce sont des copies à toi. Une conséquence voulue par le commentaire d'origine (« l'adversaire, lui, arrive frais ») : l'adversaire d'une série ne porte plus de lancée d'un match à l'autre.
+
+**La preuve.** Les deux découpages rendent les mêmes 384 runs (0 différence, 36 Coupes de chaque côté). `check_run` garde le cas trouvé : la graine 68, puis la 39, puis la 68 de nouveau, la même ; le garde a été vu rouge sur le code d'avant. Une run jouée dans une page neuve ne change pas (`essai_run` : les mêmes 24 matchs, les mêmes 55 médailles).
+
+**Ce qu'on en garde.** `check_run` rejouait la même graine deux fois de suite et concluait « la même graine rejoue la même run » : il fallait une AUTRE run entre les deux. Et un écart d'une unité entre deux mesures qui devraient être identiques n'est pas du bruit : c'est par lui que la fuite s'est vue.

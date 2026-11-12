@@ -11,14 +11,16 @@
  *   gagne pas nettement plus que le malin, en paires) ; sa première Coupe, en médiane, pas avant sa troisième run (JP, 7 nov.) ;
  *   les galons d'une run courte (tranche 5b) : chaque sorte gravée dans 5 à 85 % des runs du malin, 4 à 14 galons par run.
  *
- * *Lire paie* (le devis : le chiffre moins souvent, en paires) s'imprime avec son bruit, sans se juger : mesuré le 11 nov.
- * 2026 sur sept façons de lire (le prix de l'espace de 0 à 6, l'affiche haute ou non, le banc lu ou non), le malin gagne
- * 5 à 8 Coupes sur 64 et le robot du chiffre 8 ; l'écart est sous le bruit (±6). Le critère reste ouvert au devis, avec
- * celui d'en dessous : le plafond ne force pas encore de vrai choix (docs/decisions.md).
- *
- * *Tu peux exploser le jeu* (le devis demande une run du malin sur dix à 75 % de chance moyenne à l'acte III) se mesure et
- * s'imprime, sans se juger : depuis que le monde mêle toutes les années (JP, 11 nov. 2026), 5 à 8 % des runs y arrivent,
- * et aucun réglage essayé ne ramène 10 % sous le plafond qui mord (docs/decisions.md). Le critère reste ouvert au devis.
+ * *Lire paie* et *tu peux exploser le jeu* se jugent à `GRAND` graines (384), à la main : à 64 graines leur bruit les
+ * noie (JP, 11 nov. 2026, après la mesure de deux leviers, docs/decisions.md).
+ *   — Lire paie : en paires, le robot qui lit tient plus de cibles que le robot du chiffre, au-delà de deux écarts-types.
+ *     Mesuré sur 384 graines : 61 % contre 54 %, +7,6 points (bruit ±4,3). En Coupes, l'écart reste sous son bruit à cette
+ *     taille (45 contre 36, bruit ±15) : le critère se juge en cibles tenues. À 64 graines, on exige seulement que lire ne
+ *     coûte pas.
+ *   — Tu peux exploser le jeu : 5 à 12 % des runs du malin jouent l'acte III à 75 % de chance moyenne. Le devis en
+ *     demandait une sur dix ; mesuré, 6,5 % (25 sur 384), et JP l'accepte (« Accepter 7 % »).
+ * Les deux leviers essayés pour faire mieux (le prix qui suit la valeur, moins de candidats par porte) ne séparaient pas
+ * mieux les robots et faisaient reculer les runs qui explosent : écartés.
  *
  * La tranche 0 (10 nov. 2026) a mesuré le reste, qui ne se rejoue plus ici : l'ordre des trios n'est pas un choix (le
  * meilleur des 24 ordres, +0,6 point sur des dés tenus à l'écart), une signature vaut ≈ 2 points de chance sur un match, et
@@ -27,6 +29,7 @@
  *   node scripts/mesure_run.mjs                    les trois robots, `GRAINES` graines (64), `FILS` processus (4)
  *   GRAINES=8 FILS=2 node scripts/mesure_run.mjs   l'essai court : les bornes s'impriment sans se juger
  *   ROBOTS=malin GRAINE0=64 …                      quelques robots, un autre jeu de graines
+ *   GRAINES=384 FILS=3 ROBOTS=malin,chiffre …      « lire paie » et « exploser le jeu », jugés (une douzaine de minutes)
  *   REGLAGES='{"RACHAT":0.6}' …                    un réglage de js/run.js `RUN`, le temps d'une mesure
  *   CRANS=1 GRAINES=128 FILS=3 …                   les exigences (js/rogue.js `EXIGENCES`) : le malin à chaque cran, sur les
  *                                                  mêmes graines — chaque cran doit COÛTER (la part des cibles tenues baisse
@@ -43,9 +46,9 @@ import { exiger, borne, informer, verdict } from './verdict.mjs';
 const ICI = fileURLToPath(import.meta.url);
 const GRAINES = Number(process.env.GRAINES ?? 64);
 const FILS = Math.max(1, Number(process.env.FILS ?? 4));
-const JUGER = GRAINES >= 32;
+const JUGER = GRAINES >= 32, GRAND = 384;
 /* Le pronostic d'un match de l'acte III : `N_CHANCE` matchs rejoués, comme la jauge de la feuille du soir. « Exploser le jeu » : `EXPLOSE` de moyenne. */
-const N_CHANCE = 40, EXPLOSE = 0.75, PART_EXPLOSE = 0.1, RUN_DE_LA_COUPE = 3;
+const N_CHANCE = 40, EXPLOSE = 0.75, PART_EXPLOSE = [5, 12], RUN_DE_LA_COUPE = 3;
 const ROBOTS = (process.env.ROBOTS || 'premier,chiffre,malin').split(',');
 Object.assign(RUN, JSON.parse(process.env.REGLAGES || '{}'));
 
@@ -124,7 +127,13 @@ if (JUGER) {
     const ecart = d.reduce((a, x) => a + x, 0), m = ecart / d.length, bruit = 2 * Math.sqrt(d.reduce((a, x) => a + (x - m) ** 2, 0) * d.length / Math.max(1, d.length - 1));
     const mot = `${coupes('malin')} Coupes contre ${coupes('chiffre')} : un écart de ${ecart > 0 ? '+' : ''}${ecart}, le bruit à ±${bruit.toFixed(1)}`;
     exiger('Lire ne coûte pas : le robot du chiffre ne gagne pas nettement plus de Coupes que le malin, sur les mêmes graines', ecart > -bruit, mot);
-    informer('Lire paie (le devis : le chiffre moins souvent, en paires ; ouvert)', ecart > bruit ? `oui · ${mot}` : `pas démontré, l'écart est sous le bruit · cibles tenues ${pct(tenues('malin'))} contre ${pct(tenues('chiffre'))}`);
+    // LIRE PAIE, en cibles tenues : par graine, la part des actes dont le malin tient la cible moins celle du chiffre ; le
+    // bruit, deux écarts-types de la moyenne. Jugé à `GRAND` graines ; en dessous, imprimé avec son bruit.
+    const dT = de('malin').map(a => { const c = de('chiffre').find(x => x.graine === a.graine); return c ? moy(a.actes.map(y => (y.tenu ? 1 : 0))) - moy(c.actes.map(y => (y.tenu ? 1 : 0))) : null; }).filter(x => x !== null);
+    const mT = moy(dT), bT = 2 * Math.sqrt(dT.reduce((a, x) => a + (x - mT) ** 2, 0) / Math.max(1, dT.length - 1) / dT.length);
+    const motT = `cibles tenues ${pct(tenues('malin'))} contre ${pct(tenues('chiffre'))} : ${mT >= 0 ? '+' : ''}${(100 * mT).toFixed(1)} points en paires, le bruit à ±${(100 * bT).toFixed(1)}`;
+    if (GRAINES >= GRAND) exiger('Lire paie : en paires, le robot qui lit tient plus de cibles que le robot du chiffre, au-delà du bruit', mT > bT, motT);
+    else informer(`Lire paie (jugé à ${GRAND} graines)`, motT);
   }
   if (ROBOTS.includes('malin')) {
     // La première Coupe, en médiane : les runs sont indépendantes (rien de la force ne suit d'une run à l'autre).
@@ -136,7 +145,9 @@ if (JUGER) {
     exiger('Les galons : chaque sorte se grave dans 5 à 85 % des runs du malin', sortes.every(t => part(t) >= 0.05 && part(t) <= 0.85), sortes.map(t => `${t} ${pct(part(t))}`).join(' · '));
     borne('Les galons gravés par run du malin', Math.round(parRun * 10) / 10, 4, 14);
     const fortes = de('malin').filter(x => x.iii.length && moy(x.iii) >= EXPLOSE).length;
-    informer(`Tu peux exploser le jeu (le devis : une run du malin sur dix à ${pct(EXPLOSE)} de chance à l'acte III ; ouvert)`, `${fortes} runs sur ${GRAINES} (${pct(fortes / GRAINES)}, la cible ${pct(PART_EXPLOSE)}) ; l'acte III moyen à ${pct(moy(de('malin').filter(x => x.iii.length).map(x => moy(x.iii))))}`);
+    const partFortes = Math.round(1000 * fortes / GRAINES) / 10;
+    if (GRAINES >= GRAND) borne(`Tu peux exploser le jeu : la part des runs du malin à ${pct(EXPLOSE)} de chance à l'acte III, en %`, partFortes, ...PART_EXPLOSE);
+    informer(`Tu peux exploser le jeu (${PART_EXPLOSE.join(' à ')} % des runs du malin, jugé à ${GRAND} graines)`, `${fortes} runs sur ${GRAINES} (${partFortes} %) ; l'acte III moyen à ${pct(moy(de('malin').filter(x => x.iii.length).map(x => moy(x.iii))))}`);
   }
 } else {
   informer('L\'essai court', `${GRAINES} graines : Coupes ${ROBOTS.map(r => `${r} ${coupes(r)}`).join(', ')} ; les bornes ne se jugent qu'à 32 graines ou plus`);

@@ -1,6 +1,6 @@
 # Plan
 
-État au 11 novembre 2026 : version 3.7.0 (`sw.js`), moteur S148 (`js/game.js`), cotes v31 (`js/ratings.js`), refonte V28 (le Rogue est une run en carte ; l'ancien Rogue est parti). **Le plan de travail courant est `LIVRAISON.md`**, avec son journal ; ce fichier ne garde que l'état court et les décisions. L'histoire de chaque décision est dans `docs/decisions.md`, les « À faire » d'avant la 1.0 dans `docs/plan-historique.md`, le journal par sprint (S7 à S80) et par mois dans `docs/journal/`, le plan de la 1.0 et ses jalons dans `docs/livraison-1.0.md`.
+État au 11 novembre 2026 : version 3.7.1 (`sw.js`), moteur S148 (`js/game.js`), cotes v31 (`js/ratings.js`), refonte V28 (le Rogue est une run en carte ; l'ancien Rogue est parti). **Le plan de travail courant est `LIVRAISON.md`**, avec son journal ; ce fichier ne garde que l'état court et les décisions. L'histoire de chaque décision est dans `docs/decisions.md`, les « À faire » d'avant la 1.0 dans `docs/plan-historique.md`, le journal par sprint (S7 à S80) et par mois dans `docs/journal/`, le plan de la 1.0 et ses jalons dans `docs/livraison-1.0.md`.
 
 ## Fait
 
@@ -20,7 +20,7 @@ Une ligne chacun. Ce qui est engagé vit dans `LIVRAISON.md` ; le reste attend l
 - [ ] **S5** — Étendre avant 1970 (le +/- manque avant les années 1960 ; le temps de glace s'infère maintenant).
 - [ ] **S8** — Vrais classements pour `check_ratings.mjs` (Hockey Databank).
 - [ ] **La possession par joueur** : les vols et les revirements sont dans les shards (2005-06+) et à la fiche, mais la possession se lit au club ; un canal par joueur serait une mécanique neuve, à mesurer en paires avant. *Mesuré (V25 A3, 7 nov. 2026, `check_suppression`) : en retenue 2013-2025, les vols moins les revirements ne battent pas la cote défensive du club et ne s'ajoutent pas au gardien ; la possession par joueur n'entre pas.* Pas les mises au jeu ni le clutch tant que le moteur ne les joue pas.
-- [ ] **Lire paie, et *tu peux exploser le jeu*** (V28, à trancher par JP) : mesuré le 11 nov. 2026 (`mesure_run`, 64 graines), le robot qui lit gagne 5 à 8 Coupes et le robot du chiffre 8 (un écart sous le bruit) ; 6 % des runs jouent l'acte III à 75 % de chance, pour 10 % demandés. Le plafond ne force pas encore de vrai choix : il faut un levier de plus (docs/decisions.md, docs/refonte-v28-4.md).
+- [x] **Lire paie, et *tu peux exploser le jeu*** (V28, tranchés par JP le 11 nov. 2026) : mesuré sur 384 graines, lire paie déjà (61 % de cibles tenues contre 54 %, +7,6 points, bruit ±4,3) et 6,5 % des runs explosent ; JP ne change rien et accepte 7 % (borné de 5 à 12 %). Deux leviers mesurés et écartés : le prix qui suit la valeur, moins de candidats par porte (docs/decisions.md). Jugés à la main : `GRAINES=384 FILS=3 ROBOTS=malin,chiffre node scripts/mesure_run.mjs`.
 - [x] **La méta, tranchée par JP** (11 nov. 2026, docs/refonte-v28-5.md § 10) : le solde des déblocages à plein prix ; ton club en médailles ; deux pochettes, pas de sorte en médailles.
 - [x] `check_pouvoirs` à l'échantillon plein (N=600, hors du CI) : vert le 11 nov. 2026, le banc remesuré sur un acte de six matchs (docs/refonte-v28-4.md) ; l'usure et le choc, qui ne se voyaient pas le 2 nov., se voient.
 

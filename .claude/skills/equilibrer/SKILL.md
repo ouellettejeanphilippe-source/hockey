@@ -26,7 +26,7 @@ Le sujet : `$ARGUMENTS` (vide : la run et le banc, `mesure_run` puis `check_pouv
 | marché | `check_packs` · `check_run` | une demi-minute · 10 s | `mesure_run` avec `REGLAGES` (les jetons d'un match, d'une porte passée) ; les robots y achètent une pièce, jamais une pochette : ce que vaut une pochette dans une run ne se mesure pas encore |
 | histoires | `check_histoires` · `check_mots` · `check_effets` | quelques secondes · `IDS=d:<histoire>` pour cibler | `check_effets` (une vingtaine de minutes) |
 
-Dis la commande et sa durée avant de la lancer. Plus de cinq minutes : demande d'abord. Un repère se juge sur plusieurs graines (64 pour `mesure_run` ; sous 32, rien ne se juge), jamais sur une seule.
+Dis la commande et sa durée avant de la lancer. Plus de cinq minutes : demande d'abord. Un repère se juge sur plusieurs graines (64 pour `mesure_run` ; sous 32, rien ne se juge), jamais sur une seule. Un écart entre deux robots demande plus : à 64 graines un écart de Coupes a ±6 de bruit, à 128 un écart de cibles tenues ±7 ; « lire paie » et « exploser le jeu » se jugent à 384 (`GRAINES=384 FILS=3 ROBOTS=malin,chiffre node scripts/mesure_run.mjs`, une quinzaine de minutes). Un résultat au bord du bruit se rejoue sur des graines neuves avant de se proposer : le 11 nov. 2026, un levier « gagnant » sur 128 graines ne l'était plus sur les 128 suivantes.
 
 ## 3. Lancer et lire
 

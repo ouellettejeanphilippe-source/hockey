@@ -5573,8 +5573,9 @@ export function matchsEntre(t, a, b) {
   return js.filter(j => j >= a && j < b).length;
 }
 
-/* Un joueur au premier matin d'une ligue : ses matchs, ses jambes, tout ce qu'une saison jouée lui a posé. */
-function remettreAZero(p) {
+/* Un joueur au premier matin d'une ligue : ses matchs, ses jambes, tout ce qu'une saison jouée lui a posé. La run en carte
+   s'en sert aussi (js/run.js) : un adversaire arrive ainsi à chaque match, un joueur signé entre ainsi dans ton effectif. */
+export function remettreAZero(p) {
   initSimStats(p);
   p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
   delete p._adapt; delete p._situ; delete p._recents; delete p._lancee;

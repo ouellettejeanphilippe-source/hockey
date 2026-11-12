@@ -196,7 +196,7 @@ Les quatre questions de la tranche, posées à JP une fois les deux moitiés en 
 - **Le solde, à plein prix** (3.5) : comme livré. Un méta qui avait tout acheté reçoit 4 520 médailles pour 2 290 à dépenser ; pas de plafond.
 - **Ton club, en médailles** (3.2) : comme livré. Ses mots d'octobre (*même monnaie que les autres packs*) valaient pour la boutique en jetons, partie ; un jeton d'une run sert aux pièces de banc et aux pochettes.
 - **Deux pochettes** (3.8) : on reste au Bronze et à l'Époque ; pas de sorte de pochette en médailles.
-- **« Lire paie » et « tu peux exploser le jeu »** (tranche 4) : mesurer deux leviers avant de changer le jeu — le prix qui suit la valeur de plus près, moins de candidats par porte. La mesure et sa suite : docs/decisions.md.
+- **« Lire paie » et « tu peux exploser le jeu »** (tranche 4) : mesurer deux leviers avant de changer le jeu — le prix qui suit la valeur de plus près, moins de candidats par porte. Mesurés le soir même sur 384 graines : ni l'un ni l'autre ne fait mieux que le jeu d'aujourd'hui, où lire paie déjà (+7,6 points de cibles tenues, bruit ±4,3). JP : on ne change rien, et 7 % de runs qui explosent s'acceptent (docs/decisions.md, « Lire paie : il fallait 384 graines »).
 
 Restent sans objet tant que le plafond ne mord pas : « le plafond » et « une porte de moins » comme exigences (3.4) ; des pièces en médailles (3.2), écartées, c'est de la force.
 
