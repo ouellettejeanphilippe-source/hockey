@@ -1,0 +1,9 @@
+- **14 nov. · Le devis de la V29 : le build décide — rien ne change encore dans le jeu**
+  - JP, après avoir essayé la V28 : *le roguelike est pas le fun, ni bati comme il faut pour être un vrai jeu je trouve*.
+  - Le diagnostic : trois règles tenues ensemble (aucun geste au match, tout borné sous le dé, un simulateur réaliste) font un jeu qui se joue tout seul ; une signature vaut ≈ 2 points de chance, 44 % des matchs se jouent entre 40 et 60 %.
+  - JP tranche quatre questions : le build décide ; les pièces comptent l'origine et les badges ; trois pièces au camp ; dur, mais ça explose.
+  - docs/refonte-v29.md : une pièce de banc compte tes joueurs et multiplie un canal du match par marches ; 16 noms dans « Ce qui part », trois tranches.
+  - La mesure d'un jour, sans toucher au jeu : `scripts/mesure_build.mjs` (48 graines, neuf minutes), le bâtisseur 31 Coupes sur 48 contre 12 au même robot qui ne lit pas son banc ; deux critères rouges de peu, dits au devis.
+  - `scripts/lib/run_robot.mjs` accepte un lecteur d'essai (`lire`) ; `check_run` vert, les runs d'avant ne bougent pas. docs/decisions.md.
+  - La revue (`/revue-design`, quatre relecteurs en adversaires) : « À reprendre », repris le jour même. JP tranche quatre questions de plus : seuls tes signés comptent ; les séries sont le mur ; les jetons relancent les portes ; le rival se remesure après le banc.
+  - Une tranche 0 bis s'ajoute : la mesure refaite à la difficulté livrée, sur 256 graines neuves, avant qu'une ligne du jeu parte.
