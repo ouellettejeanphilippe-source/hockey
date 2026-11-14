@@ -36,6 +36,11 @@
  * points (il prenait la première pièce offerte, n'en remplaçait aucune), les bouche-trous comptaient, les seuils étaient
  * calés sur l'effectif de fin de run. Cette version les corrige ; ses chiffres sont ceux de la tranche 0 bis.
  *
+ * LA TRANCHE 0 BIS, JUGÉE LE 14 NOV. 2026 (256 graines, 2000 à 2255, le réglage par défaut) : le bâtisseur tient 81 % de ses
+ * cibles, le témoin 60 % (+21,2 points en paires, bruit ±4,6), le chiffre 50 % ; 23 % des runs du bâtisseur explosent, et
+ * une run qui explose gagne la Coupe 24 fois sur 59 ; onze pièces mènent un banc gagnant. Rouge : 14 Coupes sur 64 (4 à
+ * 12), et 201 jetons en caisse à la fin (la relance ne les vide pas).
+ *
  *   node scripts/mesure_build.mjs                      les deux robots, `GRAINES` graines (48), `FILS` processus (3)
  *   GRAINES=256 GRAINE0=2000 ROBOTS=temoin,batisseur,chiffre node scripts/mesure_build.mjs   le juge : des graines neuves (une heure et quart sur trois fils)
  *   GRAINES=3 node scripts/mesure_build.mjs            l'essai court : rien ne se juge
