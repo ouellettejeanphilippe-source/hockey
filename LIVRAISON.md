@@ -32,10 +32,12 @@ Le devis : docs/refonte-v29.md. Le diagnostic : trois règles tenues ensemble (a
   - Le bâtisseur 31 Coupes sur 48, le témoin 12 ; l'acte III à 79 % de chance contre 69 % ; un banc bâti vaut +33 points de chance.
   - En ligne droite, ou avec une seule pièce au départ, bâtir ne paie pas ; l'origine fait la décision, les badges la puissance.
   - Deux critères rouges de peu (les cibles plafonnent à ces forces : +7,6 points pour un bruit de ±10,9 ; +9,7 points de chance pour 10) : la tranche 1 remonte la difficulté.
-- [ ] **`/revue-design docs/refonte-v29.md`**, avant le code.
-- [ ] **1 · Le banc qui compte** — `js/pieces.js` réécrit, le banc posé une fois par match, les deux choix du camp, le robot bâtisseur, la difficulté aux bornes de JP, le § 7 parti — `mesure_run`, `check_pouvoirs` (réécrit), `check_run`, `check_refonte`, `check_scene`, `essai_run`.
-- [ ] **2 · Lire son banc à l'écran** — le coin d'une carte à la porte, le banc avant et après à l'échange, le Banc et ses marches, le match, la fin de run — `check_scene`, `essai_run`, JP à l'essai.
-- [ ] **3 · Du contenu** — des pièces de plus, une à la fois, chacune mesurée ; les exigences relues.
+- [x] **`/revue-design docs/refonte-v29.md`** (14 nov.) — « À reprendre », repris le jour même (le § 10 du devis) : la mesure n'était pas une preuve (un témoin à trois différences, les bouche-trous comptés, les seuils calés sur l'effectif de fin, rien à la difficulté livrée), l'échange proposait de sortir le joueur que le banc compte, deux bornes se contredisaient, les jetons n'achetaient plus rien.
+- [x] **JP tranche quatre questions de plus** (14 nov.) : seuls tes signés comptent ; les séries sont le mur ; les jetons relancent les portes ; le rival se remesure après le banc.
+- [ ] **0 bis · La mesure à la difficulté livrée** — `scripts/mesure_build.mjs` repris : les signés seuls, les seuils reposés, le témoin propre, leur coach compté, la relance payée, l'acte III et les séries montés, 256 graines neuves. Rouge, la tranche 1 ne commence pas.
+- [ ] **1 · Le banc qui compte** — `js/pieces.js` réécrit, le banc posé une fois par match, les deux choix du camp, la relance des portes payée, le robot bâtisseur, la difficulté de la tranche 0 bis, le § 7 parti — `mesure_run`, `check_pouvoirs` (réécrit), `check_run`, `check_refonte`, `check_scene`, `essai_run`.
+- [ ] **2 · Lire son banc à l'écran** — la porte qui dit ce qu'elle nourrit, la porte ouverte triée (sur capture, JP tranche), la sortie proposée et le banc avant et après à l'échange, la marche qui s'allume, le Banc, le match, la fin de run — `check_scene`, `essai_run`, JP à l'essai.
+- [ ] **3 · Du contenu, et ce qui reste nommé** — des pièces de plus, une à la fois, chacune mesurée ; le rival remesuré et sa question reposée à JP ; le plan du duel ; la pochette Époque.
 
 ## Refonte · V28, le Rogue de zéro, mécanique et écrans ensemble (JP, 9 nov. : *un vrai plan clair qui en fait un roguelike complet, complexe pis le fun* ; *J'hais l'interface* ; *interface et mécanique […] un change l'autre*)
 
