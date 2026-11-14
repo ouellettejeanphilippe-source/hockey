@@ -24,7 +24,7 @@ import { nomCourt } from './recit.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
   RUN, RANG_DU_RIVAL, RANGS_DE_DOS_A_DOS, casesOffertes, caseA, suivantes, masseDe, espaceDe, prixDe, masseApres, tient, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe,
-  dosADosA, leurBanc, signesDe, prixDeLaRelance, reglesDe,
+  dosADosA, leurBanc, signesDe, prixDeLaRelance, reglesDe, aMonter,
 } from './run.js';
 
 /* ---------- les petites briques ---------- */
@@ -393,11 +393,19 @@ export function sceneMarche(S, V) {
   const R = S.R, M = R.marche, plein = R.banc.length >= CASES_DU_BANC;
   const piece = k => { const ok = !M.piece && R.jetons >= PRIX_PIECE; return `<button type="button" class="${V.piece === k ? 'rn-on' : ''}" data-a="voir-piece" data-v="${k}"${ok ? '' : ' disabled'}>${carteP(k)}<span class="rn-prix${ok ? '' : ' rn-non'}">${M.piece ? 'Prise' : `<i class="rn-piece"></i>${PRIX_PIECE}`}</span><p>${ligneCourte(S, k)}</p></button>`; };
   const pochette = (cle, mot, ico, metal, quoi) => { const prix = RUN.POCHETTES[cle], pris = M.pochettes.includes(cle), ok = !pris && R.jetons >= prix; return `<button type="button" data-a="pochette" data-v="${cle}"${ok ? '' : ' disabled'}><span class="rn-c" style="--pk-a:var(${metal})">${pochetteHtml({ mot, ico })}</span><span class="rn-prix${ok ? '' : ' rn-non'}">${pris ? 'Ouverte' : `<i class="rn-piece"></i>${prix}`}</span><p>${quoi}</p></button>`; };
+  // UNE CARTE À MONTER (V29, tranche 1 ter ; JP, 14 nov. 2026) : un de tes signés, une édition de plus, une par marché. La tuile
+  // montre celui qui avance le plus ton banc ; la toucher encore passe au suivant.
+  const candidats = aMonter(S), cm = candidats.find(x => getPlayerKey(x.p) === V.montee) || candidats[0] || null, peut = !M.montee && R.jetons >= RUN.MONTER;
+  const gains = cm && cm.gains.length ? cm.gains.map(g => `${PIECES[g.cle].ico} +${String(g.d).replace('.', ',')}`).join(' · ') : 'Rien pour ton banc';
+  const monter = cm ? `<button type="button" class="${V.montee ? 'rn-on' : ''}" data-a="voir-montee"${peut ? '' : ' disabled'}>${carteJ(cm.p)}<span class="rn-prix${peut ? '' : ' rn-non'}">${M.montee ? 'Montée' : `<i class="rn-piece"></i>${RUN.MONTER}`}</span><p>Une édition de plus<br>${gains}${V.montee && candidats.length > 1 ? '<br>Toucher : un autre' : ''}</p></button>`
+    : '<div class="rn-t rn-gris" style="text-align:center;padding-top:40px">Une carte à monter : signe d\'abord un joueur.</div>';
   return `${hud(S, { titre: 'Le marché', cible: false })}
   <div style="left:14px;right:14px;top:62px"><div class="rn-k" style="margin-bottom:10px">Une pièce de banc · une seule</div><div class="rn-etal">${M.pieces.map(piece).join('')}</div></div>
-  <div style="left:14px;right:14px;top:350px"><div class="rn-k" style="margin-bottom:10px">Les pochettes</div><div class="rn-etal">${pochette('j:bronze', 'Bronze', '🥉', '--attention', 'Trois joueurs au hasard')}${pochette('j:epoque', 'Époque', '🕰', '--rn-bleu', 'Un pilier ou mieux, d\'une époque au hasard')}</div></div>
+  <div style="left:14px;right:14px;top:350px"><div class="rn-k" style="margin-bottom:10px">Les pochettes · une carte à monter</div><div class="rn-etal">${pochette('j:bronze', 'Bronze', '🥉', '--attention', 'Trois joueurs au hasard')}${pochette('j:epoque', 'Époque', '🕰', '--rn-bleu', 'Un pilier ou mieux, d\'une époque au hasard')}${monter}</div></div>
   <div style="left:14px;right:14px;top:626px"><div class="rn-k" style="margin-bottom:8px">Ton banc${plein ? ' · plein : une pièce neuve en fait sortir une' : ' · une case libre'}</div>${banc(S, { libre: true, largeur: '292px' })}</div>
-  ${V.piece && !M.piece ? bas(bt('Retour', 'quitter-marche'), bt('Prendre la pièce', 'acheter-piece', { cls: 'rn-orb', v: V.piece })) : bas(bt('Retour à la carte', 'quitter-marche', { cls: 'rn-go' }))}`;
+  ${V.piece && !M.piece ? bas(bt('Retour', 'quitter-marche'), bt('Prendre la pièce', 'acheter-piece', { cls: 'rn-orb', v: V.piece }))
+    : V.montee && cm && peut ? bas(bt('Retour', 'quitter-marche'), bt(`Monter ${esc(court(cm.p))}`, 'monter-au-marche', { cls: 'rn-orb', v: getPlayerKey(cm.p) }))
+      : bas(bt('Retour à la carte', 'quitter-marche', { cls: 'rn-go' }))}`;
 }
 export function sceneVestiaire(S, V) {
   const R = S.R, choix = V.choix || 'repos', joueurs = Object.values(S.roster).filter(Boolean);
@@ -484,11 +492,12 @@ const CAUSES = { coeurs: 'Plus de cœur', cible: 'Pas de séries', serie: 'Élim
 export function sceneFin(S, V) {
   const R = S.R, F = R.fin, x = R.series;
   const actes = R.actes.map((a, i) => `<div class="rn-recap"><span>Acte ${ROMAINS[i]}</span><span${a.tenu ? '' : ' class="rn-rg"'}>Cible ${a.tenu ? 'tenue' : 'ratée'} · ${a.pts} / ${a.cible}<small>${a.rival ? 'Rival battu' : 'Rival perdu'}, ${esc(surnom(a.t))}${a.coeur ? ' · un cœur perdu' : ''}</small></span><span class="rn-or">+${a.medailles}</span></div>`).join('');
-  const series = x ? `<div class="rn-recap"><span>Séries</span><span>${F.coupe ? 'La Coupe' : F.rondes ? `${F.rondes} ronde${F.rondes > 1 ? 's gagnées' : ' gagnée'}` : 'Aucune ronde gagnée'}<small>${x.faites.map(f => `${esc(surnom(f.t))} ${f.w}-${f.l}`).join(', ') || esc(clubMot(x.adv[0]))}</small></span><span class="rn-or">+${F.medailles - R.actes.reduce((a, y) => a + y.medailles, 0)}</span></div>` : '';
+  const series = x ? `<div class="rn-recap"><span>Séries</span><span>${F.coupe ? 'La Coupe' : F.rondes ? `${F.rondes} ronde${F.rondes > 1 ? 's gagnées' : ' gagnée'}` : 'Aucune ronde gagnée'}<small>${x.faites.map(f => `${esc(surnom(f.t))} ${f.w}-${f.l}`).join(', ') || esc(clubMot(x.adv[0]))}</small></span><span class="rn-or">+${F.medailles - (F.caisse || 0) - R.actes.reduce((a, y) => a + y.medailles, 0)}</span></div>` : '';
+  const caisse = F.caisse ? `<div class="rn-recap"><span>Caisse</span><span>${R.jetons} jetons qui restent<small>${RUN.JETONS_PAR_MEDAILLE} jetons, une médaille</small></span><span class="rn-or">+${F.caisse}</span></div>` : '';
   const etoile = V.etoile;
   return `<div style="left:14px;right:14px;top:30px;text-align:center"><div class="rn-k ${F.coupe ? 'rn-vert' : 'rn-rg'}">${F.coupe ? 'Tu as gagné' : 'La run est finie'}</div><div class="rn-titre" style="margin-top:8px;white-space:nowrap">${CAUSES[F.cause]}</div>
     <div class="rn-t rn-gris" style="margin-top:8px">Run ${R.numero} · ${esc(R.coach.n || COACHS[R.coach.cle].nom)}</div></div>
-  <div class="rn-panneau" style="left:14px;right:14px;top:132px">${actes}${series}</div>
+  <div class="rn-panneau" style="left:14px;right:14px;top:132px">${actes}${series}${caisse}</div>
   ${etoile ? `<div style="left:14px;right:14px;top:430px;display:grid;grid-template-columns:118px 1fr;gap:14px;align-items:center">${carteJ(etoile.p)}<div><div class="rn-k">Ton joueur de la run</div><div class="rn-h" style="margin-top:5px">${esc(etoile.p.n)}</div><div class="rn-t rn-gris" style="margin-top:6px">${etoile.mot}<br><span class="rn-vert">Sa carte entre à ton cartable</span>${(R.galons || []).length ? `<br><span class="rn-or">🏵 ${R.galons.length} galon${R.galons.length > 1 ? 's gravés' : ' gravé'} cette run</span>` : ''}</div></div></div>` : ''}
   <div class="rn-cellules" style="left:14px;right:14px;top:636px"><div><b class="rn-or">${F.medailles}</b><small>Médailles${reglesDe(R).prime > 1 ? ` · ×${String(reglesDe(R).prime).replace('.', ',')}` : ''}</small></div><div><b>${R.vus.length - 23}</b><small>Joueurs signés</small></div><div><b>${F.matchs}</b><small>Matchs joués</small></div></div>
   <button type="button" class="rn-bande" style="left:14px;right:14px;top:716px" data-a="club">Le Club${medailles(V.medailles)}</button>

@@ -29,7 +29,7 @@ import { VERSION } from './version.js';
 import { RATINGS_VERSION } from './ratings.js';
 import {
   RUN, VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, medaillesDe, forcesDuMonde, allerA, chanceCeSoir, intentionCeSoir, jouerLeMatch, conclure, signer, passerLesPortes,
-  relancerLesPortes, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, acheterLaPiece, acheterLaPochette, avancer, reposer, monterUneCarte, echangerDeuxCases,
+  relancerLesPortes, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, acheterLaPiece, acheterLaPochette, avancer, reposer, monterUneCarte, monterAuMarche, aMonter, echangerDeuxCases,
   choisirLeFilet, fixerLElite, allerAuMatchDeSerie, histoireDeLaCase, repondre, finir, reglesDe,
 } from './run.js';
 import {
@@ -431,7 +431,10 @@ const GESTES = {
   passer: () => { passerLesPortes(S); apresLesPortes(S); garder(); entrer(); return false; },
   relancer: () => { if (relancerLesPortes(S)) { jouerSon('donne'); garder(); } },
   // une pièce offerte, la fin d'acte
-  'voir-piece': v => { V.piece = v; },
+  'voir-piece': v => { V.piece = v; V.montee = null; },
+  // La carte à monter : la première touche prend celui qui avance le plus ton banc, les suivantes passent au suivant.
+  'voir-montee': () => { const c = aMonter(S); if (!c.length) return; V.montee = getPlayerKey(c[(c.findIndex(x => getPlayerKey(x.p) === V.montee) + 1) % c.length].p); V.piece = null; },
+  'monter-au-marche': v => { const p = joueurDe(v); if (p && monterAuMarche(S, p)) { jouerSon('recompense'); V.montee = null; garder(); } else jouerSon('refus'); },
   'piece-sort': v => { V.sort = V.sort === v ? null : v; },
   'prendre-piece': () => {
     const R = S.R, o = R.apres.offertes, cle = o.includes(V.piece) ? V.piece : o[0];

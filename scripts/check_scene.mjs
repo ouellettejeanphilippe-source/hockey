@@ -42,7 +42,7 @@ const SUITES = {
   'feuille-match': [['le match', [['jouer']]], ['le match fini', [['fin-du-match?']]]],
   'feuille-rival': [],
   portes: [],
-  marche: [],
+  marche: [['le marché, une carte à monter', [['voir-montee']]]],
   vestiaire: [],
   histoire: [],
   finacte: [],
@@ -183,6 +183,8 @@ const meta = { present: [] };
 }
 for (const [cle, suites] of Object.entries(SUITES)) {
   if (!saves[cle]) continue;
+  // Le marché s'ouvre la caisse garnie : la pièce et la carte à monter s'y paient (V29, tranche 1 ter).
+  if (cle === 'marche') saves[cle].jetons = Math.max(saves[cle].jetons, 60);
   const page = await ouvrir(saves[cle]);
   if (cle.startsWith('feuille')) await page.waitForTimeout(1200);
   await mesurer(page, NOMS[cle]);
@@ -209,7 +211,7 @@ await browser.close();
 
 const VOULUES = ['le départ', 'le camp', 'la porte ouverte', 'l\'échange', 'le rival annoncé', 'la carte de l\'acte', 'les Lignes', 'les Lignes, une carte tenue', 'le banc', 'la pause', 'la feuille du soir',
   'le match', 'le match fini', 'la feuille du duel', 'les trois portes', 'le marché', 'le vestiaire', 'une histoire', 'la fin d\'acte', 'les séries', 'la fin de run',
-  'le départ, ses crans', 'le Club : la variété', 'ton club', 'ton club : les couleurs', 'l\'Album', 'l\'Album, la page suivante', 'l\'Album : les gravées', 'l\'Album : les entraîneurs', 'le palmarès', 'le solde', 'le Club, après une run', 'le départ, une run d\'avant arrêtée'];
+  'le départ, ses crans', 'le Club : la variété', 'ton club', 'ton club : les couleurs', 'l\'Album', 'l\'Album, la page suivante', 'l\'Album : les gravées', 'l\'Album : les entraîneurs', 'le palmarès', 'le solde', 'le Club, après une run', 'le départ, une run d\'avant arrêtée', 'le marché, une carte à monter'];
 exiger('chaque scène du devis s\'ouvre', VOULUES.every(n => vues.includes(n)), VOULUES.filter(n => !vues.includes(n)).join(', ') || `${vues.length} scènes`);
 exiger('entre deux runs : les crans et la philosophie neuve au départ, le Club qui se ferme d\'où on vient, le solde puis le départ, une run d\'avant arrêtée', meta.present.every(x => x[1]), meta.present.filter(x => !x[1]).map(x => x[0]).join(' · ') || `${meta.present.length} repères`);
 exiger('aucune scène ne défile : un plan de 390 × 844', !fautes.defile.length, fautes.defile.slice(0, 4).join(' · '));

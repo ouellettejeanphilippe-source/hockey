@@ -12,7 +12,7 @@
  *   node scripts/check_run.mjs            `GRAINES` graines (3), les trois robots : une dizaine de secondes
  */
 import { getPersonKey } from '../js/sim.js';
-import { RUN, GALONS, masseDe, RANG_DU_RIVAL, figer, ouvrirSeance, histoireDeLaCase, reglesDe, signesDe, tonBanc } from '../js/run.js';
+import { RUN, GALONS, masseDe, RANG_DU_RIVAL, figer, ouvrirSeance, histoireDeLaCase, reglesDe, signesDe, tonBanc, aMonter, monterAuMarche, medaillesDe } from '../js/run.js';
 import { LEGENDES } from '../js/cartable.js';
 import { jouerLaRun, DONNEES } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -26,6 +26,7 @@ const dite = h => (h ? `${h.cle} · ${h.joueur.n}` : 'aucune');
 for (const robot of ['premier', 'chiffre', 'malin']) {
   for (let g = 0; g < GRAINES; g++) {
     const ici = `${robot} ${g}`;
+    let montees = 0;
     const espion = (m, S) => {
       const R = S.R;
       if (m === 'portes') {
@@ -40,6 +41,8 @@ for (const robot of ['premier', 'chiffre', 'malin']) {
       }
       // V29 : une relance payée ne met jamais la caisse sous zéro, et pas plus de `RELANCES_PAYEES` par soir.
       if (m === 'relance') faute(R.jetons >= 0 && (R.portes.payees || 0) <= RUN.RELANCES_PAYEES, `${ici} : une relance à ${R.jetons} jetons, ${R.portes.payees || 0} payées`);
+      // V29, tranche 1 ter : une carte montée au marché — une seule par marché, la caisse jamais sous zéro, et rien d'autre à y monter.
+      if (m === 'montee') { montees++; faute(R.phase === 'marche' && R.marche.montee === true && R.jetons >= 0 && !monterAuMarche(S, (aMonter(S)[0] || {}).p || null), `${ici} : une carte montée hors règle (${R.jetons} jetons)`); }
       // Une case d'histoire : la séance gardée puis relue lit la même histoire, sur le même joueur.
       if (m === 'case' && R.phase === 'histoire') {
         const vive = dite(histoireDeLaCase(S)), relue = dite(histoireDeLaCase(ouvrirSeance(DONNEES, JSON.parse(JSON.stringify(figer(S))))));
@@ -83,6 +86,9 @@ for (const robot of ['premier', 'chiffre', 'malin']) {
     faute(R.fin.cause !== 'coeurs' || R.coeurs === 0, `${ici} : finie sans cœur, avec ${R.coeurs}`);
     faute(R.banc.length <= 5 && new Set(R.banc).size === R.banc.length, `${ici} : un banc de ${R.banc.length}`);
     faute(R.jetons >= 0, `${ici} : ${R.jetons} jetons`);
+    // La caisse devient des médailles, `JETONS_PAR_MEDAILLE` pour une ; la run les compte une fois, avec ses actes et ses séries.
+    faute(R.fin.caisse === Math.floor(R.jetons / RUN.JETONS_PAR_MEDAILLE) && R.fin.medailles === medaillesDe(R, R.fin.rondes, R.fin.coupe) && R.fin.medailles >= R.fin.caisse, `${ici} : ${R.fin.caisse} médailles de caisse pour ${R.jetons} jetons, ${R.fin.medailles} en tout`);
+    faute(r.montees === montees, `${ici} : ${r.montees} cartes montées rendues, ${montees} vues`);
     // Les galons (tranche 5b) : des sortes connues, sur des joueurs de la run ; un chapeau a ses trois buts, dix buts et vingt
     // points se gravent une fois par joueur et se recomptent, la Coupe grave tout l'effectif et rien sans elle.
     const G = R.galons || [], de = t => G.filter(g => g.type === t), une = t => new Set(de(t).map(g => g.k)).size === de(t).length;

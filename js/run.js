@@ -26,7 +26,7 @@ import {
 import { leurJeuDuDuel, appliquerChoix, deDuChoix } from './greffes.js';
 import { HISTOIRES, tirer } from './histoires.js';
 import { faitsDe } from './faits.js';
-import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, piecesOffertes, poserLaPiece, bancDuMatch, persoAdverse } from './pieces.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, piecesOffertes, poserLaPiece, bancDuMatch, persoAdverse, apportDe, compteDe, marcheDe, seuilSuivant } from './pieces.js';
 import { JETONS, PRIME_COACH_MAX, bouchesTrousDuDepart, habillerLaLigue, chiffresDuSoirDe, ecussonsDesSeries, exigencesDe } from './rogue.js';
 import { REGLES_DU_COACH } from './coachs.js';
 import { MEDAILLES_ACTE, PRIX_PIECE, jeuDuRival, dominanteDe, recompenseDeLElite, perteDeLElite } from './actes.js';
@@ -60,6 +60,8 @@ export const RUN = {
   JETONS_DU_MATCH: [8, 16],       // une victoire, du bas au haut de la bande
   JETONS_DU_RIVAL: 24,
   POCHETTES: { 'j:bronze': 14, 'j:epoque': 26 },
+  MONTER: 20,                     // les jetons d'une carte montée d'une édition au marché, une par marché (JP, 14 nov. 2026)
+  JETONS_PAR_MEDAILLE: 10,        // à la fin de la run, les jetons en caisse deviennent des médailles (JP, 14 nov. 2026)
   MEDAILLES_ACTE_JOUE: 5,
 };
 /* La carte d'un acte : la largeur de chaque rang (de bas en haut), les rangs d'arrêts, le rang où une élite peut tenir. */
@@ -553,9 +555,10 @@ export function jouerLeMatch(S) {
  * (js/cartable.js `graverAuCartable`). Aucun effet au moteur. Les seuils, mesurés sur 48 runs du robot qui lit (22 matchs
  * en moyenne ; le meilleur buteur d'une run marque 10,5 buts, son meilleur pointeur fait 21 points) : un chapeau dans une
  * run sur deux, quatre points dans trois runs sur quatre (d'où cinq), 40 arrêts dans une victoire dans une run sur dix,
- * dix buts et vingt points dans une run sur deux.
+ * dix buts et vingt points dans une run sur deux. V29 : un club que son banc multiplie tire et reçoit plus de tirs — le grand
+ * soir passe à six points (tranche 1), le Mur à 50 arrêts (tranche 1 ter : à 40, il tombait plus d'une fois par run).
  */
-export const GALONS = { CHAPEAU: 3, GRAND_SOIR: 6, MUR: 40, BUTS: 10, POINTS: 20 };
+export const GALONS = { CHAPEAU: 3, GRAND_SOIR: 6, MUR: 50, BUTS: 10, POINTS: 20 };
 function galonsDuSoir(S, res) {
   const R = S.R, f = res.feuille, cote = res.cote, miens = new Set(Object.values(S.roster).filter(Boolean));
   const buts = (f.buts || []).filter(x => !x.fusillade), pour = buts.filter(x => x.cote === cote), contre = buts.length - pour.length;
@@ -847,6 +850,34 @@ export function reposer(S) {
 }
 /* Monter une carte d'une édition (js/rarete.js `EDITIONS`) : le moteur la lit dès ce soir. Rend faux à la Holo. */
 export const editionDe = p => (p._carte && p._carte.rar) || EDITIONS[0];
+/*
+ * AU MARCHÉ, MONTER UNE CARTE (V29, tranche 1 ter ; JP, 14 nov. 2026 : « 20 jetons, une par marché »). Des jetons montent
+ * d'une édition la carte d'un de tes signés : ses badges montent, donc le compte de ton banc (js/pieces.js `apportDe`).
+ * `aMonter` : tes signés qui peuvent encore monter, ceux qui avancent le plus ton banc d'abord — une marche gagnée, puis
+ * le chemin fait vers le seuil d'après, puis la cote ; pour chacun, ce que sa carte montée ajoute à chaque pièce (`gains` :
+ * [{ cle, d }], les seules qui bougent). Pur : la carte essayée est remise. L'écran et les robots lisent la même liste.
+ */
+export function aMonter(S) {
+  const R = S.R, signes = signesDe(S), comptes = R.banc.map(cle => [cle, compteDe(cle, signes)]);
+  return signes.filter(p => EDITIONS.indexOf(editionDe(p)) < EDITIONS.length - 1).map(p => {
+    const avant = R.banc.map(cle => apportDe(cle, p)), avait = '_carte' in p, sauve = p._carte;
+    p._carte = { rar: EDITIONS[EDITIONS.indexOf(editionDe(p)) + 1] };
+    const apres = R.banc.map(cle => apportDe(cle, p));
+    if (avait) p._carte = sauve; else delete p._carte;
+    const gains = comptes.map(([cle], i) => ({ cle, d: apres[i] - avant[i] })).filter(x => x.d > 0);
+    // Une marche gagnée vaut plus que tout ; sinon, la part du chemin vers le seuil d'après.
+    const note = comptes.reduce((a, [cle, n], i) => { const d = apres[i] - avant[i], suivant = seuilSuivant(cle, n); return a + (marcheDe(cle, n + d) - marcheDe(cle, n)) * 100 + (suivant != null && d > 0 ? d / (suivant - n) : 0); }, 0);
+    return { p, gains, note };
+  }).sort((a, b) => b.note - a.note || v(b.p) - v(a.p));
+}
+export function monterAuMarche(S, p) {
+  const R = S.R, M = R.marche, k = EDITIONS.indexOf(editionDe(p));
+  if (!M || M.montee || R.jetons < RUN.MONTER || !signesDe(S).includes(p) || k >= EDITIONS.length - 1) return false;
+  R.jetons -= RUN.MONTER; M.montee = true;
+  p._carte = { rar: EDITIONS[k + 1] };
+  rebatir(S); figer(S);
+  return true;
+}
 export function monterUneCarte(S, p) {
   const k = EDITIONS.indexOf(editionDe(p));
   if (!Object.values(S.roster).includes(p) || k >= EDITIONS.length - 1) return false;
@@ -932,13 +963,18 @@ function conclureLaSerie(S, res) {
  * LA FIN DE LA RUN : sa cause ('coeurs', 'cible' — l'acte III raté —, 'serie', 'coupe', 'quitte'), les médailles de chaque
  * acte et des séries (`ecussonsDesSeries`). Une run perdue rend ses médailles.
  */
-/* Ce qu'une run a gagné en médailles, là où elle en est : ses actes joués et ses rondes de séries, au multiple de son cran. Pur. */
-export const medaillesDe = (R, rondes = R.series ? R.series.faites.length : 0, coupe = false) => Math.round(((R.actes || []).reduce((a, x) => a + (x.medailles || 0), 0) + ecussonsDesSeries(rondes, coupe)) * reglesDe(R).prime);
+/*
+ * Ce qu'une run a gagné en médailles, là où elle en est : ses actes joués et ses rondes de séries, au multiple de son cran,
+ * plus sa caisse — les jetons qui restent deviennent des médailles, `JETONS_PAR_MEDAILLE` pour une (JP, 14 nov. 2026 : ce
+ * qu'on gagne après le dernier marché ne s'achetait plus nulle part). Pur.
+ */
+const medaillesDeLaCaisse = R => Math.floor(Math.max(0, R.jetons || 0) / RUN.JETONS_PAR_MEDAILLE);
+export const medaillesDe = (R, rondes = R.series ? R.series.faites.length : 0, coupe = false) => Math.round(((R.actes || []).reduce((a, x) => a + (x.medailles || 0), 0) + ecussonsDesSeries(rondes, coupe)) * reglesDe(R).prime) + medaillesDeLaCaisse(R);
 export function finir(S, cause) {
   const R = S.R, rondes = R.series ? R.series.faites.length : 0, coupe = cause === 'coupe';
   // La Coupe se grave sur chaque carte de l'effectif qui la gagne.
   if (coupe) R.galons = [...(R.galons || []), ...Object.values(S.roster).filter(Boolean).map(j => ({ k: getPlayerKey(j), n: j.n, type: 'coupe' }))];
-  R.fin = { cause, rondes, coupe, medailles: medaillesDe(R, rondes, coupe), matchs: R.matchs.length };
+  R.fin = { cause, rondes, coupe, medailles: medaillesDe(R, rondes, coupe), caisse: medaillesDeLaCaisse(R), matchs: R.matchs.length };
   R.phase = 'fin';
   figer(S);
   return R.phase;

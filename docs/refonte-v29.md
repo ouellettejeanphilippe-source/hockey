@@ -50,6 +50,12 @@ Le 14 nov., à la tranche 1 :
 - les jetons, 103 en caisse à la fin d'une run du bâtisseur : **« Monter une carte au marché »**, en jetons ;
 - la run gardée d'avant : **« Elle s'arrête, médailles versées »**.
 
+Le 14 nov. encore, avec la mesure de la tranche 1 ter :
+
+- le prix de la carte à monter, mesuré à trois prix : **« 20 jetons, une par marché »** ;
+- les jetons qui restent en caisse à la fin : **« Ils deviennent des médailles »** (10 pour une) ;
+- le critère « aucune marche d'office », rouge sur les bancs du bâtisseur : **« Le juger sur qui ne bâtit pas »**.
+
 Le même reproche depuis un mois, et ce qu'il demandait déjà (docs/refonte-v28.md § 1) : *le jeu se joue tout seul, je n'ai pas beaucoup d'impact* (7 oct.) ; *le but du jeu, ça devrait être de trouver les meilleures combinaisons* (10 oct.) ; *pas facile, mais tu peux exploser le jeu* (8 oct.) ; *à la Balatro, Slay the Spire, Pokémon TCG* (2 nov.).
 
 **La taille est décidée** : le banc, ce qu'il pèse et la difficulté se refont. La carte, les portes et les scènes de la V28 ne se refont pas (§ 7, « Ce qui reste »).
@@ -323,10 +329,10 @@ Trois robots, sur les mêmes graines (quatre avec « premier ») : **le bâtisse
 - [x] **Plus d'un build gagne** : sur 256 graines, au moins cinq pièces différentes sont la plus forte d'un banc qui tient ses trois cibles, aucune dans plus de 40 % d'entre eux — `mesure_run`. *Tranche 1 : huit pièces, la plus fréquente 24 fois sur 112.* « Dont une d'origine au moins » attend le retour de l'origine (tranche 3).
 - [ ] **Chaque coach** tient ses cibles à dix points de la moyenne (384 graines, à la main) — `mesure_run`. *À 256 graines, imprimé : de 66 à 82 % pour 74 % en moyenne.*
 - [x] **Chaque pièce vit** : dans les runs du bâtisseur qui la portent, chaque pièce atteint sa première marche plus d'une fois sur deux (256 graines) — `mesure_run`. *Tranche 1 : de 74 à 99 %.*
-- [ ] **Aucune marche d'office** : sa deuxième marche dans 10 à 60 % des bancs — `mesure_run`. *Tranche 1, rouge : de 53 à 93 % ; les seuils se reposent à la tranche 1 ter.*
+- [x] **Aucune marche d'office** — `mesure_run`. Le premier jet la jugeait sur les bancs du bâtisseur (la deuxième marche dans 10 à 60 %) : il y arrive sur 57 à 91 % des bancs, parce qu'il bâtit pour ça. **JP, 14 nov. : « le juger sur qui ne bâtit pas »** — sur les bancs du témoin, chaque pièce atteint sa deuxième marche au plus 60 % du temps et sa troisième au plus 25 % (tranche 1 ter).
 - [x] **Chaque pièce joue ce qu'elle dit** : en paires contre un banc vide, le moteur reçoit exactement le facteur de sa marche, rien sous son premier seuil, le produit d'un canal sous sa borne, et la pièce se voit dans la feuille — `check_pouvoirs` (réécrit).
-- [ ] **Les jetons servent** : une run du bâtisseur finit avec 40 jetons ou moins en caisse (106 avant la V29) — `mesure_run`. *Tranche 1, rouge : 98 ; JP, 14 nov. : une carte se monte au marché en jetons (tranche 1 ter).*
-- [ ] **Un cran coûte encore** : la part des cibles tenues baisse d'un cran d'exigence au suivant — `CRANS=1 GRAINES=128 mesure_run`, à la tranche 1.
+- [x] **Les jetons servent** — `mesure_run`. Le premier jet voulait 40 jetons ou moins en caisse à la fin : impossible par un prix, ce qu'on gagne après le dernier marché ne s'achète nulle part. **JP, 14 nov.** : une carte se monte au marché (20 jetons, une par marché) et la caisse de fin devient des médailles (10 jetons pour une) ; le juge exige 1 à 4 cartes montées par run du bâtisseur (tranche 1 ter).
+- [x] **Un cran coûte encore** : la part des cibles tenues baisse d'un cran d'exigence au suivant — `CRANS=1 GRAINES=128 mesure_run`, à la tranche 1.
 - [x] **La run** : trois pièces avant la première porte ; la même graine rejoue la même run ; une run gardée d'avant s'arrête et verse ses médailles une fois (JP, 14 nov.) — `check_run`, `check_scene`.
 - [ ] **Les scènes** : le camp, la porte, l'échange et le banc tiennent à 390 × 844 sans défiler, le pire cas semé (cinq pièces touchées par un échange) ; une semaine de bâtisseur (une autre porte, un autre joueur, un autre sortant) en neuf touchers — `check_scene`, `essai_run`.
 - [x] **Le moteur ne bouge pas** : le 82-0 se rejoue au but près — `check_empreinte`, `check_couches`.
@@ -344,7 +350,7 @@ Trois robots, sur les mêmes graines (quatre avec « premier ») : **le bâtisse
 
 **1 bis. Le plan du duel part** (fait, 14 nov., `docs/refonte-v29-1b.md` ; JP, 14 nov.). La feuille du duel dit leur jeu ce soir en vraies stats, ton banc pièce par pièce et le leur ; les plans, leurs lignes à l'écran, le choix du robot et leur mesure partent, nommés au § 7 avant le code. Juge : `check_refonte`, `check_gros`, `check_scene`, `essai_run`, `mesure_run`.
 
-**1 ter. Le marché monte une carte** (JP, 14 nov.). Au marché, des jetons montent d'une édition la carte d'un signé ; son prix se pose à JP avec sa mesure ; les seuils reposés (aucune marche d'office), le prix d'une pièce et la récompense de l'élite remesurés, une pochette achetée par les robots. Juge : `mesure_run` à 256 graines (40 jetons ou moins en caisse, la Coupe toujours 4 à 12 sur 64).
+**1 ter. Le marché monte une carte** (fait, 14 nov., `docs/refonte-v29-1c.md` ; JP, 14 nov.). Au marché, 20 jetons montent d'une édition la carte d'un signé, une par marché ; la caisse de fin devient des médailles ; « aucune marche d'office » se juge sur qui ne bâtit pas. Restent, pour la tranche 3 : le prix d'une pièce et la récompense de l'élite à remesurer, une pochette achetée par les robots. Juge : `mesure_run` à 256 graines (40 jetons ou moins en caisse, la Coupe toujours 4 à 12 sur 64).
 
 **2. Lire son banc à l'écran.** La porte fermée qui dit ce qu'elle nourrit, la porte ouverte triée (sur capture, JP tranche), le coin d'une carte, la sortie proposée et le banc avant et après à l'échange, le moment où une marche s'allume, la scène du Banc avec ses comptes et ses marches, le match et l'après-match, la fin de run. Juge : `check_scene`, `essai_run`, JP à l'essai.
 
