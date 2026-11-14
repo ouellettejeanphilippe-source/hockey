@@ -1,0 +1,6 @@
+- **14 nov. · V29, tranche 0 bis : bâtir paie, jugé sur 256 graines neuves — rien ne change encore dans le jeu**
+  - La mesure refaite comme la revue l'exigeait : seuls tes signés comptent, un témoin à une seule différence, la relance des portes payée, leur coach en séries, la difficulté montée tard.
+  - Le robot qui bâtit tient 81 % de ses cibles contre 60 % pour le même robot qui ne lit pas son banc (+21,2 points, bruit ±4,6) ; 23 % de ses runs explosent ; une run qui explose gagne la Coupe 24 fois sur 59 ; le robot du chiffre ne gagne aucune Coupe sur 256.
+  - Deux bornes rouges : 14 Coupes sur 64 pour 4 à 12 ; 201 jetons en caisse à la fin (la relance ne les vide pas).
+  - L'origine ne mène plus que 2 bancs gagnants sur 144 : les badges font la décision.
+  - `scripts/mesure_build.mjs` (`GRAINES=256 GRAINE0=2000 ROBOTS=temoin,batisseur,chiffre`, une heure et quart) ; docs/refonte-v29.md § 4, docs/decisions.md.

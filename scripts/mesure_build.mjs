@@ -36,6 +36,11 @@
  * points (il prenait la première pièce offerte, n'en remplaçait aucune), les bouche-trous comptaient, les seuils étaient
  * calés sur l'effectif de fin de run. Cette version les corrige ; ses chiffres sont ceux de la tranche 0 bis.
  *
+ * LA TRANCHE 0 BIS, JUGÉE LE 14 NOV. 2026 (256 graines, 2000 à 2255, le réglage par défaut) : le bâtisseur tient 81 % de ses
+ * cibles, le témoin 60 % (+21,2 points en paires, bruit ±4,6), le chiffre 50 % ; 23 % des runs du bâtisseur explosent, et
+ * une run qui explose gagne la Coupe 24 fois sur 59 ; onze pièces mènent un banc gagnant. Rouge : 14 Coupes sur 64 (4 à
+ * 12), et 201 jetons en caisse à la fin (la relance ne les vide pas).
+ *
  *   node scripts/mesure_build.mjs                      les deux robots, `GRAINES` graines (48), `FILS` processus (3)
  *   GRAINES=256 GRAINE0=2000 ROBOTS=temoin,batisseur,chiffre node scripts/mesure_build.mjs   le juge : des graines neuves (une heure et quart sur trois fils)
  *   GRAINES=3 node scripts/mesure_build.mjs            l'essai court : rien ne se juge
@@ -61,8 +66,8 @@ const SIGNES_SEULS = process.env.SIGNES !== '0', LEUR_COACH = process.env.LEUR_C
 /* Une signature moyenne vaut 22 points de cote et ≈ 2 points de chance ; un point de pourcentage sur un canal, ≈ 0,2 (mesurés le 13 nov. 2026) : 2,2 points de cote par point de pourcentage, et la moitié de plus pour qui vise la marche d'après. */
 const POIDS = env('POIDS', 3.3);
 const PRIX_ESPACE = 1.5, N_CHANCE = 40, EXPLOSE = 0.75, BUILDS = 5, PART_MAX = 0.4;
-/* Le bâtisseur et le témoin relancent les portes quand le meilleur échange offert vaut moins qu'une signature moyenne (22 points de cote), deux fois par soir au plus, en gardant de quoi payer une pièce au marché. */
-const NOTE_FAIBLE = 22, RELANCES_MAX = 2, RESERVE = 32;
+/* Le bâtisseur et le témoin relancent les portes quand le meilleur échange offert vaut moins que `NOTE_FAIBLE` points de cote (une signature moyenne en vaut 22), `RELANCES_MAX` fois par soir au plus, en gardant de quoi payer une pièce au marché. */
+const NOTE_FAIBLE = env('NOTE_FAIBLE', 22), RELANCES_MAX = env('RELANCES_MAX', 2), RESERVE = 32;
 const ROBOTS = (process.env.ROBOTS || 'temoin,batisseur').split(',');
 const JEU = process.env.JEU || 'tout';
 /* LA DIFFICULTÉ À L'ESSAI (tranche 0 bis, réglée le 14 nov. 2026 sur les graines 1000 à 1047) : l'acte I comme aujourd'hui, l'acte II d'une étape d'édition de plus, l'acte III et les séries au plus haut. `REGLAGES` passe par-dessus. */
@@ -246,5 +251,5 @@ if (B.length && T.length) {
     informer(`Sous ${GRAND} graines, rien ne se juge`, `${mot} · ${partExplose.toFixed(0)} % des runs explosent · ${coupes64} Coupes sur 64 · ${motBuilds}`);
   }
 }
-informer('Le réglage', `JEU=${JEU} · FORCE=${FORCE} · POIDS=${POIDS} · DEPART_N=${DEPART_N} · signés seuls ${SIGNES_SEULS ? 'oui' : 'non'} · RELANCE=${RELANCE} · leur coach ${LEUR_COACH ? `compté${LEUR_PLUS ? `, +${LEUR_PLUS} marche` : ''}${LEUR_FORCE !== 1 ? `, ×${LEUR_FORCE}` : ''}` : 'd\'aujourd\'hui'} · graines ${GRAINE0} à ${GRAINE0 + GRAINES - 1} · ETAPES ${RUN.ETAPES.join(' ')} · ${Object.keys(ESSAIS).length} pièces d'essai`);
+informer('Le réglage', `JEU=${JEU} · FORCE=${FORCE} · POIDS=${POIDS} · DEPART_N=${DEPART_N} · signés seuls ${SIGNES_SEULS ? 'oui' : 'non'} · RELANCE=${RELANCE} (sous ${NOTE_FAIBLE}, ${RELANCES_MAX} par soir) · leur coach ${LEUR_COACH ? `compté${LEUR_PLUS ? `, +${LEUR_PLUS} marche` : ''}${LEUR_FORCE !== 1 ? `, ×${LEUR_FORCE}` : ''}` : 'd\'aujourd\'hui'} · graines ${GRAINE0} à ${GRAINE0 + GRAINES - 1} · ETAPES ${RUN.ETAPES.join(' ')} · ${Object.keys(ESSAIS).length} pièces d'essai`);
 verdict('Le build décide : la mesure avant le code (V29, tranches 0 et 0 bis)');
