@@ -1,6 +1,6 @@
 # V29 — Le Rogue : le build décide
 
-Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` les 13 et 14 nov. 2026, **repris le 14 nov. après `/revue-design`** (quatre relecteurs en adversaires : « À reprendre » ; ce qu'ils ont trouvé est au § 10, et JP a tranché quatre questions de plus). La carte, les portes, les scènes et le simulateur de la V28 restent ; ce qui change est ce que tes choix pèsent. **Rien du jeu n'est codé** : seule la mesure d'un jour existe (`scripts/mesure_build.mjs`, tranche 0).
+Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` les 13 et 14 nov. 2026, **repris le 14 nov. après `/revue-design`** (quatre relecteurs en adversaires : « À reprendre » ; ce qu'ils ont trouvé est au § 10, et JP a tranché quatre questions de plus). La carte, les portes, les scènes et le simulateur de la V28 restent ; ce qui change est ce que tes choix pèsent. **La tranche 1 est livrée** (14 nov., `docs/refonte-v29-1.md` : le banc qui compte) ; là où elle s'écarte de ce devis, le devis le dit à l'endroit même, daté.
 
 ## En une page
 
@@ -16,7 +16,7 @@ Slay the Spire, Balatro et les autobattlers n'en tiennent jamais plus d'une. Mes
 
 **Le jeu neuf, en quatre phrases.**
 
-- Une pièce de banc **compte les joueurs que tu as signés** (leurs badges, ou d'où ils viennent) et **multiplie** un canal du match, tout le match, par marches : rien, puis trois sauts.
+- Une pièce de banc **compte les joueurs que tu as signés** (leurs badges ; d'où ils viennent, plus tard) et **multiplie** un canal du match, tout le match, par marches : rien, puis trois sauts.
 - Ton banc a une direction **dès le camp** : la pièce de ton coach et deux que tu choisis, avant la première porte.
 - Aux portes, tu signes **pour ton banc** autant que pour la cote, tu choisis qui sort, et tes jetons **relancent les portes** pour chercher ce que ton banc compte.
 - Les adversaires montent tard, pour que la cote seule ne suffise plus à l'acte III : un club bien bâti **explose**, et **les séries restent le mur**.
@@ -43,6 +43,13 @@ Après la revue du devis (14 nov.), quatre questions de plus :
 - les jetons après l'acte I : **« Relancer les portes »**, payé en jetons, à un prix qui monte ;
 - le match du rival, qui décide encore une cible sur deux à pile ou face : **« On remesure après le banc »**.
 
+Le 14 nov., à la tranche 1 :
+
+- deux questions restées ouvertes (les pièces d'origine, qui ne menaient presque aucun banc gagnant ; le mur des séries) : **« choisis »** — les neuf pièces de badge d'abord, l'origine revient une pièce à la fois, mesurée ; en séries, un vrai banc en face, qui grandit à chaque ronde ;
+- le plan du duel, qui ne pèse plus rien (le meilleur plan gagne 0,3 % de matchs de plus que Ton match) : **« Le plan part »** ;
+- les jetons, 103 en caisse à la fin d'une run du bâtisseur : **« Monter une carte au marché »**, en jetons ;
+- la run gardée d'avant : **« Elle s'arrête, médailles versées »**.
+
 Le même reproche depuis un mois, et ce qu'il demandait déjà (docs/refonte-v28.md § 1) : *le jeu se joue tout seul, je n'ai pas beaucoup d'impact* (7 oct.) ; *le but du jeu, ça devrait être de trouver les meilleures combinaisons* (10 oct.) ; *pas facile, mais tu peux exploser le jeu* (8 oct.) ; *à la Balatro, Slay the Spire, Pokémon TCG* (2 nov.).
 
 **La taille est décidée** : le banc, ce qu'il pèse et la difficulté se refont. La carte, les portes et les scènes de la V28 ne se refont pas (§ 7, « Ce qui reste »).
@@ -64,7 +71,7 @@ Le même reproche depuis un mois, et ce qu'il demandait déjà (docs/refonte-v28
 - **Seuls les joueurs que tu as signés dans la run comptent** (JP, 14 nov.), où qu'ils soient dans ton effectif : habillés, en civil ou blessés. Un bouche-trou du départ ne compte pour rien. Ton banc part donc de zéro, et chaque marche est à toi. Un signé qui sort par l'échange ne compte plus.
 - **Deux sortes de compte** (JP : « les deux ») :
   - **les badges** de tes signés, chacun à son palier (Bronze 1, Argent 2, Or 3, Platine 4 ; le second badge à moitié) : les tireurs, les passeurs, les gros, les deux sens, les checkers, les plombiers et les bagarreurs, les défenseurs défensifs et physiques, les défenseurs offensifs, les manieurs ;
-  - **l'origine** de tes signés : ton plus gros groupe de la même décennie, de la même franchise, du même club la même saison (de vrais coéquipiers), et deux époques nommées (avant 1985 ; depuis 2010).
+  - **l'origine** de tes signés : ton plus gros groupe de la même décennie, de la même franchise, du même club la même saison (de vrais coéquipiers), et deux époques nommées (avant 1985 ; depuis 2010). *Pas à la tranche 1* (JP, 14 nov., « choisis ») : mesurée, l'origine ne menait que 2 bancs gagnants sur 129 ; elle revient une pièce à la fois, à la tranche 3.
 - **Les marches** : sous la première, la pièce ne fait rien. Chaque marche est plus haute que la précédente (≈ +12 %, +37 %, +75 % à l'essai) : la concentration paie plus que l'éparpillement. Les seuils se posent sur ce qu'un effectif de signés peut atteindre : une première marche à la portée du camp et de l'acte I, la troisième pour qui a bâti autour d'elle (§ 8).
 - **Le canal** est un de ceux que le moteur lit déjà : tes tirs, ta précision, leurs tirs, leur précision. Aucune mécanique neuve au moteur. Chaque pièce justifie son canal par ce qu'elle compte (des tireurs font ta précision, des défenseurs défensifs coupent leurs tirs) ; une pièce d'origine prend le canal du jeu de son époque ou de son groupe, écrit avec elle.
 - **Elle joue tout le match, chaque match**, par-dessus les bornes de style du moteur, comme une pièce d'aujourd'hui dans sa période. Plus de condition de pointage, de lieu ni de période ; plus de relais.
@@ -75,7 +82,7 @@ Le même reproche depuis un mois, et ce qu'il demandait déjà (docs/refonte-v28
 
 - **Cinq cases**, comme aujourd'hui.
 - **Le départ** (JP : « trois pièces au camp ») : la pièce de ton coach, puis **deux choix d'une pièce parmi trois**, avant la première porte. Personne n'est encore signé : tu choisis une direction, pas un chiffre. La scène du camp dit ce que chaque pièce compte et ses trois seuils ; elle n'a ni « Passer » ni le texte d'un match gagné.
-- **La pièce de départ de chaque coach** compte ce que sa philosophie joue : le Frelon les passeurs, l'Aigle les tireurs, la Tortue les défenseurs défensifs, le Rhino les plombiers et les bagarreurs, le Doc les deux sens, l'Abbé les checkers, le Contremaître les gros, le Showman les défenseurs offensifs. Sa maîtrise (×0,9 à ×1,3) règle ses marches, dans la borne du canal.
+- **La pièce de départ de chaque coach** compte un rôle de sa couleur (la table des rôles par coach existe déjà, js/coachs.js : le pack d'un coach et sa pièce disent la même chose) : le Frelon les gros, l'Aigle les tireurs, la Tortue les deux sens, le Rhino la muraille (les défenseurs défensifs et physiques), le Doc les cols bleus (les plombiers et les bagarreurs), l'Abbé les manieurs, le Contremaître l'étouffoir (les checkers), le Showman les passeurs. Sa maîtrise (×0,9 à ×1,3) règle ses marches, dans la borne du canal. *(Le premier jet du devis donnait une autre table, écrite sans relire les couleurs.)*
 - **Ensuite**, comme aujourd'hui : une pièce parmi trois au rival battu, à l'élite gagnée, au marché. Banc plein : la pièce neuve d'abord, puis celle qui sort. Une pièce offerte dit son compte chez toi.
 - **La règle du coach** (ses jetons le soir où ton club joue son hockey) ne change pas.
 
@@ -98,7 +105,7 @@ Le même reproche depuis un mois, et ce qu'il demandait déjà (docs/refonte-v28
 
 - **La difficulté vient toujours de clubs plus forts**, jamais d'un malus caché.
 - **Elle monte tard** : l'acte I reste celui d'aujourd'hui (ton banc n'y existe pas encore), l'acte III et les séries montent, pour que la cote seule n'y suffise plus.
-- **Les séries sont le mur** (JP, 14 nov.) : un club qui explose aux actes y perd encore une fois sur deux. Leur levier est à elles : **leur coach** porte la pièce de départ de sa philosophie, qui compte leurs joueurs à une marche fixée par la ronde (la première, la deuxième, la troisième), en plus de leurs étapes d'édition. Son ombre part.
+- **Les séries sont le mur** (JP, 14 nov.) : un club qui explose aux actes y perd encore une fois sur deux. Leur levier est à elles : **leur banc** — 1 pièce à la première ronde, 2 à la demi-finale, 3 en finale, celles qui sont les plus avancées chez eux, tout leur club compté, par les mêmes marches que les tiennes —, en plus de leurs étapes d'édition. L'ombre de leur coach part. *(Le premier jet donnait à leur coach une seule pièce, à la marche de sa ronde ; à la mesure il la fallait quatre fois plus forte. JP, 14 nov., « choisis » : un vrai banc, qui se lit comme le tien.)*
 - **Le style d'un club** (le mot sous sa case) reste. Les trois pièces « pour le battre » partent avec les conditions.
 
 ### 3.6 Ce qui ne change pas dans la run
@@ -111,7 +118,7 @@ Le diagnostic les a relevés ; cette refonte ne les règle pas, et le dit :
 
 - **Le match du rival**, qui compte double et décide la cible dans au moins 65 actes sur 135 à 49 % de chance. JP (14 nov.) : on remesure après le banc ; `mesure_run` imprimera la part des actes qu'il décide, et la question se repose avec ce chiffre.
 - **La feuille du soir à un bouton**, et **ta chance qui ne se voit qu'après « Y aller »**.
-- **Le plan du duel** : sans les pièces qui en proposaient, il vient de ton coach et de ce qui répond à leur jeu ; un choix mince, à revoir après la tranche 2.
+- **Le plan du duel** : sans les pièces qui en proposaient, il vient de ton coach et de ce qui répond à leur jeu. Mesuré à la tranche 1 : le meilleur plan ne gagne que 0,3 % de matchs de plus que Ton match (6,4 % avant, quand des pièces le relayaient). **JP, 14 nov. : le plan part** (la tranche 1 bis).
 - **La pochette Époque**, qui tient sous le plafond 39 fois sur 100 et nourrit rarement une origine.
 - **Les accords de ligne** : ils restent au moteur et sur la feuille du soir ; le coin d'une carte à la porte ne les dit plus.
 
@@ -228,13 +235,13 @@ Ce que ces lignes disent :
 - **Banc plein** : la pièce neuve d'abord, puis celle qui sort, comme aujourd'hui.
 - **Monter une carte au vestiaire** monte ses badges : le compte d'une pièce de badge monte avec.
 - **Les séries** : les mêmes pièces, les mêmes marches ; leur coach à la marche de sa ronde.
-- **La run gardée d'avant la V29** : `VERSION_DE_LA_RUN` monte ; elle se rouvre avec son coach et ses joueurs (ses signés sont ceux que la run garde déjà), et chaque pièce d'avant devient la pièce de départ de sa philosophie (une pièce hors des voies part). Les clés de sauvegarde ne bougent pas — `check_sauvegardes`.
+- **La run gardée d'avant la V29** : `VERSION_DE_LA_RUN` monte ; **elle s'arrête à l'ouverture** (JP, 14 nov.) : ses médailles gagnées jusque-là sont versées une fois, un mot le dit, et le départ s'ouvre. Rouverte, elle aurait joué avec une seule pièce contre un acte III monté de 3 à 12 étapes. Les clés de sauvegarde ne bougent pas — `check_sauvegardes`, `essai_run`.
 - **Hors ligne** : aucun fichier neuf dans la coquille ; `sw.js` oublie ce qui part — `check_coquille`.
 - **Le clavier et la manette** : rien ne change ; relancer les portes est un bouton de la scène des portes.
 
 ## 6. Ce qu'il touche
 
-**Les fichiers** : `js/pieces.js` (réécrit de zéro), `js/greffes.js` (le banc posé une fois par match), `js/run.js` (les deux choix du camp, les réglages de la difficulté, `VERSION_DE_LA_RUN`), `js/run-scenes.js` et `js/run-jeu.js` (le camp, le coin d'une carte à la porte, l'échange, le banc, le match, la fin de run), `js/impact.js` (les lignes d'une pièce, les plans du duel), `js/cartes.js` (la carte d'une pièce dit son compte), `style.css` (peu), `sw.js` (la version) ; `js/actes.js` (le prix d'une pièce, la récompense de l'élite) ; `scripts/lib/run_robot.mjs` (le robot qui lit devient le bâtisseur ; il achète une pochette, joue l'élite, relance les portes), `scripts/check_pouvoirs.mjs` (réécrit), `scripts/mesure_run.mjs` (les bornes, les jetons qui restent, la part des actes que le rival décide), `scripts/essai_run.mjs` (un parcours de bâtisseur), `scripts/check_moments_si.mjs`, `scripts/check_elites.mjs`, `scripts/check_duel.mjs`, `scripts/lib/duel.mjs`.
+**Les fichiers**, sur toute la refonte (ceux de la tranche 1 sont dans `docs/refonte-v29-1.md` ; js/actes.js attend la tranche du marché, scripts/lib/duel.mjs celle du plan, scripts/check_moments_si.mjs n'a pas eu à changer) : `js/pieces.js` (réécrit de zéro), `js/greffes.js` (le banc posé une fois par match), `js/run.js` (les deux choix du camp, les réglages de la difficulté, `VERSION_DE_LA_RUN`), `js/run-scenes.js` et `js/run-jeu.js` (le camp, le coin d'une carte à la porte, l'échange, le banc, le match, la fin de run), `js/impact.js` (les lignes d'une pièce, les plans du duel), `js/cartes.js` (la carte d'une pièce dit son compte), `style.css` (peu), `sw.js` (la version) ; `js/actes.js` (le prix d'une pièce, la récompense de l'élite) ; `scripts/lib/run_robot.mjs` (le robot qui lit devient le bâtisseur ; il achète une pochette, joue l'élite, relance les portes), `scripts/check_pouvoirs.mjs` (réécrit), `scripts/mesure_run.mjs` (les bornes, les jetons qui restent, la part des actes que le rival décide), `scripts/essai_run.mjs` (un parcours de bâtisseur), `scripts/check_moments_si.mjs`, `scripts/check_elites.mjs`, `scripts/check_duel.mjs`, `scripts/lib/duel.mjs`.
 
 **Les règles fermes** (`.claude/rules/rogue.md`, réécrites à la tranche qui change le jeu) :
 
@@ -287,38 +294,40 @@ Chaque nom ci-dessous disparaît du jeu ; *check_refonte* le vérifie. Seul ce q
 
 | Constante | Valeur de départ | Plage sûre | Au-delà |
 |---|---|---|---|
-| Les marches d'une pièce | ≈ 12 · 37 · 75 % (l'essai) | la 3e entre 50 et 100 % | plus bas, bâtir ne paie plus (ligne 3) ; plus haut, qui ne lit rien gagne autant (ligne 4) |
-| Les seuils d'une pièce | à poser à la tranche 0 bis, sur des signés seulement | la 1re marche atteinte à la fin de l'acte I par qui la vise | calés sur l'effectif de fin, le camp les allume par hasard (§ 10) |
-| Le produit d'un canal | borné à ×3 pour toi, ÷3 pour eux | ×2,5 à ×4 | sans borne, cinq pièces sur tes tirs font ×15 |
+| Les marches d'une pièce, *MARCHES* | 12 · 37 · 75 % (livré à la tranche 1) | la 3e entre 50 et 100 % | plus bas, bâtir ne paie plus (ligne 3) ; plus haut, qui ne lit rien gagne autant (ligne 4) |
+| Les seuils d'une pièce | la table de `docs/refonte-v29-1.md` (les tireurs 7 · 14 · 21, l'étouffoir 3 · 6 · 9…), posés sur des signés seulement | la 1re marche atteinte à la fin de l'acte I par qui la vise | calés sur l'effectif de fin, le camp les allume par hasard (§ 10) |
+| Le produit d'un canal, *BORNE_DU_CANAL* | borné à ×3 pour toi, ÷3 pour eux | ×2,5 à ×4 | sans borne, cinq pièces sur tes tirs font ×15 |
 | La maîtrise sur la pièce de départ | ×0,9 à ×1,3 sur ses marches | à mesurer | ×1,3 sur 75 % : ≈ 4,5 points de chance pris au loto du coach |
 | *CASES_DU_BANC* | 5 | 5 | ne se règle pas (JP, 7 nov.) |
-| Les pièces au camp | celle du coach et 2 choisies | 2 à 3 | une seule : ligne 2 |
-| Le prix d'une relance des portes | 8, puis le double à chaque relance du soir (trois au plus) | à régler : 97 jetons restent en caisse | trop bas, le plafond ne mord plus : on cherche jusqu'à trouver ; mesuré, relancer plus ne rend pas plus fort |
+| Les pièces au camp, *PIECES_DU_CAMP* | celle du coach et 2 choisies | 2 à 3 | une seule : ligne 2 |
+| Le prix d'une relance des portes, *RELANCE* et *RELANCES_PAYEES* | 8, puis le double à chaque relance du soir (trois au plus) | livré ; il reste 103 jetons en caisse : JP, 14 nov., une carte se monte au marché en jetons (tranche 1 ter) | trop bas, le plafond ne mord plus : on cherche jusqu'à trouver ; mesuré, relancer plus ne rend pas plus fort |
 | *PRIX_PIECE* | 32 aujourd'hui, à remesurer | — | posé pour une pièce bornée à 0,18 victoire par acte : un achat d'office |
 | La récompense de l'élite | sa chance lue jusqu'à 80 % (55 % aujourd'hui) | — | sinon le club fort se sert : jamais sous 42 jetons |
-| *ETAPES*, les étapes d'édition des adversaires | 1 · 3 · 12 · 12 (jugé à la tranche 0 bis ; 1 · 2 · 3 · 7 aujourd'hui) | l'acte III entre 10 et 12 | à 7, 58 % des runs explosent ; l'échelle des éditions plafonne à 12 |
-| Le banc de leur coach, en séries | à l'essai, une pièce à la 2e, 3e, 3e marche, quatre fois plus forte | à écrire en vraies pièces et à rejuger | trois fois plus forte, 14 Coupes sur 64 ; deux fois, 13 sur 64 sur les graines d'essai avec sept Coupes pour dix explosions |
+| *ETAPES*, les étapes d'édition des adversaires | 1 · 3 · 12 · 12 (livré à la tranche 1 ; 1 · 2 · 3 · 7 avant) | l'acte III entre 10 et 12 | à 7, 58 % des runs explosent ; l'échelle des éditions plafonne à 12 |
+| Leur banc en séries, *BANC_DES_SERIES* | 1 · 2 · 3 pièces par ronde, tout leur club compté (livré à la tranche 1 ; à l'essai, une seule pièce quatre fois plus forte) | 1 · 2 · 3 ; à 2 · 3 · 4, mesuré, la Coupe tombe à 3 sur 64 et une run qui explose ne la gagne plus que 8 fois sur 63 | trois fois plus forte, 14 Coupes sur 64 ; deux fois, 13 sur 64 sur les graines d'essai avec sept Coupes pour dix explosions |
 | Le poids du banc pour le robot | 3,3 points de cote par point de pourcentage | 2 à 5 | une mesure, jamais lue par le jeu |
 
 ## 9. Les critères d'acceptation
 
-Trois robots, sur les mêmes graines : **le bâtisseur** ; **le témoin**, le même robot avec la même pièce prise et la même pièce qui sort, qui ne lit pas son banc aux portes (une seule différence) ; **le chiffre**. Les robots achètent une pochette, jouent l'élite et relancent les portes avant qu'une borne se juge. Une borne ne se juge qu'à la taille où elle ne tire pas à pile ou face.
+Trois robots, sur les mêmes graines (quatre avec « premier ») : **le bâtisseur** (le robot `malin` depuis la tranche 1) ; **le témoin**, le même robot avec la même pièce prise et la même pièce qui sort, qui ne lit pas son banc aux portes (une seule différence) ; **le chiffre**. Les robots achètent une pochette, jouent l'élite et relancent les portes avant qu'une borne se juge. Une borne ne se juge qu'à la taille où elle ne tire pas à pile ou face.
 
 - [x] **La porte 0, le test d'un jour** (13 et 14 nov.) : le simulateur porte les multiplicateurs — `mesure_build` (§ 4). Pas encore une preuve que bâtir paie (§ 10).
 - [x] **La porte 0 bis, à la difficulté livrée** (14 nov., deux juges de 256 graines neuves chacun) : seuls les signés comptent, les seuils reposés, le témoin à une seule différence, leur coach en séries, la relance payée — `mesure_build`, cinq critères verts au second juge (bâtir paie à +21,9 points pour un bruit de ±4,8 ; 32 % de runs qui explosent ; 10 Coupes sur 64). Les jetons (97 en caisse) et les pièces d'origine restent ouverts, à leurs lignes.
-- [ ] **Bâtir paie** : sur 256 graines, en paires, le bâtisseur tient plus de cibles que le témoin, au-delà de deux écarts-types — `mesure_run`.
-- [ ] **Dur, mais ça explose, et les séries sont le mur** (JP, 14 nov.) : 15 à 35 % des runs du bâtisseur jouent l'acte III à 75 % de chance ou plus ; il gagne la Coupe 4 à 12 fois sur 64, jamais avant sa troisième run en médiane ; une run qui explose gagne la Coupe moins d'une fois sur deux ; « premier » gagne au plus 2 fois — `mesure_run` (256 graines).
-- [ ] **La cote seule ne suffit plus** : le robot du chiffre tient la cible de l'acte III au plus une fois sur trois — `mesure_run`.
-- [ ] **Plus d'un build gagne** : sur 256 graines, au moins cinq pièces différentes sont la plus forte d'un banc qui tient ses trois cibles, aucune dans plus de 40 % d'entre eux, dont une d'origine au moins ; chaque coach tient ses cibles à dix points de la moyenne (384 graines, à la main) — `mesure_run`.
-- [ ] **Chaque pièce vit** : dans les runs du bâtisseur qui la portent, chaque pièce atteint sa première marche plus d'une fois sur deux et sa deuxième dans 10 à 60 % (256 graines) — `mesure_run`.
-- [ ] **Chaque pièce joue ce qu'elle dit** : en paires contre un banc vide, le moteur reçoit exactement le facteur de sa marche, rien sous son premier seuil, le produit d'un canal sous sa borne, et la pièce se voit dans la feuille — `check_pouvoirs` (réécrit).
-- [ ] **Les jetons servent** : une run du bâtisseur finit avec moins de 40 jetons en caisse (106 aujourd'hui) — `mesure_run`.
+- [x] **Bâtir paie** : sur 256 graines, en paires, le bâtisseur tient plus de cibles que le témoin, au-delà de deux écarts-types — `mesure_run`. *Tranche 1 : 74 % contre 56 %, +18,8 points, bruit ±4,9.*
+- [x] **Dur, mais ça explose, et les séries sont le mur** (JP, 14 nov.) : 15 à 35 % des runs du bâtisseur jouent l'acte III à 75 % de chance ou plus ; il gagne la Coupe 4 à 12 fois sur 64, jamais avant sa troisième run en médiane ; une run qui explose gagne la Coupe moins d'une fois sur deux ; « premier » gagne au plus 2 fois — `mesure_run` (256 graines). *Tranche 1 : 24,6 % de runs qui explosent ; la Coupe 9 fois sur 64, la première à la run 5 en médiane ; une run qui explose la gagne 23 fois sur 63 ; « premier » aucune (leur banc à 1 · 2 · 3 pièces ; à 2 · 3 · 4, la Coupe tombait à 3 sur 64).*
+- [x] **La cote seule ne suffit plus** : le robot du chiffre tient la cible de l'acte III au plus une fois sur trois — `mesure_run`. *Tranche 1 : 14 fois sur 100.*
+- [x] **Plus d'un build gagne** : sur 256 graines, au moins cinq pièces différentes sont la plus forte d'un banc qui tient ses trois cibles, aucune dans plus de 40 % d'entre eux — `mesure_run`. *Tranche 1 : huit pièces, la plus fréquente 24 fois sur 112.* « Dont une d'origine au moins » attend le retour de l'origine (tranche 3).
+- [ ] **Chaque coach** tient ses cibles à dix points de la moyenne (384 graines, à la main) — `mesure_run`. *À 256 graines, imprimé : de 66 à 82 % pour 74 % en moyenne.*
+- [x] **Chaque pièce vit** : dans les runs du bâtisseur qui la portent, chaque pièce atteint sa première marche plus d'une fois sur deux (256 graines) — `mesure_run`. *Tranche 1 : de 74 à 99 %.*
+- [ ] **Aucune marche d'office** : sa deuxième marche dans 10 à 60 % des bancs — `mesure_run`. *Tranche 1, rouge : de 53 à 93 % ; les seuils se reposent à la tranche 1 ter.*
+- [x] **Chaque pièce joue ce qu'elle dit** : en paires contre un banc vide, le moteur reçoit exactement le facteur de sa marche, rien sous son premier seuil, le produit d'un canal sous sa borne, et la pièce se voit dans la feuille — `check_pouvoirs` (réécrit).
+- [ ] **Les jetons servent** : une run du bâtisseur finit avec 40 jetons ou moins en caisse (106 avant la V29) — `mesure_run`. *Tranche 1, rouge : 98 ; JP, 14 nov. : une carte se monte au marché en jetons (tranche 1 ter).*
 - [ ] **Un cran coûte encore** : la part des cibles tenues baisse d'un cran d'exigence au suivant — `CRANS=1 GRAINES=128 mesure_run`, à la tranche 1.
-- [ ] **La run** : trois pièces avant la première porte ; la même graine rejoue la même run ; une run gardée d'avant se rouvre — `check_run`, `check_sauvegardes`.
+- [x] **La run** : trois pièces avant la première porte ; la même graine rejoue la même run ; une run gardée d'avant s'arrête et verse ses médailles une fois (JP, 14 nov.) — `check_run`, `check_scene`.
 - [ ] **Les scènes** : le camp, la porte, l'échange et le banc tiennent à 390 × 844 sans défiler, le pire cas semé (cinq pièces touchées par un échange) ; une semaine de bâtisseur (une autre porte, un autre joueur, un autre sortant) en neuf touchers — `check_scene`, `essai_run`.
-- [ ] **Le moteur ne bouge pas** : le 82-0 se rejoue au but près — `check_empreinte`, `check_couches`.
-- [ ] Pas une couche de peinture : ce qui part est parti, le jeu retire au moins une ligne pour deux ajoutées — `check_refonte`.
-- [ ] Rien de mort — `check_mort`.
+- [x] **Le moteur ne bouge pas** : le 82-0 se rejoue au but près — `check_empreinte`, `check_couches`.
+- [x] Pas une couche de peinture : ce qui part est parti, le jeu retire au moins une ligne pour deux ajoutées — `check_refonte` (tranche 1, sur `docs/refonte-v29-1.md` : les seize noms partis).
+- [x] Rien de mort — `check_mort`.
 - [ ] À juger par JP à l'essai : une porte donne envie de l'ouvrir pour ce que ton banc compte ; une marche qui s'allume se sent ; perdre fait dire « j'aurais dû ».
 
 ## Les tranches
@@ -327,11 +336,15 @@ Trois robots, sur les mêmes graines : **le bâtisseur** ; **le témoin**, le m�
 
 **0 bis. La mesure à la difficulté livrée** (avant qu'une ligne du jeu parte). `scripts/mesure_build.mjs` repris : seuls les signés comptent, les seuils reposés, le témoin propre (une seule différence), leur coach qui compte ses joueurs à la marche de sa ronde, la relance des portes payée, l'acte III et les séries montés, 256 graines neuves. *Le joueur ne voit rien.* Juge : la porte 0 bis. Rouge, on règle les pièces et les seuils ici, pas dans le jeu.
 
-**1. Le banc qui compte.** `js/pieces.js` réécrit, le banc posé une fois par match, les deux choix du camp (par la scène de la pièce offerte), la relance des portes payée, le robot bâtisseur, la difficulté de la tranche 0 bis, `check_pouvoirs` réécrit, le § 7 parti. Les scènes d'aujourd'hui montrent les pièces neuves sans changer de plan. Juge : `mesure_run`, `check_pouvoirs`, `check_run`, `check_refonte`, `check_scene`, `essai_run`.
+**1. Le banc qui compte** (fait, 14 nov., `docs/refonte-v29-1.md`). `js/pieces.js` réécrit, le banc posé une fois par match, les deux choix du camp (par la scène de la pièce offerte), la relance des portes payée, le robot bâtisseur, la difficulté de la tranche 0 bis, leur banc en séries, `check_pouvoirs` réécrit, le § 7 parti. Les scènes d'aujourd'hui montrent les pièces neuves sans changer de plan. Juge : `mesure_run`, `check_pouvoirs`, `check_run`, `check_refonte`, `check_scene`, `essai_run`.
+
+**1 bis. Le plan du duel part** (JP, 14 nov.). La feuille du duel montre leur intention, ton banc et le leur ; les plans, leurs lignes à l'écran, le choix du robot et leur juge partent, nommés au § 7 avant le code. Juge : `check_refonte`, `check_gros`, `check_scene`, `essai_run`, `mesure_run`.
+
+**1 ter. Le marché monte une carte** (JP, 14 nov.). Au marché, des jetons montent d'une édition la carte d'un signé ; son prix se pose à JP avec sa mesure ; les seuils reposés (aucune marche d'office), le prix d'une pièce et la récompense de l'élite remesurés, une pochette achetée par les robots. Juge : `mesure_run` à 256 graines (40 jetons ou moins en caisse, la Coupe toujours 4 à 12 sur 64).
 
 **2. Lire son banc à l'écran.** La porte fermée qui dit ce qu'elle nourrit, la porte ouverte triée (sur capture, JP tranche), le coin d'une carte, la sortie proposée et le banc avant et après à l'échange, le moment où une marche s'allume, la scène du Banc avec ses comptes et ses marches, le match et l'après-match, la fin de run. Juge : `check_scene`, `essai_run`, JP à l'essai.
 
-**3. Du contenu, et ce qui reste nommé.** Des pièces de plus dans les deux sortes, une à la fois, chacune mesurée ; le rival, remesuré, et sa question reposée à JP ; le plan du duel ; la pochette Époque.
+**3. Du contenu, et ce qui reste nommé.** Des pièces de plus dans les deux sortes, une à la fois, chacune mesurée (l'origine d'abord) ; le rival, remesuré (son match décide la cible dans 396 actes sur 752), et sa question reposée à JP ; la pochette Époque.
 
 ## 10. La revue du 14 nov. 2026 — « À reprendre »
 

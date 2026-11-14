@@ -11,7 +11,7 @@
  * 4. Une saison n'a plus aucun gros match : les rivaux des actes, posés dans la cédule de l'ancien Rogue, sont partis
  *    avec elle (V28, tranche 4). La run en carte joue ses duels en matchs isolés (`simulerGrosMatch` : `check_duel`,
  *    `check_run`).
- * 5. En séries d'une run, leur coach (V23 F).
+ * 5. En séries d'une run, leur banc (V29).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,7 +20,7 @@ import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde, creerSeries, jouerMatchSeries, simulerGrosMatch,
   activeLineup, playGame, grainerHasard, feuilleVierge,
 } from '../js/sim.js';
-import { PIECE_DU_COACH, persoAdverse, COACH_DU_STYLE, OMBRE } from '../js/pieces.js';
+import { BANC_DES_SERIES, persoAdverse, bancDuMatch, COACH_DU_STYLE } from '../js/pieces.js';
 import { COACHS } from '../js/coachs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -136,65 +136,46 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
 }
 
 /*
- * LEUR COACH EN SÉRIES (V23 F, js/pieces.js `persoAdverse`). Dans une ligue de Rogue, chaque adversaire des séries
- * porte un coach-personnage pur — une philosophie lue sur son style ou tirée de son nom —, dont la pièce de départ joue sa
- * condition et son ombre le reste du temps ; la feuille le note (`ombre`) ; en saison, rien. Neutre en V : en paires
- * sur les mêmes dés, un match de séries contre un club avec son coach et sans, `N_LEUR` matchs par club, l'écart reste
- * sous `NEUTRE_V` victoires par saison (la difficulté de l'adversaire ne bouge pas, `.claude/rules/rogue.md`).
+ * LEUR BANC EN SÉRIES (V29, js/pieces.js `persoAdverse` ; JP, 14 nov. 2026 : « les séries sont le mur »). L'adversaire
+ * d'une série porte un vrai banc, qui grandit à chaque ronde et compte tout son club : sa philosophie se lit sur son style,
+ * pure ; ses pièces qui ont atteint une marche sont notées à la feuille aux trois périodes ; et ce banc te coûte des buts,
+ * davantage en finale qu'à la première ronde — en paires sur les mêmes dés, `N_LEUR` matchs par club. (Le coach d'une
+ * seule pièce et son ombre, neutres en victoires, sont partis avec le banc à conditions.)
  */
 {
-  // Ta série d'une ligue de Rogue jouée sous `graine` : ton club dans les seize, quel que soit son rang.
-  const maSerie = graine => {
-    const teams = ligue(9800);
-    const res = simulateLeague(teams, 82, { graine, decisions: [], courbe: true });
-    const top = [teams[0], ...(res.standings || teams).filter(t => t !== teams[0])].slice(0, 16);
-    const enSaison = teams.filter(t => !t.isPlayer && t.perso).length;
-    const S = creerSeries(top, { ligue: res.ligue || null, graine, decisions: [], equipes: teams });
-    const avecCoach = teams.filter(t => !t.isPlayer && t.persoSeries && PIECE_DU_COACH[t.persoSeries.cle] && t.persoSeries.adverse).length;
-    for (let garde = 0; !S.fini && garde < 200; garde++) jouerMatchSeries(S);
-    const toi = teams[0];
-    const mienne = S.toutes.filter(x => x.A === toi || x.B === toi);
-    // Chaque note porte la pièce du coach de CETTE série : ton club peut passer une ronde et changer d'adversaire.
-    const notes = mienne.flatMap(x => x.feuilles.flatMap(f => (f.pieces || []).filter(n => n.cote === (x.A === toi ? 'B' : 'A'))
-      .map(n => ({ ...n, attendue: PIECE_DU_COACH[(x.A === toi ? x.B : x.A).persoSeries.cle] }))));
-    return { teams, toi, enSaison, avecCoach, mienne, notes };
-  };
-  const { teams, toi, enSaison, avecCoach, mienne } = maSerie('leur-coach');
-  // Une seule série peut ne jamais lire la condition de leur pièce (cinq matchs contre le Frelon) : trois séries, trois graines fixes.
-  const series3 = [maSerie('leur-coach'), maSerie('leur-coach-2'), maSerie('leur-coach-3')];
-  const notes = series3.flatMap(x => x.notes), matchs3 = series3.reduce((a, x) => a + x.mienne.reduce((b, y) => b + y.feuilles.length, 0), 0);
-  const styles = new Set(teams.filter(t => t.persoSeries).map(t => t.persoSeries.cle));
-  const duStyle = teams.filter(t => t.persoSeries && COACH_DU_STYLE[t.style]);
-  exiger('leur philosophie se lit sur le style du club (offensif, défensif, robuste), pure', duStyle.length > 0 && duStyle.every(t => t.persoSeries.cle === COACH_DU_STYLE[t.style]) && teams.filter(t => t.persoSeries).every(t => persoAdverse(t).cle === t.persoSeries.cle),
-    `${duStyle.length} clubs au style marqué · l'ombre joue l'inverse à ×${OMBRE}`);
-  exiger('en séries, chaque adversaire a son coach-personnage (une pièce), aucun en saison, et le tien reste le tien', avecCoach === teams.length - 1 && enSaison === 0 && !toi.persoSeries,
-    `${avecCoach} coachs adverses · ${[...styles].map(c => COACHS[c].ico).join(' ')} · ${mienne.length ? `ta série contre ${COACHS[(mienne[0].A === toi ? mienne[0].B : mienne[0].A).persoSeries.cle].nom}` : 'pas de série (hors des 16)'}`);
-  exiger('leur pièce joue sa condition et son ombre le reste du temps, la feuille le note', series3.every(x => x.mienne.length > 0) && notes.some(n => !n.ombre) && notes.some(n => n.ombre) && notes.every(n => n.attendue === n.cle),
-    `${notes.filter(n => !n.ombre).length} périodes jouées, ${notes.filter(n => n.ombre).length} à l'ombre sur ${matchs3} matchs de trois séries`);
-  // Neutre en V : le même match de séries, mêmes dés, leur coach contre aucun.
-  const N_LEUR = Number(process.env.N_LEUR ?? 60), NEUTRE_V = 1.5;
-  let d = 0, n = 0, joues = 0;
-  // Les mêmes clubs que la ligue, neufs à chaque match (deux clubs, pas trente-deux).
+  const teams = ligue(9800);
+  simulateLeague(teams, 82, { graine: 'leur-banc', decisions: [] });   // une saison jouée pose le style de chaque club
+  const adversaires = teams.slice(1, 9), marques = adversaires.filter(t => COACH_DU_STYLE[t.style]);
+  exiger('leur philosophie se lit sur le style du club (offensif, défensif, robuste), pure', marques.length > 0 && marques.every(t => persoAdverse(t, 0).cle === COACH_DU_STYLE[t.style]) && adversaires.every(t => persoAdverse(t, 1).banc.join() === persoAdverse(t, 1).banc.join() && COACHS[persoAdverse(t, 2).cle]),
+    `${marques.length} clubs au style marqué sur ${adversaires.length}`);
+  exiger(`leur banc grandit à chaque ronde : ${BANC_DES_SERIES.join(', ')} pièces`, adversaires.every(t => BANC_DES_SERIES.every((n, r) => persoAdverse(t, r).banc.length === n)), `${adversaires.length} clubs`);
+  // En paires : le même match de séries, les mêmes dés, leur banc de la ronde contre aucun.
+  const N_LEUR = Number(process.env.N_LEUR ?? 40);
   const vest = t => ({ tag: t.tag, s: t.season, un: equipeReelle(t.season, t.tag) });
-  const v0 = vest(teams[0]);
-  for (let i = 1; i < Math.min(teams.length, 9); i++) for (let g = 0; g < N_LEUR; g++) {
+  const v0 = vest(teams[0]), parRonde = BANC_DES_SERIES.map(() => ({ d: 0, n: 0, notes: 0, attendues: 0, fausses: 0 }));
+  for (let i = 1; i <= adversaires.length; i++) for (let g = 0; g < N_LEUR; g++) for (let ronde = 0; ronde < BANC_DES_SERIES.length; ronde += BANC_DES_SERIES.length - 1) {
     const vi = vest(teams[i]);
-    const jouer = coach => {
+    const jouer = banc => {
       const you = eq(teams[0].name, v0.tag, v0.un, v0.s), adv = eq(teams[i].name, vi.tag, vi.un, vi.s);
       you.isPlayer = true; you.courbe = true; adv.style = teams[i].style;
       you.luck = 0; adv.luck = 0; you.jourCourant = 0; adv.jourCourant = 0;
-      adv.persoSeries = coach ? persoAdverse(adv) : null;
+      adv.persoSeries = banc ? persoAdverse(adv, ronde) : null;
+      const attendu = banc ? bancDuMatch(adv.persoSeries, Object.values(adv.roster).filter(Boolean)).filter(x => x.marche > 0) : [];
       grainerHasard(`leur:${i}:${g}`);
       const f = feuilleVierge();
       const r = g % 2 ? playGame(adv, you, 1, false, true, f) : playGame(you, adv, 1, false, true, f);
-      const gf = g % 2 ? r.gfB : r.gfA, ga = g % 2 ? r.gfA : r.gfB;
-      return { net: gf - ga, notes: f.pieces.filter(x => x.cote === (g % 2 ? 'A' : 'B')).length };
+      const gf = g % 2 ? r.gfB : r.gfA, ga = g % 2 ? r.gfA : r.gfB, notes = f.pieces.filter(x => x.cote === (g % 2 ? 'A' : 'B'));
+      return { net: gf - ga, notes, attendu };
     };
-    const a = jouer(false), b = jouer(true);
-    d += b.net - a.net; n++; joues += b.notes;
+    const a = jouer(false), b = jouer(true), R = parRonde[ronde];
+    R.d += b.net - a.net; R.n++; R.notes += b.notes.length; R.attendues += 3 * b.attendu.length;
+    if (b.notes.some(x => !b.attendu.some(y => y.cle === x.cle && y.marche === x.marche))) R.fausses++;
   }
-  const v = (d / n) * 82 / 6;
-  exiger(`leur coach est neutre en V sur une saison (à ${String(NEUTRE_V).replace('.', ',')} V près, ${n} matchs de séries en paires)`, Math.abs(v) <= NEUTRE_V && joues === n * 3, `${v >= 0 ? '+' : ''}${v.toFixed(2)} V pour toi · ${joues} périodes notées sur ${n * 3}`);
+  const premiere = parRonde[0], finale = parRonde[parRonde.length - 1];
+  exiger('leurs pièces qui ont atteint une marche sont notées à la feuille, aux trois périodes, à leur marche', [premiere, finale].every(R => R.notes === R.attendues && R.attendues > 0 && !R.fausses),
+    `${premiere.notes} notes à la première ronde, ${finale.notes} en finale, sur ${premiere.n} matchs chacune`);
+  exiger('leur banc est le mur : il te coûte des buts, et davantage en finale qu\'à la première ronde', premiere.d < 0 && finale.d < premiere.d,
+    `${(premiere.d / premiere.n).toFixed(2)} but par match à la première ronde, ${(finale.d / finale.n).toFixed(2)} en finale (${premiere.n} matchs en paires)`);
 }
 
 verdict('Les gros matchs');

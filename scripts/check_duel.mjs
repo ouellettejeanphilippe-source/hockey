@@ -1,16 +1,15 @@
 /*
  * LE DUEL À UN CHOIX (V27, tranche 6 ; docs/refonte-v27.md § 4.7, docs/refonte-v27-6a.md). En Rogue, le gros match se
  * joue en trois périodes ; avant chacune, l'adversaire annonce son intention (son plan, qui vise tes joueurs). Ta
- * réponse est UN choix avant le match : un plan fort parmi deux ou trois que ton banc propose (`plansDuDuel`,
+ * réponse est UN choix avant le match : un plan fort parmi les trois que ton coach propose (`plansDuDuel`,
  * js/impact.js), chiffrés contre leur jeu (`leurJeuDuDuel`, js/greffes.js), ou Ton match. Ce juge :
  *   1. le duel a trois périodes, chacune son intention ; le plan pris avant le match joue les trois, Ton match aucune
  *      (sa feuille est celle d'un duel sans plan), et un plan ne laisse rien derrière lui ;
  *   2. leur jeu, avant le match : sans dominante, l'intention que le moteur joue en 1re ; avec, la dominante ;
  *   3. LA DOMINANTE : un rival qui en a une l'annonce plus souvent que chacune des quatre autres ;
- *   4. le banc propose deux ou trois plans distincts, chacun en vraies stats du match, tirés de ses pièces ou du coach ;
- *   5. AUCUN TRIO DOMINÉ : chaque trio de plans que le banc peut proposer (dix, sur les cinq plans de la banque de pièces),
- *      deux clubs égaux, n'a aucun plan meilleur ou égal aux deux autres contre chacune des cinq intentions et meilleur
- *      contre une — un vrai choix, qui dépend de leur jeu ;
+ *   4. ton coach propose trois plans distincts, chacun en vraies stats du match ;
+ *   5. AUCUN PLAN QUI GAGNE D'OFFICE (V29 : les plans viennent du coach, plus d'une pièce de banc) : pour chaque
+ *      philosophie, le meilleur plan proposé n'est pas le même contre les cinq intentions ;
  *   6. LA MESURE : deux clubs égaux — deux copies du même vrai club, ton banc posé —, le même duel au meilleur plan
  *      (l'attentif, ce que l'écran propose) contre « Ton match » tout le long, sur les mêmes dés (SEMÉS : la graine de
  *      chaque match), à domicile et au loin. Mis en face à face (l'écart de leurs logits contre la même IA), le meilleur
@@ -22,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulerGrosMatch } from '../js/sim.js';
 import { leurJeuDuDuel, INTENTIONS, PERIODES_DU_DUEL, PLANS } from '../js/greffes.js';
 import { plansDuDuel } from '../js/impact.js';
+import { COACHS } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { robotDuel } from './lib/duel.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -31,10 +31,8 @@ const FILS = Math.max(1, Number(process.env.FILS ?? 2));
 const TRIOS = process.env.TRIOS !== '0';
 const ICI = fileURLToPath(import.meta.url);
 
-/* Le banc de l'essai : un coach du Frelon et quatre pièces qui ont un plan (tirer, fermer, forechecker, discipliné). */
-const BANC = { cle: 'essaim', maitrise: 1, banc: ['ruee', 'canonnier', 'mur', 'cogneur', 'moine'] };
-/* La pièce de chaque plan (js/impact.js `PLAN_DE_LA_PIECE`) : un banc fait d'elles seules propose ces plans-là. */
-const PIECE_DU_PLAN = { tirer: 'canonnier', centre: 'mur', assaut: 'cogneur', discipline: 'moine', ombre: 'vedettiste' };
+/* Le banc de l'essai : un coach du Frelon et sa pièce de départ (V29 : les plans viennent du coach, plus d'une pièce). */
+const BANC = { cle: 'essaim', maitrise: 1, banc: ['gros'] };
 const equipe = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
 /* Deux copies d'un même vrai club : toi (Rogue, ton banc) et l'IA. */
 function deuxClubs(s, t, perso = BANC) {
@@ -138,7 +136,7 @@ console.log(`\n  Le duel à un choix (V27, tranche 6) · ${N} matchs par club et
   }
   exiger('avec une dominante, leur jeu annoncé est elle', annonce === 5, `${annonce} sur 5`);
   exiger('la dominante sort plus souvent que chacune des quatre autres', devant === 5, `${devant} sur 5 · sa part des périodes : ${parts.join(' · ')}`);
-  // 4. Le banc propose deux ou trois plans distincts, en stats du match, de ses pièces ou du coach.
+  // 4. Ton coach propose trois plans distincts, en stats du match.
   let bonnes = 0;
   const cles = Object.keys(INTENTIONS);
   for (let i = 0; i < 10; i++) {
@@ -146,28 +144,24 @@ console.log(`\n  Le duel à un choix (V27, tranche 6) · ${N} matchs par club et
     const pr = plansDuDuel(toi, adv, { intention: I });
     if (pr.length >= 2 && pr.length <= 3 && new Set(pr.map(x => x.cle)).size === pr.length && pr.every(x => PLANS[x.cle] && x.cle !== 'match' && x.stats && x.qui && x.plan)) bonnes++;
   }
-  const seul = deuxClubs(s, t, { cle: 'essaim', maitrise: 1, banc: ['ruee'] });
+  const seul = deuxClubs(s, t, { cle: 'essaim', maitrise: 1, banc: [] });
   const deSeul = plansDuDuel(seul.toi, seul.adv, { intention: leurJeuDuDuel(seul.toi, seul.adv, { dominante: 'assaut' }) });
-  exiger('le banc propose deux ou trois plans distincts, chacun en vraies stats du match', bonnes === 10, `${bonnes} sur 10`);
-  exiger('un banc sans pièce à plan : le coach propose le sien et complète par ce qui répond à leur jeu', deSeul.length === 2 && deSeul[0].cle === 'tirer' && deSeul.every(x => x.qui.genre === 'coach'),
+  exiger('ton coach propose trois plans distincts, chacun en vraies stats du match', bonnes === 10, `${bonnes} sur 10`);
+  exiger('le coach propose son plan d\'abord et complète par ce qui répond à leur jeu', deSeul.length >= 2 && deSeul.length <= 3 && deSeul[0].cle === 'tirer' && deSeul.every(x => x.qui.genre === 'coach'),
     deSeul.map(x => `${PLANS[x.cle].ico} ${PLANS[x.cle].nom}`).join(' · '));
 }
 
-/* ---------- 5 : aucun trio dominé ---------- */
+/* ---------- 5 : aucun plan qui gagne d'office ---------- */
 if (TRIOS) {
-  const [, s, t] = TEMOINS[0];
-  const cles = Object.keys(PIECE_DU_PLAN), intentions = Object.keys(INTENTIONS);
-  const trios = [];
-  for (let a = 0; a < 5; a++) for (let b = a + 1; b < 5; b++) for (let c = b + 1; c < 5; c++) trios.push([cles[a], cles[b], cles[c]]);
-  const domines = [];
-  for (const trio of trios) {
-    const { toi, adv } = deuxClubs(s, t, { cle: 'aucun', banc: trio.map(k => PIECE_DU_PLAN[k]) });
-    const net = {};
-    for (const I of intentions) for (const x of plansDuDuel(toi, adv, { intention: leurJeuDuDuel(toi, adv, { dominante: I }), n: 1500 })) (net[x.cle] = net[x.cle] || {})[I] = x.net;
-    const domine = trio.find(p => trio.every(q => q === p || (intentions.every(I => net[p][I] >= net[q][I]) && intentions.some(I => net[p][I] > net[q][I]))));
-    if (domine) domines.push(`${trio.map(k => PLANS[k].ico).join('')} : ${PLANS[domine].nom}`);
+  // V29 : les plans viennent du coach. Pour chaque philosophie, le meilleur plan proposé n'est pas le même contre les cinq
+  // intentions : sinon le choix du duel serait un faux choix.
+  const [, s, t] = TEMOINS[0], intentions = Object.keys(INTENTIONS), domines = [];
+  for (const coach of Object.keys(COACHS)) {
+    const { toi, adv } = deuxClubs(s, t, { cle: coach, maitrise: 1, banc: [] });
+    const meilleurs = intentions.map(I => plansDuDuel(toi, adv, { intention: leurJeuDuDuel(toi, adv, { dominante: I }), n: 1500 }).slice().sort((a, b) => b.net - a.net)[0].cle);
+    if (new Set(meilleurs).size < 2) domines.push(`${COACHS[coach].ico} ${PLANS[meilleurs[0]].nom}`);
   }
-  exiger('aucun trio de plans n\'a un plan qui domine les deux autres sur les cinq intentions', !domines.length, domines.length ? domines.join(' · ') : `${trios.length} trios, chacun un vrai choix`);
+  exiger('pour chaque coach, le meilleur plan proposé n\'est pas le même contre les cinq intentions', !domines.length, domines.length ? domines.join(' · ') : `${Object.keys(COACHS).length} coachs, chacun un vrai choix`);
 }
 
 /* ---------- 6 : la mesure ---------- */

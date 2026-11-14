@@ -22,11 +22,11 @@
  */
 import {
   SLOTS, CAP, SONNE, SONNES_ELITE, createTeam, autoRoster, registerHiddenRatings, getHiddenRatings, getPersonKey, getPlayerKey, teamStrength,
-  avecHasardIsole, feuilleVierge, playGame, simulerGrosMatch, activeLineup, depenserEnergie, recupererEnergie, energieDe, fits, accordsDeLigne, tirsTotal, effetsDesJoueurs, momentsDuSoir, remettreAZero } from './sim.js';
+  avecHasardIsole, feuilleVierge, playGame, simulerGrosMatch, activeLineup, depenserEnergie, recupererEnergie, energieDe, fits, accordsDeLigne, tirsTotal, effetsDesJoueurs, remettreAZero } from './sim.js';
 import { leurJeuDuDuel, appliquerChoix, deDuChoix } from './greffes.js';
 import { HISTOIRES, tirer } from './histoires.js';
 import { faitsDe } from './faits.js';
-import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, piecesOffertes, poserLaPiece, piecesContre, persoAdverse } from './pieces.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, piecesOffertes, poserLaPiece, bancDuMatch, persoAdverse } from './pieces.js';
 import { JETONS, PRIME_COACH_MAX, bouchesTrousDuDepart, habillerLaLigue, chiffresDuSoirDe, ecussonsDesSeries, exigencesDe } from './rogue.js';
 import { REGLES_DU_COACH } from './coachs.js';
 import { MEDAILLES_ACTE, PRIX_PIECE, jeuDuRival, dominanteDe, recompenseDeLElite, perteDeLElite } from './actes.js';
@@ -43,10 +43,11 @@ export const RUN = {
   COEURS: 2,                      // JP, 7 nov.
   PORTES: 3,
   CAMP: 3,                        // les tours de portes avant la première case
+  PIECES_DU_CAMP: 2,              // les pièces de banc choisies au camp, après celle du coach (JP, 14 nov. 2026 : trois pièces au camp)
   RACHAT: 0.5,                    // la part du salaire de celui qui sort qui se libère (JP, 10 nov.)
   ESPACE: 4_000_000,              // l'espace de départ sous le plafond
   DECALAGE: 0.25,                 // les adversaires plus haut parmi tous les clubs, en rang centile
-  ETAPES: [1, 2, 3, 7],           // leurs étapes d'édition aux actes I, II, III et en séries (mesuré le 11 nov. 2026 : le malin 9 Coupes sur 64)
+  ETAPES: [1, 3, 12, 12],         // leurs étapes d'édition aux actes I, II, III et en séries : la difficulté monte tard (V29, jugé le 14 nov. 2026 ; 1 · 2 · 3 · 7 avant que le banc multiplie)
   BANDES: [[0.15, 0.55], [0.3, 0.7], [0.45, 0.85]],   // les bandes de force des portes, en rang centile parmi tous les clubs
   RIVAUX: [0.65, 0.8, 0.92],
   SERIES: [0.82, 1],
@@ -54,6 +55,8 @@ export const RUN = {
   HAUTE: [-0.1, 0.15],            // une affiche haute gagnée : ses portes, depuis le haut de la bande de l'acte
   ELITE: [0.9, 1],                // un club du haut
   PASSER: 6,                      // les jetons d'une porte passée
+  RELANCE: 8,                     // les jetons d'une relance des portes payée ; le double à chaque relance du même soir (JP, 14 nov. 2026)
+  RELANCES_PAYEES: 3,             // au plus, par soir
   JETONS_DU_MATCH: [8, 16],       // une victoire, du bas au haut de la bande
   JETONS_DU_RIVAL: 24,
   POCHETTES: { 'j:bronze': 14, 'j:epoque': 26 },
@@ -176,8 +179,8 @@ export const reglesDe = R => (R && R.regles) || { exigence: 0, cibles: RUN.CIBLE
 const decale = ([a, b]) => [Math.min(0.95, a + RUN.DECALAGE), Math.min(1, b + RUN.DECALAGE)];
 
 /* ---------- la run neuve ---------- */
-/* La version d'une run gardée : 2 depuis que le monde mêle toutes les années (une run d'une seule décennie ne se relit pas). */
-export const VERSION_DE_LA_RUN = 2;
+/* La version d'une run gardée : 3 depuis que le banc compte tes signés (V29 : une run au banc d'avant ne se relit pas) ; 2, le monde de toutes les années. */
+export const VERSION_DE_LA_RUN = 3;
 /*
  * L'EFFECTIF DE DÉPART : les bouche-trous de huit saisons tirées de la graine (js/rogue.js `bouchesTrousDuDepart`, la bande de la V27, les pires
  * contrats), puis ajustés au vrai plafond (JP, oct. 2026 : *de vrais joueurs, trop payés pour leur valeur*) : tant que la
@@ -234,7 +237,12 @@ export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, num
     actes: [], matchs: [], series: null, histoires: [], achats: 0, fin: null,
   };
   for (const p of Object.values(S.roster)) if (p) R.vus.push(getPersonKey(p));
+  // Les bouche-trous du départ sont les premiers vus : ceux qu'on signe ensuite sont tes signés (`signesDe`).
+  R.nBouches = R.vus.length;
   rebatir(S);
+  // LE CAMP COMMENCE PAR TON BANC : deux pièces à choisir, une parmi trois, avant la première porte.
+  R.piecesDuCamp = 0;
+  R.apres = { offertes: piecesOffertes(S.toi.perso, R.graine, 'camp:0') };
   ouvrirLesPortes(S, { bande: RUN.BANDE_DU_CAMP, cle: 'camp0' });
   figer(S);
   return S;
@@ -293,7 +301,7 @@ function resumer(e, dernier) {
     f: { buts: (f.buts || []).map(b => ({ cote: b.cote, instant: b.instant, marqueur: k(b.marqueur), passeurs: (b.passeurs || []).map(k), gardien: k(b.gardien), ...(b.fusillade ? { fusillade: true } : {}) })),
       punitions: (f.punitions || []).map(x => ({ cote: x.cote, instant: x.instant, joueur: k(x.joueur) })),
       physique: (f.physique || []).filter(x => x.type === 'bagarre').map(x => ({ type: x.type, cote: x.cote, minutes: x.minutes, joueur: k(x.joueur), cible: k(x.cible) })),
-      pieces: f.pieces || [], relais: f.relais || [], alignes: { A: ((f.alignes || {}).A || []).map(k), B: ((f.alignes || {}).B || []).map(k) }, gardienA: k(f.gardienA), gardienB: k(f.gardienB),
+      pieces: f.pieces || [], alignes: { A: ((f.alignes || {}).A || []).map(k), B: ((f.alignes || {}).B || []).map(k) }, gardienA: k(f.gardienA), gardienB: k(f.gardienB),
       // Les tirs du dernier match seulement : qui gardait, de quel côté (le fait du gardien, js/vie-gm.js `joueurDuFait`).
       ...(dernier ? { lancers: (f.lancers || []).map(l => [l.cote, k(l.gardien)]) } : {}) } };
 }
@@ -304,7 +312,7 @@ function relire(e, mien, autre, club) {
   return { jour: e.jour, n: e.n, cote: e.cote, win: e.win, gf: e.gf, ga: e.ga, adv: c ? c.team : null, gardien: mien(e.gardien),
     feuille: { buts: f.buts.map(b => ({ ...b, marqueur: de(b.cote)(b.marqueur), passeurs: b.passeurs.map(de(b.cote)), gardien: contre(b.cote)(b.gardien) })),
       punitions: f.punitions.map(x => ({ ...x, joueur: de(x.cote)(x.joueur) })), physique: f.physique.map(x => ({ ...x, joueur: de(x.cote)(x.joueur), cible: contre(x.cote)(x.cible) })),
-      pieces: f.pieces, relais: f.relais, alignes: { A: f.alignes.A.map(de('A')), B: f.alignes.B.map(de('B')) }, gardienA: de('A')(f.gardienA), gardienB: de('B')(f.gardienB),
+      pieces: f.pieces, alignes: { A: f.alignes.A.map(de('A')), B: f.alignes.B.map(de('B')) }, gardienA: de('A')(f.gardienA), gardienB: de('B')(f.gardienB),
       lancers: (f.lancers || []).map(([cote, g]) => ({ cote, gardien: contre(cote)(g) })) } };
 }
 /* Ton club, rebâti de l'effectif : la même infirmerie, le même journal, ton coach et son banc. */
@@ -314,6 +322,7 @@ export function rebatir(S) {
   toi.courbe = true;
   toi.luck = 0;
   toi.perso = { cle: R.coach.cle, banc: R.banc.slice(), maitrise: R.coach.maitrise || 1, ...(R.coach.n ? { chef: R.coach } : {}) };
+  toi.comptes = () => signesDe(S);
   toi.injured = avant ? avant.injured : S.blesses;
   toi.journal = S.journal;
   // Ce qu'une histoire a posé (js/greffes.js `appliquerChoix`) suit le club : ses effets sur un joueur, ses absents, ses paris.
@@ -392,7 +401,7 @@ function ouvrirLActe(S, a) {
   Object.assign(R, { acte: a, pts: 0, rang: 0, ou: null, case: null, chemin: [], carte: carteDeLActe(S, a), phase: 'annonce', portes: null, apres: null });
 }
 
-/* ---------- les clubs lus : son jeu, son intention, pour le battre ---------- */
+/* ---------- les clubs lus : son jeu, son intention ---------- */
 /*
  * LE JEU D'UN CLUB (js/actes.js `jeuDuRival`) : trois lignes de vraies stats, son rang et le tien parmi les clubs de SA
  * saison ; son style en un mot (`cle`, `mot`) ; pour un duel, son intention dominante ; la pièce qui lui répond. Son style
@@ -410,19 +419,19 @@ export function jeuDe(S, x) {
   const club = clubDe(S, x);
   if (!club) return null;
   const jeu = { ...jeuDuRival([...ligueDe(S, club), S.toi], S.toi, club.team), ...styleDe(S, club) };
-  return { ...jeu, dominante: dominanteDe(jeu, S.R.graine, S.R.acte, club.team), contre: piecesContre([jeu.cle]) };
+  return { ...jeu, dominante: dominanteDe(jeu, S.R.graine, S.R.acte, club.team) };
 }
 
 /* ---------- le soir, dit au moteur ---------- */
 /*
- * Une pièce de banc attend son moment (js/sim.js `MOMENTS_SI`), que le moteur lisait dans la cédule d'une ligue. La run n'a
+ * Une réponse d'histoire attend son moment (js/sim.js `MOMENTS_SI`), que le moteur lisait dans la cédule d'une ligue. La run n'a
  * pas de cédule : elle pose le soir sur les deux clubs le temps d'un match (`poserLeSoir`), puis le lève.
  *   - le rival de l'acte, et le jeu de l'adversaire : son style, le mot de sa case et de son annonce (`jeuDe`) ;
  *   - ta suite : après une défaite, après trois victoires ; ta bête noire : le club qui t'a battu deux fois sans que tu le
  *     battes (une série qui tourne mal) ;
  *   - l'infirmerie : le registre des blessures, compté en matchs de la run (`rebatir`, `guerir`) ;
  *   - le dos-à-dos : les deuxième et troisième matchs de l'acte (`RANGS_DE_DOS_A_DOS`), joués sans jour de repos (`avancer`) ;
- *   - leur coach en séries (V23 F, js/pieces.js `persoAdverse`) : sa pièce de départ, et son ombre hors de sa condition.
+ *   - leur banc en séries (V29, js/pieces.js `persoAdverse`) : 1, 2 puis 3 pièces selon la ronde, qui comptent tout leur club.
  */
 const suiteDe = R => { let n = 0; for (let i = R.matchs.length - 1; i >= 0; i--) { const g = R.matchs[i].gagne; if (n && (n > 0) !== g) break; n += g ? 1 : -1; } return n; };
 function beteNoireDe(R) {
@@ -449,24 +458,31 @@ function poserLeSoir(S, adv) {
   toi.beteNoire = beteNoireDe(R) === cleDuClub(c) ? adv : null;
   adv.sonJeu = [styleDe(S, clubDe(S, c)).cle];
   if (dosADosA(c, R.rang)) toi._jours = [0, 1];
-  if (c.sorte === 'serie') adv.persoSeries = persoAdverse(adv);
+  if (c.sorte === 'serie') adv.persoSeries = persoAdverse(adv, R.series ? R.series.ronde : 0);
 }
 function leverLeSoir(S, adv) { delete S.toi._jours; adv.sonJeu = null; adv.persoSeries = null; }
-/* Leur coach, en séries : sa philosophie et sa pièce (l'écran le nomme sur la feuille du soir). */
-export const leurCoach = (S, c) => (c && c.sorte === 'serie' ? persoAdverse(clubDe(S, c).team) : null);
 /*
- * TES PIÈCES DU SOIR : celles de ton banc dont la condition se lit avant le match (`soir`, js/pieces.js : le lieu, le jeu
- * d'en face, ta suite, le dos-à-dos), contre le club d'une case — les moments tels que le moteur les lira. Une pièce qui
- * attend le pointage (« En 3e, derrière ») ne se sait qu'en jouant.
+ * TES SIGNÉS (JP, 14 nov. 2026 : « seulement tes signés ») : les joueurs de ton effectif que tu as signés dans la run, où
+ * qu'ils soient (habillés, en civil, blessés). Les bouche-trous du départ, les premiers vus de la run, n'en sont pas : ton
+ * banc part de zéro, et chaque marche est à toi.
  */
-export function piecesDuSoir(S, c, rang = S.R.rang) {
-  const R = S.R, avant = [R.case, R.rang], adv = clubDe(S, c).team;
-  R.case = c; R.rang = rang;
-  poserLeSoir(S, adv);
-  const soir = momentsDuSoir(S.toi, adv, activeLineup(S.toi), { chez: !c.visiteur, series: c.sorte === 'serie', jour: 1 });
-  leverLeSoir(S, adv);
-  [R.case, R.rang] = avant;
-  return R.banc.filter(k => PIECES[k] && PIECES[k].soir && PIECES[k].quand({ k: 0, moi: 0, lui: 0, tirsMoi: 0, tirsLui: 0, der: null, series: !!soir.series, gros: c.sorte !== 'match', soir, pieces: [], relais: [] }));
+export function signesDe(S) {
+  const signes = new Set(S.R.vus.slice(S.R.nBouches ?? S.R.vus.length));
+  return CASES.map(s => S.roster[s.i]).filter(p => p && signes.has(getPersonKey(p)));
+}
+/* TON BANC, COMPTÉ : chaque pièce, son compte chez tes signés, sa marche, son multiplicateur (js/pieces.js `bancDuMatch`). `joueurs` : un autre effectif (l'échange qu'on regarde). */
+export const tonBanc = (S, joueurs = signesDe(S)) => bancDuMatch(S.toi.perso, joueurs);
+/*
+ * LEUR BANC, EN SÉRIES : la philosophie de leur coach et ses pièces, chacune comptée sur tout son club, habillé comme il
+ * jouera (l'écran le montre sur la feuille du soir ; le moteur joue le même, `poserLeSoir`).
+ */
+export function leurBanc(S, c) {
+  if (!c || c.sorte !== 'serie') return null;
+  const adv = clubDe(S, c).team;
+  habiller(adv, etapeDe(S.R));
+  const perso = persoAdverse(adv, S.R.series ? S.R.series.ronde : 0), banc = bancDuMatch(perso, Object.values(adv.roster).filter(Boolean));
+  deshabiller(adv);
+  return { cle: perso.cle, banc };
 }
 
 /* ---------- le match ---------- */
@@ -504,7 +520,7 @@ export function chanceCeSoir(S, { n = 40, tranche = 0 } = {}) {
   deshabiller(adv); leverLeSoir(S, adv);
   return { v: R.case.visiteur ? n - vA : vA, n };
 }
-/* Leur intention annoncée et les plans que ton banc propose se lisent par js/impact.js `plansDuDuel` (l'écran) ; ici, leur jeu du duel. */
+/* Leur intention annoncée et les plans que ton coach propose se lisent par js/impact.js `plansDuDuel` (l'écran) ; ici, leur jeu du duel. */
 export const intentionCeSoir = (S, dominante) => leurJeuDuDuel(S.toi, clubDe(S, S.R.case).team, { graine: `run:${S.R.graine}`, cle: cleDuMatch(S.R), dominante });
 /*
  * JOUER LE MATCH de la case en cours. `plan` (un duel) : absent, le robot du club choisit ; null, Ton match ; sinon le plan
@@ -538,7 +554,7 @@ export function jouerLeMatch(S, { plan, dominante = null } = {}) {
  * run sur deux, quatre points dans trois runs sur quatre (d'où cinq), 40 arrêts dans une victoire dans une run sur dix,
  * dix buts et vingt points dans une run sur deux.
  */
-export const GALONS = { CHAPEAU: 3, GRAND_SOIR: 5, MUR: 40, BUTS: 10, POINTS: 20 };
+export const GALONS = { CHAPEAU: 3, GRAND_SOIR: 6, MUR: 40, BUTS: 10, POINTS: 20 };
 function galonsDuSoir(S, res) {
   const R = S.R, f = res.feuille, cote = res.cote, miens = new Set(Object.values(S.roster).filter(Boolean));
   const buts = (f.buts || []).filter(x => !x.fusillade), pour = buts.filter(x => x.cote === cote), contre = buts.length - pour.length;
@@ -554,8 +570,8 @@ function galonsDuSoir(S, res) {
     if (b0 < GALONS.BUTS && c[0] >= GALONS.BUTS) graver(j, 'dixButs', c[0]);
     if (p0 < GALONS.POINTS && c[1] >= GALONS.POINTS) graver(j, 'vingtPoints', c[1]);
   }
-  // Le but gagnant contre un rival : celui qui met ton club un but devant leur compte final.
-  const gagnant = R.case.sorte === 'rival' && res.gagne && pour[contre] ? pour[contre].marqueur : null;
+  // Le but gagnant contre le rival du dernier acte : celui qui met ton club un but devant leur compte final.
+  const gagnant = R.case.sorte === 'rival' && R.acte === ACTES - 1 && res.gagne && pour[contre] ? pour[contre].marqueur : null;
   if (gagnant && miens.has(gagnant)) graver(gagnant, 'bourreau', R.case.t);
   const g = cote === 'A' ? f.gardienA : f.gardienB, arrets = (f.tirs[cote === 'A' ? 'B' : 'A'] || []).reduce((a, x) => a + x, 0) - contre;
   if (res.gagne && g && miens.has(g)) {
@@ -564,8 +580,8 @@ function galonsDuSoir(S, res) {
   }
   return out;
 }
-/* Les pièces de ton banc qui ont joué ce soir (à la feuille, ou en relais). */
-const piecesJouees = (f, cote) => [...new Set([...(f.pieces || []), ...(f.relais || [])].filter(x => x.cote === cote && PIECES[x.cle]).map(x => x.cle))];
+/* Les pièces de ton banc qui ont joué ce soir (celles qui ont atteint une marche). */
+const piecesJouees = (f, cote) => [...new Set((f.pieces || []).filter(x => x.cote === cote && PIECES[x.cle]).map(x => x.cle))];
 /*
  * CONCLURE : le match compte. Les points vers la cible (le rival double), les jetons (la victoire, la règle du coach), l'usure
  * des jambes, le journal du club ; une défaite donne une relance. Puis la phase d'après : les portes ; au rival, la fin de
@@ -617,7 +633,7 @@ function conclureLActe(S, res) {
   const fin = !tenu && (a === ACTES - 1 || R.coeurs <= 0) ? (a === ACTES - 1 ? 'cible' : 'coeurs') : null;
   R.actes.push({ pts: R.pts, cible, tenu, rival: res.gagne, s: R.case.s, t: R.case.t, gf: res.gf, ga: res.ga, medailles, coeur: !tenu && a < ACTES - 1 });
   R.apres = { ...R.apres, acte: true, tenu, fin,
-    offertes: !fin && res.gagne ? piecesOffertes(S.toi.perso, R.graine, `rival${a}`, undefined, { voisines: true }) : [] };
+    offertes: !fin && res.gagne ? piecesOffertes(S.toi.perso, R.graine, `rival${a}`) : [] };
   R.phase = 'finacte';
   figer(S);
   return R.phase;
@@ -637,7 +653,7 @@ export function apresLaFinDActe(S) {
  * OUVRIR LES PORTES : `PORTES` vrais vestiaires de la bande, dont toujours le club affronté (le camp n'en a pas) ; jamais
  * deux fois le même. `R.portes` : { clubs: [{ s, t }], bande, cle, tour } ; `tour` monte à chaque relance.
  */
-function ouvrirLesPortes(S, { bande, affronte = null, cle, tour = 0 }) {
+function ouvrirLesPortes(S, { bande, affronte = null, cle, tour = 0, payees = 0 }) {
   const R = S.R, a = affronte && tour === 0 ? clubDe(S, affronte) : null;
   const pris = new Set(a ? [cleDuClub(a)] : []), clubs = a ? [a] : [];
   const pool = dansLaBande(S.clubs, bande);
@@ -645,7 +661,7 @@ function ouvrirLesPortes(S, { bande, affronte = null, cle, tour = 0 }) {
     const c = pigeDans(pool, R.graine, 'porte', cle, tour, k);
     if (c && !pris.has(cleDuClub(c))) { pris.add(cleDuClub(c)); clubs.push(c); }
   }
-  R.portes = { clubs: clubs.map(c => ({ s: c.s, t: c.t })), bande, cle, tour, affronte: a ? cleDuClub(a) : null };
+  R.portes = { clubs: clubs.map(c => ({ s: c.s, t: c.t })), bande, cle, tour, affronte: a ? cleDuClub(a) : null, ...(payees ? { payees } : {}) };
 }
 /* Qui peut sortir pour lui : ceux de son groupe (avant, défenseur, gardien). */
 export const sortantsPour = (S, p) => CASES.map(s => S.roster[s.i]).filter(x => x && groupeDe(x) === groupeDe(p));
@@ -689,14 +705,34 @@ export function signer(S, p, sortant, { auMieux = false } = {}) {
   return true;
 }
 /* La pièce offerte (le rival battu, l'élite gagnée) est prise ou passée. */
-export function pieceReglee(S) { if (S.R.apres) S.R.apres.offertes = []; figer(S); }
-/* Passer une porte paie ; relancer coûte une relance et tire trois autres vestiaires de la même bande. */
+export function pieceReglee(S) {
+  const R = S.R;
+  if (R.apres) R.apres.offertes = [];
+  // Au camp, avant la première porte : la pièce suivante s'offre, jusqu'à `PIECES_DU_CAMP`.
+  if (R.phase === 'camp' && R.camp === 0 && R.piecesDuCamp != null && R.piecesDuCamp < RUN.PIECES_DU_CAMP) {
+    R.piecesDuCamp++;
+    R.apres = R.piecesDuCamp < RUN.PIECES_DU_CAMP ? { offertes: piecesOffertes(S.toi.perso, R.graine, `camp:${R.piecesDuCamp}`) } : null;
+  }
+  figer(S);
+}
+/* Passer une porte paie. */
 export function passerLesPortes(S) { S.R.jetons += RUN.PASSER; }
-export function relancerLesPortes(S) {
+/*
+ * RELANCER LES PORTES : trois autres vestiaires de la même bande. Une défaite donne une relance ; sinon elle se paie en
+ * jetons (JP, 14 nov. 2026), `RELANCE` puis le double à chaque relance payée du même soir, `RELANCES_PAYEES` au plus.
+ * `prixDeLaRelance` : 0 (une relance gagnée), son prix, ou null (plus aucune ce soir, ou une pochette ouverte).
+ */
+export function prixDeLaRelance(S) {
   const R = S.R, P = R.portes;
-  if (!P || R.relances <= 0) return false;
-  R.relances--;
-  ouvrirLesPortes(S, { bande: P.bande, cle: P.cle, tour: P.tour + 1 });
+  if (!P || P.pochette) return null;
+  if (R.relances > 0) return 0;
+  return (P.payees || 0) >= RUN.RELANCES_PAYEES ? null : RUN.RELANCE * 2 ** (P.payees || 0);
+}
+export function relancerLesPortes(S) {
+  const R = S.R, P = R.portes, prix = prixDeLaRelance(S);
+  if (prix == null || prix > R.jetons) return false;
+  if (prix) R.jetons -= prix; else R.relances--;
+  ouvrirLesPortes(S, { bande: P.bande, cle: P.cle, tour: P.tour + 1, payees: (P.payees || 0) + (prix ? 1 : 0) });
   figer(S);
   return true;
 }
@@ -895,11 +931,13 @@ function conclureLaSerie(S, res) {
  * LA FIN DE LA RUN : sa cause ('coeurs', 'cible' — l'acte III raté —, 'serie', 'coupe', 'quitte'), les médailles de chaque
  * acte et des séries (`ecussonsDesSeries`). Une run perdue rend ses médailles.
  */
+/* Ce qu'une run a gagné en médailles, là où elle en est : ses actes joués et ses rondes de séries, au multiple de son cran. Pur. */
+export const medaillesDe = (R, rondes = R.series ? R.series.faites.length : 0, coupe = false) => Math.round(((R.actes || []).reduce((a, x) => a + (x.medailles || 0), 0) + ecussonsDesSeries(rondes, coupe)) * reglesDe(R).prime);
 export function finir(S, cause) {
   const R = S.R, rondes = R.series ? R.series.faites.length : 0, coupe = cause === 'coupe';
   // La Coupe se grave sur chaque carte de l'effectif qui la gagne.
   if (coupe) R.galons = [...(R.galons || []), ...Object.values(S.roster).filter(Boolean).map(j => ({ k: getPlayerKey(j), n: j.n, type: 'coupe' }))];
-  R.fin = { cause, rondes, coupe, medailles: Math.round((R.actes.reduce((a, x) => a + x.medailles, 0) + ecussonsDesSeries(rondes, coupe)) * reglesDe(R).prime), matchs: R.matchs.length };
+  R.fin = { cause, rondes, coupe, medailles: medaillesDe(R, rondes, coupe), matchs: R.matchs.length };
   R.phase = 'fin';
   figer(S);
   return R.phase;

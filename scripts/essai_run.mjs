@@ -119,7 +119,8 @@ for (let pas = 0; pas < PAS_MAX && !fin; pas++) {
     await toucher('fermer-echange'); await toucher('fermer-porte', null, 500);
     continue;
   }
-  if (await la('prendre-piece')) { vus.add('une pièce offerte'); if (!await toucher('prendre-piece', null, 500)) await toucher('apres-acte'); continue; }
+  // Une pièce offerte (au camp, deux de suite) : banc plein, on touche d'abord celle qui sort.
+  if (await la('prendre-piece')) { vus.add('une pièce offerte'); await toucher('piece-sort', null, 150); if (!await toucher('prendre-piece', null, 500)) await toucher('apres-acte'); continue; }
   if (await toucher('apres-acte', null, 500)) { vus.add('la fin d\'acte'); continue; }
   if (await la('quitter-marche')) {
     vus.add('le marché');

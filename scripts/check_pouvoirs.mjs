@@ -1,118 +1,126 @@
 /*
- * LE BANC DE CINQ (V27, tranche 5 ; docs/refonte-v27.md § 4.6, § 5, § 10 ; docs/refonte-v27-5a.md — js/pieces.js). Les
- * pouvoirs du coach et les adjoints sont devenus une seule famille, *PIECES* : cinq cases pour la run, sans séjour, repos,
- * salaire ni niveau. Ce juge les réécrit tous (ses bornes de 2,5 V, 4 V et 16 V sur une saison sont parties avec eux).
+ * LE BANC QUI COMPTE (V29, tranche 1 ; docs/refonte-v29.md § 3, § 9 — js/pieces.js). Une pièce de banc compte les badges
+ * de tes signés et multiplie un canal du moteur, tout le match, par marches. Ce juge remplace celui du banc à conditions
+ * (V27) : ses bornes en victoires, sa présence par soir et le relais sont partis avec lui.
  * Ce qu'on exige :
- *   1. les tables : chaque pièce a son icône, son nom, sa condition en mots et en fonction, une réplique sans chiffre, des
- *      canaux que le moteur connaît, trois au plus de son côté, deux de l'autre, un relais sur un de SES canaux ; chaque
- *      coach a sa pièce de départ, de sa philosophie ; l'arbitre seul est hors des voies ;
- *   2. le banc, pur : une pièce entre dans la première case libre, jamais deux fois ; plein, elle prend la case de celle qui
- *      sort, et sans elle rien ne bouge ; trois offertes, pures, jamais une déjà posée, celles du rival battu de la
- *      philosophie du coach et de ses voisines ; la maîtrise ne règle que la pièce de départ ; les vrais entraîneurs ;
- *   3. LA PRÉSENCE (§ 4.6) : sur des runs en carte (le robot malin, scripts/lib/run_robot.mjs), chaque pièce se lit 30 à 50 % des soirs
- *      (`PRESENCE`), sauf celles d'un moment rare (`rare` : les séries, le gros match) ; une pièce « pour le battre »
- *      (`contre`) répond à un style que la carte montre et que le chemin choisit : au moins un soir par acte (`CONTRE_MIN`) ;
+ *   1. les tables : chaque pièce a son icône, son nom, ce qu'elle compte en rôles connus et en mots, un canal que le
+ *      moteur lit (tes tirs, ta précision, les leurs), trois seuils qui montent ; aucune ne porte le nom d'un accord de
+ *      ligne ; chaque coach a sa pièce de départ, de sa philosophie, qui compte un rôle de sa couleur ;
+ *   2. le compte, pur : un badge compte son palier, le second badge à moitié ; la marche change exactement à son seuil ;
+ *      rien sous le premier ; la maîtrise ne règle que la pièce de départ ; deux pièces sur un canal se multiplient et le
+ *      produit s'arrête à `BORNE_DU_CANAL` ; une pièce entre dans la première case libre, jamais deux fois ; plein, elle
+ *      prend la case de celle qui sort ; trois offertes, pures, jamais une déjà posée ; leur banc en séries grandit
+ *      (`BANC_DES_SERIES`) et prend les pièces les plus avancées chez eux ;
+ *   3. les vrais entraîneurs (js/coachs-reels.js) ;
  *   4. EN PAIRES, match par match (CLAUDE.md) : deux copies d'un même vrai club, le même match sur les mêmes dés, une fois
- *      avec un banc vide (trois périodes, aucune pièce), une fois avec la pièce seule. Chaque pièce :
- *        a. joue exactement les périodes que sa condition lit dans la feuille (la pièce de la soirée, les trois) ;
- *        b. hors de ses périodes, rien : un match où elle ne joue pas rend la même feuille ;
- *        c. se voit dans la feuille d'un soir où elle joue (±2 tirs, ±0,3 but, ±0,5 punition, ±4 mises en échec, ±3
- *           blessures par saison) ;
- *        d. sur un acte (`ACTE` matchs, à sa présence), n'est jamais un piège (au-dessus de `PIEGE_V`) et rend au plus le
- *           net d'un pouvoir d'avant sur la même durée (`BORNE_ACTE_V` ; l'ultime, son cadre de ★ Phénomène,
- *           `BORNE_ULTIME_V`) : le net d'un adjoint d'aujourd'hui, × 1, jamais × 2,7 (§ 4.6) ;
- *   5. le banc complet (cinq pièces d'un coach) rend au plus `BANC_MAX_V` sur un acte contre un banc vide, et aide ;
- *   6. la saison : la même graine rejoue le même banc ; le coach pose sa pièce de départ ; une décision `piece` entre, le
- *      banc plein laisse partir `sort` ; une vieille décision (`talent`, `xpCoach`, `embauche`, `poste`, `adjoint`,
- *      `staff`, `perdAdjoint`) ne change rien ; la feuille nomme la pièce aux soirs où elle joue.
- * `N` : matchs par club et par pièce (600, quelques minutes sur `FILS` processus). `PIECES=a,b` : quelques pièces.
- * `MESURE=0 N=20` (la CI, une demi-minute) : 1, 2, a, b et 6, sans les chiffres de valeur ni la présence.
+ *      banc vide, une fois avec la pièce seule, à chaque marche. Chaque pièce :
+ *        a. sous son premier seuil, ne change rien : la même feuille, aucune note ;
+ *        b. à une marche, est notée à la feuille aux trois périodes, avec sa marche et son compte ;
+ *        c. se voit dans la feuille, du bon côté : plus de tirs ou de buts pour toi, moins pour eux, et davantage à la
+ *           troisième marche qu'à la première (`MESURE`, à `N` matchs : le bruit d'un petit N le fausserait).
+ * `N` : matchs par club, par pièce et par marche (200 ; une minute). `MESURE=0 N=20` (la CI, quelques secondes) : 1, 2, 3,
+ * 4a et 4b, sans les chiffres de 4c. Ce que le banc vaut dans une run se juge ailleurs : `mesure_run`.
  */
-import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
-import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague, MOMENTS_SI } from '../js/sim.js';
-import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, PIECES_OFFERTES, POIDS_RARE, bancDe, poserLaPiece, piecesOffertes, poidsDuTirage, forceDeLaPiece } from '../js/pieces.js';
+import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, AFFINITES, badgesDe } from '../js/sim.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, PIECES_OFFERTES, MARCHES, BORNE_DU_CANAL, BANC_DES_SERIES, bancDe, poserLaPiece, piecesOffertes, forceDeLaPiece,
+  apportDe, compteDe, marcheDe, seuilSuivant, facteurDe, bancDuMatch, persoAdverse } from '../js/pieces.js';
 import { maitriseDu, niveauDuCoach, carteDuCoach, lotoDesCoachs, DU_CARTABLE } from '../js/coachs-reels.js';
-import { NIVEAUX } from '../js/niveaux.js';
-import { COACHS, VOIES } from '../js/coachs.js';
+import { NIVEAUX, groupeDuJoueur } from '../js/niveaux.js';
+import { COACHS, VOIES, COACH_DU_ROLE } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
-import { jouerLaRun } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
-const N = Number(process.env.N ?? 600);
-/* `MESURE=0` (la CI) : les périodes, la feuille hors des soirs et la saison, sans les chiffres de valeur ni les bornes, que le bruit d'un petit N fausserait. */
+const N = Number(process.env.N ?? 200);
+/* `MESURE=0` (la CI) : sans les chiffres de valeur, que le bruit d'un petit N fausserait. */
 const MESURE = process.env.MESURE !== '0';
-const FILS = Math.max(1, Number(process.env.FILS ?? 4)), ICI = fileURLToPath(import.meta.url);
 const QUELLES = process.env.PIECES ? process.env.PIECES.split(',') : Object.keys(PIECES);
-const VISIBLE = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
-/*
- * LES BORNES D'UNE PIÈCE, sur un acte de `ACTE` matchs (devis § 4.6 et § 5). Un pouvoir I ou II d'avant restait sous 2,5 V
- * sur une saison, l'ultime sous 4 V ; ramenés à un acte au même rythme, 2,5 × ACTE / 82 et 4 × ACTE / 82. Un adjoint d'avant
- * au ★ Étoile (±2,5 V sur ses matchs joués) donne le même plafond : c'est « le net d'un adjoint d'aujourd'hui sur la même
- * durée ». Jamais un piège, et le banc complet sous sa borne.
- * V28, tranche 4 (docs/refonte-v28.md § 10, « Le banc remesuré ») : l'acte de la run en carte fait six matchs (cinq et le
- * rival), plus 27. Le piège (−0,5 V) et le banc complet (+5 V) avaient été posés pour un acte de `ACTE_D_AVANT` soirs : ils
- * se ramènent au même rythme, aucune borne n'est plus lâche par match.
- */
-const ACTE = 6, ACTE_D_AVANT = 27, BUTS_PAR_V = 6;
-const BORNE_ACTE_V = 2.5 * ACTE / 82, BORNE_ULTIME_V = 4 * ACTE / 82, PIEGE_V = -0.5 * ACTE / ACTE_D_AVANT, BANC_MAX_V = 5 * ACTE / ACTE_D_AVANT;
-/* La présence (§ 4.6) : 30 à 50 % des soirs ; une pièce « pour le battre », au moins un soir par acte de `ACTE` matchs. */
-const PRESENCE = [0.3, 0.5], CONTRE_MIN = 1 / ACTE;
-const CANAUX = new Set(['volume', 'finition', 'defense', 'discipline', 'blessure', 'robustesse', 'F', 'energie']);
 const GENRES = new Set(['attaque', 'defense', 'tactique', 'synergie']);
 const somme = a => (a || []).reduce((x, y) => x + y, 0);
-const f1 = (v, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
 
 /* ---------- 1. les tables ---------- */
 {
-  const fautes = [];
+  const fautes = [], accords = new Set(AFFINITES.map(a => a.nom));
+  const roles = new Set(Object.entries(COACH_DU_ROLE).flatMap(([g, r]) => Object.keys(r).map(k => `${g}:${k}`)));
   for (const [k, P] of Object.entries(PIECES)) {
-    if (!P.ico || !P.nom || !P.quandMot || !P.dit || /\d/.test(P.dit) || typeof P.quand !== 'function') fautes.push(`${k} : la forme`);
-    if (!GENRES.has(P.genre) || !(P.cadre >= 0 && P.cadre <= 4)) fautes.push(`${k} : le genre ou le cadre`);
-    const canaux = [...Object.keys(P.canaux || {}), ...Object.keys(P.adv || {})];
-    if (!canaux.length || canaux.some(c => !CANAUX.has(c)) || Object.keys(P.canaux || {}).length > 3 || Object.keys(P.adv || {}).length > 2) fautes.push(`${k} : ${canaux.join(', ')}`);
-    if (P.voie ? !COACHS[P.voie] : k !== 'arbitre') fautes.push(`${k} : sa voie`);
-    if (P.relais && (!P.relais.mot || typeof P.relais.quand !== 'function' || !(P[P.relais.cote] && P[P.relais.cote][P.relais.canal] != null))) fautes.push(`${k} : son relais`);
+    if (!P.ico || !P.nom || !P.qui || accords.has(P.nom)) fautes.push(`${k} : la forme ou le nom d'un accord`);
+    if (!GENRES.has(P.genre) || !(P.cadre >= 0 && P.cadre <= 4) || !COACHS[P.voie]) fautes.push(`${k} : le genre, le cadre ou la voie`);
+    if (!Array.isArray(P.compte) || !P.compte.length || P.compte.some(r => !roles.has(r))) fautes.push(`${k} : ce qu'elle compte`);
+    if (!['canaux', 'adv'].includes(P.cote) || !['volume', 'finition'].includes(P.canal)) fautes.push(`${k} : son canal`);
+    if (!Array.isArray(P.seuils) || P.seuils.length !== MARCHES.length || P.seuils.some((s, i) => !(s > 0) || (i && s <= P.seuils[i - 1]))) fautes.push(`${k} : ses seuils`);
   }
-  exiger(`${Object.keys(PIECES).length} pièces, chacune une condition en mots, une réplique sans chiffre, des canaux connus, un relais sur un de ses canaux`, !fautes.length && Object.keys(PIECES).length >= 30,
+  exiger(`${Object.keys(PIECES).length} pièces, chacune ce qu'elle compte en rôles connus, un canal du moteur, ${MARCHES.length} seuils qui montent, aucun nom d'accord`, !fautes.length && Object.keys(PIECES).length >= 9,
     fautes.slice(0, 4).join(' · ') || Object.values(PIECES).map(P => P.ico).join(''));
-  exiger('chaque coach a sa pièce de départ, de sa philosophie', VOIES.every(c => PIECES[PIECE_DU_COACH[c]] && PIECES[PIECE_DU_COACH[c]].voie === c) && Object.keys(PIECE_DU_COACH).length === VOIES.length,
-    VOIES.map(c => `${COACHS[c].ico}${PIECES[PIECE_DU_COACH[c]] ? PIECES[PIECE_DU_COACH[c]].ico : '?'}`).join(' '));
+  exiger(`${MARCHES.length} marches qui montent, chacune plus que la précédente (la concentration paie)`, MARCHES.every((m, i) => m > 0 && (!i || m > MARCHES[i - 1])) && MARCHES[1] - MARCHES[0] > MARCHES[0] && MARCHES[2] - MARCHES[1] > MARCHES[1] - MARCHES[0], MARCHES.join(' · '));
+  // La pièce de départ d'un coach compte au moins un rôle de sa couleur (js/coachs.js `COACH_DU_ROLE`).
+  const deSaCouleur = c => PIECES[PIECE_DU_COACH[c]].compte.some(r => { const [g, role] = r.split(':'); return COACH_DU_ROLE[g][role] === c; });
+  exiger('chaque coach a sa pièce de départ, de sa philosophie, qui compte un rôle de sa couleur', VOIES.every(c => PIECES[PIECE_DU_COACH[c]] && PIECES[PIECE_DU_COACH[c]].voie === c && deSaCouleur(c)) && Object.keys(PIECE_DU_COACH).length === VOIES.length
+    && new Set(Object.values(PIECE_DU_COACH)).size === VOIES.length, VOIES.map(c => `${COACHS[c].ico}${PIECES[PIECE_DU_COACH[c]] ? PIECES[PIECE_DU_COACH[c]].ico : '?'}`).join(' '));
 }
 
-/* ---------- 2. le banc, pur ---------- */
+/* ---------- les vrais clubs ---------- */
+const VESTIAIRES = TEMOINS.map(([lab, s, t]) => [lab, s, t, equipeReelle(s, t)]);
+const club = i => { const [lab, s, t, un] = VESTIAIRES[i]; const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(p), { season: s }); };
+const tous = VESTIAIRES.flatMap(([, , , un]) => un.flat());
+
+/* Assez de porteurs pour un compte : le plus petit porteur de la pièce, répété sans dépasser `compte`. */
+function porteursPour(cle, compte) {
+  const p = tous.filter(x => apportDe(cle, x) > 0).sort((a, b) => apportDe(cle, a) - apportDe(cle, b))[0], out = [];
+  while (compteDe(cle, out) + apportDe(cle, p) <= compte) out.push(p);
+  return out;
+}
+
+/* ---------- 2. le compte, pur ---------- */
 {
-  const b1 = poserLaPiece(['verrou'], 'mur'), b2 = poserLaPiece(b1, 'mur'), plein = ['verrou', 'mur', 'ruee', 'tueur', 'choc'];
+  // Un joueur à deux badges comptés par deux pièces : le premier à son palier, le second à moitié.
+  const fautes = [];
+  for (const p of tous.slice(0, 400)) for (const [k, P] of Object.entries(PIECES)) {
+    const g = groupeDuJoueur(p), attendu = badgesDe(p).reduce((a, b) => a + (P.compte.includes(`${g}:${b.cle}`) ? (b.second && !b.plein ? b.palier / 2 : b.palier) : 0), 0);
+    if (apportDe(k, p) !== attendu) fautes.push(`${p.n} ${k}`);
+  }
+  const porteurs = k => tous.filter(p => apportDe(k, p) > 0);
+  exiger('un badge compte son palier, le second badge à moitié ; chaque pièce a de vrais porteurs', !fautes.length && Object.keys(PIECES).every(k => porteurs(k).length >= 5 && compteDe(k, porteurs(k).slice(0, 3)) === porteurs(k).slice(0, 3).reduce((a, p) => a + apportDe(k, p), 0)),
+    fautes.slice(0, 3).join(' · ') || Object.keys(PIECES).map(k => `${PIECES[k].ico} ${porteurs(k).length}`).join(' · '));
+  const k0 = 'tireurs', [s1, s2, s3] = PIECES[k0].seuils;
+  exiger('la marche change exactement à son seuil, rien sous le premier', marcheDe(k0, s1 - 0.5) === 0 && marcheDe(k0, s1) === 1 && marcheDe(k0, s2 - 0.5) === 1 && marcheDe(k0, s2) === 2 && marcheDe(k0, s3) === 3 && marcheDe(k0, 99) === 3
+    && seuilSuivant(k0, 0) === s1 && seuilSuivant(k0, s1) === s2 && seuilSuivant(k0, s3) === null && facteurDe(k0, 0) === 1, `${s1} · ${s2} · ${s3}`);
+  const pres = (a, b) => Math.abs(a - b) < 1e-9;
+  exiger('ton canal monte de la marche, le leur descend d\'autant ; la maîtrise ne règle que la pièce de départ, de ×0,9 à ×1,3',
+    MARCHES.every((m, i) => pres(facteurDe('tireurs', i + 1), 1 + m / 100) && pres(facteurDe('muraille', i + 1), 1 / (1 + m / 100))) && pres(facteurDe('tireurs', 3, 1.3), 1 + 1.3 * MARCHES[2] / 100)
+    && forceDeLaPiece({ cle: 'rapaces', maitrise: 1.2 }, 'tireurs') === 1.2 && forceDeLaPiece({ cle: 'rapaces', maitrise: 1.2 }, 'gros') === 1 && forceDeLaPiece({ cle: 'rapaces', maitrise: 2 }, 'tireurs') === 1.3
+    && forceDeLaPiece({ cle: 'rapaces', maitrise: 0.5 }, 'tireurs') === 0.9 && forceDeLaPiece({ cle: 'rapaces', maitrise: 1.3, adverse: true }, 'tireurs') === 1);
+  // Trois pièces sur tes tirs, toutes à la troisième marche : le produit s'arrête à la borne ; une pièce sous son seuil ne pose rien.
+  const beaucoup = [...porteurs('passeurs'), ...porteurs('gros'), ...porteurs('lignebleue')].slice(0, 400), B = bancDuMatch({ cle: 'essaim', banc: ['passeurs', 'gros', 'lignebleue', 'muraille'], maitrise: 1 }, beaucoup);
+  const produit = B.filter(x => x.canaux).reduce((a, x) => a * x.canaux.volume, 1), vide = bancDuMatch({ cle: 'essaim', banc: ['passeurs', 'muraille'] }, []);
+  // Deux pièces à leur première marche, sous la borne : le produit exact de leurs deux marches.
+  const deux = bancDuMatch({ cle: 'essaim', banc: ['passeurs', 'gros'], maitrise: 1 }, [...porteursPour('passeurs', PIECES.passeurs.seuils[0]), ...porteursPour('gros', PIECES.gros.seuils[0])]);
+  exiger(`deux pièces sur un canal se multiplient, et le produit s'arrête à ×${BORNE_DU_CANAL} ; sous son seuil, une pièce ne pose rien`, B.slice(0, 3).every(x => x.marche === 3) && pres(produit, BORNE_DU_CANAL) && pres(B[0].facteur, 1 + MARCHES[2] / 100)
+    && deux.every(x => x.marche >= 1) && pres(deux[0].facteur * deux[1].facteur, facteurDe('passeurs', deux[0].marche) * facteurDe('gros', deux[1].marche)) && vide.every(x => x.n === 0 && x.marche === 0 && x.facteur === 1 && !x.canaux && !x.adv), `×${produit.toFixed(2)} pour ×${((1 + MARCHES[2] / 100) ** 3).toFixed(2)} sans borne`);
+  const b1 = poserLaPiece(['tireurs'], 'gros'), b2 = poserLaPiece(b1, 'gros'), plein = ['tireurs', 'gros', 'passeurs', 'muraille', 'etouffoir'];
   exiger(`${CASES_DU_BANC} cases : une pièce entre dans la première libre, jamais deux fois ; plein, elle prend la case de celle qui sort, sans elle rien ne bouge`,
-    b1.join() === 'verrou,mur' && b2.join() === b1.join() && poserLaPiece(plein, 'duo', 'ruee').join() === 'verrou,mur,duo,tueur,choc'
-    && poserLaPiece(plein, 'duo').join() === plein.join() && poserLaPiece(plein, 'duo', 'inconnue').join() === plein.join() && poserLaPiece(['verrou'], 'inconnue').join() === 'verrou'
-    && bancDe({ banc: plein }).length === CASES_DU_BANC && bancDe({ banc: b1 }).length < CASES_DU_BANC && bancDe({ banc: [...plein, 'duo'] }).length === CASES_DU_BANC, poserLaPiece(plein, 'duo', 'ruee').join(' · '));
-  const P = { cle: 'tortue', banc: ['verrou', 'mur'] };
-  const a = piecesOffertes(P, 'g', 'bq14'), b = piecesOffertes(P, 'g', 'bq14');
-  const autres = new Set(Array.from({ length: 40 }, (_, g) => piecesOffertes(P, `g${g}`, 'bq14').join()));
-  exiger(`${PIECES_OFFERTES} pièces offertes, pures, distinctes, jamais une déjà sur le banc ; deux graines n'offrent pas les mêmes`,
-    a.length === PIECES_OFFERTES && a.join() === b.join() && new Set(a).size === a.length && !a.some(k => P.banc.includes(k)) && autres.size > 10, `${a.join(', ')} · ${autres.size} offres sur 40 graines`);
-  const voisines = Array.from({ length: 60 }, (_, g) => piecesOffertes(P, `g${g}`, 'r:26', undefined, { voisines: true })).flat();
-  const i = VOIES.indexOf('tortue'), permises = new Set([VOIES[i], VOIES[(i + 1) % VOIES.length], VOIES[(i + VOIES.length - 1) % VOIES.length], null]);
-  exiger('le rival battu offre les pièces de la philosophie du coach et de ses voisines', voisines.every(k => permises.has(PIECES[k].voie)) && new Set(voisines.map(k => PIECES[k].voie)).size >= 3,
-    [...new Set(voisines.map(k => PIECES[k].voie || 'hors des voies'))].join(', '));
-  /* La rare (JP, 8 nov. 2026 : l'arbitre) sort à son poids : au rival battu, sur 2000 graines, de ⅓ à ⅕ aussi souvent que la
-   * moyenne des ordinaires de la même offre, jamais zéro ; la même fonction pour la boutique, la fourche et les robots. */
-  const offres = Array.from({ length: 2000 }, (_, g) => piecesOffertes(P, `r${g}`, 'r:26', undefined, { voisines: true })).flat();
-  const compte = new Map();
-  for (const k of offres) compte.set(k, (compte.get(k) || 0) + 1);
-  const rares = Object.keys(PIECES).filter(k => poidsDuTirage(k) < 1), ord = [...compte].filter(([k]) => poidsDuTirage(k) === 1).map(([, n]) => n);
-  const moyOrd = ord.reduce((s, n) => s + n, 0) / ord.length, partRare = rares.map(k => (compte.get(k) || 0) / moyOrd);
-  exiger(`une pièce rare (${rares.map(k => PIECES[k].ico).join('')}) sort à son poids (${POIDS_RARE}) : de ⅕ à ⅓ d'une ordinaire, jamais zéro`,
-    rares.includes('arbitre') && rares.every(k => PIECES[k].rarete === 'rare' && PIECES[k].cadre === 3) && partRare.every(x => x >= 0.2 && x <= 1 / 3),
-    `${partRare.map(x => `×${x.toFixed(2)}`).join(', ')} d'une ordinaire au rival battu`);
-  exiger('la maîtrise de l\'entraîneur règle sa pièce de départ seule, de ×0,9 à ×1,3', forceDeLaPiece({ cle: 'tortue', maitrise: 1.2 }, 'verrou') === 1.2 && forceDeLaPiece({ cle: 'tortue', maitrise: 1.2 }, 'mur') === 1
-    && forceDeLaPiece({ cle: 'tortue', maitrise: 2 }, 'verrou') === 1.3 && forceDeLaPiece({ cle: 'tortue', maitrise: 0.5 }, 'verrou') === 0.9);
+    b1.join() === 'tireurs,gros' && b2.join() === b1.join() && poserLaPiece(plein, 'manieurs', 'passeurs').join() === 'tireurs,gros,manieurs,muraille,etouffoir'
+    && poserLaPiece(plein, 'manieurs').join() === plein.join() && poserLaPiece(plein, 'manieurs', 'inconnue').join() === plein.join() && poserLaPiece(['tireurs'], 'inconnue').join() === 'tireurs'
+    && bancDe({ banc: [...plein, 'manieurs'] }).length === CASES_DU_BANC && bancDe({ banc: ['tireurs', 'une pièce d\'avant'] }).join() === 'tireurs', poserLaPiece(plein, 'manieurs', 'passeurs').join(' · '));
+  const P = { cle: 'tortue', banc: ['deuxsens', 'gros'] };
+  const a = piecesOffertes(P, 'g', 'camp:0'), b = piecesOffertes(P, 'g', 'camp:0'), autres = new Set(Array.from({ length: 40 }, (_, g) => piecesOffertes(P, `g${g}`, 'camp:0').join()));
+  exiger(`${PIECES_OFFERTES} pièces offertes, pures, distinctes, jamais une déjà sur le banc ; deux graines et deux moments n'offrent pas les mêmes`,
+    a.length === PIECES_OFFERTES && a.join() === b.join() && new Set(a).size === a.length && !a.some(k => P.banc.includes(k)) && autres.size > 10 && Array.from({ length: 20 }, (_, g) => piecesOffertes(P, `g${g}`, 'camp:1').join() !== piecesOffertes(P, `g${g}`, 'camp:0').join()).some(Boolean),
+    `${a.join(', ')} · ${autres.size} offres sur 40 graines`);
+  // Leur banc en séries : deux, trois, quatre pièces, les plus avancées chez eux, tout le club compté ; pur.
+  const fautesAdv = [];
+  for (let i = 0; i < VESTIAIRES.length; i++) {
+    const t = club(i), joueurs = Object.values(t.roster).filter(Boolean);
+    const rondes = BANC_DES_SERIES.map((n, r) => persoAdverse(t, r));
+    if (rondes.some((x, r) => x.banc.length !== BANC_DES_SERIES[r] || !x.adverse || !COACHS[x.cle] || new Set(x.banc).size !== x.banc.length || x.banc.join() !== persoAdverse(t, r).banc.join())) fautesAdv.push(`${VESTIAIRES[i][0]} : la taille`);
+    if (rondes[0].banc.some((k, j) => rondes[2].banc[j] !== k)) fautesAdv.push(`${VESTIAIRES[i][0]} : un banc qui change d'une ronde à l'autre`);
+    const dehors = Object.keys(PIECES).filter(k => !rondes[2].banc.includes(k)), pire = Math.min(...rondes[2].banc.map(k => marcheDe(k, compteDe(k, joueurs))));
+    if (dehors.some(k => marcheDe(k, compteDe(k, joueurs)) > pire)) fautesAdv.push(`${VESTIAIRES[i][0]} : une pièce plus avancée laissée dehors`);
+  }
+  exiger(`leur banc en séries : ${BANC_DES_SERIES.join(', ')} pièces selon la ronde, les plus avancées chez eux, le même d'un appel à l'autre`, !fautesAdv.length && BANC_DES_SERIES.every((n, i) => n <= CASES_DU_BANC && (!i || n > BANC_DES_SERIES[i - 1])), fautesAdv.slice(0, 3).join(' · ') || `${VESTIAIRES.length} clubs`);
 }
 
-/* ---------- 2b. les vrais entraîneurs (js/coachs-reels.js, data/coachs.json) ---------- */
+/* ---------- 3. les vrais entraîneurs (js/coachs-reels.js, data/coachs.json) ---------- */
 {
   const donnees = JSON.parse(fs.readFileSync(new URL('../data/coachs.json', import.meta.url), 'utf8'));
   const index = JSON.parse(fs.readFileSync(new URL('../data/index.json', import.meta.url), 'utf8')).seasons;
@@ -135,184 +143,53 @@ const f1 = (v, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
     && d.find(x => !x.neuf).id === a[1].id && new Set(d.map(x => x.cle)).size === 3, d.map(x => `${x.n} ${x.saison}${x.neuf ? ' (neuve)' : ''}`).join(' · '));
 }
 
-/* ---------- les matchs en paires ---------- */
-const VESTIAIRES = TEMOINS.map(([lab, s, t]) => [lab, s, t, equipeReelle(s, t)]);
-const club = i => { const [lab, s, t, un] = VESTIAIRES[i]; const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(p), { season: s }); };
-const MUET = { cle: '__muet', banc: [] };
+/* ---------- 4. en paires ---------- */
 /*
- * Un match isolé : des clubs neufs, les dés de la graine. `soir` : un moment posé pour la lecture (`_lireMoment`) ;
- * `series` : un match de séries. Rend la feuille et les chiffres de ton club.
+ * Un match isolé : des clubs neufs, les dés de la graine. `perso` : le banc de ton club ; `comptes` : ceux qui comptent
+ * pour lui (la run pose tes signés ; ici, autant de porteurs qu'il en faut pour la marche voulue). Rend la feuille et les
+ * chiffres de ton club.
  */
-function match(i, j, graine, visiteur, perso, { soir = null, series = false, aux = false } = {}) {
+function match(i, j, graine, visiteur, perso, comptes) {
   const toi = club(i), adv = club(j);
   toi.luck = 0; adv.luck = 0;
-  toi.perso = perso;
-  if (soir) toi._lireMoment = soir;
-  toi.jourCourant = 0; toi._filetForce = { jour: 0, qui: aux ? 'aux' : 'partant' };
+  toi.perso = perso; toi.comptes = () => comptes;
+  toi.jourCourant = 0;
   grainerHasard(graine);
   const f = feuilleVierge();
-  const r = visiteur ? playGame(adv, toi, 1, false, series, f) : playGame(toi, adv, 1, false, series, f);
+  const r = visiteur ? playGame(adv, toi, 1, false, false, f) : playGame(toi, adv, 1, false, false, f);
   const moi = visiteur ? 'B' : 'A', eux = visiteur ? 'A' : 'B';
-  return { f, moi, v: r.winner === toi ? 1 : 0, gf: visiteur ? r.gfB : r.gfA, ga: visiteur ? r.gfA : r.gfB,
-    tp: somme(f.tirs[moi]), tc: somme(f.tirs[eux]), pun: f.punitions.filter(p => p.cote === moi).length, punEux: f.punitions.filter(p => p.cote === eux).length,
-    coups: f.coups[moi], bl: f.blessures.filter(b => b.cote === moi).length };
+  return { f, moi, gf: visiteur ? r.gfB : r.gfA, ga: visiteur ? r.gfA : r.gfB, tp: somme(f.tirs[moi]), tc: somme(f.tirs[eux]) };
 }
-/* Ce que la condition d'une pièce lit avant la période `k`, relu dans la feuille. */
-function etatLu(f, moi, k, series) {
-  const eux = moi === 'A' ? 'B' : 'A';
-  const buts = (c, a, b) => f.buts.filter(x => x.cote === c && x.instant >= a && x.instant < b).length;
-  let tirsMoi = 0, tirsLui = 0;
-  for (let i = 1; i <= k; i++) { tirsMoi += f.tirs[moi][i]; tirsLui += f.tirs[eux][i]; }
-  const der = k ? { tirsMoi: f.tirs[moi][k], tirsLui: f.tirs[eux][k], moi: buts(moi, 20 * (k - 1), 20 * k), lui: buts(eux, 20 * (k - 1), 20 * k) } : null;
-  const soir = Object.fromEntries((f.moments ? f.moments[moi] : []).map(x => [x, true]));
-  return { k, moi: buts(moi, 0, 20 * k), lui: buts(eux, 0, 20 * k), tirsMoi, tirsLui, der, series, gros: false, soir, pieces: [], relais: [] };
-}
-/* Le moment du soir qu'une pièce lit (`dosADos`, `apresDefaite`…), s'il en faut un : la mesure le pose, sinon elle ne jouerait jamais dans un match isolé. */
-const ETATS = [0, 1, 2].flatMap(k => [[0, 0], [1, 0], [0, 1], [2, 0], [0, 2]].map(([moi, lui]) => ({ k, moi, lui, tirsMoi: 9, tirsLui: 10, der: k ? { tirsMoi: 8, tirsLui: 10, moi: 0, lui: 0 } : null, series: false, gros: false, pieces: [], relais: [] })));
-const momentDe = P => {
-  if (ETATS.some(e => P.quand({ ...e, soir: {} }))) return null;
-  return Object.keys(MOMENTS_SI).filter(m => !MOMENTS_SI[m].duel && !['domicile', 'visiteur', 'series'].includes(m)).find(m => ETATS.some(e => P.quand({ ...e, soir: { [m]: true } }))) || null;
-};
-/* Le soir d'un match isolé : à l'étranger un soir sur deux, des séries sur huit ; le moment de la pièce, posé. */
-const soirDuMatch = (g, P) => ({ visiteur: g % 2 === 1, soir: momentDe(P), series: P.rare ? Math.floor(g / 2) % 2 === 0 : Math.floor(g / 2) % 8 === 3, aux: Math.floor(g / 4) % 4 === 2 });
-/* Une pièce seule, en paires contre le banc vide, `n` matchs par club : ses périodes, ses soirs, ses chiffres. */
-function mesurerPiece(cle, n) {
-  const P = PIECES[cle], perso = { cle: '__muet', banc: [cle] };
-  const m = { cle, n: 0, fois: 0, soirs: 0, faux: 0, horsDiff: 0, dgfSoir: 0, dgaSoir: 0, dbl: 0, sv: { tp: 0, tc: 0, gf: 0, ga: 0, pun: 0, punEux: 0, coups: 0 } };
-  for (let i = 0; i < VESTIAIRES.length; i++) for (let g = 0; g < n; g++) {
-    const j = (i + 1 + (g % (VESTIAIRES.length - 1))) % VESTIAIRES.length;
-    const o = soirDuMatch(g, P), graine = `pc${cle}:${i}:${g}`;
-    const a = match(i, j, graine, o.visiteur, MUET, o), b = match(i, j, graine, o.visiteur, perso, o);
-    m.n++;
-    const notes = b.f.pieces.filter(x => x.cote === b.moi && x.cle === cle).map(x => x.k);
-    // a. Les périodes jouées sont celles que la condition lit.
-    const attendues = [0, 1, 2].filter(k => P.quand(etatLu(b.f, b.moi, k, o.series)));
-    if (notes.join() !== attendues.join()) m.faux++;
-    m.fois += notes.length;
-    // Son relais joue aussi ses périodes (son signal, pas sa condition) : un soir sans l'une ni l'autre, rien.
-    const relaie = b.f.relais.some(x => x.cote === b.moi && x.cle === cle);
-    if (!notes.length && !relaie) {
-      // b. Hors de ses périodes, la même feuille.
-      if (JSON.stringify([a.gf, a.ga, a.f.tirs, a.pun, a.punEux, a.coups]) !== JSON.stringify([b.gf, b.ga, b.f.tirs, b.pun, b.punEux, b.coups])) m.horsDiff++;
-    } else if (notes.length) {
-      m.soirs++;
-      for (const k of Object.keys(m.sv)) m.sv[k] += b[k] - a[k];
-      m.dbl += b.bl - a.bl;
+{
+  const MUET = { cle: '__muet', banc: [] }, lignes = [], fautesA = [], fautesB = [], fautesC = [];
+  for (const cle of QUELLES) {
+    const P = PIECES[cle], perso = { cle: '__muet', banc: [cle] }, parMarche = [];
+    for (let marche = 0; marche <= MARCHES.length; marche++) {
+      // Sous le premier seuil : le compte juste dessous ; à une marche : son seuil.
+      const comptes = porteursPour(cle, marche ? P.seuils[marche - 1] + 0.5 : P.seuils[0] - 0.5), m = { tp: 0, tc: 0, gf: 0, ga: 0, n: 0 };
+      if (marcheDe(cle, compteDe(cle, comptes)) !== marche) { fautesB.push(`${cle} : la marche ${marche} ne se pose pas`); continue; }
+      for (let i = 0; i < VESTIAIRES.length; i++) for (let g = 0; g < N; g++) {
+        const j = (i + 1 + (g % (VESTIAIRES.length - 1))) % VESTIAIRES.length, graine = `pc${cle}:${i}:${g}`;
+        const a = match(i, j, graine, g % 2 === 1, MUET, []), b = match(i, j, graine, g % 2 === 1, perso, comptes);
+        const notes = b.f.pieces.filter(x => x.cote === b.moi && x.cle === cle);
+        if (!marche) {
+          // a. Sous son premier seuil : la même feuille, aucune note.
+          if (notes.length || JSON.stringify([a.gf, a.ga, a.f.tirs]) !== JSON.stringify([b.gf, b.ga, b.f.tirs])) fautesA.push(`${cle} ${graine}`);
+        } else if (notes.map(x => x.k).join() !== '0,1,2' || notes.some(x => x.marche !== marche || x.n !== compteDe(cle, comptes))) fautesB.push(`${cle} ${graine} : ${notes.length} notes`);   // b. notée aux trois périodes
+        m.n++; m.tp += b.tp - a.tp; m.tc += b.tc - a.tc; m.gf += b.gf - a.gf; m.ga += b.ga - a.ga;
+      }
+      parMarche.push(m);
+    }
+    // c. Elle se voit, du bon côté, et davantage à la troisième marche qu'à la première : ses tirs, ou les buts.
+    if (parMarche.length === MARCHES.length + 1) {
+      const lu = m => (P.canal === 'volume' ? (P.cote === 'adv' ? -m.tc : m.tp) : (P.cote === 'adv' ? -m.ga : m.gf)) / m.n, [, m1, , m3] = parMarche.map(lu);
+      lignes.push(`${P.ico} ${m1 >= 0 ? '+' : ''}${m1.toFixed(2)} → ${m3 >= 0 ? '+' : ''}${m3.toFixed(2)} ${P.canal === 'volume' ? 'tir' : 'but'}${P.cote === 'adv' ? ' de moins' : ''}`);
+      if (!(m3 > 0 && m3 > m1)) fautesC.push(`${cle} : ${m1.toFixed(2)} à la 1re marche, ${m3.toFixed(2)} à la 3e`);
     }
   }
-  return m;
+  exiger('sous son premier seuil, une pièce ne change rien : la même feuille, aucune note', !fautesA.length, fautesA.slice(0, 3).join(' · ') || `${QUELLES.length} pièces × ${VESTIAIRES.length * N} matchs`);
+  exiger('à une marche, la pièce est notée à la feuille aux trois périodes, avec sa marche et son compte', !fautesB.length, fautesB.slice(0, 3).join(' · '));
+  if (MESURE) exiger('chaque pièce se voit dans la feuille, du bon côté, et davantage à la troisième marche qu\'à la première', !fautesC.length, fautesC.slice(0, 3).join(' · ') || lignes.join(' · '));
+  else informer('ce que chaque pièce change par match, de la 1re à la 3e marche (jugé à N plein)', lignes.join(' · '));
 }
-/* LE BANC COMPLET d'un coach : sa pièce de départ, les deux autres de sa voie, sa pièce d'adjoint et l'arbitre ; en paires contre le banc vide. */
-const bancComplet = c => [PIECE_DU_COACH[c], ...Object.keys(PIECES).filter(k => PIECES[k].voie === c && k !== PIECE_DU_COACH[c]), 'arbitre'].slice(0, CASES_DU_BANC);
-/* Les moments que le banc complet voit, à peu près comme une saison : un dos-à-dos, une défaite, trois victoires, une infirmerie pleine sur huit soirs chacun. */
-const MOMENTS_DU_BANC = [null, 'dosADos', null, 'apresDefaite', null, 'enFeu', 'infirmerie', 'apresDefaite'];
-function mesurerBanc(c, n) {
-  const perso = { cle: c, banc: bancComplet(c), maitrise: 1 };
-  let k = 0, d = 0;
-  for (let i = 0; i < VESTIAIRES.length; i++) for (let g = 0; g < n; g++) {
-    const j = (i + 1 + (g % (VESTIAIRES.length - 1))) % VESTIAIRES.length;
-    const o = { visiteur: g % 2 === 1, soir: MOMENTS_DU_BANC[Math.floor(g / 2) % MOMENTS_DU_BANC.length], series: Math.floor(g / 2) % 8 === 3 }, graine = `bc${c}:${i}:${g}`;
-    const a = match(i, j, graine, o.visiteur, MUET, o), b = match(i, j, graine, o.visiteur, perso, o);
-    k++; d += (b.gf - b.ga) - (a.gf - a.ga);
-  }
-  return { c, v: (d / k) * ACTE / BUTS_PAR_V };
-}
-// UN FILS : ses tâches (« p:cle », « b:coach »), rendues en JSON.
-if (process.env.PART) {
-  const out = process.env.PART.split(',').map(t => { const [s, x] = t.split(':'); return s === 'p' ? mesurerPiece(x, N) : mesurerBanc(x, N); });
-  process.stdout.write(JSON.stringify(out));
-  process.exit(0);
-}
-
-/* ---------- 3. la présence, sur des runs jouées ---------- */
-/*
- * Des runs en carte (le robot malin, une run par graine, comme check_moments_si : ses jambes, ses défaites et son
- * infirmerie sont celles d'une vraie run) : chaque soir de ton club, la condition de chaque pièce relue dans sa feuille,
- * période par période. Une pièce « joue un soir » si elle se lit à une période au moins.
- */
-function presences(graines) {
-  const soirs = new Map(Object.keys(PIECES).map(k => [k, 0]));
-  let total = 0;
-  for (const g of graines) {
-    jouerLaRun('malin', g, { espion: (quoi, S, res) => {
-      if (quoi !== 'match') return;
-      const f = res.feuille, series = ((f.moments && f.moments[res.cote]) || []).includes('series');
-      total++;
-      for (const k of Object.keys(PIECES)) if ([0, 1, 2].some(q => PIECES[k].quand(etatLu(f, res.cote, q, series)))) soirs.set(k, soirs.get(k) + 1);
-    } });
-  }
-  return new Map([...soirs].map(([k, n]) => [k, n / Math.max(1, total)]));
-}
-
-console.log(`\n  Le banc de cinq (V27) · ${N} matchs par club et par pièce${MESURE ? '' : ' · sans les bornes'}\n`);
-const taches = [...QUELLES.map(k => `p:${k}`), ...(MESURE ? VOIES.map(c => `b:${c}`) : [])];
-/* Une tâche par processus, `FILS` à la fois : la mémoire d'un fils ne grandit pas avec le nombre de tâches. */
-const lancer = l => new Promise((ok, ko) => {
-  const p = spawn(process.execPath, ['--max-old-space-size=2048', ICI], { env: { ...process.env, PART: l.join(',') } });
-  let t = '';
-  p.stdout.on('data', x => { t += x; }); p.stderr.on('data', x => process.stderr.write(x));
-  p.on('close', code => (code === 0 ? ok(JSON.parse(t)) : ko(new Error(`fils ${code}`))));
-});
-const file = [...taches], faits = [];
-await Promise.all(Array.from({ length: Math.min(FILS, file.length) }, async () => { while (file.length) faits.push(...await lancer([file.shift()])); }));
-const rendus = faits;
-const mesures = rendus.filter(x => 'cle' in x).sort((a, b) => QUELLES.indexOf(a.cle) - QUELLES.indexOf(b.cle));
-const pres = MESURE ? presences(Array.from({ length: 16 }, (_, i) => i + 1)) : null;
-const nomDe = m => `${PIECES[m.cle].ico} ${PIECES[m.cle].nom}`;
-for (const m of mesures) {
-  const s = m.soirs || 1;
-  m.vue = Math.max(Math.abs(m.sv.tp / s) / VISIBLE.tirs, Math.abs(m.sv.tc / s) / VISIBLE.tirs, Math.abs((m.sv.tp + m.sv.tc) / s) / VISIBLE.tirs, (Math.abs(m.sv.gf / s) + Math.abs(m.sv.ga / s)) / VISIBLE.buts,
-    Math.abs(m.sv.pun / s) / VISIBLE.punitions, Math.abs(m.sv.punEux / s) / VISIBLE.punitions, Math.abs(m.sv.coups / s) / VISIBLE.coups, Math.abs((m.dbl / s) * 82) / VISIBLE.blessures);
-  // Le net d'un soir où elle joue, ramené à un acte à sa présence (`pres`) : ce que la pièce rend sur la durée d'un acte.
-  m.parSoir = (m.sv.gf - m.sv.ga) / s;
-  m.presence = pres ? pres.get(m.cle) : null;
-  m.vActe = m.presence == null ? null : (m.parSoir * m.presence * ACTE) / BUTS_PAR_V;
-  if (MESURE) informer(nomDe(m).padEnd(26), `${m.presence == null ? '' : `${Math.round(m.presence * 100)} % des soirs · `}le soir où elle joue : tirs ${f1(m.sv.tp / s)} / ${f1(m.sv.tc / s)} · buts ${f1(m.sv.gf / s, 2)} / ${f1(m.sv.ga / s, 2)} · pun. ${f1(m.sv.pun / s, 2)} / ${f1(m.sv.punEux / s, 2)} · coups ${f1(m.sv.coups / s)} · blessures ${f1((m.dbl / s) * 82)}/saison · ${m.vActe == null ? '' : `${f1(m.vActe, 2)} V sur un acte`}`);
-}
-exiger('a. chaque pièce joue exactement les périodes que sa condition lit dans la feuille', mesures.every(m => !m.faux), mesures.filter(m => m.faux).map(m => `${nomDe(m)} (${m.faux})`).join(', ') || `${mesures.reduce((x, m) => x + m.fois, 0)} périodes jouées`);
-exiger('b. hors de ses périodes, rien : la même feuille', mesures.every(m => !m.horsDiff), mesures.filter(m => m.horsDiff).map(m => `${nomDe(m)} (${m.horsDiff})`).join(', ') || 'aucune feuille changée');
-exiger('chaque pièce joue des soirs', mesures.every(m => m.soirs > 0), mesures.filter(m => !m.soirs).map(nomDe).join(', ') || 'toutes');
-if (MESURE) {
-  const horsBande = mesures.filter(m => !PIECES[m.cle].rare && (m.presence < (PIECES[m.cle].contre ? CONTRE_MIN : PRESENCE[0]) || m.presence > PRESENCE[1]));
-  exiger(`3. chaque pièce se lit ${PRESENCE[0] * 100} à ${PRESENCE[1] * 100} % des soirs (sauf un moment rare ; « pour le battre », au moins un soir par acte)`, !horsBande.length, horsBande.map(m => `${nomDe(m)} ${Math.round(m.presence * 100)} %`).join(', ') || 'toutes');
-  exiger('c. chaque pièce se voit dans la feuille d\'un soir où elle joue', mesures.every(m => m.vue >= 1), mesures.filter(m => m.vue < 1).map(m => `${nomDe(m)} (${m.vue.toFixed(2)})`).join(', ') || 'toutes');
-  const borne = m => (PIECES[m.cle].cadre === 4 ? BORNE_ULTIME_V : BORNE_ACTE_V);
-  exiger(`d. sur un acte, une pièce rend au plus le net d'un pouvoir d'avant sur la même durée (${f1(BORNE_ACTE_V, 2)} V ; l'ultime, ${f1(BORNE_ULTIME_V, 2)} V)`, mesures.every(m => m.vActe <= borne(m)),
-    mesures.filter(m => m.vActe > borne(m)).map(m => `${nomDe(m)} ${f1(m.vActe, 2)}`).join(', ') || 'toutes');
-  exiger(`d. aucune pièce n'est un piège (au-dessus de ${f1(PIEGE_V, 2)} V sur un acte de ${ACTE} matchs)`, mesures.every(m => m.vActe >= PIEGE_V), mesures.filter(m => m.vActe < PIEGE_V).map(m => `${nomDe(m)} ${f1(m.vActe, 2)}`).join(', ') || 'aucune');
-  /* ---------- 5. le banc complet ---------- */
-  const bancs = rendus.filter(x => 'c' in x);
-  informer('le banc complet de chaque coach, en victoires sur un acte', bancs.map(x => `${COACHS[x.c].ico} ${f1(x.v)}`).join(' · '));
-  const trop = bancs.filter(x => x.v > BANC_MAX_V || x.v < 0);
-  exiger(`5. le banc complet aide pour de vrai, sans s'emballer (de 0 à ${f1(BANC_MAX_V, 2)} V sur un acte de ${ACTE} matchs)`, !trop.length, trop.map(x => `${COACHS[x.c].nom} ${f1(x.v)}`).join(', ') || 'tous');
-}
-
-/* ---------- 6. la saison ---------- */
-{
-  const ligue = () => VESTIAIRES.map((_, i) => club(i));
-  const avec = (plus = []) => [{ jour: 0, equipe: 0, coach: { cle: 'essaim', maitrise: 1.1 } }, ...plus];
-  const joue = decisions => { const t = ligue(); const L = simulateLeague(t, 82, { graine: 'banc', decisions: decisions.map(d => ({ ...d })), courbe: true }); return { t, L }; };
-  const fiche = x => `${x.t[0].W}-${x.t[0].L}-${x.t[0].OTL} ${x.t[0].GF}-${x.t[0].GA} ${bancDe(x.t[0].perso).join(',')}`;
-  const A = joue(avec()), B = joue(avec());
-  exiger('la même graine rejoue le même banc', fiche(A) === fiche(B), fiche(A));
-  exiger('le coach pose sa pièce de départ dans la première case, à sa maîtrise', bancDe(A.t[0].perso).join() === PIECE_DU_COACH.essaim && A.t[0].perso.maitrise === 1.1, bancDe(A.t[0].perso).join());
-  const V = joue(avec([{ jour: 10, equipe: 0, talent: { p: 0 } }, { jour: 20, equipe: 0, xpCoach: 25 }, { jour: 30, equipe: 0, embauche: { cle: 'mur' } }, { jour: 31, equipe: 0, poste: { cle: 'mur' } },
-    { jour: 40, equipe: 0, adjoint: { cle: 'numeroUn' } }, { jour: 50, equipe: 0, staff: ['numeroUn'] }, { jour: 60, equipe: 0, perdAdjoint: 'numeroUn' }]));
-  exiger('une vieille décision talent, xpCoach, embauche, poste, adjoint, staff ou perdAdjoint ne change rien', fiche(V) === fiche(A), `${fiche(V)} contre ${fiche(A)}`);
-  // UNE PIÈCE POSÉE au jour 20 : elle joue dès son jour, aux soirs que sa condition lit, et la feuille la nomme ; le banc plein, `sort` part.
-  const S = joue(avec([{ jour: 20, equipe: 0, piece: { cle: 'canonnier' } }, { jour: 21, equipe: 0, piece: { cle: 'mur' } }, { jour: 22, equipe: 0, piece: { cle: 'tueur' } }, { jour: 23, equipe: 0, piece: { cle: 'choc' } },
-    { jour: 60, equipe: 0, piece: { cle: 'verrou' } }, { jour: 61, equipe: 0, piece: { cle: 'verrou', sort: 'mur' } }]));
-  const toi = S.t[0];
-  const feuilles = S.L.ligue.calendrier.flatMap((d, j) => d.filter(m => (m.A === toi || m.B === toi) && m.feuille).map(m => ({ j, cote: m.A === toi ? 'A' : 'B', f: m.feuille })));
-  const chez = x => x.cote === 'A' && !x.f.moments[x.cote].includes('dosADos');
-  const canon = feuilles.filter(x => x.f.pieces.some(n => n.cote === x.cote && n.cle === 'canonnier'));
-  exiger('une pièce posée joue dès son jour, aux soirs que sa condition lit (le canonnier : à domicile, sans dos-à-dos), et la feuille la nomme',
-    canon.length > 0 && canon.every(x => x.j >= 20 && chez(x)) && feuilles.filter(x => x.j >= 20 && chez(x)).every(x => canon.includes(x)), `${canon.length} soirs`);
-  exiger('plein, une pièce neuve sans `sort` n\'entre pas ; avec, elle prend la case de celle qui part', bancDe(toi.perso).join() === 'ruee,canonnier,verrou,tueur,choc'
-    && feuilles.every(x => (x.f.banc[x.cote] || []).length <= CASES_DU_BANC), bancDe(toi.perso).join(', '));
-  exiger('la feuille garde le banc de chaque soir', feuilles.filter(x => x.j < 20).every(x => x.f.banc[x.cote].join() === 'ruee') && feuilles.filter(x => x.j > 61).every(x => x.f.banc[x.cote].join() === bancDe(toi.perso).join()),
-    `${feuilles.length} feuilles`);
-  exiger('le banc change la saison, et la même graine le rejoue pareil', fiche(S) !== fiche(A) && fiche(joue(avec([{ jour: 20, equipe: 0, piece: { cle: 'canonnier' } }]))) !== fiche(A), `${fiche(S)} contre ${fiche(A)}`);
-}
-
-verdict('Le banc de cinq');
+verdict('Le banc qui compte (V29)');

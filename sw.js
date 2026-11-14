@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-3.7.1';  // 3.7.1 : une run ne dépend plus de celles jouées avant elle dans la session — l'adversaire arrive vraiment frais, un joueur signé entre remis à zéro
+const VERSION = 'cap82-3.8.0';  // 3.8.0 : V29, tranche 1 — le banc qui compte : une pièce compte les badges de tes signés et multiplie un canal par marches, trois pièces au camp, la relance payée, leur banc en séries
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

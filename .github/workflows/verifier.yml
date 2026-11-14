@@ -14,7 +14,7 @@ name: Vérifier
 #                   (lancé par `tout.mjs`)
 #   check_gros      les gros matchs (S70 ; V25) : une ligue sans joueur n'en a pas,
 #                   au 82-0 ils se jouent en trois périodes vues (ni plan, ni main
-#                   adverse, ni entracte à choix) ; en séries, leur coach
+#                   adverse, ni entracte à choix) ; en séries d'une run, leur banc
 #   check_commentaire le commentateur (S70) : aucun gabarit oublié, un match
 #                   ne radote pas, la même graine redit la même chose
 #   check_feuilles  les quatre égalités de la feuille de match, sur une ligue
@@ -44,9 +44,10 @@ name: Vérifier
 #                   une pièce par case, la rondelle toujours jouable, le
 #                   porteur jamais au sol, un match qui finit sur un gagnant —
 #                   et les règles écrites comparées aux gestes réellement joués
-#   check_pouvoirs  le banc de cinq (V27, tranche 5) : chaque pièce joue ses
-#                   périodes et rien d'autre, se rejoue pareil ; le banc pur,
-#                   la pièce de départ du coach, les vrais entraîneurs
+#   check_pouvoirs  le banc qui compte (V29, tranche 1) : chaque pièce compte
+#                   tes signés, monte ses marches, ne fait rien sous son seuil,
+#                   se rejoue pareil ; le banc pur, la pièce de départ du
+#                   coach, les vrais entraîneurs, le banc adverse des séries
 #   check_lancee    la lancée et le doute du Rogue (V3.6) : absents du 82-0,
 #                   la même graine rejoue, et l'effet se voit dans les buts
 #   check_actions   les photos d'action (1.0) : la liste, le recadrage 5:7,
@@ -57,7 +58,7 @@ name: Vérifier
 #                   joué geste par geste, le bilan
 #   check_hauteur   un choix en cartes (ton identité) tient en un écran
 #   check_scene, essai_run, mesure_run   la run en carte, le Rogue (V28) : chaque
-#                   scène à 390 × 844, une run au doigt, trois robots sur 64 graines
+#                   scène à 390 × 844, une run au doigt, quatre robots sur 64 graines
 #
 # Tous passent par `scripts/verdict.mjs`, qui pose le code de sortie : un
 # chiffre qu'on imprime sans le juger est un chiffre que personne ne relit.
@@ -156,17 +157,12 @@ jobs:
       - name: La glace des tirs
         run: node scripts/check_glace.mjs
 
-      # Le banc de cinq (V27, tranche 5) : les tables des pièces, le banc pur, chaque pièce sur ses périodes et rien
-      # hors d'elles, en paires sur les mêmes dés. Sans les bornes ni la présence (quelques minutes à N=600, à la
-      # main). Une demi-minute.
+      # Le banc qui compte (V29, tranche 1) : les tables des pièces, le compte de tes signés, la marche et son
+      # facteur, le produit borné par canal, le banc adverse des séries, puis chaque pièce en paires sur les mêmes
+      # dés (rien sous son premier seuil, notée aux trois périodes). Sans la valeur de chaque marche (quelques
+      # minutes à N=400, à la main). Une demi-minute.
       - name: Les pièces du banc
         run: MESURE=0 N=20 node scripts/check_pouvoirs.mjs
-
-      # Le relais des pièces (V23 D, 4 nov. 2026) : chaque pièce relaie exactement les périodes que son signal lit,
-      # à deux maillons, et la feuille le garde. Sans les chiffres de valeur (deux minutes à N=400, à la main).
-      # Dix secondes.
-      - name: Le relais des pièces
-        run: MESURE=0 N=20 node scripts/check_relais.mjs
 
       # Zéro code inutile (1.0, jalon 3) : aucune déclaration morte, aucun
       # `export` ni import de trop, aucune classe CSS sans élément. Cinq secondes.
@@ -220,8 +216,9 @@ jobs:
       - name: Une run au doigt
         run: node scripts/essai_run.mjs http://localhost:8000
 
-      # Lire paie, sans gagner d'office : trois robots sur 64 graines, les mêmes dés (le malin 4 à 12 Coupes, « premier »
-      # au plus 2, le malin devant le robot du chiffre). Deux minutes sur quatre fils.
+      # Bâtir ne gagne pas d'office : quatre robots sur 64 graines, les mêmes dés (le malin, qui bâtit son banc, 4 à
+      # 12 Coupes ; « premier » au plus 2 ; le malin pas derrière son témoin, qui ne lit pas son banc). Le reste se
+      # juge à 256 graines, à la main. Trois minutes sur quatre fils.
       - name: La run en carte, mesurée
         run: GRAINES=64 FILS=4 node scripts/mesure_run.mjs
 

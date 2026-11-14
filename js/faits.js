@@ -26,7 +26,7 @@ import { seasonGames, ageAtSeason } from './ratings.js';
 import { joueurDuFait } from './vie-gm.js';
 import { FILS } from './recit.js';
 import { COACHS } from './coachs.js';
-import { PIECES, PIECE_DU_COACH } from './pieces.js';
+import { PIECES } from './pieces.js';
 import { money, ord, ordF, pct3, SEMAINE } from './util.js';
 
 /* Les faits d'un joueur se lisent sur ses FENETRE_JOUEUR derniers matchs ; la chicane, à PUNITIONS_CHICANE punitions. */
@@ -183,11 +183,11 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
       butsDuo: passeur ? depuis.reduce((a, x) => a + (x.f.buts || []).filter(y => y.cote === x.cote && !y.fusillade && y.marqueur === p && (y.passeurs || []).includes(passeur)).length, 0) : 0,
       resolue: (run.sorties || []).some(y => y !== d && y.j > d.j && y.joueur === d.joueur) });
   }
-  // LA PIÈCE CHAUDE (V27, tranche 5) : sur tes derniers matchs, la pièce de ton banc qui a joué le plus de soirs (à la
-  // feuille ou en relais), PIECE_CHAUDE au moins, et ta fiche ces soirs-là.
+  // LA PIÈCE CHAUDE (V27, tranche 5) : sur tes derniers matchs, la pièce de ton banc qui a joué le plus de soirs,
+  // PIECE_CHAUDE au moins, et ta fiche ces soirs-là.
   const parPiece = new Map();
   for (const x of dernieres) {
-    const joue = new Set([...(x.f.pieces || []), ...(x.f.relais || [])].filter(y => y.cote === x.cote && PIECES[y.cle]).map(y => y.cle));
+    const joue = new Set((x.f.pieces || []).filter(y => y.cote === x.cote && PIECES[y.cle]).map(y => y.cle));
     for (const k of joue) { const z = parPiece.get(k) || { m: 0, v: 0, d: 0 }; z.m++; if (x.e.win) z.v++; else z.d++; parPiece.set(k, z); }
   }
   const chaude = [...parPiece.entries()].filter(([, z]) => z.m >= PIECE_CHAUDE).sort((a, b) => b[1].m - a[1].m || b[1].v - a[1].v || (a[0] < b[0] ? -1 : 1))[0] || null;
@@ -221,7 +221,7 @@ export function faitsDe({ ligue, you, jour, run = {}, series = null }) {
   let ronde = null;
   if (series && series.s) {
     const s = series.s, adv = s.A === you ? s.B : s.A, perso = adv.perso || adv.persoSeries;
-    const P = perso ? PIECES[PIECE_DU_COACH[perso.cle]] || null : null;
+    const P = perso ? PIECES[(perso.banc || [])[0]] || null : null;
     const contre = feuilles.filter(x => x.e.adv === adv);
     const po = p => (p && p.po) || {};
     const meneur = patineurs.map(x => x.p).filter(p => (po(p).PTS || 0) > 0).sort((a, b) => (po(b).PTS || 0) - (po(a).PTS || 0))[0] || null;

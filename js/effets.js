@@ -4,8 +4,8 @@
  * (`gain`, `action`, `si`, le `bon` et le `prix` écrits à côté), ceux d'une carte de la banque. Il n'en reste qu'une,
  * neuf cases, et tout ce qu'une carte de jeu fait s'écrit là :
  *
- *   quand    la seule forme de déclenchement : une fonction de ce qui est déjà joué (une pièce de banc et son relais,
- *            js/pieces.js : `quand(e)`), ou le nom d'un moment (`MOMENTS_SI`, js/sim.js ; l'état d'une série)
+ *   quand    la seule forme de déclenchement : le nom d'un moment (`MOMENTS_SI`, js/sim.js ; l'état d'une série). Une
+ *            pièce de banc n'en a plus (V29) : elle joue tout le match
  *   canaux   les canaux du moteur sur ton club — volume, finition, defense, discipline, robustesse (additive, c'est
  *            écrit dans le canal), blessure, energie, F, D
  *   adv      les mêmes canaux, posés sur l'adversaire

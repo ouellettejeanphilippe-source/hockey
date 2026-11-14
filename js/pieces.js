@@ -1,202 +1,82 @@
 /*
- * LE BANC DE CINQ (V27, tranche 5 ; docs/refonte-v27.md § 4.6, docs/refonte-v27-5a.md). JP, 7 nov. 2026 : les pouvoirs du
- * coach, les adjoints et la main du deck fondus en cinq cases permanentes pour la run, sans séjour, repos ni salaire ; le
- * relais est le moteur des combos.
+ * LE BANC QUI COMPTE (V29, tranche 1 ; docs/refonte-v29.md § 3). JP, 13 nov. 2026 : *le roguelike est pas le fun, ni
+ * bâti comme il faut pour être un vrai jeu* ; il défait « une carte change la forme du match, pas sa force » pour le banc.
  *
- *   LA PIÈCE    une carte de jeu de la grammaire d'effet (js/effets.js) : sa condition (`quand`, lue période par
- *               période sur ce qui est déjà joué), ses canaux (`canaux` sur ton club, `adv` sur l'adversaire), sa
- *               réplique (`dit`, sans chiffre), son relais (`relais`). Aucun niveau : son `cadre` est celui du carton,
- *               pas une force. Elle joue chaque soir où sa condition se lit, jusqu'à ce que tu la remplaces.
- *   LE BANC     `CASES_DU_BANC` cases, pour toute la run : `perso.banc`, les clés dans l'ordre des cases.
- *   LE COACH    sa philosophie (`cle`), son vrai entraîneur (`chef`) et sa maîtrise (×0,9 à ×1,3, js/niveaux.js), qui
- *               règle sa seule pièce de départ (`PIECE_DU_COACH`), posée dans la première case. Plus d'expérience.
- *   LE RELAIS   une pièce qui se lit relaie le canal d'une autre : son signal (`relais.quand`) lit les pièces qui jouent
- *               la période (`e.pieces`), ou un relais allumé (`chaine`, le second maillon, jamais un troisième) ; son
- *               canal rejoue alors `RELAIS_NIV` fois son écart, la période même.
+ *   LA PIÈCE    elle COMPTE quelque chose chez tes joueurs (`compte` : les badges d'un ou deux rôles, chacun à son palier,
+ *               Bronze 1 à Platine 4, le second badge d'un joueur à moitié) et MULTIPLIE un canal du moteur (`cote` : le
+ *               tien, `canaux`, ou le leur, `adv` ; `canal` : les tirs, `volume`, ou la précision, `finition`), tout le
+ *               match, chaque match. PAR MARCHES : rien sous son premier seuil, puis trois marches (`MARCHES`), chacune
+ *               plus haute que la précédente — la concentration paie plus que l'éparpillement.
+ *   QUI COMPTE  dans une run, seuls les joueurs que tu as signés (JP, 14 nov. 2026 ; js/run.js `signesDe`) : un bouche-trou
+ *               du départ ne compte pour rien. Pour l'adversaire des séries, tout son club.
+ *   LE BANC     `CASES_DU_BANC` cases, pour toute la run : `perso.banc`, les clés dans l'ordre des cases. Deux pièces sur
+ *               le même canal se multiplient, et le produit d'un canal est borné (`BORNE_DU_CANAL`).
+ *   LE COACH    sa philosophie (`cle`), son vrai entraîneur (`chef`) et sa maîtrise (×0,9 à ×1,3, js/niveaux.js), qui règle
+ *               les marches de sa seule pièce de départ (`PIECE_DU_COACH` : elle compte les rôles de sa couleur,
+ *               js/coachs.js `COACH_DU_ROLE`).
  *
- * LA PRÉSENCE (devis § 4.6) : un adjoint d'avant jouait 12 soirs sur 32 ; posée pour la run au même écart, une pièce aurait
- * valu 2,7 fois plus. Chaque pièce garde donc l'écart d'un soir (pour qu'elle se voie) et sa condition est réglée pour
- * jouer 30 à 50 % des soirs (`check_pouvoirs`) ; une pièce d'un moment rare (`rare`, les séries, le gros match) en est
- * exemptée, et `check_moments_si` la fait revenir.
+ * Mesuré avant d'être écrit (scripts d'essai des 13 et 14 nov. 2026, deux juges de 256 graines neuves, docs/refonte-v29.md
+ * § 4) : le robot qui bâtit autour de son banc tient 78 % de ses cibles, le même robot qui ne lit pas son banc 57 %. En
+ * ligne droite (tant par palier), bâtir ne payait pas : un banc se payait en cote ce qu'il rapportait.
  *
  * Pur : le moteur (par js/greffes.js), l'écran et les robots lisent la même table et les mêmes fonctions.
  */
 import { hache } from './util.js';
-import { VOIES } from './coachs.js';
+import { badgesDe } from './sim.js';
+import { groupeDuJoueur } from './niveaux.js';
 
 export const CASES_DU_BANC = 5;
 export const PIECES_OFFERTES = 3;
-/* Une fourche d'histoire donne une pièce au plus, et deux au plus dans la saison (devis § 4.6). */
-export const PIECES_PAR_SAISON_DES_FOURCHES = 2;
-/* Le relais rejoue l'écart de son canal à cette force (celle du Pilier d'avant : une pièce n'a pas de niveau). */
-export const RELAIS_NIV = 0.75;
-
-/* `quand(e)` : se lit-elle avant la période `e.k` ? `e` : { k, moi, lui, tirsMoi, tirsLui, der, series, gros, soir, pieces, relais }. */
-const k3 = e => e.k === 2;
-const mene = e => e.moi > e.lui;
-const derriere = e => e.moi < e.lui;
-const serre = e => Math.abs(e.moi - e.lui) <= 1;
-const perduAuxTirs = e => !!e.der && e.der.tirsMoi < e.der.tirsLui;
-const soirDe = (e, ...ms) => !!e.soir && ms.some(m => e.soir[m]);
-/* À domicile, ou à l'étranger, un soir sans dos-à-dos (41 soirs sur 82 en tout : la présence se règle sous la moitié). */
-/* Les soirs qui usent (la famille du Souffle) : deux matchs en deux soirs, les jambes lourdes, ou le rival au bout de l'acte. */
-const usant = e => soirDe(e, 'dosADos', 'jambesLourdes', 'rival');
-const chez = e => soirDe(e, 'domicile') && !soirDe(e, 'dosADos');
-const ailleurs = e => soirDe(e, 'visiteur') && !soirDe(e, 'dosADos');
-/* Le signal d'un relais : une autre pièce joue la période, ou une autre relaie (le second maillon). */
-const uneAutre = cle => e => (e.pieces || []).some(x => x !== cle);
-const unRelais = cle => e => (e.relais || []).some(x => x !== cle);
+/* Ce qu'une marche rend, en % du canal : la première, la deuxième, la troisième. */
+export const MARCHES = [12, 37, 75];
+/* Le produit de toutes les pièces sur un même canal : au plus ×3 sur le tien, ÷3 sur le leur. */
+export const BORNE_DU_CANAL = 3;
 
 /*
- * LA FAMILLE (trente-six pièces). Les vingt-quatre pouvoirs des huit coachs (I, II, l'ultime : leurs canaux et leur
- * condition, réglée à la présence) et les neuf adjoints (leur style d'un soir, leur relais) ; les idées du plan du soir
- * (tirer, fermer, coller, forechecker, rester discipliné) y sont déjà : le canonnier, le mur, le cogneur, le moine. Le
- * plan du soir lui-même est parti à la tranche 6b. `voie` : la philosophie qui l'offre d'abord (null : personne) ; `soir` : sa
- * condition est celle de la soirée entière (elle se lit par match) ; `genre` : la couleur de sa carte ; `contre` (tranche 7) :
- * la ligne du jeu adverse à laquelle elle répond — trois pièces « pour le battre », une par ligne.
+ * LA FAMILLE (neuf pièces, celles que la mesure a jugées). `voie` : la philosophie qui la porte au départ ; `compte` :
+ * les rôles comptés (`F:` un avant, `D:` un défenseur) ; `qui` : les mêmes, en mots pour l'écran ; `seuils` : le compte de
+ * chaque marche, posé sur ce qu'un effectif de signés atteint (trois au camp, huit à la fin de l'acte I, une vingtaine à
+ * la fin) ; `genre` : la couleur de sa carte. Aucune ne porte le nom d'un accord de ligne (js/sim.js `AFFINITES`).
  */
 export const PIECES = {
-  /* ---------- le Frelon ---------- */
-  ruee: { voie: 'essaim', cadre: 2, genre: 'attaque', ico: '🐝', nom: 'La ruée', quandMot: 'En 3e, à égalité ou derrière d\'un but',
-    dit: 'Tout le monde au filet. On ne rentre pas au vestiaire avec des rondelles dans les poches.',
-    quand: e => k3(e) && e.moi <= e.lui && e.lui - e.moi <= 1, canaux: { volume: 1.4 } },
-  bourdon: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🔊', nom: 'Le bourdonnement', quandMot: 'En 3e, quand tu mènes',
-    dit: 'On mène ? Tant mieux. On continue de tirer, qu\'ils passent la période dans leur zone.',
-    quand: e => k3(e) && mene(e), canaux: { volume: 1.3 } },
-  essaim: { voie: 'essaim', cadre: 4, genre: 'attaque', ico: '🌪', nom: 'L\'essaim', quandMot: 'En 3e, derrière',
-    dit: 'Cinq gars au filet, des rebonds partout. Leur gardien va voir des abeilles.',
-    quand: e => k3(e) && derriere(e), canaux: { volume: 1.35, finition: 1.05 } },
-  /* ---------- l'Aigle ---------- */
-  riposte: { voie: 'rapaces', cadre: 2, genre: 'attaque', ico: '🦅', nom: 'La riposte', quandMot: 'Après une période perdue aux tirs, à un but près',
-    dit: 'Ils ont eu la rondelle ? Correct. La prochaine qu\'on touche, elle rentre.',
-    quand: e => perduAuxTirs(e) && serre(e), canaux: { finition: 1.34 } },
-  tueur: { voie: 'rapaces', cadre: 3, genre: 'attaque', ico: '🗡', nom: 'Le tueur', quandMot: 'En 2e ou en 3e, en avance d\'un seul but',
-    dit: 'Un but d\'avance, c\'est rien. Deux, c\'est un match. Va chercher le deuxième.',
-    quand: e => e.k > 0 && e.moi - e.lui === 1, canaux: { finition: 1.3 } },
-  parfait: { voie: 'rapaces', cadre: 4, genre: 'attaque', ico: '🎯', nom: 'Le tir parfait', quandMot: 'En 3e, à égalité ou derrière d\'un but',
-    dit: 'Un tir. Le bon. Dans le haut du filet, côté bouclier.',
-    quand: e => k3(e) && e.moi <= e.lui && e.lui - e.moi <= 1, canaux: { finition: 1.45 } },
-  /* ---------- la Tortue ---------- */
-  verrou: { voie: 'tortue', cadre: 2, genre: 'defense', ico: '🐢', nom: 'Le verrou', quandMot: 'En 2e ou en 3e, en avance d\'un ou deux buts',
-    dit: 'On a le but. Maintenant, on ferme la porte et on jette la clé.',
-    quand: e => e.k > 0 && e.moi > e.lui && e.moi - e.lui <= 2, canaux: { defense: 0.78 } },
-  tranchee: { voie: 'tortue', cadre: 3, genre: 'defense', ico: '⛏', nom: 'La tranchée', quandMot: 'En 1re, à l\'étranger, sans dos-à-dos',
-    dit: 'Leur foule veut un but en partant. On va leur faire attendre longtemps.',
-    quand: e => e.k === 0 && ailleurs(e), adv: { volume: 0.7 } },
-  forteresse: { voie: 'tortue', cadre: 4, genre: 'defense', ico: '🏰', nom: 'La forteresse', quandMot: 'En 3e, quand tu mènes',
-    dit: 'Vingt minutes. Personne dans l\'enclave, personne derrière nous.',
-    quand: e => k3(e) && mene(e), canaux: { defense: 0.7 }, adv: { volume: 0.8 } },
-  /* ---------- le Rhino ---------- */
-  usure: { voie: 'rhinos', cadre: 2, genre: 'tactique', ico: '🦏', nom: 'L\'usure', quandMot: 'En 3e, à égalité ou derrière d\'un but',
-    dit: 'On les a frappés deux périodes. Regarde leurs jambes : c\'est maintenant que ça paie.',
-    quand: e => k3(e) && e.moi <= e.lui && e.lui - e.moi <= 1, canaux: { robustesse: 3.1 }, adv: { finition: 0.9 } },
-  choc: { voie: 'rhinos', cadre: 3, genre: 'tactique', ico: '💥', nom: 'Le choc', quandMot: 'En 1re, à domicile, sans dos-à-dos',
-    dit: 'La première présence, tu finis ta mise en échec. La foule va s\'occuper du reste.',
-    quand: e => e.k === 0 && chez(e), canaux: { robustesse: 3.1 }, adv: { finition: 0.94 } },
-  charge: { voie: 'rhinos', cadre: 4, genre: 'attaque', ico: '🐂', nom: 'La charge', quandMot: 'En 3e, derrière',
-    dit: 'On défonce la porte. Au filet, et fort.',
-    quand: e => k3(e) && derriere(e), canaux: { volume: 1.25, robustesse: 1 }, adv: { finition: 0.88 } },
-  /* ---------- le Doc ---------- */
-  souffle: { voie: 'souffle', cadre: 2, genre: 'defense', ico: '🫁', nom: 'Le second souffle', quandMot: 'En 3e : dos-à-dos, jambes lourdes ou contre le rival',
-    dit: 'Ils sont aussi brûlés que nous. La différence, c\'est qu\'on s\'est préparés pour ça.',
-    quand: e => k3(e) && usant(e), canaux: { volume: 1.2, defense: 0.78 } },
-  rotation: { voie: 'souffle', cadre: 3, genre: 'defense', ico: '🩺', nom: 'La rotation', quandMot: 'À l\'étranger, sans dos-à-dos', soir: true,
-    dit: 'Des présences courtes, on ne force personne. Personne ne revient de voyage sur une civière.',
-    quand: ailleurs, canaux: { blessure: 0.6 } },
-  resurrection: { voie: 'souffle', cadre: 4, genre: 'attaque', ico: '⚡', nom: 'La résurrection', quandMot: 'En 3e, derrière',
-    dit: 'Le match n\'est pas fini tant que la sirène n\'a pas sonné. Debout.',
-    quand: e => k3(e) && derriere(e), canaux: { volume: 1.4, finition: 1.25 } },
-  /* ---------- l'Abbé ---------- */
-  sangfroid: { voie: 'choeur', cadre: 2, genre: 'tactique', ico: '😇', nom: 'Le sang-froid', quandMot: 'En 2e ou en 3e, à égalité',
-    dit: 'Le match se joue maintenant. Les bâtons en bas, les mains propres.',
-    quand: e => e.k > 0 && e.moi === e.lui, canaux: { discipline: 0.55 } },
-  provocation: { voie: 'choeur', cadre: 3, genre: 'tactique', ico: '📢', nom: 'La provocation', quandMot: 'En 3e, quand tu mènes',
-    dit: 'Un sourire, un petit mot. Ils vont s\'énerver, et c\'est nous qui allons jouer en avantage.',
-    quand: e => k3(e) && mene(e), adv: { discipline: 1.45 } },
-  miracle: { voie: 'choeur', cadre: 4, genre: 'synergie', ico: '✨', nom: 'Le miracle', quandMot: 'En 3e, à égalité ou en avance d\'un but',
-    dit: 'Calmes. Personne au banc des punitions. Le but va venir.',
-    quand: e => k3(e) && e.moi >= e.lui && e.moi - e.lui <= 1, canaux: { finition: 1.3, discipline: 0.5 } },
-  /* ---------- le Contremaître ---------- */
-  quatre: { voie: 'profondeur', cadre: 2, genre: 'defense', ico: '🪜', nom: 'Les quatre trios', quandMot: 'En 2e ou en 3e, à égalité',
-    dit: 'Le quatrième trio saute sur la glace comme le premier. C\'est comme ça qu\'on gagne en troisième.',
-    quand: e => e.k > 0 && e.moi === e.lui, canaux: { F: [0.8, 0.95, 1.2, 1.45], defense: 0.82 } },
-  atelier: { voie: 'profondeur', cadre: 3, genre: 'defense', ico: '🛠', nom: 'L\'atelier', quandMot: 'Dos-à-dos, jambes lourdes ou contre le rival', soir: true,
-    dit: 'On a regardé la vidéo dans l\'autobus. Chacun sait où aller.',
-    quand: usant, canaux: { volume: 1.12, defense: 0.93 } },
-  releve: { voie: 'profondeur', cadre: 4, genre: 'attaque', ico: '🔄', nom: 'La relève', quandMot: 'En 3e, derrière',
-    dit: 'Tout le monde joue, tout le monde pousse. On roule les quatre trios jusqu\'au bout.',
-    quand: e => k3(e) && derriere(e), canaux: { F: [0.8, 0.95, 1.2, 1.45], volume: 1.35, finition: 1.1 } },
-  /* ---------- le Showman ---------- */
-  spectacle: { voie: 'etoiles', cadre: 2, genre: 'attaque', ico: '🌠', nom: 'Le spectacle', quandMot: 'En 3e, à un but près, sans dos-à-dos',
-    dit: 'Les vedettes sur la glace. C\'est pour ça que les gens ont payé leur place.',
-    quand: e => k3(e) && serre(e) && !soirDe(e, 'dosADos'), canaux: { F: [1.4, 1, 0.85, 0.75], finition: 1.32 } },
-  duo: { voie: 'etoiles', cadre: 3, genre: 'attaque', ico: '🎭', nom: 'Le duo vedette', quandMot: 'En 1re, à domicile, sans dos-à-dos',
-    dit: 'Devant notre monde, le premier trio ouvre le bal.',
-    quand: e => e.k === 0 && chez(e), canaux: { F: [1.15, 1, 0.92, 0.88], finition: 1.35 } },
-  grandsoir: { voie: 'etoiles', cadre: 4, genre: 'attaque', ico: '🎬', nom: 'Le grand soir', quandMot: 'En séries ou en gros match', rare: true,
-    dit: 'Les grands joueurs sortent les grands soirs. Ce soir, c\'est un grand soir.',
-    quand: e => e.series || e.gros, canaux: { finition: 1.25 } },
-  /* ---------- les adjoints d'avant : un style d'un soir, et son relais ---------- */
-  canonnier: { voie: 'essaim', cadre: 1, genre: 'attaque', ico: '🏹', nom: 'Le canonnier', quandMot: 'À domicile, sans dos-à-dos', soir: true,
-    dit: 'Une rondelle sur la palette, c\'est une rondelle au filet. On comptera après.',
-    quand: chez, canaux: { volume: 1.18, finition: 0.95 }, adv: { volume: 1.03 },
-    relais: { mot: 'Quand une autre pièce joue', quand: uneAutre('canonnier'), sur: 'piece', cote: 'canaux', canal: 'volume' } },
-  lunette: { voie: 'rapaces', cadre: 1, genre: 'attaque', ico: '🔭', nom: 'Le tireur d\'élite', quandMot: 'À l\'étranger, sans dos-à-dos', soir: true,
-    dit: 'Un bon tir vaut trois mauvais. On attend l\'ouverture, et on la prend.',
-    quand: ailleurs, canaux: { finition: 1.15, volume: 0.88 },
-    relais: { mot: 'Quand une autre pièce joue', quand: uneAutre('lunette'), sur: 'piece', cote: 'canaux', canal: 'finition' } },
-  mur: { voie: 'tortue', cadre: 1, genre: 'defense', ico: '🧱', nom: 'Le mur', quandMot: 'Après une défaite', soir: true,
-    dit: 'Personne ne traverse la ligne bleue debout. Le reste, c\'est du détail.',
-    quand: e => soirDe(e, 'apresDefaite'), canaux: { volume: 0.9 }, adv: { volume: 0.86 },
-    relais: { mot: 'Derrière au pointage', quand: derriere, cote: 'adv', canal: 'volume' } },
-  cogneur: { voie: 'rhinos', cadre: 1, genre: 'tactique', ico: '🏋', nom: 'Le cogneur', quandMot: 'À l\'étranger, sans dos-à-dos', soir: true,
-    dit: 'Finis tes mises en échec. Ils vont lever la tête, et c\'est là qu\'ils vont rater.',
-    quand: ailleurs, canaux: { robustesse: 1.6, discipline: 1.4 }, adv: { finition: 0.98 },
-    relais: { mot: 'Après une période perdue aux tirs', quand: perduAuxTirs, cote: 'canaux', canal: 'robustesse' } },
-  preparateur: { voie: 'souffle', cadre: 1, genre: 'defense', ico: '🏃', nom: 'Le préparateur', quandMot: 'Dos-à-dos, jambes lourdes ou contre le rival', soir: true,
-    dit: 'Des présences courtes, du repos, de l\'eau. On ne gagne rien à l\'infirmerie.',
-    quand: usant, canaux: { blessure: 0.6, energie: 0.85, volume: 0.95 },
-    relais: { mot: 'Quand l\'infirmerie déborde', quand: e => soirDe(e, 'infirmerie'), cote: 'canaux', canal: 'blessure' } },
-  moine: { voie: 'choeur', cadre: 1, genre: 'tactique', ico: '🧘', nom: 'Le moine', quandMot: 'Après trois victoires ou un soir de dos-à-dos', soir: true,
-    dit: 'Les bâtons sur la glace, la bouche fermée. L\'arbitre ne nous verra pas de la soirée.',
-    quand: e => soirDe(e, 'enFeu', 'dosADos'), canaux: { discipline: 0.7, robustesse: -1, volume: 0.97 },
-    relais: { mot: 'Derrière au pointage', quand: derriere, cote: 'canaux', canal: 'discipline' } },
-  rouleur: { voie: 'profondeur', cadre: 1, genre: 'tactique', ico: '🔁', nom: 'Le rouleur', quandMot: 'Après une défaite', soir: true,
-    dit: 'Tout le monde joue, tout le monde est frais en troisième. C\'est là que ça se gagne.',
-    quand: e => soirDe(e, 'apresDefaite'), canaux: { F: [0.82, 1, 1.1, 1.2], blessure: 0.7 }, adv: { volume: 0.92 },
-    relais: { mot: 'Un soir de dos-à-dos, chaque période', quand: e => soirDe(e, 'dosADos'), cote: 'adv', canal: 'volume' } },
-  vedettiste: { voie: 'etoiles', cadre: 1, genre: 'attaque', ico: '🎤', nom: 'Le vedettiste', quandMot: 'À domicile, sans dos-à-dos', soir: true,
-    dit: 'On paie des vedettes pour qu\'elles jouent. Mets-les sur la glace et laisse-les faire.',
-    quand: chez, canaux: { F: [1.15, 1, 0.94, 0.88], finition: 1.06, blessure: 1.3 }, adv: { volume: 1.08 },
-    relais: { mot: 'À domicile, chaque période', quand: e => soirDe(e, 'domicile'), cote: 'canaux', canal: 'finition' } },
-  /* ---------- pour le battre (tranche 7) : le jeu de l'adversaire du soir, lu dans ses vraies stats (`contre`, js/actes.js `sonJeu`) ---------- */
-  bloqueur: { voie: 'tortue', cadre: 2, genre: 'defense', ico: '🛡', nom: 'Le bloqueur', quandMot: 'Contre des tireurs', soir: true, contre: 'tirs',
-    dit: 'Ils tirent de partout ? Parfait. On se couche devant chaque rondelle, et leur gardien s\'ennuie.',
-    quand: e => soirDe(e, 'tireurs'), adv: { volume: 0.88 } },
-  patineur: { voie: 'choeur', cadre: 2, genre: 'tactique', ico: '⛸', nom: 'Le patineur', quandMot: 'Contre des durs', soir: true, contre: 'durs',
-    dit: 'Ils veulent frapper ? Qu\'ils nous attrapent d\'abord. Chaque coup en retard, c\'est un avantage numérique.',
-    quand: e => soirDe(e, 'durs'), canaux: { blessure: 0.7 }, adv: { discipline: 1.3 } },
-  trafic: { voie: 'rhinos', cadre: 2, genre: 'attaque', ico: '👥', nom: 'Le trafic', quandMot: 'Contre un gros gardien', soir: true, contre: 'gardien',
-    dit: 'Il arrête tout ce qu\'il voit. Alors on va lui cacher la rondelle : du monde devant lui, toute la soirée.',
-    quand: e => soirDe(e, 'grosGardien'), canaux: { volume: 1.1, finition: 1.03 } },
-  // L'ANCIEN ARBITRE (V23 ; JP : *a coach or assistant that was a ref*) : hors des huit voies, le second maillon de la chaîne.
-  // La plus forte (+3 V seule, +4,5 avec le canonnier) : elle garde sa force, mais sort rarement (`rarete`, JP, 8 nov. 2026),
-  // et sa carte prend le cadre d'or des rares.
-  arbitre: { voie: null, cadre: 3, rarete: 'rare', genre: 'synergie', ico: '🦓', nom: 'L\'ancien arbitre', quandMot: 'À l\'étranger, sans dos-à-dos', soir: true,
-    dit: 'J\'ai sifflé vingt ans dans cette ligue. Je sais ce qu\'ils regardent, et ce qu\'ils ne regardent pas.',
-    quand: ailleurs, canaux: { discipline: 0.8 }, adv: { discipline: 1.15 },
-    relais: { mot: 'Quand une autre pièce relaie', quand: unRelais('arbitre'), chaine: true, cote: 'adv', canal: 'discipline' } },
+  tireurs: { voie: 'rapaces', cadre: 3, genre: 'attaque', ico: '🎯', nom: 'Les tireurs', compte: ['F:sniper'], qui: 'tes snipers', cote: 'canaux', canal: 'finition', seuils: [7, 14, 21] },
+  passeurs: { voie: 'etoiles', cadre: 3, genre: 'attaque', ico: '🅰', nom: 'Les passeurs', compte: ['F:passeur'], qui: 'tes passeurs', cote: 'canaux', canal: 'volume', seuils: [7, 13, 19] },
+  gros: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🦍', nom: 'Les gros', compte: ['F:power'], qui: 'tes power forwards', cote: 'canaux', canal: 'volume', seuils: [4, 8, 12] },
+  lignebleue: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🚀', nom: 'La ligne bleue', compte: ['D:offensif'], qui: 'tes défenseurs offensifs', cote: 'canaux', canal: 'volume', seuils: [5, 9, 13] },
+  manieurs: { voie: 'choeur', cadre: 3, genre: 'attaque', ico: '🏒', nom: 'Les manieurs', compte: ['D:manieur'], qui: 'tes manieurs de rondelle', cote: 'canaux', canal: 'finition', seuils: [5, 10, 14] },
+  deuxsens: { voie: 'tortue', cadre: 3, genre: 'defense', ico: '☯', nom: 'Les deux sens', compte: ['F:deuxsens', 'D:deuxsens'], qui: 'tes two-way', cote: 'adv', canal: 'finition', seuils: [6, 12, 18] },
+  etouffoir: { voie: 'profondeur', cadre: 3, genre: 'defense', ico: '🔧', nom: 'L\'étouffoir', compte: ['F:checker'], qui: 'tes checkers', cote: 'adv', canal: 'volume', seuils: [3, 6, 9] },
+  colsbleus: { voie: 'souffle', cadre: 3, genre: 'defense', ico: '🪠', nom: 'Les cols bleus', compte: ['F:energie', 'F:bagarreur'], qui: 'tes plombiers et tes bagarreurs', cote: 'adv', canal: 'finition', seuils: [4, 8, 11] },
+  muraille: { voie: 'rhinos', cadre: 3, genre: 'defense', ico: '🛑', nom: 'La muraille', compte: ['D:defensif', 'D:physique'], qui: 'tes défenseurs défensifs et physiques', cote: 'adv', canal: 'volume', seuils: [4, 7, 10] },
 };
-/* Les pièces qui répondent au style d'un club (js/actes.js `jeuDuRival` : sa ligne au meilleur rang) : « Pour le battre », sous son annonce. */
-export const piecesContre = styles => Object.keys(PIECES).filter(k => styles.includes(PIECES[k].contre));
-/* La pièce de départ de chaque coach : le premier pouvoir de sa philosophie, à sa maîtrise ; leur coach en séries la joue aussi. */
-export const PIECE_DU_COACH = { essaim: 'ruee', rapaces: 'riposte', tortue: 'verrou', rhinos: 'usure', souffle: 'souffle', choeur: 'sangfroid', profondeur: 'quatre', etoiles: 'spectacle' };
+/* La pièce de départ de chaque coach : celle qui compte les rôles de sa couleur. */
+export const PIECE_DU_COACH = { essaim: 'gros', rapaces: 'tireurs', tortue: 'deuxsens', rhinos: 'muraille', souffle: 'colsbleus', choeur: 'manieurs', profondeur: 'etouffoir', etoiles: 'passeurs' };
+
+/* ---------- le compte, la marche, l'effet ---------- */
+/* Ce qu'un joueur ajoute au compte d'une pièce : les paliers de ses badges comptés, le second badge à moitié. */
+export function apportDe(cle, p) {
+  const P = PIECES[cle];
+  if (!P || !p) return 0;
+  const g = groupeDuJoueur(p);
+  return badgesDe(p).reduce((a, b) => a + (P.compte.includes(`${g}:${b.cle}`) ? (b.second && !b.plein ? b.palier / 2 : b.palier) : 0), 0);
+}
+export const compteDe = (cle, joueurs) => (joueurs || []).reduce((a, p) => a + apportDe(cle, p), 0);
+/* La marche atteinte, de 0 à 3 ; le seuil d'après, ou null à la dernière. */
+export const marcheDe = (cle, n) => (PIECES[cle] ? PIECES[cle].seuils.filter(s => n >= s).length : 0);
+export const seuilSuivant = (cle, n) => (PIECES[cle] ? PIECES[cle].seuils.find(s => n < s) ?? null : null);
+/* La force d'une pièce sur ce banc : la maîtrise de l'entraîneur pour sa pièce de départ, 1 pour les autres. */
+export const forceDeLaPiece = (perso, cle) => (perso && !perso.adverse && cle === PIECE_DU_COACH[perso.cle] ? Math.min(1.3, Math.max(0.9, Number(perso.maitrise) || 1)) : 1);
+/* Le multiplicateur d'une pièce à une marche : ton canal monte (`1 + %`), le leur descend (`1 / (1 + %)`) ; 1 sous le premier seuil. */
+export function facteurDe(cle, marche, force = 1) {
+  const P = PIECES[cle];
+  if (!P || marche <= 0) return 1;
+  const pct = MARCHES[Math.min(marche, MARCHES.length) - 1] * force / 100;
+  return P.cote === 'adv' ? 1 / (1 + pct) : 1 + pct;
+}
 
 /* ---------- le banc ---------- */
 /* Le banc d'un personnage, propre : ses pièces connues, dans l'ordre des cases. */
 export const bancDe = perso => ((perso && perso.banc) || []).filter(k => PIECES[k]).slice(0, CASES_DU_BANC);
-/* La force d'une pièce sur ce banc : la maîtrise de l'entraîneur pour sa pièce de départ, 1 pour les autres. */
-export const forceDeLaPiece = (perso, cle) => (perso && cle === PIECE_DU_COACH[perso.cle] ? Math.min(1.3, Math.max(0.9, Number(perso.maitrise) || 1)) : 1);
 /*
  * POSER UNE PIÈCE : elle entre dans la première case libre ; le banc plein, elle prend la case de `sort` (qui part) ;
  * déjà là, ou plein sans `sort` sur le banc, rien ne bouge. Rend le banc.
@@ -209,106 +89,45 @@ export function poserLaPiece(banc, cle, sort = null) {
   return i < 0 ? b : b.map((k, j) => (j === i ? cle : k));
 }
 /*
- * LA RARETÉ D'UNE PIÈCE (JP, 8 nov. 2026 : l'arbitre devient une pièce rare). Une pièce `rarete: 'rare'` garde sa force,
- * mais pèse `POIDS_RARE` au tirage des offres (une ordinaire : 1) : chaque offre range les pièces par une course
- * exponentielle, −ln(1 − u) / poids, la plus petite d'abord ; à poids égaux, c'est l'ordre de la graine seule.
- */
-export const POIDS_RARE = 0.25;
-export const poidsDuTirage = cle => (PIECES[cle] && PIECES[cle].rarete === 'rare' ? POIDS_RARE : 1);
-/*
  * LES PIÈCES OFFERTES (une parmi trois), tirées de la graine parmi celles qui ne sont pas déjà sur le banc. `cle` : le
- * moment (le rival battu, le nœud de la boutique, la fourche) ; deux moments n'offrent pas les mêmes. `voisines` (le rival
- * battu) : les pièces de la philosophie du coach et de ses deux voisines dans `VOIES`, plus celles hors des voies. Une rare
- * sort à son poids (`poidsDuTirage`) : le rival battu, la boutique, la fourche et les robots tirent tous ici.
+ * moment (le camp, le rival battu, l'élite, le marché) ; deux moments n'offrent pas les mêmes. Le jeu et les robots
+ * tirent tous ici.
  */
-export function piecesOffertes(perso, graine, cle, n = PIECES_OFFERTES, { voisines = false } = {}) {
-  const pris = new Set(bancDe(perso)), i = perso ? VOIES.indexOf(perso.cle) : -1;
-  const proches = i < 0 ? null : new Set([VOIES[i], VOIES[(i + 1) % VOIES.length], VOIES[(i + VOIES.length - 1) % VOIES.length]]);
-  const rang = k => -Math.log(1 - hache(String(graine), 'piece', cle, k)) / poidsDuTirage(k);
-  return Object.keys(PIECES).filter(k => !pris.has(k) && (!voisines || !proches || !PIECES[k].voie || proches.has(PIECES[k].voie)))
-    .sort((a, b) => rang(a) - rang(b)).slice(0, n);
-}
-
-/* ---------- le jeu d'une période ---------- */
-/* Un effet grandi : chaque canal s'écarte de 1 (ou de 0, la robustesse) `f` fois plus. */
-function grandir(effet, f) {
-  if (!effet) return null;
-  const out = {};
-  for (const [k, v] of Object.entries(effet)) {
-    if (Array.isArray(v)) out[k] = v.map(x => 1 + (x - 1) * f);
-    else if (k === 'robustesse') out[k] = v * f;
-    else out[k] = Math.max(0.05, 1 + (v - 1) * f);
-  }
-  return out;
-}
-/* Ce que le relais d'une pièce ajoute : { cote, canal, valeur } (son canal à `RELAIS_NIV` fois son écart), ou null. */
-export function effetDuRelais(cle) {
-  const P = PIECES[cle];
-  if (!P || !P.relais) return null;
-  const { cote, canal } = P.relais, v = P[cote] ? P[cote][canal] : null;
-  if (v == null) return null;
-  return { cote, canal, valeur: Array.isArray(v) ? v.map(x => 1 + (x - 1) * RELAIS_NIV) : canal === 'robustesse' ? v * RELAIS_NIV : 1 + (v - 1) * RELAIS_NIV };
+export function piecesOffertes(perso, graine, cle, n = PIECES_OFFERTES) {
+  const pris = new Set(bancDe(perso));
+  return Object.keys(PIECES).filter(k => !pris.has(k)).map(k => [hache(String(graine), 'piece', cle, k), k]).sort((a, b) => a[0] - b[0]).slice(0, n).map(x => x[1]);
 }
 /*
- * LES PIÈCES DE LA SOIRÉE, pur : celles dont la condition est la soirée entière (`soir` : à domicile, après une défaite…),
- * lues avant le match sur ses moments (`e`, la période 0). Elles jouent le match entier comme un style d'un soir (le temps
- * du match : leurs minutes et leurs jambes comprises), à leur force. Rend [{ cle, P, canaux, adv }].
+ * LE BANC D'UN MATCH, pur : chaque pièce du banc, son compte chez `joueurs` (ceux qui comptent : tes signés, ou tout le
+ * club d'un adversaire), sa marche et son multiplicateur, la maîtrise comprise ; le produit de chaque canal borné à
+ * `BORNE_DU_CANAL`, la pièce qui le dépasse rabotée. Rend [{ cle, P, n, marche, facteur, canaux?, adv? }] : `canaux` ou
+ * `adv` seulement si la pièce joue (marche 1 ou plus).
  */
-export function bancDuSoir(perso, e) {
-  if (!perso || perso.adverse) return [];
-  return bancDe(perso).filter(k => PIECES[k].soir && PIECES[k].quand(e)).map(k => {
-    const P = PIECES[k], f = forceDeLaPiece(perso, k);
-    return { cle: k, P, canaux: grandir(P.canaux, f), adv: grandir(P.adv, f) };
+export function bancDuMatch(perso, joueurs) {
+  const produit = {};
+  return bancDe(perso).map(cle => {
+    const P = PIECES[cle], n = compteDe(cle, joueurs), marche = marcheDe(cle, n), k = `${P.cote}:${P.canal}`;
+    let f = facteurDe(cle, marche, forceDeLaPiece(perso, cle));
+    const avant = produit[k] ?? 1, apres = Math.min(BORNE_DU_CANAL, Math.max(1 / BORNE_DU_CANAL, avant * f));
+    f = apres / avant; produit[k] = apres;
+    return { cle, P, n, marche, facteur: f, ...(marche > 0 ? { [P.cote]: { [P.canal]: f } } : {}) };
   });
-}
-/*
- * LE BANC D'UNE PÉRIODE, pur : les autres pièces, dont la condition se lit avant la période `e.k`, chacune à sa force, puis
- * les relais — d'abord les signaux qui lisent le match et les pièces qui jouent (celles de la soirée, `soir`, comprises),
- * puis ceux qui lisent un relais allumé (`chaine`) ; jamais un troisième. Leur coach en séries (`adverse`) : sa pièce, ou
- * son ombre (`OMBRE`) hors de sa condition. `perso.sansRelais` (la mesure seulement, jamais posé par le jeu) : aucun relais.
- * Rend { pieces: [{ cle, P, canaux, adv, ombre? }], relais: [{ cle, P, sur, maillon, cote, canal, valeur }] }.
- */
-export function bancDeLaPeriode(perso, e, soir = []) {
-  if (!perso) return { pieces: [], relais: [] };
-  if (perso.adverse) {
-    const cle = PIECE_DU_COACH[perso.cle], P = PIECES[cle];
-    if (!P) return { pieces: [], relais: [] };
-    const joue = P.quand(e), f = (joue ? 1 : -OMBRE) * (perso.maitrise || 1);
-    return { pieces: [{ cle, P, ombre: !joue, canaux: grandir(P.canaux, f), adv: grandir(P.adv, f) }], relais: [] };
-  }
-  const banc = bancDe(perso);
-  const pieces = banc.filter(k => !PIECES[k].soir && PIECES[k].quand(e)).map(k => {
-    const P = PIECES[k], f = forceDeLaPiece(perso, k);
-    return { cle: k, P, canaux: grandir(P.canaux, f), adv: grandir(P.adv, f) };
-  });
-  const relais = [];
-  if (perso.sansRelais) return { pieces, relais };
-  const jouent = [...soir.map(x => ({ cle: x.cle, P: PIECES[x.cle] })), ...pieces];
-  const env = { ...e, pieces: jouent.map(x => x.cle), relais: [] };
-  const lire = (k, env2) => {
-    const P = PIECES[k], fx = P.relais && P.relais.quand(env2) ? effetDuRelais(k) : null;
-    if (!fx) return;
-    const premier = relais[0], par = jouent.find(x => x.cle !== k);
-    const sur = P.relais.chaine && premier ? { genre: 'relais', cle: premier.cle, ico: premier.P.ico, nom: premier.P.nom }
-      : P.relais.sur === 'piece' && par ? { genre: 'piece', cle: par.cle, ico: par.P.ico, nom: par.P.nom } : { genre: 'moment', nom: P.relais.mot };
-    relais.push({ cle: k, P, sur, maillon: P.relais.chaine ? 2 : 1, ...fx });
-  };
-  for (const k of banc) if (PIECES[k].relais && !PIECES[k].relais.chaine) lire(k, env);
-  const allumes = relais.map(x => x.cle);
-  for (const k of banc) if (PIECES[k].relais && PIECES[k].relais.chaine) lire(k, { ...env, relais: allumes });
-  return { pieces, relais };
 }
 
 /*
- * LEUR COACH EN SÉRIES (V23 F ; JP : *plus organique de pas choisir*). En séries, l'adversaire a un coach-personnage, sa
- * philosophie lue sur le style du club (`t.style`, js/sim.js `poserStyles`), ou tirée pure de son nom, et une seule pièce,
- * la première de sa philosophie (`PIECE_DU_COACH`) ; hors de sa condition, elle joue son OMBRE, l'écart inverse à
- * `OMBRE` fois : neutre en V sur une saison. Pur, jamais de banc à lui.
+ * LEUR BANC EN SÉRIES (JP, 14 nov. 2026 : « les séries sont le mur » ; un vrai banc en face, qui grandit). L'adversaire
+ * d'une série porte les pièces qui comptent le plus chez lui, tout son club compté : `BANC_DES_SERIES` pièces selon la
+ * ronde. Sa philosophie (`cle`), lue sur le style du club (`t.style`, js/sim.js `poserStyles`) ou tirée de son nom, ne
+ * sert qu'à le nommer. Pur.
  */
+export const BANC_DES_SERIES = [1, 2, 3];
 export const COACH_DU_STYLE = { offensif: 'essaim', defensif: 'tortue', robuste: 'rhinos' };
 const AUTRES_COACHS = ['rapaces', 'souffle', 'choeur', 'profondeur', 'etoiles'];
-export const OMBRE = 0.5;
-export function persoAdverse(team) {
+export function persoAdverse(team, ronde = 0) {
   const cle = COACH_DU_STYLE[team.style] || AUTRES_COACHS[Math.floor(hache(String(team.tag || ''), String(team.season || ''), 'leur coach') * AUTRES_COACHS.length)];
-  return { cle, banc: [], maitrise: 1, adverse: true };
+  const joueurs = Object.values(team.roster || {}).filter(Boolean);
+  // Les plus avancées chez lui : la marche d'abord, puis le compte rapporté au premier seuil ; à égalité, l'ordre de la table.
+  const rang = k => { const n = compteDe(k, joueurs); return marcheDe(k, n) * 100 + Math.min(99, n / PIECES[k].seuils[0]); };
+  const banc = Object.keys(PIECES).map((k, i) => [rang(k), -i, k]).sort((a, b) => b[0] - a[0] || b[1] - a[1]).slice(0, BANC_DES_SERIES[Math.min(BANC_DES_SERIES.length - 1, Math.max(0, ronde))]).map(x => x[2]);
+  return { cle, banc, maitrise: 1, adverse: true };
 }

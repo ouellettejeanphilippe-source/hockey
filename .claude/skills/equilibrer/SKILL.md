@@ -11,22 +11,22 @@ Le sujet : `$ARGUMENTS` (vide : la run et le banc, `mesure_run` puis `check_pouv
 
 ## 1. Lire avant de mesurer
 
-- `.claude/rules/rogue.md` : les bornes du sujet (les Coupes des trois robots sur 64 graines, la première Coupe du malin à la run 3 ou plus tard, la présence de 30 à 50 % d'une pièce et ses bornes sur un acte, les 60 % du duel, les bornes de l'élite, la borne en victoires d'une réponse d'histoire).
-- `docs/refonte-v28-4.md` (« Le banc remesuré », « Ce qui reste ouvert ») et `docs/decisions.md` (« tu peux exploser le jeu ») : ce qui est déjà mesuré et ce qui reste ouvert. Les lignes d'équilibre de « À faire » dans `PLAN.md` datent de l'ancien Rogue.
-- Le code du sujet : la constante qui le règle, son fichier. Les leviers de la run sont l'objet `RUN` de `js/run.js` (la cible `CIBLES` 7·8·9, le plafond `RACHAT`, les étapes d'édition `ETAPES`, les bandes, les jetons du marché) ; **2 ❤️** ne se règle pas (JP, 7 nov. 2026).
+- `.claude/rules/rogue.md` : les bornes du sujet (les Coupes des robots sur 64 graines, la première Coupe du malin à la run 3 ou plus tard, les cinq bornes du build à 256 graines, les marches d'une pièce et la borne d'un canal, les 60 % du duel, les bornes de l'élite, la borne en victoires d'une réponse d'histoire).
+- `docs/refonte-v29.md` (§ 4 les chiffres, § 9 les critères) et `docs/decisions.md` (« La V29 : le build décide ») : ce qui est déjà mesuré et ce qui reste ouvert. Les lignes d'équilibre de « À faire » dans `PLAN.md` datent de l'ancien Rogue.
+- Le code du sujet : la constante qui le règle, son fichier. Les leviers de la run sont l'objet `RUN` de `js/run.js` (la cible `CIBLES` 7·8·9, le plafond `RACHAT`, les étapes d'édition `ETAPES` 1·3·12·12, les bandes, la relance `RELANCE`, les jetons du marché) ; ceux du banc sont dans `js/pieces.js` (les seuils de `PIECES`, `MARCHES`, `BORNE_DU_CANAL`, `BANC_DES_SERIES`) ; **2 ❤️** ne se règle pas (JP, 7 nov. 2026).
 
 ## 2. Choisir le juge le plus court qui répond
 
 | Sujet | Juge | Le court | Le plein |
 |---|---|---|---|
 | run, carte, portes | `check_run` · `mesure_run` | `node scripts/check_run.mjs` (10 s) · `GRAINES=8 FILS=2 node scripts/mesure_run.mjs` (les bornes s'impriment sans se juger) | `GRAINES=64 FILS=3 node scripts/mesure_run.mjs` (cinq à six minutes ; jamais plus de 3 fils ici) ; `REGLAGES='{"RACHAT":0.6}'` essaie un levier de `RUN` sans toucher au code |
-| banc, une pièce, un coach | `check_pouvoirs` · `check_relais` | `MESURE=0 N=20` (une demi-minute, sans les bornes) · `PIECES=a,b` | `FILS=3 node scripts/check_pouvoirs.mjs` (huit minutes) · `node scripts/check_relais.mjs` (deux minutes) |
-| un moment (le `quand` d'une pièce) | `check_moments_si` | `node scripts/check_moments_si.mjs` (30 s) | le même |
+| banc, une pièce, un coach | `check_pouvoirs` · `mesure_run` · `check_gros` (leur banc en séries) | `MESURE=0 N=20 node scripts/check_pouvoirs.mjs` (quelques secondes, sans les chiffres de valeur) · `PIECES=a,b` | `node scripts/check_pouvoirs.mjs` (une minute) ; ce qu'une pièce vaut dans une run : `GRAINES=256 FILS=3 GRAINE0=4000 node scripts/mesure_run.mjs` (une heure et demie) |
+| un moment (le `quand` d'une réponse d'histoire) | `check_moments_si` | `node scripts/check_moments_si.mjs` (30 s) | le même |
 | duel, élite | `check_duel` · `check_elites` | `N=200` · une seconde | `N=1200` (une minute) |
 | marché | `check_packs` · `check_run` | une demi-minute · 10 s | `mesure_run` avec `REGLAGES` (les jetons d'un match, d'une porte passée) ; les robots y achètent une pièce, jamais une pochette : ce que vaut une pochette dans une run ne se mesure pas encore |
 | histoires | `check_histoires` · `check_mots` · `check_effets` | quelques secondes · `IDS=d:<histoire>` pour cibler | `check_effets` (une vingtaine de minutes) |
 
-Dis la commande et sa durée avant de la lancer. Plus de cinq minutes : demande d'abord. Un repère se juge sur plusieurs graines (64 pour `mesure_run` ; sous 32, rien ne se juge), jamais sur une seule. Un écart entre deux robots demande plus : à 64 graines un écart de Coupes a ±6 de bruit, à 128 un écart de cibles tenues ±7 ; « lire paie » et « exploser le jeu » se jugent à 384 (`GRAINES=384 FILS=3 ROBOTS=malin,chiffre node scripts/mesure_run.mjs`, une quinzaine de minutes). Un résultat au bord du bruit se rejoue sur des graines neuves avant de se proposer : le 11 nov. 2026, un levier « gagnant » sur 128 graines ne l'était plus sur les 128 suivantes.
+Dis la commande et sa durée avant de la lancer. Plus de cinq minutes : demande d'abord. Un repère se juge sur plusieurs graines (64 pour `mesure_run` ; sous 32, rien ne se juge), jamais sur une seule. Un écart entre deux robots demande plus : à 64 graines un écart de Coupes a ±6 de bruit, à 128 un écart de cibles tenues ±7 ; les bornes du build (« bâtir paie », « dur, mais ça explose », « les séries sont le mur », « la cote seule ne suffit plus », « plus d'un build gagne ») se jugent à 256 (`GRAINES=256 FILS=3 GRAINE0=4000 node scripts/mesure_run.mjs`, une heure et demie) : à 64, elles s'impriment sans se juger, et le rapport le dit. Un résultat au bord du bruit se rejoue sur des graines neuves avant de se proposer : le 11 nov. 2026, un levier « gagnant » sur 128 graines ne l'était plus sur les 128 suivantes.
 
 ## 3. Lancer et lire
 
@@ -43,15 +43,15 @@ Mesuré : <commande> — <durée>, <N, graines>
 
 | Ce qu'on mesure | Borne | Mesuré | État |
 |---|---|---|---|
-| <pièce, plan, levier de la run…> | <±V, Coupes sur 64…> | <mesuré [intervalle]> | sous la borne / au-dessus / mort / piège |
+| <pièce, plan, levier de la run…> | <sa marche, ±V, Coupes sur 64…> | <mesuré [intervalle]> | sous la borne / au-dessus / mort / piège / non jugé (trop peu de graines) |
 
 **Le problème** : <une phrase, chiffrée>
-**Le réglage proposé** : `<CONSTANTE>` (<fichier>) de <avant> à <après> — effet attendu : <V, Coupes>
+**Le réglage proposé** : `<CONSTANTE>` (<fichier>) de <avant> à <après> — effet attendu : <V, Coupes, cibles tenues>
 **La preuve** : <le juge, et ce qu'il doit dire après>
 **À trancher par JP** : <s'il y a lieu>
 ```
 
-« Mort » : ne se voit jamais dans la feuille d'un soir où il joue. « Piège » : le prendre fait perdre.
+« Mort » : ne se voit jamais dans la feuille d'un soir où il joue ; pour une pièce de banc, sa première marche atteinte moins d'une fois sur deux. « Piège » : le prendre fait perdre.
 
 ## 5. Appliquer, seulement si JP dit oui
 

@@ -27,9 +27,9 @@ import { EXPEDITEURS } from './vie-gm.js';
 import { nomCourt } from './recit.js';
 import { vraieMot } from './faits.js';
 import { hache, pct3, SEMAINE } from './util.js';
-import { PIECES_PAR_SAISON_DES_FOURCHES } from './pieces.js';
-/* Une fourche qui donne une pièce ne sort que si la saison en a donné moins de deux (V27, tranche 5 ; devis § 4.6). */
-const pieceDeFourche = f => (f.fourches || 0) < PIECES_PAR_SAISON_DES_FOURCHES;
+/* Une histoire qui donne une pièce de banc ne sort que si la run en a donné moins de deux. */
+const PIECES_DES_HISTOIRES = 2;
+const pieceDeFourche = f => (f.fourches || 0) < PIECES_DES_HISTOIRES;
 
 /* LE RYTHME (V20, nov. 2026, V23) : le repos d'une histoire sortie, ses sorties par saison, la chance d'une rare. */
 export const REPOS_HISTOIRE = 5, SORTIES_MAX = 2, CHANCE_RARE = 0.4;

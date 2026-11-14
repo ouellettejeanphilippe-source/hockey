@@ -7,7 +7,7 @@
  */
 import { SLOTS, activeLineup, badgesDe, energieDe, getHiddenRatings, getPlayerKey, periodeDe, PALIERS } from './sim.js';
 import { PLANS, INTENTIONS } from './greffes.js';
-import { PIECES, PIECE_DU_COACH, CASES_DU_BANC } from './pieces.js';
+import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, apportDe, compteDe, marcheDe, seuilSuivant, forceDeLaPiece } from './pieces.js';
 import { COACHS, REGLES_DU_COACH, VOIES } from './coachs.js';
 import { PRESTIGES, EXIGENCES, voiesOuvertes, prixDeLaVoie, ecussonsAVie, cranOuvert } from './rogue.js';
 import { LEGENDES } from './cartable.js';
@@ -24,7 +24,7 @@ import { nomCourt } from './recit.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
   RUN, RANG_DU_RIVAL, RANGS_DE_DOS_A_DOS, casesOffertes, caseA, suivantes, masseDe, espaceDe, prixDe, masseApres, tient, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe,
-  dosADosA, piecesDuSoir, leurCoach, reglesDe,
+  dosADosA, leurBanc, signesDe, prixDeLaRelance, reglesDe,
 } from './run.js';
 
 /* ---------- les petites briques ---------- */
@@ -50,7 +50,20 @@ const jambes = ps => (ps.length ? Math.round(ps.reduce((a, p) => a + energieDe(p
 const couleurs = (toi, eux) => `--toi:${getTeamBand(toi).bg};--eux:${getTeamBand(eux).bg === getTeamBand(toi).bg ? getTeamBand(eux).stripe : getTeamBand(eux).bg}`;
 const carteJ = p => `<span class="rn-c rn-cj" style="${varsEquipe(p)}">${cartonDe(p, { rar: editionDe(p) })}</span>`;
 const carteP = cle => `<span class="rn-c">${carteDePiece(cle, { lecture: true, statique: true })}</span>`;
-const ligneDe = cle => { const P = PIECES[cle], l = lignesDeLaPiece(cle)[0]; return `${esc(P.quandMot)}${l ? ` : ${esc(l.txt.charAt(0).toLowerCase() + l.txt.slice(1))}` : ''}`; };
+/* Les trois marches d'une pièce, en points. */
+const points = marche => `<span class="rn-or">${'●'.repeat(marche)}</span><span class="rn-gris">${'○'.repeat(3 - marche)}</span>`;
+/*
+ * CE QU'UNE PIÈCE COMPTE CHEZ TOI (V29) : son compte chez tes signés, le seuil d'après, ses marches, et ce qu'elle rend en
+ * vraies stats de match — sous sa première marche, ce que la première rendrait. Aucun mot de code, aucun pourcentage.
+ */
+function ligneCourte(S, cle) {
+  const P = PIECES[cle], n = compteDe(cle, signesDe(S)), marche = marcheDe(cle, n), suivant = seuilSuivant(cle, n);
+  const l = lignesDeLaPiece(cle, marche || 1, forceDeLaPiece(S.toi.perso, cle))[0], effet = l ? esc(l.txt.charAt(0).toLowerCase() + l.txt.slice(1)) : '';
+  return `${Math.floor(n)}${suivant != null ? ` / ${suivant}` : ''} ${points(marche)}${effet ? `<br>${marche ? effet : `À ${P.seuils[0]} : ${effet}`}` : ''}`;
+}
+const ligneDe = (S, cle) => `Compte ${esc(PIECES[cle].qui)} · ${ligneCourte(S, cle)}`;
+/* Avant la run, personne n'est signé : ce qu'elle compte et ses trois seuils. */
+const ligneSansRun = cle => `Compte ${esc(PIECES[cle].qui)} · à ${PIECES[cle].seuils.join(', ')}`;
 const icoDuBadge = (p, cle) => { const b = badgesDe(p).find(x => x.cle === cle); return b ? b.ico : ''; };
 const icosDeLAccord = x => `${icoDuBadge(x.a, x.aff.a[1])}${icoDuBadge(x.b, x.aff.b[1])}`;
 const badgeMot = p => { const b = badgesDe(p)[0]; return b ? `${b.ico} ${esc(b.nom)} ${PALIERS[b.palier].nom}` : ''; };
@@ -84,7 +97,7 @@ const carteDuCoachHtml = x => carteHtml({ cle: 'coach', niveau: niveauDuCoach(x.
 /* Le départ : ton coach, un parmi trois (le loto d'aujourd'hui), sa règle, sa pièce de départ. */
 export function sceneDepart(V) {
   const c = V.loto[V.coach], C = COACHS[c.cle], regle = REGLES_DU_COACH[c.cle], piece = PIECE_DU_COACH[c.cle], k = niveauDuCoach(c.rang) - 1;
-  return `<div style="left:14px;right:14px;top:22px"><div class="rn-k">Run ${V.numero} · toutes les époques</div><div class="rn-titre" style="margin-top:6px">Ton coach</div><div class="rn-t rn-gris" style="margin-top:4px">Un parmi trois. Il fait toute la run.</div></div>
+  return `<div style="left:14px;right:14px;top:22px"><div class="rn-k">Run ${V.numero} · toutes les époques</div><div class="rn-titre" style="margin-top:6px">Ton coach</div><div class="rn-t rn-gris" style="margin-top:4px">${V.arret != null ? `Le banc a changé : ta run d'avant s'arrête. <span class="rn-or">+${V.arret} médailles</span>` : 'Un parmi trois. Il fait toute la run.'}</div></div>
   <div class="rn-pas" style="left:14px;right:14px;top:118px"><span class="rn-on">1 · Ton coach</span><span>2 · Le camp</span><span>3 · L'acte I</span></div>
   <div class="rn-loto" style="left:14px;right:14px;top:166px">${V.loto.map((x, i) => `<button type="button" class="${i === V.coach ? 'rn-on' : ''}" data-a="coach" data-v="${i}"><span class="rn-c">${carteDuCoachHtml(x)}</span><p>${x.nouvelle ? '<span class="rn-puce rn-v">Nouveau</span>' : ''}<b>${esc(x.n)}</b>${esc(clubMot({ t: x.tag, s: x.saison }))}<br>${x.fiche.v}-${x.fiche.d}-${x.fiche.n}${x.coupe ? ' · la Coupe' : ''}</p></button>`).join('')}</div>
   <div class="rn-panneau rn-on" style="left:14px;right:14px;top:428px">
@@ -93,7 +106,7 @@ export function sceneDepart(V) {
     ${regle ? `<div class="rn-t" style="margin-top:8px"><span class="rn-k">Sa règle</span><br>${esc(regle.dit.charAt(0).toUpperCase() + regle.dit.slice(1))} : <span class="rn-or">+${regle.jetons} jetons</span> le soir.</div>` : ''}
   </div>
   <div class="rn-panneau" style="left:14px;right:14px;top:560px;display:grid;grid-template-columns:70px 1fr;gap:12px;align-items:center">${carteP(piece)}
-    <div class="rn-t"><span class="rn-k">Sa pièce de départ${NIVEAUX[k].maitrise !== 1 ? ` · ×${String(NIVEAUX[k].maitrise).replace('.', ',')}` : ''}</span><br><b>${esc(PIECES[piece].nom)}</b><br><span class="rn-gris">${ligneDe(piece)}</span></div></div>
+    <div class="rn-t"><span class="rn-k">Sa pièce de départ${NIVEAUX[k].maitrise !== 1 ? ` · ×${String(NIVEAUX[k].maitrise).replace('.', ',')}` : ''}</span><br><b>${esc(PIECES[piece].nom)}</b><br><span class="rn-gris">${ligneSansRun(piece)}</span></div></div>
   <button type="button" class="rn-versclub" style="right:14px;top:18px" data-a="club" aria-label="Le Club, ${V.medailles} médailles">${logo('YOU', 26)}${medailles(V.medailles)}</button>
   ${V.cranMax > 0 ? `<div class="rn-crans" style="left:14px;right:14px;top:700px">${Array.from({ length: EXIGENCES.length + 1 }, (_, n) => `<button type="button" class="${n === V.cran ? 'rn-on' : ''}" data-a="cran" data-v="${n}"${n > V.cranMax ? ' disabled' : ''}><b>${n}</b>${n ? esc(EXIGENCES[n - 1].court) : 'Sans exigence'}</button>`).join('')}</div>` : ''}
   ${bas(bt('Menu', 'quitter'), bt(`Prendre ${esc(court({ n: c.n }))}`, 'prendre-coach', { cls: 'rn-go' }))}`;
@@ -112,13 +125,11 @@ function styleDe(S, c) { if (!S.jeux) S.jeux = new Map(); const k = `${c.s}:${c.
 function optionDe(S, c, i, on) {
   const tete = c.s ? `${logo(c.t, 30)}${esc(clubCourt(c))}` : `${icone(c.sorte)}${{ marche: 'Le marché', vestiaire: 'Le vestiaire', histoire: 'Une histoire' }[c.sorte]}`;
   const jeu = c.s ? styleDe(S, c) : null, lieu = `${c.visiteur ? 'chez eux' : 'chez toi'}${dosADosA(c, S.R.rang) ? ' · dos-à-dos' : ''}`;
-  // Tes pièces dont la condition se lit déjà (le lieu, son jeu, ta suite, le dos-à-dos) : le chemin se choisit aussi par ton banc.
-  const duSoir = c.s ? piecesDuSoir(S, c).length : 0, banc = duSoir ? `<span class="rn-puce rn-m">${duSoir} pièce${duSoir > 1 ? 's jouent' : ' joue'}</span>` : '';
   const mot = { match: () => `${jeu.mot} · ${lieu}`, elite: () => `Élite · ${jeu.mot} · ${lieu}`, rival: () => `Le rival · il compte double · ${lieu}`,
     marche: () => 'Une pièce de banc, les pochettes', vestiaire: () => 'Te soigner, ou monter une carte', histoire: () => 'Quelqu\'un du club veut te parler' }[c.sorte]();
-  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span>${banc || `<span class="rn-puce">${RUN.PORTES} portes</span>`}`,
-    elite: () => `<span class="rn-puce rn-o">Une pièce, des jetons</span>${banc}`,
-    rival: () => `<span class="rn-puce rn-o">Une pièce · ${c.jetons} jetons</span>${banc}`,
+  const puces = { match: () => `<span class="rn-puce rn-o">${c.jetons} jetons</span><span class="rn-puce">${RUN.PORTES} portes</span>`,
+    elite: () => '<span class="rn-puce rn-o">Une pièce, des jetons</span>',
+    rival: () => `<span class="rn-puce rn-o">Une pièce · ${c.jetons} jetons</span>`,
     marche: () => `<span class="rn-puce rn-o">Pièce : ${PRIX_PIECE}</span>`, vestiaire: () => `<span class="rn-puce">${S.toi.injured.size} blessé${S.toi.injured.size > 1 ? 's' : ''}</span>`, histoire: () => '' }[c.sorte]();
   return `<button type="button" class="rn-opt${on ? ' rn-on' : ''}" data-a="voir-case" data-v="${i}"><b>${tete}</b><span>${esc(mot.charAt(0).toUpperCase() + mot.slice(1))}</span><i>${puces}</i></button>`;
 }
@@ -162,7 +173,6 @@ const vedettesDe = club => { const ps = club.pool.filter(p => groupeDe(p) !== 'G
 const faitDe = p => (p.p === 'G' ? `${esc(court(p))} · ${pct3(p.sv || 0)}` : `${esc(court(p))} · ${p.pt ?? (p.g || 0) + (p.a || 0)} pts`);
 export function sceneAnnonce(S) {
   const R = S.R, c = R.carte.rival, club = S.clubs.find(x => x.s === c.s && x.t === c.t), jeu = jeuDe(S, c), I = INTENTIONS[jeu.dominante];
-  const surBanc = jeu.contre.filter(k => R.banc.includes(k)), aTrouver = jeu.contre.filter(k => !R.banc.includes(k)).slice(0, 2 - Math.min(2, surBanc.length));
   return `${hud(S, { petit: 'Le rival' })}
   <div class="rn-lui"><div class="rn-sous">Au bout de l'acte ${ROMAINS[R.acte]}</div>${logo(c.t, 120)}<div class="rn-gros">${esc(surnom(c.t))}<br>${c.s}</div></div>
   <div class="rn-vs" style="left:14px;top:196px">VS</div>
@@ -171,10 +181,8 @@ export function sceneAnnonce(S) {
     <div class="rn-stat rn-gris"><span>Toi</span><span></span><span></span><span></span><span>Lui</span></div>${sonJeuHtml(jeu)}</div>
   <div style="left:14px;top:486px;display:flex;gap:8px;align-items:flex-end">${vedettesDe(club).map(p => `<div style="width:86px">${carteJ(p)}</div>`).join('')}
     <div style="padding-bottom:6px"><div class="rn-k" style="margin-bottom:6px">Ses vedettes</div><div class="rn-h">${vedettesDe(club).map(faitDe).join('<br>')}</div></div></div>
-  <div style="left:14px;right:14px;top:626px"><div class="rn-k" style="margin-bottom:8px">Pour le battre</div>
-    <div style="display:grid;grid-template-columns:${[...surBanc, ...aTrouver].map(() => '74px').join(' ')} 1fr;gap:10px;align-items:center">
-      ${surBanc.slice(0, 2).map(k => `<div>${carteP(k)}</div>`).join('')}${aTrouver.map(k => `<div class="rn-atrouver">${carteP(k)}<b>À trouver</b></div>`).join('')}
-      <div class="rn-t rn-gris">${surBanc.length ? `<span class="rn-vert">${esc(PIECES[surBanc[0]].nom)}</span> est sur ton banc. ` : ''}${aTrouver.length ? `${esc(PIECES[aTrouver[0]].nom)} est à trouver. ` : ''}Son match compte double.</div></div></div>
+  <div style="left:14px;right:14px;top:626px"><div class="rn-k" style="margin-bottom:8px">Ton banc</div>${banc(S, { largeur: '300px' })}
+    <div class="rn-t rn-gris" style="margin-top:8px">Son match compte double.</div></div>
   ${bas(bt('Voir la carte de l\'acte', 'vers-carte', { cls: 'rn-combat' }))}`;
 }
 
@@ -200,7 +208,7 @@ export const jaugeDeCeSoir = (S, V) => jaugeHtml(V, 'YOU', S.R.case.t);
 export function sceneFeuille(S, V) {
   const R = S.R, c = R.case, club = S.clubs.find(x => x.s === c.s && x.t === c.t), duel = c.sorte !== 'match';
   const jeu = styleDe(S, c), eux = lignesDuClub(club.team), moi = lignesDuClub(S.toi), vedette = vedettesDe(club)[0];
-  const lieu = `${c.visiteur ? 'chez eux' : 'chez toi'}${dosADosA(c, R.rang) ? ' · dos-à-dos' : ''}`, leur = leurCoach(S, c);
+  const lieu = `${c.visiteur ? 'chez eux' : 'chez toi'}${dosADosA(c, R.rang) ? ' · dos-à-dos' : ''}`, leur = leurBanc(S, c);
   const sous = { match: `${jeu.mot} · ${lieu}`, rival: `Le rival · il compte double · ${lieu}`, elite: `Élite · ${jeu.mot} · ${lieu}`, serie: `Match ${R.series ? R.series.w + R.series.l + 1 : 1} · ${lieu}${leur ? ` · leur coach : ${COACHS[leur.cle].nom}` : ''}` }[c.sorte];
   const petit = { match: `Case ${R.rang + 1} de ${RANG_DU_RIVAL}`, rival: 'Le rival', elite: 'L\'élite', serie: ['Quart de finale', 'Demi-finale', 'La finale'][R.series ? R.series.ronde : 0] }[c.sorte];
   const filet = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => S.roster[s.i]).filter(Boolean), aux = S.toi._filetMatch === 'aux';
@@ -230,11 +238,12 @@ export function sceneFeuille(S, V) {
   <div class="rn-plaque" style="left:14px;top:62px">${logo(c.t, 58)}<div class="rn-nom">${esc(clubMot(c))}<small>${esc(sous.charAt(0).toUpperCase() + sous.slice(1))}</small></div></div>
   <div style="left:14px;right:14px;top:134px;display:flex;justify-content:space-between;align-items:center">${I ? `<span class="rn-puce rn-r">${I.ico} ${esc(I.nom)}</span>` : '<span></span>'}<span class="rn-puce">${esc(jeu.mot.charAt(0).toUpperCase() + jeu.mot.slice(1))}</span>${eux.gardien ? `<span class="rn-puce">${esc(court(eux.gardien))} · ${pct3(eux.gardien.sv || 0)}</span>` : ''}</div>
   <div style="left:14px;right:14px;top:172px">${jaugeHtml(V, 'YOU', c.t)}</div>
-  <div style="left:14px;right:14px;top:214px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton plan · un seul choix</span><span class="rn-t rn-gris">Proposé par ton banc</span></div>
-    <div class="rn-plans">${plans.map((x, i) => `<button type="button" class="${V.plan === i ? 'rn-on' : ''}" data-a="plan" data-v="${i}"><span class="rn-c">${carteHtml({ cle: x.cle, niveau: x.qui.genre === 'coach' ? 1 : 2, genreCarte: 'tactique', ico: PLANS[x.cle].ico, nomHtml: esc(PLANS[x.cle].nom), typeHtml: 'Plan', lecture: true, statique: true })}</span><p>${lignesDuPlan(x)}</p></button>`).join('')}</div></div>
+  <div style="left:14px;right:14px;top:214px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton plan · un seul choix</span><span class="rn-t rn-gris">Proposé par ton coach</span></div>
+    <div class="rn-plans">${plans.map((x, i) => `<button type="button" class="${V.plan === i ? 'rn-on' : ''}" data-a="plan" data-v="${i}"><span class="rn-c">${carteHtml({ cle: x.cle, niveau: 1, genreCarte: 'tactique', ico: PLANS[x.cle].ico, nomHtml: esc(PLANS[x.cle].nom), typeHtml: 'Plan', lecture: true, statique: true })}</span><p>${lignesDuPlan(x)}</p></button>`).join('')}</div></div>
   <button type="button" class="rn-bt${V.plan == null ? ' rn-on' : ''}" data-a="plan" data-v="-1" style="left:14px;right:14px;top:498px;height:44px">Ton match · aucun plan</button>
   ${enjeuHtml(S)}
-  <div style="left:14px;right:14px;top:${c.sorte === 'serie' ? 566 : 650}px"><div class="rn-k" style="margin-bottom:6px">Ton banc</div>${banc(S, { largeur: '300px' })}</div>
+  <div style="left:14px;right:14px;top:${leur ? 562 : 650}px"><div class="rn-k" style="margin-bottom:6px">Ton banc</div>${banc(S, { largeur: leur ? '240px' : '300px' })}</div>
+  ${leur ? `<div style="left:14px;right:14px;top:662px"><div class="rn-k" style="margin-bottom:6px">Leur banc · il compte leurs joueurs</div><div class="rn-banc" style="width:240px">${leur.banc.map(x => `<span class="${x.marche ? 'rn-joue' : 'rn-eteinte'}">${carteP(x.cle)}</span>`).join('')}${Array.from({ length: CASES_DU_BANC - leur.banc.length }, () => '<span class="rn-vide"></span>').join('')}</div></div>` : ''}
   ${bas(bt('Lignes', 'lignes'), bt('Au combat', 'jouer', { cls: 'rn-combat' }))}`;
 }
 
@@ -264,7 +273,7 @@ export function sceneMatch(S, V) {
   ${e ? `<div class="rn-buteur" style="left:14px;right:14px;top:452px">${e.qui ? `<span>${carteJ(e.qui)}</span>` : ''}<div>${legende}</div></div>` : ''}
   <div class="rn-fil" style="left:14px;right:14px;top:546px">${[1, 2, 3].map(k => `<div>${k === 1 ? '1re' : `${k}e`}${marques(k)}${e && per === k && !fini ? `<u style="left:${Math.min(98, Math.round(5 * (e.t - 20 * (k - 1))))}%"></u>` : ''}</div>`).join('')}</div>
   <div style="left:14px;right:14px;top:588px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton banc</span><span class="rn-t rn-vert">${M.pieces.length ? `${M.pieces.length} pièce${M.pieces.length > 1 ? 's jouent' : ' joue'} ce soir` : 'Aucune pièce ce soir'}</span></div>${banc(S, { joue: M.pieces })}
-    <div class="rn-t" style="margin-top:10px">${M.pieces.slice(0, 2).map(k => `<span class="rn-vert">${esc(PIECES[k].nom)}</span>${lignesDeLaPiece(k)[0] ? ` <span class="rn-gris">· ${esc(lignesDeLaPiece(k)[0].txt)}</span>` : ''}`).join('<br>')}</div></div>
+    <div class="rn-t" style="margin-top:10px">${M.pieces.slice(0, 2).map(k => `<span class="rn-vert">${esc(PIECES[k].nom)}</span> <span class="rn-gris">· ${ligneCourte(S, k).replace('<br>', ' · ')}</span>`).join('<br>')}</div></div>
   ${bas(bt(`Vitesse ×${V.vitesse}`, 'vitesse', { off: fini }), bt(fini ? 'Continuer' : 'À la fin', fini ? 'apres-match' : 'fin-du-match', { cls: 'rn-go' }))}`;
 }
 
@@ -279,14 +288,14 @@ const bandeDuMatch = S => {
     <div class="rn-t"><b>${a.gagne ? 'Gagné' : a.ot ? 'Perdu en prolongation' : 'Perdu'} ${a.visiteur ? `à ${esc(ville(a.t))}` : `contre ${esc(surnom(a.t))}`}</b><br>${gain || 'Aucun point'}${a.pieces.length ? `<br><span class="rn-gris">Ont joué : ${a.pieces.map(k => esc(PIECES[k].nom.toLowerCase())).join(', ')}</span>` : ''}</div></div>`;
 };
 export function scenePortes(S) {
-  const R = S.R, P = R.portes, camp = R.phase === 'camp';
+  const R = S.R, P = R.portes, camp = R.phase === 'camp', relance = prixDeLaRelance(S);
   const portes = P.clubs.map((c, i) => { const n = vestiaireDe(S, c).filter(x => x.tient).length; return `<button type="button" class="rn-porte" data-a="ouvrir-porte" data-v="${i}">${P.affronte === `${c.s}:${c.t}` ? '<span class="rn-tag">Le club affronté</span>' : ''}${logo(c.t, 66)}<b>${esc(surnom(c.t))}<small>${c.s}</small></b><strong>${n}<small>dans ton espace</small></strong></button>`; }).join('');
   return `${camp ? hud(S, { titre: 'Le camp', petit: `Porte ${R.camp + 1} de ${RUN.CAMP}`, cible: false }) : hud(S, { petit: R.case && R.case.sorte === 'rival' ? 'Le rival' : `Case ${R.rang + 1} de ${RANG_DU_RIVAL}` })}
   ${camp ? `<div class="rn-panneau" style="left:14px;right:14px;top:60px"><div class="rn-t"><b>Avant la première case</b><br><span class="rn-gris">Trois fois trois portes : trois joueurs signés, ou passés.</span></div></div>` : bandeDuMatch(S)}
   <div style="left:14px;right:14px;top:166px;text-align:center"><div class="rn-k">${R.apres && R.apres.gagne && !camp ? 'Gagné : des vestiaires à ta mesure' : 'Trois vrais vestiaires'}</div><div class="rn-h" style="margin-top:6px">Un joueur, dans un de ces vestiaires</div></div>
   <div class="rn-portes" style="left:14px;right:14px;top:254px">${portes}</div>
   <div class="rn-panneau" style="left:14px;right:14px;top:596px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton plafond</span><span class="rn-t">${money(masseDe(S))} <span class="rn-gris">/ ${money(R.plafond)}</span> · <span class="rn-or">Espace ${money(espaceDe(S))}</span></span></div>${plafond(S)}</div>
-  ${bas(bt('Passer', 'passer', { petit: `+${RUN.PASSER} jetons` }), bt('Relance', 'relancer', { petit: R.relances ? `Il t'en reste ${R.relances}` : 'Après une défaite', off: !R.relances || camp }))}`;
+  ${bas(bt('Passer', 'passer', { petit: `+${RUN.PASSER} jetons` }), bt('Relancer', 'relancer', { petit: relance === 0 ? `Gratuite · il t'en reste ${R.relances}` : relance == null ? 'Plus ce soir' : `${relance} jetons`, off: relance == null || relance > R.jetons }))}`;
 }
 /* Ce qu'un joueur allumerait chez toi : le premier accord neuf, à la place de qui sortirait. */
 function accordQuIlAllume(S, p) {
@@ -319,7 +328,9 @@ export function scenePorte(S, V) {
 const statsDuJoueur = p => (p.p === 'G' ? [['Victoires', p.w || 0, x => x], ['% d\'arrêts', p.sv || 0, pct3], ['Matchs', p.gp || 0, x => x]]
   : [['Points / match', (p.pt ?? (p.g || 0) + (p.a || 0)) / Math.max(1, p.gp), x => x.toFixed(2).replace('.', ',')], ['Tirs / match', (p.sh || 0) / Math.max(1, p.gp), x => x.toFixed(1).replace('.', ',')], ['% au tir', p.sh ? (100 * (p.g || 0)) / p.sh : 0, x => `${x.toFixed(1).replace('.', ',')} %`]]);
 export function sceneEchange(S, V) {
-  const R = S.R, p = V.arrivant, sortants = sortantsPour(S, p).sort((a, b) => getHiddenRatings(a).v - getHiddenRatings(b).v);
+  // La sortie proposée d'avance (V29) : le plus faible que ton banc ne compte pas ; ceux qu'il compte ne sortent que si tu les touches.
+  const R = S.R, p = V.arrivant, signes = new Set(signesDe(S)), compte = x => (signes.has(x) && R.banc.some(k => apportDe(k, x) > 0) ? 1 : 0);
+  const sortants = sortantsPour(S, p).sort((a, b) => compte(a) - compte(b) || getHiddenRatings(a).v - getHiddenRatings(b).v);
   const sortant = sortants.find(x => getPlayerKey(x) === V.sortant) || sortants.find(x => masseApres(S, p, x) <= R.plafond) || sortants[0];
   const apres = masseApres(S, p, sortant), ok = apres <= R.plafond, reste = (1 - RUN.RACHAT) * prixDe(S, sortant);
   const A = statsDuJoueur(p), B = statsDuJoueur(sortant);
@@ -370,15 +381,15 @@ export function sceneBanc(S) {
   return `${hud(S, { titre: 'Ton banc', cible: false, pause: false })}
   <div class="rn-panneau" style="left:14px;right:14px;top:60px"><b class="rn-h">${C.ico} ${esc(R.coach.n || C.nom)}</b>
     <div class="rn-t rn-gris" style="margin-top:6px">${esc(C.nom)}${regle ? ` · ${esc(regle.dit)} : <span class="rn-or">+${regle.jetons} jetons</span> le soir` : ''}</div></div>
-  <div style="left:14px;right:14px;top:150px;display:flex;flex-direction:column;gap:8px">${R.banc.map(k => `<div class="rn-panneau" style="display:grid;grid-template-columns:62px 1fr;gap:12px;align-items:center;padding:8px 10px">${carteP(k)}<div class="rn-t"><b>${esc(PIECES[k].nom)}</b><br><span class="rn-gris">${ligneDe(k)}</span></div></div>`).join('')}
-    ${R.banc.length < CASES_DU_BANC ? `<div class="rn-t rn-gris" style="text-align:center;padding:10px">${CASES_DU_BANC - R.banc.length} case${CASES_DU_BANC - R.banc.length > 1 ? 's libres' : ' libre'} : un rival battu, une élite, le marché.</div>` : ''}</div>
+  <div style="left:14px;right:14px;top:150px;display:flex;flex-direction:column;gap:8px">${R.banc.map(k => `<div class="rn-panneau" style="display:grid;grid-template-columns:62px 1fr;gap:12px;align-items:center;padding:8px 10px">${carteP(k)}<div class="rn-t"><b>${esc(PIECES[k].nom)}</b><br><span class="rn-gris">${ligneDe(S, k)}</span></div></div>`).join('')}
+    ${R.banc.length < CASES_DU_BANC ? `<div class="rn-t rn-gris" style="text-align:center;padding:6px">${CASES_DU_BANC - R.banc.length} case${CASES_DU_BANC - R.banc.length > 1 ? 's libres' : ' libre'} : un rival battu, une élite, le marché.</div>` : ''}</div>
   ${bas(bt('Retour', 'fermer-banc', { cls: 'rn-go' }))}`;
 }
 
 /* ---------- le marché, le vestiaire, l'histoire, une pièce offerte ---------- */
 export function sceneMarche(S, V) {
   const R = S.R, M = R.marche, plein = R.banc.length >= CASES_DU_BANC;
-  const piece = k => { const ok = !M.piece && R.jetons >= PRIX_PIECE; return `<button type="button" class="${V.piece === k ? 'rn-on' : ''}" data-a="voir-piece" data-v="${k}"${ok ? '' : ' disabled'}>${carteP(k)}<span class="rn-prix${ok ? '' : ' rn-non'}">${M.piece ? 'Prise' : `<i class="rn-piece"></i>${PRIX_PIECE}`}</span><p>${ligneDe(k)}</p></button>`; };
+  const piece = k => { const ok = !M.piece && R.jetons >= PRIX_PIECE; return `<button type="button" class="${V.piece === k ? 'rn-on' : ''}" data-a="voir-piece" data-v="${k}"${ok ? '' : ' disabled'}>${carteP(k)}<span class="rn-prix${ok ? '' : ' rn-non'}">${M.piece ? 'Prise' : `<i class="rn-piece"></i>${PRIX_PIECE}`}</span><p>${ligneCourte(S, k)}</p></button>`; };
   const pochette = (cle, mot, ico, metal, quoi) => { const prix = RUN.POCHETTES[cle], pris = M.pochettes.includes(cle), ok = !pris && R.jetons >= prix; return `<button type="button" data-a="pochette" data-v="${cle}"${ok ? '' : ' disabled'}><span class="rn-c" style="--pk-a:var(${metal})">${pochetteHtml({ mot, ico })}</span><span class="rn-prix${ok ? '' : ' rn-non'}">${pris ? 'Ouverte' : `<i class="rn-piece"></i>${prix}`}</span><p>${quoi}</p></button>`; };
   return `${hud(S, { titre: 'Le marché', cible: false })}
   <div style="left:14px;right:14px;top:62px"><div class="rn-k" style="margin-bottom:10px">Une pièce de banc · une seule</div><div class="rn-etal">${M.pieces.map(piece).join('')}</div></div>
@@ -408,7 +419,7 @@ export function sceneVestiaire(S, V) {
 function scenePiece(S, V, { titre, sous }) {
   const R = S.R, o = R.apres.offertes, plein = R.banc.length >= CASES_DU_BANC, choisie = o.includes(V.piece) ? V.piece : o[0];
   return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><div><div class="rn-k">${titre}</div><div class="rn-h" style="margin-top:3px">${sous}</div></div></div>
-  <div class="rn-etal">${o.map(k => `<button type="button" class="${k === choisie ? 'rn-on' : ''}" data-a="voir-piece" data-v="${k}">${carteP(k)}<p${k === choisie ? ' class="rn-or"' : ''}>${ligneDe(k)}</p></button>`).join('')}</div>
+  <div class="rn-etal">${o.map(k => `<button type="button" class="${k === choisie ? 'rn-on' : ''}" data-a="voir-piece" data-v="${k}">${carteP(k)}<p${k === choisie ? ' class="rn-or"' : ''}>${ligneCourte(S, k)}</p></button>`).join('')}</div>
   <div style="margin-top:22px"><div class="rn-k" style="margin-bottom:8px">Ton banc${plein ? ' · plein : touche celle qui sort' : ' · une case libre'}</div>
     <div class="rn-banc" style="width:300px">${R.banc.map(k => `<button type="button" class="${V.sort === k ? 'rn-eteinte' : ''}" data-a="piece-sort" data-v="${k}"${plein ? '' : ' disabled'}>${carteP(k)}</button>`).join('')}${Array.from({ length: CASES_DU_BANC - R.banc.length }, (_, i) => `<span class="rn-vide${i === 0 ? ' rn-on' : ''}"></span>`).join('')}</div></div>`;
 }
@@ -443,6 +454,11 @@ export const scenePieceGagnee = (S, V) => `${hud(S, { petit: 'L\'élite', cible:
   <div style="left:14px;right:14px;top:66px;text-align:center"><div class="rn-k rn-vert">L'élite est battue</div><div class="rn-titre" style="margin-top:6px">${S.R.apres.gf}-${S.R.apres.ga}</div></div>
   <div style="left:14px;right:14px;top:170px">${scenePiece(S, V, { titre: 'Elle te laisse une pièce', sous: 'Une parmi trois' })}</div>
   ${bas(bt('Passer', 'piece-passee'), bt('Prendre', 'prendre-piece', { cls: 'rn-orb' }))}`;
+/* Le camp commence par ton banc (V29) : deux pièces à choisir, une parmi trois, avant la première porte. Aucun « Passer ». */
+export const scenePieceDuCamp = (S, V) => `${hud(S, { titre: 'Le camp', petit: `Pièce ${S.R.piecesDuCamp + 2} de ${RUN.PIECES_DU_CAMP + 1}`, cible: false })}
+  <div class="rn-panneau" style="left:14px;right:14px;top:60px"><div class="rn-k">Avant la première porte</div><div class="rn-t" style="margin-top:4px">Une pièce compte les joueurs que tu signes. Choisis ce que tu bâtis.</div></div>
+  <div style="left:14px;right:14px;top:170px">${scenePiece(S, V, { titre: 'Ton banc', sous: 'Une parmi trois' })}</div>
+  ${bas(bt('Prendre', 'prendre-piece', { cls: 'rn-orb' }))}`;
 const RONDES = ['Quart de finale', 'Demi-finale', 'La finale'];
 export function sceneSeries(S) {
   const R = S.R, x = R.series;
@@ -503,7 +519,7 @@ function pageVariete(C) {
     <div style="display:flex;justify-content:space-between;align-items:baseline"><b class="rn-h">${P.ico} ${esc(P.nom)}</b><span class="rn-puce ${ouverte ? 'rn-v' : 'rn-o'}">${ouverte ? (m.nouvelle === v ? 'Nouvelle' : 'Ouverte') : `À ouvrir · ${prix}`}</span></div>
     <div class="rn-t rn-gris" style="margin-top:6px">${esc(P.mot)}</div>
     ${regle ? `<div class="rn-t" style="margin-top:8px"><span class="rn-k">Sa règle</span><br>${esc(regle.dit.charAt(0).toUpperCase() + regle.dit.slice(1))} : <span class="rn-or">+${regle.jetons} jetons</span> le soir.</div>` : ''}
-    <div style="display:grid;grid-template-columns:62px 1fr;gap:12px;align-items:center;margin-top:10px">${carteP(piece)}<div class="rn-t"><span class="rn-k">Sa pièce de départ</span><br><b>${esc(PIECES[piece].nom)}</b><br><span class="rn-gris">${ligneDe(piece)}</span></div></div>
+    <div style="display:grid;grid-template-columns:62px 1fr;gap:12px;align-items:center;margin-top:10px">${carteP(piece)}<div class="rn-t"><span class="rn-k">Sa pièce de départ</span><br><b>${esc(PIECES[piece].nom)}</b><br><span class="rn-gris">${ligneSansRun(piece)}</span></div></div>
     ${x ? `<div class="rn-t rn-gris" style="margin-top:8px">${x.n} entraîneurs au loto, dont ${esc(x.exemple)}.</div>` : ''}
   </div>
   ${bas(bt('Retour', 'fermer-club'), ouverte || prix == null ? bt('Une run neuve', 'run-neuve', { cls: 'rn-go' }) : bt(manque ? `Il te manque ${manque}` : `Ouvrir · ${prix}`, 'ouvrir-voie', { cls: 'rn-go', v, off: manque > 0 }))}`;

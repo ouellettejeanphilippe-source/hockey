@@ -12,7 +12,7 @@
  *   node scripts/check_run.mjs            `GRAINES` graines (3), les trois robots : une dizaine de secondes
  */
 import { getPersonKey } from '../js/sim.js';
-import { RUN, GALONS, masseDe, RANG_DU_RIVAL, figer, ouvrirSeance, histoireDeLaCase, reglesDe } from '../js/run.js';
+import { RUN, GALONS, masseDe, RANG_DU_RIVAL, figer, ouvrirSeance, histoireDeLaCase, reglesDe, signesDe, tonBanc } from '../js/run.js';
 import { LEGENDES } from '../js/cartable.js';
 import { jouerLaRun, DONNEES } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -32,7 +32,14 @@ for (const robot of ['premier', 'chiffre', 'malin']) {
         const cles = R.portes.clubs.map(c => `${c.s}:${c.t}`);
         if (!R.portes.pochette) faute(cles.length === RUN.PORTES && new Set(cles).size === RUN.PORTES, `${ici} : ${cles.length} portes, ${new Set(cles).size} différentes`);
         if (R.apres && R.portes.tour === 0 && !R.portes.pochette) faute(cles[0] === `${R.apres.s}:${R.apres.t}`, `${ici} : la première porte n'est pas le club affronté`);
+        // V29 : trois pièces avant la première porte (celle du coach et les deux du camp), et aucun joueur compté avant d'être signé.
+        if (R.phase === 'camp' && R.camp === 0 && R.portes.tour === 0) {
+          faute(R.banc.length === 1 + RUN.PIECES_DU_CAMP, `${ici} : ${R.banc.length} pièces avant la première porte`);
+          faute(signesDe(S).length === 0 && tonBanc(S).every(x => x.n === 0 && x.marche === 0), `${ici} : un banc qui compte avant la première signature`);
+        }
       }
+      // V29 : une relance payée ne met jamais la caisse sous zéro, et pas plus de `RELANCES_PAYEES` par soir.
+      if (m === 'relance') faute(R.jetons >= 0 && (R.portes.payees || 0) <= RUN.RELANCES_PAYEES, `${ici} : une relance à ${R.jetons} jetons, ${R.portes.payees || 0} payées`);
       // Une case d'histoire : la séance gardée puis relue lit la même histoire, sur le même joueur.
       if (m === 'case' && R.phase === 'histoire') {
         const vive = dite(histoireDeLaCase(S)), relue = dite(histoireDeLaCase(ouvrirSeance(DONNEES, JSON.parse(JSON.stringify(figer(S))))));
@@ -67,6 +74,11 @@ for (const robot of ['premier', 'chiffre', 'malin']) {
     const rejouees = perdues - (R.fin && R.fin.cause === 'serie' ? 1 : 0);
     faute(R.coeurs === RUN.COEURS - rates - rejouees, `${ici} : ${R.coeurs} cœurs, ${RUN.COEURS - rates - rejouees} recomptés`);
     faute(['coeurs', 'cible', 'serie', 'coupe'].includes(R.fin && R.fin.cause), `${ici} : une fin sans cause`);
+    // V29 : seuls les signés comptent — le banc rendu par la run est celui qu'on recompte sur ses signés, bouche-trous exclus.
+    const bouches = new Set(R.vus.slice(0, R.nBouches));
+    faute(r.banc.length === R.banc.length && r.banc.every(x => x.marche >= 0 && x.marche <= 3), `${ici} : un banc mal compté`);
+    faute(R.joueurs.length === 23 && R.vus.length - R.nBouches === r.signatures, `${ici} : ${R.vus.length - R.nBouches} signés pour ${r.signatures} signatures`);
+    faute(bouches.size === R.nBouches, `${ici} : des bouche-trous en double`);
     faute(R.fin.cause !== 'coupe' || (R.series && R.series.faites.length === 3), `${ici} : une Coupe sans trois rondes`);
     faute(R.fin.cause !== 'coeurs' || R.coeurs === 0, `${ici} : finie sans cœur, avec ${R.coeurs}`);
     faute(R.banc.length <= 5 && new Set(R.banc).size === R.banc.length, `${ici} : un banc de ${R.banc.length}`);
