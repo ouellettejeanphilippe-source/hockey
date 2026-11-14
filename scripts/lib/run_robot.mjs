@@ -12,15 +12,16 @@
  *                (`pieceLue`), le marché et le vestiaire selon son état.
  *
  * `espion(moment, S, x)` : appelé aux moments d'une run ('portes', 'signe', 'match', 'case', 'fin'), pour les invariants.
- * `lire` (une mesure seulement) : { note(S, candidat), piece(S, offertes), sort(S, cle) } — un robot d'essai qui juge un
- * candidat, choisit sa pièce et dit laquelle sort du banc plein par ses propres règles (scripts/mesure_build.mjs).
+ * `lire` (une mesure seulement) : { note(S, échange), piece(S, offertes), sort(S, cle), relancer(S, meilleur, déjà) } — un
+ * robot d'essai qui juge un échange (celui qui arrive et celui qui sort), choisit sa pièce, dit laquelle sort du banc plein
+ * et relance les portes par ses propres règles (scripts/mesure_build.mjs).
  */
 import { getHiddenRatings, energieDe } from '../../js/sim.js';
 import { groupeDuJoueur as groupeDe } from '../../js/niveaux.js';
 import { PIECES, CASES_DU_BANC, PIECE_DU_COACH } from '../../js/pieces.js';
 import { PRIX_PIECE } from '../../js/actes.js';
 import {
-  RUN, creerLaRun, casesOffertes, caseA, allerA, jouerLeMatch, conclure, vestiaireDe, sortantsPour, masseApres, signer, passerLesPortes, apresLesPortes,
+  RUN, creerLaRun, casesOffertes, caseA, allerA, jouerLeMatch, conclure, vestiaireDe, sortantsPour, masseApres, signer, passerLesPortes, relancerLesPortes, apresLesPortes,
   apresLaFinDActe, pieceReglee, prendreLaPiece, prixDe, acheterLaPiece, avancer, reposer, monterUneCarte, allerAuMatchDeSerie, chanceCeSoir, fixerLElite, forceDe,
   ouvrirSeance, figer, rebatir, histoireDeLaCase, repondre, jeuDe, dosADosA,
 } from '../../js/run.js';
@@ -65,7 +66,16 @@ function choisirAuxPortes(S, robot, lire) {
 /* Les portes : signer ou passer, puis la suite. */
 function reglerLesPortes(S, robot, espion, lire) {
   espion('portes', S);
-  const c = choisirAuxPortes(S, robot, lire);
+  let c = choisirAuxPortes(S, robot, lire);
+  // Un robot d'essai peut relancer les portes (`lire.relancer` rend le prix en jetons, 0 pour la relance d'après une défaite, ou null).
+  for (let deja = 0; lire && lire.relancer && !S.R.portes.pochette; deja++) {
+    const prix = lire.relancer(S, c, deja);
+    if (prix == null || prix > S.R.jetons) break;
+    if (prix > 0) { S.R.jetons -= prix; S.R.relances++; }
+    if (!relancerLesPortes(S)) break;
+    espion('relance', S, prix);
+    c = choisirAuxPortes(S, robot, lire);
+  }
   if (c && signer(S, c.p, c.sortant, { auMieux: true })) espion('signe', S, c); else passerLesPortes(S);
   apresLesPortes(S);
 }
