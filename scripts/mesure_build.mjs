@@ -13,7 +13,7 @@
  *   — seuls tes signés comptent : un bouche-trou du départ ne compte pour rien (`SIGNES=0` : tout l'effectif) ;
  *   — les jetons relancent les portes, `RELANCE` jetons puis le double à chaque relance du soir (`RELANCE=0` : jamais) ;
  *   — les séries sont le mur : leur coach joue la pièce de sa philosophie une marche au-dessus de sa ronde (`LEUR_PLUS`,
- *     la deuxième dès la première ronde) et trois fois plus fort (`LEUR_FORCE`, comme un banc de trois pièces) ;
+ *     la deuxième dès la première ronde) et quatre fois plus fort (`LEUR_FORCE`, tenant lieu d'un banc de pièces) ;
  *     `LEUR_COACH=0` : la pièce d'aujourd'hui ;
  *   — la difficulté monte tard (`DIFFICULTE`) : l'acte I comme aujourd'hui, l'acte III et les séries au plus haut.
  *
@@ -41,6 +41,12 @@
  * une run qui explose gagne la Coupe 24 fois sur 59 ; onze pièces mènent un banc gagnant. Rouge : 14 Coupes sur 64 (4 à
  * 12), et 201 jetons en caisse à la fin (la relance ne les vide pas).
  *
+ * LE SECOND JUGE, LE MÊME JOUR (256 autres graines, 3000 à 3255, le réglage par défaut d'aujourd'hui : la relance sous 40
+ * points de cote, trois par soir, leur coach quatre fois plus fort) : cinq critères verts. Le bâtisseur 78 % de cibles
+ * tenues, le témoin 57 % (+21,9 points, bruit ±4,8) ; 32 % de ses runs explosent ; 10 Coupes sur 64 ; une run qui explose
+ * gagne la Coupe 29 fois sur 81 ; dix pièces mènent un banc gagnant. Il dépense 115 jetons par run en relances et en
+ * garde 97 : le critère du devis (moins de 40) reste ouvert. Une pièce d'origine ne mène que 2 bancs gagnants sur 129.
+ *
  *   node scripts/mesure_build.mjs                      les deux robots, `GRAINES` graines (48), `FILS` processus (3)
  *   GRAINES=256 GRAINE0=2000 ROBOTS=temoin,batisseur,chiffre node scripts/mesure_build.mjs   le juge : des graines neuves (une heure et quart sur trois fils)
  *   GRAINES=3 node scripts/mesure_build.mjs            l'essai court : rien ne se juge
@@ -62,12 +68,12 @@ const ICI = fileURLToPath(import.meta.url);
 const env = (k, d) => Number(process.env[k] ?? d);
 const GRAINES = env('GRAINES', 48), GRAINE0 = env('GRAINE0', 0), FILS = Math.max(1, env('FILS', 3)), GRAND = 128;
 const FORCE = env('FORCE', 1.5), DEPART_N = env('DEPART_N', 3), RELANCE = env('RELANCE', 8);
-const SIGNES_SEULS = process.env.SIGNES !== '0', LEUR_COACH = process.env.LEUR_COACH !== '0', LEUR_PLUS = env('LEUR_PLUS', 1), LEUR_FORCE = env('LEUR_FORCE', 3);
+const SIGNES_SEULS = process.env.SIGNES !== '0', LEUR_COACH = process.env.LEUR_COACH !== '0', LEUR_PLUS = env('LEUR_PLUS', 1), LEUR_FORCE = env('LEUR_FORCE', 4);
 /* Une signature moyenne vaut 22 points de cote et ≈ 2 points de chance ; un point de pourcentage sur un canal, ≈ 0,2 (mesurés le 13 nov. 2026) : 2,2 points de cote par point de pourcentage, et la moitié de plus pour qui vise la marche d'après. */
 const POIDS = env('POIDS', 3.3);
 const PRIX_ESPACE = 1.5, N_CHANCE = 40, EXPLOSE = 0.75, BUILDS = 5, PART_MAX = 0.4;
 /* Le bâtisseur et le témoin relancent les portes quand le meilleur échange offert vaut moins que `NOTE_FAIBLE` points de cote (une signature moyenne en vaut 22), `RELANCES_MAX` fois par soir au plus, en gardant de quoi payer une pièce au marché. */
-const NOTE_FAIBLE = env('NOTE_FAIBLE', 22), RELANCES_MAX = env('RELANCES_MAX', 2), RESERVE = 32;
+const NOTE_FAIBLE = env('NOTE_FAIBLE', 40), RELANCES_MAX = env('RELANCES_MAX', 3), RESERVE = 32;
 const ROBOTS = (process.env.ROBOTS || 'temoin,batisseur').split(',');
 const JEU = process.env.JEU || 'tout';
 /* LA DIFFICULTÉ À L'ESSAI (tranche 0 bis, réglée le 14 nov. 2026 sur les graines 1000 à 1047) : l'acte I comme aujourd'hui, l'acte II d'une étape d'édition de plus, l'acte III et les séries au plus haut. `REGLAGES` passe par-dessus. */

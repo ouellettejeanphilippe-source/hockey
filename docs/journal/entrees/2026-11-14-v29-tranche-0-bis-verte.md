@@ -1,0 +1,4 @@
+- **14 nov. · V29, la porte 0 bis est passée : un second juge de 256 graines neuves, cinq critères verts — rien ne change encore dans le jeu**
+  - Avec une relance des portes plus fréquente et des séries un cran plus dures : le robot qui bâtit tient 78 % de ses cibles contre 57 % (+21,9 points, bruit ±4,8), 32 % de ses runs explosent, 10 Coupes sur 64, une run qui explose gagne la Coupe 29 fois sur 81.
+  - Restent ouverts : 97 jetons en caisse à la fin (moins de 40 visés), les pièces d'origine (2 bancs gagnants sur 129), et le banc de l'adversaire en séries, simulé par une seule pièce très forte.
+  - `scripts/mesure_build.mjs` (le réglage jugé est son défaut) ; docs/refonte-v29.md § 4, § 8, § 9 ; docs/decisions.md.
