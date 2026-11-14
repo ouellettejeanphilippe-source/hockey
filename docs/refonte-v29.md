@@ -21,7 +21,7 @@ Slay the Spire, Balatro et les autobattlers n'en tiennent jamais plus d'une. Mes
 - Aux portes, tu signes **pour ton banc** autant que pour la cote, tu choisis qui sort, et tes jetons **relancent les portes** pour chercher ce que ton banc compte.
 - Les adversaires montent tard, pour que la cote seule ne suffise plus à l'acte III : un club bien bâti **explose**, et **les séries restent le mur**.
 
-**Ce que la tranche 0 bis a prouvé** (§ 4, 256 graines neuves, un témoin à une seule différence) : le robot qui bâtit tient 81 % de ses cibles contre 60 % (+21,2 points, bruit ±4,6), 23 % de ses runs explosent, et une run qui explose perd encore en séries plus d'une fois sur deux. Deux bornes restent rouges : 14 Coupes sur 64 pour 4 à 12, et des jetons que la relance ne vide pas.
+**Ce que la tranche 0 bis a prouvé** (§ 4, deux juges de 256 graines neuves, un témoin à une seule différence) : le robot qui bâtit tient 78 à 81 % de ses cibles contre 57 à 60 % (+21 à +22 points, bruit ±4,8), un quart à un tiers de ses runs explosent, il gagne 10 Coupes sur 64 au second juge, et une run qui explose perd encore en séries près de deux fois sur trois. Restent ouverts : des jetons que la relance ne vide qu'à moitié, et des pièces d'origine qui ne mènent presque aucun banc gagnant.
 
 **Ce que la mesure d'un jour avait dit, avant la revue** (§ 4) : le simulateur porte ces multiplicateurs (un banc bâti vaut +33 points de chance à l'acte III, +13 pour qui ne lit pas le sien) ; bâtir paie quand le banc est connu dès le camp et que tu choisis qui sort (31 Coupes sur 48 contre 12) ; les pièces d'origine font la décision, les pièces de badge la puissance et la variété. La run devient trop facile, et la revue a montré que cette mesure n'est pas encore une preuve (§ 10) : **la tranche 0 bis** la refait à la difficulté livrée, sur des graines neuves, avant qu'une ligne du jeu parte.
 
@@ -197,10 +197,29 @@ Ce que ces lignes disent :
 - ✓ **Les séries sont le mur** : une run qui explose gagne la Coupe 24 fois sur 59.
 - ✓ **La cote seule ne suffit plus** : le chiffre tient la cible de l'acte III 23 fois sur 100, et ne gagne aucune Coupe.
 - ✓ **Plus d'un build gagne** : onze pièces mènent un banc qui tient ses trois cibles, la plus fréquente 26 fois sur 144. La première Coupe du bâtisseur, en médiane, à sa troisième run (22 % par run).
-- ✗ **Les Coupes** : 14 sur 64, pour 4 à 12. Les séries doivent durcir encore un peu.
-- ✗ **Les jetons servent** : le bâtisseur finit avec 201 jetons en caisse (moins de 40 visés). Il relance 3,4 fois par run : ce que les portes lui offrent vaut presque toujours plus qu'une signature moyenne, donc il ne relance pas. La relance, à ce prix et à ce seuil, n'est pas le puits attendu.
-- **L'origine ne fait plus la décision** : seuls les signés comptant, une pièce d'origine ne mène que 2 bancs gagnants sur 144 (L'époque, La franchise ; Les coéquipiers, Les anciens et Les modernes aucun). Les badges font maintenant la décision et la variété. Les seuils d'origine sont à reposer, ou ces pièces à repenser.
-- **Ce que cette mesure ne couvre toujours pas** : les robots n'achètent pas de pochette ; les pièces sont des pièces d'essai, sans la maîtrise du coach ; leur coach « trois fois plus fort » tient lieu d'un banc de trois pièces, qui reste à écrire.
+- ✗ **Les Coupes** : 14 sur 64, pour 4 à 12. Les séries devaient durcir encore un peu.
+- ✗ **Les jetons servent** : le bâtisseur finit avec 201 jetons en caisse (moins de 40 visés). Il relance 3,4 fois par run : ce que les portes lui offrent vaut presque toujours plus qu'une signature moyenne.
+
+**Le second juge, le même jour** (256 autres graines neuves, 3000 à 3255) : la relance plus fréquente (sous 40 points de cote au lieu de 22, trois par soir au lieu de deux) et leur coach quatre fois plus fort en séries. **Les cinq critères jugés sont verts.**
+
+| | Le bâtisseur | Le témoin |
+|---|---|---|
+| Cibles tenues | **78 %** | 57 % |
+| aux actes I, II, III | 75 · 85 · 73 % | 67 · 69 · 33 % |
+| Chance aux actes I, II, III | 57 · 73 · 68 % | 50 · 58 · 44 % |
+| Runs qui explosent | 32 % | 1 % |
+| Coupes sur 256 | 40 | 1 |
+| Jetons dépensés en relances · en caisse à la fin | 115 · 97 | 128 · 38 |
+
+- ✓ **Bâtir paie** : +21,9 points de cibles en paires, pour un bruit de ±4,8 ; à l'acte III, 23,5 points de chance au-dessus du témoin.
+- ✓ **Dur, mais ça explose** : 31,6 % des runs du bâtisseur (15 à 35).
+- ✓ **Les Coupes** : 10 sur 64 (4 à 12) ; la première, en médiane, à la cinquième run.
+- ✓ **Les séries sont le mur** : une run qui explose gagne la Coupe 29 fois sur 81.
+- ✓ **Plus d'un build gagne** : dix pièces mènent un banc gagnant, la plus fréquente 20 fois sur 129.
+- ✗ **Les jetons servent** : la relance en dépense 115 par run, il en reste 97 pour moins de 40 visés. Mieux que 201, pas encore la borne : le prix de la relance, ou un autre puits, se règle à la tranche 1.
+- Relancer plus souvent n'a pas rendu le bâtisseur plus fort (73 % de cibles sur les graines d'essai, contre 71 %) : une relance jette une offre correcte pour en tirer une autre.
+- **L'origine ne fait plus la décision** : seuls les signés comptant, une pièce d'origine ne mène que 2 bancs gagnants sur 144 au premier juge (L'époque, La franchise) et 2 sur 129 au second (Les modernes). Les badges font maintenant la décision et la variété. Les seuils d'origine sont à reposer, ou ces pièces à repenser.
+- **Ce que cette mesure ne couvre toujours pas** : les robots n'achètent pas de pochette ; les pièces sont des pièces d'essai, sans la maîtrise du coach ; leur coach « quatre fois plus fort » tient lieu d'un banc de pièces, qui reste à écrire et à rejuger.
 
 ## 5. Les cas limites
 
@@ -274,11 +293,11 @@ Chaque nom ci-dessous disparaît du jeu ; *check_refonte* le vérifie. Seul ce q
 | La maîtrise sur la pièce de départ | ×0,9 à ×1,3 sur ses marches | à mesurer | ×1,3 sur 75 % : ≈ 4,5 points de chance pris au loto du coach |
 | *CASES_DU_BANC* | 5 | 5 | ne se règle pas (JP, 7 nov.) |
 | Les pièces au camp | celle du coach et 2 choisies | 2 à 3 | une seule : ligne 2 |
-| Le prix d'une relance des portes | 8, puis le double à chaque relance du soir | à mesurer | trop bas, le plafond ne mord plus : on cherche jusqu'à trouver |
+| Le prix d'une relance des portes | 8, puis le double à chaque relance du soir (trois au plus) | à régler : 97 jetons restent en caisse | trop bas, le plafond ne mord plus : on cherche jusqu'à trouver ; mesuré, relancer plus ne rend pas plus fort |
 | *PRIX_PIECE* | 32 aujourd'hui, à remesurer | — | posé pour une pièce bornée à 0,18 victoire par acte : un achat d'office |
 | La récompense de l'élite | sa chance lue jusqu'à 80 % (55 % aujourd'hui) | — | sinon le club fort se sert : jamais sous 42 jetons |
-| *ETAPES*, *DECALAGE*, les bandes | l'acte I comme aujourd'hui ; l'acte III et les séries montent | — | la tranche 0 bis les pose aux bornes du § 9 |
-| La marche de leur coach, par ronde | 1re, 2e, 3e | — | le levier des séries seules |
+| *ETAPES*, les étapes d'édition des adversaires | 1 · 3 · 12 · 12 (jugé à la tranche 0 bis ; 1 · 2 · 3 · 7 aujourd'hui) | l'acte III entre 10 et 12 | à 7, 58 % des runs explosent ; l'échelle des éditions plafonne à 12 |
+| Le banc de leur coach, en séries | à l'essai, une pièce à la 2e, 3e, 3e marche, quatre fois plus forte | à écrire en vraies pièces et à rejuger | trois fois plus forte, 14 Coupes sur 64 ; deux fois, 13 sur 64 sur les graines d'essai avec sept Coupes pour dix explosions |
 | Le poids du banc pour le robot | 3,3 points de cote par point de pourcentage | 2 à 5 | une mesure, jamais lue par le jeu |
 
 ## 9. Les critères d'acceptation
@@ -286,7 +305,7 @@ Chaque nom ci-dessous disparaît du jeu ; *check_refonte* le vérifie. Seul ce q
 Trois robots, sur les mêmes graines : **le bâtisseur** ; **le témoin**, le même robot avec la même pièce prise et la même pièce qui sort, qui ne lit pas son banc aux portes (une seule différence) ; **le chiffre**. Les robots achètent une pochette, jouent l'élite et relancent les portes avant qu'une borne se juge. Une borne ne se juge qu'à la taille où elle ne tire pas à pile ou face.
 
 - [x] **La porte 0, le test d'un jour** (13 et 14 nov.) : le simulateur porte les multiplicateurs — `mesure_build` (§ 4). Pas encore une preuve que bâtir paie (§ 10).
-- [ ] **La porte 0 bis, à la difficulté livrée** : seuls les signés comptent, les seuils reposés, le témoin propre, leur coach compté, la relance payée, 256 graines neuves — `mesure_build`. Rouge, la tranche 1 ne commence pas. **Jugée le 14 nov. : cinq critères verts (bâtir paie à +21,2 points pour un bruit de ±4,6), deux rouges** — 14 Coupes sur 64 pour 4 à 12, et 201 jetons en caisse à la fin (§ 4).
+- [x] **La porte 0 bis, à la difficulté livrée** (14 nov., deux juges de 256 graines neuves chacun) : seuls les signés comptent, les seuils reposés, le témoin à une seule différence, leur coach en séries, la relance payée — `mesure_build`, cinq critères verts au second juge (bâtir paie à +21,9 points pour un bruit de ±4,8 ; 32 % de runs qui explosent ; 10 Coupes sur 64). Les jetons (97 en caisse) et les pièces d'origine restent ouverts, à leurs lignes.
 - [ ] **Bâtir paie** : sur 256 graines, en paires, le bâtisseur tient plus de cibles que le témoin, au-delà de deux écarts-types — `mesure_run`.
 - [ ] **Dur, mais ça explose, et les séries sont le mur** (JP, 14 nov.) : 15 à 35 % des runs du bâtisseur jouent l'acte III à 75 % de chance ou plus ; il gagne la Coupe 4 à 12 fois sur 64, jamais avant sa troisième run en médiane ; une run qui explose gagne la Coupe moins d'une fois sur deux ; « premier » gagne au plus 2 fois — `mesure_run` (256 graines).
 - [ ] **La cote seule ne suffit plus** : le robot du chiffre tient la cible de l'acte III au plus une fois sur trois — `mesure_run`.
