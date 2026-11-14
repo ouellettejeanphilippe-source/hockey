@@ -7,7 +7,7 @@ user-invocable: true
 
 # Revue de design — un devis jugé avant le code
 
-Le devis : `$ARGUMENTS`. Un chemin se lit ; un sujet se cherche dans la dernière `docs/refonte-v*.md` (aujourd'hui `docs/refonte-v28.md`, la run en carte, et ses extraits `docs/refonte-v28-<n>.md`).
+Le devis : `$ARGUMENTS`. Un chemin se lit ; un sujet se cherche dans la dernière `docs/refonte-v*.md` (aujourd'hui `docs/refonte-v29.md`, le banc qui compte ; la run en carte est dans `docs/refonte-v28.md` et ses extraits `docs/refonte-v28-<n>.md`).
 
 Adapté de la commande `/design-review` de Claude-Code-Game-Studios (Donchitos, licence MIT : https://github.com/Donchitos/Claude-Code-Game-Studios), ramené au gabarit de ce dépôt (`docs/gabarits/devis.md`).
 
@@ -17,7 +17,7 @@ Un devis complet a ses neuf parties (le gabarit les nomme) : **ce que JP a dit**
 
 ## 2. Les critères se prouvent
 
-Chaque critère est vérifiable par un script nommé, existant ou à écrire : « une pièce se lit 30 à 50 % des soirs — `check_pouvoirs` », « la feuille du soir ne défile pas à 390 × 844 — `check_scene` », « une semaine gagnée : neuf touchers au plus — `essai_run` », « le malin gagne la Coupe 4 à 12 fois sur 64 — `mesure_run` ». Les phrases « plus le fun », « bien balancé », « plus clair » sont refusées telles quelles : traduis-les en un chiffre et une mesure, ou marque-les « à juger par JP à l'essai ».
+Chaque critère est vérifiable par un script nommé, existant ou à écrire : « chaque pièce atteint sa première marche plus d'une fois sur deux — `mesure_run`, à 256 graines », « la feuille du soir ne défile pas à 390 × 844 — `check_scene` », « une semaine gagnée : neuf touchers au plus — `essai_run` », « le malin gagne la Coupe 4 à 12 fois sur 64 — `mesure_run` ». Les phrases « plus le fun », « bien balancé », « plus clair » sont refusées telles quelles : traduis-les en un chiffre et une mesure, ou marque-les « à juger par JP à l'essai ».
 
 ## 3. Les règles fermes et les décisions
 

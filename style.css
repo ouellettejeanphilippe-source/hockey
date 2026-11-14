@@ -5190,7 +5190,6 @@ body.run-ouverte { overflow: hidden; }
 .rn-puce.rn-v { border-color: var(--rn-vert); color: var(--rn-vert); }
 .rn-puce.rn-o { border-color: var(--rn-or); color: var(--rn-or); }
 .rn-puce.rn-r { border-color: var(--rn-rouge); color: var(--rn-rouge); }
-.rn-puce.rn-m { border-color: var(--rn-mauve); color: var(--rn-mauve); }
 .rn-enjeu { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .rn-enjeu div { padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--rn-vert) 45%, var(--rn-nuit)); border-radius: var(--r-1); background: color-mix(in srgb, var(--rn-vert) 18%, var(--rn-nuit)); font: 700 var(--t-2)/1.35 var(--display); text-transform: uppercase; letter-spacing: 0.03em; }
 .rn-enjeu div + div { border-color: color-mix(in srgb, var(--rn-rouge) 45%, var(--rn-nuit)); background: color-mix(in srgb, var(--rn-rouge) 16%, var(--rn-nuit)); }
@@ -5256,9 +5255,6 @@ body.run-ouverte { overflow: hidden; }
 .rn-bar { position: relative; height: 8px; border-radius: 99em; background: color-mix(in srgb, var(--blanc) 8%, transparent); }
 .rn-bar i { position: absolute; top: 0; bottom: 0; right: 0; border-radius: 99em; background: var(--rn-rouge-2); }
 .rn-bar.rn-bd i { right: auto; left: 0; background: var(--rn-clair); }
-.rn-atrouver { position: relative; }
-.rn-atrouver .rn-c { filter: grayscale(1) brightness(0.5); }
-.rn-atrouver > b { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 3px 7px; border: 1px solid var(--rn-encre-2); border-radius: 99em; background: var(--noir-pur); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
 /* La feuille du soir. */
 .rn-leurs { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: center; }
 .rn-lignes { display: flex; flex-direction: column; gap: 5px; min-width: 0; }

@@ -18,7 +18,7 @@ import { estD, borne, hache, generateur, gauss, entierDeGraine } from './util.js
 
 /*
  * LES GREFFES (V25, docs/refonte-v25.md § A). Le moteur joue des matchs et une ligue ; ce que le Rogue y pose — le coach et
- * son banc de pièces et leurs relais, le duel, les histoires appliquées, les suivis —
+ * son banc de pièces, le duel, les histoires appliquées, les suivis —
  * vit dans js/greffes.js, qui se branche ici au chargement (`brancherGreffes`). Le moteur n'importe aucun module du
  * Rogue : il ne connaît que ce contrat, et le 82-0 n'y pose rien. Une ligue du Rogue sans greffes branchées est une
  * erreur, dite tout haut, jamais un match joué autrement en silence.
@@ -926,9 +926,9 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // V5 : les sources NOMMÉES qui touchent la finition ou la défense, pour que « ce qui a fait le match » dise chaque
   // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
   Object.defineProperty(e, 'sources', { value: sources.filter(c => c && c.nom && ((c.finition ?? 1) !== 1 || (c.defense ?? 1) !== 1)).map(c => ({ nom: c.nom, ico: c.ico || '', finition: c.finition ?? 1, defense: c.defense ?? 1 })) });
-  // V21 : la précision d'une PIÈCE du banc (le temps d'une période ; V27, tranche 5 : les pouvoirs et les adjoints fondus
-  // en pièces), à part : elle passe par-dessus le plafond du jeu. Son relais (V23 D) ne dure qu'une période : de même.
-  const dUnePeriode = c => c && (c.source === 'piece' || c.source === 'relais');
+  // V21 : la précision d'une PIÈCE du banc (V29 : elle compte tes signés et multiplie tout le match), à part : elle passe
+  // par-dessus le plafond du jeu.
+  const dUnePeriode = c => c && c.source === 'piece';
   Object.defineProperty(e, 'pouvoir', { value: sources.reduce((a, c) => (dUnePeriode(c) ? a * (c.finition ?? 1) : a), 1) });
   // Leurs tirs et leurs punitions aussi (oct.) : « la ruée, +40 % de tirs » se jouait écrêtée sous PRESSION_MAX pour un bon
   // club, « le sang-froid, −45 % de punitions » sur DISCIPLINE_MIN.
@@ -5968,8 +5968,7 @@ export function feuilleVierge() {
     glacePremier: { A: 0, B: 0 },                         // la part de glace du premier trio de chaque club (V19)
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
-    pieces: [],                                           // V27 : { cote, k, cle, nom, ico, buts, contre } ; V23 F : `ombre` (leur coach en séries, hors de sa condition)
-    relais: [],                                           // V23 D : { cote, k, cle, nom, ico, sur: { genre, cle?, ico?, nom }, maillon }
+    pieces: [],                                           // V29 : { cote, k, cle, nom, ico, buts, contre, marche, n } — une pièce allumée, à chaque période
     banc: { A: [], B: [] },                               // V27 : les pièces du banc de chaque club ce soir-là
     prolongation: false,
   };
@@ -7048,7 +7047,7 @@ function leverGros(toi) {
 /*
  * UN MATCH SE JOUE EN TROIS PÉRIODES (V25, docs/refonte-v25.md § A) : le seul chemin, pour tous les modes. Avant chaque
  * période, les greffes du mode posent sur les deux clubs ce qui se lit sur ce qui est déjà joué (js/greffes.js : les
- * pièces du banc et leurs relais, leur coach en séries, et au duel leur intention et ton plan) ; puis la
+ * pièces du banc, leur banc en séries, et au duel leur intention et ton plan) ; puis la
  * période se joue (`jouerPlage`) et la feuille garde son pointage (`periodes`). Une période sans rien de posé garde les
  * profils du soir ; le gros match du 82-0 n'y pose rien : trois périodes vues.
  */

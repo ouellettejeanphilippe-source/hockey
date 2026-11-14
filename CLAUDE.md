@@ -99,7 +99,7 @@ JP (11 oct. 2026) : Claude fusionne quand le CI est vert. Après avoir ouvert un
 
 ## Avant de pousser
 
-**Avant de pousser** (JP, 13 oct. : *c'est nécessaire de tester ici et en CI ?*) : ne relance pas ici ce que `verifier` refait. Ici, seulement `node scripts/tout.mjs` et `check_mort` (quelques secondes, un rouge en CI coûte une demi-heure), plus ce que le CI ne fait pas, quand le changement touche leur terrain : `essai_run` et `check_scene` (un serveur statique d'abord) pour les scènes ou la coquille du Rogue ; `FILS=3 node scripts/check_pouvoirs.mjs` et `check_moments_si` quand on touche au banc, aux moments ou à la carte de l'acte ; `GRAINES=64 FILS=3 node scripts/mesure_run.mjs` quand un réglage de la run bouge (jamais plus de trois fils ici). Le smoke, smoke_table, `check_gros`, `check_graine`, `check_feuilles` : le CI.
+**Avant de pousser** (JP, 13 oct. : *c'est nécessaire de tester ici et en CI ?*) : ne relance pas ici ce que `verifier` refait. Ici, seulement `node scripts/tout.mjs` et `check_mort` (quelques secondes, un rouge en CI coûte une demi-heure), plus ce que le CI ne fait pas, quand le changement touche leur terrain : `essai_run` et `check_scene` (un serveur statique d'abord) pour les scènes ou la coquille du Rogue ; `node scripts/check_pouvoirs.mjs` (une minute) et `check_moments_si` quand on touche au banc, aux moments ou à la carte de l'acte ; `GRAINES=64 FILS=3 node scripts/mesure_run.mjs` quand un réglage de la run bouge (jamais plus de trois fils ici). Le smoke, smoke_table, `check_gros`, `check_graine`, `check_feuilles` : le CI.
 
 Chaque script, son temps et ses variables : `.claude/rules/tests.md`.
 

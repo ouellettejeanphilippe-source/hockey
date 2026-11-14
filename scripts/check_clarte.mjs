@@ -43,7 +43,7 @@ import { JETONS, PRIME_COACH_MAX, ecussonsDesSeries } from '../js/rogue.js';
 import { RUN, RANG_DU_RIVAL } from '../js/run.js';
 import { MEDAILLES_ACTE, PRIX_PIECE, PART_PERDUE, recompenseDeLElite } from '../js/actes.js';
 import { COACHS, REGLES_DU_COACH } from '../js/coachs.js';
-import { CASES_DU_BANC, PIECES_OFFERTES, RELAIS_NIV } from '../js/pieces.js';
+import { CASES_DU_BANC, PIECES_OFFERTES, MARCHES, BORNE_DU_CANAL, BANC_DES_SERIES } from '../js/pieces.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
 import { HISTOIRES, sceneDe } from '../js/histoires.js';
 import { nomCourt } from '../js/recit.js';
@@ -250,11 +250,15 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     ['<strong>Un seul choix, avant le match</strong>', 'le duel à un choix'],
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
-    // V23 D, V27 : le relais d'une pièce (`RELAIS_NIV`, une seule force : une pièce n'a pas de niveau).
-    [`rejoue la période, ${nombre(RELAIS_NIV)} fois`, 'le relais'],
+    // V29 : une pièce compte et monte par marches (js/pieces.js `MARCHES`, `BORNE_DU_CANAL`, `BANC_DES_SERIES` ; js/run.js `PIECES_DU_CAMP`, `RELANCE`).
+    [`+${MARCHES[0]}, +${MARCHES[1]} et +${MARCHES[2]} %`, 'les marches d\'une pièce'],
+    [`se multiplient, jusqu'à ${BORNE_DU_CANAL} fois`, 'le produit d\'un canal'],
+    [`tu en choisis ${RUN.PIECES_DU_CAMP} au camp`, 'les pièces du camp'],
+    [`un banc de ${BANC_DES_SERIES[0]}, ${BANC_DES_SERIES[1]} puis ${BANC_DES_SERIES[2]} pièces`, 'leur banc en séries'],
+    [`${RUN.RELANCE} jetons puis le double à chaque relance du même soir, ${RUN.RELANCES_PAYEES} au plus`, 'la relance payée'],
     // V28 (js/run.js `RUN`) : la run en carte, son départ, ses actes, sa cible et ses cœurs, les étapes d'édition des clubs.
     [`${JETONS.depart} jetons et ${nombre(RUN.ESPACE / 1e6)} M$ d'espace sous le plafond`, 'le départ de la run'],
-    [`<strong>Le camp</strong> : ${EN_MOTS[RUN.CAMP]} tours de portes`, 'le camp'],
+    [`<strong>Le camp</strong> : tes ${EN_MOTS[RUN.PIECES_DU_CAMP]} pièces de banc, puis ${EN_MOTS[RUN.CAMP]} tours de portes`, 'le camp'],
     [`${EN_MOTS[RUN.MATCHS]} matchs et ${EN_MOTS[RANG_DU_RIVAL - RUN.MATCHS]} arrêts`, 'la carte d\'un acte'],
     [`${RUN.CIBLES[0]} points à l'acte I, ${RUN.CIBLES[1]} à l'acte II, ${RUN.CIBLES[2]} à l'acte III, sur ${2 * RUN.MATCHS + 4}`, 'la cible'],
     [`<strong>${RUN.COEURS} cœurs</strong>`, 'les cœurs'],

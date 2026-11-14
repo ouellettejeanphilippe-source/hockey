@@ -28,13 +28,13 @@ import { esc, hache } from './util.js';
 import { VERSION } from './version.js';
 import { RATINGS_VERSION } from './ratings.js';
 import {
-  RUN, VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, forcesDuMonde, allerA, chanceCeSoir, intentionCeSoir, jeuDe, jouerLeMatch, conclure, signer, passerLesPortes,
+  RUN, VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, medaillesDe, forcesDuMonde, allerA, chanceCeSoir, intentionCeSoir, jeuDe, jouerLeMatch, conclure, signer, passerLesPortes,
   relancerLesPortes, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, acheterLaPiece, acheterLaPochette, avancer, reposer, monterUneCarte, echangerDeuxCases,
   choisirLeFilet, fixerLElite, allerAuMatchDeSerie, histoireDeLaCase, repondre, finir, reglesDe,
 } from './run.js';
 import {
   sceneAttente, sceneDepart, sceneCarte, sceneAnnonce, sceneFeuille, sceneMatch, scenePortes, scenePorte, sceneEchange, sceneLignes, sceneBanc, sceneMarche,
-  sceneVestiaire, sceneHistoire, sceneFinDActe, scenePieceGagnee, sceneSeries, sceneFin, scenePause, jaugeDeCeSoir, sceneClub, sceneSolde,
+  sceneVestiaire, sceneHistoire, sceneFinDActe, scenePieceGagnee, scenePieceDuCamp, sceneSeries, sceneFin, scenePause, jaugeDeCeSoir, sceneClub, sceneSolde,
   ALBUM_PAR_PAGE, listeDeLAlbum,
 } from './run-scenes.js';
 
@@ -110,7 +110,6 @@ export async function ouvrirRun(c = {}) {
   window.addEventListener('resize', echelle);
   racine.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled && racine.contains(b)) geste(b.dataset.a, b.dataset.v); });
   const R = lire();
-  // Une run gardée d'une autre version (une seule décennie) ne se relit pas : la run neuve la remplace.
   if (R && R.v === VERSION_DE_LA_RUN) {
     montrer(sceneAttente('On rouvre les vestiaires…'));
     await charger('On rouvre les vestiaires :');
@@ -119,13 +118,20 @@ export async function ouvrirRun(c = {}) {
     poserClubLu(() => (S ? { team: S.toi } : null));
     return entrer();
   }
-  return versLeDepart();
+  // UNE RUN D'AVANT (JP, 14 nov. 2026) ne se relit pas : son banc n'existe plus, ses adversaires ont changé. Elle s'arrête
+  // ici, ses médailles gagnées jusque-là versées une fois (la même clé que la fin d'une run), et le départ le dit.
+  let arret = null;
+  if (R) {
+    if (!R.fin && Array.isArray(R.actes)) arret = payerEcussons(R.graine, 'run', medaillesDe(R), { bilan: { ronde: R.series ? R.series.faites.length : 0, coupe: false, series: !!R.series, exigence: reglesDe(R).exigence, pts: R.actes.reduce((a, x) => a + (x.pts || 0), 0) } });
+    oublier();
+  }
+  return versLeDepart(arret);
 }
-async function versLeDepart() {
+async function versLeDepart(arret = null) {
   S = null; V = {};
   montrer(sceneAttente('On sort les dossiers des coachs…'));
   const solde = soldeAMontrer(), meta = lireMeta(), coachs = await chargerCoachs().catch(() => null), graine = nouvelleGraine(), cranMax = cranOuvert(meta);
-  V = { ecran: solde ? 'solde' : 'depart', solde, graine, coach: 0, numero: (meta.runs || 0) + 1, medailles: meta.ecussons || 0, cranMax, cran: Math.min(meta.cran || 0, cranMax),
+  V = { ecran: solde ? 'solde' : 'depart', solde, arret, graine, coach: 0, numero: (meta.runs || 0) + 1, medailles: meta.ecussons || 0, cranMax, cran: Math.min(meta.cran || 0, cranMax),
     loto: lotoDesCoachs(coachs, voiesOuvertes(meta), `${graine}:chef`, 3, coachsDuCartable(), meta.nouvelle || null) };
   rendre();
 }
@@ -218,7 +224,7 @@ function rendre() {
     if (V.ecran === 'porte') return [scenePorte(S, V)];
     if (V.ecran === 'de') return [sceneHistoire(S, V)];
     switch (R.phase) {
-      case 'camp': case 'portes': return [piece() ? scenePieceGagnee(S, V) : R.portes.pochette ? scenePorte(S, V) : scenePortes(S)];
+      case 'camp': case 'portes': return [piece() ? (R.phase === 'camp' ? scenePieceDuCamp(S, V) : scenePieceGagnee(S, V)) : R.portes.pochette ? scenePorte(S, V) : scenePortes(S)];
       case 'annonce': return [sceneAnnonce(S), true];
       case 'carte': return [sceneCarte(S, V)];
       case 'feuille': return [sceneFeuille(S, V), R.case.sorte !== 'match'];
@@ -302,7 +308,7 @@ function lancerLeMatch() {
   if (c.sorte === 'elite' && c.J == null) { const r = chanceCeSoir(S, { n: 60, tranche: 9 }); fixerLElite(S, r.v / r.n); }
   garder();
   const res = jouerLeMatch(S, duel ? { plan: V.plan != null && V.plans[V.plan] ? V.plans[V.plan].plan : null, dominante: V.dominante } : {});
-  const pieces = [...new Set([...(res.feuille.pieces || []), ...(res.feuille.relais || [])].filter(x => x.cote === res.cote).map(x => x.cle))].filter(k => R.banc.includes(k));
+  const pieces = [...new Set((res.feuille.pieces || []).filter(x => x.cote === res.cote).map(x => x.cle))].filter(k => R.banc.includes(k));
   V = { ecran: 'match', vitesse: V.vitesse || 1, match: { res, evts: tempsForts(res), i: -1, pieces } };
   rendre();
   suite();

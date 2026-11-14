@@ -14,7 +14,7 @@
 import { lectureDuMatch, attenduDeCote, tirageDuProfil, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, MUTATIONS, joueurDeMutation, badgesDeMutation, MOMENTS_SI, SLOTS, getPositionPenalty, PROFILS, PART_UNITE, penaliteAdaptee } from './sim.js';
 import { PLANS, cibleDuPlan } from './greffes.js';
 import { virgule } from './util.js';
-import { PIECES, bancDe, effetDuRelais } from './pieces.js';
+import { PIECES, facteurDe } from './pieces.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
 const N_BASE = 1600;    // les lancers lus pour le niveau absolu d'un soir (±1 % sur les buts)
@@ -392,28 +392,25 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
 
 /*
  * LES PLANS DU DUEL (V27, tranche 6 ; docs/refonte-v27.md § 4.7, docs/refonte-v27-6a.md). JP : *le duel : un seul choix
- * lourd* ; *un seul choix avant le match, mais le rival montre son jeu dès son annonce*. Avant le match, ton banc propose
- * deux ou trois plans forts : chaque pièce posée qui a un plan propose le sien (`PLAN_DE_LA_PIECE`), ton coach celui de sa
- * philosophie (`PLAN_DU_COACH`) ; deux voix pour un même plan, la plus forte parle. Moins de deux : ton coach complète par
- * les plans qui répondent à leur jeu (`repond`, js/greffes.js), puis fermer le centre, rester discipliné. Un plan joue les trois périodes, à la force du duel et de qui le propose
- * (une pièce à 1, le coach à sa maîtrise). Chacun se dit en vraies stats DU MATCH, son vrai prix : la lecture avec lui contre
+ * lourd* ; *un seul choix avant le match, mais le rival montre son jeu dès son annonce*. Avant le match, ton coach propose
+ * trois plans : celui de sa philosophie (`PLAN_DU_COACH`, à sa maîtrise), puis complète par les
+ * plans qui répondent à leur jeu (`repond`, js/greffes.js), puis fermer le centre, rester discipliné (V29 : plus aucune
+ * pièce de banc ne propose de plan). Un plan joue les trois périodes, à la force du duel. Chacun se dit en vraies stats DU MATCH, son vrai prix : la lecture avec lui contre
  * Ton match, sous leur jeu (`leurJeuDuDuel`, js/greffes.js), les mêmes dés. `net` : les buts nets qu'il change, ce que le
  * robot lit (scripts/lib/duel.mjs) ; l'écran ne dit que les stats.
  *   team, adv : les deux clubs ; intention : leur jeu ; n : les lancers lus
  */
-const PLAN_DE_LA_PIECE = { canonnier: 'tirer', mur: 'centre', cogneur: 'assaut', moine: 'discipline', arbitre: 'discipline', vedettiste: 'ombre', lunette: 'ombre' };
 const PLAN_DU_COACH = { essaim: 'tirer', rapaces: 'ombre', tortue: 'centre', rhinos: 'assaut', souffle: 'discipline', choeur: 'discipline', profondeur: 'centre', etoiles: 'ombre' };
 const PLANS_DU_DUEL = 3;
 export function plansDuDuel(team, adv, { intention = null, n = N_EFFET } = {}) {
   if (!team) return [];
   const P = team.perso, voix = [];
-  for (const k of bancDe(P)) if (PLAN_DE_LA_PIECE[k]) voix.push({ cle: PLAN_DE_LA_PIECE[k], qui: { genre: 'piece', cle: k }, force: 1 });
   if (P && PLAN_DU_COACH[P.cle]) voix.push({ cle: PLAN_DU_COACH[P.cle], qui: { genre: 'coach', cle: P.cle }, force: Math.min(1.3, Math.max(0.7, Number(P.maitrise) || 1)) });
   const plans = [];
   for (const v of voix.sort((a, b) => b.force - a.force)) if (!plans.some(x => x.cle === v.cle)) plans.push(v);
   const repondent = intention ? Object.keys(PLANS).filter(k => (PLANS[k].repond || []).includes(intention.cle)) : [];
   for (const cle of [...repondent, 'centre', 'discipline']) {
-    if (plans.length >= 2) break;
+    if (plans.length >= PLANS_DU_DUEL) break;
     if (!plans.some(x => x.cle === cle)) plans.push({ cle, qui: { genre: 'coach', cle: P ? P.cle : null }, force: 1 });
   }
   const lu = plan => lire(team, null, adv, { plan, intention, duel: true, n });
@@ -528,25 +525,16 @@ const lireEffets = (effet, adv, cadre, max = 3) => {
     return tries.length ? tries : null;
   } catch { return null; }
 };
-const MOTS_EUX = { volume: ['Leurs tirs', false], finition: ['Leur précision', false], discipline: ['Leurs punitions', true] };
-const QUOI_DU_RELAIS = { canaux: { volume: 'tes tirs', finition: 'ta précision', discipline: 'tes punitions', blessure: 'tes blessures' }, adv: { volume: 'leurs tirs', discipline: 'leurs punitions' } };
-/* LE RELAIS D'UNE PIÈCE, EN UNE LIGNE (V23 D) : son signal, puis ce qu'il ajoute la période — « Relais · Quand tu mènes : leurs tirs −10 % de plus, la période ». */
-function ligneDuRelais(cle) {
-  const P = PIECES[cle], fx = effetDuRelais(cle);
-  if (!fx) return null;
-  const v = fx.valeur, quoi = fx.canal === 'F' ? 'ton 1er trio joue plus encore' : fx.canal === 'robustesse' ? 'plus de mises en échec encore'
-    : `${QUOI_DU_RELAIS[fx.cote][fx.canal] || fx.canal} ${pctDe(v)} de plus`;
-  return { txt: `Relais · ${P.relais.mot} : ${quoi}, la période`, bon: true, relais: true };
-}
-/** Ce qu'une pièce donne et coûte à ton club : sa soirée par match, une période la période ; son relais au bout ; le bon d'abord. */
-export function lignesDeLaPiece(cle) {
+const MOTS_EUX = { volume: 'Leurs tirs', finition: 'Leur précision' };
+/**
+ * Ce qu'une pièce de banc fait à une marche (1 à 3), en vraies stats de match pour ton club (V29 : elle joue tout le
+ * match) ; sans club lu, ses mots en %. `force` : la maîtrise de l'entraîneur, pour sa pièce de départ.
+ */
+export function lignesDeLaPiece(cle, marche, force = 1) {
   const P = PIECES[cle];
-  if (!P) return [];
-  const lu = lireEffets(P.canaux || null, P.adv || null, P.soir ? { par: 'par match' } : { part: 1 / 3, par: 'la période' });
-  const eux = Object.entries(P.adv || {}).filter(([k]) => MOTS_EUX[k]).map(([k, v]) => ({ txt: `${MOTS_EUX[k][0]} ${pctDe(v)}`, bon: MOTS_EUX[k][1] ? v > 1 : v < 1 }));
-  const relais = ligneDuRelais(cle);
-  const out = [...(lu || [...motsDEffet(P.canaux || null), ...eux]), ...(relais ? [relais] : [])];
-  return [...out.filter(x => x.bon !== false), ...out.filter(x => x.bon === false)];
+  if (!P || !(marche > 0)) return [];
+  const f = facteurDe(cle, marche, force), effet = { [P.canal]: f }, eux = P.cote === 'adv';
+  return lireEffets(eux ? null : effet, eux ? effet : null, { par: 'par match' }) || (eux ? [{ txt: `${MOTS_EUX[P.canal]} ${pctDe(f)}`, bon: true }] : motsDEffet(effet));
 }
 /**
  * Un effet dit pour le club courant, avec ses autres mots (le changement de carte, la durée) : le remplaçant

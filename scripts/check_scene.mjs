@@ -7,7 +7,8 @@
  *      les Lignes, le banc, la feuille du soir, le duel, le match, le marché, le vestiaire, l'histoire, la fin d'acte, les
  *      séries, la fin, la pause ; et celles d'entre deux runs (tranche 5), ouvertes d'un méta semé : le départ d'un club
  *      qui a gagné (ses crans, la philosophie neuve), le Club (la variété, ton club, ses couleurs, l'Album d'un cartable
- *      semé et ses pages, le palmarès), le solde d'un méta d'avant ;
+ *      semé et ses pages, le palmarès), le solde d'un méta d'avant, le départ d'une run d'avant la V29 qui s'arrête
+ *      (ses médailles versées une fois) ;
  *   2. aucune ne défile, et rien du site ne dépasse : ni en-tête, ni barre d'onglets (chaque point de l'écran est dans
  *      la scène) ;
  *   3. le HUD est toujours au même endroit (ses cœurs au même pixel) ;
@@ -22,7 +23,7 @@ import fs from 'node:fs';
 import { exiger, informer, verdict } from './verdict.mjs';
 import { ciblesTropPetites } from './lib/cibles.mjs';
 import { jouerLaRun } from './lib/run_robot.mjs';
-import { figer } from '../js/run.js';
+import { figer, medaillesDe } from '../js/run.js';
 
 const require = createRequire(import.meta.url);
 let pw;
@@ -165,6 +166,21 @@ const meta = { present: [] };
   meta.present.push(['le solde vu, le départ suit', !!await page.$('#runModal [data-a="prendre-coach"]')]);
   await page.close();
 }
+{
+  // UNE RUN D'AVANT LA V29 (JP, 14 nov. 2026) : son banc n'existe plus, elle s'arrête à l'ouverture — ses médailles gagnées
+  // versées une fois, le départ le dit, et la run gardée s'efface. Rouvrir ne verse rien de plus.
+  const vieille = { ...(saves.series || saves.finacte), v: 2, fin: null }, du = medaillesDe(vieille);
+  const page = await ouvrir(vieille, { jeu: 'v28', ecussons: 10, ecussonsAVie: 10, runs: 3, recompenses: {}, solde: { avant: 0, rendu: 0, familles: [], voies: [], vu: true } });
+  await mesurer(page, 'le départ, une run d\'avant arrêtée');
+  const lu = () => page.evaluate(() => ({ run: localStorage.getItem('cap82_run'), m: JSON.parse(localStorage.getItem('cap82_rogue') || '{}').ecussons, mot: (document.querySelector('#runModal .rn-plan') || {}).textContent || '' }));
+  const un = await lu();
+  await geste(page, 'quitter');
+  await page.click('#menuDepart [data-menu="rogue"]');
+  await page.waitForSelector('#runModal .rn-plan [data-a="prendre-coach"]', { timeout: 60000 });
+  const deux = await lu();
+  meta.present.push([`une run d'avant s'arrête : ${du} médailles versées une fois, dites au départ, la run effacée`, du > 0 && un.run === null && un.m === 10 + du && un.mot.includes(`+${du} médailles`) && deux.m === un.m && !deux.mot.includes('run d\'avant')]);
+  await page.close();
+}
 for (const [cle, suites] of Object.entries(SUITES)) {
   if (!saves[cle]) continue;
   const page = await ouvrir(saves[cle]);
@@ -193,9 +209,9 @@ await browser.close();
 
 const VOULUES = ['le départ', 'le camp', 'la porte ouverte', 'l\'échange', 'le rival annoncé', 'la carte de l\'acte', 'les Lignes', 'les Lignes, une carte tenue', 'le banc', 'la pause', 'la feuille du soir',
   'le match', 'le match fini', 'la feuille du duel', 'les trois portes', 'le marché', 'le vestiaire', 'une histoire', 'la fin d\'acte', 'les séries', 'la fin de run',
-  'le départ, ses crans', 'le Club : la variété', 'ton club', 'ton club : les couleurs', 'l\'Album', 'l\'Album, la page suivante', 'l\'Album : les gravées', 'l\'Album : les entraîneurs', 'le palmarès', 'le solde', 'le Club, après une run'];
+  'le départ, ses crans', 'le Club : la variété', 'ton club', 'ton club : les couleurs', 'l\'Album', 'l\'Album, la page suivante', 'l\'Album : les gravées', 'l\'Album : les entraîneurs', 'le palmarès', 'le solde', 'le Club, après une run', 'le départ, une run d\'avant arrêtée'];
 exiger('chaque scène du devis s\'ouvre', VOULUES.every(n => vues.includes(n)), VOULUES.filter(n => !vues.includes(n)).join(', ') || `${vues.length} scènes`);
-exiger('entre deux runs : les crans et la philosophie neuve au départ, le Club qui se ferme d\'où on vient, le solde puis le départ', meta.present.every(x => x[1]), meta.present.filter(x => !x[1]).map(x => x[0]).join(' · ') || `${meta.present.length} repères`);
+exiger('entre deux runs : les crans et la philosophie neuve au départ, le Club qui se ferme d\'où on vient, le solde puis le départ, une run d\'avant arrêtée', meta.present.every(x => x[1]), meta.present.filter(x => !x[1]).map(x => x[0]).join(' · ') || `${meta.present.length} repères`);
 exiger('aucune scène ne défile : un plan de 390 × 844', !fautes.defile.length, fautes.defile.slice(0, 4).join(' · '));
 exiger('rien du site ne dépasse : ni en-tête, ni barre d\'onglets', !fautes.dehors.length, fautes.dehors.slice(0, 4).join(' · '));
 exiger('aucun panneau ne passe sous le compte ni sous les boutons du bas', !fautes.couvert.length, fautes.couvert.slice(0, 4).join(' · '));

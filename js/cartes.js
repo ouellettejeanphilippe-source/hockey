@@ -140,11 +140,11 @@ const SENS_RARETE = {
 };
 /*
  * LA CARTE D'UNE PIÈCE DE BANC (V27, tranche 5, js/pieces.js) : la carte de jeu de la glace, au cadre de la pièce et à la
- * couleur de son genre, son nom sur la plaque, sa condition en type. `c` : ce que l'écran y ajoute (le verso, `lecture`).
+ * couleur de son genre, son nom sur la plaque, ce qu'elle compte en type. `c` : ce que l'écran y ajoute (le verso, `lecture`).
  */
 export function carteDePiece(cle, c = {}) {
   const P = PIECES[cle];
-  return P ? carteHtml({ cle, niveau: P.cadre, genreCarte: P.genre, ico: P.ico, nomHtml: esc(P.nom), typeHtml: esc(P.quandMot), ...c }) : '';
+  return P ? carteHtml({ cle, niveau: P.cadre, genreCarte: P.genre, ico: P.ico, nomHtml: esc(P.nom), typeHtml: esc(`Compte ${P.qui}`), ...c }) : '';
 }
 export const sensRarete = r => SENS_RARETE[r] || SENS_RARETE.commune;
 /* Une édition au-dessus de la Base : le « shiny ». */

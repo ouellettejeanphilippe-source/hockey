@@ -16,7 +16,7 @@ Chaque reproche se cite tel quel, en italique, comme le journal le fait (JP : *�
 ## 2. Lire le terrain
 
 - Sur glace : `.claude/rules/sur-glace.md`, `docs/sur-glace.md` (ce qui est fait, partiel, à faire) et les entrées « Sur glace » de `docs/journal/2026-11.md` — un reproche qui revient après une correction le dit.
-- Rogue : `.claude/rules/rogue.md`, `.claude/rules/interface.md` (« Le Rogue : des scènes, jamais des pages »), la dernière `docs/refonte-v*.md` (aujourd'hui `docs/refonte-v28.md` et ses extraits ; `docs/refonte-v28-4.md` dit ce qui est parti avec l'ancien Rogue), les maquettes `docs/maquettes/v28-ecrans.html`.
+- Rogue : `.claude/rules/rogue.md`, `.claude/rules/interface.md` (« Le Rogue : des scènes, jamais des pages »), la dernière `docs/refonte-v*.md` (aujourd'hui `docs/refonte-v29.md` et son extrait `docs/refonte-v29-1.md`, le banc qui compte ; `docs/refonte-v28.md` et ses extraits pour la run en carte, `docs/refonte-v28-4.md` pour ce qui est parti avec l'ancien Rogue), les maquettes `docs/maquettes/v28-ecrans.html`.
 
 ## 3. Ramener chaque reproche à sa cause
 

@@ -1,7 +1,6 @@
 /*
  * LES GREFFES DU ROGUE (V25, docs/refonte-v25.md § A). Ce que le Rogue pose sur un match, un soir, un matin ou une
- * décision : le coach et son banc de cinq pièces et leurs relais (V27, tranche 5, js/pieces.js), leur coach en séries
- * (V23 F), le duel en trois périodes (V9, V17), les histoires par leur porte et leurs promesses (V25 C1). Le moteur
+ * décision : le coach et son banc de cinq pièces qui comptent (V29, js/pieces.js), leur banc en séries, le duel en trois périodes (V9, V17), les histoires par leur porte et leurs promesses (V25 C1). Le moteur
  * (js/sim.js) n'importe rien de tout ça : ce module se branche sur lui au chargement (`brancherGreffes`) par un contrat
  * de huit fonctions, et le 82-0 n'y pose rien.
  *
@@ -16,7 +15,7 @@
  *   lecture(team, adv, lu, { plan, intention, duel })        un plan et une intention posés le temps d'une lecture
  *   aVenir(team, d)                                          ce qu'une décision à venir a de pur, posé le temps d'une lecture
  */
-import { PIECES, PIECE_DU_COACH, bancDe, poserLaPiece, bancDuSoir, bancDeLaPeriode, persoAdverse } from './pieces.js';
+import { PIECES, PIECE_DU_COACH, bancDe, poserLaPiece, bancDuMatch, persoAdverse } from './pieces.js';
 import { COACHS, coachDesRoles } from './coachs.js';
 import { HISTOIRES, nomDOption } from './histoires.js';
 import { FENETRE_JOUEUR } from './faits.js';
@@ -193,7 +192,7 @@ function verdictsDuMatin(t, jour) {
 
    TA RÉPONSE, UN SEUL CHOIX AVANT LE MATCH (V27, tranche 6 ; docs/refonte-v27.md § 4.7, docs/refonte-v27-6a.md). JP :
    *le duel : un seul choix lourd ; les micro-plans de période partent* ; *aucune décision d'entracte*. Ton plan fort
-   (`PLANS`), un parmi deux ou trois que ton banc propose (`plansDuDuel`, js/impact.js), ou Ton match : il joue les
+   (`PLANS`), un parmi les trois que ton coach propose (`plansDuDuel`, js/impact.js), ou Ton match : il joue les
    trois périodes. Le rival a montré son jeu à son annonce : son intention dominante (`dominante`, js/actes.js), qu'il
    annonce plus souvent que les autres (`POIDS_DOMINANTE`). Leur intention est leur plan : elle frappe sa période, avec
    son prix, et ne se « contre » plus.
@@ -217,7 +216,7 @@ const POIDS_DOMINANTE = Number(ENV_MESURE.POIDS_DOMINANTE ?? 1.5);
  * leviers que les tiens (`PLANS`), posés par eux, chacun avec son prix, le temps de sa période. `toi` : sur ton club ;
  * `adv` : sur le leur ; `joueur` : sur ton joueur visé (`vise` : son poste) ; `par` : sur leur joueur qui le vise ;
  * `jambes` : ce que la chasse coûte aux jambes du visé. Elle change la FORME de la période, pas sa force : plus de
- * contre ni de porte (le tableau de la V13 est parti) ; ton banc propose ton plan d'avant-match pour y répondre
+ * contre ni de porte (le tableau de la V13 est parti) ; ton coach propose ton plan d'avant-match pour y répondre
  * (`plansDuDuel`, js/impact.js).
  */
 export const INTENTIONS = {
@@ -397,65 +396,25 @@ function effetsDeLIntention(I, f = FORCE_DUEL) {
   };
 }
 /*
- * CE QU'UNE PIÈCE LIT AVANT LA PÉRIODE `k` (js/pieces.js) : le pointage et les tirs déjà joués, la période d'avant, le
- * soir. Les tirs viennent de la feuille (`journal.tirs`, index 1 à 3) ; sans feuille, ils ne se lisent pas.
+ * LE BANC D'UN CLUB, POUR LE MATCH (V29, js/pieces.js `bancDuMatch`) : chaque pièce compte ceux qui comptent chez lui —
+ * tes signés (`T.comptes`, posé par la run), ou tout le club pour un adversaire — une fois, avant le match ; le club garde
+ * son banc le temps du match (`_banc`).
  */
-function etatDuBanc(T, k, cote, moi, lui, journal, series, gros, avant) {
-  const autre = cote === 'A' ? 'B' : 'A';
-  const t = (c, i) => (journal ? journal.tirs[c][i] : 0);
-  let tirsMoi = 0, tirsLui = 0;
-  for (let i = 1; i <= k; i++) { tirsMoi += t(cote, i); tirsLui += t(autre, i); }
-  const der = k > 0 && journal ? { tirsMoi: t(cote, k), tirsLui: t(autre, k), moi: avant ? avant.moi : 0, lui: avant ? avant.lui : 0 } : null;
-  return { k, moi, lui, tirsMoi, tirsLui, der, series, gros, soir: T._soir || {} };
-}
+const ceuxQuiComptent = T => (typeof T.comptes === 'function' ? T.comptes() : Object.values(T.roster || {}).filter(Boolean));
 /*
- * LES PIÈCES DE LA SOIRÉE (js/pieces.js `bancDuSoir`) : celles dont la condition est la soirée entière jouent le match comme
- * un style, sur ton club (`effet`) et sur l'adversaire (`adv`), leurs minutes et leurs jambes comprises ; le club les garde
- * le temps du match (`_bancSoir`) pour la feuille et les relais. Rend la fonction qui les retire.
+ * LE BANC, À CHAQUE PÉRIODE : les pièces qui ont atteint une marche jouent toute la période, sur le club (`toi`) et sur
+ * l'adversaire (`adv`), par-dessus les bornes de style du moteur (`source: 'piece'`), et sont notées à la feuille
+ * (`journal.pieces` : sa marche, son compte). Rend { toi, adv, notes }.
  */
-function poserLeBancDuSoir(A, B, { series = false, gros = null } = {}) {
-  const retraits = [];
-  const poser = (X, e) => {
-    const avait = '_effetMatch' in X, avant = X._effetMatch;
-    X._effetMatch = [...(avant || []), e];
-    retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
-  };
-  for (const [T, O] of [[A, B], [B, A]]) {
-    const e0 = { k: 0, moi: 0, lui: 0, tirsMoi: 0, tirsLui: 0, der: null, series, gros: !!(gros && gros.duel), soir: T._soir || {} };
-    T._bancSoir = bancDuSoir(T.perso, e0);
-    for (const x of T._bancSoir) {
-      if (x.canaux) poser(T, { source: 'banc', nom: x.P.nom, ico: x.P.ico, ...x.canaux });
-      if (x.adv) poser(O, { source: 'banc', nom: x.P.nom, ico: x.P.ico, ...x.adv });
-    }
-  }
-  return () => { for (const r of retraits.reverse()) r(); for (const T of [A, B]) delete T._bancSoir; };
-}
-/*
- * LE BANC D'UNE PÉRIODE pour le club `T` (js/pieces.js `bancDeLaPeriode`) : les pièces dont la condition se lit, puis
- * leurs relais, posés en effets de la période sur lui (`toi`) et sur l'adversaire (`adv`), et notés à la feuille
- * (`journal.pieces`, `journal.relais`) ; les pièces de la soirée y sont notées à chaque période, sans effet de plus (le
- * match les porte déjà). Rend { toi, adv, notes }.
- */
-function bancPose(T, e, cote, journal) {
+function poserLeBanc(T, cote, k, journal) {
   const out = { toi: [], adv: [], notes: [] };
-  if (!T.perso) return out;
-  const soir = T._bancSoir || [];
-  const { pieces, relais } = bancDeLaPeriode(T.perso, e, soir);
-  for (const x of soir) {
-    const note = { cote, k: e.k, cle: x.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0, soir: true };
-    out.notes.push(note);
-    if (journal) journal.pieces.push(note);
-  }
-  for (const x of pieces) {
+  for (const x of T._banc || []) {
+    if (!x.marche) continue;
     if (x.canaux) out.toi.push({ source: 'piece', nom: x.P.nom, ico: x.P.ico, ...x.canaux });
     if (x.adv) out.adv.push({ source: 'piece', nom: x.P.nom, ico: x.P.ico, ...x.adv });
-    const note = { cote, k: e.k, cle: x.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0, ...(x.ombre ? { ombre: true } : {}) };
+    const note = { cote, k, cle: x.cle, nom: x.P.nom, ico: x.P.ico, buts: 0, contre: 0, marche: x.marche, n: x.n };
     out.notes.push(note);
     if (journal) journal.pieces.push(note);
-  }
-  for (const x of relais) {
-    (x.cote === 'adv' ? out.adv : out.toi).push({ source: 'relais', nom: x.P.nom, ico: x.P.ico, [x.canal]: x.valeur });
-    if (journal) journal.relais.push({ cote, k: e.k, cle: x.cle, nom: x.P.nom, ico: x.P.ico, sur: x.sur, maillon: x.maillon });
   }
   return out;
 }
@@ -474,27 +433,26 @@ export function leurJeuDuDuel(toi, adv, { graine = 0, cle = '', dominante = null
    LE CONTRAT (V25) : ce que le moteur appelle, et rien d'autre.
    ===================================================================== */
 
-/* AVANT LE MATCH : leur coach en séries, les pièces de la soirée. Rend ce qui les retire. */
-function avantMatch(A, B, LA, LB, journal, { series = false, gros = null } = {}) {
-  // LEUR COACH EN SÉRIES (V23 F, js/pieces.js `persoAdverse`) : un club sans personnage qui en porte un pour les
+/* AVANT LE MATCH : leur banc en séries, puis le banc de chaque club, compté une fois pour le match. Rend ce qui les retire. */
+function avantMatch(A, B, LA, LB, journal, { series = false } = {}) {
+  // LEUR BANC EN SÉRIES (V29, js/pieces.js `persoAdverse`) : un club sans personnage qui en porte un pour les
   // séries (`persoSeries`, posé par `creerSeries`) le joue le temps du match, et le dépose après.
   const pretes = [A, B].filter(T => series && !T.perso && T.persoSeries);
   for (const T of pretes) T.perso = T.persoSeries;
-  // LE BANC DE CE SOIR (V27) : la feuille garde les cinq cases de chaque club, ce que le banc d'Hier soir relit ; les
-  // pièces de la soirée jouent le match entier, posées comme un style.
+  // LE BANC DE CE SOIR : la feuille garde les cases de chaque club ; chaque pièce compte une fois, avant le match.
   if (journal) journal.banc = { A: bancDe(A.perso), B: bancDe(B.perso) };
-  const retirerSoir = poserLeBancDuSoir(A, B, { series, gros });
+  for (const T of [A, B]) T._banc = T.perso ? bancDuMatch(T.perso, ceuxQuiComptent(T)) : [];
   // EN SÉRIES (V25 C1) : ce qu'une histoire de ronde a posé sur tes joueurs se lit au jour des séries (le match qui vient).
   if (series) for (const T of [A, B]) if (T.isPlayer) effetsDesJoueurs(T, jourDeSerie(T));
-  return () => { retirerSoir(); for (const T of pretes) T.perso = null; };
+  return () => { for (const T of [A, B]) delete T._banc; for (const T of pretes) T.perso = null; };
 }
 /* APRÈS LE MATCH : en séries, les verdicts des promesses (aucun lundi n'y passe). */
 function apresMatch(A, B) { for (const T of [A, B]) if (T.isPlayer && T.jourCourant === Infinity) verdictsDuMatin(T, jourDeSerie(T)); }
 /*
  * LA SOIRÉE, PÉRIODE PAR PÉRIODE. Au duel (`gros.duel`) : ton plan, pris avant le match (`gros.choix`, V27 tranche 6),
  * pour les trois périodes ; à chacune, leur intention (`intentionDuDuel`, leur dominante comprise), tes moments
- * (`MOMENTS_SI`), ton plan (`effetsDuPlan`) ; pour tous : le banc des deux clubs (ses pièces et leurs relais), lu sur ce
- * qui est déjà joué ; leur coach en séries passe par là aussi. Sans choix (« Ton match, toute la série »), `toi.robotDuel`
+ * (`MOMENTS_SI`), ton plan (`effetsDuPlan`) ; pour tous : le banc des deux clubs (ses pièces qui comptent), lu sur ce
+ * qui est déjà joué ; leur banc en séries passe par là aussi. Sans choix (« Ton match, toute la série »), `toi.robotDuel`
  * choisit avant la 1re, s'il y en a un (les robots : le même choix que l'écran, `plansDuDuel`). `fin()` écrit le duel dans
  * `gros.duelJoue` et la feuille (`duel`).
  */
@@ -515,7 +473,7 @@ function match(A, B, LA, LB, { gros = null, journal = null, series = false, base
     plan = choix && choix.plan ? planLu(choix.plan) : null;
   }
   return {
-    periode(k, { gfA, gfB, der }) {
+    periode(k, { gfA, gfB }) {
       const effA = [], effB = [], vises = [];
       let I = null;
       if (duel) {
@@ -544,9 +502,8 @@ function match(A, B, LA, LB, { gros = null, journal = null, series = false, base
         const fxPlan = effetsDuPlan(plan, { Ltoi, Ladv }, FORCE_DUEL);
         if (fxPlan) { effToi.push(...fxPlan.toi); effAdv.push(...fxPlan.adv); for (const [q, e] of fxPlan.joueurs) viser(q, e); }
       }
-      // LE BANC DES DEUX CLUBS (V27, tranche 5 : ses pièces et leurs relais) ; en séries, leur coach (V23 F).
-      const eA = etatDuBanc(A, k, 'A', gfA, gfB, journal, series, !!duel, der && der.A), eB = etatDuBanc(B, k, 'B', gfB, gfA, journal, series, !!duel, der && der.B);
-      const xA = bancPose(A, eA, 'A', journal), xB = bancPose(B, eB, 'B', journal);
+      // LE BANC DES DEUX CLUBS (V29 : ses pièces qui comptent) ; en séries, leur banc aussi.
+      const xA = poserLeBanc(A, 'A', k, journal), xB = poserLeBanc(B, 'B', k, journal);
       effA.push(...xA.toi, ...xB.adv); effB.push(...xB.toi, ...xA.adv);
       enCours = { vises, xA, xB, I, nButs: journal ? journal.buts.length : 0, nPun: journal ? journal.punitions.length : 0 };
       return { effA, effB };
