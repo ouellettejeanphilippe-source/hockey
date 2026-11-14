@@ -155,6 +155,7 @@ Le Rogue, la run en carte (V28), hors de `tout.mjs` ; les règles qu'ils prouven
 
 ```
 mesure_run              la run mesurée sur ses trois robots (« premier », le chiffre, le malin ; lib/run_robot.mjs), 64 graines : les Coupes, la première Coupe du malin en médiane, l'acte III à 75 % (imprimé sans se juger) ; en CI, ici FILS=3 au plus (cinq à six minutes) ; ROBOTS, GRAINE0, REGLAGES
+mesure_build            le build décide, le test d'un jour (V29, tranche 0, docs/refonte-v29.md § 4) : quatorze pièces d'essai qui comptent tes joueurs (badges, origines) dans la table le temps de la mesure, le bâtisseur contre le même robot qui ne lit pas son banc, 48 graines ; à la main, neuf minutes
 check_pouvoirs          le banc de cinq (js/pieces.js) : les tables, le banc pur, chaque pièce en paires contre un banc vide, sa présence sur des runs du robot malin, les bornes d'un acte de six matchs, le banc complet ; huit minutes sur trois fils (N, PIECES, FILS) ; MESURE=0 N=20 en CI, sans les bornes
 check_relais            le relais des pièces (V23 D ; V27, tranche 5) : en paires, chaque pièce relaie exactement les périodes que son signal lit, à deux maillons, se voit le soir où elle relaie, la paire pièce de départ-pièce à relais rend 1,2 à 1,6 fois ses pièces ; deux minutes (N) ; MESURE=0 N=20 en CI
 check_moments_si        les moments (MOMENTS_SI, js/sim.js) : un effet d'un moment ne joue que son soir, rien ne se lit d'avance, chaque moment arrive dans des runs du robot malin ; une demi-minute, en CI (GRAINES)

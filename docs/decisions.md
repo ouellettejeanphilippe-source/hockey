@@ -3793,3 +3793,26 @@ Dans le jeu, ça se voyait peu (il faut recroiser le même joueur-saison dans la
 **La preuve.** Les deux découpages rendent les mêmes 384 runs (0 différence, 36 Coupes de chaque côté). `check_run` garde le cas trouvé : la graine 68, puis la 39, puis la 68 de nouveau, la même ; le garde a été vu rouge sur le code d'avant. Une run jouée dans une page neuve ne change pas (`essai_run` : les mêmes 24 matchs, les mêmes 55 médailles).
 
 **Ce qu'on en garde.** `check_run` rejouait la même graine deux fois de suite et concluait « la même graine rejoue la même run » : il fallait une AUTRE run entre les deux. Et un écart d'une unité entre deux mesures qui devraient être identiques n'est pas du bruit : c'est par lui que la fuite s'est vue.
+
+## La V29 : le build décide (13 et 14 nov. 2026)
+
+**Ce que JP a dit**, après avoir essayé la V28 : *le roguelike est pas le fun, ni bati comme il faut pour être un vrai jeu je trouve*. C'était la « porte 2 » du devis de la V28, à juger à l'essai : elle est ratée.
+
+**Le diagnostic** (la session, `rogue-design` et le `game-designer` du studio, sans se lire ; 48 runs du robot qui lit). Le Rogue tenait trois règles ensemble : aucun geste pendant le match (8 nov.) ; tout ce qu'on choisit borné sous le dé (« une carte change la forme du match, pas sa force », 22 oct. ; la boule de neige bloquée, 7 nov.) ; un simulateur réaliste (9 nov.), où un match est presque un pile ou face. La V28 avait refait la carte, les portes et les scènes ; ces trois règles étaient passées telles quelles. Mesuré : un match se regarde 28 secondes sans un geste ; une signature vaut ≈ 2 points de chance ; 44 % des matchs se jouent entre 40 et 60 % ; le seul match du rival décide la cible dans au moins 65 actes sur 135, à 49 % de chance ; les deux robots habiles finissent à la même force (193) ; 4 Coupes sur 48, 27 runs sans voir les séries ; sur les mêmes graines, le robot qui lit ne fait pas mieux que « premier » 20 fois sur 48. Le simulateur n'était pas l'obstacle : une pièce d'essai allumée tout le match, précision ×1,5, fait passer la chance de 59 à 70 %.
+
+**JP tranche** (quatre questions posées avant tout code) : la direction, **« le build décide »** (13 nov. ; « le soir se joue », « le match devient un calcul » et « on arrête de refaire le Rogue » écartés) ; ce que les pièces comptent, **« les deux »**, l'origine et les badges ; quand le banc arrive, **« trois pièces au camp »** ; la difficulté, **« dur, mais ça explose »** (la Coupe 4 à 12 fois sur 64, pas avant la troisième run, mais une run sur quatre qui explose au lieu de 7 %). Trois règles sont donc défaites : « la forme, pas la force » pour une pièce de banc (elle tient pour une réponse d'histoire), la boule de neige bloquée dans la run pour le banc (rien ne se garde toujours d'une run à l'autre), et « exploser : 5 à 12 % ».
+
+**La mesure d'un jour** (`scripts/mesure_build.mjs`, 48 graines, rien du jeu touché ; docs/refonte-v29.md § 4) : des pièces d'essai qui comptent tes joueurs et multiplient un canal du moteur, un robot bâtisseur contre le même robot qui ne lit pas son banc. Huit variantes :
+
+- **En ligne droite** (tant par palier), bâtir ne paie pas : 67 % de cibles contre 66 %. Chaque palier payant pareil, un banc se paie en cote ce qu'il rapporte. Il faut des marches.
+- **Une seule pièce au départ**, la direction arrive trop tard : le bâtisseur fait pire (49 % contre 59 %).
+- **Cinq variantes étaient faussées par le robot lui-même** : il faisait sortir son joueur le plus faible à chaque échange, donc les joueurs de rôle que son banc comptait. Un humain choisit qui sort ; le robot aussi, depuis. Sans ce correctif, la conclusion aurait été « bâtir ne paie jamais », à tort.
+- **L'origine** (la même époque, la même franchise, de vrais coéquipiers) fait la décision : 72 % de cibles contre 57 % (+16,7 points, bruit ±12,1). Le robot qui ne lit rien ne tombe pas dessus par hasard, et derrière la bonne porte on signe encore le meilleur.
+- **Les badges** font la puissance et la variété (27 Coupes contre 16, sept pièces gagnantes), mais qui ne lit rien en profite presque autant : les badges payants viennent avec la cote.
+- **Les deux ensemble, trois pièces au camp** (le choix de JP) : 31 Coupes sur 48 contre 12 ; l'acte III à 79 % de chance contre 69 % ; un banc bâti vaut +33 points de chance, +13 pour qui ne le lit pas ; neuf pièces mènent un banc gagnant.
+
+**Ce qui reste rouge, et pourquoi on ne baisse pas la borne.** Deux critères de la mesure manquent de peu : les cibles tenues en paires (+7,6 points pour un bruit de ±10,9) et l'écart de chance à l'acte III (+9,7 pour 10). À ces forces la run est trop facile pour les deux robots (79 et 72 % de cibles) : c'est la difficulté remontée, à la tranche 1, qui doit ouvrir l'écart.
+
+**Ce qu'on en garde.** Un robot qui ne peut pas faire ce qu'un joueur fait (choisir qui sort) mesure le robot, pas le jeu : cinq mesures de neuf minutes ont dit le contraire de la sixième. Et un témoin propre (le même robot, une seule différence) a défait une première lecture trop belle : le « 14 Coupes contre 5 » du début comparait deux robots qui différaient par quatre choses.
+
+Le devis : docs/refonte-v29.md (16 noms dans « Ce qui part », trois tranches). Rien du jeu n'est codé.

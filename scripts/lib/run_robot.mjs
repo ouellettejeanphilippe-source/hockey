@@ -12,6 +12,8 @@
  *                (`pieceLue`), le marché et le vestiaire selon son état.
  *
  * `espion(moment, S, x)` : appelé aux moments d'une run ('portes', 'signe', 'match', 'case', 'fin'), pour les invariants.
+ * `lire` (une mesure seulement) : { note(S, candidat), piece(S, offertes), sort(S, cle) } — un robot d'essai qui juge un
+ * candidat, choisit sa pièce et dit laquelle sort du banc plein par ses propres règles (scripts/mesure_build.mjs).
  */
 import { getHiddenRatings, energieDe } from '../../js/sim.js';
 import { groupeDuJoueur as groupeDe } from '../../js/niveaux.js';
@@ -44,9 +46,16 @@ function candidats(S, x) {
   }
   return out;
 }
-function choisirAuxPortes(S, robot) {
+function choisirAuxPortes(S, robot, lire) {
   const portes = S.R.portes.pochette ? [null] : S.R.portes.clubs;
   if (robot === 'premier') return candidats(S, portes[0])[0] || null;
+  // Un robot qui lit autre chose que la cote (`lire.note`, une mesure : scripts/mesure_build.mjs) juge chaque échange lui-même.
+  // Il choisit aussi qui sort : chaque joueur du groupe dont la sortie fait tenir l'arrivant, pas seulement le plus faible.
+  if (lire && lire.note) {
+    const paires = portes.flatMap(x => vestiaireDe(S, x).filter(c => c.tient).flatMap(({ p }) => sortantsPour(S, p).filter(q => masseApres(S, p, q) <= S.R.plafond).map(sortant => ({ p, sortant, gain: v(p) - v(sortant), porte: x }))));
+    const c = paires.map(x => ({ ...x, note: lire.note(S, x) })).sort((x, y) => y.note - x.note)[0];
+    return c && c.note > 0 ? c : null;
+  }
   const tous = portes.flatMap(x => candidats(S, x)).filter(c => c.gain > 0);
   if (robot === 'chiffre') return tous.sort((a, b) => b.gain - a.gain)[0] || null;
   const note = c => c.gain - PRIX_ESPACE * Math.max(0, (prixDe(S, c.p) - RUN.RACHAT * prixDe(S, c.sortant)) / 1e6);
@@ -54,9 +63,9 @@ function choisirAuxPortes(S, robot) {
   return b && note(b) > 0 ? b : null;
 }
 /* Les portes : signer ou passer, puis la suite. */
-function reglerLesPortes(S, robot, espion) {
+function reglerLesPortes(S, robot, espion, lire) {
   espion('portes', S);
-  const c = choisirAuxPortes(S, robot);
+  const c = choisirAuxPortes(S, robot, lire);
   if (c && signer(S, c.p, c.sortant, { auMieux: true })) espion('signe', S, c); else passerLesPortes(S);
   apresLesPortes(S);
 }
@@ -65,16 +74,24 @@ function reglerLesPortes(S, robot, espion) {
  * répond au rival de l'acte (« Pour le battre », sous son annonce : son match compte double), sinon la carte du plus haut
  * niveau (ses diamants).
  */
-function pieceLue(S, robot, offertes) {
+function pieceLue(S, robot, offertes, lire) {
+  if (lire && lire.piece) return lire.piece(S, offertes);
   if (robot !== 'malin') return offertes[0];
   const rival = S.R.phase !== 'finacte' && S.R.carte ? S.R.carte.rival : null, contre = rival ? jeuDe(S, rival).contre : [];
   return offertes.find(k => contre.includes(k)) || offertes.slice().sort((a, b) => PIECES[b].cadre - PIECES[a].cadre)[0];
 }
 /* Une pièce offerte : s'il reste une case sur le banc. */
-function reglerLaPiece(S, robot) {
+function reglerLaPiece(S, robot, lire) {
   const o = (S.R.apres && S.R.apres.offertes) || [];
-  if (o.length && robot !== 'premier' && S.R.banc.length < CASES_DU_BANC) prendreLaPiece(S, pieceLue(S, robot, o));
+  if (o.length && robot !== 'premier') prendreUnePiece(S, robot, o, lire, prendreLaPiece);
   pieceReglee(S);
+}
+/* Une case libre : la pièce lue. Banc plein : seulement le robot qui dit laquelle sort (`lire.sort`). */
+function prendreUnePiece(S, robot, offertes, lire, poser) {
+  const cle = pieceLue(S, robot, offertes, lire);
+  if (!cle) return;
+  if (S.R.banc.length < CASES_DU_BANC) poser(S, cle);
+  else if (lire && lire.sort) { const sort = lire.sort(S, cle); if (sort) poser(S, cle, sort); }
 }
 /* La case du rang : « premier » la première ; le chiffre, la plus facile ; le malin, l'affiche haute si son club la vaut. */
 function choisirLaCase(S, robot) {
@@ -111,7 +128,7 @@ function jouer(S, espion) {
  * (`ouvrirSeance`) et continue : elle doit finir pareil. Rend { robot, graine, coach, actes, coeurs, fin, rondes,
  * coupe, signatures, forces, s, R }.
  */
-export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null, exigence = 0 } = {}) {
+export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null, exigence = 0, lire = null } = {}) {
   const t0 = Date.now();
   const coach = COACHS[Math.floor(COACHS.length * (Number(graine) * 0.6180339887 % 1))];
   let S = creerLaRun(donnees, { graine: `v28:${graine}`, coach: { cle: coach }, exigence });
@@ -129,15 +146,15 @@ export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES
       continue;
     }
     if (R.phase === 'camp' || R.phase === 'portes') {
-      if (R.apres && (R.apres.offertes || []).length) reglerLaPiece(S, robot);
-      reglerLesPortes(S, robot, compte);
+      if (R.apres && (R.apres.offertes || []).length) reglerLaPiece(S, robot, lire);
+      reglerLesPortes(S, robot, compte, lire);
     } else if (R.phase === 'annonce') { forces.push(forceDe(S)); R.phase = 'carte'; }
     else if (R.phase === 'carte') { allerA(S, choisirLaCase(S, robot)); compte('case', S); }
     else if (R.phase === 'feuille') jouer(S, compte);
-    else if (R.phase === 'finacte') { reglerLaPiece(S, robot); apresLaFinDActe(S); }
+    else if (R.phase === 'finacte') { reglerLaPiece(S, robot, lire); apresLaFinDActe(S); }
     else if (R.phase === 'marche') {
       const M = R.marche;
-      if (robot !== 'premier' && !M.piece && R.jetons >= PRIX_PIECE && R.banc.length < CASES_DU_BANC) acheterLaPiece(S, pieceLue(S, robot, M.pieces));
+      if (robot !== 'premier' && !M.piece && R.jetons >= PRIX_PIECE) prendreUnePiece(S, robot, M.pieces, lire, acheterLaPiece);
       avancer(S);
     } else if (R.phase === 'vestiaire') {
       const joueurs = Object.values(S.roster).filter(Boolean);

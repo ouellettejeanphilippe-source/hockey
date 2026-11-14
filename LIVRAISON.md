@@ -23,6 +23,20 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 - [x] **A3 · La défensive** (7 nov.) — `check_suppression` étendu (le canal par joueur, vols moins revirements pondérés par la glace, par poste, en retenue 2013-2025 et en paires) : il ne tient pas — il ne bat pas le club seul (−0,1 %) ni ne se sépare du gardien (+0,2 %, intervalles à cheval sur zéro) ; la possession tombe comme le devis le prévoit, le moteur ne bouge pas — `check_suppression` (rouge, la mesure).
 - [ ] *Après* : D2, les autres modes, avec son devis (la V26).
 
+## Refonte · V29, le build décide (JP, 13 nov. : *le roguelike est pas le fun, ni bati comme il faut pour être un vrai jeu je trouve*)
+
+Le devis : docs/refonte-v29.md. Le diagnostic : trois règles tenues ensemble (aucun geste au match, tout borné sous le dé, un simulateur réaliste) ; JP défait la deuxième. 16 noms dans « Ce qui part ».
+
+- [x] **JP tranche quatre questions** (13 et 14 nov.) : le build décide ; les pièces de banc comptent l'origine de tes joueurs et leurs badges ; trois pièces au camp ; dur, mais ça explose (la Coupe 4 à 12 fois sur 64, une run sur quatre qui explose).
+- [x] **0 · Le test d'un jour** (14 nov.) — `scripts/mesure_build.mjs`, rien du jeu touché : quatorze pièces d'essai, le bâtisseur contre le même robot qui ne lit pas son banc, 48 graines.
+  - Le bâtisseur 31 Coupes sur 48, le témoin 12 ; l'acte III à 79 % de chance contre 69 % ; un banc bâti vaut +33 points de chance.
+  - En ligne droite, ou avec une seule pièce au départ, bâtir ne paie pas ; l'origine fait la décision, les badges la puissance.
+  - Deux critères rouges de peu (les cibles plafonnent à ces forces : +7,6 points pour un bruit de ±10,9 ; +9,7 points de chance pour 10) : la tranche 1 remonte la difficulté.
+- [ ] **`/revue-design docs/refonte-v29.md`**, avant le code.
+- [ ] **1 · Le banc qui compte** — `js/pieces.js` réécrit, le banc posé une fois par match, les deux choix du camp, le robot bâtisseur, la difficulté aux bornes de JP, le § 7 parti — `mesure_run`, `check_pouvoirs` (réécrit), `check_run`, `check_refonte`, `check_scene`, `essai_run`.
+- [ ] **2 · Lire son banc à l'écran** — le coin d'une carte à la porte, le banc avant et après à l'échange, le Banc et ses marches, le match, la fin de run — `check_scene`, `essai_run`, JP à l'essai.
+- [ ] **3 · Du contenu** — des pièces de plus, une à la fois, chacune mesurée ; les exigences relues.
+
 ## Refonte · V28, le Rogue de zéro, mécanique et écrans ensemble (JP, 9 nov. : *un vrai plan clair qui en fait un roguelike complet, complexe pis le fun* ; *J'hais l'interface* ; *interface et mécanique […] un change l'autre*)
 
 Le devis : docs/refonte-v28.md, tranché par JP le 9 nov. :
@@ -45,7 +59,7 @@ Le devis : docs/refonte-v28.md, tranché par JP le 9 nov. :
   - Réglé de nouveau sur 128 graines : le salaire de la run sur l'échelle d'aujourd'hui, le départ à 91,5 M$ sous 95,5 M$, les adversaires à 1 · 2 · 3 · 7 étapes d'édition — le malin 7 Coupes sur 64, « premier » 0, la première Coupe à la run 6 en médiane.
   - **Toutes les années ensemble** (JP, 11 nov. : *Je veux garder l'aspect toutes les années ensemble*) : le monde d'une run couvre les 55 saisons, 1 366 clubs ; la run d'une seule décennie, essayée d'abord, est défaite.
   - [x] ***Tu peux exploser le jeu***, et **lire paie** — tranchés par JP le 11 nov., après la mesure de deux leviers sur 384 graines (docs/decisions.md, « Lire paie : il fallait 384 graines ») : **lire paie déjà** (le robot qui lit tient 61 % de ses cibles contre 54 %, +7,6 points, bruit ±4,3 ; 64 graines ne pouvaient pas le voir), on ne change rien ; **exploser : on accepte 7 %** (6,5 % des runs, borné de 5 à 12 %). Les deux leviers essayés (le prix qui suit la valeur, moins de candidats par porte) ne faisaient pas mieux et rendaient la run plus dure : écartés. `GRAINES=384 FILS=3 ROBOTS=malin,chiffre node scripts/mesure_run.mjs` les juge, à la main.
-  - [ ] **La porte 2**, à juger par JP au téléphone : on dirait un jeu ; une case donne envie d'y aller ; une porte, de l'ouvrir ; perdre fait dire « j'aurais dû ».
+  - [x] **La porte 2**, jugée par JP à l'essai le 13 nov. : ratée (*le roguelike est pas le fun, ni bati comme il faut pour être un vrai jeu*). La V29 y répond (ci-dessus).
   - [x] **Le banc remesuré** sur un acte de six matchs (11 nov., à la tranche 4) : `check_pouvoirs` à l'échantillon plein, 27 vérifications vertes.
 - [x] **4 · Le remplacement** (11 nov., docs/refonte-v28-4.md) — « Le Rogue neuf » est le Rogue ; l'ancien part d'un coup : les 56 noms du § 8, neuf fichiers du jeu, dix-neuf scripts, 20 000 lignes ; une vieille run se solde (ses médailles, une fois). `check_refonte` sur la somme (le jeu retire cinq lignes pour une ajoutée), `check_mort`, `check_sauvegardes`, `tout.mjs` ; `mesure_run` : le malin 5 Coupes sur 64, « premier » 0.
   - **Le soir se dit au moteur** : la run pose le rival, le jeu d'en face (son style, le mot de sa case), ta suite, l'infirmerie, les dos-à-dos (trois matchs en trois soirs au début de chaque acte) ; avant, six pièces de banc ne jouaient jamais — `check_moments_si`, `check_pouvoirs`.
