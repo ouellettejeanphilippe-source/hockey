@@ -11,7 +11,7 @@ import { state } from './data.js';
 import { getShard } from './repechage.js';
 import { actionsDisponibles } from './actions.js';
 import { avecHasardIsole, getPersonKey, getPlayerKey, nouvelleGraine, periodeDe } from './sim.js';
-import { plansDuDuel, poserClubLu } from './impact.js';
+import { leurJeuEnStats, poserClubLu } from './impact.js';
 import { chargerCoachs, lotoDesCoachs } from './coachs-reels.js';
 import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages } from './rogue.js';
 import { VOIES } from './coachs.js';
@@ -28,7 +28,7 @@ import { esc, hache } from './util.js';
 import { VERSION } from './version.js';
 import { RATINGS_VERSION } from './ratings.js';
 import {
-  RUN, VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, medaillesDe, forcesDuMonde, allerA, chanceCeSoir, intentionCeSoir, jeuDe, jouerLeMatch, conclure, signer, passerLesPortes,
+  RUN, VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, medaillesDe, forcesDuMonde, allerA, chanceCeSoir, intentionCeSoir, jouerLeMatch, conclure, signer, passerLesPortes,
   relancerLesPortes, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, acheterLaPiece, acheterLaPochette, avancer, reposer, monterUneCarte, echangerDeuxCases,
   choisirLeFilet, fixerLElite, allerAuMatchDeSerie, histoireDeLaCase, repondre, finir, reglesDe,
 } from './run.js';
@@ -252,11 +252,9 @@ function entrer() {
 function preparerLaFeuille() {
   const R = S.R, c = R.case;
   if (c.sorte !== 'match') {
-    const adv = S.clubs.find(x => x.s === c.s && x.t === c.t).team, jeu = jeuDe(S, c);
-    V.dominante = c.sorte === 'serie' ? null : jeu.dominante;
-    V.intention = intentionCeSoir(S, V.dominante);
-    V.plans = avecHasardIsole('run-plans', () => plansDuDuel(S.toi, adv, { intention: V.intention }));
-    V.plan = null;
+    const adv = S.clubs.find(x => x.s === c.s && x.t === c.t).team;
+    V.intention = intentionCeSoir(S);
+    V.leurJeu = avecHasardIsole('run-leur-jeu', () => leurJeuEnStats(S.toi, adv, V.intention));
   }
   calculerLaChance();
 }
@@ -304,10 +302,10 @@ function tempsForts(res) {
   return evts;
 }
 function lancerLeMatch() {
-  const R = S.R, c = R.case, duel = c.sorte !== 'match';
+  const R = S.R, c = R.case;
   if (c.sorte === 'elite' && c.J == null) { const r = chanceCeSoir(S, { n: 60, tranche: 9 }); fixerLElite(S, r.v / r.n); }
   garder();
-  const res = jouerLeMatch(S, duel ? { plan: V.plan != null && V.plans[V.plan] ? V.plans[V.plan].plan : null, dominante: V.dominante } : {});
+  const res = jouerLeMatch(S);
   const pieces = [...new Set((res.feuille.pieces || []).filter(x => x.cote === res.cote).map(x => x.cle))].filter(k => R.banc.includes(k));
   V = { ecran: 'match', vitesse: V.vitesse || 1, match: { res, evts: tempsForts(res), i: -1, pieces } };
   rendre();
@@ -406,7 +404,6 @@ const GESTES = {
   'fermer-banc': () => { V.ecran = V.retour || null; },
   // la feuille du soir, le match
   filet: v => { choisirLeFilet(S, v); garder(); calculerLaChance(); },
-  plan: v => { V.plan = Number(v) < 0 ? null : Number(v); },
   jouer: () => { lancerLeMatch(); return false; },
   vitesse: () => { V.vitesse = VITESSES[(VITESSES.indexOf(V.vitesse) + 1) % VITESSES.length]; suite(); },
   'fin-du-match': () => { clearTimeout(minuterie); V.match.i = V.match.evts.length - 1; },

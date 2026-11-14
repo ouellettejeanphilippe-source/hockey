@@ -110,7 +110,7 @@ Le même reproche depuis un mois, et ce qu'il demandait déjà (docs/refonte-v28
 
 ### 3.6 Ce qui ne change pas dans la run
 
-La carte de l'acte, les cibles, les deux cœurs, les trois portes, le plafond qui mord, le duel à un choix, l'élite, le marché, le vestiaire (monter une carte monte ses badges, donc le compte d'une pièce), les Lignes (mettre un signé en civil ne change aucun compte), les histoires, les séries, la méta.
+La carte de l'acte, les cibles, les deux cœurs, les trois portes, le plafond qui mord, le duel en trois périodes (sans son plan depuis la tranche 1 bis), l'élite, le marché, le vestiaire (monter une carte monte ses badges, donc le compte d'une pièce), les Lignes (mettre un signé en civil ne change aucun compte), les histoires, les séries, la méta.
 
 ### 3.7 Hors de la taille, et nommé
 
@@ -118,7 +118,7 @@ Le diagnostic les a relevés ; cette refonte ne les règle pas, et le dit :
 
 - **Le match du rival**, qui compte double et décide la cible dans au moins 65 actes sur 135 à 49 % de chance. JP (14 nov.) : on remesure après le banc ; `mesure_run` imprimera la part des actes qu'il décide, et la question se repose avec ce chiffre.
 - **La feuille du soir à un bouton**, et **ta chance qui ne se voit qu'après « Y aller »**.
-- **Le plan du duel** : sans les pièces qui en proposaient, il vient de ton coach et de ce qui répond à leur jeu. Mesuré à la tranche 1 : le meilleur plan ne gagne que 0,3 % de matchs de plus que Ton match (6,4 % avant, quand des pièces le relayaient). **JP, 14 nov. : le plan part** (la tranche 1 bis).
+- **Le plan du duel** : sans les pièces qui en proposaient, il venait de ton coach et de ce qui répondait à leur jeu. Mesuré à la tranche 1 : le meilleur plan ne gagnait que 0,3 % de matchs de plus que Ton match (6,4 % avant, quand des pièces le relayaient). **JP, 14 nov. : le plan part** — fait à la tranche 1 bis (`docs/refonte-v29-1b.md`).
 - **La pochette Époque**, qui tient sous le plafond 39 fois sur 100 et nourrit rarement une origine.
 - **Les accords de ligne** : ils restent au moteur et sur la feuille du soir ; le coin d'une carte à la porte ne les dit plus.
 
@@ -248,7 +248,7 @@ Ce que ces lignes disent :
 - **Défaites** par JP le 13 nov. : « une carte change la forme du match, pas sa force » **pour une pièce de banc** (elle tient pour une réponse d'histoire) ; « le banc remesuré » et ses bornes en victoires ; « la boule de neige est bloquée » **dans la run, pour le banc** (rien ne se garde toujours d'une run à l'autre) ; « tu peux exploser le jeu : 5 à 12 % ».
 - **Défaites** par ce devis : « le relais », « pour le battre », l'ombre de leur coach ; « la porte ouverte montre les plus forts qui tiennent dans ton espace » (ceux de ton banc d'abord, tranché sur capture à la tranche 2).
 - **À tenir, et que le premier jet ne tenait pas** : « un choix se dit en vraies stats de match » (l'effet d'une pièce en tirs et en buts) ; « palier reste un mot du code » ; « un cran d'exigence doit coûter » (remesuré quand les adversaires montent).
-- **Tenues** : la run est une carte, la cible et les cœurs, toutes les années ensemble, les trois portes, le plafond qui mord, la difficulté par des clubs plus forts, la première Coupe pas avant la troisième run, le duel à un choix, l'élite, les médailles en variété, le cœur pur, une seule grammaire d'effet pour les histoires.
+- **Tenues** : la run est une carte, la cible et les cœurs, toutes les années ensemble, les trois portes, le plafond qui mord, la difficulté par des clubs plus forts, la première Coupe pas avant la troisième run, le duel en trois périodes (« un seul choix avant le match » défait par JP le 14 nov. : le plan part), l'élite, les médailles en variété, le cœur pur, une seule grammaire d'effet pour les histoires.
 - `.claude/rules/moteur.md` : **tenue tout entière** (les canaux existants, le moteur n'importe rien du Rogue).
 - `.claude/rules/vocabulaire.md` : **entrent** la marche, le compte, le signé ; **partent** le relais, le maillon, « pour le battre », l'ombre.
 
@@ -278,7 +278,11 @@ Chaque nom ci-dessous disparaît du jeu ; *check_refonte* le vérifie. Seul ce q
 - `OMBRE` → leur coach compte leurs joueurs.
 - `PLAN_DE_LA_PIECE` → le plan du duel vient de ton coach et de ce qui répond à leur jeu.
 
-**Le compte** : 16 noms, la table des 36 pièces (≈ 130 lignes de *js/pieces.js*), le banc par période de *js/greffes.js* (≈ 60 lignes), les 203 lignes de `scripts/check_relais.mjs`, les bornes en victoires de *scripts/check_pouvoirs.mjs*.
+### Le plan du duel (tranche 1 bis ; JP, 14 nov. : « le plan part »)
+
+- `PLANS`, `planLu`, `cibleDuPlan`, `effetsDuPlan`, `forceContre`, `plansDuDuel`, `PLAN_DU_COACH`, `PLANS_DU_DUEL`, `lignesDuPlan`, `choixDuDuel`, `robotDuel`, `lirePlans`, `.rn-plans`, `scripts/lib/duel.mjs` → la feuille du duel dit leur jeu ce soir en vraies stats et ton banc pièce par pièce ; aucun choix avant le match.
+
+**Le compte** : 16 noms à la tranche 1 et 14 à la tranche 1 bis, la table des 36 pièces (≈ 130 lignes de *js/pieces.js*), le banc par période de *js/greffes.js* (≈ 60 lignes), les 203 lignes de `scripts/check_relais.mjs`, les bornes en victoires de *scripts/check_pouvoirs.mjs*.
 
 ### Ce qui reste, et pourquoi
 
@@ -287,7 +291,7 @@ Chaque nom ci-dessous disparaît du jeu ; *check_refonte* le vérifie. Seul ce q
 - **Les cinq cases du banc, la pièce parmi trois, banc plein** (*CASES_DU_BANC*, *piecesOffertes*, *poserLaPiece*) : la mécanique d'acquisition est bonne, c'est ce que la pièce fait qui change.
 - **Le coach, sa maîtrise, sa règle** (*PIECE_DU_COACH*, *forceDeLaPiece*, *REGLES_DU_COACH*) et **leur coach en séries** (*persoAdverse*).
 - **Les moments** (*MOMENTS_SI*, *poserLeSoir*) : les réponses d'histoire les lisent encore.
-- **Le duel à un choix, l'élite, le marché, le vestiaire, les histoires, la méta, les galons.**
+- **Le duel en trois périodes et ses intentions, l'élite, le marché, le vestiaire, les histoires, la méta, les galons.** Le plan d'avant-match, lui, part à la tranche 1 bis (plus bas).
 - **Les cartes de joueurs et de jeu**, telles quelles (JP, deux fois).
 
 ## 8. Les réglages
@@ -338,7 +342,7 @@ Trois robots, sur les mêmes graines (quatre avec « premier ») : **le bâtisse
 
 **1. Le banc qui compte** (fait, 14 nov., `docs/refonte-v29-1.md`). `js/pieces.js` réécrit, le banc posé une fois par match, les deux choix du camp (par la scène de la pièce offerte), la relance des portes payée, le robot bâtisseur, la difficulté de la tranche 0 bis, leur banc en séries, `check_pouvoirs` réécrit, le § 7 parti. Les scènes d'aujourd'hui montrent les pièces neuves sans changer de plan. Juge : `mesure_run`, `check_pouvoirs`, `check_run`, `check_refonte`, `check_scene`, `essai_run`.
 
-**1 bis. Le plan du duel part** (JP, 14 nov.). La feuille du duel montre leur intention, ton banc et le leur ; les plans, leurs lignes à l'écran, le choix du robot et leur juge partent, nommés au § 7 avant le code. Juge : `check_refonte`, `check_gros`, `check_scene`, `essai_run`, `mesure_run`.
+**1 bis. Le plan du duel part** (fait, 14 nov., `docs/refonte-v29-1b.md` ; JP, 14 nov.). La feuille du duel dit leur jeu ce soir en vraies stats, ton banc pièce par pièce et le leur ; les plans, leurs lignes à l'écran, le choix du robot et leur mesure partent, nommés au § 7 avant le code. Juge : `check_refonte`, `check_gros`, `check_scene`, `essai_run`, `mesure_run`.
 
 **1 ter. Le marché monte une carte** (JP, 14 nov.). Au marché, des jetons montent d'une édition la carte d'un signé ; son prix se pose à JP avec sa mesure ; les seuils reposés (aucune marche d'office), le prix d'une pièce et la récompense de l'élite remesurés, une pochette achetée par les robots. Juge : `mesure_run` à 256 graines (40 jetons ou moins en caisse, la Coupe toujours 4 à 12 sur 64).
 

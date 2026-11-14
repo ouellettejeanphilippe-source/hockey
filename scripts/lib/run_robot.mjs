@@ -5,13 +5,13 @@
  * (les Coupes, les cibles tenues), scripts/check_run.mjs lit leurs runs contre les invariants.
  *
  *   « premier »  la première case offerte, le premier joueur de la première porte qui tient sous le plafond, la première
- *                pièce du camp, aucun plan ;
+ *                pièce du camp ;
  *   le CHIFFRE   l'affiche la plus facile, le joueur à la meilleure cote, la première pièce offerte, sans rien lire ;
  *   le MALIN     le bâtisseur (V29) : la cote au prix de l'espace qu'elle prend (`PRIX_ESPACE`), PLUS ce que l'échange
  *                change au compte de son banc (`POIDS_DU_BANC` points de cote par point de pourcentage) ; il choisit qui
  *                sort, prend la pièce la plus avancée chez lui, remplace la moins avancée, relance les portes quand
  *                l'offre est faible ; l'affiche haute quand son club est nettement plus fort (`MARGE_HAUTE`), jamais un
- *                soir de dos-à-dos, l'élite de même, le plan du duel lu à l'écran (scripts/lib/duel.mjs) ;
+ *                soir de dos-à-dos, l'élite de même ;
  *   le TÉMOIN    le malin, à une seule différence : il ne lit pas son banc aux portes (sa note est celle de la cote).
  *                C'est contre lui que « bâtir paie » se juge.
  *
@@ -24,10 +24,9 @@ import { PRIX_PIECE } from '../../js/actes.js';
 import {
   RUN, creerLaRun, casesOffertes, caseA, allerA, jouerLeMatch, conclure, vestiaireDe, sortantsPour, masseApres, signer, passerLesPortes, relancerLesPortes,
   prixDeLaRelance, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, prixDe, acheterLaPiece, avancer, reposer, monterUneCarte, allerAuMatchDeSerie,
-  chanceCeSoir, fixerLElite, forceDe, ouvrirSeance, figer, rebatir, histoireDeLaCase, repondre, dosADosA, signesDe, tonBanc,
+  chanceCeSoir, fixerLElite, forceDe, ouvrirSeance, figer, histoireDeLaCase, repondre, dosADosA, signesDe, tonBanc,
 } from '../../js/run.js';
 import { SAISONS, shard } from './shards.mjs';
-import { robotDuel } from './duel.mjs';
 
 export const DONNEES = { saisons: SAISONS, shard };
 /* Le malin paie la cote au prix de l'espace qu'elle prend : un point de cote vaut `PRIX_ESPACE` M$ d'espace. */
@@ -140,7 +139,7 @@ function choisirLaCase(S, robot) {
   const veut = R.jetons >= PRIX_PIECE && R.banc.length < CASES_DU_BANC ? 'marche' : use ? 'vestiaire' : 'histoire';
   return (cases.find(x => x.c.sorte === veut) || cases[0]).i;
 }
-/* Un match, joué et compté. Le duel : le plan du robot (`S.robotDuel`). */
+/* Un match, joué et compté. */
 function jouer(S, espion) {
   const R = S.R;
   if (R.case.sorte === 'elite') fixerLElite(S, (x => x.v / x.n)(chanceCeSoir(S, { n: 60 })));
@@ -158,7 +157,6 @@ export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES
   const t0 = Date.now();
   const coach = COACHS[Math.floor(COACHS.length * (Number(graine) * 0.6180339887 % 1))];
   let S = creerLaRun(donnees, { graine: `v28:${graine}`, coach: { cle: coach }, exigence });
-  S.robotDuel = robotDuel(habile(robot) ? 'attentif' : 'rien');
   const forces = [forceDe(S)];
   let signatures = 0, relances = 0, payees = 0, relue = false;
   const compte = (m, s, x) => { if (m === 'signe') signatures++; if (m === 'relance') { relances++; payees += x; } espion(m, s, x); };
@@ -167,8 +165,6 @@ export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES
     if (relireA != null && !relue && R.phase === 'carte' && R.matchs.length >= relireA) {
       relue = true;
       S = ouvrirSeance(donnees, JSON.parse(JSON.stringify(figer(S))));
-      S.robotDuel = robotDuel(habile(robot) ? 'attentif' : 'rien');
-      rebatir(S);
       continue;
     }
     if (R.phase === 'camp' || R.phase === 'portes') {

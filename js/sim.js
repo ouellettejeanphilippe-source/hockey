@@ -4900,7 +4900,7 @@ function jouerPlage(pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, jour
  * `effets` : des canaux posés le temps de la lecture, comme un effet du soir ; `aVenir` : les décisions du jour.
  */
 export const CADRE_DU_MATCH = { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS };
-export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], mutation = null, nu = false, neutre = null, series = false, ronde = 0, heavy = false, n = 700, plan = null, intention = null, duel = false } = {}) {
+export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], mutation = null, nu = false, neutre = null, series = false, ronde = 0, heavy = false, n = 700, intention = null } = {}) {
   return avecAVenir(team, aVenir, () => {
     let gl = null;
     const avait = '_effetMatch' in team, sauve = team._effetMatch;
@@ -4917,9 +4917,9 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments) — ce que le build y change se lit par différence.
       if (nu) { team.effets = []; team.effetsSerie = []; team._effetMatch = []; }
       const lu = lineup || activeLineup(team);
-      // `plan` et `intention` (V17) : un plan de match et leur intention d'une période de duel, posés le temps de la
-      // lecture comme le match les pose (js/greffes.js) ; `duel` : à la force du duel.
-      gl = GREFFES && (plan || intention) ? GREFFES.lecture(team, adv, lu, { plan, intention, duel }) : null;
+      // `intention` (V17) : leur intention d'une période de duel, posée le temps de la lecture comme le match la pose
+      // (js/greffes.js), à la force du duel.
+      gl = GREFFES && intention ? GREFFES.lecture(intention) : null;
       if (gl) {
         if (gl.toi.length) team._effetMatch = [...(team._effetMatch || []), ...gl.toi];
         if (adv && gl.adv.length) adv._effetMatch = [...(adv._effetMatch || []), ...gl.adv];
@@ -5840,15 +5840,13 @@ export function jouerJournee(L) {
     // Les décisions du jour s'appliquent AVANT les matchs : elles ne
     // consomment aucun hasard, donc une décision au jour k ne touche pas aux
     // journées d'avant.
-    let sel = null, choixDuJour = null;
+    let sel = null;
     for (const d of L.decisions) {
       if (d.jour !== r) continue;
       // V25 : l'entracte à choix du gros match du 82-0 est parti ; une vieille décision `entracte` ne joue rien.
       if (d.entracte) continue;
       // V27, tranche 6 : une vieille décision d'entracte d'un duel (`duel.p` 1 ou 2) ne joue rien et ne tire aucun dé.
       if (d.duel && d.duel.p > 0) continue;
-      // LE CHOIX D'AVANT LE DUEL (`main`, vide depuis la V13-2 : elle marque le soir et porte ton plan des trois périodes).
-      if (d.main) choixDuJour = choixDuDuel(d);
       // V28 : le calendrier placé et l'élite prise de l'ancien Rogue (`cedule`, `elite`) sont partis ; une vieille décision ne joue rien.
       const t = teams[d.equipe || 0];
       if (t) appliquerDecision(t, d, graine);
@@ -5878,7 +5876,7 @@ export function jouerJournee(L) {
       if (raison) {
         const duel = !!toi.courbe;
         gros = { jour: r, adv: advToi, raison,
-          ...(duel ? { duel, choix: choixDuJour, ...(annonce.dominante ? { dominante: annonce.dominante } : {}) } : {}),
+          ...(duel ? { duel, ...(annonce.dominante ? { dominante: annonce.dominante } : {}) } : {}),
           graineMain: graine, cleMain: `j${r}` };
         poserGros(toi, advToi, gros);
       }
@@ -6760,7 +6758,6 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
       if (toi) {
         const adv = toi === s.A ? s.B : s.A;
         gros = { serie: true, raison: 'serie', adv, graineMain: graine, cleMain: `po${ronde}:${k}`, ronde };
-        toi._choixSerie = null;
         poserGros(toi, adv, gros);
       }
       const r = playGame(s.A, s.B, k, true, true, feuille, ronde);
@@ -6907,8 +6904,7 @@ export function jouerMatchSeries(S) {
       if (toi) {
         const adv = toi === s.A ? s.B : s.A;
         gros = { serie: true, raison: 'serie', adv, graineMain: S.graine, cleMain: `po${s.ronde}:${k}`, ronde: r,
-          ...(toi.courbe ? { duel: true, choix: toi._choixSerie || null } : {}) };
-        toi._choixSerie = null;
+          ...(toi.courbe ? { duel: true } : {}) };
         poserGros(toi, adv, gros);
       }
       const res = playGame(s.A, s.B, k, true, true, feuille, r);
@@ -6960,8 +6956,6 @@ function appliquerDecisionSerie(team, d, graine) {
   // Les effets du match qui vient s'AJOUTENT (V25 C1 : l'ajustement de séries est parti ; une vieille décision `ajustement` ne joue rien).
   team.effetsSerie = team.effetsSerie || [];
   if (d.filet) team._filetMatch = d.filet === 'auto' ? null : d.filet;
-  // LE CHOIX D'AVANT LE DUEL (`main`) : ton plan des trois périodes du match qui vient (`choixDuDuel`).
-  if (d.main) team._choixSerie = choixDuDuel(d);
   // V25 : l'entracte à choix du 82-0 est parti ; une vieille décision `entracte` ne joue rien, et ne tire aucun dé (comme avant).
   if (d.entracte) return;
   if (d.sel) grainerHasard(`${graine}:po:${d.ronde}:${d.match_no}:${d.sel}`);
@@ -7017,7 +7011,7 @@ function poserGros(toi, adv, gros) {
  * entières était trop bruité : un gros match n'est « gros » que si le classement de la veille le dit, et chaque décision
  * déplace les suivants — il n'en restait qu'une vingtaine d'appariés. Ici, le même match, sur les mêmes dés.
  */
-export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', moment = null, plan, dominante = null, visiteur = false, frais = true } = {}) {
+export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', moment = null, dominante = null, visiteur = false, frais = true } = {}) {
   grainerHasard(`${graine}:${cle}`);
   // Des jambes fraîches des deux côtés : une carte qui rend de l'énergie écrit sur les joueurs, et la mesure d'un match ne doit pas hériter du précédent.
   // `frais: false` (V28, js/run.js) : ton club garde ses jambes et son infirmerie d'une case à l'autre ; l'adversaire, lui, arrive frais.
@@ -7027,9 +7021,9 @@ export function simulerGrosMatch(toi, adv, { graine = 'mesure', cle = 'j0', mome
   // LE MOMENT (S80) : le même match au jour N de la saison, ou à une ronde des séries — l'échelle de la fin de partie suit.
   const m = moment || {};
   const gros = { jour: m.serie ? 0 : (m.jour || 0), serie: !!m.serie, ronde: m.ronde || 0, adv, raison: 'rival', graineMain: graine, cleMain: cle,
-    // LE DUEL (V9 ; V27, tranche 6) : une équipe de Rogue (`courbe`) joue ses trois périodes au `plan` pris avant (null : Ton
-    // match ; absent : son robot choisit), contre leur intention `dominante` s'ils en ont une.
-    ...(toi.courbe ? { duel: true, choix: plan === undefined ? null : { plan }, ...(dominante ? { dominante } : {}) } : {}) };
+    // LE DUEL (V9) : une équipe de Rogue (`courbe`) joue ses trois périodes contre leur intention, `dominante` s'ils en ont
+    // une. Aucun choix avant le match (V29 : le plan d'avant-match est parti).
+    ...(toi.courbe ? { duel: true, ...(dominante ? { dominante } : {}) } : {}) };
   poserGros(toi, adv, gros);
   const feuille = feuilleVierge();
   // `visiteur` : le même duel au loin (le dernier changement est à eux).
@@ -7047,13 +7041,13 @@ function leverGros(toi) {
 /*
  * UN MATCH SE JOUE EN TROIS PÉRIODES (V25, docs/refonte-v25.md § A) : le seul chemin, pour tous les modes. Avant chaque
  * période, les greffes du mode posent sur les deux clubs ce qui se lit sur ce qui est déjà joué (js/greffes.js : les
- * pièces du banc, leur banc en séries, et au duel leur intention et ton plan) ; puis la
+ * pièces du banc, leur banc en séries, et au duel leur intention) ; puis la
  * période se joue (`jouerPlage`) et la feuille garde son pointage (`periodes`). Une période sans rien de posé garde les
  * profils du soir ; le gros match du 82-0 n'y pose rien : trois périodes vues.
  */
 function jouerEnPeriodes(A, B, LA, LB, pA, pB, gA, gB, chanceA, chanceB, heavy, track, series, journal, ronde, gros = null) {
   const avaitA = '_effetMatch' in A, baseA = A._effetMatch, avaitB = '_effetMatch' in B, baseB = B._effetMatch;
-  const g = GREFFES ? GREFFES.match(A, B, LA, LB, { gros, journal, series, baseA, baseB }) : null;
+  const g = GREFFES ? GREFFES.match(A, B, LA, LB, { gros, journal }) : null;
   let gfA = 0, gfB = 0, der = null, blA = 0, blB = 0;
   const pointages = [];
   for (let k = 0; k < 3; k++) {
@@ -7082,11 +7076,6 @@ function jouerEnPeriodes(A, B, LA, LB, pA, pB, gA, gB, chanceA, chanceB, heavy, 
   return { gfA, gfB };
 }
 const blessureDesEffets = fx => fx.reduce((a, e) => a * (e.blessure ?? 1), 1);
-/*
- * LE CHOIX D'AVANT LE DUEL (V27, tranche 6 ; docs/refonte-v27-6a.md), tel que `jouerEnPeriodes` le lit : la décision du soir
- * (`d.main`, vide depuis la V13-2, la marque) porte ton plan des trois périodes (`d.duel.plan`), ou rien : Ton match.
- */
-const choixDuDuel = d => ({ plan: (d && d.duel && d.duel.plan) || null });
 
 
 /*

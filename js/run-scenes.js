@@ -6,7 +6,7 @@
  * celles du jeu, telles quelles (`cartonDe`, `carteHtml`, `carteDePiece`, `pochetteHtml`).
  */
 import { SLOTS, activeLineup, badgesDe, energieDe, getHiddenRatings, getPlayerKey, periodeDe, PALIERS } from './sim.js';
-import { PLANS, INTENTIONS } from './greffes.js';
+import { INTENTIONS } from './greffes.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, apportDe, compteDe, marcheDe, seuilSuivant, forceDeLaPiece } from './pieces.js';
 import { COACHS, REGLES_DU_COACH, VOIES } from './coachs.js';
 import { PRESTIGES, EXIGENCES, voiesOuvertes, prixDeLaVoie, ecussonsAVie, cranOuvert } from './rogue.js';
@@ -231,19 +231,21 @@ export function sceneFeuille(S, V) {
     ${enjeuHtml(S)}
     ${bas(bt('Lignes', 'lignes'), bt('Au match', 'jouer', { cls: 'rn-go' }))}`;
   }
-  // Le duel (le rival, l'élite, les séries) : leur intention, ton plan, un seul choix.
-  const I = V.intention && INTENTIONS[V.intention.cle], plans = V.plans || [];
-  const lignesDuPlan = x => { const l = motsDeStats(x.stats, 2); const repond = V.intention && (PLANS[x.cle].repond || []).includes(V.intention.cle); return `${l.map(m => `<span class="${m.bon ? 'rn-vert' : m.bon === false ? 'rn-rg' : 'rn-gris'}">${esc(m.txt)}</span>`).join('<br>')}${repond ? '<br><span class="rn-or">Répond à leur jeu</span>' : ''}`; };
+  // Le duel (le rival, l'élite, les séries) : leur jeu ce soir et ce qu'il te coûte, puis ton banc, pièce par pièce. Aucun
+  // choix ici (V29 : le plan d'avant-match est parti) : ta réponse est le banc que tu as bâti.
+  const I = V.intention && INTENTIONS[V.intention.cle], vise = V.intention && V.intention.cible ? court(V.intention.cible) : 'ta vedette';
+  const leurJeu = I ? { ombre: `L'ombre suit ${vise}`, chasse: `La chasse vise ${vise}`, centre: 'Ils ferment le centre', assaut: 'Ils lancent de partout', cachot: 'Ils cherchent tes punitions' }[V.intention.cle] : '';
+  const cout = motsDeStats(V.leurJeu, 3).map(m => `<span class="${m.bon ? 'rn-vert' : 'rn-rg'}">${esc(m.txt)}</span>`).join(' · ');
   return `${hud(S, { petit })}
   <div class="rn-plaque" style="left:14px;top:62px">${logo(c.t, 58)}<div class="rn-nom">${esc(clubMot(c))}<small>${esc(sous.charAt(0).toUpperCase() + sous.slice(1))}</small></div></div>
-  <div style="left:14px;right:14px;top:134px;display:flex;justify-content:space-between;align-items:center">${I ? `<span class="rn-puce rn-r">${I.ico} ${esc(I.nom)}</span>` : '<span></span>'}<span class="rn-puce">${esc(jeu.mot.charAt(0).toUpperCase() + jeu.mot.slice(1))}</span>${eux.gardien ? `<span class="rn-puce">${esc(court(eux.gardien))} · ${pct3(eux.gardien.sv || 0)}</span>` : ''}</div>
+  <div style="left:14px;right:14px;top:134px;display:flex;gap:8px;align-items:center"><span class="rn-puce">${esc(jeu.mot.charAt(0).toUpperCase() + jeu.mot.slice(1))}</span>${eux.gardien ? `<span class="rn-puce">${esc(court(eux.gardien))} · ${pct3(eux.gardien.sv || 0)}</span>` : ''}</div>
   <div style="left:14px;right:14px;top:172px">${jaugeHtml(V, 'YOU', c.t)}</div>
-  <div style="left:14px;right:14px;top:214px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton plan · un seul choix</span><span class="rn-t rn-gris">Proposé par ton coach</span></div>
-    <div class="rn-plans">${plans.map((x, i) => `<button type="button" class="${V.plan === i ? 'rn-on' : ''}" data-a="plan" data-v="${i}"><span class="rn-c">${carteHtml({ cle: x.cle, niveau: 1, genreCarte: 'tactique', ico: PLANS[x.cle].ico, nomHtml: esc(PLANS[x.cle].nom), typeHtml: 'Plan', lecture: true, statique: true })}</span><p>${lignesDuPlan(x)}</p></button>`).join('')}</div></div>
-  <button type="button" class="rn-bt${V.plan == null ? ' rn-on' : ''}" data-a="plan" data-v="-1" style="left:14px;right:14px;top:498px;height:44px">Ton match · aucun plan</button>
+  ${I ? `<div class="rn-panneau" style="left:14px;right:14px;top:212px;padding:10px 12px"><div class="rn-k">Leur jeu ce soir</div>
+    <div class="rn-t" style="margin-top:6px"><span class="rn-rg">${I.ico} ${esc(leurJeu)}</span><br>${cout || '<span class="rn-gris">Rien qui se voie à la feuille</span>'}</div></div>` : ''}
+  <div style="left:14px;right:14px;top:300px"><div class="rn-k" style="margin-bottom:4px">Ton banc ce soir</div>
+    <div class="rn-pieces">${R.banc.map(k => `<div>${carteP(k)}<div class="rn-t"><b>${esc(PIECES[k].nom)}</b> <span class="rn-gris">· ${ligneCourte(S, k).replace('<br>', '</span><br><span class="rn-gris">')}</span></div></div>`).join('')}</div></div>
   ${enjeuHtml(S)}
-  <div style="left:14px;right:14px;top:${leur ? 562 : 650}px"><div class="rn-k" style="margin-bottom:6px">Ton banc</div>${banc(S, { largeur: leur ? '240px' : '300px' })}</div>
-  ${leur ? `<div style="left:14px;right:14px;top:662px"><div class="rn-k" style="margin-bottom:6px">Leur banc · il compte leurs joueurs</div><div class="rn-banc" style="width:240px">${leur.banc.map(x => `<span class="${x.marche ? 'rn-joue' : 'rn-eteinte'}">${carteP(x.cle)}</span>`).join('')}${Array.from({ length: CASES_DU_BANC - leur.banc.length }, () => '<span class="rn-vide"></span>').join('')}</div></div>` : ''}
+  ${leur ? `<div style="left:14px;right:14px;top:560px"><div class="rn-k" style="margin-bottom:6px">Leur banc · il compte leurs joueurs</div><div class="rn-banc" style="width:300px">${leur.banc.map(x => `<span class="${x.marche ? 'rn-joue' : 'rn-eteinte'}">${carteP(x.cle)}</span>`).join('')}</div></div>` : ''}
   ${bas(bt('Lignes', 'lignes'), bt('Au combat', 'jouer', { cls: 'rn-combat' }))}`;
 }
 

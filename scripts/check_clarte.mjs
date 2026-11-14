@@ -34,7 +34,7 @@ import {
   SLOTS, getPositionPenalty, K_ROB, ROB_ORDINAIRE, DISSUASION, EFFET_ROLE, EFFET_PALIER, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE,
   BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE, BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, LANCEE, POIDS_AN, POIDS_DN
 } from '../js/sim.js';
-import { INTENTIONS, PERIODES_DU_DUEL, PLANS } from '../js/greffes.js';
+import { INTENTIONS, PERIODES_DU_DUEL } from '../js/greffes.js';
 import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX, nomDuNiveau } from '../js/niveaux.js';
@@ -246,8 +246,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`${['zéro', 'un', 'deux', 'trois', 'quatre'][GARDIEN_SUITE_LIBRE]} départs de suite ; au ${['', 'deuxième', 'troisième', 'quatrième', 'cinquième'][GARDIEN_SUITE_LIBRE]}, il en perd ${GARDIEN_JAMBES_PAS} par départ, jamais sous ${GARDIEN_JAMBES_MIN}, et chaque ${GARDIEN_JAMBES_PAS} points perdus lui coûtent ${nombre(GARDIEN_USURE * 100)} %`, 'la fatigue des gardiens'],
     [`<strong>duel en ${['zéro', 'une', 'deux', 'trois', 'quatre'][PERIODES_DU_DUEL.length]} périodes</strong>`, 'le duel'],
     [`${INTENTIONS.ombre.ico} l'ombre suit ta vedette, ${INTENTIONS.chasse.ico} la chasse vise ton défenseur, ${INTENTIONS.centre.ico} il ferme le centre, ${INTENTIONS.assaut.ico} il lance de partout, ${INTENTIONS.cachot.ico} il cherche tes punitions`, 'les intentions'],
-    [`un plan qui répond à leur intention (${Object.entries(PLANS).filter(([, P]) => P.repond).map(([, P]) => `${P.ico} à ${P.repond.map(k => INTENTIONS[k].ico).join(' et ')}`).join(', ')}) ramène ce qu'elle te fait à la force d'un soir ordinaire`, 'le plan qui répond'],
-    ['<strong>Un seul choix, avant le match</strong>', 'le duel à un choix'],
+    ['<strong>Aucun choix avant le match</strong>', 'le duel sans plan (V29)'],
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
     // V29 : une pièce compte et monte par marches (js/pieces.js `MARCHES`, `BORNE_DU_CANAL`, `BANC_DES_SERIES` ; js/run.js `PIECES_DU_CAMP`, `RELANCE`).
@@ -294,18 +293,6 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`; ${NOM_VARIANTE.legendaire}, le prisme`, 'la Holo'],
     [`monte d'un, deux ou trois métaux`.replace('un, deux ou trois', ['peu', 'rare', 'legendaire'].map(r => ['zéro', 'un', 'deux', 'trois'][VARIANTE_PALIERS_G[r]]).join(', ').replace(/, (\S+)$/, ' ou $1')), 'les métaux d\'un gardien'],
     [`Or ou Holo : ${nombre(brille(0))} % des cartes d'un Soutien, ${nombre(brille(NIVEAUX.findIndex(n => n.cle === 'phenomene')))} % d'un ★ Phénomène`, 'les cotes d\'une brillante'],
-    // V17 : les plans de match, chacun depuis PLANS (js/sim.js) ; un facteur se dit en écart (×0,88 : −12 %).
-    ...(() => {
-      const ec = x => `${x > 1 ? '+' : '−'}${nombre(Math.round(Math.abs(x - 1) * 1000) / 10)} %`;
-      const { tirer, ombre, centre, assaut, discipline } = PLANS;
-      return [
-        [`${tirer.ico} ${tirer.nom} : tirs ${ec(tirer.toi.volume)}, précision ${ec(tirer.toi.finition)}, usure des jambes ${ec(tirer.toi.energie)}`, 'le plan 🌧'],
-        [`${ombre.ico} ${ombre.nom} : leur meilleur marqueur, tirs ${ec(ombre.vedette.lancers)}, précision et jeu ${ec(ombre.vedette.finition)} ; ton attaquant le plus défensif le suit, tirs ${ec(ombre.colle.lancers)} et jeu ${ec(ombre.colle.creation)} ; tes tirs ${ec(ombre.toi.volume)}`, 'le plan 🥷'],
-        [`${centre.ico} ${centre.nom} : leurs tirs ${ec(centre.adv.volume)}, leur précision ${ec(centre.adv.finition)}, tes tirs ${ec(centre.toi.volume)}`, 'le plan ⛔'],
-        [`${assaut.ico} ${assaut.nom} : tirs ${ec(assaut.toi.volume)}, précision ${ec(assaut.toi.finition)}, punitions ${ec(assaut.toi.discipline)}, usure des jambes ${ec(assaut.toi.energie)}`, 'le plan 🐗'],
-        [`${discipline.ico} ${discipline.nom} : punitions ${ec(discipline.toi.discipline)}, robustesse −${nombre(-discipline.toi.robustesse)}, tirs ${ec(discipline.toi.volume)}`, 'le plan 🧘'],
-      ];
-    })(),
   ];
   // Ce que la page dit d'une édition, en mots : le Cadre monte le second badge d'un métal, le Hors-cadre les deux, l'Or
   // aussi et son second rend plein, la Holo les deux de deux métaux.

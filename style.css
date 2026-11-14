@@ -5212,7 +5212,7 @@ body.run-ouverte { overflow: hidden; }
 .rn-loto button { display: block; width: 100%; }
 .rn-loto p { margin: 8px 0 0; font: 700 var(--t-1)/1.3 var(--display); text-transform: uppercase; letter-spacing: 0.03em; text-align: center; color: var(--rn-encre-2); }
 .rn-loto p b { display: block; font-size: var(--t-2); color: var(--encre); }
-.rn-loto .rn-on .rn-c, .rn-plans .rn-on .rn-c, .rn-grille .rn-on .rn-c, .rn-etal .rn-on .rn-c { outline: 3px solid var(--blanc); outline-offset: 3px; border-radius: var(--r-1); }
+.rn-loto .rn-on .rn-c, .rn-grille .rn-on .rn-c, .rn-etal .rn-on .rn-c { outline: 3px solid var(--blanc); outline-offset: 3px; border-radius: var(--r-1); }
 /* La carte de l'acte : le chemin, les cases, le tiroir. */
 .rn-chemin { inset: 0; width: 100%; height: 100%; }
 .rn-chemin path { fill: none; stroke: color-mix(in srgb, var(--rn-bord) 80%, var(--rn-clair)); stroke-width: 5; stroke-dasharray: 2 12; stroke-linecap: round; }
@@ -5270,9 +5270,8 @@ body.run-ouverte { overflow: hidden; }
 .rn-jb { height: 7px; overflow: hidden; border-radius: 99em; background: color-mix(in srgb, var(--blanc) 11%, transparent); }
 .rn-jb i { display: block; height: 100%; background: var(--rn-vert); }
 .rn-jb.rn-use i { background: var(--attention); }
-.rn-plans { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 114px); justify-content: center; align-items: start; gap: 8px; }
-.rn-plans button { display: block; width: 100%; }
-.rn-plans p { margin: 6px 0 0; font: 700 var(--t-1)/1.25 var(--display); text-transform: uppercase; letter-spacing: 0.03em; text-align: center; }
+.rn-pieces > div { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: center; padding: 3px 0; border-bottom: 1px solid color-mix(in srgb, var(--blanc) 7%, transparent); }
+.rn-pieces > div:last-child { border-bottom: 0; }
 .rn-filet { display: flex; gap: 6px; }
 .rn-racine .rn-filet button { flex: 1; min-width: 0; height: 44px; display: grid; place-items: center; border: 1px solid var(--rn-bord); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir-pur) 55%, transparent); font: 700 var(--t-1)/1.15 var(--display); text-transform: uppercase; letter-spacing: 0.04em; text-align: center; color: var(--rn-encre-2); }
 .rn-racine .rn-filet .rn-on { border-color: var(--rn-vert); color: var(--rn-vert); }
