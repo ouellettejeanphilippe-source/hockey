@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-3.9.0';  // 3.9.0 : V29, tranche 1 bis — le plan du duel part ; la feuille du duel dit leur jeu ce soir en vraies stats et ton banc pièce par pièce ; la ligne d'une pièce jamais en pourcentage
+const VERSION = 'cap82-3.10.0';  // 3.10.0 : V29, tranche 1 ter — au marché, une carte se monte d'une édition (20 jetons, une par marché) ; à la fin, les jetons en caisse deviennent des médailles
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

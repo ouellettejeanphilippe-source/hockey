@@ -266,6 +266,9 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`ne libère que ${nombre(RUN.RACHAT * 100)} % de son salaire`, 'le rachat'],
     [`Passer paie ${RUN.PASSER} jetons`, 'la porte passée'],
     [`une pièce de banc parmi trois, ${PRIX_PIECE} jetons, et deux pochettes de joueurs, ${Object.values(RUN.POCHETTES).join(' et ')} jetons`, 'le marché'],
+    // V29, tranche 1 ter (JP, 14 nov. 2026) : une carte à monter au marché, et la caisse de fin en médailles.
+    [`monte d'une édition la carte d'un de tes signés, ${RUN.MONTER} jetons, une par marché`, 'la carte à monter'],
+    [`${RUN.JETONS_PAR_MEDAILLE} jetons qui restent en caisse valent une médaille`, 'la caisse en médailles'],
     [`une victoire paie de ${RUN.JETONS_DU_MATCH[0]} à ${RUN.JETONS_DU_MATCH[1]} jetons selon la force du club, le rival ${RUN.JETONS_DU_RIVAL}, une défaite en prolongation ${JETONS.prolongation}, une défaite ${JETONS.defaite}`, 'les jetons d\'un match'],
     [`${PRIME_COACH_MAX} jetons au plus par run`, 'le plafond de la règle du coach'],
     [`de ${recompenseDeLElite(0.99)} à ${recompenseDeLElite(0.01)} jetons`, 'la récompense d\'une élite'],

@@ -216,9 +216,10 @@ jobs:
       - name: Une run au doigt
         run: node scripts/essai_run.mjs http://localhost:8000
 
-      # Bâtir ne gagne pas d'office : quatre robots sur 64 graines, les mêmes dés (le malin, qui bâtit son banc, 4 à
-      # 12 Coupes ; « premier » au plus 2 ; le malin pas derrière son témoin, qui ne lit pas son banc). Le reste se
-      # juge à 256 graines, à la main. Trois minutes sur quatre fils.
+      # Bâtir ne gagne pas d'office : quatre robots sur 64 graines, les mêmes dés (les Coupes du malin, qui bâtit son
+      # banc, et de « premier » compatibles avec leurs bornes, 4 à 12 et 2 au plus sur 64 ; le malin pas derrière son
+      # témoin, qui ne lit pas son banc). Les bornes elles-mêmes se jugent à 256 graines, à la main : à 64, un compte
+      # de Coupes tire au sort à ±5. Cinq minutes sur quatre fils.
       - name: La run en carte, mesurée
         run: GRAINES=64 FILS=4 node scripts/mesure_run.mjs
 

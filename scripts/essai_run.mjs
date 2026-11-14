@@ -125,6 +125,8 @@ for (let pas = 0; pas < PAS_MAX && !fin; pas++) {
   if (await la('quitter-marche')) {
     vus.add('le marché');
     if (await toucher('voir-piece')) await toucher('acheter-piece');
+    // Une carte à monter (V29, tranche 1 ter) : la tuile, puis « Monter ».
+    if (await toucher('voir-montee') && await toucher('monter-au-marche')) vus.add('une carte montée au marché');
     await toucher('quitter-marche', null, 500);
     continue;
   }

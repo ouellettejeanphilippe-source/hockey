@@ -94,7 +94,8 @@ function porteursPour(cle, compte) {
     && forceDeLaPiece({ cle: 'rapaces', maitrise: 1.2 }, 'tireurs') === 1.2 && forceDeLaPiece({ cle: 'rapaces', maitrise: 1.2 }, 'gros') === 1 && forceDeLaPiece({ cle: 'rapaces', maitrise: 2 }, 'tireurs') === 1.3
     && forceDeLaPiece({ cle: 'rapaces', maitrise: 0.5 }, 'tireurs') === 0.9 && forceDeLaPiece({ cle: 'rapaces', maitrise: 1.3, adverse: true }, 'tireurs') === 1);
   // Trois pièces sur tes tirs, toutes à la troisième marche : le produit s'arrête à la borne ; une pièce sous son seuil ne pose rien.
-  const beaucoup = [...porteurs('passeurs'), ...porteurs('gros'), ...porteurs('lignebleue')].slice(0, 400), B = bancDuMatch({ cle: 'essaim', banc: ['passeurs', 'gros', 'lignebleue', 'muraille'], maitrise: 1 }, beaucoup);
+  // Autant de porteurs qu'il en faut pour la troisième marche de chacune, quels que soient ses seuils.
+  const beaucoup = ['passeurs', 'gros', 'lignebleue'].flatMap(k => porteursPour(k, PIECES[k].seuils[2] + 0.5)), B = bancDuMatch({ cle: 'essaim', banc: ['passeurs', 'gros', 'lignebleue', 'muraille'], maitrise: 1 }, beaucoup);
   const produit = B.filter(x => x.canaux).reduce((a, x) => a * x.canaux.volume, 1), vide = bancDuMatch({ cle: 'essaim', banc: ['passeurs', 'muraille'] }, []);
   // Deux pièces à leur première marche, sous la borne : le produit exact de leurs deux marches.
   const deux = bancDuMatch({ cle: 'essaim', banc: ['passeurs', 'gros'], maitrise: 1 }, [...porteursPour('passeurs', PIECES.passeurs.seuils[0]), ...porteursPour('gros', PIECES.gros.seuils[0])]);

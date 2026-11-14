@@ -137,11 +137,13 @@ const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), .
     && reglesDe(dure.R).cibles.join() === RUN.CIBLES.map(c => c + 2).join() && reglesDe(dure.R).etapes.join() === RUN.ETAPES.map(e => e + 1).join(),
     `${reglesDe(base.R).cibles.join('-')} · ${reglesDe(dure.R).cibles.join('-')}, étapes ${reglesDe(dure.R).etapes.join('-')}`);
   exiger('une run gardée avant les exigences lit les règles du jeu', reglesDe({}).cibles === RUN.CIBLES && reglesDe(null).prime === 1);
-  // Une run jouée au cran 2 : ses actes tenus à la cible montée, ses médailles multipliées.
+  // Une run jouée au cran 2 : ses actes tenus à la cible montée, ses médailles multipliées ; sa caisse s'y ajoute sans se multiplier
+  // (V29, tranche 1 ter : 10 jetons qui restent, une médaille).
   const r = jouerLaRun('malin', 3, { exigence: 2 }), R = r.R, brut = R.actes.reduce((a, x) => a + x.medailles, 0) + R.fin.rondes * 20 + (R.fin.coupe ? 40 : 0);
-  exiger('une run au cran 2 se juge à sa cible montée et paie ses médailles ×1,30',
-    R.actes.every((x, a) => x.cible === RUN.CIBLES[a] + 1 && x.tenu === (x.pts >= x.cible)) && R.fin.medailles === Math.round(brut * 1.3) && brut > 0,
-    `${R.actes.map(x => `${x.pts}/${x.cible}`).join(' · ')} · ${brut} → ${R.fin.medailles} 🏅`);
+  const caisse = Math.floor(R.jetons / RUN.JETONS_PAR_MEDAILLE);
+  exiger('une run au cran 2 se juge à sa cible montée et paie ses médailles ×1,30, plus sa caisse',
+    R.actes.every((x, a) => x.cible === RUN.CIBLES[a] + 1 && x.tenu === (x.pts >= x.cible)) && R.fin.medailles === Math.round(brut * 1.3) + caisse && R.fin.caisse === caisse && brut > 0,
+    `${R.actes.map(x => `${x.pts}/${x.cible}`).join(' · ')} · ${brut} → ${R.fin.medailles} 🏅, dont ${caisse} de caisse (${R.jetons} jetons)`);
 }
 
 /* ---------- 6. le solde des déblocages d'avant ---------- */

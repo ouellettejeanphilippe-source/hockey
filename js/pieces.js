@@ -42,7 +42,7 @@ export const PIECES = {
   tireurs: { voie: 'rapaces', cadre: 3, genre: 'attaque', ico: '🎯', nom: 'Les tireurs', compte: ['F:sniper'], qui: 'tes snipers', cote: 'canaux', canal: 'finition', seuils: [7, 14, 21] },
   passeurs: { voie: 'etoiles', cadre: 3, genre: 'attaque', ico: '🅰', nom: 'Les passeurs', compte: ['F:passeur'], qui: 'tes passeurs', cote: 'canaux', canal: 'volume', seuils: [7, 13, 19] },
   gros: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🦍', nom: 'Les gros', compte: ['F:power'], qui: 'tes power forwards', cote: 'canaux', canal: 'volume', seuils: [4, 8, 12] },
-  lignebleue: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🚀', nom: 'La ligne bleue', compte: ['D:offensif'], qui: 'tes défenseurs offensifs', cote: 'canaux', canal: 'volume', seuils: [5, 9, 13] },
+  lignebleue: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🚀', nom: 'La ligne bleue', compte: ['D:offensif'], qui: 'tes défenseurs offensifs', cote: 'canaux', canal: 'volume', seuils: [5, 11, 16] },
   manieurs: { voie: 'choeur', cadre: 3, genre: 'attaque', ico: '🏒', nom: 'Les manieurs', compte: ['D:manieur'], qui: 'tes manieurs de rondelle', cote: 'canaux', canal: 'finition', seuils: [5, 10, 14] },
   deuxsens: { voie: 'tortue', cadre: 3, genre: 'defense', ico: '☯', nom: 'Les deux sens', compte: ['F:deuxsens', 'D:deuxsens'], qui: 'tes two-way', cote: 'adv', canal: 'finition', seuils: [6, 12, 18] },
   etouffoir: { voie: 'profondeur', cadre: 3, genre: 'defense', ico: '🔧', nom: 'L\'étouffoir', compte: ['F:checker'], qui: 'tes checkers', cote: 'adv', canal: 'volume', seuils: [3, 6, 9] },

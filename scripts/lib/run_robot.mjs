@@ -10,12 +10,12 @@
  *   le MALIN     le bâtisseur (V29) : la cote au prix de l'espace qu'elle prend (`PRIX_ESPACE`), PLUS ce que l'échange
  *                change au compte de son banc (`POIDS_DU_BANC` points de cote par point de pourcentage) ; il choisit qui
  *                sort, prend la pièce la plus avancée chez lui, remplace la moins avancée, relance les portes quand
- *                l'offre est faible ; l'affiche haute quand son club est nettement plus fort (`MARGE_HAUTE`), jamais un
+ *                l'offre est faible, monte au marché la carte que l'écran propose d'abord (`aMonter`, js/run.js) ; l'affiche haute quand son club est nettement plus fort (`MARGE_HAUTE`), jamais un
  *                soir de dos-à-dos, l'élite de même ;
  *   le TÉMOIN    le malin, à une seule différence : il ne lit pas son banc aux portes (sa note est celle de la cote).
  *                C'est contre lui que « bâtir paie » se juge.
  *
- * `espion(moment, S, x)` : appelé aux moments d'une run ('portes', 'relance', 'signe', 'match', 'case', 'fin').
+ * `espion(moment, S, x)` : appelé aux moments d'une run ('portes', 'relance', 'signe', 'montee', 'match', 'case', 'fin').
  */
 import { getHiddenRatings, energieDe } from '../../js/sim.js';
 import { groupeDuJoueur as groupeDe } from '../../js/niveaux.js';
@@ -24,7 +24,7 @@ import { PRIX_PIECE } from '../../js/actes.js';
 import {
   RUN, creerLaRun, casesOffertes, caseA, allerA, jouerLeMatch, conclure, vestiaireDe, sortantsPour, masseApres, signer, passerLesPortes, relancerLesPortes,
   prixDeLaRelance, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, prixDe, acheterLaPiece, avancer, reposer, monterUneCarte, allerAuMatchDeSerie,
-  chanceCeSoir, fixerLElite, forceDe, ouvrirSeance, figer, histoireDeLaCase, repondre, dosADosA, signesDe, tonBanc,
+  chanceCeSoir, fixerLElite, forceDe, ouvrirSeance, figer, histoireDeLaCase, repondre, dosADosA, signesDe, tonBanc, monterAuMarche, aMonter,
 } from '../../js/run.js';
 import { SAISONS, shard } from './shards.mjs';
 
@@ -133,10 +133,11 @@ function choisirLaCase(S, robot) {
     const haute = sansElite.find(x => x.c.haute);
     return (haute && !las && forceDe(S) >= club(haute).force * MARGE_HAUTE ? haute : sansElite.find(x => !x.c.haute) || sansElite[0] || cases[0]).i;
   }
-  // Un arrêt : le marché quand la pièce se paie et tient sur le banc ; le vestiaire quand le club est usé ou blessé ; sinon l'histoire.
+  // Un arrêt : le marché quand la pièce se paie et tient sur le banc ; le vestiaire quand le club est usé ou blessé ; sinon, pour
+  // qui bâtit, le marché encore s'il a de quoi monter une carte ; sinon l'histoire.
   const joueurs = Object.values(S.roster).filter(Boolean);
   const use = joueurs.reduce((a, p) => a + energieDe(p), 0) / joueurs.length < 85 || S.toi.injured.size > 0;
-  const veut = R.jetons >= PRIX_PIECE && R.banc.length < CASES_DU_BANC ? 'marche' : use ? 'vestiaire' : 'histoire';
+  const veut = R.jetons >= PRIX_PIECE && R.banc.length < CASES_DU_BANC ? 'marche' : use ? 'vestiaire' : habile(robot) && R.jetons >= RUN.MONTER ? 'marche' : 'histoire';
   return (cases.find(x => x.c.sorte === veut) || cases[0]).i;
 }
 /* Un match, joué et compté. */
@@ -158,8 +159,8 @@ export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES
   const coach = COACHS[Math.floor(COACHS.length * (Number(graine) * 0.6180339887 % 1))];
   let S = creerLaRun(donnees, { graine: `v28:${graine}`, coach: { cle: coach }, exigence });
   const forces = [forceDe(S)];
-  let signatures = 0, relances = 0, payees = 0, relue = false;
-  const compte = (m, s, x) => { if (m === 'signe') signatures++; if (m === 'relance') { relances++; payees += x; } espion(m, s, x); };
+  let signatures = 0, relances = 0, payees = 0, montees = 0, relue = false;
+  const compte = (m, s, x) => { if (m === 'signe') signatures++; if (m === 'relance') { relances++; payees += x; } if (m === 'montee') montees += x; espion(m, s, x); };
   for (let garde = 0; S.R.phase !== 'fin' && garde < 400; garde++) {
     const R = S.R;
     if (relireA != null && !relue && R.phase === 'carte' && R.matchs.length >= relireA) {
@@ -178,6 +179,8 @@ export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES
     else if (R.phase === 'marche') {
       const M = R.marche;
       if (robot !== 'premier' && !M.piece && R.jetons >= PRIX_PIECE) prendreUnePiece(S, robot, M.pieces, acheterLaPiece);
+      // Une carte à monter (V29, tranche 1 ter) : le bâtisseur et son témoin prennent celle que l'écran propose d'abord (`aMonter`).
+      if (habile(robot)) { const c = aMonter(S)[0]; if (c && monterAuMarche(S, c.p)) compte('montee', S, 1); }
       avancer(S);
     } else if (R.phase === 'vestiaire') {
       const joueurs = Object.values(S.roster).filter(Boolean);
@@ -196,6 +199,6 @@ export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES
   compte('fin', S);
   const R = S.R;
   return { robot, graine, coach, actes: R.actes, coeurs: R.coeurs, fin: R.fin, rondes: R.fin ? R.fin.rondes : 0, coupe: !!(R.fin && R.fin.coupe),
-    signatures, relances, payees, forces: [...forces, forceDe(S)], banc: tonBanc(S).map(x => ({ cle: x.cle, n: x.n, marche: x.marche })), jetons: R.jetons,
+    signatures, relances, payees, montees, forces: [...forces, forceDe(S)], banc: tonBanc(S).map(x => ({ cle: x.cle, n: x.n, marche: x.marche })), jetons: R.jetons,
     s: Math.round((Date.now() - t0) / 1000), R };
 }

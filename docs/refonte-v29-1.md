@@ -22,7 +22,7 @@ Chacune compte les badges d'un ou deux rôles chez tes signés (Bronze 1, Argent
 | 🎯 Les tireurs | tes snipers | ta précision | 7 · 14 · 21 | 🦅 L'Aigle |
 | 🅰 Les passeurs | tes passeurs | tes tirs | 7 · 13 · 19 | 🌠 Le Showman |
 | 🦍 Les gros | tes power forwards | tes tirs | 4 · 8 · 12 | 🐝 Le Frelon |
-| 🚀 La ligne bleue | tes défenseurs offensifs | tes tirs | 5 · 9 · 13 | — |
+| 🚀 La ligne bleue | tes défenseurs offensifs | tes tirs | 5 · 9 · 13 (5 · 11 · 16 depuis la tranche 1 ter) | — |
 | 🏒 Les manieurs | tes manieurs de rondelle | ta précision | 5 · 10 · 14 | 😇 L'Abbé |
 | ☯ Les deux sens | tes two-way | leur précision | 6 · 12 · 18 | 🐢 La Tortue |
 | 🔧 L'étouffoir | tes checkers | leurs tirs | 3 · 6 · 9 | 🪜 Le Contremaître |

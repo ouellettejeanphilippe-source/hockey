@@ -6,8 +6,9 @@
  * le rival en duel, les séries. Les mêmes graines pour chacun : « premier », le robot du CHIFFRE (la meilleure cote), le
  * MALIN (le bâtisseur : il lit son banc aux portes) et son TÉMOIN (le même, qui ne le lit pas). On juge, à 32 graines ou plus :
  *
- *   le malin gagne la Coupe 4 à 12 fois sur 64 ; « premier », 2 fois au plus ; sa première Coupe, en médiane, pas avant sa
- *   troisième run (JP, 7 nov.) ; bâtir ne coûte pas (le témoin ne tient pas nettement plus de cibles que le malin, en paires) ;
+ *   le malin gagne la Coupe 4 à 12 fois sur 64 ; « premier », 2 fois au plus (à 64 graines un compte de Coupes tire au sort
+ *   à ±5 : on y exige qu'il soit compatible avec la borne, à deux écarts-types de son bord ; la borne se juge à 256) ; sa
+ *   première Coupe, en médiane, pas avant sa troisième run (JP, 7 nov.) ; bâtir ne coûte pas (le témoin ne tient pas nettement plus de cibles que le malin, en paires) ;
  *   les galons d'une run courte (V28, tranche 5b) : chaque sorte gravée dans 5 à 85 % des runs du malin, 4 à 12 par run, la
  *   Coupe à part (elle se grave sur les 23 cartes de l'effectif : comptée, la borne suivrait les Coupes).
  *
@@ -17,9 +18,10 @@
  *   — les séries sont le mur : une run qui explose gagne la Coupe moins d'une fois sur deux ;
  *   — la cote seule ne suffit plus : le robot du chiffre tient la cible de l'acte III au plus une fois sur trois ;
  *   — plus d'un build gagne : au moins cinq pièces mènent un banc qui tient ses trois cibles, aucune dans plus de 40 % ;
- *   — chaque pièce vit : sur les bancs du malin, elle atteint sa première marche plus d'une fois sur deux, et sa
- *     deuxième dans 10 à 60 % des cas (aucune marche d'office) ;
- *   — les jetons servent : une run du malin finit avec 40 jetons ou moins en caisse.
+ *   — chaque pièce vit : sur les bancs du malin, elle atteint sa première marche plus d'une fois sur deux ;
+ *   — aucune marche d'office (JP, 14 nov. : « le juger sur qui ne bâtit pas ») : sur les bancs du témoin, chaque pièce
+ *     atteint sa deuxième marche au plus 60 % du temps, sa troisième au plus 25 % ;
+ *   — les jetons servent : le malin monte 1 à 4 cartes au marché par run (ce qui reste en caisse devient des médailles).
  * À 384 graines : chaque coach tient ses cibles à dix points de la moyenne. Ce qui s'imprime sans se juger : les
  * relances, la part des actes que le rival décide (JP, 14 nov. : la question se repose avec ce chiffre).
  *
@@ -46,7 +48,7 @@ const GRAINES = Number(process.env.GRAINES ?? 64);
 const FILS = Math.max(1, Number(process.env.FILS ?? 4));
 const JUGER = GRAINES >= 32, GRAND = 256;
 /* Le pronostic d'un match de l'acte III : `N_CHANCE` matchs rejoués, comme la jauge de la feuille du soir. « Exploser le jeu » : `EXPLOSE` de moyenne. */
-const N_CHANCE = 40, EXPLOSE = 0.75, PART_EXPLOSE = [15, 35], RUN_DE_LA_COUPE = 3, BUILDS = 5, PART_MAX = 0.4, DEUXIEME = [0.1, 0.6], JETONS_MAX = 40;
+const N_CHANCE = 40, EXPLOSE = 0.75, PART_EXPLOSE = [15, 35], RUN_DE_LA_COUPE = 3, BUILDS = 5, PART_MAX = 0.4, OFFICE = [0.6, 0.25], MONTEES_PAR_RUN = [1, 4];
 /* Chaque coach à `ECART_DES_COACHS` de la moyenne, en cibles tenues : jugé à `TRES_GRAND` graines (48 runs par coach), imprimé en dessous. */
 const TRES_GRAND = 384, ECART_DES_COACHS = 0.1;
 const ROBOTS = (process.env.ROBOTS || 'premier,chiffre,temoin,malin').split(',');
@@ -119,7 +121,7 @@ for (const r of ROBOTS) {
   const parActe = [0, 1, 2].map(a => { const xs = l.filter(x => x.actes[a]); return `acte ${a + 1} ${pct(moy(xs.map(x => (x.actes[a].tenu ? 1 : 0))))} (${moy(xs.map(x => x.actes[a].pts)).toFixed(1)} pts)`; }).join(' · ');
   const marches = l.flatMap(x => x.banc.map(y => y.marche)), part = k => pct(marches.filter(x => x === k).length / Math.max(1, marches.length)), rival = l.flatMap(x => x.rival);
   informer(`Le robot ${r}`, `${coupes(r)} Coupes sur ${l.length} · cibles tenues ${pct(tenues(r))} (${parActe}) · sans cœur ${causes('coeurs')} · sans séries ${causes('cible')} · série perdue ${causes('serie')} · ${moy(l.map(x => x.rondes)).toFixed(2)} ronde · ${moy(l.map(x => x.signatures)).toFixed(1)} signatures · force ${moy(l.map(x => x.forces[0])).toFixed(0)} → ${moy(l.map(x => x.forces.at(-1))).toFixed(0)} · ${moy(l.map(x => x.s)).toFixed(1)} s la run`);
-  informer('  son banc, ses jetons', `${moy(l.map(x => x.banc.length)).toFixed(1)} pièces · sous le premier seuil ${part(0)}, à la 1re marche ${part(1)}, à la 2e ${part(2)}, à la 3e ${part(3)} · ${moy(l.map(x => x.relances)).toFixed(1)} relances par run (${moy(l.map(x => x.payees)).toFixed(0)} jetons) · ${moy(l.map(x => x.jetons)).toFixed(0)} jetons en caisse à la fin · le rival décide la cible dans ${rival.filter(Boolean).length} actes sur ${rival.length}`);
+  informer('  son banc, ses jetons', `${moy(l.map(x => x.banc.length)).toFixed(1)} pièces · sous le premier seuil ${part(0)}, à la 1re marche ${part(1)}, à la 2e ${part(2)}, à la 3e ${part(3)} · ${moy(l.map(x => x.montees || 0)).toFixed(1)} cartes montées au marché · ${moy(l.map(x => x.relances)).toFixed(1)} relances par run (${moy(l.map(x => x.payees)).toFixed(0)} jetons) · ${moy(l.map(x => x.jetons)).toFixed(0)} jetons en caisse à la fin (${moy(l.map(x => Math.floor(x.jetons / RUN.JETONS_PAR_MEDAILLE))).toFixed(1)} médailles) · le rival décide la cible dans ${rival.filter(Boolean).length} actes sur ${rival.length}`);
 }
 /* En paires, par graine : la part des cibles tenues d'un robot moins celle d'un autre ; le bruit, deux écarts-types de la moyenne. */
 function enPaires(a, b) {
@@ -127,9 +129,23 @@ function enPaires(a, b) {
   const m = moy(d), bruit = 2 * Math.sqrt(d.reduce((s, x) => s + (x - m) ** 2, 0) / Math.max(1, d.length - 1) / Math.max(1, d.length));
   return { m, bruit, mot: `cibles tenues ${pct(tenues(a))} contre ${pct(tenues(b))} : ${m >= 0 ? '+' : ''}${(100 * m).toFixed(1)} points en paires, le bruit à ±${(100 * bruit).toFixed(1)}` };
 }
+/*
+ * UNE BORNE ET SON ÉCHANTILLON. Un compte de Coupes sur 64 runs tire au sort autour de sa vraie fréquence : à 8 sur 64, deux
+ * écarts-types font ±5 (13 sur les graines du CI pour 8 sur 64 mesurés sur 256, le 14 nov. 2026). Les bornes de JP se
+ * jugent donc à `GRAND` graines ; en dessous, on exige que la mesure soit COMPATIBLE avec la borne — à deux écarts-types
+ * de son bord, pas plus. Une fréquence `p` mesurée sur `n` runs : son bruit est 2 × √(p(1 − p) / n).
+ */
+const bruitDe = (p, n) => (n >= GRAND ? 0 : 2 * Math.sqrt((p * (1 - p)) / n));
+const large = ([lo, hi], n) => [Math.max(0, lo - bruitDe(lo, n)), Math.min(1, hi + bruitDe(hi, n))];
+const COUPES_DU_MALIN = [4 / 64, 12 / 64], COUPES_DE_PREMIER = [0, 2 / 64], PART_D_UN_GALON = [0.05, 0.85];
+const motDeTaille = GRAINES >= GRAND ? '' : ` — à ${GRAINES} graines : compatible avec la borne, qui se juge à ${GRAND}`;
+function coupesSur64(nom, robot, bornes) {
+  const [lo, hi] = large(bornes, GRAINES);
+  borne(`${nom}, sur 64 (${Math.round(bornes[0] * 64)} à ${Math.round(bornes[1] * 64)} voulues${motDeTaille})`, sur64(robot), Math.floor(lo * 64), Math.ceil(hi * 64));
+}
 if (JUGER) {
-  if (ROBOTS.includes('malin')) borne('Les Coupes du malin, sur 64', sur64('malin'), 4, 12);
-  if (ROBOTS.includes('premier')) borne('Les Coupes de « premier », sur 64', sur64('premier'), 0, 2);
+  if (ROBOTS.includes('malin')) coupesSur64('Les Coupes du malin', 'malin', COUPES_DU_MALIN);
+  if (ROBOTS.includes('premier')) coupesSur64('Les Coupes de « premier »', 'premier', COUPES_DE_PREMIER);
   if (ROBOTS.includes('malin') && ROBOTS.includes('temoin')) {
     // BÂTIR, EN PAIRES : la même graine, le malin et son témoin (une seule différence : lire son banc aux portes). À 64
     // graines le bruit est de ±9 points : on y exige seulement que bâtir ne COÛTE pas ; « bâtir paie » se juge à `GRAND`.
@@ -145,7 +161,8 @@ if (JUGER) {
     // Les galons (V28, tranche 5b) : chaque sorte se voit, aucune n'est de toutes les runs. La Coupe suit les Coupes, jugées plus haut.
     const sortes = ['chapeau', 'grandMatch', 'jeuBlanc', 'mur', 'dixButs', 'vingtPoints', 'bourreau'];
     const part = t => l.filter(x => x.galons.includes(t)).length / l.length, parRun = moy(l.map(x => x.galons.filter(t => t !== 'coupe').length));
-    exiger('Les galons : chaque sorte se grave dans 5 à 85 % des runs du malin', sortes.every(t => part(t) >= 0.05 && part(t) <= 0.85), sortes.map(t => `${t} ${pct(part(t))}`).join(' · '));
+    const [gLo, gHi] = large(PART_D_UN_GALON, GRAINES);
+    exiger(`Les galons : chaque sorte se grave dans 5 à 85 % des runs du malin${motDeTaille}`, sortes.every(t => part(t) >= gLo && part(t) <= gHi), sortes.map(t => `${t} ${pct(part(t))}`).join(' · '));
     // La Coupe à part : elle se grave d'un coup sur tout l'effectif (23 cartes), et le compte suivrait les Coupes au lieu des soirs.
     borne('Les galons gravés par run du malin, la Coupe à part', Math.round(parRun * 10) / 10, 4, 12);
     // LE BUILD (V29), jugé à `GRAND` graines ; en dessous, imprimé.
@@ -167,12 +184,25 @@ if (JUGER) {
       if (iiiChiffre.length) exiger('La cote seule ne suffit plus : le chiffre tient la cible de l\'acte III au plus une fois sur trois', moy(iiiChiffre.map(x => (x.actes[2].tenu ? 1 : 0))) <= 1 / 3, pct(moy(iiiChiffre.map(x => (x.actes[2].tenu ? 1 : 0)))));
       exiger(`Plus d'un build gagne : au moins ${BUILDS} pièces mènent un banc qui tient ses trois cibles, aucune dans plus de ${pct(PART_MAX)}`, sortesDeBanc.length >= BUILDS && Math.max(0, ...sortesDeBanc.map(combien)) <= PART_MAX * gagnants.length, motBuilds);
       exiger('Chaque pièce vit : sur les bancs du malin, elle atteint sa première marche plus d\'une fois sur deux', vit.every(([, n, m1]) => n > 0 && m1 / n > 0.5), motVit);
-      exiger(`Aucune marche d'office : sur les bancs du malin, chaque pièce atteint sa deuxième marche dans ${pct(DEUXIEME[0])} à ${pct(DEUXIEME[1])} des cas`, vit.every(([, n, , m2]) => n > 0 && m2 / n >= DEUXIEME[0] && m2 / n <= DEUXIEME[1]), vit.map(([k, n, , m2]) => `${PIECES[k].nom} ${n ? pct(m2 / n) : '—'}`).join(' · '));
-      borne('Les jetons servent : ce qui reste en caisse à la fin d\'une run du malin', Math.round(moy(l.map(x => x.jetons))), 0, JETONS_MAX);
+      // Les jetons servent (JP, 14 nov. 2026) : une carte se monte au marché, une par marché, et la caisse de fin devient des
+      // médailles (js/run.js `MONTER`, `JETONS_PAR_MEDAILLE`) — ce qu'on gagne après le dernier marché ne s'achète nulle part.
+      borne('Les jetons servent : les cartes que le malin monte au marché, par run', Math.round(10 * moy(l.map(x => x.montees || 0))) / 10, ...MONTEES_PAR_RUN);
     } else {
       informer(`Le build (jugé à ${GRAND} graines)`, `${fortes.length} runs sur ${GRAINES} explosent (${partFortes} %), dont ${fortes.filter(x => x.coupe).length} Coupes ; l'acte III moyen à ${pct(moy(l.filter(x => x.iii.length).map(x => moy(x.iii))))} · ${motBuilds}`);
       informer('  chaque pièce, sa première marche', motVit);
     }
+    // Le compte de chaque pièce à la fin d'une run du malin : sa médiane et son troisième quartile, pour poser les seuils.
+    const quantile = (xs, q) => { const t = xs.slice().sort((a, b) => a - b); return t.length ? t[Math.min(t.length - 1, Math.floor(q * t.length))] : 0; };
+    // AUCUNE MARCHE D'OFFICE (JP, 14 nov. 2026 : « le juger sur qui ne bâtit pas ») : sur les bancs du témoin, qui ne lit pas son
+    // banc aux portes, chaque pièce atteint sa deuxième marche au plus `OFFICE[0]` du temps et sa troisième au plus `OFFICE[1]`.
+    // Le bâtisseur, lui, y arrive presque toujours : c'est pour ça qu'il bâtit, et la mesure sur ses bancs jugeait sa réussite.
+    if (ROBOTS.includes('temoin')) {
+      const t = de('temoin'), parPiece = Object.keys(PIECES).map(k => { const xs = t.flatMap(x => x.banc.filter(y => y.cle === k)), part = m => (xs.length ? xs.filter(y => y.marche >= m).length / xs.length : 0); return [k, xs.length, part(2), part(3)]; });
+      const mot = parPiece.map(([k, n, m2, m3]) => `${PIECES[k].nom} ${n ? `${pct(m2)} · ${pct(m3)}` : '—'} (${n} bancs)`).join(' · ');
+      if (GRAINES >= GRAND) exiger(`Aucune marche d'office : sur les bancs du témoin, chaque pièce atteint sa deuxième marche au plus ${pct(OFFICE[0])} du temps, sa troisième au plus ${pct(OFFICE[1])}`, parPiece.every(([, , m2, m3]) => m2 <= OFFICE[0] && m3 <= OFFICE[1]), mot);
+      else informer(`  le témoin, sa deuxième et sa troisième marche (jugé à ${GRAND} graines)`, mot);
+    }
+    informer('  chaque pièce, son compte à la fin (médiane · 3e quartile · ses seuils)', Object.keys(PIECES).map(k => { const ns = l.flatMap(x => x.banc.filter(y => y.cle === k).map(y => y.n)); return `${PIECES[k].nom} ${quantile(ns, 0.5)} · ${quantile(ns, 0.75)} (${PIECES[k].seuils.join(', ')})`; }).join(' · '));
   }
 } else {
   informer('L\'essai court', `${GRAINES} graines : Coupes ${ROBOTS.map(r => `${r} ${coupes(r)}`).join(', ')} ; les bornes ne se jugent qu'à 32 graines ou plus`);
