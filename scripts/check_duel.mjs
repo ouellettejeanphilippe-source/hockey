@@ -1,124 +1,66 @@
 /*
- * LE DUEL À UN CHOIX (V27, tranche 6 ; docs/refonte-v27.md § 4.7, docs/refonte-v27-6a.md). En Rogue, le gros match se
- * joue en trois périodes ; avant chacune, l'adversaire annonce son intention (son plan, qui vise tes joueurs). Ta
- * réponse est UN choix avant le match : un plan fort parmi les trois que ton coach propose (`plansDuDuel`,
- * js/impact.js), chiffrés contre leur jeu (`leurJeuDuDuel`, js/greffes.js), ou Ton match. Ce juge :
- *   1. le duel a trois périodes, chacune son intention ; le plan pris avant le match joue les trois, Ton match aucune
- *      (sa feuille est celle d'un duel sans plan), et un plan ne laisse rien derrière lui ;
+ * LE DUEL SANS PLAN (V29, tranche 1 bis ; JP, 14 nov. 2026 : *le plan part*). En Rogue, le gros match (le rival, l'élite,
+ * chaque match de série) se joue en trois périodes ; avant chacune, l'adversaire annonce son intention (son plan, qui
+ * vise tes joueurs). Plus aucun choix avant le match : ta réponse est le banc que tu as bâti. Ce juge :
+ *   1. le duel a trois périodes, chacune son intention, et sa feuille ne garde aucun plan ; il ne laisse rien derrière
+ *      lui (ni effet de match, ni canal de joueur) ; la même graine rejoue le même duel ;
  *   2. leur jeu, avant le match : sans dominante, l'intention que le moteur joue en 1re ; avec, la dominante ;
  *   3. LA DOMINANTE : un rival qui en a une l'annonce plus souvent que chacune des quatre autres ;
- *   4. ton coach propose trois plans distincts, chacun en vraies stats du match ;
- *   5. AUCUN PLAN QUI GAGNE D'OFFICE (V29 : les plans viennent du coach, plus d'une pièce de banc) : pour chaque
- *      philosophie, le meilleur plan proposé n'est pas le même contre les cinq intentions ;
- *   6. LA MESURE : deux clubs égaux — deux copies du même vrai club, ton banc posé —, le même duel au meilleur plan
- *      (l'attentif, ce que l'écran propose) contre « Ton match » tout le long, sur les mêmes dés (SEMÉS : la graine de
- *      chaque match), à domicile et au loin. Mis en face à face (l'écart de leurs logits contre la même IA), le meilleur
- *      plan gagne nettement, mais sous 60 % : un plan change la forme, pas la force.
- * `N` : matchs par club et par bras (1200). `FILS` : processus (2). `TRIOS=0` saute le 5 (le CI le garde).
+ *   4. LEUR JEU SE LIT : pour chacune des cinq intentions, ce qu'elle te coûte se dit en vraies stats du match
+ *      (`leurJeuEnStats`, js/impact.js : la feuille du duel), et la lecture ne touche à aucun dé du match ;
+ *   5. LA MESURE : deux copies d'un même vrai club, `N` duels semés par club témoin, à domicile et au loin : les cinq
+ *      intentions sortent, et leur intention change la forme du match sans le donner (ta part de victoires contre ton
+ *      double reste entre 40 et 55 %).
+ * `N` : duels par club témoin (600 ; une demi-minute). Le plan d'avant-match (V27, tranche 6), ses robots
+ * (scripts/lib/duel.mjs) et leur mesure sont partis : le meilleur plan ne gagnait plus que 0,3 % de matchs.
  */
-import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulerGrosMatch } from '../js/sim.js';
-import { leurJeuDuDuel, INTENTIONS, PERIODES_DU_DUEL, PLANS } from '../js/greffes.js';
-import { plansDuDuel } from '../js/impact.js';
-import { COACHS } from '../js/coachs.js';
+import { leurJeuDuDuel, INTENTIONS, PERIODES_DU_DUEL } from '../js/greffes.js';
+import { leurJeuEnStats, motsDeStats } from '../js/impact.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
-import { robotDuel } from './lib/duel.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
-const N = Number(process.env.N ?? 1200);
-const FILS = Math.max(1, Number(process.env.FILS ?? 2));
-const TRIOS = process.env.TRIOS !== '0';
-const ICI = fileURLToPath(import.meta.url);
-
-/* Le banc de l'essai : un coach du Frelon et sa pièce de départ (V29 : les plans viennent du coach, plus d'une pièce). */
+const N = Number(process.env.N ?? 600);
+/* Le banc de l'essai : un coach du Frelon et sa pièce de départ. */
 const BANC = { cle: 'essaim', maitrise: 1, banc: ['gros'] };
 const equipe = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
 /* Deux copies d'un même vrai club : toi (Rogue, ton banc) et l'IA. */
-function deuxClubs(s, t, perso = BANC) {
+function deuxClubs(s, t) {
   const un = equipeReelle(s, t);
   const toi = equipe('Toi', t, un, s), adv = equipe('Eux', t, un, s);
   toi.isPlayer = true; toi.courbe = true; adv.courbe = true;
-  toi.perso = structuredClone(perso);
+  toi.perso = structuredClone(BANC);
   return { toi, adv };
 }
-
-/* UN BRAS DE LA MESURE (un processus fils) : `n` duels par club témoin, sous une politique. */
-function bras(politique, n) {
-  const out = { v: 0, n: 0, periodes: 0, changes: 0, intentions: {} };
-  for (const [lab, s, t] of TEMOINS) {
-    const { toi, adv } = deuxClubs(s, t);
-    toi.robotDuel = robotDuel(politique);
-    for (let i = 0; i < n; i++) {
-      const r = simulerGrosMatch(toi, adv, { graine: `duel-${lab}`, cle: `m${i}`, visiteur: i % 2 === 1 });
-      out.n++; if (r.gagne) out.v++;
-      for (const h of r.gros.duelJoue.periodes) {
-        out.periodes++; if (h.plan !== 'match') out.changes++;
-        out.intentions[h.intention.cle] = (out.intentions[h.intention.cle] || 0) + 1;
-      }
-    }
-  }
-  return out;
-}
-if (process.env.BRAS) {
-  process.stdout.write(JSON.stringify(bras(process.env.BRAS, Number(process.env.NBRAS))));
-  process.exit(0);
-}
-const lancer = (politique, n) => new Promise((ok, ko) => {
-  const p = spawn(process.execPath, [ICI], { env: { ...process.env, BRAS: politique, NBRAS: String(n) } });
-  let txt = '';
-  p.stdout.on('data', x => { txt += x; });
-  p.stderr.on('data', x => process.stderr.write(x));
-  p.on('close', c => (c === 0 ? ok(JSON.parse(txt)) : ko(new Error(`le bras ${politique} a échoué (${c})`))));
-});
-async function enParallele(taches) {
-  const res = new Array(taches.length);
-  let i = 0;
-  await Promise.all(Array.from({ length: Math.min(FILS, taches.length) }, async () => { while (i < taches.length) { const k = i++; res[k] = await taches[k](); } }));
-  return res;
-}
-
+const soigner = (...clubs) => { for (const x of clubs) if (x.injured) x.injured.clear(); };
+const empreinte = r => JSON.stringify([r.feuille.buts.map(b => [b.cote, b.instant.toFixed(3)]), r.feuille.tirs, r.gros.duelJoue.periodes.map(h => h.intention.cle)]);
 const t0 = Date.now();
-console.log(`\n  Le duel à un choix (V27, tranche 6) · ${N} matchs par club et par bras, ${TEMOINS.length} clubs\n`);
+console.log(`\n  Le duel sans plan (V29, tranche 1 bis) · ${N} duels par club, ${TEMOINS.length} clubs\n`);
 
 /* ---------- 1 à 4 : la forme du duel ---------- */
 {
   const [lab, s, t] = TEMOINS[0];
   const { toi, adv } = deuxClubs(s, t);
-  // 1. Trois périodes ; le plan d'avant le match les joue toutes ; Ton match n'en joue aucun.
-  let trois = 0, joue = 0, rien = 0, pareil = 0;
+  let trois = 0, sansPlan = 0, pareil = 0, propre = 0, rejoue = 0;
+  const traces = () => [toi, adv].some(x => x._effetMatch || x._gros || Object.values(x.roster).some(p => p && p._duelFx));
   for (let i = 0; i < 40; i++) {
-    for (const x of [toi, adv]) if (x.injured) x.injured.clear();
+    soigner(toi, adv);
     const I = leurJeuDuDuel(toi, adv, { graine: `ap-${lab}`, cle: `a${i}` });
-    const b = simulerGrosMatch(toi, adv, { graine: `ap-${lab}`, cle: `a${i}`, plan: null });
-    const a = simulerGrosMatch(toi, adv, { graine: `ap-${lab}`, cle: `a${i}`, plan: { cle: 'centre' } });
+    const a = simulerGrosMatch(toi, adv, { graine: `ap-${lab}`, cle: `a${i}` });
     const P = a.gros.duelJoue.periodes;
     if (P.length === PERIODES_DU_DUEL.length && P.every(h => INTENTIONS[h.intention.cle])) trois++;
-    if (P.every(h => h.plan === 'centre')) joue++;
-    if (b.gros.duelJoue.periodes.every(h => h.plan === 'match')) rien++;
+    if (P.every(h => !('plan' in h)) && !('choix' in a.gros)) sansPlan++;
     // 2. Sans dominante (un match de séries), leur jeu est l'intention que le moteur joue en 1re.
-    if (b.gros.duelJoue.periodes[0].intention.cle === I.cle && b.gros.duelJoue.periodes[0].intention.cible === I.cible) pareil++;
+    if (P[0].intention.cle === I.cle && P[0].intention.cible === I.cible) pareil++;
+    if (!traces()) propre++;
+    soigner(toi, adv);
+    if (empreinte(simulerGrosMatch(toi, adv, { graine: `ap-${lab}`, cle: `a${i}` })) === empreinte(a)) rejoue++;
   }
   exiger('chaque duel a trois périodes, chacune son intention', trois === 40, `${trois} sur 40`);
-  exiger('le plan pris avant le match joue les trois périodes', joue === 40, `${joue} sur 40`);
-  exiger('Ton match ne pose aucun plan', rien === 40, `${rien} sur 40`);
+  exiger('aucun plan : ni dans la feuille du duel, ni dans le gros match', sansPlan === 40, `${sansPlan} sur 40`);
   exiger('sans dominante, leur jeu annoncé est l\'intention que le moteur joue en 1re', pareil === 40, `${pareil} sur 40`);
-  // Ton match ne change rien (repris de check_plan_de_match, parti avec le plan du soir à la 6b) : un plan « match » joue la
-  // feuille d'un duel sans plan ; et un plan ne laisse rien derrière lui (ni effet de match, ni canal de joueur).
-  let pareilMatch = 0, propre = 0;
-  const empreinte = r => JSON.stringify([r.feuille.buts.map(b => [b.cote, b.instant.toFixed(3)]), r.feuille.tirs]);
-  const traces = () => [toi, adv].some(t => t._effetMatch || t._gros || Object.values(t.roster).some(p => p && p._duelFx));
-  for (let i = 0; i < 20; i++) {
-    for (const x of [toi, adv]) if (x.injured) x.injured.clear();
-    const a = simulerGrosMatch(toi, adv, { graine: `tm-${lab}`, cle: `t${i}`, plan: null });
-    for (const x of [toi, adv]) if (x.injured) x.injured.clear();
-    const b = simulerGrosMatch(toi, adv, { graine: `tm-${lab}`, cle: `t${i}`, plan: { cle: 'match' } });
-    if (empreinte(a) === empreinte(b)) pareilMatch++;
-    simulerGrosMatch(toi, adv, { graine: `tm-${lab}`, cle: `o${i}`, plan: { cle: 'ombre' } });
-    if (!traces()) propre++;
-  }
-  exiger('Ton match ne change rien : la feuille d\'un duel sans plan', pareilMatch === 20, `${pareilMatch} sur 20`);
-  exiger('un plan ne laisse rien derrière lui (ni effet de match, ni canal de joueur)', propre === 20, `${propre} sur 20`);
+  exiger('un duel ne laisse rien derrière lui (ni effet de match, ni canal de joueur)', propre === 40, `${propre} sur 40`);
+  exiger('la même graine rejoue le même duel', rejoue === 40, `${rejoue} sur 40`);
   // 2 et 3. La dominante : leur jeu annoncé, et l'intention qui sort le plus.
   const parts = [];
   let annonce = 0, devant = 0;
@@ -126,8 +68,8 @@ console.log(`\n  Le duel à un choix (V27, tranche 6) · ${N} matchs par club et
     if (leurJeuDuDuel(toi, adv, { graine: 'dom', cle: 'x', dominante: dom }).cle === dom) annonce++;
     const n = {};
     for (let i = 0; i < 60; i++) {
-      for (const x of [toi, adv]) if (x.injured) x.injured.clear();
-      const r = simulerGrosMatch(toi, adv, { graine: `dom-${dom}`, cle: `d${i}`, plan: null, dominante: dom, visiteur: i % 2 === 1 });
+      soigner(toi, adv);
+      const r = simulerGrosMatch(toi, adv, { graine: `dom-${dom}`, cle: `d${i}`, dominante: dom, visiteur: i % 2 === 1 });
       for (const h of r.gros.duelJoue.periodes) n[h.intention.cle] = (n[h.intention.cle] || 0) + 1;
     }
     const tot = Object.values(n).reduce((a, x) => a + x, 0);
@@ -136,48 +78,32 @@ console.log(`\n  Le duel à un choix (V27, tranche 6) · ${N} matchs par club et
   }
   exiger('avec une dominante, leur jeu annoncé est elle', annonce === 5, `${annonce} sur 5`);
   exiger('la dominante sort plus souvent que chacune des quatre autres', devant === 5, `${devant} sur 5 · sa part des périodes : ${parts.join(' · ')}`);
-  // 4. Ton coach propose trois plans distincts, en stats du match.
-  let bonnes = 0;
-  const cles = Object.keys(INTENTIONS);
-  for (let i = 0; i < 10; i++) {
-    const I = leurJeuDuDuel(toi, adv, { graine: 'pr', cle: `p${i}`, dominante: cles[i % 5] });
-    const pr = plansDuDuel(toi, adv, { intention: I });
-    if (pr.length >= 2 && pr.length <= 3 && new Set(pr.map(x => x.cle)).size === pr.length && pr.every(x => PLANS[x.cle] && x.cle !== 'match' && x.stats && x.qui && x.plan)) bonnes++;
-  }
-  const seul = deuxClubs(s, t, { cle: 'essaim', maitrise: 1, banc: [] });
-  const deSeul = plansDuDuel(seul.toi, seul.adv, { intention: leurJeuDuDuel(seul.toi, seul.adv, { dominante: 'assaut' }) });
-  exiger('ton coach propose trois plans distincts, chacun en vraies stats du match', bonnes === 10, `${bonnes} sur 10`);
-  exiger('le coach propose son plan d\'abord et complète par ce qui répond à leur jeu', deSeul.length >= 2 && deSeul.length <= 3 && deSeul[0].cle === 'tirer' && deSeul.every(x => x.qui.genre === 'coach'),
-    deSeul.map(x => `${PLANS[x.cle].ico} ${PLANS[x.cle].nom}`).join(' · '));
+  // 4. Leur jeu se lit : chaque intention dit ce qu'elle te coûte, en vraies stats, sans toucher aux dés du match.
+  soigner(toi, adv);
+  const avant = empreinte(simulerGrosMatch(toi, adv, { graine: 'lu', cle: 'x' }));
+  const lus = Object.keys(INTENTIONS).map(dom => [dom, motsDeStats(leurJeuEnStats(toi, adv, leurJeuDuDuel(toi, adv, { graine: 'lu', cle: 'x', dominante: dom })), 3)]);
+  soigner(toi, adv);
+  exiger('chacune des cinq intentions dit ce qu\'elle te coûte, en vraies stats du match', lus.every(([, m]) => m.length > 0 && m.some(x => x.bon === false)),
+    lus.map(([dom, m]) => `${INTENTIONS[dom].ico} ${m.map(x => x.txt).join(', ') || 'rien'}`).join(' · '));
+  exiger('lire leur jeu ne touche à aucun dé : le même duel avant et après', empreinte(simulerGrosMatch(toi, adv, { graine: 'lu', cle: 'x' })) === avant && leurJeuEnStats(toi, adv, null) === null);
 }
 
-/* ---------- 5 : aucun plan qui gagne d'office ---------- */
-if (TRIOS) {
-  // V29 : les plans viennent du coach. Pour chaque philosophie, le meilleur plan proposé n'est pas le même contre les cinq
-  // intentions : sinon le choix du duel serait un faux choix.
-  const [, s, t] = TEMOINS[0], intentions = Object.keys(INTENTIONS), domines = [];
-  for (const coach of Object.keys(COACHS)) {
-    const { toi, adv } = deuxClubs(s, t, { cle: coach, maitrise: 1, banc: [] });
-    const meilleurs = intentions.map(I => plansDuDuel(toi, adv, { intention: leurJeuDuDuel(toi, adv, { dominante: I }), n: 1500 }).slice().sort((a, b) => b.net - a.net)[0].cle);
-    if (new Set(meilleurs).size < 2) domines.push(`${COACHS[coach].ico} ${PLANS[meilleurs[0]].nom}`);
+/* ---------- 5 : la mesure ---------- */
+{
+  let v = 0, n = 0, periodes = 0;
+  const intentions = {};
+  for (const [lab, s, t] of TEMOINS) {
+    const { toi, adv } = deuxClubs(s, t);
+    for (let i = 0; i < N; i++) {
+      const r = simulerGrosMatch(toi, adv, { graine: `duel-${lab}`, cle: `m${i}`, visiteur: i % 2 === 1 });
+      n++; if (r.gagne) v++;
+      for (const h of r.gros.duelJoue.periodes) { periodes++; intentions[h.intention.cle] = (intentions[h.intention.cle] || 0) + 1; }
+    }
   }
-  exiger('pour chaque coach, le meilleur plan proposé n\'est pas le même contre les cinq intentions', !domines.length, domines.length ? domines.join(' · ') : `${Object.keys(COACHS).length} coachs, chacun un vrai choix`);
+  const pc = x => `${(100 * x).toFixed(1).replace('.', ',')} %`;
+  exiger('les cinq intentions sortent', Object.keys(INTENTIONS).every(k => (intentions[k] || 0) >= 0.03 * periodes),
+    Object.keys(INTENTIONS).map(k => `${INTENTIONS[k].ico} ${pc((intentions[k] || 0) / periodes)}`).join(' · '));
+  borne('deux clubs égaux en duel : leur intention change la forme sans donner le match (ta part de victoires)', Math.round((1000 * v) / n) / 1000, 0.4, 0.55);
 }
-
-/* ---------- 6 : la mesure ---------- */
-const [bien, mal, distrait] = await enParallele([
-  () => lancer('attentif', N), () => lancer('rien', N), () => lancer('distrait', Math.ceil(N / 4)),
-]);
-const p = x => x.v / x.n, pc = x => `${(100 * x).toFixed(1).replace('.', ',')} %`;
-const logit = x => Math.log(x / (1 - x));
-const faceAFace = 1 / (1 + Math.exp(-(logit(p(bien)) - logit(p(mal)))));
-exiger('les cinq intentions sortent', Object.keys(INTENTIONS).every(k => (bien.intentions[k] || 0) >= 0.03 * bien.periodes),
-  Object.keys(INTENTIONS).map(k => `${INTENTIONS[k].ico} ${pc((bien.intentions[k] || 0) / bien.periodes)}`).join(' · '));
-informer('l\'attentif prend un plan', `${pc(bien.changes / bien.periodes)} des périodes`);
-informer('contre la même IA', `meilleur plan ${pc(p(bien))} · le distrait ${pc(p(distrait))} · Ton match ${pc(p(mal))}`);
-// L'écart d'un bras à l'autre, en erreurs types (les deux bras jouent les mêmes dés : c'est une borne prudente).
-const et = Math.sqrt(p(bien) * (1 - p(bien)) / bien.n + p(mal) * (1 - p(mal)) / mal.n);
-exiger('le meilleur plan gagne plus que Ton match', p(bien) - p(mal) >= 2 * et, `${pc(p(bien) - p(mal))} (${((p(bien) - p(mal)) / et).toFixed(1).replace('.', ',')} erreurs types)`);
-borne('deux clubs égaux, le meilleur plan contre Ton match, en face à face', Math.round(faceAFace * 1000) / 1000, 0.5, 0.6);
-informer('le temps', `${Math.round((Date.now() - t0) / 1000)} s (${FILS} fils)`);
+informer('le temps', `${Math.round((Date.now() - t0) / 1000)} s`);
 verdict();

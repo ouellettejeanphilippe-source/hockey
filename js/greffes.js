@@ -6,13 +6,13 @@
  *
  * Le contrat (lu par le moteur, et lui seul) :
  *   avantMatch(A, B, LA, LB, journal, { series, gros })   ce qui se pose avant le match ; rend la fonction qui le retire
- *   match(A, B, LA, LB, { gros, journal, series })          la soirée : `periode(k, etat)` rend les effets des deux clubs,
+ *   match(A, B, LA, LB, { gros, journal })                  la soirée : `periode(k, etat)` rend les effets des deux clubs,
  *                                                            `apres(k, h, cumul)` note ce qui a joué, `fin()` écrit le duel
  *   apresMatch(A, B)                                         après le match (en séries, les verdicts)
  *   matin(L, toi, jour)                                      le matin de ton club : les verdicts des promesses, les effets de tes joueurs
  *   decision(team, d, graine)                                une décision prise à l'écran : l'histoire par sa porte, le banc
  *   coachDeSeries(S, t)                                      leur coach-personnage pour les séries, ou null
- *   lecture(team, adv, lu, { plan, intention, duel })        un plan et une intention posés le temps d'une lecture
+ *   lecture(intention)                                       leur intention d'une période de duel, posée le temps d'une lecture
  *   aVenir(team, d)                                          ce qu'une décision à venir a de pur, posé le temps d'une lecture
  */
 import { PIECES, PIECE_DU_COACH, bancDe, poserLaPiece, bancDuMatch, persoAdverse } from './pieces.js';
@@ -190,20 +190,19 @@ function verdictsDuMatin(t, jour) {
    l'ombre passe sur lui ; tu mènes, ils jouent l'assaut ; une intention qui leur a coûté la période ne revient pas
    tout de suite. Rien n'est tiré au dé : la graine ne départage que deux intentions aussi tentantes (`intentionDuDuel`).
 
-   TA RÉPONSE, UN SEUL CHOIX AVANT LE MATCH (V27, tranche 6 ; docs/refonte-v27.md § 4.7, docs/refonte-v27-6a.md). JP :
-   *le duel : un seul choix lourd ; les micro-plans de période partent* ; *aucune décision d'entracte*. Ton plan fort
-   (`PLANS`), un parmi les trois que ton coach propose (`plansDuDuel`, js/impact.js), ou Ton match : il joue les
-   trois périodes. Le rival a montré son jeu à son annonce : son intention dominante (`dominante`, js/actes.js), qu'il
-   annonce plus souvent que les autres (`POIDS_DOMINANTE`). Leur intention est leur plan : elle frappe sa période, avec
-   son prix, et ne se « contre » plus.
+   AUCUN CHOIX AVANT LE DUEL (V29, tranche 1 bis ; JP, 14 nov. 2026 : *le plan part*). Le plan d'avant-match (V27,
+   tranche 6) ne pesait plus rien depuis que le banc compte : le meilleur ne gagnait que 0,3 % de matchs de plus que
+   « Ton match ». Ta réponse à leur jeu est ton banc, bâti avant. Le rival montre son jeu à son annonce : son intention
+   dominante (`dominante`, js/actes.js), qu'il annonce plus souvent que les autres (`POIDS_DOMINANTE`). Leur intention
+   est leur plan : elle frappe sa période, avec son prix.
 
    Le moteur joue les trois périodes d'un trait : une vieille décision d'entracte (`duel.p` 1 ou 2, d'avant la V27) ne
    joue rien et ne relance aucun dé. L'adversaire ne pige aucune carte (`horsAdverse`) : ses intentions sont sa main.
    ===================================================================== */
 export const PERIODES_DU_DUEL = [[0, 20], [20, 40], [40, 60]];
 /*
- * LA FORCE DU DUEL (V17, scripts/check_duel.mjs) : au gros match, leur intention et ton plan jouent plus fort qu'un
- * soir ordinaire — chacun de leurs canaux élevé à cette puissance, le gain comme le prix. JP : *qqchose qui change
+ * LA FORCE DU DUEL (V17, scripts/check_duel.mjs) : au gros match, leur intention joue plus fort qu'un soir ordinaire —
+ * chacun de ses canaux élevé à cette puissance, le gain comme le prix. JP : *qqchose qui change
  * vraiment le match, mais sans briser les équipes*.
  */
 const FORCE_DUEL = Number(ENV_MESURE.FORCE_DUEL ?? 2);
@@ -212,12 +211,12 @@ const ROBUSTE_DISSUADE = 1;
 /* L'attrait de plus de leur intention dominante, à chaque période (check_duel : elle sort plus souvent que chacune des autres). */
 const POIDS_DOMINANTE = Number(ENV_MESURE.POIDS_DOMINANTE ?? 1.5);
 /*
- * LES INTENTIONS (V17, docs/refonte-v17.md § 3). Ce qu'ils annoncent avant une période, c'est LEUR PLAN : les mêmes
- * leviers que les tiens (`PLANS`), posés par eux, chacun avec son prix, le temps de sa période. `toi` : sur ton club ;
+ * LES INTENTIONS (V17, docs/refonte-v17.md § 3). Ce qu'ils annoncent avant une période, c'est LEUR PLAN : des leviers
+ * sur les canaux du moteur, posés par eux, chacun avec son prix, le temps de sa période. `toi` : sur ton club ;
  * `adv` : sur le leur ; `joueur` : sur ton joueur visé (`vise` : son poste) ; `par` : sur leur joueur qui le vise ;
- * `jambes` : ce que la chasse coûte aux jambes du visé. Elle change la FORME de la période, pas sa force : plus de
- * contre ni de porte (le tableau de la V13 est parti) ; ton coach propose ton plan d'avant-match pour y répondre
- * (`plansDuDuel`, js/impact.js).
+ * `jambes` : ce que la chasse coûte aux jambes du visé. Elle change la FORME de la période, pas sa force : ni contre,
+ * ni porte (le tableau de la V13), ni plan d'avant-match (V27, parti à la V29) ; la feuille du duel dit ce qu'elle te
+ * coûte ce soir (`leurJeuEnStats`, js/impact.js).
  */
 export const INTENTIONS = {
   ombre: { ico: '🥷', nom: 'L\'ombre', vise: 'F',
@@ -231,61 +230,6 @@ export const INTENTIONS = {
   cachot: { ico: '🦂', nom: 'Les punitions',
     toi: { discipline: 1.35 }, adv: { volume: 0.95, discipline: 1.1 } },
 };
-/*
- * LE PLAN DE MATCH (V17, docs/refonte-v17.md). JP : *des choix avant le match et pendant, plus stratégiques, genre
- * tirer plus, suivre un joueur de près, qqchose qui change vraiment le match, mais sans briser les équipes*. Les
- * mêmes leviers que les intentions, posés par TON club, sur ses canaux qui existent : `toi` sur ton club, `adv` sur
- * le leur, `vedette` sur leur meilleur marqueur (`ptsDe`) et `colle` sur ton attaquant qui le suit (le plus fort en
- * Défense, `famillesDe`). Un plan change la FORME du match, pas sa force : chacun paie ce qu'il donne (`check_duel`).
- * V27, tranche 6 : un plan ne se pose plus qu'au duel, pris avant le match (`plansDuDuel`, js/impact.js), pour les trois
- * périodes ; le plan du soir des matchs ordinaires est parti (6b : ses idées sont des pièces de banc, js/pieces.js).
- */
-export const PLANS = {
-  match: { ico: '🏒', nom: 'Ton match', mot: 'Ton match', bon: 'Ton alignement tel quel', prix: '' },
-  tirer: { repond: ['ombre'], ico: '🌧', nom: 'Tirer de partout', mot: 'Tirer', bon: 'Plus de tirs', prix: 'Moins de précision, des jambes qui s\'usent',
-    toi: { volume: 1.11, finition: 0.965, energie: 1.1 } },
-  ombre: { repond: ['assaut'], ico: '🥷', nom: 'Coller leur vedette', mot: 'Coller', bon: 'Leur meilleur marqueur tire moins et rate plus', prix: 'Ton attaquant qui le suit crée moins',
-    vedette: { lancers: 0.5, finition: 0.75, creation: 0.75 }, colle: { lancers: 0.65, creation: 0.6 }, toi: { volume: 0.93 } },
-  centre: { repond: ['assaut', 'chasse'], ico: '⛔', nom: 'Fermer le centre', mot: 'Fermer', bon: 'Moins de tirs contre, et de moins bonne qualité', prix: 'Moins de tirs pour toi',
-    toi: { volume: 0.88 }, adv: { volume: 0.92, finition: 0.98 } },
-  assaut: { repond: ['centre'], ico: '🐗', nom: 'Forechecker fort', mot: 'Forechecker', bon: 'Plus de tirs, de la pression', prix: 'Plus de punitions et d\'usure',
-    toi: { volume: 1.12, finition: 1.02, discipline: 1.25, energie: 1.12 } },
-  discipline: { repond: ['cachot', 'chasse'], ico: '🧘', nom: 'Rester discipliné', mot: 'Discipline', bon: 'Moins de punitions', prix: 'Moins de mises en échec, un peu moins de tirs',
-    toi: { discipline: 0.7, robustesse: -0.4, volume: 0.97 } },
-};
-/*
- * CE QUE TON PLAN RÉPOND À LEUR JEU (V27, tranche 6 ; devis § 4.3 : *le rival montre son jeu dès son annonce, et des pièces
- * y répondent*). Un plan qui répond à leur intention (`repond`) ramène ce qu'elle te fait à la force d'un soir ordinaire,
- * la période où elle joue (1 au lieu de `FORCE_DUEL`) ; ce qu'elle leur coûte ne bouge pas. C'est ce qui fait du plan un
- * vrai choix contre le jeu qu'ils ont montré (check_duel : aucun plan ne domine les deux autres sur les cinq intentions).
- */
-const forceContre = (plan, I) => (plan && I && PLANS[plan.cle] && (PLANS[plan.cle].repond || []).includes(I.cle) ? 1 : FORCE_DUEL);
-/* Une décision `plan` telle que l'équipe la garde : Ton match (ou un plan inconnu) la retire. */
-/*
- * `force` (nov. 2026 ; JP : *the duel with the assistants and coach, not random choices*) : au duel, un plan joue à la force
- * de celui qui le propose — une pièce de ton banc à 1, le coach à sa maîtrise ; bornée là.
- */
-const planLu = x => (x && PLANS[x.cle] && x.cle !== 'match' ? { cle: x.cle, vise: x.vise || null, ...(Number(x.force) > 0 ? { force: Math.min(1.3, Math.max(0.7, Number(x.force))) } : {}) } : null);
-/* Leur vedette (leur meilleur marqueur habillé, ou celui que tu nommes) et ton attaquant qui la colle. */
-export function cibleDuPlan(Ltoi, Ladv, vise = null) {
-  const leurs = habillesDuGroupe(Ladv || {}, 'F').map(x => x.p);
-  const vedette = (vise && leurs.find(p => getPlayerKey(p) === vise)) || leurs.sort((a, b) => ptsDe(b) - ptsDe(a))[0] || null;
-  const colle = habillesDuGroupe(Ltoi || {}, 'F').map(x => x.p).sort((a, b) => ((famillesDe(b) || {}).defense || 0) - ((famillesDe(a) || {}).defense || 0))[0] || null;
-  return { vedette, colle };
-}
-/*
- * CE QU'UN PLAN POSE sur un match ou une période : les effets des deux clubs et les canaux des deux joueurs, dans les
- * formes que le moteur lit déjà (`_effetMatch`, `_duelFx`). Rien si le plan est Ton match.
- */
-function effetsDuPlan(plan, { Ltoi, Ladv }, f0 = 1) {
-  const P = plan && PLANS[plan.cle];
-  if (!P || plan.cle === 'match') return null;
-  const f = f0 * (plan.force || 1);
-  const F = e => (f === 1 ? e : forcer(e, f));
-  const eff = (e, ou) => (e ? [{ source: 'plan', cle: plan.cle, nom: P.nom, ico: P.ico, ...F(e), ...(ou ? { ou } : {}) }] : []);
-  const { vedette, colle } = P.vedette || P.colle ? cibleDuPlan(Ltoi, Ladv, plan.vise) : {};
-  return { toi: eff(P.toi), adv: eff(P.adv), joueurs: [[vedette, P.vedette], [colle, P.colle]].filter(([p, e]) => p && e).map(([p, e]) => [p, F(e)]), vedette: vedette || null };
-}
 /* Poser des canaux de joueur le temps d'un match ou d'une période ; rend la fonction qui les retire. */
 function poserFxDeJoueurs(joueurs) {
   const poses = [];
@@ -379,20 +323,17 @@ function intentionDuDuel({ toi, L, Ladv = null, k = 0, hist = [], graine = 0, cl
 /*
  * CE QUE LEUR INTENTION POSE sur une période, dans les formes que le moteur lit déjà (`_effetMatch`, `_duelFx`) : les
  * effets des deux clubs, les canaux des deux joueurs nommés (ton visé, leur joueur qui le vise), la blessure et les
- * jambes du visé. `f` : la force de ce qui te frappe et de ce qu'elle leur donne (`FORCE_DUEL`, ou 1 quand ton plan y
- * répond, `forceContre`) ; ce qu'elle leur coûte reste à `FORCE_DUEL`. La même lecture pour le moteur et pour les plans du duel (js/impact.js).
+ * jambes du visé, à la force du duel (`FORCE_DUEL`). La même lecture pour le moteur et pour la feuille du duel (js/impact.js).
  */
-function effetsDeLIntention(I, f = FORCE_DUEL) {
+function effetsDeLIntention(I) {
   const J = I && INTENTIONS[I.cle];
   if (!J) return null;
-  const eff = e => (e ? [{ source: 'intention', cle: I.cle, nom: J.nom, ico: J.ico, ...e }] : []);
-  const { blessure, ...canaux } = J.joueur ? forcer(J.joueur, f) : {};
-  // Ce qu'elle leur donne (plus de tirs, plus de finition) est à `f` ; ce qu'elle leur coûte, à `FORCE_DUEL`.
-  const leur = J.adv ? Object.fromEntries(Object.entries(J.adv).map(([k, v]) => [k, v ** ((k === 'volume' || k === 'finition') && v > 1 ? f : FORCE_DUEL)])) : null;
+  const eff = e => (e ? [{ source: 'intention', cle: I.cle, nom: J.nom, ico: J.ico, ...forcer(e, FORCE_DUEL) }] : []);
+  const { blessure, ...canaux } = J.joueur ? forcer(J.joueur, FORCE_DUEL) : {};
   return {
-    toi: eff(J.toi && forcer(J.toi, f)), adv: eff(leur),
+    toi: eff(J.toi), adv: eff(J.adv),
     joueurs: [[I.cible, J.joueur ? canaux : null], [I.par, J.par ? forcer(J.par, FORCE_DUEL) : null]].filter(([q, e]) => q && e),
-    blessure: I.cible && blessure ? blessure : null, jambes: I.cible && J.jambes ? Math.round(J.jambes * f) : 0,
+    blessure: I.cible && blessure ? blessure : null, jambes: I.cible && J.jambes ? Math.round(J.jambes * FORCE_DUEL) : 0,
   };
 }
 /*
@@ -449,29 +390,18 @@ function avantMatch(A, B, LA, LB, journal, { series = false } = {}) {
 /* APRÈS LE MATCH : en séries, les verdicts des promesses (aucun lundi n'y passe). */
 function apresMatch(A, B) { for (const T of [A, B]) if (T.isPlayer && T.jourCourant === Infinity) verdictsDuMatin(T, jourDeSerie(T)); }
 /*
- * LA SOIRÉE, PÉRIODE PAR PÉRIODE. Au duel (`gros.duel`) : ton plan, pris avant le match (`gros.choix`, V27 tranche 6),
- * pour les trois périodes ; à chacune, leur intention (`intentionDuDuel`, leur dominante comprise), tes moments
- * (`MOMENTS_SI`), ton plan (`effetsDuPlan`) ; pour tous : le banc des deux clubs (ses pièces qui comptent), lu sur ce
- * qui est déjà joué ; leur banc en séries passe par là aussi. Sans choix (« Ton match, toute la série »), `toi.robotDuel`
- * choisit avant la 1re, s'il y en a un (les robots : le même choix que l'écran, `plansDuDuel`). `fin()` écrit le duel dans
+ * LA SOIRÉE, PÉRIODE PAR PÉRIODE. Au duel (`gros.duel`) : à chaque période, leur intention (`intentionDuDuel`, leur
+ * dominante comprise) et tes moments (`MOMENTS_SI`) ; pour tous : le banc des deux clubs (ses pièces qui comptent) ; leur
+ * banc en séries passe par là aussi. Aucun choix avant le match (V29 : le plan est parti). `fin()` écrit le duel dans
  * `gros.duelJoue` et la feuille (`duel`).
  */
-function match(A, B, LA, LB, { gros = null, journal = null, series = false, baseA = null, baseB = null } = {}) {
+function match(A, B, LA, LB, { gros = null, journal = null } = {}) {
   const duel = gros && gros.duel ? gros : null;
-  const toiA = !!A._gros, toi = toiA ? A : B, adv = toiA ? B : A, cote = toiA ? 'A' : 'B';
+  const toiA = !!A._gros, toi = toiA ? A : B, cote = toiA ? 'A' : 'B';
   const Ltoi = toiA ? LA : LB, Ladv = toiA ? LB : LA;
   const hist = [];
   if (duel) duel._duelTouches = [];
-  let plan = null, enCours = null;
-  if (duel) {
-    let choix = duel.choix || null;
-    if (!choix && typeof toi.robotDuel === 'function') {
-      toi._effetMatch = [...((toiA ? baseA : baseB) || [])]; adv._effetMatch = [...((toiA ? baseB : baseA) || [])];
-      const intention = intentionDuDuel({ toi, L: Ltoi, Ladv, graine: duel.graineMain, cle: duel.cleMain, dominante: duel.dominante, seule: !!duel.dominante });
-      choix = toi.robotDuel({ toi, adv, intention, domicile: toiA, serie: !!duel.serie }) || null;
-    }
-    plan = choix && choix.plan ? planLu(choix.plan) : null;
-  }
+  let enCours = null;
   return {
     periode(k, { gfA, gfB }) {
       const effA = [], effB = [], vises = [];
@@ -493,14 +423,11 @@ function match(A, B, LA, LB, { gros = null, journal = null, series = false, base
           if (!vises.includes(q)) vises.push(q);
         };
         // LEUR INTENTION, le temps de sa période : sur les deux clubs, sur ton joueur visé et le leur qui le vise.
-        const fxI = effetsDeLIntention(I, forceContre(plan, I));
+        const fxI = effetsDeLIntention(I);
         effToi.push(...fxI.toi); effAdv.push(...fxI.adv);
         for (const [q, e] of fxI.joueurs) viser(q, e);
         if (fxI.blessure) { I.cible._duelBlessure = Math.max(I.cible._duelBlessure || 1, fxI.blessure); duel._duelTouches.push(I.cible); }
         if (fxI.jambes) rendreJambes(I.cible, -fxI.jambes);
-        // TON PLAN (V27, tranche 6) : celui d'avant le match, les trois périodes.
-        const fxPlan = effetsDuPlan(plan, { Ltoi, Ladv }, FORCE_DUEL);
-        if (fxPlan) { effToi.push(...fxPlan.toi); effAdv.push(...fxPlan.adv); for (const [q, e] of fxPlan.joueurs) viser(q, e); }
       }
       // LE BANC DES DEUX CLUBS (V29 : ses pièces qui comptent) ; en séries, leur banc aussi.
       const xA = poserLeBanc(A, 'A', k, journal), xB = poserLeBanc(B, 'B', k, journal);
@@ -517,7 +444,7 @@ function match(A, B, LA, LB, { gros = null, journal = null, series = false, base
       const butsP = journal ? journal.buts.slice(nButs).filter(x => x.cote === cote).map(x => { const c = caseDe(Ltoi, x.marqueur); return { marqueur: x.marqueur, unite: c && c.group === 'F' ? c.unit : null }; }) : [];
       const punis = journal ? journal.punitions.slice(nPun).filter(e => e.cote === cote).length : 0;
       hist.push({
-        intention: I, plan: plan ? plan.cle : 'match',
+        intention: I,
         pointage: toiA ? { moi: h.gfA, lui: h.gfB } : { moi: h.gfB, lui: h.gfA },
         fin: toiA ? { moi: cumul.gfA, lui: cumul.gfB } : { moi: cumul.gfB, lui: cumul.gfA }, buts: butsP, punitions: punis,
       });
@@ -547,18 +474,12 @@ function coachDeSeries(S, t) {
   return S.toi && S.toi.courbe && t !== S.toi && !t.perso ? persoAdverse(t) : null;
 }
 /*
- * UNE LECTURE (js/impact.js, `lectureDuMatch`) : un plan de match et leur intention d'une période, posés le temps de la
- * lecture comme le match les pose (sans la blessure ni les jambes, qui arrivent après) ; `duel`, à la force du duel.
+ * UNE LECTURE (js/impact.js, `lectureDuMatch`) : leur intention d'une période de duel, posée le temps de la lecture comme
+ * le match la pose (sans la blessure ni les jambes, qui arrivent après), à la force du duel.
  */
-function lecture(team, adv, lu, { plan = null, intention = null, duel = false } = {}) {
-  const out = { toi: [], adv: [], retirer: () => {} };
-  const retraits = [];
-  const fxPlan = plan ? effetsDuPlan(planLu(typeof plan === 'string' ? { cle: plan } : plan), { Ltoi: lu, Ladv: adv ? activeLineup(adv) : null }, duel ? FORCE_DUEL : 1) : null;
-  if (fxPlan) { out.toi.push(...fxPlan.toi); out.adv.push(...fxPlan.adv); retraits.push(poserFxDeJoueurs(fxPlan.joueurs)); }
-  const fxI = intention ? effetsDeLIntention(intention, forceContre(planLu(typeof plan === 'string' ? { cle: plan } : plan), intention)) : null;
-  if (fxI) { out.toi.push(...fxI.toi); out.adv.push(...fxI.adv); retraits.push(poserFxDeJoueurs(fxI.joueurs)); }
-  out.retirer = () => { for (const r of retraits.reverse()) r(); };
-  return out;
+function lecture(intention) {
+  const fx = effetsDeLIntention(intention);
+  return fx ? { toi: fx.toi, adv: fx.adv, retirer: poserFxDeJoueurs(fx.joueurs) } : null;
 }
 
 /*

@@ -158,7 +158,7 @@ mesure_run              la run mesurée sur ses quatre robots (« premier », le
 check_pouvoirs          le banc qui compte (V29, tranche 1 ; js/pieces.js) : les tables, le compte pur (un badge à son palier, le second à moitié, la marche à son seuil, la borne d'un canal, le banc plein, leur banc en séries), les vrais entraîneurs, puis chaque pièce en paires contre un banc vide (rien sous son premier seuil, notée aux trois périodes à chaque marche, vue du bon côté de la feuille) ; une minute (N, PIECES) ; MESURE=0 N=20 en CI, sans les chiffres de valeur
 check_gros              les gros matchs : au 82-0, trois périodes vues, sans choix ; en séries d'une run, leur banc grandit à chaque ronde (1, 2 puis 3 pièces), ses pièces sont notées à la feuille et il te coûte des buts ; en CI (LIGUES)
 check_moments_si        les moments (MOMENTS_SI, js/sim.js) : un effet d'un moment ne joue que son soir, rien ne se lit d'avance, chaque moment arrive dans des runs du robot malin ; une demi-minute, en CI (GRAINES)
-check_duel              le duel à un choix (V27, tranche 6) : le plan joue les trois périodes, la dominante du rival, ton coach propose les trois plans (V29 : plus aucune pièce de banc), pour chaque philosophie le meilleur plan n'est pas le même contre les cinq intentions, le meilleur plan contre Ton match sous 60 % ; une minute (N, TRIOS=0)
+check_duel              le duel sans plan (V29, tranche 1 bis) : trois périodes et leur intention, aucun plan, la dominante du rival devant, chaque intention dite en vraies stats (`leurJeuEnStats`), deux clubs égaux entre 40 et 55 % ; une demi-minute, à la main
 check_effets            chaque effet d'une réponse d'histoire, en paires : il se voit dans la feuille d'un soir où il joue, sa force bornée par son niveau ; une vingtaine de minutes (N, IDS, DETAIL=1)
 check_packs             les deux pochettes du marché selon le niveau des joueurs : pures, aux taux de leur métal, l'Époque un Pilier ou mieux de sa décennie et de son poste, la brillante à la vedette ; une seconde et demie, dans tout.mjs (PACKS)
 ```
@@ -203,7 +203,6 @@ lib/emojis.mjs              les émojis du jeu et les polices qui les rendent au
 lib/run_robot.mjs           les quatre robots de la run en carte (V28, V29 : « premier », le chiffre, le malin qui bâtit son banc, et son témoin, qui ne lit pas son banc aux portes), qui jouent par les fonctions de js/run.js (check_run, mesure_run, check_scene, check_moments_si, check_meta)
 lib/shards.mjs              les saisons de l'index et leurs shards, lus une fois, pour les robots (`SAISONS`, `shard`, `generateur` ; sorti du robot de l'ancienne run, parti à la V28, tranche 4)
 lib/devis.mjs               lire un devis : la partie sous un titre, ses noms en code (check_refonte, check_neuf)
-lib/duel.mjs                les robots du duel à un choix (`robotDuel` : l'attentif, le distrait, rien) ; le malin de la run y prend son plan
 lib/temoins.mjs             des effets témoins pour les juges, au chiffre connu
 lib/vestiaires.mjs          les vestiaires que les scripts d'analyse se partagent (equipeReelle)
 ```

@@ -17,7 +17,9 @@
  *        a. sous son premier seuil, ne change rien : la même feuille, aucune note ;
  *        b. à une marche, est notée à la feuille aux trois périodes, avec sa marche et son compte ;
  *        c. se voit dans la feuille, du bon côté : plus de tirs ou de buts pour toi, moins pour eux, et davantage à la
- *           troisième marche qu'à la première (`MESURE`, à `N` matchs : le bruit d'un petit N le fausserait).
+ *           troisième marche qu'à la première (`MESURE`, à `N` matchs : le bruit d'un petit N le fausserait) ;
+ *   5. à l'écran (js/impact.js `lignesDeLaPiece`), chaque pièce se dit en vraies stats de match à chaque marche, jamais
+ *      en pourcentage, même pour un club déjà à sa borne de style.
  * `N` : matchs par club, par pièce et par marche (200 ; une minute). `MESURE=0 N=20` (la CI, quelques secondes) : 1, 2, 3,
  * 4a et 4b, sans les chiffres de 4c. Ce que le banc vaut dans une run se juge ailleurs : `mesure_run`.
  */
@@ -29,6 +31,7 @@ import { maitriseDu, niveauDuCoach, carteDuCoach, lotoDesCoachs, DU_CARTABLE } f
 import { NIVEAUX, groupeDuJoueur } from '../js/niveaux.js';
 import { COACHS, VOIES, COACH_DU_ROLE } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
+import { lignesDeLaPiece, poserClubLu } from '../js/impact.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 import '../js/greffes.js';   // V25 : les greffes du Rogue se branchent sur le moteur
 
@@ -191,5 +194,22 @@ function match(i, j, graine, visiteur, perso, comptes) {
   exiger('à une marche, la pièce est notée à la feuille aux trois périodes, avec sa marche et son compte', !fautesB.length, fautesB.slice(0, 3).join(' · '));
   if (MESURE) exiger('chaque pièce se voit dans la feuille, du bon côté, et davantage à la troisième marche qu\'à la première', !fautesC.length, fautesC.slice(0, 3).join(' · ') || lignes.join(' · '));
   else informer('ce que chaque pièce change par match, de la 1re à la 3e marche (jugé à N plein)', lignes.join(' · '));
+}
+/* ---------- 5. à l'écran : en vraies stats, jamais en pourcentage ---------- */
+{
+  // Un club lu, et le même à sa borne de style (un effet qui sature sa précision et ses tirs) : la ligne d'une pièce se lit
+  // comme le moteur la joue, par-dessus les bornes — sinon elle retombe sur ses mots en %.
+  const fautes = [];
+  for (const sature of [false, true]) {
+    const T = club(0);
+    if (sature) T._effetMatch = [{ finition: 1.5, volume: 1.5 }];
+    poserClubLu(() => ({ team: T }));
+    for (const cle of QUELLES) for (let marche = 1; marche <= MARCHES.length; marche++) {
+      const l = lignesDeLaPiece(cle, marche);
+      if (!l.length || l.some(x => /%/.test(x.txt)) || !/\d/.test(l[0].txt)) fautes.push(`${cle}, marche ${marche}${sature ? ', club à sa borne' : ''} : « ${l.map(x => x.txt).join(' · ') || 'rien'} »`);
+    }
+    poserClubLu(null);
+  }
+  exiger('à l\'écran, chaque pièce se dit en vraies stats de match à chaque marche, jamais en pourcentage — même un club à sa borne de style', !fautes.length, fautes.slice(0, 3).join(' · ') || `${QUELLES.length} pièces × ${MARCHES.length} marches × 2 clubs`);
 }
 verdict('Le banc qui compte (V29)');

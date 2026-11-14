@@ -6,7 +6,7 @@
  *   LA RUN : un coach (sa pièce de départ sur le banc), 23 bouche-trous de toutes les époques, puis
  *   le camp (`CAMP` fois trois portes). Trois actes : une carte de sept rangs (cinq de matchs, deux d'arrêts) qui monte vers
  *   le rival. Un match se joue isolé par le simulateur (`playGame`) ; l'élite, le rival et les séries en duel
- *   (`simulerGrosMatch`, ton plan). Après chaque match, trois portes : trois vrais vestiaires, dont le club affronté. Signer
+ *   (`simulerGrosMatch`, leur intention). Après chaque match, trois portes : trois vrais vestiaires, dont le club affronté. Signer
  *   passe par l'échange : la part `RACHAT` du salaire de celui qui sort se libère, le reste reste au plafond pour la run.
  *   La cible de l'acte (`CIBLES`, sur 14 : 2 la victoire, 1 la défaite en prolongation, le rival double), `COEURS` cœurs,
  *   puis les séries : trois rondes en 3 de 5, une série perdue rachetée par un cœur.
@@ -219,7 +219,7 @@ function effectifDeDepart(S, graine) {
  * simple philosophie ({ cle }) pour un robot. Rend la séance, au camp, ses premières portes ouvertes.
  */
 export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1, exigence = 0 }) {
-  const S = { R: null, donnees, clubs: classerLesClubs(donnees), roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null, robotDuel: null };
+  const S = { R: null, donnees, clubs: classerLesClubs(donnees), roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null };
   const E = exigencesDe(exigence);
   S.roster = effectifDeDepart(S, graine);
   const masse = Object.values(S.roster).reduce((a, p) => a + prixDe(S, p), 0), cible = CAP - RUN.ESPACE;
@@ -256,7 +256,7 @@ export function ouvrirSeance(donnees, R) {
     if (!parCle.has(s)) parCle.set(s, new Map(((donnees.shard(s) || {}).players || []).map(p => [getPlayerKey(p), p])));
     return parCle.get(s).get(k) || null;
   };
-  const S = { R, donnees, clubs, roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null, robotDuel: null };
+  const S = { R, donnees, clubs, roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null };
   for (const x of R.joueurs) {
     const p0 = trouver(x.k);
     if (!p0) continue;
@@ -316,7 +316,7 @@ function relire(e, mien, autre, club) {
       lancers: (f.lancers || []).map(([cote, g]) => ({ cote, gardien: contre(cote)(g) })) } };
 }
 /* Ton club, rebâti de l'effectif : la même infirmerie, le même journal, ton coach et son banc. */
-export function rebatir(S) {
+function rebatir(S) {
   const R = S.R, avant = S.toi;
   const toi = createTeam('Ton club', 'YOU', S.roster, { isPlayer: true });
   toi.courbe = true;
@@ -329,7 +329,6 @@ export function rebatir(S) {
   for (const k of ['effetsCibles', 'paris', 'suivis', 'retours', 'injuriesLog']) toi[k] = (avant && avant[k]) || (k === 'effetsCibles' ? S.effets : k === 'injuriesLog' ? S.blessures || [] : []);
   toi.absents = (avant && avant.absents) || S.absents;
   toi._filetMatch = (avant && avant._filetMatch) || R.filet || 'partant';
-  if (S.robotDuel) toi.robotDuel = S.robotDuel;
   // Les sonnés d'une élite perdue (js/sim.js `SONNE`) : un effet d'équipe, compté en matchs joués.
   toi.jourCourant = R.matchs.length;
   // Le club compte ses matchs comme la run : le registre des blessures (l'infirmerie) et le genre d'une blessure s'y lisent.
@@ -520,22 +519,24 @@ export function chanceCeSoir(S, { n = 40, tranche = 0 } = {}) {
   deshabiller(adv); leverLeSoir(S, adv);
   return { v: R.case.visiteur ? n - vA : vA, n };
 }
-/* Leur intention annoncée et les plans que ton coach propose se lisent par js/impact.js `plansDuDuel` (l'écran) ; ici, leur jeu du duel. */
-export const intentionCeSoir = (S, dominante) => leurJeuDuDuel(S.toi, clubDe(S, S.R.case).team, { graine: `run:${S.R.graine}`, cle: cleDuMatch(S.R), dominante });
+/* Leur jeu du duel : l'intention qu'ils annoncent ce soir (l'écran dit ce qu'elle te coûte, js/impact.js `leurJeuEnStats`). */
+/* L'intention dominante de ce soir : celle que le rival ou l'élite montre ; en séries, aucune. La même pour l'écran, le match et les robots. */
+const dominanteCeSoir = S => (S.R.case.sorte === 'serie' ? null : jeuDe(S, S.R.case).dominante);
+export const intentionCeSoir = S => leurJeuDuDuel(S.toi, clubDe(S, S.R.case).team, { graine: `run:${S.R.graine}`, cle: cleDuMatch(S.R), dominante: dominanteCeSoir(S) });
 /*
- * JOUER LE MATCH de la case en cours. `plan` (un duel) : absent, le robot du club choisit ; null, Ton match ; sinon le plan
- * pris ({ cle, force, vise }). Rien n'est encore compté : `conclure` le fera (quitter avant rejoue le même match).
+ * JOUER LE MATCH de la case en cours ; un duel se joue contre leur intention dominante (`dominanteCeSoir`). Rien n'est
+ * encore compté : `conclure` le fera (quitter avant rejoue le même match).
  * Rend { gagne, ot, gf, ga, feuille, cote, adv }.
  */
-export function jouerLeMatch(S, { plan, dominante = null } = {}) {
-  const R = S.R, c = R.case, club = clubDe(S, c), adv = club.team, cle = cleDuMatch(R);
+export function jouerLeMatch(S) {
+  const R = S.R, c = R.case, club = clubDe(S, c), adv = club.team, cle = cleDuMatch(R), dominante = estUnDuel(c) ? dominanteCeSoir(S) : null;
   fraisEtSain(adv); habiller(adv, etapeDe(R)); poserLeSoir(S, adv);
   S.toi.jourCourant = R.matchs.length;
   effetsDesJoueurs(S.toi, R.matchs.length);
   let res;
   if (estUnDuel(c)) {
     const moment = c.sorte === 'serie' ? { serie: true, ronde: R.series.ronde + 1 } : null;
-    const r = avecHasardIsole(`run:${R.graine}:${cle}`, () => simulerGrosMatch(S.toi, adv, { graine: `run:${R.graine}`, cle, moment, plan, dominante, visiteur: !!c.visiteur, frais: false }));
+    const r = avecHasardIsole(`run:${R.graine}:${cle}`, () => simulerGrosMatch(S.toi, adv, { graine: `run:${R.graine}`, cle, moment, dominante, visiteur: !!c.visiteur, frais: false }));
     res = { gagne: r.gagne, ot: !!r.feuille.ot, gf: r.gf, ga: r.ga, feuille: r.feuille };
   } else {
     const f = feuilleVierge();
