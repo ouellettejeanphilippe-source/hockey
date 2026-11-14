@@ -66,8 +66,8 @@ const SIGNES_SEULS = process.env.SIGNES !== '0', LEUR_COACH = process.env.LEUR_C
 /* Une signature moyenne vaut 22 points de cote et ≈ 2 points de chance ; un point de pourcentage sur un canal, ≈ 0,2 (mesurés le 13 nov. 2026) : 2,2 points de cote par point de pourcentage, et la moitié de plus pour qui vise la marche d'après. */
 const POIDS = env('POIDS', 3.3);
 const PRIX_ESPACE = 1.5, N_CHANCE = 40, EXPLOSE = 0.75, BUILDS = 5, PART_MAX = 0.4;
-/* Le bâtisseur et le témoin relancent les portes quand le meilleur échange offert vaut moins qu'une signature moyenne (22 points de cote), deux fois par soir au plus, en gardant de quoi payer une pièce au marché. */
-const NOTE_FAIBLE = 22, RELANCES_MAX = 2, RESERVE = 32;
+/* Le bâtisseur et le témoin relancent les portes quand le meilleur échange offert vaut moins que `NOTE_FAIBLE` points de cote (une signature moyenne en vaut 22), `RELANCES_MAX` fois par soir au plus, en gardant de quoi payer une pièce au marché. */
+const NOTE_FAIBLE = env('NOTE_FAIBLE', 22), RELANCES_MAX = env('RELANCES_MAX', 2), RESERVE = 32;
 const ROBOTS = (process.env.ROBOTS || 'temoin,batisseur').split(',');
 const JEU = process.env.JEU || 'tout';
 /* LA DIFFICULTÉ À L'ESSAI (tranche 0 bis, réglée le 14 nov. 2026 sur les graines 1000 à 1047) : l'acte I comme aujourd'hui, l'acte II d'une étape d'édition de plus, l'acte III et les séries au plus haut. `REGLAGES` passe par-dessus. */
@@ -251,5 +251,5 @@ if (B.length && T.length) {
     informer(`Sous ${GRAND} graines, rien ne se juge`, `${mot} · ${partExplose.toFixed(0)} % des runs explosent · ${coupes64} Coupes sur 64 · ${motBuilds}`);
   }
 }
-informer('Le réglage', `JEU=${JEU} · FORCE=${FORCE} · POIDS=${POIDS} · DEPART_N=${DEPART_N} · signés seuls ${SIGNES_SEULS ? 'oui' : 'non'} · RELANCE=${RELANCE} · leur coach ${LEUR_COACH ? `compté${LEUR_PLUS ? `, +${LEUR_PLUS} marche` : ''}${LEUR_FORCE !== 1 ? `, ×${LEUR_FORCE}` : ''}` : 'd\'aujourd\'hui'} · graines ${GRAINE0} à ${GRAINE0 + GRAINES - 1} · ETAPES ${RUN.ETAPES.join(' ')} · ${Object.keys(ESSAIS).length} pièces d'essai`);
+informer('Le réglage', `JEU=${JEU} · FORCE=${FORCE} · POIDS=${POIDS} · DEPART_N=${DEPART_N} · signés seuls ${SIGNES_SEULS ? 'oui' : 'non'} · RELANCE=${RELANCE} (sous ${NOTE_FAIBLE}, ${RELANCES_MAX} par soir) · leur coach ${LEUR_COACH ? `compté${LEUR_PLUS ? `, +${LEUR_PLUS} marche` : ''}${LEUR_FORCE !== 1 ? `, ×${LEUR_FORCE}` : ''}` : 'd\'aujourd\'hui'} · graines ${GRAINE0} à ${GRAINE0 + GRAINES - 1} · ETAPES ${RUN.ETAPES.join(' ')} · ${Object.keys(ESSAIS).length} pièces d'essai`);
 verdict('Le build décide : la mesure avant le code (V29, tranches 0 et 0 bis)');
