@@ -1,0 +1,4 @@
+- **15 nov. · Une commande neuve pour l'agent, `/hors-moyenne` : avant d'écrire une histoire, une réplique, un nom ou une idée, il nomme la réponse moyenne et s'en éloigne pour une raison prise dans le jeu — rien ne change dans le jeu**
+  - Adaptée d'antialgorithm (mankidev, licence MIT) à la demande de JP (*l'adapter à nous*) : en français québécois, sans ses trois scripts Python (la graine au hasard, le SVG rugueux, son juge) ; nos règles tiennent par-dessus (le chiffre est le vrai chiffre du fait, aucun fait inventé, l'interface garde sa grille).
+  - `rogue-recit` et `rogue-design` la lisent avant de proposer, et disent la réponse moyenne écartée.
+  - `.claude/skills/hors-moyenne/SKILL.md`, `.claude/docs/LICENSE-antialgorithm.txt`, `.claude/agents/rogue-recit.md`, `.claude/agents/rogue-design.md`, CLAUDE.md — aucun script : la commande travaille avant les juges (`check_histoires`, `check_mots`).
