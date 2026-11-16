@@ -1,0 +1,5 @@
+- **16 nov. · Le devis de la V30 : le Rogue redevient une saison, et tu en es le DG — rien ne change encore dans le jeu**
+  - JP, après avoir essayé la V29 : *j'hais le nouveau rogue, c'est plus une vraie saison, pis l'interface, oui est fun, mais pas vraiment gestion feel*.
+  - JP tranche trois questions : les 82 soirs, joués ; la gestion, les quatre ensemble (des gestes de DG, un bureau plutôt que des scènes, mon club dans le temps, un alignement de 23) ; puis la base : *reprend l'ancien mode, mais refait du début afin de mieux intégrer le rogue like dans la gestion*.
+  - docs/refonte-v30.md : l'inventaire, le piège dit d'avance (82 soirs se feuillettent : la V3 à la V27), la forme proposée (la semaine d'un toucher, dix-huit gros matchs en scène, des tableaux pour gérer, l'échange et le ballottage qui changent l'alignement), ce qui part, sept tranches.
+  - Trois questions restent à JP (§ 10) : le rythme des soirs, une saison ou plusieurs, les portes sur 82 matchs.
