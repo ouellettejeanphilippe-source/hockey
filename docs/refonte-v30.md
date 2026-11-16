@@ -140,7 +140,7 @@ Les maquettes en deux ou trois directions franchement différentes viennent apr�
 
 ## 6. Ce qu'il touche
 
-- **Le jeu** : js/run.js (réécrit autour de la ligue), js/run-scenes.js (les scènes de la carte et du camp partent, celles du match et des portes restent), js/run-jeu.js, js/pieces.js (les seuils), js/actes.js, js/repechage.js (ouvert au Rogue), js/sim.js (`creerLigue` lue par la run ; le moteur ne bouge pas, `VERSION_MOTEUR` reste), un module neuf pour le bureau et un pour les échanges, style.css, sw.js.
+- **Le jeu** : js/run.js (réécrit autour de la ligue), js/run-scenes.js (les scènes de la carte et du camp partent, celles du match et des portes restent), js/run-jeu.js, js/pieces.js (les seuils), js/actes.js, js/repechage.js (ouvert au Rogue), js/sim.js (`creerLigue` lue par la run ; le moteur ne bouge pas, `VERSION_MOTEUR` reste), un module neuf pour le bureau, style.css, sw.js.
 - **Les robots et les juges** : scripts/lib/run_robot.mjs, `mesure_run`, `check_run`, `check_scene`, `essai_run`, `check_pouvoirs`.
 - **Les règles fermes** de `.claude/rules/rogue.md` qui se défont, avec leur décision :
   - « la run n'a pas de cédule, le soir se dit au moteur » (11 nov., V28 tranche 4) : défaite, la cédule revient ;
@@ -192,7 +192,7 @@ Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), l
 ## Les tranches
 
 0. **Le test d'un jour** : la saison de 82 jouée par les robots dans un script — le repêchage de 23 dans des clubs faibles, les lignes et le gardien réglés ou non, les trois règles du salaire libéré, les objectifs du proprio, les vraies séries ; la durée, le banc sur 23, la difficulté, les jetons. Un hasard par match de la cédule, pour que les paires tiennent. Rien du jeu touché. Rouge : on ne code pas.
-1. **Les maquettes** du bureau, à 390 × 844, deux ou trois directions ; JP tranche.
+1. **Les maquettes** du bureau, à 390 × 844, deux ou trois directions ; JP tranche. Faites avec `/hors-moyenne` (JP, 16 nov. : *utiliser le skill anti algorithm et faire UI pensé comme par un humain avec padding, position des éléments, etc., tout doit avoir un sens, une logique*) : chaque maquette porte sa légende — pour chaque bloc, pourquoi il est là, à cette place et à cette taille, pourquoi cet espace autour — et un élément sans raison écrite sort de la maquette.
 2. **La ligue sous la run** : js/run.js réécrit, la cédule, le classement, le soir et sa feuille, le bilan du quart.
 3. **Le repêchage de 23** au départ ; le camp part.
 4. **Le bureau** : les quatre tableaux ; les scènes de gestion partent.
@@ -241,6 +241,8 @@ Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), l
 8. **Le ballottage** : *seulement si aucun remplacement possible*.
 9. **Les séries** : *les vraies, 16 clubs, 4 rondes* en 4 de 7.
 10. **Le salaire libéré par un joueur qui sort** : pas tranché. JP : *je sais pas si ça devrait être 0 % ou 100 %, peut-être varier selon situation* ; puis : *c'est pourquoi que ça pèse au juste ?* La raison, répondue le jour même : sans rien qui pèse, remplacer un joueur est gratuit, chaque carte meilleure entre sans coût et le plafond ne se gère qu'au repêchage (JP, 10 nov. : le plafond qui mord). La tranche 0 joue 0 %, 50 % et 100 % sur les mêmes saisons, et JP tranche sur les chiffres.
+
+11. **L'interface** : *utiliser le skill anti algorithm et faire UI pensé comme par un humain avec padding, position des éléments, etc., tout doit avoir un sens, une logique* — les maquettes passent par `/hors-moyenne`, chaque bloc avec sa raison (tranche 1).
 
 **Reste de la revue, pour la tranche 0 ou les maquettes** : les jetons, les galons et les médailles à l'échelle de 82 matchs (mesurés, puis posés à JP) ; les tableaux plus longs qu'un écran (sur maquettes) ; le HUD ; le vocabulaire (« Bureau », « quart », « objectif »).
 

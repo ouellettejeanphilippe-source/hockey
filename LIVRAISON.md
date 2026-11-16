@@ -33,7 +33,7 @@ Le devis : docs/refonte-v30.md. Rien n'est codé. La tranche 2 de la V29 (lire s
 - [x] **JP tranche dix questions après la revue** (16 nov., § 12 du devis) : *un EHM, mais avec un côté rogue* ; chaque soir, tes lignes et ton gardien, *mais faire que ça a un impact* ; 23 repêchés dans des clubs faibles ; le bureau comme EHM, le match illustré ; le proprio a plusieurs objectifs, selon la force du club et de la ligue ; *pas d'échange, juste packs de cartes* ; les pochettes et les portes ; le ballottage seulement si personne ne peut remplacer ; les vraies séries, 16 clubs, 4 rondes.
 - [ ] **Le salaire libéré par un joueur qui sort** (0 %, 50 % ou 100 %) : JP tranche sur les chiffres de la tranche 0.
 - [ ] **0 · Le test d'un jour** — la saison de 82 jouée par les robots dans un script : le repêchage de 23 dans des clubs faibles, les lignes et le gardien réglés ou non (ça doit sortir du bruit, sinon on ne code pas), les trois règles du salaire libéré, les objectifs du proprio, les vraies séries ; rien du jeu touché.
-- [ ] **1 · Les maquettes** du bureau, à 390 × 844 ; JP tranche.
+- [ ] **1 · Les maquettes** du bureau, à 390 × 844 ; JP tranche. Avec `/hors-moyenne` (JP, 16 nov. : *UI pensé comme par un humain… tout doit avoir un sens, une logique*) : chaque bloc porte sa raison d'être là, à cette place, avec cet espace.
 - [ ] **2 à 6** — la ligue sous la run, le repêchage de 23, le bureau, les gestes du DG (les lignes du soir, les pochettes, le ballottage, les objectifs), le réglage.
 
 ## Refonte · V29, le build décide (JP, 13 nov. : *le roguelike est pas le fun, ni bati comme il faut pour être un vrai jeu je trouve*)
