@@ -1,6 +1,6 @@
 # V30 — Le Rogue redevient une saison, et tu en es le DG
 
-Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 16 nov. 2026. **Rien n'est codé.** JP a tranché trois questions avant le devis, puis donné la base (§ 1) ; trois restent ouvertes (§ 10) et décident de la forme : tant qu'elles ne sont pas tranchées, ni maquette ni code.
+Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 16 nov. 2026. **Rien n'est codé.** JP a tranché trois questions avant le devis, donné la base (§ 1), puis tranché les trois dernières (§ 10). La suite : `/revue-design`, puis la tranche 0.
 
 ## En une page
 
@@ -10,7 +10,7 @@ Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 16 nov
 
 **Ce qui est différent cette fois, et qui doit le rester :**
 
-1. **Le soir n'est plus l'unité de jeu, la semaine l'est.** Les 82 matchs se jouent tous au simulateur, un par un, avec leur feuille ; mais tu ne touches pas 82 fois « suivant ». Tu avances d'une semaine (trois ou quatre matchs qui tombent l'un après l'autre), et le jeu s'arrête seul quand il a quelque chose à te demander.
+1. **Chaque soir a sa feuille** (JP, 16 nov., § 3.3) : les 82 matchs passent par la feuille du soir et les temps forts de la V28, pas par un bouton « Jour suivant » sur une page. Le devis recommandait la semaine d'un toucher ; JP a choisi le soir, en sachant ce qu'il coûte (une saison de quatre à cinq heures).
 2. **Ce qu'on décide entre les matchs change l'alignement, pas un bonus sous le dé.** Un échange, un rappel, une réclamation au ballottage sortent un joueur et en entrent un autre : l'effet est celui d'une signature, que la V29 a rendu décisif par le banc. Les systèmes morts de la V3 à la V27 ajoutaient un pourcentage borné ; ceux-ci changent qui joue.
 3. **Les gros matchs restent des scènes.** Le rival, l'élite, les séries : la feuille du soir, le match en temps forts, comme aujourd'hui. Environ dix-huit par saison, les cases de la carte d'aujourd'hui.
 4. **Le bureau est fait de tableaux.** La masse salariale, l'alignement, le classement, les meneurs : dense, lisible, triable. Les scènes illustrées de la direction C gardent le match et les portes ; elles quittent la gestion.
@@ -47,13 +47,13 @@ Ce qu'il a dit avant, et qui tient encore :
 
 **Le fantasme** : je suis le DG. J'ai bâti ce club de 23 sous le plafond, je le suis soir après soir au classement, et à la date limite je fais l'échange qui le mène aux séries.
 
-- **Le jour ordinaire** est rapide : une semaine tombe en dix secondes, trois pointages, le classement qui bouge, qui est en feu.
+- **Le jour ordinaire** : la feuille du soir, le match en temps forts ou d'un toucher, puis le classement qui bouge et qui est en feu.
 - **Le pic** : le gros match en scène ; l'échange à la date limite ; le soir où la place en séries se joue.
-- **Les boucles** : la semaine (regarder, corriger l'alignement) ; le quart de saison (le bilan du proprio, le marché) ; la saison (le repêchage, 82 matchs, la date limite, les séries).
+- **Les boucles** : le soir (la feuille, le match, le bureau) ; le quart de saison (le bilan du proprio, le marché) ; la saison (le repêchage, 82 matchs, la date limite, les séries).
 
 ## 3. Les règles du jeu
 
-Écrites pour la forme recommandée ; chaque point marqué **(Q1 à Q3)** dépend d'une question du § 10.
+Écrites pour la forme recommandée ; les trois questions du § 10 sont tranchées.
 
 ### 3.1 Le départ : un repêchage de 23
 
@@ -68,12 +68,16 @@ Ce qu'il a dit avant, et qui tient encore :
 - Les dos-à-dos, les voyages, les séquences viennent de la cédule ; ils ne sont plus posés à la main.
 - **La cible** n'est plus « 8 points sur 14 » : c'est ta place au classement à la fin de chaque quart. Sous la ligne des séries au bilan d'un quart, le proprio retire un cœur. Deux cœurs.
 
-### 3.3 Le rythme **(Q1)**
+### 3.3 Le rythme : chaque soir, sa feuille
 
-- **La semaine** : un toucher joue les matchs de la semaine un à un (le pointage, les trois étoiles, une ligne chacun), puis le classement.
-- **Le jeu s'arrête seul** sur : une blessure de quatre matchs ou plus, une offre d'échange, une réclamation possible, une histoire, un gros match, la fin d'un quart, la date limite.
-- **Les gros matchs** (le rival de chaque quart, les élites, les affiches contre un club voisin au classement : environ dix-huit) passent par la feuille du soir et le match en temps forts.
-- Le compte visé : vingt-cinq semaines et dix-huit gros matchs, soit une soixantaine de touchers pour avancer, au lieu de 186.
+JP, 16 nov. : *chaque soir, sa feuille* (devant la semaine d'un toucher, recommandée, et le soir en une ligne).
+
+- **Les 82 matchs passent par la feuille du soir** : l'adversaire, son jeu, tes lignes et leurs jambes, ta chance ; puis le match en temps forts, qu'on peut mener à la fin d'un toucher.
+- **Le bureau s'ouvre entre deux soirs** : c'est là que la gestion se fait, pas sur la feuille.
+- **Les gros matchs** (le rival de chaque quart, les élites, les affiches contre un club voisin au classement : environ dix-huit) sont des duels en trois périodes, avec leur intention ; les autres soirs se jouent d'un trait.
+- **Ce que ça coûte, dit à JP avant sa réponse** : une saison de quatre à cinq heures, et 82 soirs dont la plupart se ressemblent. Deux garde-fous, jugés à la tranche 0 et à l'essai :
+  - la feuille d'un soir ordinaire doit donner une raison de la lire (un dos-à-dos, un blessé qui revient, une lancée, un club voisin au classement), sinon elle se passe d'un toucher ;
+  - une run se quitte et se reprend n'importe quel soir, à sa feuille.
 
 ### 3.4 Le roguelike dans la saison
 
@@ -82,7 +86,7 @@ La carte de l'acte part : l'accueil est le bureau, et la cédule dit qui on affr
 - **L'acte est un quart de saison** (vingt ou vingt et un matchs). Au bout de chacun, **le rival** : le club le plus près de toi au classement parmi ceux de la fin du quart, annoncé au début du quart, et son match compte double au bilan.
 - **Les cœurs sont la confiance du proprio** : au bilan d'un quart, sous la ligne des séries, −1 ❤️ ; à zéro, tu es congédié et la run finit.
 - **L'élite** : un match de la cédule contre un club du haut, marqué d'avance ; tu choisis d'y mettre l'enjeu ou non (gagné, une pièce de banc et des jetons ; perdu, des sonnés et des jetons, jamais un cœur).
-- **La récompense qu'on choisit** : trois portes après un gros match gagné **(Q3)**, une pièce de banc parmi trois au rival battu.
+- **La récompense qu'on choisit** : trois portes après un gros match gagné, une pièce de banc parmi trois au rival battu.
 - **Le banc** (V29) : tes cinq cases et leurs pièces, qui comptent les badges de tes joueurs ; un échange change donc ton banc, et c'est la raison de bâtir.
 - **Le marché** ouvre à la fin de chaque quart et la semaine de la date limite : une pièce de banc, les pochettes, une carte à monter.
 - **Les histoires** arrivent quand leur fait est vrai dans ta saison ; elles lisent de nouveau le classement et les meneurs de la ligue.
@@ -93,8 +97,8 @@ La carte de l'acte part : l'accueil est le bureau, et la cédule dit qui on affr
 - **L'échange.** Tu proposes un joueur à un club de la ligue contre un des siens. Le club dit oui si ce qu'il reçoit vaut ce qu'il donne (la cote sur 20 et le salaire, corrigés par son besoin au poste et sa place au classement : un club hors course vend ses vétérans). Il dit pourquoi quand il refuse. Les clubs t'en proposent aussi.
 - **Le ballottage.** Un joueur qu'on retire de l'alignement passe au ballottage ; un blessé de longue durée ouvre une réclamation parmi les joueurs que les autres clubs y ont mis.
 - **La date limite**, vers le 60e match : après elle, plus d'échange. La dernière semaine avant elle, les offres doublent.
-- **Le contrat (Q2).** En une saison, un contrat est un salaire et un état : *qui expire* ou *sous contrat*. Un joueur qui expire coûte moins cher à obtenir à la date limite (la location).
-- **Les portes (Q3)** restent après un gros match gagné seulement : la récompense de la victoire qui compte.
+- **Le contrat.** En une saison, un contrat est un salaire et un état : *qui expire* ou *sous contrat*. Un joueur qui expire coûte moins cher à obtenir à la date limite (la location).
+- **Les portes** restent après un gros match gagné seulement : la récompense de la victoire qui compte.
 - **Le rachat** d'aujourd'hui (la moitié du salaire de celui qui sort reste comptée) est remplacé par l'échange et le ballottage.
 
 ### 3.6 Le bureau
@@ -112,7 +116,7 @@ Les maquettes en deux ou trois directions franchement différentes viennent apr�
 
 À mesurer, pas à deviner. Une tranche 0 (un script, rien du jeu touché), comme pour la V28 et la V29 :
 
-- **La durée** : une run d'aujourd'hui compte dix-huit matchs et les séries. La saison de 82 se joue en vingt-cinq semaines ; la durée visée d'une run se pose avec JP après la mesure.
+- **La durée** : une run d'aujourd'hui compte dix-huit matchs et les séries. quatre à cinq heures à un soir par feuille, acceptées par JP le 16 nov. ; la mesure dit le vrai chiffre.
 - **Le banc sur 23 signés** : les seuils des neuf pièces ont été posés pour un club qui signe un joueur à la fois ; avec vingt-trois signés d'entrée, la deuxième marche risque d'être d'office. Borne gardée de la V29 : chez qui ne bâtit pas, la deuxième marche au plus 60 % du temps.
 - **L'échange** : un robot qui échange doit faire mieux que le même robot qui n'échange pas, en paires, au-delà du bruit ; et aucun échange accepté ne doit être un vol (la valeur reçue au plus 15 % au-dessus de la valeur donnée, à régler).
 - **La difficulté** : les bornes de JP du 14 nov. tiennent (la Coupe 4 à 12 fois sur 64, une run sur quatre qui explose), remesurées sur la saison.
@@ -133,7 +137,7 @@ Les maquettes en deux ou trois directions franchement différentes viennent apr�
 - **Les robots et les juges** : scripts/lib/run_robot.mjs, `mesure_run`, `check_run`, `check_scene`, `essai_run`, `check_pouvoirs`.
 - **Les règles fermes** de `.claude/rules/rogue.md` qui se défont, avec leur décision :
   - « la run n'a pas de cédule, le soir se dit au moteur » (11 nov., V28 tranche 4) : défaite, la cédule revient ;
-  - « une saison de 82 soirs ne peut que se feuilleter » (V28 § 2) : gardée comme garde-fou — c'est la semaine qui s'avance, jamais le soir ;
+  - « une saison de 82 soirs ne peut que se feuilleter » (V28 § 2) : défaite par JP le 16 nov. (*chaque soir, sa feuille*) ; il en reste un garde-fou, la feuille d'un soir ordinaire doit donner une raison de la lire ;
   - « l'allure C partout » (9 nov.) : restreinte au match, aux portes et aux séries.
 - **Le 82-0, Sur table, l'exhibition** : aucun ne change.
 
@@ -166,7 +170,8 @@ Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), l
 
 ## 9. Les critères d'acceptation
 
-- [ ] Une saison se joue en au plus 70 touchers d'avance, séries exclues — `essai_run` (compté).
+- [ ] Chaque soir a sa feuille, et un soir ordinaire se passe en deux touchers au plus (la feuille, la fin du match) — `essai_run` (compté).
+- [ ] Une run se quitte et se reprend à la feuille de n'importe quel soir, la même graine rejoue le même match — `check_run`.
 - [ ] La ligue est une vraie ligue : 82 matchs par club, un classement qui se recompte, rien de simulé d'avance — `check_run`.
 - [ ] Échanger paie : le robot qui échange tient plus de cibles que son témoin, en paires, au-delà du bruit — `mesure_run`.
 - [ ] Aucun échange accepté n'est un vol, aucun refus sans sa raison — `check_echange` (à écrire).
@@ -181,21 +186,20 @@ Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), l
 
 0. **Le test d'un jour** : la saison de 82 jouée par les robots dans un script, avec le repêchage de 23 et un échange simple ; la durée, le banc, la difficulté. Rien du jeu touché. Rouge : on ne code pas.
 1. **Les maquettes** du bureau, à 390 × 844, deux ou trois directions ; JP tranche.
-2. **La ligue sous la run** : js/run.js réécrit, la cédule, le classement, la semaine, le bilan du quart.
+2. **La ligue sous la run** : js/run.js réécrit, la cédule, le classement, le soir et sa feuille, le bilan du quart.
 3. **Le repêchage de 23** au départ ; le camp part.
 4. **Le bureau** : les quatre tableaux ; les scènes de gestion partent.
 5. **Les gestes du DG** : l'échange, le ballottage, la date limite ; le rachat part.
 6. **Le réglage** sur 256 graines neuves, les règles de `.claude/rules/rogue.md` réécrites.
 
-`/revue-design docs/refonte-v30.md` passe après les réponses du § 10, avant la tranche 0.
+`/revue-design docs/refonte-v30.md` passe avant la tranche 0.
 
-## 10. À trancher par JP
+## 10. Tranché par JP (16 nov. 2026)
 
-1. **Le rythme des 82 soirs.** La semaine d'un toucher avec dix-huit gros matchs en scène (recommandé) ; ou chaque soir s'arrête sur sa feuille (82 feuilles du soir, la forme d'avant) ; ou chaque soir en une ligne, un toucher chacun.
-2. **Une saison ou plusieurs.** Une saison par run, le contrat est un salaire et « expire ou non » (recommandé : *une run ne dépend plus des autres*, 12 nov.) ; ou une carrière de trois saisons, avec la durée des contrats, l'entre-saison et un repêchage de recrues (le plus gros des deux, une run de plusieurs heures).
-3. **Les portes sur 82 matchs.** Après un gros match gagné seulement (recommandé) ; ou après chaque victoire (une quarantaine de signatures par saison) ; ou plus de portes du tout, l'alignement ne bouge que par l'échange et le ballottage.
-
-**Tranché le 16 nov., en cours de devis** : la carte de l'acte ne reste pas l'accueil ; la base est l'ancien mode refait du début (§ 1, § 3.4).
+1. **Le rythme des 82 soirs** : *chaque soir, sa feuille*. Écartés : la semaine d'un toucher avec dix-huit gros matchs en scène (recommandée), le soir en une ligne.
+2. **Une saison ou plusieurs** : *une saison*. Le contrat est un salaire et « expire ou non ». Écartée : la carrière de trois saisons.
+3. **Les portes** : *après un gros match gagné*. Écartés : après chaque victoire, plus de portes.
+4. **La base**, en cours de devis : l'ancien mode refait du début ; la carte de l'acte ne reste pas l'accueil (§ 1, § 3.4).
 
 ## Ce qui a été écarté
 
