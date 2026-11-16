@@ -1,6 +1,6 @@
 # V30 — Le Rogue redevient une saison, et tu en es le DG
 
-Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 16 nov. 2026. **Rien n'est codé.** JP a tranché trois questions avant le devis, donné la base (§ 1), puis tranché les trois dernières (§ 10). La suite : `/revue-design`, puis la tranche 0.
+Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 16 nov. 2026. **Rien n'est codé.** JP a tranché trois questions avant le devis, donné la base et la cible (§ 1), tranché les trois dernières (§ 10), puis, après la revue (§ 11), dix autres (§ 12). **Le § 12 prime sur ce qui le contredit plus haut** ; les § 3.1, 3.3 et 3.5 sont repris, le reste se reprend à l'extrait de sa tranche. La suite : la tranche 0.
 
 ## En une page
 
@@ -11,7 +11,7 @@ Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 16 nov
 **Ce qui est différent cette fois, et qui doit le rester :**
 
 1. **Chaque soir a sa feuille** (JP, 16 nov., § 3.3) : les 82 matchs passent par la feuille du soir et les temps forts de la V28, pas par un bouton « Jour suivant » sur une page. Le devis recommandait la semaine d'un toucher ; JP a choisi le soir, en sachant ce qu'il coûte (une saison de quatre à cinq heures).
-2. **Ce qu'on décide entre les matchs change l'alignement, pas un bonus sous le dé.** Un échange, un rappel, une réclamation au ballottage sortent un joueur et en entrent un autre : l'effet est celui d'une signature, que la V29 a rendu décisif par le banc. Les systèmes morts de la V3 à la V27 ajoutaient un pourcentage borné ; ceux-ci changent qui joue.
+2. **Chaque soir, tes lignes et ton gardien, et ça doit peser** (JP, 16 nov. : *lignes et gardiens, mais faire que ça a un impact*). Les systèmes de ligne de la V18 sont morts « dans le bruit » : celui-ci se mesure avant d'être codé (tranche 0), et rouge, on ne code pas. Ton club change par les cartes : les pochettes et les portes. **Aucun échange** (JP, 16 nov.).
 3. **Les gros matchs restent des scènes.** Le rival, l'élite, les séries : la feuille du soir, le match en temps forts, comme aujourd'hui. Environ dix-huit par saison, les cases de la carte d'aujourd'hui.
 4. **Le bureau est fait de tableaux.** La masse salariale, l'alignement, le classement, les meneurs : dense, lisible, triable. Les scènes illustrées de la direction C gardent le match et les portes ; elles quittent la gestion.
 
@@ -47,22 +47,23 @@ Ce qu'il a dit avant, et qui tient encore :
 
 ## 2. Ce que le joueur ressent
 
-**Le fantasme** : je suis le DG. J'ai bâti ce club de 23 sous le plafond, je le suis soir après soir au classement, et à la date limite je fais l'échange qui le mène aux séries.
+**Le fantasme** : je suis le DG. J'ai bâti ce club de 23 sous le plafond, je le suis soir après soir au classement, et c'est ma main sur les lignes et mes cartes qui le mènent aux séries.
 
 - **Le jour ordinaire** : la feuille du soir, le match en temps forts ou d'un toucher, puis le classement qui bouge et qui est en feu.
-- **Le pic** : le gros match en scène ; l'échange à la date limite ; le soir où la place en séries se joue.
+- **Le pic** : le gros match en scène ; la pochette qui sort le joueur qui manquait à ton banc ; le soir où la place en séries se joue.
 - **Les boucles** : le soir (la feuille, le match, le bureau) ; le quart de saison (le bilan du proprio, le marché) ; la saison (le repêchage, 82 matchs, la date limite, les séries).
 
 ## 3. Les règles du jeu
 
 Écrites pour la forme recommandée ; les trois questions du § 10 sont tranchées.
 
-### 3.1 Le départ : un repêchage de 23
+### 3.1 Le départ : un repêchage de 23, dans des clubs faibles
 
 - Le coach et son banc se choisissent comme aujourd'hui.
-- Puis **le repêchage** : la roulette sort un vestiaire, tu y piges un joueur, vingt-trois fois, sous le plafond. C'est le repêchage du 82-0 (js/repechage.js), dans le monde du Rogue (toutes les années ensemble, la bande de force du départ).
+- Puis **le repêchage** : la roulette sort un vestiaire, tu y piges un joueur, vingt-trois fois, sous le plafond. C'est le repêchage du 82-0 (js/repechage.js), dans le monde du Rogue (toutes les années ensemble).
+- **Dans des clubs du bas de l'échelle** (JP, 16 nov.), avec 4 M$ d'espace gardé sous le plafond : pas de Gretzky au soir 1, ton club grandit par les cartes.
 - Il remplace le club de départ donné et le camp de trois tours de portes.
-- Seuls tes signés comptent pour le banc (V29) : les vingt-trois le sont tous dès le départ. **Les seuils des pièces se remesurent** (§ 4).
+- Les vingt-trois comptent pour le banc ; **les seuils des pièces se reposent pour 23 joueurs** (§ 4, § 11 point 3), et la borne « aucune marche d'office » se juge sur le robot qui ne lit pas son banc au repêchage.
 
 ### 3.2 La ligue
 
@@ -70,38 +71,40 @@ Ce qu'il a dit avant, et qui tient encore :
 - Les dos-à-dos, les voyages, les séquences viennent de la cédule ; ils ne sont plus posés à la main.
 - **La cible** n'est plus « 8 points sur 14 » : c'est ta place au classement à la fin de chaque quart. Sous la ligne des séries au bilan d'un quart, le proprio retire un cœur. Deux cœurs.
 
-### 3.3 Le rythme : chaque soir, sa feuille
+### 3.3 Le soir : le bureau, la feuille, le match
 
-JP, 16 nov. : *chaque soir, sa feuille* (devant la semaine d'un toucher, recommandée, et le soir en une ligne).
+JP, 16 nov. : *chaque soir, sa feuille* ; *je veux un EHM, mais avec un côté rogue* ; *bureau EHM, match illustré* ; *lignes et gardiens, mais faire que ça a un impact*.
 
-- **Les 82 matchs passent par la feuille du soir** : l'adversaire, son jeu, tes lignes et leurs jambes, ta chance ; puis le match en temps forts, qu'on peut mener à la fin d'un toucher.
-- **Le bureau s'ouvre entre deux soirs** : c'est là que la gestion se fait, pas sur la feuille.
-- **Les gros matchs** (le rival de chaque quart, les élites, les affiches contre un club voisin au classement : environ dix-huit) sont des duels en trois périodes, avec leur intention ; les autres soirs se jouent d'un trait.
-- **Ce que ça coûte, dit à JP avant sa réponse** : une saison de quatre à cinq heures, et 82 soirs dont la plupart se ressemblent. Deux garde-fous, jugés à la tranche 0 et à l'essai :
-  - la feuille d'un soir ordinaire doit donner une raison de la lire (un dos-à-dos, un blessé qui revient, une lancée, un club voisin au classement), sinon elle se passe d'un toucher ;
-  - une run se quitte et se reprend n'importe quel soir, à sa feuille.
+- **L'accueil est le bureau** : ses tableaux, et en tête un fil de nouvelles court (une blessure, un retour, le bilan du proprio, une pochette gagnée). Ce n'est pas une boîte à vider : rien n'y attend une réponse.
+- **« Jouer ce soir »** ouvre la feuille du soir, illustrée comme aujourd'hui : l'adversaire et son jeu, la cédule (un dos-à-dos, un voyage), les jambes.
+- **Ta décision du soir** : tes lignes, qui s'assoit, quel gardien part. Les leviers que le moteur lit déjà : les jambes (un dos-à-dos coûte, la cédule en pose de vrais), le gardien fatigué et son auxiliaire, un blessé qui joue amoché ou s'assoit, les accords d'une ligne, la carrure face à leur jeu.
+- **Ça doit peser** : à la tranche 0, un robot qui règle ses lignes et son gardien chaque soir contre le même robot qui ne touche à rien, les mêmes saisons, en paires, en points sur 82. Sous le bruit, c'est le système de ligne de la V18 une deuxième fois : on le dit à JP avec les chiffres et on ne code pas.
+- **Le match** en temps forts, illustré, qu'on peut mener à la fin d'un toucher ; puis le résultat, le classement qui bouge, et retour au bureau.
+- **Les gros matchs** (le rival de chaque quart, les élites, les affiches contre un club voisin au classement : environ dix-huit) sont des duels en trois périodes, avec leur intention.
+- **Ce que ça coûte** : une saison de quatre à cinq heures, plus les séries. Une run se quitte et se reprend n'importe quel soir.
 
 ### 3.4 Le roguelike dans la saison
 
 La carte de l'acte part : l'accueil est le bureau, et la cédule dit qui on affronte. Chaque pièce du roguelike prend sa place dans la saison :
 
 - **L'acte est un quart de saison** (vingt ou vingt et un matchs). Au bout de chacun, **le rival** : le club le plus près de toi au classement parmi ceux de la fin du quart, annoncé au début du quart, et son match compte double au bilan.
-- **Les cœurs sont la confiance du proprio** : au bilan d'un quart, sous la ligne des séries, −1 ❤️ ; à zéro, tu es congédié et la run finit.
+- **Les cœurs sont la confiance du proprio, et il a plusieurs objectifs** (JP, 16 nov. : *avoir plusieurs objectifs, variables selon force de l'équipe, de la ligue, etc. S'assurer qu'un bon DG va réussir plus qu'un mauvais*). Au début de chaque quart, il en pose deux ou trois, calés sur la force de ton club dans cette ligue-là (les points du quart qu'un club de ta force fait, le rival, une mesure de jeu) ; au bilan, la majorité manquée coûte un cœur ; à zéro, tu es congédié. Le critère : en paires, le robot attentif perd moins de cœurs que le naïf, au-delà du bruit, quelle que soit la force du club de départ.
 - **L'élite** : un match de la cédule contre un club du haut, marqué d'avance ; tu choisis d'y mettre l'enjeu ou non (gagné, une pièce de banc et des jetons ; perdu, des sonnés et des jetons, jamais un cœur).
 - **La récompense qu'on choisit** : trois portes après un gros match gagné, une pièce de banc parmi trois au rival battu.
-- **Le banc** (V29) : tes cinq cases et leurs pièces, qui comptent les badges de tes joueurs ; un échange change donc ton banc, et c'est la raison de bâtir.
-- **Le marché** ouvre à la fin de chaque quart et la semaine de la date limite : une pièce de banc, les pochettes, une carte à monter.
+- **Les séries sont les vraies** (JP, 16 nov.) : les seize premiers du classement, ton adversaire selon ton rang, quatre rondes en 4 de 7, chaque match avec sa feuille ; hors des seize, la run finit. Leur banc grandit de ronde en ronde, comme à la V29.
+- **Le banc** (V29) : tes cinq cases et leurs pièces, qui comptent les badges de tes joueurs ; une carte qui entre change donc ton banc, et c'est la raison de bâtir.
+- **Le marché** est au bureau : les pochettes entre deux matchs ; à la fin de chaque quart, une pièce de banc parmi trois et une carte à monter.
 - **Les histoires** arrivent quand leur fait est vrai dans ta saison ; elles lisent de nouveau le classement et les meneurs de la ligue.
 - **La run** reste une run : une graine, une saison, la mort possible, les médailles à la fin, les exigences 🔺.
 
 ### 3.5 Les gestes du DG
 
-- **L'échange.** Tu proposes un joueur à un club de la ligue contre un des siens. Le club dit oui si ce qu'il reçoit vaut ce qu'il donne (la cote sur 20 et le salaire, corrigés par son besoin au poste et sa place au classement : un club hors course vend ses vétérans). Il dit pourquoi quand il refuse. Les clubs t'en proposent aussi.
-- **Le ballottage.** Un joueur qu'on retire de l'alignement passe au ballottage ; un blessé de longue durée ouvre une réclamation parmi les joueurs que les autres clubs y ont mis.
-- **La date limite**, vers le 60e match : après elle, plus d'échange. La dernière semaine avant elle, les offres doublent.
-- **Le contrat.** En une saison, un contrat est un salaire et un état : *qui expire* ou *sous contrat*. Un joueur qui expire coûte moins cher à obtenir à la date limite (la location).
-- **Les portes** restent après un gros match gagné seulement : la récompense de la victoire qui compte.
-- **Le rachat** d'aujourd'hui (la moitié du salaire de celui qui sort reste comptée) est remplacé par l'échange et le ballottage.
+- **Aucun échange** (JP, 16 nov. : *pas d'échange, juste packs de cartes*). Ton club ne change que par des cartes.
+- **Les pochettes** s'achètent en jetons au bureau, entre deux matchs. Deux sortes aujourd'hui (le Bronze, l'Époque) ; une sorte neuve se mesure d'abord (la règle du 11 nov.).
+- **Les trois portes** restent la récompense d'un gros match gagné (JP : *packs et portes*).
+- **Une carte qui entre sort un joueur.** Ce que son salaire libère n'est pas tranché (§ 12) : la tranche 0 joue les trois règles (0 %, 50 %, 100 %) sur les mêmes saisons.
+- **Le ballottage, seulement s'il le faut** (JP : *seulement si aucun remplacement possible*) : un blessé se remplace d'abord par un de tes réservistes ; si personne chez toi ne peut tenir sa case, le jeu s'arrête et tu réclames un vrai joueur pas cher parmi trois, le temps de la blessure.
+- **Pas de contrat à gérer** : un salaire, rien d'autre. **Pas de date limite** : sans échange, elle n'a rien à fermer.
 
 ### 3.6 Le bureau
 
@@ -120,16 +123,18 @@ Les maquettes en deux ou trois directions franchement différentes viennent apr�
 
 - **La durée** : une run d'aujourd'hui compte dix-huit matchs et les séries. quatre à cinq heures à un soir par feuille, acceptées par JP le 16 nov. ; la mesure dit le vrai chiffre.
 - **Le banc sur 23 signés** : les seuils des neuf pièces ont été posés pour un club qui signe un joueur à la fois ; avec vingt-trois signés d'entrée, la deuxième marche risque d'être d'office. Borne gardée de la V29 : chez qui ne bâtit pas, la deuxième marche au plus 60 % du temps.
-- **L'échange** : un robot qui échange doit faire mieux que le même robot qui n'échange pas, en paires, au-delà du bruit ; et aucun échange accepté ne doit être un vol (la valeur reçue au plus 15 % au-dessus de la valeur donnée, à régler).
+- **Les lignes et le gardien** : le robot qui les règle chaque soir contre le même robot qui n'y touche pas, en paires, en points sur 82 ; l'écart doit sortir du bruit.
+- **Le salaire libéré** par un joueur qui sort : 0 %, 50 % et 100 % joués sur les mêmes saisons (combien de cartes entrent, si le plafond se sent).
+- **Les objectifs du proprio** : calés sur la force du club dans sa ligue ; le robot attentif perd moins de cœurs que le naïf.
 - **La difficulté** : les bornes de JP du 14 nov. tiennent (la Coupe 4 à 12 fois sur 64, une run sur quatre qui explose), remesurées sur la saison.
 - **Les jetons** : gagnés sur 82 matchs au lieu de dix-huit ; les prix du marché se reposent.
 
 ## 5. Les cas limites
 
 - **Une run en cours** de la V29 : soldée à l'ouverture, ses médailles versées une fois, comme le 14 nov. (`VERSION_DE_LA_RUN`). Les clés de sauvegarde ne bougent pas.
-- **L'alignement sous 23** après une blessure et un échange : le rappel d'office d'un joueur au salaire minimum, jamais un trou.
+- **L'alignement sous 23** après une blessure : un réserviste, sinon le ballottage (§ 3.5), jamais un trou.
 - **Le plafond dépassé** par une offre : refusée avant d'être proposée, avec le montant qui manque.
-- **La date limite passée** : le téléphone se ferme, le ballottage reste.
+- **Une pochette ouverte sans espace sous le plafond** : la carte se refuse ou sort un joueur, selon la règle du salaire libéré (§ 12).
 - **Hors ligne** : rien de neuf à charger sauf les modules du bureau (`sw.js`).
 - **Le clavier et la manette** : un tableau se parcourt aux flèches, une ligne s'ouvre à la touche d'action.
 
@@ -150,7 +155,7 @@ La liste ferme se fige à l'extrait de chaque tranche, après les réponses du �
 - **La run de dix-huit matchs** (js/run.js, 983 lignes) : *RUN.MATCHS*, *RUN.CIBLES*, *RUN.CAMP*, *RUN.BANDE_DU_CAMP*, *RUN.RIVAUX* et *RUN.BANDES* comme tirage des adversaires → la ligue et sa cédule.
 - **La carte de l'acte** : *LARGEURS*, *RANGS_D_ARRETS*, *RANG_DE_L_ELITE*, *suivantes*, *casesOffertes*, *caseA*, *allerA*, *sceneCarte*, *sceneAnnonce* → la cédule et le bureau.
 - **Les dos-à-dos posés à la main** : *RANGS_DE_DOS_A_DOS*, *dosADosA* → la cédule.
-- **Le rachat** : *RUN.RACHAT*, *masseApres*, *sortantsPour*, *sceneEchange* (qui sort quand on signe) → l'échange et le ballottage.
+- **Le rachat** : *RUN.RACHAT* et *masseApres* restent ou partent selon la règle du salaire libéré (§ 12, après la tranche 0) ; *sceneEchange* (l'arrivant face à celui qui sort) reste.
 - **Le camp** : *sceneDepart* (le club donné), les tours de portes du camp → le repêchage de 23.
 - **La cible de l'acte** : *sceneFinDActe* et la jauge de points → le bilan du quart au classement.
 - **Les scènes de gestion illustrées** : *sceneLignes*, *sceneVestiaire*, *sceneBanc* → les tableaux du bureau.
@@ -164,19 +169,19 @@ La liste ferme se fige à l'extrait de chaque tranche, après les réponses du �
 - **Les coachs et leurs règles, les histoires et leurs voix.**
 - **`creerLigue`, `jouerJournee`, `bilanLigue`** (js/sim.js) et **le repêchage** (js/repechage.js) : ils existent pour le 82-0, la run les lit au lieu de les récrire.
 
-**Le test du zéro** : la ligue, le bureau et les échanges s'écrivent depuis le § 3 sans relire la carte ; js/run.js se repart d'un fichier neuf.
+**Le test du zéro** : la ligue, le bureau et le soir s'écrivent depuis le § 3 sans relire la carte ; js/run.js se repart d'un fichier neuf.
 
 ## 8. Les réglages
 
-Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), le nombre de gros matchs par quart (4 à 5), le jour de la date limite (55 à 65), la marge d'un échange accepté (0 à 15 %), le nombre d'offres reçues par quart (1 à 3), les seuils des pièces sur 23 signés.
+Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), le nombre de gros matchs par quart (4 à 5), la bande de force du repêchage, les seuils des pièces sur 23 joueurs, le nombre et la hauteur des objectifs du proprio, le prix des pochettes sur 82 matchs.
 
 ## 9. Les critères d'acceptation
 
 - [ ] Chaque soir a sa feuille, et un soir ordinaire se passe en deux touchers au plus (la feuille, la fin du match) — `essai_run` (compté).
 - [ ] Une run se quitte et se reprend à la feuille de n'importe quel soir, la même graine rejoue le même match — `check_run`.
 - [ ] La ligue est une vraie ligue : 82 matchs par club, un classement qui se recompte, rien de simulé d'avance — `check_run`.
-- [ ] Échanger paie : le robot qui échange tient plus de cibles que son témoin, en paires, au-delà du bruit — `mesure_run`.
-- [ ] Aucun échange accepté n'est un vol, aucun refus sans sa raison — `check_echange` (à écrire).
+- [ ] Régler ses lignes et son gardien paie : en paires, en points sur 82, au-delà du bruit — `mesure_run`.
+- [ ] Un bon DG garde ses cœurs plus souvent qu'un mauvais, quel que soit son club de départ — `mesure_run`.
 - [ ] Bâtir paie encore, et le banc n'a aucune marche d'office sur 23 signés — `mesure_run`, `check_pouvoirs`.
 - [ ] Les bornes du 14 nov. tiennent : la Coupe 4 à 12 fois sur 64, une run sur quatre qui explose — `mesure_run` (256 graines).
 - [ ] Chaque tableau du bureau tient en un écran à 390 px — `check_scene`.
@@ -186,12 +191,12 @@ Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), l
 
 ## Les tranches
 
-0. **Le test d'un jour** : la saison de 82 jouée par les robots dans un script, avec le repêchage de 23 et un échange simple ; la durée, le banc, la difficulté. Rien du jeu touché. Rouge : on ne code pas.
+0. **Le test d'un jour** : la saison de 82 jouée par les robots dans un script — le repêchage de 23 dans des clubs faibles, les lignes et le gardien réglés ou non, les trois règles du salaire libéré, les objectifs du proprio, les vraies séries ; la durée, le banc sur 23, la difficulté, les jetons. Un hasard par match de la cédule, pour que les paires tiennent. Rien du jeu touché. Rouge : on ne code pas.
 1. **Les maquettes** du bureau, à 390 × 844, deux ou trois directions ; JP tranche.
 2. **La ligue sous la run** : js/run.js réécrit, la cédule, le classement, le soir et sa feuille, le bilan du quart.
 3. **Le repêchage de 23** au départ ; le camp part.
 4. **Le bureau** : les quatre tableaux ; les scènes de gestion partent.
-5. **Les gestes du DG** : l'échange, le ballottage, la date limite ; le rachat part.
+5. **Les gestes du DG** : les lignes et le gardien du soir, les pochettes au bureau, le ballottage s'il le faut, les objectifs du proprio.
 6. **Le réglage** sur 256 graines neuves, les règles de `.claude/rules/rogue.md` réécrites.
 
 `/revue-design docs/refonte-v30.md` passe avant la tranche 0.
@@ -224,7 +229,24 @@ Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), l
 
 **Les critères sans preuve** : « échanger paie » (à juger en points sur 82, en paires), « une run sur quatre qui explose » (l'acte III n'existe plus), « aucun vol » (pas de formule), « une raison de lire la feuille » (aucun juge), la Coupe 4 à 12 (dépend du format des séries).
 
+## 12. Tranché par JP après la revue (16 nov. 2026)
+
+1. **La cible** : *un EHM, mais avec un côté rogue*.
+2. **Le soir ordinaire** : *lignes et gardiens, mais faire que ça a un impact* (devant : le club d'en face au téléphone, recommandé ; le marché ouvert ; rien). Se mesure à la tranche 0 avant tout code.
+3. **Le départ** : *23 dans des clubs faibles*, 4 M$ d'espace, les seuils du banc reposés.
+4. **Comme EHM** : *bureau EHM, match illustré* — le bureau en tableaux avec un fil de nouvelles court, la feuille et le match illustrés d'aujourd'hui.
+5. **Le proprio** : *plusieurs objectifs, variables selon la force de l'équipe, de la ligue ; s'assurer qu'un bon DG va réussir plus qu'un mauvais*.
+6. **Les échanges** : *pas d'échange, juste packs de cartes*. La date limite et le contrat partent avec eux.
+7. **Les joueurs neufs** : *packs et portes* — les pochettes en jetons au bureau, les trois portes après un gros match gagné.
+8. **Le ballottage** : *seulement si aucun remplacement possible*.
+9. **Les séries** : *les vraies, 16 clubs, 4 rondes* en 4 de 7.
+10. **Le salaire libéré par un joueur qui sort** : pas tranché. JP : *je sais pas si ça devrait être 0 % ou 100 %, peut-être varier selon situation* ; puis : *c'est pourquoi que ça pèse au juste ?* La raison, répondue le jour même : sans rien qui pèse, remplacer un joueur est gratuit, chaque carte meilleure entre sans coût et le plafond ne se gère qu'au repêchage (JP, 10 nov. : le plafond qui mord). La tranche 0 joue 0 %, 50 % et 100 % sur les mêmes saisons, et JP tranche sur les chiffres.
+
+**Reste de la revue, pour la tranche 0 ou les maquettes** : les jetons, les galons et les médailles à l'échelle de 82 matchs (mesurés, puis posés à JP) ; les tableaux plus longs qu'un écran (sur maquettes) ; le HUD ; le vocabulaire (« Bureau », « quart », « objectif »).
+
 ## Ce qui a été écarté
+
+- **L'échange avec les clubs de la ligue, la date limite, le contrat qui expire** : au premier jet de ce devis ; la revue y trouve un arbitrage gratuit (le bon badge à cote égale est toujours accepté) et un état qui n'existe pas dans les données ; JP, 16 nov. : *pas d'échange, juste packs de cartes*.
 
 - **Revenir à la V27 telle quelle** (le Bureau, la boîte, le jour à jour) : supprimée le 11 nov., pour les raisons du § 2 de la V28.
 - **Un mode de gestion à côté du Rogue** : proposé à JP le 16 nov., non retenu.
