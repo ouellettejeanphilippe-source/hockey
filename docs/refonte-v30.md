@@ -244,6 +244,8 @@ Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), l
 
 11. **L'interface** : *utiliser le skill anti algorithm et faire UI pensé comme par un humain avec padding, position des éléments, etc., tout doit avoir un sens, une logique* — les maquettes passent par `/hors-moyenne`, chaque bloc avec sa raison (tranche 1).
 
+12. **Les interdits d'avant** (la boîte de nouvelles de la V27, le match suivi en texte) : *ça dépend comment tu l'implémentes, c'était plus le comment que le concept le problème* ; *tous les trucs que t'as pas le droit, demande quand même car ça peut avoir changé*. Ils ne sont donc pas écartés : les maquettes de la tranche 1 en montrent une direction faite autrement (ce qui avait cloché : une boîte à vider avant de pouvoir avancer, des pages qui défilent), et JP juge sur l'écran. Le point 4 se lit ainsi : le bureau comme EHM est acquis, la forme du fil et du match se tranche sur maquettes.
+
 **Reste de la revue, pour la tranche 0 ou les maquettes** : les jetons, les galons et les médailles à l'échelle de 82 matchs (mesurés, puis posés à JP) ; les tableaux plus longs qu'un écran (sur maquettes) ; le HUD ; le vocabulaire (« Bureau », « quart », « objectif »).
 
 ## Ce qui a été écarté
