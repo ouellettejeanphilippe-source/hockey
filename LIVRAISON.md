@@ -29,7 +29,8 @@ Le devis : docs/refonte-v30.md. Rien n'est codé. La tranche 2 de la V29 (lire s
 
 - [x] **JP tranche trois questions** (16 nov.) : les 82 soirs, joués ; la gestion, les quatre ensemble (des gestes de DG, un bureau plutôt que des scènes, mon club dans le temps, un alignement de 23) ; puis la base : *reprend l'ancien mode, mais refait du début afin de mieux intégrer le rogue like dans la gestion*.
 - [x] **JP tranche les trois questions du § 10** (16 nov.) : chaque soir, sa feuille (la semaine d'un toucher était recommandée ; une saison de quatre à cinq heures) ; une saison par run ; les portes après un gros match gagné.
-- [ ] **`/revue-design docs/refonte-v30.md`**, avant la tranche 0.
+- [x] **`/revue-design docs/refonte-v30.md`** (16 nov.) — « À reprendre » : douze points au § 11 du devis (les 64 soirs ordinaires sans décision, le banc d'office sur 23 signés, la difficulté sans levier, le plafond qui ne mord plus, l'échange en arbitrage gratuit, les paires cassées par le flux d'un soir).
+- [ ] **JP tranche les questions de la revue**, puis le devis est repris.
 - [ ] **0 · Le test d'un jour** — la saison de 82 jouée par les robots dans un script, le repêchage de 23, un échange simple ; rien du jeu touché.
 - [ ] **1 · Les maquettes** du bureau, à 390 × 844 ; JP tranche.
 - [ ] **2 à 6** — la ligue sous la run, le repêchage de 23, le bureau, les gestes du DG, le réglage.

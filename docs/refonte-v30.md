@@ -203,6 +203,27 @@ Posés à la tranche 0, sur mesure : la longueur d'un quart (20 ou 21 matchs), l
 3. **Les portes** : *après un gros match gagné*. Écartés : après chaque victoire, plus de portes.
 4. **La base**, en cours de devis : l'ancien mode refait du début ; la carte de l'acte ne reste pas l'accueil (§ 1, § 3.4).
 
+## 11. La revue du 16 nov. 2026 — « À reprendre »
+
+`/revue-design`, quatre relecteurs en adversaires (`rogue-design`, `rogue-ux`, `rogue-equilibre`, `rogue-economie`). Les neuf parties y sont ; « Ce qui part » nomme ses noms en italique, à figer par tranche. Le verdict : **À reprendre**, la tranche 0 ne commence pas avant les réponses de JP. Ce qui casse, du plus grave :
+
+1. **Les 64 soirs ordinaires n'ont aucune décision** (§ 3.3). La feuille n'a plus de choix depuis la V29, le bureau ne reçoit qu'une à trois offres par quart : on feuillette 64 feuilles, la forme morte de la V27. Le critère « deux touchers au plus » écrit le feuilletage dans l'acceptation.
+2. **Le soir n'a pas de parcours** (§ 3.3, § 3.4, § 3.6) : le bureau est dit l'accueil, la run reprend à la feuille ; rien ne dit où est la porte du bureau, ni l'écran du résultat. Le HUD n'est pas redéfini (« l'acte et la case, la cible en points » n'existent plus).
+3. **Le banc sur 23 signés d'entrée** (§ 3.1). Mesuré à la main sur 400 clubs de 23 tirés du quart du haut, sans plafond : la deuxième marche tombe pour les passeurs 81 %, les tireurs 69 %, les deux sens 64 % (la borne est 60 %), la troisième des passeurs 36 % (borne 25 %) ; l'étouffoir, les cols bleus et la muraille n'atteignent presque jamais leur première (0 %, 8 %, 9 %). « Seuls tes signés comptent » ne distingue plus rien ; le build se décide au repêchage, et la courbe d'une run devient plate.
+4. **La difficulté n'a plus de levier** (§ 3.2). `ETAPES` par acte et `BANDES` n'ont pas de prise sur 31 clubs fixes. Sur 20 matchs, un club médian est sous la ligne une fois sur deux, un club bien repêché jamais : la cible est pile ou face, ou gratuite. Lu au classement cumulé, un mauvais premier quart congédie au soir 41 par inertie.
+5. **Le plafond ne mord plus** (§ 3.5). Le rachat part, le repêchage remplit jusqu'au plafond : zéro espace contre 4 M$ aujourd'hui, une porte ne montre que des joueurs au minimum.
+6. **L'échange est un arbitrage gratuit** (§ 3.5). Le club juge la cote et le salaire, toi les badges : le bon badge à cote égale est toujours accepté ; à +15 % de marge, la chaîne vole ; aucune limite de nombre ; la « valeur » n'a pas de formule. Et il n'a pas d'écran : d'où on l'ouvre, où se lit le refus, où arrivent leurs offres.
+7. **Les paires sont cassées** (§ 4). `jouerJournee` tire tous les matchs d'un soir d'un seul flux : un échange décale les dés des 31 autres clubs. Un hasard par match de la cédule touche le moteur ; le critère « le moteur ne bouge pas » se réécrit (le 82-0 se rejoue au but près, la ligue de la run a son propre tirage).
+8. **Le contrat et le ballottage sont décoratifs** en une saison à 23 pile : « expire » n'existe pas dans les données (un montant, aucune durée) et un rabais sans lendemain se prend toujours ; personne ne sort au ballottage.
+9. **L'économie posée pour 22 matchs** (§ 4) : environ 650 jetons gagnés pour 460 à dépenser, 200 en caisse contre 69 ; la prime du coach épuisée au 55e match ; les galons (10 buts, 20 points) gravés par tout le premier six ; les médailles par heure au tiers, la première Coupe à la troisième run vers douze heures de jeu ; les crans d'exigence n'ont plus de cible en points.
+10. **Quatre tableaux « en un écran » ne tiennent pas** (§ 3.6) : 23 lignes touchables font 1 012 px, 32 clubs 1 408 px, pour 726 px.
+11. **Pas codable sans deviner** : le format des séries et qui s'y qualifie, qui sort à une porte, les affiches « voisines », « les offres doublent ».
+12. **Le coût de mesure** : 60 à 70 s par run avec la jauge à chaque soir, cinq à six heures pour 256 graines et quatre robots ; la tranche 0 garde la jauge pour les gros matchs.
+
+**Les règles fermes défaites, à nommer au § 6** : « le plafond mord » (le rachat), « un match se joue isolé », « seuls tes signés comptent », « une scène, jamais une page », « signer, c'est l'échange », le contenu du HUD, les seuils des galons. **Le vocabulaire** : « Bureau » est dit parti ; acte, cible, cœur, signé, rachat, case et camp changent de sens ; quart, ballottage, date limite, rappel ne sont pas définis.
+
+**Les critères sans preuve** : « échanger paie » (à juger en points sur 82, en paires), « une run sur quatre qui explose » (l'acte III n'existe plus), « aucun vol » (pas de formule), « une raison de lire la feuille » (aucun juge), la Coupe 4 à 12 (dépend du format des séries).
+
 ## Ce qui a été écarté
 
 - **Revenir à la V27 telle quelle** (le Bureau, la boîte, le jour à jour) : supprimée le 11 nov., pour les raisons du § 2 de la V28.
