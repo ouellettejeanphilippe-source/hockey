@@ -69,6 +69,25 @@ Nos règles tiennent par-dessus (`.claude/rules/rogue.md`, « Les histoires, les
 - Pour une pièce faite pour être regardée (une carte de collection, une affiche, un écran de fin) : pas le fini que l'outil donne sans consigne (dégradé lisse, lueur douce, tout centré, tout au même poli). Une décision forte mène, prise dans le sujet, et le reste la sert. Ce qui n'a pas de travail part.
 - **Un défaut change l'allure, jamais l'usage** : ce qu'on doit lire, toucher ou reconnaître reste entier, net et à sa place.
 
+## 5b. Un écran, pensé comme un bon designer le ferait
+
+JP (16 nov. 2026) : *faire UI pensé comme par un humain avec padding, position des éléments, etc., tout doit avoir un sens, une logique* ; *pas juste prendre ta première idée de AI, mais réfléchir à comment un humain designerait, s'il était bon*. L'original ne dit rien d'un écran, sinon qu'il garde sa grille ; cette partie est à nous.
+
+**L'écran moyen, à nommer avant de dessiner** : tout en cartes arrondies de la même taille, le même espace partout, tout centré, un titre et un sous-titre à chaque bloc, une pastille par chiffre, une icône devant chaque mot, quatre tuiles de statistiques en tête, un gros bouton plein en bas. Il va à n'importe quelle application.
+
+Un bon designer part de ce que la personne vient faire là, et chaque chose de l'écran répond à une question :
+
+1. **La décision de l'écran, en une phrase.** Ce qu'on vient y décider ou y apprendre (« qui part devant le filet ce soir »). Ce qui ne sert pas cette phrase sort, ou descend d'un rang.
+2. **L'ordre est celui de la lecture**, pas celui des données : ce qu'on regarde d'abord en haut à gauche, ce qu'on touche en bas, sous le pouce. Un tableau se trie par défaut sur ce que la décision demande.
+3. **L'espace dit ce qui va ensemble.** Deux choses collées sont une seule idée ; un grand vide sépare deux idées. Donc peu de valeurs d'espace, chacune avec son sens (dans un groupe, entre deux groupes, entre deux parties), prises sur le pas de 8 px d'interface.md. Un espace qu'on ne peut pas expliquer par un regroupement se retire. Pas de filet ni de boîte là où l'espace suffit.
+4. **La taille dit l'importance, et il n'y a qu'un premier.** Un seul élément le plus gros par écran ; un chiffre qu'on lit chaque soir est plus gros que son étiquette ; ce qu'on consulte une fois par quart est petit ou derrière un toucher.
+5. **La densité suit l'usage.** Un tableau qu'on parcourt (23 joueurs, 32 clubs) est serré, aligné, les chiffres à droite en chiffres à chasse fixe ; un choix qu'on fait une fois respire. Les deux sur le même écran ne se ressemblent pas.
+6. **L'alignement est une promesse** : ce qui partage un bord se compare. Aligner deux choses qui ne se comparent pas ment ; ne pas aligner deux chiffres qu'on compare fatigue.
+7. **La couleur porte un sens ou se tait** : ton club, un danger, un gain. Jamais pour décorer, jamais deux sens pour une couleur.
+8. **Le pouce** : ce qu'on touche souvent est dans le bas de l'écran, à 44 × 44 au moins ; ce qui se regrette (sortir un joueur) est loin de ce qu'on touche sans regarder.
+
+**La légende d'une maquette** : sous chaque maquette, une ligne par bloc — pourquoi il est là, pourquoi à cette place, pourquoi cette taille, pourquoi cet espace autour. Un bloc sans ligne sort. « Pour équilibrer », « pour aérer », « pour faire propre » ne sont pas des raisons : une raison nomme ce que le joueur fait ou lit.
+
 ## 6. L'échappée devient une habitude
 
 Une sortie qui a marché une fois devient le nouveau choix sûr. Surveille, dans ce dépôt :
