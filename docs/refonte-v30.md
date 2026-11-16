@@ -32,6 +32,8 @@ Ses trois réponses, le même jour :
 - **Le départ** : d'abord *on garde la carte, on corrige* ; puis, en lisant le premier jet du devis : *en gros, reprend l'ancien mode, mais refait du début afin de mieux intégrer le rogue like dans la gestion*. La base est donc la saison et son bureau ; de la run en carte restent ses pièces de roguelike (le banc de la V29, les portes, le rival, l'élite, les cœurs, le marché), rangées dans la saison.
 - **« Refait du début »** : l'ancien mode n'est pas ressorti de l'historique de git. Il est supprimé depuis le 11 nov. (`ouvrirSaison`, ≈ 3 000 lignes, le Bureau en enveloppes, la boîte, les cinq portes) et il le reste ; ce qui revient, c'est sa forme (une ligue, 82 soirs, un bureau), écrite à neuf.
 
+- **La cible, en une phrase** (16 nov., après le devis) : *en gros, je veux un EHM, mais avec un côté rogue*. Eastside Hockey Manager : le bureau est l'accueil, tout se lit en tableaux denses et triables (l'effectif, les salaires, le classement, les meneurs, la cédule), on avance d'un soir par « Continuer », le match se suit en texte et en chiffres, et le DG échange, signe, rappelle et réclame. Le côté rogue : une run d'une saison, une graine, la mort possible (les cœurs du proprio), le banc et ses pièces, la récompense qu'on choisit, les médailles. Les maquettes de la tranche 1 se jugent là-dessus : est-ce que ça se lit comme EHM à 390 px ?
+
 Ce qu'il a dit avant, et qui tient encore :
 
 - *le jeu se joue tout seul, je n'ai pas beaucoup d'impact* (7 oct.) ; *le Rogue est brain dead* (16 oct.).
