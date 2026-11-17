@@ -1,0 +1,4 @@
+- **17 nov. · V30 : les crans d'exigence qui mordent**
+  - « Un point de plus par quart », la traduction du cran 1 de la V28, ne coûtait rien au bâtisseur (moins de 0,05 cœur par run). JP : *plus de points* ; mesurés de +2 à +7 sur 128 saisons, puis le cran 3 par-dessus.
+  - JP tranche : **+5 points par quart au cran 1, +10 au cran 3**. L'échelle : 0,30 cœur perdu par run, puis 0,43, 0,59 et 0,98 ; congédié 9, 12, 21 et 39 fois sur 128.
+  - `check_meta` lit les crans de la table ; `mesure_run` règle un cran et part du cran voulu (`CRANS_REGLES`, `DEPUIS_LE_CRAN`, `JUSQU_AU_CRAN`). Version 4.0.4.

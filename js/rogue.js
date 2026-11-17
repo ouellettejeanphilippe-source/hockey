@@ -136,19 +136,21 @@ export function payerEcussons(cleRun, etape, n, { bilan = null } = {}) {
  * médailles sont multipliées par 1 + `PRIME_EXIGENCE` par cran. La Coupe gagnée au plus haut cran ouvert ouvre le suivant.
  * Les deux leviers sont ceux qui coûtaient à la V28, mesurés un à un sur la run en carte (11 nov. 2026 : la cible, la force
  * des clubs ; moins d'espace, une porte de moins, un rachat plus dur ne coûtaient rien) : un cran qui ne coûte pas serait
- * une prime gratuite. À LA V30, la cible est devenue l'objectif de points du proprio, à chaque quart, et les trois crans
- * sont remesurés sur la saison (17 nov. 2026, `CRANS=1`, scripts/mesure_run.mjs, le bâtisseur, 128 graines) : 117,6 points
- * et 0,3 cœur perdu par run sans exigence ; au cran 1, les mêmes points et moins de 0,05 cœur de plus (un point de plus
- * par quart ne mord presque pas sur un bâtisseur qui tient ses objectifs de loin) ; au cran 2, 112,3 points et 0,1 cœur de
- * plus, 1 Coupe sur 128 au lieu de 5 ; au cran 3, 111,5 points. Les médailles : 104, 119, 118 et 130 par run, la prime
- * comprise — le cran 1 est presque une prime gratuite, à poser à JP (docs/refonte-v30-2.md § 12).
+ * une prime gratuite. À LA V30, la cible est devenue l'objectif de points du proprio, à chaque quart. Traduit tel quel
+ * (un point de plus par quart), le cran 1 ne coûtait plus rien : un bâtisseur tient ses points avec huit à dix d'avance,
+ * et un bilan n'est manqué qu'à deux objectifs sur trois. Mesuré sur 128 saisons du bâtisseur (17 nov. 2026, `CRANS=1`,
+ * scripts/mesure_run.mjs), les points de plus par quart au cran 1 : +1, moins de 0,05 cœur perdu de plus par run ; +2,
+ * 0,04 ; +3, 0,08 ; +5, 0,13 ; +7, 0,33. JP tranche : cinq au cran 1, dix au cran 3 (le sommet). L'échelle, cran par cran :
+ * 0,30 cœur perdu par run sans exigence (congédié 9 fois sur 128), puis 0,43 (12 fois), 0,59 (21 fois) et 0,98 (39 fois,
+ * dans les séries 70 % au lieu de 91) ; 109, 123, 120 et 120 médailles par run, la prime comprise : monter ne paie pas
+ * plus, ça se mérite.
  * Les huit crans de l'ancien Rogue (le prix des packs, le classeur, le barème, les contrôles) sont partis avec lui.
  */
 export const PRIME_EXIGENCE = 0.15;
 export const EXIGENCES = [
-  { cle: 'barre', nom: 'La barre monte', texte: 'un point de plus demandé par le proprio à chaque quart', court: 'Points +1', cible: 1 },
+  { cle: 'barre', nom: 'La barre monte', texte: 'cinq points de plus demandés par le proprio à chaque quart', court: 'Points +5', cible: 5 },
   { cle: 'clubs', nom: 'Des clubs plus forts', texte: 'une étape d\'édition de plus à chaque adversaire', court: 'Clubs +1', etapes: 1 },
-  { cle: 'barre2', nom: 'La barre monte encore', texte: 'deux points de plus demandés par le proprio à chaque quart', court: 'Points +2', cible: 1 },
+  { cle: 'barre2', nom: 'La barre monte encore', texte: 'dix points de plus demandés par le proprio à chaque quart', court: 'Points +10', cible: 5 },
 ];
 /* Ce que `n` crans exigent ensemble : chaque levier additionné, et le multiple des médailles. */
 export function exigencesDe(n = 0) {

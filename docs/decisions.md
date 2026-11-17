@@ -3961,3 +3961,23 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Ce qui a été écarté.** Monter les seuils n'importe quel soir : un « Chapeau » à quatre buts n'est plus un tour du chapeau, et le jeu blanc devenait un compte de saison. Garder tel quel (« ce sont des souvenirs ») : JP, *resserrer*.
 
 **Les juges.** `check_run` : un galon de match ne se grave qu'un soir de gros match, chacun à son seuil, tous recomptés. `mesure_run` juge maintenant la borne chez le bâtisseur, et compte des gravures (un joueur, une sorte, une fois par run), plus des répétitions. Ce qui s'est gravé avant (quarante buts, quatre-vingts points) se relit.
+
+## Les crans d'exigence qui mordent : cinq points au cran 1, dix au cran 3 (17 nov. 2026)
+
+**Le constat.** À la V28, le cran 1 montait la cible de l'acte d'un point, et les cibles tenues tombaient de 58 à 52 %. Traduit tel quel à la V30 (« un point de plus demandé par le proprio à chaque quart »), il ne coûtait plus rien : moins de 0,05 cœur perdu de plus par run, pour 15 % de médailles de plus. Deux raisons, lues dans la mesure : le bâtisseur tient son objectif de points avec huit à dix points d'avance aux trois premiers quarts (31 points faits pour 22 demandés), et un bilan n'est manqué qu'à deux objectifs sur trois.
+
+**Le levier, mesuré.** JP : *plus de points*. Les points de plus par quart au cran 1, le bâtisseur, 128 saisons, en paires contre le cran 0 (0,30 cœur perdu par run, congédié 9 fois) :
+
+| Points de plus par quart | Cœurs perdus de plus | Congédié (sur 128) | Dans les séries | Médailles par run |
+|---|---|---|---|---|
+| +1 (avant) | moins de 0,05 | — | 91 % | 119 |
+| +2 | 0,04 | 10 | 91 % | 124 |
+| +3 | 0,08 | 12 | 89 % | 123 |
+| +5 | 0,13 | 12 | 89 % | 123 |
+| +7 | 0,33 | 23 | 81 % | 118 |
+
+**JP tranche : +5 au cran 1** — il coûte autant que le cran 2 (des clubs plus forts : 0,16 cœur de plus) et laisse de la place au-dessus — **et +10 au cran 3**, le sommet. Le cran 3 mesuré par-dessus les deux premiers : à +7 en tout, 0,14 cœur de plus que le cran 2 (congédié 25 fois, 129 médailles) ; à +10, 0,40 de plus (congédié 39 fois sur 128, dans les séries 70 %, 120 médailles).
+
+**L'échelle retenue**, cran par cran : 0,30 cœur perdu par run, puis 0,43, 0,59 et 0,98 ; un bilan tenu 92, 89, 85 et 72 % du temps ; 109, 123, 120 et 120 médailles par run, la prime comprise — monter ne paie pas plus, ça se mérite, comme à la V28. La Coupe : 8 fois sur 128 aux crans 0 et 1, 6 fois aux crans 2 et 3.
+
+**Ce qui a été écarté.** Un cœur de moins au cran 1 : proposé, JP a préféré les points. +7 au cran 3 : une marche de la même hauteur que les deux premières, et un dernier cran qui ressemble au deuxième.
