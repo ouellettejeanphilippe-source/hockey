@@ -3,7 +3,7 @@
  *
  * Au boot : Continuer (s'il y a une partie), une carte par mode
  * (une action primaire), Exhibition, Parties, Options, Règles. Le Rogue
- * n'a pas de partie dans l'index : sa carte ouvre la run en carte
+ * n'a pas de partie dans l'index : sa carte ouvre sa saison
  * (js/run-jeu.js), « Continuer » quand une run est gardée.
  *
  * En partie : ce n'est plus le lanceur. Retour à la partie, Options,

@@ -10,7 +10,7 @@
  * tenues de Hades : ça ne change rien au jeu, ça dit le chemin parcouru.
  *
  * LA MONNAIE : les médailles 🏅. JP (oct. 2026) les voulait en jetons, à la boutique, *même monnaie que les autres packs* ;
- * la boutique est partie avec l'ancien Rogue, et dans une run en carte un jeton dépensé sur une couleur est un jeton de
+ * la boutique est partie avec l'ancien Rogue, et dans une run un jeton dépensé sur une couleur est un jeton de
  * moins pour une pièce de banc : l'habit y coûterait de la force. Les médailles ne paient que de la variété
  * (docs/refonte-v28-5.md § 3.3 et § 10 : à trancher par JP).
  *

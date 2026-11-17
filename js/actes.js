@@ -1,8 +1,7 @@
 /*
- * CE QUE LA RUN LIT D'UN ACTE ET D'UN CLUB (V27, tranches 2, 6 et 7 ; gardé par la V28, docs/refonte-v28.md § 8b). La run en
- * carte (js/run.js) joue des matchs isolés : la saison de 82 matchs coupée en actes, ses rivaux posés dans la cédule, le
- * calendrier placé et la boutique à ses nœuds sont partis (V28, tranche 4). Restent, purs :
- *   - les médailles d'un acte et le prix d'une pièce de banc ;
+ * CE QUE LA RUN LIT D'UN QUART ET D'UN CLUB (V27, tranches 2, 6 et 7 ; gardé par la V28 et par la V30, docs/refonte-v30-2.md).
+ * La saison du Rogue (js/run.js) y prend, purs :
+ *   - les médailles d'un quart (le bilan tenu, le rival battu) et le prix d'une pièce de banc ;
  *   - la récompense d'une élite, fixée sur ta vraie chance, et ce qu'elle coûte perdue (JP, 9 nov. 2026 : *Sonnés + jetons,
  *     pas de cœur*) ;
  *   - le jeu d'un club lu dans ses vraies stats, les lignes où il est fort, et son intention dominante.
@@ -11,9 +10,9 @@
 import { activeLineup } from './sim.js';
 import { hache } from './util.js';
 
-/* Les médailles d'un acte : l'acte passé, le rival battu. */
+/* Les médailles d'un quart : le bilan du proprio tenu, le rival battu. */
 export const MEDAILLES_ACTE = { passe: 10, rival: 15 };
-/* Une pièce de banc, au marché. */
+/* Une pièce de banc, au marché du quart. */
 export const PRIX_PIECE = 32;
 
 /*

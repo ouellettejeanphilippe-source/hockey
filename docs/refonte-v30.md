@@ -1,6 +1,6 @@
 # V30 — Le Rogue redevient une saison, et tu en es le DG
 
-Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 16 nov. 2026. **Rien n'est codé.** JP a tranché trois questions avant le devis, donné la base et la cible (§ 1), tranché les trois dernières (§ 10), puis, après la revue (§ 11), dix autres (§ 12). **Le § 12 prime sur ce qui le contredit plus haut** ; les § 3.1, 3.3 et 3.5 sont repris, le reste se reprend à l'extrait de sa tranche. La suite : la tranche 0.
+Le devis, au gabarit de `docs/gabarits/devis.md`, fait avec `/refonte` le 16 nov. 2026. **Livré le 17 nov. 2026** : l'extrait `docs/refonte-v30-2.md` fige les règles et la liste de ce qui part, et dit ce qui a changé depuis (les affiches que le joueur pose, la ligue sur ses propres dés, le rival compté une fois). JP a tranché trois questions avant le devis, donné la base et la cible (§ 1), tranché les trois dernières (§ 10), puis, après la revue (§ 11), dix autres (§ 12). **Le § 12 prime sur ce qui le contredit plus haut** ; les § 3.1, 3.3 et 3.5 sont repris, le reste se reprend à l'extrait de sa tranche. La suite : la tranche 0.
 
 ## En une page
 

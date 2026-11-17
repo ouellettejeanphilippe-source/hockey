@@ -114,7 +114,7 @@
   --sur-choisi: #0a0b0e;
   /* L'encre sur l'or. `--sur-or` est réécrit en ligne par js/game.js (l'encre sur la couleur vive du club, pour les cartons) : les briques lisent celle-ci, fixe. */
   --encre-sur-or: #191206;
-  /* LE ROGUE NEUF (V28, la direction C) : le ciel de nuit de la carte, ses cases, et les couleurs franches de ses boutons. */
+  /* LE ROGUE (V28, la direction C ; V30, le bureau) : le ciel de nuit, ses panneaux, et les couleurs franches de ses boutons. */
   --rn-nuit: #0b1426;
   --rn-ciel: #27467f;
   --rn-case: #16233f;
@@ -130,7 +130,6 @@
   --rn-vin: #6f263d;
   --rn-or: #ffd16a;
   --rn-vert: #3ddc84;
-  --rn-mauve: #c48cff;
   --rn-glace: #e6eef9;
   --rn-ligne-r: #d8323c;
   --rn-ligne-b: #2b5fc2;
@@ -5128,9 +5127,9 @@ body.sur-glace { overflow: hidden; }
 .sg-pause .sg-regles { position: static; max-width: none; max-height: 40vh; margin: 0; }
 .sg-options label small { color: var(--encre-3); font-size: var(--t-1); }
 
-/* == 9d. LE ROGUE NEUF (V28, docs/refonte-v28.md, docs/maquettes/v28-ecrans.html) : une scène plein écran, un plan fixe de 390 × 844 mis à l'échelle == */
-/* La direction C (JP, 9 nov. 2026) : le ciel de nuit, les chemins, les écussons en jetons, de gros boutons francs. Rien d'un site : ni en-tête, ni onglets,
-   ni page qui défile. Chaque bloc est posé à sa place par la scène (js/run-scenes.js) ; cette feuille ne porte que les formes. */
+/* == 9d. LE ROGUE (V28, docs/refonte-v28.md ; V30, docs/refonte-v30-2.md : la saison et son bureau) : une scène plein écran, un plan fixe de 390 × 844 mis à l'échelle == */
+/* La direction C (JP, 9 nov. 2026) pour le match, les portes et les séries : le ciel de nuit, les écussons, de gros boutons francs. Le bureau (JP, 16 nov. 2026 :
+   un EHM) : des tableaux denses, cinq onglets en bas. Chaque bloc est posé à sa place par la scène (js/run-scenes.js) ; cette feuille ne porte que les formes. */
 body.run-ouverte { overflow: hidden; }
 .rn-racine { position: fixed; inset: 0; z-index: 420; display: grid; place-items: center; overflow: hidden; background: var(--noir-pur); font-family: var(--display); color: var(--encre); }
 .rn-plan { position: relative; flex: none; width: 390px; height: 844px; overflow: hidden; transform: scale(var(--rn-k, 1));
@@ -5150,13 +5149,13 @@ body.run-ouverte { overflow: hidden; }
 .rn-gris { color: var(--rn-encre-2); }
 .rn-c { display: block; width: 100%; filter: drop-shadow(0 5px 8px color-mix(in srgb, var(--noir-pur) 60%, transparent)); }
 .rn-c .tc { width: 100%; }
-/* Le HUD : les cœurs dessinés, l'acte, la cible, les jetons, la pause. */
+/* Le HUD : les cœurs dessinés, le quart et le match, ton rang et tes points, les jetons, la pause. */
 .rn-hud { inset: 0 0 auto 0; height: 54px; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 0 12px; background: linear-gradient(color-mix(in srgb, var(--noir-pur) 70%, transparent), transparent); }
 .rn-coeurs { display: flex; gap: 4px; }
 .rn-co { width: 22px; height: 20px; flex: none; fill: var(--rn-rouge); }
 .rn-co.rn-vide { fill: color-mix(in srgb, var(--rn-rouge) 22%, var(--rn-nuit)); }
 .rn-acte { font: 800 var(--t-4)/1 var(--display); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
-.rn-acte small { margin-left: 5px; font-size: var(--t-1); letter-spacing: 0.08em; color: var(--rn-clair); }
+.rn-acte small { display: block; margin-top: 4px; font-size: var(--t-1); letter-spacing: 0.08em; color: var(--rn-clair); }
 .rn-cible { margin-left: auto; padding: 5px 10px; border: 1px solid var(--rn-bord); border-radius: 99em; background: color-mix(in srgb, var(--noir-pur) 50%, transparent); font: 800 var(--t-4)/1 var(--display); white-space: nowrap; }
 .rn-cible small { margin-left: 3px; font-size: var(--t-1); letter-spacing: 0.08em; color: var(--rn-encre-2); }
 .rn-cible.rn-on { border-color: var(--rn-vert); }
@@ -5213,48 +5212,51 @@ body.run-ouverte { overflow: hidden; }
 .rn-loto p { margin: 8px 0 0; font: 700 var(--t-1)/1.3 var(--display); text-transform: uppercase; letter-spacing: 0.03em; text-align: center; color: var(--rn-encre-2); }
 .rn-loto p b { display: block; font-size: var(--t-2); color: var(--encre); }
 .rn-loto .rn-on .rn-c, .rn-grille .rn-on .rn-c, .rn-etal .rn-on .rn-c { outline: 3px solid var(--blanc); outline-offset: 3px; border-radius: var(--r-1); }
-/* La carte de l'acte : le chemin, les cases, le tiroir. */
-.rn-chemin { inset: 0; width: 100%; height: 100%; }
-.rn-chemin path { fill: none; stroke: color-mix(in srgb, var(--rn-bord) 80%, var(--rn-clair)); stroke-width: 5; stroke-dasharray: 2 12; stroke-linecap: round; }
-.rn-chemin .rn-pris { stroke: var(--rn-clair); stroke-dasharray: none; }
-.rn-chemin .rn-offert { stroke: var(--blanc); stroke-dasharray: 2 10; }
-.rn-racine .rn-noeud { width: 48px; height: 48px; display: grid; place-items: center; transform: translate(-50%, -50%); border: 3px solid color-mix(in srgb, var(--rn-bord) 70%, var(--rn-clair)); border-radius: 50%; background: var(--rn-case); box-shadow: 0 4px 0 color-mix(in srgb, var(--rn-nuit) 50%, var(--noir-pur)); color: var(--encre); }
-.rn-noeud img, .rn-noeud > svg:not(.rn-ico) { width: 32px; height: 32px; }
-.rn-ico { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.rn-noeud.rn-fait { opacity: 0.6; }
-.rn-noeud.rn-fait::after { content: ""; position: absolute; right: -5px; bottom: -5px; width: 16px; height: 16px; border: 2px solid var(--rn-nuit); border-radius: 50%; background: var(--rn-vert); }
-.rn-noeud.rn-saute { opacity: 0.26; }
-.rn-noeud.rn-offert { border-color: var(--blanc); box-shadow: 0 0 0 5px color-mix(in srgb, var(--blanc) 13%, transparent), 0 0 22px var(--rn-bleu); }
-.rn-noeud.rn-choisi { width: 62px; height: 62px; border-color: var(--blanc); background: var(--rn-case-2); box-shadow: 0 0 0 6px color-mix(in srgb, var(--blanc) 17%, transparent), 0 0 30px var(--rn-bleu); }
-.rn-noeud.rn-choisi img, .rn-noeud.rn-choisi > svg:not(.rn-ico) { width: 42px; height: 42px; }
-.rn-noeud.rn-marche { border-color: var(--rn-or); background: color-mix(in srgb, var(--rn-or) 20%, var(--rn-nuit)); color: var(--rn-or); }
-.rn-noeud.rn-vest { border-color: var(--rn-vert); background: color-mix(in srgb, var(--rn-vert) 16%, var(--rn-nuit)); color: var(--rn-vert); }
-.rn-noeud.rn-hist { border-color: var(--rn-encre-2); background: color-mix(in srgb, var(--rn-encre-2) 14%, var(--rn-nuit)); }
-.rn-noeud.rn-elite { border-radius: var(--r-2); transform: translate(-50%, -50%) rotate(45deg); border-color: var(--rn-mauve); background: color-mix(in srgb, var(--rn-mauve) 22%, var(--rn-nuit)); }
-.rn-noeud.rn-elite img, .rn-noeud.rn-elite > svg { transform: rotate(-45deg); }
-.rn-noeud.rn-rival { width: 84px; height: 84px; border-color: var(--rn-rouge); background: color-mix(in srgb, var(--rn-rouge) 22%, var(--rn-nuit)); box-shadow: 0 0 0 6px color-mix(in srgb, var(--rn-rouge) 20%, transparent), 0 0 36px color-mix(in srgb, var(--rn-rouge) 55%, transparent); }
-.rn-noeud.rn-rival img, .rn-noeud.rn-rival > svg { width: 58px; height: 58px; }
-.rn-etq { transform: translateX(-50%); font: 700 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--rn-encre-2); white-space: nowrap; text-shadow: 0 2px 0 var(--noir-pur), 0 0 6px var(--rn-nuit); pointer-events: none; }
-.rn-tiroir { left: 0; right: 0; bottom: 0; padding: 12px 14px 14px; border-top: 2px solid var(--rn-bord); border-radius: calc(var(--r-2) * 1.8) calc(var(--r-2) * 1.8) 0 0; background: color-mix(in srgb, var(--rn-nuit) 55%, var(--noir-pur)); }
-.rn-tiroir .rn-deux { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin: 8px 0 10px; }
-.rn-racine .rn-opt { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 8px 10px; border: 2px solid var(--rn-bord); border-radius: var(--r-2); background: var(--rn-case); }
-.rn-racine .rn-opt.rn-on { border-color: var(--blanc); background: color-mix(in srgb, var(--rn-case-2) 70%, var(--rn-case)); }
-.rn-opt b { display: flex; align-items: center; gap: 8px; font: 800 var(--t-4)/1 var(--display); text-transform: uppercase; white-space: nowrap; }
-.rn-opt b img, .rn-opt b svg { width: 30px; height: 30px; flex: none; }
-.rn-opt > span { font: 700 var(--t-1)/1.25 var(--display); text-transform: uppercase; letter-spacing: 0.05em; color: var(--rn-encre-2); }
-.rn-opt > i { display: flex; flex-wrap: wrap; gap: 5px; font-style: normal; }
-/* Le rival, en écran de combat. */
-.rn-lui { top: 66px; right: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; text-align: right; }
-.rn-lui img, .rn-lui > svg { width: 120px; height: 120px; filter: drop-shadow(0 8px 0 color-mix(in srgb, var(--noir-pur) 50%, transparent)); }
-.rn-gros { font: 800 var(--t-7)/0.9 var(--display); text-transform: uppercase; text-shadow: 0 4px 0 var(--noir-pur); }
-.rn-sous { font: 800 var(--t-2)/1 var(--display); text-transform: uppercase; letter-spacing: 0.12em; color: color-mix(in srgb, var(--rn-rouge) 30%, var(--blanc)); }
-.rn-vs { font: 800 calc(var(--t-7) * 1.7)/1 var(--display); color: var(--rn-or); text-shadow: 0 6px 0 var(--rn-rouge-2), 0 12px 30px var(--noir-pur); transform: rotate(-12deg); }
-.rn-stat { display: grid; grid-template-columns: 34px 1fr 74px 1fr 34px; align-items: center; gap: 6px; padding: 5px 0; font: 800 var(--t-2)/1 var(--display); text-transform: uppercase; }
-.rn-stat > :last-child { text-align: right; }
-.rn-stat em { font-style: normal; font-size: var(--t-1); letter-spacing: 0.08em; text-align: center; color: var(--rn-encre-2); }
-.rn-bar { position: relative; height: 8px; border-radius: 99em; background: color-mix(in srgb, var(--blanc) 8%, transparent); }
-.rn-bar i { position: absolute; top: 0; bottom: 0; right: 0; border-radius: 99em; background: var(--rn-rouge-2); }
-.rn-bar.rn-bd i { right: auto; left: 0; background: var(--rn-clair); }
+/* Le repêchage : ton banc en lignes serrées, sous la fiche du joueur. */
+.rn-enlignes { display: flex; flex-direction: column; gap: 6px; font: 700 var(--t-2)/1 var(--display); text-transform: uppercase; letter-spacing: 0.03em; color: var(--rn-encre-2); }
+.rn-enlignes b { color: var(--encre); }
+/* L'ouverture du quart, le bilan, le bureau : un objectif du proprio par ligne — son nom, ce qu'il demande, où tu en es. */
+.rn-obj { display: grid; grid-template-columns: 82px 1fr auto; gap: 8px; align-items: center; min-height: 34px; padding: 3px 0; }
+.rn-obj + .rn-obj { border-top: 1px solid color-mix(in srgb, var(--blanc) 7%, transparent); }
+.rn-obj b { font: 800 var(--t-1)/1.15 var(--display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--rn-clair); }
+.rn-obj span { font: 700 var(--t-2)/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.03em; }
+.rn-obj em { font: 800 var(--t-4)/1 var(--display); font-style: normal; white-space: nowrap; color: var(--rn-encre-2); }
+.rn-obj.rn-on em { color: var(--rn-vert); }
+/* Le bureau (V30 ; JP : un EHM, avec un côté rogue) : les onglets en bas, le fil, le banc ; un tableau plus long que son cadre défile DANS son cadre, la scène jamais. */
+.rn-onglets { left: 0; right: 0; bottom: 0; height: 58px; z-index: 4; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 2px solid var(--rn-bord); background: color-mix(in srgb, var(--rn-nuit) 55%, var(--noir-pur)); }
+.rn-racine .rn-onglets button { display: grid; place-items: center; border-top: 3px solid transparent; font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--rn-encre-2); }
+.rn-racine .rn-onglets .rn-on { border-top-color: var(--rn-or); background: color-mix(in srgb, var(--rn-case-2) 45%, transparent); color: var(--blanc); }
+.rn-pile { display: flex; flex-direction: column; gap: 8px; }
+.rn-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.rn-fil2 { padding: 2px 12px; }
+.rn-fl, .rn-racine button.rn-fl { display: grid; grid-template-columns: 78px 1fr auto; gap: 8px; align-items: center; width: 100%; min-height: 32px; border-bottom: 1px solid color-mix(in srgb, var(--blanc) 7%, transparent); font: 700 var(--t-2)/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.03em; text-align: left; color: var(--encre); }
+.rn-racine button.rn-fl { min-height: 44px; }
+.rn-fl:last-child { border-bottom: 0; }
+.rn-fl b { font-size: var(--t-1); letter-spacing: 0.12em; color: var(--rn-clair); }
+.rn-fl i { font: 800 var(--t-5)/1 var(--display); font-style: normal; color: var(--rn-or); }
+.rn-racine .rn-versbanc { display: grid; grid-template-columns: 250px 1fr; gap: 12px; align-items: center; }
+.rn-versbanc .rn-t { font-size: var(--t-1); }
+.rn-cadre { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--rn-bord) transparent; border: 1px solid var(--rn-bord); border-radius: var(--r-2); background: color-mix(in srgb, var(--rn-nuit) 82%, transparent); }
+.rn-tab { font: 700 var(--t-2)/1 var(--display); text-transform: uppercase; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.rn-l, .rn-racine button.rn-l { display: grid; grid-template-columns: var(--cols); gap: 6px; align-items: center; width: 100%; min-height: 30px; padding: 0 8px; border-bottom: 1px solid color-mix(in srgb, var(--blanc) 6%, transparent); font: inherit; text-transform: inherit; letter-spacing: inherit; color: var(--encre); }
+.rn-racine button.rn-l { min-height: 44px; }
+.rn-l > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.rn-l > span:nth-child(n+3) { text-align: right; }
+.rn-l img, .rn-l svg { width: 18px; height: 18px; vertical-align: -4px; }
+.rn-l small { font-size: var(--t-1); }
+.rn-l i { font: 400 var(--t-2)/1 var(--corps); font-style: normal; color: var(--pal, var(--encre)); }
+.rn-tete { position: sticky; top: 0; z-index: 1; min-height: 26px; background: var(--rn-case); font-size: var(--t-1); letter-spacing: 0.1em; color: var(--rn-clair); }
+.rn-tri .rn-tete { min-height: 44px; }
+.rn-racine .rn-tete button { width: 100%; height: 44px; font: inherit; text-transform: uppercase; letter-spacing: inherit; text-align: right; color: inherit; }
+.rn-racine .rn-tete .rn-on { color: var(--rn-or); }
+.rn-unite { grid-template-columns: 84px 1fr auto; min-height: 26px; background: color-mix(in srgb, var(--rn-case) 60%, transparent); font-size: var(--t-1); letter-spacing: 0.1em; color: var(--rn-clair); }
+.rn-unite > span:nth-child(2) { text-align: left; color: var(--rn-vert); }
+.rn-coupe { grid-template-columns: 1fr; min-height: 20px; border-bottom: 2px solid var(--rn-or); font-size: var(--t-1); letter-spacing: 0.12em; color: var(--rn-or); }
+.rn-coupe > span { text-align: right; }
+.rn-l.rn-moi { background: color-mix(in srgb, var(--rn-bleu) 30%, transparent); }
+.rn-l.rn-on { background: color-mix(in srgb, var(--rn-or) 22%, transparent); box-shadow: inset 3px 0 0 var(--rn-or); }
+.rn-l.rn-non { opacity: 0.4; }
+.rn-series .rn-l > span:nth-child(3) { text-align: center; }
 /* La feuille du soir. */
 .rn-leurs { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: center; }
 .rn-lignes { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
@@ -5275,6 +5277,7 @@ body.run-ouverte { overflow: hidden; }
 .rn-filet { display: flex; gap: 6px; }
 .rn-racine .rn-filet button { flex: 1; min-width: 0; height: 44px; display: grid; place-items: center; border: 1px solid var(--rn-bord); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir-pur) 55%, transparent); font: 700 var(--t-1)/1.15 var(--display); text-transform: uppercase; letter-spacing: 0.04em; text-align: center; color: var(--rn-encre-2); }
 .rn-racine .rn-filet .rn-on { border-color: var(--rn-vert); color: var(--rn-vert); }
+.rn-filet b { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: inherit; }
 /* Le match : le tableau, la glace, le but, le fil des périodes. */
 .rn-score { inset: 0 0 auto 0; height: 92px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 16px; border-bottom: 2px solid var(--rn-bord); background: color-mix(in srgb, var(--noir-pur) 75%, transparent); }
 .rn-eq { display: flex; align-items: center; gap: 8px; font: 800 var(--t-4)/1 var(--display); text-transform: uppercase; }
@@ -5301,6 +5304,14 @@ body.run-ouverte { overflow: hidden; }
 .rn-fil i { position: absolute; top: 3px; bottom: 3px; width: 5px; border-radius: 99em; background: var(--rn-vert); }
 .rn-fil i.rn-eux { background: var(--rn-rouge); }
 .rn-fil u { position: absolute; top: -4px; bottom: -4px; width: 3px; background: var(--blanc); }
+/* Le résultat : le pointage, gros ; les autres pointages de la ligue. */
+.rn-final { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 12px; font: 800 calc(var(--t-7) * 1.4)/1 var(--display); }
+.rn-final img, .rn-final svg { width: 56px; height: 56px; }
+.rn-ailleurs > div { display: grid; grid-template-columns: 1fr 52px 1fr; gap: 6px; align-items: center; min-height: 26px; font: 700 var(--t-2)/1 var(--display); text-transform: uppercase; }
+.rn-ailleurs b { text-align: center; }
+.rn-ailleurs span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.rn-ailleurs span:last-child { text-align: right; }
+.rn-ailleurs img, .rn-ailleurs svg { width: 16px; height: 16px; vertical-align: -3px; }
 /* Les portes, la porte ouverte, l'échange. */
 .rn-portes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .rn-racine .rn-porte { position: relative; height: 316px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 6px 16px; border: 3px solid color-mix(in srgb, var(--rn-bord) 55%, var(--rn-clair)); border-radius: 3.5em 3.5em var(--r-1) var(--r-1); background: linear-gradient(color-mix(in srgb, var(--rn-case-2) 80%, var(--rn-bleu)), var(--rn-case)); box-shadow: inset 0 0 0 6px color-mix(in srgb, var(--rn-nuit) 80%, var(--rn-case)), 0 8px 0 color-mix(in srgb, var(--rn-nuit) 50%, var(--noir-pur)); text-align: center; color: var(--encre); }
@@ -5329,37 +5340,22 @@ body.run-ouverte { overflow: hidden; }
 .rn-sortants button { display: block; min-width: 0; }
 .rn-sortants .rn-on .rn-c { outline: 2px solid var(--blanc); outline-offset: 1px; border-radius: var(--r-1); }
 .rn-sortants .rn-non { opacity: 0.3; }
-/* Les Lignes : tes quatre trios en cartes, la carte tenue. */
+/* Le segment d'un onglet du bureau (Lignes · Banc, Classement · Meneurs · Cédule). */
 .rn-seg { display: flex; gap: 6px; }
 .rn-racine .rn-seg button { flex: 1; height: 44px; display: grid; place-items: center; border: 1px solid var(--rn-bord); border-radius: var(--r-1); background: var(--rn-case); font: 800 var(--t-2)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--rn-encre-2); }
 .rn-racine .rn-seg .rn-on { border-color: var(--blanc); background: var(--rn-case-2); color: var(--blanc); }
-.rn-ligne { display: grid; grid-template-columns: 18px repeat(3, 84px) 1fr; gap: 8px; align-items: center; margin-bottom: 10px; }
-.rn-ligne > b { writing-mode: vertical-rl; transform: rotate(180deg); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.14em; text-align: center; color: var(--rn-clair); }
-.rn-cs { position: relative; display: block; width: 100%; }
-.rn-cs.rn-leve .rn-c { opacity: 0.3; }
-.rn-ici { position: absolute; inset: -3px; display: grid; place-items: end center; padding-bottom: 5px; border: 3px dashed var(--rn-vert); border-radius: var(--r-1); background: color-mix(in srgb, var(--rn-vert) 15%, transparent); }
-.rn-ici span { padding: 3px 6px; border: 1px solid var(--rn-vert); border-radius: 99em; background: var(--noir-pur); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; white-space: nowrap; color: var(--rn-vert); }
-.rn-ici.rn-non { border-color: color-mix(in srgb, var(--blanc) 25%, transparent); background: transparent; }
-.rn-ici.rn-non span { border-color: color-mix(in srgb, var(--blanc) 25%, transparent); color: var(--rn-encre-2); }
-.rn-cote { min-width: 0; font: 700 var(--t-1)/1.2 var(--display); text-transform: uppercase; overflow-wrap: anywhere; color: var(--rn-encre-2); }
-.rn-cote b { display: block; font: 400 var(--t-2)/1.4 var(--corps); white-space: nowrap; }
-.rn-cote strong { display: block; margin-top: 4px; font: 800 var(--t-4)/1 var(--display); color: var(--rn-vert); }
-.rn-cote strong.rn-use { color: var(--attention); }
-/* Le marché, le vestiaire, l'histoire. */
+/* Le marché du quart, les pochettes, l'histoire. */
 .rn-etal { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; gap: 10px; }
 .rn-etal > * { display: block; min-width: 0; }
 .rn-etal p { margin: 5px 0 0; font: 700 var(--t-1)/1.2 var(--display); text-transform: uppercase; text-align: center; color: var(--rn-encre-2); }
 .rn-prix { height: 30px; margin-top: 7px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--rn-or); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir-pur) 60%, transparent); font: 800 var(--t-4)/1 var(--display); color: var(--rn-or); }
 .rn-prix.rn-non { border-color: var(--rn-bord); color: var(--rn-encre-3); }
-.rn-racine .rn-choix { display: block; padding: 12px 14px; border: 2px solid var(--rn-bord); border-radius: var(--r-2); background: color-mix(in srgb, var(--rn-nuit) 82%, transparent); color: var(--encre); }
-.rn-racine .rn-choix.rn-on { border-color: var(--blanc); background: color-mix(in srgb, var(--rn-case-2) 45%, var(--rn-nuit)); }
-.rn-avap { display: grid; grid-template-columns: 62px 1fr 30px 34px; gap: 8px; align-items: center; padding: 5px 0; font: 800 var(--t-2)/1 var(--display); text-transform: uppercase; }
 .rn-bulle { padding: 12px 14px; border-radius: var(--r-2) var(--r-2) var(--r-2) 0; background: var(--encre); font: 700 var(--t-4)/1.3 var(--corps); color: var(--rn-nuit); }
 .rn-voix { display: inline-block; margin-bottom: 8px; padding: 4px 10px; border-radius: 99em; background: var(--rn-or); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--encre-sur-or); }
 .rn-reps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 150px); justify-content: center; align-items: start; gap: 12px; }
 .rn-reps p { min-height: 52px; margin: 6px 0 8px; font: 700 var(--t-2)/1.3 var(--display); text-transform: uppercase; text-align: center; }
 .rn-racine .rn-prendre { width: 100%; height: 44px; display: grid; place-items: center; border-radius: var(--r-1); background: linear-gradient(color-mix(in srgb, var(--rn-or) 80%, var(--blanc)), color-mix(in srgb, var(--rn-or) 80%, var(--attention))); font: 800 var(--t-3)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--encre-sur-or); box-shadow: 0 4px 0 color-mix(in srgb, var(--rn-or) 45%, var(--noir-pur)); }
-/* La fin d'acte, les séries, la fin de la run, la pause. */
+/* Le bilan du quart, les séries, la fin de la run, la pause. */
 .rn-cellules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .rn-cellules div { padding: 10px 8px; border: 1px solid var(--rn-bord); border-radius: var(--r-2); background: color-mix(in srgb, var(--rn-nuit) 82%, transparent); text-align: center; }
 .rn-cellules b { display: block; font: 800 var(--t-6)/1 var(--display); }
@@ -5369,8 +5365,6 @@ body.run-ouverte { overflow: hidden; }
 .rn-ronde b { font: 800 var(--t-5)/1 var(--display); text-transform: uppercase; white-space: nowrap; }
 .rn-ronde b small { display: block; margin-top: 3px; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--rn-encre-2); }
 .rn-ronde.rn-on { border-color: var(--blanc); background: color-mix(in srgb, var(--rn-case-2) 45%, var(--rn-nuit)); }
-.rn-ronde.rn-fait { opacity: 0.6; }
-.rn-ronde.rn-avenir { border-style: dashed; opacity: 0.7; }
 .rn-pts { display: flex; gap: 5px; }
 .rn-pts i { width: 14px; height: 14px; border-radius: 50%; background: color-mix(in srgb, var(--blanc) 11%, transparent); }
 .rn-pts .rn-g { background: var(--rn-vert); }

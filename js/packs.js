@@ -1,13 +1,13 @@
 /**
  * LES POCHETTES (S79 ; taillées à la V28, tranche 5b, docs/refonte-v28-5.md § 3.8) — les deux packs de joueurs que le
- * marché d'une run en carte vend (js/run.js `POCHETTES`, `acheterLaPochette`) : le Bronze, trois vrais joueurs de toutes
- * les époques ; l'Époque, un seul joueur d'une décennie, Pilier ou mieux.
+ * bureau de la saison du Rogue vend, une de chaque sorte par quart (js/run.js `RUN.POCHETTES`, `acheterLaPochette`) : le
+ * Bronze, trois vrais joueurs de toutes les époques ; l'Époque, un seul joueur d'une décennie, Pilier ou mieux.
  *
  * JP : *une variété de packs de cartes randoms digne de HUT, FUT ou MLB the show mobile […] avec des vrais pull rates de
  * cartes de hockey, pokemon, etc* ; puis : *on limite les packs, tout en gardant des thématiques*. La boutique de l'ancien
  * Rogue en vendait dix-huit (d'équipe, d'année, de décennie, par talent, le trio, les étoiles, les légendes, le garanti,
  * le club, le coach, les métaux qui montaient) : partis avec elle. Une sorte de pochette neuve se mesurera d'abord dans
- * la run, que les robots n'achètent pas encore.
+ * la run : les robots habiles en ouvrent depuis la V30 (scripts/lib/run_robot.mjs `tenirLeBureau`).
  *
  * LE JOUEUR, PUIS SA FINITION (S80 ; JP : *packs selon les niveaux de joueurs, genre joueur moins bons plus fréquents*).
  * Une carte se tire sur deux axes indépendants, comme dans une vraie boîte : le JOUEUR, par son niveau dans sa vraie

@@ -443,7 +443,7 @@ function carteCouchee(c, serie, r) {
 const aPlat = carte => `<span class="carton-a-plat"><span class="carton-pivot">${carte}</span></span>`;
 
 /*
- * LA POCHETTE SCELLÉE (V25 B2 ; au marché de la run en carte, js/run-scenes.js) : une plaque de métal au métal de son
+ * LA POCHETTE SCELLÉE (V25 B2 ; au bureau de la saison du Rogue, js/run-scenes.js) : une plaque de métal au métal de son
  * pack (`--pk-a`, posé par l'écran), son icône au centre, son mot au pied. La pochette de récompense, qui luisait de sa
  * meilleure carte avant qu'on la déchire, est partie avec l'ancien Rogue (V28, tranche 4).
  */

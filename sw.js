@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-3.10.0';  // 3.10.0 : V29, tranche 1 ter — au marché, une carte se monte d'une édition (20 jetons, une par marché) ; à la fin, les jetons en caisse deviennent des médailles
+const VERSION = 'cap82-4.0.0';  // 4.0.0 : V30 — le Rogue redevient une saison : le repêchage de 23, une ligue de 32, 82 soirs, le bureau en tableaux, le proprio et ses objectifs, les vraies séries
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

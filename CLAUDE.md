@@ -2,13 +2,13 @@
 
 ## Le projet en une phrase
 
-Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (une run en carte, comme Slay the Spire : la carte de l'acte, la feuille du soir, le match en temps forts, trois portes ; trois actes et les séries ; ton coach et son banc de cinq pièces, le marché, le plafond qui mord), **Sur table**, l'exhibition et **Sur glace** (un match 2D à la manette, à la physique crédible et aux règles complètes : deux vrais clubs, l'IA des neuf autres, la passe, le hors-jeu, les punitions, les tirs de barrage).
+Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (une saison dont tu es le DG, *un EHM avec un côté rogue* : le repêchage de 23, une ligue de 32 et ses 82 soirs, le bureau en tableaux, la feuille du soir et le match en temps forts ; les objectifs du proprio et ses deux cœurs, les affiches que tu poses et leurs trois portes, ton coach et son banc de cinq pièces, le plafond qui mord, les vraies séries), **Sur table**, l'exhibition et **Sur glace** (un match 2D à la manette, à la physique crédible et aux règles complètes : deux vrais clubs, l'IA des neuf autres, la passe, le hors-jeu, les punitions, les tirs de barrage).
 
 Un site statique, publié sur GitHub Pages depuis main, web seulement (JP, 4 nov. 2026 : *oublie APK et exe, on développe maintenant web only* ; l'application Android et l'exe Windows sont partis). Aucun backend, aucune dépendance npm, aucun framework.
 
 ## Où on travaille
 
-Le Rogue, tout le temps, sauf si JP demande expressément un autre mode. Le 82-0, Sur table et l'exhibition sont faits : les stats, un peu de hasard, rien de plus. Une mesure, un équilibrage, un correctif se jugent d'abord en Rogue (`scripts/lib/run_robot.mjs`, `mesure_run`, `check_run`, `essai_run`). Le Rogue est la run en carte de la V28 (`docs/refonte-v28.md`) ; l'ancien Rogue (le Bureau, le jour à jour, la boutique) est parti le 11 nov. 2026.
+Le Rogue, tout le temps, sauf si JP demande expressément un autre mode. Le 82-0, Sur table et l'exhibition sont faits : les stats, un peu de hasard, rien de plus. Une mesure, un équilibrage, un correctif se jugent d'abord en Rogue (`scripts/lib/run_robot.mjs`, `mesure_run`, `check_run`, `essai_run`). Le Rogue est la saison de la V30 (`docs/refonte-v30.md`, `docs/refonte-v30-2.md`) : une ligue de 32, un bureau en tableaux, le banc de la V29 ; la run en carte de la V28 est partie le 17 nov. 2026, l'ancien Rogue (les enveloppes, la boutique à ses nœuds) le 11 nov.
 
 ## Où vivent les règles
 
@@ -81,7 +81,7 @@ js/                   le jeu, un module ES natif par sujet — la carte fichier 
 scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs, portraits.mjs, actions.mjs, recrues.mjs → data/recrues.json
                       la vraie saison recrue…), vérifications (check_*.mjs, smoke*.mjs, tout.mjs qui enchaîne les rapides), les essais à la
                       main (essai_*.mjs), calibration (calibrate_sim, mock_*, *_calibre, inferer_glace et inferer_gestes : ce que la ligue ne comptait pas),
-                      verdict.mjs (le juge partagé), lib/ (mort.mjs la mesure du code mort, run_robot.mjs les robots qui jouent la run en carte…) ;
+                      verdict.mjs (le juge partagé), lib/ (mort.mjs la mesure du code mort, run_robot.mjs les robots qui jouent la saison du Rogue…) ;
                       la liste complète : docs/structure-detaillee.md
 docs/                 l'historique et la référence (voir docs/README.md)
 ```
@@ -101,7 +101,7 @@ JP (11 oct. 2026) : Claude fusionne quand le CI est vert. Après avoir ouvert un
 
 ## Avant de pousser
 
-**Avant de pousser** (JP, 13 oct. : *c'est nécessaire de tester ici et en CI ?*) : ne relance pas ici ce que `verifier` refait. Ici, seulement `node scripts/tout.mjs` et `check_mort` (quelques secondes, un rouge en CI coûte une demi-heure), plus ce que le CI ne fait pas, quand le changement touche leur terrain : `essai_run` et `check_scene` (un serveur statique d'abord) pour les scènes ou la coquille du Rogue ; `node scripts/check_pouvoirs.mjs` (une minute) et `check_moments_si` quand on touche au banc, aux moments ou à la carte de l'acte ; `GRAINES=64 FILS=3 node scripts/mesure_run.mjs` quand un réglage de la run bouge (jamais plus de trois fils ici). Le smoke, smoke_table, `check_gros`, `check_graine`, `check_feuilles` : le CI.
+**Avant de pousser** (JP, 13 oct. : *c'est nécessaire de tester ici et en CI ?*) : ne relance pas ici ce que `verifier` refait. Ici, seulement `node scripts/tout.mjs` et `check_mort` (quelques secondes, un rouge en CI coûte une demi-heure), plus ce que le CI ne fait pas, quand le changement touche leur terrain : `essai_run` et `check_scene` (un serveur statique d'abord) pour les scènes ou la coquille du Rogue ; `node scripts/check_pouvoirs.mjs` (cinq minutes) et `check_moments_si` quand on touche au banc, aux moments ou au soir de la run ; `GRAINES=64 FILS=3 node scripts/mesure_run.mjs` quand un réglage de la run bouge (jamais plus de trois fils ici). Le smoke, smoke_table, `check_gros`, `check_graine`, `check_feuilles` : le CI.
 
 Chaque script, son temps et ses variables : `.claude/rules/tests.md`.
 

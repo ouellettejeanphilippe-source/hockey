@@ -1,45 +1,53 @@
 /*
- * LES ROBOTS DE LA RUN EN CARTE (V28, docs/refonte-v28.md § 5, § 10 ; V29, docs/refonte-v29.md § 9). Ils jouent une run
- * entière par les fonctions du jeu (js/run.js), jamais une copie : le camp et ses pièces, la carte de chaque acte, les
- * matchs, les portes et leurs relances, le marché, le vestiaire, le rival, les séries. scripts/mesure_run.mjs les mesure
- * (les Coupes, les cibles tenues), scripts/check_run.mjs lit leurs runs contre les invariants.
+ * LES ROBOTS DE LA SAISON (V30, docs/refonte-v30-2.md § 4, § 9). Ils jouent une run entière par les fonctions du jeu
+ * (js/run.js), jamais une copie : les pièces du départ, le repêchage de 23, les 82 soirs, les gros matchs et leurs portes,
+ * les pochettes, le bilan de chaque quart et son marché, les séries. scripts/mesure_run.mjs les mesure, scripts/check_run.mjs
+ * lit leurs runs contre les invariants.
  *
- *   « premier »  la première case offerte, le premier joueur de la première porte qui tient sous le plafond, la première
- *                pièce du camp ;
- *   le CHIFFRE   l'affiche la plus facile, le joueur à la meilleure cote, la première pièce offerte, sans rien lire ;
- *   le MALIN     le bâtisseur (V29) : la cote au prix de l'espace qu'elle prend (`PRIX_ESPACE`), PLUS ce que l'échange
- *                change au compte de son banc (`POIDS_DU_BANC` points de cote par point de pourcentage) ; il choisit qui
- *                sort, prend la pièce la plus avancée chez lui, remplace la moins avancée, relance les portes quand
- *                l'offre est faible, monte au marché la carte que l'écran propose d'abord (`aMonter`, js/run.js) ; l'affiche haute quand son club est nettement plus fort (`MARGE_HAUTE`), jamais un
- *                soir de dos-à-dos, l'élite de même ;
- *   le TÉMOIN    le malin, à une seule différence : il ne lit pas son banc aux portes (sa note est celle de la cote).
- *                C'est contre lui que « bâtir paie » se juge.
+ *   « premier »  le premier joueur offert qui tient, la première pièce, jamais l'enjeu d'une élite, le partant tous les soirs ;
+ *   le CHIFFRE   la meilleure cote au repêchage et aux portes, sans rien lire de son banc, le partant tous les soirs ;
+ *   le MALIN     le bâtisseur : au repêchage et aux portes, la cote PLUS ce que le joueur change au compte de son banc
+ *                (`POIDS_DU_BANC`) ; il choisit qui sort, prend la pièce la plus avancée chez lui, relance quand l'offre
+ *                est faible, ouvre des pochettes, monte au marché la carte que l'écran propose d'abord, choisit son
+ *                gardien chaque soir, prend l'enjeu d'une élite quand sa chance le vaut ;
+ *   le TÉMOIN    le malin, à une seule différence : il ne lit pas son banc au repêchage ni aux portes (sa note est celle
+ *                de la cote). C'est contre lui que « bâtir paie » se juge ;
+ *   le DISTRAIT  le malin, à une seule différence : il oublie son gardien (le partant tous les soirs). C'est contre lui
+ *                que « choisir son gardien paie » se juge.
  *
- * `espion(moment, S, x)` : appelé aux moments d'une run ('portes', 'relance', 'signe', 'montee', 'match', 'case', 'fin').
+ * `espion(moment, S, x)` : appelé aux moments d'une run ('repeche', 'quart', 'bureau', 'ballottage', 'feuille', 'match',
+ * 'portes', 'relance', 'signe', 'montee', 'pochette', 'histoire', 'bilan', 'fin').
  */
-import { getHiddenRatings, energieDe } from '../../js/sim.js';
+import { SLOTS, getHiddenRatings, jambesGardien } from '../../js/sim.js';
 import { groupeDuJoueur as groupeDe } from '../../js/niveaux.js';
 import { PIECES, MARCHES, CASES_DU_BANC, PIECE_DU_COACH, apportDe, compteDe } from '../../js/pieces.js';
 import { PRIX_PIECE } from '../../js/actes.js';
+import { tirerJoueursDuPack } from '../../js/packs.js';
+import { getPersonKey } from '../../js/sim.js';
 import {
-  RUN, creerLaRun, casesOffertes, caseA, allerA, jouerLeMatch, conclure, vestiaireDe, sortantsPour, masseApres, signer, passerLesPortes, relancerLesPortes,
-  prixDeLaRelance, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, prixDe, acheterLaPiece, avancer, reposer, monterUneCarte, allerAuMatchDeSerie,
-  chanceCeSoir, fixerLElite, forceDe, ouvrirSeance, figer, histoireDeLaCase, repondre, dosADosA, signesDe, tonBanc, monterAuMarche, aMonter,
+  RUN, creerLaRun, ouvrirSeance, figer, prendreLaPiece, pieceReglee, vestiaireDuRepechage, budgetDuTour, repecher, relancerLaRoulette, versLeBureau, allerAuMatch, reclamer, offresVues,
+  mettreLEnjeu, fixerLElite, poserLAffiche, matchNo, clubNo, choisirLeFilet, chanceCeSoir, jouerLeMatch, conclure, continuer, vestiaireDe, sortantsPour, masseApres, masseDe, signer, passerLesPortes, relancerLesPortes,
+  prixDeLaRelance, apresLesPortes, prixDe, apresLeBilan, acheterLaPiece, aMonter, monterAuMarche, quitterLeMarche, pochetteLibre, acheterLaPochette, histoireDuJour, repondre,
+  allerAuMatchDeSerie, signesDe, tonBanc, forceDe, rangDe, effectifDe,
 } from '../../js/run.js';
 import { SAISONS, shard } from './shards.mjs';
 
 export const DONNEES = { saisons: SAISONS, shard };
 /* Le malin paie la cote au prix de l'espace qu'elle prend : un point de cote vaut `PRIX_ESPACE` M$ d'espace. */
 const PRIX_ESPACE = Number(process.env.PRIX_ESPACE ?? 1.5);
-/* Ce que le bâtisseur donne à son banc : une signature moyenne vaut 22 points de cote et ≈ 2 points de chance, un point de pourcentage sur un canal ≈ 0,2 (mesurés le 13 nov. 2026), et la moitié de plus pour qui vise la marche d'après. */
+/* Ce que le bâtisseur donne à son banc : un point de pourcentage sur un canal, en points de cote (mesuré le 13 nov. 2026). */
 const POIDS_DU_BANC = Number(process.env.POIDS_DU_BANC ?? 3.3);
 /* Il relance les portes quand le meilleur échange offert vaut moins que `NOTE_FAIBLE` points de cote, en gardant de quoi payer une pièce au marché. */
 const NOTE_FAIBLE = Number(process.env.NOTE_FAIBLE ?? 40);
-/* Le malin ne cherche l'affiche haute que si son club est nettement plus fort (mesuré le 11 nov. 2026 : à force égale, il manquait sa cible de l'acte III). */
-const MARGE_HAUTE = 1.05;
+/* Au repêchage, jamais plus que `PART` fois sa part de ce qui reste : les premiers tours ne vident pas la caisse. */
+const PART = Number(process.env.PART ?? 2.5);
+/* L'enjeu d'une élite se prend à cette chance ou mieux. */
+const CHANCE_ENJEU = Number(process.env.CHANCE_ENJEU ?? 0.42);
 const v = p => getHiddenRatings(p).v;
 const COACHS = Object.keys(PIECE_DU_COACH);
-const habile = robot => robot === 'malin' || robot === 'temoin';
+const habile = robot => robot === 'malin' || robot === 'temoin' || robot === 'distrait';
+const batisseur = robot => robot === 'malin' || robot === 'distrait';
+const MINIMUMS = { F: 13, D: 7, G: 2 };
 
 /* ---------- le banc lu ---------- */
 /* Ce qu'une pièce rend à un compte, en % : sa marche, et la pente entre deux marches (ce qu'on lit pour s'y rendre). */
@@ -51,11 +59,40 @@ function pente(cle, n) {
   return p0 + (p1 - p0) * (n - n0) / (n1 - n0);
 }
 const avance = (S, cle, signes = signesDe(S)) => pente(cle, compteDe(cle, signes));
-/* Ce qu'un échange change à ton banc, en points de pourcentage sur la pente : celui qui arrive compte, celui qui sort ne compte plus (s'il comptait). */
-function gainDuBanc(S, c, comptes) {
+/* Ce qu'un joueur qui entre (et un qui sort) change à ton banc, en points de pourcentage sur la pente. */
+function gainDuBanc(p, sortant, comptes) {
   let g = 0;
-  for (const [cle, n, signes] of comptes) g += pente(cle, n + apportDe(cle, c.p) - (signes.has(c.sortant) ? apportDe(cle, c.sortant) : 0)) - pente(cle, n);
+  for (const [cle, n] of comptes) g += pente(cle, n + apportDe(cle, p) - (sortant ? apportDe(cle, sortant) : 0)) - pente(cle, n);
   return g;
+}
+
+/* ---------- le repêchage ---------- */
+/* Le groupe qui manque le plus à ton club, parmi ceux que le vestiaire offre. */
+function groupeVoulu(S, offerts) {
+  const n = { F: 0, D: 0, G: 0 };
+  for (const p of effectifDe(S)) n[groupeDe(p)]++;
+  const manque = g => (MINIMUMS[g] - n[g]) / MINIMUMS[g];
+  const g = Object.keys(MINIMUMS).filter(k => offerts.has(k)).sort((a, b) => manque(b) - manque(a))[0];
+  return manque(g) > 0 ? g : null;
+}
+function repecherUn(S, robot, espion) {
+  const R = S.R, aVenir = 23 - R.rep.tour - 1, reste = R.plafond - RUN.ESPACE - masseDe(S);
+  const choisir = () => {
+    const offres = vestiaireDuRepechage(S).filter(x => x.tient);
+    if (robot === 'premier' || !offres.length) return offres[0] || null;
+    const max = Math.min(budgetDuTour(S), PART * reste / (aVenir + 1));
+    const g = groupeVoulu(S, new Set(offres.map(x => groupeDe(x.p))));
+    const comptes = batisseur(robot) ? R.banc.map(cle => [cle, compteDe(cle, signesDe(S))]) : [];
+    const note = x => v(x.p) + POIDS_DU_BANC * gainDuBanc(x.p, null, comptes);
+    const ok = offres.filter(x => prixDe(S, x.p) <= max && (!g || groupeDe(x.p) === g));
+    return ok.sort((a, b) => note(b) - note(a))[0] || null;
+  };
+  let c = choisir();
+  // Rien qui tienne dans sa part, ou un vestiaire sans le groupe qu'il lui faut : un autre vestiaire, tant qu'il reste des relances.
+  while (!c && relancerLaRoulette(S)) c = choisir();
+  c = c || vestiaireDuRepechage(S).filter(x => x.tient).sort((a, b) => prixDe(S, a.p) - prixDe(S, b.p))[0];
+  if (!c || !repecher(S, c.p)) throw new Error(`repêchage coincé au tour ${R.rep ? R.rep.tour : '?'} (graine ${R.graine})`);
+  espion('repeche', S, c.p);
 }
 
 /* ---------- les portes ---------- */
@@ -77,9 +114,8 @@ function choisirAuxPortes(S, robot) {
   if (robot === 'premier') return candidats(S, portes[0])[0] || null;
   if (robot === 'chiffre') return portes.flatMap(x => candidats(S, x)).filter(c => c.gain > 0).sort((a, b) => b.gain - a.gain)[0] || null;
   // Le témoin et le malin jugent chaque échange, donc aussi qui sort ; le malin y ajoute ce que son banc y gagne.
-  const signes = signesDe(S), enSigne = new Set(signes);
-  const comptes = robot === 'malin' ? S.R.banc.map(cle => [cle, compteDe(cle, signes), enSigne]) : [];
-  const note = c => c.gain - PRIX_ESPACE * Math.max(0, (prixDe(S, c.p) - RUN.RACHAT * prixDe(S, c.sortant)) / 1e6) + POIDS_DU_BANC * gainDuBanc(S, c, comptes);
+  const comptes = batisseur(robot) ? S.R.banc.map(cle => [cle, compteDe(cle, signesDe(S))]) : [];
+  const note = c => c.gain - PRIX_ESPACE * Math.max(0, (prixDe(S, c.p) - RUN.RACHAT * prixDe(S, c.sortant)) / 1e6) + POIDS_DU_BANC * gainDuBanc(c.p, c.sortant, comptes);
   const b = portes.flatMap(x => echanges(S, x)).map(c => ({ ...c, note: note(c) })).sort((a, c) => c.note - a.note)[0];
   return b && b.note > 0 ? b : null;
 }
@@ -87,21 +123,20 @@ function choisirAuxPortes(S, robot) {
 function reglerLesPortes(S, robot, espion) {
   espion('portes', S);
   let c = choisirAuxPortes(S, robot);
-  // LA RELANCE (V29) : la relance gagnée par une défaite, ou payée en jetons — quand le meilleur échange offert est faible.
   while (habile(robot) && (!c || c.note < NOTE_FAIBLE)) {
     const prix = prixDeLaRelance(S);
     if (prix == null || (prix > 0 && S.R.jetons < prix + PRIX_PIECE) || !relancerLesPortes(S)) break;
     espion('relance', S, prix);
     c = choisirAuxPortes(S, robot);
   }
-  if (c && signer(S, c.p, c.sortant, { auMieux: true })) espion('signe', S, c); else passerLesPortes(S);
+  if (c && signer(S, c.p, c.sortant, { auMieux: true })) espion('signe', S, c); else if (!S.R.portes.pochette) passerLesPortes(S);
   apresLesPortes(S);
 }
 
 /* ---------- les pièces ---------- */
-/* La pièce qu'on prend, parmi les offertes : la première ; le témoin et le malin, la plus avancée chez eux. */
+/* La pièce qu'on prend, parmi les offertes : la première ; les habiles, la plus avancée chez eux. */
 const pieceLue = (S, robot, offertes) => (habile(robot) ? offertes.slice().sort((a, b) => avance(S, b) - avance(S, a))[0] : offertes[0]) || null;
-/* Une case libre : la pièce lue. Banc plein : le témoin et le malin sortent leur moins avancée, si la neuve l'est plus. */
+/* Une case libre : la pièce lue. Banc plein : les habiles sortent leur moins avancée, si la neuve l'est plus. */
 function prendreUnePiece(S, robot, offertes, poser) {
   const cle = pieceLue(S, robot, offertes);
   if (!cle) return;
@@ -110,95 +145,105 @@ function prendreUnePiece(S, robot, offertes, poser) {
   const sort = S.R.banc.slice().sort((a, b) => avance(S, a) - avance(S, b))[0];
   if (avance(S, sort) < avance(S, cle)) poser(S, cle, sort);
 }
-/* Une pièce offerte : celles du camp se prennent toujours ; ailleurs, « premier » passe. */
-function reglerLaPiece(S, robot) {
-  const o = (S.R.apres && S.R.apres.offertes) || [];
-  if (o.length && (robot !== 'premier' || S.R.phase === 'camp')) prendreUnePiece(S, robot, o, prendreLaPiece);
-  pieceReglee(S);
-}
 
-/* ---------- la carte ---------- */
-/* La case du rang : « premier » la première ; le chiffre, la plus facile ; le malin et le témoin, l'affiche haute si leur club la vaut. */
-function choisirLaCase(S, robot) {
-  const R = S.R, offertes = casesOffertes(S), cases = offertes.map(i => ({ i, c: caseA(S, R.rang, i) }));
-  if (robot === 'premier' || cases.length === 1) return cases[0].i;
-  if (cases[0].c.sorte === 'match' || cases[0].c.sorte === 'elite') {
-    const sansElite = cases.filter(x => x.c.sorte !== 'elite');
-    if (robot === 'chiffre') return (sansElite.find(x => !x.c.haute) || sansElite[0] || cases[0]).i;
-    const club = x => S.clubs.find(k => k.s === x.c.s && k.t === x.c.t);
-    // Un dos-à-dos se joue sur les jambes de la veille : ni l'élite ni l'affiche haute.
-    const las = dosADosA(cases[0].c, R.rang);
-    const elite = cases.find(x => x.c.sorte === 'elite');
-    if (elite && !las && R.coeurs >= 2 && forceDe(S) >= club(elite).force) return elite.i;
-    const haute = sansElite.find(x => x.c.haute);
-    return (haute && !las && forceDe(S) >= club(haute).force * MARGE_HAUTE ? haute : sansElite.find(x => !x.c.haute) || sansElite[0] || cases[0]).i;
-  }
-  // Un arrêt : le marché quand la pièce se paie et tient sur le banc ; le vestiaire quand le club est usé ou blessé ; sinon, pour
-  // qui bâtit, le marché encore s'il a de quoi monter une carte ; sinon l'histoire.
-  const joueurs = Object.values(S.roster).filter(Boolean);
-  const use = joueurs.reduce((a, p) => a + energieDe(p), 0) / joueurs.length < 85 || S.toi.injured.size > 0;
-  const veut = R.jetons >= PRIX_PIECE && R.banc.length < CASES_DU_BANC ? 'marche' : use ? 'vestiaire' : habile(robot) && R.jetons >= RUN.MONTER ? 'marche' : 'histoire';
-  return (cases.find(x => x.c.sorte === veut) || cases[0]).i;
+/* ---------- le soir ---------- */
+/* Le gardien du soir : l'auxiliaire quand un départ de plus userait le partant, ou le second soir d'un dos-à-dos (la tranche 0). */
+function choisirSonGardien(S) {
+  const [partant, aux] = SLOTS.filter(s => s.group === 'G' && !s.scratch).map(s => S.roster[s.i]).filter(p => p && !S.toi.injured.has(p));
+  if (!partant || !aux) return;
+  const c = S.R.soir, use = jambesGardien({ ...partant, _suite: (partant._suite || 0) + 1 }) < 100 || (c.dos && c.sorte !== 'serie');
+  choisirLeFilet(S, use && c.sorte !== 'serie' ? 'aux' : 'partant');
 }
-/* Un match, joué et compté. */
-function jouer(S, espion) {
-  const R = S.R;
-  if (R.case.sorte === 'elite') fixerLElite(S, (x => x.v / x.n)(chanceCeSoir(S, { n: 60 })));
+/*
+ * TES AFFICHES (JP, 17 nov. 2026 : tu les poses) : « premier » et le chiffre les posent aux premiers soirs ordinaires du
+ * quart ; les habiles choisissent leurs soirs — parmi les soirs ordinaires qui restent au quart, les clubs les plus hauts
+ * qu'ils peuvent battre (leur force au plus la tienne), jamais sur leur propre dos-à-dos s'il y a mieux.
+ */
+function veutLAffiche(S, robot) {
+  const R = S.R, Q = R.quart, c = R.soir;
+  if (c.sorte !== 'match' || Q.affiches <= 0) return false;
+  if (!habile(robot)) return true;
+  const reste = [];
+  for (let k = c.k; k < Q.fin; k++) if (!Q.gros[k]) reste.push(matchNo(S, k));
+  if (reste.length <= Q.affiches) return true;
+  const moi = forceDe(S), note = m => { const club = clubNo(S, m.i); return (club.force <= moi ? 1 : 0) + club.rang * (club.force <= moi ? 1 : -1) - (m.dos ? 0.5 : 0) + (m.leurDos ? 0.05 : 0); };
+  return reste.slice().sort((a, b) => note(b) - note(a)).slice(0, Q.affiches).some(m => m.k === c.k);
+}
+function jouer(S, robot, espion) {
+  const c = S.R.soir;
+  if (veutLAffiche(S, robot)) poserLAffiche(S, true);
+  if (c.sorte === 'elite') {
+    const r = habile(robot) && !c.dos ? chanceCeSoir(S, { n: 60 }) : null, p = r ? r.v / r.n : 0;
+    if (r) fixerLElite(S, p);
+    mettreLEnjeu(S, p >= CHANCE_ENJEU);
+  }
+  if (robot === 'malin' || robot === 'temoin') choisirSonGardien(S);
   const res = jouerLeMatch(S);
   conclure(S, res);
   espion('match', S, res);
 }
+/* Au bureau : une histoire à répondre ; pour les habiles, une pochette quand la caisse garde de quoi payer la pièce du marché. */
+async function tenirLeBureau(S, robot, espion) {
+  const R = S.R, h = histoireDuJour(S);
+  if (h) {
+    const sur = h.H.options.find(o => !o.pari || o.pari.chance >= 0.5) || h.H.options[0];
+    repondre(S, h, (habile(robot) ? sur : h.H.options[0]).cle); espion('histoire', S, h);
+  }
+  if (!habile(robot)) return false;
+  for (const cle of ['j:epoque', 'j:bronze']) {
+    if (!pochetteLibre(S, cle) || R.jetons < RUN.POCHETTES[cle] + PRIX_PIECE) continue;
+    const vus = new Set(R.vus);
+    const r = await tirerJoueursDuPack(cle, { graine: `${R.graine}:pochette`, n: R.achats, params: { poste: 'F' }, saisons: SAISONS, shard, libre: p => !vus.has(getPersonKey(p)) });
+    if (r.cartes.length && acheterLaPochette(S, cle, r.cartes.map(x => x.p))) { espion('pochette', S, cle); return true; }
+  }
+  return false;
+}
 
 /*
  * UNE RUN ENTIÈRE. `relireA` (les invariants) : après ce nombre de matchs, la run est gardée, relue de sa sauvegarde
- * (`ouvrirSeance`) et continue : elle doit finir pareil. Rend { robot, graine, coach, actes, coeurs, fin, rondes,
- * coupe, signatures, relances, payees, forces, banc, jetons, s, R }.
+ * (`ouvrirSeance`) et continue : elle doit finir pareil. Rend { robot, graine, coach, quarts, coeurs, fin, rondes, coupe,
+ * pts, rang, signatures, relances, payees, montees, pochettes, forces, banc, bancDuDepart, jetons, s, R }.
  */
-export function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null, exigence = 0 } = {}) {
+export async function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null, exigence = 0 } = {}) {
   const t0 = Date.now();
   const coach = COACHS[Math.floor(COACHS.length * (Number(graine) * 0.6180339887 % 1))];
-  let S = creerLaRun(donnees, { graine: `v28:${graine}`, coach: { cle: coach }, exigence });
-  const forces = [forceDe(S)];
-  let signatures = 0, relances = 0, payees = 0, montees = 0, relue = false;
-  const compte = (m, s, x) => { if (m === 'signe') signatures++; if (m === 'relance') { relances++; payees += x; } if (m === 'montee') montees += x; espion(m, s, x); };
-  for (let garde = 0; S.R.phase !== 'fin' && garde < 400; garde++) {
+  let S = creerLaRun(donnees, { graine: `v30:${graine}`, coach: { cle: coach }, exigence });
+  const forces = [];
+  let signatures = 0, relances = 0, payees = 0, montees = 0, pochettes = 0, relue = false, bancDuDepart = null;
+  const compte = (m, s, x) => { if (m === 'signe') signatures++; if (m === 'relance') { relances++; payees += x; } if (m === 'montee') montees += x; if (m === 'pochette') pochettes++; espion(m, s, x); };
+  for (let garde = 0; S.R.phase !== 'fin' && garde < 2000; garde++) {
     const R = S.R;
-    if (relireA != null && !relue && R.phase === 'carte' && R.matchs.length >= relireA) {
+    if (relireA != null && !relue && R.phase === 'bureau' && R.matchs.length >= relireA) {
       relue = true;
       S = ouvrirSeance(donnees, JSON.parse(JSON.stringify(figer(S))));
       continue;
     }
-    if (R.phase === 'camp' || R.phase === 'portes') {
-      // Les pièces offertes d'abord (au camp, deux de suite), puis les portes.
-      for (let k = 0; S.R.apres && (S.R.apres.offertes || []).length && k < 4; k++) reglerLaPiece(S, robot);
-      reglerLesPortes(S, robot, compte);
-    } else if (R.phase === 'annonce') { forces.push(forceDe(S)); R.phase = 'carte'; }
-    else if (R.phase === 'carte') { allerA(S, choisirLaCase(S, robot)); compte('case', S); }
-    else if (R.phase === 'feuille') jouer(S, compte);
-    else if (R.phase === 'finacte') { reglerLaPiece(S, robot); apresLaFinDActe(S); }
+    if (R.phase === 'pieces' || R.phase === 'piece') {
+      const o = (R.apres && R.apres.offertes) || [];
+      if (o.length && (robot !== 'premier' || R.phase === 'pieces')) prendreUnePiece(S, robot, o, prendreLaPiece);
+      pieceReglee(S);
+    } else if (R.phase === 'repechage') repecherUn(S, robot, compte);
+    else if (R.phase === 'quart') {
+      if (R.quart.n === 0) bancDuDepart = tonBanc(S).map(x => ({ cle: x.cle, n: x.n, marche: x.marche }));
+      forces.push(forceDe(S)); compte('quart', S); versLeBureau(S);
+    } else if (R.phase === 'bureau') { compte('bureau', S); if (!(await tenirLeBureau(S, robot, compte))) allerAuMatch(S); }
+    else if (R.phase === 'ballottage') { compte('ballottage', S); reclamer(S, offresVues(S).slice().sort((a, b) => v(b) - v(a))[0] || null); }
+    else if (R.phase === 'feuille') { compte('feuille', S); jouer(S, robot, compte); }
+    else if (R.phase === 'resultat') continuer(S);
+    else if (R.phase === 'portes') reglerLesPortes(S, robot, compte);
+    else if (R.phase === 'bilan') { compte('bilan', S, R.quarts.at(-1)); apresLeBilan(S); }
     else if (R.phase === 'marche') {
       const M = R.marche;
       if (robot !== 'premier' && !M.piece && R.jetons >= PRIX_PIECE) prendreUnePiece(S, robot, M.pieces, acheterLaPiece);
-      // Une carte à monter (V29, tranche 1 ter) : le bâtisseur et son témoin prennent celle que l'écran propose d'abord (`aMonter`).
       if (habile(robot)) { const c = aMonter(S)[0]; if (c && monterAuMarche(S, c.p)) compte('montee', S, 1); }
-      avancer(S);
-    } else if (R.phase === 'vestiaire') {
-      const joueurs = Object.values(S.roster).filter(Boolean);
-      const use = joueurs.reduce((a, p) => a + energieDe(p), 0) / joueurs.length < 85 || S.toi.injured.size > 0;
-      const meilleur = joueurs.filter(p => groupeDe(p) !== 'G').sort((a, b) => v(b) - v(a))[0];
-      if (use || robot === 'premier' || !monterUneCarte(S, meilleur)) reposer(S);
-    } else if (R.phase === 'histoire') {
-      // Une histoire : le malin et le témoin évitent le dé à moins d'une chance sur deux ; les autres prennent la première carte.
-      const h = histoireDeLaCase(S);
-      if (!h) avancer(S);
-      else { const sur = h.H.options.find(o => !o.pari || o.pari.chance >= 0.5) || h.H.options[0]; repondre(S, h, (habile(robot) ? sur : h.H.options[0]).cle); compte('histoire', S, h); }
-    }
-    else if (R.phase === 'series') { forces.push(forceDe(S)); allerAuMatchDeSerie(S); }
+      quitterLeMarche(S);
+    } else if (R.phase === 'series') { if (!R.series.moi.w && !R.series.moi.l) forces.push(forceDe(S)); allerAuMatchDeSerie(S); }
     else throw new Error(`phase inconnue : ${R.phase}`);
   }
+  if (S.R.phase !== 'fin') throw new Error(`la run ne finit pas (graine ${graine}, phase ${S.R.phase})`);
   compte('fin', S);
   const R = S.R;
-  return { robot, graine, coach, actes: R.actes, coeurs: R.coeurs, fin: R.fin, rondes: R.fin ? R.fin.rondes : 0, coupe: !!(R.fin && R.fin.coupe),
-    signatures, relances, payees, montees, forces: [...forces, forceDe(S)], banc: tonBanc(S).map(x => ({ cle: x.cle, n: x.n, marche: x.marche })), jetons: R.jetons,
+  return { robot, graine, coach, quarts: R.quarts, coeurs: R.coeurs, fin: R.fin, rondes: R.fin.rondes, coupe: !!R.fin.coupe, pts: R.fin.pts, rang: R.ligue ? rangDe(S, 0) : null,
+    signatures, relances, payees, montees, pochettes, forces: [...forces, forceDe(S)], banc: tonBanc(S).map(x => ({ cle: x.cle, n: x.n, marche: x.marche })), bancDuDepart, jetons: R.jetons,
     s: Math.round((Date.now() - t0) / 1000), R };
 }

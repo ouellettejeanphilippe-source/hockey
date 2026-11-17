@@ -211,7 +211,7 @@ function celluleJoueur(p, s, { ecart, penTag }) {
  * LA CASE D'ABORD LISIBLE (S78 ; JP : *améliorer l'alignement pour que l'information soit plus claire*) : elle garde ce qui
  * DÉCIDE d'un alignement, chacun une fois — la bande (sa case, son salaire), son nom, sa production, les verdicts (sa zone,
  * ▼ ▲ hors de sa zone, ↔ hors position, ses icônes). Le reste est à sa fiche, à un toucher. La case en carte, debout, était au
- * Rogue d'avant : la run en carte a ses Lignes (js/run-scenes.js).
+ * Rogue d'avant : la saison du Rogue a son alignement en tableau (js/run-scenes.js `pageAlignement`).
  */
 /** Le socle d'une case : sa classe, son rang dans SLOTS (le glisser-déposer le relit, `permuter`), son club, son édition. */
 function socleDeCase(s, p) {

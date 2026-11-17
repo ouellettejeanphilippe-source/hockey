@@ -39,8 +39,8 @@ import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX, nomDuNiveau } from '../js/niveaux.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
-import { JETONS, PRIME_COACH_MAX, ecussonsDesSeries } from '../js/rogue.js';
-import { RUN, RANG_DU_RIVAL } from '../js/run.js';
+import { JETONS, ecussonsDesSeries } from '../js/rogue.js';
+import { RUN } from '../js/run.js';
 import { MEDAILLES_ACTE, PRIX_PIECE, PART_PERDUE, recompenseDeLElite } from '../js/actes.js';
 import { COACHS, REGLES_DU_COACH } from '../js/coachs.js';
 import { CASES_DU_BANC, PIECES_OFFERTES, MARCHES, BORNE_DU_CANAL, BANC_DES_SERIES } from '../js/pieces.js';
@@ -195,8 +195,10 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   const partis = [[/archétype/i, 'l\'archétype'], [/un match sur six/i, '« un match sur six »'], [/PENCHANT/, 'le PENCHANT'], [/franc-tireur|fabricant de jeu/i, 'les profils de S68'],
     [/chimie de trio/i, 'la chimie de trio de S72'], [/Trio d'énergie/i, 'le Trio d\'énergie'],
     [/système/i, 'les systèmes de ligne (V18)'], [/consigne du match/i, 'la consigne du match (V18)'], [/secondes par présence/i, 'la glace en secondes (V18)'], [/\bfit\b/i, 'le fit (V18)'],
-    // V28, tranche 4 : l'ancien Rogue est parti, la page ne le décrit plus.
-    [/boutique|nœud/i, 'la boutique à ses nœuds'], [/ballottage/i, 'le ballottage'], [/proprio/i, 'le proprio et ses objectifs'], [/classeur/i, 'le classeur'], [/Préparer le match/, '« Préparer le match »'],
+    // V28, tranche 4 : l'ancien Rogue est parti, la page ne le décrit plus (le proprio et le ballottage sont revenus avec la saison, V30).
+    // V30 : la run en carte est partie à son tour.
+    [/Le camp|bouche-trou|carte de l'acte|Trois actes|La cible/, 'la run en carte (le camp, les bouche-trous, la carte de l\'acte, la cible)'], [/vestiaire<\/strong> rend ses jambes/, 'le vestiaire de la carte'],
+    [/boutique|nœud/i, 'la boutique à ses nœuds'], [/classeur/i, 'le classeur'], [/Préparer le match/, '« Préparer le match »'],
     [/onglet AN/, 'l\'onglet AN · DN'], [/ajustement de série/i, 'l\'ajustement de série'], [/commanditaire/i, 'les commanditaires'], [/exigences/i, 'les exigences (elles reviennent avec la méta)'], [/galon|chandail/i, 'les galons']];
   const encore = partis.filter(([re]) => re.test(texte)).map(([, nom]) => nom);
   exiger('la page ne parle plus de ce qui est parti', encore.length === 0, encore.join(' · ') || 'rien de parti');
@@ -249,35 +251,36 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     ['<strong>Aucun choix avant le match</strong>', 'le duel sans plan (V29)'],
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
-    // V29 : une pièce compte et monte par marches (js/pieces.js `MARCHES`, `BORNE_DU_CANAL`, `BANC_DES_SERIES` ; js/run.js `PIECES_DU_CAMP`, `RELANCE`).
+    // V29 : une pièce compte et monte par marches (js/pieces.js `MARCHES`, `BORNE_DU_CANAL`, `BANC_DES_SERIES` ; js/run.js `RUN`).
     [`+${MARCHES[0]}, +${MARCHES[1]} et +${MARCHES[2]} %`, 'les marches d\'une pièce'],
     [`se multiplient, jusqu'à ${BORNE_DU_CANAL} fois`, 'le produit d\'un canal'],
-    [`tu en choisis ${RUN.PIECES_DU_CAMP} au camp`, 'les pièces du camp'],
-    [`un banc de ${BANC_DES_SERIES[0]}, ${BANC_DES_SERIES[1]} puis ${BANC_DES_SERIES[2]} pièces`, 'leur banc en séries'],
+    [`tu en choisis ${RUN.PIECES_DU_DEPART} avant le repêchage`, 'les pièces du départ'],
+    [`un banc de ${BANC_DES_SERIES.slice(0, -1).join(', ')} puis ${BANC_DES_SERIES.at(-1)} pièces`, 'leur banc en séries'],
     [`${RUN.RELANCE} jetons puis le double à chaque relance du même soir, ${RUN.RELANCES_PAYEES} au plus`, 'la relance payée'],
-    // V28 (js/run.js `RUN`) : la run en carte, son départ, ses actes, sa cible et ses cœurs, les étapes d'édition des clubs.
-    [`${JETONS.depart} jetons et ${nombre(RUN.ESPACE / 1e6)} M$ d'espace sous le plafond`, 'le départ de la run'],
-    [`<strong>Le camp</strong> : tes ${EN_MOTS[RUN.PIECES_DU_CAMP]} pièces de banc, puis ${EN_MOTS[RUN.CAMP]} tours de portes`, 'le camp'],
-    [`${EN_MOTS[RUN.MATCHS]} matchs et ${EN_MOTS[RANG_DU_RIVAL - RUN.MATCHS]} arrêts`, 'la carte d\'un acte'],
-    [`${RUN.CIBLES[0]} points à l'acte I, ${RUN.CIBLES[1]} à l'acte II, ${RUN.CIBLES[2]} à l'acte III, sur ${2 * RUN.MATCHS + 4}`, 'la cible'],
+    // V30 (js/run.js `RUN`) : la saison, son repêchage, sa ligue, ses quarts, ses cœurs, les étapes d'édition des clubs.
+    [`tu gardes ${nombre(RUN.ESPACE / 1e6)} M$ d'espace sous le plafond, ${JETONS.depart} jetons en caisse, et ${RUN.REPECHAGE.RELANCES} relances de la roulette`, 'le départ de la run'],
+    [`toi et ${RUN.LIGUE.CLUBS} vrais clubs, ${RUN.LIGUE.MATCHS} matchs`, 'la ligue'],
+    [`de ${RUN.QUARTS.slice(0, -1).join(', ')} et ${RUN.QUARTS.at(-1)} matchs`, 'les quarts'],
     [`<strong>${RUN.COEURS} cœurs</strong>`, 'les cœurs'],
-    [`${RUN.ETAPES[0]}, ${RUN.ETAPES[1]} puis ${RUN.ETAPES[2]} étapes d'édition, ${RUN.ETAPES[3]} en séries`, 'les clubs qui montent'],
+    [`${RUN.ETAPES.slice(0, 3).join(', ')} puis ${RUN.ETAPES[3]} étapes d'édition, ${RUN.ETAPES[4]} en séries`, 'les clubs qui montent'],
+    [`${RUN.AFFICHES} par quart, que tu poses toi-même`, 'les affiches'],
     [`<strong>${RUN.PORTES}</strong> vrais vestiaires`, 'les portes'],
     [`ne libère que ${nombre(RUN.RACHAT * 100)} % de son salaire`, 'le rachat'],
     [`Passer paie ${RUN.PASSER} jetons`, 'la porte passée'],
-    [`une pièce de banc parmi trois, ${PRIX_PIECE} jetons, et deux pochettes de joueurs, ${Object.values(RUN.POCHETTES).join(' et ')} jetons`, 'le marché'],
-    // V29, tranche 1 ter (JP, 14 nov. 2026) : une carte à monter au marché, et la caisse de fin en médailles.
-    [`monte d'une édition la carte d'un de tes signés, ${RUN.MONTER} jetons, une par marché`, 'la carte à monter'],
+    [`deux pochettes de joueurs, ${Object.values(RUN.POCHETTES).join(' et ')} jetons, une de chaque par quart`, 'les pochettes du bureau'],
+    [`une pièce de banc parmi trois, ${PRIX_PIECE} jetons`, 'le marché du quart'],
+    [`montée d'une édition, ${RUN.MONTER} jetons, une par marché`, 'la carte à monter'],
     [`${RUN.JETONS_PAR_MEDAILLE} jetons qui restent en caisse valent une médaille`, 'la caisse en médailles'],
-    [`une victoire paie de ${RUN.JETONS_DU_MATCH[0]} à ${RUN.JETONS_DU_MATCH[1]} jetons selon la force du club, le rival ${RUN.JETONS_DU_RIVAL}, une défaite en prolongation ${JETONS.prolongation}, une défaite ${JETONS.defaite}`, 'les jetons d\'un match'],
-    [`${PRIME_COACH_MAX} jetons au plus par run`, 'le plafond de la règle du coach'],
+    [`une victoire paie de ${RUN.JETONS_DU_MATCH[0]} à ${RUN.JETONS_DU_MATCH[1]} jetons selon le rang du club, une affiche de ${RUN.JETONS_DE_L_AFFICHE[0]} à ${RUN.JETONS_DE_L_AFFICHE[1]}, le rival ${RUN.JETONS_DU_RIVAL} ; une défaite ${RUN.JETONS_PERDU[0]}, une défaite en prolongation ${RUN.JETONS_PERDU[1]}`, 'les jetons d\'un match'],
+    [`${RUN.PRIME_DU_QUART} jetons au plus par quart`, 'le plafond de la règle du coach'],
     [`de ${recompenseDeLElite(0.99)} à ${recompenseDeLElite(0.01)} jetons`, 'la récompense d\'une élite'],
     [`${{ 0.5: 'la moitié' }[PART_PERDUE] || '?'} de cette somme en moins et ton club sonné ${SONNES_ELITE} matchs`, 'l\'élite perdue'],
-    [`${RUN.MEDAILLES_ACTE_JOUE} par acte joué, ${MEDAILLES_ACTE.passe} si sa cible est tenue, ${MEDAILLES_ACTE.rival} de plus pour son rival battu, ${ecussonsDesSeries(1, false)} par ronde de séries gagnée, ${ecussonsDesSeries(0, true)} de plus pour la Coupe`, 'les médailles'],
+    [`les ${RUN.LIGUE.PLACES} premiers du classement, quatre rondes en ${RUN.SERIE} de ${2 * RUN.SERIE - 1}`, 'les vraies séries'],
+    [`${RUN.MEDAILLES_QUART_JOUE} par quart joué, ${MEDAILLES_ACTE.passe} si son bilan est tenu, ${MEDAILLES_ACTE.rival} de plus pour son rival battu, ${ecussonsDesSeries(1, false)} par ronde de séries gagnée, ${ecussonsDesSeries(0, true)} de plus pour la Coupe`, 'les médailles'],
     // V27, tranche 5 : le coach et son banc de cinq (js/pieces.js).
     [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],
     [`<strong>Ton banc</strong> a <strong>${CASES_DU_BANC}</strong> cases, pour toute la run`, 'le banc'],
-    [`un rival battu ou une élite gagnée en offre une parmi <strong>${PIECES_OFFERTES}</strong>, le marché en vend une`, 'd\'où viennent les pièces'],
+    [`un rival battu ou une élite gagnée en offre une parmi <strong>${PIECES_OFFERTES}</strong>, le marché du quart en vend une`, 'd\'où viennent les pièces'],
     // V23 : le niveau de l'entraîneur, de Soutien à ★ Phénomène, fait sa maîtrise (js/niveaux.js `NIVEAUX[k].maitrise`).
     [`son rang dans cette lecture fait son niveau et la force de sa pièce de départ, de ×${nombre(NIVEAUX[0].maitrise)} au Soutien à ×${nombre(NIVEAUX[4].maitrise)} au ★ Phénomène`, 'la maîtrise de l\'entraîneur'],
     // V23 : la règle du coach (js/coachs.js), dite par ses constantes.
@@ -302,7 +305,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   exiger('les éditions sont celles que la page dit', JSON.stringify(VARIANTE_PALIERS) === JSON.stringify({ commune: [0, 0], peu: [0, 1], hors: [1, 1], rare: [1, 1], legendaire: [2, 2] })
     && VARIANTE_PLEINE.rare && VARIANTE_PLEINE.legendaire && !VARIANTE_PLEINE.peu && !VARIANTE_PLEINE.hors, EDITIONS.map(r => NOM_VARIANTE[r]).join(' · '));
   // Les séries de la run, lues dans sa source (trois victoires, trois rondes : pas des réglages de `RUN`).
-  exiger('les séries de la run sont trois rondes en 3 de 5, comme la page le dit', /trois rondes en 3 de 5/.test(brut) && /x\.w === 3/.test(lire('js/run.js')) && /x\.l === 3/.test(lire('js/run.js')) && /x\.ronde === 3/.test(lire('js/run.js')));
+  exiger('les séries de la run sont les vraies, comme la page le dit : seize clubs, quatre rondes en 4 de 7', /quatre rondes en 4 de 7/.test(brut) && RUN.SERIE === 4 && RUN.LIGUE.PLACES === 16 && /const RONDES = 4;/.test(lire('js/run.js')));
   const manquants = ecrits.filter(([t]) => !brut.includes(t)).map(([t, nom]) => `${nom} (« ${t.slice(0, 70)} »)`);
   exiger('chaque chiffre de la page vient de sa constante', manquants.length === 0, manquants.join(' · ') || `${ecrits.length} chiffres vérifiés`);
 }

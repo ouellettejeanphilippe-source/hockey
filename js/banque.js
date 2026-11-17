@@ -1,7 +1,7 @@
 /**
  * LA MASSE SALARIALE D'UNE VIEILLE PARTIE (S79). Ce module était la banque de cartes de l'ancien Rogue (les retouches de
- * l'atelier, les soins, l'échange d'un doublon) : la run en carte n'en tire aucune, on y monte une carte au vestiaire de la
- * carte ; le registre est parti à la V28, tranche 5. Reste `plafondDe` : une partie d'avant qui porte des décisions de
+ * l'atelier, les soins, l'échange d'un doublon) : la saison du Rogue n'en tire aucune, on y monte une carte au marché du
+ * quart ; le registre est parti à la V28, tranche 5. Reste `plafondDe` : une partie d'avant qui porte des décisions de
  * plafond (un espace gagné, une retenue, un rachat) se rejoue avec elles.
  */
 

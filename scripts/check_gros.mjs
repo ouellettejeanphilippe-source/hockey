@@ -153,7 +153,9 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   const N_LEUR = Number(process.env.N_LEUR ?? 40);
   const vest = t => ({ tag: t.tag, s: t.season, un: equipeReelle(t.season, t.tag) });
   const v0 = vest(teams[0]), parRonde = BANC_DES_SERIES.map(() => ({ d: 0, n: 0, notes: 0, attendues: 0, fausses: 0 }));
-  for (let i = 1; i <= adversaires.length; i++) for (let g = 0; g < N_LEUR; g++) for (let ronde = 0; ronde < BANC_DES_SERIES.length; ronde += BANC_DES_SERIES.length - 1) {
+  // La première ronde qui porte un banc (depuis la V30, la toute première n'en porte aucun), et la finale.
+  const DEBUT = BANC_DES_SERIES.findIndex(n => n > 0), FINALE = BANC_DES_SERIES.length - 1;
+  for (let i = 1; i <= adversaires.length; i++) for (let g = 0; g < N_LEUR; g++) for (const ronde of [DEBUT, FINALE]) {
     const vi = vest(teams[i]);
     const jouer = banc => {
       const you = eq(teams[0].name, v0.tag, v0.un, v0.s), adv = eq(teams[i].name, vi.tag, vi.un, vi.s);
@@ -171,11 +173,11 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
     R.d += b.net - a.net; R.n++; R.notes += b.notes.length; R.attendues += 3 * b.attendu.length;
     if (b.notes.some(x => !b.attendu.some(y => y.cle === x.cle && y.marche === x.marche))) R.fausses++;
   }
-  const premiere = parRonde[0], finale = parRonde[parRonde.length - 1];
+  const premiere = parRonde[DEBUT], finale = parRonde[FINALE];
   exiger('leurs pièces qui ont atteint une marche sont notées à la feuille, aux trois périodes, à leur marche', [premiere, finale].every(R => R.notes === R.attendues && R.attendues > 0 && !R.fausses),
-    `${premiere.notes} notes à la première ronde, ${finale.notes} en finale, sur ${premiere.n} matchs chacune`);
-  exiger('leur banc est le mur : il te coûte des buts, et davantage en finale qu\'à la première ronde', premiere.d < 0 && finale.d < premiere.d,
-    `${(premiere.d / premiere.n).toFixed(2)} but par match à la première ronde, ${(finale.d / finale.n).toFixed(2)} en finale (${premiere.n} matchs en paires)`);
+    `${premiere.notes} notes à leur première ronde avec un banc (la ${DEBUT + 1}e), ${finale.notes} en finale, sur ${premiere.n} matchs chacune`);
+  exiger('leur banc est le mur : il te coûte des buts, et davantage en finale qu\'à sa première ronde', premiere.d < 0 && finale.d < premiere.d,
+    `${(premiere.d / premiere.n).toFixed(2)} but par match à la ${DEBUT + 1}e ronde, ${(finale.d / finale.n).toFixed(2)} en finale (${premiere.n} matchs en paires)`);
 }
 
 verdict('Les gros matchs');

@@ -1,21 +1,30 @@
 /*
- * UNE RUN AU DOIGT (V28, docs/refonte-v28.md § 10 « La run », « Neuf touchers », « Le match vu est le match joué »).
- * Chromium, à 390 × 844, joue une run entière du Rogue par ses boutons, du coach à l'écran de fin, sans jamais lire
- * autre chose que l'écran ; le hasard de la page est semé (`GRAINE`), le parcours se rejoue au toucher près.
+ * UNE SAISON AU DOIGT (V30, docs/refonte-v30-2.md § 9). Chromium, à 390 × 844, joue le Rogue par ses boutons, sans jamais
+ * lire autre chose que l'écran ; le hasard de la page est semé (`GRAINE`), le parcours se rejoue au toucher près.
  *
- *   1. la run va au bout : le départ, le camp, chaque case, chaque match, les arrêts, la fin d'acte, l'écran de fin ;
- *   2. une semaine gagnée (y aller, jouer, signer un joueur d'une porte) tient en neuf touchers au plus ;
- *   3. le match vu est le match joué : le pointage final de la scène est celui que la run garde ;
- *   4. quitter au menu et rouvrir reprend la run où elle était ;
- *   5. la fin verse ses médailles une fois ; le Club s'ouvre de l'écran de fin et une philosophie s'y paie une fois (ou
- *      dit ce qui manque) ; aucune erreur de page.
+ *   LE DÉBUT, d'une page vide : ton coach, tes deux pièces, les vingt-trois tours du repêchage, l'ouverture du quart, puis
+ *   le premier quart joué soir par soir — le bureau, la feuille, une affiche posée, le match, le résultat, les portes d'un
+ *   gros match gagné, le bilan du proprio, le marché, l'ouverture du deuxième quart.
+ *   LA FIN, d'une sauvegarde de robot au 80e match (une saison entière au doigt prendrait dix minutes) : les derniers
+ *   matchs, le dernier bilan, les séries match par match s'il y en a, l'écran de fin.
  *
- *   node scripts/essai_run.mjs http://localhost:8000 [dossier]      (deux minutes ; `GRAINE=…` un autre tirage)
+ *   1. le repêchage donne vingt-trois joueurs et ouvre le bureau ;
+ *   2. un soir ordinaire tient en cinq touchers au plus (jouer ce soir, au match, à la fin, continuer, au bureau) ;
+ *   3. le match vu est le match joué : le pointage du résultat est celui que la run garde ;
+ *   4. une affiche posée à la feuille est jouée en affiche ;
+ *   5. quitter au menu et rouvrir reprend la run où elle était ;
+ *   6. le premier quart finit par son bilan, son marché, et l'ouverture du deuxième ;
+ *   7. la run va à son écran de fin, verse ses médailles une fois ; le Club s'ouvre de l'écran de fin et une philosophie
+ *      s'y paie une fois (ou dit ce qui manque) ; « Une run neuve » rouvre le départ ; aucune erreur de page.
+ *
+ *   node scripts/essai_run.mjs http://localhost:8000 [dossier]      (trois minutes ; `GRAINE=…` un autre tirage)
  */
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import { exiger, informer, verdict } from './verdict.mjs';
+import { jouerLaRun } from './lib/run_robot.mjs';
+import { figer } from '../js/run.js';
 
 const require = createRequire(import.meta.url);
 let pw;
@@ -25,8 +34,8 @@ const { chromium } = pw;
 
 const BASE = process.argv[2] || 'http://localhost:8000';
 const DOSSIER = process.argv[3] || null;
-const GRAINE = process.env.GRAINE || 'v28-essai';
-const TOUCHERS_MAX = 9, PAS_MAX = 900;
+const GRAINE = process.env.GRAINE || 'v30-essai';
+const TOUCHERS_MAX = 5, PAS_MAX = 700;
 
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, reducedMotion: 'reduce' });
@@ -40,19 +49,12 @@ await page.addInitScript(g => {
 }, GRAINE);
 if (DOSSIER) fs.mkdirSync(DOSSIER, { recursive: true });
 
-await page.goto(BASE, { waitUntil: 'networkidle' });
-await page.evaluate(() => { try { localStorage.clear(); } catch { /* rien à vider */ } });
-await page.reload({ waitUntil: 'networkidle' });
-await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
-const ouvrir = async () => { await page.click('#menuDepart [data-menu="rogue"]'); await page.waitForSelector('#runModal .rn-plan [data-a]', { timeout: 60000 }); };
-await ouvrir();
-
-const medailles0 = x => (x && x.ecussons) || 0;
 const run = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_run') || 'null'); } catch { return null; } });
 const meta = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_rogue') || 'null'); } catch { return null; } });
 const la = (a, v = null) => page.$(v == null ? `#runModal [data-a="${a}"]:not([disabled])` : `#runModal [data-a="${a}"][data-v="${v}"]:not([disabled])`);
+const ouvrir = async () => { await page.click('#menuDepart [data-menu="rogue"]'); await page.waitForSelector('#runModal .rn-plan [data-a]', { timeout: 90000 }); };
 let touchers = 0;
-const toucher = async (a, v = null, attente = 260) => {
+const toucher = async (a, v = null, attente = 220) => {
   const el = await la(a, v);
   if (!el) return false;
   await el.click();
@@ -60,124 +62,133 @@ const toucher = async (a, v = null, attente = 260) => {
   await page.waitForTimeout(attente);
   return true;
 };
+const photo = async nom => { if (DOSSIER) await page.screenshot({ path: `${DOSSIER}/essai-${nom}.png` }); };
 
-const semaines = [], vus = new Set(), ecarts = [];
-let debut = null, reprise = null, fin = null, signes = 0, matchs = 0;
-for (let pas = 0; pas < PAS_MAX && !fin; pas++) {
-  // Une scène d'attente (les vestiaires qu'on ouvre, la pochette) : on patiente.
-  if (!await page.$('#runModal .rn-plan [data-a]')) { await page.waitForTimeout(300); continue; }
-  if (await la('run-neuve')) { fin = await run(); break; }
-  if (await toucher('prendre-coach', null, 600)) { vus.add('le départ'); continue; }
+/* ---------- ce que le doigt fait de chaque scène ---------- */
+const vu = { soirs: [], pointages: [], affiches: 0, affichesJouees: 0, portes: 0, signes: 0, bilans: 0, marches: 0, quarts: 0, ballottages: 0 };
+let soir = null;   // le soir en cours : ses touchers, s'il est ordinaire
+/* Un pas : la première chose à faire que la scène offre. Rend son nom, ou null si rien ne se touche. */
+async function pas({ affiches = true } = {}) {
+  if (await la('prendre-coach')) return (await toucher('prendre-coach', null, 600)) && 'coach';
+  if (await la('repecher')) return (await toucher('repecher')) && 'repêchage';
+  if (await la('relancer-roulette') && !(await la('repecher'))) return (await toucher('relancer-roulette')) && 'roulette';
+  if (await la('prendre-piece')) {
+    // Banc plein : celle qui sort d'abord (la première), sinon on passe.
+    if (!(await toucher('prendre-piece')) || await la('prendre-piece')) { if (!(await toucher('piece-sort')) || !(await toucher('prendre-piece'))) await toucher('piece-passee'); }
+    return 'pièce';
+  }
+  if (await la('vers-bureau')) { vu.quarts++; return (await toucher('vers-bureau')) && 'quart'; }
+  if (await la('reclamer')) { vu.ballottages++; if (soir) soir.ordinaire = false; const offre = await page.$('#runModal [data-a="reclamer"][data-v]:not([data-v=""])'); if (offre) { await offre.click(); touchers++; await page.waitForTimeout(300); } else await toucher('reclamer'); return 'ballottage'; }
   if (await la('apres-match')) {
-    // Le pointage de la scène, puis celui que la run garde.
-    const vu = await page.$eval('#runModal .rn-pointage', el => el.firstChild.textContent.trim());
-    await toucher('apres-match', null, 400);
-    const R = await run(), m = R && R.matchs[R.matchs.length - 1];
-    if (!m || vu.replace(/\s/g, '') !== `${m.gf}·${m.ga}`) ecarts.push(`${vu} à l'écran, ${m ? `${m.gf}-${m.ga}` : 'rien'} gardé`);
-    matchs++;
-    if (debut) debut.gagne = !!(m && m.gagne);
-    continue;
+    await toucher('apres-match', null, 300);
+    // Le résultat : son pointage, et celui que la run garde.
+    const lu = await page.$eval('#runModal .rn-final b', el => el.textContent.trim()).catch(() => null), R = await run(), m = R && R.matchs.at(-1);
+    vu.pointages.push([lu, m ? `${m.gf} · ${m.ga}` : null]);
+    return 'match';
   }
-  if (await toucher('fin-du-match')) continue;
-  if (await la('jouer')) { vus.add((await page.$('#runModal .rn-plans')) ? 'le duel' : 'la feuille du soir'); await toucher('jouer', null, 900); vus.add('le match'); continue; }
-  if (await toucher('vers-carte')) { vus.add('le rival annoncé'); continue; }
-  if (await la('aller')) {
-    vus.add('la carte');
-    // Une fois dans la run : quitter au menu en pleine carte, rouvrir, et retrouver la même run.
-    if (matchs === 2 && !reprise) {
-      const avant = await run();
-      await toucher('pause'); await toucher('menu', null, 500);
-      await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 10000 });
-      await ouvrir();
-      const apres = await run();
-      reprise = { ok: !!apres && apres.phase === avant.phase && apres.rang === avant.rang && apres.matchs.length === avant.matchs.length && apres.joueurs.length === 23, mot: `${avant.phase}, case ${avant.rang + 1}` };
-      debut = null;   // la semaine coupée par la pause ne se compte pas
-    }
-    if (debut && debut.gagne && debut.signe && debut.match) semaines.push(touchers - debut.t);
-    debut = { t: touchers, gagne: false, signe: false, match: false };
-    await toucher('aller', null, 500);
-    const R = await run();
-    if (debut) debut.match = !!R && R.phase === 'feuille' && R.case.sorte === 'match';
-    continue;
+  if (await la('fin-du-match')) return (await toucher('fin-du-match')) && 'à la fin';
+  if (await la('continuer')) {
+    await toucher('continuer', null, 300);
+    if (soir) { soir.fin = touchers; if (soir.ordinaire && !(await la('ouvrir-porte')) && !(await la('prendre-piece')) && !(await la('apres-bilan'))) vu.soirs.push(soir.fin - soir.debut); soir = null; }
+    return 'résultat';
   }
-  if (await la('ouvrir-porte')) {
-    vus.add('les portes');
-    // La première porte : son premier joueur, l'échange proposé, signer s'il passe ; sinon passer.
+  if (await la('ouvrir-porte', '0')) {
+    vu.portes++;
     await toucher('ouvrir-porte', '0');
-    if (await toucher('vers-echange')) {
-      vus.add('l\'échange');
-      if (await toucher('signer', null, 500)) { signes++; if (debut) debut.signe = true; continue; }
-      await toucher('fermer-echange');
-    }
+    if (await toucher('vers-echange')) { if (await toucher('signer', null, 400)) { vu.signes++; return 'signé'; } await toucher('fermer-echange'); }
     await toucher('fermer-porte');
-    await toucher('passer', null, 500);
-    continue;
+    await toucher('passer', null, 300);
+    return 'portes';
   }
-  if (await la('vers-echange') || await la('fermer-porte')) {
-    // Une pochette ouverte : un joueur, ou rien.
-    if (await toucher('vers-echange') && await toucher('signer', null, 500)) { signes++; continue; }
-    await toucher('fermer-echange'); await toucher('fermer-porte', null, 500);
-    continue;
+  if (await la('apres-bilan')) { vu.bilans++; await photo(`bilan-${vu.bilans}`); return (await toucher('apres-bilan', null, 300)) && 'bilan'; }
+  if (await la('quitter-marche')) { vu.marches++; await toucher('acheter-piece'); await toucher('monter-au-marche'); return (await toucher('quitter-marche', null, 400)) && 'marché'; }
+  if (await la('jouer')) {
+    const R = await run(), c = R.soir;
+    if (soir) soir.ordinaire = soir.ordinaire && c.sorte === 'match';
+    // Une affiche, les soirs ordinaires où il en reste (le début seulement).
+    if (affiches && c.sorte === 'match' && await toucher('affiche', '1', 500)) { vu.affiches++; if (soir) soir.ordinaire = false; }
+    if (c.sorte === 'affiche') vu.affichesJouees++;
+    await toucher('jouer', null, 200);
+    await page.waitForSelector('#runModal [data-a="apres-match"]:not([disabled])', { timeout: 20000 });
+    touchers++;   // « À la fin », que le mouvement réduit épargne : compté comme touché
+    return 'feuille';
   }
-  // Une pièce offerte (au camp, deux de suite) : banc plein, on touche d'abord celle qui sort.
-  if (await la('prendre-piece')) { vus.add('une pièce offerte'); await toucher('piece-sort', null, 150); if (!await toucher('prendre-piece', null, 500)) await toucher('apres-acte'); continue; }
-  if (await toucher('apres-acte', null, 500)) { vus.add('la fin d\'acte'); continue; }
-  if (await la('quitter-marche')) {
-    vus.add('le marché');
-    if (await toucher('voir-piece')) await toucher('acheter-piece');
-    // Une carte à monter (V29, tranche 1 ter) : la tuile, puis « Monter ».
-    if (await toucher('voir-montee') && await toucher('monter-au-marche')) vus.add('une carte montée au marché');
-    await toucher('quitter-marche', null, 500);
-    continue;
-  }
-  if (await toucher('reposer', null, 500)) { vus.add('le vestiaire'); continue; }
-  if (await toucher('reponse', '0', 2300) || await toucher('histoire-calme', null, 500)) { vus.add('une histoire'); continue; }
-  if (await toucher('match-de-serie', null, 500)) { vus.add('les séries'); continue; }
-  if (await toucher('piece-passee', null, 500)) continue;
-  await page.waitForTimeout(300);
+  if (await la('aller')) { soir = { debut: touchers, ordinaire: true }; return (await toucher('aller', null, 300)) && 'bureau'; }
+  if (await la('match-de-serie')) { soir = null; return (await toucher('match-de-serie', null, 300)) && 'séries'; }
+  return null;
 }
-if (DOSSIER) await page.screenshot({ path: `${DOSSIER}/essai-run-fin.png` });
 
-// La fin : ses médailles versées une fois, même en rouvrant l'écran de fin.
-const m1 = await meta();
-if (fin) { await toucher('quitter', null, 500); await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 10000 }).catch(() => {}); await ouvrir().catch(() => {}); }
-const m2 = await meta();
-/*
- * LE CLUB, APRÈS LA RUN (tranche 5) : la bande de l'écran de fin y mène. Avec 40 médailles, on ouvre une philosophie : elles
- * se paient une fois, et le départ de la run suivante lui donne sa case, « Nouveau ». Avec moins, le bouton dit ce qui manque
- * et ne se touche pas. Les deux branches se jugent : ce que la run a payé ne décide pas du verdict.
- */
-const club = { ouvert: false, mot: 'la bande du Club manque à l\'écran de fin' };
-if (fin && await toucher('club', null, 500)) {
-  const avant = medailles0(m2), riche = avant >= 40;
-  club.ouvert = !!await la('page', 'palmares');
-  if (DOSSIER) await page.screenshot({ path: `${DOSSIER}/essai-run-club.png` });
-  if (riche) {
-    const paye = await toucher('ouvrir-voie', null, 500), m3 = await meta();
-    await toucher('fermer-club', null, 400);
-    const revenu = !!await la('run-neuve');
-    await toucher('run-neuve', null, 1500);
+/* ---------- le début : d'une page vide au deuxième quart ---------- */
+await page.goto(BASE, { waitUntil: 'networkidle' });
+await page.evaluate(() => { try { localStorage.clear(); } catch { /* rien à vider */ } });
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
+await ouvrir();
+await photo('depart');
+let reprise = null, apresRepechage = null;
+for (let k = 0; k < PAS_MAX && vu.quarts < 2; k++) {
+  const quoi = await pas();
+  if (!quoi) { await page.waitForTimeout(300); continue; }
+  const R = await run();
+  if (quoi === 'quart' && vu.quarts === 1) { apresRepechage = { joueurs: R.joueurs.length, phase: R.phase, banc: R.banc.length }; await photo('bureau'); }
+  // Au dixième match, au bureau : quitter au menu, rouvrir.
+  if (!reprise && R && R.phase === 'bureau' && R.matchs.length === 10) {
+    const avant = JSON.stringify([R.phase, R.matchs, R.jetons, R.joueurs.map(j => j.k)]);
+    await toucher('pause'); await toucher('menu', null, 500);
+    await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 20000 });
+    await ouvrir();
+    const R2 = await run();
+    reprise = { ok: avant === JSON.stringify([R2.phase, R2.matchs, R2.jetons, R2.joueurs.map(j => j.k)]) && !!(await la('aller')), matchs: R2.matchs.length };
+    touchers -= 2;
+  }
+}
+const debut = await run();
+exiger('le repêchage donne vingt-trois joueurs, trois pièces, et ouvre le bureau', !!apresRepechage && apresRepechage.joueurs === 23 && apresRepechage.banc === 3 && apresRepechage.phase === 'bureau', JSON.stringify(apresRepechage));
+exiger(`un soir ordinaire tient en ${TOUCHERS_MAX} touchers au plus`, vu.soirs.length >= 5 && Math.max(...vu.soirs) <= TOUCHERS_MAX, `${vu.soirs.length} soirs ordinaires, de ${Math.min(...vu.soirs)} à ${Math.max(...vu.soirs)} touchers`);
+exiger('une affiche posée à la feuille est jouée en affiche', vu.affiches >= 1 && debut.matchs.filter(m => m.sorte === 'affiche').length === vu.affiches, `${vu.affiches} posées, ${debut.matchs.filter(m => m.sorte === 'affiche').length} jouées`);
+exiger('quitter au menu et rouvrir reprend la run où elle était', !!reprise && reprise.ok, reprise ? `au match ${reprise.matchs}` : 'jamais essayé');
+exiger('le premier quart finit par son bilan, son marché, et l\'ouverture du deuxième', vu.bilans === 1 && vu.marches === 1 && vu.quarts === 2 && debut.quart.n === 1 && debut.matchs.length === 21, `${debut.matchs.length} matchs, quart ${debut.quart.n + 1}`);
+informer('le début', `${touchers} touchers ; ${vu.portes} fois trois portes, ${vu.signes} joueurs signés, ${vu.ballottages} ballottage(s)`);
+
+/* ---------- la fin : d'une sauvegarde de robot au 80e match à l'écran de fin ---------- */
+let tardive = null;
+for (let g = 1; g <= 6 && !tardive; g++) {
+  try { await jouerLaRun('malin', g, { espion: (m, S) => { if (m === 'bureau' && S.R.matchs.length === 80 && S.R.coeurs > 0) throw { R: JSON.parse(JSON.stringify(figer(S))) }; } }); } catch (e) { if (!e.R) throw e; tardive = e.R; }
+}
+exiger('une saison de robot arrive au 80e match', !!tardive, tardive ? `graine ${tardive.graine}` : 'aucune en six graines');
+if (tardive) {
+  await toucher('pause'); await toucher('menu', null, 500);
+  await page.evaluate(r => { localStorage.setItem('cap82_run', JSON.stringify(r)); const m = JSON.parse(localStorage.getItem('cap82_rogue') || '{}'); localStorage.setItem('cap82_rogue', JSON.stringify(m)); }, tardive);
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 });
+  const avant = ((await meta()) || {}).ecussons || 0;
+  await ouvrir();
+  let fini = false;
+  for (let k = 0; k < PAS_MAX && !fini; k++) {
+    if (await la('run-neuve')) { fini = true; break; }
+    if (!(await pas({ affiches: false }))) await page.waitForTimeout(300);
+  }
+  await photo('fin');
+  const R = await run(), m1 = await meta();
+  exiger('la run va à son écran de fin', fini && !!R && !!R.fin, R && R.fin ? `${R.fin.cause}, ${R.fin.matchs} matchs, ${R.fin.rang}e` : 'pas finie');
+  if (R && R.fin) {
+    exiger('la fin verse ses médailles, une fois', ((m1 || {}).ecussons || 0) === avant + R.fin.medailles, `${avant} + ${R.fin.medailles} = ${(m1 || {}).ecussons}`);
+    // Le Club, de l'écran de fin : une philosophie s'y paie une fois, ou le bouton dit ce qui manque.
+    await toucher('club', null, 500);
+    const bouton = await page.$('#runModal [data-a="ouvrir-voie"]'), mot = bouton ? (await bouton.textContent()).trim() : '';
+    const peut = !!(await la('ouvrir-voie'));
+    if (peut) { await toucher('ouvrir-voie', null, 400); await toucher('ouvrir-voie', null, 300); }
+    const m2 = await meta();
+    exiger('le Club s\'ouvre de l\'écran de fin ; une philosophie s\'y paie une fois, ou le bouton dit ce qui manque', !!bouton && (peut ? (m2.voies || []).length === 1 && m2.ecussons === m1.ecussons - 40 : /Il te manque \d+/.test(mot)), peut ? `${m1.ecussons} → ${m2.ecussons} médailles` : mot);
+    await toucher('fermer-club', null, 300);
+    exiger('le Club se ferme sur l\'écran de fin, et ne verse rien de plus', !!(await la('run-neuve')) && (await meta()).ecussons === m2.ecussons);
+    await toucher('run-neuve', null, 800);
     await page.waitForSelector('#runModal [data-a="prendre-coach"]', { timeout: 30000 }).catch(() => {});
-    const nouveau = await page.$$eval('#runModal .rn-loto .rn-puce', l => l.some(x => /Nouveau/.test(x.textContent))).catch(() => false);
-    club.ok = paye && medailles0(m3) === avant - 40 && (m3.voies || []).length === 1 && revenu && nouveau;
-    club.mot = `${avant} médailles, une philosophie ouverte à 40 : il en reste ${medailles0(m3)} · ${revenu ? 'retour à l\'écran de fin' : 'pas de retour'} · ${nouveau ? '« Nouveau » au loto suivant' : 'rien au loto suivant'}`;
-  } else {
-    const ferme = !await la('ouvrir-voie') && !!await page.$('#runModal [data-a="ouvrir-voie"][disabled]'), texte = ferme ? await page.$eval('#runModal [data-a="ouvrir-voie"]', el => el.textContent.trim()) : '';
-    await toucher('fermer-club', null, 400);
-    club.ok = ferme && new RegExp(`manque ${40 - avant}\\b`).test(texte) && !!await la('run-neuve') && medailles0(await meta()) === avant;
-    club.mot = `${avant} médailles : « ${texte} », rien de payé`;
+    exiger('« Une run neuve » rouvre le départ, la run gardée effacée', !!(await la('prendre-coach')) && (await run()) === null);
   }
 }
-await browser.close();
-
-const medailles = x => (x && (x.ecussons ?? x.medailles)) || 0;
-exiger('la run va au bout, au doigt', !!fin && !!fin.fin, fin && fin.fin ? `${fin.matchs.length} matchs, ${signes} joueurs signés, fin : ${fin.fin.cause}` : 'pas d\'écran de fin');
-exiger('ses scènes se sont ouvertes en chemin', ['le départ', 'les portes', 'l\'échange', 'le rival annoncé', 'la carte', 'la feuille du soir', 'le match', 'la fin d\'acte'].every(s => vus.has(s)), [...vus].join(' · '));
-exiger(`une semaine gagnée tient en ${TOUCHERS_MAX} touchers au plus`, semaines.length > 0 && Math.max(...semaines) <= TOUCHERS_MAX, semaines.length ? `${semaines.length} semaines gagnées et signées : ${Math.min(...semaines)} à ${Math.max(...semaines)} touchers` : 'aucune semaine gagnée et signée à compter');
-exiger('le match vu est le match joué', matchs > 0 && !ecarts.length, ecarts.slice(0, 3).join(' · ') || `${matchs} pointages relus`);
-exiger('quitter au menu et rouvrir reprend la run', !!reprise && reprise.ok, reprise ? reprise.mot : 'jamais essayé');
-exiger('la fin verse ses médailles une fois', !!fin && medailles(m1) >= (fin.fin ? fin.fin.medailles : 1) && medailles(m2) === medailles(m1), `${medailles(m1)} médailles, ${medailles(m2)} après avoir rouvert la fin`);
-exiger('le Club s\'ouvre de l\'écran de fin, et une philosophie s\'y paie une fois (ou dit ce qui manque)', club.ouvert && !!club.ok, club.mot);
+const faux = vu.pointages.filter(([a, b]) => !a || a !== b);
+exiger('le match vu est le match joué : chaque pointage du résultat est celui que la run garde', vu.pointages.length >= 20 && !faux.length, faux.length ? faux.slice(0, 3).map(x => x.join(' ≠ ')).join(' · ') : `${vu.pointages.length} matchs`);
 exiger('aucune erreur de page', !erreurs.length, [...new Set(erreurs)].slice(0, 3).join(' · '));
-informer('le tirage', `GRAINE=${GRAINE}`);
-verdict('Une run au doigt');
+await browser.close();
+verdict('Une saison au doigt');

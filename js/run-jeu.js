@@ -1,11 +1,11 @@
 /*
- * LE ROGUE NEUF, À L'ÉCRAN (V28, docs/refonte-v28.md § 4.1 ; JP, 9 nov. 2026 : la boucle, oui ; C partout). La coquille de la
- * run : une scène plein écran (`#runModal`), un plan fixe de 390 × 844 mis à l'échelle de l'écran, aucune page qui défile,
- * ni en-tête de site, ni onglets. Ce module charge la décennie, ouvre ou reprend la séance (js/run.js), garde la run à
- * chaque geste (`cap82_run`), et joue les gestes des scènes (js/run-scenes.js : chaque bouton porte `data-a`).
+ * LE ROGUE, À L'ÉCRAN (V30, docs/refonte-v30-2.md § 3.8 ; JP, 16 nov. 2026 : *un EHM, mais avec un côté rogue*). La coquille
+ * de la run : une scène plein écran (`#runModal`), un plan fixe de 390 × 844 mis à l'échelle de l'écran, sans en-tête de
+ * site. Ce module charge les saisons, ouvre ou reprend la séance (js/run.js), garde la run à chaque geste (`cap82_run`), et
+ * joue les gestes des scènes (js/run-scenes.js : chaque bouton porte `data-a`).
  *
- * Quitter en plein match reprend à la feuille du soir : rien n'est compté avant « Continuer » (`conclure`), et la graine
- * rejoue le même match.
+ * Un match lancé est joué : il se compte tout de suite (`conclure`), et ses temps forts se regardent ensuite. Quitter
+ * pendant qu'on les regarde reprend à son résultat.
  */
 import { state } from './data.js';
 import { getShard } from './repechage.js';
@@ -28,14 +28,14 @@ import { esc, hache } from './util.js';
 import { VERSION } from './version.js';
 import { RATINGS_VERSION } from './ratings.js';
 import {
-  RUN, VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, medaillesDe, forcesDuMonde, allerA, chanceCeSoir, intentionCeSoir, jouerLeMatch, conclure, signer, passerLesPortes,
-  relancerLesPortes, apresLesPortes, apresLaFinDActe, pieceReglee, prendreLaPiece, acheterLaPiece, acheterLaPochette, avancer, reposer, monterUneCarte, monterAuMarche, aMonter, echangerDeuxCases,
-  choisirLeFilet, fixerLElite, allerAuMatchDeSerie, histoireDeLaCase, repondre, finir, reglesDe,
+  VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, medaillesDe, forcesDuMonde, reglesDe, prendreLaPiece, pieceReglee, vestiaireDuRepechage, repecher, relancerLaRoulette, versLeBureau,
+  allerAuMatch, retourAuBureau, poserLAffiche, mettreLEnjeu, fixerLElite, choisirLeFilet, chanceCeSoir, intentionCeSoir, jouerLeMatch, conclure, continuer, signer, passerLesPortes,
+  relancerLesPortes, apresLesPortes, apresLeBilan, acheterLaPiece, aMonter, monterAuMarche, quitterLeMarche, acheterLaPochette, echangerDeuxCases, offresVues, reclamer, histoireDuJour,
+  repondre, allerAuMatchDeSerie, finir, effectifDe,
 } from './run.js';
 import {
-  sceneAttente, sceneDepart, sceneCarte, sceneAnnonce, sceneFeuille, sceneMatch, scenePortes, scenePorte, sceneEchange, sceneLignes, sceneBanc, sceneMarche,
-  sceneVestiaire, sceneHistoire, sceneFinDActe, scenePieceGagnee, scenePieceDuCamp, sceneSeries, sceneFin, scenePause, jaugeDeCeSoir, sceneClub, sceneSolde,
-  ALBUM_PAR_PAGE, listeDeLAlbum,
+  sceneAttente, sceneDepart, scenePieceDuDepart, sceneRepechage, sceneQuart, sceneBureau, sceneFeuille, sceneMatch, sceneResultat, scenePortes, scenePorte, sceneEchange,
+  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
 } from './run-scenes.js';
 
 const CLE = 'cap82_run';
@@ -43,7 +43,7 @@ const LARGEUR = 390, HAUTEUR = 844, ECHELLE_MAX = 1.25;
 /* Le rythme des temps forts : un toutes les `PAS` ms à la vitesse ×1 ; la chance de la feuille du soir, en tranches de `TRANCHE` matchs. */
 const PAS = 2200, VITESSES = [1, 2, 4], TRANCHES = 4, TRANCHE = 30;
 
-let racine = null, plan = null, S = null, V = {}, ctx = null, minuterie = null;
+let racine = null, plan = null, S = null, V = {}, ctx = null, minuterie = null, cadreVu = null;
 /* Le monde d'une run : toutes les saisons (JP : *toutes les années ensemble*). La même fonction `shard` d'une run à l'autre : js/run.js ne classe les clubs qu'une fois par visite. */
 const SHARDS = new Map(), LOT = 6;
 const shardCharge = s => SHARDS.get(s) || null;
@@ -73,9 +73,18 @@ const oublier = () => { try { localStorage.removeItem(CLE); } catch { /* rien à
 
 /* ---------- la coquille ---------- */
 function echelle() { if (plan) plan.style.setProperty('--rn-k', String(Math.min(ECHELLE_MAX, window.innerWidth / LARGEUR, window.innerHeight / HAUTEUR))); }
-function montrer(html, { rouge = false } = {}) {
+/*
+ * MONTRER une scène. Un tableau qui défile dans son cadre garde sa place quand la même page se redessine (un joueur touché,
+ * un tri) ; une page neuve repart du haut — sauf le classement, qui s'ouvre sur ton club.
+ */
+function montrer(html, { rouge = false, page = null } = {}) {
+  const avant = plan.querySelector('.rn-cadre'), y = avant && page && page === cadreVu ? avant.scrollTop : null;
   plan.className = `rn-plan${rouge ? ' rn-rouge' : ''}`;
   plan.innerHTML = html;
+  const cadre = plan.querySelector('.rn-cadre');
+  if (cadre && y != null) cadre.scrollTop = y;
+  else if (cadre) { const moi = cadre.querySelector('.rn-moi'); if (moi) cadre.scrollTop = Math.max(0, moi.offsetTop - cadre.clientHeight / 2); }
+  cadreVu = page;
 }
 /* Charger chaque saison, `LOT` à la fois (IndexedDB les garde après la première visite) ; l'attente dit où on en est. */
 async function charger(mot) {
@@ -96,7 +105,7 @@ function fermer() {
   racine = plan = S = null; V = {};
   if (ctx && ctx.onFerme) ctx.onFerme();
 }
-/* Ouvrir le Rogue neuf : la run gardée reprend où elle en était ; sinon, le départ. */
+/* Ouvrir le Rogue : la run gardée reprend où elle en était ; sinon, le départ. */
 export async function ouvrirRun(c = {}) {
   ctx = c; V = {};
   racine = document.createElement('div');
@@ -111,18 +120,19 @@ export async function ouvrirRun(c = {}) {
   racine.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled && racine.contains(b)) geste(b.dataset.a, b.dataset.v); });
   const R = lire();
   if (R && R.v === VERSION_DE_LA_RUN) {
-    montrer(sceneAttente('On rouvre les vestiaires…'));
-    await charger('On rouvre les vestiaires :');
+    montrer(sceneAttente('On rouvre le bureau…'));
+    await charger('On rouvre le bureau :');
     S = ouvrirSeance(donnees(), R);
     garderLesForces();
     poserClubLu(() => (S ? { team: S.toi } : null));
     return entrer();
   }
-  // UNE RUN D'AVANT (JP, 14 nov. 2026) ne se relit pas : son banc n'existe plus, ses adversaires ont changé. Elle s'arrête
-  // ici, ses médailles gagnées jusque-là versées une fois (la même clé que la fin d'une run), et le départ le dit.
+  // UNE RUN D'AVANT (la run en carte) ne se relit pas : le Rogue est devenu une saison. Elle s'arrête ici, ses médailles
+  // gagnées jusque-là versées une fois (la même clé que la fin d'une run), et le départ le dit.
   let arret = null;
   if (R) {
-    if (!R.fin && Array.isArray(R.actes)) arret = payerEcussons(R.graine, 'run', medaillesDe(R), { bilan: { ronde: R.series ? R.series.faites.length : 0, coupe: false, series: !!R.series, exigence: reglesDe(R).exigence, pts: R.actes.reduce((a, x) => a + (x.pts || 0), 0) } });
+    const faits = R.quarts || R.actes;
+    if (!R.fin && Array.isArray(faits)) arret = payerEcussons(R.graine, 'run', medaillesDe(R), { bilan: { ronde: R.series && R.series.faites ? R.series.faites.length : 0, coupe: false, series: !!R.series, exigence: reglesDe(R).exigence, pts: faits.reduce((a, x) => a + (x.pts || 0), 0) } });
     oublier();
   }
   return versLeDepart(arret);
@@ -210,7 +220,7 @@ async function commencer() {
 }
 
 /* ---------- la scène du moment ---------- */
-const piece = () => S.R.apres && (S.R.apres.offertes || []).length > 0;
+const enDuel = c => c.sorte === 'rival' || c.sorte === 'affiche' || c.sorte === 'serie' || (c.sorte === 'elite' && !!c.enjeu);
 function rendre() {
   if (V.ecran === 'solde' && V.solde) return montrer(sceneSolde(V.solde));
   if (V.ecran === 'club' && V.club) return montrer(sceneClub(V.club));
@@ -218,47 +228,49 @@ function rendre() {
   const R = S.R;
   const dessous = () => {
     if (V.ecran === 'match') return [sceneMatch(S, V)];
-    if (V.ecran === 'lignes') return [sceneLignes(S, V)];
-    if (V.ecran === 'banc') return [sceneBanc(S)];
     if (V.ecran === 'echange') return [sceneEchange(S, V)];
     if (V.ecran === 'porte') return [scenePorte(S, V)];
-    if (V.ecran === 'de') return [sceneHistoire(S, V)];
+    if (V.ecran === 'etal') return [sceneEtal(S)];
+    if (V.ecran === 'histoire') return [sceneHistoire(S, V)];
     switch (R.phase) {
-      case 'camp': case 'portes': return [piece() ? (R.phase === 'camp' ? scenePieceDuCamp(S, V) : scenePieceGagnee(S, V)) : R.portes.pochette ? scenePorte(S, V) : scenePortes(S)];
-      case 'annonce': return [sceneAnnonce(S), true];
-      case 'carte': return [sceneCarte(S, V)];
-      case 'feuille': return [sceneFeuille(S, V), R.case.sorte !== 'match'];
-      case 'finacte': return [sceneFinDActe(S, V)];
+      case 'pieces': return [scenePieceDuDepart(S, V)];
+      case 'repechage': return [sceneRepechage(S, V)];
+      case 'quart': return [sceneQuart(S)];
+      case 'bureau': case 'series': return [sceneBureau(S, V), false, `${V.onglet || 'bureau'}:${V.segA || ''}:${V.segL || ''}:${V.segC || ''}`];
+      case 'ballottage': return [sceneBallottage(S, V)];
+      case 'feuille': return [sceneFeuille(S, V), enDuel(R.soir)];
+      case 'resultat': return [sceneResultat(S)];
+      case 'piece': return [scenePieceGagnee(S, V)];
+      case 'portes': return [R.portes.pochette ? scenePorte(S, V) : scenePortes(S)];
+      case 'bilan': return [sceneBilan(S)];
       case 'marche': return [sceneMarche(S, V)];
-      case 'vestiaire': return [sceneVestiaire(S, V)];
-      case 'histoire': return [sceneHistoire(S, V)];
-      case 'series': return [sceneSeries(S)];
       default: return [sceneFin(S, V)];
     }
   };
-  const [html, rouge] = dessous();
-  montrer(V.pause ? html + scenePause(S, V) : html, { rouge });
+  const [html, rouge, page] = dessous();
+  montrer(V.pause ? html + scenePause(S, V) : html, { rouge, page });
 }
-/* Entrer dans la phase où la run en est : ce que sa scène demande (ta chance, leur intention, l'histoire, la fin). */
+/* Entrer dans la phase où la run en est : ce que sa scène demande (ta chance, leur intention, la fin). */
 function entrer() {
   const R = S.R;
   clearTimeout(minuterie);
   V = { vitesse: V.vitesse || 1 };
   if (R.phase === 'feuille') preparerLaFeuille();
-  if (R.phase === 'histoire') V.histoire = histoireVue(histoireDeLaCase(S));
   if (R.phase === 'fin') finDeLaRun();
   rendre();
 }
+/* La feuille d'un duel dit leur intention et ce qu'elle te coûte ; toute feuille calcule ta chance. Refait quand la sorte du soir change (une affiche posée). */
 function preparerLaFeuille() {
-  const R = S.R, c = R.case;
-  if (c.sorte !== 'match') {
+  const c = S.R.soir;
+  V.intention = V.leurJeu = null;
+  if (enDuel(c)) {
     const adv = S.clubs.find(x => x.s === c.s && x.t === c.t).team;
     V.intention = intentionCeSoir(S);
     V.leurJeu = avecHasardIsole('run-leur-jeu', () => leurJeuEnStats(S.toi, adv, V.intention));
   }
   calculerLaChance();
 }
-/* Ta chance ce soir, par tranches : la jauge se remplit sans figer l'écran, et se refait quand tes lignes ou ton gardien bougent. */
+/* Ta chance ce soir, par tranches : la jauge se remplit sans figer l'écran, et se refait quand ton gardien bouge. */
 async function calculerLaChance() {
   const jeton = V.jetonChance = (V.jetonChance || 0) + 1, seance = S;
   V.chance = null;
@@ -272,7 +284,7 @@ async function calculerLaChance() {
     majDeLaJauge();
   }
   // L'élite : sa récompense suit ta chance, la feuille la redit une fois le calcul fini.
-  const elite = S.R.case.sorte === 'elite' && S.R.case.J == null;
+  const elite = S.R.soir.sorte === 'elite' && S.R.soir.J == null;
   fixerLElite(S, v / n);
   garder();
   if (elite && !V.ecran && !V.pause) rendre();
@@ -301,13 +313,18 @@ function tempsForts(res) {
   for (const e of evts) { const l = tirsA(e.t); e.tirs = [l.filter(x => x.cote === c).length, l.filter(x => x.cote !== c).length]; e.h = hache(g, 'glace', e.t); e.h2 = hache(g, 'glace2', e.t); e.per = periodeDe(e.t); }
   return evts;
 }
+/* Lancer le match : joué et compté d'un seul geste, gardé ; ses temps forts se regardent ensuite. */
 function lancerLeMatch() {
-  const R = S.R, c = R.case;
-  if (c.sorte === 'elite' && c.J == null) { const r = chanceCeSoir(S, { n: 60, tranche: 9 }); fixerLElite(S, r.v / r.n); }
-  garder();
+  const R = S.R, c = R.soir, t = c.t;
+  if (c.sorte === 'elite' && c.enjeu && c.J == null) { const r = chanceCeSoir(S, { n: 60, tranche: 9 }); fixerLElite(S, r.v / r.n); }
   const res = jouerLeMatch(S);
   const pieces = [...new Set((res.feuille.pieces || []).filter(x => x.cote === res.cote).map(x => x.cle))].filter(k => R.banc.includes(k));
-  V = { ecran: 'match', vitesse: V.vitesse || 1, match: { res, evts: tempsForts(res), i: -1, pieces } };
+  const evts = tempsForts(res);
+  conclure(S, res);
+  // Les galons du soir se gravent tout de suite : une run quittée ne les perd pas.
+  graverAuCartable(S.R.galons, S.R.graine);
+  garder();
+  V = { ecran: 'match', vitesse: V.vitesse || 1, match: { res, t, evts, i: -1, pieces } };
   rendre();
   suite();
 }
@@ -328,13 +345,9 @@ function suite() {
 function apresLeMatch() {
   const res = V.match.res;
   clearTimeout(minuterie);
-  conclure(S, res);
-  // Les galons du soir se gravent tout de suite : une run quittée ne les perd pas.
-  graverAuCartable(S.R.galons, S.R.graine);
-  if (res.gagne && S.R.apres && S.R.apres.sorte !== 'match') pic(plan);
   jouerSon(res.gagne ? 'recompense' : 'arriere');
-  garder();
   entrer();
+  if (res.gagne && res.duel) pic(plan);
 }
 
 /* ---------- les histoires, la fin ---------- */
@@ -347,22 +360,21 @@ function histoireVue(h) {
     options: h.H.options.map(o => ({ cle: o.cle, lignes: lignes(o),
       carte: carteHtml({ cle: o.cle, niveau: o.niveau || 0, genreCarte: o.pari ? 'synergie' : 'defense', ico: o.pari ? '🎲' : h.H.ico, nomHtml: esc(nomDOption(o, h.joueur)), typeHtml: o.pari ? 'Pari' : 'Réponse', lecture: true, statique: true }) })) };
 }
-/* La run finie : ses médailles versées une fois (js/rogue.js `payerEcussons`), son joueur de la run, ses cartes au cartable. */
+/* La run finie : ses médailles versées une fois (js/rogue.js `payerEcussons`), son joueur de la saison, ses cartes au cartable. */
 function finDeLaRun() {
   const R = S.R, F = R.fin;
-  payerEcussons(R.graine, 'run', F.medailles, { bilan: { ronde: F.rondes, coupe: F.coupe, series: !!R.series, exigence: reglesDe(R).exigence, pts: R.actes.reduce((a, x) => a + x.pts, 0) } });
+  payerEcussons(R.graine, 'run', F.medailles, { bilan: { ronde: F.rondes, coupe: F.coupe, series: !!R.series, finale: F.rondes >= 3, exigence: reglesDe(R).exigence, pts: F.pts } });
   V.medailles = lireMeta().ecussons || 0;
-  const buts = new Map();
-  for (const e of S.journal) for (const b of e.feuille.buts || []) if (b.marqueur && !b.fusillade && Object.values(S.roster).includes(b.marqueur)) buts.set(b.marqueur, (buts.get(b.marqueur) || 0) + 1);
-  const [p, n] = [...buts].sort((a, b) => b[1] - a[1])[0] || [];
-  V.etoile = p ? { p, mot: `${n} but${n > 1 ? 's' : ''} en ${F.matchs} matchs` } : null;
-  ajouterAuCartable(Object.values(S.roster).filter(Boolean).map(x => ({ cle: getPlayerKey(x), rar: 'commune' })), { doublons: false });
+  const meneur = effectifDe(S).filter(p => p.p !== 'G').map(p => [p, R.stats[getPlayerKey(p)] || [0, 0, 0]]).sort((a, b) => (b[1][1] + b[1][2]) - (a[1][1] + a[1][2]))[0];
+  V.etoile = meneur && meneur[1][0] ? { p: meneur[0], mot: `${meneur[1][1]} buts, ${meneur[1][1] + meneur[1][2]} points en ${meneur[1][0]} matchs` } : null;
+  ajouterAuCartable(effectifDe(S).map(x => ({ cle: getPlayerKey(x), rar: 'commune' })), { doublons: false });
   graverAuCartable(R.galons, R.graine);
   garder();
 }
 
 /* ---------- les gestes ---------- */
-const joueurDe = cle => Object.values(S.roster).find(p => p && getPlayerKey(p) === cle) || null;
+const joueurDe = cle => effectifDe(S).find(p => getPlayerKey(p) === cle) || null;
+const suivre = () => { garder(); entrer(); return false; };
 const GESTES = {
   // le départ
   coach: v => { V.coach = Number(v); },
@@ -388,32 +400,71 @@ const GESTES = {
   pause: () => { V.pause = true; },
   reprendre: () => { V.pause = false; if (V.ecran === 'match') suite(); },
   menu: () => { garder(); fermer(); return false; },
-  abandonner: () => { if (!V.sur) { V.sur = true; return; } clearTimeout(minuterie); finir(S, 'quitte'); garder(); entrer(); return false; },
-  // la carte
-  'vers-carte': () => { S.R.phase = 'carte'; garder(); },
-  'voir-case': v => { V.caseVue = Number(v); },
-  aller: v => { if (allerA(S, Number(v))) { garder(); entrer(); return false; } },
-  lignes: () => { V.retour = V.ecran || null; V.ecran = 'lignes'; V.pause = false; V.seg = 'F'; V.tenu = null; },
-  seg: v => { V.seg = v; V.tenu = null; },
+  abandonner: () => { if (!V.sur) { V.sur = true; return; } clearTimeout(minuterie); finir(S, 'quitte'); return suivre(); },
+  // une pièce offerte : au départ, d'un rival, d'une élite
+  'voir-piece': v => { V.piece = v; V.montee = null; },
+  'piece-sort': v => { V.sort = V.sort === v ? null : v; },
+  'prendre-piece': () => {
+    const o = S.R.apres.offertes, cle = o.includes(V.piece) ? V.piece : o[0];
+    if (!prendreLaPiece(S, cle, V.sort || null)) { jouerSon('refus'); return; }
+    jouerSon('recompense');
+    pieceReglee(S);
+    return suivre();
+  },
+  'piece-passee': () => { pieceReglee(S); return suivre(); },
+  // le repêchage
+  'voir-joueur': v => { V.joueur = v; },
+  'page-porte': () => { V.page = (V.page || 0) + 1; V.joueur = null; },
+  'relancer-roulette': () => { if (relancerLaRoulette(S)) { jouerSon('donne'); Object.assign(V, { page: 0, joueur: null }); garder(); } else jouerSon('refus'); },
+  repecher: v => {
+    const x = vestiaireDuRepechage(S).find(y => getPlayerKey(y.p) === v);
+    if (!x || !repecher(S, x.p)) { jouerSon('refus'); return; }
+    jouerSon('valide'); notable();
+    return suivre();
+  },
+  // l'ouverture du quart, le bureau
+  'vers-bureau': () => { versLeBureau(S); return suivre(); },
+  onglet: v => { V.onglet = v; V.tenu = null; },
+  'seg-a': v => { V.segA = v; V.tenu = null; },
+  'seg-l': v => { V.segL = v; },
+  'seg-c': v => { V.segC = v; },
+  tri: v => { V.tri = v; },
+  'vers-banc': () => { V.onglet = 'alignement'; V.segA = 'banc'; },
   case: v => {
     const i = Number(v);
     if (V.tenu == null) V.tenu = i; else if (V.tenu === i) V.tenu = null; else { if (echangerDeuxCases(S, V.tenu, i)) { jouerSon('valide'); garder(); } else jouerSon('refus'); V.tenu = null; }
   },
-  'fermer-lignes': () => { V.ecran = V.retour || null; V.tenu = null; if (S.R.phase === 'feuille' && !V.ecran) calculerLaChance(); },
-  banc: () => { V.retour = V.ecran || null; V.ecran = 'banc'; V.pause = false; },
-  'fermer-banc': () => { V.ecran = V.retour || null; },
-  // la feuille du soir, le match
-  filet: v => { choisirLeFilet(S, v); garder(); calculerLaChance(); },
+  aller: () => { if (allerAuMatch(S)) return suivre(); },
+  etal: () => { V.ecran = 'etal'; },
+  'fermer-etal': () => { V.ecran = null; },
+  pochette: v => { ouvrirLaPochette(v); return false; },
+  'ouvrir-histoire': () => { const h = histoireDuJour(S); if (h) { V.ecran = 'histoire'; V.histoire = histoireVue(h); } },
+  'fermer-histoire': () => { V.ecran = null; V.histoire = null; },
+  reponse: v => {
+    const h = V.histoire.h, o = h.H.options[Number(v)], de = repondre(S, h, o.cle);
+    garder();
+    if (!de) { V.ecran = null; V.histoire = null; return; }
+    // Le dé se montre avant de revenir au bureau.
+    V.histoire = { ...V.histoire, dit: `Le dé : ${de.face}. ${de.gagne ? 'Ça tourne pour lui.' : 'Ça ne tourne pas.'}`, options: [] };
+    jouerSon(de.gagne ? 'recompense' : 'arriere');
+    minuterie = setTimeout(() => { V.ecran = null; V.histoire = null; rendre(); }, 1800);
+  },
+  // le ballottage
+  reclamer: v => { const p = offresVues(S).find(x => getPlayerKey(x) === v) || null; reclamer(S, p); jouerSon(p ? 'valide' : 'tap'); return suivre(); },
+  // la feuille du soir, le match, le résultat
+  filet: v => { choisirLeFilet(S, v); calculerLaChance(); },
+  affiche: v => { if (poserLAffiche(S, !!v)) { jouerSon(v ? 'valide' : 'tap'); garder(); preparerLaFeuille(); } else jouerSon('refus'); },
+  enjeu: v => { mettreLEnjeu(S, !!v); jouerSon(v ? 'valide' : 'tap'); garder(); preparerLaFeuille(); },
+  'retour-bureau': () => { retourAuBureau(S); return suivre(); },
   jouer: () => { lancerLeMatch(); return false; },
   vitesse: () => { V.vitesse = VITESSES[(VITESSES.indexOf(V.vitesse) + 1) % VITESSES.length]; suite(); },
   'fin-du-match': () => { clearTimeout(minuterie); V.match.i = V.match.evts.length - 1; },
   'apres-match': () => { apresLeMatch(); return false; },
-  'match-de-serie': () => { allerAuMatchDeSerie(S); garder(); entrer(); return false; },
+  continuer: () => { continuer(S); return suivre(); },
+  'match-de-serie': () => { allerAuMatchDeSerie(S); return suivre(); },
   // les portes, l'échange
   'ouvrir-porte': v => { Object.assign(V, { ecran: 'porte', porte: Number(v), page: 0, joueur: null }); },
-  'voir-joueur': v => { V.joueur = v; },
-  'page-porte': () => { V.page = (V.page || 0) + 1; V.joueur = null; },
-  'fermer-porte': () => { if (S.R.portes.pochette) { apresLesPortes(S); garder(); entrer(); return false; } V.ecran = null; },
+  'fermer-porte': () => { if (S.R.portes.pochette) { apresLesPortes(S); return suivre(); } V.ecran = null; },
   'vers-echange': v => {
     const x = [...(S.R.portes.pochette ? [null] : S.R.portes.clubs)].flatMap(c => (c ? S.clubs.find(k => k.s === c.s && k.t === c.t).pool : S.pochette || [])).find(p => getPlayerKey(p) === v);
     if (x) Object.assign(V, { ecran: 'echange', arrivant: x, sortant: null });
@@ -425,53 +476,24 @@ const GESTES = {
     if (!sortant || !signer(S, V.arrivant, sortant)) { jouerSon('refus'); return; }
     jouerSon('valide'); notable();
     ajouterAuCartable([V.arrivant, sortant].map(p => ({ cle: getPlayerKey(p), rar: 'commune' })), { doublons: false });
-    apresLesPortes(S); garder(); entrer();
-    return false;
+    apresLesPortes(S);
+    return suivre();
   },
-  passer: () => { passerLesPortes(S); apresLesPortes(S); garder(); entrer(); return false; },
+  passer: () => { passerLesPortes(S); apresLesPortes(S); return suivre(); },
   relancer: () => { if (relancerLesPortes(S)) { jouerSon('donne'); garder(); } },
-  // une pièce offerte, la fin d'acte
-  'voir-piece': v => { V.piece = v; V.montee = null; },
+  // le bilan, le marché du quart
+  'apres-bilan': () => { apresLeBilan(S); return suivre(); },
   // La carte à monter : la première touche prend celui qui avance le plus ton banc, les suivantes passent au suivant.
-  'voir-montee': () => { const c = aMonter(S); if (!c.length) return; V.montee = getPlayerKey(c[(c.findIndex(x => getPlayerKey(x.p) === V.montee) + 1) % c.length].p); V.piece = null; },
+  'voir-montee': () => { const c = aMonter(S); if (!c.length) return; V.montee = getPlayerKey(c[(Math.max(0, c.findIndex(x => getPlayerKey(x.p) === V.montee)) + 1) % c.length].p); V.piece = null; },
   'monter-au-marche': v => { const p = joueurDe(v); if (p && monterAuMarche(S, p)) { jouerSon('recompense'); V.montee = null; garder(); } else jouerSon('refus'); },
-  'piece-sort': v => { V.sort = V.sort === v ? null : v; },
-  'prendre-piece': () => {
-    const R = S.R, o = R.apres.offertes, cle = o.includes(V.piece) ? V.piece : o[0];
-    if (!prendreLaPiece(S, cle, V.sort || null)) { jouerSon('refus'); return; }
-    jouerSon('recompense');
-    return GESTES[R.phase === 'finacte' ? 'apres-acte' : 'piece-passee']();
-  },
-  'piece-passee': () => { pieceReglee(S); garder(); entrer(); return false; },
-  'apres-acte': () => { pieceReglee(S); apresLaFinDActe(S); garder(); entrer(); return false; },
-  // le marché, le vestiaire, l'histoire
-  'acheter-piece': v => { if (acheterLaPiece(S, v, V.sort || null)) { jouerSon('recompense'); V.piece = null; garder(); } else jouerSon('refus'); },
-  pochette: v => { ouvrirLaPochette(v); return false; },
-  'quitter-marche': () => { avancer(S); garder(); entrer(); return false; },
-  'choix-vestiaire': v => { V.choix = v; },
-  'autre-carte': () => {
-    const js = Object.values(S.roster).filter(Boolean), i = js.findIndex(p => getPlayerKey(p) === V.joueur);
-    V.joueur = getPlayerKey(js[(i + 1) % js.length]); V.choix = 'monter';
-  },
-  reposer: () => { reposer(S); jouerSon('valide'); garder(); entrer(); return false; },
-  monter: v => { const p = joueurDe(v); if (p && monterUneCarte(S, p)) { jouerSon('recompense'); garder(); entrer(); return false; } jouerSon('refus'); },
-  reponse: v => {
-    const h = V.histoire.h, o = h.H.options[Number(v)], de = repondre(S, h, o.cle);
-    garder();
-    if (!de) { entrer(); return false; }
-    // Le dé se montre avant de revenir à la carte.
-    V = { ecran: 'de', histoire: { ...V.histoire, dit: `Le dé : ${de.face}. ${de.gagne ? 'Ça tourne pour lui.' : 'Ça ne tourne pas.'}`, options: [] }, de };
-    jouerSon(de.gagne ? 'recompense' : 'arriere');
-    minuterie = setTimeout(() => entrer(), 1800);
-  },
-  'histoire-calme': () => { S.R.jetons += RUN.PASSER; avancer(S); garder(); entrer(); return false; },
+  'acheter-piece': v => { if (acheterLaPiece(S, v, V.sort || null)) { jouerSon('recompense'); V.piece = null; V.sort = null; garder(); } else jouerSon('refus'); },
+  'quitter-marche': () => { quitterLeMarche(S); return suivre(); },
 };
 async function ouvrirLaPochette(cle) {
   const R = S.R, vus = new Set(R.vus);
   montrer(sceneAttente('On ouvre la pochette…'));
   const r = await tirerJoueursDuPack(cle, { graine: `${R.graine}:pochette`, n: R.achats, params: { poste: 'F' }, saisons: [...SHARDS.keys()], shard: shardCharge, libre: p => !vus.has(getPersonKey(p)) }).catch(() => null);
-  R.achats++;
-  if (!r || !r.cartes.length || !acheterLaPochette(S, cle, r.cartes.map(x => x.p))) { jouerSon('refus'); return entrer(); }
+  if (!r || !r.cartes.length || !acheterLaPochette(S, cle, r.cartes.map(x => x.p))) { jouerSon('refus'); return rendre(); }
   jouerSon('donne');
   garder();
   entrer();

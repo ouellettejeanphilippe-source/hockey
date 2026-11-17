@@ -1,7 +1,7 @@
 ---
 name: refonte
 description: "Un gros changement demandé par JP (une refonte, « de zéro », « au complet », « pas juste la peinture ») mené pour qu'il en soit un : l'inventaire de ce qui existe, le devis avec ce qui part, le code réécrit plutôt que retouché, et check_refonte qui mesure que ce n'est pas une couche de peinture. À charger avant de lire le code."
-argument-hint: "<le sujet : la carte | les portes | le banc | le marché | les histoires | le duel | la run | un module | …>"
+argument-hint: "<le sujet : le bureau | les portes | le banc | le marché | les histoires | le duel | la run | un module | …>"
 user-invocable: true
 ---
 
@@ -23,12 +23,12 @@ Avant tout devis, la liste de ce qui fait le sujet aujourd'hui : les fichiers, l
 
 Un devis sur le gabarit `docs/gabarits/devis.md`, jugé par `/revue-design` avant le code. Sa partie **« Ce qui part »** est la pièce maîtresse : chaque fonction, classe, bloc, fichier ou règle que la refonte remplace, nommé en `code`, avec ce qui le remplace. Le test du zéro : si le neuf peut s'écrire sans relire l'ancien ligne par ligne, c'est une refonte ; si chaque ligne du neuf répond à une ligne de l'ancien, c'est une retouche. « Ce qui reste » se nomme aussi, avec sa raison (les cartes du jeu restent telles quelles : JP, deux fois).
 
-Pour un écran : des maquettes d'abord, à 390 × 844, en deux ou trois directions franchement différentes, et JP tranche sur les maquettes (c'est ainsi que le Rogue a enfin changé : la run en carte de la V28, sur `docs/maquettes/v28-ecrans.html`) ; le code reproduit la maquette choisie, il ne « s'en inspire » pas. Pour un système : les règles du jeu réécrites au complet dans le devis, pas un diff des règles d'avant.
+Pour un écran : des maquettes d'abord, à 390 × 844, en deux ou trois directions franchement différentes, et JP tranche sur les maquettes (c'est ainsi que le Rogue a enfin changé, à la V28, sur `docs/maquettes/v28-ecrans.html` : ses scènes illustrées en gardent l'allure) ; le code reproduit la maquette choisie, il ne « s'en inspire » pas. JP a levé ce tour une fois, pour le bureau de la V30 (17 nov. 2026 : *code direct*, il juge sur le vrai écran) : c'était sa réponse à une question posée, pas une règle neuve. Pour un système : les règles du jeu réécrites au complet dans le devis, pas un diff des règles d'avant.
 
 ## 4. Le code : réécrit, pas retouché
 
 - Un module refait se repart d'un fichier neuf (ou vidé), avec les composants partagés qui existent (`js/util.js`, les cartes de `js/cartes.js` ; dans le Rogue, le HUD et les briques de `js/run-scenes.js`) ; l'ancien se supprime, il ne se commente pas.
-- Pas de `body.mode-rogue` ni de classe « v2 » posée sur l'ancien composant : la surface se change à la source (interface.md). Dans le Rogue, le neuf ne s'appuie pas sur l'ancien : aucun module `js/run*.js` n'importe ni ne nomme un nom de « Ce qui part » de `docs/refonte-v28.md` — `check_neuf`.
+- Pas de `body.mode-rogue` ni de classe « v2 » posée sur l'ancien composant : la surface se change à la source (interface.md). Dans le Rogue, le neuf ne s'appuie pas sur l'ancien : aucun module `js/run*.js` n'importe ni ne nomme un nom de « Ce qui part » de `docs/refonte-v28.md` ni de `docs/refonte-v30-2.md` — `check_neuf`.
 - Les règles de `.claude/rules/` qui décrivaient l'ancien se réécrivent pour décrire le neuf (le 4 nov., les règles encodaient l'interface d'avant, et chaque session y revenait).
 - Les clés de sauvegarde ne bougent pas (`check_sauvegardes`).
 

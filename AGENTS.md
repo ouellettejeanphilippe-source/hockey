@@ -28,7 +28,7 @@ python3 scripts/build_shards.py
 ## Avant de pousser
 
 1. `node scripts/tout.mjs` et `node scripts/check_mort.mjs` passent ici ; le smoke, `check_graine`, `check_feuilles`, `check_gros` et le reste, c'est le CI (`verifier.yml`).
-2. Un changement au Rogue (la carte, les portes, le marché, une scène) : `check_run` et `check_neuf` passent par `tout.mjs`, puis `node scripts/essai_run.mjs http://localhost:8000` et `node scripts/check_scene.mjs http://localhost:8000` (une à deux minutes chacun, un serveur statique d'abord) ; au banc ou au moteur : `node scripts/check_pouvoirs.mjs` (une minute), `node scripts/check_moments_si.mjs` (30 s), `GRAINES=64 FILS=3 node scripts/mesure_run.mjs` (une dizaine de minutes, quatre robots ; jamais plus de 3 fils ici).
+2. Un changement au Rogue (la saison, le bureau, les portes, le marché, une scène) : `check_run` et `check_neuf` passent par `tout.mjs`, puis `node scripts/essai_run.mjs http://localhost:8000` et `node scripts/check_scene.mjs http://localhost:8000` (deux à trois minutes chacun, un serveur statique d'abord) ; au banc ou au moteur : `node scripts/check_pouvoirs.mjs` (cinq minutes), `node scripts/check_moments_si.mjs` (30 s), `GRAINES=64 FILS=3 node scripts/mesure_run.mjs` (une dizaine de minutes, quatre robots ; jamais plus de 3 fils ici).
 3. Si une formule de cote a changé : `RATINGS_VERSION` incrémenté dans `js/ratings.js`, puis `python3 scripts/build_shards.py --rerate`.
 4. Si un match ne se rejoue plus pareil : `VERSION_MOTEUR` monté dans `js/game.js`, et `EMPREINTE=ecrire node scripts/check_empreinte.mjs`.
 5. Les cases de `LIVRAISON.md` sont à jour et son journal a une nouvelle ligne ; une décision nouvelle a son entrée dans `docs/decisions.md`.

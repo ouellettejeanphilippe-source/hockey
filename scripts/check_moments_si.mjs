@@ -8,35 +8,33 @@
  *      soir où son moment arrive : la saison diverge au plus tôt ce soir-là, jamais avant.
  *   2. RIEN D'AVANCE : les moments d'un soir sont ceux d'une ligue jouée jusqu'à lui ; jouée jusqu'au bout, la même
  *      ligue dit les mêmes moments de ce soir-là.
- *   3. CHAQUE MOMENT REVIENT : dans une run en carte (le robot malin, scripts/lib/run_robot.mjs, une run par graine), un
+ *   3. CHAQUE MOMENT REVIENT : dans une saison du Rogue (le robot malin, scripts/lib/run_robot.mjs, une run par graine), un
  *      moment courant est vrai pour ton club au moins `MIN_PAR_RUN` soir (en médiane) ; un moment rare (les séries, la
  *      bête noire, le duel, qui compte ses périodes) arrive au moins une fois dans les runs mesurées. Un moment qui
  *      n'arrive jamais ferait une carte morte ; un moment vrai presque tous les soirs n'en est pas un (`PART_MAX`). Un
  *      moment `choix` (jouer un blessé) dépend d'un geste que les robots ne font pas : il est nommé, pas compté.
- *      La run joue des matchs isolés, sans cédule : elle pose elle-même le soir sur les deux clubs (js/run.js
- *      `poserLeSoir` : le rival, le jeu d'en face, ta suite, la bête noire, l'infirmerie, les dos-à-dos de « trois matchs
- *      en trois soirs »). Un écart à la saison de 82 soirs se NOMME, avec sa raison, et le juge échoue s'il cesse d'être
- *      vrai : un moment rare dans une run (`RARES_DANS_LA_RUN`), un moment vrai presque tous les soirs (`TROP_DANS_LA_RUN`).
+ *      La run pose le soir sur les deux clubs le temps du match (js/run.js `poserLeSoir` : le rival du quart, le jeu d'en
+ *      face, ta suite, la bête noire, l'infirmerie, le dos-à-dos lu dans la cédule de sa ligue). Un écart se NOMME, avec sa
+ *      raison, et le juge échoue s'il cesse d'être vrai (`RARES_DANS_LA_RUN`, `TROP_DANS_LA_RUN`).
  *
- *   node scripts/check_moments_si.mjs        (GRAINES=1,2,3,4,5,6,7,8 par défaut : une run par graine)
+ *   node scripts/check_moments_si.mjs        (GRAINES=1,2 par défaut : une saison par graine, une demi-minute)
  */
 import { MOMENTS_SI, effetsDeSaison, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { jouerLaRun } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
-// Trois soirs sur une saison de 82 (la borne d'avant), ramenés à une run d'une vingtaine de soirs : un soir par run.
-const MIN_PAR_RUN = 1;
+// Trois soirs sur une saison de 82 : la run est redevenue une saison (V30).
+const MIN_PAR_RUN = 3;
 // Un moment vrai presque tous les soirs n'en est pas un : au plus les trois quarts des soirs d'une run.
 const PART_MAX = 0.75;
-const GRAINES = (process.env.GRAINES || '1,2,3,4,5,6,7,8').split(',').map(Number);
+const GRAINES = (process.env.GRAINES || '1,2').split(',').map(Number);
 /*
- * UN ÉCART NOMMÉ (V28, tranche 4, « le banc remesuré » ; mesuré le 11 nov. 2026 sur des runs du robot malin). Une run fait
- * une vingtaine de soirs coupés d'arrêts : deux blessés à la fois y sont rares (l'infirmerie, 5 à 10 % des soirs). Elle se
- * juge comme un moment rare ; une seule pièce la lit, en relais (🏃 le préparateur). `TROP_DANS_LA_RUN` nommerait un moment
- * vrai presque tous les soirs : depuis « trois matchs en trois soirs », plus aucun (les jambes fraîches, 73 % des soirs).
+ * UN ÉCART NOMMÉ : un moment rare dans une run (`RARES_DANS_LA_RUN`) ou vrai presque tous les soirs (`TROP_DANS_LA_RUN`), avec sa
+ * raison. Aucun depuis la V30 : la run est une saison de 82 soirs, et l'infirmerie (deux blessés à la fois), rare sur une run de
+ * vingt soirs, y revient une huitaine de fois.
  */
-const RARES_DANS_LA_RUN = { infirmerie: 'deux blessés à la fois : une run d\'une vingtaine de soirs en voit peu' };
+const RARES_DANS_LA_RUN = {};
 const TROP_DANS_LA_RUN = {};
 const CLES = Object.keys(MOMENTS_SI);
 const med = a => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor((b.length - 1) / 2)] : 0; };
@@ -116,10 +114,10 @@ function soirs(L) {
 {
   const parMoment = Object.fromEntries(CLES.map(k => [k, []]));
   parMoment.soirs = [];
-  const joue = graine => {
+  const joue = async graine => {
     const n = Object.fromEntries(CLES.map(k => [k, 0]));
     let soirsJoues = 0;
-    jouerLaRun('malin', graine, { espion: (quoi, S, res) => {
+    await jouerLaRun('malin', graine, { espion: (quoi, S, res) => {
       if (quoi !== 'match') return;
       soirsJoues++;
       const f = res.feuille;
@@ -137,14 +135,14 @@ function soirs(L) {
     for (const k of CLES) parMoment[k].push(n[k]);
     parMoment.soirs.push(soirsJoues);
   };
-  GRAINES.forEach(joue);
+  for (const g of GRAINES) await joue(g);
   const somme = a => a.reduce((x, y) => x + y, 0);
   const rare = k => !!MOMENTS_SI[k].rare || k in RARES_DANS_LA_RUN;
   const courants = CLES.filter(k => !rare(k) && !MOMENTS_SI[k].choix), rares = CLES.filter(rare);
   // UN RARE PEUT MANQUER PAR TIRAGE (oct. 2026) : la chasse est 2 % des périodes de duel. Tant qu'un rare manque, on joue
-  // d'autres runs, quatre au plus : un moment rare qui n'arrive jamais en douze runs est mort.
-  const RUNS_DE_PLUS = 4;
-  for (let g = 1; g <= RUNS_DE_PLUS && rares.some(k => somme(parMoment[k]) < 1); g++) joue(Math.max(...GRAINES) + g);
+  // d'autres runs, deux au plus : un moment rare qui n'arrive jamais en quatre saisons est mort.
+  const RUNS_DE_PLUS = 2;
+  for (let g = 1; g <= RUNS_DE_PLUS && rares.some(k => somme(parMoment[k]) < 1); g++) await joue(Math.max(...GRAINES) + g);
   const nSoirs = somme(parMoment.soirs);
   exiger('des runs sont jouées, et leurs soirs lus', parMoment.soirs.length >= GRAINES.length && nSoirs >= 10 * GRAINES.length, `${parMoment.soirs.length} runs, ${nSoirs} soirs`);
   informer('les soirs par run (médiane ; les rares, au total)', [...courants.map(k => `${k} ${med(parMoment[k])}`), ...rares.map(k => `${k} Σ${somme(parMoment[k])}`)].join(' · '));

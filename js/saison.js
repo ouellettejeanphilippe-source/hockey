@@ -8,7 +8,7 @@
  * meneurs se cumulent des feuilles vues.
  *
  * Le jour à jour de la saison (`ouvrirSaison`, le Bureau et sa boîte) est parti avec l'ancien Rogue (V28, tranche 4) : la
- * saison du 82-0 file droit au bilan (js/banc.js), la run en carte a ses scènes (js/run-scenes.js).
+ * saison du 82-0 file droit au bilan (js/banc.js), le Rogue a sa propre saison et ses scènes (js/run.js, js/run-scenes.js).
  *
  * Le module est aveugle aux données du jeu : `ctx` porte les fonctions d'affichage de js/game.js (noms, écussons,
  * échappement, portraits).

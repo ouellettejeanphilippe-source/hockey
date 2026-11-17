@@ -14,8 +14,8 @@
  *   - LE SOLDE, deux fois une : l'ancien Rogue arrêté (`solderLAncienRogue`, tranche 4), ses déblocages remboursés
  *     (`solderLesDeblocages`, tranche 5).
  *
- * Il garde aussi ce que la run lit pour se bâtir : les bouche-trous du départ, les jetons, ce que la règle du coach lit
- * dans une feuille, les éditions des adversaires (`habillerLaLigue`).
+ * Il garde aussi ce que la run lit pour se bâtir : les jetons du départ, ce que la règle du coach lit dans une
+ * feuille, les éditions des adversaires (`habillerLaLigue`).
  */
 import { retirerLesRuns } from './sauvegardes.js';
 import { VOIES } from './coachs.js';
@@ -41,46 +41,8 @@ export function chiffresDuSoirDe(f, cote) {
     butGagnantTard: !!gagnant && gagnant.instant >= 40,
   };
 }
-/* La règle du coach paie au plus `PRIME_COACH_MAX` jetons par run (js/coachs.js `REGLES_DU_COACH`, js/run.js `conclure`). */
-export const PRIME_COACH_MAX = 50;
-/* Les jetons d'une run : la caisse de départ, la même pour tous, et ce qu'un match perdu laisse (une victoire paie selon le club, js/run.js `RUN`). */
-export const JETONS = { depart: 40, prolongation: 4, defaite: 2 };
-
-/*
- * LES BOUCHE-TROUS DU DÉPART (JP, 18 oct. : *défenseurs trop forts sur nouvelle run, ça devrait être plus bas*). Les
- * défenseurs et les gardiens se tirent par leur VALEUR, les attaquants par leurs points ; dans chaque saison tirée, la
- * même bande pour tous (du 40e au 60e centile, `BANDE_DEPART`), et dans la bande, les pires contrats (le tiers le mieux
- * payé : le plafond qui mord).
- *   saisons   les joueurs de chaque saison tirée ; groupe(p) : 'F', 'D' ou 'G' ; valeur(p) : la valeur cachée
- *             (js/sim.js) ; personne(p) : la personne (une par alignement) ; exclus : les personnes déjà prises ;
- *   piger(liste, cle)   en rend un
- */
-const BOUCHES_TROUS = { F: { par: 'points', n: 3 }, D: { par: 'valeur', n: 2 }, G: { par: 'valeur', n: 1 } };
-const PART_DES_PIRES = 1 / 3;
-/* R1 (8 nov. 2026) : 0,35-0,55 la faisait partir au 28e (la borne) et l'acte I tuait l'attentif 18 fois sur 64. */
-const BANDE_DEPART = [0.40, 0.60];
-const pointsParMatch = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
-export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, exclus = new Set(), reserve = null }) {
-  const out = [], pris = new Set(exclus);
-  const [bas, haut] = BANDE_DEPART;
-  const pires = t => t.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (personne(a) < personne(b) ? -1 : 1)).slice(0, Math.max(1, Math.ceil(t.length * PART_DES_PIRES)));
-  saisons.forEach((joueurs, i) => {
-    for (const g of ['F', 'D', 'G']) {
-      const B = BOUCHES_TROUS[g], cle = B.par === 'points' ? pointsParMatch : valeur;
-      const reg = joueurs.filter(p => groupe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 30) && !pris.has(personne(p))).sort((a, b) => cle(a) - cle(b));
-      const bande = reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut)));
-      // `reserve` : toute la bande, pour alourdir ou alléger le départ (js/run.js `effectifDeDepart`).
-      if (reserve) reserve.push(...bande);
-      const tranche = pires(bande);
-      for (let k = 0; k < B.n && tranche.length; k++) {
-        const p = piger(tranche, `${i}${g}${k}`);
-        if (!p) break;
-        out.push(p); pris.add(personne(p)); tranche.splice(tranche.indexOf(p), 1);
-      }
-    }
-  });
-  return out;
-}
+/* Les jetons d'une run : la caisse de départ, la même pour tous (ce qu'un match paie : js/run.js `RUN`). */
+export const JETONS = { depart: 40 };
 
 /* ---------- l'état ---------- */
 /*
@@ -146,7 +108,7 @@ export function ouvrirUneVoie(cle) {
 export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 20 + (coupe ? 40 : 0);
 /*
  * PAYER, UNE FOIS : la clé d'une run et son étape ne paient qu'une fois (`recompenses`). `bilan` (la fin d'une run en
- * carte, étape `run`) écrit le palmarès : { pts, ronde, coupe, series, exigence } — la Coupe comptée, le cran suivant
+ * saison, étape `run`) écrit le palmarès : { pts, ronde, coupe, series, finale, exigence } — la Coupe comptée, le cran suivant
  * ouvert par une Coupe gagnée à son cran, les exploits du prestige (les séries jouées, une ronde gagnée, la finale jouée).
  */
 export function payerEcussons(cleRun, etape, n, { bilan = null } = {}) {
@@ -158,7 +120,7 @@ export function payerEcussons(cleRun, etape, n, { bilan = null } = {}) {
   m.ecussons = (m.ecussons || 0) + gain;
   if (bilan) {
     if (bilan.coupe) { m.coupes = (m.coupes || 0) + 1; m.exigence = Math.max(m.exigence || 0, Math.min(EXIGENCES.length, bilan.exigence || 0)); }
-    m.jalons = { ...(m.jalons || {}), ...(bilan.series ? { series: true } : {}), ...(bilan.ronde >= 1 ? { ronde: true } : {}), ...(bilan.ronde >= 2 ? { finale: true } : {}) };
+    m.jalons = { ...(m.jalons || {}), ...(bilan.series ? { series: true } : {}), ...(bilan.ronde >= 1 ? { ronde: true } : {}), ...((bilan.finale ?? bilan.ronde >= 2) ? { finale: true } : {}) };
     if (!m.meilleur || (bilan.ronde || 0) > (m.meilleur.ronde || 0) || ((bilan.ronde || 0) === (m.meilleur.ronde || 0) && (bilan.pts || 0) > (m.meilleur.pts || 0))) m.meilleur = { pts: bilan.pts || 0, ronde: bilan.ronde || 0, coupe: !!bilan.coupe };
   }
   // Les vieilles runs payées s'oublient : la liste ne doit pas grossir sans fin.
@@ -170,21 +132,23 @@ export function payerEcussons(cleRun, etape, n, { bilan = null } = {}) {
 
 /*
  * LES EXIGENCES 🔺 (V28, tranche 5, docs/refonte-v28-5.md § 3.4). Après ta première Coupe, une run peut se lancer à un cran :
- * chaque cran ajoute sa règle à celles d'avant, par un levier de la run en carte (js/run.js `creerLaRun`, `reglesDe`), et ses
+ * chaque cran ajoute sa règle à celles d'avant, par un levier de la run (js/run.js `creerLaRun`, `reglesDe`), et ses
  * médailles sont multipliées par 1 + `PRIME_EXIGENCE` par cran. La Coupe gagnée au plus haut cran ouvert ouvre le suivant.
- * Seuls deux leviers COÛTENT, mesurés un à un (11 nov. 2026, le robot qui lit, 64 graines) : la cible (+1 : 52 % de cibles
- * tenues contre 58) et la force des clubs (une étape d'édition de plus : 55 %). Moins d'espace, des adversaires plus hauts,
- * une porte de moins, un rachat plus dur ne coûtent rien aujourd'hui : un cran qui ne coûte pas serait une prime gratuite.
- * Trois crans, mesurés ensemble sur 128 graines (`CRANS=1`, scripts/mesure_run.mjs) : 59 % de cibles tenues sans exigence,
- * puis 51 %, 46 % et 33 % ; 61, 64, 65 et 58 médailles par run, la prime comprise : monter ne paie pas plus, ça se mérite.
- * Un quatrième (une étape de plus) n'ajoutait rien de mesurable.
+ * Les deux leviers sont ceux qui coûtaient à la V28, mesurés un à un sur la run en carte (11 nov. 2026 : la cible, la force
+ * des clubs ; moins d'espace, une porte de moins, un rachat plus dur ne coûtaient rien) : un cran qui ne coûte pas serait
+ * une prime gratuite. À LA V30, la cible est devenue l'objectif de points du proprio, à chaque quart, et les trois crans
+ * sont remesurés sur la saison (17 nov. 2026, `CRANS=1`, scripts/mesure_run.mjs, le bâtisseur, 128 graines) : 117,6 points
+ * et 0,3 cœur perdu par run sans exigence ; au cran 1, les mêmes points et moins de 0,05 cœur de plus (un point de plus
+ * par quart ne mord presque pas sur un bâtisseur qui tient ses objectifs de loin) ; au cran 2, 112,3 points et 0,1 cœur de
+ * plus, 1 Coupe sur 128 au lieu de 5 ; au cran 3, 111,5 points. Les médailles : 104, 119, 118 et 130 par run, la prime
+ * comprise — le cran 1 est presque une prime gratuite, à poser à JP (docs/refonte-v30-2.md § 12).
  * Les huit crans de l'ancien Rogue (le prix des packs, le classeur, le barème, les contrôles) sont partis avec lui.
  */
 export const PRIME_EXIGENCE = 0.15;
 export const EXIGENCES = [
-  { cle: 'barre', nom: 'La barre monte', texte: 'un point de plus à tenir par acte', court: 'Cible +1', cible: 1 },
+  { cle: 'barre', nom: 'La barre monte', texte: 'un point de plus demandé par le proprio à chaque quart', court: 'Points +1', cible: 1 },
   { cle: 'clubs', nom: 'Des clubs plus forts', texte: 'une étape d\'édition de plus à chaque adversaire', court: 'Clubs +1', etapes: 1 },
-  { cle: 'barre2', nom: 'La barre monte encore', texte: 'deux points de plus à tenir par acte', court: 'Cible +2', cible: 1 },
+  { cle: 'barre2', nom: 'La barre monte encore', texte: 'deux points de plus demandés par le proprio à chaque quart', court: 'Points +2', cible: 1 },
 ];
 /* Ce que `n` crans exigent ensemble : chaque levier additionné, et le multiple des médailles. */
 export function exigencesDe(n = 0) {
@@ -272,8 +236,8 @@ export function solderLesDeblocages() {
 /*
  * LES ÉDITIONS DES ADVERSAIRES (V9, tranche 8 ; JP, 17 oct. : *les clubs des premières runs sont globalement plus faibles
  * et montent*). Chaque étape monte d'une édition (Cadre, Hors-cadre, Or, Holo) un tiers de plus de chaque club, ses
- * meilleurs d'abord — le canal de tes cartes, leurs badges. La run en carte habille l'adversaire du soir selon son acte
- * (js/run.js `ETAPES`, `reglesDe`) ; le 82-0 déshabille sa ligue (étape 0).
+ * meilleurs d'abord — le canal de tes cartes, leurs badges. La saison du Rogue habille l'adversaire du soir selon son quart
+ * (js/run.js `RUN.ETAPES`, `reglesDe`) ; le 82-0 déshabille sa ligue (étape 0).
  */
 /* L'édition d'un adversaire, au rang `r` de son club (0 : son meilleur) sur `n` : un tiers de plus du club par étape. */
 function editionDansLaLigue(etape, r, n) {

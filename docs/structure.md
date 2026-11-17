@@ -19,9 +19,9 @@ js/alignement.js      les cases, les trios et les paires, leur affinité, le fil
 js/fiche.js           la fiche d'un joueur : recto verso, ses rôles, l'impact, le profil mesuré
 js/banc.js            la saison du 82-0 : la ligue se crée, joue ses 82 matchs d'un coup, le bilan se compose ; une partie reprise se rejoue de sa graine (le jour à jour est parti avec l'ancien Rogue)
 js/partie.js          l'écran « Nouvelle partie » (le brouillon)
-js/run.js             la run en carte de la V28, son cœur pur : l'état, le camp et ses pièces, la carte de l'acte, les portes et leur relance payée (`prixDeLaRelance`), le plafond, tes signés et ton banc compté (V29 : `signesDe`, `tonBanc`), leur banc en séries (`leurBanc`), les matchs isolés, le marché et sa carte à monter (`aMonter`, `monterAuMarche`), le vestiaire, les histoires, les séries, la caisse de fin en médailles (`medaillesDe`) ; joué tel quel par les robots
-js/run-scenes.js      les scènes de la run, des fonctions pures (S, V) → HTML d'un plan de 390 × 844 (docs/maquettes/v28-ecrans.html), et celles d'entre deux runs : le Club (Variété, Ton club, Palmarès), le solde (`sceneClub`, `sceneSolde`)
-js/run-jeu.js         la coquille de la run : #runModal, l'échelle, la sauvegarde cap82_run, les gestes, les temps forts ; le départ (le loto, le cran), le Club et le solde, sans run en cours
+js/run.js             le Rogue, la saison de la V30, son cœur pur : l'état, les pièces du départ, le repêchage de 23 (`vestiaireDuRepechage`, `repecher`), la ligue de 32 sur ses propres dés (`jouerLaLigueJusqua`, `classement`), le quart et les objectifs du proprio, le soir (la feuille, l'affiche posée, le gardien, `jouerLeMatch`, `conclure`), les portes et leur relance payée, le plafond, ton banc compté, les pochettes, le ballottage, l'histoire du jour, le bilan, le marché du quart, les vraies séries, la caisse de fin en médailles ; joué tel quel par les robots
+js/run-scenes.js      les scènes du Rogue, des fonctions pures (S, V) → HTML d'un plan de 390 × 844 : le départ, le repêchage, l'ouverture du quart, le bureau et ses cinq onglets en tableaux (`sceneBureau`), la feuille du soir, le match, le résultat, les portes, le bilan, le marché, les séries, la fin ; et celles d'entre deux runs : le Club (Variété, Ton club, Album, Palmarès), le solde
+js/run-jeu.js         la coquille du Rogue : #runModal, l'échelle, la sauvegarde cap82_run, les gestes, le cadre d'un tableau qui garde sa place, le match joué puis regardé en temps forts ; le départ (le loto, le cran), le Club et le solde, sans run en cours
 js/modes-table.js     le tournoi Sur table, ses règles, son bilan, le match d'exhibition au plateau
 js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, plateau) : MT.nom, chargerTable()
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard() ; il n'importe aucun module du Rogue
@@ -52,8 +52,8 @@ js/equipes.js         l'écran des équipes et leurs vraies statistiques
 js/pieces.js          le banc qui compte (V29, tranche 1) : neuf pièces (`PIECES`) qui comptent les badges de tes signés et multiplient un canal du moteur par marches (`compteDe`, `marcheDe`, `MARCHES`), la pièce de départ du coach (`PIECE_DU_COACH`), le banc pur, le banc d'un match et la borne d'un canal (`bancDuMatch`, `BORNE_DU_CANAL`), leur banc en séries (`persoAdverse`, `BANC_DES_SERIES`) — `check_pouvoirs`
 js/coachs-reels.js    l'entraîneur, une vraie carte de coach-saison (V21) : data/coachs.json, sa philosophie lue des vraies stats de son club, sa maîtrise, le loto du départ (ton cartable d'abord)
 js/deposer.js         le glisser-déposer, souris et doigt (l'appui tenu) : les cartes des Lignes (`permuter`, js/alignement.js)
-js/histoires.js       la banque des histoires (V25 C1, docs/refonte-v25-c1.md) : quarante, à trois moments (le lundi, le gros match, la ronde), un tirage pur (`tirer`), la scène qui nomme (`sceneDe`), la mémoire de la run (`memoireDeLaRun`) ; la run en carte y tire sa case d'histoire, dans celles du lundi (`histoireDeLaCase`, js/run.js) — `check_histoires`
-js/faits.js           les faits (V25 C1) : `faitsDe`, une seule lecture pure des feuilles jouées et du journal du club (avec une ligue, son classement et sa cédule connue ; la run en carte la lit sans ligue, sur tes matchs joués), pour l'écran, le moteur et les robots ; la vraie saison avec ses bornes (`vraie`, `vraieMot`) — `check_vie`
+js/histoires.js       la banque des histoires (V25 C1, docs/refonte-v25-c1.md) : quarante, à trois moments (le lundi, le gros match, la ronde), un tirage pur (`tirer`), la scène qui nomme (`sceneDe`), la mémoire de la run (`memoireDeLaRun`) ; la saison du Rogue y tire l'histoire du bureau, dans celles du lundi (`histoireDuJour`, js/run.js) — `check_histoires`
+js/faits.js           les faits (V25 C1) : `faitsDe`, une seule lecture pure des feuilles jouées et du journal du club (avec une ligue, son classement et sa cédule connue ; la saison du Rogue lui donne la sienne, `ligueLue`, js/run.js), pour l'écran, le moteur et les robots ; la vraie saison avec ses bornes (`vraie`, `vraieMot`) — `check_vie`
 js/cartes.js          le gabarit des cartes (recto, verso, finitions) ; une carte de jeu porte un niveau (V25 B1) ; la carte d'une pièce de banc (`carteDePiece`) ; la pochette scellée (`pochetteHtml`)
 js/effets.js          la grammaire d'un effet (V25 B1b) : neuf cases, et `motsDe` qui dérive les lignes d'une carte de ce que le moteur joue
 js/rarete.js          les éditions d'une carte de joueur (Base → Holo) et leurs paliers
@@ -74,7 +74,7 @@ js/traits.js          les traits, tirés des votes de data/trophees.js
 js/roles_ref.js       la référence des rôles
 js/franchises.js      les franchises et leurs relocalisations
 js/logos.js, js/logos_locaux.js   couleurs et écussons des 44 franchises
-js/menu.js            l'écran titre (une carte par mode ; celle du Rogue ouvre la run en carte, « Continuer » quand une run est gardée), et le même écran en menu pause en pleine partie
+js/menu.js            l'écran titre (une carte par mode ; celle du Rogue ouvre sa saison, « Continuer » quand une run est gardée), et le même écran en menu pause en pleine partie
 js/mise-a-jour.js     la mise à jour : la version Web (GitHub Pages) suit toute seule ce qu'on publie (`surveillerLaVersion` : le sw.js du serveur relu au démarrage, au retour dans l'application et toutes les 10 min ; plus récent, la coquille neuve et un rechargement au titre ou au retour), le stockage (les parties) jamais touché — `check_maj`
 js/version.js         la version du code qui tourne, la même que `VERSION` de sw.js : les deux montent ensemble — `check_maj`
 js/sauvegardes.js     les parties sauvegardées (un index, une clé par partie), leur export en fichier transférable, importé au menu ; les runs de l'ancien Rogue retirées de l'index (`retirerLesRuns`) — `check_sauvegardes`
@@ -93,7 +93,7 @@ js/sprites.js         Sur glace : les sprites en lettres (écrit par scripts/spr
 scripts/              build des données (build_shards.py, rate.mjs, rerate.mjs, portraits.mjs, actions.mjs, recrues.mjs → data/recrues.json
                       la vraie saison recrue…), vérifications (check_*.mjs, smoke*.mjs, tout.mjs qui enchaîne les rapides), les essais à la
                       main (essai_*.mjs), calibration (calibrate_sim, mock_*, *_calibre, inferer_glace et inferer_gestes : ce que la ligue ne comptait pas),
-                      verdict.mjs (le juge partagé), lib/ (mort.mjs la mesure du code mort, run_robot.mjs les robots de la run en carte…) ;
+                      verdict.mjs (le juge partagé), lib/ (mort.mjs la mesure du code mort, run_robot.mjs les robots qui jouent la saison du Rogue…) ;
                       la liste complète : docs/structure-detaillee.md
 docs/                 l'historique et la référence (voir docs/README.md)
 ```

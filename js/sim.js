@@ -2968,7 +2968,7 @@ export function jambesGardien(g) {
 }
 export const usureGardien = g => 1 + GARDIEN_USURE * (100 - jambesGardien(g)) / GARDIEN_JAMBES_PAS;
 /* Après le match : le partant ajoute un départ à sa suite, les autres gardiens du club soufflent. */
-function noterDepart(team, g) {
+export function noterDepart(team, g) {
   if (!team || !g) return;
   const autres = [...SLOTS.map(s => team.roster[s.i]).filter(p => p && p.p === 'G'), team.rappelG].filter(Boolean);
   for (const p of autres) if (p !== g) { p._suite = 0; p._aine = 0; }
@@ -5486,7 +5486,7 @@ function avecLigue(L, fn) {
 }
 
 /* La cédule : les affiches de toutes les journées, tirées d'un générateur à part. */
-function ceduleDe(teams, games, graine) {
+export function ceduleDe(teams, games, graine) {
   const rng = generateur(`${graine}:cedule`);
   const melanger = a => {
     for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -5573,8 +5573,8 @@ export function matchsEntre(t, a, b) {
   return js.filter(j => j >= a && j < b).length;
 }
 
-/* Un joueur au premier matin d'une ligue : ses matchs, ses jambes, tout ce qu'une saison jouée lui a posé. La run en carte
-   s'en sert aussi (js/run.js) : un adversaire arrive ainsi à chaque match, un joueur signé entre ainsi dans ton effectif. */
+/* Un joueur au premier matin d'une ligue : ses matchs, ses jambes, tout ce qu'une saison jouée lui a posé. La saison du
+   Rogue s'en sert aussi (js/run.js) : un adversaire arrive ainsi à chaque match, un joueur signé entre ainsi dans ton effectif. */
 export function remettreAZero(p) {
   initSimStats(p);
   p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;

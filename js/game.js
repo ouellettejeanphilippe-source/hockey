@@ -1247,7 +1247,7 @@ function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
     exhibition: () => { fermerMenu(); import('./exhibition.js').then(({ ouvrirExhibition }) => ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
     // SUR GLACE (31 oct. 2026, js/sur-glace.js) : la physique à la manette, chargée au clic ; aucune partie, retour au menu.
     glace: () => { fermerMenu(); import('./sur-glace.js').then(({ ouvrirSurGlace }) => ouvrirSurGlace(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
-    // LE ROGUE (V28, js/run-jeu.js) : la run en carte, chargée à la demande, sans partie de l'index ; elle se referme sur le
+    // LE ROGUE (V30, js/run-jeu.js) : la saison dont tu es le DG, chargée à la demande, sans partie de l'index ; elle se referme sur le
     // Menu, sa run gardée (`cap82_run`). La dernière ligne de son carton : rien à la première visite (1.0, R8).
     rogue: {
       enCours: (() => { try { const r = JSON.parse(localStorage.getItem('cap82_run') || 'null'); return !!r && r.phase !== 'fin'; } catch { return false; } })(),

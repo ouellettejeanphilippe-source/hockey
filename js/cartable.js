@@ -98,16 +98,20 @@ export function coachAuCartable(carte, run = 0) {
 export const coachsDuCartable = (c = lireCartable()) => c.coachs || {};
 /*
  * GRAVÉ SUR LA CARTE (v2 ; réécrit à la V28, tranche 5b, docs/refonte-v28-5.md § 3.6) : ce qu'un joueur a fait chez toi
- * dans une run — dans un match (le chapeau, le grand soir, le jeu blanc, le mur) ou sur la run (dix buts, vingt points, le
- * but gagnant contre un rival, la Coupe) — se grave sur sa carte (`legendes` : [{ type, run, extra }]), une fois par sorte
+ * dans une run — dans un match (le chapeau, le grand soir, le jeu blanc, le mur) ou sur la saison (quarante buts, quatre-vingts
+ * points, le but gagnant contre le dernier rival, la Coupe) — se grave sur sa carte (`legendes` : [{ type, run, extra }]), une fois par sorte
  * et par run, et y reste. La run les lit (js/run.js `galonsDuSoir`), la coquille les écrit ici, la fiche et l'Album les
- * relisent. Aucun effet au moteur. Les galons d'une saison de 82 soirs (40 buts, 50 passes) sont partis avec l'ancien Rogue.
+ * relisent. Aucun effet au moteur. Depuis la V30, une run est une saison de 82 matchs : ses galons de saison sont quarante
+ * buts et quatre-vingts points (js/run.js `GALONS`) ; « dix buts » et « vingt points », gravés sur une run courte, se relisent.
  */
 export const LEGENDES = {
   mur: { ico: '🗿', nom: 'Le Mur', recit: m => (m.extra ? `${m.extra} arrêts, victoire arrachée` : 'une victoire arrachée') },
   jeuBlanc: { ico: '🔒', nom: 'Le jeu blanc', recit: () => 'la porte était fermée' },
   chapeau: { ico: '🎩', nom: 'Le Chapeau', recit: m => `${m.extra || 'trois'} buts dans un match` },
   grandMatch: { ico: '⭐', nom: 'Le grand soir', recit: m => `${m.extra || 'plusieurs'} points dans un match` },
+  quaranteButs: { ico: '🏵', nom: 'Quarante buts', recit: m => `${m.extra || 'quarante'} buts dans une saison` },
+  quatreVingtsPoints: { ico: '🏵', nom: 'Quatre-vingts points', recit: m => `${m.extra || 'quatre-vingts'} points dans une saison` },
+  // Gravés avant la V30, quand une run comptait dix-huit matchs : ils se relisent, plus rien ne les grave.
   dixButs: { ico: '🏵', nom: 'Dix buts', recit: () => 'dix buts dans une run' },
   vingtPoints: { ico: '🏵', nom: 'Vingt points', recit: () => 'vingt points dans une run' },
   bourreau: { ico: '🏵', nom: 'Le bourreau', recit: m => `le but gagnant contre le rival${m.extra ? ` (${m.extra})` : ''}` },
