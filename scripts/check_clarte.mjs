@@ -255,7 +255,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`+${MARCHES[0]}, +${MARCHES[1]} et +${MARCHES[2]} %`, 'les marches d\'une pièce'],
     [`se multiplient, jusqu'à ${BORNE_DU_CANAL} fois`, 'le produit d\'un canal'],
     [`tu en choisis ${RUN.PIECES_DU_DEPART} avant le repêchage`, 'les pièces du départ'],
-    [`un banc de ${BANC_DES_SERIES.slice(0, -1).join(', ')} puis ${BANC_DES_SERIES.at(-1)} pièces`, 'leur banc en séries'],
+    [`à partir de la ${BANC_DES_SERIES.findIndex(n => n > 0) + 1}e ronde, ${BANC_DES_SERIES.at(-1) === 1 ? 'une pièce' : `jusqu'à ${BANC_DES_SERIES.at(-1)} pièces`} de banc`, 'leur banc en séries'],
     [`${RUN.RELANCE} jetons puis le double à chaque relance du même soir, ${RUN.RELANCES_PAYEES} au plus`, 'la relance payée'],
     // V30 (js/run.js `RUN`) : la saison, son repêchage, sa ligue, ses quarts, ses cœurs, les étapes d'édition des clubs.
     [`tu gardes ${nombre(RUN.ESPACE / 1e6)} M$ d'espace sous le plafond, ${JETONS.depart} jetons en caisse, et ${RUN.REPECHAGE.RELANCES} relances de la roulette`, 'le départ de la run'],

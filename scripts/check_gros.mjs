@@ -148,7 +148,7 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   const adversaires = teams.slice(1, 9), marques = adversaires.filter(t => COACH_DU_STYLE[t.style]);
   exiger('leur philosophie se lit sur le style du club (offensif, défensif, robuste), pure', marques.length > 0 && marques.every(t => persoAdverse(t, 0).cle === COACH_DU_STYLE[t.style]) && adversaires.every(t => persoAdverse(t, 1).banc.join() === persoAdverse(t, 1).banc.join() && COACHS[persoAdverse(t, 2).cle]),
     `${marques.length} clubs au style marqué sur ${adversaires.length}`);
-  exiger(`leur banc grandit à chaque ronde : ${BANC_DES_SERIES.join(', ')} pièces`, adversaires.every(t => BANC_DES_SERIES.every((n, r) => persoAdverse(t, r).banc.length === n)), `${adversaires.length} clubs`);
+  exiger(`leur banc, ronde par ronde : ${BANC_DES_SERIES.join(', ')} pièces`, adversaires.every(t => BANC_DES_SERIES.every((n, r) => persoAdverse(t, r).banc.length === n)), `${adversaires.length} clubs`);
   // En paires : le même match de séries, les mêmes dés, leur banc de la ronde contre aucun.
   const N_LEUR = Number(process.env.N_LEUR ?? 40);
   const vest = t => ({ tag: t.tag, s: t.season, un: equipeReelle(t.season, t.tag) });
@@ -176,7 +176,8 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   const premiere = parRonde[DEBUT], finale = parRonde[FINALE];
   exiger('leurs pièces qui ont atteint une marche sont notées à la feuille, aux trois périodes, à leur marche', [premiere, finale].every(R => R.notes === R.attendues && R.attendues > 0 && !R.fausses),
     `${premiere.notes} notes à leur première ronde avec un banc (la ${DEBUT + 1}e), ${finale.notes} en finale, sur ${premiere.n} matchs chacune`);
-  exiger('leur banc est le mur : il te coûte des buts, et davantage en finale qu\'à sa première ronde', premiere.d < 0 && finale.d < premiere.d,
+  // Le même banc aux deux rondes (0 · 0 · 1 · 1 depuis le 17 nov. 2026) coûte la même chose sur les mêmes dés : jamais moins en finale.
+  exiger('leur banc est le mur : il te coûte des buts dès sa première ronde, et jamais moins en finale', premiere.d < 0 && (BANC_DES_SERIES[FINALE] > BANC_DES_SERIES[DEBUT] ? finale.d < premiere.d : finale.d <= premiere.d),
     `${(premiere.d / premiere.n).toFixed(2)} but par match à la ${DEBUT + 1}e ronde, ${(finale.d / finale.n).toFixed(2)} en finale (${premiere.n} matchs en paires)`);
 }
 

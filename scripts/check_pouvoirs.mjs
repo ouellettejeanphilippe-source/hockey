@@ -10,7 +10,7 @@
  *      rien sous le premier ; la maîtrise ne règle que la pièce de départ ; deux pièces sur un canal se multiplient et le
  *      produit s'arrête à `BORNE_DU_CANAL` ; une pièce entre dans la première case libre, jamais deux fois ; plein, elle
  *      prend la case de celle qui sort ; trois offertes, pures, jamais une déjà posée ; leur banc en séries ne rétrécit
- *      jamais d'une ronde à l'autre, grandit jusqu'à la finale (`BANC_DES_SERIES`) et prend les pièces les plus avancées chez eux ;
+ *      jamais d'une ronde à l'autre, ne rétrécit jamais jusqu'à la finale (`BANC_DES_SERIES`) et prend les pièces les plus avancées chez eux ;
  *   3. les vrais entraîneurs (js/coachs-reels.js) ;
  *   4. EN PAIRES, match par match (CLAUDE.md) : deux copies d'un même vrai club, le même match sur les mêmes dés, une fois
  *      banc vide, une fois avec la pièce seule, à chaque marche. Chaque pièce :

@@ -29,6 +29,7 @@
  *   SEUILS='{"gros":[6,13,18]}' …                  les seuils d'une pièce (js/pieces.js), le temps d'une mesure
  *   BANC_SERIES='[0,0,1,2]' …                      leur banc en séries, ronde par ronde (js/pieces.js `BANC_DES_SERIES`), le temps d'une mesure
  *   CRANS=1 GRAINES=128 FILS=3 …                   les exigences (js/rogue.js `EXIGENCES`) : le malin à chaque cran
+ *   CRANS=1 JUSQU_AU_CRAN=1 CRANS_REGLES='{"barre":{"cible":3}}' …   les premiers crans seulement, un cran réglé le temps d'une mesure
  * Mesure seulement : jamais lu par le jeu.
  */
 import { spawn } from 'node:child_process';
@@ -49,6 +50,7 @@ const ROBOTS = (process.env.ROBOTS || 'premier,chiffre,temoin,malin').split(',')
 for (const [k, x] of Object.entries(JSON.parse(process.env.REGLAGES || '{}'))) RUN[k] = x && typeof x === 'object' && !Array.isArray(x) ? { ...RUN[k], ...x } : x;
 for (const [k, s] of Object.entries(JSON.parse(process.env.SEUILS || '{}'))) PIECES[k].seuils = s;
 if (process.env.BANC_SERIES) BANC_DES_SERIES.splice(0, BANC_DES_SERIES.length, ...JSON.parse(process.env.BANC_SERIES));
+for (const [cle, x] of Object.entries(JSON.parse(process.env.CRANS_REGLES || '{}'))) Object.assign(EXIGENCES.find(E => E.cle === cle), x);
 
 /* ---------- les processus ---------- */
 if (process.env.BRAS) {
@@ -104,8 +106,9 @@ const perdus = r => RUN.COEURS - r.coeurs;
 /* ---------- les exigences : chaque cran doit coûter ---------- */
 if (process.env.CRANS) {
   const parCran = [];
-  for (let k = 0; k <= EXIGENCES.length; k++) parCran.push(await mesurer(['malin'], { EXIGENCE: String(k) }));
-  parCran.forEach((runs, k) => informer(`Cran ${k}${k ? ` (${EXIGENCES[k - 1].court})` : ''}`, `${un(moy(runs.map(r => r.pts)))} points, ${cent(moy(runs.map(perdus)))} cœur perdu par run, dans les séries ${pc(moy(runs.map(r => (r.matchs > RUN.LIGUE.MATCHS ? 1 : 0))))}, ${sur64(runs.filter(r => r.coupe).length)} Coupes sur 64, ${un(moy(runs.map(r => r.medailles)))} médailles`));
+  const dernier = Math.min(EXIGENCES.length, Number(process.env.JUSQU_AU_CRAN ?? EXIGENCES.length));
+  for (let k = 0; k <= dernier; k++) parCran.push(await mesurer(['malin'], { EXIGENCE: String(k) }));
+  parCran.forEach((runs, k) => informer(`Cran ${k}${k ? ` (${EXIGENCES[k - 1].court})` : ''}`, `${un(moy(runs.map(r => r.pts)))} points, ${cent(moy(runs.map(perdus)))} cœur perdu par run, un bilan tenu ${pc(moy(runs.flatMap(r => r.quarts.map(q => (q.tenu ? 1 : 0)))))}, congédié ${runs.filter(r => r.cause === 'congedie').length} fois, dans les séries ${pc(moy(runs.map(r => (r.matchs > RUN.LIGUE.MATCHS ? 1 : 0))))}, ${sur64(runs.filter(r => r.coupe).length)} Coupes sur 64, ${un(moy(runs.map(r => r.medailles)))} médailles`));
   for (let k = 1; k < parCran.length; k++) {
     const p = paires(parCran[k], parCran[k - 1], perdus);
     if (GRAINES >= 128) exiger(`Le cran ${k} coûte : plus de cœurs perdus qu'au cran ${k - 1}`, p.m > 0, ditPaires(p, 'cœur', cent));
