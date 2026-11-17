@@ -5342,9 +5342,13 @@ body.run-ouverte { overflow: hidden; }
 .rn-prix.rn-non { border-color: var(--filet); color: var(--encre-3); }
 .rn-bulle { padding: 12px 14px; border-radius: var(--r-2) var(--r-2) var(--r-2) 0; background: var(--encre); font: 700 var(--t-4)/1.3 var(--corps); color: var(--fond-1); }
 .rn-voix { display: inline-block; margin-bottom: 8px; padding: 4px 10px; border-radius: 99em; background: var(--or); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--encre-sur-or); }
-.rn-reps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 150px); justify-content: center; align-items: start; gap: 12px; }
-.rn-reps p { min-height: 52px; margin: 6px 0 8px; font: 600 var(--t-2)/1.3 var(--display); letter-spacing: 0.02em; text-align: center; }
-.rn-racine .rn-prendre { width: 100%; height: 44px; display: grid; place-items: center; border-radius: var(--r-1); background: var(--or); font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-sur-or); }
+/* Les réponses d'une histoire : chaque colonne va de la carte au bouton, « Prendre » épinglé à son pied (les boutons s'alignent, et un texte plus long ne les pousse jamais sous
+   « Plus tard » : la scène pose le haut ET le bas du bloc) ; la carte cède de la place au texte. */
+.rn-reps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 150px); justify-content: center; gap: 12px; }
+.rn-reps > div { display: flex; flex-direction: column; min-height: 0; }
+.rn-reps .rn-c { flex: none; align-self: center; width: min(100%, 128px); }
+.rn-reps p { flex: 1; min-height: 0; overflow: hidden; margin: 6px 0 8px; font: 600 var(--t-2)/1.3 var(--display); letter-spacing: 0.02em; text-align: center; }
+.rn-racine .rn-prendre { flex: none; width: 100%; height: 44px; display: grid; place-items: center; border-radius: var(--r-1); background: var(--or); font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-sur-or); }
 /* Le bilan du quart, les séries, la fin de la run, la pause. */
 .rn-cellules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .rn-cellules div { padding: 10px 8px; border: 1px solid var(--filet); border-radius: var(--r-2); background: color-mix(in srgb, var(--fond-1) 82%, transparent); text-align: center; }

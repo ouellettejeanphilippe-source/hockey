@@ -610,7 +610,7 @@ export function sceneHistoire(S, V) {
   return `${hud(S, { titre: 'Une histoire', petit: '' })}
   <div style="left:14px;right:14px;top:66px"><span class="rn-voix">${esc(H.voix)}</span><div class="rn-bulle">${H.dit}</div></div>
   ${H.joueur ? `<div style="left:14px;right:14px;top:250px;display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center">${carteJ(H.joueur)}<div><div class="rn-h">${esc(H.joueur.n)}</div><div class="rn-t rn-gris" style="margin-top:6px">${H.fait}</div></div></div>` : ''}
-  <div class="rn-reps" style="left:14px;right:14px;top:404px">${H.options.map((o, i) => `<div><span class="rn-c">${o.carte}</span><p>${o.lignes}</p><button type="button" class="rn-prendre" data-a="reponse" data-v="${i}">Prendre</button></div>`).join('')}</div>
+  <div class="rn-reps" style="left:14px;right:14px;top:404px;bottom:76px">${H.options.map((o, i) => `<div><span class="rn-c">${o.carte}</span><p>${o.lignes}</p><button type="button" class="rn-prendre" data-a="reponse" data-v="${i}">Prendre</button></div>`).join('')}</div>
   ${H.options.length ? bas(bt('Plus tard', 'fermer-histoire')) : ''}`;
 }
 
