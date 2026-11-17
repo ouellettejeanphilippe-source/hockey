@@ -27,6 +27,7 @@
  *   ROBOTS=malin,distrait GRAINE0=2000 …           quelques robots, un autre jeu de graines
  *   REGLAGES='{"RACHAT":1}' …                      un réglage de js/run.js `RUN`, le temps d'une mesure (un objet se fond)
  *   SEUILS='{"gros":[6,13,18]}' …                  les seuils d'une pièce (js/pieces.js), le temps d'une mesure
+ *   BANC_SERIES='[0,0,1,2]' …                      leur banc en séries, ronde par ronde (js/pieces.js `BANC_DES_SERIES`), le temps d'une mesure
  *   CRANS=1 GRAINES=128 FILS=3 …                   les exigences (js/rogue.js `EXIGENCES`) : le malin à chaque cran
  * Mesure seulement : jamais lu par le jeu.
  */
@@ -34,7 +35,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { RUN } from '../js/run.js';
 import { EXIGENCES } from '../js/rogue.js';
-import { PIECES } from '../js/pieces.js';
+import { PIECES, BANC_DES_SERIES } from '../js/pieces.js';
 import { jouerLaRun } from './lib/run_robot.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -47,6 +48,7 @@ const EXPLOSE = 0.75, PART_EXPLOSE = [15, 35], OFFICE = [0.6, 0.25];
 const ROBOTS = (process.env.ROBOTS || 'premier,chiffre,temoin,malin').split(',');
 for (const [k, x] of Object.entries(JSON.parse(process.env.REGLAGES || '{}'))) RUN[k] = x && typeof x === 'object' && !Array.isArray(x) ? { ...RUN[k], ...x } : x;
 for (const [k, s] of Object.entries(JSON.parse(process.env.SEUILS || '{}'))) PIECES[k].seuils = s;
+if (process.env.BANC_SERIES) BANC_DES_SERIES.splice(0, BANC_DES_SERIES.length, ...JSON.parse(process.env.BANC_SERIES));
 
 /* ---------- les processus ---------- */
 if (process.env.BRAS) {
@@ -121,6 +123,9 @@ for (const robot of ROBOTS) {
   const l = de(robot), causes = {};
   for (const r of l) causes[r.cause] = (causes[r.cause] || 0) + 1;
   informer(`« ${robot} »`, `${un(moy(l.map(r => r.pts)))} points (écart-type ${un(ecart(l.map(r => r.pts)))}), rang ${un(moy(l.map(r => r.rang)))}, dans les séries ${pc(moy(l.map(r => (r.matchs > RUN.LIGUE.MATCHS ? 1 : 0))))}, ${un(moy(l.map(r => r.rondes)))} ronde gagnée, ${l.filter(r => r.coupe).length} Coupes sur ${l.length} ; ${un(moy(l.map(perdus)))} cœur perdu par run ; les fins : ${Object.entries(causes).map(([k, n]) => `${k} ${n}`).join(', ')}`);
+  // Où une run meurt en séries : celles qui s'y rendent, par le nombre de rondes gagnées (quatre : la Coupe).
+  const enSeries = l.filter(r => r.matchs > RUN.LIGUE.MATCHS);
+  if (enSeries.length) informer('  ses séries', `${enSeries.length} runs s'y rendent ; sorties à la 1re ronde ${enSeries.filter(r => r.rondes === 0).length}, à la 2e ${enSeries.filter(r => r.rondes === 1).length}, à la 3e ${enSeries.filter(r => r.rondes === 2).length}, en finale ${enSeries.filter(r => r.rondes === 3).length}, la Coupe ${enSeries.filter(r => r.coupe).length}`);
   const parSorte = {};
   for (const r of l) for (const q of r.quarts) for (const [sorte, , , tenu] of q.o) { const x = parSorte[sorte] = parSorte[sorte] || [0, 0]; x[0] += tenu; x[1]++; }
   informer('  ses objectifs', `${Object.entries(parSorte).map(([k, [a, b]]) => `${k} ${pc(a / b)} (${b})`).join(', ')} ; un bilan tenu ${pc(moy(l.flatMap(r => r.quarts.map(q => (q.tenu ? 1 : 0)))))} ; les points par quart ${[0, 1, 2, 3].map(n => un(moy(l.filter(r => r.quarts[n]).map(r => r.quarts[n].pts)))).join(' · ')} pour ${[0, 1, 2, 3].map(n => un(moy(l.filter(r => r.quarts[n]).map(r => r.quarts[n].o[0][1])))).join(' · ')} demandés`);

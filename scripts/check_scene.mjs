@@ -18,7 +18,8 @@
  *   7. aucune erreur de page.
  * Le ballottage et une histoire s'ouvrent si une des saisons jouées en garde une sauvegarde ; sinon ils s'impriment absents.
  *
- *   node scripts/check_scene.mjs http://localhost:8000 [dossier]     (deux minutes ; une capture par scène dans le dossier)
+ *   node scripts/check_scene.mjs http://localhost:8000 [dossier]     (deux minutes ; une capture par scène dans le dossier ;
+ *                                                                     `NETTETE=2` : des captures nettes, à montrer)
  */
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
@@ -130,7 +131,7 @@ async function mesurer(page, nom) {
   return m;
 }
 async function ouvrir(R, meta = null, cartable = null) {
-  const page = await browser.newPage({ viewport: { width: LARGEUR, height: HAUTEUR }, deviceScaleFactor: 1, hasTouch: true, reducedMotion: 'reduce' });
+  const page = await browser.newPage({ viewport: { width: LARGEUR, height: HAUTEUR }, deviceScaleFactor: Number(process.env.NETTETE) || 1, hasTouch: true, reducedMotion: 'reduce' });
   page.on('pageerror', e => erreurs.push(e.message));
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(([r, m, c]) => { localStorage.clear(); if (r) localStorage.setItem('cap82_run', JSON.stringify(r)); if (m) localStorage.setItem('cap82_rogue', JSON.stringify(m)); if (c) localStorage.setItem('cap82_cartable', JSON.stringify(c)); }, [R, meta, cartable]);

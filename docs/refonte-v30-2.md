@@ -188,7 +188,7 @@ Deux relecteurs en adversaires sur cet extrait (`rogue-design`, `rogue-equilibre
 
 ## 12. Ce qui reste ouvert
 
-- Le juge du build à 256 graines, à la main. Sur les 128 graines de la mesure des crans, le bâtisseur gagne la Coupe 5 fois (2,5 sur 64 ; 4 sur les 64 premières, la porte du CI) : sous la cible de 4 à 12, à confirmer à 256.
+- **La Coupe est trop rare.** Le juge du build à 256 graines (17 nov., graines 4000 à 4255) est vert partout — bâtir paie +21,0 points (±1,7), 27 % de runs qui explosent, aucune marche d'office, un bon DG garde ses cœurs — sauf elle : le bâtisseur la gagne 11 fois sur 256 (2,8 sur 64 ; 5 sur les 128 graines de la mesure des crans), sous la cible de 4 à 12. Neuf de ses runs sur dix se rendent en séries et y gagnent une ronde en moyenne. Un réglage des séries est à mesurer (`BANC_SERIES`, scripts/mesure_run.mjs) et à poser à JP.
 - **Les crans d'exigence ne coûtent presque rien au bâtisseur** (`CRANS=1 GRAINES=128 FILS=3`, 17 nov.) : 0,3 cœur perdu par run sans exigence ; le cran 1 (un point de plus par quart) en ajoute moins de 0,05, pour 15 % de médailles de plus ; le cran 2 (des clubs plus forts) coûte 5 points au classement et 0,1 cœur, la Coupe 1 fois sur 128 au lieu de 5 ; le cran 3, moins de 0,05 cœur. Le juge est vert de justesse (chaque cran coûte, en paires), mais « un cran doit coûter » n'est pas tenu en esprit au cran 1 : un levier qui morde (deux ou trois points par quart, ou un cœur de moins) est à poser à JP. Les crans ne s'ouvrent qu'après une première Coupe.
 - Les galons à l'échelle de 82 matchs (le bâtisseur en grave une trentaine par saison) : à poser à JP avec les fréquences.
 - Le ballottage vient une dizaine de fois par saison : à juger à l'essai.

@@ -1,0 +1,4 @@
+- **17 nov. · V30 : le juge du build à 256 graines, et la Coupe trop rare**
+  - `GRAINES=256 FILS=3 GRAINE0=4000 node scripts/mesure_run.mjs`, quarante minutes : bâtir paie +21,0 points sur 82 (±1,7), 27 % de runs qui explosent, aucune marche d'office, chaque pièce vit, un bon DG garde ses cœurs quel que soit son repêchage.
+  - Une borne rouge : le bâtisseur gagne la Coupe 11 fois sur 256 (2,8 sur 64), sous la cible de 4 à 12. La porte du CI à 64 graines disait 4, « compatible ».
+  - `mesure_run` dit maintenant à quelle ronde une run sort des séries, et règle leur banc le temps d'une mesure (`BANC_SERIES='[0,0,1,2]'`), comme `REGLAGES` et `SEUILS`.
