@@ -33,7 +33,11 @@ const genreDe = data => (data && data.bonus === 'TABLE' ? 'table' : data && data
 
 const lire = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
-const idNeuf = () => `${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36).padStart(2, '0')}`;
+/* Un identifiant que l'index ne porte pas déjà : deux parties créées dans la même milliseconde tiraient la même fin une fois sur 1 296, et la seconde écrasait la première (17 nov. 2026). */
+function idNeuf() {
+  const pris = new Set(lireIndex().parties.map(p => p.id)), t = Date.now().toString(36);
+  for (let n = Math.floor(Math.random() * 1296); ; n++) { const id = `${t}${n.toString(36).padStart(2, '0')}`; if (!pris.has(id)) return id; }
+}
 
 export function lireIndex() {
   const ix = lire(INDEX);

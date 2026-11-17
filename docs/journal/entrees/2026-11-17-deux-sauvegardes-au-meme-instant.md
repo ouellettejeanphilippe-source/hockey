@@ -1,0 +1,4 @@
+- **17 nov. · Deux sauvegardes créées au même instant ne s'écrasent plus**
+  - Une partie importée ou copiée dans la même milliseconde qu'une autre tirait le même identifiant une fois sur 1 296 : la seconde écrasait la première. Trouvé par un rouge au hasard de `check_sauvegardes` au CI (« la partie du 82-0 ne bouge pas, au caractère près »).
+  - js/sauvegardes.js `idNeuf` : un identifiant que l'index ne porte pas déjà. Les clés de sauvegarde ne changent pas.
+  - `check_sauvegardes` : une vérification de plus, l'horloge et le dé figés (rouge sans le correctif, verte avec ; 34 vérifications).
