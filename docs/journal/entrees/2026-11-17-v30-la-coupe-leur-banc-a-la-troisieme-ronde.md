@@ -1,0 +1,4 @@
+- **17 nov. · V30 : la Coupe, leur banc ne commence qu'à la troisième ronde**
+  - Le juge du build disait la Coupe trop rare (11 sur 256 pour le bâtisseur). La mesure par ronde montre la falaise : une seule pièce en face dès la deuxième ronde, et ses séries gagnées tombent de 59 à 40 %.
+  - Quatre bancs mesurés sur les mêmes 256 graines ; JP tranche : **0 · 0 · 1 · 1** (20 Coupes sur 256, 5 sur 64). `BANC_DES_SERIES`, la page des règles, `check_clarte` et `check_gros` suivent. Version 4.0.2.
+  - JP, le même jour : les galons, *resserrer* ; le cran 1, *plus de points*. `mesure_run` règle un cran le temps d'une mesure (`CRANS_REGLES`, `JUSQU_AU_CRAN`) ; les deux se mesurent et se montrent avant le code.
