@@ -34,7 +34,7 @@ const ok = k => !(fautes[k] || []).length;
 const dit = k => (fautes[k] || []).slice(0, 3).join(' · ');
 
 function jouer(relireA) {
-  const vu = { repeches: 0, bancAuPremierTour: null, portes: 0, grosGagnes: 0, pochettes: {}, feuilles: 0, coeurs: RUN.COEURS };
+  const vu = { repeches: 0, bancAuPremierTour: null, portes: 0, grosGagnes: 0, pochettes: {}, feuilles: 0, coeurs: RUN.COEURS, galons: 0 };
   return jouerLaRun(ROBOT, GRAINE, { relireA, espion: (m, S, x) => {
     const R = S.R;
     if (m === 'repeche') {
@@ -52,6 +52,13 @@ function jouer(relireA) {
       // Rien n'est joué d'avance : la ligue en est au plus au jour de ton match.
       if (!R.series && R.ligue.jour > R.soir.jour) faute('avance', `la ligue au jour ${R.ligue.jour} avant ton match du jour ${R.soir.jour}`);
     } else if (m === 'match') {
+      // Les galons du soir : ceux d'un match, dans un gros match seulement, chacun à son seuil ; ceux de la saison, à leur seuil.
+      for (const g of R.apres.galons || []) {
+        const SEUIL = { chapeau: GALONS.CHAPEAU, grandMatch: GALONS.GRAND_SOIR, mur: GALONS.MUR, cinquanteButs: GALONS.BUTS, centPoints: GALONS.POINTS }[g.type];
+        if (['chapeau', 'grandMatch', 'jeuBlanc', 'mur'].includes(g.type) && !x.duel) faute('galons', `${g.type} gravé un soir ordinaire (match ${R.matchs.length})`);
+        if (SEUIL != null && !(g.extra >= SEUIL)) faute('galons', `${g.type} sous son seuil (${g.extra})`);
+        vu.galons++;
+      }
       if (S.toi._filetMatch !== 'partant') faute('filet', `match ${R.matchs.length}`);
       if (R.jetons < 0) faute('caisse', `${R.jetons} jetons au match ${R.matchs.length}`);
       if (masseDe(S) > R.plafond) faute('plafond', `match ${R.matchs.length}`);
@@ -103,10 +110,7 @@ function jouer(relireA) {
       if (F.cause === 'congedie' && R.coeurs !== 0) faute('coeurs', 'congédié avec un cœur');
       if (F.medailles !== medaillesDe(R, F.rondes, F.coupe) || F.caisse !== Math.floor(Math.max(0, R.jetons) / RUN.JETONS_PAR_MEDAILLE)) faute('medailles', `${F.medailles}`);
       if (new Set(R.vus).size !== R.vus.length) faute('vus', 'une personne deux fois dans la run');
-      for (const g of R.galons || []) {
-        if (g.type === 'chapeau' && g.extra < GALONS.CHAPEAU) faute('galons', 'un chapeau sous son seuil');
-        if (g.type === 'quaranteButs' && g.extra < GALONS.BUTS) faute('galons', 'quarante buts sous son seuil');
-      }
+      if ((R.galons || []).filter(g => g.type !== 'coupe').length !== vu.galons) faute('galons', `${(R.galons || []).length} galons gardés pour ${vu.galons} vus aux matchs`);
       vu.fin = true;
     }
   } }).then(r => ({ r, vu }));

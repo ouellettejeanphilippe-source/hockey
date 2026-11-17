@@ -40,7 +40,7 @@ import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX, nomDuNiveau } from '../js/niveaux.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
 import { JETONS, ecussonsDesSeries } from '../js/rogue.js';
-import { RUN } from '../js/run.js';
+import { RUN, GALONS } from '../js/run.js';
 import { MEDAILLES_ACTE, PRIX_PIECE, PART_PERDUE, recompenseDeLElite } from '../js/actes.js';
 import { COACHS, REGLES_DU_COACH } from '../js/coachs.js';
 import { CASES_DU_BANC, PIECES_OFFERTES, MARCHES, BORNE_DU_CANAL, BANC_DES_SERIES } from '../js/pieces.js';
@@ -199,7 +199,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V30 : la run en carte est partie à son tour.
     [/Le camp|bouche-trou|carte de l'acte|Trois actes|La cible/, 'la run en carte (le camp, les bouche-trous, la carte de l\'acte, la cible)'], [/vestiaire<\/strong> rend ses jambes/, 'le vestiaire de la carte'],
     [/boutique|nœud/i, 'la boutique à ses nœuds'], [/classeur/i, 'le classeur'], [/Préparer le match/, '« Préparer le match »'],
-    [/onglet AN/, 'l\'onglet AN · DN'], [/ajustement de série/i, 'l\'ajustement de série'], [/commanditaire/i, 'les commanditaires'], [/exigences/i, 'les exigences (elles reviennent avec la méta)'], [/galon|chandail/i, 'les galons']];
+    [/onglet AN/, 'l\'onglet AN · DN'], [/ajustement de série/i, 'l\'ajustement de série'], [/commanditaire/i, 'les commanditaires'], [/exigences/i, 'les exigences (elles reviennent avec la méta)'], [/chandail/i, 'les chandails de l\'ancien Rogue']];
   const encore = partis.filter(([re]) => re.test(texte)).map(([, nom]) => nom);
   exiger('la page ne parle plus de ce qui est parti', encore.length === 0, encore.join(' · ') || 'rien de parti');
 
@@ -273,6 +273,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`${RUN.JETONS_PAR_MEDAILLE} jetons qui restent en caisse valent une médaille`, 'la caisse en médailles'],
     [`une victoire paie de ${RUN.JETONS_DU_MATCH[0]} à ${RUN.JETONS_DU_MATCH[1]} jetons selon le rang du club, une affiche de ${RUN.JETONS_DE_L_AFFICHE[0]} à ${RUN.JETONS_DE_L_AFFICHE[1]}, le rival ${RUN.JETONS_DU_RIVAL} ; une défaite ${RUN.JETONS_PERDU[0]}, une défaite en prolongation ${RUN.JETONS_PERDU[1]}`, 'les jetons d\'un match'],
     [`${RUN.PRIME_DU_QUART} jetons au plus par quart`, 'le plafond de la règle du coach'],
+    [`dans un gros match, ${GALONS.CHAPEAU} buts, ${GALONS.GRAND_SOIR} points, un jeu blanc ou ${GALONS.MUR} arrêts dans une victoire ; sur la saison, ${GALONS.BUTS} buts et ${GALONS.POINTS} points`, 'les galons'],
     [`de ${recompenseDeLElite(0.99)} à ${recompenseDeLElite(0.01)} jetons`, 'la récompense d\'une élite'],
     [`${{ 0.5: 'la moitié' }[PART_PERDUE] || '?'} de cette somme en moins et ton club sonné ${SONNES_ELITE} matchs`, 'l\'élite perdue'],
     [`les ${RUN.LIGUE.PLACES} premiers du classement, quatre rondes en ${RUN.SERIE} de ${2 * RUN.SERIE - 1}`, 'les vraies séries'],

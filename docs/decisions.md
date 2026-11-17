@@ -3943,3 +3943,21 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Ce qui a été écarté.** Garder 0 · 1 · 1 · 2 et baisser la cible à 2 à 8 sur 64 : un bon DG gagnerait la Coupe une saison sur 23, et une saison dure quatre à cinq heures. Plafonner la marche d'une pièce adverse : ce serait une règle de plus, et « par les mêmes marches que les tiennes » tient.
 
 **Deux autres réponses de JP, le même jour, à mesurer avant de coder.** Les galons : *resserrer* — sur 82 matchs le bâtisseur en grave 27 par run (le chapeau dans 99 % des runs, le jeu blanc 95 %), la borne d'avant était 4 à 14, chaque sorte dans 5 à 85 % des runs. Le cran 1 d'exigence : *plus de points* — un point de plus par quart coûte moins de 0,05 cœur par run ; deux et trois se mesurent.
+
+## Les galons, quand ça compte (17 nov. 2026)
+
+**Le constat.** Les galons d'un match venaient d'une run de vingt-deux matchs. Sur une saison de 82, mesurée sur 128 saisons du bâtisseur (une gravure : un joueur, une sorte, une fois par run, ce que le cartable garde) : 15,5 gravures par run, le Chapeau (3 buts) dans 99 % des runs, le jeu blanc dans 96 %, les quatre-vingts points dans 86 %. La borne de JP, d'avant : 4 à 14 par run, chaque sorte dans 5 à 85 % des runs. Un galon que chaque run grave ne dit plus rien sur une carte.
+
+**Deux voies mesurées**, sur les mêmes saisons, toutes deux avec la saison à cinquante buts (55 % des runs) et cent points (67 %), les deux repères du hockey :
+
+| | Le Chapeau | Le grand soir | Le jeu blanc | Le Mur | Par run |
+|---|---|---|---|---|---|
+| Aujourd'hui, n'importe quel soir | 3 buts : 99 % | 6 points : 61 % | 96 % | 50 arrêts : 10 % | 15,5 |
+| Des seuils plus hauts, n'importe quel soir | 4 buts : 66 % | 7 points : 34 % | 5 dans la saison : 34 % | 45 arrêts : 33 % | 6,3 |
+| Dans un gros match seulement | 3 buts : 73 % | 5 points : 49 % | 70 % | 40 arrêts : 39 % | 7,9 |
+
+**JP tranche : quand ça compte.** L'exploit garde son sens de hockey — trois buts font un tour du chapeau — et ne se grave que dans un gros match : le rival, une affiche, une élite avec son enjeu, les séries. Le coût, dit dans la question : un tour du chapeau un soir ordinaire ne laisse plus de trace. Ce que ça donne en plus : une affiche que tu poses devient aussi un soir où tes joueurs peuvent graver quelque chose.
+
+**Ce qui a été écarté.** Monter les seuils n'importe quel soir : un « Chapeau » à quatre buts n'est plus un tour du chapeau, et le jeu blanc devenait un compte de saison. Garder tel quel (« ce sont des souvenirs ») : JP, *resserrer*.
+
+**Les juges.** `check_run` : un galon de match ne se grave qu'un soir de gros match, chacun à son seuil, tous recomptés. `mesure_run` juge maintenant la borne chez le bâtisseur, et compte des gravures (un joueur, une sorte, une fois par run), plus des répétitions. Ce qui s'est gravé avant (quarante buts, quatre-vingts points) se relit.
