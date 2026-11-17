@@ -1,0 +1,5 @@
+- **17 nov. · Le Rogue prend l'allure du 82-0**
+  - JP, le bureau de la V30 vu : *Interface plus proche du 82-0*. Trois tailles posées avec leur coût ; il tranche : *seulement l'allure*, en *code direct*. Les écrans restent ; aucune refonte.
+  - À la source : quinze jetons `--rn-` de couleur partent, le Rogue lit ceux du jeu (le noir teinté par ton club, l'or, le vert, le rouge) et suit ses palettes ; ses boutons sont `.btn`, `.go` et `.gold` ; ses segments, des jetons ; la majuscule au bandeau seul.
+  - L'en-tête du 82-0 sur une rangée (ton écusson, le titre et l'état, le rang, les jetons, les cœurs, le menu) ; les cinq onglets du bureau à icônes ; un visage à la tête de chaque ligne de joueur (Alignement, Masse, Mon club, Meneurs).
+  - `check_scene` (53 scènes) juge aussi qu'aucune cible ne passe sous les boutons du bas : une histoire au texte plus large y glissait son « Prendre ». La jauge de la feuille, noire sur noir pour les NHL Stars, prend la couleur vive de ton club. Version 4.0.1.

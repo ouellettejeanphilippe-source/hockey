@@ -180,6 +180,7 @@ Une seule livraison (JP : *tout*) : le cœur et ses robots d'abord, mesurés ; p
 2. **Les affiches** : *tu les poses* (devant : le jeu les pose). Mesuré : 63 soirs sur 82 ne demandaient rien d'autre que le gardien.
 3. **Le salaire libéré** : *50 %, comme aujourd'hui*. Mesuré sur 24 saisons du bâtisseur : 2 signatures par saison à 0 %, 13 à 50 %, 15 à 100 % (46 % de runs qui explosent).
 4. **Les médailles** : *garder le barème* (environ 105 par saison pour le bâtisseur ; une philosophie coûte 40 à 120).
+5. **L'allure, le bureau vu** (17 nov., après la livraison) : *interface plus proche du 82-0* ; entre refaire les écrans, vivre dans la coquille du 82-0 et l'allure seule, *seulement l'allure*, en *code direct*. Les écrans du § 3.8 restent ; le Rogue lit les couleurs, les boutons, l'en-tête et les onglets à icônes du jeu, et les visages entrent dans les tableaux (docs/decisions.md, « Le Rogue prend l'allure du 82-0 »).
 
 ## 11. La revue du 17 nov. 2026, et ce qu'elle a changé
 

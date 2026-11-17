@@ -106,7 +106,10 @@ async function mesurer(page, nom) {
     const bords = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('.rn-cadre')).map(el => ({ el, b: el.getBoundingClientRect() })).filter(({ b }) => b.width > 0 && (b.left < -0.5 || b.top < -0.5 || b.right > L + 0.5 || b.bottom > H + 0.5)).map(({ el }) => el.dataset.a);
     // Un panneau, un cadre ou une rangée de boutons ne passe jamais sous les boutons du bas ni sous les onglets : ce qui déborde se lit à moitié.
     const boite = el => el.getBoundingClientRect(), dessous = [...plan.querySelectorAll('.rn-cellules, .rn-bas, .rn-onglets')].map(boite);
-    const couverts = [...plan.querySelectorAll('.rn-panneau, .rn-cadre, .rn-bas, .rn-versbanc')].map(boite).filter(p => p.height > 0 && dessous.some(d => d.top > p.top && p.bottom > d.top + 1 && p.left < d.right && p.right > d.left)).length;
+    const sous = p => p.height > 0 && dessous.some(d => d.top > p.top && p.bottom > d.top + 1 && p.left < d.right && p.right > d.left);
+    // Ni une cible qu'on touche, où qu'elle soit (une réponse d'histoire dont le texte s'allonge poussait son « Prendre » sous « Plus tard »).
+    const cibles = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('.rn-cadre, .rn-bas, .rn-onglets'));
+    const couverts = [...plan.querySelectorAll('.rn-panneau, .rn-cadre, .rn-bas, .rn-versbanc'), ...cibles].map(boite).filter(sous).length;
     // Le cadre d'un tableau : entre le HUD et le bas de l'écran, et lui seul défile.
     const cadre = plan.querySelector('.rn-cadre'), bc = cadre && cadre.getBoundingClientRect(), moi = cadre && cadre.querySelector('.rn-moi'), bm = moi && moi.getBoundingClientRect();
     return { couverts, defile: de.scrollHeight > H + 1 || de.scrollWidth > L + 1 || racine.scrollHeight > racine.clientHeight + 1 || plan.scrollHeight > plan.clientHeight + 1,

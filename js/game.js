@@ -794,7 +794,11 @@ function poserLeClub() {
   if (ecu) ecu.innerHTML = '';
 }
 
+/* Rend l'équipe qui teintait l'interface juste avant : qui la repeint pour un temps (le Rogue, aux couleurs de ton club) la remet en sortant. */
+let equipePeinte = null;
 export function applyTeamColors(team) {
+  const avant = equipePeinte;
+  equipePeinte = team;
   const code = team && TEAM_COLORS[team] ? team : 'YOU';
   const c = TEAM_COLORS[code];
   const vive = couleurVive(code);
@@ -832,6 +836,7 @@ export function applyTeamColors(team) {
   const src = photoDeFond(code === 'YOU' ? signes() : v && v.team === team ? v.pool : []);
   root.setProperty('--photo', src ? `url("${src}")` : 'none');
   root.setProperty('--voile-photo', src ? 'var(--voile-noir)' : 'none');
+  return avant;
 }
 
 export function positionLabel(p) {
