@@ -1,0 +1,4 @@
+- **17 nov. · V30 : les galons, quand ça compte**
+  - Sur 82 matchs, le bâtisseur gravait 15,5 galons par run : le Chapeau dans 99 % des runs, le jeu blanc dans 96 %. JP : *resserrer*, puis, sur deux voies mesurées (128 saisons) : *quand ça compte*.
+  - L'exploit d'un match (3 buts, 5 points, le jeu blanc, 40 arrêts dans une victoire) ne se grave que dans un gros match ; la saison passe à 50 buts et 100 points. 7,9 gravures par run, chaque sorte dans 39 à 73 % des runs.
+  - `check_run` tient la règle ; `mesure_run` juge la borne (4 à 14 par run, 5 à 85 % par sorte) ; la page des règles le dit. Version 4.0.3.

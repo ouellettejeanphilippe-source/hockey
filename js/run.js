@@ -734,28 +734,32 @@ function compterLesStats(S, res) {
 /*
  * LES GALONS (V28, tranche 5b ; docs/refonte-v30-2.md § 3.10) : ce qu'un joueur fait chez toi se grave sur sa carte, au
  * cartable. Le cœur les lit dans la feuille du soir et dans ses stats de la saison ; la coquille les écrit
- * (js/cartable.js `graverAuCartable`). Aucun effet au moteur. Ceux d'un match gardent leurs seuils ; ceux de la saison
- * sont à l'échelle de 82 matchs.
+ * (js/cartable.js `graverAuCartable`). Aucun effet au moteur.
+ * QUAND ÇA COMPTE (JP, 17 nov. 2026). Sur 82 matchs, un tour du chapeau se gravait dans 99 % des runs, un jeu blanc dans
+ * 96 % : un galon que chaque run grave ne dit plus rien. L'exploit d'un match garde son sens de hockey (trois buts font un
+ * chapeau), mais ne se grave que dans un GROS MATCH — le rival, une affiche, une élite avec son enjeu, les séries ; ceux de
+ * la saison sont les deux repères du hockey, cinquante buts et cent points. Mesuré sur 128 saisons du bâtisseur : 7,9
+ * gravures par run, chaque sorte dans 39 à 73 % des runs (la borne : 4 à 14, et 5 à 85 %).
  */
-export const GALONS = { CHAPEAU: 3, GRAND_SOIR: 6, MUR: 50, BUTS: 40, POINTS: 80 };
+export const GALONS = { CHAPEAU: 3, GRAND_SOIR: 5, MUR: 40, BUTS: 50, POINTS: 100 };
 function galonsDuSoir(S, res, avant) {
-  const R = S.R, f = res.feuille, cote = res.cote, miens = new Set(effectifDe(S));
+  const R = S.R, f = res.feuille, cote = res.cote, miens = new Set(effectifDe(S)), gros = estUnDuel(R.soir);
   const pour = (f.buts || []).filter(x => !x.fusillade && x.cote === cote), contre = butsDe(f, cote === 'A' ? 'B' : 'A');
   const b = new Map(), p = new Map(), plus = (m, j) => { if (j && miens.has(j)) m.set(j, (m.get(j) || 0) + 1); };
   for (const x of pour) { plus(b, x.marqueur); plus(p, x.marqueur); for (const a of x.passeurs || []) plus(p, a); }
   const out = [], graver = (j, type, extra) => out.push({ k: getPlayerKey(j), n: j.n, type, extra });
   for (const [j, n] of p) {
     const nb = b.get(j) || 0, [, b0 = 0, a0 = 0] = avant[getPlayerKey(j)] || [], [, b1, a1] = R.stats[getPlayerKey(j)];
-    if (nb >= GALONS.CHAPEAU) graver(j, 'chapeau', nb);
-    if (n >= GALONS.GRAND_SOIR) graver(j, 'grandMatch', n);
-    if (b0 < GALONS.BUTS && b1 >= GALONS.BUTS) graver(j, 'quaranteButs', b1);
-    if (b0 + a0 < GALONS.POINTS && b1 + a1 >= GALONS.POINTS) graver(j, 'quatreVingtsPoints', b1 + a1);
+    if (gros && nb >= GALONS.CHAPEAU) graver(j, 'chapeau', nb);
+    if (gros && n >= GALONS.GRAND_SOIR) graver(j, 'grandMatch', n);
+    if (b0 < GALONS.BUTS && b1 >= GALONS.BUTS) graver(j, 'cinquanteButs', b1);
+    if (b0 + a0 < GALONS.POINTS && b1 + a1 >= GALONS.POINTS) graver(j, 'centPoints', b1 + a1);
   }
   // Le but gagnant contre le rival du dernier quart : celui qui met ton club un but devant leur compte final.
   const gagnant = R.soir.sorte === 'rival' && R.quart.n === RUN.QUARTS.length - 1 && res.gagne && pour[contre] ? pour[contre].marqueur : null;
   if (gagnant && miens.has(gagnant)) graver(gagnant, 'bourreau', R.soir.t);
   const g = cote === 'A' ? f.gardienA : f.gardienB, arrets = tirsTotal(f, cote === 'A' ? 'B' : 'A') - contre;
-  if (res.gagne && g && miens.has(g)) {
+  if (gros && res.gagne && g && miens.has(g)) {
     if (contre === 0) graver(g, 'jeuBlanc', arrets);
     if (arrets >= GALONS.MUR) graver(g, 'mur', arrets);
   }

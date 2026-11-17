@@ -3943,3 +3943,41 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Ce qui a été écarté.** Garder 0 · 1 · 1 · 2 et baisser la cible à 2 à 8 sur 64 : un bon DG gagnerait la Coupe une saison sur 23, et une saison dure quatre à cinq heures. Plafonner la marche d'une pièce adverse : ce serait une règle de plus, et « par les mêmes marches que les tiennes » tient.
 
 **Deux autres réponses de JP, le même jour, à mesurer avant de coder.** Les galons : *resserrer* — sur 82 matchs le bâtisseur en grave 27 par run (le chapeau dans 99 % des runs, le jeu blanc 95 %), la borne d'avant était 4 à 14, chaque sorte dans 5 à 85 % des runs. Le cran 1 d'exigence : *plus de points* — un point de plus par quart coûte moins de 0,05 cœur par run ; deux et trois se mesurent.
+
+## Les galons, quand ça compte (17 nov. 2026)
+
+**Le constat.** Les galons d'un match venaient d'une run de vingt-deux matchs. Sur une saison de 82, mesurée sur 128 saisons du bâtisseur (une gravure : un joueur, une sorte, une fois par run, ce que le cartable garde) : 15,5 gravures par run, le Chapeau (3 buts) dans 99 % des runs, le jeu blanc dans 96 %, les quatre-vingts points dans 86 %. La borne de JP, d'avant : 4 à 14 par run, chaque sorte dans 5 à 85 % des runs. Un galon que chaque run grave ne dit plus rien sur une carte.
+
+**Deux voies mesurées**, sur les mêmes saisons, toutes deux avec la saison à cinquante buts (55 % des runs) et cent points (67 %), les deux repères du hockey :
+
+| | Le Chapeau | Le grand soir | Le jeu blanc | Le Mur | Par run |
+|---|---|---|---|---|---|
+| Aujourd'hui, n'importe quel soir | 3 buts : 99 % | 6 points : 61 % | 96 % | 50 arrêts : 10 % | 15,5 |
+| Des seuils plus hauts, n'importe quel soir | 4 buts : 66 % | 7 points : 34 % | 5 dans la saison : 34 % | 45 arrêts : 33 % | 6,3 |
+| Dans un gros match seulement | 3 buts : 73 % | 5 points : 49 % | 70 % | 40 arrêts : 39 % | 7,9 |
+
+**JP tranche : quand ça compte.** L'exploit garde son sens de hockey — trois buts font un tour du chapeau — et ne se grave que dans un gros match : le rival, une affiche, une élite avec son enjeu, les séries. Le coût, dit dans la question : un tour du chapeau un soir ordinaire ne laisse plus de trace. Ce que ça donne en plus : une affiche que tu poses devient aussi un soir où tes joueurs peuvent graver quelque chose.
+
+**Ce qui a été écarté.** Monter les seuils n'importe quel soir : un « Chapeau » à quatre buts n'est plus un tour du chapeau, et le jeu blanc devenait un compte de saison. Garder tel quel (« ce sont des souvenirs ») : JP, *resserrer*.
+
+**Les juges.** `check_run` : un galon de match ne se grave qu'un soir de gros match, chacun à son seuil, tous recomptés. `mesure_run` juge maintenant la borne chez le bâtisseur, et compte des gravures (un joueur, une sorte, une fois par run), plus des répétitions. Ce qui s'est gravé avant (quarante buts, quatre-vingts points) se relit.
+
+## Les crans d'exigence qui mordent : cinq points au cran 1, dix au cran 3 (17 nov. 2026)
+
+**Le constat.** À la V28, le cran 1 montait la cible de l'acte d'un point, et les cibles tenues tombaient de 58 à 52 %. Traduit tel quel à la V30 (« un point de plus demandé par le proprio à chaque quart »), il ne coûtait plus rien : moins de 0,05 cœur perdu de plus par run, pour 15 % de médailles de plus. Deux raisons, lues dans la mesure : le bâtisseur tient son objectif de points avec huit à dix points d'avance aux trois premiers quarts (31 points faits pour 22 demandés), et un bilan n'est manqué qu'à deux objectifs sur trois.
+
+**Le levier, mesuré.** JP : *plus de points*. Les points de plus par quart au cran 1, le bâtisseur, 128 saisons, en paires contre le cran 0 (0,30 cœur perdu par run, congédié 9 fois) :
+
+| Points de plus par quart | Cœurs perdus de plus | Congédié (sur 128) | Dans les séries | Médailles par run |
+|---|---|---|---|---|
+| +1 (avant) | moins de 0,05 | — | 91 % | 119 |
+| +2 | 0,04 | 10 | 91 % | 124 |
+| +3 | 0,08 | 12 | 89 % | 123 |
+| +5 | 0,13 | 12 | 89 % | 123 |
+| +7 | 0,33 | 23 | 81 % | 118 |
+
+**JP tranche : +5 au cran 1** — il coûte autant que le cran 2 (des clubs plus forts : 0,16 cœur de plus) et laisse de la place au-dessus — **et +10 au cran 3**, le sommet. Le cran 3 mesuré par-dessus les deux premiers : à +7 en tout, 0,14 cœur de plus que le cran 2 (congédié 25 fois, 129 médailles) ; à +10, 0,40 de plus (congédié 39 fois sur 128, dans les séries 70 %, 120 médailles).
+
+**L'échelle retenue**, cran par cran : 0,30 cœur perdu par run, puis 0,43, 0,59 et 0,98 ; un bilan tenu 92, 89, 85 et 72 % du temps ; 109, 123, 120 et 120 médailles par run, la prime comprise — monter ne paie pas plus, ça se mérite, comme à la V28. La Coupe : 8 fois sur 128 aux crans 0 et 1, 6 fois aux crans 2 et 3.
+
+**Ce qui a été écarté.** Un cœur de moins au cran 1 : proposé, JP a préféré les points. +7 au cran 3 : une marche de la même hauteur que les deux premières, et un dernier cran qui ressemble au deuxième.

@@ -128,19 +128,20 @@ const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), .
   payerEcussons('coupeBasse', 'run', 100, { bilan: { pts: 30, ronde: 3, coupe: true, series: true, exigence: 0 } });
   exiger('une Coupe gagnée plus bas ne referme rien', cranOuvert(lireMeta()) === EXIGENCES.length);
   const E = [0, 1, 2, 3].map(exigencesDe);
-  exiger('chaque cran ajoute sa règle à celles d\'avant : la cible +1, une étape de plus, la cible +2',
-    E.map(e => `${e.cible}/${e.etapes}`).join() === '0/0,1/0,1/1,2/1' && exigencesDe(9).n === EXIGENCES.length && exigencesDe(-1).n === 0, E.map(e => `cible +${e.cible}, étapes +${e.etapes}`).join(' · '));
+  const [C1, , C3] = EXIGENCES.map(x => x.cible || 0);
+  exiger('chaque cran ajoute sa règle à celles d\'avant : des points de plus par quart, une étape de plus, encore des points',
+    C1 > 0 && C3 > 0 && E.map(e => `${e.cible}/${e.etapes}`).join() === `0/0,${C1}/0,${C1}/1,${C1 + C3}/1` && exigencesDe(9).n === EXIGENCES.length && exigencesDe(-1).n === 0, E.map(e => `cible +${e.cible}, étapes +${e.etapes}`).join(' · '));
   exiger(`chaque cran paie ${Math.round(PRIME_EXIGENCE * 100)} % de médailles de plus`, E.every((e, k) => Math.abs(e.medailles - (1 + PRIME_EXIGENCE * k)) < 1e-9), E.map(e => `×${e.medailles.toFixed(2)}`).join(' · '));
   const base = creerLaRun(DONNEES, { graine: 'meta', coach: { cle: 'tortue' } }), dure = creerLaRun(DONNEES, { graine: 'meta', coach: { cle: 'tortue' }, exigence: 3 });
-  exiger('une run porte ses règles : sans exigence, celles du jeu ; au cran 3, deux points de plus demandés par quart et une étape de plus',
+  exiger(`une run porte ses règles : sans exigence, celles du jeu ; au cran 3, ${C1 + C3} points de plus demandés par quart et une étape de plus`,
     reglesDe(base.R).cible === 0 && reglesDe(base.R).etapes.join() === RUN.ETAPES.join() && reglesDe(base.R).prime === 1
-    && reglesDe(dure.R).cible === 2 && reglesDe(dure.R).etapes.join() === RUN.ETAPES.map(e => e + 1).join(),
+    && reglesDe(dure.R).cible === C1 + C3 && reglesDe(dure.R).etapes.join() === RUN.ETAPES.map(e => e + 1).join(),
     `+${reglesDe(base.R).cible} · +${reglesDe(dure.R).cible} points, étapes ${reglesDe(dure.R).etapes.join('-')}`);
   exiger('une run gardée avant les exigences lit les règles du jeu', reglesDe({}).etapes === RUN.ETAPES && reglesDe({}).cible === 0 && reglesDe(null).prime === 1);
-  // Le même repêchage au cran 0 et au cran 2 (la même graine) : le proprio demande un point de plus au premier quart.
+  // Le même repêchage au cran 0 et au cran 2 (la même graine) : le proprio demande les points du cran 1 de plus au premier quart.
   const auQuart = async exigence => { try { await jouerLaRun('chiffre', 3, { exigence, espion: (m, S) => { if (m === 'quart') throw { S }; } }); } catch (e) { if (!e.S) throw e; return e.S.R.quart.objectifs[0].cible; } return null; };
   const [c0, c2] = [await auQuart(0), await auQuart(2)];
-  exiger('au cran 2, le proprio demande un point de plus par quart', c0 > 0 && c2 === c0 + 1, `${c0} points, puis ${c2}`);
+  exiger(`au cran 2, le proprio demande ${C1} points de plus par quart`, c0 > 0 && c2 === c0 + C1, `${c0} points, puis ${c2}`);
   // Les médailles d'une run au cran 2 : ses quarts et ses rondes multipliés, sa caisse ajoutée sans se multiplier (10 jetons, une médaille).
   const R = { regles: { exigence: 2, cible: 1, etapes: RUN.ETAPES, prime: 1.3 }, quarts: [{ medailles: 10 }, { medailles: 25 }, { medailles: 5 }], series: { faites: [{}] }, jetons: 57 };
   exiger('une run au cran 2 paie ses médailles ×1,30, plus sa caisse', medaillesDe(R) === Math.round((40 + 20) * 1.3) + 5 && medaillesDe(R, 4, true) === Math.round((40 + 80 + 40) * 1.3) + 5, `${medaillesDe(R)} 🏅, dont 5 de caisse (57 jetons)`);
