@@ -119,8 +119,11 @@ export function bancDuMatch(perso, joueurs) {
  * d'une série porte les pièces qui comptent le plus chez lui, tout son club compté : `BANC_DES_SERIES` pièces selon la
  * ronde. Sa philosophie (`cle`), lue sur le style du club (`t.style`, js/sim.js `poserStyles`) ou tirée de son nom, ne
  * sert qu'à le nommer. Pur.
+ * Aucune pièce aux deux premières rondes, une ensuite (JP, 17 nov. 2026, sur 256 saisons du bâtisseur, les mêmes graines) :
+ * à 0 · 1 · 1 · 2, une seule pièce en face faisait tomber ses séries gagnées de 59 à 40 % dès la deuxième ronde, et la
+ * Coupe sortait 11 fois (2,8 sur 64, pour une cible de 4 à 12) ; à 0 · 0 · 1 · 2, 14 fois ; à 0 · 1 · 1 · 1, 15 ; ici, 20.
  */
-export const BANC_DES_SERIES = [0, 1, 1, 2];
+export const BANC_DES_SERIES = [0, 0, 1, 1];
 export const COACH_DU_STYLE = { offensif: 'essaim', defensif: 'tortue', robuste: 'rhinos' };
 const AUTRES_COACHS = ['rapaces', 'souffle', 'choeur', 'profondeur', 'etoiles'];
 export function persoAdverse(team, ronde = 0) {

@@ -3924,3 +3924,22 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Ce que ça a montré.** Une police de texte courant plus large qu'une étroite en capitales pousse ce qui était posé au pixel : la scène d'une histoire, qui tenait à un pixel près, glissait son « Prendre » sous « Plus tard ». Les textes serrés du plan fixe gardent donc la police étroite, en casse de phrase, et `check_scene` juge maintenant qu'aucune cible qu'on touche ne passe sous les boutons du bas. Ce juge neuf a rougi le CI dès sa première PR : sur la machine du CI, les polices coupent une ligne de plus, et la scène retombait sous « Plus tard ». Elle ne tenait donc qu'au pixel ; elle tient maintenant par construction — la scène pose le haut et le bas du bloc des réponses, « Prendre » est épinglé au pied de sa colonne, la carte cède de la place au texte, et le juge refuse aussi une réponse coupée. La jauge de la feuille peignait ta part à la couleur de ton bandeau, noire pour les NHL Stars : sur le noir, elle disparaissait ; elle prend la couleur vive de ton club, et la leur devient neutre quand les deux se confondent (`separe`, js/logos.js).
 
 **Ce qui a été écarté.** Garder le ciel de nuit pour les scènes du match seulement : deux palettes dans un même mode, et les jetons sont partagés par toutes les scènes ; JP peut le redemander. Reprendre la classe `.navtab` telle quelle pour les onglets : au-dessus de 1000 px, elle devient un rail sans mots, et le plan du Rogue reste un téléphone à toute largeur ; ses onglets en reprennent les valeurs, pas la classe.
+
+## La Coupe : leur banc ne commence qu'à la troisième ronde (17 nov. 2026)
+
+**Le constat.** Le juge du build à 256 graines était vert partout, sauf la Coupe : le bâtisseur la gagnait 11 fois sur 256 (2,8 sur 64) pour une cible de 4 à 12. La mesure dit maintenant à quelle ronde une run sort des séries : sur 231 runs qui s'y rendent, 82 sortent à la première ronde (aucun banc en face : 65 % de séries gagnées), puis 89 des 149 restantes à la deuxième, où l'adversaire porte sa première pièce — 40 % de séries gagnées. Une seule pièce, comptée sur tout un club, est souvent à sa troisième marche : c'était une falaise, pas un mur qui monte.
+
+**Les réglages mesurés**, le bâtisseur, les mêmes 256 graines (4000 à 4255), leur banc par ronde :
+
+| Leur banc | Sorties à la 1re | à la 2e | à la 3e | en finale | Coupes | sur 64 |
+|---|---|---|---|---|---|---|
+| 0 · 1 · 1 · 2 (avant) | 82 | 89 | 24 | 25 | 11 | 2,8 |
+| 0 · 0 · 1 · 2 | 82 | 61 | 49 | 25 | 14 | 3,5 |
+| 0 · 1 · 1 · 1 | 82 | 89 | 24 | 21 | 15 | 3,8 |
+| 0 · 0 · 1 · 1 | 82 | 61 | 49 | 19 | 20 | 5,0 |
+
+**JP tranche : 0 · 0 · 1 · 1**, le seul dans la cible. Ce que ça coûte, dit dans la question : les séries sont un peu moins un mur (une run qui explose gagne la Coupe 15 fois sur 70 au lieu de 9 ; la borne est « moins d'une fois sur deux »). La saison régulière ne bouge pas (117,1 points dans les quatre mesures : leur banc ne joue qu'en séries).
+
+**Ce qui a été écarté.** Garder 0 · 1 · 1 · 2 et baisser la cible à 2 à 8 sur 64 : un bon DG gagnerait la Coupe une saison sur 23, et une saison dure quatre à cinq heures. Plafonner la marche d'une pièce adverse : ce serait une règle de plus, et « par les mêmes marches que les tiennes » tient.
+
+**Deux autres réponses de JP, le même jour, à mesurer avant de coder.** Les galons : *resserrer* — sur 82 matchs le bâtisseur en grave 27 par run (le chapeau dans 99 % des runs, le jeu blanc 95 %), la borne d'avant était 4 à 14, chaque sorte dans 5 à 85 % des runs. Le cran 1 d'exigence : *plus de points* — un point de plus par quart coûte moins de 0,05 cœur par run ; deux et trois se mesurent.

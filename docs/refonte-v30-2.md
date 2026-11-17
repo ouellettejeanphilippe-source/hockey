@@ -180,6 +180,9 @@ Une seule livraison (JP : *tout*) : le cœur et ses robots d'abord, mesurés ; p
 2. **Les affiches** : *tu les poses* (devant : le jeu les pose). Mesuré : 63 soirs sur 82 ne demandaient rien d'autre que le gardien.
 3. **Le salaire libéré** : *50 %, comme aujourd'hui*. Mesuré sur 24 saisons du bâtisseur : 2 signatures par saison à 0 %, 13 à 50 %, 15 à 100 % (46 % de runs qui explosent).
 4. **Les médailles** : *garder le barème* (environ 105 par saison pour le bâtisseur ; une philosophie coûte 40 à 120).
+6. **La Coupe** (17 nov., le juge du build à 256 graines) : leur banc en séries à *0 · 0 · 1 · 1*. Sur les mêmes 256 saisons du bâtisseur : 11 Coupes à 0 · 1 · 1 · 2 (une pièce en face dès la deuxième ronde y faisait tomber ses séries gagnées de 59 à 40 %), 14 à 0 · 0 · 1 · 2, 15 à 0 · 1 · 1 · 1, 20 à 0 · 0 · 1 · 1 (5 sur 64, dans la cible de 4 à 12).
+7. **Les galons** : *resserrer* (27 par saison aujourd'hui ; viser 4 à 14 par run, chaque sorte dans 5 à 85 % des runs).
+8. **Le cran 1** : *plus de points* (un point de plus par quart coûte moins de 0,05 cœur par run ; deux et trois se mesurent).
 5. **L'allure, le bureau vu** (17 nov., après la livraison) : *interface plus proche du 82-0* ; entre refaire les écrans, vivre dans la coquille du 82-0 et l'allure seule, *seulement l'allure*, en *code direct*. Les écrans du § 3.8 restent ; le Rogue lit les couleurs, les boutons, l'en-tête et les onglets à icônes du jeu, et les visages entrent dans les tableaux (docs/decisions.md, « Le Rogue prend l'allure du 82-0 »).
 
 ## 11. La revue du 17 nov. 2026, et ce qu'elle a changé
@@ -188,7 +191,7 @@ Deux relecteurs en adversaires sur cet extrait (`rogue-design`, `rogue-equilibre
 
 ## 12. Ce qui reste ouvert
 
-- **La Coupe est trop rare.** Le juge du build à 256 graines (17 nov., graines 4000 à 4255) est vert partout — bâtir paie +21,0 points (±1,7), 27 % de runs qui explosent, aucune marche d'office, un bon DG garde ses cœurs — sauf elle : le bâtisseur la gagne 11 fois sur 256 (2,8 sur 64 ; 5 sur les 128 graines de la mesure des crans), sous la cible de 4 à 12. Neuf de ses runs sur dix se rendent en séries et y gagnent une ronde en moyenne. Un réglage des séries est à mesurer (`BANC_SERIES`, scripts/mesure_run.mjs) et à poser à JP.
+- *Fermé le 17 nov.* — la Coupe était trop rare (11 sur 256 pour le bâtisseur, 2,8 sur 64) : leur banc en séries passe à 0 · 0 · 1 · 1 (§ 10, point 6).
 - **Les crans d'exigence ne coûtent presque rien au bâtisseur** (`CRANS=1 GRAINES=128 FILS=3`, 17 nov.) : 0,3 cœur perdu par run sans exigence ; le cran 1 (un point de plus par quart) en ajoute moins de 0,05, pour 15 % de médailles de plus ; le cran 2 (des clubs plus forts) coûte 5 points au classement et 0,1 cœur, la Coupe 1 fois sur 128 au lieu de 5 ; le cran 3, moins de 0,05 cœur. Le juge est vert de justesse (chaque cran coûte, en paires), mais « un cran doit coûter » n'est pas tenu en esprit au cran 1 : un levier qui morde (deux ou trois points par quart, ou un cœur de moins) est à poser à JP. Les crans ne s'ouvrent qu'après une première Coupe.
-- Les galons à l'échelle de 82 matchs (le bâtisseur en grave une trentaine par saison) : à poser à JP avec les fréquences.
+- Les galons à l'échelle de 82 matchs (le bâtisseur en grave 27 par saison) : JP, *resserrer* (§ 10, point 7) ; les seuils de saison se mesurent et se montrent avant le code.
 - Le ballottage vient une dizaine de fois par saison : à juger à l'essai.
