@@ -18,7 +18,8 @@
  *   7. aucune erreur de page.
  * Le ballottage et une histoire s'ouvrent si une des saisons jouées en garde une sauvegarde ; sinon ils s'impriment absents.
  *
- *   node scripts/check_scene.mjs http://localhost:8000 [dossier]     (deux minutes ; une capture par scène dans le dossier)
+ *   node scripts/check_scene.mjs http://localhost:8000 [dossier]     (deux minutes ; une capture par scène dans le dossier ;
+ *                                                                     `NETTETE=2` : des captures nettes, à montrer)
  */
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
@@ -106,7 +107,12 @@ async function mesurer(page, nom) {
     const bords = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('.rn-cadre')).map(el => ({ el, b: el.getBoundingClientRect() })).filter(({ b }) => b.width > 0 && (b.left < -0.5 || b.top < -0.5 || b.right > L + 0.5 || b.bottom > H + 0.5)).map(({ el }) => el.dataset.a);
     // Un panneau, un cadre ou une rangée de boutons ne passe jamais sous les boutons du bas ni sous les onglets : ce qui déborde se lit à moitié.
     const boite = el => el.getBoundingClientRect(), dessous = [...plan.querySelectorAll('.rn-cellules, .rn-bas, .rn-onglets')].map(boite);
-    const couverts = [...plan.querySelectorAll('.rn-panneau, .rn-cadre, .rn-bas, .rn-versbanc')].map(boite).filter(p => p.height > 0 && dessous.some(d => d.top > p.top && p.bottom > d.top + 1 && p.left < d.right && p.right > d.left)).length;
+    const sous = p => p.height > 0 && dessous.some(d => d.top > p.top && p.bottom > d.top + 1 && p.left < d.right && p.right > d.left);
+    // Ni une cible qu'on touche, où qu'elle soit (une réponse d'histoire dont le texte s'allonge poussait son « Prendre » sous « Plus tard »).
+    const cibles = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('.rn-cadre, .rn-bas, .rn-onglets'));
+    // Ni un texte coupé par son bloc : la réponse d'une histoire, tenue entre sa carte et son « Prendre ».
+    const coupes = [...plan.querySelectorAll('.rn-reps p')].filter(p => p.scrollHeight > p.clientHeight + 1).length;
+    const couverts = [...plan.querySelectorAll('.rn-panneau, .rn-cadre, .rn-bas, .rn-versbanc'), ...cibles].map(boite).filter(sous).length + coupes;
     // Le cadre d'un tableau : entre le HUD et le bas de l'écran, et lui seul défile.
     const cadre = plan.querySelector('.rn-cadre'), bc = cadre && cadre.getBoundingClientRect(), moi = cadre && cadre.querySelector('.rn-moi'), bm = moi && moi.getBoundingClientRect();
     return { couverts, defile: de.scrollHeight > H + 1 || de.scrollWidth > L + 1 || racine.scrollHeight > racine.clientHeight + 1 || plan.scrollHeight > plan.clientHeight + 1,
@@ -127,7 +133,7 @@ async function mesurer(page, nom) {
   return m;
 }
 async function ouvrir(R, meta = null, cartable = null) {
-  const page = await browser.newPage({ viewport: { width: LARGEUR, height: HAUTEUR }, deviceScaleFactor: 1, hasTouch: true, reducedMotion: 'reduce' });
+  const page = await browser.newPage({ viewport: { width: LARGEUR, height: HAUTEUR }, deviceScaleFactor: Number(process.env.NETTETE) || 1, hasTouch: true, reducedMotion: 'reduce' });
   page.on('pageerror', e => erreurs.push(e.message));
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(([r, m, c]) => { localStorage.clear(); if (r) localStorage.setItem('cap82_run', JSON.stringify(r)); if (m) localStorage.setItem('cap82_rogue', JSON.stringify(m)); if (c) localStorage.setItem('cap82_cartable', JSON.stringify(c)); }, [R, meta, cartable]);
@@ -235,7 +241,7 @@ exiger('seul le cadre d\'un tableau défile, en lui-même, à sa place', !fautes
 const C = tableaux['le classement'];
 exiger('le classement montre les trente-deux clubs et la ligne des séries, et s\'ouvre sur ton club', !!C && C.lignes === 32 && C.coupe && C.moiVu === true, C ? `${C.lignes} clubs, la ligne ${C.coupe ? 'tracée' : 'absente'}, ton club ${C.moiVu ? 'à l\'écran' : 'hors du cadre'}` : 'pas de tableau');
 exiger('l\'alignement montre tes vingt-trois', !!tableaux['l\'alignement'] && tableaux['l\'alignement'].lignes >= 23, tableaux['l\'alignement'] ? `${tableaux['l\'alignement'].lignes} lignes` : 'pas de tableau');
-exiger('aucun bloc ne passe sous les boutons du bas ni sous les onglets', !fautes.couvert.length, fautes.couvert.slice(0, 4).join(' · '));
+exiger('aucun bloc ni aucune cible ne passe sous les boutons du bas ni sous les onglets, aucune réponse d\'histoire n\'est coupée', !fautes.couvert.length, fautes.couvert.slice(0, 4).join(' · '));
 exiger('le HUD est toujours au même endroit', !fautes.hud.length && !!hud0, fautes.hud.slice(0, 4).join(' · ') || `ses cœurs à ${hud0 ? hud0.join(',') : '?'}`);
 exiger('chaque cible fait 44 × 44', !fautes.cibles.length, fautes.cibles.slice(0, 5).join(' · '));
 exiger('chaque cible tient dans l\'écran', !fautes.bord.length, fautes.bord.slice(0, 4).join(' · '));

@@ -350,7 +350,7 @@ export function getTeamBand(teamCode) {
 const SEPARE_LUM = 1.8;
 const SEPARE_DIST = 90;
 
-function separe(a, b) {
+export function separe(a, b) {
   if (contrast(a, b) >= SEPARE_LUM) return true;
   const [ra, ga, ba] = hexToRgb(a), [rb, gb, bb] = hexToRgb(b);
   return Math.hypot(ra - rb, ga - gb, ba - bb) >= SEPARE_DIST;

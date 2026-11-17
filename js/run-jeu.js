@@ -8,6 +8,7 @@
  * pendant qu'on les regarde reprend à son résultat.
  */
 import { state } from './data.js';
+import { applyTeamColors } from './game.js';
 import { getShard } from './repechage.js';
 import { actionsDisponibles } from './actions.js';
 import { avecHasardIsole, getPersonKey, getPlayerKey, nouvelleGraine, periodeDe } from './sim.js';
@@ -97,17 +98,21 @@ async function charger(mot) {
   }
   if (saisons.length) { montrer(sceneAttente('On classe les clubs de toutes les époques…')); await pause(30); }
 }
+let teinteDAvant = null;
 function fermer() {
   clearTimeout(minuterie);
   window.removeEventListener('resize', echelle);
   if (racine) racine.remove();
   document.body.classList.remove('run-ouverte');
   racine = plan = S = null; V = {};
+  applyTeamColors(teinteDAvant);
   if (ctx && ctx.onFerme) ctx.onFerme();
 }
 /* Ouvrir le Rogue : la run gardée reprend où elle en était ; sinon, le départ. */
 export async function ouvrirRun(c = {}) {
   ctx = c; V = {};
+  // Le Rogue se teinte de ton club, comme le 82-0 (le noir, les filets, l'onglet choisi) ; l'interface retrouve sa teinte à la fermeture.
+  teinteDAvant = applyTeamColors('YOU');
   racine = document.createElement('div');
   racine.id = 'runModal'; racine.className = 'rn-racine';
   racine.setAttribute('role', 'dialog'); racine.setAttribute('aria-modal', 'true'); racine.setAttribute('aria-label', 'Le Rogue');
@@ -392,7 +397,7 @@ const GESTES = {
   'ouvrir-voie': v => { if (ouvrirUneVoie(v).ok) { jouerSon('valide'); notable(); relireLeClub(); } else jouerSon('refus'); },
   rayon: v => { V.club.rayon = v; V.club.objet = null; },
   'voir-objet': v => { V.club.objet = v; },
-  'prendre-objet': v => { if (prendreAuClub(V.club.rayon, v).ok) { jouerSon('valide'); notable(); relireLeClub(); } else jouerSon('refus'); },
+  'prendre-objet': v => { if (prendreAuClub(V.club.rayon, v).ok) { jouerSon('valide'); notable(); applyTeamColors('YOU'); relireLeClub(); } else jouerSon('refus'); },
   'solde-depart': () => { const retour = V.apresLeSolde; soldeVu(); V.ecran = retour === 'fin' ? null : 'depart'; },
   'solde-club': () => { const retour = V.apresLeSolde || 'depart'; soldeVu(); versLeClub(retour); },
   'run-neuve': () => { oublier(); versLeDepart(); return false; },
