@@ -14,8 +14,11 @@
  *                dos-à-dos), les lignes jamais touchées ;
  *   « dg »       le gardien de même, et il assoit un patineur aux jambes lourdes quand un réserviste frais vaut mieux ce soir.
  *
- * Le critère (jugé à 64 graines ou plus) : en paires, « dg » fait plus de points que « borne », au-delà de deux
- * écarts-types. Ce qui s'imprime sans se juger : chaque directeur contre « auto », le rang final, la part des soirs où « dg » change quelque chose.
+ * Deux critères (jugés à 64 graines ou plus), un par geste, en paires, au-delà de deux écarts-types : « gardien » fait
+ * plus de points que « borne » ; « dg » fait plus de points que « gardien ». Ce qui s'imprime sans se juger : chaque
+ * directeur contre « auto », le rang final, la part des soirs où un geste est posé.
+ * Mesuré le 17 nov. 2026 sur 64 graines : le gardien, +5,4 points sur « borne » mais +1,1 ±1,2 sur « auto » (la rotation
+ * du moteur fait déjà presque aussi bien) ; asseoir les jambes lourdes, −2,4 ±0,8 (rouge : ce geste-là coûte).
  * Les dés d'un soir sont un seul flux pour toute la ligue : un geste décale les matchs des autres, les paires ne
  * partagent donc que la ligue et le club, pas les dés (le bruit est celui de deux saisons).
  *
@@ -162,11 +165,14 @@ for (const d of DIRECTEURS) {
 }
 const dit = (a, b) => { const p = paires(a, b); return `${p.m >= 0 ? '+' : ''}${un(p.m)} points sur 82 (erreur type ±${un(p.se)}, ${p.n} paires)`; };
 for (const d of DIRECTEURS.filter(x => x !== 'auto' && DIRECTEURS.includes('auto'))) informer(`« ${d} » contre « auto »`, dit(d, 'auto'));
-if (DIRECTEURS.includes('dg') && DIRECTEURS.includes('gardien')) informer('les lignes seules (« dg » contre « gardien »)', dit('dg', 'gardien'));
-if (DIRECTEURS.includes('dg') && DIRECTEURS.includes('borne')) {
-  const p = paires('dg', 'borne');
-  if (GRAINES >= 64) exiger('Régler ses lignes et son gardien chaque soir paie : « dg » fait plus de points que « borne », au-delà de deux écarts-types', p.m > 2 * p.se, dit('dg', 'borne'));
-  else informer('« dg » contre « borne » (jugé à 64 graines ou plus)', dit('dg', 'borne'));
-}
+/* Deux critères, un par geste : jugés ensemble (« dg » contre « borne »), le gardien cachait les lignes (17 nov. 2026). */
+const juger = (nom, a, b) => {
+  if (!DIRECTEURS.includes(a) || !DIRECTEURS.includes(b)) return;
+  const p = paires(a, b);
+  if (GRAINES >= 64) exiger(`${nom}, au-delà de deux écarts-types`, p.m > 2 * p.se, dit(a, b));
+  else informer(`${nom} (jugé à 64 graines ou plus)`, dit(a, b));
+};
+juger('Choisir son gardien paie : « gardien » fait plus de points que « borne »', 'gardien', 'borne');
+juger('Régler ses lignes paie : « dg » fait plus de points que « gardien »', 'dg', 'gardien');
 informer('La mesure', `${runs.length} saisons, ${Math.round((Date.now() - t0) / 1000)} s ; masse moyenne du repêchage ${un(moy(runs.map(r => r.masse)) / 1e6)} M$`);
 verdict('La saison de 82 soirs : les lignes et le gardien pèsent-ils ?');

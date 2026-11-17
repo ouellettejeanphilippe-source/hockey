@@ -1,0 +1,5 @@
+- **17 nov. · V30, tranche 0, première mesure : le gardien pèse 5 points contre qui l'oublie, presque rien contre le moteur qui le fait tourner seul ; asseoir les jambes lourdes coûte 2 points — rien du jeu ne change**
+  - JP, 16 nov. : *lignes et gardiens, mais faire que ça a un impact*. `scripts/mesure_saison.mjs` : un club de 23 repêché dans des clubs faibles, une vraie ligue de 32, 82 matchs, quatre directeurs sur les mêmes 64 graines (256 saisons, huit minutes à trois fils).
+  - Le partant tous les soirs : 105,7 points. Sans rien toucher (la rotation du moteur) : 110,0. Le gardien choisi chaque soir : 111,1 (+5,4 sur le premier, +1,1 ±1,2 sur le second). Le gardien et les jambes lourdes assises : 108,6 (−2,4 ±0,8 pour les lignes seules).
+  - Le club repêché est trop fort : 106 à 111 points, 8e ou 9e sur 32, dans les seize premiers neuf fois sur dix.
+  - Deux critères au lieu d'un : « choisir son gardien paie » (vert), « régler ses lignes paie » (rouge, c'est la mesure).
