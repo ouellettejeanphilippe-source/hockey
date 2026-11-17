@@ -245,4 +245,16 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
   exiger('aucune clé de sauvegarde ne change de nom', !vues.length && !bougees.length, [...vues, ...bougees].join(' · ') || `${CLES.length} clés en place`);
 }
 
+/* Deux parties créées au même instant, le même dé : deux identifiants, et la première reste entière (le rouge au hasard du CI du 17 nov. 2026). */
+{
+  const { importer, lireIndex } = await import('../js/sauvegardes.js');
+  const horloge = Date.now, de = Math.random;
+  memoire.clear();
+  Date.now = () => 1_800_000_000_000; Math.random = () => 0.5;
+  const fiche = n => JSON.stringify({ format: 'cap82-partie', partie: { moteur: 'S148', bonus: 'SAISON', tirage: [{ season: '1993-94', team: 'MTL' }], roster: { 0: { n, s: '1993-94' } }, mode: 'CLASSIQUE' } });
+  const a = importer(fiche('Un')), texteA = memoire.get(`cap82_partie_${a}`), b = importer(fiche('Deux'));
+  Date.now = horloge; Math.random = de;
+  exiger('deux parties créées dans la même milliseconde, au même dé, ont deux identifiants, et la première ne bouge pas',
+    !!a && !!b && a !== b && lireIndex().parties.length === 2 && memoire.get(`cap82_partie_${a}`) === texteA, `${a} · ${b}`);
+}
 verdict('Le fichier transférable');
