@@ -23,6 +23,19 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 - [x] **A3 · La défensive** (7 nov.) — `check_suppression` étendu (le canal par joueur, vols moins revirements pondérés par la glace, par poste, en retenue 2013-2025 et en paires) : il ne tient pas — il ne bat pas le club seul (−0,1 %) ni ne se sépare du gardien (+0,2 %, intervalles à cheval sur zéro) ; la possession tombe comme le devis le prévoit, le moteur ne bouge pas — `check_suppression` (rouge, la mesure).
 - [ ] *Après* : D2, les autres modes, avec son devis (la V26).
 
+## Refonte · V30, la saison et le DG (JP, 16 nov. : *j'hais le nouveau rogue, c'est plus une vraie saison, pis l'interface, oui est fun, mais pas vraiment gestion feel*)
+
+Le devis : docs/refonte-v30.md. Rien n'est codé. La tranche 2 de la V29 (lire son banc à l'écran) attend : ses écrans de gestion deviennent les tableaux du bureau.
+
+- [x] **JP tranche trois questions** (16 nov.) : les 82 soirs, joués ; la gestion, les quatre ensemble (des gestes de DG, un bureau plutôt que des scènes, mon club dans le temps, un alignement de 23) ; puis la base : *reprend l'ancien mode, mais refait du début afin de mieux intégrer le rogue like dans la gestion*.
+- [x] **JP tranche les trois questions du § 10** (16 nov.) : chaque soir, sa feuille (la semaine d'un toucher était recommandée ; une saison de quatre à cinq heures) ; une saison par run ; les portes après un gros match gagné.
+- [x] **`/revue-design docs/refonte-v30.md`** (16 nov.) — « À reprendre » : douze points au § 11 du devis (les 64 soirs ordinaires sans décision, le banc d'office sur 23 signés, la difficulté sans levier, le plafond qui ne mord plus, l'échange en arbitrage gratuit, les paires cassées par le flux d'un soir).
+- [x] **JP tranche dix questions après la revue** (16 nov., § 12 du devis) : *un EHM, mais avec un côté rogue* ; chaque soir, tes lignes et ton gardien, *mais faire que ça a un impact* ; 23 repêchés dans des clubs faibles ; le bureau comme EHM, le match illustré ; le proprio a plusieurs objectifs, selon la force du club et de la ligue ; *pas d'échange, juste packs de cartes* ; les pochettes et les portes ; le ballottage seulement si personne ne peut remplacer ; les vraies séries, 16 clubs, 4 rondes.
+- [ ] **Le salaire libéré par un joueur qui sort** (0 %, 50 % ou 100 %) : JP tranche sur les chiffres de la tranche 0.
+- [ ] **0 · Le test d'un jour** — la saison de 82 jouée par les robots dans un script : le repêchage de 23 dans des clubs faibles, les lignes et le gardien réglés ou non (ça doit sortir du bruit, sinon on ne code pas), les trois règles du salaire libéré, les objectifs du proprio, les vraies séries ; rien du jeu touché.
+- [ ] **1 · Les maquettes** du bureau, à 390 × 844 ; JP tranche. Avec `/hors-moyenne` (JP, 16 nov. : *UI pensé comme par un humain… tout doit avoir un sens, une logique*) : chaque bloc porte sa raison d'être là, à cette place, avec cet espace.
+- [ ] **2 à 6** — la ligue sous la run, le repêchage de 23, le bureau, les gestes du DG (les lignes du soir, les pochettes, le ballottage, les objectifs), le réglage.
+
 ## Refonte · V29, le build décide (JP, 13 nov. : *le roguelike est pas le fun, ni bati comme il faut pour être un vrai jeu je trouve*)
 
 Le devis : docs/refonte-v29.md. Le diagnostic : trois règles tenues ensemble (aucun geste au match, tout borné sous le dé, un simulateur réaliste) ; JP défait la deuxième. 16 noms dans « Ce qui part ».

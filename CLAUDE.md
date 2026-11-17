@@ -53,6 +53,8 @@ JP (11 nov. 2026) : *Ask user, always*. Ce jour-là, trois décisions de jeu ava
 
 - **Une décision de jeu ou de design se pose à JP avant le code**, par une question (l'outil de question : deux à quatre options courtes, celle qu'on recommande en premier, chacune avec ce qu'elle coûte) : une monnaie, un prix, un réglage qui change ce que le joueur vit, une chose du devis qu'on ne ferait pas ou qu'on ferait autrement. Jamais décidée, livrée, puis rangée sous « à trancher ».
 - **La question se suffit** : elle redit le chiffre ou le constat dont elle dépend ; JP ne voit parfois qu'elle.
+- **Un interdit d'avant se redemande** (JP, 16 nov. 2026 : *tous les trucs que t'as pas le droit, demande quand même car ça peut avoir changé* ; *c'était plus le comment que le concept le problème*) : une chose que JP a refusée ou fait retirer (la boîte de nouvelles, le match en texte, une règle de `.claude/rules/`) n'est pas écartée d'office d'un devis neuf. On la lui repose, en disant ce qui avait cloché la première fois et comment on la ferait autrement.
+- **Pas la première idée venue** (JP, 16 nov. 2026 : *réfléchir à comment un humain designerait, s'il était bon*) : un écran, une règle, un parcours se pensent comme un bon designer le ferait, chaque élément avec sa raison (`/hors-moyenne`).
 - **Ce qui continue sans demander** : mesurer, corriger un bogue, écrire un juge, tenir les documents, et la fusion au CI vert (ci-dessous).
 
 ## Avant de coder
