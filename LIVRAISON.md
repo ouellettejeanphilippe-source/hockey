@@ -25,21 +25,21 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 
 ## Refonte · V30, la saison et le DG (JP, 16 nov. : *j'hais le nouveau rogue, c'est plus une vraie saison, pis l'interface, oui est fun, mais pas vraiment gestion feel*)
 
-Le devis : docs/refonte-v30.md. Rien n'est codé. La tranche 2 de la V29 (lire son banc à l'écran) attend : ses écrans de gestion deviennent les tableaux du bureau.
+Le devis : docs/refonte-v30.md ; l'extrait des tranches 2 à 6, livrées d'un coup le 17 nov. (JP : *faire le nouveau Rogue avec ce qui a été décidé, tout*) : docs/refonte-v30-2.md. La décision et ses mesures : docs/decisions.md, « La V30 ».
 
-- [x] **JP tranche trois questions** (16 nov.) : les 82 soirs, joués ; la gestion, les quatre ensemble (des gestes de DG, un bureau plutôt que des scènes, mon club dans le temps, un alignement de 23) ; puis la base : *reprend l'ancien mode, mais refait du début afin de mieux intégrer le rogue like dans la gestion*.
-- [x] **JP tranche les trois questions du § 10** (16 nov.) : chaque soir, sa feuille (la semaine d'un toucher était recommandée ; une saison de quatre à cinq heures) ; une saison par run ; les portes après un gros match gagné.
-- [x] **`/revue-design docs/refonte-v30.md`** (16 nov.) — « À reprendre » : douze points au § 11 du devis (les 64 soirs ordinaires sans décision, le banc d'office sur 23 signés, la difficulté sans levier, le plafond qui ne mord plus, l'échange en arbitrage gratuit, les paires cassées par le flux d'un soir).
-- [x] **JP tranche dix questions après la revue** (16 nov., § 12 du devis) : *un EHM, mais avec un côté rogue* ; chaque soir, tes lignes et ton gardien, *mais faire que ça a un impact* ; 23 repêchés dans des clubs faibles ; le bureau comme EHM, le match illustré ; le proprio a plusieurs objectifs, selon la force du club et de la ligue ; *pas d'échange, juste packs de cartes* ; les pochettes et les portes ; le ballottage seulement si personne ne peut remplacer ; les vraies séries, 16 clubs, 4 rondes.
-- [ ] **Le salaire libéré par un joueur qui sort** (0 %, 50 % ou 100 %) : JP tranche sur les chiffres de la tranche 0.
-- [ ] **0 · Le test d'un jour** — la saison de 82 jouée par les robots dans un script : le repêchage de 23 dans des clubs faibles, les lignes et le gardien réglés ou non (ça doit sortir du bruit, sinon on ne code pas), les trois règles du salaire libéré, les objectifs du proprio, les vraies séries ; rien du jeu touché.
-  - **Les lignes et le gardien, 64 graines** (17 nov., `GRAINES=64 FILS=3 node scripts/mesure_saison.mjs`, huit minutes) : le partant tous les soirs 105,7 points ; rien touché (la rotation du moteur) 110,0 ; le gardien choisi chaque soir 111,1 ; avec les jambes lourdes assises 108,6.
-    - Le gardien pèse 5,4 points contre qui l'oublie, 1,1 ±1,2 contre le moteur qui le fait tourner seul : un choix seulement si le jeu cesse de le faire à ta place.
-    - Asseoir les jambes lourdes coûte 2,4 points ±0,8 : ce geste de ligne est rouge. Les lignes bougent donc les points, mais pas par le repos.
-    - Le club repêché « dans des clubs faibles » est trop fort : 8e ou 9e sur 32, dans les seize premiers neuf fois sur dix.
-  - [ ] D'autres gestes de ligne à mesurer avant de coder ; JP tranche sur les chiffres.
-- [ ] **1 · Les maquettes** du bureau, à 390 × 844 ; JP tranche. Avec `/hors-moyenne` (JP, 16 nov. : *UI pensé comme par un humain… tout doit avoir un sens, une logique*) : chaque bloc porte sa raison d'être là, à cette place, avec cet espace.
-- [ ] **2 à 6** — la ligue sous la run, le repêchage de 23, le bureau, les gestes du DG (les lignes du soir, les pochettes, le ballottage, les objectifs), le réglage.
+- [x] **JP tranche trois questions** (16 nov.) : les 82 soirs, joués ; la gestion, les quatre ensemble ; la base : *reprend l'ancien mode, mais refait du début afin de mieux intégrer le rogue like dans la gestion*.
+- [x] **JP tranche les trois questions du § 10** (16 nov.) : chaque soir, sa feuille ; une saison par run ; les portes après un gros match gagné.
+- [x] **`/revue-design docs/refonte-v30.md`** (16 nov.) — « À reprendre », douze points ; **JP tranche dix questions** (§ 12) : *un EHM, mais avec un côté rogue*.
+- [x] **0 · Le test d'un jour** (17 nov.) : le gardien pèse 5,4 points contre qui l'oublie ; asseoir les jambes lourdes en coûte 2,4 ; le club repêché était trop fort.
+- [x] **JP tranche quatre questions sur les chiffres** (17 nov.) : les écrans se codent sans tour de maquettes ; les affiches, *tu les poses* ; le salaire libéré reste à 50 % (2, 13 et 15 signatures par saison à 0, 50 et 100 %) ; le barème des médailles ne bouge pas.
+- [x] **2 à 6 · La saison** (17 nov., docs/refonte-v30-2.md) — `js/run.js`, `js/run-scenes.js`, `js/run-jeu.js` réécrits : le repêchage de 23, la ligue de 32 sur ses propres dés, le bureau en cinq onglets de tableaux, les objectifs du proprio, le rival, l'élite et les affiches, les portes, les pochettes, le ballottage, les vraies séries — `check_run`, `check_scene`, `essai_run`, `mesure_run`, `check_neuf`, `check_refonte`.
+  - 64 graines : « premier » 71 points, le chiffre 75, le témoin 90, le bâtisseur 113 ; bâtir +23,9 points sur 82 ; le chiffre perd 1,1 cœur de plus que le bâtisseur ; 20 % de runs qui explosent ; 4 Coupes sur 64.
+- [ ] **Le juge du build à 256 graines**, à la main (`GRAINES=256 FILS=3 GRAINE0=4000 node scripts/mesure_run.mjs`, une heure).
+- [ ] **Les galons à l'échelle de 82 matchs** : le bâtisseur en grave une trentaine par saison ; à poser à JP avec les fréquences.
+- [ ] **Les crans d'exigence ne coûtent presque rien** (`CRANS=1`, 128 graines, 17 nov.) : le cran 1 (un point de plus par quart) coûte moins de 0,05 cœur par run pour 15 % de médailles de plus ; le juge est vert de justesse. Un levier qui morde, à poser à JP.
+- [ ] **Le ballottage** vient une dizaine de fois par saison : à juger par JP à l'essai.
+- [ ] **À juger par JP à l'essai** : est-ce une saison ? est-ce que je me sens DG ? est-ce que le bureau se lit comme EHM à 390 px ?
+- La tranche 2 de la V29 (lire son banc à l'écran) est faite par le bureau : l'onglet Alignement et son segment « Banc ».
 
 ## Refonte · V29, le build décide (JP, 13 nov. : *le roguelike est pas le fun, ni bati comme il faut pour être un vrai jeu je trouve*)
 

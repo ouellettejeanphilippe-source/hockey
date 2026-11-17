@@ -1,13 +1,13 @@
 ---
 name: revue-design
 description: "Juge un devis du Rogue (une refonte docs/refonte-v*.md, un écran, un système, une histoire) avant qu'on le code : complet, cohérent avec les règles fermes, faisable, et prouvable. Fait relire par les agents du terrain en adversaires, rend un verdict. Ne change rien sans accord."
-argument-hint: "<chemin du devis, ou le sujet : carte | portes | banc | marché | histoires | duel | run>"
+argument-hint: "<chemin du devis, ou le sujet : saison | bureau | portes | banc | marché | histoires | duel | run>"
 user-invocable: true
 ---
 
 # Revue de design — un devis jugé avant le code
 
-Le devis : `$ARGUMENTS`. Un chemin se lit ; un sujet se cherche dans la dernière `docs/refonte-v*.md` (aujourd'hui `docs/refonte-v29.md`, le banc qui compte ; la run en carte est dans `docs/refonte-v28.md` et ses extraits `docs/refonte-v28-<n>.md`).
+Le devis : `$ARGUMENTS`. Un chemin se lit ; un sujet se cherche dans la dernière `docs/refonte-v*.md` (aujourd'hui `docs/refonte-v30.md` et son extrait `docs/refonte-v30-2.md`, la saison dont tu es le DG ; le banc qui compte est dans `docs/refonte-v29.md` ; `docs/refonte-v28.md` et ses extraits `docs/refonte-v28-<n>.md` restent l'origine des portes et des scènes illustrées et décrivent, pour le reste, la run en carte, partie le 17 nov. 2026).
 
 Adapté de la commande `/design-review` de Claude-Code-Game-Studios (Donchitos, licence MIT : https://github.com/Donchitos/Claude-Code-Game-Studios), ramené au gabarit de ce dépôt (`docs/gabarits/devis.md`).
 
@@ -17,7 +17,7 @@ Un devis complet a ses neuf parties (le gabarit les nomme) : **ce que JP a dit**
 
 ## 2. Les critères se prouvent
 
-Chaque critère est vérifiable par un script nommé, existant ou à écrire : « chaque pièce atteint sa première marche plus d'une fois sur deux — `mesure_run`, à 256 graines », « la feuille du soir ne défile pas à 390 × 844 — `check_scene` », « une semaine gagnée : neuf touchers au plus — `essai_run` », « le malin gagne la Coupe 4 à 12 fois sur 64 — `mesure_run` ». Les phrases « plus le fun », « bien balancé », « plus clair » sont refusées telles quelles : traduis-les en un chiffre et une mesure, ou marque-les « à juger par JP à l'essai ».
+Chaque critère est vérifiable par un script nommé, existant ou à écrire : « chaque pièce atteint sa première marche plus d'une fois sur deux — `mesure_run`, à 256 graines », « la feuille du soir ne défile pas à 390 × 844 — `check_scene` », « un soir ordinaire : cinq touchers au plus — `essai_run` », « le malin gagne la Coupe 4 à 12 fois sur 64 — `mesure_run` ». Les phrases « plus le fun », « bien balancé », « plus clair » sont refusées telles quelles : traduis-les en un chiffre et une mesure, ou marque-les « à juger par JP à l'essai ».
 
 ## 3. Les règles fermes et les décisions
 
@@ -29,11 +29,11 @@ Selon le terrain, fais relire en parallèle (l'outil Agent, un message, plusieur
 
 | Le devis touche | Les relecteurs |
 |---|---|
-| une scène, un parcours, une mise en scène | `rogue-ux`, `rogue-design` |
+| une scène, un onglet du bureau, un parcours, une mise en scène | `rogue-ux`, `rogue-design` |
 | une histoire, une voix, une réplique | `rogue-recit`, `rogue-equilibre` |
 | une pièce de banc, un coach, le duel, l'élite | `rogue-equilibre`, `rogue-design` |
-| les jetons, le marché, le plafond, les médailles | `rogue-economie`, `rogue-design` |
-| la carte, les portes, la courbe d'une run | `rogue-design`, `rogue-economie`, `rogue-equilibre` |
+| les jetons, les pochettes, le marché du quart, le plafond, les médailles | `rogue-economie`, `rogue-design` |
+| la saison (le repêchage, les quarts, les objectifs du proprio), les portes, la courbe d'une run | `rogue-design`, `rogue-economie`, `rogue-equilibre` |
 
 ## 5. Le verdict
 

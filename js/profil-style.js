@@ -89,7 +89,7 @@ export const dire = (x, d = 1) => (x == null ? '—' : virgule(x.toFixed(d)));
 /**
  * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les effets en cours qu'une vieille partie porte. Tout se relit des
  * effets datés de l'équipe : rien n'est stocké, rien n'est deviné. (Les pièces du banc d'un coach-personnage sont
- * parties d'ici avec l'ancien Rogue : la run en carte montre son banc elle-même.)
+ * parties d'ici avec l'ancien Rogue : le Rogue montre son banc lui-même.)
  */
 export function buildDuSoir(team, jour) {
   const nomIco = x => `${x.ico ? `${x.ico} ` : ''}${x.nom}`;

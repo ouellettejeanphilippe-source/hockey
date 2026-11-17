@@ -7,8 +7,8 @@
  *               tien, `canaux`, ou le leur, `adv` ; `canal` : les tirs, `volume`, ou la précision, `finition`), tout le
  *               match, chaque match. PAR MARCHES : rien sous son premier seuil, puis trois marches (`MARCHES`), chacune
  *               plus haute que la précédente — la concentration paie plus que l'éparpillement.
- *   QUI COMPTE  dans une run, seuls les joueurs que tu as signés (JP, 14 nov. 2026 ; js/run.js `signesDe`) : un bouche-trou
- *               du départ ne compte pour rien. Pour l'adversaire des séries, tout son club.
+ *   QUI COMPTE  dans une run, seuls les joueurs que tu as signés (JP, 14 nov. 2026 ; js/run.js `signesDe`) : depuis la
+ *               V30, les vingt-trois du repêchage et ceux des portes. Pour l'adversaire des séries, tout son club.
  *   LE BANC     `CASES_DU_BANC` cases, pour toute la run : `perso.banc`, les clés dans l'ordre des cases. Deux pièces sur
  *               le même canal se multiplient, et le produit d'un canal est borné (`BORNE_DU_CANAL`).
  *   LE COACH    sa philosophie (`cle`), son vrai entraîneur (`chef`) et sa maîtrise (×0,9 à ×1,3, js/niveaux.js), qui règle
@@ -35,19 +35,19 @@ export const BORNE_DU_CANAL = 3;
 /*
  * LA FAMILLE (neuf pièces, celles que la mesure a jugées). `voie` : la philosophie qui la porte au départ ; `compte` :
  * les rôles comptés (`F:` un avant, `D:` un défenseur) ; `qui` : les mêmes, en mots pour l'écran ; `seuils` : le compte de
- * chaque marche, posé sur ce qu'un effectif de signés atteint (trois au camp, huit à la fin de l'acte I, une vingtaine à
- * la fin) ; `genre` : la couleur de sa carte. Aucune ne porte le nom d'un accord de ligne (js/sim.js `AFFINITES`).
+ * chaque marche, posé sur ce que vingt-trois signés atteignent (V30 : la première marche se vise au repêchage, la troisième
+ * se bâtit aux portes, sur la saison) ; `genre` : la couleur de sa carte. Aucune ne porte le nom d'un accord de ligne (js/sim.js `AFFINITES`).
  */
 export const PIECES = {
-  tireurs: { voie: 'rapaces', cadre: 3, genre: 'attaque', ico: '🎯', nom: 'Les tireurs', compte: ['F:sniper'], qui: 'tes snipers', cote: 'canaux', canal: 'finition', seuils: [7, 14, 21] },
-  passeurs: { voie: 'etoiles', cadre: 3, genre: 'attaque', ico: '🅰', nom: 'Les passeurs', compte: ['F:passeur'], qui: 'tes passeurs', cote: 'canaux', canal: 'volume', seuils: [7, 13, 19] },
-  gros: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🦍', nom: 'Les gros', compte: ['F:power'], qui: 'tes power forwards', cote: 'canaux', canal: 'volume', seuils: [4, 8, 12] },
-  lignebleue: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🚀', nom: 'La ligne bleue', compte: ['D:offensif'], qui: 'tes défenseurs offensifs', cote: 'canaux', canal: 'volume', seuils: [5, 11, 16] },
-  manieurs: { voie: 'choeur', cadre: 3, genre: 'attaque', ico: '🏒', nom: 'Les manieurs', compte: ['D:manieur'], qui: 'tes manieurs de rondelle', cote: 'canaux', canal: 'finition', seuils: [5, 10, 14] },
-  deuxsens: { voie: 'tortue', cadre: 3, genre: 'defense', ico: '☯', nom: 'Les deux sens', compte: ['F:deuxsens', 'D:deuxsens'], qui: 'tes two-way', cote: 'adv', canal: 'finition', seuils: [6, 12, 18] },
-  etouffoir: { voie: 'profondeur', cadre: 3, genre: 'defense', ico: '🔧', nom: 'L\'étouffoir', compte: ['F:checker'], qui: 'tes checkers', cote: 'adv', canal: 'volume', seuils: [3, 6, 9] },
-  colsbleus: { voie: 'souffle', cadre: 3, genre: 'defense', ico: '🪠', nom: 'Les cols bleus', compte: ['F:energie', 'F:bagarreur'], qui: 'tes plombiers et tes bagarreurs', cote: 'adv', canal: 'finition', seuils: [4, 8, 11] },
-  muraille: { voie: 'rhinos', cadre: 3, genre: 'defense', ico: '🛑', nom: 'La muraille', compte: ['D:defensif', 'D:physique'], qui: 'tes défenseurs défensifs et physiques', cote: 'adv', canal: 'volume', seuils: [4, 7, 10] },
+  tireurs: { voie: 'rapaces', cadre: 3, genre: 'attaque', ico: '🎯', nom: 'Les tireurs', compte: ['F:sniper'], qui: 'tes snipers', cote: 'canaux', canal: 'finition', seuils: [14, 22, 30] },
+  passeurs: { voie: 'etoiles', cadre: 3, genre: 'attaque', ico: '🅰', nom: 'Les passeurs', compte: ['F:passeur'], qui: 'tes passeurs', cote: 'canaux', canal: 'volume', seuils: [13, 22, 30] },
+  gros: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🦍', nom: 'Les gros', compte: ['F:power'], qui: 'tes power forwards', cote: 'canaux', canal: 'volume', seuils: [7, 14, 20] },
+  lignebleue: { voie: 'essaim', cadre: 3, genre: 'attaque', ico: '🚀', nom: 'La ligne bleue', compte: ['D:offensif'], qui: 'tes défenseurs offensifs', cote: 'canaux', canal: 'volume', seuils: [8, 15, 22] },
+  manieurs: { voie: 'choeur', cadre: 3, genre: 'attaque', ico: '🏒', nom: 'Les manieurs', compte: ['D:manieur'], qui: 'tes manieurs de rondelle', cote: 'canaux', canal: 'finition', seuils: [7, 14, 20] },
+  deuxsens: { voie: 'tortue', cadre: 3, genre: 'defense', ico: '☯', nom: 'Les deux sens', compte: ['F:deuxsens', 'D:deuxsens'], qui: 'tes two-way', cote: 'adv', canal: 'finition', seuils: [10, 17, 25] },
+  etouffoir: { voie: 'profondeur', cadre: 3, genre: 'defense', ico: '🔧', nom: 'L\'étouffoir', compte: ['F:checker'], qui: 'tes checkers', cote: 'adv', canal: 'volume', seuils: [3, 8, 13] },
+  colsbleus: { voie: 'souffle', cadre: 3, genre: 'defense', ico: '🪠', nom: 'Les cols bleus', compte: ['F:energie', 'F:bagarreur'], qui: 'tes plombiers et tes bagarreurs', cote: 'adv', canal: 'finition', seuils: [7, 15, 23] },
+  muraille: { voie: 'rhinos', cadre: 3, genre: 'defense', ico: '🛑', nom: 'La muraille', compte: ['D:defensif', 'D:physique'], qui: 'tes défenseurs défensifs et physiques', cote: 'adv', canal: 'volume', seuils: [5, 11, 17] },
 };
 /* La pièce de départ de chaque coach : celle qui compte les rôles de sa couleur. */
 export const PIECE_DU_COACH = { essaim: 'gros', rapaces: 'tireurs', tortue: 'deuxsens', rhinos: 'muraille', souffle: 'colsbleus', choeur: 'manieurs', profondeur: 'etouffoir', etoiles: 'passeurs' };
@@ -90,7 +90,7 @@ export function poserLaPiece(banc, cle, sort = null) {
 }
 /*
  * LES PIÈCES OFFERTES (une parmi trois), tirées de la graine parmi celles qui ne sont pas déjà sur le banc. `cle` : le
- * moment (le camp, le rival battu, l'élite, le marché) ; deux moments n'offrent pas les mêmes. Le jeu et les robots
+ * moment (le départ, le rival battu, l'élite, le marché du quart) ; deux moments n'offrent pas les mêmes. Le jeu et les robots
  * tirent tous ici.
  */
 export function piecesOffertes(perso, graine, cle, n = PIECES_OFFERTES) {
@@ -120,7 +120,7 @@ export function bancDuMatch(perso, joueurs) {
  * ronde. Sa philosophie (`cle`), lue sur le style du club (`t.style`, js/sim.js `poserStyles`) ou tirée de son nom, ne
  * sert qu'à le nommer. Pur.
  */
-export const BANC_DES_SERIES = [1, 2, 3];
+export const BANC_DES_SERIES = [0, 1, 1, 2];
 export const COACH_DU_STYLE = { offensif: 'essaim', defensif: 'tortue', robuste: 'rhinos' };
 const AUTRES_COACHS = ['rapaces', 'souffle', 'choeur', 'profondeur', 'etoiles'];
 export function persoAdverse(team, ronde = 0) {

@@ -209,7 +209,7 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  */
 /*
  * LES ENTRACTES D'UN GROS MATCH (V25) : `pauses`, les fins de période où le direct marque une pause — le pointage, une
- * touche. Rien ne s'y décide : la feuille est jouée. (Le duel de l'ancien Rogue y disait leur intention ; la run en carte
+ * touche. Rien ne s'y décide : la feuille est jouée. (Le duel de l'ancien Rogue y disait leur intention ; le Rogue
  * montre ses temps forts dans sa propre scène, js/run-scenes.js.)
  */
 export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, pauses = null, sansSortie = false }) {

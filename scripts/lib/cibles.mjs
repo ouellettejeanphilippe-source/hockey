@@ -16,6 +16,8 @@ export const EXCEPTIONS = [
   // Un en-tête de colonne de chiffres (PJ, B, A) : 44 de haut, mais la colonne n'a que la largeur de ses chiffres ;
   // l'élargir pousserait le tableau hors de l'écran.
   '.jr-table th[data-tri]',
+  // De même au bureau du Rogue (Mon club) : l'en-tête qu'on touche trie sa colonne.
+  '.rn-tete [data-a="tri"]',
 ];
 
 export async function ciblesTropPetites(page, { min = CIBLE_MIN, exceptions = EXCEPTIONS } = {}) {

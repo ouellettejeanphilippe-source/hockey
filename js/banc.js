@@ -120,7 +120,7 @@ export async function runSeason(opts = {}) {
   } else {
     try { opponents = await buildOpponents(31); } catch { opponents = []; }
   }
-  // Aucune carte chez les adversaires du 82-0 : une ligue d'avant, ou la run en carte, n'en laisse pas sur leurs joueurs.
+  // Aucune carte chez les adversaires du 82-0 : une ligue d'avant, ou la saison du Rogue, n'en laisse pas sur leurs joueurs.
   habillerLaLigue(opponents, 0, p => getHiddenRatings(p).v);
   // TU ES LA 33e ÉQUIPE. Une saison fixée met dans la ligue TOUS ses vrais
   // clubs, et la tienne par-dessus : trente-trois en 2024-25, vingt-deux en

@@ -10,7 +10,7 @@
  *     ses médailles sont multipliées ;
  *   — le solde, une fois : chaque déblocage d'avant remboursé à son prix d'alors, les médailles à vie intactes ;
  *   — les galons : gravés au cartable une fois par sorte et par run, 24 au plus par carte, chacun son récit ;
- *   — jamais de la force : la même graine joue la même run, que le méta soit vide ou plein.
+ *   — jamais de la force : la même graine joue le même premier quart, que le méta soit vide ou plein.
  *
  *   node scripts/check_meta.mjs            quelques secondes
  */
@@ -29,7 +29,7 @@ const { rayonsDuClub, prendreAuClub, nomDuClub } = await import('../js/club.js')
 const { LEGENDES, graverAuCartable, legendesDe, ajouterAuCartable, albumDuCartable, coachAuCartable } = await import('../js/cartable.js');
 const { lotoDesCoachs } = await import('../js/coachs-reels.js');
 const { VOIES } = await import('../js/coachs.js');
-const { RUN, creerLaRun, reglesDe } = await import('../js/run.js');
+const { RUN, creerLaRun, reglesDe, medaillesDe } = await import('../js/run.js');
 const { jouerLaRun, DONNEES } = await import('./lib/run_robot.mjs');
 const COACHS = JSON.parse(fs.readFileSync(new URL('../data/coachs.json', import.meta.url), 'utf8'));
 const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), ...m }); return lireMeta(); };
@@ -132,18 +132,18 @@ const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), .
     E.map(e => `${e.cible}/${e.etapes}`).join() === '0/0,1/0,1/1,2/1' && exigencesDe(9).n === EXIGENCES.length && exigencesDe(-1).n === 0, E.map(e => `cible +${e.cible}, étapes +${e.etapes}`).join(' · '));
   exiger(`chaque cran paie ${Math.round(PRIME_EXIGENCE * 100)} % de médailles de plus`, E.every((e, k) => Math.abs(e.medailles - (1 + PRIME_EXIGENCE * k)) < 1e-9), E.map(e => `×${e.medailles.toFixed(2)}`).join(' · '));
   const base = creerLaRun(DONNEES, { graine: 'meta', coach: { cle: 'tortue' } }), dure = creerLaRun(DONNEES, { graine: 'meta', coach: { cle: 'tortue' }, exigence: 3 });
-  exiger('une run porte ses règles : sans exigence, celles du jeu ; au cran 3, la cible +2 et une étape de plus',
-    reglesDe(base.R).cibles.join() === RUN.CIBLES.join() && reglesDe(base.R).etapes.join() === RUN.ETAPES.join() && reglesDe(base.R).prime === 1
-    && reglesDe(dure.R).cibles.join() === RUN.CIBLES.map(c => c + 2).join() && reglesDe(dure.R).etapes.join() === RUN.ETAPES.map(e => e + 1).join(),
-    `${reglesDe(base.R).cibles.join('-')} · ${reglesDe(dure.R).cibles.join('-')}, étapes ${reglesDe(dure.R).etapes.join('-')}`);
-  exiger('une run gardée avant les exigences lit les règles du jeu', reglesDe({}).cibles === RUN.CIBLES && reglesDe(null).prime === 1);
-  // Une run jouée au cran 2 : ses actes tenus à la cible montée, ses médailles multipliées ; sa caisse s'y ajoute sans se multiplier
-  // (V29, tranche 1 ter : 10 jetons qui restent, une médaille).
-  const r = jouerLaRun('malin', 3, { exigence: 2 }), R = r.R, brut = R.actes.reduce((a, x) => a + x.medailles, 0) + R.fin.rondes * 20 + (R.fin.coupe ? 40 : 0);
-  const caisse = Math.floor(R.jetons / RUN.JETONS_PAR_MEDAILLE);
-  exiger('une run au cran 2 se juge à sa cible montée et paie ses médailles ×1,30, plus sa caisse',
-    R.actes.every((x, a) => x.cible === RUN.CIBLES[a] + 1 && x.tenu === (x.pts >= x.cible)) && R.fin.medailles === Math.round(brut * 1.3) + caisse && R.fin.caisse === caisse && brut > 0,
-    `${R.actes.map(x => `${x.pts}/${x.cible}`).join(' · ')} · ${brut} → ${R.fin.medailles} 🏅, dont ${caisse} de caisse (${R.jetons} jetons)`);
+  exiger('une run porte ses règles : sans exigence, celles du jeu ; au cran 3, deux points de plus demandés par quart et une étape de plus',
+    reglesDe(base.R).cible === 0 && reglesDe(base.R).etapes.join() === RUN.ETAPES.join() && reglesDe(base.R).prime === 1
+    && reglesDe(dure.R).cible === 2 && reglesDe(dure.R).etapes.join() === RUN.ETAPES.map(e => e + 1).join(),
+    `+${reglesDe(base.R).cible} · +${reglesDe(dure.R).cible} points, étapes ${reglesDe(dure.R).etapes.join('-')}`);
+  exiger('une run gardée avant les exigences lit les règles du jeu', reglesDe({}).etapes === RUN.ETAPES && reglesDe({}).cible === 0 && reglesDe(null).prime === 1);
+  // Le même repêchage au cran 0 et au cran 2 (la même graine) : le proprio demande un point de plus au premier quart.
+  const auQuart = async exigence => { try { await jouerLaRun('chiffre', 3, { exigence, espion: (m, S) => { if (m === 'quart') throw { S }; } }); } catch (e) { if (!e.S) throw e; return e.S.R.quart.objectifs[0].cible; } return null; };
+  const [c0, c2] = [await auQuart(0), await auQuart(2)];
+  exiger('au cran 2, le proprio demande un point de plus par quart', c0 > 0 && c2 === c0 + 1, `${c0} points, puis ${c2}`);
+  // Les médailles d'une run au cran 2 : ses quarts et ses rondes multipliés, sa caisse ajoutée sans se multiplier (10 jetons, une médaille).
+  const R = { regles: { exigence: 2, cible: 1, etapes: RUN.ETAPES, prime: 1.3 }, quarts: [{ medailles: 10 }, { medailles: 25 }, { medailles: 5 }], series: { faites: [{}] }, jetons: 57 };
+  exiger('une run au cran 2 paie ses médailles ×1,30, plus sa caisse', medaillesDe(R) === Math.round((40 + 20) * 1.3) + 5 && medaillesDe(R, 4, true) === Math.round((40 + 80 + 40) * 1.3) + 5, `${medaillesDe(R)} 🏅, dont 5 de caisse (57 jetons)`);
 }
 
 /* ---------- 6. le solde des déblocages d'avant ---------- */
@@ -181,8 +181,8 @@ const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), .
 {
   neuf(null);
   const K = '1976-77_MTL_8448782', chapeau = { k: K, type: 'chapeau', extra: 3 };
-  const n1 = graverAuCartable([chapeau, { k: K, type: 'dixButs', extra: 10 }, { k: K, type: 'inconnu' }, null], 'runA');
-  const n2 = graverAuCartable([chapeau, { k: K, type: 'dixButs', extra: 11 }], 'runA');
+  const n1 = graverAuCartable([chapeau, { k: K, type: 'quaranteButs', extra: 40 }, { k: K, type: 'inconnu' }, null], 'runA');
+  const n2 = graverAuCartable([chapeau, { k: K, type: 'quaranteButs', extra: 41 }], 'runA');
   exiger('un galon se grave une fois par sorte et par run, et la carte entre au cartable', n1 === 2 && n2 === 0 && legendesDe(K).length === 2 && JSON.parse(memoire.get('cap82_cartable')).joueurs[K].n === 1, `${n1} puis ${n2} · ${legendesDe(K).map(l => l.type).join(', ')}`);
   const n3 = graverAuCartable([chapeau], 'runB');
   exiger('la run suivante le grave de nouveau, sur la même carte', n3 === 1 && legendesDe(K).filter(l => l.type === 'chapeau').length === 2);
@@ -212,12 +212,13 @@ const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), .
 
 /* ---------- 8. jamais de la force ---------- */
 {
-  const empreinte = r => JSON.stringify([r.R.fin, r.R.actes, r.R.matchs.map(x => [x.s, x.t, x.gf, x.ga]), r.signatures]);
+  // Le premier quart d'une saison (le repêchage, vingt et un matchs, ses portes), le méta vide puis plein.
+  const quart = async () => { try { await jouerLaRun('chiffre', 5, { espion: (m, S) => { if (m === 'bilan') throw { S }; } }); } catch (e) { if (!e.S) throw e; const R = e.S.R; return JSON.stringify([R.quarts, R.matchs.map(x => [x.s, x.t, x.gf, x.ga]), R.joueurs.map(j => j.k), R.ligue.fiches, R.jetons]); } return ''; };
   neuf(null);
-  const vide = empreinte(jouerLaRun('chiffre', 5));
+  const vide = await quart();
   neuf({ ecussons: 5000, ecussonsAVie: 9000, voies: VOIES.slice(3), nouvelle: VOIES[7], coupes: 4, exigence: 3, jalons: { series: true, ronde: true, finale: true }, club: { club: 'royaux', palette: 'etoiles', pris: ['club:royaux'] }, solde: { vu: true } });
-  const plein = empreinte(jouerLaRun('chiffre', 5));
-  exiger('la même graine joue la même run, le méta vide ou plein : les médailles n\'achètent aucune force', vide === plein, vide === plein ? `${JSON.parse(vide)[2].length} matchs identiques` : 'la run change avec le méta');
+  const plein = await quart();
+  exiger('la même graine joue la même run, le méta vide ou plein : les médailles n\'achètent aucune force', !!vide && vide === plein, vide === plein ? `${JSON.parse(vide)[1].length} matchs identiques` : 'la run change avec le méta');
 }
 
 verdict();

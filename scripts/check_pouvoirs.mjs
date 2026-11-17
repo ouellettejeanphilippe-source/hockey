@@ -9,8 +9,8 @@
  *   2. le compte, pur : un badge compte son palier, le second badge à moitié ; la marche change exactement à son seuil ;
  *      rien sous le premier ; la maîtrise ne règle que la pièce de départ ; deux pièces sur un canal se multiplient et le
  *      produit s'arrête à `BORNE_DU_CANAL` ; une pièce entre dans la première case libre, jamais deux fois ; plein, elle
- *      prend la case de celle qui sort ; trois offertes, pures, jamais une déjà posée ; leur banc en séries grandit
- *      (`BANC_DES_SERIES`) et prend les pièces les plus avancées chez eux ;
+ *      prend la case de celle qui sort ; trois offertes, pures, jamais une déjà posée ; leur banc en séries ne rétrécit
+ *      jamais d'une ronde à l'autre, grandit jusqu'à la finale (`BANC_DES_SERIES`) et prend les pièces les plus avancées chez eux ;
  *   3. les vrais entraîneurs (js/coachs-reels.js) ;
  *   4. EN PAIRES, match par match (CLAUDE.md) : deux copies d'un même vrai club, le même match sur les mêmes dés, une fois
  *      banc vide, une fois avec la pièce seule, à chaque marche. Chaque pièce :
@@ -20,7 +20,7 @@
  *           troisième marche qu'à la première (`MESURE`, à `N` matchs : le bruit d'un petit N le fausserait) ;
  *   5. à l'écran (js/impact.js `lignesDeLaPiece`), chaque pièce se dit en vraies stats de match à chaque marche, jamais
  *      en pourcentage, même pour un club déjà à sa borne de style.
- * `N` : matchs par club, par pièce et par marche (200 ; une minute). `MESURE=0 N=20` (la CI, quelques secondes) : 1, 2, 3,
+ * `N` : matchs par club, par pièce et par marche (200 ; cinq minutes). `MESURE=0 N=20` (la CI, quelques secondes) : 1, 2, 3,
  * 4a et 4b, sans les chiffres de 4c. Ce que le banc vaut dans une run se juge ailleurs : `mesure_run`.
  */
 import fs from 'node:fs';
@@ -63,8 +63,10 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
 }
 
 /* ---------- les vrais clubs ---------- */
-const VESTIAIRES = TEMOINS.map(([lab, s, t]) => [lab, s, t, equipeReelle(s, t)]);
-const club = i => { const [lab, s, t, un] = VESTIAIRES[i]; const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(lab, t, autoRoster(p), { season: s }); };
+// Chaque joueur s'enregistre une fois, ici : un club neuf par match copie ses joueurs déjà enregistrés (la copie garde sa clé),
+// sinon chaque copie entrait dans la liste de sa saison (`joueursDeLaSaison`, js/sim.js) et la mesure pleine manquait de mémoire.
+const VESTIAIRES = TEMOINS.map(([lab, s, t]) => { const un = equipeReelle(s, t); un.flat().forEach(registerHiddenRatings); return [lab, s, t, un]; });
+const club = i => { const [lab, s, t, un] = VESTIAIRES[i]; return createTeam(lab, t, autoRoster(un.flat().map(x => ({ ...x }))), { season: s }); };
 const tous = VESTIAIRES.flatMap(([, , , un]) => un.flat());
 
 /* Assez de porteurs pour un compte : le plus petit porteur de la pièce, répété sans dépasser `compte`. */
@@ -121,7 +123,7 @@ function porteursPour(cle, compte) {
     const dehors = Object.keys(PIECES).filter(k => !rondes[2].banc.includes(k)), pire = Math.min(...rondes[2].banc.map(k => marcheDe(k, compteDe(k, joueurs))));
     if (dehors.some(k => marcheDe(k, compteDe(k, joueurs)) > pire)) fautesAdv.push(`${VESTIAIRES[i][0]} : une pièce plus avancée laissée dehors`);
   }
-  exiger(`leur banc en séries : ${BANC_DES_SERIES.join(', ')} pièces selon la ronde, les plus avancées chez eux, le même d'un appel à l'autre`, !fautesAdv.length && BANC_DES_SERIES.every((n, i) => n <= CASES_DU_BANC && (!i || n > BANC_DES_SERIES[i - 1])), fautesAdv.slice(0, 3).join(' · ') || `${VESTIAIRES.length} clubs`);
+  exiger(`leur banc en séries : ${BANC_DES_SERIES.join(', ')} pièces selon la ronde, les plus avancées chez eux, le même d'un appel à l'autre`, !fautesAdv.length && BANC_DES_SERIES.every((n, i) => n <= CASES_DU_BANC && (!i || n >= BANC_DES_SERIES[i - 1])) && BANC_DES_SERIES.at(-1) > BANC_DES_SERIES[0], fautesAdv.slice(0, 3).join(' · ') || `${VESTIAIRES.length} clubs`);
 }
 
 /* ---------- 3. les vrais entraîneurs (js/coachs-reels.js, data/coachs.json) ---------- */
