@@ -4,7 +4,7 @@
 
 Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (une saison dont tu es le DG, *un EHM avec un côté rogue* : le repêchage de 23, une ligue de 32 et ses 82 soirs, le bureau en tableaux, la feuille du soir, le match au direct et son sommaire complet ; les objectifs du proprio et ses deux cœurs, les affiches que tu poses et leurs trois portes, ton coach et son banc de cinq pièces, le plafond qui mord, les vraies séries), **Sur table**, l'exhibition et **Sur glace** (un match 2D à la manette, à la physique crédible et aux règles complètes : deux vrais clubs, l'IA des neuf autres, la passe, le hors-jeu, les punitions, les tirs de barrage).
 
-Un site statique, publié sur GitHub Pages depuis main, web seulement (JP, 4 nov. 2026 : *oublie APK et exe, on développe maintenant web only* ; l'application Android et l'exe Windows sont partis). Aucun backend, aucune dépendance npm, aucun framework.
+Un site statique, publié sur GitHub Pages depuis main, web seulement (JP, 4 nov. 2026 : *oublie APK et exe, on développe maintenant web only* ; l'application Android et l'exe Windows sont partis). Aucun backend, aucune dépendance npm, aucun framework. La sauvegarde suit d'un appareil à l'autre sans serveur à nous : un Gist secret du compte GitHub du joueur, par son jeton (js/synchro.js ; JP, 25 nov. 2026).
 
 ## Où on travaille
 

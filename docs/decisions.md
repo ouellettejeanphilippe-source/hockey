@@ -4068,3 +4068,29 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Pas fait** : la saison et les séries à part. Pendant les séries, tes joueurs aux meneurs portent aussi leurs matchs de séries.
 
 **Les preuves.** `check_run` (17 : l'équilibre des stats de la ligue, les gardiens, personne compté deux fois), `check_scene` (15, 58 scènes : huit tableaux glissés au bout, le nom et la tête en place), `essai_run` (19).
+
+## La sauvegarde qui suit d'un appareil à l'autre (25 nov. 2026)
+
+**Ce que JP a demandé** : *avoir sauvegarde multidevice*. À la question « par où » (un fichier qu'on exporte, comme aujourd'hui ; un code à recopier ; un compte), il a répondu de lui-même : *Github sync*. Puis, entre un Gist secret, un dépôt privé et une branche du dépôt du jeu : **un Gist secret**. Entre « toute seule » et « un bouton » : **toute seule**.
+
+**Pourquoi GitHub suffit.** Le jeu n'a pas de serveur et n'en gagne pas. L'API de GitHub répond aux pages Web (CORS), un Gist secret se lit et s'écrit avec un jeton qui n'a qu'un droit (`gist`), et chaque écriture y laisse une version : ce qu'on écrase reste à l'historique. Le joueur colle un jeton une fois par appareil ; il reste au stockage de ce navigateur (`cap82_synchro`) et ne part que chez GitHub. Aucune dépendance, aucun backend.
+
+**Ce qui suit, ce qui reste.** Un fichier, `cap82-sauvegarde.json` : la run du Rogue (`cap82_run`), les médailles et le Club (`cap82_rogue`), le cartable, l'index des parties et chaque partie, le palmarès. Les options (le son, la palette), les caches et le jeton restent à l'appareil : un téléphone et un ordinateur ne se règlent pas pareil.
+
+**Qui gagne** (`decider`). Chaque appareil retient l'empreinte de la dernière sauvegarde vue pareille des deux côtés. Seul l'autre côté a bougé : on reçoit, et la page se recharge aussitôt sur ce qu'on a reçu (le jeu en mémoire est celui d'avant ; son prochain geste écraserait la sauvegarde reçue). Seul ici a bougé : on envoie. Les deux : personne n'écrase personne, le menu montre les deux — ce que chacune porte, d'où vient l'autre — et le joueur choisit. Un appareil jamais branché où rien n'est joué reçoit sans demander.
+
+**Rien de ce qu'un choix écarte n'est perdu.** Dans un conflit, « celle d'ici » écrase celle d'en ligne, qui reste à l'historique du Gist. « Celle de là-bas » écarterait celle d'ici, qui n'a jamais été envoyée : elle part d'abord au Gist, dans un fichier à part (`cap82-sauvegarde-ecartee.json`), et seulement ensuite ici prend l'autre. Le menu le dit : « L'autre s'efface des deux ; GitHub en garde une copie. »
+
+**Les gardes.** Une sauvegarde écrite par une version plus récente du jeu ne se reçoit pas (ce code la lirait mal, puis la renverrait abîmée) : le mot demande la mise à jour. Recevoir est tout ou rien (un stockage plein remet ce qu'il y avait). Un Gist retouché à la main ne pose ici que les clés suivies. Une clé d'en ligne que ce code ne connaît pas y reste quand on envoie. La base ne vaut que pour le Gist où on l'a vue : un autre compte, ou un Gist refait, repart de rien. Un jeton refusé ne se réessaie pas tout seul (GitHub bloque qui insiste).
+
+**Quand.** À l'ouverture du jeu (trois secondes d'attente au plus avant le menu, puis la passe finit derrière) et à chaque retour sur la page : on reçoit. On envoie quand la page se cache, et pendant qu'on joue dès que rien n'a bougé d'une demi-minute (on regarde un match, on réfléchit), au plus tard après cinq minutes. Pas un envoi par geste : GitHub ne prend pas un morceau de fichier, chaque envoi porte la sauvegarde entière et sa réponse la renvoie.
+
+**Ce qu'un envoi pèse.** Les clés voyagent compressées (gzip, en base 64 : `CompressionStream`, que tous les navigateurs d'aujourd'hui ont) : mesuré au juge, 1 861 caractères pour 22 707 de clés. Un navigateur qui ne sait pas compresser envoie en clair, et dit qu'il ne sait pas lire ce qui est compressé. Un fichier en ligne qui ne se lit pas n'est jamais pris pour « rien » : on n'écrit pas par-dessus ce qu'on n'a pas su lire.
+
+**Écarté.** Un état « une sauvegarde attend » avec son bouton « La recevoir » : écrit, puis retiré — aucune passe ne le produisait, puisque recevoir quand seul l'autre a bougé ne perd rien. Un dépôt privé : un jeton qui écrit dans un dépôt est un droit plus large qu'il n'en faut. Une fusion des deux sauvegardes d'un conflit : deux runs du Rogue qui ont divergé ne se fusionnent pas, et fusionner des médailles en double en fabrique.
+
+**Trouvé en chemin.** Le menu d'avant s'affichait une fraction de seconde pendant que la page se rechargeait sur la sauvegarde reçue : le démarrage s'arrête là. Et une clé récrite d'une autre façon que le jeu (le juge le faisait) se relit au démarrage, et l'appareil se croit changé : le parcours écrit maintenant comme le jeu.
+
+**Pas fait.** Pendant une run du Rogue, un conflit ne se voit qu'au menu. Deux appareils qui envoient dans la même seconde : GitHub n'offre pas d'écriture conditionnelle sur un Gist ; le dernier écrit gagne, l'autre est à l'historique.
+
+**Les preuves.** `check_synchro` (41, sans navigateur : deux stockages, un faux GitHub, son refus, son réseau qui tombe), `essai_synchro` (16, dans Chromium : un téléphone et un ordinateur, du jeton au conflit).

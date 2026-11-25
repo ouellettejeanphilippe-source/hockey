@@ -44,3 +44,14 @@ JP, 16 nov. 2026 : *un EHM, mais avec un côté rogue* ; *bureau EHM, match illu
 - **Ta chance ne se montre qu'à un endroit** : la jauge de la feuille du soir, calculée par tranches pour ne pas figer l'écran ; partout ailleurs, des vraies stats de match.
 - **La feuille du duel ne demande aucun plan** (V29, tranche 1 bis) : leur jeu ce soir en une ligne qui nomme ton joueur visé (« L'ombre suit Miller ») et ce qu'il te coûte en vraies stats, ton banc pièce par pièce (son compte, ses marches, ce qu'elle rend), l'enjeu ; en séries, leur banc sous le tien : « Au combat » — `check_scene`.
 - Le clavier et la manette jouent le Rogue : A confirme, B revient, Start ouvre le menu pause (js/manette.js).
+
+## La sauvegarde d'un appareil à l'autre
+
+JP, 25 nov. 2026 : *avoir sauvegarde multidevice* ; *Github sync* ; un Gist secret, toute seule (docs/decisions.md).
+
+- **Elle a une maison : le menu**, « D'un appareil à l'autre », sous les parties (js/menu.js `synchroHtml`). Un mot dit où elle en est, et la section ne porte que le geste du moment : brancher GitHub ; choisir entre deux sauvegardes qui ont avancé ; changer un jeton refusé. Sinon rien à faire — `essai_synchro`.
+- **Personne n'écrase personne sans qu'on choisisse** : seul l'autre appareil a bougé, on reçoit ; seul ici, on envoie ; les deux, le menu montre les deux (ce que chacune porte, d'où vient l'autre) et le joueur tranche ; celle qu'il écarte reste sur GitHub (l'historique du Gist, ou `cap82-sauvegarde-ecartee.json` pour celle d'ici, jamais envoyée) — `check_synchro`.
+- **Recevoir recharge la page** : la sauvegarde reçue est au stockage, le jeu en mémoire est celui d'avant, et son prochain geste l'écraserait (js/synchro.js `suivreLaSynchro`, js/menu.js) — `essai_synchro`.
+- **Le jeton reste à l'appareil** : au stockage de ce navigateur (`cap82_synchro`), jamais dans la sauvegarde ni dans un fichier exporté, et il ne part que chez GitHub ; les options et les caches ne suivent pas — `check_synchro`.
+- **Pas un envoi par geste** : chaque envoi porte la sauvegarde entière (compressée), et la réponse de GitHub la renvoie ; on envoie quand la page se cache et dès que rien n'a bougé d'une demi-minute, au plus tard après cinq minutes (`suivreLaSynchro`).
+- **Une clé qui suit s'ajoute à `SUIVIES`** (js/synchro.js), et ce qu'un démarrage récrit sans que le joueur ait joué n'y entre pas : l'appareil se croirait changé à chaque ouverture.

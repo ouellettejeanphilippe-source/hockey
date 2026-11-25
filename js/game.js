@@ -43,7 +43,8 @@ import { brancherRetour } from './pile.js';
 import { brancherGlisser } from './glisser.js';
 import { brancherManette } from './manette.js';
 import { brancherInclinaison } from './cartes.js';
-import { afficherMenu, fermerMenu } from './menu.js';
+import { afficherMenu, fermerMenu, dessinerLaSynchro } from './menu.js';
+import { suivreLaSynchro } from './synchro.js';
 import { surveillerLaVersion } from './mise-a-jour.js';
 import { MT, chargerTable } from './charge-table.js';
 import { ouvrirChoix, titreDuBadge, motDuBadge } from './gerant.js';
@@ -1158,7 +1159,11 @@ async function boot() {
     appliquerPalette();
     poserLeClub();
     activerSons(G.sons);
-    await Promise.all([loadIndex(), chargerPortraits(), actionsDisponibles()]);
+    // LA SAUVEGARDE EN LIGNE (js/synchro.js) : ce qu'un autre appareil a envoyé se reçoit avant le menu, et la page se recharge
+    // sur elle. GitHub lent ne retient pas le jeu : trois secondes au plus, puis la passe finit derrière.
+    const synchro = suivreLaSynchro({ recharger: () => location.reload(), dire: dessinerLaSynchro });
+    const [, , , passe] = await Promise.all([loadIndex(), chargerPortraits(), actionsDisponibles(), Promise.race([synchro, new Promise(r => setTimeout(r, 3000))])]);
+    if (passe && passe.etat === 'recue') return;     // la page se recharge : on ne montre pas le menu d'avant
     if (!state.index.seasons.length) throw new Error('aucune saison disponible');
     if (G.epoque && !state.index.seasons.includes(G.epoque)) G.epoque = null;
     setupEvents();
@@ -1247,6 +1252,8 @@ function contexteDuMenu({ vierge = false, enJeu = true } = {}) {
     nouvelle: genre => { nouvellePartie(genre); ailleurs(`nouvelle-${genre}`); },
     options: () => { syncOptionsUI(); openModal('optionsModal'); },
     regles: ouvrirRegles,
+    // La fenêtre où se colle le jeton GitHub de la sauvegarde en ligne (js/synchro.js ; le menu branche son formulaire).
+    jeton: { ouvrir: () => openModal('synchroModal'), fermer: () => closeModal('synchroModal') },
     // L'EXHIBITION (S78, js/exhibition.js) : aucune partie, on revient au menu en la fermant.
     // 1.0 (J3-6) : l'écran d'exhibition se charge au clic, pas avec le premier écran.
     exhibition: () => { fermerMenu(); import('./exhibition.js').then(({ ouvrirExhibition }) => ouvrirExhibition(ctxExhibition(() => afficherMenu(contexteDuMenu({ vierge, enJeu }))))); },
@@ -1297,6 +1304,7 @@ function setupEvents() {
   // les remplit. L'en-tête ne garde que le Menu : une nouvelle partie, les
   // options et les règles y vivent (1.0, R1).
   bindModal('optionsModal', null, 'closeOptionsBtn');
+  bindModal('synchroModal', null, 'closeSynchroBtn');
   // Un mode choisi au Menu ouvre l'écran « Nouvelle partie », réglé sur ce mode (S79).
   bindModal('partieModal', null, 'closePartieBtn', semerBrouillon, oublierBrouillon);
   const menuBtn = $('menuBtn');

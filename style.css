@@ -1045,7 +1045,7 @@ body.run-ouverte #hockeyCardModal { z-index: 440; }
 /* La boutique et les pages du club portent aussi une feuille, hors des fenêtres : une fenêtre ouverte la couvre. */
 body:has(.choix-modal:not([hidden])) .choix-sheet:not(.choix-modal .choix-sheet) { visibility: hidden; }
 body.choix-ouvert { overflow: hidden; }
-body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
+body.menu-ouvert .choix-modal, body.menu-ouvert :is(#optionsModal, #synchroModal) { z-index: 450; }
 .choix-sheet { display: flex; flex-direction: column; width: 100%; max-width: 980px; height: 100%; max-height: 100dvh; background: var(--noir); }
 /* La tête de TOUTE fenêtre (Jalon U) : l'icône, le titre, sa sous-ligne, le ✕ au bout. */
 .choix-tete { flex: none; display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-4); border-bottom: 1px solid var(--filet); background: var(--noir-pur); box-shadow: inset 0 3px 0 var(--or); }
@@ -1195,6 +1195,26 @@ body.menu-ouvert { overflow: hidden; }
 .menu-transfert .btn { min-height: 44px; }
 .menu-transfert-mot { flex: 1 1 100%; color: var(--encre-2); font-size: var(--t-2); }
 .menu-transfert-mot:empty { display: none; }
+/* D'un appareil à l'autre : la sauvegarde en ligne (js/synchro.js) ; un mot, puis le seul geste du moment. Un conflit montre
+   les deux sauvegardes côte à côte, chacune un bouton qui dit ce qu'elle porte. */
+.menu-synchro { margin-top: var(--esp-4); border-top: 1px solid var(--filet); }
+.ms-mot { margin: 0; max-width: 62ch; color: var(--encre-2); font-size: var(--t-2); text-wrap: pretty; }
+.ms-actions, .ms-choix { display: flex; flex-wrap: wrap; gap: var(--esp-2); margin-top: var(--esp-3); }
+.ms-actions .btn { flex: 0 0 auto; min-height: 44px; }
+.ms-choix .btn { flex: 1 1 260px; min-width: 0; min-height: 60px; padding: var(--esp-2) var(--esp-3); display: grid; justify-content: stretch; justify-items: start; align-content: center; gap: 2px; text-align: left; }
+.ms-choix .btn small { font: 400 var(--t-2)/1.3 var(--corps); color: var(--encre-2); overflow-wrap: anywhere; }
+/* La fenêtre du jeton : trois étapes numérotées, le champ à la deuxième, le refus de GitHub juste dessous. Le champ à
+   --t-4 : sous 16 px, un téléphone zoome sur un champ qu'on touche. */
+.synchro { display: grid; gap: var(--esp-4); }
+.synchro-etapes { display: grid; gap: var(--esp-4); margin: 0; padding-left: 1.4em; }
+.synchro-etapes .btn { display: flex; width: fit-content; min-height: 44px; margin-top: var(--esp-2); }
+.synchro-etapes label { display: block; }
+.synchro-etapes input { width: 100%; min-height: 44px; margin-top: var(--esp-2); padding: 0 var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); font-size: var(--t-4); }
+.synchro-etapes input:focus-visible { outline: none; border-color: var(--choisi); }
+.synchro-etapes input::placeholder { color: var(--encre-3); }
+.synchro-note, .synchro-mot { margin: 0; color: var(--encre-2); font-size: var(--t-2); }
+.synchro-mot { color: var(--or); }
+.synchro-mot:empty { display: none; }
 
 /* ---- Le pied : Options et Règles ---- */
 .menu-pied { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--esp-3); margin-top: var(--esp-5); }

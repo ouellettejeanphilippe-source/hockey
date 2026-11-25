@@ -28,6 +28,13 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 - [x] **La saison en cours sort des données** (25 nov.) — le rafraîchissement du 23 nov. l'avait réécrite avec 145 joueurs sur 639 et main restait rouge ; `data/seasons/2026-27.json` et deux photos sans joueur partent ; l'Action du lundi n'écrit une saison qu'une fois finie et refuse un shard rétréci — `scripts/build_shards.py` `saison_finie`, `shard_retreci` — `check_actions`, `check_ratings`.
 - [ ] En avril 2027 : la saison 2026-27 entre d'elle-même, le premier lundi où tous ses clubs ont fini ; ses photos d'action se refont (`scripts/actions.mjs`).
 
+## La sauvegarde qui suit d'un appareil à l'autre (JP, 25 nov. : *avoir sauvegarde multidevice* ; *Github sync*)
+
+- [x] **JP tranche** (25 nov.) : par GitHub ; un Gist secret de son compte (un jeton au seul droit « gist », collé une fois par appareil) ; toute seule, et quand deux appareils ont avancé chacun de leur côté, le jeu montre les deux et il choisit.
+- [x] **La synchro** (25 nov.) — la run du Rogue, les médailles et le Club, le cartable, les parties et le palmarès suivent ; les options restent à l'appareil. Reçue à l'ouverture du jeu et au retour sur sa page (la page se recharge sur elle), envoyée quand la page se cache et dès que rien n'a bougé d'une demi-minute, compressée. Le menu porte « D'un appareil à l'autre » — `js/synchro.js`, `js/menu.js`, `index.html` `#synchroModal` — `check_synchro` (41, dans `tout.mjs`), `essai_synchro` (16, au CI).
+  - [ ] Pas fait : pendant une run du Rogue, un conflit ne se voit qu'au menu (rien ne le dit dans le bureau).
+  - [ ] Pas fait : deux appareils qui envoient dans la même seconde ; le dernier écrit gagne, l'autre reste à l'historique du Gist.
+
 ## Le détail du Rogue (JP, 25 nov. : *Je m'ennuie de l'ancien moteur de match dans le roguelike, avec stats super détaillées et je trouve en général que le roguelike est pas super détaillé*)
 
 Le rapport d'essai et les quatre réponses de JP : docs/decisions.md, « Le détail du Rogue ». En code direct, une tranche par PR ; JP juge chacune sur le vrai écran.
