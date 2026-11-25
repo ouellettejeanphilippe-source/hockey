@@ -148,11 +148,11 @@ export async function loadIndex() {
   return state.index;
 }
 
-/* La saison en cours n'entre au jeu qu'à la mi-saison (scripts/build_shards.py `MATCHS_POUR_JOUER`) ; sans shards, la date en tient lieu : le 1er février. */
+/* Une saison n'entre au jeu qu'une fois finie (JP, 25 nov. 2026 ; scripts/build_shards.py `saison_finie`) ; sans shards, la date en tient lieu : le 1er mai. */
 function allSeasonLabels() {
   const out = [];
   const now = new Date();
-  const end = now.getFullYear() - (now.getMonth() >= 1 ? 1 : 2);
+  const end = now.getFullYear() - (now.getMonth() >= 4 ? 1 : 2);
   for (let y = 1970; y <= end; y++) out.push(`${y}-${String(y + 1).slice(2)}`);
   return out;
 }

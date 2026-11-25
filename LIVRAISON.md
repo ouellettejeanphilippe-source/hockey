@@ -23,6 +23,11 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 - [x] **A3 · La défensive** (7 nov.) — `check_suppression` étendu (le canal par joueur, vols moins revirements pondérés par la glace, par poste, en retenue 2013-2025 et en paires) : il ne tient pas — il ne bat pas le club seul (−0,1 %) ni ne se sépare du gardien (+0,2 %, intervalles à cheval sur zéro) ; la possession tombe comme le devis le prévoit, le moteur ne bouge pas — `check_suppression` (rouge, la mesure).
 - [ ] *Après* : D2, les autres modes, avec son devis (la V26).
 
+## Les données · une saison n'entre qu'une fois finie (JP, 25 nov. : *Ne pas utiliser saison en cours dans le shard ?*)
+
+- [x] **La saison en cours sort des données** (25 nov.) — le rafraîchissement du 23 nov. l'avait réécrite avec 145 joueurs sur 639 et main restait rouge ; `data/seasons/2026-27.json` et deux photos sans joueur partent ; l'Action du lundi n'écrit une saison qu'une fois finie et refuse un shard rétréci — `scripts/build_shards.py` `saison_finie`, `shard_retreci` — `check_actions`, `check_ratings`.
+- [ ] En avril 2027 : la saison 2026-27 entre d'elle-même, le premier lundi où tous ses clubs ont fini ; ses photos d'action se refont (`scripts/actions.mjs`).
+
 ## Le détail du Rogue (JP, 25 nov. : *Je m'ennuie de l'ancien moteur de match dans le roguelike, avec stats super détaillées et je trouve en général que le roguelike est pas super détaillé*)
 
 Le rapport d'essai et les quatre réponses de JP : docs/decisions.md, « Le détail du Rogue ». En code direct, une tranche par PR ; JP juge chacune sur le vrai écran.

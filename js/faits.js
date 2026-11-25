@@ -12,9 +12,9 @@
  *   jalon, duo, recrue, veteran, murEnVue, coup, pieceChaude, fourches (les pièces déjà venues d'une fourche), mandat,
  *   gros { adv, sorte, domicile, fiche, dernier, ancien, leurVedette, monMur, lancee, malades, partant }   (le matin du duel)
  *   ronde { k, adv, leurCoach, domicile, ficheSaison, precedente, meneur, gardien }                        (le matin du 1er match)
- *   vraie(cle)  → { buts, passes, gp, matchsDeSaSaison, clubs, enCours, victoires, arrets } : LA VRAIE SAISON AVEC SES BORNES
+ *   vraie(cle)  → { buts, passes, gp, matchsDeSaSaison, clubs, victoires, arrets } : LA VRAIE SAISON AVEC SES BORNES
  *               (JP, 5 nov. 2026) ; `vraieMot(v)` la dit : « cette année-là, 34 buts en 47 matchs », « avec Boston » si
- *               `clubs === 1` seulement, « jusqu'ici » si la saison est en cours, jamais « a fini ».
+ *               `clubs === 1` seulement, jamais « a fini » (une saison n'entre au jeu qu'une fois finie : JP, 25 nov. 2026).
  *
  * `run` : ce que la run sait et que le moteur ne porte pas — { jetons, masse, coach, mandat: { mot, top }, anciens (un Set
  * des clés laissées partir), sorties (les histoires sorties, { cle, choix, joueur, joueurs, j }), places (16), club(t),
@@ -51,18 +51,18 @@ function vraieDe(p, shard, nomDuClub = null) {
   if (!p) return null;
   const sh = shard ? shard(p.s) : null;
   const memes = sh ? sh.players.filter(x => x.id != null && x.id === p.id) : (joueursDeLaSaison(p.s) || []).filter(x => x.id != null && x.id === p.id);
-  const matchsDeSaSaison = seasonGames(p.s), club = sh && sh.an && sh.an[p.t];
+  const matchsDeSaSaison = seasonGames(p.s);
   return {
     buts: p.p === 'G' ? null : p.g || 0, passes: p.p === 'G' ? null : p.a || 0, gp: p.gp || 0, matchsDeSaSaison,
-    clubs: Math.max(1, memes.length), club: p.t ? (nomDuClub ? nomDuClub(p.t) : p.t) : null, enCours: !!(club && club.gp < matchsDeSaSaison),
+    clubs: Math.max(1, memes.length), club: p.t ? (nomDuClub ? nomDuClub(p.t) : p.t) : null,
     victoires: p.p === 'G' ? p.w || 0 : null, arrets: p.p === 'G' && p.sv ? p.sv : null,
   };
 }
-/* Elle se dit d'un seul gabarit : « cette année-là, 34 buts en 47 matchs avec Boston », « jusqu'ici, ,931 en 40 matchs ». */
+/* Elle se dit d'un seul gabarit : « cette année-là, 34 buts en 47 matchs avec Boston », « cette année-là, 31 victoires en 40 matchs, ,931 d'efficacité ». */
 export function vraieMot(v) {
   if (!v || !v.gp) return '';
   const avec = v.clubs === 1 && v.club ? ` avec ${v.club}` : '';
-  const quand = v.enCours ? 'jusqu\'ici' : 'cette année-là';
+  const quand = 'cette année-là';
   if (v.victoires != null) {
     const pct = v.arrets ? `, ${pct3(v.arrets)} d'efficacité` : '';
     return `${quand}, ${v.victoires} victoire${v.victoires > 1 ? 's' : ''} en ${v.gp} matchs${pct}${avec}`;

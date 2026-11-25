@@ -253,7 +253,7 @@ export const SERIES = {
   spectre: { nom: 'Spectre', saison: '2022-23', dos: 'centre stats-bas' },
   velocite: { nom: 'Vélocité', saison: '2023-24', dos: 'tete-bas' },
   apogee: { nom: 'Apogée', saison: '2024-25', dos: 'centre stats-bas' },
-  // L'Aurore était dessinée pour 2026-27 ; la saison en cours n'est pas encore au jeu (scripts/build_shards.py `MATCHS_POUR_JOUER`) : elle habille 2025-26 (JP, 24 oct.).
+  // L'Aurore était dessinée pour 2026-27 ; une saison n'entre au jeu qu'une fois finie (scripts/build_shards.py `saison_finie`) : elle habille 2025-26 (JP, 24 oct.).
   aurore: { nom: 'Aurore', saison: '2025-26', dos: 'logo-g' },
 };
 const PAR_SAISON = Object.entries(SERIES).map(([cle, s]) => [s.saison, cle]);

@@ -57,7 +57,7 @@ Les captures datent de la 1.0 (octobre 2026) ; le Rogue a changé depuis (V9 à 
 
 Le jeu est un site statique publié sur GitHub Pages depuis `main`, et il se joue dans le navigateur, au téléphone comme à l'ordinateur ; le travailleur de service (`sw.js`) le garde hors ligne après une première visite, et la version Web suit toute seule ce qu'on publie (`js/mise-a-jour.js`), sans toucher aux parties. L'application Android (Capacitor) et l'exe Windows (Electron) sont partis le 4 novembre 2026 (JP : *oublie APK et exe, on développe maintenant web only*).
 
-La GitHub Action « Bâtir les données » existe encore pour régénérer les shards depuis l'API de la LNH (modes `full`, `bios`, `rerate`, `seed`) ; chaque lundi, elle rafraîchit la saison en cours. En local, `scripts/build_shards.py` fait la même chose.
+La GitHub Action « Bâtir les données » existe encore pour régénérer les shards depuis l'API de la LNH (modes `full`, `bios`, `rerate`, `seed`) ; chaque lundi, elle regarde la saison du calendrier et ne l'écrit qu'une fois finie. En local, `scripts/build_shards.py` fait la même chose.
 
 ## Comment les cotes sont calculées
 

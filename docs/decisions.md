@@ -3982,6 +3982,22 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 
 **Ce qui a été écarté.** Un cœur de moins au cran 1 : proposé, JP a préféré les points. +7 au cran 3 : une marche de la même hauteur que les deux premières, et un dernier cran qui ressemble au deuxième.
 
+## Une saison n'entre aux données qu'une fois finie (25 nov. 2026)
+
+**Ce qui est arrivé.** Le rafraîchissement du lundi 23 nov. a réécrit le shard de la saison en cours avec 145 joueurs au lieu de 639 : l'API de la LNH avait rendu une liste tronquée (les meneurs manquaient tous, McDavid en tête ; il restait 2 à 8 joueurs par club). L'Action ne jugeait que les cotes : elle l'a commité. La photo d'action d'une recrue n'avait plus de joueur, `check_actions` a rougi, et plus aucune PR ne pouvait fusionner.
+
+**Ce que JP a dit** : *Ne pas utiliser saison en cours dans le shard ?* Puis, entre trois dates d'entrée (une fois finie, à la mi-saison comme avant, garder le shard) : *une fois finie*.
+
+**Ce que ça défait.** La décision du 24 oct. (*pas avoir de cartes de cette année*) gardait la saison en cours hors du jeu jusqu'à 41 matchs par club, mais son shard restait sur le disque, refait chaque lundi, pour qu'une sauvegarde d'avant le relise. Ce fichier ne servait donc qu'à ça, et c'est lui qui a cassé main.
+
+**La règle.** Une saison en cours n'a pas de shard. Celle que le calendrier dit en cours, d'octobre à juin, ne s'écrit que lorsque tous ses clubs ont joué le même nombre de matchs, 80 au moins : en cours de saison ils diffèrent toujours de quelques matchs. Le plancher est 80 et non 82, parce que le calendrier de la ligue peut passer à 84. En juillet, elle est finie quoi qu'il en soit (une saison écourtée). Les saisons d'avant ne se jugent pas : 1994-95 a 48 matchs, 2019-20 en a de 68 à 71. Et un shard bâti de l'API doit tenir au moins 12 joueurs par club (le plus maigre de nos 55 saisons en a 19), sinon le script s'arrête sans rien écrire.
+
+**Ce que ça coûte.** Les cartes de 2026-27 arriveront en avril plutôt qu'en février. Trente-six recrues attendent. Deux photos d'action n'avaient plus de joueur (Porter Martone, Alberts Smits) : retirées, elles reviendront avec la saison. Une sauvegarde du 82-0 d'avant le 24 oct. qui tenait une carte de 2026-27 ne se relit plus.
+
+**Ce qui part** : `MATCHS_POUR_JOUER`, `saison_jouable` et son filtre à l'index, le shard `data/seasons/2026-27.json`, « jusqu'ici » dans la vraie saison d'une histoire (`enCours`, js/faits.js).
+
+**Écarté.** Restaurer le shard du 16 nov. : le même accident lundi prochain. Retirer seulement la photo orpheline : le shard restait à 145 joueurs.
+
 ## Le détail du Rogue : le match au direct, son sommaire complet (25 nov. 2026)
 
 **Ce que JP a dit.** *Je m'ennuie de l'ancien moteur de match dans le roguelike, avec stats super détaillées et je trouve en général que le roguelike est pas super détaillé.*

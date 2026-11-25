@@ -16,7 +16,7 @@ Refait le 31 octobre 2026 (version 2.9.2, moteur S136, cotes v30) ; les Actions 
                             check_scene, essai_run, mesure_run GRAINES=64 FILS=4. Le travail « fusionner »
                             fusionne la PR quand tout est vert.
 .github/workflows/build-data.yml  Action « Bâtir les données » : les shards depuis l'API LNH (modes bios, rerate,
-                            seed, full) ; chaque lundi, la saison en cours seulement (--refresh-current)
+                            seed, full) ; chaque lundi, la saison du calendrier, écrite une fois finie (--refresh-current)
 index.html                  la page unique : l'en-tête du club, les sections (Bureau, Joueurs, Lignes, Ligue),
                             la roulette, le vestiaire, l'alignement, les modales ; le Rogue s'ouvre par-dessus,
                             en plein écran (#runModal, js/run-jeu.js)
@@ -55,7 +55,7 @@ scripts/build_shards.py     aspire l'API LNH, écrit data/seasons/<saison>.json,
                             --rerate = l'étage 2 sans API (puis index et seed) ; --bios-only = dates de
                             naissance, tailles et poids ; --gestes-only = tirs bloqués, vols, revirements,
                             punitions tirées, type de tir (2005-06+) ;
-                            --refresh-current = la saison en cours ; --seed-only = le filet
+                            --refresh-current = la saison du calendrier, une fois finie ; --seed-only = le filet
 scripts/rate.mjs            pont Node vers js/ratings.js (étage 1 + 2) pour une saison
 scripts/rerate.mjs          l'étage 2 sur les shards existants : le temps de glace inféré, la valeur, les salaires
                             réels, les contrats d'entrée, les zones
@@ -216,7 +216,7 @@ data/seasons/<saison>.json  un shard par saison : season, minGP, v (RATINGS_VERS
                             temps de glace toi — inféré avant 1997-98, marqué toiE —, et depuis 2005-06 les
                             mises en échec ht, blocs bl, vols tk, revirements gv, depuis 2009-10 les punitions
                             tirées pd, depuis 2009-10 le type de tir ts)
-data/index.json             les saisons au jeu (41 matchs joués au moins) et les 44 équipes
+data/index.json             les saisons au jeu (chacune finie : aucune saison en cours) et les 44 équipes
 data/seed.json              le filet hors ligne : dix saisons
 data/salaries/<saison>.json salaires réels publiés (playerId → $ de l'époque), facultatif ; sources/ et README.md
 data/trophees.js            Selke, Norris, Vezina, Conn Smythe — gagnants et finalistes (les traits)

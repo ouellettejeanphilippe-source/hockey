@@ -11,7 +11,7 @@ import { registerHiddenRatings, retenirMatchsDuShard } from '../../js/sim.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIR = path.join(ROOT, 'data', 'seasons');
-// Les saisons du jeu sont celles de l'index (scripts/build_shards.py `saison_jouable`) : la saison en cours n'y entre qu'à la mi-saison.
+// Les saisons du jeu sont celles de l'index : chacune est finie (scripts/build_shards.py `saison_finie` ; JP, 25 nov. 2026).
 export const SAISONS = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'index.json'), 'utf8')).seasons;
 const CACHE = new Map();
 export function shard(s) {
