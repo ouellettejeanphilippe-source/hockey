@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-4.3.0';  // 4.3.0 : dans le Rogue, toucher un nom ouvre la fiche du joueur (JP, 25 nov. 2026)
+const VERSION = 'cap82-4.4.0';  // 4.4.0 : la ligue du Rogue en détail — les stats des clubs, les meneurs qu'on trie, les gardiens, la page d'un club (JP, 25 nov. 2026)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

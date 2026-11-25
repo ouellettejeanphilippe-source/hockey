@@ -5165,6 +5165,9 @@ body.run-ouverte { overflow: hidden; }
 /* Les briques : la plaque d'un club, le panneau, la jauge, la puce, l'enjeu, le banc, le plafond. */
 .rn-plaque { display: flex; align-items: center; gap: 10px; }
 .rn-plaque > img, .rn-plaque > svg { width: 46px; height: 46px; flex: none; }
+/* Le club de ce soir, au bureau, ouvre sa page : la plaque est un bouton, sa flèche au bout. */
+.rn-racine button.rn-plaque { width: 100%; min-height: 54px; text-align: left; color: inherit; }
+.rn-plaque .rn-vers { margin-left: auto; font: 400 var(--t-5)/1 var(--corps); font-style: normal; color: var(--encre-3); }
 .rn-nom { font: 800 var(--t-5)/1 var(--display); text-transform: uppercase; }
 .rn-nom small { display: block; margin-top: 3px; font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.06em; color: var(--encre-2); }
 .rn-panneau { padding: 10px 12px; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
@@ -5252,6 +5255,10 @@ body.run-ouverte { overflow: hidden; }
 .rn-large .rn-l > span:nth-child(2) { text-align: right; }
 .rn-large .rn-tete { z-index: 2; }
 .rn-large .rn-tete > :first-child { background: var(--fond-2); }
+/* Le rang d'un club au classement, à la tête de sa ligne ; la ligne des séries garde son mot à gauche, figé. */
+.rn-large .rn-rang { flex: none; width: 18px; font-weight: 600; text-align: right; color: var(--encre-2); }
+.rn-large .rn-coupe > span { text-align: left; }
+.rn-large .rn-moi > :first-child { background: color-mix(in srgb, var(--club-vif) 24%, var(--fond-1)); box-shadow: inset 3px 0 0 var(--club-vif), 1px 0 0 var(--filet); }
 .rn-unite { grid-template-columns: 84px 1fr auto; min-height: 26px; background: color-mix(in srgb, var(--fond-2) 60%, transparent); font-size: var(--t-1); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre); }
 .rn-unite > span:nth-child(2) { text-align: left; letter-spacing: 0.02em; text-transform: none; color: var(--or); }
 .rn-coupe { grid-template-columns: 1fr; min-height: 20px; border-bottom: 2px solid var(--or); font-size: var(--t-1); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); }

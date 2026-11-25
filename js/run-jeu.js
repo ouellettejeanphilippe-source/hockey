@@ -41,7 +41,7 @@ import {
 } from './run.js';
 import {
   sceneAttente, sceneDepart, scenePieceDuDepart, sceneRepechage, sceneQuart, sceneBureau, sceneFeuille, sceneResultat, scenePortes, scenePorte, sceneEchange,
-  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, afficheDuDirect, ficheDuJoueur, nomQuiOuvre, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
+  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, afficheDuDirect, ficheDuJoueur, nomQuiOuvre, sceneClubVu, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
 } from './run-scenes.js';
 
 const CLE = 'cap82_run';
@@ -84,14 +84,15 @@ function echelle() { if (plan) plan.style.setProperty('--rn-k', String(Math.min(
  * un tri) ; une page neuve repart du haut — sauf le classement, qui s'ouvre sur ton club.
  */
 function montrer(html, { rouge = false, page = null } = {}) {
-  const avant = plan.querySelector('.rn-cadre'), y = avant && page && page === cadreVu ? avant.scrollTop : null;
+  const avant = plan.querySelector('.rn-cadre'), meme = avant && page && page === cadreVu, y = meme ? avant.scrollTop : null, x = meme ? avant.scrollLeft : 0;
   plan.className = `rn-plan${rouge ? ' rn-rouge' : ''}`;
   plan.innerHTML = html;
   const cadre = plan.querySelector('.rn-cadre');
   // Les cartons du sommaire (les trois étoiles, les chiffres du match) se feuillettent : js/entracte.js les branche.
   if (cadre && cadre.querySelector('.som-racine')) brancherEntractes(cadre);
-  if (cadre && y != null) cadre.scrollTop = y;
-  else if (cadre) { const moi = cadre.querySelector('.rn-moi'); if (moi) cadre.scrollTop = Math.max(0, moi.offsetTop - cadre.clientHeight / 2); }
+  // La même page redessinée (un tri, un joueur tenu) garde sa place, de haut en bas et de côté ; le classement s'ouvre sur ton club.
+  if (cadre && y != null) { cadre.scrollTop = y; cadre.scrollLeft = x; }
+  else if (cadre && cadre.querySelector('.rn-coupe')) { const moi = cadre.querySelector('.rn-moi'); if (moi) cadre.scrollTop = Math.max(0, moi.offsetTop - cadre.clientHeight / 2); }
   cadreVu = page;
 }
 /* Charger chaque saison, `LOT` à la fois (IndexedDB les garde après la première visite) ; l'attente dit où on en est. */
@@ -246,6 +247,7 @@ function rendre() {
     if (V.ecran === 'porte') return [scenePorte(S, V)];
     if (V.ecran === 'etal') return [sceneEtal(S)];
     if (V.ecran === 'histoire') return [sceneHistoire(S, V)];
+    if (V.ecran === 'club-vu') return [sceneClubVu(S, V), false, `club-vu:${V.clubVu}`];
     switch (R.phase) {
       case 'pieces': return [scenePieceDuDepart(S, V)];
       case 'repechage': return [sceneRepechage(S, V)];
@@ -432,6 +434,11 @@ const GESTES = {
   'seg-c': v => { V.segC = v; },
   'seg-r': v => { V.segR = v; },
   tri: v => { V.tri = v; },
+  'tri-l': v => { V.triL = v; },
+  'tri-g': v => { V.triG = v; },
+  // La page d'un club de la ligue ; le tien, c'est l'onglet Mon club.
+  'club-vu': v => { if (Number(v) > 0) { V.ecran = 'club-vu'; V.clubVu = Number(v); } else V.onglet = 'club'; },
+  'fermer-club-vu': () => { V.ecran = null; },
   fiche: v => { ouvrirLaFiche(v); return false; },
   'vers-banc': () => { V.onglet = 'alignement'; V.segA = 'banc'; },
   case: v => {

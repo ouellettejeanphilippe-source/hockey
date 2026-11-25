@@ -24,7 +24,7 @@
  */
 import { getPersonKey, getPlayerKey, compterFeuilles } from '../js/sim.js';
 import { groupeDuJoueur as groupeDe } from '../js/niveaux.js';
-import { RUN, GALONS, STATS, STATS_G, effectifDe, masseDe, medaillesDe, classement } from '../js/run.js';
+import { RUN, GALONS, STATS, STATS_G, CLUB, LIGUEUR, effectifDe, masseDe, medaillesDe, classement } from '../js/run.js';
 import { CAP } from '../js/sim.js';
 import { jouerLaRun } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -107,6 +107,15 @@ function jouer(relireA) {
         if (F[0][0] !== v || F[0][2] !== dp || F[0][1] !== RUN.LIGUE.MATCHS - v - dp) faute('fiche', `${F[0].slice(0, 3).join('-')} au classement, ${v}-${RUN.LIGUE.MATCHS - v - dp}-${dp} recompté`);
         const buts = Object.values(R.stats).filter(s => s.length === 12).reduce((a, s) => a + s[STATS.B], 0);
         if (buts !== F[0][3]) faute('fiche', `${buts} buts chez tes joueurs, ${F[0][3]} au classement`);
+        // Ce que la ligue garde de chacun s'équilibre : un tir pour est un tir contre, un but en avantage est un but accordé en
+        // désavantage, une occasion de l'un est celle de l'autre.
+        const tot = k => F.reduce((a, f) => a + (f[k] || 0), 0), G = Object.values(R.ligue.gardiens || {}), totG = k => G.reduce((a, g) => a + g[k], 0);
+        if (tot(CLUB.TP) !== tot(CLUB.TC) || tot(CLUB.BAN) !== tot(CLUB.BDN) || tot(CLUB.OAN) !== tot(CLUB.ODN) || !(tot(CLUB.TP) > 0 && tot(CLUB.OAN) > 0 && tot(CLUB.PUN) > 0)) faute('ligue', `les stats des clubs : ${tot(CLUB.TP)} tirs pour, ${tot(CLUB.TC)} contre ; ${tot(CLUB.BAN)} buts en avantage, ${tot(CLUB.BDN)} accordés`);
+        // Chaque match a son gardien gagnant : ceux des autres clubs à la ligue, les tiens dans tes stats (une seule maison chacun).
+        const miensG = effectifDe(S).filter(q => q.p === 'G').map(q => R.stats[getPlayerKey(q)] || []), totM = k => miensG.reduce((a, g) => a + (g[k] || 0), 0);
+        if (totG(STATS_G.V) + totM(STATS_G.V) !== tot(CLUB.V) || totG(STATS_G.D) + totM(STATS_G.D) !== tot(CLUB.V) + tot(CLUB.P) + tot(CLUB.DP) || totG(STATS_G.BC) + totM(STATS_G.BC) !== tot(CLUB.BC)) faute('ligue', `les gardiens : ${totG(STATS_G.V) + totM(STATS_G.V)} victoires pour ${tot(CLUB.V)}, ${totG(STATS_G.D) + totM(STATS_G.D)} départs`);
+        // Tes joueurs ne sont pas comptés une deuxième fois à la ligue : personne de ton effectif n'y a plus de matchs que son club n'en a joué.
+        for (const [k, l] of Object.entries(R.ligue.pts)) if ((l[LIGUEUR.PJ] || 0) > RUN.LIGUE.MATCHS) faute('ligue', `${k} : ${l[LIGUEUR.PJ]} matchs à la ligue`);
         vu.rangFinal = classement(S).indexOf(0) + 1;
       }
     } else if (m === 'fin') {
@@ -139,7 +148,7 @@ const empreinte = ({ r }) => JSON.stringify([r.pts, r.rang, r.coeurs, r.fin, r.R
 
 exiger('le repêchage : trois pièces avant le premier tour, vingt-trois tours', A.vu.bancAuPremierTour === 3 && A.vu.repeches === 23, `${A.vu.bancAuPremierTour} pièces, ${A.vu.repeches} tours`);
 exiger('le repêchage tient ses cases et son plafond', ok('repechage'), dit('repechage') || 'vingt-trois joueurs, personne deux fois');
-exiger('la ligue : trente et un clubs, 82 matchs chacun, en équilibre', ok('ligue'), dit('ligue'));
+exiger('la ligue : trente et un clubs, 82 matchs chacun, en équilibre, ses stats aussi (les tirs, les unités spéciales, les gardiens, tes joueurs)', ok('ligue'), dit('ligue'));
 exiger('rien n\'est joué d\'avance', ok('avance'), dit('avance') || `${A.vu.feuilles} feuilles lues`);
 exiger('ta fiche et tes buts se recomptent de tes matchs et de tes joueurs', ok('fiche'), dit('fiche'));
 exiger('les stats de chacun se recomptent des feuilles, et chaque but hors de l\'avantage dit qui était sur la glace', ok('stats'), dit('stats') || `${Object.keys(A.vu.stats).length} joueurs, ${A.vu.glace[1]} buts`);

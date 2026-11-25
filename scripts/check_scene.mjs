@@ -4,7 +4,8 @@
  * scène ; Chromium, à 390 × 844, ouvre chacune par le menu (« Le Rogue ») comme une partie reprise, et on mesure :
  *
  *   1. les scènes du devis sont toutes là : le départ, les pièces, le repêchage, l'ouverture du quart, le bureau et ses
- *      onglets (l'alignement, un joueur tenu, le banc, la masse, le classement, les meneurs, la cédule, mon club, ses
+ *      onglets (l'alignement, un joueur tenu, le banc, la masse, le classement, les meneurs, les gardiens de la ligue, la
+ *      cédule, la page d'un club, mon club, ses
  *      gardiens, ses matchs), les pochettes, la pause, la feuille du soir, l'affiche posée (le duel), le résultat et ses
  *      quatre vues (le sommaire, le récit, les chiffres, la feuille des deux clubs), la pièce d'un rival battu, les trois portes, la porte ouverte, l'échange, le bilan, le marché du quart,
  *      les séries et leur feuille, la fin ; et celles d'entre deux runs, ouvertes d'un méta semé (le départ et ses crans,
@@ -44,7 +45,8 @@ const LARGEUR = 390, HAUTEUR = 844, GRAINES_MAX = 4;
  * [a] ou [a, v]. En mouvement réduit, « Au match » va droit au résultat : le direct (js/direct.js) s'éprouve dans `essai_run`.
  */
 const ONGLETS = [['l\'alignement', [['onglet', 'alignement']]], ['l\'alignement, un joueur tenu', [['case']]], ['le banc', [['seg-a', 'banc']]], ['la masse', [['onglet', 'masse']]],
-  ['le classement', [['onglet', 'ligue']]], ['les meneurs', [['seg-l', 'meneurs']]], ['la cédule', [['seg-l', 'cedule']]], ['mon club', [['onglet', 'club']]], ['mon club, trié par les buts', [['tri', 'b']]],
+  ['le classement', [['onglet', 'ligue']]], ['les meneurs', [['seg-l', 'meneurs']]], ['les meneurs, triés par le +/−', [['tri-l', 'pm']]], ['les gardiens de la ligue', [['seg-l', 'gardiens']]], ['la cédule', [['seg-l', 'cedule']]],
+  ['la page d\'un club', [['seg-l', 'classement'], ['club-vu', '3']]], ['mon club', [['fermer-club-vu'], ['onglet', 'club']]], ['mon club, trié par les buts', [['tri', 'b']]],
   ['mes gardiens', [['seg-c', 'gardiens']]], ['mes matchs', [['seg-c', 'matchs']]], ['les pochettes', [['onglet', 'bureau'], ['etal']]], ['la pause', [['fermer-etal'], ['pause']]]];
 const SUITES = {
   pieces: [],
@@ -252,7 +254,7 @@ exiger('rien du site ne dépasse : ni en-tête, ni barre du site', !fautes.dehor
 exiger('seul le cadre d\'un tableau défile, en lui-même, à sa place', !fautes.cadre.length, fautes.cadre.slice(0, 4).join(' · ') || `${Object.keys(tableaux).length} tableaux`);
 const C = tableaux['le classement'];
 exiger('le classement montre les trente-deux clubs et la ligne des séries, et s\'ouvre sur ton club', !!C && C.lignes === 32 && C.coupe && C.moiVu === true, C ? `${C.lignes} clubs, la ligne ${C.coupe ? 'tracée' : 'absente'}, ton club ${C.moiVu ? 'à l\'écran' : 'hors du cadre'}` : 'pas de tableau');
-const GL = ['mon club', 'mon club, trié par les buts', 'mes gardiens'].map(n => [n, tableaux[n]]);
+const GL = ['le classement', 'les meneurs', 'les meneurs, triés par le +/−', 'les gardiens de la ligue', 'la page d\'un club', 'mon club', 'mon club, trié par les buts', 'mes gardiens'].map(n => [n, tableaux[n]]);
 exiger('un tableau de stats glisse de côté dans son cadre, le nom figé à gauche et la tête en haut', GL.every(([, t]) => t && t.glisse && t.fige === true), GL.map(([n, t]) => `${n} : ${t && t.glisse ? (t.fige ? 'figé' : 'le nom ou la tête bouge') : 'ne glisse pas'}`).join(' · '));
 const FM = tableaux['le résultat, la feuille'];
 exiger('le résultat est le sommaire du match : sa feuille dit les patineurs des deux clubs', !!FM && FM.patineurs.length === 2 && FM.patineurs.every(n => n >= 15), FM ? `${FM.patineurs.join(' et ')} patineurs` : 'pas de feuille');

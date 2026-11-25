@@ -206,7 +206,7 @@ jobs:
       - name: Un choix tient en un écran
         run: node scripts/check_hauteur.mjs http://localhost:8000
 
-      # Le Rogue (V30, docs/refonte-v30-2.md § 9) : 55 scènes ouvertes à 390 × 844 depuis de vraies sauvegardes de robot —
+      # Le Rogue (V30, docs/refonte-v30-2.md § 9) : 58 scènes ouvertes à 390 × 844 depuis de vraies sauvegardes de robot —
       # la scène ne défile jamais, seul le cadre d'un tableau défile, le HUD au même pixel, chaque cible de 44. Deux minutes.
       - name: Les scènes du Rogue à 390 × 844
         run: node scripts/check_scene.mjs http://localhost:8000
