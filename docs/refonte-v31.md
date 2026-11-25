@@ -63,7 +63,7 @@ Le plan n'a plus de taille : il prend tout l'écran et se partage en une grille.
 
 Une scène reste une fonction pure `(S, V) → HTML`. Elle rend ses morceaux dans l'ordre où on les lit — l'en-tête, les onglets, le milieu, le bas — et **plus aucune position** dans un attribut `style`.
 
-La coquille dit à la scène la largeur dont elle dispose, en un mot (`V.largeur` : étroit sous 700 px, moyen de 700 à 999, large dès 1000), et la redessine quand le mot change. La scène rend alors le bon contenu : pas de bloc caché en double, l'ordre du DOM est celui de l'écran. Ce n'est pas une mesure de mise en page : aucune coordonnée n'est calculée.
+La coquille dit à la scène la largeur dont elle dispose, en un mot (`V.largeur` : étroit sous 700 px, moyen de 700 à 1199, large dès 1200 : la place de trois colonnes de panneaux à côté du rail), et la redessine quand le mot change. La scène rend alors le bon contenu : pas de bloc caché en double, l'ordre du DOM est celui de l'écran. Ce n'est pas une mesure de mise en page : aucune coordonnée n'est calculée.
 
 ### 3.4 Le bureau en large : trois colonnes, une par horizon
 
@@ -77,7 +77,7 @@ La coquille dit à la scène la largeur dont elle dispose, en un mot (`V.largeur
 - « Ton quart » sert la décision du quart : où poser tes trois affiches. C'est la brique de la cédule de la Ligue, bornée au quart. Il commence après ce soir.
 - « Autour de toi » ne redit pas ton rang ni tes points (l'en-tête les dit) : il dit les écarts.
 - Une ligne de club ouvre sa page, partout ; la tête d'« Autour de toi » ouvre le classement.
-- Ces deux panneaux viennent dès qu'il y a deux colonnes (le moyen) ; au téléphone, leur maison reste la Ligue. Les colonnes se dérivent de la place (360 px au moins chacune) : deux à la tablette debout, trois à l'ordinateur.
+- Ces deux panneaux viennent dès qu'il y a deux colonnes (le moyen) ; au téléphone, leur maison reste la Ligue. Deux colonnes en moyen (la tablette, le téléphone couché), trois en large (360 px au moins chacune, à côté du rail).
 - « Jouer ce soir » est dans le bas, au seul onglet Bureau.
 
 Pendant les séries, le bureau garde sa composition d'aujourd'hui (ta série, le tableau), en deux colonnes dès le moyen.
@@ -131,7 +131,7 @@ Aucune formule de jeu. Les seuls nombres sont des largeurs (§ 8).
 
 ## 6. Ce qu'il touche
 
-Tranche 1 : `js/run-scenes.js`, `js/run-jeu.js`, `js/manette.js`, `js/game.js`, `style.css`, `sw.js`, `js/version.js`, `scripts/check_scene.mjs`, `scripts/lib/cibles.mjs`, `scripts/essai_run.mjs`, `.claude/rules/interface.md`, `.claude/rules/vocabulaire.md`, `.claude/rules/tests.md`, `.claude/agents/rogue-ux.md`, `docs/decisions.md`, `LIVRAISON.md`, `CLAUDE.md`.
+Tranche 1 : `js/run-scenes.js`, `js/run-jeu.js`, `js/manette.js`, `js/game.js`, `style.css`, `sw.js`, `js/version.js`, `scripts/check_scene.mjs`, `scripts/essai_run.mjs`, `.claude/rules/interface.md`, `.claude/rules/vocabulaire.md`, `.claude/rules/tests.md`, `.claude/agents/rogue-ux.md`, `docs/decisions.md`, `LIVRAISON.md`, `CLAUDE.md`.
 
 Les règles fermes d'interface.md :
 
@@ -180,7 +180,7 @@ Aucun de ces noms n'est en code : ils restent.
 | Le réglage | Sa valeur | Sa plage sûre | Au-delà |
 |---|---|---|---|
 | Le mot « moyen » | dès 700 px | 640 à 760 | plus bas, deux colonnes trop étroites |
-| Le mot « large » | dès 1000 px | 960 à 1100 | plus bas, trois colonnes sous 300 px |
+| Le mot « large » | dès 1200 px | 1160 à 1280 | plus bas, trois colonnes sous 340 px à côté du rail |
 | Le rail | la règle du site (1000 px ; couché, 680 px), sa largeur | celles du site | deux rails différents dans le même jeu |
 | Une colonne de panneaux, au moins | 360 px | 340 à 400 | plus étroit, un objectif du proprio se coupe |
 | Le milieu, au plus | 1400 px | 1200 à 1600 | plus large, une ligne de tableau se perd de l'œil |
@@ -194,13 +194,13 @@ Les écrans du juge : **360 × 640**, **390 × 844** (la référence, encoche si
 - [ ] À chaque écran, chaque scène de la tranche : rien ne déborde de l'écran, aucune barre de défilement de côté hors d'un tableau de stats, aucune boîte qui défile de haut en bas dans une autre — `check_scene`
 - [ ] À 390 × 844, 820 × 1180 et 1440 × 900, aucun milieu ne défile hors d'un tableau ; les scènes en plan fixe ne défilent jamais — `check_scene`
 - [ ] À chaque écran : chaque cible fait 44 × 44 ; le bouton qui avance est dans le bas et à l'écran sans défiler ; aucun bloc sous le bas ni sous les onglets — `check_scene`
-- [ ] À 360 × 640 : « ce soir », le proprio et « Jouer ce soir » visibles sans défiler ; aucun nom de joueur ni de club coupé à l'Alignement et au classement — `check_scene`
+- [ ] À 360 × 640 : « ce soir », le proprio et « Jouer ce soir » visibles sans défiler ; aucun nom de club coupé au classement (les noms de joueurs coupés à l'Alignement s'impriment) — `check_scene`
 - [ ] À 1440 × 900 : le bord droit du dernier panneau du bureau passe 85 % de la largeur, et les panneaux couvrent 60 % de la hauteur du milieu ; les six panneaux visibles sans défiler ; tes vingt-trois visibles à l'Alignement sans défiler ; le tableau de Mon club montre ses quatorze colonnes sans glisser — `check_scene`
-- [ ] À 820 × 1180 : le bureau en deux colonnes, ses panneaux couvrent 60 % de la hauteur du milieu — `check_scene`
+- [ ] À 820 × 1180 : le bureau en deux colonnes, ses panneaux descendent à la moitié du milieu — `check_scene`
 - [ ] L'écusson et les cœurs de l'en-tête au même pixel dans toutes les scènes neuves d'un même écran ; du bureau au bureau, un soir entier — `check_scene`, `essai_run`
 - [ ] Un tableau garde sa place : défilé au bas des lignes, le dernier joueur tenu, la boîte n'a pas bougé ; le classement s'ouvre sur ton club, les trente-deux y sont — `check_scene`
 - [ ] Aucune coordonnée dans le rendu des scènes neuves : aucun `left`, `right`, `top` ni `bottom` dans un attribut de style, sauf la jauge du plafond (sa place vient des données) — `check_scene`
-- [ ] Un soir ordinaire : cinq touchers à 390 × 844 ; cinq « Entrée » sans flèche à 1440 × 900 ; B ferme la page d'un club, B reprend de la pause — `essai_run`
+- [ ] Un soir ordinaire : cinq touchers à 390 × 844 ; au clavier à 1440 × 900, en « Entrée » seulement (trois en mouvement réduit, deux de plus au direct) ; Échap ferme la page d'un club, puis ouvre la pause, puis reprend — `essai_run`
 - [ ] À 1440 × 900, survoler une ligne de tableau change son fond — `check_scene`
 - [ ] Pas une couche de peinture : ce qui part est parti, le jeu retire au moins une ligne pour deux qu'il ajoute, la feuille de style fait moins de la moitié du diff — `check_refonte docs/refonte-v31.md`
 - [ ] La revue des Web Interface Guidelines sur les scènes de la tranche : chaque constat corrigé, ou noté « cède devant » (rien de sélectionnable, aucun lien souligné, la casse de phrase, les guillemets français) — `/web-design-guidelines`

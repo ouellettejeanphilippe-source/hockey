@@ -49,7 +49,7 @@ const LARGEUR = 390, HAUTEUR = 844, ECHELLE_MAX = 1.25;
 /* La chance de la feuille du soir, en tranches de `TRANCHE` matchs. */
 const TRANCHES = 4, TRANCHE = 30;
 
-let racine = null, plan = null, S = null, V = {}, ctx = null, minuterie = null, cadreVu = null;
+let racine = null, plan = null, S = null, V = {}, ctx = null, minuterie = null, pageVue = null;
 /* Le monde d'une run : toutes les saisons (JP : *toutes les années ensemble*). La même fonction `shard` d'une run à l'autre : js/run.js ne classe les clubs qu'une fois par visite. */
 const SHARDS = new Map(), LOT = 6;
 const shardCharge = s => SHARDS.get(s) || null;
@@ -78,22 +78,44 @@ function garder() { if (S) { figer(S); try { localStorage.setItem(CLE, JSON.stri
 const oublier = () => { try { localStorage.removeItem(CLE); } catch { /* rien à oublier */ } };
 
 /* ---------- la coquille ---------- */
+/* Le plan fixe des scènes pas encore refaites (V31, tranches 2 et 3) : 390 × 844, mis à l'échelle de l'écran. */
 function echelle() { if (plan) plan.style.setProperty('--rn-k', String(Math.min(ECHELLE_MAX, window.innerWidth / LARGEUR, window.innerHeight / HAUTEUR))); }
 /*
- * MONTRER une scène. Un tableau qui défile dans son cadre garde sa place quand la même page se redessine (un joueur touché,
- * un tri) ; une page neuve repart du haut — sauf le classement, qui s'ouvre sur ton club.
+ * LA PLACE DONT UNE SCÈNE DISPOSE, en un mot (V31, docs/refonte-v31.md § 3.3) : étroit, moyen (deux colonnes de panneaux
+ * tiennent), large (trois). La scène rend le contenu qui va avec ; quand le mot change (une fenêtre qu'on élargit, un
+ * téléphone qu'on tourne), elle se redessine. Aucune coordonnée n'est calculée : la feuille range les blocs.
+ */
+const MOTS_DE_LARGEUR = [['large', '(min-width: 1200px)'], ['moyen', '(min-width: 700px)']];
+const largeurDe = () => (MOTS_DE_LARGEUR.find(([, q]) => window.matchMedia(q).matches) || ['etroit'])[0];
+const surLaLargeur = () => { if (S && plan && largeurDe() !== V.largeur) rendre(); };
+/*
+ * MONTRER une scène. Une scène neuve (son milieu) prend l'écran en grille ; une scène d'avant garde son plan fixe.
+ * Chaque boîte qui défile porte un nom (`data-defile`) : quand la même page se redessine (un joueur tenu, un tri, une
+ * fenêtre élargie), chacune garde sa place, de haut en bas et de côté ; une page neuve repart du haut — sauf le
+ * classement, qui s'ouvre sur ton club. Au clavier ou à la manette, le focus revient au bouton qu'on tenait (le même
+ * geste, la même valeur), sinon à celui qui avance : le rendu ne le laisse pas tomber. Sous la pause, la scène ne se touche pas.
  */
 function montrer(html, { rouge = false, page = null } = {}) {
-  const avant = plan.querySelector('.rn-cadre'), meme = avant && page && page === cadreVu, y = meme ? avant.scrollTop : null, x = meme ? avant.scrollLeft : 0;
-  plan.className = `rn-plan${rouge ? ' rn-rouge' : ''}`;
+  const meme = !!page && page === pageVue, places = new Map(meme ? [...plan.querySelectorAll('[data-defile]')].map(b => [b.dataset.defile, [b.scrollTop, b.scrollLeft]]) : []);
+  const tenu = document.activeElement && plan.contains(document.activeElement) ? document.activeElement : null, geste = tenu && tenu.dataset.a ? [tenu.dataset.a, tenu.dataset.v] : null;
+  plan.className = `rn-plan ${html.includes('class="rn-milieu') ? 'rn-fluide' : 'rn-fixe'}${rouge ? ' rn-rouge' : ''}`;
   plan.innerHTML = html;
-  const cadre = plan.querySelector('.rn-cadre');
-  // Les cartons du sommaire (les trois étoiles, les chiffres du match) se feuillettent : js/entracte.js les branche.
-  if (cadre && cadre.querySelector('.som-racine')) brancherEntractes(cadre);
-  // La même page redessinée (un tri, un joueur tenu) garde sa place, de haut en bas et de côté ; le classement s'ouvre sur ton club.
-  if (cadre && y != null) { cadre.scrollTop = y; cadre.scrollLeft = x; }
-  else if (cadre && cadre.querySelector('.rn-coupe')) { const moi = cadre.querySelector('.rn-moi'); if (moi) cadre.scrollTop = Math.max(0, moi.offsetTop - cadre.clientHeight / 2); }
-  cadreVu = page;
+  for (const b of plan.querySelectorAll('[data-defile]')) {
+    const p = places.get(b.dataset.defile), moi = !p && b.querySelector('.rn-coupe') ? b.querySelector('.rn-moi') : null;
+    if (p) { b.scrollTop = p[0]; b.scrollLeft = p[1]; }
+    else if (moi) b.scrollTop = Math.max(0, moi.offsetTop - b.clientHeight / 2);
+    // Les cartons du sommaire (les trois étoiles, les chiffres du match) se feuillettent : js/entracte.js les branche.
+    if (b.querySelector('.som-racine')) brancherEntractes(b);
+  }
+  const pause = plan.querySelector('.rn-pauseur');
+  for (const el of plan.children) el.inert = !!pause && el !== pause;
+  if (document.body.classList.contains('nav-clavier')) {
+    const ou = pause || plan, memeBouton = geste && [...ou.querySelectorAll(`[data-a="${geste[0]}"]`)].find(b => !b.disabled && (b.dataset.v || '') === (geste[1] || ''));
+    // Dans cet ordre : « Reprendre » sous la pause, le bouton qui avance, sinon le premier du bas.
+    const cible = memeBouton || ou.querySelector('.rn-menu .rn-on') || ou.querySelector('.rn-bas :is(.go, .rn-combat):not(:disabled)') || ou.querySelector('.rn-bas .rn-bt:not(:disabled)');
+    if (cible) cible.focus({ preventScroll: true });
+  }
+  pageVue = page;
 }
 /* Charger chaque saison, `LOT` à la fois (IndexedDB les garde après la première visite) ; l'attente dit où on en est. */
 async function charger(mot) {
@@ -110,6 +132,7 @@ let teinteDAvant = null;
 function fermer() {
   clearTimeout(minuterie);
   window.removeEventListener('resize', echelle);
+  for (const [, q] of MOTS_DE_LARGEUR) window.matchMedia(q).removeEventListener('change', surLaLargeur);
   document.removeEventListener('click', nomDuDirect);
   if (racine) racine.remove();
   document.body.classList.remove('run-ouverte');
@@ -131,6 +154,7 @@ export async function ouvrirRun(c = {}) {
   document.body.classList.add('run-ouverte');
   echelle();
   window.addEventListener('resize', echelle);
+  for (const [, q] of MOTS_DE_LARGEUR) window.matchMedia(q).addEventListener('change', surLaLargeur);
   document.addEventListener('click', nomDuDirect);
   racine.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled && racine.contains(b)) geste(b.dataset.a, b.dataset.v); });
   const R = lire();
@@ -237,6 +261,7 @@ async function commencer() {
 /* ---------- la scène du moment ---------- */
 const enDuel = c => c.sorte === 'rival' || c.sorte === 'affiche' || c.sorte === 'serie' || (c.sorte === 'elite' && !!c.enjeu);
 function rendre() {
+  V.largeur = largeurDe();
   if (V.ecran === 'solde' && V.solde) return montrer(sceneSolde(V.solde));
   if (V.ecran === 'club' && V.club) return montrer(sceneClub(V.club));
   if (!S) return montrer(V.ecran === 'depart' ? sceneDepart(V) : sceneAttente('Un instant…'));

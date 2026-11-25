@@ -229,7 +229,7 @@ if (tardive) {
   await p2.waitForSelector('#runModal [data-a="continuer"]:not([disabled])', { timeout: 20000 });
   const auResultat = await pointageVu(p2), garde = pointageGarde(await lu());
   const vues = [];
-  for (const v of ['recit', 'chiffres', 'feuille', 'sommaire']) { await clic(`#runModal [data-a="seg-r"][data-v="${v}"]`, 250); vues.push(await p2.$eval('#runModal .rn-cadre', el => el.querySelectorAll('.som-racine').length === 1 && el.scrollWidth <= el.clientWidth + 1)); }
+  for (const v of ['recit', 'chiffres', 'feuille', 'sommaire']) { await clic(`#runModal [data-a="seg-r"][data-v="${v}"]`, 250); vues.push(await p2.$eval('#runModal [data-defile="vue"]', el => el.querySelectorAll('.som-racine').length === 1 && el.scrollWidth <= el.clientWidth + 1)); }
   if (DOSSIER) await p2.screenshot({ path: `${DOSSIER}/essai-sommaire.png` });
   exiger('« Au match » ouvre le direct par-dessus la scène, et son horloge tourne', couvre && h0 !== h1, `${h0} → ${h1}`);
   exiger('le direct, le résultat et la run disent le même pointage', !!garde && auDirect === garde && auResultat === garde, `le direct ${auDirect}, le résultat ${auResultat}, la run ${garde}`);
@@ -243,20 +243,20 @@ if (tardive) {
   // Au bureau : une ligne de Mon club ouvre la fiche de ton joueur — sa saison chez toi, ses derniers matchs.
   if (await p2.$('#runModal [data-a="onglet"][data-v="club"]')) {
     await clic('#runModal [data-a="onglet"][data-v="club"]', 300);
-    const nom = (await p2.textContent('#runModal .rn-cadre [data-a="fiche"] > span')).trim();
-    await clic('#runModal .rn-cadre [data-a="fiche"]', 600);
+    const nom = (await p2.textContent('#runModal .rn-boite [data-a="fiche"] > span')).trim();
+    await clic('#runModal .rn-boite [data-a="fiche"]', 600);
     const fi = await p2.evaluate(() => ({ titre: document.getElementById('ficheTitre').textContent, corps: document.getElementById('hockeyCardBody').textContent, matchs: document.querySelectorAll('#hockeyCardBody .jr-table tbody tr').length, carte: !!document.querySelector('#hockeyCardBody .fiche-carte') }));
     exiger('une ligne de Mon club ouvre la fiche de ton joueur : sa carte, sa saison chez toi, ses derniers matchs', await fiche.visible() && fi.carte && nom.includes(fi.titre.trim().split(' ').at(-1)) && /Sa saison chez toi/i.test(fi.corps) && /Son salaire dans ta run/i.test(fi.corps) && fi.matchs >= 1, `${fi.titre} : ${fi.matchs} matchs`);
     await fiche.fermer();
     // « Matchs » : le match qu'on vient de jouer se rouvre de sa feuille de match gardée (JP, 25 nov. 2026 : *la feuille de
     // match, partout*), au pointage que la run garde, puis « Retour » ramène à la liste.
     await clic('#runModal [data-a="seg-c"][data-v="matchs"]', 300);
-    await clic('#runModal .rn-cadre [data-a="match-vu"]', 500);
+    await clic('#runModal .rn-boite [data-a="match-vu"]', 500);
     const rouvert = await pointageVu(p2), vuesDuMatch = await p2.$$eval('#runModal [data-a="seg-m"]', l => l.length);
     await clic('#runModal [data-a="seg-m"][data-v="feuille"]', 300);
     const patineurs = await p2.$$eval('#runModal .som-feuille-table', l => l.map(t => t.querySelectorAll('tbody tr').length));
     await clic('#runModal [data-a="fermer-match-vu"]', 300);
-    exiger('un match passé se rouvre de « Matchs » : le pointage que la run garde, ses quatre vues, la feuille des deux clubs ; « Retour » ramène à la liste', rouvert === pointageGarde(await lu()) && vuesDuMatch === 4 && patineurs.length === 2 && patineurs.every(n => n >= 15) && !!(await p2.$('#runModal .rn-cadre [data-a="match-vu"]')), `${rouvert} ; ${patineurs.join(' et ')} patineurs`);
+    exiger('un match passé se rouvre de « Matchs » : le pointage que la run garde, ses quatre vues, la feuille des deux clubs ; « Retour » ramène à la liste', rouvert === pointageGarde(await lu()) && vuesDuMatch === 4 && patineurs.length === 2 && patineurs.every(n => n >= 15) && !!(await p2.$('#runModal .rn-boite [data-a="match-vu"]')), `${rouvert} ; ${patineurs.join(' et ')} patineurs`);
     await clic('#runModal [data-a="onglet"][data-v="bureau"]', 300);
   }
   // Deuxième soir : quitter la page pendant le direct. Le match est compté ; rouvrir reprend à son résultat, le sommaire avec.
@@ -267,7 +267,52 @@ if (tardive) {
     const R2 = await lu();
     exiger('quitter pendant le direct reprend au résultat du match, son sommaire avec', R2.matchs.length === n0 + 1 && R2.phase === 'resultat' && (await pointageVu(p2)) === pointageGarde(R2) && !(await p2.$('#liveModal .live-fin:visible')), `match ${R2.matchs.length}, phase ${R2.phase}`);
   } else informer('quitter pendant le direct', 'pas essayé : le premier soir menait ailleurs qu\'au bureau');
+  const gardee = await lu();
   await p2.close();
+  /*
+   * À L'ORDINATEUR, AU CLAVIER (V31, docs/refonte-v31.md § 3.6 ; JP, 25 nov. 2026 : *tout le Rogue en fluide*). La même run,
+   * à 1440 × 900, mouvement réduit (« Au match » va droit au résultat) : le focus ne tombe pas d'un rendu à l'autre, il
+   * revient au bouton qui avance — un soir ordinaire se joue en « Entrée » seulement ; l'en-tête ne bouge pas du bureau au
+   * bureau ; Échap ferme d'abord ce qui est ouvert par-dessus (la page d'un club, la pause), et sous la pause la scène ne
+   * se touche pas.
+   */
+  if (gardee) {
+    const p3 = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
+    p3.on('pageerror', e => erreurs.push(e.message));
+    await p3.goto(BASE, { waitUntil: 'networkidle' });
+    await p3.evaluate(r => { localStorage.clear(); localStorage.setItem('cap82_run', JSON.stringify(r)); }, gardee);
+    await p3.reload({ waitUntil: 'networkidle' });
+    await p3.click('#menuDepart [data-menu="rogue"]');
+    await p3.waitForSelector('#runModal .rn-plan [data-a]', { timeout: 90000 });
+    const etat = () => p3.evaluate(() => { const R = JSON.parse(localStorage.getItem('cap82_run') || 'null'), f = document.activeElement, c = document.querySelector('#runModal .rn-hud .rn-coeurs'), e = document.querySelector('#runModal .rn-hud > :first-child');
+      return { phase: R && R.phase, matchs: R ? R.matchs.length : 0, tenu: f && f.dataset ? f.dataset.a || '' : '', bureau: !!document.querySelector('#runModal [data-a="aller"]'), hud: c && e ? [Math.round(c.getBoundingClientRect().left), Math.round(c.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().left)].join() : '' }; });
+    const entree = async () => { await p3.keyboard.press('Enter'); await p3.waitForTimeout(700); };
+    // Jusqu'au bureau, en « Entrée » : le résultat gardé, puis ce qui le suit (une pièce, des portes, un bilan : chacun a son bouton qui avance).
+    await entree();
+    for (let i = 0; i < 12 && !(await etat()).bureau; i++) await entree();
+    let e = await etat();
+    if (e.bureau && e.phase === 'bureau') {
+      const n0 = e.matchs, huds = [e.hud], tenus = [e.tenu];
+      let appuis = 0;
+      // Un soir : « Jouer ce soir », « Au match », la suite. On s'arrête au bureau, un match de plus.
+      do { await entree(); appuis++; e = await etat(); huds.push(e.hud); tenus.push(e.tenu); } while (appuis < 8 && !(e.bureau && e.matchs === n0 + 1));
+      const ordinaire = appuis === 3;
+      exiger('à l\'ordinateur, un soir se joue au clavier en « Entrée » seulement : le focus revient au bouton qui avance', e.bureau && e.matchs === n0 + 1 && tenus.every(Boolean), `${appuis} « Entrée » du bureau au bureau${ordinaire ? ' (un soir ordinaire, mouvement réduit : deux de plus au direct)' : ' (le soir ouvrait autre chose)'} ; tenu : ${tenus.join(' → ')}`);
+      exiger('… et l\'en-tête ne bouge pas du bureau au bureau : son écusson et ses cœurs au même pixel', new Set(huds).size === 1 && !!huds[0], [...new Set(huds)].join(' | '));
+      // Échap ferme la page d'un club, puis ouvre la pause ; sous la pause la scène ne se touche pas ; Échap reprend.
+      await p3.click('#runModal [data-a="club-vu"]');
+      await p3.waitForTimeout(400);
+      const ouverte = !!(await p3.$('#runModal [data-a="fermer-club-vu"]'));
+      await p3.keyboard.press('Escape'); await p3.waitForTimeout(400);
+      const fermee = !(await p3.$('#runModal [data-a="fermer-club-vu"]')) && !(await p3.$('#runModal .rn-pauseur'));
+      await p3.keyboard.press('Escape'); await p3.waitForTimeout(400);
+      const pause = await p3.evaluate(() => { const p = document.querySelector('#runModal .rn-pauseur'); return !!p && [...p.parentElement.children].every(el => el === p || el.inert); });
+      await p3.keyboard.press('Escape'); await p3.waitForTimeout(400);
+      const reprise = !(await p3.$('#runModal .rn-pauseur')) && (await etat()).bureau;
+      exiger('… Échap ferme la page d\'un club, puis ouvre la pause (la scène dessous ne se touche pas), puis reprend', ouverte && fermee && pause && reprise, `ouverte ${ouverte ? 'oui' : 'non'}, fermée ${fermee ? 'oui' : 'non'}, la pause ${pause ? 'oui' : 'non'}, reprise ${reprise ? 'oui' : 'non'}`);
+    } else informer('le clavier à l\'ordinateur', `pas essayé : la run n'est pas revenue au bureau (${e.phase})`);
+    await p3.close();
+  }
 }
 const faux = vu.pointages.filter(([a, b]) => !a || a !== b);
 exiger('le match vu est le match joué : chaque pointage du résultat est celui que la run garde', vu.pointages.length >= 20 && !faux.length, faux.length ? faux.slice(0, 3).map(x => x.join(' ≠ ')).join(' · ') : `${vu.pointages.length} matchs`);

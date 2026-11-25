@@ -1,27 +1,36 @@
 /*
- * LES SCÈNES DU ROGUE À 390 × 844 (V30, docs/refonte-v30-2.md § 3.8, § 9 ; JP, 16 nov. 2026 : *bureau EHM, match illustré*).
- * Un robot (scripts/lib/run_robot.mjs) joue des saisons par les fonctions du jeu et garde une sauvegarde à chaque sorte de
- * scène ; Chromium, à 390 × 844, ouvre chacune par le menu (« Le Rogue ») comme une partie reprise, et on mesure :
+ * LES SCÈNES DU ROGUE, DU TÉLÉPHONE À L'ORDINATEUR (V30, docs/refonte-v30-2.md § 3.8, § 9 ; JP, 16 nov. 2026 : *bureau EHM,
+ * match illustré* ; V31, docs/refonte-v31.md § 9 ; JP, 25 nov. 2026 : *tout le Rogue en fluide*). Un robot
+ * (scripts/lib/run_robot.mjs) joue des saisons par les fonctions du jeu et garde une sauvegarde à chaque sorte de scène ;
+ * Chromium ouvre chacune par le menu (« Le Rogue ») comme une partie reprise, et on mesure.
  *
+ * À 390 × 844, TOUTES LES SCÈNES :
  *   1. les scènes du devis sont toutes là : le départ, les pièces, le repêchage, l'ouverture du quart, le bureau et ses
  *      onglets (l'alignement, un joueur tenu, le banc, la masse, le classement, les meneurs, les gardiens de la ligue, la
- *      cédule, la page d'un club, mon club, ses
- *      gardiens, ses matchs), les pochettes, la pause, la feuille du soir, l'affiche posée (le duel), le résultat et ses
- *      quatre vues (le sommaire, le récit, les chiffres, la feuille des deux clubs), la pièce d'un rival battu, les trois portes, la porte ouverte, l'échange, le bilan, le marché du quart,
- *      les séries et leur feuille, la fin ; et celles d'entre deux runs, ouvertes d'un méta semé (le départ et ses crans,
- *      le Club et ses pages, l'Album d'un cartable semé, le solde, une run d'avant qui s'arrête) ;
- *   2. la scène ne défile jamais, et rien du site ne dépasse : seul le cadre d'un tableau défile, en lui-même
- *      (`.rn-cadre`), et il tient entre le HUD et les onglets ; un tableau de stats (`.rn-glisse` : Mon club) y glisse aussi
- *      de côté, le nom figé à gauche et la tête en haut (JP, 25 nov. 2026) ;
- *   3. le HUD est toujours au même endroit (ses cœurs au même pixel) ;
+ *      cédule, la page d'un club, mon club, ses gardiens, ses matchs, un match passé), les pochettes, la pause, la feuille du
+ *      soir, l'affiche posée (le duel), le résultat et ses quatre vues, la pièce d'un rival battu, les trois portes, la porte
+ *      ouverte, l'échange, le bilan, le marché du quart, les séries et leur feuille, la fin ; et celles d'entre deux runs,
+ *      ouvertes d'un méta semé (le départ et ses crans, le Club et ses pages, l'Album d'un cartable semé, le solde, une run
+ *      d'avant qui s'arrête) ;
+ *   2. aucune scène ne fait défiler la page, et rien du site ne dépasse ; une scène en plan fixe (pas encore refaite) ne
+ *      défile jamais ; dans une scène neuve, une boîte nommée (`data-defile`) défile à sa place, jamais dans une autre, et
+ *      de côté seulement si c'est un tableau de stats (son nom figé à gauche, sa tête en haut) ; un milieu qui ne défile pas
+ *      ne coupe rien de ce qu'il porte ;
+ *   3. l'en-tête est toujours au même endroit (son écusson et ses cœurs au même pixel) ;
  *   4. chaque cible fait 44 × 44 (scripts/lib/cibles.mjs), et tient dans l'écran ;
  *   5. aucun panneau ne passe sous les boutons du bas ni sous les onglets ;
  *   6. le classement montre les trente-deux clubs, la ligne des séries, et s'ouvre sur ton club ;
- *   7. aucune erreur de page.
+ *   7. une scène neuve ne pose rien au pixel, et son bouton qui avance est dans le bas, à l'écran ;
+ *   8. aucune erreur de page.
+ * À CINQ AUTRES ÉCRANS (360 × 640, 820 × 1180, 844 × 390, 1366 × 650, 1440 × 900), LES SCÈNES NEUVES — le soir, du résultat
+ * d'hier à celui de ce soir par le bureau et ses onglets : les mêmes mesures, puis ce que chaque écran promet (à 360 × 640
+ * rien ne rapetisse et un tableau garde sa place ; à la tablette deux colonnes ; à l'ordinateur trois colonnes, tes
+ * vingt-trois sans défiler, quatorze colonnes sans glisser, une ligne qui répond au survol). À 390 × 844, 820 × 1180 et
+ * 1440 × 900, aucun milieu ne défile hors d'un tableau.
  * Le ballottage et une histoire s'ouvrent si une des saisons jouées en garde une sauvegarde ; sinon ils s'impriment absents.
  *
- *   node scripts/check_scene.mjs http://localhost:8000 [dossier]     (deux minutes ; une capture par scène dans le dossier ;
- *                                                                     `NETTETE=2` : des captures nettes, à montrer)
+ *   node scripts/check_scene.mjs http://localhost:8000 [dossier]     (quatre minutes ; une capture par scène dans le dossier,
+ *                                                                     et une par scène et par écran ; `NETTETE=2` : nettes)
  */
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
@@ -94,51 +103,76 @@ informer('les scènes facultatives', FACULTATIVES.map(k => `${k} : ${saves[k] ? 
 
 /* ---------- le navigateur ---------- */
 const browser = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
-const erreurs = [], fautes = { defile: [], dehors: [], hud: [], cibles: [], bord: [], couvert: [], cadre: [] }, vues = [];
-let hud0 = null;
+const erreurs = [], fautes = { defile: [], dehors: [], hud: [], cibles: [], bord: [], couvert: [], cadre: [], neuf: [], ecrans: [] }, vues = [];
+// L'en-tête de chaque écran (son écusson, ses cœurs), et les écrans où un milieu doit tenir sans défiler.
+const huds = new Map(), HAUTS = ['390 × 844', '820 × 1180', '1440 × 900'];
 if (DOSSIER) fs.mkdirSync(DOSSIER, { recursive: true });
 
-async function mesurer(page, nom) {
+async function mesurer(page, nom, { garde = true } = {}) {
   await page.waitForTimeout(350);
+  const { width: L, height: H } = page.viewportSize();
   const m = await page.evaluate(({ L, H }) => {
     const racine = document.getElementById('runModal'), plan = racine && racine.querySelector('.rn-plan');
     if (!plan) return null;
-    const de = document.scrollingElement, r = plan.getBoundingClientRect();
+    const de = document.scrollingElement, r = plan.getBoundingClientRect(), fluide = plan.classList.contains('rn-fluide'), boite = el => el.getBoundingClientRect();
     // Chaque point d'une grille de l'écran est dans la scène : rien du site ne dépasse.
     let dehors = 0;
     for (let x = 6; x < L; x += 54) for (let y = 6; y < H; y += 52) { const el = document.elementFromPoint(x, y); if (!el || !racine.contains(el)) dehors++; }
-    const coeurs = plan.querySelector('.rn-hud .rn-coeurs'), rc = coeurs && coeurs.getBoundingClientRect();
-    // Ce qu'on touche tient dans l'écran ; une ligne d'un tableau qui défile se juge par son cadre.
-    const bords = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('.rn-cadre')).map(el => ({ el, b: el.getBoundingClientRect() })).filter(({ b }) => b.width > 0 && (b.left < -0.5 || b.top < -0.5 || b.right > L + 0.5 || b.bottom > H + 0.5)).map(({ el }) => el.dataset.a);
-    // Un panneau, un cadre ou une rangée de boutons ne passe jamais sous les boutons du bas ni sous les onglets : ce qui déborde se lit à moitié.
-    const boite = el => el.getBoundingClientRect(), dessous = [...plan.querySelectorAll('.rn-cellules, .rn-bas, .rn-onglets')].filter(el => !el.closest('.rn-cadre')).map(boite);
+    const coeurs = plan.querySelector('.rn-hud .rn-coeurs'), rc = coeurs && boite(coeurs), ecusson = plan.querySelector('.rn-hud > :first-child'), re = ecusson && boite(ecusson);
+    // Ce qu'on touche tient dans l'écran ; ce qui est dans une boîte qui défile se juge par sa boîte.
+    const bords = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('[data-defile]')).map(el => ({ el, b: boite(el) })).filter(({ b }) => b.width > 0 && (b.left < -0.5 || b.top < -0.5 || b.right > L + 0.5 || b.bottom > H + 0.5)).map(({ el }) => el.dataset.a);
+    // Un panneau, une boîte ou une rangée de boutons ne passe jamais sous les boutons du bas ni sous les onglets : ce qui déborde se lit à moitié.
+    const dessous = [...plan.querySelectorAll('.rn-cellules, .rn-bas, .rn-onglets')].filter(el => !el.closest('[data-defile]')).map(boite);
     const sous = p => p.height > 0 && dessous.some(d => d.top > p.top && p.bottom > d.top + 1 && p.left < d.right && p.right > d.left);
     // Ni une cible qu'on touche, où qu'elle soit (une réponse d'histoire dont le texte s'allonge poussait son « Prendre » sous « Plus tard »).
-    const cibles = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('.rn-cadre, .rn-bas, .rn-onglets'));
+    // (La pause est par-dessus la scène, pas dessous : ses boutons ne se jugent pas contre le bas qu'elle couvre.)
+    const cibles = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('[data-defile], .rn-bas, .rn-onglets, .rn-pauseur'));
     // Ni un texte coupé par son bloc : la réponse d'une histoire, tenue entre sa carte et son « Prendre ».
     const coupes = [...plan.querySelectorAll('.rn-reps p')].filter(p => p.scrollHeight > p.clientHeight + 1).length;
-    const couverts = [...plan.querySelectorAll('.rn-panneau, .rn-cadre, .rn-bas, .rn-versbanc'), ...cibles].map(boite).filter(sous).length + coupes;
-    // Le cadre d'un tableau : entre le HUD et le bas de l'écran, et lui seul défile.
-    const cadre = plan.querySelector('.rn-cadre'), bc = cadre && cadre.getBoundingClientRect(), moi = cadre && cadre.querySelector('.rn-moi'), bm = moi && moi.getBoundingClientRect();
-    return { couverts, defile: de.scrollHeight > H + 1 || de.scrollWidth > L + 1 || racine.scrollHeight > racine.clientHeight + 1 || plan.scrollHeight > plan.clientHeight + 1,
-      plan: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)], dehors, hud: rc ? [Math.round(rc.left), Math.round(rc.top)] : null, bords,
-      cadre: bc ? { glisse: cadre.classList.contains('rn-glisse'), ok: bc.top >= 54 && bc.bottom <= H && bc.left >= 0 && bc.right <= L && (cadre.classList.contains('rn-glisse') || cadre.scrollWidth <= cadre.clientWidth + 1), lignes: cadre.querySelectorAll('.rn-l:not(.rn-tete):not(.rn-unite):not(.rn-coupe)').length, coupe: !!cadre.querySelector('.rn-coupe'), moiVu: bm ? bm.top >= bc.top && bm.bottom <= bc.bottom : null } : null };
-  }, { L: LARGEUR, H: HAUTEUR });
+    // Les boîtes qui défilent : chacune dans l'écran, sous l'en-tête ; de côté, seulement celle d'un tableau de stats. Sur un écran
+    // très court, ce qui coiffe un tableau défile avec lui : sa boîte se juge alors par le milieu qui la porte.
+    const boites = [...plan.querySelectorAll('[data-defile]')], haut = el => el.scrollHeight > el.clientHeight + 1, cote = el => el.scrollWidth > el.clientWidth + 1;
+    const portee = b => boites.some(a => a !== b && a.contains(b) && haut(a) && /auto|scroll/.test(getComputedStyle(a).overflowY));
+    const couverts = [...[...plan.querySelectorAll('.rn-panneau, .rn-bas')].filter(el => !el.closest('[data-defile]')), ...[...plan.querySelectorAll('.rn-boite')].filter(b => !portee(b)), ...cibles].map(boite).filter(sous).length + coupes;
+    const horsPlace = boites.filter(b => { const x = boite(b); return x.height > 0 && ((!portee(b) && (x.top < 53 || x.bottom > H + 0.5 || x.left < -0.5 || x.right > L + 0.5)) || (cote(b) && !b.querySelector('.rn-large'))); }).map(b => b.dataset.defile);
+    // Jamais une boîte qui défile de haut en bas dans une autre ; et un milieu qui ne défile pas ne coupe rien de ce qu'il porte.
+    const defile = el => /auto|scroll/.test(getComputedStyle(el).overflowY);
+    const imbriquees = boites.filter(b => haut(b) && defile(b) && boites.some(a => a !== b && a.contains(b) && haut(a) && defile(a))).map(b => b.dataset.defile);
+    const coupe = [...plan.querySelectorAll('.rn-milieu')].filter(el => !defile(el) && (haut(el) || cote(el))).length;
+    const tab = plan.querySelector('.rn-boite'), bc = tab && boite(tab), moi = tab && tab.querySelector('.rn-moi'), bm = moi && boite(moi);
+    // Une scène neuve ne pose rien au pixel (la jauge du plafond exceptée : sa place vient des données), et son bouton qui avance est dans le bas, à l'écran.
+    const coords = fluide ? [...plan.querySelectorAll('[style]')].filter(el => !el.closest('.rn-plaf') && /(^|;)\s*(left|right|top|bottom|inset)\s*:/.test(el.getAttribute('style'))).length : 0;
+    const avance = fluide ? [...plan.querySelectorAll('.rn-bt:is(.go, .rn-combat)')].filter(b => { const x = boite(b); return !b.closest('.rn-bas') || x.bottom > H + 0.5 || x.top < 0 || x.right > L + 0.5; }).length : 0;
+    return { fluide, couverts, horsPlace, imbriquees, coupe, coords, avance, lecture: [...plan.querySelectorAll('.rn-lecture, .rn-col')].some(haut),
+      defile: de.scrollHeight > H + 1 || de.scrollWidth > L + 1 || racine.scrollHeight > racine.clientHeight + 1 || plan.scrollHeight > plan.clientHeight + 1,
+      plan: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)], dehors, bords,
+      hud: rc ? [Math.round(rc.left), Math.round(rc.top), re ? Math.round(re.left) : 0, re ? Math.round(re.top) : 0] : null,
+      cadre: bc ? { glisse: !!tab.querySelector('.rn-large'), lignes: tab.querySelectorAll('.rn-l:not(.rn-tete):not(.rn-unite):not(.rn-coupe)').length, coupe: !!tab.querySelector('.rn-coupe'), moiVu: bm ? bm.top >= bc.top && bm.bottom <= bc.bottom : null } : null };
+  }, { L, H });
   if (!m) { fautes.defile.push(`${nom} : aucune scène`); return null; }
-  vues.push(nom);
-  if (m.defile || m.plan.join() !== `0,0,${LARGEUR},${HAUTEUR}`) fautes.defile.push(`${nom} (${m.plan.join(' ')})`);
-  if (m.dehors) fautes.dehors.push(`${nom} : ${m.dehors} points hors de la scène`);
-  if (m.couverts) fautes.couvert.push(`${nom} : ${m.couverts} bloc${m.couverts > 1 ? 's' : ''}`);
-  if (m.cadre && !m.cadre.ok) fautes.cadre.push(`${nom} : le cadre sort de sa place ou défile de côté`);
-  if (m.hud) { if (!hud0) hud0 = m.hud; else if (m.hud.join() !== hud0.join()) fautes.hud.push(`${nom} : ${m.hud.join(',')} au lieu de ${hud0.join(',')}`); }
-  if (m.bords.length) fautes.bord.push(`${nom} : ${m.bords.slice(0, 3).join(', ')}`);
+  const ecran = `${L} × ${H}`, ici = garde ? nom : `${nom} à ${ecran}`;
+  if (garde) vues.push(nom);
+  // Une scène en plan fixe est au centre, à sa taille ; une scène neuve prend l'écran. Ni l'une ni l'autre ne fait défiler la page.
+  if (m.defile || (garde && m.plan.join() !== `0,0,${L},${H}`) || (m.fluide && m.plan.join() !== `0,0,${L},${H}`)) fautes.defile.push(`${ici} (${m.plan.join(' ')})`);
+  // Aux écrans de référence, aucun milieu ne défile hors d'un tableau.
+  if (m.lecture && HAUTS.includes(ecran)) fautes.defile.push(`${ici} : son milieu défile`);
+  if (m.dehors) fautes.dehors.push(`${ici} : ${m.dehors} points hors de la scène`);
+  if (m.couverts) fautes.couvert.push(`${ici} : ${m.couverts} bloc${m.couverts > 1 ? 's' : ''}`);
+  if (m.horsPlace.length) fautes.cadre.push(`${ici} : ${m.horsPlace.join(', ')} sort de sa place ou défile de côté`);
+  if (m.imbriquees.length) fautes.cadre.push(`${ici} : ${m.imbriquees.join(', ')} défile dans une boîte qui défile`);
+  if (m.coupe) fautes.cadre.push(`${ici} : son milieu coupe ce qu'il porte`);
+  if (m.coords) fautes.neuf.push(`${ici} : ${m.coords} position${m.coords > 1 ? 's' : ''} au pixel`);
+  if (m.avance) fautes.neuf.push(`${ici} : le bouton qui avance hors du bas ou de l'écran`);
+  // L'en-tête au même endroit : l'écusson et les cœurs, dans toutes les scènes d'un même écran (les scènes en plan fixe, à 390 × 844 seulement).
+  if (m.hud && (m.fluide || garde)) { const h0 = huds.get(ecran); if (!h0) huds.set(ecran, m.hud); else if (m.hud.join() !== h0.join()) fautes.hud.push(`${ici} : ${m.hud.join(',')} au lieu de ${h0.join(',')}`); }
+  if (m.bords.length) fautes.bord.push(`${ici} : ${m.bords.slice(0, 3).join(', ')}`);
   const petites = await ciblesTropPetites(page);
-  if (petites.length) fautes.cibles.push(`${nom} : ${petites.slice(0, 3).join(' | ')}`);
-  if (DOSSIER) await page.screenshot({ path: `${DOSSIER}/scene-${String(vues.length).padStart(2, '0')}-${nom.replace(/[^a-zà-ü]+/gi, '-')}.png` });
+  if (petites.length) fautes.cibles.push(`${ici} : ${petites.slice(0, 3).join(' | ')}`);
+  if (DOSSIER) await page.screenshot({ path: garde ? `${DOSSIER}/scene-${String(vues.length).padStart(2, '0')}-${nom.replace(/[^a-zà-ü]+/gi, '-')}.png` : `${DOSSIER}/ecran-${L}x${H}-${nom.replace(/[^a-zà-ü]+/gi, '-')}.png` });
   return m;
 }
-async function ouvrir(R, meta = null, cartable = null) {
-  const page = await browser.newPage({ viewport: { width: LARGEUR, height: HAUTEUR }, deviceScaleFactor: Number(process.env.NETTETE) || 1, hasTouch: true, reducedMotion: 'reduce' });
+async function ouvrir(R, meta = null, cartable = null, [largeur, hauteur] = [LARGEUR, HAUTEUR]) {
+  const page = await browser.newPage({ viewport: { width: largeur, height: hauteur }, deviceScaleFactor: Number(process.env.NETTETE) || 1, hasTouch: largeur < 1000, reducedMotion: 'reduce' });
   page.on('pageerror', e => erreurs.push(e.message));
   await page.goto(BASE, { waitUntil: 'networkidle' });
   await page.evaluate(([r, m, c]) => { localStorage.clear(); if (r) localStorage.setItem('cap82_run', JSON.stringify(r)); if (m) localStorage.setItem('cap82_rogue', JSON.stringify(m)); if (c) localStorage.setItem('cap82_cartable', JSON.stringify(c)); }, [R, meta, cartable]);
@@ -230,8 +264,8 @@ for (const [cle, suites] of Object.entries(SUITES)) {
     if (nom.startsWith('la feuille')) await page.waitForTimeout(1200);
     const m = await mesurer(page, nom);
     if (m && m.cadre) tableaux[nom] = m.cadre;
-    // Un tableau de stats glisse de côté dans son cadre : glissé au bout, sa dernière colonne se lit, le nom n'a pas bougé, la tête non plus.
-    if (m && m.cadre && m.cadre.glisse) tableaux[nom].fige = await page.$eval('#runModal .rn-cadre', el => {
+    // Un tableau de stats glisse de côté dans sa boîte : glissé au bout, sa dernière colonne se lit, le nom n'a pas bougé, la tête non plus.
+    if (m && m.cadre && m.cadre.glisse) tableaux[nom].fige = await page.$eval('#runModal .rn-boite', el => {
       const b = el.getBoundingClientRect(), l = el.querySelector('.rn-l:not(.rn-tete)'), t = el.querySelector('.rn-tete');
       if (!l || !t || el.scrollWidth <= el.clientWidth + 1) return false;
       el.scrollLeft = el.scrollWidth; el.scrollTop = 40;
@@ -244,15 +278,70 @@ for (const [cle, suites] of Object.entries(SUITES)) {
   }
   await page.close();
 }
+/*
+ * LES AUTRES ÉCRANS (V31, docs/refonte-v31.md § 9 ; JP, 25 nov. 2026 : *tout le Rogue en fluide*). Les scènes neuves — le
+ * soir, du résultat d'hier au résultat de ce soir, par le bureau et ses onglets — rouvertes de la même sauvegarde à cinq
+ * autres écrans : un petit téléphone, une tablette debout, un téléphone couché, un portable court, un ordinateur. À chacun,
+ * les mesures de toutes les scènes (rien ne déborde, aucune boîte qui défile dans une autre, l'en-tête au même pixel, le
+ * bouton qui avance dans le bas, aucune position au pixel, chaque cible de 44), puis ce que cet écran-là promet.
+ */
+const ECRANS = [[360, 640], [820, 1180], [844, 390], [1366, 650], [1440, 900]];
+/* [la scène, ses gestes] ; un geste est [a, v, facultatif] : en large, un segment déplié n'a plus le bouton de sa seconde vue. */
+const PARCOURS = [['le résultat, la feuille', [['seg-r', 'feuille']]], ['le bureau', [['continuer']]], ['l\'alignement', [['onglet', 'alignement']]], ['le banc', [['seg-a', 'banc']]],
+  ['la masse', [['onglet', 'masse']]], ['le classement', [['onglet', 'ligue']]], ['les meneurs', [['seg-l', 'meneurs']]], ['la cédule', [['seg-l', 'cedule', true]]],
+  ['la page d\'un club', [['seg-l', 'classement'], ['club-vu', '3']]], ['mon club', [['fermer-club-vu'], ['onglet', 'club']]], ['mes matchs', [['seg-c', 'matchs', true]]], ['un match passé', [['match-vu', '0']]],
+  ['la pause', [['fermer-match-vu'], ['onglet', 'bureau'], ['pause']]], ['la feuille du soir', [['reprendre'], ['aller']]], ['le résultat du soir', [['jouer']]]];
+const E = {};
+/* Ce qu'un écran promet d'une scène : ses panneaux, ses colonnes, ses boîtes, ce qui se coupe. */
+const lire = page => page.evaluate(() => {
+  const plan = document.querySelector('#runModal .rn-plan'), m = plan.querySelector('.rn-milieu'), b = el => { const r = el.getBoundingClientRect(); return { g: r.left, h: r.top, d: r.right, b: r.bottom }; };
+  const coupe = el => el.scrollWidth > el.clientWidth + 1;
+  return { milieu: m ? b(m) : null, panneaux: [...plan.querySelectorAll('.rn-milieu .rn-panneau')].map(b), colonnes: plan.querySelectorAll('.rn-milieu > .rn-col').length,
+    soir: plan.querySelector('.rn-p-soir') ? b(plan.querySelector('.rn-p-soir')) : null, proprio: plan.querySelector('.rn-p-proprio') ? b(plan.querySelector('.rn-p-proprio')) : null,
+    boites: Object.fromEntries([...plan.querySelectorAll('[data-defile]')].map(x => [x.dataset.defile, { haut: x.scrollHeight > x.clientHeight + 1, cote: x.scrollWidth > x.clientWidth + 1, lignes: x.querySelectorAll('.rn-l:not(.rn-tete):not(.rn-unite):not(.rn-coupe)').length, colonnes: x.querySelector('.rn-tete') ? x.querySelector('.rn-tete').children.length : 0 }])),
+    coupes: [...plan.querySelectorAll('.rn-large .rn-l:not(.rn-tete) > :first-child, .rn-alig .rn-l:not(.rn-tete):not(.rn-unite) > :nth-child(2)')].filter(coupe).length };
+});
+if (saves.resultat) for (const ecran of ECRANS) {
+  const cle = `${ecran[0]} × ${ecran[1]}`, page = await ouvrir(saves.resultat, null, null, ecran);
+  E[cle] = {};
+  await mesurer(page, 'le résultat', { garde: false });
+  for (const [nom, gestes] of PARCOURS) {
+    let ok = true;
+    for (const [a, v, facultatif] of gestes) ok = (await geste(page, a, v) || !!facultatif) && ok;
+    if (!ok) { fautes.ecrans.push(`${nom} à ${cle} : un geste manque (${gestes.map(x => x[0]).join(', ')})`); continue; }
+    if (nom === 'la feuille du soir') await page.waitForTimeout(1200);
+    await mesurer(page, nom, { garde: false });
+    E[cle][nom] = await lire(page);
+    // Un tableau garde sa place : défilé au bas des lignes, le dernier joueur tenu, la boîte n'a pas bougé.
+    if (nom === 'l\'alignement' && E[cle][nom].boites.lignes && E[cle][nom].boites.lignes.haut) {
+      const y0 = await page.$eval('#runModal [data-defile="lignes"]', el => { el.scrollTop = el.scrollHeight; return el.scrollTop; });
+      await (await page.$$('#runModal [data-defile="lignes"] [data-a="case"]')).at(-1).click();
+      await page.waitForTimeout(350);
+      E[cle].place = [y0, await page.$eval('#runModal [data-defile="lignes"]', el => el.scrollTop)];
+      await (await page.$$('#runModal [data-defile="lignes"] [data-a="case"]')).at(-1).click();
+      await page.waitForTimeout(250);
+    }
+    // À la souris, une ligne qu'on survole répond.
+    if (nom === 'le classement' && ecran[0] >= 1000) {
+      const fond = () => page.$eval('#runModal [data-defile="classement"] button.rn-l:not(.rn-moi)', el => getComputedStyle(el).backgroundColor);
+      const avant = await fond();
+      await page.hover('#runModal [data-defile="classement"] button.rn-l:not(.rn-moi)');
+      await page.waitForTimeout(150);
+      E[cle].survol = [avant, await fond()];
+      await page.mouse.move(2, 2);
+    }
+  }
+  await page.close();
+}
 await browser.close();
 
 const VOULUES = ['le départ', ...Object.keys(SUITES).filter(k => !FACULTATIVES.includes(k)).flatMap(k => [NOMS[k], ...SUITES[k].map(x => x[0])]),
   'le départ, ses crans', 'le Club : la variété', 'ton club', 'ton club : les couleurs', 'l\'Album', 'l\'Album, la page suivante', 'l\'Album : les gravées', 'l\'Album : les entraîneurs', 'le palmarès', 'le solde', 'le départ, une run d\'avant arrêtée'];
 exiger('chaque scène du devis s\'ouvre', VOULUES.every(n => vues.includes(n)), VOULUES.filter(n => !vues.includes(n)).join(', ') || `${vues.length} scènes`);
 exiger('entre deux runs : les crans et la philosophie neuve au départ, le Club qui se ferme d\'où on vient, le solde puis le départ, une run d\'avant arrêtée', meta.present.every(x => x[1]), meta.present.filter(x => !x[1]).map(x => x[0]).join(' · ') || `${meta.present.length} gestes`);
-exiger('la scène ne défile jamais : un plan de 390 × 844', !fautes.defile.length, fautes.defile.slice(0, 4).join(' · '));
+exiger('aucune scène ne fait défiler la page ; à 390 × 844, 820 × 1180 et 1440 × 900, aucun milieu ne défile hors d\'un tableau', !fautes.defile.length, fautes.defile.slice(0, 4).join(' · '));
 exiger('rien du site ne dépasse : ni en-tête, ni barre du site', !fautes.dehors.length, fautes.dehors.slice(0, 4).join(' · '));
-exiger('seul le cadre d\'un tableau défile, en lui-même, à sa place', !fautes.cadre.length, fautes.cadre.slice(0, 4).join(' · ') || `${Object.keys(tableaux).length} tableaux`);
+exiger('une boîte qui défile reste à sa place, jamais dans une autre ; de côté, seulement un tableau de stats', !fautes.cadre.length, fautes.cadre.slice(0, 4).join(' · ') || `${Object.keys(tableaux).length} tableaux`);
 const C = tableaux['le classement'];
 exiger('le classement montre les trente-deux clubs et la ligne des séries, et s\'ouvre sur ton club', !!C && C.lignes === 32 && C.coupe && C.moiVu === true, C ? `${C.lignes} clubs, la ligne ${C.coupe ? 'tracée' : 'absente'}, ton club ${C.moiVu ? 'à l\'écran' : 'hors du cadre'}` : 'pas de tableau');
 const GL = ['le classement', 'les meneurs', 'les meneurs, triés par le +/−', 'les gardiens de la ligue', 'la page d\'un club', 'mon club', 'mon club, trié par les buts', 'mes gardiens'].map(n => [n, tableaux[n]]);
@@ -263,9 +352,32 @@ const MP = tableaux['un match passé, sa feuille'], MM = tableaux['mes matchs'];
 exiger('un match passé se rouvre de Mon club : sa feuille de match gardée dit encore les patineurs des deux clubs', !!MP && MP.patineurs.length === 2 && MP.patineurs.every(n => n >= 15) && !!MM && MM.lignes >= 1, MP ? `${MP.patineurs.join(' et ')} patineurs` : 'pas de feuille');
 exiger('l\'alignement montre tes vingt-trois', !!tableaux['l\'alignement'] && tableaux['l\'alignement'].lignes >= 23, tableaux['l\'alignement'] ? `${tableaux['l\'alignement'].lignes} lignes` : 'pas de tableau');
 exiger('aucun bloc ni aucune cible ne passe sous les boutons du bas ni sous les onglets, aucune réponse d\'histoire n\'est coupée', !fautes.couvert.length, fautes.couvert.slice(0, 4).join(' · '));
-exiger('le HUD est toujours au même endroit', !fautes.hud.length && !!hud0, fautes.hud.slice(0, 4).join(' · ') || `ses cœurs à ${hud0 ? hud0.join(',') : '?'}`);
+exiger('l\'en-tête est toujours au même endroit : son écusson et ses cœurs au même pixel, à chaque écran', !fautes.hud.length && huds.size === ECRANS.length + 1, fautes.hud.slice(0, 4).join(' · ') || [...huds].map(([e, h]) => `${e} : ${h.slice(0, 2).join(',')}`).join(' · '));
+// ---- les autres écrans (V31) ----
+{
+  const e = (ecran, nom) => (E[ecran] || {})[nom] || null, bas = (x, k) => Math.max(0, ...x.panneaux.map(p => p[k]));
+  exiger('le soir s\'ouvre à cinq autres écrans, du petit téléphone à l\'ordinateur', !fautes.ecrans.length && ECRANS.every(([l, h]) => PARCOURS.every(([nom]) => (E[`${l} × ${h}`] || {})[nom])), fautes.ecrans.slice(0, 4).join(' · ') || `${ECRANS.map(x => x.join(' × ')).join(' · ')} : ${PARCOURS.length + 1} scènes chacun`);
+  exiger('une scène neuve ne pose rien au pixel, et son bouton qui avance est dans le bas, à l\'écran', !fautes.neuf.length, fautes.neuf.slice(0, 4).join(' · '));
+  const P = e('360 × 640', 'le bureau');
+  exiger('à 360 × 640, rien ne rapetisse : ce soir et le proprio se lisent sans défiler', !!P && !!P.soir && !!P.proprio && P.soir.h >= P.milieu.h - 1 && P.proprio.b <= P.milieu.b + 1, P && P.proprio ? `le proprio finit à ${Math.round(P.proprio.b)} px, le milieu à ${Math.round(P.milieu.b)}` : 'pas de bureau');
+  const place = (E['360 × 640'] || {}).place;
+  exiger('un tableau garde sa place : défilé au bas des lignes, le dernier joueur tenu, la boîte n\'a pas bougé', !!place && place[0] > 0 && Math.abs(place[0] - place[1]) <= 1, place ? `${Math.round(place[0])} px, puis ${Math.round(place[1])}` : 'pas mesuré');
+  const T = e('820 × 1180', 'le bureau');
+  exiger('à la tablette, le bureau tient en deux colonnes et ses panneaux descendent à la moitié du milieu', !!T && T.colonnes === 2 && bas(T, 'b') - T.milieu.h >= 0.5 * (T.milieu.b - T.milieu.h), T ? `${T.colonnes} colonnes, jusqu'à ${Math.round((100 * (bas(T, 'b') - T.milieu.h)) / (T.milieu.b - T.milieu.h))} % du milieu` : 'pas de bureau');
+  const G = e('1440 × 900', 'le bureau');
+  exiger('à l\'ordinateur, le bureau s\'étale : trois colonnes, six panneaux dont le haut est à l\'écran, jusqu\'à 85 % de la largeur et 60 % de la hauteur', !!G && G.colonnes === 3 && G.panneaux.length >= 6 && G.panneaux.every(p => p.h < G.milieu.b) && bas(G, 'd') >= 0.85 * 1440 && bas(G, 'b') - G.milieu.h >= 0.6 * (G.milieu.b - G.milieu.h),
+    G ? `${G.colonnes} colonnes, ${G.panneaux.length} panneaux, jusqu'à ${Math.round(bas(G, 'd'))} px de large et ${Math.round((100 * (bas(G, 'b') - G.milieu.h)) / (G.milieu.b - G.milieu.h))} % du milieu` : 'pas de bureau');
+  const A = e('1440 × 900', 'l\'alignement'), M = e('1440 × 900', 'mon club');
+  exiger('… tes vingt-trois se lisent à l\'Alignement sans défiler', !!A && !!A.boites.avants && !!A.boites.arriere && !A.boites.avants.haut && !A.boites.arriere.haut && A.boites.avants.lignes + A.boites.arriere.lignes >= 23, A && A.boites.avants ? `${A.boites.avants.lignes} avants et ${A.boites.arriere.lignes} à l'arrière` : 'pas deux boîtes');
+  exiger('… et le tableau de Mon club montre ses quatorze colonnes sans glisser, tes matchs à côté', !!M && !!M.boites.patineurs && !M.boites.patineurs.cote && M.boites.patineurs.colonnes === 15 && !!M.boites.matchs, M && M.boites.patineurs ? `${M.boites.patineurs.colonnes - 1} colonnes` : 'pas de tableau');
+  const survol = (E['1440 × 900'] || {}).survol;
+  exiger('… à la souris, une ligne qu\'on survole répond', !!survol && survol[0] !== survol[1], survol ? survol.join(' → ') : 'pas mesuré');
+  const coupes = ECRANS.map(([l, h]) => `${l} × ${h}`).map(k => [k, (e(k, 'le classement') || {}).coupes, (e(k, 'l\'alignement') || {}).coupes]);
+  exiger('aucun nom de club coupé au classement, à aucun écran', coupes.every(([, c]) => c === 0), coupes.map(([k, c]) => `${k} : ${c}`).join(' · '));
+  informer('les noms de joueurs coupés à l\'Alignement', coupes.map(([k, , a]) => `${k} : ${a}`).join(' · '));
+}
 exiger('chaque cible fait 44 × 44', !fautes.cibles.length, fautes.cibles.slice(0, 5).join(' · '));
 exiger('chaque cible tient dans l\'écran', !fautes.bord.length, fautes.bord.slice(0, 4).join(' · '));
 exiger('aucune erreur de page', !erreurs.length, [...new Set(erreurs)].slice(0, 3).join(' · '));
 informer('les scènes', vues.join(' · '));
-verdict('Les scènes du Rogue à 390 × 844');
+verdict('Les scènes du Rogue, du téléphone à l\'ordinateur');

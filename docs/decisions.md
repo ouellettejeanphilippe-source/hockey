@@ -4121,3 +4121,33 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 
 **Les preuves.** `check_run` (20 : chaque match relu des archives compte de chacun ce que la feuille complète comptait, côté par côté, dit les mêmes buts, les mêmes tirs, les mêmes arrêts et le même « avant » ; moins de 2,5 Ko par match ; les mêmes archives, gardée puis relue au trentième match), `check_scene` (16, 60 scènes : un match passé, sa feuille), `essai_run` (le match qu'on vient de jouer se rouvre de « Matchs » au pointage que la run garde).
 
+## V31, tranche 1 : le Rogue en fluide, la coquille et le soir (25 nov. 2026)
+
+**Ce que JP a demandé** : *ui adapté à toutes les tailles de l'écran, pas juste mobile* ; puis, à la question « jusqu'où » : *tout le Rogue en fluide*. Et : *use the web design one from this* (les Web Interface Guidelines de Vercel).
+
+**Ce que le plan fixe coûtait**, calculé de ses trois constantes (390 × 844, une échelle bornée à 1,25) : à 1440 × 900, une colonne de 416 px, 29 % de la largeur ; à 820 × 1180, 59 % ; à 360 × 640, tout à 76 % : un bouton de 44 px en faisait 33.
+
+**Quatre questions tranchées par JP**, les chiffres dans chacune : tout le Rogue (écarté : le bureau seul) ; sur un grand écran le bureau s'étale en panneaux (écartés : liste et détail ; la même colonne, plus large) ; sur un petit écran le milieu de la scène défile, la règle « ne défile jamais » reposée (écarté : une version courte de chaque scène) ; code direct, par tranches (écarté : des maquettes d'abord).
+
+**La revue du devis a changé le devis.** Deux relecteurs en adversaires, « à reprendre » tous deux (docs/refonte-v31.md § 12). Le premier devis coupait le soir en deux : le bureau en fluide, la feuille du soir en plan fixe, donc un en-tête qui sautait de 1 352 à 416 px deux fois par soir. La tranche 1 suit maintenant le soir entier. Il se contredisait sur ce qui défile (une règle : un seul défilement par colonne), et sa liste « ce qui part » aurait demandé au juge de voir partir le tableau et l'en-tête.
+
+**Ce qui est fait.**
+
+- *La coquille.* Une grille : l'en-tête sur toute la largeur, le milieu, le bas, les onglets ; le rail à gauche par la règle du site. Rien n'est mis à l'échelle. Les scènes pas encore refaites gardent leur plan fixe au centre : la coquille reconnaît une scène neuve à son milieu.
+- *La scène connaît sa largeur* (`V.largeur` : étroit, moyen dès 700 px, large dès 1200). Elle rend le contenu qui va avec ; l'ordre du DOM est celui de l'écran. Aucune coordonnée n'est calculée.
+- *Le bureau s'étale*, une colonne par horizon : aujourd'hui, le quart, la saison. Deux panneaux de plus dès qu'il y a deux colonnes : « ton quart » (les matchs qui restent, pour poser tes affiches) et « autour de toi » (tes voisins en écarts, la ligne des séries).
+- *Un segment se déplie en large* : les avants et l'arrière, les salaires en deux colonnes, le classement et ta cédule, les meneurs et les gardiens, les patineurs et tes matchs, le Sommaire d'un match et ses trois autres vues. La feuille du soir met les deux clubs face à face.
+- *Le clavier.* Le focus ne tombe plus d'un rendu à l'autre : il revient au bouton tenu, sinon à celui qui avance.
+
+**Mesuré.** Les scènes de la tranche perdent leurs positions : 163 attributs de style portaient une position, 124 restent (ceux des tranches 2 et 3). `check_refonte` : le jeu retire 159 lignes pour 267 ajoutées (0,60 ; la borne est 0,5), la feuille de style fait 24 % du diff (la borne est 50 %), les cinq noms de « ce qui part » sont partis.
+
+**Trouvé par les juges neufs.** À la feuille du soir, le focus retombait sur « Bureau » au lieu d'« Au match » : au clavier, « Entrée » ramenait au bureau en boucle. À la tablette, la liste des matchs débordait de son milieu au lieu de défiler dans sa boîte. À 360 px, la règle du coach avait 46 px de large à côté du banc : le panneau s'empile. Et le juge mesurait l'écusson de l'en-tête à zéro : il visait une image, c'est un bloc.
+
+**Défaut d'avant corrigé en passant** : au classement, la tête et les lignes du tableau étaient décalées de 8 px (la ligne est un bouton, sa marge gagnait sur celle du tableau).
+
+**Les seuils ont bougé du devis** : « large » à 1200 px au lieu de 1000 (à 1000, trois colonnes à côté du rail faisaient 283 px et coupaient les objectifs du proprio) ; à la tablette, les panneaux descendent à la moitié du milieu, pas à 60 %.
+
+**Pas fait.** Les scènes des tranches 2 et 3 : entrer dans une histoire, les pochettes, le ballottage ou les portes fait encore sauter l'écran. Les séries en large gardent leur composition ; le tableau des seize en arbre est une question pour JP. Les deux panneaux du large n'existent pas au téléphone : leur maison reste la Ligue.
+
+**Les preuves.** `check_scene` (26 : 60 scènes à 390 × 844, puis le soir à cinq autres écrans, en moins de quatre minutes), `essai_run` (23 : un soir au clavier en trois « Entrée », l'en-tête au même pixel du bureau au bureau, Échap qui ferme puis ouvre la pause puis reprend), `check_refonte`, `check_mort`, `check_css`, `check_neuf`.
+

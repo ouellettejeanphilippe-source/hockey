@@ -28,6 +28,17 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 - [x] **La saison en cours sort des données** (25 nov.) — le rafraîchissement du 23 nov. l'avait réécrite avec 145 joueurs sur 639 et main restait rouge ; `data/seasons/2026-27.json` et deux photos sans joueur partent ; l'Action du lundi n'écrit une saison qu'une fois finie et refuse un shard rétréci — `scripts/build_shards.py` `saison_finie`, `shard_retreci` — `check_actions`, `check_ratings`.
 - [ ] En avril 2027 : la saison 2026-27 entre d'elle-même, le premier lundi où tous ses clubs ont fini ; ses photos d'action se refont (`scripts/actions.mjs`).
 
+## Refonte · V31, le Rogue en fluide (JP, 25 nov. : *ui adapté à toutes les tailles de l'écran, pas juste mobile* ; *tout le Rogue en fluide*)
+
+Le devis : `docs/refonte-v31.md` (jugé par deux relecteurs, repris). En code direct, par tranches ; JP juge chacune sur le vrai écran, au téléphone et à l'ordinateur.
+
+- [x] **JP tranche quatre questions** (25 nov.) : tout le Rogue ; sur un grand écran le bureau s'étale en panneaux ; sur un petit le milieu de la scène défile ; code direct, par tranches.
+- [x] **1 · La coquille et le soir** (25 nov.) — la grille (l'en-tête, le milieu, le bas, les onglets en bas ou en rail), rien mis à l'échelle ; le bureau et ses cinq onglets, les séries, la page d'un club, un match passé, la feuille du soir et celle du duel, le résultat, la pause, l'attente ; le focus qui ne tombe plus au clavier — `js/run-scenes.js`, `js/run-jeu.js`, `style.css` — `check_scene` (26, six écrans), `essai_run` (23), `check_refonte`.
+  - [ ] Ce qui s'ouvre du soir sans être de tous les soirs (une histoire, les pochettes, le ballottage, les portes) est encore en plan fixe : l'écran saute en y entrant, jusqu'à la tranche 2.
+- [ ] **2 · Ce qui s'ouvre du soir** — une histoire, les pochettes, le ballottage, la pièce gagnée, les portes, la porte ouverte, l'échange (`docs/refonte-v31-2.md` à écrire).
+- [ ] **3 · La saison et le Club** — le départ, les pièces, le repêchage, l'ouverture du quart, le bilan, le marché, la fin, le Club et ses quatre pages, le solde ; puis le plan fixe et son échelle partent.
+- [ ] À poser à JP avant la tranche 3 : les séries en large, le tableau des seize en arbre ?
+
 ## La sauvegarde qui suit d'un appareil à l'autre (JP, 25 nov. : *avoir sauvegarde multidevice* ; *Github sync*)
 
 - [x] **JP tranche** (25 nov.) : par GitHub ; un Gist secret de son compte (un jeton au seul droit « gist », collé une fois par appareil) ; toute seule, et quand deux appareils ont avancé chacun de leur côté, le jeu montre les deux et il choisit.
