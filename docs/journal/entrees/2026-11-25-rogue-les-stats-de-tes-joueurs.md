@@ -1,0 +1,6 @@
+- **25 nov. · Mon club dit tout ce que chacun a fait : quatorze colonnes, qui glissent de côté**
+  - JP : *stats super détaillées* ; *glisser de côté*. La deuxième tranche du détail du Rogue.
+  - Un patineur : ses matchs, ses points, son +/−, ses tirs et son % au tir, son temps de glace, ses punitions, ses mises en échec, ses blocs, ses points en avantage et en désavantage, ses buts gagnants. Un gardien : jusqu'à sa moyenne, ses blanchissages et ses départs de qualité. js/run.js `compterLesStats`, `STATS`, `STATS_G` ; js/run-scenes.js `pageMonClub`, `COLONNES`.
+  - Le +/− sans changer un match : qui était sur la glace se tire d'un hasard à part pour les matchs que le moteur ne suit pas joueur par joueur (js/sim.js). La même run au but près ; 370 buts sur 546 portent leur glace (les autres sont en avantage).
+  - Le tableau glisse dans son cadre, le nom figé à gauche, la tête en haut (style.css `.rn-glisse`, `.rn-large`).
+  - `check_run` (les stats recomptées des feuilles), `check_scene` (le tableau glissé au bout), `check_empreinte`. Version 4.2.0. La décision : docs/decisions.md, « Le détail du Rogue, tranche 2 ».

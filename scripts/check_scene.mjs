@@ -10,7 +10,8 @@
  *      les séries et leur feuille, la fin ; et celles d'entre deux runs, ouvertes d'un méta semé (le départ et ses crans,
  *      le Club et ses pages, l'Album d'un cartable semé, le solde, une run d'avant qui s'arrête) ;
  *   2. la scène ne défile jamais, et rien du site ne dépasse : seul le cadre d'un tableau défile, en lui-même
- *      (`.rn-cadre`), et il tient entre le HUD et les onglets ;
+ *      (`.rn-cadre`), et il tient entre le HUD et les onglets ; un tableau de stats (`.rn-glisse` : Mon club) y glisse aussi
+ *      de côté, le nom figé à gauche et la tête en haut (JP, 25 nov. 2026) ;
  *   3. le HUD est toujours au même endroit (ses cœurs au même pixel) ;
  *   4. chaque cible fait 44 × 44 (scripts/lib/cibles.mjs), et tient dans l'écran ;
  *   5. aucun panneau ne passe sous les boutons du bas ni sous les onglets ;
@@ -118,7 +119,7 @@ async function mesurer(page, nom) {
     const cadre = plan.querySelector('.rn-cadre'), bc = cadre && cadre.getBoundingClientRect(), moi = cadre && cadre.querySelector('.rn-moi'), bm = moi && moi.getBoundingClientRect();
     return { couverts, defile: de.scrollHeight > H + 1 || de.scrollWidth > L + 1 || racine.scrollHeight > racine.clientHeight + 1 || plan.scrollHeight > plan.clientHeight + 1,
       plan: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)], dehors, hud: rc ? [Math.round(rc.left), Math.round(rc.top)] : null, bords,
-      cadre: bc ? { ok: bc.top >= 54 && bc.bottom <= H && bc.left >= 0 && bc.right <= L && cadre.scrollWidth <= cadre.clientWidth + 1, lignes: cadre.querySelectorAll('.rn-l:not(.rn-tete):not(.rn-unite):not(.rn-coupe)').length, coupe: !!cadre.querySelector('.rn-coupe'), moiVu: bm ? bm.top >= bc.top && bm.bottom <= bc.bottom : null } : null };
+      cadre: bc ? { glisse: cadre.classList.contains('rn-glisse'), ok: bc.top >= 54 && bc.bottom <= H && bc.left >= 0 && bc.right <= L && (cadre.classList.contains('rn-glisse') || cadre.scrollWidth <= cadre.clientWidth + 1), lignes: cadre.querySelectorAll('.rn-l:not(.rn-tete):not(.rn-unite):not(.rn-coupe)').length, coupe: !!cadre.querySelector('.rn-coupe'), moiVu: bm ? bm.top >= bc.top && bm.bottom <= bc.bottom : null } : null };
   }, { L: LARGEUR, H: HAUTEUR });
   if (!m) { fautes.defile.push(`${nom} : aucune scène`); return null; }
   vues.push(nom);
@@ -226,6 +227,16 @@ for (const [cle, suites] of Object.entries(SUITES)) {
     if (nom.startsWith('la feuille')) await page.waitForTimeout(1200);
     const m = await mesurer(page, nom);
     if (m && m.cadre) tableaux[nom] = m.cadre;
+    // Un tableau de stats glisse de côté dans son cadre : glissé au bout, sa dernière colonne se lit, le nom n'a pas bougé, la tête non plus.
+    if (m && m.cadre && m.cadre.glisse) tableaux[nom].fige = await page.$eval('#runModal .rn-cadre', el => {
+      const b = el.getBoundingClientRect(), l = el.querySelector('.rn-l:not(.rn-tete)'), t = el.querySelector('.rn-tete');
+      if (!l || !t || el.scrollWidth <= el.clientWidth + 1) return false;
+      el.scrollLeft = el.scrollWidth; el.scrollTop = 40;
+      const nomB = l.firstElementChild.getBoundingClientRect(), fin = l.lastElementChild.getBoundingClientRect(), tete = t.getBoundingClientRect();
+      const ok = Math.abs(nomB.left - b.left) <= 2 && fin.right <= b.right + 1 && fin.left >= nomB.right - 1 && Math.abs(tete.top - b.top) <= 2;
+      el.scrollLeft = 0; el.scrollTop = 0;
+      return ok;
+    });
     if (nom === 'le résultat, la feuille') tableaux[nom].patineurs = await page.$$eval('#runModal .som-feuille-table', l => l.map(t => t.querySelectorAll('tbody tr').length));
   }
   await page.close();
@@ -241,6 +252,8 @@ exiger('rien du site ne dépasse : ni en-tête, ni barre du site', !fautes.dehor
 exiger('seul le cadre d\'un tableau défile, en lui-même, à sa place', !fautes.cadre.length, fautes.cadre.slice(0, 4).join(' · ') || `${Object.keys(tableaux).length} tableaux`);
 const C = tableaux['le classement'];
 exiger('le classement montre les trente-deux clubs et la ligne des séries, et s\'ouvre sur ton club', !!C && C.lignes === 32 && C.coupe && C.moiVu === true, C ? `${C.lignes} clubs, la ligne ${C.coupe ? 'tracée' : 'absente'}, ton club ${C.moiVu ? 'à l\'écran' : 'hors du cadre'}` : 'pas de tableau');
+const GL = ['mon club', 'mon club, trié par les buts', 'mes gardiens'].map(n => [n, tableaux[n]]);
+exiger('un tableau de stats glisse de côté dans son cadre, le nom figé à gauche et la tête en haut', GL.every(([, t]) => t && t.glisse && t.fige === true), GL.map(([n, t]) => `${n} : ${t && t.glisse ? (t.fige ? 'figé' : 'le nom ou la tête bouge') : 'ne glisse pas'}`).join(' · '));
 const FM = tableaux['le résultat, la feuille'];
 exiger('le résultat est le sommaire du match : sa feuille dit les patineurs des deux clubs', !!FM && FM.patineurs.length === 2 && FM.patineurs.every(n => n >= 15), FM ? `${FM.patineurs.join(' et ')} patineurs` : 'pas de feuille');
 exiger('l\'alignement montre tes vingt-trois', !!tableaux['l\'alignement'] && tableaux['l\'alignement'].lignes >= 23, tableaux['l\'alignement'] ? `${tableaux['l\'alignement'].lignes} lignes` : 'pas de tableau');

@@ -738,6 +738,11 @@ ainsi de la comptabilité, sans que le pointage ait l'air faux.
    (27,1 / 42,7 / 54,8), les repères d'époque ne bougent pas. Après : écart
    du 1er au 4e trio 12,2 contre 10,3, coéquipiers d'unité à 9,3 buts l'un de
    l'autre contre 11,9.
+   Depuis le 25 nov. 2026, un match que le moteur ne suit pas joueur par
+   joueur (les séries, un gros match, la saison du Rogue) note aussi qui
+   était sur la glace à chaque but, par les mêmes tirages, mais d'un hasard
+   à part semé sur l'instant du but : sa feuille dit le +/- de chacun, et le
+   match ne tire pas un dé de plus (la même run au but près, mesurée).
 
    **Pourquoi les traits agissent en propre et non par la cote `d`.**
    `K_DEFENSE` est mesuré à 0,04 par écart-type, donc un point de cote

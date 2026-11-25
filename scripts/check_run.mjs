@@ -8,6 +8,8 @@
  *   LA LIGUE       trente et un clubs, un par franchise ; rien n'est joué d'avance (avant ton match, aucun jour à venir n'est
  *                  joué) ; à la fin, 82 matchs par club, autant de victoires que de défaites, autant de buts pour que contre ;
  *                  ta fiche se recompte de tes matchs, tes buts de ceux de tes joueurs ;
+ *   LES STATS      ce que chacun a fait chez toi (ses matchs, ses points, son +/−, ses minutes, ses mises en échec…) se
+ *                  recompte des feuilles par le compte du moteur ; chaque but hors de l'avantage dit qui était sur la glace ;
  *   LE QUART       quatre quarts de 21, 20, 21 et 20 matchs ; trois objectifs, recomptés des matchs joués ; deux manqués coûtent
  *                  un cœur, sauf au dernier quart pour un club des seize ; jamais sous zéro cœur ;
  *   LES GROS       au plus trois affiches posées par quart ; un gros match gagné ouvre trois portes dont le club battu ;
@@ -20,9 +22,9 @@
  *
  *   node scripts/check_run.mjs            (une vingtaine de secondes, dans `tout.mjs` ; `GRAINE`, 7 ; `ROBOT`, malin)
  */
-import { getPersonKey } from '../js/sim.js';
+import { getPersonKey, getPlayerKey, compterFeuilles } from '../js/sim.js';
 import { groupeDuJoueur as groupeDe } from '../js/niveaux.js';
-import { RUN, GALONS, effectifDe, masseDe, medaillesDe, classement } from '../js/run.js';
+import { RUN, GALONS, STATS, STATS_G, effectifDe, masseDe, medaillesDe, classement } from '../js/run.js';
 import { CAP } from '../js/sim.js';
 import { jouerLaRun } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -34,7 +36,7 @@ const ok = k => !(fautes[k] || []).length;
 const dit = k => (fautes[k] || []).slice(0, 3).join(' · ');
 
 function jouer(relireA) {
-  const vu = { repeches: 0, bancAuPremierTour: null, portes: 0, grosGagnes: 0, pochettes: {}, feuilles: 0, coeurs: RUN.COEURS, galons: 0 };
+  const vu = { repeches: 0, bancAuPremierTour: null, portes: 0, grosGagnes: 0, pochettes: {}, feuilles: 0, coeurs: RUN.COEURS, galons: 0, stats: {}, glace: [0, 0] };
   return jouerLaRun(ROBOT, GRAINE, { relireA, espion: (m, S, x) => {
     const R = S.R;
     if (m === 'repeche') {
@@ -58,6 +60,15 @@ function jouer(relireA) {
         if (['chapeau', 'grandMatch', 'jeuBlanc', 'mur'].includes(g.type) && !x.duel) faute('galons', `${g.type} gravé un soir ordinaire (match ${R.matchs.length})`);
         if (SEUIL != null && !(g.extra >= SEUIL)) faute('galons', `${g.type} sous son seuil (${g.extra})`);
         vu.galons++;
+      }
+      // Les stats de chacun, recomptées à côté : le compte du moteur sur chaque feuille, pour tes habillés et ton gardien.
+      {
+        const f = x.feuille, C = compterFeuilles([f]), plus = (p, v) => { const k = getPlayerKey(p), l = vu.stats[k] = vu.stats[k] || v.map(() => 0); v.forEach((n, i) => { l[i] += n; }); };
+        for (const p of f.alignes[x.cote]) { const c = C.get(p); plus(p, [c.gp, c.g, c.a, c.sh, c.pm, c.pim, c.coups, c.blocs, c.toi, c.ppp, c.shp, c.gwg]); }
+        const g = x.cote === 'A' ? f.gardienA : f.gardienB, cg = g && C.get(g);
+        if (g) plus(g, [1, 0, 0, 0, 0, 0, cg.bl, cg.dq]);
+        // Chaque but hors de l'avantage numérique dit qui était sur la glace : le +/− de la feuille.
+        for (const b of f.buts) if (!b.an && !b.fusillade) { vu.glace[1]++; if ((b.pour || []).length) vu.glace[0]++; }
       }
       if (S.toi._filetMatch !== 'partant') faute('filet', `match ${R.matchs.length}`);
       if (R.jetons < 0) faute('caisse', `${R.jetons} jetons au match ${R.matchs.length}`);
@@ -94,7 +105,7 @@ function jouer(relireA) {
         if (F.reduce((a, f) => a + f[3], 0) !== F.reduce((a, f) => a + f[4], 0)) faute('ligue', 'les buts pour et contre');
         const v = saison.filter(y => y.gagne).length, dp = saison.filter(y => !y.gagne && y.ot).length;
         if (F[0][0] !== v || F[0][2] !== dp || F[0][1] !== RUN.LIGUE.MATCHS - v - dp) faute('fiche', `${F[0].slice(0, 3).join('-')} au classement, ${v}-${RUN.LIGUE.MATCHS - v - dp}-${dp} recompté`);
-        const buts = Object.values(R.stats).filter(s => s.length === 4).reduce((a, s) => a + s[1], 0);
+        const buts = Object.values(R.stats).filter(s => s.length === 12).reduce((a, s) => a + s[STATS.B], 0);
         if (buts !== F[0][3]) faute('fiche', `${buts} buts chez tes joueurs, ${F[0][3]} au classement`);
         vu.rangFinal = classement(S).indexOf(0) + 1;
       }
@@ -111,6 +122,13 @@ function jouer(relireA) {
       if (F.medailles !== medaillesDe(R, F.rondes, F.coupe) || F.caisse !== Math.floor(Math.max(0, R.jetons) / RUN.JETONS_PAR_MEDAILLE)) faute('medailles', `${F.medailles}`);
       if (new Set(R.vus).size !== R.vus.length) faute('vus', 'une personne deux fois dans la run');
       if ((R.galons || []).filter(g => g.type !== 'coupe').length !== vu.galons) faute('galons', `${(R.galons || []).length} galons gardés pour ${vu.galons} vus aux matchs`);
+      // Les stats de chacun se recomptent des feuilles : un patineur, ses douze chiffres ; un gardien, ses départs, ses blanchissages, ses départs de qualité.
+      for (const [k, l] of Object.entries(vu.stats)) {
+        const s = R.stats[k] || [];
+        const ecart = l.length === 12 ? l.findIndex((n, i) => Math.abs(n - (s[i] || 0)) > (i === STATS.TG ? 0.6 : 0)) : [[0, STATS_G.D], [6, STATS_G.BL], [7, STATS_G.DQ]].findIndex(([i, j]) => l[i] !== (s[j] || 0));
+        if (ecart >= 0) faute('stats', `${k} : ${JSON.stringify(l)} recompté, ${JSON.stringify(s)} gardé`);
+      }
+      if (vu.glace[0] !== vu.glace[1]) faute('stats', `${vu.glace[0]} buts sur ${vu.glace[1]} disent qui était sur la glace`);
       vu.fin = true;
     }
   } }).then(r => ({ r, vu }));
@@ -124,6 +142,7 @@ exiger('le repêchage tient ses cases et son plafond', ok('repechage'), dit('rep
 exiger('la ligue : trente et un clubs, 82 matchs chacun, en équilibre', ok('ligue'), dit('ligue'));
 exiger('rien n\'est joué d\'avance', ok('avance'), dit('avance') || `${A.vu.feuilles} feuilles lues`);
 exiger('ta fiche et tes buts se recomptent de tes matchs et de tes joueurs', ok('fiche'), dit('fiche'));
+exiger('les stats de chacun se recomptent des feuilles, et chaque but hors de l\'avantage dit qui était sur la glace', ok('stats'), dit('stats') || `${Object.keys(A.vu.stats).length} joueurs, ${A.vu.glace[1]} buts`);
 exiger('quatre quarts, un rival chacun', ok('quart'), dit('quart'));
 exiger('les trois objectifs se recomptent des matchs joués', ok('objectifs'), dit('objectifs') || `${A.r.quarts.length} bilans`);
 exiger('deux objectifs manqués coûtent un cœur, jamais sous zéro', ok('coeurs'), dit('coeurs'));

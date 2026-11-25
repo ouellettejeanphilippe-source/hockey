@@ -24,7 +24,7 @@
 import {
   SLOTS, CAP, SONNE, SONNES_ELITE, ENERGIE_REF, ENERGIE_RECUP_JOUR, createTeam, autoRoster, trioAuMieux, registerHiddenRatings, getHiddenRatings, getPersonKey, getPlayerKey, teamStrength,
   avecHasardIsole, feuilleVierge, playGame, simulerGrosMatch, activeLineup, depenserEnergie, recupererEnergie, energieDe, fits, accordsDeLigne, tirsTotal, effetsDesJoueurs, remettreAZero,
-  ceduleDe, noterDepart } from './sim.js';
+  ceduleDe, noterDepart, compterFeuilles } from './sim.js';
 import { leurJeuDuDuel, appliquerChoix, deDuChoix } from './greffes.js';
 import { HISTOIRES, tirer } from './histoires.js';
 import { faitsDe } from './faits.js';
@@ -743,17 +743,29 @@ export function jouerLeMatch(S) {
 
 /* ---------- les stats de ta saison, les galons ---------- */
 /*
- * CE QUE CHACUN A FAIT CHEZ TOI (`R.stats` : la clé du joueur → [matchs, buts, passes, tirs] ; un gardien → [départs,
- * victoires, défaites, défaites en prolongation, buts contre, tirs reçus]), lu dans chaque feuille : la saison et les séries.
+ * CE QUE CHACUN A FAIT CHEZ TOI (`R.stats`, la saison et les séries ; JP, 25 nov. 2026 : *stats super détaillées*), lu dans
+ * chaque feuille par le compte du moteur (`compterFeuilles`, le même que le sommaire du match). La clé d'un patineur →
+ * `STATS` : ses matchs, buts, passes, tirs, son +/−, ses minutes de punition, mises en échec, tirs bloqués, minutes de glace,
+ * points en avantage et en désavantage, buts gagnants. Celle d'un gardien → `STATS_G` : ses départs, victoires, défaites,
+ * défaites en prolongation, buts contre, tirs reçus, blanchissages, départs de qualité. Une run gardée avant ce jour-là n'a
+ * que les quatre (et les six) premiers : le reste s'y compte de zéro.
  */
+export const STATS = { PJ: 0, B: 1, A: 2, T: 3, PM: 4, PUN: 5, ME: 6, BL: 7, TG: 8, PAN: 9, PDN: 10, BG: 11 };
+export const STATS_G = { D: 0, V: 1, P: 2, DP: 3, BC: 4, TR: 5, BL: 6, DQ: 7 };
+const ligneDeStats = (T, p, n) => { const k = getPlayerKey(p), x = T[k] = T[k] || []; while (x.length < n) x.push(0); return x; };
 function compterLesStats(S, res) {
-  const T = S.R.stats, f = res.feuille, cote = res.cote, autre = cote === 'A' ? 'B' : 'A';
-  const ligne = (p, n) => { const k = getPlayerKey(p); return T[k] = T[k] || Array(n).fill(0); };
-  for (const p of (f.alignes || {})[cote] || []) ligne(p, 4)[0]++;
-  for (const b of f.buts || []) if (b.cote === cote && !b.fusillade) { if (b.marqueur) ligne(b.marqueur, 4)[1]++; for (const q of b.passeurs || []) if (q) ligne(q, 4)[2]++; }
-  for (const l of f.lancers || []) if (l.cote === cote && l.tireur) ligne(l.tireur, 4)[3]++;
+  const T = S.R.stats, f = res.feuille, cote = res.cote, autre = cote === 'A' ? 'B' : 'A', C = compterFeuilles([f]);
+  // Les tiens ce soir : tes habillés, et quiconque a marqué, aidé ou tiré de ton côté (le remplaçant de la ligue qui tient une case).
+  const miens = new Set([...((f.alignes || {})[cote] || []), ...(f.buts || []).filter(b => b.cote === cote && !b.fusillade).flatMap(b => [b.marqueur, ...(b.passeurs || [])]), ...(f.lancers || []).filter(l => l.cote === cote).map(l => l.tireur)]);
+  for (const p of miens) {
+    const c = p && p.p !== 'G' && C.get(p);
+    if (!c) continue;
+    const x = ligneDeStats(T, p, 12);
+    [c.gp, c.g, c.a, c.sh, c.pm, c.pim, c.coups, c.blocs, c.toi, c.ppp, c.shp, c.gwg].forEach((v, i) => { x[i] += v; });
+    x[STATS.TG] = Math.round(x[STATS.TG] * 100) / 100;
+  }
   const g = cote === 'A' ? f.gardienA : f.gardienB;
-  if (g) { const x = ligne(g, 6); x[0]++; x[res.gagne ? 1 : res.ot ? 3 : 2]++; x[4] += butsDe(f, autre); x[5] += tirsTotal(f, autre); }
+  if (g) { const x = ligneDeStats(T, g, 8), c = C.get(g); x[0]++; x[res.gagne ? 1 : res.ot ? 3 : 2]++; x[4] += butsDe(f, autre); x[5] += tirsTotal(f, autre); x[6] += c.bl; x[7] += c.dq; }
 }
 /*
  * LES GALONS (V28, tranche 5b ; docs/refonte-v30-2.md § 3.10) : ce qu'un joueur fait chez toi se grave sur sa carte, au

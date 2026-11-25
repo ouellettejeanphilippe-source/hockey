@@ -3984,6 +3984,15 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
           if (reste.length && hasard() < P_PASSE_2) passeurs.push(weightedPick(reste, propensionPasse));
         }
         if (entree) entree.passeurs = passeurs;
+        // LE −1 SUIT LE RYTHME. Voir CREDIT_AU_RYTHME : ceux qui étaient là quand ça rentre se tirent au poids offensif de
+        // leur unité, pas à la présence seule — le premier trio est sur la glace pour une part des buts contre proche de
+        // sa part des buts pour.
+        const glaceDuMoins = () => {
+          const kCr = def.domicile ? APPARIEMENT : APPARIEMENT_VISITEUR;
+          const cTrio = choisirApparie(unitesDef.F, rangOff, nOff, kCr, 'rythme', true);
+          const cPaire = choisirApparie(unitesDef.D, rangOff, nOff, kCr, 'rythme');
+          return surLaGlace(cTrio, cPaire, unitesDef);
+        };
         if (feuille) {
           tireur.simG++; tireur.simPTS++;
           for (const a of passeurs) { a.simA++; a.simPTS++; }
@@ -4001,18 +4010,20 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
             // deux listes sont exactement celles qu'on vient de créditer.
             if (entree) entree.pour = glacePour;
             if (defGlace) {
-              // LE −1 SUIT LE RYTHME. Voir CREDIT_AU_RYTHME : ceux qui étaient là
-              // quand ça rentre se tirent au poids offensif de leur unité, pas à
-              // la présence seule — le premier trio est sur la glace pour une
-              // part des buts contre proche de sa part des buts pour.
-              const kCr = def.domicile ? APPARIEMENT : APPARIEMENT_VISITEUR;
-              const cTrio = choisirApparie(unitesDef.F, rangOff, nOff, kCr, 'rythme', true);
-              const cPaire = choisirApparie(unitesDef.D, rangOff, nOff, kCr, 'rythme');
-              const glaceContre = surLaGlace(cTrio, cPaire, unitesDef);
+              const glaceContre = glaceDuMoins();
               for (const x of glaceContre) { x.simPM--; x.simMoins = (x.simMoins || 0) + 1; }
               if (entree) entree.contre = glaceContre;
             }
           }
+        } else if (entree && mode !== 'AN') {
+          // UN MATCH QU'ON NE SUIT PAS JOUEUR PAR JOUEUR (les séries, un gros match, la saison du Rogue) garde quand même qui
+          // était sur la glace : sa feuille dit le +/− de chacun (JP, 25 nov. 2026 : *stats super détaillées*). Les mêmes
+          // tirages, mais d'un hasard à part semé sur l'instant du but : le match, lui, ne tire pas un dé de plus et se
+          // rejoue au but près (`check_empreinte`, `check_run`).
+          avecHasardIsole(`glace:${instant}`, () => {
+            entree.pour = surLaGlace(trioOff, paireOff, unitesOff, tireur);
+            if (defGlace) entree.contre = glaceDuMoins();
+          });
         }
       }
       // Un avantage numérique s'arrête sur le but.
@@ -5190,6 +5201,8 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
     const instant = instantOT ?? 60 + hasard() * 5;
     journal.tirs[cote][4]++;
     journal.lancers.push({ cote, instant, tireur, gardien, but: true });
+    // Le −1 d'un match qu'on ne suit pas joueur par joueur : d'un hasard à part, comme en temps réglementaire.
+    if (!track && def && def.unites) glaceContre = avecHasardIsole(`glace:${instant}`, () => [...choisirPresence(def.unites.F).joueurs, ...choisirPresence(def.unites.D).joueurs]);
     journal.buts.push({ cote, instant, marqueur: tireur, passeurs, gardien, gagnant: true, pour: glace, contre: glaceContre });
   }
 }

@@ -32,7 +32,7 @@ import { nomCourt } from './recit.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
   RUN, masseDe, espaceDe, prixDe, masseApres, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe, leurBanc, signesDe, effectifDe, prixDeLaRelance, reglesDe, aMonter,
-  budgetDuTour, vestiaireDuRepechage, classement, rangDe, clubNo, meneursDe, matchNo, prochainSoir, etatDeLObjectif, histoireDuJour, pochetteLibre, offresVues, dernierMatch,
+  budgetDuTour, vestiaireDuRepechage, classement, rangDe, clubNo, meneursDe, matchNo, prochainSoir, etatDeLObjectif, histoireDuJour, pochetteLibre, offresVues, dernierMatch, STATS, STATS_G,
 } from './run.js';
 
 /* ---------- les petites briques ---------- */
@@ -203,7 +203,8 @@ const segment = (a, choix, liste) => `<div class="rn-seg" style="left:14px;right
 function styleDe(S, c) { if (!S.jeux) S.jeux = new Map(); const k = `${c.s}:${c.t}`; if (!S.jeux.has(k)) S.jeux.set(k, jeuDe(S, c)); return S.jeux.get(k); }
 const nomDuClubNo = (S, i) => (i === 0 ? 'Ton club' : esc(clubCourt(clubNo(S, i))));
 const logoNo = (S, i, n = 18) => logo(i === 0 ? 'YOU' : clubNo(S, i).t, n);
-const cadre = (html, haut = 112, bas0 = 66) => `<div class="rn-cadre" style="left:8px;right:8px;top:${haut}px;bottom:${bas0}px">${html}</div>`;
+/* `cls` : `rn-glisse`, le cadre d'un tableau de stats, qui glisse aussi de côté (JP, 25 nov. 2026). */
+const cadre = (html, haut = 112, bas0 = 66, cls = '') => `<div class="rn-cadre${cls ? ` ${cls}` : ''}" style="left:8px;right:8px;top:${haut}px;bottom:${bas0}px">${html}</div>`;
 /*
  * LE BUREAU (JP, 16 nov. 2026 : *un EHM, mais avec un côté rogue*). L'accueil du Rogue pendant la saison, et pendant les
  * séries (son premier onglet devient le tableau des séries). Le HUD en haut, les onglets en bas, au même endroit partout.
@@ -307,16 +308,26 @@ function pageLigue(S, V) {
   return `${tete}${cadre(tableau('24px 1fr 26px 62px 34px 32px', ['', 'Club', 'MJ', 'V-D-DP', 'Diff', 'Pts'], rangs))}`;
 }
 /*
- * L'ONGLET MON CLUB : ce que chacun a fait chez toi. « Patineurs », triés par la colonne qu'on touche ; « Gardiens », leurs
- * départs, leur fiche, leur % d'arrêts ; « Matchs », ta séquence et tes douze derniers.
+ * L'ONGLET MON CLUB : ce que chacun a fait chez toi. « Patineurs » et « Gardiens » : tout ce que les feuilles comptent (JP,
+ * 25 nov. 2026 : *stats super détaillées*), dans un tableau qui glisse de côté, le nom figé à gauche (*glisser de côté*).
+ * Les colonnes vont de ce qu'on cherche d'abord à ce qu'on fouille : le pointage, le +/−, le tir, la glace, le jeu
+ * physique, les unités spéciales, les buts gagnants ; toucher un en-tête trie par lui. « Matchs » : ta séquence et tes
+ * douze derniers.
  */
-const TRIS = { pj: 0, b: 1, a: 2, pts: null, t: 3 };
+const signe = n => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+const virgule = (x, d = 1) => x.toFixed(d).replace('.', ',');
+/* [la clé du tri, l'en-tête, la valeur qu'on trie, ce qu'on lit] */
+const COLONNES = [
+  ['pj', 'PJ', x => x[STATS.PJ]], ['b', 'B', x => x[STATS.B]], ['a', 'A', x => x[STATS.A]], ['pts', 'PTS', x => x[STATS.B] + x[STATS.A], v => `<b>${v}</b>`], ['pm', '+/−', x => x[STATS.PM], signe],
+  ['t', 'T', x => x[STATS.T]], ['pct', '% tir', x => (x[STATS.T] ? (100 * x[STATS.B]) / x[STATS.T] : -1), v => (v < 0 ? '—' : virgule(v))], ['tg', 'TG', x => (x[STATS.PJ] ? x[STATS.TG] / x[STATS.PJ] : 0), v => virgule(v)],
+  ['pun', 'PUN', x => x[STATS.PUN]], ['me', 'MÉ', x => x[STATS.ME]], ['bl', 'BL', x => x[STATS.BL]], ['pan', 'PTS AN', x => x[STATS.PAN]], ['pdn', 'PTS DN', x => x[STATS.PDN]], ['bg', 'BG', x => x[STATS.BG]],
+];
 function pageMonClub(S, V) {
   const R = S.R, seg = V.segC || 'patineurs', tete = segment('seg-c', seg, [['patineurs', 'Patineurs'], ['gardiens', 'Gardiens'], ['matchs', 'Matchs']]);
-  const st = p => R.stats[getPlayerKey(p)] || [0, 0, 0, 0, 0, 0];
+  const st = (p, n) => Array.from({ length: n }, (_, i) => (R.stats[getPlayerKey(p)] || [])[i] || 0);
   if (seg === 'gardiens') {
-    const gs = effectifDe(S).filter(p => p.p === 'G');
-    return `${tete}${cadre(tableau('1fr 26px 62px 30px 46px 34px', ['Gardien', 'D', 'V-D-DP', 'BC', '% arr.', 'J'], gs.map(p => { const x = st(p); return ligne([`${visage(p)}${esc(court(p))}`, x[0], `${x[1]}-${x[2]}-${x[3]}`, x[4], x[5] ? pct3(1 - x[4] / x[5]) : '—', jambesDe(p)]); })))}`;
+    const gs = effectifDe(S).filter(p => p.p === 'G'), G = STATS_G;
+    return `${tete}${cadre(tableau('150px 30px 30px 30px 30px 48px 44px 30px 30px 34px 40px 30px', ['Gardien', 'D', 'V', 'P', 'DP', '% arr.', 'Moy.', 'BL', 'DQ', 'BC', 'TR', 'J'], gs.map(p => { const x = st(p, 8); return ligne([`${visage(p)}${esc(court(p))}`, x[G.D], x[G.V], x[G.P], x[G.DP], x[G.TR] ? pct3(1 - x[G.BC] / x[G.TR]) : '—', x[G.D] ? virgule(x[G.BC] / x[G.D], 2) : '—', x[G.BL], x[G.DQ], x[G.BC], x[G.TR], jambesDe(p)]); }), 'rn-large'), 112, 66, 'rn-glisse')}`;
   }
   if (seg === 'matchs') {
     let suite = 0;
@@ -326,10 +337,10 @@ function pageMonClub(S, V) {
     return `${tete}<div class="rn-cellules" style="left:14px;right:14px;top:114px"><div><b>${ficheMot(f)}</b><small>Ta fiche</small></div><div><b>${dix.filter(m => m.gagne).length}-${dix.filter(m => !m.gagne).length}</b><small>Tes dix derniers</small></div><div><b class="${R.matchs.length && R.matchs.at(-1).gagne ? 'rn-vert' : 'rn-rg'}">${suite}</b><small>${R.matchs.length && R.matchs.at(-1).gagne ? 'Victoires' : 'Défaites'} de suite</small></div></div>
     ${cadre(lignes.length ? tableau('26px 1fr 84px 54px', ['', 'Adversaire', '', 'Pointage'], lignes) : '<div class="rn-t rn-gris" style="padding:14px">Aucun match joué encore.</div>', 196)}`;
   }
-  const tri = V.tri in TRIS ? V.tri : 'pts', val = p => { const x = st(p); return tri === 'pts' ? x[1] + x[2] : x[TRIS[tri]]; };
-  const ps = effectifDe(S).filter(p => p.p !== 'G').sort((a, b) => val(b) - val(a) || st(b)[1] - st(a)[1] || getHiddenRatings(b).v - getHiddenRatings(a).v);
-  const col = (k, mot) => `<button type="button" class="${tri === k ? 'rn-on' : ''}" data-a="tri" data-v="${k}">${mot}</button>`;
-  return `${tete}${cadre(tableau('1fr 34px 34px 34px 38px 38px', ['Joueur', col('pj', 'PJ'), col('b', 'B'), col('a', 'A'), col('pts', 'Pts'), col('t', 'T')], ps.map(p => { const x = st(p); return ligne([`${visage(p)}${esc(court(p))} ${badgesHtml(p)}`, x[0], x[1], x[2], `<b>${x[1] + x[2]}</b>`, x[3]]); }), 'rn-tri'))}`;
+  const tri = COLONNES.find(c => c[0] === V.tri) || COLONNES[3], val = p => tri[2](st(p, 12));
+  const ps = effectifDe(S).filter(p => p.p !== 'G').sort((a, b) => val(b) - val(a) || st(b, 12)[STATS.B] - st(a, 12)[STATS.B] || getHiddenRatings(b).v - getHiddenRatings(a).v);
+  const col = ([k, mot]) => `<button type="button" class="${tri[0] === k ? 'rn-on' : ''}" data-a="tri" data-v="${k}">${mot}</button>`;
+  return `${tete}${cadre(tableau(`150px ${COLONNES.map(c => (c[1].length > 3 ? '50px' : '34px')).join(' ')}`, ['Joueur', ...COLONNES.map(col)], ps.map(p => { const x = st(p, 12); return ligne([`${visage(p)}${esc(court(p))} ${badgesHtml(p)}`, ...COLONNES.map(c => { const v = c[2](x); return c[3] ? c[3](v) : v; })]); }), 'rn-tri rn-large'), 112, 66, 'rn-glisse')}`;
 }
 
 /* ---------- la feuille du soir ---------- */
