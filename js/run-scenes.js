@@ -7,8 +7,8 @@
  *
  *   EN FLUIDE   (V31, docs/refonte-v31.md ; JP, 25 nov. 2026 : *tout le Rogue en fluide*) : une scène rend ses morceaux dans
  *               l'ordre où on les lit (l'en-tête, les onglets, le milieu, le bas) et aucune position ; la feuille les range,
- *               du téléphone à l'ordinateur. Les scènes pas encore refaites (les portes, le repêchage, le Club…) posent
- *               encore leurs blocs sur un plan fixe de 390 × 844, jusqu'aux tranches 2 et 3.
+ *               du téléphone à l'ordinateur. Les scènes pas encore refaites (le départ, le repêchage, le marché, le Club…)
+ *               posent encore leurs blocs sur un plan fixe de 390 × 844, jusqu'à la tranche 3.
  *   LE BUREAU   l'accueil : cinq onglets (Bureau, Alignement, Masse, Ligue, Mon club), des tableaux denses ; un tableau
  *               plus long que sa boîte défile DANS sa boîte, et dès qu'il y a la place les panneaux se rangent en colonnes.
  *   LE MATCH    la feuille du soir, les portes, l'échange : illustrés, comme à la V28. Le match lui-même se suit au direct
@@ -107,11 +107,13 @@ function hud(S, { titre = null, petit = null, rang = true, bourse = true, pause 
 const banc = (S, { joue = null, libre = false } = {}) => `<div class="rn-banc">${
   S.R.banc.map(k => `<span class="${joue ? (joue.includes(k) ? 'rn-joue' : 'rn-eteinte') : ''}">${carteP(k)}</span>`).join('')
 }${Array.from({ length: CASES_DU_BANC - S.R.banc.length }, (_, i) => `<span class="rn-vide${libre && i === 0 ? ' rn-on' : ''}"></span>`).join('')}</div>`;
-const plafond = (S, { neuf = 0, mort = 0 } = {}) => {
-  const R = S.R, pc = x => `${Math.max(0, Math.min(100, (100 * x) / R.plafond)).toFixed(1)}%`;
-  const base = masseDe(S) - neuf - mort;
+/* La jauge du plafond : `masse` (la tienne, ou celle d'après un échange), dont ce qui arrive (`neuf`) et ce que les joueurs sortis y laissent (`mort`). */
+const plafond = (S, { masse = masseDe(S), neuf = 0, mort = 0 } = {}) => {
+  const pc = x => `${Math.max(0, Math.min(100, (100 * x) / S.R.plafond)).toFixed(1)}%`, base = masse - neuf - mort;
   return `<div class="rn-plaf"><i style="width:${pc(base)}"></i>${neuf ? `<i class="rn-neuf" style="left:${pc(base)};width:${pc(neuf)}"></i>` : ''}${mort ? `<i class="rn-mort" style="left:${pc(base + neuf)};width:${pc(mort)}"></i>` : ''}</div>`;
 };
+/* Ton plafond en panneau, partout où l'on signe : la masse, le plafond, ton espace, la jauge. `apres` : la masse d'après un échange, sa jauge et sa phrase. */
+const panneauDuPlafond = (S, { apres = null, jauge = plafond(S, { mort: S.R.mort || 0 }), sous = '' } = {}) => `<section class="rn-panneau"><div class="rn-entete"><span class="rn-k">Ton plafond</span><span class="rn-t${apres != null && apres > S.R.plafond ? ' rn-rg' : ''}">${money(apres ?? masseDe(S))} <span class="rn-gris">/ ${money(S.R.plafond)}</span>${apres == null ? ` · <span class="rn-or">Espace ${money(espaceDe(S))}</span>` : ''}</span></div>${jauge}${sous}</section>`;
 /* Un tableau : ses colonnes (`cols`, une grille), sa tête, ses lignes ; une ligne qu'on touche est un bouton de 44 px. */
 const tableau = (cols, tete, lignes, cls = '') => `<div class="rn-tab${cls ? ` ${cls}` : ''}" style="--cols:${cols}"><div class="rn-l rn-tete">${tete.map(x => `<span>${x}</span>`).join('')}</div>${lignes.join('')}</div>`;
 const ligne = (cellules, { cls = '', a = '', v = '' } = {}) => (a ? `<button type="button" class="rn-l${cls ? ` ${cls}` : ''}" data-a="${a}" data-v="${esc(v)}">` : `<div class="rn-l${cls ? ` ${cls}` : ''}">`) + cellules.map(x => `<span>${x}</span>`).join('') + (a ? '</button>' : '</div>');
@@ -139,19 +141,24 @@ export function sceneDepart(V) {
   ${V.cranMax > 0 ? `<div class="rn-crans" style="left:14px;right:14px;top:700px">${Array.from({ length: EXIGENCES.length + 1 }, (_, n) => `<button type="button" class="${n === V.cran ? 'rn-on' : ''}" data-a="cran" data-v="${n}"${n > V.cranMax ? ' disabled' : ''}><b>${n}</b>${n ? esc(EXIGENCES[n - 1].court) : 'Sans exigence'}</button>`).join('')}</div>` : ''}
   ${bas(bt('Menu', 'quitter'), bt(`Prendre ${esc(court({ n: c.n }))}`, 'prendre-coach', { cls: 'go' }))}`;
 }
-/* Une pièce offerte (le départ, le rival battu, l'élite gagnée) ; banc plein, celle qui sort. */
-function etalDePieces(S, V, { titre, sous }) {
-  const R = S.R, o = R.apres.offertes, plein = R.banc.length >= CASES_DU_BANC, choisie = o.includes(V.piece) ? V.piece : o[0];
+/* Un titre de scène : son étiquette, puis sa ligne. */
+const chapeau = (k, h, cls = '') => `<div class="rn-chapo${cls ? ` ${cls}` : ''}"><div class="rn-k">${k}</div><div class="rn-h">${h}</div></div>`;
+/* Une pièce offerte (le départ, le rival battu, l'élite gagnée) : trois cartes, chacune avec ce qu'elle compte chez toi. */
+function etalDePieces(S, V, ici = false) {
+  const R = S.R, o = R.apres.offertes, choisie = o.includes(V.piece) ? V.piece : o[0];
   const ligneDeLaPiece = k => (R.ligue ? ligneCourte(S, k) : `Compte ${esc(PIECES[k].qui)}<br>à ${PIECES[k].seuils.join(', ')}`);
-  return `<div style="margin-bottom:12px"><div class="rn-k">${titre}</div><div class="rn-h" style="margin-top:3px">${sous}</div></div>
-  <div class="rn-etal">${o.map(k => `<button type="button" class="${k === choisie ? 'rn-on' : ''}" data-a="voir-piece" data-v="${k}">${carteP(k)}<p${k === choisie ? ' class="rn-or"' : ''}>${ligneDeLaPiece(k)}</p></button>`).join('')}</div>
-  <div style="margin-top:22px"><div class="rn-k" style="margin-bottom:8px">Ton banc${plein ? ' · plein : touche celle qui sort' : ' · une case libre'}</div>
-    <div class="rn-banc" style="width:300px">${R.banc.map(k => `<button type="button" class="${V.sort === k ? 'rn-eteinte' : ''}" data-a="piece-sort" data-v="${k}"${plein ? '' : ' disabled'}>${carteP(k)}</button>`).join('')}${Array.from({ length: CASES_DU_BANC - R.banc.length }, (_, i) => `<span class="rn-vide${i === 0 ? ' rn-on' : ''}"></span>`).join('')}</div></div>`;
+  return `<div class="rn-etal">${o.map(k => `<button type="button" class="${k === choisie ? 'rn-on' : ''}" aria-pressed="${k === choisie}" data-a="voir-piece" data-v="${k}"${ici && k === choisie ? ' data-ici' : ''}>${carteP(k)}<p${k === choisie ? ' class="rn-or"' : ''}>${ligneDeLaPiece(k)}</p></button>`).join('')}</div>`;
+}
+/* Ton banc quand une pièce arrive : une case libre, ou, banc plein, celle qui sort (on la touche). */
+function bancQuiRecoit(S, V) {
+  const R = S.R, plein = R.banc.length >= CASES_DU_BANC;
+  return `<div class="rn-pilier"><div class="rn-k">Ton banc${plein ? ' · plein : touche celle qui sort' : ' · une case libre'}</div>
+    <div class="rn-banc">${R.banc.map(k => `<button type="button" class="${V.sort === k ? 'rn-eteinte' : ''}" data-a="piece-sort" data-v="${k}"${plein ? '' : ' disabled'}>${carteP(k)}</button>`).join('')}${Array.from({ length: CASES_DU_BANC - R.banc.length }, (_, i) => `<span class="rn-vide${i === 0 ? ' rn-on' : ''}"></span>`).join('')}</div></div>`;
 }
 /* Tes deux pièces de banc, avant le repêchage : elles disent quoi repêcher. Aucun « Passer ». */
 export const scenePieceDuDepart = (S, V) => `<div style="left:14px;right:14px;top:22px"><div class="rn-k">Pièce ${S.R.pieces + 2} de ${RUN.PIECES_DU_DEPART + 1}</div><div class="rn-titre" style="margin-top:6px">Ton banc</div><div class="rn-t rn-gris" style="margin-top:4px">Une pièce compte les badges de tes joueurs. Choisis ce que tu vas repêcher.</div></div>
   ${pas(1)}
-  <div style="left:14px;right:14px;top:176px">${etalDePieces(S, V, { titre: 'Une parmi trois', sous: 'Elle reste toute la saison' })}</div>
+  <div class="rn-pilier" style="left:14px;right:14px;top:176px">${chapeau('Une parmi trois', 'Elle reste toute la saison')}${etalDePieces(S, V)}${bancQuiRecoit(S, V)}</div>
   ${bas(bt('Prendre', 'prendre-piece', { cls: 'gold' }))}`;
 
 /* ---------- le repêchage de 23 ---------- */
@@ -161,7 +168,7 @@ const vraie = p => (p.p === 'G' ? `${p.w || 0} victoires, ${pct3(p.sv || 0)} d'e
 const bancEnLignes = S => S.R.banc.map(k => { const n = compteDe(k, signesDe(S)), suivant = seuilSuivant(k, n); return `<span>${PIECES[k].ico} ${esc(PIECES[k].nom)} <b>${Math.floor(n)}${suivant != null ? ` / ${suivant}` : ''}</b> ${points(marcheDe(k, n))}</span>`; }).join('');
 export function sceneRepechage(S, V) {
   const R = S.R, rep = R.rep, tous = vestiaireDuRepechage(S), dedans = tous.filter(x => x.tient), hors = tous.filter(x => !x.tient);
-  const pages = Math.max(1, Math.ceil(dedans.length / PAR_PAGE)), page = Math.min(V.page || 0, pages - 1), vus = dedans.slice(page * PAR_PAGE, (page + 1) * PAR_PAGE);
+  const pages = Math.max(1, Math.ceil(dedans.length / PAR_PAGE)), page = (V.page || 0) % pages, vus = dedans.slice(page * PAR_PAGE, (page + 1) * PAR_PAGE);
   const choisi = dedans.find(x => getPlayerKey(x.p) === V.joueur) || vus[0] || null, reste = dedans.length - vus.length;
   const n = { F: 0, D: 0, G: 0 };
   for (const p of effectifDe(S)) n[groupeDe(p)]++;
@@ -169,7 +176,7 @@ export function sceneRepechage(S, V) {
   const apport = choisi ? apportsHtml(S, choisi.p) : '';
   return `<div class="rn-hud">${logo('YOU', 34)}<span class="rn-acte">Le repêchage<small>Tour ${rep.tour + 1} de 23</small></span><span class="rn-jt">${money(Math.max(0, R.plafond - RUN.ESPACE - masseDe(S)))}</span></div>
   <div class="rn-plaque" style="left:14px;top:60px">${rep.secours ? '' : logo(rep.club.t)}<div class="rn-nom">${rep.secours ? 'Les joueurs autonomes' : esc(clubMot(rep.club))}<small>Avants ${n.F} · défenseurs ${n.D} · gardiens ${n.G}<br>Ce tour : ${money(Math.max(0, budgetDuTour(S)))} au plus</small></div></div>
-  <div class="rn-grille" style="left:22px;right:22px;top:130px">${vus.map(tuile).join('')}${reste > 0 || hors.length ? `<span>${reste > 0 ? `<button type="button" class="rn-plie" data-a="page-porte">${reste} autres<br>dans ton<br>budget</button>` : '<span class="rn-plie">Rien<br>d\'autre</span>'}</span>` : ''}</div>
+  <div class="rn-grille" style="left:22px;right:22px;top:130px">${vus.map(tuile).join('')}${reste > 0 || hors.length ? `<span>${reste > 0 ? `<button type="button" class="rn-plie" data-a="page-porte">${pluriel(reste, 'autre')}<br>dans ton<br>budget</button>` : '<span class="rn-plie">Rien<br>d\'autre</span>'}</span>` : ''}</div>
   ${choisi ? `<div class="rn-panneau" style="left:14px;right:14px;top:556px"><div style="display:flex;justify-content:space-between;align-items:baseline"><b class="rn-h">${esc(choisi.p.n)}</b><span class="rn-h rn-or">${money(prixDe(S, choisi.p))}</span></div>
     <div class="rn-t rn-gris" style="margin-top:6px">Cette année-là : ${vraie(choisi.p)}.<br>${badgeMot(choisi.p)}${apport ? ` · <span class="rn-vert">ton banc : ${apport}</span>` : ''}</div></div>` : '<div class="rn-panneau" style="left:14px;right:14px;top:556px"><div class="rn-t rn-gris">Personne ici ne tient dans le budget de ce tour. Relance la roulette.</div></div>'}
   <div class="rn-enlignes" style="left:14px;right:14px;top:662px">${bancEnLignes(S)}</div>
@@ -230,6 +237,13 @@ const colonne = (nom, ...blocs) => `<div class="rn-col" data-defile="${nom}">${b
 const cote = (...vues) => `<div class="rn-cote">${vues.join('')}</div>`;
 const pile = (...blocs) => `<div class="rn-pilier">${blocs.join('')}</div>`;
 const rien = mot => `<div class="rn-t rn-gris rn-rien">${mot}</div>`;
+/*
+ * LE COMPTOIR (V31, tranche 2, docs/refonte-v31-2.md) : une scène où la run te tend quelque chose — un joueur, une pièce,
+ * une pochette, une réponse. Deux blocs, dans l'ordre où on les lit : ce qu'on te tend (`offre`, avec en tête pourquoi on est
+ * là), puis ton côté (`toi` : celui que tu choisis, qui sort, ton plafond, tes réponses). La feuille les met d'un trait, ou
+ * côte à côte quand l'écran est large ou couché (la règle du rail) : le même contenu à toutes les largeurs.
+ */
+const comptoir = (nom, offre, toi) => milieu(`${colonne(`${nom}-offre`, offre)}${colonne(`${nom}-toi`, toi)}`, 'rn-comptoir', nom);
 /*
  * LE BUREAU (JP, 16 nov. 2026 : *un EHM, mais avec un côté rogue*). L'accueil du Rogue pendant la saison, et pendant les
  * séries (son premier onglet devient le tableau des séries). Le HUD en haut, les onglets en bas, au même endroit partout.
@@ -659,20 +673,19 @@ export function sceneResultat(S, V) {
 }
 
 /* ---------- les portes, la porte ouverte, l'échange ---------- */
-const bandeDuMatch = S => {
-  const a = S.R.apres;
-  if (!a || a.gf == null) return '<div class="rn-panneau" style="left:14px;right:14px;top:60px"><div class="rn-t"><b>Ta pochette</b><br><span class="rn-gris">Un joueur à signer, ou rien.</span></div></div>';
-  return `<div class="rn-panneau" style="left:14px;right:14px;top:60px;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center"><div class="rn-titre rn-vert">${a.gf}-${a.ga}</div>
-    <div class="rn-t"><b>${{ rival: 'Le rival est battu', elite: 'L\'élite est battue', affiche: 'L\'affiche est gagnée' }[a.sorte] || 'Gagné'}</b><br><span class="rn-gris">${a.sorte === 'rival' ? 'Des vestiaires du haut de l\'échelle.' : `Des vestiaires à la hauteur de ${esc(surnom(a.t))}.`}</span></div></div>`;
-};
+/* Le match gagné qui ouvre la scène : son pointage, ce qu'on a battu, ce que ça donne. Les portes et la pièce gagnée le disent du même bloc. */
+const verdict = (S, donne) => { const a = S.R.apres; return a && a.gf != null ? `<section class="rn-panneau rn-verdict"><b class="rn-titre rn-vert">${a.gf}-${a.ga}</b><div class="rn-t"><b>${{ rival: 'Le rival est battu', elite: 'L\'élite est battue', affiche: 'L\'affiche est gagnée' }[a.sorte] || 'Gagné'}</b><br><span class="rn-gris">${donne}</span></div></section>` : ''; };
+/*
+ * LES TROIS PORTES, après un gros match gagné : le pic de la run. Dans l'ordre : le match gagné, les trois vrais vestiaires
+ * (chacun avec ce qu'on y trouve dans ton espace), ton plafond. Dès que l'écran s'élargit, les portes prennent la rangée et
+ * grandissent, le match gagné et ton plafond côte à côte au-dessus (la feuille : `.rn-les-portes`). Au clavier, on arrive sur
+ * une porte, jamais sur « Passer ».
+ */
 export function scenePortes(S) {
-  const R = S.R, P = R.portes, relance = prixDeLaRelance(S);
-  const portes = P.clubs.map((c, i) => { const n = vestiaireDe(S, c).filter(x => x.tient).length; return `<button type="button" class="rn-porte" data-a="ouvrir-porte" data-v="${i}">${P.affronte === `${c.s}:${c.t}` ? '<span class="rn-tag">Le club battu</span>' : ''}${logo(c.t, 66)}<b>${esc(surnom(c.t))}<small>${c.s}</small></b><strong>${n}<small>dans ton espace</small></strong></button>`; }).join('');
-  return `${hud(S)}
-  ${bandeDuMatch(S)}
-  <div style="left:14px;right:14px;top:166px;text-align:center"><div class="rn-k">Trois vrais vestiaires</div><div class="rn-h" style="margin-top:6px">Un joueur, dans un de ces vestiaires</div></div>
-  <div class="rn-portes" style="left:14px;right:14px;top:254px">${portes}</div>
-  <div class="rn-panneau" style="left:14px;right:14px;top:596px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton plafond</span><span class="rn-t">${money(masseDe(S))} <span class="rn-gris">/ ${money(R.plafond)}</span> · <span class="rn-or">Espace ${money(espaceDe(S))}</span></span></div>${plafond(S, { mort: R.mort || 0 })}</div>
+  const R = S.R, P = R.portes, a = R.apres, relance = prixDeLaRelance(S);
+  const portes = P.clubs.map((c, i) => { const n = vestiaireDe(S, c).filter(x => x.tient).length; return `<button type="button" class="rn-porte" data-a="ouvrir-porte" data-v="${i}"${i === 0 ? ' data-ici' : ''}>${P.affronte === `${c.s}:${c.t}` ? '<span class="rn-tag">Le club battu</span>' : ''}${logo(c.t, 66)}<b>${esc(surnom(c.t))}<small>${c.s}</small></b><strong>${n}<small>dans ton espace</small></strong></button>`; }).join('');
+  return `${hud(S)}${milieu(`${verdict(S, a && a.sorte === 'rival' ? 'Des vestiaires du haut de l\'échelle.' : `Des vestiaires à la hauteur de ${esc(surnom(a ? a.t : ''))}.`)}
+    ${chapeau('Trois vrais vestiaires', 'Un joueur, dans un de ces vestiaires', 'rn-centre')}<div class="rn-portes">${portes}</div>${panneauDuPlafond(S)}`, 'rn-lecture rn-les-portes', 'portes')}
   ${bas(bt('Passer', 'passer', { petit: `+${RUN.PASSER} jetons` }), bt('Relancer', 'relancer', { petit: relance === 0 ? `Gratuite · il t'en reste ${R.relances}` : relance == null ? 'Plus ce soir' : `${relance} jetons`, off: relance == null || relance > R.jetons }))}`;
 }
 /* Ce qu'un joueur allumerait chez toi : le premier accord neuf, à la place de qui sortirait. */
@@ -687,51 +700,68 @@ function accordQuIlAllume(S, p) {
   }
   return null;
 }
+/*
+ * LA PORTE OUVERTE (et la pochette ouverte : la même, sans club). Ce qu'on te tend : le vestiaire, ses joueurs qui tiennent
+ * dans ton espace, le plus fort en tête — autant que l'écran en montre d'un coup, sans défiler : trois, quatre ou six de front
+ * par la largeur (`DE_FRONT`), sur une, deux ou trois rangées par la hauteur (`RANGEES` ; au téléphone, toujours deux) ; s'il
+ * en reste, la dernière tuile mène à la page suivante et revient à la première. Ton côté : le joueur choisi (son année, son
+ * badge, ce qu'il ajoute à ton banc, l'accord qu'il allume). La pochette ouverte a été payée : « Ne rien signer » n'est pas un
+ * retour (Échap ouvre la pause, il n'y renonce pas).
+ */
+const DE_FRONT = { etroit: 3, moyen: 4, large: 6 }, RANGEES = { court: 1, moyen: 2, haut: 3 };
 export function scenePorte(S, V) {
   const R = S.R, P = R.portes, c = P.pochette ? null : P.clubs[V.porte];
   const tous = vestiaireDe(S, c), dedans = tous.filter(x => x.tient), hors = tous.filter(x => !x.tient);
-  const pages = Math.max(1, Math.ceil(dedans.length / PAR_PAGE)), page = Math.min(V.page || 0, pages - 1), vus = dedans.slice(page * PAR_PAGE, (page + 1) * PAR_PAGE);
+  // Tous d'un coup s'ils tiennent dans la grille ; sinon une tuile de moins, pour celle qui mène aux autres.
+  const rang = DE_FRONT[V.largeur] || 3, tuiles = rang * (etroit(V) ? 2 : RANGEES[V.hauteur] || 2), n = dedans.length <= tuiles ? tuiles : tuiles - 1;
+  const pages = Math.max(1, Math.ceil(dedans.length / n)), page = (V.page || 0) % pages, vus = dedans.slice(page * n, (page + 1) * n);
   const choisi = dedans.find(x => getPlayerKey(x.p) === V.joueur) || vus[0] || null, acc = choisi ? accordQuIlAllume(S, choisi.p) : null, apport = choisi ? apportsHtml(S, choisi.p) : '';
-  const tuile = x => { const a = apportsHtml(S, x.p); return `<button type="button" class="${choisi === x ? 'rn-on' : ''}" data-a="voir-joueur" data-v="${getPlayerKey(x.p)}">${carteJ(x.p)}${a ? `<span class="rn-coin">${a}</span>` : ''}<span class="rn-sousc">${money(prixDe(S, x.p))}</span></button>`; };
-  const reste = dedans.length - vus.length;
-  return `${hud(S)}
-  <div class="rn-plaque" style="left:14px;top:60px">${c ? logo(c.t) : ''}<div class="rn-nom">${c ? esc(clubMot(c)) : 'Ta pochette'}<small>${dedans.length} tien${dedans.length > 1 ? 'nent' : 't'} dans ton espace · ${money(espaceDe(S))}</small></div></div>
-  <div class="rn-grille" style="left:22px;right:22px;top:122px">${vus.map(tuile).join('')}${reste > 0 || hors.length ? `<span>${reste > 0 ? `<button type="button" class="rn-plie" data-a="page-porte">${reste} autres<br>dans ton<br>espace</button>` : '<span class="rn-plie">Rien<br>d\'autre</span>'}${hors[0] ? `<span class="rn-sousc rn-gris"><small class="rn-gris">${esc(court(hors[0].p))}, ${money(prixDe(S, hors[0].p))} : hors de ton espace</small></span>` : ''}</span>` : ''}</div>
-  ${choisi ? `<div class="rn-panneau" style="left:14px;right:14px;top:584px"><div style="display:flex;justify-content:space-between;align-items:baseline"><b class="rn-h">${esc(choisi.p.n)}</b><span class="rn-h rn-or">${money(prixDe(S, choisi.p))}</span></div>
-    <div class="rn-t rn-gris" style="margin-top:6px">Cette année-là : ${vraie(choisi.p)}.<br>${badgeMot(choisi.p)}${apport ? ` · <span class="rn-vert">ton banc : ${apport}</span>` : ''}${acc ? ` · il allume <span class="rn-vert">${esc(acc.aff.nom.charAt(0).toLowerCase() + acc.aff.nom.slice(1))}</span>` : ''}</div></div>` : '<div class="rn-panneau" style="left:14px;right:14px;top:584px"><div class="rn-t rn-gris">Personne ici ne tient dans ton espace.</div></div>'}
-  ${bas(bt(P.pochette ? 'Ne rien signer' : 'Retour', 'fermer-porte'), bt('Voir l\'échange', 'vers-echange', { cls: 'go', v: choisi ? getPlayerKey(choisi.p) : '', off: !choisi }))}`;
+  const tuile = x => { const a = apportsHtml(S, x.p); return `<button type="button" class="${choisi === x ? 'rn-on' : ''}" aria-pressed="${choisi === x}" data-a="voir-joueur" data-v="${getPlayerKey(x.p)}">${carteJ(x.p)}${a ? `<span class="rn-coin">${a}</span>` : ''}<span class="rn-sousc">${money(prixDe(S, x.p))}</span></button>`; };
+  const autres = pages > 1 ? `<button type="button" class="rn-plie" data-a="page-porte">${pluriel(dedans.length - vus.length, 'autre')}<br>dans ton<br>espace<small>Page ${page + 1} de ${pages}</small></button>` : '';
+  return `${hud(S)}${comptoir('porte',
+    `<div class="rn-plaque">${c ? logo(c.t) : ''}<div class="rn-nom">${c ? esc(clubMot(c)) : 'Ta pochette'}<small>${dedans.length} tien${dedans.length > 1 ? 'nent' : 't'} dans ton espace · ${money(espaceDe(S))}</small></div></div>
+      <div class="rn-grille" style="--n:${rang}">${vus.map(tuile).join('')}${autres}</div>
+      ${hors[0] ? `<div class="rn-t rn-gris rn-centre">${esc(court(hors[0].p))}, ${money(prixDe(S, hors[0].p))} : hors de ton espace${hors.length > 1 ? `, comme ${pluriel(hors.length - 1, 'autre')}` : ''}.</div>` : ''}`,
+    choisi ? `<section class="rn-panneau"><div class="rn-entete"><b class="rn-h">${esc(choisi.p.n)}</b><span class="rn-h rn-or">${money(prixDe(S, choisi.p))}</span></div>
+      <div class="rn-t rn-gris">Cette année-là : ${vraie(choisi.p)}.<br>${badgeMot(choisi.p)}${apport ? ` · <span class="rn-vert">ton banc : ${apport}</span>` : ''}${acc ? ` · il allume <span class="rn-vert">${esc(acc.aff.nom.charAt(0).toLowerCase() + acc.aff.nom.slice(1))}</span>` : ''}</div></section>`
+      : '<section class="rn-panneau"><div class="rn-t rn-gris">Personne ici ne tient dans ton espace.</div></section>')}
+  ${bas(P.pochette ? bt('Ne rien signer', 'rien-signer') : bt('Retour', 'fermer-porte'), bt('Voir l\'échange', 'vers-echange', { cls: 'go', v: choisi ? getPlayerKey(choisi.p) : '', off: !choisi }))}`;
 }
 const statsDuJoueur = p => (p.p === 'G' ? [['Victoires', p.w || 0, x => x], ['% d\'arrêts', p.sv || 0, pct3], ['Matchs', p.gp || 0, x => x]]
   : [['Points / match', (p.pt ?? (p.g || 0) + (p.a || 0)) / Math.max(1, p.gp), x => x.toFixed(2).replace('.', ',')], ['Tirs / match', (p.sh || 0) / Math.max(1, p.gp), x => x.toFixed(1).replace('.', ',')], ['% au tir', p.sh ? (100 * (p.g || 0)) / p.sh : 0, x => `${x.toFixed(1).replace('.', ',')} %`]]);
+/*
+ * L'ÉCHANGE (JP : *un comparatif en haut entre les deux joueurs, style Yahoo Fantasy*). Ce qu'on te tend : l'arrivant face à
+ * celui qui sort, et leurs chiffres ligne à ligne. Ton côté : qui sort (la sortie proposée d'avance, V29 : le plus faible que
+ * ton banc ne compte pas ; ceux qu'il compte ne sortent que si tu les touches) et ton plafond après ; « Signer » le redit,
+ * pour qu'on ne signe jamais sans l'avoir à l'écran.
+ */
 export function sceneEchange(S, V) {
-  // La sortie proposée d'avance (V29) : le plus faible que ton banc ne compte pas ; ceux qu'il compte ne sortent que si tu les touches.
   const R = S.R, p = V.arrivant, compte = x => (R.banc.some(k => apportDe(k, x) > 0) ? 1 : 0);
   const sortants = sortantsPour(S, p).sort((a, b) => compte(a) - compte(b) || getHiddenRatings(a).v - getHiddenRatings(b).v);
   const sortant = sortants.find(x => getPlayerKey(x) === V.sortant) || sortants.find(x => masseApres(S, p, x) <= R.plafond) || sortants[0];
   const apres = masseApres(S, p, sortant), ok = apres <= R.plafond, reste = (1 - RUN.RACHAT) * prixDe(S, sortant);
   const A = statsDuJoueur(p), B = statsDuJoueur(sortant);
   const cas = SLOTS.find(s => S.roster[s.i] === sortant), ou = cas.scratch ? 'en civil' : cas.group === 'G' ? cas.role.toLowerCase() : `${ord(cas.unit + 1)} ${cas.group === 'F' ? 'trio' : 'paire'}`;
-  return `${hud(S, { titre: 'Signer', petit: esc(ou), rang: false })}
-  <div class="rn-face" style="left:14px;right:14px;top:62px"><span><b class="rn-vert">Il arrive</b>${carteJ(p)}</span><i>›‹</i><span><b class="rn-rg">Il sort</b>${carteJ(sortant)}</span></div>
-  <div class="rn-panneau rn-cmp" style="left:14px;right:14px;top:276px">${A.map(([nom, a, dire], i) => `<span${a > B[i][1] ? ' class="rn-mieux"' : ''}>${dire(a)}</span><em>${nom}</em><span${B[i][1] > a ? ' class="rn-mieux"' : ''}>${dire(B[i][1])}</span>`).join('')}
-    <span${prixDe(S, p) < prixDe(S, sortant) ? ' class="rn-mieux"' : ''}>${money(prixDe(S, p))}</span><em>Salaire</em><span${prixDe(S, sortant) < prixDe(S, p) ? ' class="rn-mieux"' : ''}>${money(prixDe(S, sortant))}</span></div>
-  <div class="rn-panneau" style="left:14px;right:14px;top:408px"><div class="rn-k" style="margin-bottom:8px">Qui sort · touche un joueur</div>
-    <div class="rn-sortants">${sortants.slice(0, 14).map(x => `<button type="button" class="${x === sortant ? 'rn-on' : masseApres(S, p, x) > R.plafond ? 'rn-non' : ''}" data-a="sortant" data-v="${getPlayerKey(x)}" aria-label="${esc(x.n)}">${carteJ(x)}</button>`).join('')}</div></div>
-  <div class="rn-panneau" style="left:14px;right:14px;top:${sortants.length > 7 ? 600 : 530}px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton plafond</span><span class="rn-t${ok ? '' : ' rn-rg'}">${money(apres)} <span class="rn-gris">/ ${money(R.plafond)}</span></span></div>
-    ${ok ? plafondApres(S, p, sortant) : plafond(S)}
-    <div class="rn-t rn-gris" style="margin-top:8px">${esc(court(p))} : <span class="rn-or">+${money(prixDe(S, p))}</span>. ${esc(court(sortant))} sort : <span class="rn-rg">${money(reste)} restent à ton plafond</span> pour la saison.${ok ? '' : ' <span class="rn-rg">Ça ne passe pas.</span>'}</div></div>
-  ${bas(bt('Retour', 'fermer-echange'), bt('Signer', 'signer', { cls: 'gold', off: !ok, v: getPlayerKey(sortant) }))}`;
+  const lui = (mot, cls, x) => `<span><b class="${cls}">${mot}</b>${carteJ(x)}</span>`;
+  const chiffres = `<section class="rn-panneau rn-cmp">${A.map(([nom, a, dire], i) => `<span${a > B[i][1] ? ' class="rn-mieux"' : ''}>${dire(a)}</span><em>${nom}</em><span${B[i][1] > a ? ' class="rn-mieux"' : ''}>${dire(B[i][1])}</span>`).join('')}
+    <span${prixDe(S, p) < prixDe(S, sortant) ? ' class="rn-mieux"' : ''}>${money(prixDe(S, p))}</span><em>Salaire</em><span${prixDe(S, sortant) < prixDe(S, p) ? ' class="rn-mieux"' : ''}>${money(prixDe(S, sortant))}</span></section>`;
+  return `${hud(S, { titre: 'Signer', petit: esc(ou), rang: false })}${comptoir('echange',
+    // En large, le comparatif tient entre les deux cartes ; sinon dessous.
+    large(V) ? `<div class="rn-face rn-entre">${lui('Il arrive', 'rn-vert', p)}${chiffres}${lui('Il sort', 'rn-rg', sortant)}</div>`
+      : `<div class="rn-face">${lui('Il arrive', 'rn-vert', p)}<i>›‹</i>${lui('Il sort', 'rn-rg', sortant)}</div>${chiffres}`,
+    `<section class="rn-panneau"><div class="rn-k">Qui sort · touche un joueur</div>
+        <div class="rn-sortants">${sortants.slice(0, 14).map(x => `<button type="button" class="${x === sortant ? 'rn-on' : masseApres(S, p, x) > R.plafond ? 'rn-non' : ''}" aria-pressed="${x === sortant}" data-a="sortant" data-v="${getPlayerKey(x)}" aria-label="${esc(x.n)}">${carteJ(x)}</button>`).join('')}</div></section>
+      ${panneauDuPlafond(S, { apres, ...(ok ? { jauge: plafond(S, { masse: apres, neuf: prixDe(S, p), mort: reste }) } : {}),
+        sous: `<div class="rn-t rn-gris rn-pied">${esc(court(p))} : <span class="rn-or">+${money(prixDe(S, p))}</span>. ${esc(court(sortant))} sort : <span class="rn-rg">${money(reste)} restent à ton plafond</span> pour la saison.${ok ? '' : ' <span class="rn-rg">Ça ne passe pas.</span>'}</div>` })}`)}
+  ${bas(bt('Retour', 'fermer-echange'), bt('Signer', 'signer', { cls: 'gold', off: !ok, v: getPlayerKey(sortant), petit: ok ? `${money(apres)} / ${money(R.plafond)}` : 'Ça ne passe pas' }))}`;
 }
-function plafondApres(S, p, sortant) {
-  const R = S.R, pc = x => `${Math.max(0, Math.min(100, (100 * x) / R.plafond)).toFixed(1)}%`;
-  const base = masseDe(S) - prixDe(S, sortant), neuf = prixDe(S, p), mort = (1 - RUN.RACHAT) * prixDe(S, sortant);
-  return `<div class="rn-plaf"><i style="width:${pc(base)}"></i><i class="rn-neuf" style="left:${pc(base)};width:${pc(neuf)}"></i><i class="rn-mort" style="left:${pc(base + neuf)};width:${pc(mort)}"></i></div>`;
-}
-/* Un rival ou une élite battus : leur pièce, avant leurs portes. */
-export const scenePieceGagnee = (S, V) => `${hud(S)}
-  <div style="left:14px;right:14px;top:66px;text-align:center"><div class="rn-k rn-vert">${S.R.apres.sorte === 'rival' ? 'Le rival est battu' : 'L\'élite est battue'}</div><div class="rn-titre" style="margin-top:6px">${S.R.apres.gf}-${S.R.apres.ga}</div></div>
-  <div style="left:14px;right:14px;top:170px">${etalDePieces(S, V, { titre: `${esc(surnom(S.R.apres.t))} te laissent une pièce`, sous: 'Une parmi trois' })}</div>
-  ${bas(bt('Passer', 'piece-passee'), bt('Prendre', 'prendre-piece', { cls: 'gold' }))}`;
+/*
+ * UN RIVAL OU UNE ÉLITE BATTUS : leur pièce, avant leurs portes. Ce qu'on te tend : le match gagné, trois pièces, chacune avec
+ * ce qu'elle compte chez toi. Ton côté : ton banc — la case libre, ou celle qui sort.
+ */
+export const scenePieceGagnee = (S, V) => `${hud(S)}${comptoir('piece',
+  `${verdict(S, `${esc(surnom(S.R.apres.t))} te laissent une pièce de banc : une parmi trois.`)}${etalDePieces(S, V, true)}`, bancQuiRecoit(S, V))}
+  ${bas(bt('Passer', 'piece-passee'), bt('Prendre', 'prendre-piece', { cls: 'gold', off: S.R.banc.length >= CASES_DU_BANC && !V.sort }))}`;
 
 /* ---------- le bilan du quart, le marché du quart ---------- */
 /*
@@ -773,35 +803,48 @@ export function sceneMarche(S, V) {
     : cm && peut ? bas(bt('Continuer', 'quitter-marche'), bt(`Monter ${esc(court(cm.p))}`, 'monter-au-marche', { cls: 'gold', v: getPlayerKey(cm.p) }))
       : bas(bt('Continuer', 'quitter-marche', { cls: 'go' }))}`;
 }
-/* Les pochettes, au bureau : le Bronze et l'Époque, une de chaque par quart. */
+/*
+ * LES POCHETTES, au bureau : le Bronze et l'Époque, une de chaque par quart. Ce qu'on te tend : les deux pochettes, leur prix,
+ * ce qu'elles donnent ; toucher l'une la paie et l'ouvre. Ton côté : ce qu'est une pochette, ton plafond (ce qu'on y signe doit
+ * tenir dans ton espace). Sans rail, comme la pochette qu'on y ouvre : d'ici à « Signer », rien ne saute.
+ */
 export function sceneEtal(S) {
   const R = S.R;
   const pochette = (cle, mot, ico, metal, quoi) => { const prix = RUN.POCHETTES[cle], prise = R.quart.pochettes.includes(cle), ok = pochetteLibre(S, cle); return `<button type="button" data-a="pochette" data-v="${cle}"${ok ? '' : ' disabled'}><span class="rn-c" style="--pk-a:var(${metal})">${pochetteHtml({ mot, ico })}</span><span class="rn-prix${ok ? '' : ' rn-non'}">${prise ? 'Ouverte ce quart' : `<i class="rn-piece"></i>${prix}`}</span><p>${quoi}</p></button>`; };
-  return `${hud(S, { titre: 'Les pochettes', petit: `Quart ${ROMAINS[R.quart.n]}` })}
-  <div class="rn-panneau" style="left:14px;right:14px;top:62px"><div class="rn-t">Une pochette s'ouvre comme une porte : tu y signes un joueur, ou aucun.<br><span class="rn-gris">Une de chaque par quart.</span></div></div>
-  <div class="rn-etal" style="left:60px;right:60px;top:160px;grid-template-columns:repeat(2, 1fr);gap:24px">${pochette('j:bronze', 'Bronze', '🥉', '--attention', 'Trois joueurs au hasard')}${pochette('j:epoque', 'Époque', '🕰', '--rn-bleu', 'Un pilier ou mieux, d\'une époque au hasard')}</div>
-  <div class="rn-panneau" style="left:14px;right:14px;top:560px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton plafond</span><span class="rn-t">${money(masseDe(S))} <span class="rn-gris">/ ${money(R.plafond)}</span> · <span class="rn-or">Espace ${money(espaceDe(S))}</span></span></div>${plafond(S, { mort: R.mort || 0 })}</div>
+  return `${hud(S, { titre: 'Les pochettes', petit: `Quart ${ROMAINS[R.quart.n]}` })}${comptoir('etal',
+    `<section class="rn-panneau"><div class="rn-t">Une pochette s'ouvre comme une porte : tu y signes un joueur, ou aucun.<br><span class="rn-gris">Une de chaque par quart.</span></div></section>
+      <div class="rn-etal rn-deux">${pochette('j:bronze', 'Bronze', '🥉', '--attention', 'Trois joueurs au hasard')}${pochette('j:epoque', 'Époque', '🕰', '--rn-bleu', 'Un pilier ou mieux, d\'une époque au hasard')}</div>`,
+    panneauDuPlafond(S))}
   ${bas(bt('Retour au bureau', 'fermer-etal', { cls: 'go' }))}`;
 }
 
 /* ---------- le ballottage, une histoire ---------- */
-/* Le ballottage, seulement s'il le faut (JP, 16 nov. 2026) : trois vrais joueurs pas chers, pour la case que personne chez toi ne peut tenir. */
+/*
+ * LE BALLOTTAGE, seulement s'il le faut (JP, 16 nov. 2026) : trois vrais joueurs pas chers, pour la case que personne chez
+ * toi ne peut tenir. Ce qu'on te tend : la case à tenir et pourquoi, puis les trois. Ton côté : le joueur choisi.
+ */
 export function sceneBallottage(S, V) {
   const R = S.R, B = R.ballottage, cas = SLOTS.find(s => s.i === B.i), blesse = S.roster[B.i], offres = offresVues(S), choisi = offres.find(p => getPlayerKey(p) === V.joueur) || offres[0];
   const ou = cas.group === 'G' ? cas.role.toLowerCase() : `${cas.role}, ${ord(cas.unit + 1)} ${cas.group === 'F' ? 'trio' : 'paire'}`;
-  return `${hud(S, { titre: 'Le ballottage', petit: '' })}
-  <div class="rn-panneau" style="left:14px;right:14px;top:62px"><div class="rn-t"><b>${blesse ? `${esc(court(blesse))} est à l'infirmerie` : 'Une case est vide'}</b> <span class="rn-gris">· ${esc(ou)}</span><br><span class="rn-gris">Personne chez toi ne peut tenir sa case. Réclame un joueur le temps de la blessure : il ne compte ni à ton plafond ni à ton banc.</span></div></div>
-  <div class="rn-etal" style="left:14px;right:14px;top:190px">${offres.map(p => `<button type="button" class="${p === choisi ? 'rn-on' : ''}" data-a="voir-joueur" data-v="${getPlayerKey(p)}">${carteJ(p)}<p>${esc(court(p))}<br>${badgeMot(p)}</p></button>`).join('')}</div>
-  ${choisi ? `<div class="rn-panneau" style="left:14px;right:14px;top:520px"><b class="rn-h">${esc(choisi.n)}</b><div class="rn-t rn-gris" style="margin-top:6px">Cette année-là : ${vraie(choisi)}.</div></div>` : ''}
+  return `${hud(S, { titre: 'Le ballottage', petit: '' })}${comptoir('ballottage',
+    `<section class="rn-panneau"><div class="rn-t"><b>${blesse ? `${esc(court(blesse))} est à l'infirmerie` : 'Une case est vide'}</b> <span class="rn-gris">· ${esc(ou)}</span><br><span class="rn-gris">Personne chez toi ne peut tenir sa case. Réclame un joueur le temps de la blessure : il ne compte ni à ton plafond ni à ton banc.</span></div></section>
+      <div class="rn-etal">${offres.map(p => `<button type="button" class="${p === choisi ? 'rn-on' : ''}" aria-pressed="${p === choisi}" data-a="voir-joueur" data-v="${getPlayerKey(p)}">${carteJ(p)}<p>${esc(court(p))}<br>${badgeMot(p)}</p></button>`).join('')}</div>`,
+    choisi ? `<section class="rn-panneau"><b class="rn-h">${esc(choisi.n)}</b><div class="rn-t rn-gris rn-pied">Cette année-là : ${vraie(choisi)}.</div></section>` : '')}
   ${bas(bt('Personne', 'reclamer', { petit: 'Un remplaçant de la ligue' }), bt(choisi ? `Réclamer ${esc(court(choisi))}` : 'Réclamer', 'reclamer', { cls: 'go', v: choisi ? getPlayerKey(choisi) : '', off: !choisi }))}`;
 }
+/*
+ * UNE HISTOIRE : quelqu'un du club vient te parler d'un de tes joueurs. Elle se lit avant de se répondre : ce qu'on te tend,
+ * c'est la voix, sa réplique, le joueur et le fait ; ton côté, tes deux réponses en cartes de jeu, chacune avec ce qu'elle
+ * change, et rien n'est coupé. Les deux « Prendre » sont dans le bas, au nom de leur carte : ce qui décide est à l'écran
+ * avant tout défilement ; « Plus tard » la laisse au fil.
+ */
 export function sceneHistoire(S, V) {
   const H = V.histoire;
-  return `${hud(S, { titre: 'Une histoire', petit: '' })}
-  <div style="left:14px;right:14px;top:66px"><span class="rn-voix">${esc(H.voix)}</span><div class="rn-bulle">${H.dit}</div></div>
-  ${H.joueur ? `<div style="left:14px;right:14px;top:250px;display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center">${carteJ(H.joueur)}<div><div class="rn-h">${esc(H.joueur.n)}</div><div class="rn-t rn-gris" style="margin-top:6px">${H.fait}</div></div></div>` : ''}
-  <div class="rn-reps" style="left:14px;right:14px;top:404px;bottom:76px">${H.options.map((o, i) => `<div><span class="rn-c">${o.carte}</span><p>${o.lignes}</p><button type="button" class="rn-prendre" data-a="reponse" data-v="${i}">Prendre</button></div>`).join('')}</div>
-  ${H.options.length ? bas(bt('Plus tard', 'fermer-histoire')) : ''}`;
+  return `${hud(S, { titre: 'Une histoire', petit: '' })}${comptoir('histoire',
+    `<div><span class="rn-voix">${esc(H.voix)}</span><div class="rn-bulle">${H.dit}</div></div>
+      ${H.joueur ? `<div class="rn-fait">${carteJ(H.joueur)}<div><div class="rn-h">${esc(H.joueur.n)}</div><div class="rn-t rn-gris rn-pied">${H.fait}</div></div></div>` : ''}`,
+    H.options.length ? `<div class="rn-etal rn-deux">${H.options.map(o => `<div><span class="rn-c">${o.carte}</span><p>${o.lignes}</p></div>`).join('')}</div>` : '')}
+  ${H.options.length ? bas(bt('Plus tard', 'fermer-histoire'), ...H.options.map((o, i) => bt('Prendre', 'reponse', { cls: 'gold', v: i, petit: o.nom }))) : ''}`;
 }
 
 /* ---------- les séries : les vraies, seize clubs, quatre rondes ---------- */

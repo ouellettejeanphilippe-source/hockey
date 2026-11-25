@@ -4151,3 +4151,44 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 
 **Les preuves.** `check_scene` (26 : 60 scènes à 390 × 844, puis le soir à cinq autres écrans, en moins de quatre minutes), `essai_run` (23 : un soir au clavier en trois « Entrée », l'en-tête au même pixel du bureau au bureau, Échap qui ferme puis ouvre la pause puis reprend), `check_refonte`, `check_mort`, `check_css`, `check_neuf`.
 
+
+## V31, tranche 2 : ce qui s'ouvre du soir (25 nov. 2026)
+
+**Ce que JP a demandé** : *tout le Rogue en fluide* ; l'option qu'il a choisie disait *chaque scène se met en page seule, du téléphone au grand écran (les deux clubs côte à côte à la feuille du soir, les portes en rangée large…)*. Après la tranche 1, entrer du bureau dans une histoire, une pochette ou des portes ramenait l'écran à une colonne de 390 px : à 1440 × 900, le milieu passait de 1 344 px à 416.
+
+**Les sept scènes** : une histoire, les pochettes, le ballottage, la pièce gagnée, les trois portes, la porte ouverte, l'échange. Le devis : docs/refonte-v31-2.md.
+
+**La revue du devis a changé le devis** (deux relecteurs en adversaires ; « à reprendre »). Le premier mettait les sept scènes en deux colonnes dès 700 px, ajoutait ton banc en lignes aux portes et pièce par pièce à la pièce gagnée, et posait le focus du clavier sur « Signer » et « Prendre ». Ce qui est tombé :
+
+- *Du contenu réservé à l'ordinateur, devant des choix irréversibles.* Le banc en lignes n'existait qu'en deux colonnes. La règle, maintenant : le même contenu à toutes les largeurs. Ce que le banc réparait (on choisit la pièce qui sort sans voir son compte) est une vraie question de jeu, posée à JP, pas décidée ici.
+- *Les portes rapetissées* : trois portes de 220 px dans trois cinquièmes de l'écran, à côté d'un tableau. L'option de JP disait « en rangée large », et c'est le pic de la run : elles prennent la rangée et grandissent.
+- *Cinq « Entrée » signaient à ta place* : la première pièce, la première porte, le plus fort contre la sortie proposée. Aucun bouton qui signe ou qui prend ne reçoit le focus d'office.
+- *La tablette debout en deux colonnes* : à 820 px, ton côté tenait dans 300 px et le titre du plafond se cassait.
+
+**Ce qui est fait.**
+
+- *Le comptoir* (`comptoir`, js/run-scenes.js). Six scènes ont la même forme : ce qu'on te tend (avec en tête pourquoi on est là), puis ton côté (le joueur choisi, qui sort, ton plafond, tes réponses). La scène rend les deux blocs dans l'ordre où on les lit ; **c'est la feuille qui choisit** entre d'un trait (le téléphone, la tablette debout, borné à 640 px dès 700) et côte à côte (la règle du rail : large ou couché), trois parts et deux, ton côté au-dessus du bouton qui signe.
+- *Les portes en rangée large* : le match gagné et ton plafond côte à côte au-dessus, les trois portes de front, jusqu'à 250 px de large et 480 de haut.
+- *La porte ouverte montre plus de joueurs quand il y a la place* : deux rangées de trois, trois de quatre, trois de six ; tous d'un coup s'ils tiennent, sinon une tuile qui dit sa page.
+- *L'échange en large* : le comparatif entre les deux cartes.
+- *Trois briques qui se recopiaient* : le match gagné (les portes, la pièce gagnée), ton plafond en panneau (les portes, les pochettes, l'échange), la jauge du plafond (elle dessine aussi l'échange).
+
+**Une seconde revue, sur le devis repris et le code** (mesurée dans Chromium à huit écrans) : à reprendre encore. Le plan fixe tenait tout à l'écran en rapetissant ; avec un milieu qui défile, ce qui décide passait sous le pli. D'où une règle de plus : **ce qui décide est à l'écran sans défiler**.
+
+- *Une histoire* : ses deux « Prendre » étaient sous chaque carte, cachés de 128 px à 360 × 640. Ils sont dans le bas, au nom de leur carte. Un toucher, comme avant. Écarté : toucher une réponse puis « Prendre » (un toucher de plus).
+- *L'échange* : avec quatorze joueurs qui peuvent sortir, le plafond d'après passait sous le pli. « Signer » le redit.
+- *La porte ouverte* : les rangées se comptaient par la largeur seule ; à 1366 × 650, la tuile « N autres » était 114 px sous le pli. La coquille dit aussi la hauteur à la scène (`V.hauteur`).
+- *Échap perdait une pochette payée* (26 jetons, rien signé) : le retour visait tout bouton « fermer », et « Ne rien signer » en était un. Il a son geste ; Échap ouvre la pause.
+- *Le rail* : l'étal des pochettes l'avait, la pochette qu'on y ouvre non, et le milieu sautait de 76 px en la payant. Les sept scènes sont sans rail ; il reste à ce qu'on consulte (la page d'un club, un match passé).
+- *Banc plein, « Prendre » allumé ne faisait qu'un son* : éteint tant que celle qui sort n'est pas touchée, comme au marché.
+- *Sur un téléphone couché*, le compte d'une porte était caché de 73 px : les portes y prennent la hauteur, le reste à gauche.
+
+**Écarté.** Deux colonnes dès 700 px (la tablette debout). Une version courte de chaque scène pour un téléphone couché (JP l'avait écartée à la tranche 1 : le milieu défile). Le contenu qui change avec la largeur. Une colonne centrée de 640 px à l'ordinateur pour les petites scènes : c'est le plan fixe d'avant en plus large. Les trois vestiaires ouverts de front à l'ordinateur : un autre parcours, à poser à JP.
+
+**Bogues trouvés en passant.** Trois de la tranche 1 : un onglet du rail changeait l'onglet sous la page d'un club sans la fermer ; au téléphone, la page d'un club et un match passé montraient les cinq onglets (la règle qui les cachait perdait contre celle qui les dessine) ; au clavier, aux portes et à la pièce gagnée, « Entrée » tombait sur « Passer ». Un d'avant : à la dernière page d'une porte ou d'un tour du repêchage, la tuile « N autres » ne faisait plus rien ; elle revient à la première.
+
+**Trouvé par la revue, pas fait : à poser à JP** (docs/refonte-v31-2.md § 10). Signer place l'arrivant dans la case de celui qui sort ; la sortie proposée est un réserviste à 21 % des portes (591 portes de six saisons du robot), et l'arrivant finit alors en civil. La porte ouverte dit « ton banc : +2 » sans dire sur combien. À la pièce gagnée, banc plein, on choisit celle qui sort sans son compte. Une histoire garde « Prendre » sous chaque carte, sous le pli d'un petit téléphone.
+
+**Mesuré.** Les sept scènes perdent leurs 24 positions au pixel. À la mesure de la tranche 1 (elle compte aussi les marges écrites dans un attribut de style) : 124 restaient, 84 restent, ceux de la tranche 3. `check_refonte` : le jeu retire 95 lignes pour 144 ajoutées (0,66 ; la borne est 0,5), la feuille de style fait 21 % du diff, les trois noms sont partis. `check_scene` passe de 26 à 36 vérifications et de 3 min 52 à 6 min : les sept scènes et une pochette payée s'ouvrent à cinq écrans de plus.
+
+**Pas fait.** Les scènes de la tranche 3 (le départ, le repêchage, l'ouverture du quart, le bilan, le marché, la fin, le Club) : y entrer fait encore sauter l'écran. L'échange n'est jugé qu'avec les sortants que la sauvegarde du robot donne (sept, pas quatorze). L'encoche de côté d'un téléphone couché est dégagée dans la feuille, mais aucun juge ne la simule. Une zone vivante pour les lecteurs d'écran (le joueur choisi qui change) ne survit pas à une scène qui se redessine entière.

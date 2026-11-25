@@ -80,16 +80,17 @@ async function pas({ affiches = true } = {}) {
   if (await la('prendre-coach')) return (await toucher('prendre-coach', null, 600)) && 'coach';
   if (await la('repecher')) return (await toucher('repecher')) && 'repêchage';
   if (await la('relancer-roulette') && !(await la('repecher'))) return (await toucher('relancer-roulette')) && 'roulette';
-  if (await la('prendre-piece')) {
-    // Banc plein : celle qui sort d'abord (la première), sinon on passe.
-    if (!(await toucher('prendre-piece')) || await la('prendre-piece')) { if (!(await toucher('piece-sort')) || !(await toucher('prendre-piece'))) await toucher('piece-passee'); }
+  if (await la('prendre-piece') || await la('piece-passee')) {
+    // Banc plein : « Prendre » attend celle qui sort (la première) ; sinon on passe.
+    if (!(await la('prendre-piece'))) await toucher('piece-sort');
+    if (!(await toucher('prendre-piece'))) await toucher('piece-passee');
     return 'pièce';
   }
   if (await la('vers-bureau')) { vu.quarts++; return (await toucher('vers-bureau')) && 'quart'; }
   if (await la('reclamer')) { vu.ballottages++; if (soir) soir.ordinaire = false; const offre = await page.$('#runModal [data-a="reclamer"][data-v]:not([data-v=""])'); if (offre) { await offre.click(); touchers++; await page.waitForTimeout(300); } else await toucher('reclamer'); return 'ballottage'; }
   if (await la('continuer')) {
     await toucher('continuer', null, 300);
-    if (soir) { soir.fin = touchers; if (soir.ordinaire && !(await la('ouvrir-porte')) && !(await la('prendre-piece')) && !(await la('apres-bilan'))) vu.soirs.push(soir.fin - soir.debut); soir = null; }
+    if (soir) { soir.fin = touchers; if (soir.ordinaire && !(await la('ouvrir-porte')) && !(await la('prendre-piece')) && !(await la('piece-passee')) && !(await la('apres-bilan'))) vu.soirs.push(soir.fin - soir.debut); soir = null; }
     return 'résultat';
   }
   if (await la('ouvrir-porte', '0')) {
@@ -286,16 +287,18 @@ if (tardive) {
     await p3.waitForSelector('#runModal .rn-plan [data-a]', { timeout: 90000 });
     const etat = () => p3.evaluate(() => { const R = JSON.parse(localStorage.getItem('cap82_run') || 'null'), f = document.activeElement, c = document.querySelector('#runModal .rn-hud .rn-coeurs'), e = document.querySelector('#runModal .rn-hud > :first-child');
       return { phase: R && R.phase, matchs: R ? R.matchs.length : 0, tenu: f && f.dataset ? f.dataset.a || '' : '', bureau: !!document.querySelector('#runModal [data-a="aller"]'), hud: c && e ? [Math.round(c.getBoundingClientRect().left), Math.round(c.getBoundingClientRect().top), Math.round(e.getBoundingClientRect().left)].join() : '' }; });
-    const entree = async () => { await p3.keyboard.press('Enter'); await p3.waitForTimeout(700); };
-    // Jusqu'au bureau, en « Entrée » : le résultat gardé, puis ce qui le suit (une pièce, des portes, un bilan : chacun a son bouton qui avance).
+    // « Entrée » ; devant une pièce gagnée ou des portes, le focus est sur un choix (jamais sur « Passer ») : on y passe à la souris.
+    const renoncer = async () => { const b = await p3.$('#runModal [data-a="piece-passee"]:not([disabled]), #runModal [data-a="passer"]:not([disabled])'); if (b) { await b.click(); await p3.waitForTimeout(700); } return !!b; };
+    const entree = async () => { if (await renoncer()) return false; await p3.keyboard.press('Enter'); await p3.waitForTimeout(700); return true; };
+    // Jusqu'au bureau : le résultat gardé, puis ce qui le suit (un bilan, un marché : chacun a son bouton qui avance).
     await entree();
     for (let i = 0; i < 12 && !(await etat()).bureau; i++) await entree();
     let e = await etat();
     if (e.bureau && e.phase === 'bureau') {
       const n0 = e.matchs, huds = [e.hud], tenus = [e.tenu];
-      let appuis = 0;
-      // Un soir : « Jouer ce soir », « Au match », la suite. On s'arrête au bureau, un match de plus.
-      do { await entree(); appuis++; e = await etat(); huds.push(e.hud); tenus.push(e.tenu); } while (appuis < 8 && !(e.bureau && e.matchs === n0 + 1));
+      let appuis = 0, tours = 0, detour = false;
+      // Un soir : « Jouer ce soir », « Au match », la suite. On s'arrête au bureau, un match de plus. Un détour à la souris (une pièce, des portes) : le focus ne se juge plus.
+      do { const clavier = await entree(); if (clavier) appuis++; else detour = true; e = await etat(); huds.push(e.hud); if (!detour) tenus.push(e.tenu); } while (appuis < 8 && ++tours < 14 && !(e.bureau && e.matchs === n0 + 1));
       const ordinaire = appuis === 3;
       exiger('à l\'ordinateur, un soir se joue au clavier en « Entrée » seulement : le focus revient au bouton qui avance', e.bureau && e.matchs === n0 + 1 && tenus.every(Boolean), `${appuis} « Entrée » du bureau au bureau${ordinaire ? ' (un soir ordinaire, mouvement réduit : deux de plus au direct)' : ' (le soir ouvrait autre chose)'} ; tenu : ${tenus.join(' → ')}`);
       exiger('… et l\'en-tête ne bouge pas du bureau au bureau : son écusson et ses cœurs au même pixel', new Set(huds).size === 1 && !!huds[0], [...new Set(huds)].join(' | '));
@@ -310,6 +313,13 @@ if (tardive) {
       await p3.keyboard.press('Escape'); await p3.waitForTimeout(400);
       const reprise = !(await p3.$('#runModal .rn-pauseur')) && (await etat()).bureau;
       exiger('… Échap ferme la page d\'un club, puis ouvre la pause (la scène dessous ne se touche pas), puis reprend', ouverte && fermee && pause && reprise, `ouverte ${ouverte ? 'oui' : 'non'}, fermée ${fermee ? 'oui' : 'non'}, la pause ${pause ? 'oui' : 'non'}, reprise ${reprise ? 'oui' : 'non'}`);
+      // Un onglet du rail ferme ce qui est ouvert par-dessus le bureau (la page d'un club) et va à son onglet.
+      await p3.click('#runModal [data-a="club-vu"]');
+      await p3.waitForTimeout(400);
+      const rail = !!(await p3.$('#runModal [data-a="fermer-club-vu"]')) && !!(await p3.$('#runModal .rn-onglets [data-a="onglet"][data-v="ligue"]'));
+      if (rail) { await p3.click('#runModal .rn-onglets [data-a="onglet"][data-v="ligue"]'); await p3.waitForTimeout(400); }
+      const ligue = rail && !(await p3.$('#runModal [data-a="fermer-club-vu"]')) && !!(await p3.$('#runModal [data-a="seg-l"]'));
+      exiger('… un onglet du rail ferme la page d\'un club et ouvre son onglet', ligue, rail ? (ligue ? 'la Ligue' : 'la page est restée') : 'pas de rail à la page d\'un club');
     } else informer('le clavier à l\'ordinateur', `pas essayé : la run n'est pas revenue au bureau (${e.phase})`);
     await p3.close();
   }

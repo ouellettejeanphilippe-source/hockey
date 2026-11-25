@@ -27,9 +27,16 @@
  * rien ne rapetisse et un tableau garde sa place ; à la tablette deux colonnes ; à l'ordinateur trois colonnes, tes
  * vingt-trois sans défiler, quatorze colonnes sans glisser, une ligne qui répond au survol). À 390 × 844, 820 × 1180 et
  * 1440 × 900, aucun milieu ne défile hors d'un tableau.
+ * ET CE QUI S'OUVRE DU SOIR (V31, tranche 2, docs/refonte-v31-2.md) — les pochettes, les trois portes, la porte ouverte,
+ * l'échange, la pièce gagnée, une histoire, le ballottage — aux mêmes écrans : ce qu'on te tend et ton côté côte à côte
+ * quand l'écran est large ou couché, d'un trait sinon ; les portes en rangée large ; une porte montre plus de joueurs quand
+ * il y a la place (de front par la largeur, en rangées par la hauteur), sa tuile revient à la première page ; aucune carte
+ * ne passe 190 px ; aucun texte d'étal n'est coupé ; ce qui décide est à l'écran sans défiler (la tuile des autres, les
+ * « Prendre » d'une histoire dans le bas, le plafond d'après sur « Signer ») ; Échap à une pochette payée ouvre la pause ; au
+ * clavier, on arrive aux portes sur une porte.
  * Le ballottage et une histoire s'ouvrent si une des saisons jouées en garde une sauvegarde ; sinon ils s'impriment absents.
  *
- *   node scripts/check_scene.mjs http://localhost:8000 [dossier]     (quatre minutes ; une capture par scène dans le dossier,
+ *   node scripts/check_scene.mjs http://localhost:8000 [dossier]     (six minutes ; une capture par scène dans le dossier,
  *                                                                     et une par scène et par écran ; `NETTETE=2` : nettes)
  */
 import { createRequire } from 'node:module';
@@ -127,8 +134,8 @@ async function mesurer(page, nom, { garde = true } = {}) {
     // Ni une cible qu'on touche, où qu'elle soit (une réponse d'histoire dont le texte s'allonge poussait son « Prendre » sous « Plus tard »).
     // (La pause est par-dessus la scène, pas dessous : ses boutons ne se jugent pas contre le bas qu'elle couvre.)
     const cibles = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('[data-defile], .rn-bas, .rn-onglets, .rn-pauseur'));
-    // Ni un texte coupé par son bloc : la réponse d'une histoire, tenue entre sa carte et son « Prendre ».
-    const coupes = [...plan.querySelectorAll('.rn-reps p')].filter(p => p.scrollHeight > p.clientHeight + 1).length;
+    // Ni un texte coupé par son bloc : ce qu'un étal dit sous chaque carte (la réponse d'une histoire, une pièce, une pochette), la réplique, le fait.
+    const coupes = [...plan.querySelectorAll('.rn-etal p, .rn-bulle, .rn-fait .rn-t')].filter(p => p.scrollHeight > p.clientHeight + 1 || p.scrollWidth > p.clientWidth + 1).length;
     // Les boîtes qui défilent : chacune dans l'écran, sous l'en-tête ; de côté, seulement celle d'un tableau de stats. Sur un écran
     // très court, ce qui coiffe un tableau défile avec lui : sa boîte se juge alors par le milieu qui la porte.
     const boites = [...plan.querySelectorAll('[data-defile]')], haut = el => el.scrollHeight > el.clientHeight + 1, cote = el => el.scrollWidth > el.clientWidth + 1;
@@ -143,7 +150,7 @@ async function mesurer(page, nom, { garde = true } = {}) {
     // Une scène neuve ne pose rien au pixel (la jauge du plafond exceptée : sa place vient des données), et son bouton qui avance est dans le bas, à l'écran.
     const coords = fluide ? [...plan.querySelectorAll('[style]')].filter(el => !el.closest('.rn-plaf') && /(^|;)\s*(left|right|top|bottom|inset)\s*:/.test(el.getAttribute('style'))).length : 0;
     const avance = fluide ? [...plan.querySelectorAll('.rn-bt:is(.go, .rn-combat)')].filter(b => { const x = boite(b); return !b.closest('.rn-bas') || x.bottom > H + 0.5 || x.top < 0 || x.right > L + 0.5; }).length : 0;
-    return { fluide, couverts, horsPlace, imbriquees, coupe, coords, avance, lecture: [...plan.querySelectorAll('.rn-lecture, .rn-col')].some(haut),
+    return { fluide, couverts, horsPlace, imbriquees, coupe, coords, avance, lecture: [...plan.querySelectorAll('.rn-lecture, .rn-col, .rn-comptoir')].some(haut),
       defile: de.scrollHeight > H + 1 || de.scrollWidth > L + 1 || racine.scrollHeight > racine.clientHeight + 1 || plan.scrollHeight > plan.clientHeight + 1,
       plan: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)], dehors, bords,
       hud: rc ? [Math.round(rc.left), Math.round(rc.top), re ? Math.round(re.left) : 0, re ? Math.round(re.top) : 0] : null,
@@ -290,13 +297,23 @@ const ECRANS = [[360, 640], [820, 1180], [844, 390], [1366, 650], [1440, 900]];
 const PARCOURS = [['le résultat, la feuille', [['seg-r', 'feuille']]], ['le bureau', [['continuer']]], ['l\'alignement', [['onglet', 'alignement']]], ['le banc', [['seg-a', 'banc']]],
   ['la masse', [['onglet', 'masse']]], ['le classement', [['onglet', 'ligue']]], ['les meneurs', [['seg-l', 'meneurs']]], ['la cédule', [['seg-l', 'cedule', true]]],
   ['la page d\'un club', [['seg-l', 'classement'], ['club-vu', '3']]], ['mon club', [['fermer-club-vu'], ['onglet', 'club']]], ['mes matchs', [['seg-c', 'matchs', true]]], ['un match passé', [['match-vu', '0']]],
-  ['la pause', [['fermer-match-vu'], ['onglet', 'bureau'], ['pause']]], ['la feuille du soir', [['reprendre'], ['aller']]], ['le résultat du soir', [['jouer']]]];
+  ['la pause', [['fermer-match-vu'], ['onglet', 'bureau'], ['pause']]], ['les pochettes', [['reprendre'], ['etal']]], ['la pochette ouverte', [['pochette']]], ['la feuille du soir', [['rien-signer'], ['aller']]], ['le résultat du soir', [['jouer']]]];
+/* Ce qui s'ouvre du soir (V31, tranche 2) : [la sauvegarde, [la scène, ses gestes]…] ; une histoire et le ballottage, si une saison en garde une. */
+const OUVERTS = [['portes', [['les trois portes', []], ['la porte ouverte', [['ouvrir-porte', '0']]], ['l\'échange', [['vers-echange']]]]], ['piece', [['la pièce gagnée', [['continuer']]]]],
+  ['histoire', [['une histoire', [['ouvrir-histoire']]]]], ['ballottage', [['le ballottage', []]]]];
 const E = {};
 /* Ce qu'un écran promet d'une scène : ses panneaux, ses colonnes, ses boîtes, ce qui se coupe. */
 const lire = page => page.evaluate(() => {
   const plan = document.querySelector('#runModal .rn-plan'), m = plan.querySelector('.rn-milieu'), b = el => { const r = el.getBoundingClientRect(); return { g: r.left, h: r.top, d: r.right, b: r.bottom }; };
   const coupe = el => el.scrollWidth > el.clientWidth + 1;
   return { milieu: m ? b(m) : null, panneaux: [...plan.querySelectorAll('.rn-milieu .rn-panneau')].map(b), colonnes: plan.querySelectorAll('.rn-milieu > .rn-col').length,
+    // Un comptoir : ses deux blocs (ce qu'on te tend, ton côté) ; les portes ; les joueurs d'une porte et sa tuile ; la plus large des cartes.
+    blocs: [...plan.querySelectorAll('.rn-comptoir > .rn-col')].filter(x => x.offsetHeight > 0).map(b), portes: [...plan.querySelectorAll('.rn-portes .rn-porte')].map(b),
+    joueurs: [...plan.querySelectorAll('.rn-grille [data-a="voir-joueur"]')].map(x => x.dataset.v), tuile: (plan.querySelector('.rn-plie') || {}).textContent || '',
+    carte: Math.max(0, ...[...plan.querySelectorAll('.rn-milieu .rn-c')].map(x => x.getBoundingClientRect().width)), onglets: !!plan.querySelector('.rn-onglets') && plan.querySelector('.rn-onglets').offsetHeight > 0,
+    // Ce qui décide est à l'écran : la tuile qui mène aux autres joueurs, les réponses d'une histoire dans le bas, ce que « Signer » dit.
+    tuileVue: (() => { const t = plan.querySelector('.rn-plie'); if (!t) return null; const r = t.getBoundingClientRect(), c = t.closest('[data-defile]').getBoundingClientRect(); return r.top >= c.top - 1 && r.bottom <= Math.min(c.bottom, innerHeight) + 1; })(),
+    reponses: [plan.querySelectorAll('.rn-bas [data-a="reponse"]').length, plan.querySelectorAll('.rn-milieu .rn-deux > div').length], signer: ((plan.querySelector('.rn-bas [data-a="signer"] small') || {}).textContent || ''),
     soir: plan.querySelector('.rn-p-soir') ? b(plan.querySelector('.rn-p-soir')) : null, proprio: plan.querySelector('.rn-p-proprio') ? b(plan.querySelector('.rn-p-proprio')) : null,
     boites: Object.fromEntries([...plan.querySelectorAll('[data-defile]')].map(x => [x.dataset.defile, { haut: x.scrollHeight > x.clientHeight + 1, cote: x.scrollWidth > x.clientWidth + 1, lignes: x.querySelectorAll('.rn-l:not(.rn-tete):not(.rn-unite):not(.rn-coupe)').length, colonnes: x.querySelector('.rn-tete') ? x.querySelector('.rn-tete').children.length : 0 }])),
     coupes: [...plan.querySelectorAll('.rn-large .rn-l:not(.rn-tete) > :first-child, .rn-alig .rn-l:not(.rn-tete):not(.rn-unite) > :nth-child(2)')].filter(coupe).length };
@@ -312,6 +329,13 @@ if (saves.resultat) for (const ecran of ECRANS) {
     if (nom === 'la feuille du soir') await page.waitForTimeout(1200);
     await mesurer(page, nom, { garde: false });
     E[cle][nom] = await lire(page);
+    // Une pochette payée, ouverte : Échap ouvre la pause, il n'y renonce pas ; Échap encore, et la pochette est toujours là.
+    if (nom === 'la pochette ouverte' && ecran[0] >= 1000) {
+      await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+      const pause = !!await page.$('#runModal .rn-pauseur');
+      await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+      E[cle].echap = pause && !await page.$('#runModal .rn-pauseur') && !!await page.$('#runModal [data-a="rien-signer"]');
+    }
     // Un tableau garde sa place : défilé au bas des lignes, le dernier joueur tenu, la boîte n'a pas bougé.
     if (nom === 'l\'alignement' && E[cle][nom].boites.lignes && E[cle][nom].boites.lignes.haut) {
       const y0 = await page.$eval('#runModal [data-defile="lignes"]', el => { el.scrollTop = el.scrollHeight; return el.scrollTop; });
@@ -332,6 +356,27 @@ if (saves.resultat) for (const ecran of ECRANS) {
     }
   }
   await page.close();
+  // Ce qui s'ouvre du soir, chacun de sa sauvegarde.
+  for (const [save, scenes] of OUVERTS) {
+    if (!saves[save]) continue;
+    const p2 = await ouvrir(saves[save], null, null, ecran);
+    for (const [nom, gestes] of scenes) {
+      let ok = true;
+      for (const [a, v] of gestes) ok = await geste(p2, a, v) && ok;
+      if (!ok) { fautes.ecrans.push(`${nom} à ${cle} : un geste manque (${gestes.map(x => x[0]).join(', ')})`); continue; }
+      // Aux portes, au clavier : « Entrée » sans rien de tenu pose le focus, et il arrive sur une porte, jamais sur « Passer ».
+      if (nom === 'les trois portes' && ecran[0] >= 1000) { await p2.keyboard.press('Enter'); await p2.waitForTimeout(200); E[cle].focus = await p2.evaluate(() => (document.activeElement && document.activeElement.dataset.a) || ''); }
+      await mesurer(p2, nom, { garde: false });
+      E[cle][nom] = await lire(p2);
+      // La tuile qui mène aux autres : de page en page, elle revient aux premiers joueurs.
+      if (nom === 'la porte ouverte' && / de (\d+)/.test(E[cle][nom].tuile)) {
+        const pages = Number(E[cle][nom].tuile.match(/ de (\d+)/)[1]), vus = [E[cle][nom].joueurs.join()];
+        for (let k = 0; k < pages; k++) { await geste(p2, 'page-porte'); vus.push((await lire(p2)).joueurs.join()); }
+        E[cle].tour = { pages, autres: new Set(vus.slice(0, pages)).size, retour: vus[pages] === vus[0] };
+      }
+    }
+    await p2.close();
+  }
 }
 await browser.close();
 
@@ -375,6 +420,39 @@ exiger('l\'en-tête est toujours au même endroit : son écusson et ses cœurs a
   const coupes = ECRANS.map(([l, h]) => `${l} × ${h}`).map(k => [k, (e(k, 'le classement') || {}).coupes, (e(k, 'l\'alignement') || {}).coupes]);
   exiger('aucun nom de club coupé au classement, à aucun écran', coupes.every(([, c]) => c === 0), coupes.map(([k, c]) => `${k} : ${c}`).join(' · '));
   informer('les noms de joueurs coupés à l\'Alignement', coupes.map(([k, , a]) => `${k} : ${a}`).join(' · '));
+}
+// ---- ce qui s'ouvre du soir (V31, tranche 2) ----
+{
+  const ecrans = ECRANS.map(([l, h]) => `${l} × ${h}`), e = (ecran, nom) => (E[ecran] || {})[nom] || null;
+  const scenes = ['les pochettes', 'la pochette ouverte', ...OUVERTS.filter(([save]) => saves[save]).flatMap(([, l]) => l.map(x => x[0]))], manquent = ecrans.flatMap(k => scenes.filter(n => !e(k, n)).map(n => `${n} à ${k}`));
+  exiger('ce qui s\'ouvre du soir s\'ouvre aux cinq autres écrans : les pochettes, une pochette ouverte, les portes, la porte ouverte, l\'échange, la pièce gagnée', ['les pochettes', 'la pochette ouverte', 'les trois portes', 'la porte ouverte', 'l\'échange', 'la pièce gagnée'].every(n => scenes.includes(n)) && !manquent.length, manquent.slice(0, 4).join(' · ') || `${scenes.length} scènes à ${ecrans.length} écrans`);
+  // Le comptoir : côte à côte quand l'écran est large ou couché (la règle du rail), d'un trait sinon.
+  const COMPTOIRS = scenes.filter(n => n !== 'les trois portes'), cote = x => x.blocs.length < 2 || x.blocs[1].g >= x.blocs[0].d - 1, trait = x => x.blocs.length < 2 || x.blocs[1].h >= x.blocs[0].b - 1;
+  const faux = [...['844 × 390', '1366 × 650', '1440 × 900'].flatMap(k => COMPTOIRS.filter(n => e(k, n) && !cote(e(k, n))).map(n => `${n} à ${k} : d'un trait`)), ...['360 × 640', '820 × 1180'].flatMap(k => COMPTOIRS.filter(n => e(k, n) && !trait(e(k, n))).map(n => `${n} à ${k} : côte à côte`))];
+  exiger('… ce qu\'on te tend et ton côté : côte à côte quand l\'écran est large ou couché, d\'un trait au téléphone et à la tablette debout', !faux.length, faux.slice(0, 4).join(' · ') || `${COMPTOIRS.length} scènes`);
+  const P = e('1440 × 900', 'les trois portes'), p0 = e('360 × 640', 'les trois portes');
+  exiger('… à l\'ordinateur, les portes en rangée large : trois de front, plus hautes et plus larges qu\'au téléphone', !!P && !!p0 && P.portes.length === 3 && P.portes.every(x => Math.abs(x.h - P.portes[0].h) <= 1) && P.portes[0].b - P.portes[0].h > p0.portes[0].b - p0.portes[0].h + 60 && P.portes[0].d - P.portes[0].g > p0.portes[0].d - p0.portes[0].g + 60,
+    P && P.portes[0] && p0 && p0.portes[0] ? `${Math.round(P.portes[0].d - P.portes[0].g)} × ${Math.round(P.portes[0].b - P.portes[0].h)} px, contre ${Math.round(p0.portes[0].d - p0.portes[0].g)} × ${Math.round(p0.portes[0].b - p0.portes[0].h)}` : 'pas de portes');
+  const G = e('1440 × 900', 'la porte ouverte'), g0 = e('360 × 640', 'la porte ouverte');
+  exiger('… une porte montre plus de joueurs quand il y a la place : six tuiles au plus au téléphone, davantage à l\'ordinateur', !!G && !!g0 && g0.joueurs.length <= 6 && G.joueurs.length > g0.joueurs.length, G && g0 ? `${g0.joueurs.length} au téléphone, ${G.joueurs.length} à l'ordinateur` : 'pas de porte');
+  const tour = (E['360 × 640'] || {}).tour;
+  exiger('… la tuile qui mène aux autres passe par chaque page et revient à la première', !!tour && tour.pages > 1 && tour.autres === tour.pages && tour.retour, tour ? `${tour.pages} pages, ${tour.autres} différentes, ${tour.retour ? 'revenue' : 'pas revenue'} au début` : 'une seule page à 360 × 640');
+  const larges = ecrans.flatMap(k => scenes.filter(n => e(k, n) && e(k, n).carte > 190).map(n => `${n} à ${k} : ${Math.round(e(k, n).carte)} px`));
+  exiger('… aucune carte ne passe 190 px de large', !larges.length, larges.slice(0, 4).join(' · ') || `la plus large : ${Math.round(Math.max(0, ...ecrans.flatMap(k => scenes.map(n => (e(k, n) || {}).carte || 0))))} px`);
+  // Ce qu'on consulte du bureau (la page d'un club, un match passé) garde le rail quand l'écran en a un, et n'a pas d'onglets sinon ; ce qui engage (les pochettes, une histoire) n'en a jamais.
+  const DU_BUREAU = ['la page d\'un club', 'un match passé'], SANS = ['les pochettes', 'la pochette ouverte', 'une histoire'];
+  const rails = [...['360 × 640', '820 × 1180'].flatMap(k => DU_BUREAU.filter(n => e(k, n) && e(k, n).onglets).map(n => `${n} à ${k} : des onglets`)), ...['844 × 390', '1366 × 650', '1440 × 900'].flatMap(k => DU_BUREAU.filter(n => e(k, n) && !e(k, n).onglets).map(n => `${n} à ${k} : pas de rail`)),
+    ...ecrans.flatMap(k => SANS.filter(n => e(k, n) && e(k, n).onglets).map(n => `${n} à ${k} : des onglets`))];
+  exiger('… ce qu\'on consulte du bureau garde le rail quand l\'écran en a un ; ce qui engage (les pochettes, une histoire) n\'a pas d\'onglets', !rails.length, rails.slice(0, 4).join(' · ') || [...DU_BUREAU, ...SANS].join(' · '));
+  // Ce qui décide est à l'écran, sans défiler.
+  const caches = [...ecrans.flatMap(k => ['la porte ouverte', 'la pochette ouverte'].filter(n => e(k, n) && e(k, n).tuileVue === false).map(n => `${n} à ${k} : la tuile des autres sous le pli`)),
+    ...ecrans.filter(k => e(k, 'une histoire') && (e(k, 'une histoire').reponses[0] !== e(k, 'une histoire').reponses[1] || !e(k, 'une histoire').reponses[0])).map(k => `une histoire à ${k} : ${e(k, 'une histoire').reponses.join(' « Prendre » dans le bas pour ')} réponses`),
+    ...ecrans.filter(k => e(k, 'l\'échange') && !/M\$|ne passe pas/.test(e(k, 'l\'échange').signer)).map(k => `l'échange à ${k} : « Signer » ne dit pas le plafond`)];
+  exiger('… ce qui décide est à l\'écran sans défiler : la tuile des autres joueurs, les « Prendre » d\'une histoire dans le bas, le plafond d\'après sur « Signer »', !caches.length, caches.slice(0, 4).join(' · ') || `${ecrans.length} écrans`);
+  const echap = ['1366 × 650', '1440 × 900'].map(k => [k, (E[k] || {}).echap]);
+  exiger('… Échap à une pochette payée ouvre la pause : il n\'y renonce pas', echap.every(([, x]) => x === true), echap.map(([k, x]) => `${k} : ${x === true ? 'la pause, puis la pochette' : x === false ? 'la pochette est perdue' : 'pas essayé'}`).join(' · '));
+  const focus = ['1366 × 650', '1440 × 900'].map(k => [k, (E[k] || {}).focus]);
+  exiger('… au clavier, on arrive aux portes sur une porte, jamais sur « Passer »', focus.every(([, f]) => f === 'ouvrir-porte'), focus.map(([k, f]) => `${k} : ${f || 'rien'}`).join(' · '));
 }
 exiger('chaque cible fait 44 × 44', !fautes.cibles.length, fautes.cibles.slice(0, 5).join(' · '));
 exiger('chaque cible tient dans l\'écran', !fautes.bord.length, fautes.bord.slice(0, 4).join(' · '));

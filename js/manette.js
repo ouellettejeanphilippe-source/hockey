@@ -60,8 +60,9 @@ function deplacer(dir) {
   const ici = document.activeElement;
   let cible = null;
   if (!ici || ici === document.body || !couche.contains(ici) || !visible(ici)) {
-    // Sans focus, on part du bouton qui avance : « Continuer » au menu, la section ouverte, et dans le Rogue le bouton du bas.
-    cible = couche.querySelector('.menu-continuer, .navtab.on, .rn-pauseur .rn-on, .rn-bas .go:not(:disabled), .rn-bas .rn-combat:not(:disabled)') || items[0];
+    // Sans focus, on part du bouton qui avance : « Continuer » au menu, la section ouverte ; dans le Rogue, « Reprendre » sous la pause, sinon là où la scène
+    // pose le focus (une porte, une pièce : jamais un bouton qui renonce), sinon le bouton du bas qui avance.
+    cible = couche.querySelector('.menu-continuer, .navtab.on') || couche.querySelector('.rn-pauseur .rn-on') || couche.querySelector('[data-ici], .rn-bas .go:not(:disabled), .rn-bas .rn-combat:not(:disabled)') || couche.querySelector('.rn-bas .rn-bt:not(:disabled)') || items[0];
     if (!visible(cible)) cible = items[0];
   } else {
     const r = ici.getBoundingClientRect();

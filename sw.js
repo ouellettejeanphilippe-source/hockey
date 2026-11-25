@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-4.7.0';  // 4.7.0 : le Rogue en fluide, tranche 1 — le soir entier (le bureau, la feuille, le résultat) du téléphone à l'ordinateur, le rail, le clavier (V31 ; JP, 25 nov. 2026)
+const VERSION = 'cap82-4.8.0';  // 4.8.0 : le Rogue en fluide, tranche 2 — ce qui s'ouvre du soir (une histoire, les pochettes, le ballottage, la pièce gagnée, les portes, l'échange) du téléphone à l'ordinateur (V31 ; JP, 25 nov. 2026)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

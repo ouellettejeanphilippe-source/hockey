@@ -5153,6 +5153,8 @@ body.run-ouverte { overflow: hidden; }
 .rn-fluide > .rn-onglets { grid-area: onglets; }
 .rn-fluide > .rn-bas { grid-area: bas; padding: 8px 14px calc(14px + var(--safe-bas)); }
 .rn-fluide:has(> .rn-onglets:not(.rn-rail-seul)) > .rn-bas { padding-bottom: 8px; }
+/* Couché, l'encoche est sur un côté : le milieu et le bas la dégagent, comme l'en-tête (le rail, quand il est là, a déjà pris celle de gauche). */
+.rn-fluide > :is(.rn-milieu, .rn-bas) { border: 0 solid transparent; border-left-width: env(safe-area-inset-left, 0px); border-right-width: env(safe-area-inset-right, 0px); }
 /* LE MILIEU : la seule rangée qui grandit. Il se centre à 1400 px au plus (au-delà, une ligne de tableau se perd de l'œil). UN SEUL DÉFILEMENT DE HAUT EN BAS PAR
    COLONNE : le milieu d'une lecture, une colonne de panneaux, ou la boîte d'un tableau ; jamais l'une dans l'autre. */
 .rn-milieu { grid-area: milieu; justify-self: center; width: 100%; max-width: 1400px; min-width: 0; min-height: 0; overflow: clip; }
@@ -5162,6 +5164,14 @@ body.run-ouverte { overflow: hidden; }
 .rn-lecture > *, .rn-col > * { flex: none; }
 .rn-colonnes { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 8px 14px 0; }
 .rn-col { min-height: 0; padding-bottom: 14px; }
+/* LE COMPTOIR (V31, tranche 2) : une scène où la run te tend quelque chose (une porte ouverte, l'échange, une pièce, une pochette, une histoire). Deux blocs dans l'ordre
+   où on les lit : ce qu'on te tend, puis ton côté. D'un trait par défaut : le milieu défile, et dès 700 px le trait se borne à 640 px, au centre. */
+.rn-comptoir { display: flex; flex-direction: column; gap: 10px; padding: 8px 14px 14px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--filet) transparent; }
+.rn-comptoir > .rn-col { flex: none; width: 100%; max-width: 640px; margin-inline: auto; padding-bottom: 0; overflow: visible; }
+.rn-comptoir > .rn-col:empty { display: none; }
+.rn-chapo { display: grid; gap: 4px; }
+.rn-centre { text-align: center; }
+.rn-verdict { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
 /* Un onglet de tableau : ce qui coiffe le tableau reste en place (le segment, le plafond, les trois chiffres), sa boîte prend le reste et défile — de côté aussi, si
    c'est un tableau de stats plus large qu'elle. Des vues côte à côte (`.rn-cote`) : une boîte de stats garde la largeur de ses colonnes, sa voisine prend le reste. */
 .rn-tables { display: flex; flex-direction: column; gap: 8px; padding: 6px 8px 8px; }
@@ -5182,9 +5192,28 @@ body.run-ouverte { overflow: hidden; }
   .rn-tables .rn-boite { min-height: 220px; }
 }
 /* LE RAIL : les onglets à gauche, à la règle et à la largeur du rail du site. Le bas se borne et se range à droite, à la même place dans toutes les scènes. */
-.rn-rail-seul { display: none; }
+.rn-fluide > .rn-rail-seul { display: none; }
 @media (orientation: landscape) and (min-width: 680px), (min-width: 1000px) {
   .rn-fluide { grid-template: "hud hud" auto "onglets milieu" minmax(0, 1fr) "onglets bas" auto / auto minmax(0, 1fr); }
+  .rn-fluide > .rn-rail-seul { display: grid; }
+  .rn-fluide > .rn-onglets ~ :is(.rn-milieu, .rn-bas) { border-left-width: 0; }
+  /* Le comptoir côte à côte : ce qu'on te tend sur trois parts, ton côté sur deux, au-dessus du bouton qui signe ; le tout au centre de la hauteur, chaque colonne défile seule. */
+  .rn-comptoir { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-content: center; padding-bottom: 0; overflow: clip; }
+  .rn-comptoir > .rn-col { max-width: none; margin: 0; padding-bottom: 14px; overflow-y: auto; }
+  /* Les portes en rangée large : le match gagné et ton plafond côte à côte, puis les trois portes, plus hautes. */
+  .rn-les-portes { display: grid; grid-template: "verdict plafond" auto "titre titre" auto "portes portes" auto / minmax(0, 1fr) minmax(0, 1fr); align-content: center; justify-content: center; max-width: 920px; }
+  .rn-les-portes > .rn-verdict { grid-area: verdict; }
+  .rn-les-portes > .rn-chapo { grid-area: titre; }
+  .rn-les-portes > .rn-portes { grid-area: portes; max-width: 780px; }
+  .rn-les-portes > .rn-panneau:last-child { grid-area: plafond; }
+  .rn-racine .rn-les-portes .rn-porte { height: clamp(316px, 52vh, 480px); }
+  /* Sur un écran très court (un téléphone couché) : le match gagné, le titre et ton plafond à gauche, les trois portes à droite sur toute la hauteur. */
+  @media (max-height: 479.98px) {
+    .rn-les-portes { grid-template: "verdict portes" auto "titre portes" auto "plafond portes" auto / minmax(0, 2fr) minmax(0, 3fr); align-items: start; max-width: none; }
+    .rn-racine .rn-les-portes .rn-porte { height: clamp(190px, calc(100vh - 160px), 316px); }
+    .rn-les-portes > .rn-portes { margin-top: 10px; }
+    .rn-les-portes .rn-porte::after { top: 40%; }
+  }
   .rn-fluide > .rn-onglets { width: calc(72px + env(safe-area-inset-left, 0px)); padding-left: env(safe-area-inset-left, 0px); grid-template-columns: none; grid-auto-rows: 64px; align-content: start; border-top: 0; border-right: 1px solid var(--filet); }
   .rn-fluide > .rn-bas, .rn-fluide:has(> .rn-onglets:not(.rn-rail-seul)) > .rn-bas { justify-self: end; width: min(100%, 640px); padding-bottom: calc(14px + var(--safe-bas)); }
 }
@@ -5194,6 +5223,9 @@ body.run-ouverte { overflow: hidden; }
   .rn-racine button.rn-l:hover, .rn-racine button.rn-fl:hover, .rn-racine button.rn-plaque:hover { background: color-mix(in srgb, var(--blanc) 7%, transparent); }
   .rn-racine .rn-large button.rn-l:hover > :first-child { background: color-mix(in srgb, var(--blanc) 7%, var(--fond-1)); }
   .rn-racine .rn-onglets button:hover, .rn-racine .rn-seg button:hover:not(.rn-on), .rn-racine .rn-tete button:hover { color: var(--encre); }
+  /* Une carte, une porte qu'on peut choisir : son contour s'éclaire. */
+  .rn-racine :is(.rn-grille, .rn-etal, .rn-sortants) button:hover:not(.rn-on, :disabled) .rn-c { outline: 2px solid color-mix(in srgb, var(--blanc) 45%, transparent); outline-offset: 2px; border-radius: var(--r-1); }
+  .rn-racine .rn-porte:hover, .rn-racine .rn-plie:hover { border-color: var(--or); }
 }
 .rn-attente { display: grid; place-items: center; align-content: center; gap: var(--esp-4); font: 800 var(--t-4)/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.06em; text-align: center; }
 .rn-attente i { width: 40px; height: 40px; border-radius: 50%; border: 4px solid var(--filet); border-top-color: var(--or); animation: spin 0.9s linear infinite; }
@@ -5398,50 +5430,51 @@ body.run-ouverte { overflow: hidden; }
 .rn-ailleurs span:last-child { text-align: right; }
 .rn-ailleurs img, .rn-ailleurs svg { width: 16px; height: 16px; vertical-align: -3px; }
 /* Les portes, la porte ouverte, l'échange. */
-.rn-portes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.rn-portes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 680px; margin: 10px auto 0; }
 .rn-racine .rn-porte { position: relative; height: 316px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 6px 16px; border: 3px solid color-mix(in srgb, var(--filet) 55%, var(--encre-2)); border-radius: 3.5em 3.5em var(--r-1) var(--r-1); background: linear-gradient(color-mix(in srgb, var(--fond-3) 80%, var(--club-vif)), var(--fond-2)); box-shadow: inset 0 0 0 6px color-mix(in srgb, var(--fond-1) 80%, var(--fond-2)), 0 8px 0 color-mix(in srgb, var(--fond-1) 50%, var(--noir-pur)); text-align: center; color: var(--encre); }
-.rn-porte img, .rn-porte > svg { position: absolute; top: 50px; width: 66px; height: 66px; }
-.rn-porte::after { content: ""; position: absolute; right: 12px; top: 166px; width: 9px; height: 9px; border-radius: 50%; background: var(--or); }
+.rn-porte img, .rn-porte > svg { position: absolute; top: 16%; width: 66px; height: 66px; }
+.rn-porte::after { content: ""; position: absolute; right: 12px; top: 52.5%; width: 9px; height: 9px; border-radius: 50%; background: var(--or); }
 .rn-porte b { font: 800 var(--t-4)/1 var(--display); text-transform: uppercase; }
 .rn-porte b small { display: block; margin-top: 3px; font-size: var(--t-2); color: var(--encre-2); }
 .rn-porte strong { font: 800 var(--t-6)/1 var(--display); color: var(--or); }
 .rn-porte strong small { display: block; margin-top: 2px; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .rn-tag { position: absolute; top: -10px; padding: 4px 8px; border-radius: 99em; background: var(--live); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
-.rn-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 10px; }
+.rn-grille { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 8px 10px; max-width: calc(var(--n, 3) * 190px); }
+.rn-col > .rn-grille { width: 100%; margin-inline: auto; padding-inline: 6px; }
 .rn-grille > * { position: relative; display: block; min-width: 0; }
 .rn-coin { position: absolute; top: -7px; right: -5px; z-index: 1; padding: 3px 6px; border: 1px solid var(--bon); border-radius: 99em; background: var(--noir-pur); font: 400 var(--t-1)/1 var(--corps); box-shadow: 0 0 10px color-mix(in srgb, var(--bon) 55%, transparent); }
 .rn-sousc { display: block; margin-top: 5px; font: 800 var(--t-2)/1.15 var(--display); text-align: center; color: var(--or); }
 .rn-sousc small { display: block; min-height: 14px; margin-top: 2px; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--bon); }
 .rn-racine .rn-plie { aspect-ratio: 5 / 7; width: 100%; display: grid; place-items: center; border: 2px dashed color-mix(in srgb, var(--blanc) 22%, transparent); border-radius: var(--r-1); font: 600 var(--t-2)/1.3 var(--display); text-align: center; color: var(--encre-2); }
+.rn-plie small { display: block; margin-top: 6px; font-size: var(--t-1); color: var(--encre-3); }
 .rn-face { display: grid; grid-template-columns: 1fr 40px 1fr; align-items: center; gap: 6px; text-align: center; }
 .rn-face > span > b { display: block; margin-bottom: 6px; font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.12em; }
-.rn-face .rn-cj { width: 128px; margin: 0 auto; }
+.rn-face .rn-cj { width: min(100%, 128px); margin: 0 auto; }
+.rn-face.rn-entre { grid-template-columns: minmax(0, 180px) minmax(0, 1fr) minmax(0, 180px); gap: 14px; }
+.rn-entre .rn-cj { width: 100%; }
 .rn-face > i { font: 800 var(--t-6)/1 var(--display); font-style: normal; color: var(--or); }
 .rn-cmp { display: grid; grid-template-columns: 1fr 92px 1fr; gap: 5px 8px; align-items: center; font: 800 var(--t-4)/1 var(--display); }
 .rn-cmp em { font-style: normal; font-size: var(--t-1); text-transform: uppercase; letter-spacing: 0.1em; text-align: center; color: var(--encre-2); }
 .rn-cmp > :nth-child(3n + 1) { text-align: right; }
 .rn-mieux { color: var(--bon); }
-.rn-sortants { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.rn-sortants { display: grid; grid-template-columns: repeat(auto-fill, minmax(43px, 1fr)); gap: 5px; }
 .rn-sortants button { display: block; min-width: 0; }
 .rn-sortants .rn-on .rn-c { outline: 2px solid var(--blanc); outline-offset: 1px; border-radius: var(--r-1); }
 .rn-sortants .rn-non { opacity: 0.3; }
 /* Le segment d'un onglet du bureau (Lignes · Banc, Classement · Meneurs · Cédule). */
 .rn-seg { display: flex; gap: 6px; }
 /* Le marché du quart, les pochettes, l'histoire. */
-.rn-etal { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; gap: 10px; }
+.rn-etal { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; gap: 10px; width: 100%; max-width: 560px; margin-inline: auto; }
+/* À deux (les pochettes, les réponses d'une histoire) : ce que chacune change se lit sous sa carte, et rien n'est coupé. */
+.rn-deux { grid-template-columns: repeat(2, minmax(0, 150px)); justify-content: center; gap: 12px 24px; }
+.rn-deux p { margin: 6px 0 0; font-size: var(--t-2); line-height: 1.3; }
 .rn-etal > * { display: block; min-width: 0; }
 .rn-etal p { margin: 5px 0 0; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-align: center; color: var(--encre-2); }
 .rn-prix { height: 30px; margin-top: 7px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--or); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir-pur) 60%, transparent); font: 800 var(--t-4)/1 var(--display); color: var(--or); }
 .rn-prix.rn-non { border-color: var(--filet); color: var(--encre-3); }
 .rn-bulle { padding: 12px 14px; border-radius: var(--r-2) var(--r-2) var(--r-2) 0; background: var(--encre); font: 700 var(--t-4)/1.3 var(--corps); color: var(--fond-1); }
 .rn-voix { display: inline-block; margin-bottom: 8px; padding: 4px 10px; border-radius: 99em; background: var(--or); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--encre-sur-or); }
-/* Les réponses d'une histoire : chaque colonne va de la carte au bouton, « Prendre » épinglé à son pied (les boutons s'alignent, et un texte plus long ne les pousse jamais sous
-   « Plus tard » : la scène pose le haut ET le bas du bloc) ; la carte cède de la place au texte. */
-.rn-reps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 150px); justify-content: center; gap: 12px; }
-.rn-reps > div { display: flex; flex-direction: column; min-height: 0; }
-.rn-reps .rn-c { flex: none; align-self: center; width: min(100%, 128px); }
-.rn-reps p { flex: 1; min-height: 0; overflow: hidden; margin: 6px 0 8px; font: 600 var(--t-2)/1.3 var(--display); letter-spacing: 0.02em; text-align: center; }
-.rn-racine .rn-prendre { flex: none; width: 100%; height: 44px; display: grid; place-items: center; border-radius: var(--r-1); background: var(--or); font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-sur-or); }
+.rn-fait { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; }
 /* Le bilan du quart, les séries, la fin de la run, la pause. */
 .rn-cellules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .rn-cellules div { padding: 10px 8px; border: 1px solid var(--filet); border-radius: var(--r-2); background: color-mix(in srgb, var(--fond-1) 82%, transparent); text-align: center; }
