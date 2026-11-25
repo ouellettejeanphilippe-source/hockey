@@ -87,7 +87,10 @@ function echelle() { if (plan) plan.style.setProperty('--rn-k', String(Math.min(
  */
 const MOTS_DE_LARGEUR = [['large', '(min-width: 1200px)'], ['moyen', '(min-width: 700px)']];
 const largeurDe = () => (MOTS_DE_LARGEUR.find(([, q]) => window.matchMedia(q).matches) || ['etroit'])[0];
-const surLaLargeur = () => { if (S && plan && largeurDe() !== V.largeur) rendre(); };
+/* Et sa hauteur, pour ce qui se compte en rangées (les joueurs d'une porte) : court, moyen, haut. */
+const MOTS_DE_HAUTEUR = [['haut', '(min-height: 860px)'], ['moyen', '(min-height: 620px)']];
+const hauteurDe = () => (MOTS_DE_HAUTEUR.find(([, q]) => window.matchMedia(q).matches) || ['court'])[0];
+const surLaLargeur = () => { if (S && plan && (largeurDe() !== V.largeur || hauteurDe() !== V.hauteur)) { V.page = 0; rendre(); } };
 /*
  * MONTRER une scène. Une scène neuve (son milieu) prend l'écran en grille ; une scène d'avant garde son plan fixe.
  * Chaque boîte qui défile porte un nom (`data-defile`) : quand la même page se redessine (un joueur tenu, un tri, une
@@ -111,8 +114,8 @@ function montrer(html, { rouge = false, page = null } = {}) {
   for (const el of plan.children) el.inert = !!pause && el !== pause;
   if (document.body.classList.contains('nav-clavier')) {
     const ou = pause || plan, memeBouton = geste && [...ou.querySelectorAll(`[data-a="${geste[0]}"]`)].find(b => !b.disabled && (b.dataset.v || '') === (geste[1] || ''));
-    // Dans cet ordre : « Reprendre » sous la pause, le bouton qui avance, sinon le premier du bas.
-    const cible = memeBouton || ou.querySelector('.rn-menu .rn-on') || ou.querySelector('.rn-bas :is(.go, .rn-combat):not(:disabled)') || ou.querySelector('.rn-bas .rn-bt:not(:disabled)');
+    // Dans cet ordre : « Reprendre » sous la pause ; là où la scène pose le focus (une porte, une pièce : jamais « Passer ») ; le bouton qui avance ; sinon le premier du bas.
+    const cible = memeBouton || ou.querySelector('.rn-menu .rn-on') || ou.querySelector('[data-ici]') || ou.querySelector('.rn-bas :is(.go, .rn-combat):not(:disabled)') || ou.querySelector('.rn-bas .rn-bt:not(:disabled)');
     if (cible) cible.focus({ preventScroll: true });
   }
   pageVue = page;
@@ -132,7 +135,7 @@ let teinteDAvant = null;
 function fermer() {
   clearTimeout(minuterie);
   window.removeEventListener('resize', echelle);
-  for (const [, q] of MOTS_DE_LARGEUR) window.matchMedia(q).removeEventListener('change', surLaLargeur);
+  for (const [, q] of [...MOTS_DE_LARGEUR, ...MOTS_DE_HAUTEUR]) window.matchMedia(q).removeEventListener('change', surLaLargeur);
   document.removeEventListener('click', nomDuDirect);
   if (racine) racine.remove();
   document.body.classList.remove('run-ouverte');
@@ -154,7 +157,7 @@ export async function ouvrirRun(c = {}) {
   document.body.classList.add('run-ouverte');
   echelle();
   window.addEventListener('resize', echelle);
-  for (const [, q] of MOTS_DE_LARGEUR) window.matchMedia(q).addEventListener('change', surLaLargeur);
+  for (const [, q] of [...MOTS_DE_LARGEUR, ...MOTS_DE_HAUTEUR]) window.matchMedia(q).addEventListener('change', surLaLargeur);
   document.addEventListener('click', nomDuDirect);
   racine.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled && racine.contains(b)) geste(b.dataset.a, b.dataset.v); });
   const R = lire();
@@ -262,16 +265,17 @@ async function commencer() {
 const enDuel = c => c.sorte === 'rival' || c.sorte === 'affiche' || c.sorte === 'serie' || (c.sorte === 'elite' && !!c.enjeu);
 function rendre() {
   V.largeur = largeurDe();
+  V.hauteur = hauteurDe();
   if (V.ecran === 'solde' && V.solde) return montrer(sceneSolde(V.solde));
   if (V.ecran === 'club' && V.club) return montrer(sceneClub(V.club));
   if (!S) return montrer(V.ecran === 'depart' ? sceneDepart(V) : sceneAttente('Un instant…'));
   const R = S.R;
   const dessous = () => {
     if (V.ecran === 'direct') return [sceneAttente('Le match se joue…')];
-    if (V.ecran === 'echange') return [sceneEchange(S, V)];
-    if (V.ecran === 'porte') return [scenePorte(S, V)];
-    if (V.ecran === 'etal') return [sceneEtal(S)];
-    if (V.ecran === 'histoire') return [sceneHistoire(S, V)];
+    if (V.ecran === 'echange') return [sceneEchange(S, V), false, 'echange'];
+    if (V.ecran === 'porte') return [scenePorte(S, V), false, `porte:${V.porte}:${V.page || 0}`];
+    if (V.ecran === 'etal') return [sceneEtal(S), false, 'etal'];
+    if (V.ecran === 'histoire') return [sceneHistoire(S, V), false, 'histoire'];
     if (V.ecran === 'club-vu') return [sceneClubVu(S, V), false, `club-vu:${V.clubVu}`];
     if (V.ecran === 'match-vu') return [sceneMatchVu(S, V), false, `match-vu:${V.matchVu}:${V.segM || ''}`];
     switch (R.phase) {
@@ -279,11 +283,11 @@ function rendre() {
       case 'repechage': return [sceneRepechage(S, V)];
       case 'quart': return [sceneQuart(S)];
       case 'bureau': case 'series': return [sceneBureau(S, V), false, `${V.onglet || 'bureau'}:${V.segA || ''}:${V.segL || ''}:${V.segC || ''}`];
-      case 'ballottage': return [sceneBallottage(S, V)];
+      case 'ballottage': return [sceneBallottage(S, V), false, 'ballottage'];
       case 'feuille': return [sceneFeuille(S, V), enDuel(R.soir)];
       case 'resultat': return [sceneResultat(S, V), false, `resultat:${V.segR || ''}`];
-      case 'piece': return [scenePieceGagnee(S, V)];
-      case 'portes': return [R.portes.pochette ? scenePorte(S, V) : scenePortes(S)];
+      case 'piece': return [scenePieceGagnee(S, V), false, 'piece'];
+      case 'portes': return R.portes.pochette ? [scenePorte(S, V), false, `pochette:${V.page || 0}`] : [scenePortes(S), false, 'portes'];
       case 'bilan': return [sceneBilan(S)];
       case 'marche': return [sceneMarche(S, V)];
       default: return [sceneFin(S, V)];
@@ -387,7 +391,7 @@ function histoireVue(h) {
   const sc = sceneDe(h.cle, h.f), qui = nomCourt(h.joueur.n);
   const lignes = o => motsDe(o, { qui }).slice(0, 3).map(m => `<span class="${m.bon ? 'rn-vert' : m.bon === false ? 'rn-rg' : 'rn-gris'}">${esc(m.txt)}</span>`).join('<br>') || '<span class="rn-gris">Rien ne change</span>';
   return { h, voix: sc.de.nom, dit: `« ${esc(sc.mot)} »`, joueur: h.joueur, fait: esc(sc.fait),
-    options: h.H.options.map(o => ({ cle: o.cle, lignes: lignes(o),
+    options: h.H.options.map(o => ({ cle: o.cle, lignes: lignes(o), nom: esc(nomDOption(o, h.joueur)),
       carte: carteHtml({ cle: o.cle, niveau: o.niveau || 0, genreCarte: o.pari ? 'synergie' : 'defense', ico: o.pari ? '🎲' : h.H.ico, nomHtml: esc(nomDOption(o, h.joueur)), typeHtml: o.pari ? 'Pari' : 'Réponse', lecture: true, statique: true }) })) };
 }
 /* La run finie : ses médailles versées une fois (js/rogue.js `payerEcussons`), son joueur de la saison, ses cartes au cartable. */
@@ -454,7 +458,7 @@ const GESTES = {
   },
   // l'ouverture du quart, le bureau
   'vers-bureau': () => { versLeBureau(S); return suivre(); },
-  onglet: v => { V.onglet = v; V.tenu = null; },
+  onglet: v => { Object.assign(V, { onglet: v, tenu: null, ecran: null, histoire: null }); },
   'seg-a': v => { V.segA = v; V.tenu = null; },
   'seg-l': v => { V.segL = v; },
   'seg-c': v => { V.segC = v; },
@@ -488,7 +492,7 @@ const GESTES = {
     // Le dé se montre avant de revenir au bureau.
     V.histoire = { ...V.histoire, dit: `Le dé : ${de.face}. ${de.gagne ? 'Ça tourne pour lui.' : 'Ça ne tourne pas.'}`, options: [] };
     jouerSon(de.gagne ? 'recompense' : 'arriere');
-    minuterie = setTimeout(() => { V.ecran = null; V.histoire = null; rendre(); }, 1800);
+    minuterie = setTimeout(() => { if (V.ecran !== 'histoire') return; V.ecran = null; V.histoire = null; rendre(); }, 1800);
   },
   // le ballottage
   reclamer: v => { const p = offresVues(S).find(x => getPlayerKey(x) === v) || null; reclamer(S, p); jouerSon(p ? 'valide' : 'tap'); return suivre(); },
@@ -502,7 +506,8 @@ const GESTES = {
   'match-de-serie': () => { allerAuMatchDeSerie(S); return suivre(); },
   // les portes, l'échange
   'ouvrir-porte': v => { Object.assign(V, { ecran: 'porte', porte: Number(v), page: 0, joueur: null }); },
-  'fermer-porte': () => { if (S.R.portes.pochette) { apresLesPortes(S); return suivre(); } V.ecran = null; },
+  'fermer-porte': () => { V.ecran = null; },
+  'rien-signer': () => { apresLesPortes(S); return suivre(); },
   'vers-echange': v => {
     const x = [...(S.R.portes.pochette ? [null] : S.R.portes.clubs)].flatMap(c => (c ? S.clubs.find(k => k.s === c.s && k.t === c.t).pool : S.pochette || [])).find(p => getPlayerKey(p) === v);
     if (x) Object.assign(V, { ecran: 'echange', arrivant: x, sortant: null });
@@ -518,7 +523,7 @@ const GESTES = {
     return suivre();
   },
   passer: () => { passerLesPortes(S); apresLesPortes(S); return suivre(); },
-  relancer: () => { if (relancerLesPortes(S)) { jouerSon('donne'); garder(); } },
+  relancer: () => { if (relancerLesPortes(S)) { jouerSon('donne'); garder(); if (document.activeElement) document.activeElement.blur(); } },
   // le bilan, le marché du quart
   'apres-bilan': () => { apresLeBilan(S); return suivre(); },
   // La carte à monter : la première touche prend celui qui avance le plus ton banc, les suivantes passent au suivant.
