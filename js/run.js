@@ -24,7 +24,7 @@
 import {
   SLOTS, CAP, SONNE, SONNES_ELITE, ENERGIE_REF, ENERGIE_RECUP_JOUR, createTeam, autoRoster, trioAuMieux, registerHiddenRatings, getHiddenRatings, getPersonKey, getPlayerKey, teamStrength,
   avecHasardIsole, feuilleVierge, playGame, simulerGrosMatch, activeLineup, depenserEnergie, recupererEnergie, energieDe, fits, accordsDeLigne, tirsTotal, effetsDesJoueurs, remettreAZero,
-  ceduleDe, noterDepart } from './sim.js';
+  ceduleDe, noterDepart, compterFeuilles } from './sim.js';
 import { leurJeuDuDuel, appliquerChoix, deDuChoix } from './greffes.js';
 import { HISTOIRES, tirer } from './histoires.js';
 import { faitsDe } from './faits.js';
@@ -220,7 +220,7 @@ export function ouvrirSeance(donnees, R) {
   }
   // Un joueur relu : le tien d'abord (le même objet que ton alignement), sinon celui de sa saison.
   const miens = new Map(Object.values(S.roster).map(p => [getPlayerKey(p), p])), relu = k => (k ? miens.get(k) || trouver(k) : null);
-  if (R.ligue) poserLaLigue(S);
+  if (R.ligue) { separerDesTiens(R); poserLaLigue(S); }
   S.journal = (R.journal || []).map(e => relire(e, relu, k => (k ? trouver(k) : null), c => clubDe(S, c)));
   S.effets = (R.effets || []).map(e => ({ ...e, joueur: relu(e.joueur) })).filter(e => e.joueur);
   for (const [k, j] of R.absents || []) { const p = relu(k); if (p) S.absents.set(p, j); }
@@ -413,7 +413,7 @@ function ouvrirLaLigue(S) {
     if (pris.has(c.t)) continue;
     pris.add(c.t); clubs.push({ s: c.s, t: c.t });
   }
-  R.ligue = { clubs, fiches: Array.from({ length: clubs.length + 1 }, () => [0, 0, 0, 0, 0]), jour: 0, pts: {} };
+  R.ligue = { v: 2, clubs, fiches: Array.from({ length: clubs.length + 1 }, () => [0, 0, 0, 0, 0]), jour: 0, pts: {}, gardiens: {} };
   poserLaLigue(S);
 }
 /*
@@ -473,19 +473,52 @@ function preparer(S, i, jour) {
 }
 /* Le pointage d'une feuille, sans le but des tirs de barrage (personne ne l'a marqué). */
 const butsDe = (f, cote) => (f.buts || []).filter(b => b.cote === cote && !b.fusillade).length;
-/* Compter un match au classement, et ses pointeurs chez les meneurs de la ligue. `a` jouait chez lui (le côté A de la feuille). */
+/*
+ * COMPTER UN MATCH À LA LIGUE (`a` jouait chez lui : le côté A de la feuille) : le classement, et ce que la ligue garde de
+ * chacun (JP, 25 nov. 2026 : *la ligue*, détaillée), lu par le compte du moteur. La fiche d'un club → `CLUB` : ses victoires,
+ * défaites, défaites en prolongation, buts pour et contre, puis ses tirs pour et contre, ses buts et ses occasions en
+ * avantage, ceux qu'il accorde et ses occasions en désavantage, ses minutes de punition. Un patineur d'un autre club
+ * (`ligue.pts`) → `LIGUEUR` : ses buts, passes, matchs, tirs, son +/−, ses minutes de punition ; un de leurs gardiens
+ * (`ligue.gardiens`) → `STATS_G` jusqu'aux blanchissages.
+ * TES JOUEURS N'Y SONT PAS : ce qu'ils font chez toi a une seule maison, `R.stats`. Un joueur signé depuis un club de la
+ * ligue y joue encore sous la même clé (les clubs arrivent tels que leur saison les a faits) : compter le tien avec lui
+ * gonflait sa ligne. Une run gardée avant ce jour-là les avait mêlés : `separerDesTiens` les démêle une fois.
+ */
+export const CLUB = { V: 0, P: 1, DP: 2, BP: 3, BC: 4, TP: 5, TC: 6, BAN: 7, OAN: 8, BDN: 9, ODN: 10, PUN: 11 };
+export const LIGUEUR = { B: 0, A: 1, PJ: 2, T: 3, PM: 4, PUN: 5 };
 function compterAuClassement(S, a, b, r, f) {
-  const F = S.R.ligue.fiches, gagneA = r.gfA > r.gfB;
+  const L = S.R.ligue, F = L.fiches, gagneA = r.gfA > r.gfB, C = compterFeuilles([f]);
   const [w, l] = gagneA ? [a, b] : [b, a];
   F[w][0]++; if (r.ot) F[l][2]++; else F[l][1]++;
   const ga = butsDe(f, 'A'), gb = butsDe(f, 'B');
   F[a][3] += ga; F[a][4] += gb; F[b][3] += gb; F[b][4] += ga;
-  compterLesPointeurs(S.R.ligue.pts, f);
+  L.gardiens = L.gardiens || {};
+  for (const [cote, i] of [['A', a], ['B', b]]) {
+    const autre = cote === 'A' ? 'B' : 'A', plus = (k, v) => { F[i][k] = (F[i][k] || 0) + v; }, an = x => (f.buts || []).filter(y => y.cote === x && y.an).length, occ = x => (f.punitions || []).filter(y => y.cote !== x).length;
+    plus(CLUB.TP, tirsTotal(f, cote)); plus(CLUB.TC, tirsTotal(f, autre)); plus(CLUB.BAN, an(cote)); plus(CLUB.OAN, occ(cote)); plus(CLUB.BDN, an(autre)); plus(CLUB.ODN, occ(autre));
+    for (const p of (f.alignes || {})[cote] || []) plus(CLUB.PUN, C.get(p).pim);
+    if (i === 0) continue;
+    compterLesPointeurs(L.pts, f, cote);
+    for (const p of (f.alignes || {})[cote] || []) { const c = C.get(p), x = ligneDeStats(L.pts, p, 6); x[LIGUEUR.PJ] += c.gp; x[LIGUEUR.T] += c.sh; x[LIGUEUR.PM] += c.pm; x[LIGUEUR.PUN] += c.pim; }
+    const g = cote === 'A' ? f.gardienA : f.gardienB;
+    if (g) { const x = ligneDeStats(L.gardiens, g, 7); x[STATS_G.D]++; x[i === w ? STATS_G.V : r.ot ? STATS_G.DP : STATS_G.P]++; x[STATS_G.BC] += cote === 'A' ? gb : ga; x[STATS_G.TR] += tirsTotal(f, autre); x[STATS_G.BL] += C.get(g).bl; }
+  }
 }
-/* Les pointeurs d'une feuille, ajoutés à un compte (la clé du joueur → [buts, passes]) : celui de la ligue, celui de tes séries. */
-function compterLesPointeurs(P, f) {
+/*
+ * UNE RUN GARDÉE AVANT LE 25 NOV. 2026 comptait tes pointeurs à la ligue, sous la même clé que le joueur d'un club de la
+ * ligue quand tu l'y avais signé. Une fois, à l'ouverture : tes buts et tes passes (`R.stats`, quatre chiffres alors) en
+ * sortent ; ce qui reste est à l'autre.
+ */
+function separerDesTiens(R) {
+  const L = R.ligue;
+  if (!L || L.v >= 2) return;
+  for (const [k, x] of Object.entries(R.stats || {})) { const l = L.pts[k]; if (l && x.length === 4) { l[0] = Math.max(0, l[0] - x[1]); l[1] = Math.max(0, l[1] - x[2]); } }
+  L.v = 2;
+}
+/* Les pointeurs d'une feuille (ceux d'un côté, ou des deux), ajoutés à un compte (la clé du joueur → [buts, passes]) : celui de la ligue, celui de tes séries. */
+function compterLesPointeurs(P, f, cote = null) {
   for (const x of f.buts || []) {
-    if (x.fusillade) continue;
+    if (x.fusillade || (cote && x.cote !== cote)) continue;
     for (const [p, k] of [[x.marqueur, 0], ...(x.passeurs || []).map(q => [q, 1])]) if (p) { const c = P[getPlayerKey(p)] = P[getPlayerKey(p)] || [0, 0]; c[k]++; }
   }
 }
@@ -508,12 +541,29 @@ function jouerLaLigueJusqua(S, fin) {
   poserLesFiches(S);
   return soir;
 }
-/* Les meneurs de la ligue : les `n` premiers pointeurs, tes joueurs compris ([{ k, g, a, i }], `i` l'indice du club). */
-export function meneursDe(S, n = 10) {
-  const P = S.R.ligue.pts, club = new Map();
+/* À qui est chaque joueur d'un autre club : sa clé → l'indice de son club. */
+function clubsDesJoueurs(S) {
+  const club = new Map();
   S.ligue.forEach((c, i) => { for (const p of c.pool) club.set(getPlayerKey(p), i + 1); });
-  for (const p of effectifDe(S)) club.set(getPlayerKey(p), 0);
-  return Object.entries(P).filter(([k]) => club.has(k)).map(([k, [g, a]]) => ({ k, g, a, i: club.get(k) })).sort((x, y) => (y.g + y.a) - (x.g + x.a) || y.g - x.g || (x.k < y.k ? -1 : 1)).slice(0, n);
+  return club;
+}
+/*
+ * LES MENEURS DE LA LIGUE : les patineurs des autres clubs (`ligue.pts`) et les tiens (`R.stats`), les `n` premiers selon
+ * `valeur` (les points, sinon ce qu'on trie), puis les points, puis les buts. Rend [{ k, i, g, a, pj, t, pm, pun }], `i`
+ * l'indice du club (0, c'est toi).
+ */
+export function meneursDe(S, n = 10, valeur = x => x.g + x.a) {
+  const R = S.R, club = clubsDesJoueurs(S), s = (p, k) => (R.stats[getPlayerKey(p)] || [])[k] || 0;
+  const eux = Object.entries(R.ligue.pts).filter(([k]) => club.has(k)).map(([k, [g = 0, a = 0, pj = 0, t = 0, pm = 0, pun = 0]]) => ({ k, i: club.get(k), g, a, pj, t, pm, pun }));
+  const miens = effectifDe(S).filter(p => p.p !== 'G').map(p => ({ k: getPlayerKey(p), i: 0, g: s(p, STATS.B), a: s(p, STATS.A), pj: s(p, STATS.PJ), t: s(p, STATS.T), pm: s(p, STATS.PM), pun: s(p, STATS.PUN) }));
+  return [...eux, ...miens].sort((x, y) => valeur(y) - valeur(x) || (y.g + y.a) - (x.g + x.a) || y.g - x.g || (x.k < y.k ? -1 : 1)).slice(0, n);
+}
+/* LES GARDIENS DE LA LIGUE, les tiens compris, qui ont pris au moins le quart des départs de leur club : [{ k, i, x }], `x` leur ligne `STATS_G`. */
+export function gardiensDe(S) {
+  const R = S.R, club = clubsDesJoueurs(S), F = R.ligue.fiches, mj = i => F[i][0] + F[i][1] + F[i][2];
+  const eux = Object.entries(R.ligue.gardiens || {}).filter(([k]) => club.has(k)).map(([k, x]) => ({ k, i: club.get(k), x }));
+  const miens = effectifDe(S).filter(p => p.p === 'G').map(p => ({ k: getPlayerKey(p), i: 0, x: Array.from({ length: 7 }, (_, j) => (R.stats[getPlayerKey(p)] || [])[j] || 0) }));
+  return [...eux, ...miens].filter(g => g.x[STATS_G.D] > 0 && g.x[STATS_G.D] * 4 >= mj(g.i));
 }
 
 /* ---------- le quart : les objectifs du proprio, le rival, les gros matchs (§ 3.4) ---------- */
@@ -743,17 +793,29 @@ export function jouerLeMatch(S) {
 
 /* ---------- les stats de ta saison, les galons ---------- */
 /*
- * CE QUE CHACUN A FAIT CHEZ TOI (`R.stats` : la clé du joueur → [matchs, buts, passes, tirs] ; un gardien → [départs,
- * victoires, défaites, défaites en prolongation, buts contre, tirs reçus]), lu dans chaque feuille : la saison et les séries.
+ * CE QUE CHACUN A FAIT CHEZ TOI (`R.stats`, la saison et les séries ; JP, 25 nov. 2026 : *stats super détaillées*), lu dans
+ * chaque feuille par le compte du moteur (`compterFeuilles`, le même que le sommaire du match). La clé d'un patineur →
+ * `STATS` : ses matchs, buts, passes, tirs, son +/−, ses minutes de punition, mises en échec, tirs bloqués, minutes de glace,
+ * points en avantage et en désavantage, buts gagnants. Celle d'un gardien → `STATS_G` : ses départs, victoires, défaites,
+ * défaites en prolongation, buts contre, tirs reçus, blanchissages, départs de qualité. Une run gardée avant ce jour-là n'a
+ * que les quatre (et les six) premiers : le reste s'y compte de zéro.
  */
+export const STATS = { PJ: 0, B: 1, A: 2, T: 3, PM: 4, PUN: 5, ME: 6, BL: 7, TG: 8, PAN: 9, PDN: 10, BG: 11 };
+export const STATS_G = { D: 0, V: 1, P: 2, DP: 3, BC: 4, TR: 5, BL: 6, DQ: 7 };
+const ligneDeStats = (T, p, n) => { const k = getPlayerKey(p), x = T[k] = T[k] || []; while (x.length < n) x.push(0); return x; };
 function compterLesStats(S, res) {
-  const T = S.R.stats, f = res.feuille, cote = res.cote, autre = cote === 'A' ? 'B' : 'A';
-  const ligne = (p, n) => { const k = getPlayerKey(p); return T[k] = T[k] || Array(n).fill(0); };
-  for (const p of (f.alignes || {})[cote] || []) ligne(p, 4)[0]++;
-  for (const b of f.buts || []) if (b.cote === cote && !b.fusillade) { if (b.marqueur) ligne(b.marqueur, 4)[1]++; for (const q of b.passeurs || []) if (q) ligne(q, 4)[2]++; }
-  for (const l of f.lancers || []) if (l.cote === cote && l.tireur) ligne(l.tireur, 4)[3]++;
+  const T = S.R.stats, f = res.feuille, cote = res.cote, autre = cote === 'A' ? 'B' : 'A', C = compterFeuilles([f]);
+  // Les tiens ce soir : tes habillés, et quiconque a marqué, aidé ou tiré de ton côté (le remplaçant de la ligue qui tient une case).
+  const miens = new Set([...((f.alignes || {})[cote] || []), ...(f.buts || []).filter(b => b.cote === cote && !b.fusillade).flatMap(b => [b.marqueur, ...(b.passeurs || [])]), ...(f.lancers || []).filter(l => l.cote === cote).map(l => l.tireur)]);
+  for (const p of miens) {
+    const c = p && p.p !== 'G' && C.get(p);
+    if (!c) continue;
+    const x = ligneDeStats(T, p, 12);
+    [c.gp, c.g, c.a, c.sh, c.pm, c.pim, c.coups, c.blocs, c.toi, c.ppp, c.shp, c.gwg].forEach((v, i) => { x[i] += v; });
+    x[STATS.TG] = Math.round(x[STATS.TG] * 100) / 100;
+  }
   const g = cote === 'A' ? f.gardienA : f.gardienB;
-  if (g) { const x = ligne(g, 6); x[0]++; x[res.gagne ? 1 : res.ot ? 3 : 2]++; x[4] += butsDe(f, autre); x[5] += tirsTotal(f, autre); }
+  if (g) { const x = ligneDeStats(T, g, 8), c = C.get(g); x[0]++; x[res.gagne ? 1 : res.ot ? 3 : 2]++; x[4] += butsDe(f, autre); x[5] += tirsTotal(f, autre); x[6] += c.bl; x[7] += c.dq; }
 }
 /*
  * LES GALONS (V28, tranche 5b ; docs/refonte-v30-2.md § 3.10) : ce qu'un joueur fait chez toi se grave sur sa carte, au
@@ -879,10 +941,33 @@ export function conclure(S, res) {
 export function dernierMatch(S) {
   const R = S.R, e = S.journal.at(-1);
   if (!e || !e.feuille.tirs || !e.adv) return null;
-  const f = e.feuille, P = (R.matchs.at(-1).sorte === 'serie' ? R.series.pts : R.ligue.pts) || {}, avant = new Map();
-  for (const p of [...f.alignes.A, ...f.alignes.B, f.gardienA, f.gardienB]) if (p) { const [g = 0, a = 0] = P[getPlayerKey(p)] || []; avant.set(p, { g, a, pts: g + a }); }
+  const f = e.feuille, serie = R.matchs.at(-1).sorte === 'serie', avant = new Map();
+  // Les buts et les passes de chacun jusqu'à ce match compris : en séries, ceux des séries ; en saison, les tiens dans tes stats, les leurs à la ligue.
+  const jusquIci = (p, mien) => { const k = getPlayerKey(p), x = R.stats[k] || []; return serie ? (R.series.pts || {})[k] || [] : mien ? [x[STATS.B], x[STATS.A]] : R.ligue.pts[k] || []; };
+  for (const cote of ['A', 'B']) for (const p of [...f.alignes[cote], cote === 'A' ? f.gardienA : f.gardienB]) if (p && p.p !== 'G') { const [g = 0, a = 0] = jusquIci(p, cote === e.cote); avant.set(p, { g, a, pts: g + a }); }
   for (const b of f.buts) if (!b.fusillade) for (const [p, k] of [[b.marqueur, 'g'], ...(b.passeurs || []).map(q => [q, 'a'])]) { const c = avant.get(p); if (c) { c[k]--; c.pts--; } }
   return { f, A: e.cote === 'A' ? S.toi : e.adv, B: e.cote === 'A' ? e.adv : S.toi, avant };
+}
+/*
+ * UN JOUEUR DE LA RUN, PAR SA CLÉ (JP, 25 nov. 2026 : la fiche qu'un nom ouvre) : le tien d'abord, un prêt compris, sinon
+ * celui d'un club de la ligue. Rend { p, club } — `club` : 0 chez toi, l'indice de son club sinon.
+ */
+export function joueurDeLaRun(S, cle) {
+  const mien = Object.values(S.roster).find(p => p && getPlayerKey(p) === cle);
+  if (mien) return { p: mien, club: 0 };
+  for (let i = 0; i < S.ligue.length; i++) { const p = S.ligue[i].pool.find(q => getPlayerKey(q) === cle); if (p) return { p, club: i + 1 }; }
+  return null;
+}
+/*
+ * SES DERNIERS MATCHS CHEZ TOI, lus dans le journal gardé (ses `GARDES` derniers), le plus récent d'abord : le numéro du
+ * match, l'adversaire, le pointage, ses buts et ses passes ; pour un gardien, les buts que ton club a accordés.
+ */
+export function derniersMatchsDe(S, p, n = 10) {
+  const G = p.p === 'G';
+  return S.journal.filter(e => (G ? e.gardien === p : e.feuille.alignes[e.cote].includes(p))).slice(-n).reverse().map(e => {
+    const buts = e.feuille.buts.filter(b => !b.fusillade);
+    return { n: e.n, adv: e.adv, gf: e.gf, ga: e.ga, gagne: e.win, b: buts.filter(b => b.marqueur === p).length, a: buts.filter(b => (b.passeurs || []).includes(p)).length, bc: buts.filter(b => b.cote !== e.cote).length };
+  });
 }
 /*
  * CONTINUER : la phase d'après, dans l'ordre de la file ; vide, le bureau (ou le tableau des séries, ou la fin). Du

@@ -1,0 +1,6 @@
+- **25 nov. · La ligue du Rogue se lit en détail : ce que chaque club fait, les meneurs qu'on trie, les gardiens, la page d'un club**
+  - JP : *la ligue*. La quatrième tranche du détail du Rogue.
+  - Le classement glisse vers les buts, les tirs, l'avantage, le désavantage et les punitions de chaque club ; toucher un club ouvre sa page (ses chiffres, ce que tu as fait contre lui, ses joueurs). Les meneurs se trient par la colonne qu'on touche ; les gardiens ont leur segment. La fiche d'un adversaire dit sa saison dans ta ligue.
+  - js/run.js `compterAuClassement`, `CLUB`, `LIGUEUR`, `meneursDe`, `gardiensDe`, `separerDesTiens` ; js/run-scenes.js `pageLigue`, `sceneClubVu`. 28 Ko de plus à la fin d'une saison.
+  - Corrigé : un joueur signé depuis un club de la ligue mêlait ses points à ceux de l'original, qui y joue encore ; tes joueurs n'ont plus qu'une maison (`R.stats`).
+  - `check_run` (l'équilibre des stats de la ligue), `check_scene` (58 scènes), `essai_run`. Version 4.4.0. La décision : docs/decisions.md, « Le détail du Rogue, tranche 4 ».

@@ -4024,3 +4024,47 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Ce qui part** : `sceneMatch`, `tempsForts`, `minuteDe`, la glace dessinée du Rogue et ses trois jetons de couleur, les gestes de vitesse et de fin de match, 29 lignes de style.css ; le pointage en gros du résultat.
 
 **Les preuves.** `check_scene` (55 scènes : les quatre vues du résultat, la feuille des deux clubs), `essai_run` (17 vérifications : un soir ordinaire en cinq touchers, le direct par-dessus la scène et son horloge qui tourne, le même pointage au direct, au résultat et dans la run, quitter pendant le direct), `check_run` (la même run, gardée et relue ou non), `tout.mjs`, `check_mort`.
+
+## Le détail du Rogue, tranche 2 : les stats de tes joueurs (25 nov. 2026)
+
+**Ce que JP a demandé** : *les stats de mes joueurs*, et *glisser de côté* pour les colonnes de trop.
+
+**Le compte.** Le moteur comptait déjà tout dans chaque feuille (`compterFeuilles`) ; la run n'en gardait que quatre chiffres par patineur. Elle en garde douze (matchs, buts, passes, tirs, +/−, minutes de punition, mises en échec, blocs, minutes de glace, points en avantage et en désavantage, buts gagnants) et huit par gardien (jusqu'aux blanchissages et aux départs de qualité), ajoutés à la suite des anciens : une run en cours continue, le neuf compté de zéro. Corrigé en chemin : la passe d'un gardien s'ajoutait à ses défaites (la même case d'un tableau plus court).
+
+**Le +/−, sans changer un match.** Le moteur ne notait qui était sur la glace que pour un match suivi joueur par joueur (la saison du 82-0), et le suivre tire des dés : l'allumer dans le Rogue aurait rejoué chaque match autrement, et fait remesurer chaque borne. Ces tirages se font maintenant d'un hasard à part, semé sur l'instant du but, pour les matchs que le moteur ne suit pas. Mesuré sur la graine 7 du robot bâtisseur : la même run au but près (104 matchs, 127 points, la même empreinte avant et après), et 370 buts sur 546 portent leur glace — les 176 autres sont en avantage numérique, où le +/− ne compte pas. Avant, seuls les 12 buts de prolongation la portaient. Les séries du 82-0 et l'exhibition y gagnent la colonne aussi.
+
+**Les mises en échec** sont celles que la feuille nomme (les coups marquants), comme à l'onglet Joueurs du 82-0 : une dizaine par match, pas la vingtaine que le club distribue. Un chiffre par joueur plus haut demanderait de nommer chaque coup : pas fait.
+
+**Le tableau.** Quatorze colonnes pour un écran de 390 px : il glisse de côté dans son cadre, le nom figé à gauche et la tête en haut, comme JP l'a tranché. L'ordre va de ce qu'on cherche d'abord à ce qu'on fouille : le pointage, le +/−, le tir, la glace, le jeu physique, les unités spéciales, les buts gagnants. Chaque en-tête trie.
+
+**Pas fait** : la saison et les séries à part (les chiffres les additionnent, comme avant).
+
+**Les preuves.** `check_run` (17 vérifications : les douze chiffres de 37 joueurs recomptés des feuilles, chaque but hors de l'avantage avec sa glace, la même run gardée et relue), `check_scene` (15 : le tableau glissé au bout, le nom et la tête en place), `check_empreinte`, `check_feuilles`, `check_prolongation`.
+
+## Le détail du Rogue, tranche 3 : la fiche d'un joueur (25 nov. 2026)
+
+**Ce que JP a demandé** : *la fiche d'un joueur*, au toucher.
+
+**La fiche est celle du jeu.** La carte recto verso du 82-0 passe telle quelle (la règle : une carte ne se redessine pas d'un écran à l'autre). Elle s'ouvre par-dessus la scène, et par-dessus le direct. La run lui passe ce qu'elle sait : la saison du joueur chez toi (les douze chiffres de la tranche 2), son édition, son salaire de la run à la place de celui du 82-0, et ses dix derniers matchs, lus dans le journal gardé (les trente derniers). Un joueur d'un autre club montre ses buts et ses passes dans ta ligue ; le reste viendra avec la tranche 4.
+
+**Ce qui l'ouvre.** Une ligne de Mon club, de la Masse, des meneurs ; chaque nom du sommaire et du fil du direct. À l'Alignement, toucher une ligne tient le joueur pour l'échanger : ce geste reste, et c'est la tête du tableau (« Demitra · sa fiche › ») qui ouvre la fiche du joueur tenu. Une ligne qu'on touche fait 44 px au lieu de 30 : Mon club montre seize joueurs par écran au lieu de vingt.
+
+**Écarté.** Une scène de fiche propre au Rogue : deux fiches à tenir, et une carte redessinée. Un petit bouton « i » au bout de chaque ligne de l'Alignement : une cible de plus par ligne, vingt-trois fois.
+
+**Les preuves.** `essai_run` (19 vérifications : un nom du direct, un nom du sommaire, une ligne de Mon club ; la carte, la saison chez toi, le salaire de la run, les derniers matchs ; fermée, on est où on était), `check_scene` (15).
+
+## Le détail du Rogue, tranche 4 : la ligue (25 nov. 2026)
+
+**Ce que JP a demandé** : *la ligue* — les meneurs par catégorie, les stats des clubs, la page d'un club.
+
+**Ce que la ligue garde.** Chaque match de la ligue passait déjà par le moteur ; sa feuille n'y laissait que le pointage et deux chiffres par pointeur. Elle laisse maintenant douze chiffres par club (jusqu'aux tirs, aux unités spéciales, aux punitions), six par patineur, sept par gardien. Mesuré à la fin d'une saison du robot : 592 patineurs, 31 gardiens, 28 Ko de plus sur une sauvegarde de 187 Ko. Les totaux s'équilibrent (76 269 tirs pour et contre, 2 069 buts en avantage et accordés) ; l'avantage de la ligue marque à 20,8 %.
+
+**Un défaut d'avant, trouvé par le juge neuf.** Un joueur signé derrière la porte d'un club de la ligue continue d'y jouer : les clubs arrivent tels que leur saison les a faits, et sa carte chez toi est une copie, sous la même clé. Les pointeurs de la ligue comptaient donc les deux sur une seule ligne, rangée chez toi. Tes joueurs ne sont plus comptés à la ligue : ce qu'ils font chez toi a une seule maison (`R.stats`), que les meneurs lisent. Une run gardée avant se démêle une fois à l'ouverture (`separerDesTiens`). Reste : toucher aux meneurs le joueur de l'autre club ouvre la fiche du tien, qui porte la même clé.
+
+**Les écrans.** Le classement garde son premier coup d'œil (les matchs, la fiche, l'écart, les points) et glisse vers le reste, plutôt qu'un cinquième segment « Clubs » qui ne tenait pas à 390 px. Les meneurs ne sont pas rangés en catégories à choisir : c'est un tableau qu'on trie en touchant sa colonne, le même geste qu'à Mon club. Les gardiens ont leur segment. La page d'un club s'ouvre d'une ligne du classement et du club de ce soir, au bureau.
+
+**Corrigé en chemin** : un tableau trié revenait à gauche et, aux gardiens, s'ouvrait au milieu (centré sur le tien, comme le classement) ; la même page redessinée garde maintenant sa place des deux côtés, et seul le classement s'ouvre sur ton club.
+
+**Pas fait** : la saison et les séries à part. Pendant les séries, tes joueurs aux meneurs portent aussi leurs matchs de séries.
+
+**Les preuves.** `check_run` (17 : l'équilibre des stats de la ligue, les gardiens, personne compté deux fois), `check_scene` (15, 58 scènes : huit tableaux glissés au bout, le nom et la tête en place), `essai_run` (19).

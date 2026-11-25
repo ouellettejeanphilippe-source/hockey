@@ -405,6 +405,8 @@ export function showPlayerModal(p, opts = {}) {
    * « Derrière le banc » affiche déjà. `titreSim` dit alors jusqu'où on
    * compte, sinon la fiche ne se distingue pas de celle de fin d'année.
    */
+  // `opts.suite` : ce que l'appelant ajoute sous les stats (le Rogue : ses derniers matchs chez toi) ; `opts.salaire` : [le montant, sa
+  // légende], quand le salaire n'est pas celui du 82-0 (le salaire de la run).
   const sim = opts.sim ? (typeof opts.sim === 'object' ? opts.sim : statsSim(p, opts.sim)) : null;
   const apres = !!opts.sim;
   // L'APERÇU (S78) : la fiche d'un joueur OFFERT (un pack, le ballottage, une recrue), par-dessus le choix,
@@ -466,9 +468,10 @@ export function showPlayerModal(p, opts = {}) {
    * (JP, 28 oct. : *j'hais les accordéons*), sans pli.
    */
   const ouvrir = html => `<section class="fiche-plus"><div class="section-label">Détails</div>${html}</section>`;
-  const corps = apercu ? ouvrir(profil + plusDeDetails) : apres
+  const corps = apercu ? ouvrir((opts.suite || '') + profil + plusDeDetails) : apres
     ? ouvrir(`<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
+       ${opts.suite || ''}
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
        ${courbe ? `<div class="section-label">Ses jambes, journée par journée</div>${courbe}` : ''}
        ${profil}
@@ -561,7 +564,7 @@ export function showPlayerModal(p, opts = {}) {
         <div class="fc-plaque">
           ${G.statsProrata ? '<div class="fc-legende">Prorata 82 matchs, ajusté à l\'époque</div>' : ''}
           <div class="fc-pied">
-            <span class="fc-salaire"><b>${st.salaryMain}</b><small>${[st.salarySub, G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`].filter(Boolean).join(' · ')}</small></span>
+            <span class="fc-salaire"><b>${opts.salaire ? opts.salaire[0] : st.salaryMain}</b><small>${opts.salaire ? opts.salaire[1] : [st.salarySub, G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`].filter(Boolean).join(' · ')}</small></span>
             <button type="button" class="cj-retourner" aria-label="Retourner la carte">↻ Verso</button>
           </div>
         </div>
