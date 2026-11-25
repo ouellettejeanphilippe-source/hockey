@@ -5291,6 +5291,10 @@ body.run-ouverte { overflow: hidden; }
 .rn-banc { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
 .rn-banc > * { position: relative; min-width: 0; }
 .rn-banc .rn-eteinte { filter: grayscale(1) brightness(0.45); }
+/* Banc plein : celle qui sort se choisit sur une ligne par pièce, son compte et ses marches à droite. */
+.rn-racine .rn-sortie { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-1); font: 600 var(--t-2)/1.2 var(--display); text-align: left; }
+.rn-racine .rn-sortie.rn-on { border-color: var(--mauvais); }
+.rn-sortie em { font-style: normal; color: var(--mauvais); }
 .rn-banc .rn-joue::after { content: ""; position: absolute; inset: -3px; border: 2px solid var(--bon); border-radius: var(--r-1); box-shadow: 0 0 12px var(--bon); pointer-events: none; }
 .rn-vide { aspect-ratio: 5 / 7; border: 2px dashed color-mix(in srgb, var(--blanc) 22%, transparent); border-radius: var(--r-1); }
 .rn-vide.rn-on { border-color: var(--blanc); }

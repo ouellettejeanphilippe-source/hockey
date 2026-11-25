@@ -516,7 +516,8 @@ const GESTES = {
   'fermer-echange': () => { V.ecran = S.R.portes.pochette ? null : 'porte'; },
   signer: v => {
     const sortant = joueurDe(v);
-    if (!sortant || !signer(S, V.arrivant, sortant)) { jouerSon('refus'); return; }
+    // Signer range l'alignement au mieux (JP, 25 nov. 2026) : l'arrivant ne finit plus en civil à la place d'un réserviste.
+    if (!sortant || !signer(S, V.arrivant, sortant, { auMieux: true })) { jouerSon('refus'); return; }
     jouerSon('valide'); notable();
     ajouterAuCartable([V.arrivant, sortant].map(p => ({ cle: getPlayerKey(p), rar: 'commune' })), { doublons: false });
     apresLesPortes(S);
