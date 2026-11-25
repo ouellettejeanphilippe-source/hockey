@@ -1,0 +1,5 @@
+- **25 nov. · Une saison n'entre aux données qu'une fois finie**
+  - Le rafraîchissement du lundi 23 nov. avait réécrit la saison en cours avec 145 joueurs sur 639 (l'API tronquée), et main était resté rouge. JP : *Ne pas utiliser saison en cours dans le shard ?* ; puis *une fois finie*.
+  - Une saison en cours n'a plus de shard : `data/seasons/2026-27.json` part, avec les deux photos d'action qui n'avaient plus de joueur. L'Action du lundi ne l'écrira qu'à la fin de la saison (tous les clubs au même nombre de matchs, 80 au moins ; en juillet quoi qu'il en soit), et refuse un shard de moins de 12 joueurs par club.
+  - scripts/build_shards.py `saison_finie`, `shard_retreci`, `MATCHS_D_UNE_SAISON` 80, `JOUEURS_PAR_CLUB_MIN` 12 ; `MATCHS_POUR_JOUER` et `saison_jouable` partis ; js/data.js (le 1er mai, sans shards) ; js/faits.js (« jusqu'ici » parti).
+  - `check_actions`, `check_ratings`, `tout.mjs`, `check_mort`. La décision : docs/decisions.md.

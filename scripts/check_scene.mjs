@@ -5,8 +5,8 @@
  *
  *   1. les scènes du devis sont toutes là : le départ, les pièces, le repêchage, l'ouverture du quart, le bureau et ses
  *      onglets (l'alignement, un joueur tenu, le banc, la masse, le classement, les meneurs, la cédule, mon club, ses
- *      gardiens, ses matchs), les pochettes, la pause, la feuille du soir, l'affiche posée (le duel), le match, le
- *      résultat, la pièce d'un rival battu, les trois portes, la porte ouverte, l'échange, le bilan, le marché du quart,
+ *      gardiens, ses matchs), les pochettes, la pause, la feuille du soir, l'affiche posée (le duel), le résultat et ses
+ *      quatre vues (le sommaire, le récit, les chiffres, la feuille des deux clubs), la pièce d'un rival battu, les trois portes, la porte ouverte, l'échange, le bilan, le marché du quart,
  *      les séries et leur feuille, la fin ; et celles d'entre deux runs, ouvertes d'un méta semé (le départ et ses crans,
  *      le Club et ses pages, l'Album d'un cartable semé, le solde, une run d'avant qui s'arrête) ;
  *   2. la scène ne défile jamais, et rien du site ne dépasse : seul le cadre d'un tableau défile, en lui-même
@@ -40,7 +40,7 @@ const DOSSIER = process.argv[3] || null;
 const LARGEUR = 390, HAUTEUR = 844, GRAINES_MAX = 4;
 /*
  * Les sauvegardes voulues, et les gestes qui mènent de chacune à d'autres scènes : [la scène, ses gestes]. Un geste est
- * [a] ou [a, v] ; « ? » à la fin : facultatif (en mouvement réduit, le match saute seul à sa fin).
+ * [a] ou [a, v]. En mouvement réduit, « Au match » va droit au résultat : le direct (js/direct.js) s'éprouve dans `essai_run`.
  */
 const ONGLETS = [['l\'alignement', [['onglet', 'alignement']]], ['l\'alignement, un joueur tenu', [['case']]], ['le banc', [['seg-a', 'banc']]], ['la masse', [['onglet', 'masse']]],
   ['le classement', [['onglet', 'ligue']]], ['les meneurs', [['seg-l', 'meneurs']]], ['la cédule', [['seg-l', 'cedule']]], ['mon club', [['onglet', 'club']]], ['mon club, trié par les buts', [['tri', 'b']]],
@@ -49,7 +49,8 @@ const SUITES = {
   pieces: [],
   repechage: [],
   quart: [],
-  resultat: [['le bureau', [['continuer']]], ...ONGLETS, ['la feuille du soir', [['reprendre'], ['aller']]], ['la feuille, l\'affiche posée', [['affiche', '1']]], ['le match', [['jouer']]], ['le match fini', [['fin-du-match?']]]],
+  resultat: [['le résultat, le récit', [['seg-r', 'recit']]], ['le résultat, les chiffres', [['seg-r', 'chiffres']]], ['le résultat, la feuille', [['seg-r', 'feuille']]], ['le bureau', [['continuer']]], ...ONGLETS,
+    ['la feuille du soir', [['reprendre'], ['aller']]], ['la feuille, l\'affiche posée', [['affiche', '1']]], ['le résultat d\'une affiche', [['jouer']]]],
   piece: [['la pièce d\'un rival battu', [['continuer']]]],
   portes: [['la porte ouverte', [['ouvrir-porte', '0']]], ['l\'échange', [['vers-echange']]]],
   bilan: [['le marché du quart', [['apres-bilan']]], ['le marché, une autre carte à monter', [['voir-montee']]]],
@@ -106,7 +107,7 @@ async function mesurer(page, nom) {
     // Ce qu'on touche tient dans l'écran ; une ligne d'un tableau qui défile se juge par son cadre.
     const bords = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('.rn-cadre')).map(el => ({ el, b: el.getBoundingClientRect() })).filter(({ b }) => b.width > 0 && (b.left < -0.5 || b.top < -0.5 || b.right > L + 0.5 || b.bottom > H + 0.5)).map(({ el }) => el.dataset.a);
     // Un panneau, un cadre ou une rangée de boutons ne passe jamais sous les boutons du bas ni sous les onglets : ce qui déborde se lit à moitié.
-    const boite = el => el.getBoundingClientRect(), dessous = [...plan.querySelectorAll('.rn-cellules, .rn-bas, .rn-onglets')].map(boite);
+    const boite = el => el.getBoundingClientRect(), dessous = [...plan.querySelectorAll('.rn-cellules, .rn-bas, .rn-onglets')].filter(el => !el.closest('.rn-cadre')).map(boite);
     const sous = p => p.height > 0 && dessous.some(d => d.top > p.top && p.bottom > d.top + 1 && p.left < d.right && p.right > d.left);
     // Ni une cible qu'on touche, où qu'elle soit (une réponse d'histoire dont le texte s'allonge poussait son « Prendre » sous « Plus tard »).
     const cibles = [...plan.querySelectorAll('[data-a]')].filter(el => !el.disabled && !el.closest('.rn-cadre, .rn-bas, .rn-onglets'));
@@ -220,12 +221,12 @@ for (const [cle, suites] of Object.entries(SUITES)) {
   await mesurer(page, NOMS[cle]);
   for (const [nom, gestes] of suites) {
     let ok = true;
-    for (const [a, v] of gestes) ok = (await geste(page, a.replace(/\?$/, ''), v) || a.endsWith('?')) && ok;
+    for (const [a, v] of gestes) ok = await geste(page, a, v) && ok;
     if (!ok) { fautes.defile.push(`${nom} : un geste manque (${gestes.map(x => x[0]).join(', ')})`); continue; }
     if (nom.startsWith('la feuille')) await page.waitForTimeout(1200);
-    if (nom === 'le match fini') await page.waitForTimeout(900);
     const m = await mesurer(page, nom);
     if (m && m.cadre) tableaux[nom] = m.cadre;
+    if (nom === 'le résultat, la feuille') tableaux[nom].patineurs = await page.$$eval('#runModal .som-feuille-table', l => l.map(t => t.querySelectorAll('tbody tr').length));
   }
   await page.close();
 }
@@ -240,6 +241,8 @@ exiger('rien du site ne dépasse : ni en-tête, ni barre du site', !fautes.dehor
 exiger('seul le cadre d\'un tableau défile, en lui-même, à sa place', !fautes.cadre.length, fautes.cadre.slice(0, 4).join(' · ') || `${Object.keys(tableaux).length} tableaux`);
 const C = tableaux['le classement'];
 exiger('le classement montre les trente-deux clubs et la ligne des séries, et s\'ouvre sur ton club', !!C && C.lignes === 32 && C.coupe && C.moiVu === true, C ? `${C.lignes} clubs, la ligne ${C.coupe ? 'tracée' : 'absente'}, ton club ${C.moiVu ? 'à l\'écran' : 'hors du cadre'}` : 'pas de tableau');
+const FM = tableaux['le résultat, la feuille'];
+exiger('le résultat est le sommaire du match : sa feuille dit les patineurs des deux clubs', !!FM && FM.patineurs.length === 2 && FM.patineurs.every(n => n >= 15), FM ? `${FM.patineurs.join(' et ')} patineurs` : 'pas de feuille');
 exiger('l\'alignement montre tes vingt-trois', !!tableaux['l\'alignement'] && tableaux['l\'alignement'].lignes >= 23, tableaux['l\'alignement'] ? `${tableaux['l\'alignement'].lignes} lignes` : 'pas de tableau');
 exiger('aucun bloc ni aucune cible ne passe sous les boutons du bas ni sous les onglets, aucune réponse d\'histoire n\'est coupée', !fautes.couvert.length, fautes.couvert.slice(0, 4).join(' · '));
 exiger('le HUD est toujours au même endroit', !fautes.hud.length && !!hud0, fautes.hud.slice(0, 4).join(' · ') || `ses cœurs à ${hud0 ? hud0.join(',') : '?'}`);

@@ -1306,7 +1306,14 @@ function saillantsHtml(f, A, B, pm) {
   </div>`;
 }
 
-function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = '', pied = '', fiche = null, jour = null, apres = '', boutons = '', onFerme = null, genre = 'sommaire-match' }) {
+/*
+ * LE SOMMAIRE EN HTML : { enTete, corps, parts }. La fenêtre du 82-0 ouvre `corps` (`sommaireDeMatch`) ; le Rogue range ses
+ * `parts` (le pointage, les trois étoiles, les périodes, les chiffres du match, la glace, les faits saillants, les gardiens,
+ * la feuille) dans les vues de la scène du résultat (JP, 25 nov. 2026 : *je m'ennuie de l'ancien moteur de match, avec stats
+ * super détaillées*). `lien(p, t, html)` : ce qu'un nom devient (sans lui, le bouton qui ouvre sa fiche).
+ */
+export function sommaireHtml({ f, A, B, mode = 'series', avant = new Map(), titre = '', pied = '', fiche = null, jour = null, apres = '', lien = null }) {
+  const nomLie = (p, t, html = null) => (lien ? lien(p, t, html ?? formatName(p.n)) : lienJoueur(p, t, mode, html));
   const tirsA = tirsTotal(f, 'A'), tirsB = tirsTotal(f, 'B');
   const compte = new Map();
   const rang = (p, cle) => { const c = avant.get(p); const k = `${cle}|${getPlayerKey(p)}`; compte.set(k, (compte.get(k) || 0) + 1); return (c ? c[cle] : 0) + compte.get(k); };
@@ -1352,7 +1359,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
     const lignes = items.map(b => {
       const t = b.cote === 'A' ? A : B;
       // Chaque nom ouvre la fiche avec ses statistiques des SÉRIES.
-      const lien = p => lienJoueur(p, t, mode, `<strong>${formatName(p.n)}</strong>`);
+      const lien = p => nomLie(p, t, `<strong>${formatName(p.n)}</strong>`);
       const r = b.rang || { g: 0, a: [] };
       if (b.type === 'blessure') {
         return `<div class="som-but som-pun som-bless som-extra">
@@ -1363,10 +1370,10 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       }
       if (b.type === 'coup' || b.type === 'bagarre' || b.type === 'melee') {
         const autre = b.cote === 'A' ? B : A;
-        const lienAutre = p => lienJoueur(p, autre, mode, `<strong>${formatName(p.n)}</strong>`);
+        const lienAutre = p => nomLie(p, autre, `<strong>${formatName(p.n)}</strong>`);
         const texte = b.type === 'coup' ? `${lien(b.joueur)} écrase ${lienAutre(b.cible)}`
-          : b.type === 'bagarre' ? `Bagarre ${lienJoueur(b.joueur, A, mode, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${lienJoueur(b.cible, B, mode, `<strong>${formatName(b.cible.n)}</strong>`)}${b.gagnant ? ` · ${esc(teamShort(b.gagnant === 'A' ? A : B))} l'emporte` : ' · match nul'} · ${b.minutes} min chacun`
-          : `Mêlée ${lienJoueur(b.joueur, A, mode, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${lienJoueur(b.cible, B, mode, `<strong>${formatName(b.cible.n)}</strong>`)} · ${b.minutes} min chacun`;
+          : b.type === 'bagarre' ? `Bagarre ${nomLie(b.joueur, A, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${nomLie(b.cible, B, `<strong>${formatName(b.cible.n)}</strong>`)}${b.gagnant ? ` · ${esc(teamShort(b.gagnant === 'A' ? A : B))} l'emporte` : ' · match nul'} · ${b.minutes} min chacun`
+          : `Mêlée ${nomLie(b.joueur, A, `<strong>${formatName(b.joueur.n)}</strong>`)} — ${nomLie(b.cible, B, `<strong>${formatName(b.cible.n)}</strong>`)} · ${b.minutes} min chacun`;
         return `<div class="som-but som-pun som-extra som-${b.type}${b.type === 'bagarre' && b.gagnant ? ` som-gagne-${b.gagnant.toLowerCase()}` : ''}">
           <span class="som-tps">${tempsRestant(b.instant, f.otLongue)}</span>
           <span class="som-eq">${b.type === 'coup' ? getTeamLogoHtml(t.tag, 13) : `${getTeamLogoHtml(A.tag, 13)}${getTeamLogoHtml(B.tag, 13)}`}</span>
@@ -1381,7 +1388,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
         </div>`;
       }
       const aides = b.passeurs.length
-        ? `<span class="som-aides">${b.passeurs.map((p, k) => `${lienJoueur(p, t, mode, esc(p.n))} <span class="som-xe">(${ordF(r.a[k] || 0)})</span>`).join(', ')}</span>`
+        ? `<span class="som-aides">${b.passeurs.map((p, k) => `${nomLie(p, t, esc(p.n))} <span class="som-xe">(${ordF(r.a[k] || 0)})</span>`).join(', ')}</span>`
         : '<span class="som-aides sans">sans aide</span>';
       const situation = b.an ? '<span class="som-sit an">AN</span>' : b.dn ? '<span class="som-sit dn">DN</span>' : '';
       return `<div class="som-but but-eq" style="${varsEquipe(getTeamBand(t.tag))}">
@@ -1399,7 +1406,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   }).join('');
 
   const gard = (g, arrets, tirs, t) => g
-    ? `<div class="som-gard"><span>${lienJoueur(g, t, mode)}</span><span>${arrets} arrêts sur ${tirs}</span></div>`
+    ? `<div class="som-gard"><span>${nomLie(g, t)}</span><span>${arrets} arrêts sur ${tirs}</span></div>`
     : '';
   /*
    * LA FEUILLE DE MATCH COMPLÈTE (oct. 2026 ; JP : *rendre visible ce qu'on compte*). Les patineurs des deux clubs, ce
@@ -1410,6 +1417,8 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   const feuilleDuMatch = () => {
     if (!f.alignes || !f.alignes.A || !f.alignes.B) return '';
     const cpt = compterFeuilles([f]);
+    // Le +/− ne se montre que si la feuille le porte : un match du Rogue, que le moteur ne suit pas joueur par joueur, ne note pas qui était sur la glace à chaque but.
+    const avecPM = f.buts.some(b => b.pour || b.contre);
     const estDef = p => p.p === 'D' || p.p === 'LD' || p.p === 'RD';
     const table = (cote, t) => {
       const minutes = (f.minutes && f.minutes[cote]) || {};
@@ -1418,8 +1427,8 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       const td = v => `<td>${v}</td>`;
       return `<div class="som-feuille-club" style="${varsEquipe(getTeamBand(t.tag))}">${getTeamLogoHtml(t.tag, 15)} <b>${esc(teamShort(t))}</b></div>
         <div class="jr-scroll"><table class="jr-table som-feuille-table">
-          <thead><tr><th class="jr-col-nom">Joueur</th><th>TG</th><th>B</th><th>A</th><th>PTS</th><th>+/−</th><th>T</th><th>MÉ</th><th>BL</th><th>PUN</th></tr></thead>
-          <tbody>${rangs.map(({ p, c, tg }) => `<tr${estDef(p) ? ' class="som-feuille-def"' : ''}><td class="jr-col-nom">${lienJoueur(p, t, mode, esc(formatName(p.n)))}</td>${td(tg ? tg.toFixed(1) : '—')}${td(c.g || 0)}${td(c.a || 0)}${td(c.pts || 0)}${td(pmMatch(c.pm || 0, 1))}${td(c.sh || 0)}${td(c.coups || 0)}${td(c.blocs || 0)}${td(c.pim || 0)}</tr>`).join('')}</tbody>
+          <thead><tr><th class="jr-col-nom">Joueur</th><th>TG</th><th>B</th><th>A</th><th>PTS</th>${avecPM ? '<th>+/−</th>' : ''}<th>T</th><th>MÉ</th><th>BL</th><th>PUN</th></tr></thead>
+          <tbody>${rangs.map(({ p, c, tg }) => `<tr${estDef(p) ? ' class="som-feuille-def"' : ''}><td class="jr-col-nom">${nomLie(p, t, formatName(p.n))}</td>${td(tg ? tg.toFixed(1) : '—')}${td(c.g || 0)}${td(c.a || 0)}${td(c.pts || 0)}${avecPM ? td(pmMatch(c.pm || 0, 1)) : ''}${td(c.sh || 0)}${td(c.coups || 0)}${td(c.blocs || 0)}${td(c.pim || 0)}</tr>`).join('')}</tbody>
         </table></div>`;
     };
     return `<div class="som-per som-feuille">
@@ -1436,7 +1445,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   // LES CARTONS D'ABORD, PAS UNE PHRASE. Le sommaire s'ouvrait sur un résumé
   // écrit ; les trois étoiles et le tableau du match disent la même chose en
   // chiffres, et ne se répètent pas d'un match à l'autre.
-  const cartons = cartesDeMatch({ f, A, B, ctx: { teamShort, fiche: (p, t, html) => lienJoueur(p, t, mode, html) } });
+  const cartons = cartesDeMatch({ f, A, B, ctx: { teamShort, fiche: nomLie } });
   const etoiles = cartons.filter(c => c.kicker === 'Les trois étoiles'), tableauDuMatch = cartons.filter(c => c.kicker !== 'Les trois étoiles');
   /*
    * LE SOMMAIRE SIMPLE (JP, 31 oct. : *plus simple c'est mieux, quitte à jouter détails toggleable*) : le pointage, ce
@@ -1444,28 +1453,42 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
    * reste — le tableau du match, la glace, tes choix, les faits saillants, les récits et les causes, les punitions et
    * les blessures, les gardiens, la feuille — attend sous « Plus de détails » (`.som-extra`).
    */
-  const corps = `<div class="som-racine">
-    <div class="som-lignes">
+  const parts = {
+    lignes: `<div class="som-lignes">
       <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(A.tag))}"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
       <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(B.tag))}"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
-    </div>
-    ${apres}
-    ${deck(etoiles, { cle: 'match' })}
-    ${parPeriode}
-    <button type="button" class="btn som-bascule" data-som-plus aria-expanded="false">Plus de détails</button>
-    <div class="som-extra">
-      ${deck(tableauDuMatch, { cle: 'match-tableau' })}
-      ${glaceDuMatchHtml(f, { couleurs: { A: getTeamBand(A.tag).duel, B: getTeamBand(B.tag).duel } })}
-      ${buildDuSoirHtml(f, A, B, jour)}
-      ${saillantsHtml(f, A, B, apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A', fiche }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`))}
-      <div class="som-per">
+    </div>`,
+    etoiles: deck(etoiles, { cle: 'match' }),
+    periodes: parPeriode,
+    tableau: deck(tableauDuMatch, { cle: 'match-tableau' }),
+    glace: glaceDuMatchHtml(f, { couleurs: { A: getTeamBand(A.tag).duel, B: getTeamBand(B.tag).duel } }),
+    saillants: saillantsHtml(f, A, B, apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A', fiche }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`)),
+    gardiens: `<div class="som-per">
         <div class="som-per-head"><span>Gardiens</span><span class="som-tirs">${esc(pied)}</span></div>
         ${gard(f.gardienA, f.arrets.A, tirsB, A)}
         ${gard(f.gardienB, f.arrets.B, tirsA, B)}
-      </div>
-      ${feuilleDuMatch()}
+      </div>`,
+    feuille: feuilleDuMatch(),
+  };
+  const corps = `<div class="som-racine">
+    ${parts.lignes}
+    ${apres}
+    ${parts.etoiles}
+    ${parts.periodes}
+    <button type="button" class="btn som-bascule" data-som-plus aria-expanded="false">Plus de détails</button>
+    <div class="som-extra">
+      ${parts.tableau}
+      ${parts.glace}
+      ${buildDuSoirHtml(f, A, B, jour)}
+      ${parts.saillants}
+      ${parts.gardiens}
+      ${parts.feuille}
     </div>
   </div>`;
+  return { enTete, corps, parts };
+}
+function sommaireDeMatch({ boutons = '', onFerme = null, genre = 'sommaire-match', ...match }) {
+  const { enTete, corps } = sommaireHtml(match);
   // AU BUREAU, UNE PAGE DU CLUB (1.0, R3) ; ailleurs (le bilan, le calendrier de la Ligue), la fenêtre.
   const hub = hubActif();
   if (hub && hub.ouvrirPage && document.body.dataset.zone === 'hub') {

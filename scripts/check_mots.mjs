@@ -27,11 +27,18 @@ const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
 const N_CLUBS = Number(process.env.CLUBS || 4);
 
-/* Des clubs de plusieurs époques : le premier club de shards espacés. */
+/*
+ * Des clubs de plusieurs époques : le premier club de quatre saisons NOMMÉES (25 nov. 2026). Avant, c'étaient des shards
+ * espacés d'un pas réglé sur le nombre de fichiers du dossier : un shard de plus ou de moins décalait les quatre clubs, et
+ * deux réponses au bord du bruit cessaient de se voir. Un juge qui dépend du compte des fichiers est une loterie. Un autre
+ * nombre de clubs (`CLUBS`) reprend le pas d'avant.
+ */
+const EPOQUES = ['1970-71.json', '1984-85.json', '1998-99.json', '2013-14.json'];
 function clubs(n) {
-  const out = [];
-  for (let i = 0; i < SAISONS.length && out.length < n; i += Math.max(1, Math.floor(SAISONS.length / n))) {
-    const sh = JSON.parse(fs.readFileSync(path.join(DIR, SAISONS[i]), 'utf8'));
+  const out = [], pas = Math.max(1, Math.floor(SAISONS.length / n));
+  for (const fichier of n === EPOQUES.length ? EPOQUES : SAISONS.filter((_, i) => i % pas === 0)) {
+    if (out.length >= n) break;
+    const sh = JSON.parse(fs.readFileSync(path.join(DIR, fichier), 'utf8'));
     const tags = [...new Set(sh.players.map(p => p.t))];
     for (const tag of tags) {
       let un; try { un = equipeReelle(sh.season, tag); } catch { continue; }

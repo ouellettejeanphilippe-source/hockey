@@ -238,34 +238,55 @@ export function figer(S) {
   });
   S.R.effets = (S.toi.effetsCibles || []).filter(e => e.joueur).map(e => ({ ...e, joueur: getPlayerKey(e.joueur) }));
   S.R.absents = [...(S.toi.absents || [])].map(([p, j]) => [getPlayerKey(p), j]);
-  S.R.journal = S.journal.map((e, i) => resumer(e, i === S.journal.length - 1));
+  const miens = new Set(Object.values(S.roster));
+  S.R.journal = S.journal.map((e, i) => resumer(e, i === S.journal.length - 1 ? miens : null));
   S.R.blessures = (S.toi.injuriesLog || []).filter(b => b.player).map(b => ({ k: getPlayerKey(b.player), games: b.games, genre: b.genre || null, at: b.at, jour: b.jour }));
   return S.R;
 }
 /*
  * LE JOURNAL GARDÉ : ce que les faits d'une histoire lisent d'une feuille (js/faits.js) — les buts, les punitions, les
- * bagarres, les pièces jouées, qui était habillé —, ses joueurs en clés, et ton côté de la feuille. Des lancers, seuls ceux
- * du dernier match se gardent (qui gardait). Les `GARDES` derniers matchs : les faits ne lisent pas plus loin qu'une
- * séquence, et 110 feuilles pèseraient sur la sauvegarde.
+ * bagarres, les pièces jouées, qui était habillé —, ses joueurs en clés, et ton côté de la feuille. Les `GARDES` derniers
+ * matchs : les faits ne lisent pas plus loin qu'une séquence, et 110 feuilles pèseraient sur la sauvegarde.
+ * LE DERNIER MATCH GARDE SA FEUILLE AU COMPLET (JP, 25 nov. 2026 : le direct et le sommaire reviennent ; une trentaine de
+ * kilo-octets) : le résultat en fait le sommaire, et quitter pendant le direct y revient. Chaque joueur y devient sa clé,
+ * marquée `m` s'il est des tiens ce jour-là : un joueur signé depuis chez le club affronté n'était pas le tien ce soir-là.
  */
 const GARDES = 30;
-function resumer(e, dernier) {
+const estUnJoueur = x => typeof x.n === 'string' && typeof x.p === 'string';
+function garderLaFeuille(x, miens) {
+  if (Array.isArray(x)) return x.map(y => garderLaFeuille(y, miens));
+  if (!x || typeof x !== 'object') return x;
+  if (estUnJoueur(x)) return miens.has(x) ? { $: getPlayerKey(x), m: 1 } : { $: getPlayerKey(x) };
+  // Les deux clubs que le moteur accroche à sa feuille ne se gardent pas : la run les connaît.
+  return Object.fromEntries(Object.entries(x).filter(([, v]) => !(v && v.roster)).map(([k, v]) => [k, garderLaFeuille(v, miens)]));
+}
+function relireLaFeuille(x, mien, autre) {
+  if (Array.isArray(x)) return x.map(y => relireLaFeuille(y, mien, autre));
+  if (!x || typeof x !== 'object') return x;
+  if (typeof x.$ === 'string') return (x.m ? mien : autre)(x.$);
+  return Object.fromEntries(Object.entries(x).map(([k, v]) => [k, relireLaFeuille(v, mien, autre)]));
+}
+function resumer(e, miens) {
   const f = e.feuille, k = p => (p ? getPlayerKey(p) : null);
-  return { jour: e.jour, n: e.n, cote: e.cote, win: e.win, gf: e.gf, ga: e.ga, adv: e.adv ? { s: e.adv.season, t: e.adv.tag } : null, gardien: k(e.gardien),
+  const tete = { jour: e.jour, n: e.n, cote: e.cote, win: e.win, gf: e.gf, ga: e.ga, adv: e.adv ? { s: e.adv.season, t: e.adv.tag } : null, gardien: k(e.gardien) };
+  if (miens) return { ...tete, F: garderLaFeuille(f, miens) };
+  return { ...tete,
     f: { buts: (f.buts || []).map(b => ({ cote: b.cote, instant: b.instant, marqueur: k(b.marqueur), passeurs: (b.passeurs || []).map(k), gardien: k(b.gardien), ...(b.fusillade ? { fusillade: true } : {}) })),
       punitions: (f.punitions || []).map(x => ({ cote: x.cote, instant: x.instant, joueur: k(x.joueur) })),
       physique: (f.physique || []).filter(x => x.type === 'bagarre').map(x => ({ type: x.type, cote: x.cote, minutes: x.minutes, joueur: k(x.joueur), cible: k(x.cible) })),
-      pieces: f.pieces || [], alignes: { A: ((f.alignes || {}).A || []).map(k), B: ((f.alignes || {}).B || []).map(k) }, gardienA: k(f.gardienA), gardienB: k(f.gardienB),
-      ...(dernier ? { lancers: (f.lancers || []).map(l => (Array.isArray(l) ? l : [l.cote, k(l.gardien)])) } : {}) } };
+      pieces: f.pieces || [], alignes: { A: ((f.alignes || {}).A || []).map(k), B: ((f.alignes || {}).B || []).map(k) }, gardienA: k(f.gardienA), gardienB: k(f.gardienB) } };
 }
 function relire(e, mien, autre, club) {
   const f = e.f, c = e.adv ? club(e.adv) : null;
+  const tete = { jour: e.jour, n: e.n, cote: e.cote, win: e.win, gf: e.gf, ga: e.ga, adv: c ? c.team : null, gardien: mien(e.gardien) };
+  if (e.F) return { ...tete, feuille: relireLaFeuille(e.F, mien, autre) };
   // Chaque joueur se relit de SON côté de la feuille : un joueur signé depuis chez le club affronté n'était pas le tien ce soir-là.
   const de = cote => (cote === e.cote ? mien : autre), contre = cote => (cote === e.cote ? autre : mien);
-  return { jour: e.jour, n: e.n, cote: e.cote, win: e.win, gf: e.gf, ga: e.ga, adv: c ? c.team : null, gardien: mien(e.gardien),
+  return { ...tete,
     feuille: { buts: f.buts.map(b => ({ ...b, marqueur: de(b.cote)(b.marqueur), passeurs: b.passeurs.map(de(b.cote)), gardien: contre(b.cote)(b.gardien) })),
       punitions: f.punitions.map(x => ({ ...x, joueur: de(x.cote)(x.joueur) })), physique: f.physique.map(x => ({ ...x, joueur: de(x.cote)(x.joueur), cible: contre(x.cote)(x.cible) })),
       pieces: f.pieces, alignes: { A: f.alignes.A.map(de('A')), B: f.alignes.B.map(de('B')) }, gardienA: de('A')(f.gardienA), gardienB: de('B')(f.gardienB),
+      // Les lancers d'une run gardée avant le 25 nov. 2026 (son dernier match seulement : qui gardait).
       lancers: (f.lancers || []).map(([cote, g]) => ({ cote, gardien: contre(cote)(g) })) } };
 }
 /* Ton club, rebâti de l'effectif : la même infirmerie, le même journal, ton coach et son banc, sa fiche au classement. */
@@ -459,7 +480,10 @@ function compterAuClassement(S, a, b, r, f) {
   F[w][0]++; if (r.ot) F[l][2]++; else F[l][1]++;
   const ga = butsDe(f, 'A'), gb = butsDe(f, 'B');
   F[a][3] += ga; F[a][4] += gb; F[b][3] += gb; F[b][4] += ga;
-  const P = S.R.ligue.pts;
+  compterLesPointeurs(S.R.ligue.pts, f);
+}
+/* Les pointeurs d'une feuille, ajoutés à un compte (la clé du joueur → [buts, passes]) : celui de la ligue, celui de tes séries. */
+function compterLesPointeurs(P, f) {
   for (const x of f.buts || []) {
     if (x.fusillade) continue;
     for (const [p, k] of [[x.marqueur, 0], ...(x.passeurs || []).map(q => [q, 1])]) if (p) { const c = P[getPlayerKey(p)] = P[getPlayerKey(p)] || [0, 0]; c[k]++; }
@@ -818,7 +842,7 @@ export function conclure(S, res) {
   rendreLesPrets(S);
   // La ligue joue jusqu'à ce soir ; puis les jours passent jusqu'à ton prochain match (en séries : deux soirs, un repos).
   let autres = [];
-  if (serie) { if ((R.series.moi.w + R.series.moi.l) % 2 === 1) recupererEnergie(S.toi); }
+  if (serie) { compterLesPointeurs(R.series.pts = R.series.pts || {}, f); if ((R.series.moi.w + R.series.moi.l) % 2 === 1) recupererEnergie(S.toi); }
   else {
     const dernier = R.matchs.length >= RUN.LIGUE.MATCHS;
     autres = jouerLaLigueJusqua(S, c.jour);
@@ -845,6 +869,20 @@ export function conclure(S, res) {
   R.phase = 'resultat';
   figer(S);
   return R.phase;
+}
+/*
+ * TON DERNIER MATCH, tel qu'il s'est joué (JP, 25 nov. 2026 : le direct le rejoue, le résultat en fait le sommaire) : sa
+ * feuille, les deux clubs dans l'ordre de la feuille (A jouait chez lui), et `avant` — les buts et les passes de chacun
+ * avant ce match (dans la saison ; en séries, dans les séries), pour dire « (12e) » après un marqueur. Rien pour une run
+ * gardée avant ce jour-là, dont la feuille n'est pas au complet.
+ */
+export function dernierMatch(S) {
+  const R = S.R, e = S.journal.at(-1);
+  if (!e || !e.feuille.tirs || !e.adv) return null;
+  const f = e.feuille, P = (R.matchs.at(-1).sorte === 'serie' ? R.series.pts : R.ligue.pts) || {}, avant = new Map();
+  for (const p of [...f.alignes.A, ...f.alignes.B, f.gardienA, f.gardienB]) if (p) { const [g = 0, a = 0] = P[getPlayerKey(p)] || []; avant.set(p, { g, a, pts: g + a }); }
+  for (const b of f.buts) if (!b.fusillade) for (const [p, k] of [[b.marqueur, 'g'], ...(b.passeurs || []).map(q => [q, 'a'])]) { const c = avant.get(p); if (c) { c[k]--; c.pts--; } }
+  return { f, A: e.cote === 'A' ? S.toi : e.adv, B: e.cote === 'A' ? e.adv : S.toi, avant };
 }
 /*
  * CONTINUER : la phase d'après, dans l'ordre de la file ; vide, le bureau (ou le tableau des séries, ou la fin). Du

@@ -9,8 +9,11 @@
  *   matchs, le dernier bilan, les séries match par match s'il y en a, l'écran de fin.
  *
  *   1. le repêchage donne vingt-trois joueurs et ouvre le bureau ;
- *   2. un soir ordinaire tient en cinq touchers au plus (jouer ce soir, au match, à la fin, continuer, au bureau) ;
- *   3. le match vu est le match joué : le pointage du résultat est celui que la run garde ;
+ *   2. un soir ordinaire tient en cinq touchers au plus (jouer ce soir, au match, passer à la fin, continuer, au bureau) ;
+ *   3. le match vu est le match joué : le pointage du résultat (son sommaire) est celui que la run garde ;
+ *   3 bis. LE DIRECT, mouvement permis (JP, 25 nov. 2026) : « Au match » ouvre le direct du jeu par-dessus la scène, son
+ *      horloge tourne, « Passer à la fin » puis « Continuer » mènent au résultat, dont les quatre vues s'ouvrent, au même
+ *      pointage que le direct et que la run ; quitter la page pendant le direct reprend au résultat, le sommaire avec ;
  *   4. une affiche posée à la feuille est jouée en affiche ;
  *   5. quitter au menu et rouvrir reprend la run où elle était ;
  *   6. le premier quart finit par son bilan, son marché, et l'ouverture du deuxième ;
@@ -63,6 +66,9 @@ const toucher = async (a, v = null, attente = 220) => {
   return true;
 };
 const photo = async nom => { if (DOSSIER) await page.screenshot({ path: `${DOSSIER}/essai-${nom}.png` }); };
+/* Le pointage que le résultat montre (son sommaire : le club qui jouait chez lui d'abord), et celui que la run garde. */
+const pointageVu = p => p.$$eval('#runModal .som-lignes .som-ligne > span:nth-child(2)', l => l.map(el => el.textContent.trim()).join(' · ')).catch(() => null);
+const pointageGarde = R => { const m = R && R.matchs.at(-1); return m ? (m.visiteur ? `${m.ga} · ${m.gf}` : `${m.gf} · ${m.ga}`) : null; };
 
 /* ---------- ce que le doigt fait de chaque scène ---------- */
 const vu = { soirs: [], pointages: [], affiches: 0, affichesJouees: 0, portes: 0, signes: 0, bilans: 0, marches: 0, quarts: 0, ballottages: 0 };
@@ -79,14 +85,6 @@ async function pas({ affiches = true } = {}) {
   }
   if (await la('vers-bureau')) { vu.quarts++; return (await toucher('vers-bureau')) && 'quart'; }
   if (await la('reclamer')) { vu.ballottages++; if (soir) soir.ordinaire = false; const offre = await page.$('#runModal [data-a="reclamer"][data-v]:not([data-v=""])'); if (offre) { await offre.click(); touchers++; await page.waitForTimeout(300); } else await toucher('reclamer'); return 'ballottage'; }
-  if (await la('apres-match')) {
-    await toucher('apres-match', null, 300);
-    // Le résultat : son pointage, et celui que la run garde.
-    const lu = await page.$eval('#runModal .rn-final b', el => el.textContent.trim()).catch(() => null), R = await run(), m = R && R.matchs.at(-1);
-    vu.pointages.push([lu, m ? `${m.gf} · ${m.ga}` : null]);
-    return 'match';
-  }
-  if (await la('fin-du-match')) return (await toucher('fin-du-match')) && 'à la fin';
   if (await la('continuer')) {
     await toucher('continuer', null, 300);
     if (soir) { soir.fin = touchers; if (soir.ordinaire && !(await la('ouvrir-porte')) && !(await la('prendre-piece')) && !(await la('apres-bilan'))) vu.soirs.push(soir.fin - soir.debut); soir = null; }
@@ -109,8 +107,11 @@ async function pas({ affiches = true } = {}) {
     if (affiches && c.sorte === 'match' && await toucher('affiche', '1', 500)) { vu.affiches++; if (soir) soir.ordinaire = false; }
     if (c.sorte === 'affiche') vu.affichesJouees++;
     await toucher('jouer', null, 200);
-    await page.waitForSelector('#runModal [data-a="apres-match"]:not([disabled])', { timeout: 20000 });
-    touchers++;   // « À la fin », que le mouvement réduit épargne : compté comme touché
+    // En mouvement réduit, le direct ne s'ouvre pas : on arrive à son résultat. Ses deux touchers (« Passer à la fin »,
+    // « Continuer ») sont comptés comme touchés ; le direct lui-même s'éprouve plus bas, mouvement permis.
+    await page.waitForSelector('#runModal [data-a="continuer"]:not([disabled])', { timeout: 20000 });
+    touchers += 2;
+    vu.pointages.push([await pointageVu(page), pointageGarde(await run())]);
     return 'feuille';
   }
   if (await la('aller')) { soir = { debut: touchers, ordinaire: true }; return (await toucher('aller', null, 300)) && 'bureau'; }
@@ -186,6 +187,55 @@ if (tardive) {
     await page.waitForSelector('#runModal [data-a="prendre-coach"]', { timeout: 30000 }).catch(() => {});
     exiger('« Une run neuve » rouvre le départ, la run gardée effacée', !!(await la('prendre-coach')) && (await run()) === null);
   }
+}
+/* ---------- le direct : deux soirs du deuxième quart, mouvement permis ---------- */
+{
+  const p2 = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true });
+  p2.on('pageerror', e => erreurs.push(e.message));
+  const lu = () => p2.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_run') || 'null'); } catch { return null; } });
+  const rouvrir = async () => { await p2.reload({ waitUntil: 'networkidle' }); await p2.waitForSelector('#menuDepart', { state: 'visible', timeout: 30000 }); await p2.click('#menuDepart [data-menu="rogue"]'); await p2.waitForSelector('#runModal .rn-plan [data-a]', { timeout: 90000 }); };
+  const clic = async (sel, attente = 300) => { await p2.click(sel); await p2.waitForTimeout(attente); };
+  await p2.goto(BASE, { waitUntil: 'networkidle' });
+  await p2.evaluate(r => { localStorage.clear(); localStorage.setItem('cap82_run', JSON.stringify(r)); }, debut);
+  await rouvrir();
+  // Du bureau à la feuille (le ballottage, s'il s'ouvre, se règle d'abord), puis « Au match ».
+  const versLeDirect = async () => {
+    for (let k = 0; k < 6 && !(await p2.$('#runModal [data-a="jouer"]:not([disabled])')); k++) {
+      const b = await p2.$('#runModal [data-a="reclamer"]:not([disabled])') || await p2.$('#runModal [data-a="aller"]:not([disabled])') || await p2.$('#runModal [data-a="vers-bureau"]:not([disabled])');
+      if (b) await b.click();
+      await p2.waitForTimeout(400);
+    }
+    await clic('#runModal [data-a="jouer"]', 100);
+    await p2.waitForSelector('#liveModal .live-fin', { state: 'visible', timeout: 20000 });
+  };
+  // Premier soir : le direct couvre la scène, son horloge tourne ; « Passer à la fin », « Continuer », le résultat.
+  await versLeDirect();
+  const couvre = await p2.evaluate(() => { const m = document.getElementById('liveModal'); let n = 0; for (let x = 20; x < 390; x += 70) for (let y = 20; y < 844; y += 80) { const el = document.elementFromPoint(x, y); if (!el || !m.contains(el)) n++; } return n === 0 && document.scrollingElement.scrollWidth <= 391; });
+  const h0 = await p2.textContent('#liveModal .live-temps');
+  await p2.waitForTimeout(1600);
+  const h1 = await p2.textContent('#liveModal .live-temps');
+  if (DOSSIER) await p2.screenshot({ path: `${DOSSIER}/essai-direct.png` });
+  await clic('#liveModal .live-fin', 500);
+  const auDirect = (await p2.$$eval('#liveModal .live-eq-buts > b', l => l.map(el => el.textContent.trim()))).join(' · ');
+  await clic('#liveModal .live-suite', 500);
+  await p2.waitForSelector('#runModal [data-a="continuer"]:not([disabled])', { timeout: 20000 });
+  const auResultat = await pointageVu(p2), garde = pointageGarde(await lu());
+  const vues = [];
+  for (const v of ['recit', 'chiffres', 'feuille', 'sommaire']) { await clic(`#runModal [data-a="seg-r"][data-v="${v}"]`, 250); vues.push(await p2.$eval('#runModal .rn-cadre', el => el.querySelectorAll('.som-racine').length === 1 && el.scrollWidth <= el.clientWidth + 1)); }
+  if (DOSSIER) await p2.screenshot({ path: `${DOSSIER}/essai-sommaire.png` });
+  exiger('« Au match » ouvre le direct par-dessus la scène, et son horloge tourne', couvre && h0 !== h1, `${h0} → ${h1}`);
+  exiger('le direct, le résultat et la run disent le même pointage', !!garde && auDirect === garde && auResultat === garde, `le direct ${auDirect}, le résultat ${auResultat}, la run ${garde}`);
+  exiger('le résultat ouvre ses quatre vues (le récit, les chiffres, la feuille, le sommaire), sans glisser de côté', vues.length === 4 && vues.every(Boolean), vues.map(x => (x ? 'oui' : 'non')).join(' '));
+  await clic('#runModal [data-a="continuer"]', 400);
+  // Deuxième soir : quitter la page pendant le direct. Le match est compté ; rouvrir reprend à son résultat, le sommaire avec.
+  if (await p2.$('#runModal [data-a="aller"]:not([disabled])')) {
+    const n0 = (await lu()).matchs.length;
+    await versLeDirect();
+    await rouvrir();
+    const R2 = await lu();
+    exiger('quitter pendant le direct reprend au résultat du match, son sommaire avec', R2.matchs.length === n0 + 1 && R2.phase === 'resultat' && (await pointageVu(p2)) === pointageGarde(R2) && !(await p2.$('#liveModal .live-fin:visible')), `match ${R2.matchs.length}, phase ${R2.phase}`);
+  } else informer('quitter pendant le direct', 'pas essayé : le premier soir menait ailleurs qu\'au bureau');
+  await p2.close();
 }
 const faux = vu.pointages.filter(([a, b]) => !a || a !== b);
 exiger('le match vu est le match joué : chaque pointage du résultat est celui que la run garde', vu.pointages.length >= 20 && !faux.length, faux.length ? faux.slice(0, 3).map(x => x.join(' ≠ ')).join(' · ') : `${vu.pointages.length} matchs`);

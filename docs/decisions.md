@@ -3981,3 +3981,46 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **L'échelle retenue**, cran par cran : 0,30 cœur perdu par run, puis 0,43, 0,59 et 0,98 ; un bilan tenu 92, 89, 85 et 72 % du temps ; 109, 123, 120 et 120 médailles par run, la prime comprise — monter ne paie pas plus, ça se mérite, comme à la V28. La Coupe : 8 fois sur 128 aux crans 0 et 1, 6 fois aux crans 2 et 3.
 
 **Ce qui a été écarté.** Un cœur de moins au cran 1 : proposé, JP a préféré les points. +7 au cran 3 : une marche de la même hauteur que les deux premières, et un dernier cran qui ressemble au deuxième.
+
+## Une saison n'entre aux données qu'une fois finie (25 nov. 2026)
+
+**Ce qui est arrivé.** Le rafraîchissement du lundi 23 nov. a réécrit le shard de la saison en cours avec 145 joueurs au lieu de 639 : l'API de la LNH avait rendu une liste tronquée (les meneurs manquaient tous, McDavid en tête ; il restait 2 à 8 joueurs par club). L'Action ne jugeait que les cotes : elle l'a commité. La photo d'action d'une recrue n'avait plus de joueur, `check_actions` a rougi, et plus aucune PR ne pouvait fusionner.
+
+**Ce que JP a dit** : *Ne pas utiliser saison en cours dans le shard ?* Puis, entre trois dates d'entrée (une fois finie, à la mi-saison comme avant, garder le shard) : *une fois finie*.
+
+**Ce que ça défait.** La décision du 24 oct. (*pas avoir de cartes de cette année*) gardait la saison en cours hors du jeu jusqu'à 41 matchs par club, mais son shard restait sur le disque, refait chaque lundi, pour qu'une sauvegarde d'avant le relise. Ce fichier ne servait donc qu'à ça, et c'est lui qui a cassé main.
+
+**La règle.** Une saison en cours n'a pas de shard. Celle que le calendrier dit en cours, d'octobre à juin, ne s'écrit que lorsque tous ses clubs ont joué le même nombre de matchs, 80 au moins : en cours de saison ils diffèrent toujours de quelques matchs. Le plancher est 80 et non 82, parce que le calendrier de la ligue peut passer à 84. En juillet, elle est finie quoi qu'il en soit (une saison écourtée). Les saisons d'avant ne se jugent pas : 1994-95 a 48 matchs, 2019-20 en a de 68 à 71. Et un shard bâti de l'API doit tenir au moins 12 joueurs par club (le plus maigre de nos 55 saisons en a 19), sinon le script s'arrête sans rien écrire.
+
+**Ce que ça coûte.** Les cartes de 2026-27 arriveront en avril plutôt qu'en février. Trente-six recrues attendent. Deux photos d'action n'avaient plus de joueur (Porter Martone, Alberts Smits) : retirées, elles reviendront avec la saison. Une sauvegarde du 82-0 d'avant le 24 oct. qui tenait une carte de 2026-27 ne se relit plus.
+
+**Ce qui part** : `MATCHS_POUR_JOUER`, `saison_jouable` et son filtre à l'index, le shard `data/seasons/2026-27.json`, « jusqu'ici » dans la vraie saison d'une histoire (`enCours`, js/faits.js).
+
+**Écarté.** Restaurer le shard du 16 nov. : le même accident lundi prochain. Retirer seulement la photo orpheline : le shard restait à 145 joueurs.
+
+## Le détail du Rogue : le match au direct, son sommaire complet (25 nov. 2026)
+
+**Ce que JP a dit.** *Je m'ennuie de l'ancien moteur de match dans le roguelike, avec stats super détaillées et je trouve en général que le roguelike est pas super détaillé.*
+
+**Le constat** (`/rapport-essai`). Le moteur n'a pas changé : c'est l'écran qui avait maigri. Depuis la V28, le Rogue ne montrait d'un match que ses temps forts (les buts, trois arrêts, deux punitions) et un résultat d'une ligne (« Tirs 31-27 »). Le direct (`diffuserMatch`, js/direct.js) et le sommaire complet (`sommaireDeMatch`, js/bilan.js) vivaient encore, pour les séries du 82-0 et l'exhibition. Au bureau : quatre chiffres par patineur (PJ, B, A, T) quand le moteur en compte une vingtaine, aucun nom qui s'ouvre, vingt pointeurs pour toute la ligue, un match passé réduit à son pointage. Le devis de la V30 (§ 12, point 12) promettait de montrer à JP, sur maquette, un match suivi en texte fait autrement qu'avant ; le tour de maquettes a sauté (*code direct*), il ne l'a jamais vu.
+
+**Ce que JP a tranché** (quatre questions, le jour même) :
+
+1. **Le match** : *le direct et le sommaire*, tous les deux ; les temps forts partent. Écartés : le sommaire seul (les temps forts gardés), le direct seul.
+2. **Le détail au bureau** : les quatre — les stats de ses joueurs, la fiche d'un joueur au toucher, la ligue (les meneurs par catégorie, les stats des clubs, la page d'un club), les matchs passés qui se rouvrent.
+3. **Les colonnes de trop à 390 px** : *glisser de côté*, le nom figé à gauche. La règle « jamais un glissement de côté » est donc défaite dans le Rogue (elle avait été reposée, comme tout interdit d'avant). Écartés : des vues qu'on bascule (recommandé), le détail dans la fiche seule.
+4. **La manière** : *code direct, par tranches* ; il juge chaque tranche sur le vrai écran.
+
+**La tranche 1, le match.**
+
+- **Le direct est celui du jeu, tel quel**, ouvert par-dessus la scène, à sa largeur à lui. Le récrire en scène du Rogue aurait fait deux directs à tenir ; le tenir dans la colonne du plan, essayé, serrait son bandeau sur un écran large (ses règles lisent la largeur de l'écran, pas la sienne). Au bandeau, à 390 px, « ANA '01 » ne tenait pas à côté de l'écusson : le Rogue y passe le sigle seul, et le nom court avec sa saison dessous (« Ducks 2001-02 »).
+- **Le match reste compté avant d'être regardé** (la règle du 17 nov.) : quitter pendant le direct reprend à son résultat. Pour que ce résultat soit encore le sommaire après un rechargement, **la sauvegarde garde la feuille du dernier match au complet** — mesurée : une trentaine de kilo-octets (les lancers 15, le jeu physique 5,5, les buts 2,6), pour une sauvegarde de 94 Ko au douzième match. Les feuilles d'avant restent amaigries ; les garder toutes (une centaine, donc 3 Mo telles quelles) est la tranche 5, après un format compact.
+- **Un joueur signé depuis chez le club affronté** peut être des deux côtés d'une même feuille (sa copie chez toi, l'original chez eux, la même clé) : chaque joueur de la feuille gardée porte donc sa clé et une marque s'il était des tiens ce soir-là.
+- **D'un trait, le sommaire faisait dix écrans** dans le cadre de la scène (7 384 px mesurés à 390 × 844). Le résultat le range en **quatre vues**, une intention chacune : Sommaire (1 570 px), Récit (4 356), Chiffres (802), Feuille (1 385). « Fil » était déjà le mot du bureau (ses lignes de nouvelles) et du direct : la vue qui raconte s'appelle « Récit ». « Plus de détails », le tiroir du 82-0, n'y est pas : les vues le remplacent.
+- **Le +/− n'est pas dans la feuille d'un match du Rogue** : le moteur ne note qui était sur la glace que pour un match suivi joueur par joueur, et suivre tire d'autres dés. La colonne se cache quand la feuille ne le porte pas ; elle se règle à la tranche 2.
+
+**Trois défauts d'avant, corrigés à la source parce que le Rogue les montrait** : les onglets de la pause du direct écrasés à 30 px (ils n'étaient pas `flex: none`) ; les noms de la feuille du sommaire échappés deux fois (« &lt;span class="fname"&gt; » à l'écran, au 82-0 aussi) ; les tirs et le pointage gris sur l'aplat d'un club (une règle battue par celle d'après).
+
+**Ce qui part** : `sceneMatch`, `tempsForts`, `minuteDe`, la glace dessinée du Rogue et ses trois jetons de couleur, les gestes de vitesse et de fin de match, 29 lignes de style.css ; le pointage en gros du résultat.
+
+**Les preuves.** `check_scene` (55 scènes : les quatre vues du résultat, la feuille des deux clubs), `essai_run` (17 vérifications : un soir ordinaire en cinq touchers, le direct par-dessus la scène et son horloge qui tourne, le même pointage au direct, au résultat et dans la run, quitter pendant le direct), `check_run` (la même run, gardée et relue ou non), `tout.mjs`, `check_mort`.

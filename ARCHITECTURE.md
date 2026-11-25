@@ -16,7 +16,7 @@ Taille par shard : 200 à 400 Ko brut, 40 à 90 Ko en gzip. Une partie typique e
 
 Le chargeur (`js/data.js`) essaie dans l'ordre et s'arrête au premier succès :
 
-**1. Shards pré-bâtis** — `data/seasons/1981-82.json`, servis depuis la même origine que la page. Même origine veut dire zéro problème de CORS, ce qui est la raison principale de préférer cette voie. Une GitHub Action les régénère (`.github/workflows/build-data.yml`) : à la main (modes `full`, `bios`, `rerate`, `seed`), et chaque lundi pour la saison en cours seulement (`--refresh-current`). Une saison n'entre à l'index qu'à 41 matchs joués par ses clubs (`MATCHS_POUR_JOUER`) : avant, ses cartes se liraient fausses.
+**1. Shards pré-bâtis** — `data/seasons/1981-82.json`, servis depuis la même origine que la page. Même origine veut dire zéro problème de CORS, ce qui est la raison principale de préférer cette voie. Une GitHub Action les régénère (`.github/workflows/build-data.yml`) : à la main (modes `full`, `bios`, `rerate`, `seed`), et chaque lundi pour la saison du calendrier (`--refresh-current`), qui ne s'écrit qu'une fois finie (`saison_finie` : tous ses clubs au même nombre de matchs, 80 au moins ; en juillet quoi qu'il en soit). Une saison en cours n'a pas de shard (JP, 25 nov. 2026) : ses cartes se liraient fausses, et un rafraîchissement raté du lundi cassait main.
 
 **2. API LNH en direct** — `api.nhle.com/stats/rest`, appelée depuis le navigateur, cotes calculées à la volée. Aucune donnée sur le disque. La LNH n'envoie pas d'en-tête CORS : le chargeur le sonde une fois au démarrage (`probeLive`) et retient le résultat, donc cette voie ne sert que là où la requête passe (un navigateur sans la règle). Quand ça marche, c'est la meilleure source pour la saison en cours, qui bouge.
 

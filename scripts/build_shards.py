@@ -46,19 +46,40 @@ SALARIES_DIR = os.path.join(DATA, "salaries")
 BASE = "https://api.nhle.com/stats/rest/en"
 UA = {"User-Agent": "Mozilla/5.0 (cap82-build)"}
 
-# UNE SAISON N'ENTRE AU JEU QU'UNE FOIS ASSEZ JOUEE (JP, 24 oct. 2026 : *pas avoir de cartes de cette annee*).
-# A dix matchs, la carte d'un joueur se lit fausse : un blanchi d'une semaine est un Soutien, un absent est
-# fragile, une seule bonne semaine fait une Etoile. A la mi-saison, les rangs d'une saison (js/niveaux.js) et la
-# part de matchs joues se stabilisent. Le shard de la saison en cours reste sur le disque (l'Action le rafraichit
-# chaque lundi, une vieille sauvegarde le relit) ; l'index, que lit le jeu, ne la liste qu'a ce seuil : la
-# mediane des matchs joues par ses equipes (`an`). Le repli sans shards (js/data.js `allSeasonLabels`) suit
-# la meme regle par la date.
-MATCHS_POUR_JOUER = 41
+# UNE SAISON N'ENTRE AUX DONNEES QU'UNE FOIS FINIE (JP, 25 nov. 2026 : *ne pas utiliser saison en cours dans le shard*).
+# Avant (JP, 24 oct. 2026 : *pas avoir de cartes de cette annee*), elle entrait au jeu a la mi-saison, et son shard
+# restait sur le disque, refait chaque lundi. Le 23 nov. 2026, l'API a rendu 145 joueurs sur 639 (McDavid et tous les
+# meneurs manquaient), l'Action l'a commite, et main est reste rouge. Une saison en cours n'a donc plus de shard du
+# tout : celle que le calendrier dit en cours (d'octobre a juin) ne s'ecrit que lorsque tous ses clubs ont joue le
+# meme nombre de matchs, au moins MATCHS_D_UNE_SAISON ; en juillet, elle est finie quoi qu'il en soit (une saison
+# ecourtee). Les saisons d'avant sont finies par definition (48 matchs en 1994-95, 68 a 71 en 2019-20).
+MATCHS_D_UNE_SAISON = 80
+# Un shard bati de l'API tient au moins tant de joueurs par club (le plus maigre de nos 55 saisons en a 19) : en
+# dessous, la reponse de l'API est tronquee et rien ne s'ecrit.
+JOUEURS_PAR_CLUB_MIN = 12
 
 
-def saison_jouable(shard):
-    gps = sorted(v["gp"] for v in (shard.get("an") or {}).values() if isinstance(v, dict) and v.get("gp"))
-    return not gps or gps[len(gps) // 2] >= MATCHS_POUR_JOUER
+def saison_courante(now=None):
+    """L'annee de depart de la saison que le calendrier dit en cours : la LNH commence en octobre."""
+    now = now or time.gmtime()
+    return now.tm_year if now.tm_mon >= 10 else now.tm_year - 1
+
+
+def saison_finie(year, shard, now=None):
+    now = now or time.gmtime()
+    if year != saison_courante(now) or now.tm_mon in (7, 8, 9):
+        return True
+    gps = [v["gp"] for v in (shard.get("an") or {}).values() if isinstance(v, dict) and v.get("gp")]
+    return bool(gps) and min(gps) == max(gps) and min(gps) >= MATCHS_D_UNE_SAISON
+
+
+def shard_retreci(shard):
+    """Le club le plus maigre du shard, s'il l'est trop : (club, joueurs) ; sinon rien."""
+    par_club = {}
+    for p in shard["players"]:
+        par_club[p["t"]] = par_club.get(p["t"], 0) + 1
+    club = min(par_club, key=par_club.get) if par_club else None
+    return (club, par_club.get(club, 0)) if not par_club or par_club[club] < JOUEURS_PAR_CLUB_MIN else None
 
 
 # Saisons du seed hors ligne : varier les epoques et inclure des franchises disparues
@@ -449,7 +470,7 @@ def main():
     ap.add_argument("--force", action="store_true",
                     help="reecrire meme si le shard existe deja et est a jour")
     ap.add_argument("--refresh-current", action="store_true",
-                    help="refaire la saison en cours seulement (rafraichissement hebdomadaire)")
+                    help="batir la saison du calendrier si elle est finie et pas encore la (chaque lundi)")
     ap.add_argument("--index-only", action="store_true",
                     help="sans API ni recalcul : reecrire seulement data/index.json")
     ap.add_argument("--rerate", action="store_true",
@@ -486,17 +507,11 @@ def main():
 
     version = ratings_version()
 
-    # Rafraichissement hebdomadaire : la saison en cours change tous les
-    # jours pendant l'annee, il faut donc la refaire meme si son shard est
-    # deja la et deja a la bonne version.
+    # Chaque lundi : la saison du calendrier, seulement. En cours, elle ne s'ecrit pas (`saison_finie`) ; finie, elle
+    # s'ecrit une fois, et les lundis d'apres la trouvent deja la.
     if args.refresh_current:
-        now = time.gmtime()
-        # La saison de la LNH commence en octobre : avant ca, la saison
-        # « en cours » est encore celle qui porte l'annee precedente.
-        start = now.tm_year if now.tm_mon >= 10 else now.tm_year - 1
-        years = [start]
-        args.force = True
-        print(f"rafraichissement de la saison en cours : {start}-{str(start + 1)[2:]}")
+        years = [saison_courante()]
+        print(f"la saison du calendrier : {years[0]}-{str(years[0] + 1)[2:]}")
 
     for year in years:
         label = f"{year}-{str(year + 1)[2:]}"
@@ -524,6 +539,13 @@ def main():
             continue
 
         shard = rate(label, args.min_gp, skaters, goalies, realtime, avantages)
+        if not saison_finie(year, shard):
+            print("en cours : elle entrera aux donnees une fois finie")
+            continue
+        maigre = shard_retreci(shard)
+        if maigre:
+            sys.exit(f"\n{label} : l'API a rendu un shard retreci ({maigre[1]} joueurs pour {maigre[0]}, "
+                     f"{JOUEURS_PAR_CLUB_MIN} au moins attendus). Rien n'est ecrit.")
 
         if not args.seed_only:
             with open(path, "w", encoding="utf-8") as f:
@@ -566,9 +588,6 @@ def main():
         for label in sorted(f[:-5] for f in os.listdir(SEASONS_DIR) if f.endswith(".json")):
             with open(os.path.join(SEASONS_DIR, f"{label}.json"), encoding="utf-8") as f:
                 shard = json.load(f)
-            if not saison_jouable(shard):
-                print(f"{label}  (pas encore au jeu : moins de {MATCHS_POUR_JOUER} matchs joues par equipe)")
-                continue
             existing.append(label)
             teams_seen.update(p["t"] for p in shard["players"])
         index = {
