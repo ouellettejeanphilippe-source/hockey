@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-4.4.0';  // 4.4.0 : la ligue du Rogue en détail — les stats des clubs, les meneurs qu'on trie, les gardiens, la page d'un club (JP, 25 nov. 2026)
+const VERSION = 'cap82-4.6.0';  // 4.6.0 : chaque match joué du Rogue garde sa feuille de match et se rouvre, de Mon club et de la cédule (JP, 25 nov. 2026)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
@@ -47,7 +47,7 @@ const FICHIERS = [
   'js/profil-style.js', 'js/impact.js',
   'js/equipes.js', 'js/saison.js', 'js/faits.js', 'js/histoires.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/identites.js', 'js/greffes.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js', 'js/sons-glace.js', 'js/sprites.js', 'js/mise-a-jour.js', 'js/version.js',
-  'js/sauvegardes.js', 'js/menu.js', 'js/pile.js', 'js/glisser.js', 'js/manette.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/pieces.js', 'js/coachs-reels.js', 'js/apres-match.js', 'js/panel-tv.js', 'js/vie-gm.js', 'js/coachs.js', 'js/club.js', 'js/packs.js',
+  'js/sauvegardes.js', 'js/synchro.js', 'js/menu.js', 'js/pile.js', 'js/glisser.js', 'js/manette.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/pieces.js', 'js/coachs-reels.js', 'js/apres-match.js', 'js/panel-tv.js', 'js/vie-gm.js', 'js/coachs.js', 'js/club.js', 'js/packs.js',
   'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/effets.js', 'js/util.js',
   'js/actions.js',
   // 1.0 (J3-6) : js/game.js découpé ; ces modules sont importés par lui (ou chargés à la demande).

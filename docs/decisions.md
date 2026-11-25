@@ -4068,3 +4068,56 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Pas fait** : la saison et les séries à part. Pendant les séries, tes joueurs aux meneurs portent aussi leurs matchs de séries.
 
 **Les preuves.** `check_run` (17 : l'équilibre des stats de la ligue, les gardiens, personne compté deux fois), `check_scene` (15, 58 scènes : huit tableaux glissés au bout, le nom et la tête en place), `essai_run` (19).
+
+## La sauvegarde qui suit d'un appareil à l'autre (25 nov. 2026)
+
+**Ce que JP a demandé** : *avoir sauvegarde multidevice*. À la question « par où » (un fichier qu'on exporte, comme aujourd'hui ; un code à recopier ; un compte), il a répondu de lui-même : *Github sync*. Puis, entre un Gist secret, un dépôt privé et une branche du dépôt du jeu : **un Gist secret**. Entre « toute seule » et « un bouton » : **toute seule**.
+
+**Pourquoi GitHub suffit.** Le jeu n'a pas de serveur et n'en gagne pas. L'API de GitHub répond aux pages Web (CORS), un Gist secret se lit et s'écrit avec un jeton qui n'a qu'un droit (`gist`), et chaque écriture y laisse une version : ce qu'on écrase reste à l'historique. Le joueur colle un jeton une fois par appareil ; il reste au stockage de ce navigateur (`cap82_synchro`) et ne part que chez GitHub. Aucune dépendance, aucun backend.
+
+**Ce qui suit, ce qui reste.** Un fichier, `cap82-sauvegarde.json` : la run du Rogue (`cap82_run`), les médailles et le Club (`cap82_rogue`), le cartable, l'index des parties et chaque partie, le palmarès. Les options (le son, la palette), les caches et le jeton restent à l'appareil : un téléphone et un ordinateur ne se règlent pas pareil.
+
+**Qui gagne** (`decider`). Chaque appareil retient l'empreinte de la dernière sauvegarde vue pareille des deux côtés. Seul l'autre côté a bougé : on reçoit, et la page se recharge aussitôt sur ce qu'on a reçu (le jeu en mémoire est celui d'avant ; son prochain geste écraserait la sauvegarde reçue). Seul ici a bougé : on envoie. Les deux : personne n'écrase personne, le menu montre les deux — ce que chacune porte, d'où vient l'autre — et le joueur choisit. Un appareil jamais branché où rien n'est joué reçoit sans demander.
+
+**Rien de ce qu'un choix écarte n'est perdu.** Dans un conflit, « celle d'ici » écrase celle d'en ligne, qui reste à l'historique du Gist. « Celle de là-bas » écarterait celle d'ici, qui n'a jamais été envoyée : elle part d'abord au Gist, dans un fichier à part (`cap82-sauvegarde-ecartee.json`), et seulement ensuite ici prend l'autre. Le menu le dit : « L'autre s'efface des deux ; GitHub en garde une copie. »
+
+**Les gardes.** Une sauvegarde écrite par une version plus récente du jeu ne se reçoit pas (ce code la lirait mal, puis la renverrait abîmée) : le mot demande la mise à jour. Recevoir est tout ou rien (un stockage plein remet ce qu'il y avait). Un Gist retouché à la main ne pose ici que les clés suivies. Une clé d'en ligne que ce code ne connaît pas y reste quand on envoie. La base ne vaut que pour le Gist où on l'a vue : un autre compte, ou un Gist refait, repart de rien. Un jeton refusé ne se réessaie pas tout seul (GitHub bloque qui insiste).
+
+**Quand.** À l'ouverture du jeu (trois secondes d'attente au plus avant le menu, puis la passe finit derrière) et à chaque retour sur la page : on reçoit. On envoie quand la page se cache, et pendant qu'on joue dès que rien n'a bougé d'une demi-minute (on regarde un match, on réfléchit), au plus tard après cinq minutes. Pas un envoi par geste : GitHub ne prend pas un morceau de fichier, chaque envoi porte la sauvegarde entière et sa réponse la renvoie.
+
+**Ce qu'un envoi pèse.** Les clés voyagent compressées (gzip, en base 64 : `CompressionStream`, que tous les navigateurs d'aujourd'hui ont) : mesuré au juge, 1 861 caractères pour 22 707 de clés. Un navigateur qui ne sait pas compresser envoie en clair, et dit qu'il ne sait pas lire ce qui est compressé. Un fichier en ligne qui ne se lit pas n'est jamais pris pour « rien » : on n'écrit pas par-dessus ce qu'on n'a pas su lire.
+
+**Écarté.** Un état « une sauvegarde attend » avec son bouton « La recevoir » : écrit, puis retiré — aucune passe ne le produisait, puisque recevoir quand seul l'autre a bougé ne perd rien. Un dépôt privé : un jeton qui écrit dans un dépôt est un droit plus large qu'il n'en faut. Une fusion des deux sauvegardes d'un conflit : deux runs du Rogue qui ont divergé ne se fusionnent pas, et fusionner des médailles en double en fabrique.
+
+**Trouvé en chemin.** Le menu d'avant s'affichait une fraction de seconde pendant que la page se rechargeait sur la sauvegarde reçue : le démarrage s'arrête là. Et une clé récrite d'une autre façon que le jeu (le juge le faisait) se relit au démarrage, et l'appareil se croit changé : le parcours écrit maintenant comme le jeu.
+
+**Pas fait.** Pendant une run du Rogue, un conflit ne se voit qu'au menu. Deux appareils qui envoient dans la même seconde : GitHub n'offre pas d'écriture conditionnelle sur un Gist ; le dernier écrit gagne, l'autre est à l'historique.
+
+**Les preuves.** `check_synchro` (41, sans navigateur : deux stockages, un faux GitHub, son refus, son réseau qui tombe), `essai_synchro` (16, dans Chromium : un téléphone et un ordinateur, du jeton au conflit).
+
+## Le détail du Rogue, tranche 5 : les matchs passés (25 nov. 2026)
+
+**Ce que JP a demandé** : *les matchs passés*, qui se rouvrent.
+
+**La mesure d'abord.** La feuille complète d'un match pèse 30 Ko dans la sauvegarde (36 pour un gros match). Trois façons de la réduire, mesurées sur le même match : compressée telle quelle (gzip, base 64), 5,6 Ko ; ses joueurs en numéros et ses nombres arrondis, 23 Ko ; rangée en colonnes avec des valeurs par défaut, 9,8 Ko, donc 800 Ko par saison. La sauvegarde en faisait 220, le stockage d'un téléphone plafonne à quelques mégaoctets, et la synchro GitHub renvoie la sauvegarde entière à chaque envoi.
+
+**La question posée à JP**, avec ces chiffres : la feuille de match partout ; le sommaire complet sur l'appareil où le match s'est joué (hors de la sauvegarde, donc pas sur l'autre appareil) ; ou les deux. Sa réponse : **la feuille de match, partout**.
+
+**Ce qu'une feuille de match garde** (`archiver`, js/run.js) : le pointage, chaque but (son instant, le marqueur, les passeurs, le gardien, l'avantage ou le désavantage, qui était sur la glace), les punitions, les bagarres et les mêlées, les blessures, les tirs par période, les arrêts, les pièces de banc qui ont joué, ce que chaque pointeur avait avant ce match (« 12ᵉ »), et par patineur sa glace, ses tirs, ses mises en échec et ses blocs. Chaque joueur y est son numéro dans une table de la run (`R.cles`). Mesuré sur une run entière du robot : 1 740 octets par match, 177 Ko pour 104 matchs.
+
+**Ce qu'elle ne garde pas** : chaque lancer et chaque coup. Un match rouvert n'a donc ni la carte des tirs ni les faits saillants, son récit ne dit pas les coups d'épaule, et un but ne dit plus ce qui l'a décidé. Le dernier match joué garde sa feuille au complet, comme avant.
+
+**Mieux que promis, sans rien coûter.** La question annonçait « ni le récit ni la carte des tirs ». Le récit d'un but se tire du marqueur, de l'instant et du gardien, que la feuille de match garde : un match rouvert a donc ses quatre vues, le récit avec les buts racontés, les punitions, les bagarres et les blessures.
+
+**La sauvegarde maigrit.** Le journal gardait trente matchs résumés (3,6 Ko chacun, pour les faits des histoires) et le dernier au complet. Il se relit maintenant des feuilles de match, qui portent tout ce que le résumé portait : la sauvegarde ne garde plus du journal que la feuille complète du dernier match. Au 40ᵉ match : 166 Ko au lieu de 192 ; à la fin d'une saison et de ses séries, 271 Ko.
+
+**Le moteur compte une feuille réduite** : `compterFeuilles` (js/sim.js) lit les comptes qu'elle porte (`comptes` : les tirs, les mises en échec, les blocs de chacun) à la place des lancers et des coups qu'elle n'a plus. Aucun dé n'est touché.
+
+**Une run d'avant.** Une run gardée avant les archives s'ouvre : son journal devient des archives (`archiverLeVieuxJournal`). Ses trente derniers matchs gardent ce que les histoires lisent ; ils ne se rouvrent pas (ni tirs ni arrêts), sauf le dernier.
+
+**Trouvé par le juge neuf.** Une mêlée note son côté au hasard, mais son premier nom est toujours du club A et son second du club B : relue par son côté, elle donnait ses minutes de punition au mauvais joueur. Et la durée d'une blessure chez l'adversaire dépend de ce que le moteur se rappelle de lui dans la séance (ses commotions d'avant), que la sauvegarde ne garde pas pour les autres clubs : une run relue peut dire « absent 5 matchs » où la même run jouée d'un trait dit 6. Rien d'autre n'en dépend ; le juge compare les archives sans cette durée, et le dit.
+
+**Écarté.** Garder les feuilles complètes hors de la sauvegarde (IndexedDB) : elles ne suivraient pas à l'autre appareil. Un codec en colonnes écrit à la main pour chaque liste de la feuille : 8 Ko quand même, et une liste de plus à tenir à chaque champ que le moteur ajoute.
+
+**Les preuves.** `check_run` (20 : chaque match relu des archives compte de chacun ce que la feuille complète comptait, côté par côté, dit les mêmes buts, les mêmes tirs, les mêmes arrêts et le même « avant » ; moins de 2,5 Ko par match ; les mêmes archives, gardée puis relue au trentième match), `check_scene` (16, 60 scènes : un match passé, sa feuille), `essai_run` (le match qu'on vient de jouer se rouvre de « Matchs » au pointage que la run garde).
+

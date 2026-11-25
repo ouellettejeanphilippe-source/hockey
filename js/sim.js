@@ -6013,6 +6013,8 @@ export function compterFeuilles(feuilles, compte = new Map()) {
       for (const x of b.contre || []) de(x).pm--;
     }
     for (const l of f.lancers || []) if (l.tireur) de(l.tireur).sh++;
+    // Une feuille de match gardée par le Rogue (js/run.js `relireLArchive`) n'a plus chaque lancer ni chaque coup : elle porte leur compte par patineur.
+    for (const [p, x] of f.comptes || []) { const c = de(p); c.sh += x.sh; c.coups += x.coups; c.blocs += x.blocs; }
     for (const pu of f.punitions || []) if (pu.joueur) de(pu.joueur).pim += pu.minutes || 2;
     // Les bagarres et les mêlées (1.0) : les minutes vont aux deux.
     for (const e of f.physique || []) {

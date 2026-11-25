@@ -12,12 +12,14 @@
  *
  * Parties : chaque partie s'exporte en fichier (à transférer sur un autre
  * appareil, un téléphone ou un ordinateur) et un tel fichier s'importe sous
- * la liste.
+ * la liste. Dessous, « D'un appareil à l'autre » : la sauvegarde qui suit
+ * toute seule, par GitHub (js/synchro.js).
  */
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer, exporter, importer } from './sauvegardes.js';
 import { esc } from './util.js';
 import { appliquerAuTitre } from './mise-a-jour.js';
 import { VERSION } from './version.js';
+import { etatDeLaSynchro, synchroniser, brancher, debrancher } from './synchro.js';
 /*
  * LE FICHIER SORT (1.0) : un lien `download` ; le navigateur l'enregistre.
  * Rend le mot à afficher.
@@ -48,6 +50,68 @@ function quand(t) {
 const ligneResume = p => [p.resume && p.resume.etape, p.resume && p.resume.qui].filter(Boolean).join(' · ');
 
 let ctxCourant = null;
+
+/*
+ * D'UN APPAREIL À L'AUTRE (js/synchro.js ; JP, 25 nov. 2026 : *Github sync*, *toute seule*). Une section du menu, qui dit
+ * où en est la sauvegarde en ligne et ne porte que le geste du moment : brancher GitHub ; choisir entre deux sauvegardes qui
+ * ont avancé chacune de leur côté ; changer un jeton refusé. Sinon rien à faire : elle suit seule.
+ */
+let synchroOccupee = false;
+function synchroHtml() {
+  const s = etatDeLaSynchro();
+  const bouton = (quoi, mot, cls = '') => `<button type="button" class="btn small${cls}" data-synchro="${quoi}">${mot}</button>`;
+  if (!s.branchee) return `<p class="ms-mot">Ta run, tes médailles, ton cartable et tes parties te suivent du téléphone à l'ordinateur, par ton compte GitHub.</p>
+    <div class="ms-actions">${bouton('ouvrir', 'Brancher GitHub')}</div>`;
+  if (synchroOccupee) return '<p class="ms-mot" role="status">Synchronisation…</p>';
+  if (s.conflit) return `<p class="ms-mot" role="status">Deux appareils ont avancé chacun de leur côté. Laquelle garder ? L'autre s'efface des deux ; GitHub en garde une copie.</p>
+    <div class="ms-choix">
+      <button type="button" class="btn" data-synchro="ici"><b>Celle d'ici</b><small>${esc(s.conflit.ici.resume)}</small></button>
+      <button type="button" class="btn" data-synchro="la"><b>Celle d'${esc(s.conflit.la.appareil)}</b><small>${esc(s.conflit.la.resume)} · ${esc(quand(s.conflit.la.quand))}</small></button>
+    </div>
+    <div class="ms-actions">${bouton('debrancher', 'Débrancher')}</div>`;
+  // 401, 403, 404 : GitHub dit non à ce jeton (faux, expiré, sans le droit « gist ») ; tout autre accroc se réessaie.
+  const geste = [401, 403, 404].includes(s.refus) ? bouton('ouvrir', 'Changer le jeton', ' go') : bouton('synchroniser', 'Synchroniser');
+  return `<p class="ms-mot" role="status">${esc(s.mot || (s.sale ? 'Des changements à envoyer.' : `À jour${s.source ? `, reçue d'${s.source}` : ''} · ${quand(s.quand)}`))}</p>
+    <div class="ms-actions">${geste}${bouton('debrancher', 'Débrancher')}</div>`;
+}
+/* La section se redessine seule (le menu autour ne bouge pas) ; le focus qu'elle portait revient à son premier bouton. */
+export function dessinerLaSynchro() {
+  const c = document.querySelector('#menuDepart .menu-synchro-corps');
+  if (!c) return;
+  const avaitLeFocus = c.contains(document.activeElement);
+  c.innerHTML = synchroHtml();
+  const b = c.querySelector('button');
+  if (avaitLeFocus && b) b.focus({ preventScroll: true });
+}
+async function gesteDeSynchro(b) {
+  const quoi = b.dataset.synchro;
+  if (quoi === 'ouvrir') { preparerLeJeton(); ctxCourant.jeton.ouvrir(); return; }
+  if (quoi === 'debrancher') {
+    if (b.dataset.confirme !== '1') { b.dataset.confirme = '1'; b.textContent = 'Débrancher ?'; setTimeout(() => { if (b.isConnected) { b.dataset.confirme = ''; b.textContent = 'Débrancher'; } }, 2500); return; }
+    debrancher(); dessinerLaSynchro(); return;
+  }
+  synchroOccupee = true; dessinerLaSynchro();
+  const r = await synchroniser(quoi === 'ici' || quoi === 'la' ? { garder: quoi } : {});
+  synchroOccupee = false;
+  // La sauvegarde reçue est au stockage ; le jeu en mémoire est celui d'avant : on recharge.
+  if (r.etat === 'recue') location.reload(); else dessinerLaSynchro();
+}
+/* LE JETON se colle dans sa fenêtre (index.html, #synchroModal) ; il s'essaie avant de se garder, et un refus se dit sous le champ. */
+function preparerLeJeton() {
+  const f = document.getElementById('synchroForm');
+  if (!f || f.onsubmit) return;
+  f.onsubmit = async ev => {
+    ev.preventDefault();
+    const champ = f.elements.jeton, mot = f.querySelector('.synchro-mot'), b = f.querySelector('[type="submit"]');
+    b.disabled = true; mot.textContent = 'On essaie le jeton…';
+    const r = await brancher(champ.value);
+    b.disabled = false; mot.textContent = '';
+    if (!etatDeLaSynchro().branchee) { mot.textContent = r.mot; champ.focus(); champ.select(); return; }
+    champ.value = '';
+    ctxCourant.jeton.fermer();
+    if (r.etat === 'recue') location.reload(); else dessinerLaSynchro();
+  };
+}
 
 export function fermerMenu() {
   const m = document.getElementById('menuDepart');
@@ -131,7 +195,11 @@ function dessiner(m) {
       <button type="button" class="btn small" data-menu="importer" title="Une partie exportée d'un autre appareil">📁 Importer une partie</button>
       <input type="file" class="menu-fichier" accept=".json,application/json" hidden>
       <span class="menu-transfert-mot" role="status"></span>
-    </div>`;
+    </div>
+    <section class="menu-synchro" aria-labelledby="menuSynchroT">
+      <h2 class="menu-parties-t" id="menuSynchroT">D'un appareil à l'autre</h2>
+      <div class="menu-synchro-corps">${synchroHtml()}</div>
+    </section>`;
   const partiesBloc = (ix.parties.length
     ? `<section class="menu-parties"><h2 class="menu-parties-t">Parties · ${ix.parties.length}</h2>${groupes}</section>`
     : '') + transfert;
@@ -208,6 +276,8 @@ function dessiner(m) {
       }
     };
   });
+  const synchro = m.querySelector('.menu-synchro-corps');
+  if (synchro) synchro.onclick = ev => { const b = ev.target.closest('[data-synchro]'); if (b) gesteDeSynchro(b); };
   const fichier = m.querySelector('.menu-fichier');
   if (fichier) {
     fichier.onchange = () => {

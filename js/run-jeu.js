@@ -41,7 +41,7 @@ import {
 } from './run.js';
 import {
   sceneAttente, sceneDepart, scenePieceDuDepart, sceneRepechage, sceneQuart, sceneBureau, sceneFeuille, sceneResultat, scenePortes, scenePorte, sceneEchange,
-  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, afficheDuDirect, ficheDuJoueur, nomQuiOuvre, sceneClubVu, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
+  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, afficheDuDirect, ficheDuJoueur, nomQuiOuvre, sceneClubVu, sceneMatchVu, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
 } from './run-scenes.js';
 
 const CLE = 'cap82_run';
@@ -248,6 +248,7 @@ function rendre() {
     if (V.ecran === 'etal') return [sceneEtal(S)];
     if (V.ecran === 'histoire') return [sceneHistoire(S, V)];
     if (V.ecran === 'club-vu') return [sceneClubVu(S, V), false, `club-vu:${V.clubVu}`];
+    if (V.ecran === 'match-vu') return [sceneMatchVu(S, V), false, `match-vu:${V.matchVu}:${V.segM || ''}`];
     switch (R.phase) {
       case 'pieces': return [scenePieceDuDepart(S, V)];
       case 'repechage': return [sceneRepechage(S, V)];
@@ -439,6 +440,10 @@ const GESTES = {
   // La page d'un club de la ligue ; le tien, c'est l'onglet Mon club.
   'club-vu': v => { if (Number(v) > 0) { V.ecran = 'club-vu'; V.clubVu = Number(v); } else V.onglet = 'club'; },
   'fermer-club-vu': () => { V.ecran = null; },
+  // Un match passé rouvert (JP, 25 nov. 2026 : la feuille de match, partout) : de Mon club et de la cédule ; sa vue ; « Retour ».
+  'match-vu': v => { V.ecran = 'match-vu'; V.matchVu = Number(v); V.segM = 'sommaire'; },
+  'seg-m': v => { V.segM = v; },
+  'fermer-match-vu': () => { V.ecran = null; },
   fiche: v => { ouvrirLaFiche(v); return false; },
   'vers-banc': () => { V.onglet = 'alignement'; V.segA = 'banc'; },
   case: v => {

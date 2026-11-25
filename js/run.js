@@ -176,7 +176,16 @@ export const reglesDe = R => (R && R.regles) || { exigence: 0, cible: 0, etapes:
 /* ---------- la séance : créer, garder, rouvrir ---------- */
 /* La version d'une run gardée : 4, la saison et sa ligue (V30) ; une run d'avant ne se relit pas, elle s'arrête à l'ouverture. */
 export const VERSION_DE_LA_RUN = 4;
-const seanceVide = (donnees, R) => ({ R, donnees, clubs: classerLesClubs(donnees), roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null, ligue: [], cedule: [], jours: [] });
+/* Un joueur par sa clé, lu dans le shard de sa saison (une table par saison, bâtie à la première demande). */
+function chercheurDe(donnees) {
+  const parCle = new Map();
+  return k => {
+    const s = k.slice(0, k.indexOf('_'));
+    if (!parCle.has(s)) parCle.set(s, new Map(((donnees.shard(s) || {}).players || []).map(p => [getPlayerKey(p), p])));
+    return parCle.get(s).get(k) || null;
+  };
+}
+const seanceVide = (donnees, R) => ({ R, donnees, clubs: classerLesClubs(donnees), trouver: chercheurDe(donnees), roster: {}, prix: new Map(), blesses: new Map(), journal: [], effets: [], absents: new Map(), toi: null, ligue: [], cedule: [], jours: [] });
 /*
  * CRÉER LA RUN : `coach` est une carte de coach ({ id, n, saison, tag, cle, rang, maitrise }, js/coachs-reels.js) ou une
  * simple philosophie ({ cle }) pour un robot. Rend la séance, à ses deux pièces de banc : avant le repêchage, pour savoir
@@ -200,13 +209,7 @@ export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, num
 }
 /* Rouvrir une run gardée : les mêmes clubs, la même cédule, ton effectif relu de ses clés, ses jambes, ses éditions, ses blessés. */
 export function ouvrirSeance(donnees, R) {
-  const S = seanceVide(donnees, R);
-  const parCle = new Map();
-  const trouver = k => {
-    const s = k.slice(0, k.indexOf('_'));
-    if (!parCle.has(s)) parCle.set(s, new Map(((donnees.shard(s) || {}).players || []).map(p => [getPlayerKey(p), p])));
-    return parCle.get(s).get(k) || null;
-  };
+  const S = seanceVide(donnees, R), trouver = S.trouver;
   for (const x of R.joueurs) {
     const p0 = trouver(x.k);
     if (!p0) continue;
@@ -221,7 +224,12 @@ export function ouvrirSeance(donnees, R) {
   // Un joueur relu : le tien d'abord (le même objet que ton alignement), sinon celui de sa saison.
   const miens = new Map(Object.values(S.roster).map(p => [getPlayerKey(p), p])), relu = k => (k ? miens.get(k) || trouver(k) : null);
   if (R.ligue) { separerDesTiens(R); poserLaLigue(S); }
-  S.journal = (R.journal || []).map(e => relire(e, relu, k => (k ? trouver(k) : null), c => clubDe(S, c)));
+  // Le journal : les `GARDES` dernières feuilles de match gardées, et la feuille complète du dernier match par-dessus la sienne.
+  const autre = k => (k ? trouver(k) : null), club = c => clubDe(S, c);
+  if (!R.archives) archiverLeVieuxJournal(S, (R.journal || []).map(e => relire(e, relu, autre, club)));
+  S.journal = R.archives.slice(-GARDES).filter(Boolean).map(a => relireLArchive(S, a, relu));
+  const dernier = (R.journal || []).at(-1);
+  if (dernier && dernier.F) { const e = relire(dernier, relu, autre, club), i = S.journal.findIndex(x => x.n === e.n); if (i >= 0) S.journal[i] = e; else S.journal.push(e); }
   S.effets = (R.effets || []).map(e => ({ ...e, joueur: relu(e.joueur) })).filter(e => e.joueur);
   for (const [k, j] of R.absents || []) { const p = relu(k); if (p) S.absents.set(p, j); }
   S.blessures = (R.blessures || []).map(b => ({ ...b, player: relu(b.k), run: true })).filter(b => b.player);
@@ -238,20 +246,105 @@ export function figer(S) {
   });
   S.R.effets = (S.toi.effetsCibles || []).filter(e => e.joueur).map(e => ({ ...e, joueur: getPlayerKey(e.joueur) }));
   S.R.absents = [...(S.toi.absents || [])].map(([p, j]) => [getPlayerKey(p), j]);
-  const miens = new Set(Object.values(S.roster));
-  S.R.journal = S.journal.map((e, i) => resumer(e, i === S.journal.length - 1 ? miens : null));
+  // Du journal, la sauvegarde ne garde que la feuille complète du dernier match : les autres sont aux archives (`archiver`).
+  S.R.journal = S.journal.length ? [resumer(S.journal.at(-1), new Set(Object.values(S.roster)))] : [];
   S.R.blessures = (S.toi.injuriesLog || []).filter(b => b.player).map(b => ({ k: getPlayerKey(b.player), games: b.games, genre: b.genre || null, at: b.at, jour: b.jour }));
   return S.R;
 }
 /*
- * LE JOURNAL GARDÉ : ce que les faits d'une histoire lisent d'une feuille (js/faits.js) — les buts, les punitions, les
- * bagarres, les pièces jouées, qui était habillé —, ses joueurs en clés, et ton côté de la feuille. Les `GARDES` derniers
- * matchs : les faits ne lisent pas plus loin qu'une séquence, et 110 feuilles pèseraient sur la sauvegarde.
- * LE DERNIER MATCH GARDE SA FEUILLE AU COMPLET (JP, 25 nov. 2026 : le direct et le sommaire reviennent ; une trentaine de
- * kilo-octets) : le résultat en fait le sommaire, et quitter pendant le direct y revient. Chaque joueur y devient sa clé,
- * marquée `m` s'il est des tiens ce jour-là : un joueur signé depuis chez le club affronté n'était pas le tien ce soir-là.
+ * CE QUE LA SAUVEGARDE GARDE DES MATCHS JOUÉS.
+ *
+ * LE JOURNAL, en mémoire : les `GARDES` derniers matchs, que les faits d'une histoire lisent (js/faits.js) — ils ne lisent
+ * pas plus loin qu'une séquence.
+ *
+ * LA FEUILLE DE MATCH DE CHAQUE MATCH (`R.archives[k]`, k l'indice du match dans `R.matchs` ; JP, 25 nov. 2026 : *la
+ * feuille de match, partout*) : ce qu'une feuille de match imprime — le pointage, les buts et qui était sur la glace, les
+ * punitions, les bagarres, les blessures, les tirs par période, les arrêts, les pièces de banc qui ont joué, et la ligne de
+ * chaque patineur (sa glace, ses tirs, ses mises en échec, ses blocs). Ni chaque lancer ni chaque coup : la feuille complète
+ * pèse 30 Ko, celle-ci moins de 2. Chaque joueur y est son numéro dans `R.cles` (la table des clés de la run). Elle se
+ * rouvre de Mon club et de la cédule (`matchPasse`), et le journal se relit d'elle.
+ *
+ * LE DERNIER MATCH GARDE SA FEUILLE AU COMPLET (`R.journal`, une seule entrée ; JP, 25 nov. 2026 : le direct et le sommaire
+ * reviennent ; une trentaine de kilo-octets) : le résultat en fait le sommaire en quatre vues, et quitter pendant le direct
+ * y revient. Chaque joueur y devient sa clé, marquée `m` s'il est des tiens ce jour-là : un joueur signé depuis chez le club
+ * affronté n'était pas le tien ce soir-là.
  */
 const GARDES = 30;
+const COTES = ['A', 'B'], autreCote = c => (c === 'A' ? 'B' : 'A');
+/* Le numéro d'un joueur dans la table des clés de la run (−1 : personne). */
+function numeroDe(S, p) {
+  if (!p) return -1;
+  const R = S.R, k = getPlayerKey(p);
+  R.cles = R.cles || [];
+  if (!S.numeros) S.numeros = new Map(R.cles.map((c, i) => [c, i]));
+  if (!S.numeros.has(k)) { S.numeros.set(k, R.cles.length); R.cles.push(k); }
+  return S.numeros.get(k);
+}
+/*
+ * ARCHIVER un match du journal : sa tête et sa feuille de match (`b`). `avant` : les buts et les passes de chacun avant ce
+ * match, pour dire « (12e) » après un marqueur ; on n'en garde que ceux qui ont un point ce soir. Une feuille relue d'une
+ * run gardée avant le 26 nov. 2026 n'a ni tirs ni arrêts : elle s'archive `vieux`, pour le journal, et ne se rouvre pas.
+ */
+function archiver(S, e, avant = null) {
+  const f = e.feuille, no = p => numeroDe(S, p), c01 = c => (c === 'A' ? 0 : 1), complet = !!f.tirs && !f.reduite;
+  const cpt = complet ? compterFeuilles([f]) : new Map(), pointeurs = new Set(f.buts.flatMap(b => [b.marqueur, ...(b.passeurs || [])]).filter(Boolean));
+  return { jour: e.jour, n: e.n, cote: e.cote, win: e.win, gf: e.gf, ga: e.ga, adv: e.adv ? { s: e.adv.season, t: e.adv.tag } : null, gardien: no(e.gardien),
+    b: {
+      ...(complet ? {} : { vieux: 1 }),
+      a: COTES.map(c => ((f.alignes || {})[c] || []).map(no)),
+      // Par patineur, dans l'ordre de `a` : sa glace en dixièmes de minute, ses tirs, ses mises en échec, ses blocs.
+      c: COTES.map(c => ((f.alignes || {})[c] || []).flatMap(p => { const x = cpt.get(p) || {}; return [Math.round((((f.minutes || {})[c] || {})[getPlayerKey(p)] || 0) * 10), x.sh || 0, x.coups || 0, x.blocs || 0]; })),
+      g: [no(f.gardienA), no(f.gardienB)],
+      // Un but : son côté, son instant, le marqueur, les passeurs, le gardien, ses drapeaux (1 en avantage, 2 en désavantage, 4 aux tirs de barrage), qui était sur la glace pour et contre.
+      b: f.buts.map(b => [c01(b.cote), b.instant, no(b.marqueur), (b.passeurs || []).map(no), no(b.gardien), (b.an ? 1 : 0) | (b.dn ? 2 : 0) | (b.fusillade ? 4 : 0), (b.pour || []).map(no), (b.contre || []).map(no)]),
+      p: (f.punitions || []).map(x => [c01(x.cote), x.instant, no(x.joueur), x.minutes || 2, x.butAN ? 1 : 0]),
+      x: (f.physique || []).filter(x => x.minutes).map(x => [x.type, c01(x.cote), x.instant ?? 0, no(x.joueur), no(x.cible), x.minutes, x.gagnant || 0]),
+      i: (f.blessures || []).map(x => [c01(x.cote), x.instant, no(x.joueur), x.matchs, x.genre || 0]),
+      s: complet ? [f.tirs.A, f.tirs.B, f.arrets.A || 0, f.arrets.B || 0] : [],
+      v: [c01(f.vainqueur), (f.ot ? 1 : 0) | (f.fusillade ? 2 : 0) | (f.prolongation ? 4 : 0) | (f.otLongue ? 8 : 0), f.periodesOT || 0],
+      k: (f.pieces || []).map(x => [c01(x.cote), x.k, x.cle, x.buts, x.contre, x.marche, x.n]),
+      w: avant ? [...avant].filter(([p]) => pointeurs.has(p)).map(([p, x]) => [f.alignes.A.includes(p) || p === f.gardienA ? 0 : 1, no(p), x.g, x.a]) : [],
+    } };
+}
+/*
+ * RELIRE une feuille de match gardée : une entrée du journal, sa feuille réduite (`reduite`). Chaque joueur se relit de
+ * SON côté de la feuille (le tien d'abord s'il est encore chez toi, sinon celui de sa saison) ; ce que la feuille ne garde
+ * pas événement par événement, elle le porte compté (`comptes`, que `compterFeuilles` lit, js/sim.js).
+ */
+function relireLArchive(S, a, mien = null) {
+  const R = S.R, x = a.b, AB = i => COTES[i];
+  const miens = mien ? null : new Map(Object.values(S.roster).map(p => [getPlayerKey(p), p]));
+  const leMien = mien || (k => miens.get(k) || S.trouver(k));
+  const J = (cote, i) => (i >= 0 && R.cles[i] ? (cote === a.cote ? leMien : S.trouver)(R.cles[i]) : null);
+  const alignes = { A: x.a[0].map(i => J('A', i)).filter(Boolean), B: x.a[1].map(i => J('B', i)).filter(Boolean) };
+  const minutes = { A: {}, B: {} }, comptes = new Map();
+  COTES.forEach((c, k) => x.a[k].forEach((i, j) => {
+    const p = J(c, i);
+    if (!p) return;
+    const [tg, sh, coups, blocs] = x.c[k].slice(j * 4, j * 4 + 4);
+    minutes[c][getPlayerKey(p)] = tg / 10;
+    comptes.set(p, { sh, coups, blocs });
+  }));
+  const club = a.adv ? clubDe(S, a.adv) : null, gfA = a.cote === 'A' ? a.gf : a.ga, gfB = a.cote === 'A' ? a.ga : a.gf;
+  const feuille = { reduite: true, ...(x.vieux ? { vieux: true } : {}), alignes, minutes, comptes, gfA, gfB,
+    gardienA: J('A', x.g[0]), gardienB: J('B', x.g[1]),
+    buts: x.b.map(([c, instant, m, pa, g, d, pour, contre]) => { const cote = AB(c); return { cote, instant, marqueur: J(cote, m), passeurs: pa.map(i => J(cote, i)).filter(Boolean), gardien: J(autreCote(cote), g), an: !!(d & 1), dn: !!(d & 2), ...(d & 4 ? { fusillade: true } : {}), ...(pour.length ? { pour: pour.map(i => J(cote, i)).filter(Boolean), contre: contre.map(i => J(autreCote(cote), i)).filter(Boolean) } : {}) }; }),
+    punitions: x.p.map(([c, instant, j, minutes, butAN]) => ({ cote: AB(c), instant, joueur: J(AB(c), j), minutes, butAN: !!butAN })),
+    // Une bagarre, une mêlée : `joueur` est celui du club A, `cible` celui du club B, quel que soit le côté noté (js/sim.js).
+    physique: x.x.map(([type, c, instant, j, cible, minutes, gagnant]) => ({ type, cote: AB(c), instant, joueur: J('A', j), cible: J('B', cible), minutes, gagnant: gagnant || null })),
+    blessures: x.i.map(([c, instant, j, matchs, genre]) => ({ cote: AB(c), instant, joueur: J(AB(c), j), matchs, genre: genre || null })),
+    tirs: x.s.length ? { A: x.s[0], B: x.s[1] } : null, arrets: x.s.length ? { A: x.s[2], B: x.s[3] } : {},
+    vainqueur: AB(x.v[0]), ot: !!(x.v[1] & 1), fusillade: !!(x.v[1] & 2), prolongation: !!(x.v[1] & 4), otLongue: !!(x.v[1] & 8), periodesOT: x.v[2],
+    pieces: x.k.map(([c, k, cle, buts, contre, marche, n]) => ({ cote: AB(c), k, cle, nom: (PIECES[cle] || {}).nom, ico: (PIECES[cle] || {}).ico, buts, contre, marche, n })),
+    avant: new Map(x.w.map(([c, i, g, pa]) => [J(AB(c), i), { g, a: pa, pts: g + pa }])) };
+  return { jour: a.jour, n: a.n, cote: a.cote, win: a.win, gf: a.gf, ga: a.ga, adv: club ? club.team : null, gardien: J(a.cote, a.gardien), feuille };
+}
+/* Une run gardée avant le 26 nov. 2026 n'a pas d'archives : son journal (trente matchs, le dernier au complet) en devient. */
+function archiverLeVieuxJournal(S, journal) {
+  const R = S.R;
+  R.archives = Array.from({ length: (R.matchs || []).length }, () => null);
+  for (const e of journal) if (e.jour >= 0 && e.jour < R.archives.length) R.archives[e.jour] = archiver(S, e);
+}
 const estUnJoueur = x => typeof x.n === 'string' && typeof x.p === 'string';
 function garderLaFeuille(x, miens) {
   if (Array.isArray(x)) return x.map(y => garderLaFeuille(y, miens));
@@ -266,16 +359,11 @@ function relireLaFeuille(x, mien, autre) {
   if (typeof x.$ === 'string') return (x.m ? mien : autre)(x.$);
   return Object.fromEntries(Object.entries(x).map(([k, v]) => [k, relireLaFeuille(v, mien, autre)]));
 }
+/* Le dernier match du journal, tel que la sauvegarde le garde : sa tête, et sa feuille au complet (`F`). */
 function resumer(e, miens) {
-  const f = e.feuille, k = p => (p ? getPlayerKey(p) : null);
-  const tete = { jour: e.jour, n: e.n, cote: e.cote, win: e.win, gf: e.gf, ga: e.ga, adv: e.adv ? { s: e.adv.season, t: e.adv.tag } : null, gardien: k(e.gardien) };
-  if (miens) return { ...tete, F: garderLaFeuille(f, miens) };
-  return { ...tete,
-    f: { buts: (f.buts || []).map(b => ({ cote: b.cote, instant: b.instant, marqueur: k(b.marqueur), passeurs: (b.passeurs || []).map(k), gardien: k(b.gardien), ...(b.fusillade ? { fusillade: true } : {}) })),
-      punitions: (f.punitions || []).map(x => ({ cote: x.cote, instant: x.instant, joueur: k(x.joueur) })),
-      physique: (f.physique || []).filter(x => x.type === 'bagarre').map(x => ({ type: x.type, cote: x.cote, minutes: x.minutes, joueur: k(x.joueur), cible: k(x.cible) })),
-      pieces: f.pieces || [], alignes: { A: ((f.alignes || {}).A || []).map(k), B: ((f.alignes || {}).B || []).map(k) }, gardienA: k(f.gardienA), gardienB: k(f.gardienB) } };
+  return { jour: e.jour, n: e.n, cote: e.cote, win: e.win, gf: e.gf, ga: e.ga, adv: e.adv ? { s: e.adv.season, t: e.adv.tag } : null, gardien: e.gardien ? getPlayerKey(e.gardien) : null, F: garderLaFeuille(e.feuille, miens) };
 }
+/* Une entrée du journal gardé : sa feuille complète (`F`), ou, d'une run gardée avant les archives, sa feuille résumée (`f`). */
 function relire(e, mien, autre, club) {
   const f = e.f, c = e.adv ? club(e.adv) : null;
   const tete = { jour: e.jour, n: e.n, cote: e.cote, win: e.win, gf: e.gf, ga: e.ga, adv: c ? c.team : null, gardien: mien(e.gardien) };
@@ -911,6 +999,9 @@ export function conclure(S, res) {
     if (dernier) jouerLaLigueJusqua(S, S.cedule.length - 1);
     else for (let d = c.jour; d < S.jours[0][R.matchs.length]; d++) recupererEnergie(S.toi, ENERGIE_RECUP_JOUR);
   }
+  // La feuille de match de ce soir aux archives, à l'indice du match : elle se rouvrira telle quelle, d'un appareil à l'autre.
+  R.archives = R.archives || [];
+  R.archives[R.matchs.length - 1] = archiver(S, S.journal.at(-1), dernierMatch(S).avant);
   R.apres = { gagne: res.gagne, ot: res.ot, gf: res.gf, ga: res.ga, pts, jetons, prime, s: c.s, t: c.t, sorte: c.sorte, duel: res.duel, visiteur: !!c.visiteur,
     pieces: piecesJouees(f, res.cote), tirs: [tirsTotal(f, res.cote), tirsTotal(f, res.cote === 'A' ? 'B' : 'A')], rang: serie ? null : [rangAvant, rangDe(S, 0)], autres,
     ...(etoile && buts >= 2 ? { etoile: { n: etoile.n, buts } } : {}), ...(galons.length ? { galons } : {}), offertes: [] };
@@ -940,13 +1031,24 @@ export function conclure(S, res) {
  */
 export function dernierMatch(S) {
   const R = S.R, e = S.journal.at(-1);
-  if (!e || !e.feuille.tirs || !e.adv) return null;
+  if (!e || !e.feuille.tirs || e.feuille.reduite || !e.adv) return null;
   const f = e.feuille, serie = R.matchs.at(-1).sorte === 'serie', avant = new Map();
   // Les buts et les passes de chacun jusqu'à ce match compris : en séries, ceux des séries ; en saison, les tiens dans tes stats, les leurs à la ligue.
   const jusquIci = (p, mien) => { const k = getPlayerKey(p), x = R.stats[k] || []; return serie ? (R.series.pts || {})[k] || [] : mien ? [x[STATS.B], x[STATS.A]] : R.ligue.pts[k] || []; };
   for (const cote of ['A', 'B']) for (const p of [...f.alignes[cote], cote === 'A' ? f.gardienA : f.gardienB]) if (p && p.p !== 'G') { const [g = 0, a = 0] = jusquIci(p, cote === e.cote); avant.set(p, { g, a, pts: g + a }); }
   for (const b of f.buts) if (!b.fusillade) for (const [p, k] of [[b.marqueur, 'g'], ...(b.passeurs || []).map(q => [q, 'a'])]) { const c = avant.get(p); if (c) { c[k]--; c.pts--; } }
   return { f, A: e.cote === 'A' ? S.toi : e.adv, B: e.cote === 'A' ? e.adv : S.toi, avant };
+}
+/*
+ * UN MATCH PASSÉ, par son indice dans `R.matchs` (JP, 25 nov. 2026 : *la feuille de match, partout*) : sa feuille de match
+ * relue des archives, les deux clubs dans l'ordre de la feuille, `avant` comme au dernier match, et `e` (sa tête : le
+ * numéro du match, ton côté, le pointage). Rien pour un match d'une run gardée avant les archives.
+ */
+export function matchPasse(S, k) {
+  const a = (S.R.archives || [])[k];
+  if (!a || a.b.vieux || !a.adv) return null;
+  const e = relireLArchive(S, a);
+  return e.adv ? { e, f: e.feuille, A: e.cote === 'A' ? S.toi : e.adv, B: e.cote === 'A' ? e.adv : S.toi, avant: e.feuille.avant } : null;
 }
 /*
  * UN JOUEUR DE LA RUN, PAR SA CLÉ (JP, 25 nov. 2026 : la fiche qu'un nom ouvre) : le tien d'abord, un prêt compris, sinon

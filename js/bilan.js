@@ -1461,8 +1461,9 @@ export function sommaireHtml({ f, A, B, mode = 'series', avant = new Map(), titr
     etoiles: deck(etoiles, { cle: 'match' }),
     periodes: parPeriode,
     tableau: deck(tableauDuMatch, { cle: 'match-tableau' }),
-    glace: glaceDuMatchHtml(f, { couleurs: { A: getTeamBand(A.tag).duel, B: getTeamBand(B.tag).duel } }),
-    saillants: saillantsHtml(f, A, B, apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A', fiche }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`)),
+    // Une feuille de match gardée par le Rogue (`reduite`, js/run.js) n'a plus chaque lancer : ni carte des tirs, ni faits saillants.
+    glace: f.reduite ? '' : glaceDuMatchHtml(f, { couleurs: { A: getTeamBand(A.tag).duel, B: getTeamBand(B.tag).duel } }),
+    saillants: f.reduite ? '' : saillantsHtml(f, A, B, apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A', fiche }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`)),
     gardiens: `<div class="som-per">
         <div class="som-per-head"><span>Gardiens</span><span class="som-tirs">${esc(pied)}</span></div>
         ${gard(f.gardienA, f.arrets.A, tirsB, A)}
@@ -1479,7 +1480,7 @@ export function sommaireHtml({ f, A, B, mode = 'series', avant = new Map(), titr
     <div class="som-extra">
       ${parts.tableau}
       ${parts.glace}
-      ${buildDuSoirHtml(f, A, B, jour)}
+      ${f.reduite ? '' : buildDuSoirHtml(f, A, B, jour)}
       ${parts.saillants}
       ${parts.gardiens}
       ${parts.feuille}

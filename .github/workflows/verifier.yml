@@ -57,6 +57,7 @@ name: Vérifier
 #   smoke_table     le même, en mode bonus : le tournoi, le plateau, un match
 #                   joué geste par geste, le bilan
 #   check_hauteur   un choix en cartes (ton identité) tient en un écran
+#   essai_synchro   la sauvegarde d'un appareil à l'autre, deux appareils et un faux GitHub
 #   check_scene, essai_run, mesure_run   le Rogue, une saison (V30) : chaque
 #                   scène à 390 × 844, une saison au doigt, quatre robots sur 64 graines
 #
@@ -206,7 +207,13 @@ jobs:
       - name: Un choix tient en un écran
         run: node scripts/check_hauteur.mjs http://localhost:8000
 
-      # Le Rogue (V30, docs/refonte-v30-2.md § 9) : 58 scènes ouvertes à 390 × 844 depuis de vraies sauvegardes de robot —
+      # La sauvegarde qui suit d'un appareil à l'autre (25 nov. 2026, js/synchro.js) : un téléphone et un ordinateur, un faux
+      # GitHub tenu par le script (rien ne sort du runner) — brancher, recevoir à l'ouverture, le conflit qu'on tranche,
+      # débrancher. Une quinzaine de secondes. La règle seule (`check_synchro`) est dans `tout.mjs`.
+      - name: La sauvegarde d'un appareil à l'autre
+        run: node scripts/essai_synchro.mjs http://localhost:8000
+
+      # Le Rogue (V30, docs/refonte-v30-2.md § 9) : 60 scènes ouvertes à 390 × 844 depuis de vraies sauvegardes de robot —
       # la scène ne défile jamais, seul le cadre d'un tableau défile, le HUD au même pixel, chaque cible de 44. Deux minutes.
       - name: Les scènes du Rogue à 390 × 844
         run: node scripts/check_scene.mjs http://localhost:8000

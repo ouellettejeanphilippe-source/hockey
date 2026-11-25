@@ -28,6 +28,13 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 - [x] **La saison en cours sort des données** (25 nov.) — le rafraîchissement du 23 nov. l'avait réécrite avec 145 joueurs sur 639 et main restait rouge ; `data/seasons/2026-27.json` et deux photos sans joueur partent ; l'Action du lundi n'écrit une saison qu'une fois finie et refuse un shard rétréci — `scripts/build_shards.py` `saison_finie`, `shard_retreci` — `check_actions`, `check_ratings`.
 - [ ] En avril 2027 : la saison 2026-27 entre d'elle-même, le premier lundi où tous ses clubs ont fini ; ses photos d'action se refont (`scripts/actions.mjs`).
 
+## La sauvegarde qui suit d'un appareil à l'autre (JP, 25 nov. : *avoir sauvegarde multidevice* ; *Github sync*)
+
+- [x] **JP tranche** (25 nov.) : par GitHub ; un Gist secret de son compte (un jeton au seul droit « gist », collé une fois par appareil) ; toute seule, et quand deux appareils ont avancé chacun de leur côté, le jeu montre les deux et il choisit.
+- [x] **La synchro** (25 nov.) — la run du Rogue, les médailles et le Club, le cartable, les parties et le palmarès suivent ; les options restent à l'appareil. Reçue à l'ouverture du jeu et au retour sur sa page (la page se recharge sur elle), envoyée quand la page se cache et dès que rien n'a bougé d'une demi-minute, compressée. Le menu porte « D'un appareil à l'autre » — `js/synchro.js`, `js/menu.js`, `index.html` `#synchroModal` — `check_synchro` (41, dans `tout.mjs`), `essai_synchro` (16, au CI).
+  - [ ] Pas fait : pendant une run du Rogue, un conflit ne se voit qu'au menu (rien ne le dit dans le bureau).
+  - [ ] Pas fait : deux appareils qui envoient dans la même seconde ; le dernier écrit gagne, l'autre reste à l'historique du Gist.
+
 ## Le détail du Rogue (JP, 25 nov. : *Je m'ennuie de l'ancien moteur de match dans le roguelike, avec stats super détaillées et je trouve en général que le roguelike est pas super détaillé*)
 
 Le rapport d'essai et les quatre réponses de JP : docs/decisions.md, « Le détail du Rogue ». En code direct, une tranche par PR ; JP juge chacune sur le vrai écran.
@@ -38,7 +45,8 @@ Le rapport d'essai et les quatre réponses de JP : docs/decisions.md, « Le dét
   - [ ] La saison et les séries à part : pas fait, les chiffres les additionnent.
 - [x] **3 · La fiche d'un joueur** (25 nov.) — un nom ouvre la fiche du jeu, sa carte telle quelle : sa saison chez toi, son salaire de la run, ses dix derniers matchs ; un adversaire, ses points dans ta ligue. Ce qui l'ouvre : Mon club, la Masse, les meneurs, le sommaire, le direct, le joueur tenu à l'Alignement — `js/run-scenes.js` `ficheDuJoueur`, `js/fiche.js` — `essai_run`, `check_scene`.
 - [x] **4 · La ligue** (25 nov.) — le classement glisse vers ce que chaque club fait (ses buts, ses tirs, son avantage, son désavantage, ses punitions), toucher un club ouvre sa page ; les meneurs se trient par la colonne qu'on touche ; les gardiens de la ligue ; 28 Ko de plus à la fin d'une saison — `js/run.js` `compterAuClassement`, `js/run-scenes.js` `pageLigue`, `sceneClubVu` — `check_run`, `check_scene`, `essai_run`.
-- [ ] **5 · Les matchs passés** — chaque feuille gardée dans un format compact (une trentaine de kilo-octets telle quelle, donc 3 Mo pour une saison : à réduire d'abord), le sommaire de n'importe quel match rouvert de Mon club et de la cédule.
+- [x] **5 · Les matchs passés** (25 nov.) — JP tranche : *la feuille de match, partout* (la feuille complète pesait 8 Ko même compactée, 800 Ko par saison). Chaque match joué garde sa feuille de match (1,7 Ko : les buts et qui était sur la glace, les punitions, les bagarres, les tirs par période, les arrêts, la ligne de chaque patineur) ; il se rouvre de Mon club · Matchs (tous les matchs de la run) et de la cédule, en quatre vues. La sauvegarde maigrit : 166 Ko au 40ᵉ match au lieu de 192 — `js/run.js` `archiver`, `relireLArchive`, `matchPasse`, `js/run-scenes.js` `sceneMatchVu` — `check_run` (20), `check_scene` (16, 60 scènes), `essai_run`.
+  - [ ] Pas gardé d'un match passé : la carte des tirs, les faits saillants, les coups d'épaule du récit, ce qui a décidé chaque but. Le dernier match joué les a toujours.
 
 ## Refonte · V30, la saison et le DG (JP, 16 nov. : *j'hais le nouveau rogue, c'est plus une vraie saison, pis l'interface, oui est fun, mais pas vraiment gestion feel*)
 

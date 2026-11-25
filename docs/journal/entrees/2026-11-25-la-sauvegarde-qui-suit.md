@@ -1,0 +1,5 @@
+- **25 nov. · Ta sauvegarde te suit du téléphone à l'ordinateur, par GitHub**
+  - JP : *avoir sauvegarde multidevice* ; *Github sync* ; un Gist secret, toute seule.
+  - Au menu, « D'un appareil à l'autre » : tu colles une fois par appareil un jeton GitHub au seul droit « gist ». La run du Rogue, tes médailles, ton cartable, tes parties et ton palmarès suivent ; tes options restent à l'appareil. Reçue à l'ouverture du jeu, envoyée quand tu quittes la page ou dès que tu regardes un match ; si les deux appareils ont avancé, le menu montre les deux et tu choisis (celle que tu écartes reste sur GitHub).
+  - js/synchro.js (neuf), js/menu.js (`synchroHtml`, `gesteDeSynchro`), js/game.js (`suivreLaSynchro` au démarrage), index.html (`#synchroModal`), style.css, sw.js.
+  - `check_synchro` (41, dans `tout.mjs`), `essai_synchro` (16, au CI), `check_mort`, `check_coquille`. Version 4.5.0. La décision : docs/decisions.md, « La sauvegarde qui suit d'un appareil à l'autre ».

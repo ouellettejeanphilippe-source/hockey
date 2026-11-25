@@ -327,6 +327,31 @@
   </div>
 </div>
 
+<!-- ===== Modale : brancher GitHub — le jeton d'accès de cet appareil (js/synchro.js) =====
+     JP, 25 nov. 2026 : *avoir sauvegarde multidevice* ; *Github sync*. Le jeu n'a pas de serveur : le joueur colle ici, une
+     fois par appareil, un jeton de son compte GitHub qui n'a qu'un droit (les Gists). Le formulaire est branché par
+     js/menu.js ; le jeton reste au stockage de ce navigateur et ne part que chez GitHub. -->
+<div id="synchroModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-sheet modal-narrow" role="dialog" aria-modal="true" aria-labelledby="synchroTitre">
+    <div class="choix-tete">
+      <div class="choix-titres"><h2 class="choix-titre" id="synchroTitre">Brancher GitHub</h2></div>
+      <button type="button" id="closeSynchroBtn" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
+    </div>
+    <form id="synchroForm" class="modal-body synchro" autocomplete="off">
+      <ol class="synchro-etapes">
+        <li>Sur GitHub, crée un jeton d'accès : son seul droit, « gist », est déjà coché.
+          <a class="btn small" href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Cap%2082-0" target="_blank" rel="noopener">Créer le jeton sur GitHub</a></li>
+        <li><label for="synchroJeton">Colle-le ici.</label>
+          <input id="synchroJeton" name="jeton" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_…" required></li>
+        <li>Sur ton autre appareil, branche GitHub aussi, avec un jeton du même compte.</li>
+      </ol>
+      <p class="synchro-note">Le jeton reste dans ce navigateur. Le jeu ne s'en sert que pour lire et écrire sa sauvegarde : un Gist secret de ton compte.</p>
+      <p class="synchro-mot" role="status" aria-live="polite"></p>
+      <button type="submit" class="btn go">Brancher</button>
+    </form>
+  </div>
+</div>
+
 <!-- ===== Modale : nouvelle partie — les réglages QUI DÉFINISSENT LA PARTIE =====
      JP : *faire bouton new game aussi, qui permet de choisir les options du jeu
      au lieu d'un menu option, pour faire plus « jeu »*.
