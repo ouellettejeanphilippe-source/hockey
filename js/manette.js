@@ -60,7 +60,8 @@ function deplacer(dir) {
   const ici = document.activeElement;
   let cible = null;
   if (!ici || ici === document.body || !couche.contains(ici) || !visible(ici)) {
-    cible = couche.querySelector('.menu-continuer, .navtab.on') || items[0];
+    // Sans focus, on part du bouton qui avance : « Continuer » au menu, la section ouverte, et dans le Rogue le bouton du bas.
+    cible = couche.querySelector('.menu-continuer, .navtab.on, .rn-pauseur .rn-on, .rn-bas .go:not(:disabled), .rn-bas .rn-combat:not(:disabled)') || items[0];
     if (!visible(cible)) cible = items[0];
   } else {
     const r = ici.getBoundingClientRect();
@@ -126,6 +127,8 @@ export function brancherManette() {
   window.addEventListener('keydown', ev => {
     const dir = DIRECTIONS[ev.key];
     if (dir || ev.key === 'Tab' || ev.key === 'Enter') modeClavier();
+    // « Entrée » sans rien de tenu : on prend le bouton qui avance (le suivant le jouera), plutôt que de ne rien faire.
+    if (ev.key === 'Enter' && !ev.defaultPrevented && (!document.activeElement || document.activeElement === document.body) && deplacer('bas')) { ev.preventDefault(); return; }
     if (!dir || ev.defaultPrevented || ev.altKey || ev.ctrlKey || ev.metaKey) return;
     // Une zone de texte, une liste ou un curseur gardent leurs flèches.
     if (ev.target.closest && ev.target.closest('input, textarea, select, [contenteditable="true"]')) return;

@@ -1425,7 +1425,8 @@ function setupEvents() {
     () => {
       const r = document.getElementById('runModal');
       if (!r) return false;
-      const b = r.querySelector('[data-a="reprendre"], [data-a^="fermer-"], [data-a="pause"]');
+      // Dans cet ordre : la pause d'abord (elle est par-dessus tout), puis la page ouverte, puis seulement le menu pause.
+      const b = r.querySelector('[data-a="reprendre"]') || r.querySelector('[data-a^="fermer-"]') || r.querySelector('[data-a="pause"]');
       if (b) b.click();
       return true;
     },

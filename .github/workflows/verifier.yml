@@ -213,9 +213,9 @@ jobs:
       - name: La sauvegarde d'un appareil à l'autre
         run: node scripts/essai_synchro.mjs http://localhost:8000
 
-      # Le Rogue (V30, docs/refonte-v30-2.md § 9) : 60 scènes ouvertes à 390 × 844 depuis de vraies sauvegardes de robot —
-      # la scène ne défile jamais, seul le cadre d'un tableau défile, le HUD au même pixel, chaque cible de 44. Deux minutes.
-      - name: Les scènes du Rogue à 390 × 844
+      # Le Rogue (V30, docs/refonte-v30-2.md § 9) : du téléphone à l'ordinateur depuis la V31 (le soir à cinq autres écrans) ; 60 scènes ouvertes à 390 × 844 depuis de vraies sauvegardes de robot —
+      # rien ne déborde, une boîte de tableau défile à sa place et jamais dans une autre, l'en-tête au même pixel, chaque cible de 44. Quatre minutes.
+      - name: Les scènes du Rogue, du téléphone à l'ordinateur
         run: node scripts/check_scene.mjs http://localhost:8000
 
       # Une saison au doigt, le hasard semé : le repêchage et le premier quart d'une page vide, la fin et les séries d'une

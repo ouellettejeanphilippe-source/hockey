@@ -8,7 +8,7 @@ Un site statique, publié sur GitHub Pages depuis main, web seulement (JP, 4 nov
 
 ## Où on travaille
 
-Le Rogue, tout le temps, sauf si JP demande expressément un autre mode. Le 82-0, Sur table et l'exhibition sont faits : les stats, un peu de hasard, rien de plus. Une mesure, un équilibrage, un correctif se jugent d'abord en Rogue (`scripts/lib/run_robot.mjs`, `mesure_run`, `check_run`, `essai_run`). Le Rogue est la saison de la V30 (`docs/refonte-v30.md`, `docs/refonte-v30-2.md`) : une ligue de 32, un bureau en tableaux, le banc de la V29 ; la run en carte de la V28 est partie le 17 nov. 2026, l'ancien Rogue (les enveloppes, la boutique à ses nœuds) le 11 nov.
+Le Rogue, tout le temps, sauf si JP demande expressément un autre mode. Le 82-0, Sur table et l'exhibition sont faits : les stats, un peu de hasard, rien de plus. Une mesure, un équilibrage, un correctif se jugent d'abord en Rogue (`scripts/lib/run_robot.mjs`, `mesure_run`, `check_run`, `essai_run`). Le Rogue est la saison de la V30 (`docs/refonte-v30.md`, `docs/refonte-v30-2.md`) : une ligue de 32, un bureau en tableaux, le banc de la V29 ; son interface est en fluide, du téléphone à l'ordinateur, depuis la V31 (`docs/refonte-v31.md`, en trois tranches) ; la run en carte de la V28 est partie le 17 nov. 2026, l'ancien Rogue (les enveloppes, la boutique à ses nœuds) le 11 nov.
 
 ## Où vivent les règles
 
