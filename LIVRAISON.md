@@ -23,6 +23,17 @@ Le devis : docs/refonte-v25.md — quatre inventaires (le moteur, les cartes et 
 - [x] **A3 · La défensive** (7 nov.) — `check_suppression` étendu (le canal par joueur, vols moins revirements pondérés par la glace, par poste, en retenue 2013-2025 et en paires) : il ne tient pas — il ne bat pas le club seul (−0,1 %) ni ne se sépare du gardien (+0,2 %, intervalles à cheval sur zéro) ; la possession tombe comme le devis le prévoit, le moteur ne bouge pas — `check_suppression` (rouge, la mesure).
 - [ ] *Après* : D2, les autres modes, avec son devis (la V26).
 
+## Le détail du Rogue (JP, 25 nov. : *Je m'ennuie de l'ancien moteur de match dans le roguelike, avec stats super détaillées et je trouve en général que le roguelike est pas super détaillé*)
+
+Le rapport d'essai et les quatre réponses de JP : docs/decisions.md, « Le détail du Rogue ». En code direct, une tranche par PR ; JP juge chacune sur le vrai écran.
+
+- [x] **JP tranche quatre questions** (25 nov.) : le direct et le sommaire reviennent, les temps forts partent ; le détail aux quatre endroits (ses joueurs, la fiche, la ligue, les matchs passés) ; les tableaux glissent de côté ; code direct, par tranches.
+- [x] **1 · Le match** (25 nov.) — « Au match » ouvre le direct du jeu, le résultat est le sommaire complet en quatre vues (Sommaire, Récit, Chiffres, Feuille), la feuille du dernier match gardée au complet — `js/run-jeu.js`, `js/run-scenes.js`, `js/run.js`, `js/bilan.js` — `check_scene`, `essai_run`, `check_run`.
+- [ ] **2 · Les stats de tes joueurs** — Mon club : TG, +/−, % tir, MÉ, BL, PUN, points en avantage, buts gagnants ; les gardiens : moyenne, blanchissages, départs de qualité ; le tableau glisse de côté, le nom figé. Le +/− demande que le moteur suive le match joueur par joueur : à mesurer d'abord (d'autres dés, donc `mesure_run` à refaire).
+- [ ] **3 · La fiche d'un joueur** — toucher un nom (Mon club, Alignement, Masse, les meneurs, le sommaire) ouvre sa fiche : sa vraie saison, ses badges, sa saison chez toi, ses derniers matchs.
+- [ ] **4 · La ligue** — les meneurs par catégorie (buts, passes, gardiens), les stats des clubs (avantage, désavantage, tirs), la page d'un club adverse ; le poids de la sauvegarde mesuré.
+- [ ] **5 · Les matchs passés** — chaque feuille gardée dans un format compact (une trentaine de kilo-octets telle quelle, donc 3 Mo pour une saison : à réduire d'abord), le sommaire de n'importe quel match rouvert de Mon club et de la cédule.
+
 ## Refonte · V30, la saison et le DG (JP, 16 nov. : *j'hais le nouveau rogue, c'est plus une vraie saison, pis l'interface, oui est fun, mais pas vraiment gestion feel*)
 
 Le devis : docs/refonte-v30.md ; l'extrait des tranches 2 à 6, livrées d'un coup le 17 nov. (JP : *faire le nouveau Rogue avec ce qui a été décidé, tout*) : docs/refonte-v30-2.md. La décision et ses mesures : docs/decisions.md, « La V30 ».

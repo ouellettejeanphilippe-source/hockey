@@ -209,8 +209,8 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  */
 /*
  * LES ENTRACTES D'UN GROS MATCH (V25) : `pauses`, les fins de période où le direct marque une pause — le pointage, une
- * touche. Rien ne s'y décide : la feuille est jouée. (Le duel de l'ancien Rogue y disait leur intention ; le Rogue
- * montre ses temps forts dans sa propre scène, js/run-scenes.js.)
+ * touche. Rien ne s'y décide : la feuille est jouée. Le Rogue s'en sert pour ses gros matchs (le rival, une affiche, une
+ * élite avec son enjeu, les séries) depuis le 25 nov. 2026, où son match est revenu au direct (js/run-jeu.js).
  */
 export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, pauses = null, sansSortie = false }) {
   const modal = document.getElementById('liveModal');

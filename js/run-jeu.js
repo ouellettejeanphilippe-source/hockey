@@ -4,14 +4,14 @@
  * site. Ce module charge les saisons, ouvre ou reprend la séance (js/run.js), garde la run à chaque geste (`cap82_run`), et
  * joue les gestes des scènes (js/run-scenes.js : chaque bouton porte `data-a`).
  *
- * Un match lancé est joué : il se compte tout de suite (`conclure`), et ses temps forts se regardent ensuite. Quitter
- * pendant qu'on les regarde reprend à son résultat.
+ * Un match lancé est joué : il se compte tout de suite (`conclure`), puis il se suit au direct du jeu (js/direct.js). Quitter
+ * pendant qu'on le regarde reprend à son résultat, qui est son sommaire.
  */
 import { state } from './data.js';
-import { applyTeamColors } from './game.js';
+import { applyTeamColors, headshotHtml } from './game.js';
 import { getShard } from './repechage.js';
 import { actionsDisponibles } from './actions.js';
-import { avecHasardIsole, getPersonKey, getPlayerKey, nouvelleGraine, periodeDe } from './sim.js';
+import { avecHasardIsole, getPersonKey, getPlayerKey, nouvelleGraine } from './sim.js';
 import { leurJeuEnStats, poserClubLu } from './impact.js';
 import { chargerCoachs, lotoDesCoachs } from './coachs-reels.js';
 import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages } from './rogue.js';
@@ -25,24 +25,28 @@ import { carteHtml } from './cartes.js';
 import { nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
 import { notable, pic } from './mouvement.js';
-import { esc, hache } from './util.js';
+import { esc } from './util.js';
+import { diffuserMatch } from './direct.js';
+import { teamLabel, teamShort, tagCourt } from './bilan.js';
+import { brancherEntractes } from './entracte.js';
+import { getTeamBand, getTeamLogoHtml } from './logos.js';
 import { VERSION } from './version.js';
 import { RATINGS_VERSION } from './ratings.js';
 import {
   VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, medaillesDe, forcesDuMonde, reglesDe, prendreLaPiece, pieceReglee, vestiaireDuRepechage, repecher, relancerLaRoulette, versLeBureau,
   allerAuMatch, retourAuBureau, poserLAffiche, mettreLEnjeu, fixerLElite, choisirLeFilet, chanceCeSoir, intentionCeSoir, jouerLeMatch, conclure, continuer, signer, passerLesPortes,
   relancerLesPortes, apresLesPortes, apresLeBilan, acheterLaPiece, aMonter, monterAuMarche, quitterLeMarche, acheterLaPochette, echangerDeuxCases, offresVues, reclamer, histoireDuJour,
-  repondre, allerAuMatchDeSerie, finir, effectifDe,
+  repondre, allerAuMatchDeSerie, finir, effectifDe, dernierMatch,
 } from './run.js';
 import {
-  sceneAttente, sceneDepart, scenePieceDuDepart, sceneRepechage, sceneQuart, sceneBureau, sceneFeuille, sceneMatch, sceneResultat, scenePortes, scenePorte, sceneEchange,
-  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
+  sceneAttente, sceneDepart, scenePieceDuDepart, sceneRepechage, sceneQuart, sceneBureau, sceneFeuille, sceneResultat, scenePortes, scenePorte, sceneEchange,
+  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, afficheDuDirect, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
 } from './run-scenes.js';
 
 const CLE = 'cap82_run';
 const LARGEUR = 390, HAUTEUR = 844, ECHELLE_MAX = 1.25;
-/* Le rythme des temps forts : un toutes les `PAS` ms à la vitesse ×1 ; la chance de la feuille du soir, en tranches de `TRANCHE` matchs. */
-const PAS = 2200, VITESSES = [1, 2, 4], TRANCHES = 4, TRANCHE = 30;
+/* La chance de la feuille du soir, en tranches de `TRANCHE` matchs. */
+const TRANCHES = 4, TRANCHE = 30;
 
 let racine = null, plan = null, S = null, V = {}, ctx = null, minuterie = null, cadreVu = null;
 /* Le monde d'une run : toutes les saisons (JP : *toutes les années ensemble*). La même fonction `shard` d'une run à l'autre : js/run.js ne classe les clubs qu'une fois par visite. */
@@ -83,6 +87,8 @@ function montrer(html, { rouge = false, page = null } = {}) {
   plan.className = `rn-plan${rouge ? ' rn-rouge' : ''}`;
   plan.innerHTML = html;
   const cadre = plan.querySelector('.rn-cadre');
+  // Les cartons du sommaire (les trois étoiles, les chiffres du match) se feuillettent : js/entracte.js les branche.
+  if (cadre && cadre.querySelector('.som-racine')) brancherEntractes(cadre);
   if (cadre && y != null) cadre.scrollTop = y;
   else if (cadre) { const moi = cadre.querySelector('.rn-moi'); if (moi) cadre.scrollTop = Math.max(0, moi.offsetTop - cadre.clientHeight / 2); }
   cadreVu = page;
@@ -232,7 +238,7 @@ function rendre() {
   if (!S) return montrer(V.ecran === 'depart' ? sceneDepart(V) : sceneAttente('Un instant…'));
   const R = S.R;
   const dessous = () => {
-    if (V.ecran === 'match') return [sceneMatch(S, V)];
+    if (V.ecran === 'direct') return [sceneAttente('Le match se joue…')];
     if (V.ecran === 'echange') return [sceneEchange(S, V)];
     if (V.ecran === 'porte') return [scenePorte(S, V)];
     if (V.ecran === 'etal') return [sceneEtal(S)];
@@ -244,7 +250,7 @@ function rendre() {
       case 'bureau': case 'series': return [sceneBureau(S, V), false, `${V.onglet || 'bureau'}:${V.segA || ''}:${V.segL || ''}:${V.segC || ''}`];
       case 'ballottage': return [sceneBallottage(S, V)];
       case 'feuille': return [sceneFeuille(S, V), enDuel(R.soir)];
-      case 'resultat': return [sceneResultat(S)];
+      case 'resultat': return [sceneResultat(S, V), false, `resultat:${V.segR || ''}`];
       case 'piece': return [scenePieceGagnee(S, V)];
       case 'portes': return [R.portes.pochette ? scenePorte(S, V) : scenePortes(S)];
       case 'bilan': return [sceneBilan(S)];
@@ -259,7 +265,7 @@ function rendre() {
 function entrer() {
   const R = S.R;
   clearTimeout(minuterie);
-  V = { vitesse: V.vitesse || 1 };
+  V = {};
   if (R.phase === 'feuille') preparerLaFeuille();
   if (R.phase === 'fin') finDeLaRun();
   rendre();
@@ -282,7 +288,7 @@ async function calculerLaChance() {
   let v = 0, n = 0;
   for (let k = 0; k < TRANCHES; k++) {
     await pause(20);
-    if (S !== seance || !S || S.R.phase !== 'feuille' || V.jetonChance !== jeton || V.ecran === 'match') return;
+    if (S !== seance || !S || S.R.phase !== 'feuille' || V.jetonChance !== jeton) return;
     const r = chanceCeSoir(S, { n: TRANCHE, tranche: k });
     v += r.v; n += r.n;
     V.chance = { v, n };
@@ -301,54 +307,33 @@ function majDeLaJauge() {
   if (el) el.outerHTML = jaugeDeCeSoir(S, V); else rendre();
 }
 
-/* ---------- le match, en temps forts ---------- */
+/* ---------- le match, au direct ---------- */
 /*
- * LES TEMPS FORTS d'une feuille jouée : chaque but (son marqueur, ses passeurs, sa minute, au caractère près), les trois plus
- * gros arrêts (les lancers qui avaient le plus de chances d'entrer), deux punitions, les tirs de barrage. `moi` : l'action
- * est celle de ton club ; `bon` : elle est bonne pour toi ; `tirs` : les tirs des deux clubs à cet instant.
+ * LE MATCH SE SUIT AU DIRECT DU JEU (JP, 25 nov. 2026 : *je m'ennuie de l'ancien moteur de match, avec stats super
+ * détaillées* ; js/direct.js, le même qu'aux séries du 82-0) : l'horloge, le fil du commentateur, chaque tir sur la glace,
+ * les statistiques du match à la pause, « Passer à la fin ». Il est joué et compté AVANT d'être regardé (un match lancé est
+ * joué) : le direct rejoue sa feuille, et quitter pendant qu'on le regarde reprend à son résultat, qui est son sommaire. Un
+ * gros match marque ses deux entractes et ne se quitte pas en route. Sous `prefers-reduced-motion`, on va droit au sommaire.
  */
-function tempsForts(res) {
-  const f = res.feuille, c = res.cote, g = S.R.graine, evts = [];
-  for (const b of f.buts || []) if (!b.fusillade) evts.push({ type: 'but', t: b.instant, moi: b.cote === c, bon: b.cote === c, qui: b.marqueur, passeurs: (b.passeurs || []).filter(Boolean), gardien: b.gardien, an: !!b.an });
-  for (const l of (f.lancers || []).filter(x => !x.but && x.tireur && x.gardien).sort((a, b) => (b.p || 0) - (a.p || 0)).slice(0, 3)) evts.push({ type: 'arret', t: l.instant, moi: l.cote === c, bon: l.cote !== c, qui: l.tireur, gardien: l.gardien, passeurs: [] });
-  for (const p of (f.punitions || []).filter(x => x.joueur).slice(0, 2)) evts.push({ type: 'punition', t: p.instant, moi: p.cote === c, bon: p.cote !== c, qui: p.joueur, passeurs: [] });
-  if (f.fusillade) evts.push({ type: 'barrage', t: 65, moi: res.gagne, bon: res.gagne, qui: null, passeurs: [] });
-  evts.sort((a, b) => a.t - b.t);
-  const tirsA = t => (f.lancers || []).filter(x => x.instant <= t);
-  for (const e of evts) { const l = tirsA(e.t); e.tirs = [l.filter(x => x.cote === c).length, l.filter(x => x.cote !== c).length]; e.h = hache(g, 'glace', e.t); e.h2 = hache(g, 'glace2', e.t); e.per = periodeDe(e.t); }
-  return evts;
-}
-/* Lancer le match : joué et compté d'un seul geste, gardé ; ses temps forts se regardent ensuite. */
+/* Au bandeau du direct, à 390 px : le sigle du club (« ANA »), et sous lui son nom court avec sa saison (« Ducks 2001-02 »). */
+const CTX_DU_DIRECT = { esc, teamLabel: t => (t.isPlayer ? teamLabel(t) : teamShort(t)), teamShort, tagCourt: t => (t.isPlayer ? tagCourt(t) : t.tag), logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml };
 function lancerLeMatch() {
-  const R = S.R, c = R.soir, t = c.t;
+  const R = S.R, c = R.soir, seance = S;
   if (c.sorte === 'elite' && c.enjeu && c.J == null) { const r = chanceCeSoir(S, { n: 60, tranche: 9 }); fixerLElite(S, r.v / r.n); }
-  const res = jouerLeMatch(S);
-  const pieces = [...new Set((res.feuille.pieces || []).filter(x => x.cote === res.cote).map(x => x.cle))].filter(k => R.banc.includes(k));
-  const evts = tempsForts(res);
+  // Ce que le bandeau du direct dit de ce soir se lit avant que le match compte : le rang et la série d'avant.
+  const affiche = afficheDuDirect(S), res = jouerLeMatch(S);
   conclure(S, res);
   // Les galons du soir se gravent tout de suite : une run quittée ne les perd pas.
   graverAuCartable(S.R.galons, S.R.graine);
   garder();
-  V = { ecran: 'match', vitesse: V.vitesse || 1, match: { res, t, evts, i: -1, pieces } };
+  const M = dernierMatch(S), calme = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (calme) return apresLeMatch(res);
+  V = { ecran: 'direct' };
   rendre();
-  suite();
+  diffuserMatch({ feuille: M.f, A: M.A, B: M.B, ...affiche, graine: `direct:${R.graine}:${R.matchs.length}`, avant: M.avant, ctx: CTX_DU_DIRECT,
+    pauses: res.duel ? [20, 40] : null, sansSortie: res.duel, onTermine: () => { if (S === seance) apresLeMatch(res); } });
 }
-function suite() {
-  clearTimeout(minuterie);
-  const M = V.match;
-  if (!M || V.ecran !== 'match' || M.i >= M.evts.length - 1) return;
-  const calme = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  minuterie = setTimeout(() => {
-    if (!V.match || V.ecran !== 'match' || V.pause) return;
-    M.i = calme ? M.evts.length - 1 : M.i + 1;
-    const e = M.evts[M.i];
-    if (e && e.type === 'but') { jouerSon(e.bon ? 'klaxon' : 'baton'); if (e.bon) notable(); }
-    rendre();
-    suite();
-  }, M.i < 0 ? 600 : PAS / V.vitesse);
-}
-function apresLeMatch() {
-  const res = V.match.res;
+function apresLeMatch(res) {
   clearTimeout(minuterie);
   jouerSon(res.gagne ? 'recompense' : 'arriere');
   entrer();
@@ -403,7 +388,7 @@ const GESTES = {
   'run-neuve': () => { oublier(); versLeDepart(); return false; },
   // la pause
   pause: () => { V.pause = true; },
-  reprendre: () => { V.pause = false; if (V.ecran === 'match') suite(); },
+  reprendre: () => { V.pause = false; },
   menu: () => { garder(); fermer(); return false; },
   abandonner: () => { if (!V.sur) { V.sur = true; return; } clearTimeout(minuterie); finir(S, 'quitte'); return suivre(); },
   // une pièce offerte : au départ, d'un rival, d'une élite
@@ -433,6 +418,7 @@ const GESTES = {
   'seg-a': v => { V.segA = v; V.tenu = null; },
   'seg-l': v => { V.segL = v; },
   'seg-c': v => { V.segC = v; },
+  'seg-r': v => { V.segR = v; },
   tri: v => { V.tri = v; },
   'vers-banc': () => { V.onglet = 'alignement'; V.segA = 'banc'; },
   case: v => {
@@ -461,10 +447,7 @@ const GESTES = {
   affiche: v => { if (poserLAffiche(S, !!v)) { jouerSon(v ? 'valide' : 'tap'); garder(); preparerLaFeuille(); } else jouerSon('refus'); },
   enjeu: v => { mettreLEnjeu(S, !!v); jouerSon(v ? 'valide' : 'tap'); garder(); preparerLaFeuille(); },
   'retour-bureau': () => { retourAuBureau(S); return suivre(); },
-  jouer: () => { lancerLeMatch(); return false; },
-  vitesse: () => { V.vitesse = VITESSES[(VITESSES.indexOf(V.vitesse) + 1) % VITESSES.length]; suite(); },
-  'fin-du-match': () => { clearTimeout(minuterie); V.match.i = V.match.evts.length - 1; },
-  'apres-match': () => { apresLeMatch(); return false; },
+  jouer: () => { if (S.R.phase === 'feuille') lancerLeMatch(); return false; },
   continuer: () => { continuer(S); return suivre(); },
   'match-de-serie': () => { allerAuMatchDeSerie(S); return suivre(); },
   // les portes, l'échange

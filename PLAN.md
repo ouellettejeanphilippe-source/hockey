@@ -1,6 +1,6 @@
 # Plan
 
-État au 17 novembre 2026 : version 4.0.0 (`sw.js`), moteur S148 (`js/game.js`), cotes v31 (`js/ratings.js`), refonte V30 (le Rogue est une saison dont tu es le DG : un repêchage de 23, une ligue de 32, le bureau en tableaux ; la run en carte de la V28 est partie, le banc de la V29 reste). **Le plan de travail courant est `LIVRAISON.md`**, avec son journal ; ce fichier ne garde que l'état court et les décisions. L'histoire de chaque décision est dans `docs/decisions.md`, les « À faire » d'avant la 1.0 dans `docs/plan-historique.md`, le journal par sprint (S7 à S80) et par mois dans `docs/journal/`, le plan de la 1.0 et ses jalons dans `docs/livraison-1.0.md`.
+État au 25 novembre 2026 : version 4.1.0 (`sw.js` ; le match du Rogue au direct, son sommaire complet : JP, 25 nov., le détail du Rogue, tranche 1 de 5), moteur S148 (`js/game.js`), cotes v31 (`js/ratings.js`), refonte V30 (le Rogue est une saison dont tu es le DG : un repêchage de 23, une ligue de 32, le bureau en tableaux ; la run en carte de la V28 est partie, le banc de la V29 reste). **Le plan de travail courant est `LIVRAISON.md`**, avec son journal ; ce fichier ne garde que l'état court et les décisions. L'histoire de chaque décision est dans `docs/decisions.md`, les « À faire » d'avant la 1.0 dans `docs/plan-historique.md`, le journal par sprint (S7 à S80) et par mois dans `docs/journal/`, le plan de la 1.0 et ses jalons dans `docs/livraison-1.0.md`.
 
 ## Fait
 

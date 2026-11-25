@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-4.0.4';  // 4.0.0 : V30 — le Rogue redevient une saison : le repêchage de 23, une ligue de 32, 82 soirs, le bureau en tableaux, le proprio et ses objectifs, les vraies séries
+const VERSION = 'cap82-4.1.0';  // 4.1.0 : le match du Rogue se suit au direct du jeu, son résultat est son sommaire complet (JP, 25 nov. 2026)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

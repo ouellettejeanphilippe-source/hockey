@@ -20,8 +20,8 @@ js/fiche.js           la fiche d'un joueur : recto verso, ses rôles, l'impact, 
 js/banc.js            la saison du 82-0 : la ligue se crée, joue ses 82 matchs d'un coup, le bilan se compose ; une partie reprise se rejoue de sa graine (le jour à jour est parti avec l'ancien Rogue)
 js/partie.js          l'écran « Nouvelle partie » (le brouillon)
 js/run.js             le Rogue, la saison de la V30, son cœur pur : l'état, les pièces du départ, le repêchage de 23 (`vestiaireDuRepechage`, `repecher`), la ligue de 32 sur ses propres dés (`jouerLaLigueJusqua`, `classement`), le quart et les objectifs du proprio, le soir (la feuille, l'affiche posée, le gardien, `jouerLeMatch`, `conclure`), les portes et leur relance payée, le plafond, ton banc compté, les pochettes, le ballottage, l'histoire du jour, le bilan, le marché du quart, les vraies séries, la caisse de fin en médailles ; joué tel quel par les robots
-js/run-scenes.js      les scènes du Rogue, des fonctions pures (S, V) → HTML d'un plan de 390 × 844 : le départ, le repêchage, l'ouverture du quart, le bureau et ses cinq onglets en tableaux (`sceneBureau`), la feuille du soir, le match, le résultat, les portes, le bilan, le marché, les séries, la fin ; et celles d'entre deux runs : le Club (Variété, Ton club, Album, Palmarès), le solde
-js/run-jeu.js         la coquille du Rogue : #runModal, l'échelle, la sauvegarde cap82_run, les gestes, le cadre d'un tableau qui garde sa place, le match joué puis regardé en temps forts ; le départ (le loto, le cran), le Club et le solde, sans run en cours
+js/run-scenes.js      les scènes du Rogue, des fonctions pures (S, V) → HTML d'un plan de 390 × 844 : le départ, le repêchage, l'ouverture du quart, le bureau et ses cinq onglets en tableaux (`sceneBureau`), la feuille du soir, le résultat (le sommaire du match en quatre vues), les portes, le bilan, le marché, les séries, la fin ; et celles d'entre deux runs : le Club (Variété, Ton club, Album, Palmarès), le solde
+js/run-jeu.js         la coquille du Rogue : #runModal, l'échelle, la sauvegarde cap82_run, les gestes, le cadre d'un tableau qui garde sa place, le match joué puis suivi au direct (js/direct.js) ; le départ (le loto, le cran), le Club et le solde, sans run en cours
 js/modes-table.js     le tournoi Sur table, ses règles, son bilan, le match d'exhibition au plateau
 js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, plateau) : MT.nom, chargerTable()
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard() ; il n'importe aucun module du Rogue
@@ -31,12 +31,12 @@ js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache I
 js/util.js            les petits outils partagés (un seul exemplaire de chaque : `esc`, `money`, `virgule`, `ordF`, `SEMAINE`…) et la seule source du hasard (V25 A2 : `generateur`, `gauss`, `entierDeGraine`, `hache`)
 js/saison.js          l'écran des séries du 82-0 (`ouvrirSeries` : ta série, le tableau, la ronde, les meneurs, les équipes ; « Regarder le match ») et la saison lue sur ses feuilles (`saisonDesFeuilles`) ; le Bureau, sa boîte et le jour à jour sont partis avec l'ancien Rogue (V28, tranche 4)
 js/gerant.js          une décision en plein écran (`ouvrirChoix` : « Comment on joue », ton identité, « Quitter le match ? »), chaque option une carte de jeu (V25 B2) ; les mots d'un joueur (ses badges, sa carrure, la courbe de ses jambes, le résumé des lignes)
-js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
+js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries ; le sommaire d'un match (`sommaireHtml`), que le Rogue range dans son résultat
 js/coquille.js        la coquille fixe : les écrans de `#hubModal` (les séries, le tournoi) inscrivent leurs volets auprès des sections
 js/pile.js            le retour, un niveau à la fois : Échap, bouton B, retour Android, « ‹ Retour »
 js/glisser.js         les gestes du doigt : balayer d'un onglet à l'autre (l'onglet où l'on va sort du bord), tirer une fenêtre vers le bas pour la fermer
 js/manette.js         la manette et le clavier : le focus au voisin, l'anneau lumineux, les invites
-js/direct.js          un match en direct, rejoué depuis sa feuille
+js/direct.js          un match en direct, rejoué depuis sa feuille : les séries du 82-0, l'exhibition, chaque match du Rogue
 js/glace.js           la patinoire où les tirs apparaissent : la position d'un tir (illustrative) lue de la feuille — le danger, les icônes du tireur, l'accord de son trio, le texte du sommaire — `check_glace`
 js/commentaire.js     le commentateur du direct
 js/recit.js           les mots du sommaire d'un match, d'une série et d'une blessure (V25 A1 : sortis de sim.js), les fils de la saison (`filsDeSaison`)

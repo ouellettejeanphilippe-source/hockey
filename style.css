@@ -114,11 +114,7 @@
   --sur-choisi: #0a0b0e;
   /* L'encre sur l'or. `--sur-or` est réécrit en ligne par js/game.js (l'encre sur la couleur vive du club, pour les cartons) : les briques lisent celle-ci, fixe. */
   --encre-sur-or: #191206;
-  /* LE ROGUE : il lit les jetons du jeu (le noir teinté par ton club, l'or, le vert, le rouge : JP, 17 nov. 2026, « interface plus proche du 82-0 ») ;
-     il ne garde à lui que la glace dessinée de son match. */
-  --rn-glace: #e6eef9;
-  --rn-ligne-r: #d8323c;
-  --rn-ligne-b: #2b5fc2;
+  /* LE ROGUE lit les jetons du jeu (le noir teinté par ton club, l'or, le vert, le rouge : JP, 17 nov. 2026, « interface plus proche du 82-0 ») : aucun jeton à lui. */
   --sur-or: #191206;
   /* Le club : posé par js/game.js (`applyTeamColors`) sur ces noms-ci. */
   --team-primary: #1b1f26;
@@ -1031,6 +1027,8 @@ img.visage.brut { object-position: 50% 12%; }
 /* Une feuille plein écran (le direct, le bureau, le plateau) : sans voile, bord à bord. */
 .modal-backdrop.live { align-items: stretch; padding: 0; background: var(--scene), var(--noir); -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--noir-pur); }
 .live-sheet { display: flex; flex-direction: column; width: 100%; max-width: 900px; margin: 0 auto; height: 100dvh; background: var(--scene), var(--noir); background: var(--noir-pur); }
+/* Le direct d'un match du Rogue (JP, 25 nov. 2026) : le même, par-dessus sa scène. */
+body.run-ouverte #liveModal { z-index: 430; }
 /* LE ROGUE, EN TÉLÉ (V23, la nouvelle interface) : un plateau noir, sans lueur ni cercle de glace ; la couleur vient des clubs. */
 /* Le plateau Sur table : la glace couvre tout, un fond uni dessous (rien à repeindre quand les pièces glissent). */
 #tableModal, #tableModal .table-sheet { background: var(--noir); }
@@ -4064,7 +4062,7 @@ body .hub-volet .live-tableau td.eq, body .hub-volet .live-tableau td.role { fon
 .live-bilan.perdu .live-bilan-titre { border-left-color: var(--mauvais); color: var(--mauvais); }
 
 /* ---- Les onglets de la pause : une rangée de mots, l'ouvert souligné d'or ; cachés par [hidden] ---- */
-.live-onglets { display: flex; gap: 2px; padding: 0 var(--esp-3); border-bottom: 1px solid var(--filet); overflow-x: auto; scrollbar-width: none; }
+.live-onglets { flex: none; display: flex; gap: 2px; padding: 0 var(--esp-3); border-bottom: 1px solid var(--filet); overflow-x: auto; scrollbar-width: none; }
 .live-onglets button { flex: none; min-height: 44px; padding: 0 var(--esp-3); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
 .live-onglets button.on { color: var(--or); border-bottom-color: var(--or); }
 .live-stats { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: var(--esp-2) var(--esp-3); display: flex; flex-direction: column; gap: var(--esp-3); }
@@ -4097,7 +4095,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-but-ligne:last-child { border-bottom: 0; }
 /* UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP) : le fond, l'encre et le liseré de son bandeau (js/logos.js). */
 .but-eq { background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 4px 0 0 var(--eq-stripe); }
-.but-eq :is(b, small, .lien-joueur, .live-tps, .live-but-mot, .live-xe, .live-micro, .live-cause, .live-score, .som-tps, .som-xe, .som-aides, .som-recit, .som-cause, .exh-t, .exh-pt) { color: inherit; }
+.but-eq :is(b, small, .lien-joueur, .live-tps, .live-but-mot, .live-xe, .live-micro, .live-cause, .live-score, .som-tps, .som-xe, .som-aides, .som-recit, .som-cause, .som-pt, .exh-t, .exh-pt) { color: inherit; }
 .but-eq :is(small, .live-tps, .live-xe, .live-micro, .live-cause, .som-tps, .som-xe, .som-recit, .som-cause, .exh-t) { opacity: 0.8; }
 .live-but-ligne .team-logo-img, .live-but-ligne .team-logo-inline { flex: none; align-self: center; }
 .live-xe { color: var(--encre-2); font-size: var(--t-1); }
@@ -4211,9 +4209,10 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 /* Le pointage en couleurs d'équipe : chaque ligne prend l'aplat et la seconde couleur de son club. */
 .som-ligne-eq { padding-inline: var(--esp-3); background: linear-gradient(100deg, var(--eq-band) 45%, color-mix(in srgb, var(--eq-stripe) 80%, var(--eq-band))); color: var(--eq-ink); box-shadow: inset 4px 0 0 var(--eq-stripe); }
 .som-ligne-eq :is(span, b, .lien-equipe) { color: inherit; }
-.som-ligne-eq span:nth-child(3) { color: inherit; opacity: 0.8; }
 .som-ligne span:nth-child(2) { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .som-ligne span:nth-child(3) { min-width: 54px; text-align: right; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
+/* Sur l'aplat d'un club, les tirs prennent son encre : le gris s'y perdait (la règle d'avant, écrite plus haut, était battue par celle-ci). */
+.som-ligne-eq span:nth-child(3) { color: inherit; opacity: 0.8; }
 .som-per { margin-bottom: var(--esp-4); }
 /* Le sommaire simple : le reste (`.som-extra`) attend sous « Plus de détails ». */
 .som-racine:not(.som-plus) .som-extra { display: none; }
@@ -5270,35 +5269,11 @@ body.run-ouverte { overflow: hidden; }
 .rn-racine .rn-filet button { flex: 1; min-width: 0; height: 44px; display: grid; place-items: center; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); font: 600 var(--t-1)/1.15 var(--display); letter-spacing: 0.02em; text-align: center; color: var(--encre-2); }
 .rn-racine .rn-filet .rn-on { border-color: var(--bon); color: var(--bon); }
 .rn-filet b { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: inherit; }
-/* Le match : le tableau, la glace, le but, le fil des périodes. */
-.rn-score { inset: 0 0 auto 0; height: 92px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 16px; border-bottom: 2px solid var(--filet); background: color-mix(in srgb, var(--noir-pur) 75%, transparent); }
-.rn-eq { display: flex; align-items: center; gap: 8px; font: 800 var(--t-4)/1 var(--display); text-transform: uppercase; }
-.rn-eq img, .rn-eq svg { width: 44px; height: 44px; flex: none; }
-.rn-eq + .rn-pointage + .rn-eq { justify-content: flex-end; }
-.rn-pointage { font: 800 var(--t-7)/1 var(--display); text-align: center; }
-.rn-pointage small { display: block; margin-top: 2px; font: 700 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.12em; color: var(--encre-2); }
-.rn-glace { left: 24px; right: 24px; top: 102px; height: 340px; }
-.rn-glace .rn-fond { fill: var(--rn-glace); stroke: var(--filet); stroke-width: 6; }
-.rn-glace .rn-lr { fill: none; stroke: var(--rn-ligne-r); stroke-width: 2; }
-.rn-glace .rn-lb { fill: none; stroke: var(--rn-ligne-b); stroke-width: 5; }
-.rn-glace .rn-tir { fill: none; stroke: var(--toi, var(--live)); stroke-width: 3; stroke-dasharray: 6 6; stroke-linecap: round; }
-.rn-glace .rn-tireur { fill: var(--toi, var(--live)); stroke: var(--blanc); stroke-width: 3; }
-.rn-glace .rn-gardien { fill: var(--eux, var(--or)); stroke: var(--noir-pur); stroke-width: 3; }
-.rn-but { left: 0; right: 0; font: 800 var(--t-7)/1 var(--display); text-align: center; text-transform: uppercase; color: var(--or); text-shadow: 0 5px 0 var(--live), 0 10px 22px var(--noir-pur); transform: rotate(-4deg); animation: rn-pop var(--t-lent) var(--e-ressort) both; }
-.rn-but.rn-eux { color: var(--encre-2); text-shadow: 0 4px 0 var(--noir-pur); }
-@keyframes rn-pop { from { opacity: 0; transform: rotate(-4deg) scale(0.6); } to { opacity: 1; transform: rotate(-4deg) scale(1); } }
-.rn-buteur { display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; border: 1px solid var(--filet); border-radius: var(--r-2); background: color-mix(in srgb, var(--noir-pur) 82%, transparent); }
-.rn-buteur > span:first-child { width: 48px; flex: none; }
-.rn-buteur > div > b { display: block; font: 800 var(--t-5)/1 var(--display); text-transform: uppercase; }
-.rn-buteur > div > small { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
-.rn-fil { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.rn-fil div { position: relative; height: 24px; border-radius: var(--r-1); background: color-mix(in srgb, var(--blanc) 7%, transparent); font: 700 var(--t-1)/2 var(--display); letter-spacing: 0.1em; text-align: center; color: var(--encre-3); }
-.rn-fil i { position: absolute; top: 3px; bottom: 3px; width: 5px; border-radius: 99em; background: var(--bon); }
-.rn-fil i.rn-eux { background: var(--mauvais); }
-.rn-fil u { position: absolute; top: -4px; bottom: -4px; width: 3px; background: var(--blanc); }
-/* Le résultat : le pointage, gros ; les autres pointages de la ligue. */
-.rn-final { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 12px; font: 800 calc(var(--t-7) * 1.4)/1 var(--display); }
-.rn-final img, .rn-final svg { width: 56px; height: 56px; }
+/* Le résultat : le sommaire du jeu (js/bilan.js) dans le cadre de la scène, à la police du texte ; le bloc du soir (tes gains, ton rang,
+   ton banc) entre le pointage et les étoiles ; puis les autres pointages de la ligue. */
+.rn-somm { display: grid; gap: var(--esp-3); padding: var(--esp-3) var(--esp-4) var(--esp-4); font: 500 var(--t-2)/1.4 var(--corps); }
+.rn-somm > * { min-width: 0; }
+.rn-soir { display: grid; gap: var(--esp-2); margin-bottom: var(--esp-4); }
 .rn-ailleurs > div { display: grid; grid-template-columns: 1fr 52px 1fr; gap: 6px; align-items: center; min-height: 26px; font: 600 var(--t-2)/1 var(--display); }
 .rn-ailleurs b { text-align: center; }
 .rn-ailleurs span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
@@ -5373,7 +5348,6 @@ body.run-ouverte { overflow: hidden; }
 .rn-racine .rn-menu .rn-on { border-color: var(--bon); background: var(--bon); color: color-mix(in srgb, var(--bon) 18%, var(--noir-pur)); }
 .rn-racine .rn-menu .rn-quitter { margin-top: 10px; border-color: color-mix(in srgb, var(--mauvais) 50%, var(--fond-1)); color: color-mix(in srgb, var(--mauvais) 60%, var(--blanc)); }
 @media (prefers-reduced-motion: reduce) {
-  .rn-but { animation: none; }
   .rn-jauge div i { transition: none; }
 }
 

@@ -6,12 +6,13 @@
  *
  *   LE BUREAU   l'accueil : cinq onglets en bas (Bureau, Alignement, Masse, Ligue, Mon club), des tableaux denses ; un
  *               tableau plus long que son cadre défile DANS son cadre (`.rn-cadre`), la scène ne défile jamais.
- *   LE MATCH    la feuille du soir, les temps forts, les portes, l'échange : illustrés, comme à la V28.
+ *   LE MATCH    la feuille du soir, les portes, l'échange : illustrés, comme à la V28. Le match lui-même se suit au direct
+ *               du jeu (js/direct.js, que js/run-jeu.js ouvre) ; son résultat est son sommaire complet (JP, 25 nov. 2026).
  *   L'ALLURE    celle du 82-0 (JP, 17 nov. 2026 : *interface plus proche du 82-0*, *seulement l'allure*) : son en-tête (ton
  *               écusson, l'état, les chiffres en cellules, le menu), ses boutons (`.btn`), ses icônes aux onglets, ses
  *               visages à la tête des lignes de joueurs ; les couleurs sont les jetons du jeu (style.css).
  */
-import { SLOTS, activeLineup, badgesDe, energieDe, jambesGardien, getHiddenRatings, getPlayerKey, periodeDe, PALIERS } from './sim.js';
+import { SLOTS, activeLineup, badgesDe, energieDe, jambesGardien, getHiddenRatings, getPlayerKey, PALIERS } from './sim.js';
 import { INTENTIONS } from './greffes.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, apportDe, compteDe, marcheDe, seuilSuivant, forceDeLaPiece } from './pieces.js';
 import { COACHS, REGLES_DU_COACH, VOIES } from './coachs.js';
@@ -26,11 +27,12 @@ import { carteHtml, carteDePiece, pochetteHtml } from './cartes.js';
 import { getTeamBand, getTeamLogoHtml, couleurVive, separe } from './logos.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { TEAMFULL, headshotHtml, ico } from './game.js';
+import { sommaireHtml } from './bilan.js';
 import { nomCourt } from './recit.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
   RUN, masseDe, espaceDe, prixDe, masseApres, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe, leurBanc, signesDe, effectifDe, prixDeLaRelance, reglesDe, aMonter,
-  budgetDuTour, vestiaireDuRepechage, classement, rangDe, clubNo, meneursDe, matchNo, prochainSoir, etatDeLObjectif, histoireDuJour, pochetteLibre, offresVues,
+  budgetDuTour, vestiaireDuRepechage, classement, rangDe, clubNo, meneursDe, matchNo, prochainSoir, etatDeLObjectif, histoireDuJour, pochetteLibre, offresVues, dernierMatch,
 } from './run.js';
 
 /* ---------- les petites briques ---------- */
@@ -49,7 +51,6 @@ const maj = s => s.charAt(0).toUpperCase() + s.slice(1);
 const pluriel = (n, mot, s = 's') => `${n} ${mot}${n > 1 ? s : ''}`;
 const jambes = ps => (ps.length ? Math.round(ps.reduce((a, p) => a + energieDe(p), 0) / ps.length) : 100);
 const jambesDe = p => Math.round(p.p === 'G' ? jambesGardien(p) : energieDe(p));
-const couleurs = (toi, eux) => `--toi:${getTeamBand(toi).bg};--eux:${getTeamBand(eux).bg === getTeamBand(toi).bg ? getTeamBand(eux).stripe : getTeamBand(eux).bg}`;
 const carteJ = p => `<span class="rn-c rn-cj" style="${varsEquipe(p)}">${cartonDe(p, { rar: editionDe(p) })}</span>`;
 const carteP = cle => `<span class="rn-c">${carteDePiece(cle, { lecture: true, statique: true })}</span>`;
 /* Les trois marches d'une pièce, en points. */
@@ -414,57 +415,59 @@ export function sceneFeuille(S, V) {
   ${pied}`;
 }
 
-/* ---------- le match, en temps forts ---------- */
-const GLACE = `<rect class="rn-fond" x="3" y="3" width="356" height="354" rx="70"/><path class="rn-lb" d="M3 118h356M3 242h356"/><path class="rn-lr" style="stroke-width:5" d="M3 180h356"/><path class="rn-lr" d="M40 34h282M40 326h282"/>
-  <circle class="rn-lb" style="stroke-width:2.5" cx="181" cy="180" r="34"/><g class="rn-lr"><circle cx="96" cy="76" r="30"/><circle cx="266" cy="76" r="30"/><circle cx="96" cy="284" r="30"/><circle cx="266" cy="284" r="30"/></g>`;
-/* La minute d'un instant de la feuille, dans sa période : « 12:40 de la 2e ». */
-export const minuteDe = t => { const per = periodeDe(t), dans = t - 20 * (per - 1), m = Math.floor(dans), s = Math.floor((dans - m) * 60); return `${m}:${String(s).padStart(2, '0')} ${per > 3 ? 'de la prolongation' : `de la ${per === 1 ? '1re' : `${per}e`}`}`; };
-/* Le match vu est un match déjà joué et compté (`V.match` : sa feuille, ses temps forts) : la scène ne lit que lui. */
-export function sceneMatch(S, V) {
-  const M = V.match, t = M.t, e = M.evts[M.i] || null, per = e ? Math.min(3, periodeDe(e.t)) : 1, fini = M.i >= M.evts.length - 1;
-  const vus = M.evts.slice(0, M.i + 1), buts = vus.filter(x => x.type === 'but');
-  // Le pointage : les buts vus jusqu'ici ; à la fin, celui de la feuille (le but des tirs de barrage compris).
-  const score = fini ? [M.res.gf, M.res.ga] : buts.reduce((a, x) => { a[x.moi ? 0 : 1]++; return a; }, [0, 0]);
-  const tirs = e ? e.tirs : [0, 0];
-  const haut = e && e.moi ? 30 : 330, cote = e && e.moi ? 1 : -1;
-  const x0 = e ? 90 + Math.round(180 * e.h) : 181, y0 = e ? 180 - cote * (40 + Math.round(70 * e.h2)) : 180;
-  const dessin = e && (e.type === 'but' || e.type === 'arret') ? `<path class="rn-tir" d="M${x0} ${y0}L${181} ${haut + cote * 12}"/><circle class="rn-tireur" cx="${x0}" cy="${y0}" r="11"${e.moi ? '' : ' style="fill:var(--eux)"'}/><circle class="rn-gardien" cx="181" cy="${haut}" r="9"${e.moi ? '' : ' style="fill:var(--toi)"'}/>` : '';
-  const mot = !e ? '' : e.type === 'but' ? (e.moi ? 'But !' : 'But contre') : e.type === 'arret' ? 'Arrêt !' : e.type === 'punition' ? 'Punition' : e.type === 'barrage' ? 'Tirs de barrage' : '';
-  const legende = !e ? '' : e.type === 'but' ? `<b>${esc(court(e.qui))} · ${score[0]}-${score[1]}</b><small>${e.passeurs.length ? `${e.passeurs.map(p => esc(court(p))).join(', ')} · ` : 'Sans aide · '}${minuteDe(e.t)}${e.an ? ' · en avantage' : ''}</small>`
-    : e.type === 'arret' ? `<b>${esc(court(e.gardien))} dit non</b><small>Contre ${esc(court(e.qui))} · ${minuteDe(e.t)}</small>`
-      : e.type === 'punition' ? `<b>${esc(court(e.qui))} au cachot</b><small>${e.moi ? 'Ton club à court d\'un homme' : 'Tu joues en avantage'} · ${minuteDe(e.t)}</small>`
-        : `<b>${e.moi ? 'Gagnés' : 'Perdus'}</b><small>Les tirs de barrage tranchent</small>`;
-  const marques = k => buts.filter(x => Math.min(3, periodeDe(x.t)) === k).map(x => `<i class="${x.moi ? '' : 'rn-eux'}" style="left:${Math.min(96, Math.round(5 * (x.t - 20 * (k - 1))))}%"></i>`).join('');
-  return `<div class="rn-score" style="${couleurs('YOU', t)}"><div class="rn-eq">${logo('YOU', 44)}Toi</div><div class="rn-pointage">${score[0]} · ${score[1]}<small>${fini ? 'Final' : e ? `${per === 1 ? '1re' : `${per}e`} · tirs ${tirs[0]}-${tirs[1]}` : 'La mise au jeu'}</small></div><div class="rn-eq">${esc(ville(t))}${logo(t, 44)}</div></div>
-  <svg class="rn-glace" viewBox="0 0 362 360" aria-hidden="true" style="${couleurs('YOU', t)}">${GLACE}${dessin}</svg>
-  ${mot ? `<div class="rn-but${e.moi === (e.type !== 'punition') ? '' : ' rn-eux'}" style="top:330px">${mot}</div>` : ''}
-  ${e ? `<div class="rn-buteur" style="left:14px;right:14px;top:452px">${e.qui ? `<span>${carteJ(e.qui)}</span>` : ''}<div>${legende}</div></div>` : ''}
-  <div class="rn-fil" style="left:14px;right:14px;top:546px">${[1, 2, 3].map(k => `<div>${k === 1 ? '1re' : `${k}e`}${marques(k)}${e && per === k && !fini ? `<u style="left:${Math.min(98, Math.round(5 * (e.t - 20 * (k - 1))))}%"></u>` : ''}</div>`).join('')}</div>
-  <div style="left:14px;right:14px;top:588px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton banc</span><span class="rn-t rn-vert">${M.pieces.length ? `${M.pieces.length} pièce${M.pieces.length > 1 ? 's jouent' : ' joue'} ce soir` : 'Aucune pièce ce soir'}</span></div>${banc(S, { joue: M.pieces })}
-    <div class="rn-t" style="margin-top:10px">${M.pieces.slice(0, 2).map(k => `<span class="rn-vert">${esc(PIECES[k].nom)}</span> <span class="rn-gris">· ${ligneCourte(S, k).replace('<br>', ' · ')}</span>`).join('<br>')}</div></div>
-  ${bas(bt(`Vitesse ×${V.vitesse}`, 'vitesse', { off: fini }), bt(fini ? 'Continuer' : 'À la fin', fini ? 'apres-match' : 'fin-du-match', { cls: 'go' }))}`;
+/* ---------- le match au direct, son résultat ---------- */
+/*
+ * CE QUE LE BANDEAU DU DIRECT DIT DE CE SOIR (js/direct.js : `titre`, `sousTitre`, `etat`, et `tally`, les victoires de la
+ * série en pastilles), lu AVANT que le match compte : la sorte du soir, le match, ton rang et ta fiche — en séries, la ronde
+ * et où en est la série. Les deux clubs sont dans l'ordre de la feuille : celui qui joue chez lui d'abord.
+ */
+export function afficheDuDirect(S) {
+  const R = S.R, c = R.soir, X = R.series;
+  if (c.sorte !== 'serie') return { titre: { rival: 'Le rival du quart', affiche: 'Une affiche', elite: c.enjeu ? 'L\'élite, avec son enjeu' : 'Saison régulière' }[c.sorte] || 'Saison régulière', sousTitre: `Match ${c.k + 1}`, etat: `${ficheMot(R.ligue.fiches[0])} · ${rangTxt(rangDe(S, 0))}` };
+  const { w, l } = X.moi;
+  return { titre: RONDES[X.ronde], sousTitre: `Match ${w + l + 1}`, etat: w === l ? (w ? `Série égale ${w}-${l}` : 'La série commence') : w > l ? `Tu mènes ${w}-${l}` : `Tu tires de l'arrière ${l}-${w}`, tally: c.visiteur ? { wA: l, wB: w } : { wA: w, wB: l } };
 }
-
-/* ---------- le résultat : le match compte, la ligue bouge ---------- */
+/* ---------- le résultat : le sommaire du match, la ligue qui bouge ---------- */
 /* Le galon du soir (js/run.js `galonsDuSoir`) : « 🎩 Le Chapeau, Lafleur », et « +1 » s'il y en a d'autres. */
 const galonsDuSoirHtml = a => { const l = a.galons || [], g = l[0]; return g ? `<span class="rn-or">${LEGENDES[g.type].ico} ${esc(LEGENDES[g.type].nom)}, ${esc(court(g))}${l.length > 1 ? ` +${l.length - 1}` : ''}</span>` : ''; };
 const gainsDuMatch = a => [a.pts ? `<span class="rn-vert">+${a.pts} point${a.pts > 1 ? 's' : ''}</span>` : '', a.jetons + a.prime > 0 ? `<span class="rn-or">+${a.jetons + a.prime} jetons</span>` : a.jetons < 0 ? `<span class="rn-rg">${a.jetons} jetons</span>` : '', galonsDuSoirHtml(a) || (a.etoile ? `${esc(court(a.etoile))} ${a.etoile.buts} buts` : '')].filter(Boolean).join(' · ');
 /*
- * LE RÉSULTAT. Le pointage d'abord, gros ; puis ce que le match t'a donné ; puis ton rang, avant et après (c'est lui que le
- * proprio lit) ; puis les autres pointages du soir, pour que la ligue existe. Un seul bouton : la suite.
+ * LE RÉSULTAT EST LE SOMMAIRE DU MATCH (JP, 25 nov. 2026 : *je m'ennuie de l'ancien moteur de match, avec stats super
+ * détaillées*) : celui du jeu (js/bilan.js `sommaireHtml`), le même qu'aux séries du 82-0. D'un trait, il fait dix écrans :
+ * il se range en quatre vues, une intention chacune, dans un cadre qui défile.
+ *   « Sommaire »  ce qu'on vient chercher : qui a gagné et le pointage ; ce que le match t'a donné et ton rang, hier et ce
+ *                 soir (c'est lui que le proprio lit) ; les pièces de ton banc qui ont joué ; les trois étoiles ; les buts ;
+ *                 puis les autres pointages du soir, pour que la ligue existe.
+ *   « Récit »     le match raconté : les faits saillants, puis chaque période avec ses récits, ses punitions, ses coups.
+ *   « Chiffres »  le match compté : les tirs par période, l'avantage numérique, les punitions ; la glace et ses tirs ; les
+ *                 gardiens.
+ *   « Feuille »   ce que chaque patineur des deux clubs a fait ce soir : TG, B, A, PTS, +/−, T, MÉ, BL, PUN (elle glisse de côté).
+ * Un seul bouton : la suite.
  */
-export function sceneResultat(S) {
-  const R = S.R, a = R.apres, serie = a.sorte === 'serie', X = R.series;
+const VUES_DU_RESULTAT = [['sommaire', 'Sommaire'], ['recit', 'Récit'], ['chiffres', 'Chiffres'], ['feuille', 'Feuille']];
+export function sceneResultat(S, V) {
+  const R = S.R, a = R.apres, serie = a.sorte === 'serie', X = R.series, M = dernierMatch(S), F = R.ligue.fiches[0];
   const autres = (a.autres || []).slice(0, 10).map(m => `<div><span>${logoNo(S, m.a, 16)} ${nomDuClubNo(S, m.a)}</span><b>${m.gfA}-${m.gfB}${m.ot ? ' P' : ''}</b><span>${nomDuClubNo(S, m.b)} ${logoNo(S, m.b, 16)}</span></div>`).join('');
-  const rang = a.rang ? `<div class="rn-cellules" style="left:14px;right:14px;top:272px"><div><b>${rangTxt(a.rang[0])}</b><small>Hier</small></div><div><b class="${a.rang[1] < a.rang[0] ? 'rn-vert' : a.rang[1] > a.rang[0] ? 'rn-rg' : ''}">${rangTxt(a.rang[1])}</b><small>Ce soir</small></div><div><b>${ficheMot(R.ligue.fiches[0])}</b><small>Ta fiche</small></div></div>` : '';
+  const rang = a.rang ? `<div class="rn-cellules"><div><b>${rangTxt(a.rang[0])}</b><small>Hier</small></div><div><b class="${a.rang[1] < a.rang[0] ? 'rn-vert' : a.rang[1] > a.rang[0] ? 'rn-rg' : ''}">${rangTxt(a.rang[1])}</b><small>Ce soir</small></div><div><b>${ficheMot(F)}</b><small>Ta fiche</small></div></div>` : '';
+  const laSerie = serie ? `<div class="rn-t"><b>La série : ${X.moi.w}-${X.moi.l}</b> <span class="rn-gris">· ${R.fin ? (R.fin.coupe ? 'la Coupe est à toi.' : 'la saison s\'arrête ici.') : 'quatre victoires pour passer.'}</span></div>` : '';
+  const pieces = a.pieces.length ? `<div class="rn-k">Ton banc ce soir</div>${banc(S, { joue: a.pieces })}<div class="rn-t">${a.pieces.map(k => `<span class="rn-vert">${esc(PIECES[k].nom)}</span> <span class="rn-gris">· ${ligneCourte(S, k).replace('<br>', ' · ')}</span>`).join('<br>')}</div>` : '';
+  const soir = `<div class="rn-soir"><div class="rn-t">${gainsDuMatch(a) || 'Aucun point'}</div>${rang}${laSerie}${pieces}</div>`;
+  const P = M ? sommaireHtml({ f: M.f, A: M.A, B: M.B, avant: M.avant, pied: serie ? 'séries' : 'saison régulière', fiche: serie ? null : { v: F[0], d: F[1], pr: F[2] }, lien: (p, t, html) => html }).parts : null;
+  const vue = P && VUES_DU_RESULTAT.some(([k]) => k === V.segR) ? V.segR : 'sommaire';
+  // Sous « Sommaire », les périodes ne montrent que leurs buts ; ailleurs, tout se lit (`som-plus`, js/bilan.js).
+  const som = (html, tout = true) => `<div class="som-racine${tout ? ' som-plus' : ''}">${html}</div>`;
+  const verdict = `<div class="rn-k ${a.gagne ? 'rn-vert' : 'rn-rg'}">${a.gagne ? 'Gagné' : a.ot ? 'Perdu en prolongation' : 'Perdu'} ${a.visiteur ? `à ${esc(ville(a.t))}` : `contre ${esc(surnom(a.t))}`}</div>`;
+  const ailleurs = autres ? `<div class="rn-k">Ailleurs dans la ligue</div><div class="rn-ailleurs">${autres}</div>` : '';
+  // Une run gardée avant le 25 nov. 2026 n'a pas la feuille de son dernier match : le pointage et le soir, sans le sommaire.
+  const corps = !P ? `${verdict}<div class="rn-titre">${a.gf} · ${a.ga}</div>${soir}${ailleurs}`
+    : vue === 'recit' ? som(P.saillants + P.periodes)
+      : vue === 'chiffres' ? som(P.tableau + P.glace + P.gardiens)
+        : vue === 'feuille' ? som(P.feuille)
+          : `${verdict}${som(P.lignes + soir + P.etoiles + P.periodes, false)}${ailleurs}`;
   const suite = R.fin ? 'Voir la fin' : R.suite[0] === 'piece' ? 'Ta pièce' : R.suite[0] === 'portes' ? 'Tes trois portes' : R.suite[0] === 'bilan' ? 'Le bilan du proprio' : serie ? 'Le tableau' : 'Au bureau';
   return `${hud(S, { petit: serie ? RONDES[Math.min(RONDES.length - 1, X.ronde)] : null })}
-  <div style="left:14px;right:14px;top:66px;text-align:center"><div class="rn-k ${a.gagne ? 'rn-vert' : 'rn-rg'}">${a.gagne ? 'Gagné' : a.ot ? 'Perdu en prolongation' : 'Perdu'} ${a.visiteur ? `à ${esc(ville(a.t))}` : `contre ${esc(surnom(a.t))}`}</div>
-    <div class="rn-final" style="${couleurs('YOU', a.t)}">${logo('YOU', 56)}<b>${a.gf} · ${a.ga}</b>${logo(a.t, 56)}</div>
-    <div class="rn-t" style="margin-top:10px">${gainsDuMatch(a) || 'Aucun point'}<br><span class="rn-gris">Tirs ${a.tirs[0]}-${a.tirs[1]}${a.pieces.length ? ` · ont joué : ${a.pieces.map(k => esc(PIECES[k].nom.toLowerCase())).join(', ')}` : ''}</span></div></div>
-  ${rang}
-  ${serie ? `<div class="rn-panneau" style="left:14px;right:14px;top:272px"><div class="rn-t"><b>La série : ${X.moi.w}-${X.moi.l}</b><br><span class="rn-gris">${R.fin ? (R.fin.coupe ? 'La Coupe est à toi.' : 'La saison s\'arrête ici.') : `Quatre victoires pour passer.`}</span></div></div>` : ''}
-  ${autres ? `<div class="rn-panneau" style="left:14px;right:14px;top:368px"><div class="rn-k" style="margin-bottom:4px">Ailleurs dans la ligue</div><div class="rn-ailleurs">${autres}</div></div>` : ''}
+  ${P ? segment('seg-r', vue, VUES_DU_RESULTAT) : ''}
+  ${cadre(`<div class="rn-somm">${corps}</div>`, P ? 112 : 60, 76)}
   ${bas(bt(suite, 'continuer', { cls: 'go' }))}`;
 }
 
