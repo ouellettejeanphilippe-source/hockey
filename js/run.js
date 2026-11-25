@@ -897,6 +897,27 @@ export function dernierMatch(S) {
   return { f, A: e.cote === 'A' ? S.toi : e.adv, B: e.cote === 'A' ? e.adv : S.toi, avant };
 }
 /*
+ * UN JOUEUR DE LA RUN, PAR SA CLÉ (JP, 25 nov. 2026 : la fiche qu'un nom ouvre) : le tien d'abord, un prêt compris, sinon
+ * celui d'un club de la ligue. Rend { p, club } — `club` : 0 chez toi, l'indice de son club sinon.
+ */
+export function joueurDeLaRun(S, cle) {
+  const mien = Object.values(S.roster).find(p => p && getPlayerKey(p) === cle);
+  if (mien) return { p: mien, club: 0 };
+  for (let i = 0; i < S.ligue.length; i++) { const p = S.ligue[i].pool.find(q => getPlayerKey(q) === cle); if (p) return { p, club: i + 1 }; }
+  return null;
+}
+/*
+ * SES DERNIERS MATCHS CHEZ TOI, lus dans le journal gardé (ses `GARDES` derniers), le plus récent d'abord : le numéro du
+ * match, l'adversaire, le pointage, ses buts et ses passes ; pour un gardien, les buts que ton club a accordés.
+ */
+export function derniersMatchsDe(S, p, n = 10) {
+  const G = p.p === 'G';
+  return S.journal.filter(e => (G ? e.gardien === p : e.feuille.alignes[e.cote].includes(p))).slice(-n).reverse().map(e => {
+    const buts = e.feuille.buts.filter(b => !b.fusillade);
+    return { n: e.n, adv: e.adv, gf: e.gf, ga: e.ga, gagne: e.win, b: buts.filter(b => b.marqueur === p).length, a: buts.filter(b => (b.passeurs || []).includes(p)).length, bc: buts.filter(b => b.cote !== e.cote).length };
+  });
+}
+/*
  * CONTINUER : la phase d'après, dans l'ordre de la file ; vide, le bureau (ou le tableau des séries, ou la fin). Du
  * résultat, d'une pièce réglée, des portes réglées.
  */

@@ -30,6 +30,7 @@ import { diffuserMatch } from './direct.js';
 import { teamLabel, teamShort, tagCourt } from './bilan.js';
 import { brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml } from './logos.js';
+import { showPlayerModal } from './fiche.js';
 import { VERSION } from './version.js';
 import { RATINGS_VERSION } from './ratings.js';
 import {
@@ -40,7 +41,7 @@ import {
 } from './run.js';
 import {
   sceneAttente, sceneDepart, scenePieceDuDepart, sceneRepechage, sceneQuart, sceneBureau, sceneFeuille, sceneResultat, scenePortes, scenePorte, sceneEchange,
-  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, afficheDuDirect, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
+  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, afficheDuDirect, ficheDuJoueur, nomQuiOuvre, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
 } from './run-scenes.js';
 
 const CLE = 'cap82_run';
@@ -108,6 +109,7 @@ let teinteDAvant = null;
 function fermer() {
   clearTimeout(minuterie);
   window.removeEventListener('resize', echelle);
+  document.removeEventListener('click', nomDuDirect);
   if (racine) racine.remove();
   document.body.classList.remove('run-ouverte');
   racine = plan = S = null; V = {};
@@ -128,6 +130,7 @@ export async function ouvrirRun(c = {}) {
   document.body.classList.add('run-ouverte');
   echelle();
   window.addEventListener('resize', echelle);
+  document.addEventListener('click', nomDuDirect);
   racine.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled && racine.contains(b)) geste(b.dataset.a, b.dataset.v); });
   const R = lire();
   if (R && R.v === VERSION_DE_LA_RUN) {
@@ -316,7 +319,8 @@ function majDeLaJauge() {
  * gros match marque ses deux entractes et ne se quitte pas en route. Sous `prefers-reduced-motion`, on va droit au sommaire.
  */
 /* Au bandeau du direct, à 390 px : le sigle du club (« ANA »), et sous lui son nom court avec sa saison (« Ducks 2001-02 »). */
-const CTX_DU_DIRECT = { esc, teamLabel: t => (t.isPlayer ? teamLabel(t) : teamShort(t)), teamShort, tagCourt: t => (t.isPlayer ? tagCourt(t) : t.tag), logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml };
+const CTX_DU_DIRECT = { esc, teamLabel: t => (t.isPlayer ? teamLabel(t) : teamShort(t)), teamShort, tagCourt: t => (t.isPlayer ? tagCourt(t) : t.tag), logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml,
+  fiche: (p, t, html) => nomQuiOuvre(p, html) };
 function lancerLeMatch() {
   const R = S.R, c = R.soir, seance = S;
   if (c.sorte === 'elite' && c.enjeu && c.J == null) { const r = chanceCeSoir(S, { n: 60, tranche: 9 }); fixerLElite(S, r.v / r.n); }
@@ -339,6 +343,14 @@ function apresLeMatch(res) {
   entrer();
   if (res.gagne && res.duel) pic(plan);
 }
+
+/* ---------- la fiche d'un joueur ---------- */
+/*
+ * UN NOM OUVRE SA FICHE (JP, 25 nov. 2026) : celle du jeu, par-dessus la scène — et par-dessus le direct, dont les noms
+ * vivent hors de la scène (un écouteur sur la page les entend, le temps que le Rogue est ouvert).
+ */
+function ouvrirLaFiche(cle) { const f = S && ficheDuJoueur(S, cle); if (f) showPlayerModal(f.p, f.opts); }
+const nomDuDirect = e => { const b = e.target.closest('#liveModal [data-a="fiche"]'); if (b) geste('fiche', b.dataset.v); };
 
 /* ---------- les histoires, la fin ---------- */
 /* Ce que la scène d'une histoire montre : sa voix, sa réplique qui nomme, le fait sous elle, ses deux réponses en cartes de jeu. */
@@ -420,6 +432,7 @@ const GESTES = {
   'seg-c': v => { V.segC = v; },
   'seg-r': v => { V.segR = v; },
   tri: v => { V.tri = v; },
+  fiche: v => { ouvrirLaFiche(v); return false; },
   'vers-banc': () => { V.onglet = 'alignement'; V.segA = 'banc'; },
   case: v => {
     const i = Number(v);

@@ -33,6 +33,7 @@ import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
   RUN, masseDe, espaceDe, prixDe, masseApres, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe, leurBanc, signesDe, effectifDe, prixDeLaRelance, reglesDe, aMonter,
   budgetDuTour, vestiaireDuRepechage, classement, rangDe, clubNo, meneursDe, matchNo, prochainSoir, etatDeLObjectif, histoireDuJour, pochetteLibre, offresVues, dernierMatch, STATS, STATS_G,
+  joueurDeLaRun, derniersMatchsDe,
 } from './run.js';
 
 /* ---------- les petites briques ---------- */
@@ -246,7 +247,8 @@ function pageBureau(S, V) {
 /*
  * L'ONGLET ALIGNEMENT. « Lignes » : tes vingt-trois en tableau, dans l'ordre de la glace (les trios, les paires, le filet,
  * les réservistes), l'accord de chaque ligne à sa tête ; toucher un joueur le tient, toucher un autre les échange, et
- * chaque ligne dit alors ce que l'échange y allumerait. « Banc » : ton coach, sa règle, tes pièces et leur compte.
+ * chaque ligne dit alors ce que l'échange y allumerait ; le joueur tenu ouvre sa fiche de la tête du tableau (la ligne, elle,
+ * garde son geste : le tenir). « Banc » : ton coach, sa règle, tes pièces et leur compte.
  */
 function pageAlignement(S, V) {
   const R = S.R, seg = V.segA || 'lignes';
@@ -271,7 +273,7 @@ function pageAlignement(S, V) {
   const corps = [0, 1, 2, 3].map(u => unite(`${ord(u + 1)} trio`, de('F', u), u)).join('') + [0, 1, 2].map(u => unite(`${u + 1}${u ? 'e' : 're'} paire`, de('D', u), u)).join('')
     + unite('Le filet', [...de('G', 0), ...de('G', 1)], null) + unite('En civil', SLOTS.filter(s => s.scratch && (!s.extra || S.roster[s.i])), null);
   return `${segment('seg-a', seg, [['lignes', 'Lignes'], ['banc', 'Banc']])}
-  ${cadre(tableau('34px 1fr 46px 34px 26px 30px', tenu != null ? ['', `Tu tiens ${esc(court(S.roster[tenu]))}`, '', 'Où ?', '', ''] : ['Pos', 'Joueur', 'Badges', 'J', 'PJ', 'Pts'], [corps], 'rn-alig'))}`;
+  ${cadre(tableau('34px 1fr 46px 34px 26px 30px', tenu != null ? ['', `<button type="button" data-a="fiche" data-v="${esc(getPlayerKey(S.roster[tenu]))}">${esc(court(S.roster[tenu]))} · sa fiche ›</button>`, '', 'Où ?', '', ''] : ['Pos', 'Joueur', 'Badges', 'J', 'PJ', 'Pts'], [corps], 'rn-alig'))}`;
 }
 /*
  * L'ONGLET MASSE. Le plafond d'abord (la seule jauge de l'onglet : ta masse, ce que les joueurs sortis y laissent, ton
@@ -283,7 +285,7 @@ function pageMasse(S) {
   return `<div class="rn-panneau" style="left:14px;right:14px;top:60px"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><span class="rn-k">Ton plafond</span><span class="rn-t">${money(masseDe(S))} <span class="rn-gris">/ ${money(R.plafond)}</span></span></div>
     ${plafond(S, { mort: R.mort || 0 })}
     <div class="rn-t" style="margin-top:8px"><span class="rn-or">Espace ${money(espaceDe(S))}</span>${R.mort ? ` <span class="rn-gris">·</span> <span class="rn-rg">${money(R.mort)} des joueurs sortis</span>` : ''}</div></div>
-  ${cadre(tableau('34px 1fr 76px 70px', ['Pos', 'Joueur', 'Carte', 'Salaire'], js.map(p => ligne([ou(cas(p)), `${visage(p)}${esc(court(p))}`, esc(NOM_VARIANTE[editionDe(p)]), money(prixDe(S, p))]))), 172)}`;
+  ${cadre(tableau('34px 1fr 76px 70px', ['Pos', 'Joueur', 'Carte', 'Salaire'], js.map(p => ligne([ou(cas(p)), `${visage(p)}${esc(court(p))}`, esc(NOM_VARIANTE[editionDe(p)]), money(prixDe(S, p))], { a: 'fiche', v: getPlayerKey(p) }))), 172)}`;
 }
 /*
  * L'ONGLET LIGUE. « Classement » : les trente-deux, la ligne des séries tracée sous le seizième, ton club allumé.
@@ -295,7 +297,7 @@ function pageLigue(S, V) {
   if (seg === 'meneurs') {
     const nomDe = x => { const p = (x.i === 0 ? effectifDe(S) : clubNo(S, x.i).pool).find(q => getPlayerKey(q) === x.k); return p ? `${visage(p)}${esc(court(p))}` : '…'; };
     const l = meneursDe(S, 20);
-    return `${tete}${cadre(l.length ? tableau('24px 1fr 104px 24px 24px 30px', ['', 'Joueur', 'Club', 'B', 'A', 'Pts'], l.map((x, r) => ligne([r + 1, nomDe(x), nomDuClubNo(S, x.i), x.g, x.a, `<b>${x.g + x.a}</b>`], { cls: x.i === 0 ? 'rn-moi' : '' }))) : '<div class="rn-t rn-gris" style="padding:14px">Personne n\'a encore marqué : la saison commence ce soir.</div>')}`;
+    return `${tete}${cadre(l.length ? tableau('24px 1fr 104px 24px 24px 30px', ['', 'Joueur', 'Club', 'B', 'A', 'Pts'], l.map((x, r) => ligne([r + 1, nomDe(x), nomDuClubNo(S, x.i), x.g, x.a, `<b>${x.g + x.a}</b>`], { cls: x.i === 0 ? 'rn-moi' : '', a: 'fiche', v: x.k }))) : '<div class="rn-t rn-gris" style="padding:14px">Personne n\'a encore marqué : la saison commence ce soir.</div>')}`;
   }
   if (seg === 'cedule') {
     const n = R.matchs.length, Q = R.quart;
@@ -327,7 +329,7 @@ function pageMonClub(S, V) {
   const st = (p, n) => Array.from({ length: n }, (_, i) => (R.stats[getPlayerKey(p)] || [])[i] || 0);
   if (seg === 'gardiens') {
     const gs = effectifDe(S).filter(p => p.p === 'G'), G = STATS_G;
-    return `${tete}${cadre(tableau('150px 30px 30px 30px 30px 48px 44px 30px 30px 34px 40px 30px', ['Gardien', 'D', 'V', 'P', 'DP', '% arr.', 'Moy.', 'BL', 'DQ', 'BC', 'TR', 'J'], gs.map(p => { const x = st(p, 8); return ligne([`${visage(p)}${esc(court(p))}`, x[G.D], x[G.V], x[G.P], x[G.DP], x[G.TR] ? pct3(1 - x[G.BC] / x[G.TR]) : '—', x[G.D] ? virgule(x[G.BC] / x[G.D], 2) : '—', x[G.BL], x[G.DQ], x[G.BC], x[G.TR], jambesDe(p)]); }), 'rn-large'), 112, 66, 'rn-glisse')}`;
+    return `${tete}${cadre(tableau('150px 30px 30px 30px 30px 48px 44px 30px 30px 34px 40px 30px', ['Gardien', 'D', 'V', 'P', 'DP', '% arr.', 'Moy.', 'BL', 'DQ', 'BC', 'TR', 'J'], gs.map(p => { const x = st(p, 8); return ligne([`${visage(p)}${esc(court(p))}`, x[G.D], x[G.V], x[G.P], x[G.DP], x[G.TR] ? pct3(1 - x[G.BC] / x[G.TR]) : '—', x[G.D] ? virgule(x[G.BC] / x[G.D], 2) : '—', x[G.BL], x[G.DQ], x[G.BC], x[G.TR], jambesDe(p)], { a: 'fiche', v: getPlayerKey(p) }); }), 'rn-large'), 112, 66, 'rn-glisse')}`;
   }
   if (seg === 'matchs') {
     let suite = 0;
@@ -340,7 +342,33 @@ function pageMonClub(S, V) {
   const tri = COLONNES.find(c => c[0] === V.tri) || COLONNES[3], val = p => tri[2](st(p, 12));
   const ps = effectifDe(S).filter(p => p.p !== 'G').sort((a, b) => val(b) - val(a) || st(b, 12)[STATS.B] - st(a, 12)[STATS.B] || getHiddenRatings(b).v - getHiddenRatings(a).v);
   const col = ([k, mot]) => `<button type="button" class="${tri[0] === k ? 'rn-on' : ''}" data-a="tri" data-v="${k}">${mot}</button>`;
-  return `${tete}${cadre(tableau(`150px ${COLONNES.map(c => (c[1].length > 3 ? '50px' : '34px')).join(' ')}`, ['Joueur', ...COLONNES.map(col)], ps.map(p => { const x = st(p, 12); return ligne([`${visage(p)}${esc(court(p))} ${badgesHtml(p)}`, ...COLONNES.map(c => { const v = c[2](x); return c[3] ? c[3](v) : v; })]); }), 'rn-tri rn-large'), 112, 66, 'rn-glisse')}`;
+  return `${tete}${cadre(tableau(`150px ${COLONNES.map(c => (c[1].length > 3 ? '50px' : '34px')).join(' ')}`, ['Joueur', ...COLONNES.map(col)], ps.map(p => { const x = st(p, 12); return ligne([`${visage(p)}${esc(court(p))} ${badgesHtml(p)}`, ...COLONNES.map(c => { const v = c[2](x); return c[3] ? c[3](v) : v; })], { a: 'fiche', v: getPlayerKey(p) }); }), 'rn-tri rn-large'), 112, 66, 'rn-glisse')}`;
+}
+
+/* ---------- la fiche d'un joueur ---------- */
+/* Un nom qui ouvre sa fiche : le bouton des noms du jeu (`.lien-joueur`, sa cible de 44 px), le geste du Rogue. */
+export const nomQuiOuvre = (p, html) => `<button type="button" class="lien-joueur" data-a="fiche" data-v="${esc(getPlayerKey(p))}">${html}</button>`;
+/*
+ * LA FICHE QU'UN NOM OUVRE (JP, 25 nov. 2026 : *la fiche d'un joueur*) : celle du jeu (js/fiche.js `showPlayerModal`), sa
+ * carte recto verso telle quelle. La run y dit ce qu'elle sait de lui, rien de plus : chez toi, sa saison (`R.stats`), à
+ * son édition et à son salaire de la run, puis ses dix derniers matchs ; dans un autre club, ses buts et ses passes dans ta
+ * ligue. Rend { p, opts }, ou rien si la clé n'est à personne.
+ */
+export function ficheDuJoueur(S, cle) {
+  const x = joueurDeLaRun(S, cle);
+  if (!x) return null;
+  const { p, club } = x, R = S.R, s = (R.stats || {})[cle] || [], n = i => s[i] || 0, td = v => `<td>${v}</td>`;
+  if (club) {
+    const [b = 0, a = 0] = (R.ligue && R.ligue.pts[cle]) || [], c = clubNo(S, club);
+    return { p, opts: { apercu: true, rar: editionDe(p), suite: `<div class="section-label">Dans ta ligue · ${esc(clubMot(c))}</div><div class="stat-grid">${[['B', b], ['A', a], ['PTS', b + a]].map(([k, v]) => `<div class="stat-cell"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('')}</div>` } };
+  }
+  const G = p.p === 'G', J = derniersMatchsDe(S, p);
+  const sim = G ? { GP: n(STATS_G.D), W: n(STATS_G.V), L: n(STATS_G.P), OTL: n(STATS_G.DP), GA: n(STATS_G.BC), SA: n(STATS_G.TR), SV: n(STATS_G.TR) - n(STATS_G.BC), SO: n(STATS_G.BL), DQ: n(STATS_G.DQ) }
+    : { GP: n(STATS.PJ), G: n(STATS.B), A: n(STATS.A), PTS: n(STATS.B) + n(STATS.A), PM: n(STATS.PM), SH: n(STATS.T), PIM: n(STATS.PUN), TOI: n(STATS.TG), PPP: n(STATS.PAN), SHP: n(STATS.PDN), GWG: n(STATS.BG), HT: n(STATS.ME), BL: n(STATS.BL) };
+  const suite = J.length ? `<div class="section-label">Ses ${J.length > 1 ? `${J.length} derniers matchs` : 'derniers matchs'} chez toi</div>
+    <div class="jr-scroll"><table class="jr-table"><thead><tr><th class="jr-col-nom">Match</th><th></th>${(G ? ['BC'] : ['B', 'A', 'PTS']).map(k => `<th>${k}</th>`).join('')}</tr></thead>
+    <tbody>${J.map(m => `<tr><td class="jr-col-nom">${m.n} · ${logo(m.adv.tag, 16)} ${esc(surnom(m.adv.tag))}</td>${td(`<b class="${m.gagne ? 'rn-vert' : 'rn-rg'}">${m.gf}-${m.ga}</b>`)}${(G ? [m.bc] : [m.b, m.a, m.b + m.a]).map(td).join('')}</tr>`).join('')}</tbody></table></div>` : '';
+  return { p, opts: { sim, team: S.toi, titreSim: 'Sa saison chez toi', rar: editionDe(p), salaire: [money(prixDe(S, p)), 'Son salaire dans ta run'], suite } };
 }
 
 /* ---------- la feuille du soir ---------- */
@@ -463,7 +491,7 @@ export function sceneResultat(S, V) {
   const laSerie = serie ? `<div class="rn-t"><b>La série : ${X.moi.w}-${X.moi.l}</b> <span class="rn-gris">· ${R.fin ? (R.fin.coupe ? 'la Coupe est à toi.' : 'la saison s\'arrête ici.') : 'quatre victoires pour passer.'}</span></div>` : '';
   const pieces = a.pieces.length ? `<div class="rn-k">Ton banc ce soir</div>${banc(S, { joue: a.pieces })}<div class="rn-t">${a.pieces.map(k => `<span class="rn-vert">${esc(PIECES[k].nom)}</span> <span class="rn-gris">· ${ligneCourte(S, k).replace('<br>', ' · ')}</span>`).join('<br>')}</div>` : '';
   const soir = `<div class="rn-soir"><div class="rn-t">${gainsDuMatch(a) || 'Aucun point'}</div>${rang}${laSerie}${pieces}</div>`;
-  const P = M ? sommaireHtml({ f: M.f, A: M.A, B: M.B, avant: M.avant, pied: serie ? 'séries' : 'saison régulière', fiche: serie ? null : { v: F[0], d: F[1], pr: F[2] }, lien: (p, t, html) => html }).parts : null;
+  const P = M ? sommaireHtml({ f: M.f, A: M.A, B: M.B, avant: M.avant, pied: serie ? 'séries' : 'saison régulière', fiche: serie ? null : { v: F[0], d: F[1], pr: F[2] }, lien: (p, t, html) => nomQuiOuvre(p, html) }).parts : null;
   const vue = P && VUES_DU_RESULTAT.some(([k]) => k === V.segR) ? V.segR : 'sommaire';
   // Sous « Sommaire », les périodes ne montrent que leurs buts ; ailleurs, tout se lit (`som-plus`, js/bilan.js).
   const som = (html, tout = true) => `<div class="som-racine${tout ? ' som-plus' : ''}">${html}</div>`;

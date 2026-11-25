@@ -1027,8 +1027,9 @@ img.visage.brut { object-position: 50% 12%; }
 /* Une feuille plein écran (le direct, le bureau, le plateau) : sans voile, bord à bord. */
 .modal-backdrop.live { align-items: stretch; padding: 0; background: var(--scene), var(--noir); -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--noir-pur); }
 .live-sheet { display: flex; flex-direction: column; width: 100%; max-width: 900px; margin: 0 auto; height: 100dvh; background: var(--scene), var(--noir); background: var(--noir-pur); }
-/* Le direct d'un match du Rogue (JP, 25 nov. 2026) : le même, par-dessus sa scène. */
+/* Le direct d'un match du Rogue (JP, 25 nov. 2026) : le même, par-dessus sa scène ; la fiche d'un joueur, par-dessus les deux. */
 body.run-ouverte #liveModal { z-index: 430; }
+body.run-ouverte #hockeyCardModal { z-index: 440; }
 /* LE ROGUE, EN TÉLÉ (V23, la nouvelle interface) : un plateau noir, sans lueur ni cercle de glace ; la couleur vient des clubs. */
 /* Le plateau Sur table : la glace couvre tout, un fond uni dessous (rien à repeindre quand les pièces glissent). */
 #tableModal, #tableModal .table-sheet { background: var(--noir); }
@@ -5240,15 +5241,17 @@ body.run-ouverte { overflow: hidden; }
 .rn-tri .rn-tete { min-height: 44px; }
 .rn-racine .rn-tete button { width: 100%; height: 44px; font: inherit; text-transform: uppercase; letter-spacing: inherit; text-align: right; color: inherit; }
 .rn-racine .rn-tete .rn-on { color: var(--or); }
+/* À l'Alignement, le joueur tenu ouvre sa fiche de la tête du tableau : son nom, à gauche, à l'or de ce qu'on touche. */
+.rn-racine .rn-alig .rn-tete button { text-align: left; color: var(--or); }
 /* Un tableau de stats glisse aussi de côté dans son cadre (JP, 25 nov. 2026 : *glisser de côté*) : ses colonnes gardent leur largeur, la tête
    reste en haut et le nom reste à gauche, sur un fond plein qui cache ce qui passe dessous. */
 .rn-cadre.rn-glisse { overflow-x: auto; }
 .rn-large { width: max-content; min-width: 100%; }
 .rn-large .rn-l { padding-left: 0; }
-.rn-large .rn-l > :first-child { position: sticky; left: 0; z-index: 1; align-self: stretch; padding-left: 8px; background: var(--fond-1); box-shadow: 1px 0 0 var(--filet); line-height: 30px; }
+.rn-large .rn-l > :first-child { position: sticky; left: 0; z-index: 1; align-self: stretch; display: flex; align-items: center; gap: 4px; padding-left: 8px; background: var(--fond-1); box-shadow: 1px 0 0 var(--filet); }
 .rn-large .rn-l > span:nth-child(2) { text-align: right; }
 .rn-large .rn-tete { z-index: 2; }
-.rn-large .rn-tete > :first-child { background: var(--fond-2); line-height: 44px; }
+.rn-large .rn-tete > :first-child { background: var(--fond-2); }
 .rn-unite { grid-template-columns: 84px 1fr auto; min-height: 26px; background: color-mix(in srgb, var(--fond-2) 60%, transparent); font-size: var(--t-1); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre); }
 .rn-unite > span:nth-child(2) { text-align: left; letter-spacing: 0.02em; text-transform: none; color: var(--or); }
 .rn-coupe { grid-template-columns: 1fr; min-height: 20px; border-bottom: 2px solid var(--or); font-size: var(--t-1); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); }

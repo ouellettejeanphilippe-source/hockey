@@ -4040,3 +4040,15 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Pas fait** : la saison et les séries à part (les chiffres les additionnent, comme avant).
 
 **Les preuves.** `check_run` (17 vérifications : les douze chiffres de 37 joueurs recomptés des feuilles, chaque but hors de l'avantage avec sa glace, la même run gardée et relue), `check_scene` (15 : le tableau glissé au bout, le nom et la tête en place), `check_empreinte`, `check_feuilles`, `check_prolongation`.
+
+## Le détail du Rogue, tranche 3 : la fiche d'un joueur (25 nov. 2026)
+
+**Ce que JP a demandé** : *la fiche d'un joueur*, au toucher.
+
+**La fiche est celle du jeu.** La carte recto verso du 82-0 passe telle quelle (la règle : une carte ne se redessine pas d'un écran à l'autre). Elle s'ouvre par-dessus la scène, et par-dessus le direct. La run lui passe ce qu'elle sait : la saison du joueur chez toi (les douze chiffres de la tranche 2), son édition, son salaire de la run à la place de celui du 82-0, et ses dix derniers matchs, lus dans le journal gardé (les trente derniers). Un joueur d'un autre club montre ses buts et ses passes dans ta ligue ; le reste viendra avec la tranche 4.
+
+**Ce qui l'ouvre.** Une ligne de Mon club, de la Masse, des meneurs ; chaque nom du sommaire et du fil du direct. À l'Alignement, toucher une ligne tient le joueur pour l'échanger : ce geste reste, et c'est la tête du tableau (« Demitra · sa fiche › ») qui ouvre la fiche du joueur tenu. Une ligne qu'on touche fait 44 px au lieu de 30 : Mon club montre seize joueurs par écran au lieu de vingt.
+
+**Écarté.** Une scène de fiche propre au Rogue : deux fiches à tenir, et une carte redessinée. Un petit bouton « i » au bout de chaque ligne de l'Alignement : une cible de plus par ligne, vingt-trois fois.
+
+**Les preuves.** `essai_run` (19 vérifications : un nom du direct, un nom du sommaire, une ligne de Mon club ; la carte, la saison chez toi, le salaire de la run, les derniers matchs ; fermée, on est où on était), `check_scene` (15).

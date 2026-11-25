@@ -1,0 +1,5 @@
+- **25 nov. · Dans le Rogue, toucher un nom ouvre la fiche du joueur**
+  - JP : *la fiche d'un joueur*. La troisième tranche du détail du Rogue.
+  - La fiche du jeu (js/fiche.js `showPlayerModal`), sa carte telle quelle, avec ce que la run sait : sa saison chez toi, son édition, son salaire de la run, ses dix derniers matchs ; un adversaire, ses buts et ses passes dans ta ligue. js/run-scenes.js `ficheDuJoueur`, `nomQuiOuvre` ; js/run.js `joueurDeLaRun`, `derniersMatchsDe` ; js/run-jeu.js `ouvrirLaFiche`.
+  - Ce qui l'ouvre : une ligne de Mon club, de la Masse, des meneurs ; chaque nom du sommaire et du direct ; à l'Alignement, la tête du tableau quand on tient un joueur.
+  - `essai_run` (19 vérifications), `check_scene`, `tout.mjs`, `check_mort`. Version 4.3.0. La décision : docs/decisions.md, « Le détail du Rogue, tranche 3 ».

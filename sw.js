@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-4.2.0';  // 4.2.0 : Mon club dit tout ce que chacun a fait (le +/−, le temps de glace, le jeu physique…), en tableau qui glisse de côté (JP, 25 nov. 2026)
+const VERSION = 'cap82-4.3.0';  // 4.3.0 : dans le Rogue, toucher un nom ouvre la fiche du joueur (JP, 25 nov. 2026)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

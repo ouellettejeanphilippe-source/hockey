@@ -14,6 +14,8 @@
  *   3 bis. LE DIRECT, mouvement permis (JP, 25 nov. 2026) : « Au match » ouvre le direct du jeu par-dessus la scène, son
  *      horloge tourne, « Passer à la fin » puis « Continuer » mènent au résultat, dont les quatre vues s'ouvrent, au même
  *      pointage que le direct et que la run ; quitter la page pendant le direct reprend au résultat, le sommaire avec ;
+ *   3 ter. LA FICHE D'UN JOUEUR : un nom du direct, un nom du sommaire, une ligne de Mon club l'ouvrent par-dessus (sa
+ *      carte, sa saison chez toi, son salaire de la run, ses derniers matchs) ; fermée, on est où on était ;
  *   4. une affiche posée à la feuille est jouée en affiche ;
  *   5. quitter au menu et rouvrir reprend la run où elle était ;
  *   6. le premier quart finit par son bilan, son marché, et l'ouverture du deuxième ;
@@ -216,6 +218,12 @@ if (tardive) {
   const h1 = await p2.textContent('#liveModal .live-temps');
   if (DOSSIER) await p2.screenshot({ path: `${DOSSIER}/essai-direct.png` });
   await clic('#liveModal .live-fin', 500);
+  // Un nom du fil ouvre sa fiche, par-dessus le direct ; fermée, le direct est encore là.
+  const fiche = { visible: () => p2.$eval('#hockeyCardModal', el => getComputedStyle(el).display !== 'none' && document.elementFromPoint(195, 300) && el.contains(document.elementFromPoint(195, 300))), fermer: () => clic('#closeHockeyCardBtn', 300) };
+  await clic('#liveModal .live-feed [data-a="fiche"]', 600);
+  const ficheAuDirect = await fiche.visible() && !!(await p2.textContent('#ficheTitre')).trim();
+  await fiche.fermer();
+  const directEncoreLa = !(await fiche.visible()) && !!(await p2.$('#liveModal .live-suite'));
   const auDirect = (await p2.$$eval('#liveModal .live-eq-buts > b', l => l.map(el => el.textContent.trim()))).join(' · ');
   await clic('#liveModal .live-suite', 500);
   await p2.waitForSelector('#runModal [data-a="continuer"]:not([disabled])', { timeout: 20000 });
@@ -225,8 +233,23 @@ if (tardive) {
   if (DOSSIER) await p2.screenshot({ path: `${DOSSIER}/essai-sommaire.png` });
   exiger('« Au match » ouvre le direct par-dessus la scène, et son horloge tourne', couvre && h0 !== h1, `${h0} → ${h1}`);
   exiger('le direct, le résultat et la run disent le même pointage', !!garde && auDirect === garde && auResultat === garde, `le direct ${auDirect}, le résultat ${auResultat}, la run ${garde}`);
+  // Un nom du sommaire ouvre sa fiche, par-dessus la scène.
+  await clic('#runModal .som-racine [data-a="fiche"]', 600);
+  const ficheAuSommaire = await fiche.visible();
+  await fiche.fermer();
+  exiger('un nom du direct et un nom du sommaire ouvrent la fiche du joueur, par-dessus ; fermée, on est où on était', ficheAuDirect && directEncoreLa && ficheAuSommaire && !(await fiche.visible()), `au direct ${ficheAuDirect ? 'oui' : 'non'}, le direct encore là ${directEncoreLa ? 'oui' : 'non'}, au sommaire ${ficheAuSommaire ? 'oui' : 'non'}`);
   exiger('le résultat ouvre ses quatre vues (le récit, les chiffres, la feuille, le sommaire), sans glisser de côté', vues.length === 4 && vues.every(Boolean), vues.map(x => (x ? 'oui' : 'non')).join(' '));
   await clic('#runModal [data-a="continuer"]', 400);
+  // Au bureau : une ligne de Mon club ouvre la fiche de ton joueur — sa saison chez toi, ses derniers matchs.
+  if (await p2.$('#runModal [data-a="onglet"][data-v="club"]')) {
+    await clic('#runModal [data-a="onglet"][data-v="club"]', 300);
+    const nom = (await p2.textContent('#runModal .rn-cadre [data-a="fiche"] > span')).trim();
+    await clic('#runModal .rn-cadre [data-a="fiche"]', 600);
+    const lu = await p2.evaluate(() => ({ titre: document.getElementById('ficheTitre').textContent, corps: document.getElementById('hockeyCardBody').textContent, matchs: document.querySelectorAll('#hockeyCardBody .jr-table tbody tr').length, carte: !!document.querySelector('#hockeyCardBody .fiche-carte') }));
+    exiger('une ligne de Mon club ouvre la fiche de ton joueur : sa carte, sa saison chez toi, ses derniers matchs', await fiche.visible() && lu.carte && nom.includes(lu.titre.trim().split(' ').at(-1)) && /Sa saison chez toi/i.test(lu.corps) && /Son salaire dans ta run/i.test(lu.corps) && lu.matchs >= 1, `${lu.titre} : ${lu.matchs} matchs`);
+    await fiche.fermer();
+    await clic('#runModal [data-a="onglet"][data-v="bureau"]', 300);
+  }
   // Deuxième soir : quitter la page pendant le direct. Le match est compté ; rouvrir reprend à son résultat, le sommaire avec.
   if (await p2.$('#runModal [data-a="aller"]:not([disabled])')) {
     const n0 = (await lu()).matchs.length;
