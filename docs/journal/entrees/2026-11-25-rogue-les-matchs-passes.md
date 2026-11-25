@@ -1,0 +1,5 @@
+- **25 nov. · Dans le Rogue, chaque match joué se rouvre**
+  - JP : *les matchs passés* ; puis, la feuille complète pesant trop (800 Ko par saison) : *la feuille de match, partout*. La cinquième tranche du détail du Rogue.
+  - Mon club · Matchs montre tous les matchs de la run ; en toucher un (ou un match joué de la cédule) rouvre son sommaire en quatre vues : le pointage, les trois étoiles, les buts racontés, les punitions, les tirs par période, les gardiens, la ligne de chaque patineur. Pas la carte des tirs ni les faits saillants, que seul le dernier match garde. Ça suit d'un appareil à l'autre.
+  - js/run.js (`archiver`, `relireLArchive`, `matchPasse`, `R.archives`, `R.cles`), js/run-scenes.js (`sceneMatchVu`, `vueDuSommaire`), js/run-jeu.js, js/bilan.js, js/sim.js (`compterFeuilles` lit les comptes d'une feuille réduite).
+  - 1,7 Ko par match ; la sauvegarde maigrit (166 Ko au 40ᵉ match au lieu de 192). `check_run` (20), `check_scene` (16, 60 scènes), `essai_run`, `tout.mjs`, `check_mort`. Version 4.6.0. La décision : docs/decisions.md, « Le détail du Rogue, tranche 5 ».

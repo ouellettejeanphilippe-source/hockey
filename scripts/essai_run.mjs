@@ -245,9 +245,18 @@ if (tardive) {
     await clic('#runModal [data-a="onglet"][data-v="club"]', 300);
     const nom = (await p2.textContent('#runModal .rn-cadre [data-a="fiche"] > span')).trim();
     await clic('#runModal .rn-cadre [data-a="fiche"]', 600);
-    const lu = await p2.evaluate(() => ({ titre: document.getElementById('ficheTitre').textContent, corps: document.getElementById('hockeyCardBody').textContent, matchs: document.querySelectorAll('#hockeyCardBody .jr-table tbody tr').length, carte: !!document.querySelector('#hockeyCardBody .fiche-carte') }));
-    exiger('une ligne de Mon club ouvre la fiche de ton joueur : sa carte, sa saison chez toi, ses derniers matchs', await fiche.visible() && lu.carte && nom.includes(lu.titre.trim().split(' ').at(-1)) && /Sa saison chez toi/i.test(lu.corps) && /Son salaire dans ta run/i.test(lu.corps) && lu.matchs >= 1, `${lu.titre} : ${lu.matchs} matchs`);
+    const fi = await p2.evaluate(() => ({ titre: document.getElementById('ficheTitre').textContent, corps: document.getElementById('hockeyCardBody').textContent, matchs: document.querySelectorAll('#hockeyCardBody .jr-table tbody tr').length, carte: !!document.querySelector('#hockeyCardBody .fiche-carte') }));
+    exiger('une ligne de Mon club ouvre la fiche de ton joueur : sa carte, sa saison chez toi, ses derniers matchs', await fiche.visible() && fi.carte && nom.includes(fi.titre.trim().split(' ').at(-1)) && /Sa saison chez toi/i.test(fi.corps) && /Son salaire dans ta run/i.test(fi.corps) && fi.matchs >= 1, `${fi.titre} : ${fi.matchs} matchs`);
     await fiche.fermer();
+    // « Matchs » : le match qu'on vient de jouer se rouvre de sa feuille de match gardée (JP, 25 nov. 2026 : *la feuille de
+    // match, partout*), au pointage que la run garde, puis « Retour » ramène à la liste.
+    await clic('#runModal [data-a="seg-c"][data-v="matchs"]', 300);
+    await clic('#runModal .rn-cadre [data-a="match-vu"]', 500);
+    const rouvert = await pointageVu(p2), vuesDuMatch = await p2.$$eval('#runModal [data-a="seg-m"]', l => l.length);
+    await clic('#runModal [data-a="seg-m"][data-v="feuille"]', 300);
+    const patineurs = await p2.$$eval('#runModal .som-feuille-table', l => l.map(t => t.querySelectorAll('tbody tr').length));
+    await clic('#runModal [data-a="fermer-match-vu"]', 300);
+    exiger('un match passé se rouvre de « Matchs » : le pointage que la run garde, ses quatre vues, la feuille des deux clubs ; « Retour » ramène à la liste', rouvert === pointageGarde(await lu()) && vuesDuMatch === 4 && patineurs.length === 2 && patineurs.every(n => n >= 15) && !!(await p2.$('#runModal .rn-cadre [data-a="match-vu"]')), `${rouvert} ; ${patineurs.join(' et ')} patineurs`);
     await clic('#runModal [data-a="onglet"][data-v="bureau"]', 300);
   }
   // Deuxième soir : quitter la page pendant le direct. Le match est compté ; rouvrir reprend à son résultat, le sommaire avec.

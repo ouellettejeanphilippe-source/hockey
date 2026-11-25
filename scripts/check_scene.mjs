@@ -47,7 +47,8 @@ const LARGEUR = 390, HAUTEUR = 844, GRAINES_MAX = 4;
 const ONGLETS = [['l\'alignement', [['onglet', 'alignement']]], ['l\'alignement, un joueur tenu', [['case']]], ['le banc', [['seg-a', 'banc']]], ['la masse', [['onglet', 'masse']]],
   ['le classement', [['onglet', 'ligue']]], ['les meneurs', [['seg-l', 'meneurs']]], ['les meneurs, triés par le +/−', [['tri-l', 'pm']]], ['les gardiens de la ligue', [['seg-l', 'gardiens']]], ['la cédule', [['seg-l', 'cedule']]],
   ['la page d\'un club', [['seg-l', 'classement'], ['club-vu', '3']]], ['mon club', [['fermer-club-vu'], ['onglet', 'club']]], ['mon club, trié par les buts', [['tri', 'b']]],
-  ['mes gardiens', [['seg-c', 'gardiens']]], ['mes matchs', [['seg-c', 'matchs']]], ['les pochettes', [['onglet', 'bureau'], ['etal']]], ['la pause', [['fermer-etal'], ['pause']]]];
+  ['mes gardiens', [['seg-c', 'gardiens']]], ['mes matchs', [['seg-c', 'matchs']]], ['un match passé', [['match-vu', '0']]], ['un match passé, sa feuille', [['seg-m', 'feuille']]],
+  ['les pochettes', [['fermer-match-vu'], ['onglet', 'bureau'], ['etal']]], ['la pause', [['fermer-etal'], ['pause']]]];
 const SUITES = {
   pieces: [],
   repechage: [],
@@ -239,7 +240,7 @@ for (const [cle, suites] of Object.entries(SUITES)) {
       el.scrollLeft = 0; el.scrollTop = 0;
       return ok;
     });
-    if (nom === 'le résultat, la feuille') tableaux[nom].patineurs = await page.$$eval('#runModal .som-feuille-table', l => l.map(t => t.querySelectorAll('tbody tr').length));
+    if (nom === 'le résultat, la feuille' || nom === 'un match passé, sa feuille') tableaux[nom].patineurs = await page.$$eval('#runModal .som-feuille-table', l => l.map(t => t.querySelectorAll('tbody tr').length));
   }
   await page.close();
 }
@@ -258,6 +259,8 @@ const GL = ['le classement', 'les meneurs', 'les meneurs, triés par le +/−', 
 exiger('un tableau de stats glisse de côté dans son cadre, le nom figé à gauche et la tête en haut', GL.every(([, t]) => t && t.glisse && t.fige === true), GL.map(([n, t]) => `${n} : ${t && t.glisse ? (t.fige ? 'figé' : 'le nom ou la tête bouge') : 'ne glisse pas'}`).join(' · '));
 const FM = tableaux['le résultat, la feuille'];
 exiger('le résultat est le sommaire du match : sa feuille dit les patineurs des deux clubs', !!FM && FM.patineurs.length === 2 && FM.patineurs.every(n => n >= 15), FM ? `${FM.patineurs.join(' et ')} patineurs` : 'pas de feuille');
+const MP = tableaux['un match passé, sa feuille'], MM = tableaux['mes matchs'];
+exiger('un match passé se rouvre de Mon club : sa feuille de match gardée dit encore les patineurs des deux clubs', !!MP && MP.patineurs.length === 2 && MP.patineurs.every(n => n >= 15) && !!MM && MM.lignes >= 1, MP ? `${MP.patineurs.join(' et ')} patineurs` : 'pas de feuille');
 exiger('l\'alignement montre tes vingt-trois', !!tableaux['l\'alignement'] && tableaux['l\'alignement'].lignes >= 23, tableaux['l\'alignement'] ? `${tableaux['l\'alignement'].lignes} lignes` : 'pas de tableau');
 exiger('aucun bloc ni aucune cible ne passe sous les boutons du bas ni sous les onglets, aucune réponse d\'histoire n\'est coupée', !fautes.couvert.length, fautes.couvert.slice(0, 4).join(' · '));
 exiger('le HUD est toujours au même endroit', !fautes.hud.length && !!hud0, fautes.hud.slice(0, 4).join(' · ') || `ses cœurs à ${hud0 ? hud0.join(',') : '?'}`);

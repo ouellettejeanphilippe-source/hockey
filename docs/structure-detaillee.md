@@ -184,7 +184,7 @@ minutes), check_situations (ne démarre plus depuis la V25 A1).
 scripts/smoke.mjs           le test de fumée à 390 px (.claude/rules/tests.md) ; en CI
 scripts/smoke_table.mjs     le même en mode Sur table : le tournoi, le plateau joué geste par geste, le bilan ; en CI
 scripts/check_hauteur.mjs   un choix tient en un écran (V25 B2, 6 nov. 2026) : ton identité au repêchage, trois cartes de jeu de front à 390 × 844, chaque nom lisible, la carte retournée qui se rapproche ; une capture ; en CI
-scripts/check_scene.mjs     58 scènes du Rogue ouvertes à 390 × 844 de vraies sauvegardes de robot : la scène ne défile jamais, seul le cadre d'un tableau défile, le classement à trente-deux, le HUD au même pixel, les cibles de 44, aucun bloc sous les onglets
+scripts/check_scene.mjs     60 scènes du Rogue ouvertes à 390 × 844 de vraies sauvegardes de robot : la scène ne défile jamais, seul le cadre d'un tableau défile, le classement à trente-deux, le HUD au même pixel, les cibles de 44, aucun bloc sous les onglets
 scripts/essai_run.mjs       une saison du Rogue au doigt, le hasard semé (GRAINE) : le repêchage et le premier quart d'une page vide, la fin et les séries d'une sauvegarde de robot ; cinq touchers au plus par soir ordinaire, le pointage vu est celui que la run garde, quitter et rouvrir
 scripts/essai_synchro.mjs   la sauvegarde d'un appareil à l'autre au doigt (25 nov. 2026) : un téléphone et un ordinateur dans Chromium, un faux GitHub tenu par le script — la fenêtre du jeton, la sauvegarde créée, reçue à l'ouverture, le conflit montré au menu, l'envoi quand la page se cache, débrancher
 scripts/essai_exhibition.mjs l'exhibition et le « au hasard »

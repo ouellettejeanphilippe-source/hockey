@@ -32,7 +32,7 @@ import { nomCourt } from './recit.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
   RUN, masseDe, espaceDe, prixDe, masseApres, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe, leurBanc, signesDe, effectifDe, prixDeLaRelance, reglesDe, aMonter,
-  budgetDuTour, vestiaireDuRepechage, classement, rangDe, clubNo, meneursDe, matchNo, prochainSoir, etatDeLObjectif, histoireDuJour, pochetteLibre, offresVues, dernierMatch, STATS, STATS_G,
+  budgetDuTour, vestiaireDuRepechage, classement, rangDe, clubNo, meneursDe, matchNo, prochainSoir, etatDeLObjectif, histoireDuJour, pochetteLibre, offresVues, dernierMatch, matchPasse, STATS, STATS_G,
   joueurDeLaRun, derniersMatchsDe, gardiensDe, CLUB,
 } from './run.js';
 
@@ -331,7 +331,7 @@ function pageLigue(S, V) {
     const n = R.matchs.length, Q = R.quart;
     const aVenir = R.series ? [] : Array.from({ length: Math.min(12, RUN.LIGUE.MATCHS - n) }, (_, j) => matchNo(S, n + j));
     const venir = aVenir.map(m => ligne([m.k + 1, `${logoNo(S, m.i)} ${nomDuClubNo(S, m.i)}`, m.visiteur ? 'Chez eux' : 'Chez toi', `${MARQUE[Q.gros[m.k]] || ''}${m.dos ? '<span class="rn-puce rn-r">Dos-à-dos</span>' : ''}`]));
-    const joues = R.matchs.slice(-8).reverse().map((m, j) => ligne([n - j, `${logo(m.t, 18)} ${esc(clubCourt(m))}`, m.visiteur ? 'Chez eux' : 'Chez toi', `<b class="${m.gagne ? 'rn-vert' : 'rn-rg'}">${m.gf}-${m.ga}${m.ot ? ' P' : ''}</b>`]));
+    const joues = R.matchs.slice(-8).reverse().map((m, j) => ligne([n - j, `${logo(m.t, 18)} ${esc(clubCourt(m))}`, m.visiteur ? 'Chez eux' : 'Chez toi', `<b class="${m.gagne ? 'rn-vert' : 'rn-rg'}">${m.gf}-${m.ga}${m.ot ? ' P' : ''}</b>`], quiRouvre(S, n - j - 1)));
     return `${tete}${cadre(tableau('26px 1fr 62px 96px', ['', 'Adversaire', 'Lieu', ''], [...(venir.length ? ['<div class="rn-l rn-unite"><span>À venir</span><span></span><span></span></div>', ...venir] : []), ...(joues.length ? ['<div class="rn-l rn-unite"><span>Déjà joués</span><span></span><span></span></div>', ...joues] : [])]))}`;
   }
   const rangs = classement(S).map((i, r) => {
@@ -368,8 +368,8 @@ export function sceneClubVu(S, V) {
  * L'ONGLET MON CLUB : ce que chacun a fait chez toi. « Patineurs » et « Gardiens » : tout ce que les feuilles comptent (JP,
  * 25 nov. 2026 : *stats super détaillées*), dans un tableau qui glisse de côté, le nom figé à gauche (*glisser de côté*).
  * Les colonnes vont de ce qu'on cherche d'abord à ce qu'on fouille : le pointage, le +/−, le tir, la glace, le jeu
- * physique, les unités spéciales, les buts gagnants ; toucher un en-tête trie par lui. « Matchs » : ta séquence et tes
- * douze derniers.
+ * physique, les unités spéciales, les buts gagnants ; toucher un en-tête trie par lui. « Matchs » : ta séquence, puis
+ * chaque match de la run, le dernier en tête ; en toucher un rouvre sa feuille de match (`sceneMatchVu`).
  */
 /* [la clé du tri, l'en-tête, la valeur qu'on trie, ce qu'on lit] */
 const COLONNES = [
@@ -388,7 +388,7 @@ function pageMonClub(S, V) {
     let suite = 0;
     for (let i = R.matchs.length - 1; i >= 0 && R.matchs[i].gagne === R.matchs.at(-1).gagne; i--) suite++;
     const f = R.ligue.fiches[0], dix = R.matchs.slice(-10);
-    const lignes = R.matchs.slice(-12).reverse().map((m, j) => ligne([R.matchs.length - j, `${logo(m.t, 18)} ${esc(clubCourt(m))}`, MARQUE[m.sorte] || (m.sorte === 'serie' ? '<span class="rn-puce">Séries</span>' : ''), `<b class="${m.gagne ? 'rn-vert' : 'rn-rg'}">${m.gf}-${m.ga}${m.ot ? ' P' : ''}</b>`]));
+    const lignes = R.matchs.slice().reverse().map((m, j) => ligne([R.matchs.length - j, `${logo(m.t, 18)} ${esc(clubCourt(m))}`, MARQUE[m.sorte] || (m.sorte === 'serie' ? '<span class="rn-puce">Séries</span>' : ''), `<b class="${m.gagne ? 'rn-vert' : 'rn-rg'}">${m.gf}-${m.ga}${m.ot ? ' P' : ''}</b>`], quiRouvre(S, R.matchs.length - j - 1)));
     return `${tete}<div class="rn-cellules" style="left:14px;right:14px;top:114px"><div><b>${ficheMot(f)}</b><small>Ta fiche</small></div><div><b>${dix.filter(m => m.gagne).length}-${dix.filter(m => !m.gagne).length}</b><small>Tes dix derniers</small></div><div><b class="${R.matchs.length && R.matchs.at(-1).gagne ? 'rn-vert' : 'rn-rg'}">${suite}</b><small>${R.matchs.length && R.matchs.at(-1).gagne ? 'Victoires' : 'Défaites'} de suite</small></div></div>
     ${cadre(lignes.length ? tableau('26px 1fr 84px 54px', ['', 'Adversaire', '', 'Pointage'], lignes) : '<div class="rn-t rn-gris" style="padding:14px">Aucun match joué encore.</div>', 196)}`;
   }
@@ -539,6 +539,27 @@ const gainsDuMatch = a => [a.pts ? `<span class="rn-vert">+${a.pts} point${a.pts
  * Un seul bouton : la suite.
  */
 const VUES_DU_RESULTAT = [['sommaire', 'Sommaire'], ['recit', 'Récit'], ['chiffres', 'Chiffres'], ['feuille', 'Feuille']];
+/* Une vue du sommaire d'un match (`sommaireHtml`, js/bilan.js). Sous « Sommaire », les périodes ne montrent que leurs buts ; ailleurs, tout se lit (`som-plus`). */
+const som = (html, tout = true) => `<div class="som-racine${tout ? ' som-plus' : ''}">${html}</div>`;
+const vueDuSommaire = (P, vue, tete, soir = '') => (vue === 'recit' ? som(P.saillants + P.periodes) : vue === 'chiffres' ? som(P.tableau + P.glace + P.gardiens) : vue === 'feuille' ? som(P.feuille) : `${tete}${som(P.lignes + soir + P.etoiles + P.periodes, false)}`);
+/* Ce qui fait d'une ligne de match une ligne qui rouvre sa feuille de match : rien, pour un match d'avant les archives. */
+const quiRouvre = (S, k) => { const a = (S.R.archives || [])[k]; return a && !a.b.vieux ? { a: 'match-vu', v: k } : {}; };
+/*
+ * UN MATCH PASSÉ, ROUVERT (JP, 25 nov. 2026 : *la feuille de match, partout*) : les quatre vues du résultat, lues de sa
+ * feuille de match gardée. Elle ne garde ni chaque lancer ni chaque coup : le récit dit les buts, les punitions, les
+ * bagarres et les blessures, sans les coups d'épaule ni les faits saillants ; les chiffres, sans la carte des tirs. Ouvert
+ * de Mon club et de la cédule ; « Retour » y ramène.
+ */
+export function sceneMatchVu(S, V) {
+  const k = V.matchVu, m = S.R.matchs[k], M = matchPasse(S, k), serie = m.sorte === 'serie';
+  const P = sommaireHtml({ f: M.f, A: M.A, B: M.B, avant: M.avant, pied: serie ? 'séries' : 'saison régulière', lien: (p, t, html) => nomQuiOuvre(p, html) }).parts;
+  const vue = VUES_DU_RESULTAT.some(([x]) => x === V.segM) ? V.segM : 'sommaire';
+  const tete = `<div class="rn-k ${m.gagne ? 'rn-vert' : 'rn-rg'}">Match ${k + 1} · ${m.gagne ? 'gagné' : m.ot ? 'perdu en prolongation' : 'perdu'} ${m.visiteur ? `à ${esc(ville(m.t))}` : `contre ${esc(surnom(m.t))}`}</div>`;
+  return `${hud(S)}
+  ${segment('seg-m', vue, VUES_DU_RESULTAT)}
+  ${cadre(`<div class="rn-somm">${vueDuSommaire(P, vue, tete)}</div>`, 112, 76)}
+  ${bas(bt('Retour', 'fermer-match-vu'))}`;
+}
 export function sceneResultat(S, V) {
   const R = S.R, a = R.apres, serie = a.sorte === 'serie', X = R.series, M = dernierMatch(S), F = R.ligue.fiches[0];
   const autres = (a.autres || []).slice(0, 10).map(m => `<div><span>${logoNo(S, m.a, 16)} ${nomDuClubNo(S, m.a)}</span><b>${m.gfA}-${m.gfB}${m.ot ? ' P' : ''}</b><span>${nomDuClubNo(S, m.b)} ${logoNo(S, m.b, 16)}</span></div>`).join('');
@@ -548,16 +569,10 @@ export function sceneResultat(S, V) {
   const soir = `<div class="rn-soir"><div class="rn-t">${gainsDuMatch(a) || 'Aucun point'}</div>${rang}${laSerie}${pieces}</div>`;
   const P = M ? sommaireHtml({ f: M.f, A: M.A, B: M.B, avant: M.avant, pied: serie ? 'séries' : 'saison régulière', fiche: serie ? null : { v: F[0], d: F[1], pr: F[2] }, lien: (p, t, html) => nomQuiOuvre(p, html) }).parts : null;
   const vue = P && VUES_DU_RESULTAT.some(([k]) => k === V.segR) ? V.segR : 'sommaire';
-  // Sous « Sommaire », les périodes ne montrent que leurs buts ; ailleurs, tout se lit (`som-plus`, js/bilan.js).
-  const som = (html, tout = true) => `<div class="som-racine${tout ? ' som-plus' : ''}">${html}</div>`;
   const verdict = `<div class="rn-k ${a.gagne ? 'rn-vert' : 'rn-rg'}">${a.gagne ? 'Gagné' : a.ot ? 'Perdu en prolongation' : 'Perdu'} ${a.visiteur ? `à ${esc(ville(a.t))}` : `contre ${esc(surnom(a.t))}`}</div>`;
   const ailleurs = autres ? `<div class="rn-k">Ailleurs dans la ligue</div><div class="rn-ailleurs">${autres}</div>` : '';
   // Une run gardée avant le 25 nov. 2026 n'a pas la feuille de son dernier match : le pointage et le soir, sans le sommaire.
-  const corps = !P ? `${verdict}<div class="rn-titre">${a.gf} · ${a.ga}</div>${soir}${ailleurs}`
-    : vue === 'recit' ? som(P.saillants + P.periodes)
-      : vue === 'chiffres' ? som(P.tableau + P.glace + P.gardiens)
-        : vue === 'feuille' ? som(P.feuille)
-          : `${verdict}${som(P.lignes + soir + P.etoiles + P.periodes, false)}${ailleurs}`;
+  const corps = !P ? `${verdict}<div class="rn-titre">${a.gf} · ${a.ga}</div>${soir}${ailleurs}` : `${vueDuSommaire(P, vue, verdict, soir)}${vue === 'sommaire' ? ailleurs : ''}`;
   const suite = R.fin ? 'Voir la fin' : R.suite[0] === 'piece' ? 'Ta pièce' : R.suite[0] === 'portes' ? 'Tes trois portes' : R.suite[0] === 'bilan' ? 'Le bilan du proprio' : serie ? 'Le tableau' : 'Au bureau';
   return `${hud(S, { petit: serie ? RONDES[Math.min(RONDES.length - 1, X.ronde)] : null })}
   ${P ? segment('seg-r', vue, VUES_DU_RESULTAT) : ''}

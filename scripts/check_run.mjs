@@ -24,7 +24,7 @@
  */
 import { getPersonKey, getPlayerKey, compterFeuilles } from '../js/sim.js';
 import { groupeDuJoueur as groupeDe } from '../js/niveaux.js';
-import { RUN, GALONS, STATS, STATS_G, CLUB, LIGUEUR, effectifDe, masseDe, medaillesDe, classement } from '../js/run.js';
+import { RUN, GALONS, STATS, STATS_G, CLUB, LIGUEUR, effectifDe, masseDe, medaillesDe, classement, matchPasse, dernierMatch } from '../js/run.js';
 import { CAP } from '../js/sim.js';
 import { jouerLaRun } from './lib/run_robot.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -69,6 +69,33 @@ function jouer(relireA) {
         if (g) plus(g, [1, 0, 0, 0, 0, 0, cg.bl, cg.dq]);
         // Chaque but hors de l'avantage numérique dit qui était sur la glace : le +/− de la feuille.
         for (const b of f.buts) if (!b.an && !b.fusillade) { vu.glace[1]++; if ((b.pour || []).length) vu.glace[0]++; }
+      }
+      // La feuille de match gardée (JP, 25 nov. 2026 : *la feuille de match, partout*) : relue des archives, elle compte
+      // de chacun ce que la feuille complète comptait, et dit les mêmes buts, les mêmes tirs, les mêmes arrêts.
+      {
+        const f = x.feuille, k = R.matchs.length - 1, M = matchPasse(S, k), dit = `match ${k + 1}`;
+        if (!M) faute('archives', `${dit} : rien aux archives`);
+        else {
+          // Côté par côté : un joueur signé depuis chez le club affronté porte la même clé des deux bords.
+          const C = compterFeuilles([f]), D = compterFeuilles([M.f]);
+          for (const cote of ['A', 'B']) {
+            const relus = new Map([...M.f.alignes[cote], cote === 'A' ? M.f.gardienA : M.f.gardienB].filter(Boolean).map(p => [getPlayerKey(p), p]));
+            for (const p of [...f.alignes[cote], cote === 'A' ? f.gardienA : f.gardienB].filter(Boolean)) {
+              const c = C.get(p), q = relus.get(getPlayerKey(p)), d = q && D.get(q);
+              if (!d) { faute('archives', `${dit} : ${p.n} absent`); continue; }
+              const autres = ['gp', 'g', 'a', 'pts', 'sh', 'pm', 'pim', 'coups', 'blocs', 'ppp', 'shp', 'gwg', 'w', 'l', 'sa', 'sv', 'ga', 'bl', 'dq'].filter(k2 => c[k2] !== d[k2]);
+              if (autres.length || Math.abs(c.toi - d.toi) > 0.051) faute('archives', `${dit} : ${p.n} ${autres.join(',') || 'toi'}`);
+            }
+          }
+          const buts = F => F.buts.map(b => [b.cote, b.instant, b.marqueur && getPlayerKey(b.marqueur), (b.passeurs || []).map(getPlayerKey), !!b.an, !!b.dn, !!b.fusillade]);
+          if (JSON.stringify(buts(f)) !== JSON.stringify(buts(M.f))) faute('archives', `${dit} : les buts`);
+          if (JSON.stringify([f.tirs, f.arrets.A, f.arrets.B, f.vainqueur, !!f.ot, f.gfA, f.gfB]) !== JSON.stringify([M.f.tirs, M.f.arrets.A, M.f.arrets.B, M.f.vainqueur, M.f.ot, M.f.gfA, M.f.gfB])) faute('archives', `${dit} : les tirs, les arrêts ou le pointage`);
+          // « (12e) » : avant ce match, chaque pointeur du soir avait ce que le dernier match dit de lui.
+          const avant = dernierMatch(S).avant, pointeurs = new Set(f.buts.flatMap(b => [b.marqueur, ...(b.passeurs || [])]).filter(Boolean));
+          for (const p of pointeurs) { const a = avant.get(p), b = [...M.avant].find(([q]) => getPlayerKey(q) === getPlayerKey(p)); if (a && (!b || b[1].g !== a.g || b[1].a !== a.a)) faute('archives', `${dit} : avant, ${p.n}`); }
+          if ((M.e.cote === 'A' ? M.A : M.B) !== S.toi || M.e.gf !== x.gf || M.e.ga !== x.ga) faute('archives', `${dit} : sa tête`);
+          vu.archives = (vu.archives || 0) + 1;
+        }
       }
       if (S.toi._filetMatch !== 'partant') faute('filet', `match ${R.matchs.length}`);
       if (R.jetons < 0) faute('caisse', `${R.jetons} jetons au match ${R.matchs.length}`);
@@ -162,6 +189,15 @@ exiger('une pochette de chaque sorte au plus par quart', ok('pochettes'), dit('p
 exiger('après chaque match, le filet revient au partant', ok('filet'), dit('filet'));
 exiger('les séries sont les vraies : seize clubs, quatre victoires, une série perdue finit la run', ok('series'), dit('series') || (A.r.R.series ? `${A.r.rondes} ronde(s) gagnée(s)` : `pas de séries (${A.r.fin.cause})`));
 exiger('les médailles et les galons se recomptent ; personne deux fois dans la run', ok('medailles') && ok('galons') && ok('vus') && A.vu.fin, dit('medailles') || dit('galons') || dit('vus') || `${A.r.fin.medailles} médailles`);
+{
+  const R = A.r.R, n = R.matchs.length, poids = JSON.stringify(R.archives).length, tout = JSON.stringify(R).length;
+  exiger('chaque match joué garde sa feuille de match, qui compte de chacun ce que la feuille complète comptait', ok('archives') && A.vu.archives === n && R.archives.length === n && R.archives.every(Boolean), dit('archives') || `${A.vu.archives} matchs relus des archives`);
+  exiger('… en moins de 2,5 Ko par match, et du journal la sauvegarde ne garde que la feuille complète du dernier', poids / n < 2500 && R.journal.length === 1 && !!R.journal[0].F, `${Math.round(poids / n)} octets par match, ${Math.round(poids / 1024)} Ko pour ${n} matchs ; la sauvegarde entière : ${Math.round(tout / 1024)} Ko (${R.cles.length} joueurs dans la table)`);
+  // Sauf la durée d'une blessure chez l'adversaire : le moteur la tire de ce qu'il se rappelle de ce joueur dans la séance (ses
+  // commotions d'avant), que la sauvegarde ne garde pas pour les autres clubs ; elle ne change ni un match ni un classement.
+  const sansDuree = r => JSON.stringify(r.R.archives.map(a => ({ ...a, b: { ...a.b, i: a.b.i.map(x => x.slice(0, 3)) } })));
+  exiger('… et gardée puis relue au trentième match, la run a les mêmes archives', sansDuree(A.r) === sansDuree(B.r) && JSON.stringify(A.r.R.cles) === JSON.stringify(B.r.R.cles));
+}
 exiger('la même graine rejoue la même run, gardée et relue au trentième match ou non', empreinte(A) === empreinte(B), empreinte(A) === empreinte(B) ? `${A.r.pts} points, ${A.r.fin.cause}` : `${A.r.pts} points puis ${B.r.pts}`);
 informer('la run', `${ROBOT}, graine ${GRAINE} : ${A.r.pts} points, ${A.r.rang}e, ${A.r.fin.cause}, ${A.r.fin.matchs} matchs, ${A.r.signatures} signatures ; ${Math.round((Date.now() - t0) / 1000)} s`);
 verdict('La saison du Rogue tient ses règles');

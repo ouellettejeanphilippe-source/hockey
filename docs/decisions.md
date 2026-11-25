@@ -4094,3 +4094,30 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Pas fait.** Pendant une run du Rogue, un conflit ne se voit qu'au menu. Deux appareils qui envoient dans la même seconde : GitHub n'offre pas d'écriture conditionnelle sur un Gist ; le dernier écrit gagne, l'autre est à l'historique.
 
 **Les preuves.** `check_synchro` (41, sans navigateur : deux stockages, un faux GitHub, son refus, son réseau qui tombe), `essai_synchro` (16, dans Chromium : un téléphone et un ordinateur, du jeton au conflit).
+
+## Le détail du Rogue, tranche 5 : les matchs passés (25 nov. 2026)
+
+**Ce que JP a demandé** : *les matchs passés*, qui se rouvrent.
+
+**La mesure d'abord.** La feuille complète d'un match pèse 30 Ko dans la sauvegarde (36 pour un gros match). Trois façons de la réduire, mesurées sur le même match : compressée telle quelle (gzip, base 64), 5,6 Ko ; ses joueurs en numéros et ses nombres arrondis, 23 Ko ; rangée en colonnes avec des valeurs par défaut, 9,8 Ko, donc 800 Ko par saison. La sauvegarde en faisait 220, le stockage d'un téléphone plafonne à quelques mégaoctets, et la synchro GitHub renvoie la sauvegarde entière à chaque envoi.
+
+**La question posée à JP**, avec ces chiffres : la feuille de match partout ; le sommaire complet sur l'appareil où le match s'est joué (hors de la sauvegarde, donc pas sur l'autre appareil) ; ou les deux. Sa réponse : **la feuille de match, partout**.
+
+**Ce qu'une feuille de match garde** (`archiver`, js/run.js) : le pointage, chaque but (son instant, le marqueur, les passeurs, le gardien, l'avantage ou le désavantage, qui était sur la glace), les punitions, les bagarres et les mêlées, les blessures, les tirs par période, les arrêts, les pièces de banc qui ont joué, ce que chaque pointeur avait avant ce match (« 12ᵉ »), et par patineur sa glace, ses tirs, ses mises en échec et ses blocs. Chaque joueur y est son numéro dans une table de la run (`R.cles`). Mesuré sur une run entière du robot : 1 740 octets par match, 177 Ko pour 104 matchs.
+
+**Ce qu'elle ne garde pas** : chaque lancer et chaque coup. Un match rouvert n'a donc ni la carte des tirs ni les faits saillants, son récit ne dit pas les coups d'épaule, et un but ne dit plus ce qui l'a décidé. Le dernier match joué garde sa feuille au complet, comme avant.
+
+**Mieux que promis, sans rien coûter.** La question annonçait « ni le récit ni la carte des tirs ». Le récit d'un but se tire du marqueur, de l'instant et du gardien, que la feuille de match garde : un match rouvert a donc ses quatre vues, le récit avec les buts racontés, les punitions, les bagarres et les blessures.
+
+**La sauvegarde maigrit.** Le journal gardait trente matchs résumés (3,6 Ko chacun, pour les faits des histoires) et le dernier au complet. Il se relit maintenant des feuilles de match, qui portent tout ce que le résumé portait : la sauvegarde ne garde plus du journal que la feuille complète du dernier match. Au 40ᵉ match : 166 Ko au lieu de 192 ; à la fin d'une saison et de ses séries, 271 Ko.
+
+**Le moteur compte une feuille réduite** : `compterFeuilles` (js/sim.js) lit les comptes qu'elle porte (`comptes` : les tirs, les mises en échec, les blocs de chacun) à la place des lancers et des coups qu'elle n'a plus. Aucun dé n'est touché.
+
+**Une run d'avant.** Une run gardée avant les archives s'ouvre : son journal devient des archives (`archiverLeVieuxJournal`). Ses trente derniers matchs gardent ce que les histoires lisent ; ils ne se rouvrent pas (ni tirs ni arrêts), sauf le dernier.
+
+**Trouvé par le juge neuf.** Une mêlée note son côté au hasard, mais son premier nom est toujours du club A et son second du club B : relue par son côté, elle donnait ses minutes de punition au mauvais joueur. Et la durée d'une blessure chez l'adversaire dépend de ce que le moteur se rappelle de lui dans la séance (ses commotions d'avant), que la sauvegarde ne garde pas pour les autres clubs : une run relue peut dire « absent 5 matchs » où la même run jouée d'un trait dit 6. Rien d'autre n'en dépend ; le juge compare les archives sans cette durée, et le dit.
+
+**Écarté.** Garder les feuilles complètes hors de la sauvegarde (IndexedDB) : elles ne suivraient pas à l'autre appareil. Un codec en colonnes écrit à la main pour chaque liste de la feuille : 8 Ko quand même, et une liste de plus à tenir à chaque champ que le moteur ajoute.
+
+**Les preuves.** `check_run` (20 : chaque match relu des archives compte de chacun ce que la feuille complète comptait, côté par côté, dit les mêmes buts, les mêmes tirs, les mêmes arrêts et le même « avant » ; moins de 2,5 Ko par match ; les mêmes archives, gardée puis relue au trentième match), `check_scene` (16, 60 scènes : un match passé, sa feuille), `essai_run` (le match qu'on vient de jouer se rouvre de « Matchs » au pointage que la run garde).
+

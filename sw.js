@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-4.5.0';  // 4.5.0 : la sauvegarde qui suit d'un appareil à l'autre, par un Gist secret de GitHub (js/synchro.js ; JP, 25 nov. 2026)
+const VERSION = 'cap82-4.6.0';  // 4.6.0 : chaque match joué du Rogue garde sa feuille de match et se rouvre, de Mon club et de la cédule (JP, 25 nov. 2026)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
