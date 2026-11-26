@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-4.10.0';  // 4.10.0 : trois joueurs au lieu de trois portes ; le cartable pigé selon la rareté ; les jambes fraîches à 92 ; l'arbre des seize en large (JP, 26 nov. 2026)
+const VERSION = 'cap82-4.11.0';  // 4.11.0 : le contrôle s'achète au Club, la première run part pauvre ; 4.10.0 : trois joueurs au lieu de trois portes ; le cartable pigé selon la rareté ; les jambes fraîches à 92 ; l'arbre des seize en large (JP, 26 nov. 2026)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

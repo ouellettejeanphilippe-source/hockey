@@ -20,7 +20,7 @@ import { SLOTS, activeLineup, badgesDe, energieDe, jambesGardien, getHiddenRatin
 import { INTENTIONS } from './greffes.js';
 import { PIECES, PIECE_DU_COACH, CASES_DU_BANC, apportDe, compteDe, marcheDe, seuilSuivant, forceDeLaPiece } from './pieces.js';
 import { COACHS, REGLES_DU_COACH, VOIES } from './coachs.js';
-import { PRESTIGES, EXIGENCES, voiesOuvertes, prixDeLaVoie, ecussonsAVie, cranOuvert } from './rogue.js';
+import { PRESTIGES, EXIGENCES, voiesOuvertes, prixDeLaVoie, ecussonsAVie, cranOuvert, AMELIORATIONS, marcheDeLAmelioration, prixDeLAmelioration, controleDuMeta, casesDe, activesDe, prochaineCase } from './rogue.js';
 import { LEGENDES } from './cartable.js';
 import { motDuRang, niveauDuCoach } from './coachs-reels.js';
 import { NIVEAUX, nomDuNiveau, groupeDuJoueur as groupeDe } from './niveaux.js';
@@ -35,7 +35,7 @@ import { sommaireHtml } from './bilan.js';
 import { nomCourt } from './recit.js';
 import { esc, money, pct3, ord, varsCarton } from './util.js';
 import {
-  RUN, masseDe, espaceDe, prixDe, masseApres, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe, leurBanc, signesDe, effectifDe, prixDeLaRelance, reglesDe, aMonter,
+  RUN, masseDe, espaceDe, prixDe, masseApres, vestiaireDe, sortantsPour, accordsDe, siTenu, editionDe, jeuDe, leurBanc, signesDe, effectifDe, prixDeLaRelance, reglesDe, controleDe, aMonter,
   budgetDuTour, vestiaireDuRepechage, classement, rangDe, clubNo, meneursDe, matchNo, prochainSoir, etatDeLObjectif, histoireDuJour, pochetteLibre, offresVues, dernierMatch, matchPasse, STATS, STATS_G,
   joueurDeLaRun, derniersMatchsDe, gardiensDe, CLUB,
 } from './run.js';
@@ -99,7 +99,7 @@ function hud(S, { titre = null, petit = null, rang = true, bourse = true, pause 
     <span class="rn-acte">${nom}${sous ? `<small>${sous}</small>` : ''}</span>
     ${place ? `<span class="rn-cible${place <= RUN.LIGUE.PLACES ? ' rn-on' : ''}"><b>${rangTxt(place)}</b><small>${2 * L.fiches[0][0] + L.fiches[0][2]} pts</small></span>` : ''}
     ${bourse ? `<span class="rn-jt"><i class="rn-piece"></i>${R.jetons}</span>` : ''}
-    <span class="rn-coeurs" role="img" aria-label="${R.coeurs} cœur${R.coeurs > 1 ? 's' : ''} sur ${RUN.COEURS}">${Array.from({ length: RUN.COEURS }, (_, i) => coeur(i < R.coeurs)).join('')}</span>
+    <span class="rn-coeurs" role="img" aria-label="${R.coeurs} cœur${R.coeurs > 1 ? 's' : ''} sur ${controleDe(R).coeurs}">${Array.from({ length: controleDe(R).coeurs }, (_, i) => coeur(i < R.coeurs)).join('')}</span>
     ${pause ? `<button type="button" class="rn-pause" data-a="pause" aria-label="Pause"><i>${ico('i-menu')}</i></button>` : ''}
   </header>`;
 }
@@ -791,7 +791,7 @@ export function sceneBilan(S) {
   return `${hud(S, { petit: 'Le bilan' })}${trait('bilan', `${chapeau(`<span class="${x.tenu ? 'rn-vert' : 'rn-rg'}">${x.tenus} objectif${x.tenus > 1 ? 's tenus' : ' tenu'} sur trois</span>`, titre, 'rn-grand rn-centre')}
   <section class="rn-panneau">${objectifsHtml(S, x.objectifs)}</section>
   <div class="rn-cellules">
-    <div><b>${Array.from({ length: RUN.COEURS }, (_, i) => coeur(i < R.coeurs)).join('')}</b><small>${x.coeur ? 'Un cœur perdu' : 'Tes cœurs gardés'}</small></div>
+    <div><b>${Array.from({ length: controleDe(R).coeurs }, (_, i) => coeur(i < R.coeurs)).join('')}</b><small>${x.coeur ? 'Un cœur perdu' : 'Tes cœurs gardés'}</small></div>
     <div><b class="${seize ? 'rn-vert' : 'rn-rg'}">${rangTxt(x.rang)}</b><small>Au classement</small></div>
     <div><b class="rn-or">+${x.medailles}</b><small>Médailles</small></div></div>
   <div class="rn-t rn-gris rn-centre">${suite}</div>`)}
@@ -913,17 +913,32 @@ export function scenePause(S, V) {
 /* ---------- le Club : entre deux runs (V28, tranche 5, docs/refonte-v28-5.md § 3.1) ---------- */
 /* Les médailles ont leur dessin, jamais la pièce des jetons. */
 const medailles = n => `<span class="rn-jt rn-md"><i class="rn-medaille"></i>${n}</span>`;
-const PAGES_DU_CLUB = [['variete', 'Variété'], ['club', 'Ton club'], ['album', 'Album'], ['palmares', 'Palmarès']];
+const PAGES_DU_CLUB = [['controle', 'Contrôle'], ['variete', 'Variété'], ['club', 'Ton club'], ['album', 'Album'], ['palmares', 'Palmarès']];
 /*
  * LE CLUB (`C` : ce que la coquille en sait — { meta, rang, nom, page, voie, coachs, rayons, rayon, objet }). Sa tête
  * remplace le HUD : ton écusson, ton nom, ton rang, tes médailles ; trois pages en segment, chacune tient en un écran.
  */
 export function sceneClub(C, V) {
-  const page = { variete: pageVariete, club: pageTonClub, album: pageAlbum, palmares: pagePalmares }[C.page] || pageVariete;
+  const page = { controle: pageControle, variete: pageVariete, club: pageTonClub, album: pageAlbum, palmares: pagePalmares }[C.page] || pageVariete;
   const [offre, toi, pied] = page(C, V);
   return `${entete(esc(C.nom), esc(PRESTIGES[C.rang].nom), medailles(C.meta.ecussons || 0))}${sousTete('club', `<div class="rn-seg">${PAGES_DU_CLUB.map(([k, mot]) => `<button type="button" class="${C.page === k ? 'rn-on' : ''}" aria-pressed="${C.page === k}" data-a="page" data-v="${k}">${mot}</button>`).join('')}</div>`, offre, toi)}${pied}`;
 }
 /* Variété : les huit philosophies, celle qu'on touche à côté ; l'achat répond sur place. « Ouvrir » dépense : il n'a jamais le focus d'office. */
+/*
+ * LE CONTRÔLE (V33) : ce que tes médailles changent à la prochaine run. Chaque ligne dit où elle en est (ses marches) et
+ * le prix de la suivante ; le panneau dit ce que la marche touchée fait, et ce que la prochaine run aura.
+ */
+function pageControle(C) {
+  const m = C.meta, k = AMELIORATIONS[C.atout] ? C.atout : 'budget', A = AMELIORATIONS[k], prix = prixDeLAmelioration(m, k), n = marcheDeLAmelioration(m, k);
+  const manque = prix == null ? 0 : Math.max(0, prix - (m.ecussons || 0)), X = controleDuMeta(m), actives = activesDe(m), cases = casesDe(m), active = actives.includes(k), suite = prochaineCase(m);
+  const ligne = c => { const a = AMELIORATIONS[c], p = prixDeLAmelioration(m, c); return `<button type="button" class="rn-sortie rn-atout${c === k ? ' rn-on' : ''}" aria-pressed="${c === k}" data-a="voir-atout" data-v="${c}"${c === k ? ' data-ici' : ''}><span>${esc(a.nom)}</span><span><span class="rn-or">${'●'.repeat(marcheDeLAmelioration(m, c))}</span><span class="rn-gris">${'○'.repeat(a.prix.length - marcheDeLAmelioration(m, c))}</span></span><b class="${p == null ? 'rn-vert' : 'rn-or'}">${p == null ? 'Au bout' : p}</b><em class="${actives.includes(c) ? 'rn-vert' : 'rn-gris'}">${actives.includes(c) ? 'Active' : marcheDeLAmelioration(m, c) ? 'Au repos' : ''}</em></button>`; };
+  return [`<div class="rn-k">${actives.length} de ${cases} cases actives${suite != null ? ` · une case de plus dans ${suite} run${suite > 1 ? 's' : ''}` : ''}</div><div class="rn-pilier">${Object.keys(AMELIORATIONS).map(ligne).join('')}</div>`,
+    `<section class="rn-panneau rn-on">
+    <div class="rn-entete"><b class="rn-h">${esc(A.nom)}</b><span class="rn-puce ${active ? 'rn-v' : 'rn-o'}">${active ? 'Active' : n ? 'Au repos' : 'À prendre'} · ${n} de ${A.prix.length}</span></div>
+    <div class="rn-t rn-gris">${esc(A.dit)}</div>
+    <div class="rn-t rn-pied"><span class="rn-k">Ta prochaine run</span><br>Budget du repêchage : ${X.retenue ? `${Math.round(X.retenue / 1e6)} M$ de moins` : 'plein'} · ${X.relances} relance${X.relances > 1 ? 's' : ''} · ${X.affiches} affiches par quart · ${X.offerts} joueurs tendus${X.coeurs > 2 ? ' · 3 cœurs, la première fois' : ''}</div></section>`,
+    bas(bt('Retour', 'fermer-club'), n ? bt(active ? 'Retirer' : actives.length >= cases ? 'Cases pleines' : 'Activer', 'activer-atout', { v: k, off: !active && actives.length >= cases }) : '', prix == null ? '' : bt(manque ? `Il te manque ${manque}` : `Prendre · ${prix}`, 'prendre-atout', { cls: 'gold', v: k, off: manque > 0 }))];
+}
 function pageVariete(C) {
   const m = C.meta, ouvertes = voiesOuvertes(m), prix = prixDeLaVoie(m), v = C.voie, P = COACHS[v], regle = REGLES_DU_COACH[v], ouverte = ouvertes.includes(v);
   const piece = PIECE_DU_COACH[v], x = C.coachs && C.coachs[v], manque = ouverte || prix == null ? 0 : Math.max(0, prix - (m.ecussons || 0));

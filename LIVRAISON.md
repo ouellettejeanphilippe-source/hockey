@@ -65,8 +65,12 @@ Le devis : `docs/refonte-v31.md` (jugé par deux relecteurs, repris). En code di
 - [x] **JP tranche** (26 nov.) : une première run plus dure encore (les séries une fois sur deux, la Coupe presque jamais ; aujourd'hui le robot bâtisseur fait les séries 84 % du temps et gagne 2 Coupes sur 64) ; des améliorations achetées en médailles, **pas plus de plafond** : *d'autres types d'upgrade qui ne rendent pas meilleurs, mais permettent un meilleur contrôle, donc meilleur* ; une vraie chance de Coupe (une sur quatre) après **cinq runs** environ.
 - [x] Les trois joueurs tendus penchent un peu vers les bons joueurs (`RARETE_DES_OFFERTS` 2 · 4 · 5 · 4 · 2 ; JP : *un peu plus de bons joueurs*) ; mesuré à 64 graines : 2 Coupes, 111 points.
 - [ ] Défait une règle de la V28 (« rien de ce qu'on achète ne gagne un match ») : JP le sait, la question le disait.
-- [ ] À poser à JP : lesquelles (les relances, un joueur tendu de plus, choisir des cartes de son cartable, choisir son entraîneur ou une pièce…), et leurs prix.
-- [ ] Le devis (`/refonte`), la mesure d'une carrière de cinq runs avec les robots, puis le code.
+- [x] **JP choisit les améliorations** (26 nov.) : au départ — verrouiller des cartes de son cartable, choisir son entraîneur, choisir une pièce de banc, refaire le tirage une fois ; en saison — un quatrième joueur tendu, des relances gagnées, voir avant de choisir. Pas d'affiche de plus. La première run se durcit par **moins de contrôle au départ** (0 relance, 2 affiches par quart, un club tiré sans choix).
+- [x] **Mesuré, puis tranché par JP** (26 nov., docs/refonte-v33.md § 11) : à plein contrôle, 129 points et le 2e rang mais aucune Coupe sur 32 — *viser moins haut*, le contrôle seul ; la première run sans contrôle fait encore les séries 27 fois sur 32 — *un repêchage plus pauvre*, 20 M$ de moins et un proprio à trois cœurs cette run-là, le budget racheté par une amélioration à part ; *une douzaine de runs* pour tout acheter.
+- [x] **Tranche 1** (version 4.11.0) : le contrôle porté par la run (`controleDe`), la page « Contrôle » du Club, quatre améliorations (le budget, les relances, la troisième affiche, le quatrième joueur tendu ; 470 médailles) — `check_meta`.
+- [x] **Les cases actives** (JP, 26 nov. : *comme le Witcher 3, avec un max d'upgrades en même temps*) : ce qu'on achète reste, une run n'en porte que quelques-unes ; deux cases, puis une de plus aux runs 3, 5, 8 et 12 ; une liste, pas de branches ; le budget prend une case — `check_meta` (60).
+- [ ] À dire à JP : à trois cœurs, la première run fait les séries 23 fois sur 32, pas une sur deux.
+- [ ] **Tranche 2** : verrouiller des cartes à l'Album, choisir son entraîneur, une pièce de départ parmi trois, refaire le tirage, voir d'avance, la relance gratuite des joueurs tendus ; `mesure_run` qui juge une première run ; le robot acheteur.
 
 ## La sauvegarde qui suit d'un appareil à l'autre (JP, 25 nov. : *avoir sauvegarde multidevice* ; *Github sync*)
 

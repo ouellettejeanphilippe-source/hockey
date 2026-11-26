@@ -4220,3 +4220,15 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Le proprio n'a pas bougé** : JP voulait qu'il demande plus, mais ses objectifs de points suivent déjà la force du club (`rangDeForce`, `tauxAttendu`). Dit à JP.
 
 **Jambes fraîches** : 92 au lieu de 88 (mesuré : 54 soirs à 91, 39 à 92, 28 à 93).
+
+## Le contrôle s'achète, la première run part pauvre (V33, 26 nov. 2026)
+
+JP : *la première saison, ça devrait être peu de chances de gagner, c'est les upgrades/ajustements permanents qui mènent éventuellement vers la coupe, mais pas aisément* ; *d'autres types d'upgrade qui ne rendent pas meilleurs, mais permettent un meilleur contrôle*.
+
+**Défait** : « les médailles n'achètent que de la variété » (7 nov.) et « rien de la force ne passe d'une run à l'autre ». Les médailles achètent maintenant du contrôle (les relances, la troisième affiche, le quatrième joueur tendu) et, à la demande de JP devant les chiffres, le budget du repêchage, qui est de la force.
+
+**Mesuré** (32 saisons du bâtisseur par réglage, docs/refonte-v33.md § 11) : le plein contrôle fait 129 points et aucune Coupe ; JP garde le contrôle seul et vise moins haut. Retirer le contrôle ne durcit pas la première run (les séries 27 fois sur 32) ; 20 M$ retenus la ramènent à 19 sur 32, mais congédié 12 fois ; JP ajoute un troisième cœur à la première run, ce qui remonte les séries à 23.
+
+**Écarté** : une ligue plus forte (elle aurait touché toutes les runs) ; des séries moins dures à acheter ; le budget qui revient tout seul par run jouée.
+
+**Les cases actives** (JP, le même jour : *comme le Witcher 3, avec un max d'upgrades en même temps*). Acheter et porter sont deux choses : les médailles achètent pour toujours, les cases limitent ce qu'une run porte, et elles s'ouvrent avec les runs jouées (2, puis 3, 4, 5, 6 aux runs 3, 5, 8 et 12). **Écarté par JP** : quatre cases fixes ; des cases achetées en médailles ; un arbre à branches (il garde une liste) ; le budget toujours actif hors des cases.
