@@ -204,10 +204,10 @@ async function tenirLeBureau(S, robot, espion) {
  * (`ouvrirSeance`) et continue : elle doit finir pareil. Rend { robot, graine, coach, quarts, coeurs, fin, rondes, coupe,
  * pts, rang, signatures, relances, payees, montees, pochettes, forces, banc, bancDuDepart, jetons, s, R }.
  */
-export async function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null, exigence = 0 } = {}) {
+export async function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null, exigence = 0, cartable = [] } = {}) {
   const t0 = Date.now();
   const coach = COACHS[Math.floor(COACHS.length * (Number(graine) * 0.6180339887 % 1))];
-  let S = creerLaRun(donnees, { graine: `v30:${graine}`, coach: { cle: coach }, exigence });
+  let S = creerLaRun(donnees, { graine: `v30:${graine}`, coach: { cle: coach }, exigence, cartable });
   const forces = [];
   let signatures = 0, relances = 0, payees = 0, montees = 0, pochettes = 0, relue = false, bancDuDepart = null;
   const compte = (m, s, x) => { if (m === 'signe') signatures++; if (m === 'relance') { relances++; payees += x; } if (m === 'montee') montees += x; if (m === 'pochette') pochettes++; espion(m, s, x); };
@@ -218,9 +218,9 @@ export async function jouerLaRun(robot, graine, { espion = () => {}, donnees = D
       S = ouvrirSeance(donnees, JSON.parse(JSON.stringify(figer(S))));
       continue;
     }
-    if (R.phase === 'pieces' || R.phase === 'piece') {
+    if (R.phase === 'piece') {
       const o = (R.apres && R.apres.offertes) || [];
-      if (o.length && (robot !== 'premier' || R.phase === 'pieces')) prendreUnePiece(S, robot, o, prendreLaPiece);
+      if (o.length && robot !== 'premier') prendreUnePiece(S, robot, o, prendreLaPiece);
       pieceReglee(S);
     } else if (R.phase === 'repechage') repecherUn(S, robot, compte);
     else if (R.phase === 'quart') {

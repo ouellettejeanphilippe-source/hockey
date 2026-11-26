@@ -139,7 +139,8 @@ function jouer(relireA) {
         const tot = k => F.reduce((a, f) => a + (f[k] || 0), 0), G = Object.values(R.ligue.gardiens || {}), totG = k => G.reduce((a, g) => a + g[k], 0);
         if (tot(CLUB.TP) !== tot(CLUB.TC) || tot(CLUB.BAN) !== tot(CLUB.BDN) || tot(CLUB.OAN) !== tot(CLUB.ODN) || !(tot(CLUB.TP) > 0 && tot(CLUB.OAN) > 0 && tot(CLUB.PUN) > 0)) faute('ligue', `les stats des clubs : ${tot(CLUB.TP)} tirs pour, ${tot(CLUB.TC)} contre ; ${tot(CLUB.BAN)} buts en avantage, ${tot(CLUB.BDN)} accordés`);
         // Chaque match a son gardien gagnant : ceux des autres clubs à la ligue, les tiens dans tes stats (une seule maison chacun).
-        const miensG = effectifDe(S).filter(q => q.p === 'G').map(q => R.stats[getPlayerKey(q)] || []), totM = k => miensG.reduce((a, g) => a + (g[k] || 0), 0);
+        // (Tes gardiens d'aujourd'hui et ceux qui sont sortis : un gardien échangé garde ses victoires chez toi.)
+        const miensG = Object.keys(R.stats).filter(k => { const q = S.trouver(k); return q && q.p === 'G'; }).map(k => R.stats[k] || []), totM = k => miensG.reduce((a, g) => a + (g[k] || 0), 0);
         if (totG(STATS_G.V) + totM(STATS_G.V) !== tot(CLUB.V) || totG(STATS_G.D) + totM(STATS_G.D) !== tot(CLUB.V) + tot(CLUB.P) + tot(CLUB.DP) || totG(STATS_G.BC) + totM(STATS_G.BC) !== tot(CLUB.BC)) faute('ligue', `les gardiens : ${totG(STATS_G.V) + totM(STATS_G.V)} victoires pour ${tot(CLUB.V)}, ${totG(STATS_G.D) + totM(STATS_G.D)} départs`);
         // Tes joueurs ne sont pas comptés une deuxième fois à la ligue : personne de ton effectif n'y a plus de matchs que son club n'en a joué.
         for (const [k, l] of Object.entries(R.ligue.pts)) if ((l[LIGUEUR.PJ] || 0) > RUN.LIGUE.MATCHS) faute('ligue', `${k} : ${l[LIGUEUR.PJ]} matchs à la ligue`);

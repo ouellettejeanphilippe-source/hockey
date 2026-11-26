@@ -96,6 +96,8 @@ export function coachAuCartable(carte, run = 0) {
   ecrire(c);
 }
 export const coachsDuCartable = (c = lireCartable()) => c.coachs || {};
+/* Les clés de tes cartes de joueur : ce qu'une run neuve tire pour t'imposer ton club (js/run.js `creerLaRun`). */
+export const joueursDuCartable = (c = lireCartable()) => Object.keys(c.joueurs || {});
 /*
  * GRAVÉ SUR LA CARTE (v2 ; réécrit à la V28, tranche 5b, docs/refonte-v28-5.md § 3.6) : ce qu'un joueur a fait chez toi
  * dans une run — dans un gros match (le chapeau, le grand soir, le jeu blanc, le mur) ou sur la saison (cinquante buts, cent

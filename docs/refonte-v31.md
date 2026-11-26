@@ -210,7 +210,7 @@ Les écrans du juge : **360 × 640**, **390 × 844** (la référence, encoche si
 
 1. **La coquille et le soir** — la grille, le rail, ce qui défile, le focus ; le bureau et ses cinq onglets, les séries, la page d'un club, un match passé, la feuille du soir et celle du duel, le résultat, la pause, l'attente ; le juge à six écrans. — `check_scene`, `essai_run`, `check_refonte`
 2. **Ce qui s'ouvre du soir** — une histoire, les pochettes, le ballottage, la pièce gagnée, les portes, la porte ouverte, l'échange. Son devis : `docs/refonte-v31-2.md` (le comptoir : ce qu'on te tend, puis ton côté ; les portes en rangée large). — `check_scene`, `essai_run`
-3. **La saison et le Club** — le départ, les pièces, le repêchage, l'ouverture du quart, le bilan, le marché, la fin, le Club et ses quatre pages, le solde ; puis le plan fixe et son échelle partent. — `check_scene`, `essai_run`, `check_refonte`
+3. **La saison et le Club** (son devis : `docs/refonte-v31-3.md` ; faite avec le club imposé, `docs/refonte-v32.md`) — le départ, les pièces, le repêchage, l'ouverture du quart, le bilan, le marché, la fin, le Club et ses quatre pages, le solde ; puis le plan fixe et son échelle partent. — `check_scene`, `essai_run`, `check_refonte`
 
 ## 10. Tranché par JP, avec les chiffres (25 nov. 2026)
 
