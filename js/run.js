@@ -175,6 +175,12 @@ const clubDe = (S, x) => (x ? S.clubs.find(c => c.s === x.s && c.t === x.t) || n
  * que le proprio demande, les étapes d'édition des adversaires, le multiple de ses médailles. Écrites à sa création.
  */
 export const reglesDe = R => (R && R.regles) || { exigence: 0, cible: 0, etapes: RUN.ETAPES, prime: 1 };
+/*
+ * LE CONTRÔLE D'UNE RUN (V33, docs/refonte-v33.md ; JP, 26 nov. 2026 : *d'autres types d'upgrade qui ne rendent pas meilleurs,
+ * mais permettent un meilleur contrôle*) : ses relances de repêchage, ses affiches par quart, les joueurs tendus après un gros
+ * match, les cartes de ton cartable verrouillées. Sans rien dire, celui d'aujourd'hui.
+ */
+export const controleDe = R => ({ relances: RUN.REPECHAGE.RELANCES, affiches: RUN.AFFICHES, offerts: RUN.PORTES, verrous: [], retenue: 0, coeurs: RUN.COEURS, ...((R && R.regles && R.regles.controle) || {}) });
 
 /* ---------- la séance : créer, garder, rouvrir ---------- */
 /* La version d'une run gardée : 4, la saison et sa ligue (V30) ; une run d'avant ne se relit pas, elle s'arrête à l'ouverture. */
@@ -205,23 +211,24 @@ function imposerLeCartable(S, cles) {
   // Le tirage selon la rareté : chaque carte court avec le poids de son niveau (un Soutien sort huit fois plus qu'un ★ Phénomène).
   const R = S.R, quota = { ...RUN.IMPOSES }, poids = k => { const p = S.trouver(k), n = p ? niveauDe(p, S.donnees.shard(p.s).players) : 0; return RUN.RARETE[Math.max(0, n)] || 1; };
   const rang = new Map([...new Set(cles)].map(k => [k, -Math.log(Math.max(1e-9, hache(R.graine, 'cartable', k))) / poids(k)]));
-  const ordre = [...rang.keys()].sort((a, b) => rang.get(a) - rang.get(b) || (a < b ? -1 : 1));
+  // Les cartes verrouillées passent d'abord, dans l'ordre où on les a verrouillées.
+  const verrous = controleDe(R).verrous.filter(k => rang.has(k)), ordre = [...verrous, ...[...rang.keys()].filter(k => !verrous.includes(k)).sort((a, b) => rang.get(a) - rang.get(b) || (a < b ? -1 : 1))];
   for (const k of ordre) {
     const p = S.trouver(k), g = p && groupeDe(p), n = effectifDe(S).length;
     if (!p || !quota[g] || R.vus.includes(getPersonKey(p)) || !groupeOuvert(S, g)) continue;
-    if (masseDe(S) + prixDe(S, p) > R.plafond - RUN.ESPACE - RUN.REPECHAGE.PLANCHER * (EFFECTIF - n - 1)) continue;
+    if (masseDe(S) + prixDe(S, p) > R.plafond - RUN.ESPACE - controleDe(R).retenue - RUN.REPECHAGE.PLANCHER * (EFFECTIF - n - 1)) continue;
     asseoir(S, p); quota[g]--;
     R.imposes.push(getPlayerKey(p));
   }
   rebatir(S);
 }
-export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1, exigence = 0, cartable = [] }) {
+export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1, exigence = 0, cartable = [], controle = null }) {
   const E = exigencesDe(exigence);
   const S = seanceVide(donnees, {
     v: VERSION_DE_LA_RUN, graine: String(graine), numero,
-    regles: { exigence: E.n, cible: E.cible, etapes: RUN.ETAPES.map(e => e + E.etapes), prime: E.medailles },
+    regles: { exigence: E.n, cible: E.cible, etapes: RUN.ETAPES.map(e => e + E.etapes), prime: E.medailles, ...(controle ? { controle } : {}) },
     coach: { maitrise: 1, ...coach }, banc: [PIECE_DU_COACH[coach.cle]],
-    jetons, coeurs: RUN.COEURS, plafond: CAP, mort: 0,
+    jetons, coeurs: controle && controle.coeurs || RUN.COEURS, plafond: CAP, mort: 0,
     joueurs: [], vus: [], anciens: [], prets: [], stats: {}, imposes: [],
     phase: 'repechage', rep: null, ligue: null, quart: null, quarts: [], soir: null, apres: null, suite: [], portes: null, marche: null, ballottage: null,
     relances: 0, sonnes: 0, matchs: [], series: null, histoires: [], hRepos: -RUN.REPOS_HISTOIRE, achats: 0, fin: null,
@@ -231,7 +238,7 @@ export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, num
   for (let k = 0; k < RUN.PIECES_DU_DEPART; k++) { S.R.banc = poserLaPiece(S.R.banc, piecesOffertes(S.toi.perso, S.R.graine, `depart:${k}`)[0]); rebatir(S); }
   imposerLeCartable(S, cartable);
   const n = effectifDe(S).length;
-  S.R.rep = { tour: n, debut: n, relances: RUN.REPECHAGE.RELANCES, k: 0 };
+  S.R.rep = { tour: n, debut: n, relances: controleDe(S.R).relances, k: 0 };
   tirerLeVestiaire(S);
   figer(S);
   return S;
@@ -471,7 +478,7 @@ function groupeOuvert(S, g) {
 }
 /* Ce qu'un tour peut dépenser : ce qui reste sous le plafond moins l'espace gardé, moins le plancher de chaque case encore à remplir. */
 export function budgetDuTour(S) {
-  const R = S.R, reste = R.plafond - RUN.ESPACE - masseDe(S);
+  const R = S.R, reste = R.plafond - RUN.ESPACE - controleDe(R).retenue - masseDe(S);
   return reste - RUN.REPECHAGE.PLANCHER * (EFFECTIF - R.rep.tour - 1);
 }
 const offrable = (S, p, vus) => !vus.has(getPersonKey(p)) && groupeOuvert(S, groupeDe(p));
@@ -724,7 +731,7 @@ function ouvrirLeQuart(S, n) {
     const coeur = ms.slice(4, -RUN.FIN_DU_QUART - 1).filter(m => m.i !== rival.i).sort((a, b) => rangAdv(a) - rangAdv(b) || a.k - b.k)[0];
     if (coeur) gros[coeur.k] = 'elite';
   }
-  R.quart = { n, debut, fin, rival: rival.i, gros, affiches: RUN.AFFICHES, pts: 0, hockey: 0, prime: 0, grosJoues: 0, grosGagnes: 0, rivalBattu: null, pochettes: [], objectifs: [] };
+  R.quart = { n, debut, fin, rival: rival.i, gros, affiches: controleDe(R).affiches, pts: 0, hockey: 0, prime: 0, grosJoues: 0, grosGagnes: 0, rivalBattu: null, pochettes: [], objectifs: [] };
   R.quart.objectifs = objectifsDuQuart(S, n);
   R.phase = 'quart';
 }
@@ -741,7 +748,7 @@ function objectifsDuQuart(S, n) {
   const sortes = REGLES_DU_COACH[R.coach.cle] ? ['place', 'gros', 'hockey'] : ['place', 'gros'];
   const tiers = n === RUN.QUARTS.length - 1 ? 'place' : pigeDans(sortes, R.graine, 'objectif', n);
   const troisieme = tiers === 'place' ? { sorte: 'place', cible: n === RUN.QUARTS.length - 1 ? RUN.LIGUE.PLACES : borne(r + O.PLACE_MARGE, ...O.PLACE_BORNES) }
-    : tiers === 'gros' ? { sorte: 'gros', cible: Math.ceil(RUN.AFFICHES / 2) } : { sorte: 'hockey', cible: O.HOCKEY_SOIRS };
+    : tiers === 'gros' ? { sorte: 'gros', cible: Math.ceil(controleDe(R).affiches / 2) } : { sorte: 'hockey', cible: O.HOCKEY_SOIRS };
   return [{ sorte: 'points', cible: points }, { sorte: 'rival', cible: 1 }, troisieme];
 }
 /* Où en est un objectif : sa valeur lue dans le quart en cours, et s'il est tenu. La place se lit au classement du moment. */
@@ -1204,7 +1211,7 @@ function ouvrirLesPortes(S, { bande, affronte = null, cle, tour = 0, payees = 0 
   const R = S.R, a = affronte && tour === 0 ? clubDe(S, affronte) : null;
   const pris = new Set(a ? [cleDuClub(a)] : []), clubs = a ? [a] : [];
   const pool = dansLaBande(S.clubs, bande);
-  for (let k = 0; clubs.length < RUN.PORTES && k < 40; k++) {
+  for (let k = 0; clubs.length < controleDe(R).offerts && k < 40; k++) {
     const c = pigeDans(pool, R.graine, 'porte', cle, tour, k);
     if (c && !pris.has(cleDuClub(c))) { pris.add(cleDuClub(c)); clubs.push(c); }
   }

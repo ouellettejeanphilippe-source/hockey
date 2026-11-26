@@ -1,0 +1,8 @@
+- **26 nov. · Le contrôle s'achète, la première run part pauvre (V33, tranche 1)**
+  - JP : *la première saison, peu de chances de gagner ; les ajustements permanents mènent éventuellement vers la Coupe, mais pas aisément*.
+  - Mesuré d'abord, 32 saisons par réglage : le plein contrôle fait 129 points et le 2e rang, aucune Coupe ; sans contrôle, la première run fait encore les séries 27 fois sur 32. JP tranche : le contrôle seul et une Coupe rare ; 20 M$ de moins au repêchage et trois cœurs à la première run ; le budget racheté par une amélioration à part ; une douzaine de runs pour tout acheter.
+  - Le Club a une page de plus, « Contrôle », la première ouverte : le budget du repêchage (quatre marches), les relances (cinq), la troisième affiche, le quatrième joueur tendu. 470 médailles.
+  - À trois cœurs, la première run fait les séries 23 fois sur 32 : plus qu'une sur deux. Dit à JP.
+  - Puis JP : *comme des skill trees, comme le Witcher 3, avec un max d'upgrades en même temps*. Ce qu'on achète reste, mais une run n'en porte que quelques-unes : deux cases actives d'abord, une de plus aux runs 3, 5, 8 et 12. Une liste, pas de branches ; le budget prend sa case. On active et on retire au Club.
+  - Pas encore : verrouiller des cartes, choisir son entraîneur, une pièce de départ parmi trois, refaire le tirage, voir d'avance ; `mesure_run` ne juge pas encore une première run.
+  - js/run.js (`controleDe`), js/rogue.js (`AMELIORATIONS`, `controleDuMeta`), js/run-scenes.js (`pageControle`), js/run-jeu.js. `check_meta` (60). Version 4.11.0. Le devis : docs/refonte-v33.md ; la décision : docs/decisions.md.

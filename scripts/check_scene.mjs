@@ -227,7 +227,7 @@ const meta = { present: [] };
   await mesurer(page, 'le départ, ses crans');
   meta.present.push(['les crans du départ', await page.$$eval('#runModal .rn-crans [data-a="cran"]', l => l.length) === 4 && await page.$$eval('#runModal .rn-crans [data-a="cran"]:not([disabled])', l => l.length) === 3]);
   meta.present.push(['ton entraîneur tiré pour toi, et « Commencer »', !!await page.$('#runModal .rn-vignette .rn-c') && !!await page.$('#runModal [data-a="prendre-coach"]')]);
-  for (const [nom, a, v] of [['le Club : la variété', 'club'], ['ton club', 'page', 'club'], ['ton club : les couleurs', 'rayon', 'palette'], ['l\'Album', 'page', 'album'], ['l\'Album, la page suivante', 'album-page', '1'], ['l\'Album : les gravées', 'album-seg', 'gravees'], ['l\'Album : les entraîneurs', 'album-seg', 'coachs'], ['le palmarès', 'page', 'palmares']]) {
+  for (const [nom, a, v] of [['le Club : le contrôle', 'club'], ['le Club : la variété', 'page', 'variete'],['ton club', 'page', 'club'], ['ton club : les couleurs', 'rayon', 'palette'], ['l\'Album', 'page', 'album'], ['l\'Album, la page suivante', 'album-page', '1'], ['l\'Album : les gravées', 'album-seg', 'gravees'], ['l\'Album : les entraîneurs', 'album-seg', 'coachs'], ['le palmarès', 'page', 'palmares']]) {
     if (!await geste(page, a, v)) { fautes.defile.push(`${nom} : un geste manque (${a})`); continue; }
     // L'Album charge les saisons de sa page : ses six cartes arrivent, aucune tuile ne reste vide.
     if (nom.startsWith('l\'Album') && a !== 'album-seg') await page.waitForFunction(() => !document.querySelector('#runModal .rn-album .rn-vide'), null, { timeout: 20000 }).catch(() => {});

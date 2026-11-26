@@ -14,7 +14,7 @@ import { actionsDisponibles } from './actions.js';
 import { avecHasardIsole, getPersonKey, getPlayerKey, nouvelleGraine } from './sim.js';
 import { leurJeuEnStats, poserClubLu } from './impact.js';
 import { chargerCoachs, lotoDesCoachs } from './coachs-reels.js';
-import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages } from './rogue.js';
+import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages, acheterUneAmelioration, activerUneAmelioration, controleDuMeta } from './rogue.js';
 import { VOIES } from './coachs.js';
 import { rayonsDuClub, prendreAuClub, nomDuClub } from './club.js';
 import { ajouterAuCartable, albumDuCartable, coachAuCartable, coachsDuCartable, graverAuCartable, joueursDuCartable } from './cartable.js';
@@ -209,7 +209,7 @@ function versLeClub(retour) {
   const solde = soldeAMontrer(), meta = lireMeta();
   if (solde) { V.solde = solde; V.apresLeSolde = retour; V.ecran = 'solde'; return; }
   V.ecran = 'club';
-  V.club = { retour, page: 'variete', voie: VOIES.find(v => !voiesOuvertes(meta).includes(v)) || VOIES[0], rayon: 'club', objet: null, coachs: null };
+  V.club = { retour, page: 'controle', atout: 'budget', voie: VOIES.find(v => !voiesOuvertes(meta).includes(v)) || VOIES[0], rayon: 'club', objet: null, coachs: null };
   relireLeClub();
   // Les entraîneurs de chaque philosophie : combien au loto, et le mieux classé (son nom, sa saison).
   chargerCoachs().then(d => {
@@ -252,7 +252,7 @@ async function commencer() {
   const c = V.loto[0], { graine, numero, cran } = V;
   montrer(sceneAttente('On ouvre les vestiaires…'));
   await charger('On ouvre les vestiaires :');
-  S = creerLaRun(donnees(), { graine, numero, exigence: V.cran || 0, cartable: joueursDuCartable(), coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
+  S = creerLaRun(donnees(), { graine, numero, exigence: V.cran || 0, cartable: joueursDuCartable(), controle: controleDuMeta(lireMeta()), coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
   garderLesForces();
   poserClubLu(() => (S ? { team: S.toi } : null));
   coachAuCartable(c, numero);
@@ -422,6 +422,9 @@ const GESTES = {
   'album-page': v => { const A = V.club.album; A.page = Math.max(0, Math.min(Math.ceil(listeDeLAlbum(A).length / tuilesDe(V)) - 1, A.page + Number(v))); A.vue = null; chargerLaPageDeLAlbum(); },
   'voir-carte': v => { V.club.album.vue = v; },
   'voir-voie': v => { V.club.voie = v; },
+  'voir-atout': v => { V.club.atout = v; },
+  'activer-atout': v => { if (activerUneAmelioration(v).ok) { jouerSon('valide'); relireLeClub(); } else jouerSon('refus'); },
+  'prendre-atout': v => { if (acheterUneAmelioration(v).ok) { jouerSon('valide'); notable(); relireLeClub(); } else jouerSon('refus'); },
   'ouvrir-voie': v => { if (ouvrirUneVoie(v).ok) { jouerSon('valide'); notable(); relireLeClub(); } else jouerSon('refus'); },
   rayon: v => { V.club.rayon = v; V.club.objet = null; },
   'voir-objet': v => { V.club.objet = v; },
@@ -540,7 +543,7 @@ async function ouvrirLaPochette(cle) {
   entrer();
 }
 /* Les gestes qui se jouent sans run : le départ, le Club, le solde. */
-const SANS_RUN = new Set(['coach', 'prendre-coach', 'quitter', 'cran', 'club', 'fermer-club', 'page', 'album-seg', 'album-page', 'voir-carte', 'voir-voie', 'ouvrir-voie', 'rayon', 'voir-objet', 'prendre-objet', 'solde-depart', 'solde-club', 'run-neuve']);
+const SANS_RUN = new Set(['coach', 'prendre-coach', 'quitter', 'cran', 'club', 'fermer-club', 'page', 'album-seg', 'album-page', 'voir-carte', 'voir-voie', 'ouvrir-voie', 'voir-atout', 'prendre-atout', 'activer-atout', 'rayon', 'voir-objet', 'prendre-objet', 'solde-depart', 'solde-club', 'run-neuve']);
 function geste(a, v) {
   if (!GESTES[a] || (!S && !SANS_RUN.has(a))) return;
   jouerSon('tap');

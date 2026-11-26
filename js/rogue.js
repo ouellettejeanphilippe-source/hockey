@@ -105,6 +105,58 @@ export function ouvrirUneVoie(cle) {
 }
 
 /* ---------- les médailles d'une run ---------- */
+/* ---------- le contrôle ---------- */
+/*
+ * LE CONTRÔLE S'ACHÈTE (V33, docs/refonte-v33.md ; JP, 26 nov. 2026 : *la première saison, peu de chances de gagner ; ce sont
+ * les ajustements permanents qui mènent éventuellement vers la Coupe, mais pas aisément*). La première run part pauvre et
+ * sans prise : `RETENUE` de moins au repêchage, aucune relance, deux affiches par quart, trois joueurs tendus — et un proprio
+ * plus patient (trois cœurs, cette run-là seulement). Chaque amélioration se prend marche par marche, en médailles, au Club.
+ * Mesuré sur 32 saisons du bâtisseur : la première run fait les séries six fois sur dix ; tout acheté, 129 points et le
+ * 2e rang, mais la Coupe reste rare (JP : *viser moins haut*).
+ */
+const RETENUE = 20_000_000;
+export const AMELIORATIONS = {
+  budget: { nom: 'Le budget du repêchage', dit: 'Ton repêchage retrouve 5 M$ de budget.', prix: [40, 60, 80, 100] },
+  relances: { nom: 'Les relances', dit: 'Une relance de plus au repêchage : un autre vestiaire, le même tour.', prix: [15, 20, 25, 30, 40] },
+  affiche: { nom: 'La troisième affiche', dit: 'Une affiche de plus à poser à chaque quart.', prix: [60] },
+  offert: { nom: 'Un quatrième joueur', dit: 'Après un gros match gagné, quatre joueurs tendus au lieu de trois.', prix: [80] },
+};
+export const marcheDeLAmelioration = (m, k) => Math.min(AMELIORATIONS[k].prix.length, Math.max(0, (m.ameliorations || {})[k] || 0));
+/* Le prix de sa prochaine marche, ou null quand elle est au bout. */
+export const prixDeLAmelioration = (m, k) => AMELIORATIONS[k].prix[marcheDeLAmelioration(m, k)] ?? null;
+export function acheterUneAmelioration(k) {
+  const m = lireMeta(), prix = AMELIORATIONS[k] ? prixDeLAmelioration(m, k) : null;
+  if (prix == null) return { ok: false };
+  if ((m.ecussons || 0) < prix) return { ok: false, manque: prix - (m.ecussons || 0) };
+  // Achetée, elle s'active d'elle-même s'il reste une case.
+  const actives = activesDe(m);
+  ecrireMeta({ ...m, ecussons: m.ecussons - prix, ameliorations: { ...(m.ameliorations || {}), [k]: marcheDeLAmelioration(m, k) + 1 }, actives: actives.includes(k) || actives.length >= casesDe(m) ? actives : [...actives, k] });
+  return { ok: true, prix };
+}
+/*
+ * LES CASES (JP, 26 nov. 2026 : *comme des skill trees, comme le Witcher 3, avec un max d'upgrades en même temps*) : ce que
+ * tu achètes reste à toi, mais une run n'en porte que quelques-unes, celles que tu actives au Club. Les cases s'ouvrent avec
+ * tes runs jouées (`CASES` : deux d'abord, six à la douzième). Le budget du repêchage prend sa case comme les autres.
+ */
+const CASES = [0, 0, 2, 4, 7, 11];              // la run jouée qui ouvre chaque case : deux d'office, puis aux runs 3, 5, 8 et 12
+export const casesDe = m => CASES.filter(n => (m.runs || 0) >= n).length;
+/* La prochaine case : dans combien de runs, ou null quand elles sont toutes ouvertes. */
+export const prochaineCase = m => { const n = CASES.find(x => x > (m.runs || 0)); return n == null ? null : n - (m.runs || 0); };
+export const activesDe = m => [...new Set(m.actives || [])].filter(k => AMELIORATIONS[k] && marcheDeLAmelioration(m, k) > 0).slice(0, casesDe(m));
+/* Activer ou retirer : rend { ok }, ou { plein } quand il n'y a plus de case. */
+export function activerUneAmelioration(k) {
+  const m = lireMeta(), actives = activesDe(m);
+  if (!AMELIORATIONS[k] || !marcheDeLAmelioration(m, k)) return { ok: false };
+  if (!actives.includes(k) && actives.length >= casesDe(m)) return { ok: false, plein: true };
+  ecrireMeta({ ...m, actives: actives.includes(k) ? actives.filter(x => x !== k) : [...actives, k] });
+  return { ok: true };
+}
+/* Ce que la prochaine run reçoit (`controleDe`, js/run.js). */
+export const controleDuMeta = m => {
+  const n = k => (activesDe(m).includes(k) ? marcheDeLAmelioration(m, k) : 0);
+  return { relances: n('relances'), affiches: 2 + n('affiche'), offerts: 3 + n('offert'), retenue: RETENUE * (1 - n('budget') / AMELIORATIONS.budget.prix.length), coeurs: (m.runs || 0) > 0 ? 2 : 3 };
+};
+
 export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 20 + (coupe ? 40 : 0);
 /*
  * PAYER, UNE FOIS : la clé d'une run et son étape ne paient qu'une fois (`recompenses`). `bilan` (la fin d'une run en

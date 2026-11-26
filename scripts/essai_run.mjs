@@ -177,6 +177,8 @@ if (tardive) {
     exiger('la fin verse ses médailles, une fois', ((m1 || {}).ecussons || 0) === avant + R.fin.medailles, `${avant} + ${R.fin.medailles} = ${(m1 || {}).ecussons}`);
     // Le Club, de l'écran de fin : une philosophie s'y paie une fois, ou le bouton dit ce qui manque.
     await toucher('club', null, 500);
+    exiger('le Club s\'ouvre sur le contrôle : ses améliorations, ses cases', (await page.$$('#runModal [data-a="voir-atout"]')).length >= 4);
+    await toucher('page', 'variete', 300);
     const bouton = await page.$('#runModal [data-a="ouvrir-voie"]'), mot = bouton ? (await bouton.textContent()).trim() : '';
     const peut = !!(await la('ouvrir-voie'));
     if (peut) { await toucher('ouvrir-voie', null, 400); await toucher('ouvrir-voie', null, 300); }

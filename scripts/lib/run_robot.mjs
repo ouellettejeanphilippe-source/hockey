@@ -204,10 +204,10 @@ async function tenirLeBureau(S, robot, espion) {
  * (`ouvrirSeance`) et continue : elle doit finir pareil. Rend { robot, graine, coach, quarts, coeurs, fin, rondes, coupe,
  * pts, rang, signatures, relances, payees, montees, pochettes, forces, banc, bancDuDepart, jetons, s, R }.
  */
-export async function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null, exigence = 0, cartable = [] } = {}) {
+export async function jouerLaRun(robot, graine, { espion = () => {}, donnees = DONNEES, relireA = null, exigence = 0, cartable = [], controle = null } = {}) {
   const t0 = Date.now();
   const coach = COACHS[Math.floor(COACHS.length * (Number(graine) * 0.6180339887 % 1))];
-  let S = creerLaRun(donnees, { graine: `v30:${graine}`, coach: { cle: coach }, exigence, cartable });
+  let S = creerLaRun(donnees, { graine: `v30:${graine}`, coach: { cle: coach }, exigence, cartable, controle });
   const forces = [];
   let signatures = 0, relances = 0, payees = 0, montees = 0, pochettes = 0, relue = false, bancDuDepart = null;
   const compte = (m, s, x) => { if (m === 'signe') signatures++; if (m === 'relance') { relances++; payees += x; } if (m === 'montee') montees += x; if (m === 'pochette') pochettes++; espion(m, s, x); };

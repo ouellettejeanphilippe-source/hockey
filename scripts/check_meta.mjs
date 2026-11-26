@@ -24,7 +24,7 @@ globalThis.localStorage = {
   removeItem: k => { memoire.delete(k); },
 };
 const { lireMeta, ecrireMeta, PRESTIGES, EXIGENCES, PRIME_EXIGENCE, ecussonsAVie, rangDePrestige, voiesOuvertes, prixDeLaVoie, ouvrirUneVoie, payerEcussons,
-  exigencesDe, cranOuvert, solderLesDeblocages } = await import('../js/rogue.js');
+  exigencesDe, cranOuvert, solderLesDeblocages, AMELIORATIONS, acheterUneAmelioration, activerUneAmelioration, casesDe, activesDe, prixDeLAmelioration, marcheDeLAmelioration, controleDuMeta } = await import('../js/rogue.js');
 const { rayonsDuClub, prendreAuClub, nomDuClub } = await import('../js/club.js');
 const { LEGENDES, graverAuCartable, legendesDe, ajouterAuCartable, albumDuCartable, coachAuCartable } = await import('../js/cartable.js');
 const { lotoDesCoachs } = await import('../js/coachs-reels.js');
@@ -33,6 +33,27 @@ const { RUN, creerLaRun, reglesDe, medaillesDe } = await import('../js/run.js');
 const { jouerLaRun, DONNEES } = await import('./lib/run_robot.mjs');
 const COACHS = JSON.parse(fs.readFileSync(new URL('../data/coachs.json', import.meta.url), 'utf8'));
 const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), ...m }); return lireMeta(); };
+
+/* ---------- 0. le contrôle (V33) : la première run part pauvre, chaque marche s'achète ---------- */
+{
+  neuf({ ecussons: 14 });
+  const X = controleDuMeta(lireMeta());
+  exiger('une première run : 20 M$ de moins au repêchage, aucune relance, deux affiches, trois joueurs tendus, trois cœurs', X.retenue === 20e6 && X.relances === 0 && X.affiches === 2 && X.offerts === 3 && X.coeurs === 3, JSON.stringify(X));
+  exiger('dès la deuxième run, deux cœurs', controleDuMeta({ ...lireMeta(), runs: 1 }).coeurs === 2);
+  const refus = acheterUneAmelioration('relances');
+  exiger('à 14 médailles, la première relance (15) se refuse et dit ce qui manque, sans rien écrire', refus.ok === false && refus.manque === 1 && lireMeta().ecussons === 14 && !lireMeta().ameliorations);
+  exiger('une amélioration inconnue ne se paie pas', acheterUneAmelioration('inconnue').ok === false);
+  const tout = Object.values(AMELIORATIONS).reduce((a, x) => a + x.prix.reduce((b, c) => b + c, 0), 0);
+  ecrireMeta({ ...lireMeta(), ecussons: tout });
+  for (const k of Object.keys(AMELIORATIONS)) while (acheterUneAmelioration(k).ok);
+  const m = lireMeta(), P = controleDuMeta(m);
+  exiger('tout acheté : chaque médaille dépensée, chaque amélioration au bout, plus rien à payer', m.ecussons === 0 && Object.keys(AMELIORATIONS).every(k => marcheDeLAmelioration(m, k) === AMELIORATIONS[k].prix.length && prixDeLAmelioration(m, k) == null), `${tout} médailles en tout`);
+  exiger('deux cases à la première run : tout acheté, seules les deux premières prises sont actives', casesDe(m) === 2 && activesDe(m).join() === 'budget,relances' && P.retenue === 0 && P.relances === 5 && P.affiches === 2 && P.offerts === 3, JSON.stringify(P));
+  exiger('cases pleines, une troisième se refuse ; retirée, la case se libère', activerUneAmelioration('affiche').plein === true && activerUneAmelioration('budget').ok && activerUneAmelioration('affiche').ok && controleDuMeta(lireMeta()).retenue === 20e6 && controleDuMeta(lireMeta()).affiches === 3);
+  exiger('les cases s\'ouvrent avec les runs : 2, 3 à la troisième, 4 à la cinquième, 5 à la huitième, 6 à la douzième', [0, 1, 2, 4, 7, 11].map(runs => casesDe({ runs })).join() === '2,2,3,4,5,6');
+  exiger('une amélioration pas achetée ne s\'active pas', (neuf({ ecussons: 0 }), activerUneAmelioration('budget').ok === false));
+  exiger('chaque marche coûte au moins autant que celle d\'avant', Object.values(AMELIORATIONS).every(a => a.prix.every((p, i) => !i || p >= a.prix[i - 1])));
+}
 
 /* ---------- 1. la variété : les philosophies ---------- */
 {
