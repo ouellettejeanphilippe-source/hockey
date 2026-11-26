@@ -90,14 +90,12 @@ async function pas({ affiches = true } = {}) {
   if (await la('reclamer')) { vu.ballottages++; if (soir) soir.ordinaire = false; const offre = await page.$('#runModal [data-a="reclamer"][data-v]:not([data-v=""])'); if (offre) { await offre.click(); touchers++; await page.waitForTimeout(300); } else await toucher('reclamer'); return 'ballottage'; }
   if (await la('continuer')) {
     await toucher('continuer', null, 300);
-    if (soir) { soir.fin = touchers; if (soir.ordinaire && !(await la('ouvrir-porte')) && !(await la('prendre-piece')) && !(await la('piece-passee')) && !(await la('apres-bilan'))) vu.soirs.push(soir.fin - soir.debut); soir = null; }
+    if (soir) { soir.fin = touchers; if (soir.ordinaire && !(await la('passer')) && !(await la('prendre-piece')) && !(await la('piece-passee')) && !(await la('apres-bilan'))) vu.soirs.push(soir.fin - soir.debut); soir = null; }
     return 'résultat';
   }
-  if (await la('ouvrir-porte', '0')) {
+  if (await la('passer')) {
     vu.portes++;
-    await toucher('ouvrir-porte', '0');
     if (await toucher('vers-echange')) { if (await toucher('signer', null, 400)) { vu.signes++; return 'signé'; } await toucher('fermer-echange'); }
-    await toucher('fermer-porte');
     await toucher('passer', null, 300);
     return 'portes';
   }

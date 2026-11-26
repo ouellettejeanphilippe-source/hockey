@@ -1,0 +1,8 @@
+- **26 nov. · Trois joueurs au lieu de trois portes ; le cartable pigé selon la rareté ; l'arbre des seize**
+  - JP, à sept questions : *rendre « reposés » plus exigeant* ; *piger selon rareté des cartes* ; *trois joueurs au lieu de trois clubs* ; l'arbre des seize en large.
+  - Après un gros match gagné, plus de portes à ouvrir : un joueur par vestiaire (celui du club battu en est), tiré selon la rareté parmi ceux qui tiennent dans ton espace ; on en signe un, ou aucun. Trois écrans deviennent un.
+  - Ton cartable se pige selon la rareté : un Soutien sort huit fois plus qu'un Phénomène. Mesuré (12 graines) : le club imposé fait 128,8 points au lieu de 136,8, pour 121,8 sans cartable.
+  - « Jambes fraîches » demande 92 au lieu de 88 : 39 soirs sur 82 au lieu de 74.
+  - Pendant les séries, à l'ordinateur, le bureau montre l'arbre des seize.
+  - Pas fait : le proprio ne demande pas plus (ses objectifs suivent déjà la force du club) ; il reste environ 7 points d'avance à un club du cartable.
+  - js/run.js (`tirerLesOfferts`, `RUN.RARETE`), js/run-scenes.js (`scenePortes`, `pageSeries`), js/sim.js (`MOMENTS_SI`), style.css. `check_scene` (36), `essai_run` (24), `mesure_run` à 64 graines (2 Coupes, 111 points pour le bâtisseur). Version 4.10.0.

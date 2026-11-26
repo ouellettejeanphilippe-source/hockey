@@ -72,7 +72,7 @@ const SUITES = {
   resultat: [['le résultat, le récit', [['seg-r', 'recit']]], ['le résultat, les chiffres', [['seg-r', 'chiffres']]], ['le résultat, la feuille', [['seg-r', 'feuille']]], ['le bureau', [['continuer']]], ...ONGLETS,
     ['la feuille du soir', [['reprendre'], ['aller']]], ['la feuille, l\'affiche posée', [['affiche', '1']]], ['le résultat d\'une affiche', [['jouer']]]],
   piece: [['la pièce d\'un rival battu', [['continuer']]]],
-  portes: [['la porte ouverte', [['ouvrir-porte', '0']]], ['l\'échange', [['vers-echange']]]],
+  portes: [['l\'échange', [['vers-echange']]]],
   bilan: [['le marché du quart', [['apres-bilan']]], ['le marché, une autre carte à monter', [['voir-montee']]]],
   elite: [['la feuille de l\'élite', [['aller']]], ['la feuille de l\'élite, l\'enjeu mis', [['enjeu', '1']]]],
   histoire: [['une histoire', [['ouvrir-histoire']]]],
@@ -306,7 +306,7 @@ const PARCOURS = [['le résultat, la feuille', [['seg-r', 'feuille']]], ['le bur
   ['la page d\'un club', [['seg-l', 'classement'], ['club-vu', '3']]], ['mon club', [['fermer-club-vu'], ['onglet', 'club']]], ['mes matchs', [['seg-c', 'matchs', true]]], ['un match passé', [['match-vu', '0']]],
   ['la pause', [['fermer-match-vu'], ['onglet', 'bureau'], ['pause']]], ['les pochettes', [['reprendre'], ['etal']]], ['la pochette ouverte', [['pochette']]], ['la feuille du soir', [['rien-signer'], ['aller']]], ['le résultat du soir', [['jouer']]]];
 /* Ce qui s'ouvre du soir (V31, tranche 2) : [la sauvegarde, [la scène, ses gestes]…] ; une histoire et le ballottage, si une saison en garde une. */
-const OUVERTS = [['portes', [['les trois portes', []], ['la porte ouverte', [['ouvrir-porte', '0']]], ['l\'échange', [['vers-echange']]]]], ['piece', [['la pièce gagnée', [['continuer']]]]],
+const OUVERTS = [['portes', [['les trois portes', []], ['l\'échange', [['vers-echange']]]]], ['piece', [['la pièce gagnée', [['continuer']]]]],
   ['histoire', [['une histoire', [['ouvrir-histoire']]]]], ['ballottage', [['le ballottage', []]]],
   // La saison (tranche 3) : le repêchage d'un club imposé, l'ouverture du quart, le bilan et son marché, la fin et le Club.
   ['pieces', [['le repêchage', []]]], ['quart', [['l\'ouverture du quart', []]]], ['bilan', [['le bilan', []], ['le marché', [['apres-bilan']]]]], ['fin', [['la fin', []], ['le Club', [['club']]]]]];
@@ -317,7 +317,7 @@ const lire = page => page.evaluate(() => {
   const coupe = el => el.scrollWidth > el.clientWidth + 1;
   return { milieu: m ? b(m) : null, panneaux: [...plan.querySelectorAll('.rn-milieu .rn-panneau')].map(b), colonnes: plan.querySelectorAll('.rn-milieu > .rn-col').length,
     // Un comptoir : ses deux blocs (ce qu'on te tend, ton côté) ; les portes ; les joueurs d'une porte et sa tuile ; la plus large des cartes.
-    blocs: [...plan.querySelectorAll('.rn-comptoir > .rn-col')].filter(x => x.offsetHeight > 0).map(b), portes: [...plan.querySelectorAll('.rn-portes .rn-porte')].map(b),
+    blocs: [...plan.querySelectorAll('.rn-comptoir > .rn-col')].filter(x => x.offsetHeight > 0).map(b), offres: plan.querySelectorAll('.rn-etal > *').length,
     joueurs: [...plan.querySelectorAll('.rn-grille [data-a="voir-joueur"]')].map(x => x.dataset.v), tuile: (plan.querySelector('.rn-plie') || {}).textContent || '',
     carte: Math.max(0, ...[...plan.querySelectorAll('.rn-milieu .rn-c')].map(x => x.getBoundingClientRect().width)), onglets: !!plan.querySelector('.rn-onglets') && plan.querySelector('.rn-onglets').offsetHeight > 0,
     // Ce qui décide est à l'écran : la tuile qui mène aux autres joueurs, les réponses d'une histoire dans le bas, ce que « Signer » dit.
@@ -378,7 +378,7 @@ if (saves.resultat) for (const ecran of ECRANS) {
       await mesurer(p2, nom, { garde: false });
       E[cle][nom] = await lire(p2);
       // La tuile qui mène aux autres : de page en page, elle revient aux premiers joueurs.
-      if (nom === 'la porte ouverte' && / de (\d+)/.test(E[cle][nom].tuile)) {
+      if (nom === 'le repêchage' && / de (\d+)/.test(E[cle][nom].tuile)) {
         const pages = Number(E[cle][nom].tuile.match(/ de (\d+)/)[1]), vus = [E[cle][nom].joueurs.join()];
         for (let k = 0; k < pages; k++) { await geste(p2, 'page-porte'); vus.push((await lire(p2)).joueurs.join()); }
         E[cle].tour = { pages, autres: new Set(vus.slice(0, pages)).size, retour: vus[pages] === vus[0] };
@@ -434,16 +434,16 @@ exiger('l\'en-tête est toujours au même endroit : son écusson et ses cœurs a
 {
   const ecrans = ECRANS.map(([l, h]) => `${l} × ${h}`), e = (ecran, nom) => (E[ecran] || {})[nom] || null;
   const scenes = ['les pochettes', 'la pochette ouverte', ...OUVERTS.filter(([save]) => saves[save]).flatMap(([, l]) => l.map(x => x[0]))], manquent = ecrans.flatMap(k => scenes.filter(n => !e(k, n)).map(n => `${n} à ${k}`));
-  exiger('ce qui s\'ouvre du soir s\'ouvre aux cinq autres écrans : les pochettes, une pochette ouverte, les portes, la porte ouverte, l\'échange, la pièce gagnée', ['les pochettes', 'la pochette ouverte', 'les trois portes', 'la porte ouverte', 'l\'échange', 'la pièce gagnée'].every(n => scenes.includes(n)) && !manquent.length, manquent.slice(0, 4).join(' · ') || `${scenes.length} scènes à ${ecrans.length} écrans`);
+  exiger('ce qui s\'ouvre du soir s\'ouvre aux cinq autres écrans : les pochettes, une pochette ouverte, les trois joueurs, l\'échange, la pièce gagnée, le repêchage', ['les pochettes', 'la pochette ouverte', 'les trois portes', 'l\'échange', 'la pièce gagnée', 'le repêchage'].every(n => scenes.includes(n)) && !manquent.length, manquent.slice(0, 4).join(' · ') || `${scenes.length} scènes à ${ecrans.length} écrans`);
   // Le comptoir : côte à côte quand l'écran est large ou couché (la règle du rail), d'un trait sinon.
-  const COMPTOIRS = scenes.filter(n => n !== 'les trois portes' && n !== 'le Club'), cote = x => x.blocs.length < 2 || x.blocs[1].g >= x.blocs[0].d - 1, trait = x => x.blocs.length < 2 || x.blocs[1].h >= x.blocs[0].b - 1;
+  const COMPTOIRS = scenes.filter(n => n !== 'le Club'), cote = x => x.blocs.length < 2 || x.blocs[1].g >= x.blocs[0].d - 1, trait = x => x.blocs.length < 2 || x.blocs[1].h >= x.blocs[0].b - 1;
   const faux = [...['844 × 390', '1366 × 650', '1440 × 900'].flatMap(k => COMPTOIRS.filter(n => e(k, n) && !cote(e(k, n))).map(n => `${n} à ${k} : d'un trait`)), ...['360 × 640', '820 × 1180'].flatMap(k => COMPTOIRS.filter(n => e(k, n) && !trait(e(k, n))).map(n => `${n} à ${k} : côte à côte`))];
   exiger('… ce qu\'on te tend et ton côté : côte à côte quand l\'écran est large ou couché, d\'un trait au téléphone et à la tablette debout', !faux.length, faux.slice(0, 4).join(' · ') || `${COMPTOIRS.length} scènes`);
-  const P = e('1440 × 900', 'les trois portes'), p0 = e('360 × 640', 'les trois portes');
-  exiger('… à l\'ordinateur, les portes en rangée large : trois de front, plus hautes et plus larges qu\'au téléphone', !!P && !!p0 && P.portes.length === 3 && P.portes.every(x => Math.abs(x.h - P.portes[0].h) <= 1) && P.portes[0].b - P.portes[0].h > p0.portes[0].b - p0.portes[0].h + 60 && P.portes[0].d - P.portes[0].g > p0.portes[0].d - p0.portes[0].g + 60,
-    P && P.portes[0] && p0 && p0.portes[0] ? `${Math.round(P.portes[0].d - P.portes[0].g)} × ${Math.round(P.portes[0].b - P.portes[0].h)} px, contre ${Math.round(p0.portes[0].d - p0.portes[0].g)} × ${Math.round(p0.portes[0].b - p0.portes[0].h)}` : 'pas de portes');
-  const G = e('1440 × 900', 'la porte ouverte'), g0 = e('360 × 640', 'la porte ouverte');
-  exiger('… une porte montre plus de joueurs quand il y a la place : six tuiles au plus au téléphone, davantage à l\'ordinateur', !!G && !!g0 && g0.joueurs.length <= 6 && G.joueurs.length > g0.joueurs.length, G && g0 ? `${g0.joueurs.length} au téléphone, ${G.joueurs.length} à l'ordinateur` : 'pas de porte');
+  // Trois joueurs, un par vestiaire : trois tuiles de front, à chaque écran.
+  const trois = ecrans.filter(k => e(k, 'les trois portes')).map(k => [k, e(k, 'les trois portes').offres]);
+  exiger('… après un gros match gagné : trois joueurs de front, un par vestiaire, à chaque écran', trois.length === ecrans.length && trois.every(([, n]) => n === 3), trois.map(([k, n]) => `${k} : ${n}`).join(' · '));
+  const G = e('1440 × 900', 'le repêchage'), g0 = e('360 × 640', 'le repêchage');
+  exiger('… le repêchage montre plus de joueurs quand il y a la place : six tuiles au plus au téléphone, davantage à l\'ordinateur', !!G && !!g0 && g0.joueurs.length <= 6 && G.joueurs.length > g0.joueurs.length, G && g0 ? `${g0.joueurs.length} au téléphone, ${G.joueurs.length} à l'ordinateur` : 'pas de repêchage');
   const tour = (E['360 × 640'] || {}).tour;
   exiger('… la tuile qui mène aux autres passe par chaque page et revient à la première', !!tour && tour.pages > 1 && tour.autres === tour.pages && tour.retour, tour ? `${tour.pages} pages, ${tour.autres} différentes, ${tour.retour ? 'revenue' : 'pas revenue'} au début` : 'une seule page à 360 × 640');
   const larges = ecrans.flatMap(k => scenes.filter(n => e(k, n) && e(k, n).carte > 190).map(n => `${n} à ${k} : ${Math.round(e(k, n).carte)} px`));
@@ -454,14 +454,14 @@ exiger('l\'en-tête est toujours au même endroit : son écusson et ses cœurs a
     ...ecrans.flatMap(k => SANS.filter(n => e(k, n) && e(k, n).onglets).map(n => `${n} à ${k} : des onglets`))];
   exiger('… ce qu\'on consulte du bureau garde le rail quand l\'écran en a un ; ce qui engage (les pochettes, une histoire) n\'a pas d\'onglets', !rails.length, rails.slice(0, 4).join(' · ') || [...DU_BUREAU, ...SANS].join(' · '));
   // Ce qui décide est à l'écran, sans défiler.
-  const caches = [...ecrans.flatMap(k => ['la porte ouverte', 'la pochette ouverte'].filter(n => e(k, n) && e(k, n).tuileVue === false).map(n => `${n} à ${k} : la tuile des autres sous le pli`)),
+  const caches = [...ecrans.flatMap(k => ['le repêchage', 'la pochette ouverte'].filter(n => e(k, n) && e(k, n).tuileVue === false).map(n => `${n} à ${k} : la tuile des autres sous le pli`)),
     ...ecrans.filter(k => e(k, 'une histoire') && (e(k, 'une histoire').reponses[0] !== e(k, 'une histoire').reponses[1] || !e(k, 'une histoire').reponses[0])).map(k => `une histoire à ${k} : ${e(k, 'une histoire').reponses.join(' « Prendre » dans le bas pour ')} réponses`),
     ...ecrans.filter(k => e(k, 'l\'échange') && !/M\$|ne passe pas/.test(e(k, 'l\'échange').signer)).map(k => `l'échange à ${k} : « Signer » ne dit pas le plafond`)];
   exiger('… ce qui décide est à l\'écran sans défiler : la tuile des autres joueurs, les « Prendre » d\'une histoire dans le bas, le plafond d\'après sur « Signer »', !caches.length, caches.slice(0, 4).join(' · ') || `${ecrans.length} écrans`);
   const echap = ['1366 × 650', '1440 × 900'].map(k => [k, (E[k] || {}).echap]);
   exiger('… Échap à une pochette payée ouvre la pause : il n\'y renonce pas', echap.every(([, x]) => x === true), echap.map(([k, x]) => `${k} : ${x === true ? 'la pause, puis la pochette' : x === false ? 'la pochette est perdue' : 'pas essayé'}`).join(' · '));
   const focus = ['1366 × 650', '1440 × 900'].map(k => [k, (E[k] || {}).focus]);
-  exiger('… au clavier, on arrive aux portes sur une porte, jamais sur « Passer »', focus.every(([, f]) => f === 'ouvrir-porte'), focus.map(([k, f]) => `${k} : ${f || 'rien'}`).join(' · '));
+  exiger('… au clavier, on arrive aux trois joueurs sur un joueur, jamais sur « Passer »', focus.every(([, f]) => f === 'voir-joueur'), focus.map(([k, f]) => `${k} : ${f || 'rien'}`).join(' · '));
 }
 exiger('chaque cible fait 44 × 44', !fautes.cibles.length, fautes.cibles.slice(0, 5).join(' · '));
 exiger('chaque cible tient dans l\'écran', !fautes.bord.length, fautes.bord.slice(0, 4).join(' · '));

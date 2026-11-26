@@ -5210,20 +5210,6 @@ body.run-ouverte { overflow: hidden; }
   /* Le comptoir côte à côte : ce qu'on te tend sur trois parts, ton côté sur deux, au-dessus du bouton qui signe ; le tout au centre de la hauteur, chaque colonne défile seule. */
   .rn-comptoir { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-content: center; padding-bottom: 0; overflow: clip; }
   .rn-comptoir > .rn-col { max-width: none; margin: 0; padding-bottom: 14px; overflow-y: auto; }
-  /* Les portes en rangée large : le match gagné et ton plafond côte à côte, puis les trois portes, plus hautes. */
-  .rn-les-portes { display: grid; grid-template: "verdict plafond" auto "titre titre" auto "portes portes" auto / minmax(0, 1fr) minmax(0, 1fr); align-content: center; justify-content: center; max-width: 920px; }
-  .rn-les-portes > .rn-verdict { grid-area: verdict; }
-  .rn-les-portes > .rn-chapo { grid-area: titre; }
-  .rn-les-portes > .rn-portes { grid-area: portes; max-width: 780px; }
-  .rn-les-portes > .rn-panneau:last-child { grid-area: plafond; }
-  .rn-racine .rn-les-portes .rn-porte { height: clamp(316px, 52vh, 480px); }
-  /* Sur un écran très court (un téléphone couché) : le match gagné, le titre et ton plafond à gauche, les trois portes à droite sur toute la hauteur. */
-  @media (max-height: 479.98px) {
-    .rn-les-portes { grid-template: "verdict portes" auto "titre portes" auto "plafond portes" auto / minmax(0, 2fr) minmax(0, 3fr); align-items: start; max-width: none; }
-    .rn-racine .rn-les-portes .rn-porte { height: clamp(190px, calc(100vh - 160px), 316px); }
-    .rn-les-portes > .rn-portes { margin-top: 10px; }
-    .rn-les-portes .rn-porte::after { top: 40%; }
-  }
   .rn-plan > .rn-onglets { width: calc(72px + env(safe-area-inset-left, 0px)); padding-left: env(safe-area-inset-left, 0px); grid-template-columns: none; grid-auto-rows: 64px; align-content: start; border-top: 0; border-right: 1px solid var(--filet); }
   .rn-plan > .rn-bas, .rn-plan:has(> .rn-onglets:not(.rn-rail-seul)) > .rn-bas { justify-self: end; width: min(100%, 640px); padding-bottom: calc(14px + var(--safe-bas)); }
 }
@@ -5235,7 +5221,7 @@ body.run-ouverte { overflow: hidden; }
   .rn-racine .rn-onglets button:hover, .rn-racine .rn-seg button:hover:not(.rn-on), .rn-racine .rn-tete button:hover { color: var(--encre); }
   /* Une carte, une porte qu'on peut choisir : son contour s'éclaire. */
   .rn-racine :is(.rn-grille, .rn-etal, .rn-sortants) button:hover:not(.rn-on, :disabled) .rn-c { outline: 2px solid color-mix(in srgb, var(--blanc) 45%, transparent); outline-offset: 2px; border-radius: var(--r-1); }
-  .rn-racine .rn-porte:hover, .rn-racine .rn-plie:hover { border-color: var(--or); }
+  .rn-racine .rn-plie:hover { border-color: var(--or); }
 }
 .rn-attente { display: grid; place-items: center; align-content: center; gap: var(--esp-4); font: 800 var(--t-4)/1.2 var(--display); text-transform: uppercase; letter-spacing: 0.06em; text-align: center; }
 .rn-attente i { width: 40px; height: 40px; border-radius: 50%; border: 4px solid var(--filet); border-top-color: var(--or); animation: spin 0.9s linear infinite; }
@@ -5435,14 +5421,6 @@ body.run-ouverte { overflow: hidden; }
 .rn-ailleurs span:last-child { text-align: right; }
 .rn-ailleurs img, .rn-ailleurs svg { width: 16px; height: 16px; vertical-align: -3px; }
 /* Les portes, la porte ouverte, l'échange. */
-.rn-portes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 680px; margin: 10px auto 0; }
-.rn-racine .rn-porte { position: relative; height: 316px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 6px 16px; border: 3px solid color-mix(in srgb, var(--filet) 55%, var(--encre-2)); border-radius: 3.5em 3.5em var(--r-1) var(--r-1); background: linear-gradient(color-mix(in srgb, var(--fond-3) 80%, var(--club-vif)), var(--fond-2)); box-shadow: inset 0 0 0 6px color-mix(in srgb, var(--fond-1) 80%, var(--fond-2)), 0 8px 0 color-mix(in srgb, var(--fond-1) 50%, var(--noir-pur)); text-align: center; color: var(--encre); }
-.rn-porte img, .rn-porte > svg { position: absolute; top: 16%; width: 66px; height: 66px; }
-.rn-porte::after { content: ""; position: absolute; right: 12px; top: 52.5%; width: 9px; height: 9px; border-radius: 50%; background: var(--or); }
-.rn-porte b { font: 800 var(--t-4)/1 var(--display); text-transform: uppercase; }
-.rn-porte b small { display: block; margin-top: 3px; font-size: var(--t-2); color: var(--encre-2); }
-.rn-porte strong { font: 800 var(--t-6)/1 var(--display); color: var(--or); }
-.rn-porte strong small { display: block; margin-top: 2px; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .rn-tag { position: absolute; top: -10px; padding: 4px 8px; border-radius: 99em; background: var(--live); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
 .rn-grille { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 8px 10px; max-width: calc(var(--n, 3) * 190px); }
 .rn-col > .rn-grille { width: 100%; margin-inline: auto; padding-inline: 6px; }
@@ -5495,6 +5473,20 @@ body.run-ouverte { overflow: hidden; }
 .rn-ronde b { font: 800 var(--t-5)/1 var(--display); text-transform: uppercase; white-space: nowrap; }
 .rn-ronde b small { display: block; margin-top: 3px; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--encre-2); }
 .rn-ronde.rn-on { border-color: var(--blanc); background: color-mix(in srgb, var(--fond-3) 45%, var(--fond-1)); }
+/* L'arbre des seize, en large : quatre rondes de front, chaque série une boîte de deux lignes, la tienne allumée. */
+.rn-c-series { grid-auto-columns: auto; grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr); }
+.rn-arbre { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; min-height: 100%; }
+.rn-arbre > div { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; }
+.rn-branche { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; }
+.rn-duo { display: grid; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-1); font: 700 var(--t-2)/1 var(--display); }
+.rn-duo.rn-on { border-color: var(--blanc); }
+.rn-duo > span { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; color: var(--encre-2); white-space: nowrap; overflow: hidden; }
+.rn-duo > span + span { border-top: 1px solid var(--filet); }
+.rn-duo i { width: 16px; font-style: normal; font-size: var(--t-1); color: var(--encre-3); }
+.rn-duo b { margin-left: auto; }
+.rn-duo img, .rn-duo svg { width: 18px; height: 18px; flex: none; }
+.rn-duo .rn-gagne, .rn-duo .rn-moi { color: var(--encre); }
+.rn-duo.rn-attend { border-style: dashed; }
 .rn-pts { display: flex; gap: 5px; }
 .rn-pts i { width: 14px; height: 14px; border-radius: 50%; background: color-mix(in srgb, var(--blanc) 11%, transparent); }
 .rn-pts .rn-g { background: var(--bon); }

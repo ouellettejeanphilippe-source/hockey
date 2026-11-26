@@ -275,7 +275,6 @@ function rendre() {
   const dessous = () => {
     if (V.ecran === 'direct') return [sceneAttente('Le match se joue…')];
     if (V.ecran === 'echange') return [sceneEchange(S, V), false, 'echange'];
-    if (V.ecran === 'porte') return [scenePorte(S, V), false, `porte:${V.porte}:${V.page || 0}`];
     if (V.ecran === 'etal') return [sceneEtal(S), false, 'etal'];
     if (V.ecran === 'histoire') return [sceneHistoire(S, V), false, 'histoire'];
     if (V.ecran === 'club-vu') return [sceneClubVu(S, V), false, `club-vu:${V.clubVu}`];
@@ -288,7 +287,7 @@ function rendre() {
       case 'feuille': return [sceneFeuille(S, V), enDuel(R.soir)];
       case 'resultat': return [sceneResultat(S, V), false, `resultat:${V.segR || ''}`];
       case 'piece': return [scenePieceGagnee(S, V), false, 'piece'];
-      case 'portes': return R.portes.pochette ? [scenePorte(S, V), false, `pochette:${V.page || 0}`] : [scenePortes(S), false, 'portes'];
+      case 'portes': return R.portes.pochette ? [scenePorte(S, V), false, `pochette:${V.page || 0}`] : [scenePortes(S, V), false, `portes:${R.portes.tour}`];
       case 'bilan': return [sceneBilan(S)];
       case 'marche': return [sceneMarche(S, V), false, 'marche'];
       default: return [sceneFin(S, V)];
@@ -505,15 +504,13 @@ const GESTES = {
   continuer: () => { continuer(S); return suivre(); },
   'match-de-serie': () => { allerAuMatchDeSerie(S); return suivre(); },
   // les portes, l'échange
-  'ouvrir-porte': v => { Object.assign(V, { ecran: 'porte', porte: Number(v), page: 0, joueur: null }); },
-  'fermer-porte': () => { V.ecran = null; },
   'rien-signer': () => { apresLesPortes(S); return suivre(); },
   'vers-echange': v => {
     const x = [...(S.R.portes.pochette ? [null] : S.R.portes.clubs)].flatMap(c => (c ? S.clubs.find(k => k.s === c.s && k.t === c.t).pool : S.pochette || [])).find(p => getPlayerKey(p) === v);
     if (x) Object.assign(V, { ecran: 'echange', arrivant: x, sortant: null });
   },
   sortant: v => { V.sortant = v; },
-  'fermer-echange': () => { V.ecran = S.R.portes.pochette ? null : 'porte'; },
+  'fermer-echange': () => { V.ecran = null; },
   signer: v => {
     const sortant = joueurDe(v);
     // Signer range l'alignement au mieux (JP, 25 nov. 2026) : l'arrivant ne finit plus en civil à la place d'un réserviste.
@@ -524,7 +521,7 @@ const GESTES = {
     return suivre();
   },
   passer: () => { passerLesPortes(S); apresLesPortes(S); return suivre(); },
-  relancer: () => { if (relancerLesPortes(S)) { jouerSon('donne'); garder(); if (document.activeElement) document.activeElement.blur(); } },
+  relancer: () => { if (relancerLesPortes(S)) { jouerSon('donne'); garder(); V.joueur = null; if (document.activeElement) document.activeElement.blur(); } },
   // le bilan, le marché du quart
   'apres-bilan': () => { apresLeBilan(S); return suivre(); },
   // La carte à monter : la première touche prend celui qui avance le plus ton banc, les suivantes passent au suivant.

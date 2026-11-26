@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-4.9.0';  // 4.9.0 : le club imposé du cartable (dix-sept joueurs, l'entraîneur et deux pièces ; six tours dans toute la ligue) ; le Rogue en fluide, tranche 3 : plus de plan fixe (JP, 25 nov. 2026)
+const VERSION = 'cap82-4.10.0';  // 4.10.0 : trois joueurs au lieu de trois portes ; le cartable pigé selon la rareté ; les jambes fraîches à 92 ; l'arbre des seize en large (JP, 26 nov. 2026)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

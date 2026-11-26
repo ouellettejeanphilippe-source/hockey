@@ -34,7 +34,7 @@ import { REGLES_DU_COACH } from './coachs.js';
 import { MEDAILLES_ACTE, PRIX_PIECE, jeuDuRival, dominanteDe, recompenseDeLElite, perteDeLElite } from './actes.js';
 import { chanceDUnSoir } from './pronostic.js';
 import { seasonGames } from './ratings.js';
-import { groupeDuJoueur as groupeDe } from './niveaux.js';
+import { groupeDuJoueur as groupeDe, niveauDe } from './niveaux.js';
 import { EDITIONS } from './rarete.js';
 import { hache } from './util.js';
 
@@ -43,6 +43,8 @@ export const RUN = {
   COEURS: 2,                      // JP, 7 nov.
   PORTES: 3,
   PIECES_DU_DEPART: 2,            // les pièces de banc tirées au départ, après celle du coach (imposées : JP, 25 nov. 2026)
+  RARETE: [8, 5, 3, 2, 1],        // le poids d'une carte du cartable au tirage, par niveau, de Soutien à ★ Phénomène (JP, 26 nov. 2026 : *piger selon rareté des cartes*)
+  RARETE_DES_OFFERTS: [2, 4, 5, 4, 2], // le poids des trois joueurs tendus après un gros match gagné : un peu plus de bons joueurs que dans ton cartable (JP, 26 nov. 2026)
   IMPOSES: { F: 10, D: 5, G: 2 }, // les dix-sept joueurs imposés de ton cartable (JP, 25 nov. 2026 : *plus de cartes imposées du cartable*) ; le reste se repêche
   RACHAT: 0.5,                    // la part du salaire de celui qui sort qui se libère (JP, 10 nov. ; pas retranchée le 16 nov.)
   ESPACE: 4_000_000,              // l'espace gardé sous le plafond au repêchage (JP, 16 nov.)
@@ -195,12 +197,15 @@ const seanceVide = (donnees, R) => ({ R, donnees, clubs: classerLesClubs(donnees
 /*
  * LE CLUB IMPOSÉ (JP, 25 nov. 2026 : *moins de choix de cartes, plus de cartes imposées du cartable*). Une run ne se choisit
  * plus carte par carte : ton entraîneur est tiré pour toi (la coquille), ses deux pièces de banc aussi, et dix-sept de tes
- * vingt-trois joueurs sortent de ton cartable (`cartable` : ses clés), au hasard de la run — à l'édition Base et à plein
+ * vingt-trois joueurs sortent de ton cartable (`cartable` : ses clés), au hasard de la run, selon leur rareté — à l'édition Base et à plein
  * salaire : le cartable donne de la variété, pas de la force. Il reste six tours de repêchage. Un cartable trop petit (une
  * première run), un groupe qui manque, une carte qui ne tiendrait pas sous le plafond : autant de tours de plus.
  */
 function imposerLeCartable(S, cles) {
-  const R = S.R, quota = { ...RUN.IMPOSES }, ordre = [...new Set(cles)].sort((a, b) => hache(R.graine, 'cartable', a) - hache(R.graine, 'cartable', b) || (a < b ? -1 : 1));
+  // Le tirage selon la rareté : chaque carte court avec le poids de son niveau (un Soutien sort huit fois plus qu'un ★ Phénomène).
+  const R = S.R, quota = { ...RUN.IMPOSES }, poids = k => { const p = S.trouver(k), n = p ? niveauDe(p, S.donnees.shard(p.s).players) : 0; return RUN.RARETE[Math.max(0, n)] || 1; };
+  const rang = new Map([...new Set(cles)].map(k => [k, -Math.log(Math.max(1e-9, hache(R.graine, 'cartable', k))) / poids(k)]));
+  const ordre = [...rang.keys()].sort((a, b) => rang.get(a) - rang.get(b) || (a < b ? -1 : 1));
   for (const k of ordre) {
     const p = S.trouver(k), g = p && groupeDe(p), n = effectifDe(S).length;
     if (!p || !quota[g] || R.vus.includes(getPersonKey(p)) || !groupeOuvert(S, g)) continue;
@@ -267,6 +272,8 @@ export function ouvrirSeance(donnees, R) {
     tirerLeVestiaire(S);
   }
   R.imposes = R.imposes || [];
+  // Des portes gardées avant « trois joueurs » : chacune tire le sien.
+  if (R.portes && !R.portes.pochette && !R.portes.offerts) tirerLesOfferts(S);
   return S;
 }
 /* Écrire l'effectif dans `R` : la clé de chacun, sa case, ses jambes, son édition, ses matchs à l'infirmerie ; un gardien, ses départs de suite. */
@@ -1202,6 +1209,17 @@ function ouvrirLesPortes(S, { bande, affronte = null, cle, tour = 0, payees = 0 
     if (c && !pris.has(cleDuClub(c))) { pris.add(cleDuClub(c)); clubs.push(c); }
   }
   R.portes = { clubs: clubs.map(c => ({ s: c.s, t: c.t })), bande, cle, tour, affronte: a ? cleDuClub(a) : null, ...(payees ? { payees } : {}) };
+  tirerLesOfferts(S);
+}
+/*
+ * TROIS JOUEURS, UN PAR VESTIAIRE (JP, 26 nov. 2026 : *trois joueurs au lieu de trois clubs*). Derrière chaque porte, un seul
+ * joueur t'est tendu : tiré selon la rareté (`RUN.RARETE_DES_OFFERTS` : un peu plus de bons joueurs que dans ton cartable) parmi ceux du club qui tiennent dans ton espace
+ * et que tu n'as jamais eus. Un club où personne ne tient ne tend personne.
+ */
+function tirerLesOfferts(S) {
+  const R = S.R, P = R.portes, vus = new Set(R.vus);
+  const course = p => -Math.log(Math.max(1e-9, hache(R.graine, 'offert', P.cle, P.tour, getPlayerKey(p)))) / (RUN.RARETE_DES_OFFERTS[Math.max(0, niveauDe(p, S.donnees.shard(p.s).players))] || 1);
+  P.offerts = P.clubs.map(c => { const l = clubDe(S, c).pool.filter(p => !vus.has(getPersonKey(p)) && tient(S, p)).sort((a, b) => course(a) - course(b) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)); return l[0] ? getPlayerKey(l[0]) : null; });
 }
 /* La bande des portes d'un gros match gagné : autour de la hauteur du club battu parmi tous les clubs (un gros club battu ouvre de meilleurs vestiaires). */
 const bandeAutourDe = club => { const [a, b] = RUN.PORTES_AUTOUR, bas = Math.max(RUN.PORTES_PLANCHER, Math.min(0.85, club.rang + a)); return [bas, Math.min(1, Math.max(bas + 0.15, club.rang + b))]; };
@@ -1212,12 +1230,12 @@ export const masseApres = (S, p, sortant) => masseDe(S) - RUN.RACHAT * prixDe(S,
 /* Il tient dans ton espace s'il existe quelqu'un de son groupe dont la sortie le fait passer sous le plafond. */
 export const tient = (S, p) => sortantsPour(S, p).some(x => masseApres(S, p, x) <= S.R.plafond);
 /*
- * LE VESTIAIRE D'UNE PORTE : ses joueurs que tu n'as jamais eus (aucun joueur deux fois dans la run), les plus forts
- * d'abord ; `tient` dit qui passe sous ton plafond. Sans club : la pochette ouverte.
+ * CE QU'UNE PORTE TEND : le joueur tiré de son club (`tirerLesOfferts`) ; `tient` dit s'il passe sous ton plafond. Sans club :
+ * la pochette ouverte, ses joueurs que tu n'as jamais eus, les plus forts d'abord.
  */
 export function vestiaireDe(S, x) {
-  const club = clubDe(S, x), vus = new Set(S.R.vus);
-  return (club ? club.pool : S.pochette || []).filter(p => !vus.has(getPersonKey(p))).sort((a, b) => v(b) - v(a)).map(p => ({ p, tient: tient(S, p) }));
+  const club = clubDe(S, x), vus = new Set(S.R.vus), offerts = club && S.R.portes && S.R.portes.offerts;
+  return (club ? club.pool.filter(p => !offerts || offerts.includes(getPlayerKey(p))) : S.pochette || []).filter(p => !vus.has(getPersonKey(p))).sort((a, b) => v(b) - v(a)).map(p => ({ p, tient: tient(S, p) }));
 }
 /* Ranger tes trios et tes paires du plus fort au moins fort : l'ordre n'est pas un choix, leur composition, oui. */
 function rangerLesUnites(roster) {
