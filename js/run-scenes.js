@@ -936,7 +936,7 @@ function pageControle(C) {
     `<section class="rn-panneau rn-on">
     <div class="rn-entete"><b class="rn-h">${esc(A.nom)}</b><span class="rn-puce ${active ? 'rn-v' : 'rn-o'}">${active ? 'Active' : n ? 'Au repos' : 'À prendre'} · ${n} de ${A.prix.length}</span></div>
     <div class="rn-t rn-gris">${esc(A.dit)}</div>
-    <div class="rn-t rn-pied"><span class="rn-k">Ta prochaine run</span><br>Budget du repêchage : ${X.retenue ? `${Math.round(X.retenue / 1e6)} M$ de moins` : 'plein'} · ${X.relances} relance${X.relances > 1 ? 's' : ''} · ${X.affiches} affiches par quart · ${X.offerts} joueurs tendus${X.coeurs > 2 ? ' · 3 cœurs, la première fois' : ''}</div></section>`,
+    <div class="rn-t rn-pied"><span class="rn-k">Ta prochaine run</span><br>Budget du repêchage : ${X.retenue ? `${money(X.retenue)} de moins` : 'plein'} · ${X.relances} relance${X.relances > 1 ? 's' : ''} · ${X.affiches} affiches par quart · ${X.offerts} joueurs tendus${X.coeurs > 2 ? ' · 3 cœurs, la première fois' : ''}</div></section>`,
     bas(bt('Retour', 'fermer-club'), n ? bt(active ? 'Retirer' : actives.length >= cases ? 'Cases pleines' : 'Activer', 'activer-atout', { v: k, off: !active && actives.length >= cases }) : '', prix == null ? '' : bt(manque ? `Il te manque ${manque}` : `Prendre · ${prix}`, 'prendre-atout', { cls: 'gold', v: k, off: manque > 0 }))];
 }
 function pageVariete(C) {
