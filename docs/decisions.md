@@ -4192,3 +4192,19 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Mesuré.** Les sept scènes perdent leurs 24 positions au pixel. À la mesure de la tranche 1 (elle compte aussi les marges écrites dans un attribut de style) : 124 restaient, 84 restent, ceux de la tranche 3. `check_refonte` : le jeu retire 95 lignes pour 144 ajoutées (0,66 ; la borne est 0,5), la feuille de style fait 21 % du diff, les trois noms sont partis. `check_scene` passe de 26 à 36 vérifications et de 3 min 52 à 6 min : les sept scènes et une pochette payée s'ouvrent à cinq écrans de plus.
 
 **Pas fait.** Les scènes de la tranche 3 (le départ, le repêchage, l'ouverture du quart, le bilan, le marché, la fin, le Club) : y entrer fait encore sauter l'écran. L'échange n'est jugé qu'avec les sortants que la sauvegarde du robot donne (sept, pas quatorze). L'encoche de côté d'un téléphone couché est dégagée dans la feuille, mais aucun juge ne la simule. Une zone vivante pour les lecteurs d'écran (le joueur choisi qui change) ne survit pas à une scène qui se redessine entière.
+
+## Le club imposé du cartable, et la V31 finie (25 nov. 2026)
+
+**Ce que JP a demandé** : *moins de choix de cartes, plus de cartes imposées du cartable*. Quatre réponses : 17 joueurs imposés et 6 tours ; tirés au hasard de la run ; à l'édition Base et à plein salaire ; l'entraîneur et les deux pièces du départ imposés aussi. Puis : les six tours dans toute la ligue, sous le budget ; signer range l'alignement au mieux ; le compte du banc partout où on décide ; l'Album à autant de cartes que l'écran en tient. Le devis : docs/refonte-v32.md.
+
+**Un interdit d'avant, redemandé.** Le classeur était parti à la V28 : un gros cartable donnait une run plus forte. La question le disait ; JP a choisi l'édition Base et le plein salaire pour que le cartable donne de la variété.
+
+**Mesuré, et ça ne tient qu'à moitié.** Dix-sept cartes tiennent toujours sous le plafond (53 à 55 M$ en médiane pour 86,7 permis). Mais le robot bâtisseur fait 133 à 135 points avec un club imposé contre 114 avec un club repêché dans le bas de l'échelle (12 graines) : le cartable est fait de joueurs déjà choisis pour leur valeur. Les Coupes restent dans la borne (1 sur 12 ; la borne est 4 à 12 sur 64) : les séries sont le mur. À dire à JP : la saison régulière devient plus facile dès la deuxième run.
+
+**Ce qui est fait.** `creerLaRun` impose les deux pièces et tire le cartable (`imposerLeCartable`, `RUN.IMPOSES`) ; la phase des pièces part ; le repêchage sort de toute la ligue et compte ses tours depuis le club imposé ; la ligue écarte les clubs-saisons d'où viennent tes joueurs. Le départ n'a plus qu'un entraîneur, tiré.
+
+**La tranche 3 de la V31, par-dessus** (docs/refonte-v31-3.md, renvoyé par ses deux revues avant tout code). Douze scènes en fluide : le départ, l'ouverture du quart, le bilan et le solde d'un trait ; le repêchage, le marché, la fin et les quatre pages du Club en deux blocs. Le plan fixe de 390 × 844, son échelle et la marque d'une scène neuve partent : toute scène est une grille.
+
+**Trouvé en passant.** Le juge de la run ne comptait les victoires que chez tes gardiens du jour : un gardien échangé les emportait (35 victoires manquantes sur 1 312 dès que le robot repêche dans toute la ligue). Le test corrigé, pas le jeu. Le parcours au doigt touchait un nom du direct par son centre.
+
+**Pas fait.** Les trois vestiaires de front à l'ordinateur et l'arbre des séries (à poser à JP). Échap ne fait rien au départ, au repêchage, à la fin. Le juge du build à 256 graines n'a pas tourné sur le club imposé.

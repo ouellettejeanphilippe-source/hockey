@@ -5136,25 +5136,22 @@ body.sur-glace { overflow: hidden; }
 /* == 9d. LE ROGUE (V28, docs/refonte-v28.md ; V30, docs/refonte-v30-2.md : la saison et son bureau ; V31, docs/refonte-v31.md : en fluide, du téléphone à l'ordinateur) == */
 /* L'ALLURE DU 82-0 (JP, 17 nov. 2026 : *interface plus proche du 82-0* ; *seulement l'allure*) : le noir teinté par ton club, l'or, les boutons et les onglets du jeu,
    son en-tête ; les écrans restent ceux de la V30 (le bureau en tableaux, le match, les portes et les séries illustrés). Ses couleurs sont les jetons du jeu.
-   LA MISE EN PAGE (V31 ; JP, 25 nov. 2026 : *tout le Rogue en fluide*). Une scène neuve (`.rn-fluide`) prend tout l'écran : une grille de l'en-tête, du milieu et du
-   bas, les onglets en bas ou en rail ; rien n'est mis à l'échelle, et c'est cette feuille qui range les blocs. Une scène pas encore refaite (`.rn-fixe`, jusqu'aux
-   tranches 2 et 3) pose encore ses blocs elle-même sur un plan de 390 × 844, mis à l'échelle de l'écran. */
+   LA MISE EN PAGE (V31 ; JP, 25 nov. 2026 : *tout le Rogue en fluide*). Une scène prend tout l'écran : une grille de l'en-tête, du milieu et du bas, les onglets en bas
+   ou en rail ; rien n'est mis à l'échelle, et c'est cette feuille qui range les blocs. Le plan fixe de 390 × 844 est parti avec la dernière scène refaite (tranche 3). */
 body.run-ouverte { overflow: hidden; }
 .rn-racine { position: fixed; inset: 0; z-index: 420; display: grid; place-items: center; overflow: hidden; background: var(--noir-pur); font-family: var(--display); color: var(--encre); color-scheme: dark; }
 .rn-plan { position: relative; overflow: hidden; background: radial-gradient(80% 30% at 50% 0, color-mix(in srgb, var(--club-vif) 18%, transparent) 0, transparent 72%), var(--noir); }
 .rn-plan.rn-rouge { background: linear-gradient(160deg, color-mix(in srgb, var(--live) 36%, var(--noir)) 0 46%, transparent 46%), var(--noir); }
-.rn-fixe { flex: none; width: 390px; height: 844px; transform: scale(var(--rn-k, 1)); }
-.rn-fixe > * { position: absolute; }
 :where(.rn-racine) button { border: 0; background: none; padding: 0; text-align: inherit; touch-action: manipulation; }
 /* LA GRILLE D'UNE SCÈNE NEUVE. Sans rail : l'en-tête, le milieu, le bas, les onglets. Avec le rail (la règle du site : dès 1000 px, ou couché dès 680) : l'en-tête sur
    toute la largeur, le rail à gauche, le milieu et le bas à sa droite. L'en-tête ne saute donc jamais quand le rail vient ou part. */
-.rn-fluide { place-self: stretch; min-width: 0; min-height: 0; display: grid; grid-template: "hud" auto "milieu" minmax(0, 1fr) "bas" auto "onglets" auto / minmax(0, 1fr); }
-.rn-fluide > .rn-hud { grid-area: hud; min-height: calc(54px + var(--safe-top)); padding: var(--safe-top) max(4px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
-.rn-fluide > .rn-onglets { grid-area: onglets; }
-.rn-fluide > .rn-bas { grid-area: bas; padding: 8px 14px calc(14px + var(--safe-bas)); }
-.rn-fluide:has(> .rn-onglets:not(.rn-rail-seul)) > .rn-bas { padding-bottom: 8px; }
+.rn-plan { place-self: stretch; min-width: 0; min-height: 0; display: grid; grid-template: "hud" auto "milieu" minmax(0, 1fr) "bas" auto "onglets" auto / minmax(0, 1fr); }
+.rn-plan > .rn-hud { grid-area: hud; min-height: calc(54px + var(--safe-top)); padding: var(--safe-top) max(4px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); }
+.rn-plan > .rn-onglets { grid-area: onglets; }
+.rn-plan > .rn-bas { grid-area: bas; padding: 8px 14px calc(14px + var(--safe-bas)); }
+.rn-plan:has(> .rn-onglets:not(.rn-rail-seul)) > .rn-bas { padding-bottom: 8px; }
 /* Couché, l'encoche est sur un côté : le milieu et le bas la dégagent, comme l'en-tête (le rail, quand il est là, a déjà pris celle de gauche). */
-.rn-fluide > :is(.rn-milieu, .rn-bas) { border: 0 solid transparent; border-left-width: env(safe-area-inset-left, 0px); border-right-width: env(safe-area-inset-right, 0px); }
+.rn-plan > :is(.rn-milieu, .rn-bas) { border: 0 solid transparent; border-left-width: env(safe-area-inset-left, 0px); border-right-width: env(safe-area-inset-right, 0px); }
 /* LE MILIEU : la seule rangée qui grandit. Il se centre à 1400 px au plus (au-delà, une ligne de tableau se perd de l'œil). UN SEUL DÉFILEMENT DE HAUT EN BAS PAR
    COLONNE : le milieu d'une lecture, une colonne de panneaux, ou la boîte d'un tableau ; jamais l'une dans l'autre. */
 .rn-milieu { grid-area: milieu; justify-self: center; width: 100%; max-width: 1400px; min-width: 0; min-height: 0; overflow: clip; }
@@ -5164,12 +5161,23 @@ body.run-ouverte { overflow: hidden; }
 .rn-lecture > *, .rn-col > * { flex: none; }
 .rn-colonnes { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 8px 14px 0; }
 .rn-col { min-height: 0; padding-bottom: 14px; }
+/* « Ton quart » : sa liste de matchs prend ce qui reste de la colonne et défile dans sa boîte. */
+.rn-col > .rn-quart { flex: 0 1 auto; min-height: 160px; display: flex; flex-direction: column; }
+.rn-quart > .rn-boite { flex: 1 1 auto; min-height: 0; border: 0; border-radius: 0; background: none; }
 /* LE COMPTOIR (V31, tranche 2) : une scène où la run te tend quelque chose (une porte ouverte, l'échange, une pièce, une pochette, une histoire). Deux blocs dans l'ordre
    où on les lit : ce qu'on te tend, puis ton côté. D'un trait par défaut : le milieu défile, et dès 700 px le trait se borne à 640 px, au centre. */
 .rn-comptoir { display: flex; flex-direction: column; gap: 10px; padding: 8px 14px 14px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--filet) transparent; }
 .rn-comptoir > .rn-col { flex: none; width: 100%; max-width: 640px; margin-inline: auto; padding-bottom: 0; overflow: visible; }
 .rn-comptoir > .rn-col:empty { display: none; }
 .rn-chapo { display: grid; gap: 4px; }
+.rn-grand .rn-h { font-size: var(--t-6); }
+/* Une lecture d'un trait (le départ, l'ouverture du quart, le bilan, le solde) : bornée à 640 px, au centre. Une vignette : une carte ou un écusson, et ce qu'on en dit à côté. */
+.rn-trait > * { width: 100%; max-width: 640px; margin-inline: auto; }
+.rn-vignette { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: center; }
+.rn-vignette > :is(img, svg) { width: 100%; height: auto; }
+/* Ce qui coiffe deux blocs (le segment des pages du Club) reste à sa place ; les deux blocs prennent le reste. */
+.rn-tables > .rn-comptoir { flex: 1 1 0; min-height: 0; padding: 4px 6px 8px; align-content: start; }
+.rn-comptoir .rn-banc { max-width: 362px; }
 .rn-centre { text-align: center; }
 .rn-verdict { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
 /* Un onglet de tableau : ce qui coiffe le tableau reste en place (le segment, le plafond, les trois chiffres), sa boîte prend le reste et défile — de côté aussi, si
@@ -5187,16 +5195,18 @@ body.run-ouverte { overflow: hidden; }
 .rn-rien { padding: 14px; }
 /* Un écran très court (un téléphone couché) : ce qui coiffe un tableau défile avec lui, et sa boîte garde cinq lignes. */
 @media (max-height: 479.98px) {
+  .rn-col > .rn-quart { flex: none; }
+  .rn-quart > .rn-boite { overflow: visible; }
   .rn-tables { overflow-y: auto; }
   .rn-tables > :is(.rn-boite, .rn-cote, .rn-pilier), .rn-pilier > .rn-boite { flex: none; }
   .rn-tables .rn-boite { min-height: 220px; }
 }
 /* LE RAIL : les onglets à gauche, à la règle et à la largeur du rail du site. Le bas se borne et se range à droite, à la même place dans toutes les scènes. */
-.rn-fluide > .rn-rail-seul { display: none; }
+.rn-plan > .rn-rail-seul { display: none; }
 @media (orientation: landscape) and (min-width: 680px), (min-width: 1000px) {
-  .rn-fluide { grid-template: "hud hud" auto "onglets milieu" minmax(0, 1fr) "onglets bas" auto / auto minmax(0, 1fr); }
-  .rn-fluide > .rn-rail-seul { display: grid; }
-  .rn-fluide > .rn-onglets ~ :is(.rn-milieu, .rn-bas) { border-left-width: 0; }
+  .rn-plan { grid-template: "hud hud" auto "onglets milieu" minmax(0, 1fr) "onglets bas" auto / auto minmax(0, 1fr); }
+  .rn-plan > .rn-rail-seul { display: grid; }
+  .rn-plan > .rn-onglets ~ :is(.rn-milieu, .rn-bas) { border-left-width: 0; }
   /* Le comptoir côte à côte : ce qu'on te tend sur trois parts, ton côté sur deux, au-dessus du bouton qui signe ; le tout au centre de la hauteur, chaque colonne défile seule. */
   .rn-comptoir { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-content: center; padding-bottom: 0; overflow: clip; }
   .rn-comptoir > .rn-col { max-width: none; margin: 0; padding-bottom: 14px; overflow-y: auto; }
@@ -5214,10 +5224,10 @@ body.run-ouverte { overflow: hidden; }
     .rn-les-portes > .rn-portes { margin-top: 10px; }
     .rn-les-portes .rn-porte::after { top: 40%; }
   }
-  .rn-fluide > .rn-onglets { width: calc(72px + env(safe-area-inset-left, 0px)); padding-left: env(safe-area-inset-left, 0px); grid-template-columns: none; grid-auto-rows: 64px; align-content: start; border-top: 0; border-right: 1px solid var(--filet); }
-  .rn-fluide > .rn-bas, .rn-fluide:has(> .rn-onglets:not(.rn-rail-seul)) > .rn-bas { justify-self: end; width: min(100%, 640px); padding-bottom: calc(14px + var(--safe-bas)); }
+  .rn-plan > .rn-onglets { width: calc(72px + env(safe-area-inset-left, 0px)); padding-left: env(safe-area-inset-left, 0px); grid-template-columns: none; grid-auto-rows: 64px; align-content: start; border-top: 0; border-right: 1px solid var(--filet); }
+  .rn-plan > .rn-bas, .rn-plan:has(> .rn-onglets:not(.rn-rail-seul)) > .rn-bas { justify-self: end; width: min(100%, 640px); padding-bottom: calc(14px + var(--safe-bas)); }
 }
-@media (min-width: 1000px) { .rn-fluide > .rn-onglets { width: 96px; } }
+@media (min-width: 1000px) { .rn-plan > .rn-onglets { width: 96px; } }
 /* À la souris, ce qu'on peut toucher répond au survol. */
 @media (hover: hover) {
   .rn-racine button.rn-l:hover, .rn-racine button.rn-fl:hover, .rn-racine button.rn-plaque:hover { background: color-mix(in srgb, var(--blanc) 7%, transparent); }
@@ -5242,7 +5252,6 @@ body.run-ouverte { overflow: hidden; }
 /* L'en-tête, celui du 82-0 sur une rangée : ton écusson, où tu en es (le titre, l'état), puis tes chiffres en cellules séparées d'un filet (ton rang et tes points, tes
    jetons, tes cœurs dessinés), et le menu. Les cœurs sont toujours à la même place, contre le menu. */
 .rn-hud { z-index: 5; display: flex; align-items: center; gap: 7px; padding: 0 4px 0 12px; border-bottom: 1px solid var(--filet); background: var(--noir-pur); }
-.rn-fixe > .rn-hud { inset: 0 0 auto 0; height: 54px; }
 .rn-hud > :is(img, svg) { flex: none; width: 34px; height: 34px; }
 .rn-hud > :is(.rn-cible, .rn-jt, .rn-coeurs) { flex: none; height: 30px; padding-left: 7px; border-left: 1px solid var(--filet); }
 .rn-coeurs { display: flex; align-items: center; gap: 3px; }
@@ -5260,7 +5269,6 @@ body.run-ouverte { overflow: hidden; }
 .rn-pause .ico { width: 20px; height: 20px; }
 /* Les boutons sont ceux du jeu (`.btn` ; `.go`, le vert de « lancer » ; `.gold`, ce qui se gagne) : ici, seulement leur place et leur taille, et le rouge du combat. */
 .rn-bas { display: flex; gap: 8px; }
-.rn-fixe > .rn-bas { left: 14px; right: 14px; bottom: 14px; }
 .rn-racine .rn-bt { flex: 1; min-width: 0; height: 54px; display: grid; place-items: center; align-content: center; padding: 0 var(--esp-2); }
 .rn-bt small { display: block; margin-top: 3px; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; }
 .rn-racine .rn-bt:is(.go, .gold, .rn-combat) { flex: 2; font-size: var(--t-4); }
@@ -5303,14 +5311,7 @@ body.run-ouverte { overflow: hidden; }
 .rn-plaf .rn-neuf { background: var(--or); }
 .rn-plaf .rn-mort { background: repeating-linear-gradient(45deg, var(--mauvais) 0 5px, color-mix(in srgb, var(--mauvais) 50%, var(--fond-1)) 5px 10px); }
 /* Le départ : les étapes, le loto des coachs. */
-.rn-pas { display: flex; gap: 6px; }
-.rn-pas span { flex: 1; height: 30px; display: grid; place-items: center; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
-.rn-pas .rn-on { border-color: var(--club-vif); background: var(--club-vif); color: var(--noir-pur); }
-.rn-loto { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; gap: 10px; }
-.rn-loto button { display: block; width: 100%; }
-.rn-loto p { margin: 8px 0 0; font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.02em; text-align: center; color: var(--encre-2); }
-.rn-loto p b { display: block; font-size: var(--t-2); color: var(--encre); }
-.rn-loto .rn-on .rn-c, .rn-grille .rn-on .rn-c, .rn-etal .rn-on .rn-c { outline: 3px solid var(--blanc); outline-offset: 3px; border-radius: var(--r-1); }
+.rn-grille .rn-on .rn-c, .rn-etal .rn-on .rn-c { outline: 3px solid var(--blanc); outline-offset: 3px; border-radius: var(--r-1); }
 /* Le repêchage : ton banc en lignes serrées, sous la fiche du joueur. */
 .rn-enlignes { display: flex; flex-direction: column; gap: 6px; font: 600 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .rn-enlignes b { color: var(--encre); }
@@ -5445,6 +5446,10 @@ body.run-ouverte { overflow: hidden; }
 .rn-tag { position: absolute; top: -10px; padding: 4px 8px; border-radius: 99em; background: var(--live); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
 .rn-grille { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 8px 10px; max-width: calc(var(--n, 3) * 190px); }
 .rn-col > .rn-grille { width: 100%; margin-inline: auto; padding-inline: 6px; }
+/* Au repêchage, ton banc et ton club tiennent dans un panneau, sous le joueur choisi : au téléphone la scène ne défile pas. */
+.rn-tonclub { display: grid; gap: 6px; }
+.rn-tonclub .rn-t { font-size: var(--t-1); line-height: 1.3; }
+@media (max-width: 699.98px) { .rn-comptoir .rn-grille { max-width: 318px; } }
 .rn-grille > * { position: relative; display: block; min-width: 0; }
 .rn-coin { position: absolute; top: -7px; right: -5px; z-index: 1; padding: 3px 6px; border: 1px solid var(--bon); border-radius: 99em; background: var(--noir-pur); font: 400 var(--t-1)/1 var(--corps); box-shadow: 0 0 10px color-mix(in srgb, var(--bon) 55%, transparent); }
 .rn-sousc { display: block; margin-top: 5px; font: 800 var(--t-2)/1.15 var(--display); text-align: center; color: var(--or); }
@@ -5475,10 +5480,11 @@ body.run-ouverte { overflow: hidden; }
 .rn-etal > * { display: block; min-width: 0; }
 .rn-etal p { margin: 5px 0 0; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; text-align: center; color: var(--encre-2); }
 .rn-prix { height: 30px; margin-top: 7px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--or); border-radius: var(--r-1); background: color-mix(in srgb, var(--noir-pur) 60%, transparent); font: 800 var(--t-4)/1 var(--display); color: var(--or); }
+.rn-monter { display: grid; grid-template-columns: minmax(0, 84px) 20px minmax(0, 84px) minmax(0, 1fr); gap: 8px; align-items: center; }
+.rn-monter .rn-prix { margin-top: 6px; }
 .rn-prix.rn-non { border-color: var(--filet); color: var(--encre-3); }
 .rn-bulle { padding: 12px 14px; border-radius: var(--r-2) var(--r-2) var(--r-2) 0; background: var(--encre); font: 700 var(--t-4)/1.3 var(--corps); color: var(--fond-1); }
 .rn-voix { display: inline-block; margin-bottom: 8px; padding: 4px 10px; border-radius: 99em; background: var(--or); font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--encre-sur-or); }
-.rn-fait { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; }
 /* Le bilan du quart, les séries, la fin de la run, la pause. */
 .rn-cellules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .rn-cellules div { padding: 10px 8px; border: 1px solid var(--filet); border-radius: var(--r-2); background: color-mix(in srgb, var(--fond-1) 82%, transparent); text-align: center; }
@@ -5511,30 +5517,29 @@ body.run-ouverte { overflow: hidden; }
 /* Le Club, entre deux runs (V28, tranche 5) : ses médailles, son segment, la grille des philosophies, les écussons et les couleurs, le cran du départ. */
 .rn-medaille { width: 16px; height: 20px; flex: none; background: linear-gradient(var(--mauvais) 0 34%, transparent 34%), radial-gradient(circle at 50% 66%, color-mix(in srgb, var(--or) 60%, var(--blanc)) 0 3px, var(--or) 3.5px 6.5px, transparent 7px); clip-path: polygon(22% 0, 78% 0, 78% 30%, 100% 30%, 100% 100%, 0 100%, 0 30%, 22% 30%); }
 .rn-hud .rn-md { margin-left: auto; }
-.rn-racine .rn-versclub { height: 44px; min-width: 96px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 10px; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-2); }
-.rn-versclub img, .rn-versclub svg { width: 26px; height: 26px; flex: none; }
+.rn-racine .rn-hud .rn-bande { flex: none; gap: 10px; padding: 0 10px; }
+.rn-bande .rn-md { margin-left: 0; height: auto; padding: 0; border: 0; }
 .rn-seg, .rn-crans { display: flex; gap: 6px; }
 .rn-racine .rn-seg button, .rn-racine .rn-crans button { flex: 1; min-width: 0; height: 44px; display: grid; place-items: center; align-content: center; gap: 3px; border-radius: var(--r-1); background: var(--fond-2); font: 600 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
 .rn-racine .rn-seg .rn-on, .rn-racine .rn-crans .rn-on { background: var(--club-vif); color: var(--noir-pur); }
 .rn-racine .rn-crans button { font-size: var(--t-1); }
 .rn-crans b { font-size: var(--t-4); color: inherit; }
 .rn-racine .rn-crans button:disabled { opacity: 0.4; }
-.rn-voies { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; }
+.rn-voies { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; width: 100%; max-width: 600px; margin-inline: auto; }
 .rn-racine .rn-voies button, .rn-racine .rn-clubs button { display: block; width: 100%; }
 .rn-voies .rn-on .rn-c { outline: 3px solid var(--blanc); outline-offset: 3px; border-radius: var(--r-1); }
 .rn-voies .rn-fermee .rn-c { opacity: 0.45; filter: saturate(0.3); }
 .rn-apercu { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; }
 .rn-apercu > svg { display: block; width: 64px; height: 64px; }
 .rn-clubs svg { display: block; width: 100%; height: 50px; }
-.rn-clubs { display: grid; grid-template-columns: repeat(5, 1fr); grid-auto-rows: 64px; gap: 10px; }
+.rn-clubs { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); grid-auto-rows: 64px; gap: 10px; }
 .rn-racine .rn-clubs button { height: 64px; padding: 6px; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-2); overflow: hidden; }
-.rn-couleurs { display: grid; grid-template-columns: repeat(7, 44px); justify-content: space-between; gap: 9px 0; }
+.rn-couleurs { display: flex; flex-wrap: wrap; gap: 9px; }
 .rn-racine .rn-couleurs button { width: 44px; height: 44px; border: 2px solid var(--filet); border-radius: 50%; background: linear-gradient(135deg, var(--a) 0 50%, var(--b) 50%); }
 .rn-racine .rn-clubs .rn-on, .rn-racine .rn-couleurs .rn-on { border-color: var(--blanc); box-shadow: 0 0 0 2px var(--blanc); }
 .rn-racine .rn-clubs .rn-revetu, .rn-racine .rn-couleurs .rn-revetu { border-color: var(--bon); }
 .rn-clubs .rn-fermee svg, .rn-racine .rn-couleurs .rn-fermee { opacity: 0.4; }
 .rn-solde .rn-recap { padding: 6px 0; }
-.rn-album { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 10px; }
 .rn-racine .rn-album button { position: relative; display: block; width: 100%; }
 .rn-album .rn-on .rn-c { outline: 3px solid var(--blanc); outline-offset: 3px; border-radius: var(--r-1); }
 .rn-album .rn-vide { aspect-ratio: 5 / 7; border: 1px dashed var(--filet); border-radius: var(--r-1); filter: none; }

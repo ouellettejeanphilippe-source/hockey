@@ -1,6 +1,6 @@
 # V31 · tranche 3 : la saison et le Club, puis le plan fixe part
 
-Le devis de la troisième et dernière tranche du Rogue en fluide (gabarit : `docs/gabarits/devis.md` ; le plan d'ensemble : `docs/refonte-v31.md` ; la tranche 2 : `docs/refonte-v31-2.md`). Treize scènes : **le départ, les pièces du départ, le repêchage, l'ouverture du quart, le bilan, le marché du quart, la fin, le Club et ses quatre pages, le solde**. Puis **le plan fixe de 390 × 844 et son échelle partent**.
+Le devis de la troisième et dernière tranche du Rogue en fluide (gabarit : `docs/gabarits/devis.md` ; le plan d'ensemble : `docs/refonte-v31.md` ; la tranche 2 : `docs/refonte-v31-2.md`). Repris le 25 nov. 2026 après ses deux revues et après le club imposé du cartable (`docs/refonte-v32.md`, codé avec lui) : § 11. Douze scènes : **le départ, le repêchage, l'ouverture du quart, le bilan, le marché du quart, la fin, le Club et ses quatre pages, le solde**. Puis **le plan fixe de 390 × 844 et son échelle partent**.
 
 ## 1. Ce que JP a dit
 
@@ -33,18 +33,17 @@ Le départ, la fin, le Club et le solde n'ont pas l'en-tête d'une run (ni rang,
 
 | La scène | Le premier bloc | Le second bloc | Le bas |
 |---|---|---|---|
-| **Le départ** | les trois étapes, « un parmi trois », les trois coachs (une run d'avant arrêtée : sa ligne en tête) | le coach choisi (sa philosophie, son niveau, sa règle), sa pièce de départ, les crans d'exigence | Menu · Prendre Bowman |
-| **Les pièces du départ** | les trois étapes, « une parmi trois », les trois pièces | ton banc | Prendre |
-| **Le repêchage** | le club qui sort (tes avants, défenseurs et gardiens ; le budget du tour), ses joueurs | le joueur choisi, ton banc en lignes | Relancer · Repêcher Lafleur |
-| **L'ouverture du quart** | « le proprio demande », ses trois objectifs | le rival du quart, tes gros matchs | Au bureau |
-| **Le bilan** | le verdict, les trois objectifs jugés | tes cœurs, ton rang, tes médailles ; ce qui suit | Le marché du quart |
-| **Le marché** | une pièce de banc parmi trois ; une carte à monter | ton banc (plein : celle qui sort) | Continuer · Prendre la pièce / Monter Lafleur |
+| **Le départ** (d'un trait) | ton entraîneur tiré pour toi (sa carte, sa règle), sa pièce de départ, tes crans d'exigence | — | Menu · Commencer |
+| **Le repêchage** | le club qui sort, le budget du tour, ses joueurs | le joueur choisi, ton banc en lignes, ton club (ses noms par groupe, combien viennent du cartable) | Relancer · Repêcher Lafleur |
+| **L'ouverture du quart** (d'un trait) | « le proprio demande », ses objectifs, le rival, tes gros matchs | — | Au bureau |
+| **Le bilan** (d'un trait) | le verdict, les objectifs jugés, tes cœurs, ton rang, tes médailles | — | Le marché du quart |
+| **Le marché** | une pièce de banc parmi trois, et ton banc juste dessous (plein : celle qui sort, avec son compte) | une carte à monter | Continuer · Prendre la pièce / Monter Lafleur |
 | **La fin** | le verdict de la run, le récit quart par quart | ton joueur de la saison, tes trois chiffres, le Club | Menu · Une run neuve |
 | **Le Club · Variété** | les huit philosophies | celle qu'on touche (sa règle, sa pièce, ses entraîneurs) | Retour · Ouvrir / Une run neuve |
-| **Le Club · Ton club** | Écusson ou Couleurs, l'aperçu de ce qu'on touche, les tuiles | — | Retour · Porter / Acheter |
+| **Le Club · Ton club** | Écusson ou Couleurs, l'aperçu de ce qu'on touche | les tuiles | Retour · Porter / Acheter |
 | **Le Club · Album** | le compte, Joueurs · Gravées · Entraîneurs, les cartes de la page | la carte touchée (son édition, ses copies, ce qui est gravé) | Retour · ‹ · 2 / 5 › |
 | **Le Club · Palmarès** | tes trois chiffres, l'échelle du prestige | ton record, ton exigence, le solde | Retour |
-| **Le solde** | « l'ancien Rogue est parti », ce qui est rendu, ligne par ligne | tu avais, rendu, tu as | Au Club · Continuer |
+| **Le solde** (d'un trait) | « l'ancien Rogue est parti », ce qui est rendu, tu avais, rendu, tu as | — | Au Club · Continuer |
 
 - **Les quatre pages du Club** gardent leur segment en tête du milieu, à la même place d'une page à l'autre.
 - **Ton club** est un seul bloc au téléphone (le segment, l'aperçu, les tuiles : l'ordre d'aujourd'hui) ; quand l'écran est large ou couché, la feuille met l'aperçu à droite des tuiles (une grille nommée, comme aux portes). Le DOM est le même.
@@ -63,9 +62,9 @@ La règle de la porte ouverte (tranche 2) vaut pour les deux grilles qui se feui
 
 ### 3.4 Le clavier
 
-- **Les pièces du départ** : le focus arrive sur la pièce choisie, pas sur « Prendre » (une pièce est pour toute la saison).
 - **Le marché** : le focus arrive sur « Continuer » quand rien n'est choisi ; jamais sur un bouton qui dépense.
-- **Le repêchage**, **le départ** : le focus arrive sur le bouton qui avance (« Repêcher », « Prendre Bowman »), comme aujourd'hui : c'est le pas de la scène, et la relance le défait.
+- **Le repêchage** : le focus arrive sur le joueur choisi, pas sur « Repêcher » (un repêché ne se défait pas). **Le départ** : sur « Commencer ».
+- **Le Club** : un bouton qui dépense des médailles (« Ouvrir », « Acheter ») est `.gold` et ne reçoit jamais le focus d'office.
 - **Le Club** : Échap et B ferment le Club (« Retour »), comme aujourd'hui.
 
 ### 3.5 Le plan fixe part
@@ -98,7 +97,7 @@ Aucune formule de jeu. Les nombres sont des largeurs et des comptes (§ 8).
 
 ## 6. Ce qu'il touche
 
-`js/run-scenes.js`, `js/run-jeu.js`, `style.css`, `sw.js`, `js/version.js`, `scripts/check_scene.mjs`, `scripts/essai_run.mjs`, `.claude/rules/interface.md`, `.claude/rules/vocabulaire.md`, `.claude/rules/tests.md`, `.claude/agents/rogue-ux.md`, `docs/decisions.md`, `docs/refonte-v31.md`, `LIVRAISON.md`.
+`js/run-scenes.js`, `js/run-jeu.js`, `style.css`, `sw.js`, `js/version.js`, `scripts/check_scene.mjs`, `.claude/rules/interface.md`, `.claude/rules/vocabulaire.md`, `.claude/rules/tests.md`, `.claude/agents/rogue-ux.md`, `docs/decisions.md`, `docs/refonte-v31.md`, `LIVRAISON.md`.
 
 Les règles fermes d'interface.md :
 
@@ -118,7 +117,7 @@ Les clés de sauvegarde ne bougent pas.
 - `ECHELLE_MAX` — la borne de l'échelle (1,25), avec la fonction qui la calculait à chaque redimensionnement et la variable de la feuille qui la portait (`--rn-k`).
 - `PAR_PAGE` — cinq joueurs par page au repêchage, quel que soit l'écran. Remplacé par ce que l'écran tient (la règle de la porte ouverte).
 - `ALBUM_PAR_PAGE` — six cartes par page à l'Album, quel que soit l'écran. Même remplacement.
-- `rn-versclub` — le bouton du Club posé au coin du départ, par-dessus le titre. Il entre dans l'en-tête.
+- `rn-versclub` — le bouton du Club posé au coin du départ, par-dessus le titre. Il entre dans l'en-tête, nommé (« Le Club »), dans la bande de la fin de run.
 - Sans nom à juger : les positions au pixel des treize scènes (50 attributs de style en portent une ; 84 en comptant les marges écrites) ; dans la coquille, le choix entre deux plans ; dans le juge des scènes, le cas « plan fixe ».
 
 ### Ce qui reste, et pourquoi
@@ -162,3 +161,18 @@ Les six écrans du juge : 360 × 640, 390 × 844, 820 × 1180, 844 × 390, 1366 
 
 - **Les séries en large** : le tableau des seize en arbre, quatre rondes de front ? (Ouvert depuis la tranche 1.)
 - Les trois questions de la tranche 2 (`docs/refonte-v31-2.md` § 10).
+
+## 11. Les deux revues du 25 nov. 2026, et ce qu'elles ont changé
+
+Deux relecteurs en adversaires, avant tout code : **à reprendre**, tous deux. Entre-temps JP a tranché le club imposé (`docs/refonte-v32.md`), l'Album et le compte du banc.
+
+- **Le focus du repêchage prenait à ta place** (vingt-trois « Entrée » repêchaient le premier joueur). Il se pose sur le joueur choisi.
+- **« Entrée » dépensait au Club** : « Ouvrir · 40 » et « Acheter » étaient le bouton qui avance. Ils sont `.gold`.
+- **Le bilan, l'ouverture du quart, le solde ne sont pas des comptoirs** : un trait borné à 640 px.
+- **Le marché** : la pièce et le banc ensemble (celle qui sort se choisit sous les pièces, avec son compte) ; la carte à monter dans l'autre bloc.
+- **Le segment du Club** coiffe le milieu : il ne bouge pas d'une page à l'autre.
+- **Les trois étapes** du départ partent avec les choix qu'elles comptaient.
+- **Le bouton du Club** est nommé, dans l'en-tête ; l'écusson n'y est plus deux fois.
+- **Sans run, l'écran se redessine** quand on le tourne ; l'Album revient à sa première page et recharge ses saisons ; un seul calcul du nombre de tuiles (`tuilesDe`) pour la porte, le repêchage et l'Album.
+- **Le juge** ne lit plus la marque d'une scène neuve (elle est partie) : toute scène est mesurée ; l'écusson se mesure avec ou sans cœurs.
+- Pas repris : Échap, B et Start ne font rien au départ, au repêchage, à la fin et au solde (aucun retour possible, aucune pause) ; ce que les médailles gagnées ouvrent ne se dit pas à la fin (du contenu : à poser à JP).

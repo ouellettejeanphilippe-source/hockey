@@ -17,7 +17,7 @@ import { chargerCoachs, lotoDesCoachs } from './coachs-reels.js';
 import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages } from './rogue.js';
 import { VOIES } from './coachs.js';
 import { rayonsDuClub, prendreAuClub, nomDuClub } from './club.js';
-import { ajouterAuCartable, albumDuCartable, coachAuCartable, coachsDuCartable, graverAuCartable } from './cartable.js';
+import { ajouterAuCartable, albumDuCartable, coachAuCartable, coachsDuCartable, graverAuCartable, joueursDuCartable } from './cartable.js';
 import { tirerJoueursDuPack } from './packs.js';
 import { sceneDe, nomDOption } from './histoires.js';
 import { motsDe } from './effets.js';
@@ -40,12 +40,11 @@ import {
   repondre, allerAuMatchDeSerie, finir, effectifDe, dernierMatch,
 } from './run.js';
 import {
-  sceneAttente, sceneDepart, scenePieceDuDepart, sceneRepechage, sceneQuart, sceneBureau, sceneFeuille, sceneResultat, scenePortes, scenePorte, sceneEchange,
-  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, afficheDuDirect, ficheDuJoueur, nomQuiOuvre, sceneClubVu, sceneMatchVu, sceneClub, sceneSolde, ALBUM_PAR_PAGE, listeDeLAlbum,
+  sceneAttente, sceneDepart, sceneRepechage, sceneQuart, sceneBureau, sceneFeuille, sceneResultat, scenePortes, scenePorte, sceneEchange,
+  scenePieceGagnee, sceneBilan, sceneMarche, sceneEtal, sceneBallottage, sceneHistoire, sceneFin, scenePause, jaugeDeCeSoir, afficheDuDirect, ficheDuJoueur, nomQuiOuvre, sceneClubVu, sceneMatchVu, sceneClub, sceneSolde, tuilesDe, listeDeLAlbum,
 } from './run-scenes.js';
 
 const CLE = 'cap82_run';
-const LARGEUR = 390, HAUTEUR = 844, ECHELLE_MAX = 1.25;
 /* La chance de la feuille du soir, en tranches de `TRANCHE` matchs. */
 const TRANCHES = 4, TRANCHE = 30;
 
@@ -79,7 +78,6 @@ const oublier = () => { try { localStorage.removeItem(CLE); } catch { /* rien à
 
 /* ---------- la coquille ---------- */
 /* Le plan fixe des scènes pas encore refaites (V31, tranches 2 et 3) : 390 × 844, mis à l'échelle de l'écran. */
-function echelle() { if (plan) plan.style.setProperty('--rn-k', String(Math.min(ECHELLE_MAX, window.innerWidth / LARGEUR, window.innerHeight / HAUTEUR))); }
 /*
  * LA PLACE DONT UNE SCÈNE DISPOSE, en un mot (V31, docs/refonte-v31.md § 3.3) : étroit, moyen (deux colonnes de panneaux
  * tiennent), large (trois). La scène rend le contenu qui va avec ; quand le mot change (une fenêtre qu'on élargit, un
@@ -90,7 +88,14 @@ const largeurDe = () => (MOTS_DE_LARGEUR.find(([, q]) => window.matchMedia(q).ma
 /* Et sa hauteur, pour ce qui se compte en rangées (les joueurs d'une porte) : court, moyen, haut. */
 const MOTS_DE_HAUTEUR = [['haut', '(min-height: 860px)'], ['moyen', '(min-height: 620px)']];
 const hauteurDe = () => (MOTS_DE_HAUTEUR.find(([, q]) => window.matchMedia(q).matches) || ['court'])[0];
-const surLaLargeur = () => { if (S && plan && (largeurDe() !== V.largeur || hauteurDe() !== V.hauteur)) { V.page = 0; rendre(); } };
+/* L'écran change de mot (une fenêtre élargie, un téléphone tourné) : la scène se redessine, avec ou sans run ; une grille qui se feuillette revient à sa première page. */
+const surLaLargeur = () => {
+  if (!plan || (largeurDe() === V.largeur && hauteurDe() === V.hauteur)) return;
+  V.page = 0;
+  if (V.club && V.club.album) { V.club.album.page = 0; V.club.album.vue = null; }
+  rendre();
+  if (V.ecran === 'club' && V.club && V.club.page === 'album') chargerLaPageDeLAlbum();
+};
 /*
  * MONTRER une scène. Une scène neuve (son milieu) prend l'écran en grille ; une scène d'avant garde son plan fixe.
  * Chaque boîte qui défile porte un nom (`data-defile`) : quand la même page se redessine (un joueur tenu, un tri, une
@@ -101,7 +106,7 @@ const surLaLargeur = () => { if (S && plan && (largeurDe() !== V.largeur || haut
 function montrer(html, { rouge = false, page = null } = {}) {
   const meme = !!page && page === pageVue, places = new Map(meme ? [...plan.querySelectorAll('[data-defile]')].map(b => [b.dataset.defile, [b.scrollTop, b.scrollLeft]]) : []);
   const tenu = document.activeElement && plan.contains(document.activeElement) ? document.activeElement : null, geste = tenu && tenu.dataset.a ? [tenu.dataset.a, tenu.dataset.v] : null;
-  plan.className = `rn-plan ${html.includes('class="rn-milieu') ? 'rn-fluide' : 'rn-fixe'}${rouge ? ' rn-rouge' : ''}`;
+  plan.className = `rn-plan${rouge ? ' rn-rouge' : ''}`;
   plan.innerHTML = html;
   for (const b of plan.querySelectorAll('[data-defile]')) {
     const p = places.get(b.dataset.defile), moi = !p && b.querySelector('.rn-coupe') ? b.querySelector('.rn-moi') : null;
@@ -134,7 +139,6 @@ async function charger(mot) {
 let teinteDAvant = null;
 function fermer() {
   clearTimeout(minuterie);
-  window.removeEventListener('resize', echelle);
   for (const [, q] of [...MOTS_DE_LARGEUR, ...MOTS_DE_HAUTEUR]) window.matchMedia(q).removeEventListener('change', surLaLargeur);
   document.removeEventListener('click', nomDuDirect);
   if (racine) racine.remove();
@@ -155,8 +159,6 @@ export async function ouvrirRun(c = {}) {
   plan = racine.firstElementChild;
   document.body.append(racine);
   document.body.classList.add('run-ouverte');
-  echelle();
-  window.addEventListener('resize', echelle);
   for (const [, q] of [...MOTS_DE_LARGEUR, ...MOTS_DE_HAUTEUR]) window.matchMedia(q).addEventListener('change', surLaLargeur);
   document.addEventListener('click', nomDuDirect);
   racine.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled && racine.contains(b)) geste(b.dataset.a, b.dataset.v); });
@@ -183,8 +185,8 @@ async function versLeDepart(arret = null) {
   S = null; V = {};
   montrer(sceneAttente('On sort les dossiers des coachs…'));
   const solde = soldeAMontrer(), meta = lireMeta(), coachs = await chargerCoachs().catch(() => null), graine = nouvelleGraine(), cranMax = cranOuvert(meta);
-  V = { ecran: solde ? 'solde' : 'depart', solde, arret, graine, coach: 0, numero: (meta.runs || 0) + 1, medailles: meta.ecussons || 0, cranMax, cran: Math.min(meta.cran || 0, cranMax),
-    loto: lotoDesCoachs(coachs, voiesOuvertes(meta), `${graine}:chef`, 3, coachsDuCartable(), meta.nouvelle || null) };
+  V = { ecran: solde ? 'solde' : 'depart', solde, arret, graine, numero: (meta.runs || 0) + 1, medailles: meta.ecussons || 0, cranMax, cran: Math.min(meta.cran || 0, cranMax),
+    loto: lotoDesCoachs(coachs, voiesOuvertes(meta), `${graine}:chef`, 1, coachsDuCartable(), meta.nouvelle || null) };
   rendre();
 }
 /*
@@ -233,7 +235,7 @@ function ouvrirLAlbum() {
 async function chargerLaPageDeLAlbum() {
   const A = V.club && V.club.album;
   if (!A || A.seg === 'coachs') return;
-  const ici = listeDeLAlbum(A).slice(A.page * ALBUM_PAR_PAGE, (A.page + 1) * ALBUM_PAR_PAGE).filter(x => !A.joueurs.has(x.k));
+  const ici = listeDeLAlbum(A).slice(A.page * tuilesDe(V), (A.page + 1) * tuilesDe(V)).filter(x => !A.joueurs.has(x.k));
   if (!ici.length) return;
   await Promise.all([...new Set(ici.map(x => x.saison))].filter(s => !SHARDS.has(s) && state.index.seasons.includes(s)).map(async s => { SHARDS.set(s, await getShard(s)); })).catch(() => {});
   for (const x of ici) A.joueurs.set(x.k, ((shardCharge(x.saison) || {}).players || []).find(p => getPlayerKey(p) === x.k) || null);
@@ -247,10 +249,10 @@ function fermerLeClub() {
   V.ecran = retour === 'depart' ? 'depart' : null;
 }
 async function commencer() {
-  const c = V.loto[V.coach], { graine, numero, cran } = V;
+  const c = V.loto[0], { graine, numero, cran } = V;
   montrer(sceneAttente('On ouvre les vestiaires…'));
   await charger('On ouvre les vestiaires :');
-  S = creerLaRun(donnees(), { graine, numero, exigence: V.cran || 0, coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
+  S = creerLaRun(donnees(), { graine, numero, exigence: V.cran || 0, cartable: joueursDuCartable(), coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
   garderLesForces();
   poserClubLu(() => (S ? { team: S.toi } : null));
   coachAuCartable(c, numero);
@@ -267,7 +269,7 @@ function rendre() {
   V.largeur = largeurDe();
   V.hauteur = hauteurDe();
   if (V.ecran === 'solde' && V.solde) return montrer(sceneSolde(V.solde));
-  if (V.ecran === 'club' && V.club) return montrer(sceneClub(V.club));
+  if (V.ecran === 'club' && V.club) return montrer(sceneClub(V.club, V), { page: `club:${V.club.page}:${V.club.rayon || ''}:${V.club.album ? `${V.club.album.seg}:${V.club.album.page}` : ''}` });
   if (!S) return montrer(V.ecran === 'depart' ? sceneDepart(V) : sceneAttente('Un instant…'));
   const R = S.R;
   const dessous = () => {
@@ -279,8 +281,7 @@ function rendre() {
     if (V.ecran === 'club-vu') return [sceneClubVu(S, V), false, `club-vu:${V.clubVu}`];
     if (V.ecran === 'match-vu') return [sceneMatchVu(S, V), false, `match-vu:${V.matchVu}:${V.segM || ''}`];
     switch (R.phase) {
-      case 'pieces': return [scenePieceDuDepart(S, V)];
-      case 'repechage': return [sceneRepechage(S, V)];
+      case 'repechage': return [sceneRepechage(S, V), false, `repechage:${R.rep.tour}:${R.rep.k}:${V.page || 0}`];
       case 'quart': return [sceneQuart(S)];
       case 'bureau': case 'series': return [sceneBureau(S, V), false, `${V.onglet || 'bureau'}:${V.segA || ''}:${V.segL || ''}:${V.segC || ''}`];
       case 'ballottage': return [sceneBallottage(S, V), false, 'ballottage'];
@@ -289,7 +290,7 @@ function rendre() {
       case 'piece': return [scenePieceGagnee(S, V), false, 'piece'];
       case 'portes': return R.portes.pochette ? [scenePorte(S, V), false, `pochette:${V.page || 0}`] : [scenePortes(S), false, 'portes'];
       case 'bilan': return [sceneBilan(S)];
-      case 'marche': return [sceneMarche(S, V)];
+      case 'marche': return [sceneMarche(S, V), false, 'marche'];
       default: return [sceneFin(S, V)];
     }
   };
@@ -411,7 +412,6 @@ const joueurDe = cle => effectifDe(S).find(p => getPlayerKey(p) === cle) || null
 const suivre = () => { garder(); entrer(); return false; };
 const GESTES = {
   // le départ
-  coach: v => { V.coach = Number(v); },
   'prendre-coach': () => { commencer(); return false; },
   quitter: () => { fermer(); return false; },
   cran: v => { V.cran = Math.min(Number(v) || 0, V.cranMax || 0); },
@@ -420,7 +420,7 @@ const GESTES = {
   'fermer-club': () => { fermerLeClub(); },
   page: v => { V.club.page = v; if (v === 'album') ouvrirLAlbum(); },
   'album-seg': v => { Object.assign(V.club.album, { seg: v, page: 0, vue: null }); chargerLaPageDeLAlbum(); },
-  'album-page': v => { const A = V.club.album; A.page = Math.max(0, Math.min(Math.ceil(listeDeLAlbum(A).length / ALBUM_PAR_PAGE) - 1, A.page + Number(v))); A.vue = null; chargerLaPageDeLAlbum(); },
+  'album-page': v => { const A = V.club.album; A.page = Math.max(0, Math.min(Math.ceil(listeDeLAlbum(A).length / tuilesDe(V)) - 1, A.page + Number(v))); A.vue = null; chargerLaPageDeLAlbum(); },
   'voir-carte': v => { V.club.album.vue = v; },
   'voir-voie': v => { V.club.voie = v; },
   'ouvrir-voie': v => { if (ouvrirUneVoie(v).ok) { jouerSon('valide'); notable(); relireLeClub(); } else jouerSon('refus'); },

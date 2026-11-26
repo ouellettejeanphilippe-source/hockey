@@ -15,7 +15,7 @@
  *   toutes les saisons, la cédule relue de la graine, ton club bâti, les feuilles). `figer(S)` écrit l'effectif dans `R` ;
  *   `ouvrirSeance` le relit, sans rejouer un seul match.
  *
- *   LES PHASES (`R.phase`) : pieces → repechage → quart → bureau ⇄ (ballottage) feuille → resultat → (piece) (portes)
+ *   LES PHASES (`R.phase`) : repechage → quart → bureau ⇄ (ballottage) feuille → resultat → (piece) (portes)
  *   → bureau … → bilan → marche → quart … → series ⇄ feuille → resultat → fin ; du bureau : histoire, portes (une pochette).
  *
  * Chaque tirage est un hachage de la graine et de son moment (`hache`) : rien ne dépend de l'ordre des appels. Les matchs
@@ -42,10 +42,11 @@ import { hache } from './util.js';
 export const RUN = {
   COEURS: 2,                      // JP, 7 nov.
   PORTES: 3,
-  PIECES_DU_DEPART: 2,            // les pièces de banc choisies avant le repêchage, après celle du coach
+  PIECES_DU_DEPART: 2,            // les pièces de banc tirées au départ, après celle du coach (imposées : JP, 25 nov. 2026)
+  IMPOSES: { F: 10, D: 5, G: 2 }, // les dix-sept joueurs imposés de ton cartable (JP, 25 nov. 2026 : *plus de cartes imposées du cartable*) ; le reste se repêche
   RACHAT: 0.5,                    // la part du salaire de celui qui sort qui se libère (JP, 10 nov. ; pas retranchée le 16 nov.)
   ESPACE: 4_000_000,              // l'espace gardé sous le plafond au repêchage (JP, 16 nov.)
-  REPECHAGE: { BANDE: [0.05, 0.4], PLANCHER: 800_000, RELANCES: 5 },   // des clubs du bas de l'échelle, en rang centile
+  REPECHAGE: { BANDE: [0, 1], PLANCHER: 800_000, RELANCES: 5 },   // toute la ligue, en rang centile (JP, 25 nov. 2026 : il reste six tours, sous ton budget)
   LIGUE: { CLUBS: 31, MATCHS: 82, PLACES: 16, BANDE: [0.25, 0.95], USURE_DOS_A_DOS: 3 },
   QUARTS: [21, 20, 21, 20],       // les matchs de chaque quart
   ETAPES: [1, 3, 6, 12, 12],      // les étapes d'édition des adversaires, par quart puis en séries : le dernier quart prépare aux séries
@@ -191,19 +192,42 @@ const seanceVide = (donnees, R) => ({ R, donnees, clubs: classerLesClubs(donnees
  * simple philosophie ({ cle }) pour un robot. Rend la séance, à ses deux pièces de banc : avant le repêchage, pour savoir
  * quoi repêcher.
  */
-export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1, exigence = 0 }) {
+/*
+ * LE CLUB IMPOSÉ (JP, 25 nov. 2026 : *moins de choix de cartes, plus de cartes imposées du cartable*). Une run ne se choisit
+ * plus carte par carte : ton entraîneur est tiré pour toi (la coquille), ses deux pièces de banc aussi, et dix-sept de tes
+ * vingt-trois joueurs sortent de ton cartable (`cartable` : ses clés), au hasard de la run — à l'édition Base et à plein
+ * salaire : le cartable donne de la variété, pas de la force. Il reste six tours de repêchage. Un cartable trop petit (une
+ * première run), un groupe qui manque, une carte qui ne tiendrait pas sous le plafond : autant de tours de plus.
+ */
+function imposerLeCartable(S, cles) {
+  const R = S.R, quota = { ...RUN.IMPOSES }, ordre = [...new Set(cles)].sort((a, b) => hache(R.graine, 'cartable', a) - hache(R.graine, 'cartable', b) || (a < b ? -1 : 1));
+  for (const k of ordre) {
+    const p = S.trouver(k), g = p && groupeDe(p), n = effectifDe(S).length;
+    if (!p || !quota[g] || R.vus.includes(getPersonKey(p)) || !groupeOuvert(S, g)) continue;
+    if (masseDe(S) + prixDe(S, p) > R.plafond - RUN.ESPACE - RUN.REPECHAGE.PLANCHER * (EFFECTIF - n - 1)) continue;
+    asseoir(S, p); quota[g]--;
+    R.imposes.push(getPlayerKey(p));
+  }
+  rebatir(S);
+}
+export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1, exigence = 0, cartable = [] }) {
   const E = exigencesDe(exigence);
   const S = seanceVide(donnees, {
     v: VERSION_DE_LA_RUN, graine: String(graine), numero,
     regles: { exigence: E.n, cible: E.cible, etapes: RUN.ETAPES.map(e => e + E.etapes), prime: E.medailles },
     coach: { maitrise: 1, ...coach }, banc: [PIECE_DU_COACH[coach.cle]],
     jetons, coeurs: RUN.COEURS, plafond: CAP, mort: 0,
-    joueurs: [], vus: [], anciens: [], prets: [], stats: {},
-    phase: 'pieces', pieces: 0, rep: null, ligue: null, quart: null, quarts: [], soir: null, apres: null, suite: [], portes: null, marche: null, ballottage: null,
+    joueurs: [], vus: [], anciens: [], prets: [], stats: {}, imposes: [],
+    phase: 'repechage', rep: null, ligue: null, quart: null, quarts: [], soir: null, apres: null, suite: [], portes: null, marche: null, ballottage: null,
     relances: 0, sonnes: 0, matchs: [], series: null, histoires: [], hRepos: -RUN.REPOS_HISTOIRE, achats: 0, fin: null,
   });
   rebatir(S);
-  S.R.apres = { offertes: piecesOffertes(S.toi.perso, S.R.graine, 'depart:0') };
+  // Ses deux pièces de banc, tirées pour toi : la première offerte de chaque tirage.
+  for (let k = 0; k < RUN.PIECES_DU_DEPART; k++) { S.R.banc = poserLaPiece(S.R.banc, piecesOffertes(S.toi.perso, S.R.graine, `depart:${k}`)[0]); rebatir(S); }
+  imposerLeCartable(S, cartable);
+  const n = effectifDe(S).length;
+  S.R.rep = { tour: n, debut: n, relances: RUN.REPECHAGE.RELANCES, k: 0 };
+  tirerLeVestiaire(S);
   figer(S);
   return S;
 }
@@ -236,6 +260,13 @@ export function ouvrirSeance(donnees, R) {
   // Une pochette ouverte, pas encore réglée : ses joueurs se relisent de leur saison.
   if (R.portes && R.portes.pochette) S.pochette = (R.portes.joueurs || []).map(trouver).filter(Boolean);
   rebatir(S);
+  // Une run gardée devant ses pièces du départ (avant le club imposé) : ses pièces sont tirées pour elle, et elle repêche ses vingt-trois.
+  if (R.phase === 'pieces') {
+    for (let k = R.pieces || 0; k < RUN.PIECES_DU_DEPART; k++) { R.banc = poserLaPiece(R.banc, piecesOffertes(S.toi.perso, R.graine, `depart:${k}`)[0]); rebatir(S); }
+    Object.assign(R, { phase: 'repechage', apres: null, rep: { tour: 0, debut: 0, relances: RUN.REPECHAGE.RELANCES, k: 0 } });
+    tirerLeVestiaire(S);
+  }
+  R.imposes = R.imposes || [];
   return S;
 }
 /* Écrire l'effectif dans `R` : la clé de chacun, sa case, ses jambes, son édition, ses matchs à l'infirmerie ; un gardien, ses départs de suite. */
@@ -415,15 +446,11 @@ export function prendreLaPiece(S, cle, sort = null) {
   rebatir(S); figer(S);
   return true;
 }
-/* La pièce offerte est prise ou passée. Au départ : la deuxième s'offre, puis le repêchage commence. */
+/* La pièce offerte (un rival battu, une élite gagnée) est prise ou passée. */
 export function pieceReglee(S) {
   const R = S.R;
-  if (R.phase !== 'pieces') { R.apres = { ...R.apres, offertes: [] }; return continuer(S); }
-  R.pieces++;
-  if (R.pieces < RUN.PIECES_DU_DEPART) R.apres = { offertes: piecesOffertes(S.toi.perso, R.graine, `depart:${R.pieces}`) };
-  else { R.apres = null; R.phase = 'repechage'; R.rep = { tour: 0, relances: RUN.REPECHAGE.RELANCES, k: 0 }; tirerLeVestiaire(S); }
-  figer(S);
-  return R.phase;
+  R.apres = { ...R.apres, offertes: [] };
+  return continuer(S);
 }
 
 /* ---------- le repêchage de 23 (docs/refonte-v30-2.md § 3.1) ---------- */
@@ -464,13 +491,17 @@ export function vestiaireDuRepechage(S) {
   }
   return clubDe(S, rep.club).pool.filter(p => offrable(S, p, vus)).sort((a, b) => v(b) - v(a)).map(p => ({ p, tient: prixDe(S, p) <= max }));
 }
+/* Un joueur entre : dans la première case libre qui lui convient ; la même personne ne s'offrira plus. */
+function asseoir(S, p) {
+  const libre = CASES.find(s => !S.roster[s.i] && fits(p, s)) || CASES.find(s => !S.roster[s.i]);
+  S.roster[libre.i] = copie(p);
+  S.R.vus.push(getPersonKey(p));
+}
 /* Repêcher : il entre dans la première case libre qui lui convient ; au vingt-troisième, l'alignement se range et la saison s'ouvre. */
 export function repecher(S, p) {
   const R = S.R, x = vestiaireDuRepechage(S).find(y => y.p === p);
   if (R.phase !== 'repechage' || !x || !x.tient) return false;
-  const libre = CASES.find(s => !S.roster[s.i] && fits(p, s)) || CASES.find(s => !S.roster[s.i]);
-  S.roster[libre.i] = copie(p);
-  R.vus.push(getPersonKey(p));
+  asseoir(S, p);
   R.rep.tour++; R.rep.k = 0;
   if (R.rep.tour < EFFECTIF) { rebatir(S); tirerLeVestiaire(S); figer(S); return true; }
   const range = trioAuMieux(effectifDe(S));
@@ -496,9 +527,11 @@ export function relancerLaRoulette(S) {
 /* Trente et un clubs, un par franchise, tirés de la bande de la ligue ; la cédule, la même que celle du 82-0 ; les fiches à zéro. */
 function ouvrirLaLigue(S) {
   const R = S.R, bande = dansLaBande(S.clubs, RUN.LIGUE.BANDE), pris = new Set(), clubs = [];
+  // Aucun club-saison d'où vient un de tes joueurs (ton cartable, tes tours dans toute la ligue) : il jouerait contre lui-même, compté deux fois.
+  const chezToi = new Set(effectifDe(S).map(p => getPlayerKey(p).split('_').slice(0, 2).join(':')));
   for (let k = 0; clubs.length < RUN.LIGUE.CLUBS && k < 4000; k++) {
     const c = pigeDans(bande, R.graine, 'ligue', k);
-    if (pris.has(c.t)) continue;
+    if (pris.has(c.t) || chezToi.has(`${c.s}:${c.t}`)) continue;
     pris.add(c.t); clubs.push({ s: c.s, t: c.t });
   }
   R.ligue = { v: 2, clubs, fiches: Array.from({ length: clubs.length + 1 }, () => [0, 0, 0, 0, 0]), jour: 0, pts: {}, gardiens: {} };
