@@ -31,13 +31,12 @@ const PART_MAX = 0.75;
 const GRAINES = (process.env.GRAINES || '1,2').split(',').map(Number);
 /*
  * UN ÉCART NOMMÉ : un moment rare dans une run (`RARES_DANS_LA_RUN`) ou vrai presque tous les soirs (`TROP_DANS_LA_RUN`), avec sa
- * raison. L'infirmerie (deux blessés à la fois), rare sur une run de vingt soirs, revient une huitaine de fois dans une saison.
- * Un écart depuis le club imposé (25 nov. 2026) : les tours du repêchage sortent de toute la ligue, et un club bâti là a les
- * jambes fraîches quatre soirs sur cinq (mesuré : 149 soirs sur 186, contre 65 par run sur 82 quand les tours sortaient du bas
- * de l'échelle).
+ * raison. Aucun : l'infirmerie (deux blessés à la fois), rare sur une run de vingt soirs, revient une huitaine de fois dans une
+ * saison ; « jambes fraîches », vrai quatre soirs sur cinq quand les tours du repêchage sont sortis de toute la ligue, demande
+ * des jambes à 92 depuis le 26 nov. 2026 (88 avant ; JP : *plus exigeant*).
  */
 const RARES_DANS_LA_RUN = {};
-const TROP_DANS_LA_RUN = { jambesFraiches: 'un club repêché dans toute la ligue fatigue moins : quatre soirs sur cinq (JP, 25 nov. 2026 : les tours dans toute la ligue)' };
+const TROP_DANS_LA_RUN = {};
 const CLES = Object.keys(MOMENTS_SI);
 const med = a => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor((b.length - 1) / 2)] : 0; };
 

@@ -37,7 +37,6 @@ Le devis : `docs/refonte-v31.md` (jugé par deux relecteurs, repris). En code di
 - [x] **2 · Ce qui s'ouvre du soir** (25 nov.) — une histoire, les pochettes, le ballottage, la pièce gagnée, les portes, la porte ouverte, l'échange (`docs/refonte-v31-2.md`, jugé par deux relecteurs, repris). Le comptoir : ce qu'on te tend, puis ton côté — d'un trait au téléphone et à la tablette debout, côte à côte quand l'écran est large ou couché ; les trois portes en rangée large ; la porte ouverte montre plus de joueurs quand il y a la place ; le même contenu à toutes les largeurs ; ce qui décide à l'écran sans défiler (les « Prendre » d'une histoire dans le bas, le plafond d'après sur « Signer ») — `js/run-scenes.js` (`comptoir`), `style.css` — `check_scene` (36, six écrans), `essai_run` (24), `check_refonte`.
   - [x] Deux bogues de la tranche 1 : un onglet du rail ne fermait pas la page d'un club ; au téléphone, la page d'un club et un match passé montraient les cinq onglets.
   - [x] Échap ne perd plus une pochette payée : il ouvre la pause (« Ne rien signer » n'est pas un retour).
-- [ ] Encore à poser à JP : à l'ordinateur, les trois vestiaires ouverts de front ; les séries en large, le tableau des seize en arbre.
 - [x] **3 · La saison et le Club** (25 nov. ; `docs/refonte-v31-3.md`, renvoyé par ses deux revues avant le code, repris) — le départ, le repêchage, l'ouverture du quart, le bilan, le marché, la fin, le Club et ses quatre pages, le solde ; le plan fixe, son échelle et la marque d'une scène neuve sont partis ; l'Album montre autant de cartes que l'écran en tient ; au marché, banc plein, celle qui sort se choisit avec son compte — `check_scene` (36), `essai_run` (24), `check_refonte`.
 - [ ] À poser à JP avant la tranche 3 : les séries en large, le tableau des seize en arbre ?
 
@@ -53,6 +52,21 @@ Le devis : `docs/refonte-v31.md` (jugé par deux relecteurs, repris). En code di
 - [x] ~~Le devis (`/refonte`) : l'inventaire du départ~~ (`creerLaRun`, `lotoDesCoachs`, `piecesOffertes`, `repecher`, `sceneDepart`, `scenePieceDuDepart`, `sceneRepechage`, les robots), ce qui part (le loto de trois coachs, les deux écrans de pièces, dix-sept tours).
 - [x] Mesuré (25 nov., 2 000 tirages par cartable, les effectifs de fin de 1 à 6 runs du robot bâtisseur) : dix-sept cartes tirées au hasard pèsent 53 à 55 M$ en médiane (39 à 69 M$ de 5 à 95 %), pour 86,7 M$ permis avec six tours à faire ; aucun tirage ne dépasse. Il reste donc une trentaine de millions pour six tours : environ 5 M$ par choix, le double du salaire moyen d'une carte imposée.
 - [ ] À mesurer encore (`mesure_run`) : la run du bâtisseur avec six choix au lieu de vingt-trois (son banc, ses Coupes), et ce que six tours à 5 M$ font à la force du club.
+
+## Après le club imposé · quatre réglages tranchés par JP (26 nov.)
+
+- [x] **« Jambes fraîches » plus exigeant** (26 nov. ; le seuil à 92 : 39 soirs sur 82 au lieu de 74 ; l'écart nommé est retiré — `check_moments_si`) : le moment est vrai quatre soirs sur cinq depuis que les tours sortent de toute la ligue ; monter son seuil (88 aujourd'hui, `MOMENTS_SI`, js/sim.js) pour revenir vers un soir sur deux, mesuré ; retirer l'écart nommé de `check_moments_si`.
+- [x] **Le cartable se pige selon la rareté des cartes** (26 nov. ; `RUN.RARETE` 8 · 5 · 3 · 2 · 1 ; mesuré sur 12 graines : 128,8 points au lieu de 136,8, pour 121,8 sans cartable ; le proprio n'a pas bougé : ses objectifs de points suivent déjà la force du club, `rangDeForce`) (JP : *piger selon rareté des cartes*) : les joueurs ordinaires sortent souvent, les vedettes rarement ; et **le proprio demande plus** quand ton club sort du cartable. Mesurer pour ramener le club imposé près des 114 points d'un club repêché (133 à 135 aujourd'hui).
+- [x] **Trois joueurs au lieu de trois portes** (26 nov. ; `tirerLesOfferts`, js/run.js ; `scenePortes` ; la porte ouverte ne sert plus qu'à une pochette ; « Relancer » en tire trois autres — `check_scene`, `essai_run`, `mesure_run`) (JP : *trois joueurs au lieu de trois clubs ?* ; puis : oui, un par club) : après un gros match gagné, le jeu tend trois joueurs, un par club (le club battu en donne un), tirés selon la rareté parmi ceux qui tiennent dans ton espace ; on en signe un, ou aucun. Les portes et la porte ouverte partent : un devis (`/refonte`), la relance à redéfinir.
+- [x] **Les séries en large : l'arbre des seize** (26 nov. ; `pageSeries`, `.rn-arbre`), quatre rondes de front, ta route allumée ; au téléphone, comme aujourd'hui.
+
+## La carrière · la première run est dure, le contrôle s'achète (JP, 26 nov. : *la première saison, ça devrait être peu de chances de gagner, c'est les upgrades/ajustements permanents qui mènent éventuellement vers la coupe, mais pas aisément*)
+
+- [x] **JP tranche** (26 nov.) : une première run plus dure encore (les séries une fois sur deux, la Coupe presque jamais ; aujourd'hui le robot bâtisseur fait les séries 84 % du temps et gagne 2 Coupes sur 64) ; des améliorations achetées en médailles, **pas plus de plafond** : *d'autres types d'upgrade qui ne rendent pas meilleurs, mais permettent un meilleur contrôle, donc meilleur* ; une vraie chance de Coupe (une sur quatre) après **cinq runs** environ.
+- [x] Les trois joueurs tendus penchent un peu vers les bons joueurs (`RARETE_DES_OFFERTS` 2 · 4 · 5 · 4 · 2 ; JP : *un peu plus de bons joueurs*) ; mesuré à 64 graines : 2 Coupes, 111 points.
+- [ ] Défait une règle de la V28 (« rien de ce qu'on achète ne gagne un match ») : JP le sait, la question le disait.
+- [ ] À poser à JP : lesquelles (les relances, un joueur tendu de plus, choisir des cartes de son cartable, choisir son entraîneur ou une pièce…), et leurs prix.
+- [ ] Le devis (`/refonte`), la mesure d'une carrière de cinq runs avec les robots, puis le code.
 
 ## La sauvegarde qui suit d'un appareil à l'autre (JP, 25 nov. : *avoir sauvegarde multidevice* ; *Github sync*)
 

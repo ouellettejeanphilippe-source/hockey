@@ -4208,3 +4208,15 @@ Le devis repris : docs/refonte-v29.md (16 noms dans « Ce qui part » ; une tran
 **Trouvé en passant.** Le juge de la run ne comptait les victoires que chez tes gardiens du jour : un gardien échangé les emportait (35 victoires manquantes sur 1 312 dès que le robot repêche dans toute la ligue). Le test corrigé, pas le jeu. Le parcours au doigt touchait un nom du direct par son centre.
 
 **Pas fait.** Les trois vestiaires de front à l'ordinateur et l'arbre des séries (à poser à JP). Échap ne fait rien au départ, au repêchage, à la fin. Le juge du build à 256 graines n'a pas tourné sur le club imposé.
+
+## Trois joueurs au lieu de trois portes ; la rareté (26 nov. 2026)
+
+**Ce que JP a tranché**, en deux tours de questions (le premier n'était pas clair : « jambes fraîches » et « trois vestiaires » ne disaient rien ; reposées en mots simples). *Rendre « reposés » plus exigeant* ; *piger selon rareté des cartes* (sa réponse, hors des options) ; *trois joueurs au lieu de trois clubs ?* (son idée, confirmée : un par club) ; l'arbre des seize en large.
+
+**Trois joueurs.** Chaque porte tend un seul joueur, tiré selon la rareté parmi ceux qui tiennent dans ton espace. `vestiaireDe` ne rend plus que lui : les robots, l'échange et les juges lisent la même fonction. Écarté : le meilleur qui tient (un club riche en espace devient vite très fort), celui qui sert le plus ton banc (le jeu bâtit à ta place). Les trois portes en rangée large de la tranche 2 de la V31 n'auront vécu qu'un jour.
+
+**La rareté.** Une course à poids (`RUN.RARETE` : 8 · 5 · 3 · 2 · 1, de Soutien à ★ Phénomène) pour le cartable et pour les trois joueurs. Mesuré sur 12 graines : 136,8 points au pur hasard, 128,8 avec ces poids, 125,0 avec des poids plus raides (20 · 8 · 3 · 1 · 0,3), 121,8 sans cartable. Gardé : 8 · 5 · 3 · 2 · 1, pour qu'une vedette sorte encore.
+
+**Le proprio n'a pas bougé** : JP voulait qu'il demande plus, mais ses objectifs de points suivent déjà la force du club (`rangDeForce`, `tauxAttendu`). Dit à JP.
+
+**Jambes fraîches** : 92 au lieu de 88 (mesuré : 54 soirs à 91, 39 à 92, 28 à 93).

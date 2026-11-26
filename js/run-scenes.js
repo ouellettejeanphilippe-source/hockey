@@ -704,17 +704,20 @@ export function sceneResultat(S, V) {
 /* Le match gagné qui ouvre la scène : son pointage, ce qu'on a battu, ce que ça donne. Les portes et la pièce gagnée le disent du même bloc. */
 const verdict = (S, donne) => { const a = S.R.apres; return a && a.gf != null ? `<section class="rn-panneau rn-verdict"><b class="rn-titre rn-vert">${a.gf}-${a.ga}</b><div class="rn-t"><b>${{ rival: 'Le rival est battu', elite: 'L\'élite est battue', affiche: 'L\'affiche est gagnée' }[a.sorte] || 'Gagné'}</b><br><span class="rn-gris">${donne}</span></div></section>` : ''; };
 /*
- * LES TROIS PORTES, après un gros match gagné : le pic de la run. Dans l'ordre : le match gagné, les trois vrais vestiaires
- * (chacun avec ce qu'on y trouve dans ton espace), ton plafond. Dès que l'écran s'élargit, les portes prennent la rangée et
- * grandissent, le match gagné et ton plafond côte à côte au-dessus (la feuille : `.rn-les-portes`). Au clavier, on arrive sur
- * une porte, jamais sur « Passer ».
+ * TROIS JOUEURS, après un gros match gagné : le pic de la run (JP, 26 nov. 2026 : *trois joueurs au lieu de trois clubs*).
+ * Ce qu'on te tend : le match gagné, puis un joueur par vestiaire (celui du club battu en est), tiré selon la rareté parmi
+ * ceux qui tiennent dans ton espace. Ton côté : le joueur choisi, ton plafond, ton banc. On en signe un (par l'échange), ou
+ * aucun. Au clavier, on arrive sur un joueur, jamais sur « Passer ».
  */
-export function scenePortes(S) {
+export function scenePortes(S, V) {
   const R = S.R, P = R.portes, a = R.apres, relance = prixDeLaRelance(S);
-  const portes = P.clubs.map((c, i) => { const n = vestiaireDe(S, c).filter(x => x.tient).length; return `<button type="button" class="rn-porte" data-a="ouvrir-porte" data-v="${i}"${i === 0 ? ' data-ici' : ''}>${P.affronte === `${c.s}:${c.t}` ? '<span class="rn-tag">Le club battu</span>' : ''}${logo(c.t, 66)}<b>${esc(surnom(c.t))}<small>${c.s}</small></b><strong>${n}<small>dans ton espace</small></strong></button>`; }).join('');
-  return `${hud(S)}${milieu(`${verdict(S, a && a.sorte === 'rival' ? 'Des vestiaires du haut de l\'échelle.' : `Des vestiaires à la hauteur de ${esc(surnom(a ? a.t : ''))}.`)}
-    ${chapeau('Trois vrais vestiaires', 'Un joueur, dans un de ces vestiaires', 'rn-centre')}<div class="rn-portes">${portes}</div>${panneauDuPlafond(S)}`, 'rn-lecture rn-les-portes', 'portes')}
-  ${bas(bt('Passer', 'passer', { petit: `+${RUN.PASSER} jetons` }), bt('Relancer', 'relancer', { petit: relance === 0 ? `Gratuite · il t'en reste ${R.relances}` : relance == null ? 'Plus ce soir' : `${relance} jetons`, off: relance == null || relance > R.jetons }))}`;
+  const offres = P.clubs.map(c => ({ c, x: vestiaireDe(S, c).find(y => y.tient) || null })), choisi = (offres.find(o => o.x && getPlayerKey(o.x.p) === V.joueur) || offres.find(o => o.x) || {}).x || null;
+  const tuile = ({ c, x }) => (x ? `<button type="button" class="${choisi === x ? 'rn-on' : ''}" aria-pressed="${choisi === x}" data-a="voir-joueur" data-v="${getPlayerKey(x.p)}"${choisi === x ? ' data-ici' : ''}>${carteJ(x.p)}<span class="rn-prix">${money(prixDe(S, x.p))}</span><p>${logo(c.t, 18)} ${esc(clubCourt(c))}${P.affronte === `${c.s}:${c.t}` ? '<br><span class="rn-rg">Le club battu</span>' : ''}</p></button>`
+    : `<div><span class="rn-c rn-vide"></span><p>${logo(c.t, 18)} ${esc(clubCourt(c))}<br>Personne ne tient dans ton espace</p></div>`);
+  return `${hud(S)}${comptoir('portes',
+    `${verdict(S, a && a.sorte === 'rival' ? 'Des vestiaires du haut de l\'échelle.' : `Des vestiaires à la hauteur de ${esc(surnom(a ? a.t : ''))}.`)}${chapeau('Trois joueurs, un par vestiaire', 'Tu en signes un, ou aucun', 'rn-centre')}<div class="rn-etal">${offres.map(tuile).join('')}</div>`,
+    `${leChoisi(S, choisi, 'Aucun des trois ne tient dans ton espace.')}${panneauDuPlafond(S)}${panneauDuBanc(S)}`)}
+  ${bas(bt('Passer', 'passer', { petit: `+${RUN.PASSER} jetons` }), bt('Relancer', 'relancer', { petit: relance === 0 ? `Gratuite · il t'en reste ${R.relances}` : relance == null ? 'Plus ce soir' : `${relance} jetons`, off: relance == null || relance > R.jetons }), bt('Voir l\'échange', 'vers-echange', { cls: 'go', v: choisi ? getPlayerKey(choisi.p) : '', off: !choisi }))}`;
 }
 /* Ce qu'un joueur allumerait chez toi : le premier accord neuf, à la place de qui sortirait. */
 function accordQuIlAllume(S, p) {
@@ -729,18 +732,16 @@ function accordQuIlAllume(S, p) {
   return null;
 }
 /*
- * LA PORTE OUVERTE (et la pochette ouverte : la même, sans club). Ce qu'on te tend : le vestiaire, ses joueurs qui tiennent
- * dans ton espace (`vestiaireVu`). Ton côté : le joueur choisi, ton banc en lignes. La pochette ouverte a été payée :
- * « Ne rien signer » n'est pas un retour (Échap ouvre la pause, il n'y renonce pas).
+ * LA POCHETTE OUVERTE : ses joueurs qui tiennent dans ton espace (`vestiaireVu`), le joueur choisi, ton banc en lignes. Elle a
+ * été payée : « Ne rien signer » n'est pas un retour (Échap ouvre la pause, il n'y renonce pas).
  */
 export function scenePorte(S, V) {
-  const P = S.R.portes, c = P.pochette ? null : P.clubs[V.porte];
-  const tous = vestiaireDe(S, c), dedans = tous.filter(x => x.tient), hors = tous.filter(x => !x.tient), { choisi, grille } = vestiaireVu(S, V, dedans, 'espace');
+  const tous = vestiaireDe(S, null), dedans = tous.filter(x => x.tient), hors = tous.filter(x => !x.tient), { choisi, grille } = vestiaireVu(S, V, dedans, 'espace');
   return `${hud(S)}${comptoir('porte',
-    `<div class="rn-plaque">${c ? logo(c.t) : ''}<div class="rn-nom">${c ? esc(clubMot(c)) : 'Ta pochette'}<small>${dedans.length} tien${dedans.length > 1 ? 'nent' : 't'} dans ton espace · ${money(espaceDe(S))}</small></div></div>${grille}
+    `<div class="rn-plaque"><div class="rn-nom">Ta pochette<small>${dedans.length} tien${dedans.length > 1 ? 'nent' : 't'} dans ton espace · ${money(espaceDe(S))}</small></div></div>${grille}
       ${hors[0] ? `<div class="rn-t rn-gris rn-centre">${esc(court(hors[0].p))}, ${money(prixDe(S, hors[0].p))} : hors de ton espace${hors.length > 1 ? `, comme ${pluriel(hors.length - 1, 'autre')}` : ''}.</div>` : ''}`,
     `${leChoisi(S, choisi, 'Personne ici ne tient dans ton espace.')}${panneauDuBanc(S)}`)}
-  ${bas(P.pochette ? bt('Ne rien signer', 'rien-signer') : bt('Retour', 'fermer-porte'), bt('Voir l\'échange', 'vers-echange', { cls: 'go', v: choisi ? getPlayerKey(choisi.p) : '', off: !choisi }))}`;
+  ${bas(bt('Ne rien signer', 'rien-signer'), bt('Voir l\'échange', 'vers-echange', { cls: 'go', v: choisi ? getPlayerKey(choisi.p) : '', off: !choisi }))}`;
 }
 const statsDuJoueur = p => (p.p === 'G' ? [['Victoires', p.w || 0, x => x], ['% d\'arrêts', p.sv || 0, pct3], ['Matchs', p.gp || 0, x => x]]
   : [['Points / match', (p.pt ?? (p.g || 0) + (p.a || 0)) / Math.max(1, p.gp), x => x.toFixed(2).replace('.', ',')], ['Tirs / match', (p.sh || 0) / Math.max(1, p.gp), x => x.toFixed(1).replace('.', ',')], ['% au tir', p.sh ? (100 * (p.g || 0)) / p.sh : 0, x => `${x.toFixed(1).replace('.', ',')} %`]]);
@@ -876,7 +877,12 @@ function pageSeries(S, V) {
   const lesAutres = autres.length ? `<section class="rn-panneau rn-sans">${tableau('22px 1fr 44px 1fr 22px', ['', 'Les autres séries', '', '', ''], autres, 'rn-series')}</section>` : '';
   const pied = bas(bt('La feuille du soir', 'match-de-serie', { cls: 'rn-combat' }));
   // Ta série d'abord (c'est le prochain match), puis les autres séries de la ronde : côte à côte dès qu'il y a la place.
-  return `${etroit(V) ? milieu(`${maSerie}${lesAutres}`, 'rn-lecture', 'series') : milieu(`${colonne('serie', maSerie)}${colonne('autres', lesAutres)}`, 'rn-colonnes')}${pied}`;
+  if (!large(V)) return `${etroit(V) ? milieu(`${maSerie}${lesAutres}`, 'rn-lecture', 'series') : milieu(`${colonne('serie', maSerie)}${colonne('autres', lesAutres)}`, 'rn-colonnes')}${pied}`;
+  // EN LARGE, L'ARBRE DES SEIZE (JP, 26 nov. 2026) : les quatre rondes de front, ta route allumée — on voit qui on croisera deux rondes plus loin.
+  const club = (i, n, gagne) => `<span class="${i === 0 ? 'rn-moi' : ''}${gagne ? ' rn-gagne' : ''}"><i>${tete(i)}</i>${logoNo(S, i)} ${nomDuClubNo(S, i)}<b>${n}</b></span>`;
+  const serie = x => (x ? `<div class="rn-duo${x.a === 0 || x.b === 0 ? ' rn-on' : ''}">${club(x.a, x.w, x.w >= RUN.SERIE)}${club(x.b, x.l, x.l >= RUN.SERIE)}</div>` : '<div class="rn-duo rn-attend"><span></span><span></span></div>');
+  const arbre = `<section class="rn-arbre" aria-label="Le tableau des séries">${RONDES.map((nom, r) => `<div><div class="rn-k">${nom}</div><div class="rn-branche">${Array.from({ length: 8 >> r }, (_, k) => serie((X.rondes[r] || [])[k])).join('')}</div></div>`).join('')}</section>`;
+  return `${milieu(`${colonne('serie', maSerie)}${colonne('arbre', arbre)}`, 'rn-colonnes rn-c-series')}${pied}`;
 }
 /* ---------- la fin, la pause ---------- */
 const CAUSES = { congedie: 'Congédié', saison: 'Hors des séries', serie: 'Éliminé en séries', coupe: 'La Coupe', quitte: 'Run quittée' };

@@ -6269,7 +6269,7 @@ export const MOMENTS_SI = {
   series: { mot: 'En séries', rare: true, parSaison: 10 },
   dosADos: { mot: 'Un soir de dos-à-dos', parSaison: 15 },
   jambesLourdes: { mot: 'Les jambes lourdes', seuil: 86, parSaison: 16 },
-  jambesFraiches: { mot: 'Les jambes fraîches', seuil: 88, parSaison: 23 },
+  jambesFraiches: { mot: 'Les jambes fraîches', seuil: 92, parSaison: 39 },
   rival: { mot: 'Contre un rival', parSaison: 6 },
   // Le jeu de l'adversaire du soir (V27, tranche 7 ; V28) : son style, sa ligne au meilleur rang de sa saison (`sonJeu`, posé par js/run.js `poserLeSoir`).
   tireurs: { mot: 'Contre des tireurs', parSaison: 35 },
