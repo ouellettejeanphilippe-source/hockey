@@ -221,7 +221,8 @@ if (tardive) {
   await clic('#liveModal .live-fin', 500);
   // Un nom du fil ouvre sa fiche, par-dessus le direct ; fermée, le direct est encore là.
   const fiche = { visible: () => p2.$eval('#hockeyCardModal', el => getComputedStyle(el).display !== 'none' && document.elementFromPoint(195, 300) && el.contains(document.elementFromPoint(195, 300))), fermer: () => clic('#closeHockeyCardBtn', 300) };
-  await clic('#liveModal .live-feed [data-a="fiche"]', 600);
+  // (Un nom qui passe à la ligne a son centre sur son voisin : on touche le bouton lui-même, pas son centre.)
+  await p2.locator('#liveModal .live-feed [data-a="fiche"]:visible').first().dispatchEvent('click'); await p2.waitForTimeout(600);
   const ficheAuDirect = await fiche.visible() && !!(await p2.textContent('#ficheTitre')).trim();
   await fiche.fermer();
   const directEncoreLa = !(await fiche.visible()) && !!(await p2.$('#liveModal .live-suite'));

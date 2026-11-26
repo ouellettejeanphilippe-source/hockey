@@ -149,11 +149,15 @@ function etalDePieces(S, V, ici = false) {
   const ligneDeLaPiece = k => (R.ligue ? ligneCourte(S, k) : `Compte ${esc(PIECES[k].qui)}<br>à ${PIECES[k].seuils.join(', ')}`);
   return `<div class="rn-etal">${o.map(k => `<button type="button" class="${k === choisie ? 'rn-on' : ''}" aria-pressed="${k === choisie}" data-a="voir-piece" data-v="${k}"${ici && k === choisie ? ' data-ici' : ''}>${carteP(k)}<p${k === choisie ? ' class="rn-or"' : ''}>${ligneDeLaPiece(k)}</p></button>`).join('')}</div>`;
 }
-/* Ton banc quand une pièce arrive : une case libre, ou, banc plein, celle qui sort (on la touche). */
-function bancQuiRecoit(S, V) {
-  const R = S.R, plein = R.banc.length >= CASES_DU_BANC;
-  return `<div class="rn-pilier"><div class="rn-k">Ton banc${plein ? ' · plein : touche celle qui sort' : ' · une case libre'}</div>
-    <div class="rn-banc">${R.banc.map(k => `<button type="button" class="${V.sort === k ? 'rn-eteinte' : ''}" data-a="piece-sort" data-v="${k}"${plein ? '' : ' disabled'}>${carteP(k)}</button>`).join('')}${Array.from({ length: CASES_DU_BANC - R.banc.length }, (_, i) => `<span class="rn-vide${i === 0 ? ' rn-on' : ''}"></span>`).join('')}</div></div>`;
+/*
+ * TON BANC QUAND UNE PIÈCE ARRIVE. Une case libre : ses cartes en rangée. Plein, on choisit celle qui sort : pièce par pièce
+ * avec son compte et ses marches (JP, 25 nov. 2026 : *partout où on décide*), à toutes les largeurs. `ferme` : plus rien à sortir.
+ * `lignes: false` : le marché, encore en plan fixe (tranche 3), garde ses cartes qu'on touche.
+ */
+function bancQuiRecoit(S, V, { ferme = false, lignes = true } = {}) {
+  const R = S.R, plein = R.banc.length >= CASES_DU_BANC, tete = `<div class="rn-k">Ton banc${plein ? ' · plein : touche celle qui sort' : ' · une case libre'}</div>`;
+  if (plein && !ferme && lignes) return `<div class="rn-pilier">${tete}${R.banc.map(k => { const n = compteDe(k, signesDe(S)), suivant = seuilSuivant(k, n); return `<button type="button" class="rn-sortie${V.sort === k ? ' rn-on' : ''}" aria-pressed="${V.sort === k}" data-a="piece-sort" data-v="${k}"><span>${PIECES[k].ico} ${esc(PIECES[k].nom)}</span><b>${Math.floor(n)}${suivant != null ? ` / ${suivant}` : ''}</b>${points(marcheDe(k, n))}${V.sort === k ? '<em>Elle sort</em>' : ''}</button>`; }).join('')}</div>`;
+  return `<div class="rn-pilier">${tete}<div class="rn-banc">${R.banc.map(k => (plein && !ferme ? `<button type="button" class="${V.sort === k ? 'rn-eteinte' : ''}" data-a="piece-sort" data-v="${k}">${carteP(k)}</button>` : `<span>${carteP(k)}</span>`)).join('')}${Array.from({ length: CASES_DU_BANC - R.banc.length }, (_, i) => `<span class="rn-vide${i === 0 ? ' rn-on' : ''}"></span>`).join('')}</div></div>`;
 }
 /* Tes deux pièces de banc, avant le repêchage : elles disent quoi repêcher. Aucun « Passer ». */
 export const scenePieceDuDepart = (S, V) => `<div style="left:14px;right:14px;top:22px"><div class="rn-k">Pièce ${S.R.pieces + 2} de ${RUN.PIECES_DU_DEPART + 1}</div><div class="rn-titre" style="margin-top:6px">Ton banc</div><div class="rn-t rn-gris" style="margin-top:4px">Une pièce compte les badges de tes joueurs. Choisis ce que tu vas repêcher.</div></div>
@@ -722,9 +726,9 @@ export function scenePorte(S, V) {
     `<div class="rn-plaque">${c ? logo(c.t) : ''}<div class="rn-nom">${c ? esc(clubMot(c)) : 'Ta pochette'}<small>${dedans.length} tien${dedans.length > 1 ? 'nent' : 't'} dans ton espace · ${money(espaceDe(S))}</small></div></div>
       <div class="rn-grille" style="--n:${rang}">${vus.map(tuile).join('')}${autres}</div>
       ${hors[0] ? `<div class="rn-t rn-gris rn-centre">${esc(court(hors[0].p))}, ${money(prixDe(S, hors[0].p))} : hors de ton espace${hors.length > 1 ? `, comme ${pluriel(hors.length - 1, 'autre')}` : ''}.</div>` : ''}`,
-    choisi ? `<section class="rn-panneau"><div class="rn-entete"><b class="rn-h">${esc(choisi.p.n)}</b><span class="rn-h rn-or">${money(prixDe(S, choisi.p))}</span></div>
+    `${choisi ? `<section class="rn-panneau"><div class="rn-entete"><b class="rn-h">${esc(choisi.p.n)}</b><span class="rn-h rn-or">${money(prixDe(S, choisi.p))}</span></div>
       <div class="rn-t rn-gris">Cette année-là : ${vraie(choisi.p)}.<br>${badgeMot(choisi.p)}${apport ? ` · <span class="rn-vert">ton banc : ${apport}</span>` : ''}${acc ? ` · il allume <span class="rn-vert">${esc(acc.aff.nom.charAt(0).toLowerCase() + acc.aff.nom.slice(1))}</span>` : ''}</div></section>`
-      : '<section class="rn-panneau"><div class="rn-t rn-gris">Personne ici ne tient dans ton espace.</div></section>')}
+      : '<section class="rn-panneau"><div class="rn-t rn-gris">Personne ici ne tient dans ton espace.</div></section>'}${S.R.banc.length ? `<section class="rn-panneau"><div class="rn-k">Ton banc</div><div class="rn-enlignes">${bancEnLignes(S)}</div></section>` : ''}`)}
   ${bas(P.pochette ? bt('Ne rien signer', 'rien-signer') : bt('Retour', 'fermer-porte'), bt('Voir l\'échange', 'vers-echange', { cls: 'go', v: choisi ? getPlayerKey(choisi.p) : '', off: !choisi }))}`;
 }
 const statsDuJoueur = p => (p.p === 'G' ? [['Victoires', p.w || 0, x => x], ['% d\'arrêts', p.sv || 0, pct3], ['Matchs', p.gp || 0, x => x]]
@@ -745,7 +749,7 @@ export function sceneEchange(S, V) {
   const lui = (mot, cls, x) => `<span><b class="${cls}">${mot}</b>${carteJ(x)}</span>`;
   const chiffres = `<section class="rn-panneau rn-cmp">${A.map(([nom, a, dire], i) => `<span${a > B[i][1] ? ' class="rn-mieux"' : ''}>${dire(a)}</span><em>${nom}</em><span${B[i][1] > a ? ' class="rn-mieux"' : ''}>${dire(B[i][1])}</span>`).join('')}
     <span${prixDe(S, p) < prixDe(S, sortant) ? ' class="rn-mieux"' : ''}>${money(prixDe(S, p))}</span><em>Salaire</em><span${prixDe(S, sortant) < prixDe(S, p) ? ' class="rn-mieux"' : ''}>${money(prixDe(S, sortant))}</span></section>`;
-  return `${hud(S, { titre: 'Signer', petit: esc(ou), rang: false })}${comptoir('echange',
+  return `${hud(S, { titre: 'Signer', petit: `À la place de ${esc(court(sortant))}, ${esc(ou)} · tes lignes se rangent`, rang: false })}${comptoir('echange',
     // En large, le comparatif tient entre les deux cartes ; sinon dessous.
     large(V) ? `<div class="rn-face rn-entre">${lui('Il arrive', 'rn-vert', p)}${chiffres}${lui('Il sort', 'rn-rg', sortant)}</div>`
       : `<div class="rn-face">${lui('Il arrive', 'rn-vert', p)}<i>›‹</i>${lui('Il sort', 'rn-rg', sortant)}</div>${chiffres}`,
@@ -797,8 +801,7 @@ export function sceneMarche(S, V) {
   return `${hud(S, { titre: 'Le marché', petit: `Quart ${ROMAINS[R.quart.n]}` })}
   <div style="left:14px;right:14px;top:62px"><div class="rn-k" style="margin-bottom:10px">Une pièce de banc · une seule</div><div class="rn-etal">${M.pieces.map(piece).join('')}</div></div>
   <div style="left:14px;right:14px;top:350px"><div class="rn-k" style="margin-bottom:10px">Une carte à monter · toucher la carte : une autre</div>${monter}</div>
-  <div style="left:14px;right:14px;top:596px"><div class="rn-k" style="margin-bottom:8px">Ton banc${plein ? ' · plein : touche celle qui sort' : ' · une case libre'}</div>
-    <div class="rn-banc" style="width:292px">${R.banc.map(b => `<button type="button" class="${V.sort === b ? 'rn-eteinte' : ''}" data-a="piece-sort" data-v="${b}"${plein && !M.piece ? '' : ' disabled'}>${carteP(b)}</button>`).join('')}${Array.from({ length: CASES_DU_BANC - R.banc.length }, (_, i) => `<span class="rn-vide${i === 0 ? ' rn-on' : ''}"></span>`).join('')}</div></div>
+  <div style="left:14px;right:14px;top:596px">${bancQuiRecoit(S, V, { ferme: !!M.piece, lignes: false })}</div>
   ${V.piece && !M.piece ? bas(bt('Continuer', 'quitter-marche'), bt('Prendre la pièce', 'acheter-piece', { cls: 'gold', v: V.piece, off: plein && !V.sort }))
     : cm && peut ? bas(bt('Continuer', 'quitter-marche'), bt(`Monter ${esc(court(cm.p))}`, 'monter-au-marche', { cls: 'gold', v: getPlayerKey(cm.p) }))
       : bas(bt('Continuer', 'quitter-marche', { cls: 'go' }))}`;

@@ -1,0 +1,7 @@
+- **25 nov. · Signer range tes lignes ; le compte de ton banc là où tu décides**
+  - JP, à deux questions de la revue de la V31 : *ranger l'alignement au mieux* ; le compte *partout où on décide*.
+  - Signer un joueur refait tes lignes au mieux : l'arrivant ne finit plus en civil à la place d'un réserviste (c'était le cas à 21 % des portes). L'en-tête de l'échange dit qui il remplace.
+  - La porte ouverte montre ton banc en lignes sous le joueur choisi. À la pièce gagnée, banc plein, celle qui sort se choisit sur une ligne par pièce, avec son compte et ses marches.
+  - Pas fait : au marché, encore en plan fixe, on choisit toujours sur les cartes (tranche 3).
+  - Aussi notés dans LIVRAISON : le club imposé du cartable (dix-sept joueurs, l'entraîneur et les deux pièces ; six tours dans toute la ligue) et l'Album à ce que l'écran tient, tranchés par JP, à faire. Le devis de la tranche 3 de la V31 (docs/refonte-v31-3.md) est écrit et renvoyé par ses deux revues : il se refait par-dessus le club imposé.
+  - js/run-jeu.js, js/run-scenes.js (`bancQuiRecoit`), style.css, scripts/essai_run.mjs (il touche le nom du direct lui-même, pas son centre). `check_scene` (36), `essai_run` (24). Version 4.8.1.

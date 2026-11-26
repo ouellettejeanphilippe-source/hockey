@@ -38,9 +38,21 @@ Le devis : `docs/refonte-v31.md` (jugé par deux relecteurs, repris). En code di
   - [x] Deux bogues de la tranche 1 : un onglet du rail ne fermait pas la page d'un club ; au téléphone, la page d'un club et un match passé montraient les cinq onglets.
   - [x] Échap ne perd plus une pochette payée : il ouvre la pause (« Ne rien signer » n'est pas un retour).
   - [ ] Le départ, le repêchage, l'ouverture du quart, le bilan, le marché, la fin et le Club sont encore en plan fixe : l'écran saute en y entrant, jusqu'à la tranche 3.
-- [ ] À poser à JP (trouvé par la revue de la tranche 2, docs/refonte-v31-2.md § 10 ; rien de ceci n'est fait) : le compte de ton banc là où tu décides (la porte ouverte, la pièce gagnée quand le banc est plein) ; signer place l'arrivant dans la case de celui qui sort, en civil à 21 % des portes ; à l'ordinateur, les trois vestiaires ouverts de front.
+- [ ] Encore à poser à JP : à l'ordinateur, les trois vestiaires ouverts de front ; les séries en large, le tableau des seize en arbre.
 - [ ] **3 · La saison et le Club** — le départ, les pièces, le repêchage, l'ouverture du quart, le bilan, le marché, la fin, le Club et ses quatre pages, le solde ; puis le plan fixe et son échelle partent.
 - [ ] À poser à JP avant la tranche 3 : les séries en large, le tableau des seize en arbre ?
+
+## Le départ d'une run · le club imposé du cartable (JP, 25 nov. : *moins de choix de cartes, plus de cartes imposées du cartable*)
+
+- [x] **JP tranche quatre questions** (25 nov.) : 17 joueurs imposés de ton cartable, 6 tours de repêchage (au lieu de 23) ; tirés au hasard de la run ; à l'édition Base et à plein salaire (le cartable donne de la variété, pas de la force) ; l'entraîneur et les deux pièces du départ imposés aussi. Cartable vide ou trop petit : les tours de repêchage comblent.
+- [x] **JP tranche quatre autres questions** (25 nov.) : signer range l'alignement au mieux (l'arrivant ne finit plus en civil) ; le compte de ton banc partout où on décide (ton banc en lignes à la porte ouverte, pièce par pièce avec son compte quand une pièce sort, à toutes les largeurs) ; l'Album montre autant de cartes que l'écran en tient ; les six tours du repêchage sortent des vestiaires de toute la ligue, sous ton budget (à mesurer avec les robots).
+- [x] **Signer range l'alignement au mieux** (25 nov.) — `signer(…, { auMieux })`, js/run-jeu.js ; l'en-tête de l'échange le dit — `essai_run`.
+- [x] **Le compte de ton banc où on décide** (25 nov.) — ton banc en lignes à la porte ouverte ; banc plein à la pièce gagnée, celle qui sort se choisit pièce par pièce avec son compte (`bancQuiRecoit`, js/run-scenes.js) — `check_scene`.
+  - [ ] Au marché (encore en plan fixe), banc plein, on choisit toujours sur les cartes : son compte vient avec la tranche 3.
+- [ ] Le devis (`/refonte`) : l'inventaire du départ (`creerLaRun`, `lotoDesCoachs`, `piecesOffertes`, `repecher`, `sceneDepart`, `scenePieceDuDepart`, `sceneRepechage`, les robots), ce qui part (le loto de trois coachs, les deux écrans de pièces, dix-sept tours).
+- [x] Mesuré (25 nov., 2 000 tirages par cartable, les effectifs de fin de 1 à 6 runs du robot bâtisseur) : dix-sept cartes tirées au hasard pèsent 53 à 55 M$ en médiane (39 à 69 M$ de 5 à 95 %), pour 86,7 M$ permis avec six tours à faire ; aucun tirage ne dépasse. Il reste donc une trentaine de millions pour six tours : environ 5 M$ par choix, le double du salaire moyen d'une carte imposée.
+- [ ] À mesurer encore (`mesure_run`) : la run du bâtisseur avec six choix au lieu de vingt-trois (son banc, ses Coupes), et ce que six tours à 5 M$ font à la force du club.
+- [ ] La tranche 3 de la V31 attend ce devis : le départ, les pièces et le repêchage ne sont plus les mêmes scènes.
 
 ## La sauvegarde qui suit d'un appareil à l'autre (JP, 25 nov. : *avoir sauvegarde multidevice* ; *Github sync*)
 
