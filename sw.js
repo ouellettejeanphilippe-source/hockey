@@ -24,7 +24,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-4.12.0';  // 4.12.0 : la tranche 2 du contrôle (l'entraîneur et une pièce au choix, le tirage refait, les cartes verrouillées, voir d'avance) ; 4.11.0 : le contrôle s'achète au Club, la première run part pauvre ; 4.10.0 : trois joueurs au lieu de trois portes ; le cartable pigé selon la rareté ; les jambes fraîches à 92 ; l'arbre des seize en large (JP, 26 nov. 2026)
+const VERSION = 'cap82-4.13.0';  // 4.13.0 : les premières runs, une ligue plus forte et un proprio lousse ; 4.12.0 : la tranche 2 du contrôle (l'entraîneur et une pièce au choix, le tirage refait, les cartes verrouillées, voir d'avance) ; 4.11.0 : le contrôle s'achète au Club, la première run part pauvre ; 4.10.0 : trois joueurs au lieu de trois portes ; le cartable pigé selon la rareté ; les jambes fraîches à 92 ; l'arbre des seize en large (JP, 26 nov. 2026)
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

@@ -40,6 +40,7 @@ const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), .
   const X = controleDuMeta(lireMeta());
   exiger('une première run : 20 M$ de moins au repêchage, aucune relance, deux affiches, trois joueurs tendus, trois cœurs', X.retenue === 20e6 && X.relances === 0 && X.affiches === 2 && X.offerts === 3 && X.coeurs === 3, JSON.stringify(X));
   exiger('dès la deuxième run, deux cœurs', controleDuMeta({ ...lireMeta(), runs: 1 }).coeurs === 2);
+  exiger('les premières runs : la ligue plus forte de 7, 5, 3, 1 éditions, un proprio lousse (un objectif sur trois), puis rien', [0, 1, 2, 3, 4].map(runs => { const x = controleDuMeta({ runs }); return `${x.etapes}/${x.tenir}`; }).join() === '7/1,5/1,3/1,1/1,0/2');
   const refus = acheterUneAmelioration('relances');
   exiger('à 14 médailles, la première relance (15) se refuse et dit ce qui manque, sans rien écrire', refus.ok === false && refus.manque === 1 && lireMeta().ecussons === 14 && !lireMeta().ameliorations);
   exiger('une amélioration inconnue ne se paie pas', acheterUneAmelioration('inconnue').ok === false);

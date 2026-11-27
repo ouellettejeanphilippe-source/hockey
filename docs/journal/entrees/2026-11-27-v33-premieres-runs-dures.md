@@ -1,0 +1,7 @@
+- **27 nov. · Les premières runs, « fucking tough » (V33)**
+  - JP : *première run, ça doit être fucking tough faire les séries* ; *une fois sur quatre* ; *juste faire qu'on finit plus bas* ; *club poche premières runs, mais proprio lousse*.
+  - Avant : la première run faisait les séries 48 fois sur 64. Retenir 25 M$ au lieu de 20 ne changeait rien.
+  - Maintenant : la ligue porte 7 éditions de plus à la première run (puis 5, 3, 1), et tant qu'elle est durcie un objectif sur trois suffit au proprio. Mesuré sur 64 saisons du bâtisseur : les séries 14 fois (22 %), 22,6e en moyenne, congédié 11 fois, une Coupe.
+  - Essayé et écarté : +6 sans toucher au proprio (congédié 19 fois sur 32) ; un proprio qui attend moins de points (14 sur 32 : le rival et la place restent manqués).
+  - L'étalement sur quatre runs est de moi ; JP avait dit « premières runs ».
+  - js/rogue.js (`LIGUE_DURCIE`, `controleDuMeta`), js/run.js (`controleDe` : `etapes`, `tenir`), js/run-scenes.js (le départ, le proprio, la page Contrôle), `PREMIERE=1 mesure_run` (la borne), `check_meta` (65). Version 4.13.0.

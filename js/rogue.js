@@ -115,6 +115,13 @@ export function ouvrirUneVoie(cle) {
  * 2e rang, mais la Coupe reste rare (JP : *viser moins haut*).
  */
 const RETENUE = 20_000_000;
+/*
+ * LES PREMIÈRES RUNS (JP, 27 nov. 2026 : *première run, ça doit être fucking tough faire les séries* ; *juste faire qu'on finit
+ * plus bas* ; *club poche premières runs, mais proprio lousse*). Les adversaires portent des étapes d'édition de plus, run après
+ * run de moins en moins ; tant que la ligue est durcie, un objectif sur trois suffit au proprio. Mesuré sur 32 saisons du
+ * bâtisseur à la première run (+7) : les séries 7 fois sur 32, 21,6e en moyenne, congédié 4 fois, aucune Coupe.
+ */
+const LIGUE_DURCIE = [7, 5, 3, 1];
 export const AMELIORATIONS = {
   budget: { nom: 'Le budget du repêchage', dit: 'Ton repêchage retrouve 5 M$ de budget.', prix: [40, 60, 80, 100] },
   relances: { nom: 'Les relances', dit: 'Une relance de plus au repêchage : un autre vestiaire, le même tour. La sixième marche : une relance gratuite des joueurs tendus à chaque quart.', prix: [15, 20, 25, 30, 40, 60] },
@@ -171,6 +178,8 @@ export const controleDuMeta = m => {
   return {
     relances: Math.min(5, n('relances')), relanceOfferte: n('relances') > 5, affiches: 2 + n('affiche'), offerts: 3 + n('offert'),
     retenue: RETENUE * (1 - n('budget') / AMELIORATIONS.budget.prix.length), coeurs: (m.runs || 0) > 0 ? 2 : 3,
+    // Les premières runs : un club poche dans une ligue plus forte, un proprio lousse (JP, 27 nov. 2026 : *club poche premières runs, mais proprio lousse*).
+    etapes: LIGUE_DURCIE[m.runs || 0] || 0, tenir: LIGUE_DURCIE[m.runs || 0] ? 1 : 2,
     verrous: verrousDe(m).slice(0, n('verrou')), coachs: 1 + n('coach'), piece: n('piece') > 0, retirage: n('retirage') > 0, voir: n('voir') > 0,
   };
 };
