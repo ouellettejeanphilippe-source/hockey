@@ -5289,6 +5289,7 @@ body.run-ouverte { overflow: hidden; }
 .rn-racine .rn-sortie { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-1); font: 600 var(--t-2)/1.2 var(--display); text-align: left; }
 .rn-racine .rn-sortie.rn-on { border-color: var(--mauvais); }
 .rn-racine .rn-atout.rn-on { border-color: var(--or); }
+.rn-atouts { gap: 4px; }
 .rn-atout em { min-width: 58px; text-align: right; }
 .rn-atout em.rn-vert { color: var(--bon); }
 .rn-atout em.rn-gris { color: var(--encre-2); }

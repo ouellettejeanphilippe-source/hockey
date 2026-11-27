@@ -70,7 +70,9 @@ Le devis : `docs/refonte-v31.md` (jugé par deux relecteurs, repris). En code di
 - [x] **Tranche 1** (version 4.11.0) : le contrôle porté par la run (`controleDe`), la page « Contrôle » du Club, quatre améliorations (le budget, les relances, la troisième affiche, le quatrième joueur tendu ; 470 médailles) — `check_meta`.
 - [x] **Les cases actives** (JP, 26 nov. : *comme le Witcher 3, avec un max d'upgrades en même temps*) : ce qu'on achète reste, une run n'en porte que quelques-unes ; deux cases, puis une de plus aux runs 3, 5, 8 et 12 ; une liste, pas de branches ; le budget prend une case — `check_meta` (60).
 - [ ] À dire à JP : à trois cœurs, la première run fait les séries 23 fois sur 32, pas une sur deux.
-- [ ] **Tranche 2** : verrouiller des cartes à l'Album, choisir son entraîneur, une pièce de départ parmi trois, refaire le tirage, voir d'avance, la relance gratuite des joueurs tendus ; `mesure_run` qui juge une première run ; le robot acheteur.
+- [x] **Tranche 2** (version 4.12.0, docs/refonte-v33.md § 12) : choisir son entraîneur (2, puis 3), une pièce de départ parmi trois, refaire le tirage une fois, verrouiller 1 à 3 cartes à l'Album, voir d'avance à la feuille du soir, une relance gratuite des joueurs tendus par quart — `check_meta` (64). Tout coûte 985 médailles (la tranche 1, 550 : pas 470 comme dit).
+- [ ] À reposer à JP : 25 M$ retenus ne changent rien (séries 22 sur 32 contre 23) ; gardé à 20 M$.
+- [ ] `mesure_run` qui juge une première run ; un robot qui achète et choisit au départ.
 
 ## La sauvegarde qui suit d'un appareil à l'autre (JP, 25 nov. : *avoir sauvegarde multidevice* ; *Github sync*)
 

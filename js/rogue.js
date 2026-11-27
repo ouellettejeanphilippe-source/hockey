@@ -117,9 +117,14 @@ export function ouvrirUneVoie(cle) {
 const RETENUE = 20_000_000;
 export const AMELIORATIONS = {
   budget: { nom: 'Le budget du repêchage', dit: 'Ton repêchage retrouve 5 M$ de budget.', prix: [40, 60, 80, 100] },
-  relances: { nom: 'Les relances', dit: 'Une relance de plus au repêchage : un autre vestiaire, le même tour.', prix: [15, 20, 25, 30, 40] },
+  relances: { nom: 'Les relances', dit: 'Une relance de plus au repêchage : un autre vestiaire, le même tour. La sixième marche : une relance gratuite des joueurs tendus à chaque quart.', prix: [15, 20, 25, 30, 40, 60] },
   affiche: { nom: 'La troisième affiche', dit: 'Une affiche de plus à poser à chaque quart.', prix: [60] },
   offert: { nom: 'Un quatrième joueur', dit: 'Après un gros match gagné, quatre joueurs tendus au lieu de trois.', prix: [80] },
+  verrou: { nom: 'Verrouiller des cartes', dit: 'Une carte de ton cartable de plus, choisie à l\'Album, imposée à coup sûr.', prix: [30, 45, 60] },
+  coach: { nom: 'Choisir ton entraîneur', dit: 'Un entraîneur de plus au tirage du départ : tu choisis lequel.', prix: [40, 60] },
+  piece: { nom: 'Une pièce de départ au choix', dit: 'Au départ, une des deux pièces de banc se choisit parmi trois.', prix: [50] },
+  retirage: { nom: 'Refaire le tirage', dit: 'Une fois par run, avant ton premier tour : ton club imposé se tire de nouveau.', prix: [50] },
+  voir: { nom: 'Voir d\'avance', dit: 'À la feuille du soir, le meilleur joueur que ce club te tendrait s\'il tombe.', prix: [40] },
 };
 export const marcheDeLAmelioration = (m, k) => Math.min(AMELIORATIONS[k].prix.length, Math.max(0, (m.ameliorations || {})[k] || 0));
 /* Le prix de sa prochaine marche, ou null quand elle est au bout. */
@@ -144,6 +149,15 @@ export const casesDe = m => CASES.filter(n => (m.runs || 0) >= n).length;
 export const prochaineCase = m => { const n = CASES.find(x => x > (m.runs || 0)); return n == null ? null : n - (m.runs || 0); };
 export const activesDe = m => [...new Set(m.actives || [])].filter(k => AMELIORATIONS[k] && marcheDeLAmelioration(m, k) > 0).slice(0, casesDe(m));
 /* Activer ou retirer : rend { ok }, ou { plein } quand il n'y a plus de case. */
+/* Les cartes verrouillées à l'Album (des clés du cartable), autant que la marche achetée ; la run les impose d'abord. */
+export const verrousDe = m => (m.verrous || []).slice(0, marcheDeLAmelioration(m, 'verrou'));
+export function verrouillerUneCarte(k) {
+  const m = lireMeta(), v = verrousDe(m);
+  if (!k) return { ok: false };
+  if (!v.includes(k) && v.length >= marcheDeLAmelioration(m, 'verrou')) return { ok: false, plein: true };
+  ecrireMeta({ ...m, verrous: v.includes(k) ? v.filter(x => x !== k) : [...v, k] });
+  return { ok: true };
+}
 export function activerUneAmelioration(k) {
   const m = lireMeta(), actives = activesDe(m);
   if (!AMELIORATIONS[k] || !marcheDeLAmelioration(m, k)) return { ok: false };
@@ -154,7 +168,11 @@ export function activerUneAmelioration(k) {
 /* Ce que la prochaine run reçoit (`controleDe`, js/run.js). */
 export const controleDuMeta = m => {
   const n = k => (activesDe(m).includes(k) ? marcheDeLAmelioration(m, k) : 0);
-  return { relances: n('relances'), affiches: 2 + n('affiche'), offerts: 3 + n('offert'), retenue: RETENUE * (1 - n('budget') / AMELIORATIONS.budget.prix.length), coeurs: (m.runs || 0) > 0 ? 2 : 3 };
+  return {
+    relances: Math.min(5, n('relances')), relanceOfferte: n('relances') > 5, affiches: 2 + n('affiche'), offerts: 3 + n('offert'),
+    retenue: RETENUE * (1 - n('budget') / AMELIORATIONS.budget.prix.length), coeurs: (m.runs || 0) > 0 ? 2 : 3,
+    verrous: verrousDe(m).slice(0, n('verrou')), coachs: 1 + n('coach'), piece: n('piece') > 0, retirage: n('retirage') > 0, voir: n('voir') > 0,
+  };
 };
 
 export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 20 + (coupe ? 40 : 0);

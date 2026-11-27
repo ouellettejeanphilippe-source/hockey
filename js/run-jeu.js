@@ -14,7 +14,7 @@ import { actionsDisponibles } from './actions.js';
 import { avecHasardIsole, getPersonKey, getPlayerKey, nouvelleGraine } from './sim.js';
 import { leurJeuEnStats, poserClubLu } from './impact.js';
 import { chargerCoachs, lotoDesCoachs } from './coachs-reels.js';
-import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages, acheterUneAmelioration, activerUneAmelioration, controleDuMeta } from './rogue.js';
+import { ecrireMeta, lireMeta, payerEcussons, rangDePrestige, voiesOuvertes, cranOuvert, ouvrirUneVoie, solderLesDeblocages, acheterUneAmelioration, activerUneAmelioration, verrouillerUneCarte, controleDuMeta } from './rogue.js';
 import { VOIES } from './coachs.js';
 import { rayonsDuClub, prendreAuClub, nomDuClub } from './club.js';
 import { ajouterAuCartable, albumDuCartable, coachAuCartable, coachsDuCartable, graverAuCartable, joueursDuCartable } from './cartable.js';
@@ -37,7 +37,7 @@ import {
   VERSION_DE_LA_RUN, creerLaRun, ouvrirSeance, figer, medaillesDe, forcesDuMonde, reglesDe, prendreLaPiece, pieceReglee, vestiaireDuRepechage, repecher, relancerLaRoulette, versLeBureau,
   allerAuMatch, retourAuBureau, poserLAffiche, mettreLEnjeu, fixerLElite, choisirLeFilet, chanceCeSoir, intentionCeSoir, jouerLeMatch, conclure, continuer, signer, passerLesPortes,
   relancerLesPortes, apresLesPortes, apresLeBilan, acheterLaPiece, aMonter, monterAuMarche, quitterLeMarche, acheterLaPochette, echangerDeuxCases, offresVues, reclamer, histoireDuJour,
-  repondre, allerAuMatchDeSerie, finir, effectifDe, dernierMatch,
+  repondre, allerAuMatchDeSerie, finir, effectifDe, dernierMatch, piecesDuDepart, peutRetirer,
 } from './run.js';
 import {
   sceneAttente, sceneDepart, sceneRepechage, sceneQuart, sceneBureau, sceneFeuille, sceneResultat, scenePortes, scenePorte, sceneEchange,
@@ -186,7 +186,8 @@ async function versLeDepart(arret = null) {
   montrer(sceneAttente('On sort les dossiers des coachs…'));
   const solde = soldeAMontrer(), meta = lireMeta(), coachs = await chargerCoachs().catch(() => null), graine = nouvelleGraine(), cranMax = cranOuvert(meta);
   V = { ecran: solde ? 'solde' : 'depart', solde, arret, graine, numero: (meta.runs || 0) + 1, medailles: meta.ecussons || 0, cranMax, cran: Math.min(meta.cran || 0, cranMax),
-    loto: lotoDesCoachs(coachs, voiesOuvertes(meta), `${graine}:chef`, 1, coachsDuCartable(), meta.nouvelle || null) };
+    controle: controleDuMeta(meta), coach: 0, piece: null,
+    loto: lotoDesCoachs(coachs, voiesOuvertes(meta), `${graine}:chef`, controleDuMeta(meta).coachs, coachsDuCartable(), meta.nouvelle || null) };
   rendre();
 }
 /*
@@ -249,10 +250,10 @@ function fermerLeClub() {
   V.ecran = retour === 'depart' ? 'depart' : null;
 }
 async function commencer() {
-  const c = V.loto[0], { graine, numero, cran } = V;
+  const c = V.loto[V.coach] || V.loto[0], { graine, numero, cran } = V, piece = V.controle && V.controle.piece ? V.piece || piecesDuDepart(c.cle, graine)[0] : null;
   montrer(sceneAttente('On ouvre les vestiaires…'));
   await charger('On ouvre les vestiaires :');
-  S = creerLaRun(donnees(), { graine, numero, exigence: V.cran || 0, cartable: joueursDuCartable(), controle: controleDuMeta(lireMeta()), coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
+  S = creerLaRun(donnees(), { graine, numero, exigence: V.cran || 0, cartable: joueursDuCartable(), controle: controleDuMeta(lireMeta()), piece, coach: { id: c.id, n: c.n, saison: c.saison, tag: c.tag, cle: c.cle, rang: c.rang, maitrise: c.maitrise } });
   garderLesForces();
   poserClubLu(() => (S ? { team: S.toi } : null));
   coachAuCartable(c, numero);
@@ -412,6 +413,16 @@ const suivre = () => { garder(); entrer(); return false; };
 const GESTES = {
   // le départ
   'prendre-coach': () => { commencer(); return false; },
+  'choisir-coach': v => { V.coach = Number(v) || 0; V.piece = null; },
+  'piece-depart': v => { V.piece = v; },
+  // Refaire le tirage (V33) : la même run, recréée avant le premier tour, son club imposé tiré de nouveau.
+  retirer: () => {
+    if (!peutRetirer(S)) return;
+    const R = S.R;
+    S = creerLaRun(donnees(), { graine: R.graine, numero: R.numero, exigence: R.regles.exigence, cartable: joueursDuCartable(), controle: { ...R.regles.controle, retire: true }, piece: R.banc[1], coach: R.coach });
+    V = {}; garder(); jouerSon('valide');
+  },
+  verrou: v => { if (verrouillerUneCarte(v).ok) { jouerSon('valide'); relireLeClub(); } else jouerSon('refus'); },
   quitter: () => { fermer(); return false; },
   cran: v => { V.cran = Math.min(Number(v) || 0, V.cranMax || 0); },
   // le Club, entre deux runs
@@ -543,7 +554,7 @@ async function ouvrirLaPochette(cle) {
   entrer();
 }
 /* Les gestes qui se jouent sans run : le départ, le Club, le solde. */
-const SANS_RUN = new Set(['coach', 'prendre-coach', 'quitter', 'cran', 'club', 'fermer-club', 'page', 'album-seg', 'album-page', 'voir-carte', 'voir-voie', 'ouvrir-voie', 'voir-atout', 'prendre-atout', 'activer-atout', 'rayon', 'voir-objet', 'prendre-objet', 'solde-depart', 'solde-club', 'run-neuve']);
+const SANS_RUN = new Set(['coach', 'prendre-coach', 'quitter', 'cran', 'club', 'fermer-club', 'page', 'album-seg', 'album-page', 'voir-carte', 'voir-voie', 'ouvrir-voie', 'voir-atout', 'prendre-atout', 'activer-atout', 'choisir-coach', 'piece-depart', 'verrou', 'rayon', 'voir-objet', 'prendre-objet', 'solde-depart', 'solde-club', 'run-neuve']);
 function geste(a, v) {
   if (!GESTES[a] || (!S && !SANS_RUN.has(a))) return;
   jouerSon('tap');
