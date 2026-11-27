@@ -107,16 +107,17 @@ export function ouvrirUneVoie(cle) {
 /* ---------- les médailles d'une run ---------- */
 /* ---------- le contrôle ---------- */
 /*
- * LE CONTRÔLE S'ACHÈTE (V33, docs/refonte-v33.md ; JP, 26 nov. 2026 : *la première saison, peu de chances de gagner ; ce sont
- * les ajustements permanents qui mènent éventuellement vers la Coupe, mais pas aisément*). La première run part pauvre et
- * sans prise : `RETENUE` de moins au repêchage, aucune relance, deux affiches par quart, trois joueurs tendus — et un proprio
- * plus patient (trois cœurs, cette run-là seulement). Chaque amélioration se prend marche par marche, en médailles, au Club.
- * Mesuré sur 32 saisons du bâtisseur : la première run fait les séries six fois sur dix ; tout acheté, 129 points et le
- * 2e rang, mais la Coupe reste rare (JP : *viser moins haut*).
+ * UN CLUB POCHE QUI GRANDIT (V33, docs/refonte-v33.md ; JP, 27 nov. 2026 : *je veux juste commencer un club poche pis
+ * débloquer tranquillement joueurs et upgrades sans devenir plus fort qu'un excellent club normal* ; *le max possible, le
+ * meilleur club de l'histoire*). La ligue ne change jamais. Ton club part sans budget : `RETENUE` de moins au repêchage,
+ * aucune relance, deux affiches par quart, trois joueurs tendus ; son proprio le sait (un objectif sur trois lui suffit tant
+ * que le budget n'est pas racheté, et trois cœurs à la première run). Chaque amélioration se prend marche par marche, en
+ * médailles, au Club ; tout racheté, c'est le plafond plein, le club d'un excellent DG, jamais au-delà. Mesuré sur 32
+ * saisons du bâtisseur à la première run : les séries 10 fois sur 32, 22e en moyenne, congédié 6 fois.
  */
-const RETENUE = 20_000_000;
+const RETENUE = 50_000_000;
 export const AMELIORATIONS = {
-  budget: { nom: 'Le budget du repêchage', dit: 'Ton repêchage retrouve 5 M$ de budget.', prix: [40, 60, 80, 100] },
+  budget: { nom: 'Le budget du repêchage', dit: 'Ton repêchage retrouve 10 M$ de budget.', prix: [30, 50, 70, 90, 110] },
   relances: { nom: 'Les relances', dit: 'Une relance de plus au repêchage : un autre vestiaire, le même tour. La sixième marche : une relance gratuite des joueurs tendus à chaque quart.', prix: [15, 20, 25, 30, 40, 60] },
   affiche: { nom: 'La troisième affiche', dit: 'Une affiche de plus à poser à chaque quart.', prix: [60] },
   offert: { nom: 'Un quatrième joueur', dit: 'Après un gros match gagné, quatre joueurs tendus au lieu de trois.', prix: [80] },
@@ -171,6 +172,8 @@ export const controleDuMeta = m => {
   return {
     relances: Math.min(5, n('relances')), relanceOfferte: n('relances') > 5, affiches: 2 + n('affiche'), offerts: 3 + n('offert'),
     retenue: RETENUE * (1 - n('budget') / AMELIORATIONS.budget.prix.length), coeurs: (m.runs || 0) > 0 ? 2 : 3,
+    // Un club poche a un proprio lousse : tant que le budget n'est pas racheté, un objectif sur trois lui suffit (JP, 27 nov. 2026).
+    tenir: n('budget') < AMELIORATIONS.budget.prix.length ? 1 : 2,
     verrous: verrousDe(m).slice(0, n('verrou')), coachs: 1 + n('coach'), piece: n('piece') > 0, retirage: n('retirage') > 0, voir: n('voir') > 0,
   };
 };

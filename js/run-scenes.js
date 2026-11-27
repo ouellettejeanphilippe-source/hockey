@@ -147,6 +147,7 @@ export function sceneDepart(V) {
     ${regle ? `<div class="rn-t rn-pied"><span class="rn-k">Sa règle</span><br>${esc(maj(regle.dit))} : <span class="rn-or">+${regle.jetons} jetons</span> le soir.</div>` : ''}</div></section>
   <section class="rn-panneau rn-vignette">${carteP(piece)}<div class="rn-t"><span class="rn-k">Sa pièce de départ${NIVEAUX[k].maitrise !== 1 ? ` · ×${String(NIVEAUX[k].maitrise).replace('.', ',')}` : ''}</span><br><b>${esc(PIECES[piece].nom)}</b><br><span class="rn-gris">${ligneSansRun(piece)}</span></div></section>
   ${choixDeLaPiece}
+  ${X.retenue ? `<div class="rn-t rn-pied"><span class="rn-rg">Un club sans le sou</span> : ${money(X.retenue)} de moins au repêchage. Le proprio le sait, un objectif sur trois lui suffit.</div>` : ''}
   <div class="rn-t rn-gris">Ton club sort de ton cartable : dix-sept joueurs au plus${X.verrous && X.verrous.length ? `, dont ${X.verrous.length} verrouillé${X.verrous.length > 1 ? 's' : ''}` : ''}, ${offertes ? 'une autre pièce de banc' : 'deux pièces de banc'}. Tu repêches le reste.</div>
   ${V.cranMax > 0 ? `<div class="rn-crans">${Array.from({ length: EXIGENCES.length + 1 }, (_, n) => `<button type="button" class="${n === V.cran ? 'rn-on' : ''}" aria-pressed="${n === V.cran}" data-a="cran" data-v="${n}"${n > V.cranMax ? ' disabled' : ''}><b>${n}</b>${n ? esc(EXIGENCES[n - 1].court) : 'Sans exigence'}</button>`).join('')}</div>` : ''}`)}
   ${bas(bt('Menu', 'quitter'), bt('Commencer', 'prendre-coach', { cls: 'go' }))}`;
@@ -231,7 +232,7 @@ export function sceneQuart(S) {
   const kElite = Object.keys(Q.gros).find(k => Q.gros[k] === 'elite'), elite = kElite != null ? clubNo(S, matchNo(S, Number(kElite)).i) : null;
   return `${hud(S, { petit: `Matchs ${Q.debut + 1} à ${Q.fin}` })}${trait('quart', `${chapeau('Le proprio demande', `Quart ${ROMAINS[Q.n]}`, 'rn-grand')}
   <section class="rn-panneau">${objectifsHtml(S)}
-    <div class="rn-t rn-gris rn-pied">Deux manqués sur trois : il te retire un cœur.${R.coeurs === 1 ? ' <span class="rn-rg">C\'est ton dernier.</span>' : ''}</div></section>
+    <div class="rn-t rn-gris rn-pied">${controleDe(R).tenir < 2 ? 'Il est patient cette saison : tous manqués, il te retire un cœur.' : 'Deux manqués sur trois : il te retire un cœur.'}${R.coeurs === 1 ? ' <span class="rn-rg">C\'est ton dernier.</span>' : ''}</div></section>
   <section class="rn-panneau rn-vignette">${logo(rival.t, 84)}
     <div><div class="rn-k rn-rg">Le rival du quart</div><div class="rn-h">${esc(clubMot(rival))}</div>
       <div class="rn-t rn-gris rn-pied">Match ${kRival + 1}, ${mRival.visiteur ? 'chez eux' : 'chez toi'} · ${esc(jeu.mot)}${I ? `<br>${I.ico} ${esc(I.nom)}` : ''}<br><span class="rn-or">Battu : une pièce de banc parmi trois</span></div></div></section>

@@ -84,6 +84,24 @@ jobs:
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # CE QUE LA PR TOUCHE (JP, 27 nov. 2026 : *trop de tests de CI, dont certains peut-être même plus pertinents*). Une PR
+      # qui ne touche que le Rogue et les docs ne relance pas les juges du moteur du 82-0 ni ceux de Sur table, deux terrains
+      # finis (CLAUDE.md) : ~20 minutes de moins. Tout autre fichier (sim.js, util.js, style.css, index.html…) les relance
+      # tous ; une poussée sur main les fait toujours.
+      - name: Ce que la PR touche
+        id: terrain
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "rogue_seulement=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          git diff --name-only "origin/${{ github.base_ref }}...HEAD" > /tmp/touches.txt
+          cat /tmp/touches.txt
+          if grep -qvE '^(docs/|\.claude/|[^/]+\.md$|js/(run[^/]*|rogue|pieces|histoires|version)\.js$|sw\.js$|scripts/(check_(run|meta|scene|neuf|pouvoirs|moments_si)|essai_run|mesure_run)\.mjs$|scripts/lib/run_robot\.mjs$)' /tmp/touches.txt; then
+            echo "rogue_seulement=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "rogue_seulement=true" >> "$GITHUB_OUTPUT"; echo "Le Rogue et les docs seulement : le moteur du 82-0 et Sur table ne se rejugent pas."
+          fi
 
       - uses: actions/setup-node@v4
         with:
@@ -93,15 +111,19 @@ jobs:
         run: node scripts/check_coquille.mjs
 
       - name: Le moteur se rejoue sur sa graine
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_graine.mjs
 
       - name: Un match qui change fait monter la version du moteur
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_empreinte.mjs
 
       - name: Le ballottage se rejoue
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_ballottage.mjs
 
       - name: La lancée et le doute du Rogue
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_lancee.mjs
 
       - name: Les moments se lisent sur le passé, et reviennent
@@ -111,9 +133,11 @@ jobs:
         run: LIGUES=4 node scripts/check_gros.mjs
 
       - name: Le commentateur du direct
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_commentaire.mjs
 
       - name: Les égalités de la feuille de match
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: LIGUES=1 node scripts/check_feuilles.mjs
 
       # DÉTERMINISTE : quatre ligues de vraies équipes, tirées et jouées sous
@@ -121,24 +145,30 @@ jobs:
       # ±3 points d'une exécution à l'autre et ce garde-fou crierait pour du
       # bruit. Sept secondes.
       - name: La production se répartit comme dans la vraie vie
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_parts.mjs
 
       # À 240 matchs, pas 60 : la cible de 5 à 6 buts a été mesurée sur 240,
       # et un échantillon de 60 a un écart type de 0,2 but — il lisait 4,93
       # pendant que les 240 lisaient 5,2. Les 240 matchs coûtent douze secondes.
       - name: Les égalités de la feuille sur table
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_table.mjs
 
       - name: Les règles du plateau tiennent
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: MATCHS=80 node scripts/check_regles.mjs
 
       - name: Les cotes tiennent leur corrélation
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_ratings.mjs
 
       - name: Les traits restent rares et se voient
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_traits.mjs
 
       - name: La fiche reconstituée d'un club tient
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_fiches.mjs
 
       # Une icône = un sens, « énergie » hors de l'écran, et les chiffres de la page des règles
@@ -156,6 +186,7 @@ jobs:
 
       # La glace où les tirs apparaissent : la position d'un tir (illustrative) lue de la vraie feuille — le danger, les icônes du tireur, l'accord de son trio, le texte du sommaire. Deux secondes.
       - name: La glace des tirs
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/check_glace.mjs
 
       # Le banc qui compte (V29, tranche 1) : les tables des pièces, le compte de tes signés, la marche et son
@@ -200,6 +231,7 @@ jobs:
           node scripts/smoke.mjs http://localhost:8000
 
       - name: Test de fumée du mode bonus « Sur table »
+        if: steps.terrain.outputs.rogue_seulement != 'true'
         run: node scripts/smoke_table.mjs http://localhost:8000
 
       # Un choix tient en un écran (V25 B2, 6 nov. 2026) : ton identité, trois cartes de jeu de front à 390 × 844,

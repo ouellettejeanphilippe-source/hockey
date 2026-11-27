@@ -1,0 +1,6 @@
+- **27 nov. · Un club poche qui grandit (V33)**
+  - JP : *première run, ça doit être fucking tough faire les séries* ; puis *la ligue devrait pas être plus forte, mais le club plus poche* ; *club à chier, pas de budget* ; *tu compliques vraiment le côté roguelike, je veux juste commencer un club poche pis débloquer tranquillement joueurs et upgrades sans devenir plus fort qu'un excellent club normal* ; *le max possible, le meilleur club de l'histoire*.
+  - Retenu : un seul levier, le budget. La première run a 50 M$ de moins au repêchage ; l'amélioration « budget » le rend en cinq marches de 10 M$ ; tant qu'il n'est pas racheté, le proprio se contente d'un objectif sur trois. La ligue ne change jamais.
+  - Mesuré sur 32 saisons de la première run : les séries 10 fois, 22e en moyenne, congédié 6 fois. À 40 M$ de moins, 14 séries ; à 60 M$, 3.
+  - Essayé et écarté le même jour : une ligue plus forte (la #431, mise en brouillon, jamais fusionnée), repêcher chez les clubs faibles, le repêchage d'expansion.
+  - js/rogue.js (`RETENUE`, `AMELIORATIONS.budget`, `controleDuMeta` : `tenir`), js/run.js (`controleDe`, `faireLeBilan`), js/run-scenes.js (le départ dit « un club sans le sou »), `PREMIERE=1 mesure_run`, `check_meta` (65). Version 4.13.0.

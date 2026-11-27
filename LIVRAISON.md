@@ -73,6 +73,7 @@ Le devis : `docs/refonte-v31.md` (jugé par deux relecteurs, repris). En code di
 - [x] **Tranche 2** (version 4.12.0, docs/refonte-v33.md § 12) : choisir son entraîneur (2, puis 3), une pièce de départ parmi trois, refaire le tirage une fois, verrouiller 1 à 3 cartes à l'Album, voir d'avance à la feuille du soir, une relance gratuite des joueurs tendus par quart — `check_meta` (64). Tout coûte 985 médailles (la tranche 1, 550 : pas 470 comme dit).
 - [x] Reposé à JP (27 nov.) : 25 M$ retenus ne changent rien ; JP garde 20 M$ et **72 % de séries** à la première run.
 - [x] `PREMIERE=1 GRAINES=64 FILS=3 node scripts/mesure_run.mjs` : la première run du malin fait les séries 55 à 85 % du temps, la Coupe au plus 2 fois sur 64 (à la main).
+- [x] **Un club poche qui grandit** (JP, 27 nov. : *fucking tough faire les séries* ; *la ligue devrait pas être plus forte, mais le club plus poche* ; *club à chier, pas de budget* ; *tu compliques… je veux juste commencer un club poche pis débloquer tranquillement* ; *le max, le meilleur club de l'histoire*) : un seul levier, le budget (50 M$ de moins, racheté en cinq marches de 10 M$), un proprio lousse tant qu'il ne l'est pas ; la ligue ne change jamais — `PREMIERE=1 mesure_run`, `check_meta` (65). La PR #431 (la ligue plus forte) n'est pas partie.
 - [ ] Un robot qui achète entre deux runs et choisit au départ (une carrière mesurée de bout en bout).
 
 ## La sauvegarde qui suit d'un appareil à l'autre (JP, 25 nov. : *avoir sauvegarde multidevice* ; *Github sync*)

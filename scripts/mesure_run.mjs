@@ -125,16 +125,18 @@ if (process.env.CRANS) {
 
 /* ---------- la première run : peu de chances de gagner (V33) ---------- */
 /*
- * JP, 26 nov. 2026 : *la première saison, peu de chances de gagner* ; puis, sur les chiffres, *garder 72 %*. Le malin joue
+ * JP, 26 nov. 2026 : *la première saison, peu de chances de gagner* ; 27 nov. : *fucking tough faire les séries*, *une fois sur quatre*. Le malin joue
  * avec le contrôle d'un club neuf (js/rogue.js `controleDuMeta` d'une méta vide : 20 M$ de moins, aucune relance, deux
- * affiches, trois cœurs), le cartable vide : il fait les séries 55 à 85 % du temps et gagne la Coupe au plus 2 fois sur 64.
+ * affiches, trois cœurs, 50 M$ de moins au repêchage, un proprio lousse), le cartable vide : il fait les séries
+ * 10 à 40 % du temps, se fait congédier au plus une fois sur quatre et gagne la Coupe au plus 2 fois sur 64.
  */
 if (process.env.PREMIERE) {
-  const premiere = await mesurer(['malin'], { CONTROLE: JSON.stringify(controleDuMeta({})) });
+  const premiere = await mesurer(['malin'], { CONTROLE: JSON.stringify({ ...controleDuMeta({}), ...JSON.parse(process.env.CONTROLE_EN_PLUS || '{}') }) });
   const series = premiere.filter(r => r.series).length, coupes = premiere.filter(r => r.coupe).length, n = premiere.length;
   informer('La première run du malin', `${un(moy(premiere.map(r => r.pts)))} points, ${un(moy(premiere.map(r => r.rang)))}e en moyenne, congédié ${premiere.filter(r => r.coeurs <= 0).length} fois sur ${n}`);
   if (GRAINES >= 32) {
-    exiger('La première run fait les séries 55 à 85 % du temps (compatible)', compatible(series, n, 0.55, 0.85), `${series} sur ${n}`);
+    exiger('La première run fait les séries 10 à 40 % du temps (compatible)', compatible(series, n, 0.10, 0.40), `${series} sur ${n}`);
+    exiger('Le proprio est lousse : congédié au plus une fois sur quatre (compatible)', compatible(premiere.filter(r => r.coeurs <= 0).length, n, 0, 0.25), `${premiere.filter(r => r.coeurs <= 0).length} sur ${n}`);
     exiger('La première run gagne la Coupe au plus 2 fois sur 64 (compatible)', compatible(coupes, n, 0, 2 / 64), `${coupes} sur ${n}`);
   } else informer('Les bornes de la première run (jugées à 32 graines)', `séries ${series} sur ${n}, Coupes ${coupes}`);
   verdict('La première run du Rogue');

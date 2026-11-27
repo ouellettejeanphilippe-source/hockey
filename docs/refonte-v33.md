@@ -120,3 +120,37 @@ JP : *Continuer* ; les prix « comme proposés » ; la première run à 25 M$ re
 ## 13. La borne de la première run (27 nov. 2026)
 
 JP, sur les chiffres (72 % de séries, aucune Coupe ; 25 M$ n'y changeaient rien) : *garder 72 %*. La borne s'écrit dans `mesure_run`, à la main : `PREMIERE=1 GRAINES=64 FILS=3 node scripts/mesure_run.mjs` — le malin, avec le contrôle d'une méta vide (`controleDuMeta({})`) et un cartable vide, fait les séries 55 à 85 % du temps et gagne la Coupe au plus 2 fois sur 64 (compatible à deux écarts-types). Pas au CI : il est déjà près de sa limite de temps.
+
+## 14. Les premières runs, « fucking tough » (27 nov. 2026)
+
+JP : *première run, ça doit être fucking tough faire les séries* ; la cible, *une fois sur quatre* ; le levier, *faire les séries, c'est les faire, faque juste faire qu'on finit plus bas* ; puis, devant les congédiements, *club poche premières runs, mais proprio lousse*.
+
+| Première run (32 saisons, sauf mention) | Séries | Congédié | Rang moyen |
+|---|---|---|---|
+| Avant (20 M$ retenus, trois cœurs), 64 saisons | 48 / 64 | 4 | 10,8e |
+| Ligue +4 éditions | 11 | 16 | 17,6e |
+| Ligue +6 éditions | 9 | 19 | 20,5e |
+| +6, le proprio attend comme pour un club 10 rangs plus bas | 11 | 14 | 20,5e |
+| +6, un objectif sur trois suffit au proprio | 11 | 5 | 20,5e |
+| +7, un objectif sur trois | 7 | 4 | 21,6e |
+| +8, un objectif sur trois | 5 | 2 | 23,7e |
+| **+7, un objectif sur trois, 64 saisons** | **14 / 64** | **11** | **22,6e** |
+
+Un proprio qui attend moins de points ne change presque rien : ce qu'un club poche manque, c'est le rival et la place. **Retenu** : les adversaires portent `LIGUE_DURCIE` étapes de plus (7, 5, 3, 1 aux quatre premières runs ; js/rogue.js), et tant qu'elle est durcie le proprio se contente d'un objectif sur trois (`tenir`, js/run.js `faireLeBilan`). L'étalement sur quatre runs est de moi (JP : *premières runs*) : la deuxième run ne retombe pas d'un coup à 75 % de séries. Le départ, le proprio du quart et la page Contrôle le disent. La borne : séries 10 à 40 %, congédié au plus une fois sur quatre, la Coupe au plus 2 sur 64 (`PREMIERE=1 mesure_run`).
+
+## 15. Un club poche qui grandit (27 nov. 2026, remplace le § 14)
+
+JP a corrigé le § 14 en quatre messages : *la ligue devrait pas être plus forte, mais le club plus poche* ; *club à chier, pas de budget* ; *tu compliques vraiment le côté roguelike* ; *commencer un club poche pis débloquer tranquillement joueurs et upgrades sans devenir plus fort qu'un excellent club normal ; le max possible, le meilleur club de l'histoire*.
+
+**La règle, simple** : la ligue ne change jamais. Ton club part sans le sou — 50 M$ de moins au repêchage (`RETENUE`) — et l'amélioration « budget » le rend en cinq marches de 10 M$ (30 · 50 · 70 · 90 · 110). Tant qu'il n'est pas racheté, le proprio se contente d'un objectif sur trois. Les joueurs viennent du cartable, qui grandit run après run. Tout racheté, c'est le plafond plein : le club d'un excellent DG.
+
+| Première run, proprio lousse (32 saisons) | Séries | Rang moyen | Congédié |
+|---|---|---|---|
+| 40 M$ de moins | 14 | 18,7e | 5 |
+| **50 M$ de moins** | **10** | **22,1e** | **6** |
+| 60 M$ de moins | 3 | 27,6e | 10 |
+| 70 M$ de moins | 0 | 28,8e | 14 |
+| 20 M$, repêcher dans le tiers faible des clubs | 14 | 16,3e | 0 |
+| Le repêchage d'expansion (7 avants, 3 défenseurs, 1 gardien protégés) | 2 | 26,8e | 9 |
+
+**Partis** : `LIGUE_DURCIE` et les étapes de plus du contrôle, la bande et la rareté réglables, le repêchage d'expansion. La #431 (la ligue plus forte) reste en brouillon, à fermer.

@@ -180,7 +180,7 @@ export const reglesDe = R => (R && R.regles) || { exigence: 0, cible: 0, etapes:
  * mais permettent un meilleur contrôle*) : ses relances de repêchage, ses affiches par quart, les joueurs tendus après un gros
  * match, les cartes de ton cartable verrouillées. Sans rien dire, celui d'aujourd'hui.
  */
-export const controleDe = R => ({ relances: RUN.REPECHAGE.RELANCES, affiches: RUN.AFFICHES, offerts: RUN.PORTES, verrous: [], retenue: 0, coeurs: RUN.COEURS, relanceOfferte: false, retirage: false, retire: false, voir: false, ...((R && R.regles && R.regles.controle) || {}) });
+export const controleDe = R => ({ relances: RUN.REPECHAGE.RELANCES, affiches: RUN.AFFICHES, offerts: RUN.PORTES, verrous: [], retenue: 0, coeurs: RUN.COEURS, relanceOfferte: false, retirage: false, retire: false, voir: false, tenir: 2, ...((R && R.regles && R.regles.controle) || {}) });
 
 /* ---------- la séance : créer, garder, rouvrir ---------- */
 /* La version d'une run gardée : 4, la saison et sa ligue (V30) ; une run d'avant ne se relit pas, elle s'arrête à l'ouverture. */
@@ -1145,7 +1145,8 @@ function faireLeBilan(S) {
   const R = S.R, Q = R.quart, objectifs = Q.objectifs.map(o => ({ ...o, ...etatDeLObjectif(S, o) }));
   // Au dernier quart, être des seize suffit : le proprio ne congédie pas un club qui fait les séries.
   const qualifie = Q.n === RUN.QUARTS.length - 1 && rangDe(S, 0) <= RUN.LIGUE.PLACES;
-  const tenus = objectifs.filter(o => o.tenu).length, tenu = tenus >= 2 || qualifie;
+  // Un proprio « lousse » (V33, la première run ; JP : *club poche, mais proprio lousse*) se contente de `tenir` objectifs sur trois.
+  const tenus = objectifs.filter(o => o.tenu).length, tenu = tenus >= controleDe(R).tenir || qualifie;
   const medailles = (tenu ? MEDAILLES_ACTE.passe : RUN.MEDAILLES_QUART_JOUE) + (Q.rivalBattu ? MEDAILLES_ACTE.rival : 0);
   if (!tenu) R.coeurs--;
   const rival = R.ligue.clubs[Q.rival - 1];
