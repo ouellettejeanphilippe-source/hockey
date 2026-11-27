@@ -38,9 +38,9 @@ const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), .
 {
   neuf({ ecussons: 14 });
   const X = controleDuMeta(lireMeta());
-  exiger('une première run : 20 M$ de moins au repêchage, aucune relance, deux affiches, trois joueurs tendus, trois cœurs', X.retenue === 20e6 && X.relances === 0 && X.affiches === 2 && X.offerts === 3 && X.coeurs === 3, JSON.stringify(X));
+  exiger('une première run : 50 M$ de moins au repêchage, aucune relance, deux affiches, trois joueurs tendus, trois cœurs', X.retenue === 50e6 && X.relances === 0 && X.affiches === 2 && X.offerts === 3 && X.coeurs === 3, JSON.stringify(X));
   exiger('dès la deuxième run, deux cœurs', controleDuMeta({ ...lireMeta(), runs: 1 }).coeurs === 2);
-  exiger('les premières runs : la ligue plus forte de 7, 5, 3, 1 éditions, un proprio lousse (un objectif sur trois), puis rien', [0, 1, 2, 3, 4].map(runs => { const x = controleDuMeta({ runs }); return `${x.etapes}/${x.tenir}`; }).join() === '7/1,5/1,3/1,1/1,0/2');
+  exiger('un club poche a un proprio lousse : un objectif sur trois tant que le budget n\'est pas racheté, deux ensuite', controleDuMeta({ runs: 4 }).tenir === 1 && controleDuMeta({ runs: 11, ameliorations: { budget: 5 }, actives: ['budget'] }).tenir === 2 && controleDuMeta({ runs: 11, ameliorations: { budget: 4 }, actives: ['budget'] }).tenir === 1);
   const refus = acheterUneAmelioration('relances');
   exiger('à 14 médailles, la première relance (15) se refuse et dit ce qui manque, sans rien écrire', refus.ok === false && refus.manque === 1 && lireMeta().ecussons === 14 && !lireMeta().ameliorations);
   exiger('une amélioration inconnue ne se paie pas', acheterUneAmelioration('inconnue').ok === false);
@@ -50,7 +50,7 @@ const neuf = (m = {}) => { memoire.clear(); if (m) ecrireMeta({ ...lireMeta(), .
   const m = lireMeta(), P = controleDuMeta(m);
   exiger('tout acheté : chaque médaille dépensée, chaque amélioration au bout, plus rien à payer', m.ecussons === 0 && Object.keys(AMELIORATIONS).every(k => marcheDeLAmelioration(m, k) === AMELIORATIONS[k].prix.length && prixDeLAmelioration(m, k) == null), `${tout} médailles en tout`);
   exiger('deux cases à la première run : tout acheté, seules les deux premières prises sont actives', casesDe(m) === 2 && activesDe(m).join() === 'budget,relances' && P.retenue === 0 && P.relances === 5 && P.affiches === 2 && P.offerts === 3, JSON.stringify(P));
-  exiger('cases pleines, une troisième se refuse ; retirée, la case se libère', activerUneAmelioration('affiche').plein === true && activerUneAmelioration('budget').ok && activerUneAmelioration('affiche').ok && controleDuMeta(lireMeta()).retenue === 20e6 && controleDuMeta(lireMeta()).affiches === 3);
+  exiger('cases pleines, une troisième se refuse ; retirée, la case se libère', activerUneAmelioration('affiche').plein === true && activerUneAmelioration('budget').ok && activerUneAmelioration('affiche').ok && controleDuMeta(lireMeta()).retenue === 50e6 && controleDuMeta(lireMeta()).affiches === 3);
   exiger('les cases s\'ouvrent avec les runs : 2, 3 à la troisième, 4 à la cinquième, 5 à la huitième, 6 à la douzième', [0, 1, 2, 4, 7, 11].map(runs => casesDe({ runs })).join() === '2,2,3,4,5,6');
   exiger('la sixième marche des relances : cinq relances au repêchage et une relance gratuite des joueurs tendus', (() => { const x = controleDuMeta({ ...m, runs: 11, actives: ['relances'] }); return x.relances === 5 && x.relanceOfferte === true; })());
   exiger('six cases à la douzième run : le choix de l\'entraîneur parmi trois, la pièce au choix, le tirage refait, voir d\'avance', (() => { const x = controleDuMeta({ ...m, runs: 11, actives: ['coach', 'piece', 'retirage', 'voir', 'verrou', 'budget'] }); return x.coachs === 3 && x.piece && x.retirage && x.voir && x.retenue === 0; })());

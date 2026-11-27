@@ -137,3 +137,20 @@ JP : *première run, ça doit être fucking tough faire les séries* ; la cible,
 | **+7, un objectif sur trois, 64 saisons** | **14 / 64** | **11** | **22,6e** |
 
 Un proprio qui attend moins de points ne change presque rien : ce qu'un club poche manque, c'est le rival et la place. **Retenu** : les adversaires portent `LIGUE_DURCIE` étapes de plus (7, 5, 3, 1 aux quatre premières runs ; js/rogue.js), et tant qu'elle est durcie le proprio se contente d'un objectif sur trois (`tenir`, js/run.js `faireLeBilan`). L'étalement sur quatre runs est de moi (JP : *premières runs*) : la deuxième run ne retombe pas d'un coup à 75 % de séries. Le départ, le proprio du quart et la page Contrôle le disent. La borne : séries 10 à 40 %, congédié au plus une fois sur quatre, la Coupe au plus 2 sur 64 (`PREMIERE=1 mesure_run`).
+
+## 15. Un club poche qui grandit (27 nov. 2026, remplace le § 14)
+
+JP a corrigé le § 14 en quatre messages : *la ligue devrait pas être plus forte, mais le club plus poche* ; *club à chier, pas de budget* ; *tu compliques vraiment le côté roguelike* ; *commencer un club poche pis débloquer tranquillement joueurs et upgrades sans devenir plus fort qu'un excellent club normal ; le max possible, le meilleur club de l'histoire*.
+
+**La règle, simple** : la ligue ne change jamais. Ton club part sans le sou — 50 M$ de moins au repêchage (`RETENUE`) — et l'amélioration « budget » le rend en cinq marches de 10 M$ (30 · 50 · 70 · 90 · 110). Tant qu'il n'est pas racheté, le proprio se contente d'un objectif sur trois. Les joueurs viennent du cartable, qui grandit run après run. Tout racheté, c'est le plafond plein : le club d'un excellent DG.
+
+| Première run, proprio lousse (32 saisons) | Séries | Rang moyen | Congédié |
+|---|---|---|---|
+| 40 M$ de moins | 14 | 18,7e | 5 |
+| **50 M$ de moins** | **10** | **22,1e** | **6** |
+| 60 M$ de moins | 3 | 27,6e | 10 |
+| 70 M$ de moins | 0 | 28,8e | 14 |
+| 20 M$, repêcher dans le tiers faible des clubs | 14 | 16,3e | 0 |
+| Le repêchage d'expansion (7 avants, 3 défenseurs, 1 gardien protégés) | 2 | 26,8e | 9 |
+
+**Partis** : `LIGUE_DURCIE` et les étapes de plus du contrôle, la bande et la rareté réglables, le repêchage d'expansion. La #431 (la ligue plus forte) reste en brouillon, à fermer.

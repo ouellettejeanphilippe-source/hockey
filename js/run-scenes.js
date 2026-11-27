@@ -147,7 +147,7 @@ export function sceneDepart(V) {
     ${regle ? `<div class="rn-t rn-pied"><span class="rn-k">Sa règle</span><br>${esc(maj(regle.dit))} : <span class="rn-or">+${regle.jetons} jetons</span> le soir.</div>` : ''}</div></section>
   <section class="rn-panneau rn-vignette">${carteP(piece)}<div class="rn-t"><span class="rn-k">Sa pièce de départ${NIVEAUX[k].maitrise !== 1 ? ` · ×${String(NIVEAUX[k].maitrise).replace('.', ',')}` : ''}</span><br><b>${esc(PIECES[piece].nom)}</b><br><span class="rn-gris">${ligneSansRun(piece)}</span></div></section>
   ${choixDeLaPiece}
-  ${X.etapes ? `<div class="rn-t rn-pied"><span class="rn-rg">La ligue est plus forte cette run</span> : ses clubs portent ${X.etapes} édition${X.etapes > 1 ? 's' : ''} de plus. Le proprio le sait, un objectif sur trois lui suffit.</div>` : ''}
+  ${X.retenue ? `<div class="rn-t rn-pied"><span class="rn-rg">Un club sans le sou</span> : ${money(X.retenue)} de moins au repêchage. Le proprio le sait, un objectif sur trois lui suffit.</div>` : ''}
   <div class="rn-t rn-gris">Ton club sort de ton cartable : dix-sept joueurs au plus${X.verrous && X.verrous.length ? `, dont ${X.verrous.length} verrouillé${X.verrous.length > 1 ? 's' : ''}` : ''}, ${offertes ? 'une autre pièce de banc' : 'deux pièces de banc'}. Tu repêches le reste.</div>
   ${V.cranMax > 0 ? `<div class="rn-crans">${Array.from({ length: EXIGENCES.length + 1 }, (_, n) => `<button type="button" class="${n === V.cran ? 'rn-on' : ''}" aria-pressed="${n === V.cran}" data-a="cran" data-v="${n}"${n > V.cranMax ? ' disabled' : ''}><b>${n}</b>${n ? esc(EXIGENCES[n - 1].court) : 'Sans exigence'}</button>`).join('')}</div>` : ''}`)}
   ${bas(bt('Menu', 'quitter'), bt('Commencer', 'prendre-coach', { cls: 'go' }))}`;
@@ -942,7 +942,7 @@ function pageControle(C) {
     `<section class="rn-panneau rn-on">
     <div class="rn-entete"><b class="rn-h">${esc(A.nom)}</b><span class="rn-puce ${active ? 'rn-v' : 'rn-o'}">${active ? 'Active' : n ? 'Au repos' : 'À prendre'} · ${n} de ${A.prix.length}</span></div>
     <div class="rn-t rn-gris">${esc(A.dit)}</div>
-    <div class="rn-t rn-pied"><span class="rn-k">Ta prochaine run</span><br>${X.retenue ? `${money(X.retenue)} de moins` : 'Budget plein'} · ${X.relances} relance${X.relances > 1 ? 's' : ''} · ${X.affiches} affiches · ${X.offerts} joueurs tendus${X.coeurs > 2 ? ' · 3 cœurs' : ''}${X.etapes ? ` · la ligue +${X.etapes}` : ''}</div></section>`,
+    <div class="rn-t rn-pied"><span class="rn-k">Ta prochaine run</span><br>${X.retenue ? `${money(X.retenue)} de moins` : 'Budget plein'} · ${X.relances} relance${X.relances > 1 ? 's' : ''} · ${X.affiches} affiches · ${X.offerts} joueurs tendus${X.coeurs > 2 ? ' · 3 cœurs' : ''}</div></section>`,
     bas(bt('Retour', 'fermer-club'), n ? bt(active ? 'Retirer' : actives.length >= cases ? 'Cases pleines' : 'Activer', 'activer-atout', { v: k, off: !active && actives.length >= cases }) : '', prix == null ? '' : bt(manque ? `Il te manque ${manque}` : `Prendre · ${prix}`, 'prendre-atout', { cls: 'gold', v: k, off: manque > 0 }))];
 }
 function pageVariete(C) {

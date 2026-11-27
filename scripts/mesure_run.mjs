@@ -127,7 +127,7 @@ if (process.env.CRANS) {
 /*
  * JP, 26 nov. 2026 : *la première saison, peu de chances de gagner* ; 27 nov. : *fucking tough faire les séries*, *une fois sur quatre*. Le malin joue
  * avec le contrôle d'un club neuf (js/rogue.js `controleDuMeta` d'une méta vide : 20 M$ de moins, aucune relance, deux
- * affiches, trois cœurs, une ligue de sept éditions plus forte, un proprio lousse), le cartable vide : il fait les séries
+ * affiches, trois cœurs, 50 M$ de moins au repêchage, un proprio lousse), le cartable vide : il fait les séries
  * 10 à 40 % du temps, se fait congédier au plus une fois sur quatre et gagne la Coupe au plus 2 fois sur 64.
  */
 if (process.env.PREMIERE) {

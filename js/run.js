@@ -180,7 +180,7 @@ export const reglesDe = R => (R && R.regles) || { exigence: 0, cible: 0, etapes:
  * mais permettent un meilleur contrôle*) : ses relances de repêchage, ses affiches par quart, les joueurs tendus après un gros
  * match, les cartes de ton cartable verrouillées. Sans rien dire, celui d'aujourd'hui.
  */
-export const controleDe = R => ({ relances: RUN.REPECHAGE.RELANCES, affiches: RUN.AFFICHES, offerts: RUN.PORTES, verrous: [], retenue: 0, coeurs: RUN.COEURS, relanceOfferte: false, retirage: false, retire: false, voir: false, etapes: 0, tenir: 2, ...((R && R.regles && R.regles.controle) || {}) });
+export const controleDe = R => ({ relances: RUN.REPECHAGE.RELANCES, affiches: RUN.AFFICHES, offerts: RUN.PORTES, verrous: [], retenue: 0, coeurs: RUN.COEURS, relanceOfferte: false, retirage: false, retire: false, voir: false, tenir: 2, ...((R && R.regles && R.regles.controle) || {}) });
 
 /* ---------- la séance : créer, garder, rouvrir ---------- */
 /* La version d'une run gardée : 4, la saison et sa ligue (V30) ; une run d'avant ne se relit pas, elle s'arrête à l'ouverture. */
@@ -230,7 +230,7 @@ export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, num
   const E = exigencesDe(exigence);
   const S = seanceVide(donnees, {
     v: VERSION_DE_LA_RUN, graine: String(graine), numero,
-    regles: { exigence: E.n, cible: E.cible, etapes: RUN.ETAPES.map(e => e + E.etapes + ((controle && controle.etapes) || 0)), prime: E.medailles, ...(controle ? { controle } : {}) },
+    regles: { exigence: E.n, cible: E.cible, etapes: RUN.ETAPES.map(e => e + E.etapes), prime: E.medailles, ...(controle ? { controle } : {}) },
     coach: { maitrise: 1, ...coach }, banc: [PIECE_DU_COACH[coach.cle]],
     jetons, coeurs: controle && controle.coeurs || RUN.COEURS, plafond: CAP, mort: 0,
     joueurs: [], vus: [], anciens: [], prets: [], stats: {}, imposes: [],
