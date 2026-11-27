@@ -37,7 +37,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { RUN } from '../js/run.js';
-import { EXIGENCES } from '../js/rogue.js';
+import { EXIGENCES, controleDuMeta } from '../js/rogue.js';
 import { PIECES, BANC_DES_SERIES } from '../js/pieces.js';
 import { jouerLaRun } from './lib/run_robot.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -59,15 +59,15 @@ for (const [cle, x] of Object.entries(JSON.parse(process.env.CRANS_REGLES || '{}
 /* ---------- les processus ---------- */
 if (process.env.BRAS) {
   const [robot, a, b] = process.env.BRAS.split(':');
-  const g0 = Number(process.env.GRAINE0 ?? 0), exigence = Number(process.env.EXIGENCE ?? 0);
+  const g0 = Number(process.env.GRAINE0 ?? 0), exigence = Number(process.env.EXIGENCE ?? 0), controle = process.env.CONTROLE ? JSON.parse(process.env.CONTROLE) : null;
   for (let g = Number(a); g < Number(b); g++) {
     let gains = 0;
     const espion = (m, S) => { if (m === 'match') gains += Math.max(0, S.R.apres.jetons) + S.R.apres.prime; };
-    const r = await jouerLaRun(robot, g0 + g, { espion, exigence });
+    const r = await jouerLaRun(robot, g0 + g, { espion, exigence, controle });
     const R = r.R, sortes = {};
     // Une gravure : un joueur, une sorte, une fois par run — ce que le cartable garde (js/cartable.js `graverAuCartable`).
     for (const cle of new Set((R.galons || []).filter(x => x.type !== 'coupe').map(x => `${x.type}:${x.k}`))) { const type = cle.split(':')[0]; sortes[type] = (sortes[type] || 0) + 1; }
-    console.log(JSON.stringify({ robot, graine: r.graine, coach: r.coach, pts: r.pts, rang: r.rang, coeurs: r.coeurs, cause: r.fin.cause, rondes: r.rondes, coupe: r.coupe, matchs: r.fin.matchs,
+    console.log(JSON.stringify({ robot, graine: r.graine, coach: r.coach, pts: r.pts, rang: r.rang, coeurs: r.coeurs, series: !!R.series, cause: r.fin.cause, rondes: r.rondes, coupe: r.coupe, matchs: r.fin.matchs,
       quarts: r.quarts.map(q => ({ tenus: q.tenus, tenu: q.tenu, pts: q.pts, rang: q.rang, rival: q.rival, o: q.objectifs.map(o => [o.sorte, o.cible, o.valeur, o.tenu ? 1 : 0]) })),
       signatures: r.signatures, relances: r.relances, payees: r.payees, montees: r.montees, pochettes: r.pochettes, forces: r.forces, banc: r.banc, banc0: r.bancDuDepart, jetons: r.jetons, gains, galons: sortes,
       medailles: r.fin.medailles, s: r.s }));
@@ -120,6 +120,24 @@ if (process.env.CRANS) {
     else informer(`Le cran ${k} contre le cran ${k - 1} (jugé à 128 graines)`, ditPaires(p, 'cœur', cent));
   }
   verdict('Les exigences du Rogue');
+  process.exit(process.exitCode || 0);
+}
+
+/* ---------- la première run : peu de chances de gagner (V33) ---------- */
+/*
+ * JP, 26 nov. 2026 : *la première saison, peu de chances de gagner* ; puis, sur les chiffres, *garder 72 %*. Le malin joue
+ * avec le contrôle d'un club neuf (js/rogue.js `controleDuMeta` d'une méta vide : 20 M$ de moins, aucune relance, deux
+ * affiches, trois cœurs), le cartable vide : il fait les séries 55 à 85 % du temps et gagne la Coupe au plus 2 fois sur 64.
+ */
+if (process.env.PREMIERE) {
+  const premiere = await mesurer(['malin'], { CONTROLE: JSON.stringify(controleDuMeta({})) });
+  const series = premiere.filter(r => r.series).length, coupes = premiere.filter(r => r.coupe).length, n = premiere.length;
+  informer('La première run du malin', `${un(moy(premiere.map(r => r.pts)))} points, ${un(moy(premiere.map(r => r.rang)))}e en moyenne, congédié ${premiere.filter(r => r.coeurs <= 0).length} fois sur ${n}`);
+  if (GRAINES >= 32) {
+    exiger('La première run fait les séries 55 à 85 % du temps (compatible)', compatible(series, n, 0.55, 0.85), `${series} sur ${n}`);
+    exiger('La première run gagne la Coupe au plus 2 fois sur 64 (compatible)', compatible(coupes, n, 0, 2 / 64), `${coupes} sur ${n}`);
+  } else informer('Les bornes de la première run (jugées à 32 graines)', `séries ${series} sur ${n}, Coupes ${coupes}`);
+  verdict('La première run du Rogue');
   process.exit(process.exitCode || 0);
 }
 
