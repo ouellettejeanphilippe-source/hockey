@@ -4,5 +4,7 @@
   - Le Club a une page de plus, « Contrôle », la première ouverte : le budget du repêchage (quatre marches), les relances (cinq), la troisième affiche, le quatrième joueur tendu. 470 médailles.
   - À trois cœurs, la première run fait les séries 23 fois sur 32 : plus qu'une sur deux. Dit à JP.
   - Puis JP : *comme des skill trees, comme le Witcher 3, avec un max d'upgrades en même temps*. Ce qu'on achète reste, mais une run n'en porte que quelques-unes : deux cases actives d'abord, une de plus aux runs 3, 5, 8 et 12. Une liste, pas de branches ; le budget prend sa case. On active et on retire au Club.
+  - La tranche 2 (4.12.0) : l'entraîneur parmi deux puis trois, une pièce de départ parmi trois, le tirage refait une fois, une à trois cartes verrouillées à l'Album, voir d'avance à la feuille du soir (le meilleur niveau que ce club te tendrait), une relance gratuite par quart. Tout coûte 985 médailles.
+  - Mesuré : 25 M$ retenus ne changent rien à la première run (22 séries sur 32, contre 23) ; gardé à 20 M$, reposé à JP.
   - Pas encore : verrouiller des cartes, choisir son entraîneur, une pièce de départ parmi trois, refaire le tirage, voir d'avance ; `mesure_run` ne juge pas encore une première run.
   - js/run.js (`controleDe`), js/rogue.js (`AMELIORATIONS`, `controleDuMeta`), js/run-scenes.js (`pageControle`), js/run-jeu.js. `check_meta` (60). Version 4.11.0. Le devis : docs/refonte-v33.md ; la décision : docs/decisions.md.

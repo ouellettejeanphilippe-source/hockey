@@ -107,3 +107,12 @@ Verrouiller des cartes (le cœur le lit déjà : `verrous` ; il manque le geste 
 ### Les cases actives (JP, 26 nov. 2026 : *voir les upgrades comme des skill trees, comme le Witcher 3, avec un max d'upgrades en même temps*)
 
 Trois questions posées, trois réponses : les cases **s'ouvrent avec les runs** (deux d'abord, une de plus aux runs 3, 5, 8 et 12, six au bout : `CASES`) ; **pas de branches, une liste** ; **le budget prend une case** comme les autres. Ce qu'on achète reste ; une run ne porte que ce qui est actif (`activesDe`, `activerUneAmelioration`, `casesDe`). Achetée, une amélioration s'active d'elle-même s'il reste une case. Avec quatre améliorations aujourd'hui, la limite ne mord qu'aux deux premières runs ; elle mordra pour vrai avec celles de la tranche 2 (dix en tout pour six cases). Le « plein contrôle » mesuré plus haut (tout actif à la fois) n'existe donc plus tel quel.
+
+## 12. La tranche 2 (26 nov. 2026)
+
+JP : *Continuer* ; les prix « comme proposés » ; la première run à 25 M$ retenus.
+
+- **Mesuré, 25 M$ retenus** (32 saisons, trois cœurs) : les séries 22 fois sur 32 (98 points, congédié 4), contre 23 à 20 M$ — la même chose, au bruit près ; avec un cartable, 27. Retenir plus ne ramène pas la première run à une sur deux : **gardé à 20 M$** et reposé à JP.
+- **Codé** : choisir son entraîneur (le loto du départ en tire 2, puis 3 : `controleDuMeta(m).coachs`) ; une pièce de départ parmi trois (`piecesDuDepart`, `creerLaRun({ piece })`) ; refaire le tirage une fois, avant le premier tour (`peutRetirer`, la coquille recrée la run avec `retire`, le cartable se retire sous un autre sel) ; verrouiller une, deux, trois cartes à l'Album (`verrouillerUneCarte`, `verrousDe` ; la run les impose d'abord) ; voir d'avance (à la feuille du soir, le plus haut niveau que ce club te tendrait : `ceQuIlTendrait`) ; la sixième marche des relances (une relance gratuite des joueurs tendus à chaque quart : `relanceOfferte`).
+- **Les prix** : verrouiller 30 · 45 · 60, l'entraîneur 40 · 60, la pièce 50, le tirage 50, voir d'avance 40, la sixième relance 60. **Le compte juste** : la tranche 1 coûte 550 médailles, pas 470 comme dit à JP ; tout coûte 985.
+- **Pas encore** : `mesure_run` ne juge pas une première run ; aucun robot n'achète ni ne choisit au départ.

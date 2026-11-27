@@ -180,7 +180,7 @@ export const reglesDe = R => (R && R.regles) || { exigence: 0, cible: 0, etapes:
  * mais permettent un meilleur contrôle*) : ses relances de repêchage, ses affiches par quart, les joueurs tendus après un gros
  * match, les cartes de ton cartable verrouillées. Sans rien dire, celui d'aujourd'hui.
  */
-export const controleDe = R => ({ relances: RUN.REPECHAGE.RELANCES, affiches: RUN.AFFICHES, offerts: RUN.PORTES, verrous: [], retenue: 0, coeurs: RUN.COEURS, ...((R && R.regles && R.regles.controle) || {}) });
+export const controleDe = R => ({ relances: RUN.REPECHAGE.RELANCES, affiches: RUN.AFFICHES, offerts: RUN.PORTES, verrous: [], retenue: 0, coeurs: RUN.COEURS, relanceOfferte: false, retirage: false, retire: false, voir: false, ...((R && R.regles && R.regles.controle) || {}) });
 
 /* ---------- la séance : créer, garder, rouvrir ---------- */
 /* La version d'une run gardée : 4, la saison et sa ligue (V30) ; une run d'avant ne se relit pas, elle s'arrête à l'ouverture. */
@@ -210,7 +210,7 @@ const seanceVide = (donnees, R) => ({ R, donnees, clubs: classerLesClubs(donnees
 function imposerLeCartable(S, cles) {
   // Le tirage selon la rareté : chaque carte court avec le poids de son niveau (un Soutien sort huit fois plus qu'un ★ Phénomène).
   const R = S.R, quota = { ...RUN.IMPOSES }, poids = k => { const p = S.trouver(k), n = p ? niveauDe(p, S.donnees.shard(p.s).players) : 0; return RUN.RARETE[Math.max(0, n)] || 1; };
-  const rang = new Map([...new Set(cles)].map(k => [k, -Math.log(Math.max(1e-9, hache(R.graine, 'cartable', k))) / poids(k)]));
+  const rang = new Map([...new Set(cles)].map(k => [k, -Math.log(Math.max(1e-9, hache(R.graine, controleDe(R).retire ? 'cartable:2' : 'cartable', k))) / poids(k)]));
   // Les cartes verrouillées passent d'abord, dans l'ordre où on les a verrouillées.
   const verrous = controleDe(R).verrous.filter(k => rang.has(k)), ordre = [...verrous, ...[...rang.keys()].filter(k => !verrous.includes(k)).sort((a, b) => rang.get(a) - rang.get(b) || (a < b ? -1 : 1))];
   for (const k of ordre) {
@@ -222,7 +222,11 @@ function imposerLeCartable(S, cles) {
   }
   rebatir(S);
 }
-export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1, exigence = 0, cartable = [], controle = null }) {
+/* Les trois pièces parmi lesquelles la première du départ se choisit (V33 : « Une pièce de départ au choix »), avant la run. */
+export const piecesDuDepart = (coach, graine) => piecesOffertes({ banc: [PIECE_DU_COACH[coach]] }, String(graine), 'depart:0');
+/* Refaire le tirage (V33) : une fois par run, avant le premier tour repêché. La coquille recrée la run, `retire` posé. */
+export const peutRetirer = S => { const R = S.R, X = controleDe(R); return X.retirage && !X.retire && R.phase === 'repechage' && R.imposes.length > 0 && R.rep.tour === R.rep.debut; };
+export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, numero = 1, exigence = 0, cartable = [], controle = null, piece = null }) {
   const E = exigencesDe(exigence);
   const S = seanceVide(donnees, {
     v: VERSION_DE_LA_RUN, graine: String(graine), numero,
@@ -234,8 +238,8 @@ export function creerLaRun(donnees, { graine, coach, jetons = JETONS.depart, num
     relances: 0, sonnes: 0, matchs: [], series: null, histoires: [], hRepos: -RUN.REPOS_HISTOIRE, achats: 0, fin: null,
   });
   rebatir(S);
-  // Ses deux pièces de banc, tirées pour toi : la première offerte de chaque tirage.
-  for (let k = 0; k < RUN.PIECES_DU_DEPART; k++) { S.R.banc = poserLaPiece(S.R.banc, piecesOffertes(S.toi.perso, S.R.graine, `depart:${k}`)[0]); rebatir(S); }
+  // Ses deux pièces de banc, tirées pour toi : la première offerte de chaque tirage ; la première, choisie parmi trois quand le contrôle le permet.
+  for (let k = 0; k < RUN.PIECES_DU_DEPART; k++) { const o = piecesOffertes(S.toi.perso, S.R.graine, `depart:${k}`); S.R.banc = poserLaPiece(S.R.banc, !k && o.includes(piece) ? piece : o[0]); rebatir(S); }
   imposerLeCartable(S, cartable);
   const n = effectifDe(S).length;
   S.R.rep = { tour: n, debut: n, relances: controleDe(S.R).relances, k: 0 };
@@ -731,6 +735,7 @@ function ouvrirLeQuart(S, n) {
     const coeur = ms.slice(4, -RUN.FIN_DU_QUART - 1).filter(m => m.i !== rival.i).sort((a, b) => rangAdv(a) - rangAdv(b) || a.k - b.k)[0];
     if (coeur) gros[coeur.k] = 'elite';
   }
+  if (controleDe(R).relanceOfferte) R.relances++;   // V33 : la sixième marche des relances, une relance gratuite des joueurs tendus par quart
   R.quart = { n, debut, fin, rival: rival.i, gros, affiches: controleDe(R).affiches, pts: 0, hockey: 0, prime: 0, grosJoues: 0, grosGagnes: 0, rivalBattu: null, pochettes: [], objectifs: [] };
   R.quart.objectifs = objectifsDuQuart(S, n);
   R.phase = 'quart';
@@ -1223,6 +1228,12 @@ function ouvrirLesPortes(S, { bande, affronte = null, cle, tour = 0, payees = 0 
  * joueur t'est tendu : tiré selon la rareté (`RUN.RARETE_DES_OFFERTS` : un peu plus de bons joueurs que dans ton cartable) parmi ceux du club qui tiennent dans ton espace
  * et que tu n'as jamais eus. Un club où personne ne tient ne tend personne.
  */
+/* Voir d'avance (V33) : le plus haut niveau qu'un club te tendrait s'il tombait ce soir (son vestiaire, sous ton espace, sans ceux déjà vus). */
+export function ceQuIlTendrait(S, c) {
+  const club = clubDe(S, c), vus = new Set(S.R.vus);
+  const l = club ? club.pool.filter(p => !vus.has(getPersonKey(p)) && tient(S, p)).map(p => niveauDe(p, S.donnees.shard(p.s).players)) : [];
+  return l.length ? Math.max(...l) : null;
+}
 function tirerLesOfferts(S) {
   const R = S.R, P = R.portes, vus = new Set(R.vus);
   const course = p => -Math.log(Math.max(1e-9, hache(R.graine, 'offert', P.cle, P.tour, getPlayerKey(p)))) / (RUN.RARETE_DES_OFFERTS[Math.max(0, niveauDe(p, S.donnees.shard(p.s).players))] || 1);
