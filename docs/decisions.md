@@ -4232,3 +4232,5 @@ JP : *la première saison, ça devrait être peu de chances de gagner, c'est les
 **Écarté** : une ligue plus forte (elle aurait touché toutes les runs) ; des séries moins dures à acheter ; le budget qui revient tout seul par run jouée.
 
 **Les cases actives** (JP, le même jour : *comme le Witcher 3, avec un max d'upgrades en même temps*). Acheter et porter sont deux choses : les médailles achètent pour toujours, les cases limitent ce qu'une run porte, et elles s'ouvrent avec les runs jouées (2, puis 3, 4, 5, 6 aux runs 3, 5, 8 et 12). **Écarté par JP** : quatre cases fixes ; des cases achetées en médailles ; un arbre à branches (il garde une liste) ; le budget toujours actif hors des cases.
+
+**La première run garde 72 % de séries** (JP, 27 nov. 2026, sur les chiffres). Retenir 25 M$ au lieu de 20 ne changeait rien (22 séries sur 32 contre 23) ; écartés : la première run sans ses deux pièces de départ, un proprio plus exigeant la première fois. Elle se rend en séries sans gagner : c'est déjà « peu de chances de gagner ». La borne : `PREMIERE=1` dans `mesure_run`.
